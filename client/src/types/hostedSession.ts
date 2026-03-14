@@ -60,6 +60,22 @@ export interface StartStateCatalogEntry {
   source?: string | null;
 }
 
+export interface BackendVariantSummary {
+  backendId: string;
+  bundleManifestUri?: string | null;
+  adapterManifestUri?: string | null;
+  launchable: boolean;
+  readinessState: string;
+  blockers: string[];
+  warnings: string[];
+  runtimeMode: string;
+  groundingStatus?: string | null;
+  provenance?: Record<string, unknown> | null;
+  conversion?: Record<string, unknown> | null;
+  qualityFlags?: Record<string, unknown> | null;
+  canonicalWriteAllowed?: boolean | null;
+}
+
 export interface SiteWorldRuntimeSummary {
   defaultBackend: string;
   runtimeBaseUrl?: string | null;
@@ -73,6 +89,7 @@ export interface SiteWorldRuntimeSummary {
   supportsStream?: boolean;
   healthStatus?: string | null;
   launchable?: boolean;
+  backendVariants?: Record<string, BackendVariantSummary>;
 }
 
 export type RuntimeManifestSummary = SiteWorldRuntimeSummary;
@@ -130,6 +147,7 @@ export interface SiteModelSummary {
   availableStartStates: string[];
   defaultRuntimeBackend?: string | null;
   availableRuntimeBackends?: string[];
+  backendVariants?: Record<string, BackendVariantSummary>;
 }
 
 export type HostedSessionFailureSource = "runtime" | "presentation_demo";
@@ -310,11 +328,41 @@ export interface HostedBatchSummary {
   exportBundle?: GeneratedOutputStatus | null;
 }
 
+export type ExplorerGroundedSource = "arkit_rgbd" | "video_only" | "runtime_fallback";
+
+export type ExplorerRefineStatus = "idle" | "queued" | "running" | "complete" | "failed";
+
+export interface ExplorerPose {
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+  pitch: number;
+}
+
+export interface ExplorerFrame {
+  cameraId: string;
+  framePath?: string | null;
+  viewport?: Record<string, unknown> | null;
+  snapshotId?: string | null;
+}
+
+export interface ExplorerState {
+  pose: ExplorerPose;
+  explorerFrame?: ExplorerFrame | null;
+  explorerQualityFlags?: Record<string, unknown> | null;
+  groundedSource?: ExplorerGroundedSource | null;
+  refineStatus?: ExplorerRefineStatus | null;
+  debugArtifacts?: Record<string, unknown> | null;
+}
+
 export interface HostedSessionRecord {
   sessionId: string;
   sessionMode: HostedSessionMode;
   runtimeUi?: HostedSessionRuntimeUi;
+  runtime_backend_requested?: string | null;
   runtime_backend_selected: string;
+  runtime_execution_mode?: string | null;
   status: "creating" | "ready" | "running" | "stopped" | "failed";
   site: {
     siteWorldId: string;
@@ -343,6 +391,7 @@ export interface HostedSessionRecord {
   stoppedAt?: string | null;
   elapsedSeconds: number;
   latestEpisode?: HostedEpisodeSummary | null;
+  explorerState?: ExplorerState | null;
   batchSummary?: HostedBatchSummary | null;
   artifactUris: Record<string, string>;
   runtimeHandle?: {
@@ -388,6 +437,7 @@ export interface CreateHostedSessionRequest {
   taskId: string;
   scenarioId: string;
   startStateId: string;
+  requestedBackend?: string | null;
   runtimeSessionConfig?: HostedRuntimeSessionConfig | null;
   requestedOutputs?: string[];
   exportModes?: string[];

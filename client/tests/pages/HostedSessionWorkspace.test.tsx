@@ -294,10 +294,10 @@ describe("HostedSessionWorkspace", () => {
     );
     expect(resetCallIndex).toBeGreaterThanOrEqual(0);
     expect(renderCallIndex).toBeGreaterThan(resetCallIndex);
-    await findModeLabel("Live Runtime");
+    await findModeLabel("Explorer");
   });
 
-  it("auto-switches back to Live Runtime only after a real live frame is fetched", async () => {
+  it("keeps Explorer as the default mode even after a live frame is fetched", async () => {
     mockSearch = "sessionId=session-live-flip";
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input).includes("/api/site-worlds/sessions/session-live-flip/render?cameraId=head_rgb")) {
@@ -346,7 +346,7 @@ describe("HostedSessionWorkspace", () => {
         ),
       ).toBe(true);
     });
-    await findModeLabel("Live Runtime");
+    await findModeLabel("Explorer");
   });
 
   it("switches the render camera in live runtime mode", async () => {
@@ -404,6 +404,10 @@ describe("HostedSessionWorkspace", () => {
         ),
       ).toBe(true);
     });
+    await findModeLabel("Explorer");
+
+    fireEvent.click(screen.getByRole("button", { name: /Live Runtime/i }));
+
     await findModeLabel("Live Runtime");
 
     fireEvent.click(screen.getByRole("button", { name: /wrist/i }));
@@ -462,11 +466,10 @@ describe("HostedSessionWorkspace", () => {
     render(<HostedSessionWorkspace params={{ slug: "siteworld-f5fd54898cfb" }} />);
 
     expect(
-      await screen.findByText(/Canonical site-world explorer/i),
+      await screen.findByText(/Video-grounded interactive explorer/i),
     ).toBeInTheDocument();
-    expect(screen.getByTestId("canonical-viewer")).toHaveTextContent("cabinet_0023");
     expect(
-      screen.getByText(/It does not create fresh geometry or hallucinate missing scene regions in the browser\./i),
+      screen.getByText(/It does not replace the whole viewport with low-resolution generative output\./i),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Open presentation manifest/i })[0]).toHaveAttribute(
       "href",

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useSearch } from "wouter";
 import {
   ArrowLeft,
@@ -13,7 +13,6 @@ import {
   Square,
 } from "lucide-react";
 import { SEO } from "@/components/SEO";
-import { SiteWorldCanonicalViewer } from "@/components/site/SiteWorldCanonicalViewer";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import {
   isRenderableObservationPath,
@@ -27,8 +26,8 @@ import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
 import { withCsrfHeader } from "@/lib/csrf";
 import { auth } from "@/lib/firebase";
 import type {
-  ArtifactExplorerObject,
-  ArtifactExplorerView,
+  ExplorerPose,
+  ExplorerState,
   HostedSessionMode,
   HostedSessionRecord,
   RobotObservationCamera,
@@ -42,6 +41,7 @@ interface HostedSessionWorkspaceProps {
 
 type WorkspaceViewMode = "live_runtime" | "presentation_world";
 type BootstrapState = "idle" | "running" | "done";
+type ExplorerRefineMode = "idle" | "request";
 
 const DEFAULT_RUNTIME_ACTION = [0, 0, 0, 0, 0, 0, 0];
 
@@ -253,42 +253,6 @@ function ModeStateBadge(props: { label: string; tone: "emerald" | "amber" | "ros
   );
 }
 
-function ExplorerViewButton(props: {
-  view: ArtifactExplorerView;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={props.onClick}
-      className={`rounded-[22px] border px-4 py-4 text-left transition ${
-        props.active
-          ? "border-slate-950 bg-slate-950 text-white shadow-sm"
-          : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
-      }`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold">{props.view.title}</p>
-          <p className={`mt-2 text-sm leading-6 ${props.active ? "text-slate-200" : "text-slate-500"}`}>
-            {props.view.description}
-          </p>
-        </div>
-        {props.view.badge ? (
-          <span
-            className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${
-              props.active ? "bg-white/15 text-slate-100" : "bg-slate-100 text-slate-500"
-            }`}
-          >
-            {props.view.badge}
-          </span>
-        ) : null}
-      </div>
-    </button>
-  );
-}
-
 function DiagnosticPanel(props: {
   title: string;
   diagnostic?: HostedSessionRecord["latestRuntimeFailure"] | null;
@@ -371,6 +335,10 @@ function isEditableTarget(target: EventTarget | null) {
   return target.isContentEditable || ["input", "textarea", "select"].includes(tagName);
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
 export default function HostedSessionWorkspace({ params }: HostedSessionWorkspaceProps) {
   const fallbackSite = getSiteWorldById(params.slug);
   const [siteDetail, setSiteDetail] = useState(fallbackSite);
@@ -380,10 +348,8 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const [workspaceError, setWorkspaceError] = useState("");
   const [controlError, setControlError] = useState("");
   const [uiBootstrapUrl, setUiBootstrapUrl] = useState("");
-  const [activeMode, setActiveMode] = useState<WorkspaceViewMode>("live_runtime");
+  const [activeMode, setActiveMode] = useState<WorkspaceViewMode>("presentation_world");
   const [userSelectedMode, setUserSelectedMode] = useState(false);
-  const [selectedExplorerViewId, setSelectedExplorerViewId] = useState("");
-  const [selectedObjectId, setSelectedObjectId] = useState("");
   const [selectedCameraId, setSelectedCameraId] = useState("");
   const [runtimeBusyLabel, setRuntimeBusyLabel] = useState("");
   const [autoBootstrapState, setAutoBootstrapState] = useState<BootstrapState>("idle");
@@ -395,6 +361,20 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     cameraId: string;
     stepIndex: number;
   } | null>(null);
+  const [explorerState, setExplorerState] = useState<ExplorerState | null>(null);
+  const [explorerObservationSrc, setExplorerObservationSrc] = useState("");
+  const [explorerLoadError, setExplorerLoadError] = useState(false);
+  const [explorerViewport, setExplorerViewport] = useState<{ width: number; height: number } | null>(null);
+  const [explorerBusyLabel, setExplorerBusyLabel] = useState("");
+  const [explorerMoveSpeed, setExplorerMoveSpeed] = useState(0.18);
+  const [explorerPose, setExplorerPose] = useState<ExplorerPose>({ x: 0, y: 0, z: 0, yaw: 0, pitch: 0 });
+  const explorerViewportRef = useRef<HTMLDivElement | null>(null);
+  const explorerDragRef = useRef<{ active: boolean; lastX: number; lastY: number }>({
+    active: false,
+    lastX: 0,
+    lastY: 0,
+  });
+  const explorerRenderSeqRef = useRef(0);
   const search = useSearch();
   const [, setLocation] = useLocation();
   const searchParams = useMemo(() => new URLSearchParams(search), [search]);
@@ -442,6 +422,21 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   }, [fallbackSite, params.slug, searchParams, site]);
 
   const authorizedJsonFetch = async (url: string, options: RequestInit = {}) => {
+    const token = auth?.currentUser ? await auth.currentUser.getIdToken() : "";
+    const headers =
+      options.method && options.method !== "GET"
+        ? await withCsrfHeader({ "Content-Type": "application/json" })
+        : {};
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...headers,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+  };
+
+  const authorizedFetch = async (url: string, options: RequestInit = {}) => {
     const token = auth?.currentUser ? await auth.currentUser.getIdToken() : "";
     const headers =
       options.method && options.method !== "GET"
@@ -585,7 +580,16 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     setControlError("");
     setUiBootstrapUrl("");
     setUserSelectedMode(false);
-    setSelectedExplorerViewId("");
+    setExplorerState(null);
+    setExplorerPose({ x: 0, y: 0, z: 0, yaw: 0, pitch: 0 });
+    setExplorerBusyLabel("");
+    setExplorerLoadError(false);
+    setExplorerObservationSrc((current) => {
+      if (current.startsWith("blob:")) {
+        URL.revokeObjectURL(current);
+      }
+      return "";
+    });
   }, [sessionId]);
 
   useEffect(() => {
@@ -595,6 +599,41 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       }
     };
   }, [liveObservationSrc]);
+
+  useEffect(() => {
+    return () => {
+      if (explorerObservationSrc.startsWith("blob:")) {
+        URL.revokeObjectURL(explorerObservationSrc);
+      }
+    };
+  }, [explorerObservationSrc]);
+
+  useEffect(() => {
+    if (sessionRecord?.explorerState) {
+      setExplorerState(sessionRecord.explorerState);
+      setExplorerPose(sessionRecord.explorerState.pose);
+    }
+  }, [sessionRecord?.explorerState]);
+
+  useEffect(() => {
+    const node = explorerViewportRef.current;
+    if (!node || typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) {
+        return;
+      }
+      const width = Math.max(1, Math.round(entry.contentRect.width));
+      const height = Math.max(1, Math.round(entry.contentRect.height));
+      setExplorerViewport((current) =>
+        current && current.width === width && current.height === height ? current : { width, height },
+      );
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [activeMode]);
 
   const sessionMode: HostedSessionMode = sessionRecord?.sessionMode || "runtime_only";
   const taskSelection = sessionRecord?.taskSelection || previewPayload?.taskSelection || site?.taskCatalog[0] || {
@@ -608,6 +647,22 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     startStateId: site?.startStateCatalog[0]?.id || "",
     requestedBackend: site?.defaultRuntimeBackend || "",
   };
+  const requestedBackend =
+    sessionRecord?.runtime_backend_requested
+    || runtimeConfig.requestedBackend
+    || site?.defaultRuntimeBackend
+    || "";
+  const activeBackend = sessionRecord?.runtime_backend_selected || requestedBackend;
+  const backendVariants =
+    sessionRecord?.siteModel?.backendVariants
+    || site?.runtimeManifest?.backendVariants
+    || {};
+  const activeBackendDetails = (activeBackend && backendVariants[activeBackend]) || null;
+  const activeExecutionMode =
+    sessionRecord?.runtime_execution_mode
+    || activeBackendDetails?.runtimeMode
+    || null;
+  const peerBackend = (site?.availableRuntimeBackends || []).find((backendId) => backendId !== activeBackend) || null;
   const scenario = site?.scenarioCatalog.find((item) => item.id === runtimeConfig.scenarioId);
   const startState = site?.startStateCatalog.find((item) => item.id === runtimeConfig.startStateId);
   const robotProfile =
@@ -678,10 +733,12 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     site?.presentationDemoReadiness?.runtimeDemoManifestUri ||
     null;
   const presentationLaunchState = sessionRecord?.presentationLaunchState || null;
+  const peerBackendHref =
+    site && peerBackend
+      ? `/site-worlds/${site.id}/start?taskId=${encodeURIComponent(selectedTaskId || "")}&scenarioId=${encodeURIComponent(runtimeConfig.scenarioId || "")}&startStateId=${encodeURIComponent(runtimeConfig.startStateId || "")}&robotProfileId=${encodeURIComponent(String(robotProfile.id || ""))}&requestedBackend=${encodeURIComponent(peerBackend)}`
+      : null;
   const runtimeReferenceImageUrl = site?.runtimeReferenceImageUrl || null;
   const artifactExplorer = sessionRecord?.siteModel?.artifactExplorer || site?.artifactExplorer || null;
-  const canonicalObjects = (artifactExplorer?.objects || []) as ArtifactExplorerObject[];
-  const artifactExplorerViews = (artifactExplorer?.views || []).filter((item) => item.available);
   const openDemoUrl = uiBootstrapUrl || "";
   const runtimeInteractive =
     Boolean(sessionId) &&
@@ -708,30 +765,6 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const primaryCameraId =
     String(observation?.primaryCameraId || cameraOptions.find((item) => item.defaultEnabled)?.id || cameraOptions[0]?.id || "")
       .trim();
-
-  useEffect(() => {
-    if (artifactExplorerViews.length === 0) {
-      setSelectedExplorerViewId("");
-    } else {
-      setSelectedExplorerViewId((current) =>
-        current && artifactExplorerViews.some((item) => item.id === current) ? current : artifactExplorerViews[0].id,
-      );
-    }
-  }, [artifactExplorerViews]);
-
-  useEffect(() => {
-    if (canonicalObjects.length === 0) {
-      setSelectedObjectId("");
-      return;
-    }
-    const preferred =
-      canonicalObjects.find((item) => item.taskCritical) ||
-      canonicalObjects.find((item) => item.taskRole === "context_object") ||
-      canonicalObjects[0];
-    setSelectedObjectId((current) =>
-      current && canonicalObjects.some((item) => item.id === current) ? current : preferred.id,
-    );
-  }, [canonicalObjects]);
 
   useEffect(() => {
     if (cameraOptions.length === 0) {
@@ -781,13 +814,6 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const runtimeDegraded = Boolean(runtimeDiagnostic && liveObservationSrc);
   const showRuntimeReferencePreview = !hasVisibleObservation && Boolean(runtimeReferenceImageUrl);
   const artifactExplorerReady = artifactExplorer?.status === "ready" || artifactExplorer?.status === "partial";
-  const selectedExplorerView =
-    artifactExplorerViews.find((item) => item.id === selectedExplorerViewId) || artifactExplorerViews[0] || null;
-  const selectedObject =
-    canonicalObjects.find((item) => item.id === selectedObjectId) ||
-    canonicalObjects.find((item) => item.taskCritical) ||
-    canonicalObjects[0] ||
-    null;
   const presentationAvailabilityLabel = presentationInteractive
     ? "Private operator view live"
     : artifactExplorerReady
@@ -812,6 +838,10 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     : artifactExplorerReady
       ? { label: "Explore Site-World: Artifact-backed", tone: "amber" as const }
       : { label: "Explore Site-World: Missing", tone: "rose" as const };
+  const explorerFrameHref = explorerState?.explorerFrame?.framePath || "";
+  const explorerQualityFlags = explorerState?.explorerQualityFlags || null;
+  const explorerRefineStatus = explorerState?.refineStatus || "idle";
+  const explorerGroundedSource = explorerState?.groundedSource || null;
   const generatedRows = [
     { label: "Task", value: taskSelection?.taskText || "Pending" },
     { label: "Scenario", value: scenario?.name || "Pending" },
@@ -834,12 +864,51 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     if (userSelectedMode) {
       return;
     }
-    if (sessionMode === "presentation_demo" || (!hasGenuineLiveObservation && artifactExplorerReady)) {
-      setActiveMode("presentation_world");
+    setActiveMode("presentation_world");
+  }, [userSelectedMode]);
+
+  const applyExplorerState = (nextExplorerState: ExplorerState) => {
+    setExplorerState(nextExplorerState);
+    setSessionRecord((current) =>
+      current
+        ? {
+            ...current,
+            explorerState: nextExplorerState,
+            latestRuntimeFailure: null,
+          }
+        : current,
+    );
+  };
+
+  const requestExplorerRender = async (refineMode: ExplorerRefineMode) => {
+    if (!sessionId || !runtimeInteractive || !explorerViewport) {
       return;
     }
-    setActiveMode("live_runtime");
-  }, [artifactExplorerReady, hasGenuineLiveObservation, sessionMode, userSelectedMode]);
+    const sequence = ++explorerRenderSeqRef.current;
+    setExplorerBusyLabel(refineMode === "request" ? "Refining view" : "Rendering explorer");
+    const response = await authorizedFetch(`/api/site-worlds/sessions/${sessionId}/explorer-render`, {
+      method: "POST",
+      body: JSON.stringify({
+        cameraId: selectedCameraId || primaryCameraId || "head_rgb",
+        pose: explorerPose,
+        viewportWidth: explorerViewport.width,
+        viewportHeight: explorerViewport.height,
+        refineMode: refineMode === "request" ? "request" : null,
+      }),
+    });
+    const payload = (await response.json().catch(() => null)) as {
+      explorerState?: ExplorerState;
+      error?: string;
+    } | null;
+    if (!response.ok || !payload?.explorerState) {
+      throw new Error(payload?.error || "Explorer render failed");
+    }
+    if (sequence !== explorerRenderSeqRef.current) {
+      return;
+    }
+    applyExplorerState(payload.explorerState);
+    setExplorerBusyLabel("");
+  };
 
   const applyRuntimeDiagnostic = (diagnostic?: HostedSessionRecord["latestRuntimeFailure"] | null, fallback?: string) => {
     setSessionRecord((current) =>
@@ -868,6 +937,146 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     setObservationRefreshKey((current) => current + 1);
     setObservationLoadError(false);
   };
+
+  useEffect(() => {
+    if (
+      activeMode !== "presentation_world" ||
+      !runtimeInteractive ||
+      !sessionId ||
+      !explorerViewport ||
+      !(selectedCameraId || primaryCameraId)
+    ) {
+      return;
+    }
+    const timeoutId = window.setTimeout(() => {
+      void requestExplorerRender("idle").catch((error) => {
+        setExplorerBusyLabel("");
+        applyRuntimeDiagnostic(undefined, error instanceof Error ? error.message : "Explorer render failed");
+      });
+    }, 80);
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    activeMode,
+    explorerPose,
+    explorerViewport,
+    primaryCameraId,
+    runtimeInteractive,
+    selectedCameraId,
+    sessionId,
+  ]);
+
+  useEffect(() => {
+    if (
+      activeMode !== "presentation_world" ||
+      !runtimeInteractive ||
+      !sessionId ||
+      !explorerViewport ||
+      !(selectedCameraId || primaryCameraId)
+    ) {
+      return;
+    }
+    setExplorerState((current) =>
+      current ? { ...current, refineStatus: "queued" } : current,
+    );
+    const timeoutId = window.setTimeout(() => {
+      void requestExplorerRender("request").catch((error) => {
+        setExplorerBusyLabel("");
+        setExplorerState((current) =>
+          current ? { ...current, refineStatus: "failed" } : current,
+        );
+        applyRuntimeDiagnostic(undefined, error instanceof Error ? error.message : "Explorer refinement failed");
+      });
+    }, 400);
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    activeMode,
+    explorerPose,
+    explorerViewport,
+    primaryCameraId,
+    runtimeInteractive,
+    selectedCameraId,
+    sessionId,
+  ]);
+
+  useEffect(() => {
+    if (!explorerFrameHref) {
+      setExplorerObservationSrc((current) => {
+        if (current.startsWith("blob:")) {
+          URL.revokeObjectURL(current);
+        }
+        return "";
+      });
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await authorizedFetch(explorerFrameHref);
+        const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+        if (!response.ok || contentType.includes("application/json")) {
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(payload?.error || "Explorer frame fetch failed");
+        }
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        if (cancelled) {
+          URL.revokeObjectURL(objectUrl);
+          return;
+        }
+        setExplorerObservationSrc((current) => {
+          if (current.startsWith("blob:")) {
+            URL.revokeObjectURL(current);
+          }
+          return objectUrl;
+        });
+        setExplorerLoadError(false);
+        setExplorerBusyLabel("");
+      } catch (error) {
+        if (!cancelled) {
+          setExplorerLoadError(true);
+          setExplorerBusyLabel("");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [explorerFrameHref]);
+
+  useEffect(() => {
+    if (activeMode !== "presentation_world") {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.repeat ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        isEditableTarget(event.target)
+      ) {
+        return;
+      }
+      const key = event.key.toLowerCase();
+      if (!["w", "a", "s", "d", "q", "e"].includes(key)) {
+        return;
+      }
+      event.preventDefault();
+      setExplorerPose((current) => {
+        const next = { ...current };
+        if (key === "w") next.z += explorerMoveSpeed;
+        if (key === "s") next.z -= explorerMoveSpeed;
+        if (key === "a") next.x -= explorerMoveSpeed;
+        if (key === "d") next.x += explorerMoveSpeed;
+        if (key === "q") next.y += explorerMoveSpeed * 0.8;
+        if (key === "e") next.y -= explorerMoveSpeed * 0.8;
+        return next;
+      });
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeMode, explorerMoveSpeed]);
 
   useEffect(() => {
     if (!runtimeInteractive || !sessionId || !latestEpisode?.episodeId || !(selectedCameraId || primaryCameraId)) {
@@ -1256,14 +1465,28 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                 Session status: {sessionStatus === "live" ? "Live" : sessionStatus === "starting" ? "Starting" : sessionStatus === "error" ? "Error" : "Stopped"}
               </div>
               <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
-                Backend: {sessionRecord?.runtime_backend_selected || site.defaultRuntimeBackend}
+                Requested: {requestedBackend || site.defaultRuntimeBackend}
               </div>
               <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
-                Mode: {activeMode === "live_runtime" ? "Live Runtime" : "Explore Site-World"}
+                Active: {activeBackend || site.defaultRuntimeBackend}
+              </div>
+              <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+                Runtime mode: {activeExecutionMode || "unknown"}
+              </div>
+              <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+                Mode: {activeMode === "live_runtime" ? "Live Runtime" : "Explorer"}
               </div>
               <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
                 Elapsed: {formatElapsed(elapsedSeconds)}
               </div>
+              {peerBackendHref ? (
+                <a
+                  href={peerBackendHref}
+                  className="inline-flex items-center rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:border-slate-900 hover:text-slate-950"
+                >
+                  Open {peerBackend} peer
+                </a>
+              ) : null}
               <button
                 type="button"
                 onClick={handleStop}
@@ -1308,6 +1531,9 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     </p>
                     <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                       <DetailPill label="Canonical Version" value={canonicalPackageVersion || "Unspecified"} />
+                      <DetailPill label="Requested Backend" value={requestedBackend || "Unspecified"} />
+                      <DetailPill label="Active Backend" value={activeBackend || "Unspecified"} />
+                      <DetailPill label="Runtime Mode" value={activeExecutionMode || "Unknown"} />
                       <DetailPill label="Runtime Step" value={String(latestEpisode?.stepIndex ?? 0)} />
                       <DetailPill label="Reward" value={latestEpisode?.reward != null ? String(latestEpisode.reward) : "0"} />
                       <DetailPill label="Exploration Mode" value={presentationAvailabilityLabel} />
@@ -1383,6 +1609,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                   </p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     <DetailPill label="Primary backend" value={sessionRecord?.siteModel?.defaultRuntimeBackend || site.defaultRuntimeBackend} />
+                    <DetailPill label="Active backend" value={activeBackend || site.defaultRuntimeBackend} />
                     <DetailPill label="Scenario variants" value={String(sessionRecord?.siteModel?.availableScenarioVariants?.length || site.scenarioVariants.length)} />
                     <DetailPill label="Start states" value={String(sessionRecord?.siteModel?.availableStartStates?.length || site.startStates.length)} />
                     <DetailPill label="Pipeline prefix" value={site.pipelinePrefix.split("/").slice(-2).join("/")} />
@@ -1391,6 +1618,9 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     <MetadataLink href={sceneMemoryManifestUri} label="View scene-memory manifest" />
                     <MetadataLink href={conditioningBundleUri} label="View conditioning bundle" />
                     <MetadataLink href={presentationWorldManifestUri} label="View presentation manifest" />
+                    <MetadataLink href={activeBackendDetails?.bundleManifestUri || null} label="View backend bundle" />
+                    <MetadataLink href={activeBackendDetails?.adapterManifestUri || null} label="View backend adapter" />
+                    <MetadataLink href={String((activeBackendDetails?.conversion as Record<string, unknown> | null)?.conversion_report_uri || "") || null} label="View conversion report" />
                   </div>
                 </article>
 
@@ -1652,13 +1882,13 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                 <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Explore Site-World</p>
-                      <h2 className="mt-2 text-2xl font-bold text-slate-900">Canonical site-world explorer</h2>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Explorer</p>
+                      <h2 className="mt-2 text-2xl font-bold text-slate-900">Video-grounded interactive explorer</h2>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
                       <ModeStateBadge label={presentationModeState.label} tone={presentationModeState.tone} />
                       <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
-                        {presentationAvailabilityLabel}
+                        {explorerBusyLabel || humanizeValue(explorerRefineStatus, "idle")}
                       </div>
                     </div>
                   </div>
@@ -1669,47 +1899,118 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                         <div>
                           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Primary Explorer</p>
                           <p className="mt-2 text-sm text-slate-600">
-                            Orbit, pan, and zoom the canonical site-specific world model. This is the real scene geometry bundle, not a captured website UI.
+                            Free-roam with grounded video/ARKit preview first. NeoVerse refinement only fills allowed uncertain regions after you pause or request it.
                           </p>
                         </div>
-                        {artifactExplorer?.sceneKind ? (
-                          <span className="rounded-full bg-slate-950 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white">
-                            {artifactExplorer.sceneKind === "canonical_object_geometry" ? "Canonical object geometry" : "Derived presentation"}
-                          </span>
-                        ) : null}
+                        <span className="rounded-full bg-slate-950 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white">
+                          {humanizeValue(explorerGroundedSource, "runtime fallback")}
+                        </span>
                       </div>
                       <div className="mt-4 rounded-[24px] border border-slate-200 bg-white p-3">
-                        {canonicalObjects.length > 0 ? (
-                          <SiteWorldCanonicalViewer
-                            objects={canonicalObjects}
-                            selectedObjectId={selectedObjectId}
-                            className="border border-slate-200 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.48),rgba(230,225,214,0.66))]"
-                          />
-                        ) : (
-                          <div className="rounded-[20px] border border-dashed border-slate-300 bg-slate-50 p-4">
-                            <SiteWorldGraphic site={site} />
+                        <div
+                          ref={explorerViewportRef}
+                          className="relative min-h-[560px] overflow-hidden rounded-[20px] border border-slate-200 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.72),rgba(226,232,240,0.88))]"
+                          onMouseDown={(event) => {
+                            explorerDragRef.current = {
+                              active: true,
+                              lastX: event.clientX,
+                              lastY: event.clientY,
+                            };
+                          }}
+                          onMouseMove={(event) => {
+                            if (!explorerDragRef.current.active) {
+                              return;
+                            }
+                            const dx = event.clientX - explorerDragRef.current.lastX;
+                            const dy = event.clientY - explorerDragRef.current.lastY;
+                            explorerDragRef.current.lastX = event.clientX;
+                            explorerDragRef.current.lastY = event.clientY;
+                            setExplorerPose((current) => ({
+                              ...current,
+                              yaw: current.yaw - dx * 0.005,
+                              pitch: clamp(current.pitch - dy * 0.005, -1.2, 1.2),
+                            }));
+                          }}
+                          onMouseUp={() => {
+                            explorerDragRef.current.active = false;
+                          }}
+                          onMouseLeave={() => {
+                            explorerDragRef.current.active = false;
+                          }}
+                          onWheel={(event) => {
+                            event.preventDefault();
+                            setExplorerMoveSpeed((current) => clamp(current + (event.deltaY > 0 ? -0.03 : 0.03), 0.06, 0.45));
+                          }}
+                        >
+                          {explorerObservationSrc && !explorerLoadError ? (
+                            <img
+                              src={explorerObservationSrc}
+                              alt="Explorer frame"
+                              className="absolute inset-0 h-full w-full object-contain"
+                              onError={() => setExplorerLoadError(true)}
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
+                              <div className="max-w-lg rounded-[28px] border border-slate-200 bg-white/92 px-8 py-10 text-slate-900 shadow-sm">
+                                <Compass className="mx-auto h-10 w-10 text-slate-400" />
+                                <p className="mt-4 text-lg font-semibold">Explorer frame unavailable</p>
+                                <p className="mt-3 text-sm leading-6 text-slate-600">
+                                  The grounded explorer has not returned a browser-visible frame yet. If the site package lacks ARKit/depth inputs, the runtime will fall back to canonical imagery.
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-4">
+                            <div className="pointer-events-auto rounded-full border border-white/70 bg-white/88 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-700 backdrop-blur-sm">
+                              Camera {selectedCameraId || primaryCameraId || "head_rgb"}
+                            </div>
+                            <div className="pointer-events-auto flex flex-wrap items-center gap-2">
+                              <MetadataLink href={explorerFrameHref || null} label="Open explorer frame" />
+                            </div>
                           </div>
-                        )}
+
+                          <div className="pointer-events-none absolute inset-x-0 bottom-0 p-4 sm:p-5">
+                            <div className="grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
+                              <div className="pointer-events-auto rounded-[24px] border border-white/70 bg-white/88 px-5 py-4 text-slate-900 backdrop-blur-md">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Navigation</p>
+                                <p className="mt-2 text-base font-semibold">WASD move, mouse drag looks around, Q/E move vertically.</p>
+                                <p className="mt-2 text-sm text-slate-600">
+                                  Scroll adjusts movement speed. Rendering stays grounded first and only refines after a short idle pause.
+                                </p>
+                              </div>
+                              <div className="pointer-events-auto grid grid-cols-3 gap-2">
+                                <div className="rounded-[22px] border border-white/70 bg-white/88 px-4 py-4 text-slate-900 backdrop-blur-sm">
+                                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Source</p>
+                                  <p className="mt-2 text-sm font-bold">{humanizeValue(explorerGroundedSource, "fallback")}</p>
+                                </div>
+                                <div className="rounded-[22px] border border-white/70 bg-white/88 px-4 py-4 text-slate-900 backdrop-blur-sm">
+                                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Quality</p>
+                                  <p className="mt-2 text-sm font-bold">{humanizeValue(String(explorerQualityFlags?.presentation_quality || ""), "preview")}</p>
+                                </div>
+                                <div className="rounded-[22px] border border-white/70 bg-white/88 px-4 py-4 text-slate-900 backdrop-blur-sm">
+                                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Speed</p>
+                                  <p className="mt-2 text-sm font-bold">{explorerMoveSpeed.toFixed(2)}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                         <div className="mt-4 grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
                           <div>
-                            <p className="text-lg font-semibold text-slate-950">
-                              {selectedObject ? `${selectedObject.label} in canonical scene` : artifactExplorer?.headline || "Artifact explorer unavailable"}
-                            </p>
+                            <p className="text-lg font-semibold text-slate-950">Grounded preview first, refinement second</p>
                             <p className="mt-2 text-sm leading-6 text-slate-600">
-                              {selectedObject
-                                ? `Focused object: ${selectedObject.label}${selectedObject.taskRole ? ` · ${selectedObject.taskRole.replaceAll("_", " ")}` : ""}.`
-                                : artifactExplorer?.summary || "This site does not expose enough bundled exploration artifacts yet."}
+                              The explorer frame is sourced from ARKit/video reprojection when available and only uses masked NeoVerse refinement for uncertain or unseen regions.
                             </p>
                           </div>
                           <div className="grid gap-3 sm:grid-cols-2">
-                            <DetailPill
-                              label="Derivation mode"
-                              value={humanizeValue(artifactExplorer?.derivationMode, "canonical geometry")}
-                            />
-                            <DetailPill
-                              label="Scene objects"
-                              value={String(canonicalObjects.length || 0)}
-                            />
+                            <DetailPill label="Output size" value={(() => {
+                              const viewport = explorerState?.explorerFrame?.viewport as Record<string, unknown> | undefined;
+                              const width = Number(viewport?.output_width || 0);
+                              const height = Number(viewport?.output_height || 0);
+                              return width > 0 && height > 0 ? `${width} × ${height}` : "Pending";
+                            })()} />
+                            <DetailPill label="Refine status" value={humanizeValue(explorerRefineStatus, "idle")} />
                           </div>
                         </div>
                       </div>
@@ -1719,63 +2020,71 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                       <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
                         <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                           <Compass className="h-4 w-4" />
-                          Scene Focus
+                          Explorer Controls
                         </p>
                         <div className="mt-4 grid gap-3">
-                          {canonicalObjects.length > 0 ? (
-                            canonicalObjects
-                              .slice(0, 12)
-                              .map((object) => (
-                              <ExplorerViewButton
-                                key={object.id}
-                                view={{
-                                  id: object.id,
-                                  title: object.label,
-                                  description:
-                                    `${object.taskRole ? object.taskRole.replaceAll("_", " ") : "context object"} · ${object.taskCritical ? "task critical" : "scene context"}`,
-                                  badge: object.groundingLevel ? humanizeValue(object.groundingLevel) : null,
-                                  available: true,
-                                }}
-                                active={selectedObject?.id === object.id}
-                                onClick={() => setSelectedObjectId(object.id)}
-                              />
-                              ))
-                          ) : (
-                            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-600">
-                              No canonical scene objects are available for this site yet.
-                            </div>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setExplorerPose({ x: 0, y: 0, z: 0, yaw: 0, pitch: 0 });
+                              setExplorerMoveSpeed(0.18);
+                            }}
+                            className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                          >
+                            <RotateCcw className="mr-2 h-4 w-4" />
+                            Reset explorer view
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setExplorerState((current) =>
+                                current ? { ...current, refineStatus: "running" } : current,
+                              );
+                              void requestExplorerRender("request").catch((error) => {
+                                setExplorerBusyLabel("");
+                                setExplorerState((current) =>
+                                  current ? { ...current, refineStatus: "failed" } : current,
+                                );
+                                applyRuntimeDiagnostic(undefined, error instanceof Error ? error.message : "Explorer refinement failed");
+                              });
+                            }}
+                            className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                          >
+                            <Camera className="mr-2 h-4 w-4" />
+                            Refine view
+                          </button>
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700">
+                            <p className="font-semibold text-slate-900">Pose</p>
+                            <p className="mt-2 leading-6">
+                              x {explorerPose.x.toFixed(2)} · y {explorerPose.y.toFixed(2)} · z {explorerPose.z.toFixed(2)}
+                            </p>
+                            <p className="leading-6">
+                              yaw {explorerPose.yaw.toFixed(2)} · pitch {explorerPose.pitch.toFixed(2)}
+                            </p>
+                          </div>
                         </div>
                       </article>
 
                       <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
                         <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                           <Layers3 className="h-4 w-4" />
-                          Secondary Derived Views
+                          Cameras
                         </p>
-                        <div className="mt-4 grid gap-3">
-                          {selectedObject?.selectedViewUrls?.length ? (
-                            <div className="grid grid-cols-2 gap-3">
-                              {selectedObject.selectedViewUrls.slice(0, 4).map((imageUrl, index) => (
-                                <img
-                                  key={imageUrl}
-                                  src={imageUrl}
-                                  alt={`${selectedObject.label} synthetic view ${index + 1}`}
-                                  className="h-28 w-full rounded-2xl border border-slate-200 object-cover"
-                                />
-                              ))}
-                            </div>
-                          ) : selectedExplorerView?.imageUrl ? (
-                            <img
-                              src={selectedExplorerView.imageUrl}
-                              alt={selectedExplorerView.title}
-                              className="h-52 w-full rounded-2xl border border-slate-200 object-cover"
-                            />
-                          ) : (
-                            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-600">
-                              No secondary derived views are bundled for the current focus object.
-                            </div>
-                          )}
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {cameraOptions.map((camera) => (
+                            <button
+                              key={camera.id}
+                              type="button"
+                              onClick={() => setSelectedCameraId(camera.id)}
+                              className={`rounded-full border px-3 py-2 text-sm font-semibold transition ${
+                                selectedCameraId === camera.id
+                                  ? "border-slate-950 bg-slate-950 text-white"
+                                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                              }`}
+                            >
+                              {camera.role}
+                            </button>
+                          ))}
                         </div>
                       </article>
 
@@ -1809,7 +2118,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                   <div className="mt-6 grid gap-4 md:grid-cols-4">
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Explorer source</p>
-                      <p className="mt-2 text-sm font-semibold text-slate-900">Saved world-model artifacts</p>
+                      <p className="mt-2 text-sm font-semibold text-slate-900">{humanizeValue(explorerGroundedSource, "runtime fallback")}</p>
                     </div>
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Canonical truth</p>
@@ -1817,7 +2126,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     </div>
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Browser behavior</p>
-                      <p className="mt-2 text-sm font-semibold text-slate-900">Non-generative at runtime</p>
+                      <p className="mt-2 text-sm font-semibold text-slate-900">Grounded preview with masked refinement</p>
                     </div>
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Operator bridge</p>
@@ -1856,20 +2165,19 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                       <div>
                         <p className="text-sm font-medium text-slate-500">What this mode is</p>
                         <p className="mt-1 text-sm text-slate-900">
-                          A dependable explorer over saved world-model outputs and bundled validation frames.
+                          A free camera explorer grounded on bundled video/ARKit data when available.
                         </p>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-slate-500">What this mode is not</p>
                         <p className="mt-1 text-sm text-slate-900">
-                          It does not create fresh geometry or hallucinate missing scene regions in the browser.
+                          It does not replace the whole viewport with low-resolution generative output.
                         </p>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-slate-500">Derived presentation caveat</p>
                         <p className="mt-1 text-sm text-slate-900">
-                          If a saved presentation artifact already contains inferred or completed regions, you will see those
-                          upstream-derived outputs here, but nothing new is generated client-side.
+                          NeoVerse refinement is advisory and mask-limited. Protected regions stay grounded to canonical/site evidence.
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-3">

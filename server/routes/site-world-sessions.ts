@@ -38,11 +38,13 @@ import {
 import {
   createHostedSessionRun,
   exportHostedSessionRun,
+  fetchHostedSessionExplorerFrame,
   fetchHostedSessionState,
   HostedSessionOrchestratorError,
   loadHostedSessionRuntimeMetadata,
   mergeHostedEpisodeWithState,
   reconcileHostedEpisode,
+  renderHostedSessionExplorer,
   persistHostedSessionRuntimeMetadata,
   resetHostedSessionRun,
   runBatchHostedSessionRun,
@@ -915,11 +917,23 @@ function normalizeRuntimeConfig(
       `Start state ${body.startStateId} is not available for this site.`,
     );
   }
+  const requestedBackend = String(body.requestedBackend || runtime.defaultRuntimeBackend || "").trim() || runtime.defaultRuntimeBackend;
+  if (
+    requestedBackend
+    && Array.isArray(runtime.availableRuntimeBackends)
+    && runtime.availableRuntimeBackends.length > 0
+    && !runtime.availableRuntimeBackends.includes(requestedBackend)
+  ) {
+    throw new HostedSessionRuntimeError(
+      "unsupported_backend",
+      `Backend ${requestedBackend} is not available for this site.`,
+    );
+  }
   return {
     scenarioId: String(body.scenarioId),
     startStateId: String(body.startStateId),
     seed: null,
-    requestedBackend: runtime.defaultRuntimeBackend,
+    requestedBackend,
   };
 }
 
@@ -983,6 +997,7 @@ function buildSiteModelSummary(
     availableStartStates: runtime.availableStartStates,
     defaultRuntimeBackend: runtime.defaultRuntimeBackend,
     availableRuntimeBackends: runtime.availableRuntimeBackends,
+    backendVariants: runtime.runtimeManifest.backendVariants,
   };
 }
 
@@ -1338,6 +1353,36 @@ async function proxyRuntimeRenderForSession(session: HostedSessionRecord, req: R
   return res.send(response.body);
 }
 
+async function proxyRuntimeExplorerFrameForSession(session: HostedSessionRecord, req: Request, res: Response) {
+  try {
+    if (sessionUsesPresentationDemo(session)) {
+      return sessionModeUnsupportedResponse(res);
+    }
+    await ensureRuntimeMetadataForSession(session);
+    const payload = await fetchHostedSessionExplorerFrame({
+      sessionId: session.sessionId,
+      workDir: sessionWorkDir(session.sessionId),
+      cameraId: String(req.query.cameraId || req.query.camera_id || "head_rgb").trim() || "head_rgb",
+    });
+    res.setHeader("Content-Type", "image/png");
+    return res.send(payload);
+  } catch (error) {
+    const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
+      source: "runtime",
+      operation: "render",
+      error,
+      fallbackCode: error instanceof HostedSessionOrchestratorError ? error.code : "explorer_render_failed",
+      fallbackSummary: "Explorer frame fetch failed.",
+    }), session);
+    await updateSession(session.sessionId, { latestRuntimeFailure: diagnostic });
+    return res.status(diagnostic.statusCode || 500).json({
+      error: diagnostic.summary,
+      code: diagnostic.code,
+      diagnostic,
+    });
+  }
+}
+
 async function ensureRuntimeMetadataForSession(session: HostedSessionRecord) {
   if (sessionUsesPresentationDemo(session)) {
     return;
@@ -1452,6 +1497,7 @@ async function createRuntimeOnlySession(params: {
       taskId: params.body.taskId,
       scenarioId: params.body.scenarioId,
       startStateId: params.body.startStateId,
+      requestedBackend: params.record.runtimeConfig?.requestedBackend,
       exportModes: params.record.requestedOutputs || ["raw_bundle", "rlds_dataset"],
       notes: params.record.notes ?? undefined,
       runtimeSessionConfig: params.record.runtimeSessionConfig,
@@ -1464,7 +1510,13 @@ async function createRuntimeOnlySession(params: {
     const datasetArtifacts =
       (createPayload.payload.dataset_artifacts as Record<string, unknown> | undefined) ?? {};
     await updateSession(params.record.sessionId, {
+      runtime_backend_requested:
+        String(createPayload.payload.runtime_backend_requested || params.record.runtimeConfig?.requestedBackend || "").trim() || null,
       runtime_backend_selected: runtimeBackend,
+      runtime_execution_mode:
+        String(createPayload.payload.runtime_execution_mode || "").trim()
+        || params.record.runtime_execution_mode
+        || null,
       status: "ready",
       startedAt: nowTimestamp(),
       artifactUris,
@@ -1485,7 +1537,13 @@ async function createRuntimeOnlySession(params: {
       },
     });
 
-    return (await loadHostedSession(params.record.sessionId)) || { ...params.record, status: "ready" as const, runtime_backend_selected: runtimeBackend };
+    return (await loadHostedSession(params.record.sessionId)) || {
+      ...params.record,
+      status: "ready" as const,
+      runtime_backend_selected: runtimeBackend,
+      runtime_execution_mode:
+        String(createPayload.payload.runtime_execution_mode || "").trim() || params.record.runtime_execution_mode || null,
+    };
   } catch (error) {
     const diagnostic = buildFailureDiagnostic({
       source: "runtime",
@@ -1650,7 +1708,11 @@ function createSessionRecord(params: {
     siteModel: buildSiteModelSummary(params.runtime),
     sessionMode,
     runtimeUi: sessionMode === "presentation_demo" ? (params.body.runtimeUi || "neoverse_gradio") : null,
-    runtime_backend_selected: sessionMode === "presentation_demo" ? "neoverse" : "pending",
+    runtime_backend_requested: runtimeConfig.requestedBackend || params.runtime.defaultRuntimeBackend,
+    runtime_backend_selected: sessionMode === "presentation_demo" ? (runtimeConfig.requestedBackend || "neoverse") : "pending",
+    runtime_execution_mode:
+      params.runtime.runtimeManifest?.backendVariants?.[runtimeConfig.requestedBackend || params.runtime.defaultRuntimeBackend || ""]?.runtimeMode
+      || null,
     status: "creating" as const,
     robotProfileId: params.body.robotProfileId,
     robotProfile,
@@ -1672,6 +1734,7 @@ function createSessionRecord(params: {
     stoppedAt: null,
     elapsedSeconds: 0,
     latestEpisode: null,
+    explorerState: null,
     batchSummary: null,
     artifactUris: {},
     runtimeHandle: null,
@@ -1709,6 +1772,46 @@ function createSessionRecord(params: {
       scene_memory_manifest_uri: params.runtime.sceneMemoryManifestUri,
     },
   } satisfies HostedSessionRecord;
+}
+
+function normalizeExplorerPose(body: unknown) {
+  const payload = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+  return {
+    x: Number(payload.x || 0),
+    y: Number(payload.y || 0),
+    z: Number(payload.z || 0),
+    yaw: Number(payload.yaw || 0),
+    pitch: Number(payload.pitch || 0),
+  };
+}
+
+function buildExplorerState(
+  sessionId: string,
+  payload: Record<string, unknown>,
+): HostedSessionRecord["explorerState"] {
+  const cameraId = String(payload.camera_id || "head_rgb").trim() || "head_rgb";
+  return {
+    pose: normalizeExplorerPose(payload.pose),
+    explorerFrame: {
+      cameraId,
+      framePath: `/api/site-worlds/sessions/${encodeURIComponent(sessionId)}/explorer-frame?cameraId=${encodeURIComponent(cameraId)}`,
+      viewport:
+        payload.viewport && typeof payload.viewport === "object"
+          ? (payload.viewport as Record<string, unknown>)
+          : null,
+      snapshotId: String(payload.snapshot_id || "").trim() || null,
+    },
+    explorerQualityFlags:
+      payload.quality_flags && typeof payload.quality_flags === "object"
+        ? (payload.quality_flags as Record<string, unknown>)
+        : null,
+    groundedSource: String(payload.grounded_source || "").trim() as NonNullable<HostedSessionRecord["explorerState"]>["groundedSource"],
+    refineStatus: String(payload.refine_status || "").trim() as NonNullable<HostedSessionRecord["explorerState"]>["refineStatus"],
+    debugArtifacts:
+      payload.debug_artifacts && typeof payload.debug_artifacts === "object"
+        ? (payload.debug_artifacts as Record<string, unknown>)
+        : null,
+  };
 }
 
 function sessionModeUnsupportedResponse(res: Response) {
@@ -2262,6 +2365,52 @@ publicSiteWorldSessionsRouter.get("/:sessionId/render", async (req, res, next) =
   return proxyRuntimeRenderForSession(session, req, res);
 });
 
+publicSiteWorldSessionsRouter.post("/:sessionId/explorer-render", async (req, res, next) => {
+  try {
+    const session = await loadHostedSession(String(req.params.sessionId || ""));
+    if (!session || !isPublicDemoSession(session)) {
+      return next();
+    }
+    if (sessionUsesPresentationDemo(session)) {
+      return sessionModeUnsupportedResponse(res);
+    }
+    await ensureRuntimeMetadataForSession(session);
+    const payload = await renderHostedSessionExplorer({
+      sessionId: session.sessionId,
+      workDir: sessionWorkDir(session.sessionId),
+      cameraId: String(req.body?.cameraId || req.body?.camera_id || "head_rgb").trim() || "head_rgb",
+      pose: normalizeExplorerPose(req.body?.pose),
+      viewportWidth: Number(req.body?.viewportWidth || req.body?.viewport_width || 0) || null,
+      viewportHeight: Number(req.body?.viewportHeight || req.body?.viewport_height || 0) || null,
+      refineMode: String(req.body?.refineMode || req.body?.refine_mode || "").trim() || null,
+    });
+    const explorerState = buildExplorerState(session.sessionId, payload as Record<string, unknown>);
+    void updateSession(session.sessionId, { explorerState, latestRuntimeFailure: null }, { awaitPersist: false });
+    return res.json({ explorerState });
+  } catch (error) {
+    const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
+      source: "runtime",
+      operation: "render",
+      error,
+      fallbackCode: error instanceof HostedSessionOrchestratorError ? error.code : "explorer_render_failed",
+      fallbackSummary: "Explorer render failed.",
+    }), await loadHostedSession(String(req.params.sessionId || "")));
+    const sessionId = String(req.params.sessionId || "");
+    if (sessionId) {
+      await updateSession(sessionId, { latestRuntimeFailure: diagnostic });
+    }
+    return res.status(diagnostic.statusCode || 500).json({ error: diagnostic.summary, code: diagnostic.code, diagnostic });
+  }
+});
+
+publicSiteWorldSessionsRouter.get("/:sessionId/explorer-frame", async (req, res, next) => {
+  const session = await loadHostedSession(String(req.params.sessionId || ""));
+  if (!session || !isPublicDemoSession(session)) {
+    return next();
+  }
+  return proxyRuntimeExplorerFrameForSession(session, req, res);
+});
+
 publicSiteWorldSessionsRouter.post("/:sessionId/export", async (req, res, next) => {
   try {
     const session = await loadHostedSession(String(req.params.sessionId || ""));
@@ -2715,6 +2864,53 @@ protectedRouter.get("/:sessionId/render", async (req, res) => {
     return res.status(404).json({ error: "Hosted session not found" });
   }
   return proxyRuntimeRenderForSession(session, req, res);
+});
+
+protectedRouter.post("/:sessionId/explorer-render", async (req, res) => {
+  try {
+    await ensureLaunchAccess(req, res);
+    const session = await loadHostedSession(String(req.params.sessionId || ""));
+    if (!session) {
+      return res.status(404).json({ error: "Hosted session not found" });
+    }
+    if (sessionUsesPresentationDemo(session)) {
+      return sessionModeUnsupportedResponse(res);
+    }
+    await ensureRuntimeMetadataForSession(session);
+    const payload = await renderHostedSessionExplorer({
+      sessionId: session.sessionId,
+      workDir: sessionWorkDir(session.sessionId),
+      cameraId: String(req.body?.cameraId || req.body?.camera_id || "head_rgb").trim() || "head_rgb",
+      pose: normalizeExplorerPose(req.body?.pose),
+      viewportWidth: Number(req.body?.viewportWidth || req.body?.viewport_width || 0) || null,
+      viewportHeight: Number(req.body?.viewportHeight || req.body?.viewport_height || 0) || null,
+      refineMode: String(req.body?.refineMode || req.body?.refine_mode || "").trim() || null,
+    });
+    const explorerState = buildExplorerState(session.sessionId, payload as Record<string, unknown>);
+    void updateSession(session.sessionId, { explorerState, latestRuntimeFailure: null }, { awaitPersist: false });
+    return res.json({ explorerState });
+  } catch (error) {
+    const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
+      source: "runtime",
+      operation: "render",
+      error,
+      fallbackCode: error instanceof HostedSessionOrchestratorError ? error.code : "explorer_render_failed",
+      fallbackSummary: "Explorer render failed.",
+    }), await loadHostedSession(String(req.params.sessionId || "")));
+    const sessionId = String(req.params.sessionId || "");
+    if (sessionId) {
+      await updateSession(sessionId, { latestRuntimeFailure: diagnostic });
+    }
+    return res.status(diagnostic.statusCode || 500).json({ error: diagnostic.summary, code: diagnostic.code, diagnostic });
+  }
+});
+
+protectedRouter.get("/:sessionId/explorer-frame", async (req, res) => {
+  const session = await loadHostedSession(String(req.params.sessionId || ""));
+  if (!session) {
+    return res.status(404).json({ error: "Hosted session not found" });
+  }
+  return proxyRuntimeExplorerFrameForSession(session, req, res);
 });
 
 protectedRouter.post("/:sessionId/export", async (req, res) => {

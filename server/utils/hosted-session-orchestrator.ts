@@ -24,6 +24,19 @@ export class HostedSessionOrchestratorError extends Error {
   }
 }
 
+export interface HostedExplorerRenderPayload {
+  session_id?: string;
+  camera_id?: string;
+  frame_path?: string | null;
+  pose?: Record<string, unknown> | null;
+  viewport?: Record<string, unknown> | null;
+  grounded_source?: string | null;
+  refine_status?: string | null;
+  quality_flags?: Record<string, unknown> | null;
+  debug_artifacts?: Record<string, unknown> | null;
+  snapshot_id?: string | null;
+}
+
 function sessionWorkRoot() {
   return (
     process.env.BLUEPRINT_HOSTED_SESSION_WORK_ROOT ||
@@ -279,6 +292,55 @@ async function runtimeFetchJson(
       `Failed to reach runtime request ${relativePath}: ${error instanceof Error ? error.message : String(error)}`,
       { statusCode: 502 },
     );
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function runtimeFetchBytes(
+  baseUrl: string,
+  relativePath: string,
+  init?: RequestInit,
+): Promise<Buffer> {
+  const url = `${baseUrl}${relativePath}`;
+  const timeoutMs = Math.max(
+    1000,
+    Number(process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_TIMEOUT_MS || 45000),
+  );
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    if (shouldUseCurlRuntimeHttp()) {
+      const response = await runtimeRequestViaCurl(url, init);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw new HostedSessionOrchestratorError(
+          "runtime_proxy_failed",
+          response.body.toString("utf-8").trim() || `Runtime request failed: ${response.statusCode}`,
+          { statusCode: response.statusCode },
+        );
+      }
+      return response.body;
+    }
+    if (shouldUseNodeRuntimeHttp()) {
+      const response = await runtimeRequestViaNode(url, init);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw new HostedSessionOrchestratorError(
+          "runtime_proxy_failed",
+          response.body.toString("utf-8").trim() || `Runtime request failed: ${response.statusCode}`,
+          { statusCode: response.statusCode },
+        );
+      }
+      return response.body;
+    }
+    const response = await fetch(url, { ...init, signal: controller.signal });
+    if (!response.ok) {
+      throw new HostedSessionOrchestratorError(
+        "runtime_proxy_failed",
+        (await response.text().catch(() => "")).trim() || `Runtime request failed: ${response.status}`,
+        { statusCode: response.status },
+      );
+    }
+    return Buffer.from(await response.arrayBuffer());
   } finally {
     clearTimeout(timeout);
   }
@@ -604,6 +666,7 @@ export async function createHostedSessionRun(params: {
   taskId: string;
   scenarioId: string;
   startStateId: string;
+  requestedBackend?: string | null;
   exportModes: string[];
   notes?: string;
   runtimeSessionConfig?: HostedRuntimeSessionConfig | null;
@@ -626,6 +689,7 @@ export async function createHostedSessionRun(params: {
           task_id: params.taskId,
           scenario_id: params.scenarioId,
           start_state_id: params.startStateId,
+          requested_backend: params.requestedBackend || params.runtime.defaultRuntimeBackend || null,
           export_modes: params.exportModes,
           notes: params.notes || "",
           canonical_package_uri: runtimeSessionConfig?.canonical_package_uri || null,
@@ -700,10 +764,13 @@ export async function createHostedSessionRun(params: {
     runtime_capabilities: payload.runtime_capabilities || handle.registration.runtime_capabilities || {},
     health_status: String(handle.health.status || "healthy"),
     last_heartbeat_at: handle.health.last_heartbeat_at ? String(handle.health.last_heartbeat_at) : null,
+    runtime_execution_mode: String(payload.runtime_execution_mode || "").trim() || null,
   });
   return {
     payload: {
-      runtime_backend_selected: "neoverse",
+      runtime_backend_requested: String(params.requestedBackend || params.runtime.defaultRuntimeBackend || "").trim() || null,
+      runtime_backend_selected: String(payload.runtime_backend_selected || params.requestedBackend || params.runtime.defaultRuntimeBackend || "neoverse"),
+      runtime_execution_mode: String(payload.runtime_execution_mode || "").trim() || null,
       runtime_session_id: payload.session_id,
       runtime_session_metadata: {
         site_world_id: handle.siteWorldId,
@@ -783,6 +850,56 @@ export async function stepHostedSessionRun(params: {
     episode: normalizeEpisode(rawEpisode),
     rawEpisode,
   };
+}
+
+export async function renderHostedSessionExplorer(params: {
+  sessionId: string;
+  workDir: string;
+  cameraId?: string | null;
+  pose?: Record<string, unknown> | null;
+  viewportWidth?: number | null;
+  viewportHeight?: number | null;
+  refineMode?: string | null;
+}) {
+  const metadata = await readRuntimeMetadata(params.workDir);
+  const runtimeBaseUrl = String(metadata.runtime_base_url || "").trim();
+  if (!runtimeBaseUrl) {
+    throw new HostedSessionOrchestratorError("runtime_handle_missing", "Missing runtime base URL.");
+  }
+  const payload = await runtimeFetchJson(
+    runtimeBaseUrl,
+    `/v1/sessions/${encodeURIComponent(params.sessionId)}/explorer-render`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        camera_id: params.cameraId || "head_rgb",
+        pose: params.pose || {},
+        viewport_width: params.viewportWidth ?? null,
+        viewport_height: params.viewportHeight ?? null,
+        refine_mode: params.refineMode ?? null,
+      }),
+    },
+  );
+  return payload as HostedExplorerRenderPayload;
+}
+
+export async function fetchHostedSessionExplorerFrame(params: {
+  sessionId: string;
+  workDir: string;
+  cameraId?: string | null;
+}) {
+  const metadata = await readRuntimeMetadata(params.workDir);
+  const runtimeBaseUrl = String(metadata.runtime_base_url || "").trim();
+  if (!runtimeBaseUrl) {
+    throw new HostedSessionOrchestratorError("runtime_handle_missing", "Missing runtime base URL.");
+  }
+  return runtimeFetchBytes(
+    runtimeBaseUrl,
+    `/v1/sessions/${encodeURIComponent(params.sessionId)}/explorer-frame?camera_id=${encodeURIComponent(
+      params.cameraId || "head_rgb",
+    )}`,
+  );
 }
 
 export async function runBatchHostedSessionRun(params: {
