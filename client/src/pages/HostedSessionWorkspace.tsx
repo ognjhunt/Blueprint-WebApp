@@ -61,10 +61,24 @@ const RUNTIME_ACTION_PRESETS = [
     autoPolicy: false,
   },
   {
+    id: "glide-back",
+    label: "Move backward",
+    description: "Ease backward to reframe the current corridor or workcell.",
+    action: [-0.35, 0, 0, 0, 0, 0, 1],
+    autoPolicy: false,
+  },
+  {
     id: "turn-left",
     label: "Turn left",
     description: "Rotate toward a new observation cone without leaving the current state.",
     action: [0, 0, 0.35, 0, 0, 0, 1],
+    autoPolicy: false,
+  },
+  {
+    id: "turn-right",
+    label: "Turn right",
+    description: "Rotate toward the opposite side of the site-world without leaving the current state.",
+    action: [0, 0, -0.35, 0, 0, 0, 1],
     autoPolicy: false,
   },
   {
@@ -75,6 +89,52 @@ const RUNTIME_ACTION_PRESETS = [
     autoPolicy: false,
   },
 ] as const;
+
+const RUNTIME_KEYBOARD_ACTIONS: Record<
+  string,
+  { label: string; action: number[]; autoPolicy: boolean }
+> = {
+  arrowup: {
+    label: "Moving forward",
+    action: [0.45, 0, 0, 0, 0, 0, 1],
+    autoPolicy: false,
+  },
+  w: {
+    label: "Moving forward",
+    action: [0.45, 0, 0, 0, 0, 0, 1],
+    autoPolicy: false,
+  },
+  arrowdown: {
+    label: "Moving backward",
+    action: [-0.35, 0, 0, 0, 0, 0, 1],
+    autoPolicy: false,
+  },
+  s: {
+    label: "Moving backward",
+    action: [-0.35, 0, 0, 0, 0, 0, 1],
+    autoPolicy: false,
+  },
+  arrowleft: {
+    label: "Turning left",
+    action: [0, 0, 0.35, 0, 0, 0, 1],
+    autoPolicy: false,
+  },
+  a: {
+    label: "Turning left",
+    action: [0, 0, 0.35, 0, 0, 0, 1],
+    autoPolicy: false,
+  },
+  arrowright: {
+    label: "Turning right",
+    action: [0, 0, -0.35, 0, 0, 0, 1],
+    autoPolicy: false,
+  },
+  d: {
+    label: "Turning right",
+    action: [0, 0, -0.35, 0, 0, 0, 1],
+    autoPolicy: false,
+  },
+};
 
 const SCRIPTED_WALKTHROUGH = [
   {
@@ -301,6 +361,14 @@ function resolveRemoteCameraFramePath(
       remoteObservation?.frame_path ||
       "",
   ).trim();
+}
+
+function isEditableTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  const tagName = target.tagName.toLowerCase();
+  return target.isContentEditable || ["input", "textarea", "select"].includes(tagName);
 }
 
 export default function HostedSessionWorkspace({ params }: HostedSessionWorkspaceProps) {
@@ -942,6 +1010,35 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     }
   };
 
+  useEffect(() => {
+    if (!runtimeInteractive || activeMode !== "live_runtime") {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.repeat ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        isEditableTarget(event.target) ||
+        Boolean(runtimeBusyLabel)
+      ) {
+        return;
+      }
+      const binding = RUNTIME_KEYBOARD_ACTIONS[event.key.toLowerCase()];
+      if (!binding) {
+        return;
+      }
+      event.preventDefault();
+      void stepRuntime(binding);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [activeMode, runtimeBusyLabel, runtimeInteractive, stepRuntime]);
+
   const handleScriptedWalkthrough = async () => {
     if (!sessionId || !runtimeInteractive) {
       return;
@@ -1519,6 +1616,9 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
 
                   <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Step Controls</p>
+                    <p className="mt-2 text-sm text-slate-600">
+                      Free-roam with <span className="font-semibold text-slate-900">WASD</span> or the arrow keys.
+                    </p>
                     <div className="mt-4 space-y-3">
                       {RUNTIME_ACTION_PRESETS.map((preset) => (
                         <button
