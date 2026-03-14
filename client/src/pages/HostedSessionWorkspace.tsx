@@ -722,7 +722,32 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     sessionRecord?.siteModel?.siteWorldSpecUri ||
     site?.siteWorldSpecUri ||
     null;
-  const canonicalPackageVersion = sessionRecord?.runtimeSessionConfig?.canonical_package_version || null;
+  const canonicalPackageVersion =
+    sessionRecord?.runtimeSessionConfig?.canonical_package_version ||
+    sessionRecord?.siteModel?.registeredCanonicalPackageVersion ||
+    null;
+  const renderSource = String(
+    qualityFlags?.render_source ||
+      qualityFlags?.preview_source ||
+      qualityFlags?.renderer_backend ||
+      sessionRecord?.siteModel?.runtimeRenderSource ||
+      "",
+  ).trim();
+  const primaryRuntimeBackend = String(
+    qualityFlags?.primary_runtime_backend || sessionRecord?.siteModel?.primaryRuntimeBackend || "",
+  ).trim();
+  const worldModelBackend = String(
+    qualityFlags?.world_model_backend || sessionRecord?.siteModel?.worldModelBackend || "",
+  ).trim();
+  const sceneRepresentation = String(
+    qualityFlags?.scene_representation || sessionRecord?.siteModel?.sceneRepresentation || "",
+  ).trim();
+  const fallbackMode = String(
+    qualityFlags?.fallback_mode || sessionRecord?.siteModel?.fallbackMode || "",
+  ).trim();
+  const groundingStatus = String(
+    qualityFlags?.grounding_status || sessionRecord?.siteModel?.groundingStatus || "",
+  ).trim();
   const siteWorldRegistrationUri =
     sessionRecord?.siteModel?.siteWorldRegistrationUri || site?.siteWorldRegistrationUri || null;
   const siteWorldHealthUri = sessionRecord?.siteModel?.siteWorldHealthUri || site?.siteWorldHealthUri || null;
@@ -1844,9 +1869,13 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">World model quality</p>
                         <div className="mt-4 space-y-3 text-sm text-slate-700">
                           <p>Render quality: {humanizeValue(String(qualityFlags?.presentation_quality || ""), "unknown")}</p>
-                          <p>Render source: {humanizeValue(String(qualityFlags?.preview_source || qualityFlags?.renderer_backend || ""), "unknown")}</p>
-                          <p>Scene representation: {humanizeValue(String(qualityFlags?.scene_representation || ""), "unknown")}</p>
-                          <p>Fallback mode: {humanizeValue(String(qualityFlags?.fallback_mode || ""), "none")}</p>
+                          <p>Render source: {humanizeValue(renderSource, "unknown")}</p>
+                          <p>Primary runtime backend: {humanizeValue(primaryRuntimeBackend, "unknown")}</p>
+                          <p>World-model backend: {humanizeValue(worldModelBackend, "unknown")}</p>
+                          <p>Scene representation: {humanizeValue(sceneRepresentation, "unknown")}</p>
+                          <p>Grounding status: {humanizeValue(groundingStatus, "unknown")}</p>
+                          <p>Fallback mode: {humanizeValue(fallbackMode, "none")}</p>
+                          <p>Canonical package version: {humanizeValue(canonicalPackageVersion || "", "unknown")}</p>
                           <p>Protected-region violations: {protectedRegionViolations.length}</p>
                           {runtimeDegraded && lastLiveRenderContext ? (
                             <p className="text-xs text-amber-700">

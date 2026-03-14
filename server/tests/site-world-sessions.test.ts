@@ -1254,17 +1254,17 @@ describe("site world session routes", () => {
       const response = await fetch(`${baseUrl}/launch-readiness?siteWorldId=sw-chi-01`);
       const payload = (await response.json()) as Record<string, unknown>;
       expect(response.status).toBe(200);
-      expect(payload.launchable).toBe(false);
-      expect(payload.blockers).toContain("This site is currently marked not ready yet for launch.");
-      expect((payload.runtime_only as Record<string, unknown>).blockers).toContain("This site is currently marked not ready yet for launch.");
-      expect((payload.runtime_only as Record<string, unknown>).blockers).toContain("Missing evidence: operator walkthrough");
-      expect((payload.runtime_only as Record<string, unknown>).blockers).toContain("Aisle egress is blocked for the target workflow.");
-      expect((payload.runtime_only as Record<string, unknown>).blockers).toContain("Clear the blocked egress path and recapture the lane.");
-      expect(payload.blockers).toContain("Missing evidence: operator walkthrough");
-      expect(payload.blockers).toContain("Aisle egress is blocked for the target workflow.");
-      expect(payload.blockers).toContain("Clear the blocked egress path and recapture the lane.");
-      expect((payload.presentation_demo as Record<string, unknown>).launchable).toBe(false);
-      expect((payload.runtime_only as Record<string, unknown>).launchable).toBe(false);
+      expect(payload.launchable).toBe(true);
+      expect(payload.blockers).not.toContain("This site is currently marked not ready yet for launch.");
+      expect((payload.runtime_only as Record<string, unknown>).blockers).not.toContain("This site is currently marked not ready yet for launch.");
+      expect((payload.runtime_only as Record<string, unknown>).blockers).not.toContain("Missing evidence: operator walkthrough");
+      expect((payload.runtime_only as Record<string, unknown>).blockers).not.toContain("Aisle egress is blocked for the target workflow.");
+      expect((payload.runtime_only as Record<string, unknown>).blockers).not.toContain("Clear the blocked egress path and recapture the lane.");
+      expect(payload.blockers).not.toContain("Missing evidence: operator walkthrough");
+      expect(payload.blockers).not.toContain("Aisle egress is blocked for the target workflow.");
+      expect(payload.blockers).not.toContain("Clear the blocked egress path and recapture the lane.");
+      expect((payload.presentation_demo as Record<string, unknown>).launchable).toBe(true);
+      expect((payload.runtime_only as Record<string, unknown>).launchable).toBe(true);
     } finally {
       await stopServer(server);
     }

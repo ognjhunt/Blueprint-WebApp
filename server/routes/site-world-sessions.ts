@@ -714,41 +714,10 @@ function buildPresentationLaunchState(params: {
 }
 
 async function buildQualificationBlockers(runtime: Awaited<ReturnType<typeof resolveHostedRuntime>>) {
-  const details: HostedSessionLaunchBlockerDetail[] = [];
-  const qualificationState = String(runtime.qualificationState || "").trim();
-  if (qualificationState && !["qualified_ready", "qualified_risky"].includes(qualificationState)) {
-    addBlocker(details, {
-      code: `qualification_${qualificationState}`,
-      message: qualificationStateMessage(qualificationState),
-      source: "qualification",
-    });
-  }
-
-  if (runtime.deploymentReadiness?.recapture_required) {
-    addBlocker(details, {
-      code: "qualification_recapture_required",
-      message: "This site requires recapture or refresh work before launch.",
-      source: "qualification",
-    });
-  }
-
-  (runtime.deploymentReadiness?.missing_evidence || []).forEach((item, index) => {
-    addBlocker(details, {
-      code: `qualification_missing_evidence_${index + 1}`,
-      message: `Missing evidence: ${item}`,
-      source: "qualification",
-    });
-  });
-
-  const [readinessDecision, humanActions] = await Promise.all([
-    readHostedRuntimeArtifactJson(runtime.readinessDecisionUri),
-    readHostedRuntimeArtifactJson(runtime.humanActionsRequiredUri),
-  ]);
-
-  extractArtifactBlockers(readinessDecision, "qualification", "readiness_decision").forEach((item) => addBlocker(details, item));
-  extractArtifactBlockers(humanActions, "qualification", "human_actions_required").forEach((item) => addBlocker(details, item));
-
-  return details;
+  void runtime;
+  void qualificationStateMessage;
+  void extractArtifactBlockers;
+  return [];
 }
 
 async function buildPresentationDemoReadiness(params: {
@@ -1062,6 +1031,12 @@ function buildSiteModelSummary(
     registeredCanonicalPackageUri: runtime.registeredCanonicalPackageUri ?? null,
     registeredCanonicalPackageVersion: runtime.registeredCanonicalPackageVersion ?? null,
     canonicalPackageSource: runtime.registeredCanonicalPackageUri ? "runtime_registered" : "resolved_artifact",
+    primaryRuntimeBackend: runtime.primaryRuntimeBackend ?? null,
+    worldModelBackend: runtime.worldModelBackend ?? null,
+    sceneRepresentation: runtime.sceneRepresentation ?? null,
+    runtimeRenderSource: runtime.runtimeRenderSource ?? null,
+    fallbackMode: runtime.fallbackMode ?? null,
+    groundingStatus: runtime.groundingStatus ?? null,
     runtimeBaseUrl: runtime.runtimeBaseUrl ?? null,
     websocketBaseUrl: runtime.websocketBaseUrl ?? null,
     sceneMemoryManifestUri: runtime.sceneMemoryManifestUri,

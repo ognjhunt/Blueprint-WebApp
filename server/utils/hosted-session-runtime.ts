@@ -62,6 +62,12 @@ export interface HostedRuntimeResolution {
   resolvedArtifactCanonicalUri: string;
   registeredCanonicalPackageUri?: string | null;
   registeredCanonicalPackageVersion?: string | null;
+  primaryRuntimeBackend?: string | null;
+  worldModelBackend?: string | null;
+  sceneRepresentation?: string | null;
+  runtimeRenderSource?: string | null;
+  fallbackMode?: string | null;
+  groundingStatus?: string | null;
   runtimeSiteWorldRecord?: Record<string, unknown> | null;
   runtimeHealthRecord?: Record<string, unknown> | null;
   runtimeBaseUrl?: string | null;
@@ -309,6 +315,7 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
   }
 
   const registrationPayload = await readHostedRuntimeArtifactJson(siteWorldRegistrationUri);
+  const siteWorldSpecPayload = await readHostedRuntimeArtifactJson(siteWorldSpecUri);
   const demoRuntimeBaseUrl =
     site.id === DEMO_SITE_WORLD_ID
       ? getConfiguredEnvValue("BLUEPRINT_HOSTED_DEMO_RUNTIME_BASE_URL", "VITE_HOSTED_DEMO_RUNTIME_BASE_URL")
@@ -388,6 +395,58 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
         || runtimeSiteWorldRecord?.canonicalPackageVersion
         || "",
     ).trim() || null;
+  const canonicalWorldModel =
+    siteWorldSpecPayload?.canonical_world_model && typeof siteWorldSpecPayload.canonical_world_model === "object"
+      ? (siteWorldSpecPayload.canonical_world_model as Record<string, unknown>)
+      : {};
+  const primaryRuntimeBackend =
+    String(
+      runtimeSiteWorldRecord?.primary_runtime_backend
+        || registrationPayload?.primary_runtime_backend
+        || siteWorldSpecPayload?.primary_runtime_backend
+        || site.defaultRuntimeBackend
+        || "",
+    ).trim() || null;
+  const worldModelBackend =
+    String(
+      runtimeHealthRecord?.world_model_backend
+        || runtimeSiteWorldRecord?.world_model_backend
+        || registrationPayload?.world_model_backend
+        || canonicalWorldModel.world_model_backend
+        || "",
+    ).trim() || null;
+  const sceneRepresentation =
+    String(
+      runtimeHealthRecord?.scene_representation
+        || runtimeSiteWorldRecord?.scene_representation
+        || registrationPayload?.scene_representation
+        || canonicalWorldModel.scene_representation
+        || "",
+    ).trim() || null;
+  const runtimeRenderSource =
+    String(
+      runtimeHealthRecord?.render_source
+        || runtimeSiteWorldRecord?.render_source
+        || siteWorldSpecPayload?.runtime_render_source
+        || canonicalWorldModel.render_source
+        || "",
+    ).trim() || null;
+  const fallbackMode =
+    String(
+      runtimeHealthRecord?.fallback_mode
+        || runtimeSiteWorldRecord?.fallback_mode
+        || siteWorldSpecPayload?.fallback_mode
+        || canonicalWorldModel.fallback_mode
+        || "",
+    ).trim() || null;
+  const groundingStatus =
+    String(
+      runtimeHealthRecord?.grounding_status
+        || runtimeSiteWorldRecord?.grounding_status
+        || registrationPayload?.grounding_status
+        || siteWorldSpecPayload?.grounding_status
+        || "",
+    ).trim() || null;
 
   return {
     siteWorldId: site.id,
@@ -426,6 +485,12 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     resolvedArtifactCanonicalUri,
     registeredCanonicalPackageUri,
     registeredCanonicalPackageVersion,
+    primaryRuntimeBackend,
+    worldModelBackend,
+    sceneRepresentation,
+    runtimeRenderSource,
+    fallbackMode,
+    groundingStatus,
     runtimeSiteWorldRecord,
     runtimeHealthRecord,
     runtimeBaseUrl,

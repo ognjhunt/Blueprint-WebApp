@@ -143,6 +143,12 @@ export interface SiteModelSummary {
   registeredCanonicalPackageUri?: string | null;
   registeredCanonicalPackageVersion?: string | null;
   canonicalPackageSource?: "runtime_registered" | "resolved_artifact";
+  primaryRuntimeBackend?: string | null;
+  worldModelBackend?: string | null;
+  sceneRepresentation?: string | null;
+  runtimeRenderSource?: string | null;
+  fallbackMode?: string | null;
+  groundingStatus?: string | null;
   artifactExplorer?: ArtifactExplorerSummary | null;
   availableScenarioVariants: string[];
   availableStartStates: string[];
