@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
+import { attachRequestMeta, logger } from "../logger";
 import type { HostedRuntimeSessionConfig } from "../types/hosted-session";
 import { parseGsUri } from "./pipeline-dashboard";
 import type { HostedRuntimeResolution } from "./hosted-session-runtime";
@@ -66,16 +67,81 @@ async function runtimeFetchJson(
   relativePath: string,
   init?: RequestInit,
 ): Promise<Record<string, unknown>> {
-  const response = await fetch(`${baseUrl}${relativePath}`, init);
-  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!response.ok) {
-    throw new HostedSessionOrchestratorError(
-      "runtime_proxy_failed",
-      String(payload.detail || payload.error || `Runtime request failed: ${response.status}`),
-      { statusCode: response.status },
+  const url = `${baseUrl}${relativePath}`;
+  const timeoutMs = Math.max(1000, Number(process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_TIMEOUT_MS || 45000));
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const startedAt = Date.now();
+
+  try {
+    const response = await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+    const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+    if (!response.ok) {
+      throw new HostedSessionOrchestratorError(
+        "runtime_proxy_failed",
+        String(payload.detail || payload.error || `Runtime request failed: ${response.status}`),
+        { statusCode: response.status },
+      );
+    }
+    logger.info(
+      attachRequestMeta({
+        runtimeUrl: url,
+        runtimeMethod: String(init?.method || "GET").toUpperCase(),
+        durationMs: Date.now() - startedAt,
+      }),
+      "Hosted runtime request completed",
     );
+    return payload;
+  } catch (error) {
+    if (error instanceof HostedSessionOrchestratorError) {
+      logger.warn(
+        attachRequestMeta({
+          runtimeUrl: url,
+          runtimeMethod: String(init?.method || "GET").toUpperCase(),
+          durationMs: Date.now() - startedAt,
+          code: error.code,
+          statusCode: error.statusCode ?? undefined,
+        }),
+        "Hosted runtime request failed",
+      );
+      throw error;
+    }
+    if (error instanceof Error && error.name === "AbortError") {
+      logger.warn(
+        attachRequestMeta({
+          runtimeUrl: url,
+          runtimeMethod: String(init?.method || "GET").toUpperCase(),
+          durationMs: Date.now() - startedAt,
+          timeoutMs,
+        }),
+        "Hosted runtime request timed out",
+      );
+      throw new HostedSessionOrchestratorError(
+        "runtime_proxy_timeout",
+        `Timed out after ${timeoutMs}ms waiting for runtime request ${relativePath}.`,
+        { statusCode: 504 },
+      );
+    }
+    logger.warn(
+      attachRequestMeta({
+        runtimeUrl: url,
+        runtimeMethod: String(init?.method || "GET").toUpperCase(),
+        durationMs: Date.now() - startedAt,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      }),
+      "Hosted runtime request was unreachable",
+    );
+    throw new HostedSessionOrchestratorError(
+      "runtime_proxy_unreachable",
+      `Failed to reach runtime request ${relativePath}: ${error instanceof Error ? error.message : String(error)}`,
+      { statusCode: 502 },
+    );
+  } finally {
+    clearTimeout(timeout);
   }
-  return payload;
 }
 
 async function resolveRuntimeHandle(runtime: HostedRuntimeResolution) {

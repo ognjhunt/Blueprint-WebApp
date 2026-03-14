@@ -168,6 +168,43 @@ describe("stepHostedSessionRun", () => {
       action: [0, 0, 0, 0, 0, 0, 0],
     });
   });
+
+  it("returns runtime_proxy_timeout when the runtime never responds", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "bp-hosted-session-step-timeout-"));
+    const workDir = path.join(tmpRoot, "work");
+    await fs.mkdir(workDir, { recursive: true });
+    await fs.writeFile(
+      path.join(workDir, "runtime_metadata.json"),
+      JSON.stringify({ runtime_base_url: "http://runtime.local" }),
+      "utf-8",
+    );
+
+    const previousTimeout = process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_TIMEOUT_MS;
+    process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_TIMEOUT_MS = "5";
+    global.fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => new Promise((_, reject) => {
+      const signal = init?.signal;
+      signal?.addEventListener("abort", () => {
+        reject(new DOMException("The operation was aborted.", "AbortError"));
+      });
+    })) as typeof global.fetch;
+
+    try {
+      await expect(stepHostedSessionRun({
+        sessionId: "session-step-timeout",
+        workDir,
+        episodeId: "episode-1",
+      })).rejects.toMatchObject({
+        code: "runtime_proxy_timeout",
+        statusCode: 504,
+      });
+    } finally {
+      if (previousTimeout === undefined) {
+        delete process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_TIMEOUT_MS;
+      } else {
+        process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_TIMEOUT_MS = previousTimeout;
+      }
+    }
+  });
 });
 
 describe("reconcileHostedEpisode", () => {

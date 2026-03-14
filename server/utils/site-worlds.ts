@@ -852,6 +852,22 @@ function buildStaticRecord(template: SiteWorldCard): SiteWorldCard {
   };
 }
 
+function findStaticSiteWorldById(id: string): SiteWorldCard | null {
+  const normalizedId = String(id || "").trim();
+  if (!normalizedId) {
+    return null;
+  }
+
+  const template = siteWorldCards.find(
+    (item) =>
+      item.id === normalizedId ||
+      item.siteSubmissionId === normalizedId ||
+      item.sceneId === normalizedId ||
+      item.captureId === normalizedId,
+  );
+  return template ? buildStaticRecord(template) : null;
+}
+
 async function buildLiveRecord(
   requestId: string,
   request: InboundRequest,
@@ -1178,6 +1194,11 @@ export async function listPublicSiteWorlds(limit = 24): Promise<SiteWorldCard[]>
 }
 
 export async function getPublicSiteWorldById(id: string): Promise<SiteWorldCard | null> {
+  const staticRecord = findStaticSiteWorldById(id);
+  if (staticRecord) {
+    return staticRecord;
+  }
+
   const catalog = await listPublicSiteWorlds(100);
   return (
     catalog.find(

@@ -787,6 +787,98 @@ describe("site world session routes", () => {
     }
   });
 
+  it("does not re-resolve hosted runtime during reset when session defaults already exist", async () => {
+    const runtimeModule = await import("../utils/hosted-session-runtime");
+    const resolveHostedRuntimeSpy = vi.spyOn(runtimeModule, "resolveHostedRuntime");
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const create = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteWorldId: "sw-chi-01",
+          robotProfileId: "other_sample",
+          taskId: "sw-chi-01-task-1",
+          scenarioId: "sw-chi-01-scenario-1",
+          startStateId: "sw-chi-01-start-1",
+          requestedOutputs: ["observation_frames"],
+          exportModes: ["raw_bundle"],
+        }),
+      });
+      const createPayload = (await create.json()) as Record<string, unknown>;
+      if (create.status !== 201) {
+        throw new Error(JSON.stringify(createPayload));
+      }
+
+      expect(resolveHostedRuntimeSpy).toHaveBeenCalledTimes(1);
+
+      const created = createPayload as { sessionId: string };
+      const reset = await fetch(`${baseUrl}/${created.sessionId}/reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+
+      expect(reset.status).toBe(200);
+      expect(resolveHostedRuntimeSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      resolveHostedRuntimeSpy.mockRestore();
+      await stopServer(server);
+    }
+  });
+
+  it("times out render proxy requests when the runtime render endpoint stalls", async () => {
+    const previousTimeout = process.env.BLUEPRINT_HOSTED_SESSION_RENDER_TIMEOUT_MS;
+    process.env.BLUEPRINT_HOSTED_SESSION_RENDER_TIMEOUT_MS = "5";
+    global.fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).startsWith("http://runtime.local/v1/sessions/") && String(input).includes("/render?")) {
+        return new Promise((_, reject) => {
+          const signal = init?.signal;
+          signal?.addEventListener("abort", () => {
+            reject(new DOMException("The operation was aborted.", "AbortError"));
+          });
+        });
+      }
+      return originalFetch(input, init);
+    }) as typeof global.fetch;
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const create = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteWorldId: "sw-chi-01",
+          robotProfileId: "other_sample",
+          taskId: "sw-chi-01-task-1",
+          scenarioId: "sw-chi-01-scenario-1",
+          startStateId: "sw-chi-01-start-1",
+          requestedOutputs: ["observation_frames"],
+          exportModes: ["raw_bundle"],
+        }),
+      });
+      const createPayload = (await create.json()) as Record<string, unknown>;
+      if (create.status !== 201) {
+        throw new Error(JSON.stringify(createPayload));
+      }
+
+      const created = createPayload as { sessionId: string };
+      const render = await fetch(`${baseUrl}/${created.sessionId}/render`);
+      const renderPayload = (await render.json()) as Record<string, unknown>;
+
+      expect(render.status).toBe(504);
+      expect(renderPayload.code).toBe("runtime_render_timeout");
+    } finally {
+      if (previousTimeout === undefined) {
+        delete process.env.BLUEPRINT_HOSTED_SESSION_RENDER_TIMEOUT_MS;
+      } else {
+        process.env.BLUEPRINT_HOSTED_SESSION_RENDER_TIMEOUT_MS = previousTimeout;
+      }
+      await stopServer(server);
+    }
+  }, 10000);
+
   it("creates and reuses a presentation demo session", async () => {
     const { server, baseUrl } = await startServer();
     try {

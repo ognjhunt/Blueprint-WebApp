@@ -5,6 +5,7 @@ import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
 import { Router, Request, Response } from "express";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { attachRequestMeta, logger } from "../logger";
 import type {
   CreateHostedSessionRequest,
   HostedBatchSummary,
@@ -1041,9 +1042,56 @@ async function proxyRuntimeRenderForSession(session: HostedSessionRecord, req: R
     return res.status(409).json({ error: diagnostic.summary, code: diagnostic.code, diagnostic });
   }
   const cameraId = String(req.query.cameraId || req.query.camera_id || "head_rgb").trim() || "head_rgb";
-  const response = await fetch(
-    `${runtimeBaseUrl}/v1/sessions/${encodeURIComponent(session.sessionId)}/render?camera_id=${encodeURIComponent(cameraId)}`,
+  const renderUrl =
+    `${runtimeBaseUrl}/v1/sessions/${encodeURIComponent(session.sessionId)}/render?camera_id=${encodeURIComponent(cameraId)}`;
+  const timeoutMs = Math.max(
+    1000,
+    Number(process.env.BLUEPRINT_HOSTED_SESSION_RENDER_TIMEOUT_MS || process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_TIMEOUT_MS || 45000),
   );
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const startedAt = Date.now();
+  let response: globalThis.Response;
+  try {
+    response = await fetch(renderUrl, { signal: controller.signal });
+  } catch (error) {
+    clearTimeout(timeout);
+    const runtimeError =
+      error instanceof Error && error.name === "AbortError"
+        ? {
+            code: "runtime_render_timeout",
+            detail: `Timed out after ${timeoutMs}ms waiting for runtime render.`,
+            statusCode: 504,
+          }
+        : {
+            code: "runtime_render_unreachable",
+            detail: `Failed to reach runtime render endpoint: ${error instanceof Error ? error.message : String(error)}`,
+            statusCode: 502,
+          };
+    logger.warn(
+      attachRequestMeta({
+        requestId: res.locals?.requestId,
+        traceId: res.locals?.traceId,
+        sessionId: session.sessionId,
+        runtimeUrl: renderUrl,
+        durationMs: Date.now() - startedAt,
+        timeoutMs: runtimeError.code === "runtime_render_timeout" ? timeoutMs : undefined,
+        code: runtimeError.code,
+      }),
+      "Hosted session render proxy failed before receiving a response",
+    );
+    const diagnostic = buildFailureDiagnostic({
+      source: "runtime",
+      operation: "render",
+      error: runtimeError,
+      fallbackCode: runtimeError.code,
+      fallbackSummary: "Failed to proxy runtime render.",
+      statusCode: runtimeError.statusCode,
+    });
+    await updateSession(session.sessionId, { latestRuntimeFailure: diagnostic });
+    return res.status(runtimeError.statusCode).json({ error: diagnostic.summary, code: diagnostic.code, diagnostic });
+  }
+  clearTimeout(timeout);
   if (!response.ok) {
     const runtimeError = await readRuntimeErrorDetail(response);
     const diagnostic = buildFailureDiagnostic({
@@ -1063,6 +1111,16 @@ async function proxyRuntimeRenderForSession(session: HostedSessionRecord, req: R
     return res.status(response.status).json({ error: diagnostic.summary, code: diagnostic.code, diagnostic });
   }
   const arrayBuffer = await response.arrayBuffer();
+  logger.info(
+    attachRequestMeta({
+      requestId: res.locals?.requestId,
+      traceId: res.locals?.traceId,
+      sessionId: session.sessionId,
+      runtimeUrl: renderUrl,
+      durationMs: Date.now() - startedAt,
+    }),
+    "Hosted session render proxy completed",
+  );
   if (session.latestRuntimeFailure?.operation === "render") {
     await updateSession(session.sessionId, { latestRuntimeFailure: null });
   }
@@ -1129,6 +1187,42 @@ async function ensureRuntimeMetadataForSession(session: HostedSessionRecord) {
     health_status: String(session.runtimeHandle?.health_status || "").trim() || null,
     last_heartbeat_at: String(session.runtimeHandle?.last_heartbeat_at || "").trim() || null,
   });
+}
+
+function hostedSessionRouteLogContext(
+  req: Request,
+  res: Response,
+  session: HostedSessionRecord,
+  operation: HostedSessionFailureOperation,
+  routeScope: "public" | "protected",
+) {
+  return attachRequestMeta({
+    requestId: res.locals?.requestId,
+    traceId: res.locals?.traceId,
+    method: req.method,
+    path: req.originalUrl || req.path,
+    sessionId: session.sessionId,
+    siteWorldId: session.site.siteWorldId,
+    operation,
+    routeScope,
+  });
+}
+
+async function resolveResetRouteInputs(
+  session: HostedSessionRecord,
+  body: Record<string, unknown> | null | undefined,
+) {
+  const startState = String(body?.startStateId || session.runtimeConfig?.startStateId || "").trim();
+  const scenario = String(body?.scenarioId || session.runtimeConfig?.scenarioId || "").trim();
+  if (startState && scenario) {
+    return { startState, scenario };
+  }
+
+  const runtime = await resolveHostedRuntime(session.site.siteWorldId);
+  return {
+    startState: startState || String(runtime.startStateCatalog[0]?.id || "").trim(),
+    scenario: scenario || String(runtime.scenarioCatalog[0]?.id || "").trim(),
+  };
 }
 
 async function createRuntimeOnlySession(params: {
@@ -1719,20 +1813,30 @@ publicSiteWorldSessionsRouter.post("/:sessionId/reset", async (req, res, next) =
     if (sessionUsesPresentationDemo(session)) {
       return sessionModeUnsupportedResponse(res);
     }
+    const logContext = hostedSessionRouteLogContext(req, res, session, "reset", "public");
+    logger.info(logContext, "Hosted session reset started");
     await ensureRuntimeMetadataForSession(session);
-    const runtime = await resolveHostedRuntime(session.site.siteWorldId);
-    const startState = String(
-      req.body?.startStateId || session.runtimeConfig?.startStateId || runtime.startStateCatalog[0]?.id || "",
-    ).trim();
-    const scenario = String(
-      req.body?.scenarioId || session.runtimeConfig?.scenarioId || runtime.scenarioCatalog[0]?.id || "",
-    ).trim();
+    logger.info(logContext, "Hosted session runtime metadata ready");
+    const { startState, scenario } = await resolveResetRouteInputs(
+      session,
+      req.body && typeof req.body === "object" ? (req.body as Record<string, unknown>) : null,
+    );
     const seed =
       typeof req.body?.seed === "number"
         ? req.body.seed
         : typeof session.runtimeConfig?.seed === "number"
           ? session.runtimeConfig.seed
           : undefined;
+    logger.info(
+      attachRequestMeta({
+        ...logContext,
+        taskId: req.body?.taskId || session.taskSelection?.taskId || undefined,
+        scenarioId: scenario,
+        startStateId: startState,
+        seed: seed ?? undefined,
+      }),
+      "Hosted session reset runtime inputs resolved",
+    );
     const payload = await resetHostedSessionRun({
       sessionId: session.sessionId,
       workDir: sessionWorkDir(session.sessionId),
@@ -1741,12 +1845,14 @@ publicSiteWorldSessionsRouter.post("/:sessionId/reset", async (req, res, next) =
       startStateId: startState,
       seed,
     });
+    logger.info(logContext, "Hosted session reset runtime call completed");
     const reconciledEpisode = await reconcileHostedEpisode({
       sessionId: session.sessionId,
       workDir: sessionWorkDir(session.sessionId),
       episode: payload.rawEpisode,
       expectedStepIndex: 0,
     });
+    logger.info(logContext, "Hosted session reset snapshot reconciled");
     const latestEpisode = normalizeEpisodeSummary(
       session.sessionId,
       reconciledEpisode,
@@ -1763,6 +1869,14 @@ publicSiteWorldSessionsRouter.post("/:sessionId/reset", async (req, res, next) =
         requestedBackend: session.runtime_backend_selected,
       },
     });
+    logger.info(
+      attachRequestMeta({
+        ...logContext,
+        episodeId: latestEpisode?.episodeId || undefined,
+        stepIndex: latestEpisode?.stepIndex || 0,
+      }),
+      "Hosted session reset completed",
+    );
     return res.json({ ...payload, episode: latestEpisode });
   } catch (error) {
     const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
@@ -2154,20 +2268,30 @@ protectedRouter.post("/:sessionId/reset", async (req, res) => {
     if (sessionUsesPresentationDemo(session)) {
       return sessionModeUnsupportedResponse(res);
     }
+    const logContext = hostedSessionRouteLogContext(req, res, session, "reset", "protected");
+    logger.info(logContext, "Hosted session reset started");
     await ensureRuntimeMetadataForSession(session);
-    const runtime = await resolveHostedRuntime(session.site.siteWorldId);
-    const startState = String(
-      req.body?.startStateId || session.runtimeConfig?.startStateId || runtime.startStateCatalog[0]?.id || "",
-    ).trim();
-    const scenario = String(
-      req.body?.scenarioId || session.runtimeConfig?.scenarioId || runtime.scenarioCatalog[0]?.id || "",
-    ).trim();
+    logger.info(logContext, "Hosted session runtime metadata ready");
+    const { startState, scenario } = await resolveResetRouteInputs(
+      session,
+      req.body && typeof req.body === "object" ? (req.body as Record<string, unknown>) : null,
+    );
     const seed =
       typeof req.body?.seed === "number"
         ? req.body.seed
         : typeof session.runtimeConfig?.seed === "number"
           ? session.runtimeConfig.seed
           : undefined;
+    logger.info(
+      attachRequestMeta({
+        ...logContext,
+        taskId: req.body?.taskId || session.taskSelection?.taskId || undefined,
+        scenarioId: scenario,
+        startStateId: startState,
+        seed: seed ?? undefined,
+      }),
+      "Hosted session reset runtime inputs resolved",
+    );
     const payload = await resetHostedSessionRun({
       sessionId: session.sessionId,
       workDir: sessionWorkDir(session.sessionId),
@@ -2176,12 +2300,14 @@ protectedRouter.post("/:sessionId/reset", async (req, res) => {
       startStateId: startState,
       seed,
     });
+    logger.info(logContext, "Hosted session reset runtime call completed");
     const reconciledEpisode = await reconcileHostedEpisode({
       sessionId: session.sessionId,
       workDir: sessionWorkDir(session.sessionId),
       episode: payload.rawEpisode,
       expectedStepIndex: 0,
     });
+    logger.info(logContext, "Hosted session reset snapshot reconciled");
     const latestEpisode = normalizeEpisodeSummary(session.sessionId, reconciledEpisode);
     await updateSession(session.sessionId, {
       latestEpisode,
@@ -2195,6 +2321,14 @@ protectedRouter.post("/:sessionId/reset", async (req, res) => {
         requestedBackend: session.runtime_backend_selected,
       },
     });
+    logger.info(
+      attachRequestMeta({
+        ...logContext,
+        episodeId: latestEpisode?.episodeId || undefined,
+        stepIndex: latestEpisode?.stepIndex || 0,
+      }),
+      "Hosted session reset completed",
+    );
     return res.json({ ...payload, episode: latestEpisode });
   } catch (error) {
     const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
