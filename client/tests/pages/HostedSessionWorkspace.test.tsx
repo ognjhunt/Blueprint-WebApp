@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import HostedSessionWorkspace from "@/pages/HostedSessionWorkspace";
+import HostedSessionWorkspace, { shouldScheduleLiveRenderRetry } from "@/pages/HostedSessionWorkspace";
 import { getSiteWorldById } from "@/data/siteWorlds";
 
 let mockSearch = "";
@@ -165,6 +165,7 @@ function buildRuntimeSession(overrides: Record<string, unknown> = {}) {
 
 afterEach(() => {
   mockSearch = "";
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   Object.defineProperty(globalThis.URL, "createObjectURL", {
@@ -347,6 +348,32 @@ describe("HostedSessionWorkspace", () => {
       ).toBe(true);
     });
     await findModeLabel("Explorer");
+  });
+
+  it("marks canonical fallback frames as retryable live renders", () => {
+    expect(shouldScheduleLiveRenderRetry({
+      renderSource: "canonical-authoritative-frame",
+      runtimeInteractive: true,
+      sessionId: "session-retry-live",
+      episodeId: "episode-retry-live",
+      cameraId: "head_rgb",
+    })).toBe(true);
+
+    expect(shouldScheduleLiveRenderRetry({
+      renderSource: "runtime-proxy",
+      runtimeInteractive: true,
+      sessionId: "session-retry-live",
+      episodeId: "episode-retry-live",
+      cameraId: "head_rgb",
+    })).toBe(false);
+
+    expect(shouldScheduleLiveRenderRetry({
+      renderSource: "canonical-authoritative-frame",
+      runtimeInteractive: false,
+      sessionId: "session-retry-live",
+      episodeId: "episode-retry-live",
+      cameraId: "head_rgb",
+    })).toBe(false);
   });
 
   it("switches the render camera in live runtime mode", async () => {

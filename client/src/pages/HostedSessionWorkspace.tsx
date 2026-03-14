@@ -358,6 +358,24 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+const LIVE_RENDER_RETRY_MS = 5000;
+
+export function shouldScheduleLiveRenderRetry(params: {
+  renderSource: string;
+  runtimeInteractive: boolean;
+  sessionId: string;
+  episodeId: string;
+  cameraId: string;
+}) {
+  return (
+    params.renderSource === "canonical-authoritative-frame" &&
+    params.runtimeInteractive &&
+    Boolean(params.sessionId) &&
+    Boolean(params.episodeId) &&
+    Boolean(params.cameraId)
+  );
+}
+
 export default function HostedSessionWorkspace({ params }: HostedSessionWorkspaceProps) {
   const fallbackSite = getSiteWorldById(params.slug);
   const [siteDetail, setSiteDetail] = useState(fallbackSite);
@@ -375,6 +393,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const [observationRefreshKey, setObservationRefreshKey] = useState(0);
   const [observationLoadError, setObservationLoadError] = useState(false);
   const [liveObservationSrc, setLiveObservationSrc] = useState("");
+  const [liveObservationRenderSource, setLiveObservationRenderSource] = useState("");
   const [liveViewportAspect, setLiveViewportAspect] = useState<number | null>(null);
   const [lastLiveRenderContext, setLastLiveRenderContext] = useState<{
     cameraId: string;
@@ -605,6 +624,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       }
       return "";
     });
+    setLiveObservationRenderSource("");
     setLiveViewportAspect(null);
     setLastLiveRenderContext(null);
     setControlError("");
@@ -1078,6 +1098,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
           throw new Error(payload?.error || "Explorer frame fetch failed");
         }
         const blob = await response.blob();
+        const renderSource = String(response.headers.get("x-blueprint-render-source") || "").trim();
         const objectUrl = URL.createObjectURL(blob);
         if (cancelled) {
           URL.revokeObjectURL(objectUrl);
@@ -1172,6 +1193,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
           }
           return objectUrl;
         });
+        setLiveObservationRenderSource(renderSource);
         setObservationLoadError(false);
         setLastLiveRenderContext({
           cameraId,
@@ -1202,6 +1224,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
               }
             : current,
         );
+        setLiveObservationRenderSource("");
       }
     })();
 
@@ -1213,6 +1236,30 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     latestEpisode?.episodeId,
     latestEpisode?.stepIndex,
     observationRefreshKey,
+    primaryCameraId,
+    runtimeInteractive,
+    selectedCameraId,
+    sessionId,
+  ]);
+
+  useEffect(() => {
+    if (!shouldScheduleLiveRenderRetry({
+      renderSource: liveObservationRenderSource,
+      runtimeInteractive,
+      sessionId,
+      episodeId: latestEpisode?.episodeId || "",
+      cameraId: selectedCameraId || primaryCameraId || "",
+    })) {
+      return;
+    }
+    const timeoutId = window.setTimeout(() => {
+      setObservationRefreshKey((current) => current + 1);
+    }, LIVE_RENDER_RETRY_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    latestEpisode?.episodeId,
+    latestEpisode?.stepIndex,
+    liveObservationRenderSource,
     primaryCameraId,
     runtimeInteractive,
     selectedCameraId,
