@@ -839,6 +839,12 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       ? { label: "Explore Site-World: Artifact-backed", tone: "amber" as const }
       : { label: "Explore Site-World: Missing", tone: "rose" as const };
   const explorerFrameHref = explorerState?.explorerFrame?.framePath || "";
+  const explorerSnapshotId = String(explorerState?.explorerFrame?.snapshotId || "").trim();
+  const explorerFrameFetchHref = explorerFrameHref
+    ? `${explorerFrameHref}${explorerFrameHref.includes("?") ? "&" : "?"}snapshotId=${encodeURIComponent(
+        explorerSnapshotId || String(explorerRenderSeqRef.current),
+      )}`
+    : "";
   const explorerQualityFlags = explorerState?.explorerQualityFlags || null;
   const explorerRefineStatus = explorerState?.refineStatus || "idle";
   const explorerGroundedSource = explorerState?.groundedSource || null;
@@ -999,7 +1005,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   ]);
 
   useEffect(() => {
-    if (!explorerFrameHref) {
+    if (!explorerFrameFetchHref) {
       setExplorerObservationSrc((current) => {
         if (current.startsWith("blob:")) {
           URL.revokeObjectURL(current);
@@ -1011,7 +1017,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     let cancelled = false;
     void (async () => {
       try {
-        const response = await authorizedFetch(explorerFrameHref);
+        const response = await authorizedFetch(explorerFrameFetchHref, { cache: "no-store" });
         const contentType = String(response.headers.get("content-type") || "").toLowerCase();
         if (!response.ok || contentType.includes("application/json")) {
           const payload = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -1041,7 +1047,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     return () => {
       cancelled = true;
     };
-  }, [explorerFrameHref]);
+  }, [explorerFrameFetchHref]);
 
   useEffect(() => {
     if (activeMode !== "presentation_world") {
@@ -1879,149 +1885,99 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
               </>
             ) : (
               <>
-                <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
+                <section className="overflow-hidden rounded-[36px] border border-slate-200 bg-white/95 p-4 shadow-[0_24px_80px_rgba(15,23,42,0.12)] sm:p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Explorer</p>
-                      <h2 className="mt-2 text-2xl font-bold text-slate-900">Video-grounded interactive explorer</h2>
+                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Explorer</p>
+                      <p className="mt-2 text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+                        Video-grounded interactive explorer
+                      </p>
+                      <h2 className="mt-2 text-[clamp(2rem,3vw,3.6rem)] font-bold tracking-[-0.04em] text-slate-950">
+                        World-first artifact exploration
+                      </h2>
+                      <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+                        The explorer uses the same large-viewport treatment as Live Runtime, but every frame is a grounded
+                        preview rendered from the current pose rather than a continuous live stream.
+                      </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
                       <ModeStateBadge label={presentationModeState.label} tone={presentationModeState.tone} />
-                      <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
+                      <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
                         {explorerBusyLabel || humanizeValue(explorerRefineStatus, "idle")}
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-5 grid gap-5 xl:grid-cols-[1.18fr_0.82fr]">
-                    <div className="rounded-[28px] border border-slate-200 bg-[linear-gradient(180deg,rgba(255,248,237,0.84),rgba(255,255,255,0.98))] p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Primary Explorer</p>
-                          <p className="mt-2 text-sm text-slate-600">
-                            Free-roam with grounded video/ARKit preview first. NeoVerse refinement only fills allowed uncertain regions after you pause or request it.
-                          </p>
-                        </div>
-                        <span className="rounded-full bg-slate-950 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white">
-                          {humanizeValue(explorerGroundedSource, "runtime fallback")}
-                        </span>
-                      </div>
-                      <div className="mt-4 rounded-[24px] border border-slate-200 bg-white p-3">
-                        <div
-                          ref={explorerViewportRef}
-                          className="relative min-h-[560px] overflow-hidden rounded-[20px] border border-slate-200 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.72),rgba(226,232,240,0.88))]"
-                          onMouseDown={(event) => {
-                            explorerDragRef.current = {
-                              active: true,
-                              lastX: event.clientX,
-                              lastY: event.clientY,
-                            };
-                          }}
-                          onMouseMove={(event) => {
-                            if (!explorerDragRef.current.active) {
-                              return;
-                            }
-                            const dx = event.clientX - explorerDragRef.current.lastX;
-                            const dy = event.clientY - explorerDragRef.current.lastY;
-                            explorerDragRef.current.lastX = event.clientX;
-                            explorerDragRef.current.lastY = event.clientY;
-                            setExplorerPose((current) => ({
-                              ...current,
-                              yaw: current.yaw - dx * 0.005,
-                              pitch: clamp(current.pitch - dy * 0.005, -1.2, 1.2),
-                            }));
-                          }}
-                          onMouseUp={() => {
-                            explorerDragRef.current.active = false;
-                          }}
-                          onMouseLeave={() => {
-                            explorerDragRef.current.active = false;
-                          }}
-                          onWheel={(event) => {
-                            event.preventDefault();
-                            setExplorerMoveSpeed((current) => clamp(current + (event.deltaY > 0 ? -0.03 : 0.03), 0.06, 0.45));
-                          }}
-                        >
-                          {explorerObservationSrc && !explorerLoadError ? (
-                            <img
-                              src={explorerObservationSrc}
-                              alt="Explorer frame"
-                              className="absolute inset-0 h-full w-full object-contain"
-                              onError={() => setExplorerLoadError(true)}
-                            />
-                          ) : (
-                            <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
-                              <div className="max-w-lg rounded-[28px] border border-slate-200 bg-white/92 px-8 py-10 text-slate-900 shadow-sm">
-                                <Compass className="mx-auto h-10 w-10 text-slate-400" />
-                                <p className="mt-4 text-lg font-semibold">Explorer frame unavailable</p>
-                                <p className="mt-3 text-sm leading-6 text-slate-600">
-                                  The grounded explorer has not returned a browser-visible frame yet. If the site package lacks ARKit/depth inputs, the runtime will fall back to canonical imagery.
-                                </p>
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-4">
-                            <div className="pointer-events-auto rounded-full border border-white/70 bg-white/88 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-700 backdrop-blur-sm">
-                              Camera {selectedCameraId || primaryCameraId || "head_rgb"}
-                            </div>
-                            <div className="pointer-events-auto flex flex-wrap items-center gap-2">
-                              <MetadataLink href={explorerFrameHref || null} label="Open explorer frame" />
-                            </div>
-                          </div>
-
-                          <div className="pointer-events-none absolute inset-x-0 bottom-0 p-4 sm:p-5">
-                            <div className="grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
-                              <div className="pointer-events-auto rounded-[24px] border border-white/70 bg-white/88 px-5 py-4 text-slate-900 backdrop-blur-md">
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Navigation</p>
-                                <p className="mt-2 text-base font-semibold">WASD move, mouse drag looks around, Q/E move vertically.</p>
-                                <p className="mt-2 text-sm text-slate-600">
-                                  Scroll adjusts movement speed. Rendering stays grounded first and only refines after a short idle pause.
-                                </p>
-                              </div>
-                              <div className="pointer-events-auto grid grid-cols-3 gap-2">
-                                <div className="rounded-[22px] border border-white/70 bg-white/88 px-4 py-4 text-slate-900 backdrop-blur-sm">
-                                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Source</p>
-                                  <p className="mt-2 text-sm font-bold">{humanizeValue(explorerGroundedSource, "fallback")}</p>
-                                </div>
-                                <div className="rounded-[22px] border border-white/70 bg-white/88 px-4 py-4 text-slate-900 backdrop-blur-sm">
-                                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Quality</p>
-                                  <p className="mt-2 text-sm font-bold">{humanizeValue(String(explorerQualityFlags?.presentation_quality || ""), "preview")}</p>
-                                </div>
-                                <div className="rounded-[22px] border border-white/70 bg-white/88 px-4 py-4 text-slate-900 backdrop-blur-sm">
-                                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Speed</p>
-                                  <p className="mt-2 text-sm font-bold">{explorerMoveSpeed.toFixed(2)}</p>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="mt-4 grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-                          <div>
-                            <p className="text-lg font-semibold text-slate-950">Grounded preview first, refinement second</p>
-                            <p className="mt-2 text-sm leading-6 text-slate-600">
-                              The explorer frame is sourced from ARKit/video reprojection when available and only uses masked NeoVerse refinement for uncertain or unseen regions.
+                  <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+                    <div
+                      ref={explorerViewportRef}
+                      className="relative overflow-hidden rounded-[32px] border border-slate-200 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.78),rgba(238,242,255,0.48)_34%),linear-gradient(180deg,#f8fafc_0%,#e2e8f0_100%)]"
+                      style={{ minHeight: "min(74vh, 980px)" }}
+                      onMouseDown={(event) => {
+                        explorerDragRef.current = {
+                          active: true,
+                          lastX: event.clientX,
+                          lastY: event.clientY,
+                        };
+                      }}
+                      onMouseMove={(event) => {
+                        if (!explorerDragRef.current.active) {
+                          return;
+                        }
+                        const dx = event.clientX - explorerDragRef.current.lastX;
+                        const dy = event.clientY - explorerDragRef.current.lastY;
+                        explorerDragRef.current.lastX = event.clientX;
+                        explorerDragRef.current.lastY = event.clientY;
+                        setExplorerPose((current) => ({
+                          ...current,
+                          yaw: current.yaw - dx * 0.005,
+                          pitch: clamp(current.pitch - dy * 0.005, -1.2, 1.2),
+                        }));
+                      }}
+                      onMouseUp={() => {
+                        explorerDragRef.current.active = false;
+                      }}
+                      onMouseLeave={() => {
+                        explorerDragRef.current.active = false;
+                      }}
+                      onWheel={(event) => {
+                        event.preventDefault();
+                        setExplorerMoveSpeed((current) => clamp(current + (event.deltaY > 0 ? -0.03 : 0.03), 0.06, 0.45));
+                      }}
+                    >
+                      {explorerObservationSrc && !explorerLoadError ? (
+                        <img
+                          src={explorerObservationSrc}
+                          alt="Explorer frame"
+                          className="absolute inset-0 h-full w-full object-contain bg-slate-100"
+                          onError={() => setExplorerLoadError(true)}
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
+                          <div className="max-w-lg rounded-[28px] border border-slate-200 bg-white/92 px-8 py-10 text-slate-900 backdrop-blur-sm">
+                            <Compass className="mx-auto h-10 w-10 text-slate-400" />
+                            <p className="mt-4 text-lg font-semibold">Explorer frame unavailable</p>
+                            <p className="mt-3 text-sm leading-6 text-slate-600">
+                              The grounded explorer has not returned a browser-visible frame yet. If the site package lacks
+                              ARKit/depth inputs, the runtime will fall back to canonical imagery.
                             </p>
                           </div>
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <DetailPill label="Output size" value={(() => {
-                              const viewport = explorerState?.explorerFrame?.viewport as Record<string, unknown> | undefined;
-                              const width = Number(viewport?.output_width || 0);
-                              const height = Number(viewport?.output_height || 0);
-                              return width > 0 && height > 0 ? `${width} × ${height}` : "Pending";
-                            })()} />
-                            <DetailPill label="Refine status" value={humanizeValue(explorerRefineStatus, "idle")} />
-                          </div>
+                        </div>
+                      )}
+
+                      <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-4">
+                        <div className="pointer-events-auto rounded-full border border-white/70 bg-white/88 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-700 backdrop-blur-sm">
+                          Camera {selectedCameraId || primaryCameraId || "head_rgb"}
+                        </div>
+                        <div className="pointer-events-auto flex flex-wrap items-center gap-2">
+                          <MetadataLink href={explorerFrameFetchHref || null} label="Open explorer frame" />
                         </div>
                       </div>
                     </div>
 
-                    <div className="space-y-5">
-                      <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-                        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                          <Compass className="h-4 w-4" />
-                          Explorer Controls
-                        </p>
+                    <aside className="flex flex-col gap-4">
+                      <article className="rounded-[28px] border border-slate-200 bg-[linear-gradient(180deg,#fffaf0,#ffffff)] p-5 shadow-sm">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Explorer Controls</p>
                         <div className="mt-4 grid gap-3">
                           <button
                             type="button"
@@ -2053,23 +2009,28 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                             <Camera className="mr-2 h-4 w-4" />
                             Refine view
                           </button>
-                          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700">
-                            <p className="font-semibold text-slate-900">Pose</p>
-                            <p className="mt-2 leading-6">
-                              x {explorerPose.x.toFixed(2)} · y {explorerPose.y.toFixed(2)} · z {explorerPose.z.toFixed(2)}
-                            </p>
-                            <p className="leading-6">
-                              yaw {explorerPose.yaw.toFixed(2)} · pitch {explorerPose.pitch.toFixed(2)}
-                            </p>
-                          </div>
+                        </div>
+                        <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700">
+                          <p className="font-semibold text-slate-900">Pose</p>
+                          <p className="mt-2 leading-6">
+                            x {explorerPose.x.toFixed(2)} · y {explorerPose.y.toFixed(2)} · z {explorerPose.z.toFixed(2)}
+                          </p>
+                          <p className="leading-6">
+                            yaw {explorerPose.yaw.toFixed(2)} · pitch {explorerPose.pitch.toFixed(2)}
+                          </p>
                         </div>
                       </article>
 
                       <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-                        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                          <Layers3 className="h-4 w-4" />
-                          Cameras
-                        </p>
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Cameras</p>
+                            <p className="mt-1 text-xs text-slate-500">Swap source cameras without leaving the explorer.</p>
+                          </div>
+                          <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                            {selectedCameraId || "Auto"}
+                          </div>
+                        </div>
                         <div className="mt-4 flex flex-wrap gap-2">
                           {cameraOptions.map((camera) => (
                             <button
@@ -2101,38 +2062,48 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                             ? "Use this only for internal movement and debugging. It is a real proxied operator UI, not the public product surface."
                             : artifactExplorer?.operatorView.description || "The operator bridge only appears when a stable internal UI URL is configured."}
                         </p>
-                        {presentationInteractive ? null : presentationLaunchState?.mode === "presentation_ui_unconfigured" ? (
-                          <p className="mt-3 text-sm leading-6 text-amber-300">
-                            Operator-view status: internal UI is not configured for this site yet.
-                          </p>
-                        ) : null}
                         <div className="mt-5 flex flex-wrap gap-3">
                           {openDemoUrl ? <MetadataLink href={openDemoUrl} label="Open private operator view" /> : null}
                           <MetadataLink href={presentationWorldManifestUri} label="Open presentation manifest" />
                           <MetadataLink href={runtimeDemoManifestUri} label="Open runtime demo manifest" />
                         </div>
                       </article>
+                    </aside>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
+                    <div className="rounded-[24px] border border-amber-100 bg-amber-50/70 px-5 py-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Navigation</p>
+                      <p className="mt-2 text-base font-semibold text-slate-950">
+                        WASD moves, mouse drag rotates, Q/E moves vertically.
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-slate-700">
+                        This is a pose-driven preview, not a continuous stream. The frame should update shortly after you stop moving.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                      <DetailPill label="Source" value={humanizeValue(explorerGroundedSource, "fallback")} />
+                      <DetailPill label="Quality" value={humanizeValue(String(explorerQualityFlags?.presentation_quality || ""), "preview")} />
+                      <DetailPill label="Speed" value={explorerMoveSpeed.toFixed(2)} />
+                      <DetailPill label="Refine status" value={humanizeValue(explorerRefineStatus, "idle")} />
                     </div>
                   </div>
 
-                  <div className="mt-6 grid gap-4 md:grid-cols-4">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Explorer source</p>
-                      <p className="mt-2 text-sm font-semibold text-slate-900">{humanizeValue(explorerGroundedSource, "runtime fallback")}</p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Canonical truth</p>
-                      <p className="mt-2 text-sm font-semibold text-slate-900">Grounding first, provenance required</p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Browser behavior</p>
-                      <p className="mt-2 text-sm font-semibold text-slate-900">Grounded preview with masked refinement</p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Operator bridge</p>
-                      <p className="mt-2 text-sm font-semibold text-slate-900">
-                        {presentationInteractive ? "Live internal UI" : "Only when configured"}
+                  <div className="mt-5 grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
+                    <div>
+                      <p className="text-lg font-semibold text-slate-950">Grounded preview first, refinement second</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        The explorer frame is sourced from ARKit/video reprojection when available and only uses masked NeoVerse refinement for uncertain or unseen regions.
                       </p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <DetailPill label="Output size" value={(() => {
+                        const viewport = explorerState?.explorerFrame?.viewport as Record<string, unknown> | undefined;
+                        const width = Number(viewport?.output_width || 0);
+                        const height = Number(viewport?.output_height || 0);
+                        return width > 0 && height > 0 ? `${width} × ${height}` : "Pending";
+                      })()} />
+                      <DetailPill label="Snapshot" value={explorerSnapshotId || "Pending"} />
                     </div>
                   </div>
                 </section>

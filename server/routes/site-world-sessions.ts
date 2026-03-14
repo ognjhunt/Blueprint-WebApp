@@ -267,9 +267,73 @@ function shouldRefreshSessionFromRuntime(session: HostedSessionRecord | null | u
   return ["ready", "running"].includes(String(session.status || "").trim());
 }
 
+function shouldPreferCachedEpisode(
+  cachedEpisode: HostedSessionRecord["latestEpisode"] | null | undefined,
+  refreshedEpisode: HostedSessionRecord["latestEpisode"] | null | undefined,
+) {
+  const cachedStepIndex = Number(cachedEpisode?.stepIndex || 0);
+  const refreshedStepIndex = Number(refreshedEpisode?.stepIndex || 0);
+  if (cachedStepIndex <= refreshedStepIndex) {
+    return false;
+  }
+  if (refreshedEpisode?.status === "failed" || refreshedEpisode?.done) {
+    return false;
+  }
+  return true;
+}
+
+function preferredRuntimeHandleForSession(session: HostedSessionRecord) {
+  return {
+    runtime_base_url:
+      String(
+        session.siteModel?.runtimeBaseUrl ||
+          session.launchContext.runtime_base_url ||
+          session.runtimeHandle?.runtime_base_url ||
+          "",
+      ).trim() || null,
+    websocket_base_url:
+      String(
+        session.siteModel?.websocketBaseUrl ||
+          session.launchContext.websocket_base_url ||
+          session.runtimeHandle?.websocket_base_url ||
+          "",
+      ).trim() || null,
+  };
+}
+
 async function readFreshHostedSession(sessionId: string): Promise<HostedSessionRecord | null> {
-  const session = await loadHostedSession(sessionId);
-  if (!session || !shouldRefreshSessionFromRuntime(session)) {
+  const loadedSession = await loadHostedSession(sessionId);
+  if (!loadedSession) {
+    return loadedSession;
+  }
+
+  let session = loadedSession;
+  if (isPublicDemoSession(session)) {
+    const preferredHandle = preferredRuntimeHandleForSession(session);
+    if (
+      preferredHandle.runtime_base_url &&
+      (
+        String(session.runtimeHandle?.runtime_base_url || "").trim() !== preferredHandle.runtime_base_url ||
+        String(session.runtimeHandle?.websocket_base_url || "").trim() !== (preferredHandle.websocket_base_url || "")
+      )
+    ) {
+      session = {
+        ...session,
+        runtimeHandle: {
+          ...(session.runtimeHandle || {}),
+          site_world_id: String(session.runtimeHandle?.site_world_id || session.site.siteWorldId || "").trim(),
+          runtime_base_url: preferredHandle.runtime_base_url,
+          websocket_base_url: preferredHandle.websocket_base_url,
+        },
+      };
+      inMemorySessions.set(session.sessionId, session);
+      syncPresentationSessionIndex(session);
+      await setLiveHostedSession(session);
+      void updateSession(session.sessionId, { runtimeHandle: session.runtimeHandle }, { awaitPersist: false });
+    }
+  }
+
+  if (!shouldRefreshSessionFromRuntime(session)) {
     return session;
   }
   try {
@@ -285,7 +349,10 @@ async function readFreshHostedSession(sessionId: string): Promise<HostedSessionR
         : null,
       statePayload,
     );
-    const latestEpisode = normalizeEpisodeSummary(session.sessionId, mergedEpisode);
+    let latestEpisode = normalizeEpisodeSummary(session.sessionId, mergedEpisode);
+    if (shouldPreferCachedEpisode(session.latestEpisode, latestEpisode)) {
+      latestEpisode = session.latestEpisode || latestEpisode;
+    }
     const refreshed: HostedSessionRecord = {
       ...session,
       latestEpisode,
@@ -1388,11 +1455,11 @@ async function ensureRuntimeMetadataForSession(session: HostedSessionRecord) {
     return;
   }
 
+  const preferredHandle = preferredRuntimeHandleForSession(session);
+  const preferredRuntimeBaseUrl = String(preferredHandle.runtime_base_url || "").trim();
+  const preferredWebsocketBaseUrl = String(preferredHandle.websocket_base_url || "").trim();
   const runtimeBaseUrl = String(
-    session.runtimeHandle?.runtime_base_url ||
-      session.siteModel?.runtimeBaseUrl ||
-      session.launchContext.runtime_base_url ||
-      "",
+    preferredRuntimeBaseUrl,
   ).trim();
 
   if (!runtimeBaseUrl) {
@@ -1400,24 +1467,43 @@ async function ensureRuntimeMetadataForSession(session: HostedSessionRecord) {
   }
 
   const workDir = sessionWorkDir(session.sessionId);
+  let shouldPersistMetadata = true;
   try {
     const metadata = await loadHostedSessionRuntimeMetadata(workDir);
-    if (String(metadata.runtime_base_url || "").trim()) {
+    const metadataRuntimeBaseUrl = String(metadata.runtime_base_url || "").trim();
+    const metadataWebsocketBaseUrl = String(metadata.websocket_base_url || "").trim();
+    shouldPersistMetadata =
+      !metadataRuntimeBaseUrl ||
+      metadataRuntimeBaseUrl !== preferredRuntimeBaseUrl ||
+      metadataWebsocketBaseUrl !== preferredWebsocketBaseUrl;
+    if (!shouldPersistMetadata) {
       return;
     }
   } catch {
     // Rehydrate runtime metadata below.
   }
 
+  if (
+    isPublicDemoSession(session) &&
+    (
+      String(session.runtimeHandle?.runtime_base_url || "").trim() !== preferredRuntimeBaseUrl ||
+      String(session.runtimeHandle?.websocket_base_url || "").trim() !== preferredWebsocketBaseUrl
+    )
+  ) {
+    void updateSession(session.sessionId, {
+      runtimeHandle: {
+        ...(session.runtimeHandle || {}),
+        site_world_id: String(session.runtimeHandle?.site_world_id || session.site.siteWorldId || "").trim(),
+        runtime_base_url: preferredRuntimeBaseUrl,
+        websocket_base_url: preferredWebsocketBaseUrl || null,
+      },
+    }, { awaitPersist: false });
+  }
+
   await persistHostedSessionRuntimeMetadata(workDir, {
     runtime_base_url: runtimeBaseUrl,
     websocket_base_url:
-      String(
-        session.runtimeHandle?.websocket_base_url ||
-          session.siteModel?.websocketBaseUrl ||
-          session.launchContext.websocket_base_url ||
-          "",
-      ).trim() || null,
+      preferredWebsocketBaseUrl || null,
     site_world_id: String(session.runtimeHandle?.site_world_id || session.site.siteWorldId || "").trim() || null,
     build_id: String(session.runtimeHandle?.build_id || "").trim() || null,
     canonical_package_uri:
