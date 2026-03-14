@@ -1425,7 +1425,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Live Runtime</p>
                       <h2 className="mt-2 text-[clamp(2rem,3vw,3.6rem)] font-bold tracking-[-0.04em] text-slate-950">
-                        Explore the site-world directly
+                        World-first live exploration
                       </h2>
                       <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
                         The viewport is now the primary surface. Movement, orientation, and grasp actions stay attached to
