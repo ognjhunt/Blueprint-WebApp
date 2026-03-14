@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { logger } from "../logger";
+import { getHostedSessionLiveStoreStatus } from "../utils/hosted-session-live-store";
 
 const router = Router();
 
@@ -47,6 +48,7 @@ router.get("/health/live", (_req: Request, res: Response) => {
  */
 router.get("/health/ready", async (_req: Request, res: Response) => {
   try {
+    const liveSessionStore = getHostedSessionLiveStoreStatus();
     // Add additional readiness checks here as needed
     // For example: database connectivity, external service availability
 
@@ -62,12 +64,18 @@ router.get("/health/ready", async (_req: Request, res: Response) => {
       res.status(200).json({
         status: "ready",
         checks,
+        dependencies: {
+          liveSessionStore,
+        },
         timestamp: new Date().toISOString(),
       });
     } else {
       res.status(503).json({
         status: "not_ready",
         checks,
+        dependencies: {
+          liveSessionStore,
+        },
         timestamp: new Date().toISOString(),
       });
     }
@@ -88,6 +96,7 @@ router.get("/health/ready", async (_req: Request, res: Response) => {
 router.get("/health/status", (_req: Request, res: Response) => {
   const uptime = Date.now() - startTime;
   const memoryUsage = process.memoryUsage();
+  const liveSessionStore = getHostedSessionLiveStoreStatus();
 
   res.status(200).json({
     status: "healthy",
@@ -107,6 +116,9 @@ router.get("/health/status", (_req: Request, res: Response) => {
       requestCount,
       errorCount,
       errorRate: requestCount > 0 ? (errorCount / requestCount * 100).toFixed(2) + "%" : "0%",
+    },
+    debug: {
+      liveSessionStore,
     },
     timestamp: new Date().toISOString(),
   });

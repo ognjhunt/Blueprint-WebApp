@@ -112,6 +112,16 @@ export async function mergeLiveHostedSession(
   return merged;
 }
 
+export function getHostedSessionLiveStoreStatus() {
+  return {
+    backend: liveSessionClient ? ("redis" as const) : ("memory" as const),
+    redisConfigured: Boolean(redisUrl),
+    redisConnected: liveSessionClient ? liveSessionClient.isReady : false,
+    keyPrefix: liveSessionPrefix,
+    ttlSeconds: liveSessionTtlSeconds,
+  };
+}
+
 export function resetHostedSessionLiveStoreForTests() {
   fallbackLiveSessions.clear();
 }
