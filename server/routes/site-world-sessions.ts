@@ -21,6 +21,12 @@ import type {
   PresentationDemoReadinessStatus,
   PresentationLaunchState,
 } from "../types/hosted-session";
+import {
+  getLiveHostedSession,
+  mergeLiveHostedSession,
+  resetHostedSessionLiveStoreForTests,
+  setLiveHostedSession,
+} from "../utils/hosted-session-live-store";
 import { createHostedSessionUiToken, getHostedSessionUiCookieName, parseCookies, verifyHostedSessionUiToken } from "../utils/hosted-session-ui-auth";
 import { HostedSessionRuntimeError, readHostedRuntimeArtifactJson, resolveHostedRuntime } from "../utils/hosted-session-runtime";
 import {
@@ -55,6 +61,7 @@ const execFile = promisify(execFileCallback);
 export function resetHostedSessionRouteState() {
   inMemorySessions.clear();
   activePresentationSessionIndex.clear();
+  resetHostedSessionLiveStoreForTests();
 }
 
 function nowTimestamp() {
@@ -197,6 +204,7 @@ async function getLaunchAccessState(req: Request, res: Response) {
 async function writeSession(record: HostedSessionRecord) {
   inMemorySessions.set(record.sessionId, record);
   syncPresentationSessionIndex(record);
+  await setLiveHostedSession(record);
   if (!db) {
     return;
   }
@@ -205,14 +213,15 @@ async function writeSession(record: HostedSessionRecord) {
 }
 
 function queueSessionMirror(sessionId: string, update: Partial<HostedSessionRecord>) {
-  if (!db) {
+  const firestore = db;
+  if (!firestore) {
     return;
   }
   const previous = pendingSessionMirrors.get(sessionId) || Promise.resolve();
   const next = previous
     .catch(() => undefined)
     .then(async () => {
-      await db.collection("hostedSessions").doc(sessionId).update(update);
+      await firestore.collection("hostedSessions").doc(sessionId).update(update);
     })
     .catch((error) => {
       logger.warn({ sessionId, error, fields: Object.keys(update) }, "Hosted session Firestore mirror failed");
@@ -236,6 +245,7 @@ async function updateSession(
     inMemorySessions.set(sessionId, merged);
     syncPresentationSessionIndex(merged);
   }
+  await mergeLiveHostedSession(sessionId, update);
   if (!db) {
     return;
   }
@@ -257,7 +267,7 @@ function shouldRefreshSessionFromRuntime(session: HostedSessionRecord | null | u
 
 async function readFreshHostedSession(sessionId: string): Promise<HostedSessionRecord | null> {
   const session = await loadHostedSession(sessionId);
-  if (!shouldRefreshSessionFromRuntime(session)) {
+  if (!session || !shouldRefreshSessionFromRuntime(session)) {
     return session;
   }
   try {
@@ -278,15 +288,14 @@ async function readFreshHostedSession(sessionId: string): Promise<HostedSessionR
       ...session,
       latestEpisode,
       status:
-        latestEpisode.status === "completed"
-          ? "completed"
-          : latestEpisode.status === "failed"
-            ? "failed"
-            : "running",
+        latestEpisode && latestEpisode.status === "failed"
+          ? "failed"
+          : "running",
       latestRuntimeFailure: null,
     };
     inMemorySessions.set(session.sessionId, refreshed);
     syncPresentationSessionIndex(refreshed);
+    await setLiveHostedSession(refreshed);
     void updateSession(
       session.sessionId,
       {
@@ -304,6 +313,13 @@ async function readFreshHostedSession(sessionId: string): Promise<HostedSessionR
 }
 
 export async function loadHostedSession(sessionId: string): Promise<HostedSessionRecord | null> {
+  const live = await getLiveHostedSession(sessionId);
+  if (live) {
+    inMemorySessions.set(sessionId, live);
+    syncPresentationSessionIndex(live);
+    return live;
+  }
+
   const cached = inMemorySessions.get(sessionId) ?? null;
   if (!db || cached) {
     return cached;
@@ -316,6 +332,7 @@ export async function loadHostedSession(sessionId: string): Promise<HostedSessio
   const record = doc.data() as HostedSessionRecord;
   inMemorySessions.set(sessionId, record);
   syncPresentationSessionIndex(record);
+  await setLiveHostedSession(record);
   return record;
 }
 

@@ -192,7 +192,7 @@ async function runtimeFetchJson(
   const url = `${baseUrl}${relativePath}`;
   const timeoutMs = Math.max(
     1000,
-    Number(options?.timeoutMs ?? process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_TIMEOUT_MS || 45000),
+    Number(options?.timeoutMs ?? (process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_TIMEOUT_MS || 45000)),
   );
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
