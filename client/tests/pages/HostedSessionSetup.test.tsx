@@ -87,17 +87,12 @@ describe("HostedSessionSetup", () => {
           JSON.stringify({
             launchable: false,
             entitled: true,
-            blockers: ["Presentation demo UI base URL is not configured."],
+            blockers: [],
             presentation_demo: {
-              launchable: false,
-              blockers: ["Presentation demo UI base URL is not configured."],
-              blocker_details: [
-                {
-                  code: "presentation_ui_unconfigured",
-                  message: "Presentation demo UI base URL is not configured.",
-                  source: "presentation_demo",
-                },
-              ],
+              launchable: true,
+              blockers: [],
+              blocker_details: [],
+              status: "presentation_ui_unconfigured",
               presentationWorldManifestUri: "gs://bucket/presentation.json",
             },
             runtime_only: {
@@ -123,7 +118,12 @@ describe("HostedSessionSetup", () => {
     expect(
       await screen.findByText(/Presentation package: gs:\/\/bucket\/presentation.json/i),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Presentation demo UI base URL is not configured\./i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/This site can launch an artifact-backed presentation session\./i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/A live private operator bridge can be added later without blocking this launch\./i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Runtime session readiness/i)).toBeInTheDocument();
     expect(screen.getByText(/The site-world registration does not include a live runtime handle yet\./i)).toBeInTheDocument();
   });
@@ -136,17 +136,12 @@ describe("HostedSessionSetup", () => {
           JSON.stringify({
             launchable: false,
             entitled: true,
-            blockers: ["Presentation demo UI base URL is not configured."],
+            blockers: [],
             presentation_demo: {
-              launchable: false,
-              blockers: ["Presentation demo UI base URL is not configured."],
-              blocker_details: [
-                {
-                  code: "presentation_ui_unconfigured",
-                  message: "Presentation demo UI base URL is not configured.",
-                  source: "presentation_demo",
-                },
-              ],
+              launchable: true,
+              blockers: [],
+              blocker_details: [],
+              status: "presentation_ui_unconfigured",
               presentationWorldManifestUri: "gs://bucket/presentation.json",
             },
             runtime_only: {
@@ -170,7 +165,9 @@ describe("HostedSessionSetup", () => {
 
     render(<HostedSessionSetup params={{ slug: demoSiteId }} />);
 
-    expect(await screen.findByText(/Embedded demo is blocked, but the live runtime is ready\./i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Presentation can launch without the private operator bridge\./i),
+    ).toBeInTheDocument();
     const runtimeButton = screen.getByRole("button", { name: /Launch runtime session/i });
     expect(runtimeButton).toBeEnabled();
 

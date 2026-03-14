@@ -1,5 +1,6 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
+import { getConfiguredEnvValue } from "../config/env";
 import type { DeploymentReadinessSummary, PipelineAttachment, QualificationState } from "../types/inbound-request";
 import type {
   RobotProfile,
@@ -17,6 +18,23 @@ export class HostedSessionRuntimeError extends Error {
   constructor(code: string, message: string) {
     super(message);
     this.code = code;
+  }
+}
+
+const DEMO_SITE_WORLD_ID = "siteworld-f5fd54898cfb";
+
+function deriveWebsocketUrl(runtimeBaseUrl: string | null): string | null {
+  const normalized = String(runtimeBaseUrl || "").trim();
+  if (!normalized) {
+    return null;
+  }
+  try {
+    const url = new URL(normalized);
+    if (url.protocol === "https:") url.protocol = "wss:";
+    if (url.protocol === "http:") url.protocol = "ws:";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return null;
   }
 }
 
@@ -45,6 +63,7 @@ export interface HostedRuntimeResolution {
   registeredCanonicalPackageUri?: string | null;
   registeredCanonicalPackageVersion?: string | null;
   runtimeSiteWorldRecord?: Record<string, unknown> | null;
+  runtimeHealthRecord?: Record<string, unknown> | null;
   runtimeBaseUrl?: string | null;
   websocketBaseUrl?: string | null;
   allowBlockedSiteWorld?: boolean;
@@ -103,9 +122,14 @@ async function readRuntimeSiteWorldRecord(siteWorldId: string, runtimeBaseUrl?: 
   }
 
   try {
+    const controller = new AbortController();
+    const timeoutMs = Math.max(1000, Number(process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_PROBE_TIMEOUT_MS || 5000));
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     const response = await fetch(
       `${normalizedBaseUrl}/v1/site-worlds/${encodeURIComponent(siteWorldId)}`,
+      { signal: controller.signal },
     );
+    clearTimeout(timeout);
     if (!response.ok) {
       return null;
     }
@@ -114,6 +138,44 @@ async function readRuntimeSiteWorldRecord(siteWorldId: string, runtimeBaseUrl?: 
   } catch {
     return null;
   }
+}
+
+async function readRuntimeHealthRecord(siteWorldId: string, runtimeBaseUrl?: string | null) {
+  const normalizedBaseUrl = String(runtimeBaseUrl || "").trim();
+  if (!normalizedBaseUrl) {
+    return null;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutMs = Math.max(1000, Number(process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_PROBE_TIMEOUT_MS || 5000));
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const response = await fetch(
+      `${normalizedBaseUrl}/v1/site-worlds/${encodeURIComponent(siteWorldId)}/health`,
+      { signal: controller.signal },
+    );
+    clearTimeout(timeout);
+    if (!response.ok) {
+      return null;
+    }
+    const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+    return payload && typeof payload === "object" ? payload : null;
+  } catch {
+    return null;
+  }
+}
+
+function runtimeManifestUrl(record: Record<string, unknown> | null | undefined, ...keys: string[]) {
+  if (!record) {
+    return "";
+  }
+  for (const key of keys) {
+    const value = String(record[key] || "").trim();
+    if (value) {
+      return value;
+    }
+  }
+  return "";
 }
 
 function artifactUri(
@@ -156,6 +218,14 @@ export async function readHostedRuntimeArtifactJson(uri?: string | null): Promis
       const { bucket, objectPath } = parseGsUri(normalized);
       const [buffer] = await storageAdmin.bucket(bucket).file(objectPath).download();
       const payload = JSON.parse(buffer.toString("utf-8")) as Record<string, unknown>;
+      return payload && typeof payload === "object" ? payload : null;
+    }
+    if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+      const response = await fetch(normalized);
+      if (!response.ok) {
+        return null;
+      }
+      const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
       return payload && typeof payload === "object" ? payload : null;
     }
 
@@ -213,29 +283,6 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     artifacts.conditioning_bundle_uri,
     "scene_memory/conditioning_bundle.json",
   );
-  const presentationWorldManifestUri = preferredArtifactUri(
-    pipelinePrefix,
-    artifacts.presentation_world_manifest_uri,
-    "presentation_world/presentation_world_manifest.json",
-  );
-  const runtimeDemoManifestUri = preferredArtifactUri(
-    pipelinePrefix,
-    artifacts.runtime_demo_manifest_uri,
-    "presentation_world/runtime_demo_manifest.json",
-  );
-  const presentationWorldManifestDeclared = Boolean(String(artifacts.presentation_world_manifest_uri || "").trim());
-  const runtimeDemoManifestDeclared = Boolean(String(artifacts.runtime_demo_manifest_uri || "").trim());
-  const presentationDemoBlockers: string[] = [];
-  if (!presentationWorldManifestUri) {
-    presentationDemoBlockers.push("missing presentation package");
-  }
-  if (!runtimeDemoManifestUri) {
-    presentationDemoBlockers.push("missing runtime demo manifest");
-  }
-  if (!(site.runtimeManifest?.launchable ?? true)) {
-    presentationDemoBlockers.push("site not launchable yet");
-  }
-
   if (!sceneMemoryManifestUri) {
     throw new HostedSessionRuntimeError(
       "missing_scene_memory",
@@ -262,13 +309,73 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
   }
 
   const registrationPayload = await readHostedRuntimeArtifactJson(siteWorldRegistrationUri);
+  const demoRuntimeBaseUrl =
+    site.id === DEMO_SITE_WORLD_ID
+      ? getConfiguredEnvValue("BLUEPRINT_HOSTED_DEMO_RUNTIME_BASE_URL", "VITE_HOSTED_DEMO_RUNTIME_BASE_URL")
+      : null;
+  const demoWebsocketBaseUrl =
+    site.id === DEMO_SITE_WORLD_ID
+      ? getConfiguredEnvValue(
+          "BLUEPRINT_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL",
+          "VITE_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL",
+        ) || deriveWebsocketUrl(demoRuntimeBaseUrl)
+      : null;
   const runtimeBaseUrl =
-    String(site.runtimeManifest?.runtimeBaseUrl || registrationPayload?.runtime_base_url || "").trim() || null;
+    String(demoRuntimeBaseUrl || registrationPayload?.runtime_base_url || site.runtimeManifest?.runtimeBaseUrl || "").trim() || null;
   const websocketBaseUrl =
-    String(site.runtimeManifest?.websocketBaseUrl || registrationPayload?.websocket_base_url || "").trim() || null;
+    String(demoWebsocketBaseUrl || registrationPayload?.websocket_base_url || site.runtimeManifest?.websocketBaseUrl || "").trim() || null;
   const runtimeSiteWorldId =
     String(registrationPayload?.site_world_id || site.id || "").trim() || site.id;
-  const runtimeSiteWorldRecord = await readRuntimeSiteWorldRecord(runtimeSiteWorldId, runtimeBaseUrl);
+  const [runtimeSiteWorldRecord, runtimeHealthRecord] = await Promise.all([
+    readRuntimeSiteWorldRecord(runtimeSiteWorldId, runtimeBaseUrl),
+    readRuntimeHealthRecord(runtimeSiteWorldId, runtimeBaseUrl),
+  ]);
+  const presentationWorldManifestUri =
+    runtimeManifestUrl(
+      runtimeSiteWorldRecord,
+      "presentation_world_manifest_url",
+      "presentationWorldManifestUrl",
+    ) ||
+    preferredArtifactUri(
+      pipelinePrefix,
+      artifacts.presentation_world_manifest_uri,
+      "presentation_world/presentation_world_manifest.json",
+    );
+  const runtimeDemoManifestUri =
+    runtimeManifestUrl(
+      runtimeSiteWorldRecord,
+      "runtime_demo_manifest_url",
+      "runtimeDemoManifestUrl",
+    ) ||
+    preferredArtifactUri(
+      pipelinePrefix,
+      artifacts.runtime_demo_manifest_uri,
+      "presentation_world/runtime_demo_manifest.json",
+    );
+  const presentationWorldManifestDeclared = Boolean(
+    runtimeManifestUrl(
+      runtimeSiteWorldRecord,
+      "presentation_world_manifest_url",
+      "presentationWorldManifestUrl",
+    ) || String(artifacts.presentation_world_manifest_uri || "").trim(),
+  );
+  const runtimeDemoManifestDeclared = Boolean(
+    runtimeManifestUrl(
+      runtimeSiteWorldRecord,
+      "runtime_demo_manifest_url",
+      "runtimeDemoManifestUrl",
+    ) || String(artifacts.runtime_demo_manifest_uri || "").trim(),
+  );
+  const presentationDemoBlockers: string[] = [];
+  if (!presentationWorldManifestUri) {
+    presentationDemoBlockers.push("missing presentation package");
+  }
+  if (!runtimeDemoManifestUri) {
+    presentationDemoBlockers.push("missing runtime demo manifest");
+  }
+  if (!(site.runtimeManifest?.launchable ?? true)) {
+    presentationDemoBlockers.push("site not launchable yet");
+  }
   const registeredCanonicalPackageUri =
     String(
       runtimeSiteWorldRecord?.canonical_package_uri
@@ -320,6 +427,7 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     registeredCanonicalPackageUri,
     registeredCanonicalPackageVersion,
     runtimeSiteWorldRecord,
+    runtimeHealthRecord,
     runtimeBaseUrl,
     websocketBaseUrl,
     allowBlockedSiteWorld: hostedSessionOverride?.allowBlockedSiteWorld === true,

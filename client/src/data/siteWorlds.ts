@@ -9,6 +9,36 @@ import type {
   TaskCatalogEntry,
 } from "@/types/hostedSession";
 
+function readOptionalSiteWorldEnv(key: string): string | null {
+  const importMetaEnv = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
+  const rawValue = importMetaEnv?.[key] ?? process.env?.[key];
+  const value = typeof rawValue === "string" ? rawValue.trim() : "";
+  return value || null;
+}
+
+function deriveWebsocketUrl(runtimeBaseUrl: string | null): string | null {
+  const normalized = String(runtimeBaseUrl || "").trim();
+  if (!normalized) {
+    return null;
+  }
+  try {
+    const url = new URL(normalized);
+    if (url.protocol === "https:") url.protocol = "wss:";
+    if (url.protocol === "http:") url.protocol = "ws:";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return null;
+  }
+}
+
+const DEMO_RUNTIME_BASE_URL =
+  readOptionalSiteWorldEnv("VITE_HOSTED_DEMO_RUNTIME_BASE_URL")
+  || readOptionalSiteWorldEnv("BLUEPRINT_HOSTED_DEMO_RUNTIME_BASE_URL");
+const DEMO_RUNTIME_WEBSOCKET_BASE_URL =
+  readOptionalSiteWorldEnv("VITE_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL")
+  || readOptionalSiteWorldEnv("BLUEPRINT_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL")
+  || deriveWebsocketUrl(DEMO_RUNTIME_BASE_URL);
+
 export type SiteCategory =
   | "All"
   | "Retail"
@@ -832,8 +862,8 @@ siteWorldCards.push({
   exportArtifacts: ["Observation frames", "Rollout video", "Raw bundle", "RLDS dataset"],
   runtimeManifest: {
     defaultBackend: "neoverse",
-    runtimeBaseUrl: "https://tom-interventions-geographical-filtering.trycloudflare.com",
-    websocketBaseUrl: "wss://tom-interventions-geographical-filtering.trycloudflare.com",
+    runtimeBaseUrl: DEMO_RUNTIME_BASE_URL,
+    websocketBaseUrl: DEMO_RUNTIME_WEBSOCKET_BASE_URL,
     supportedCameras: ["head_rgb", "wrist_rgb", "site_context_rgb"],
     launchableBackends: ["neoverse"],
     exportModes: ["raw_bundle", "rlds_dataset"],
@@ -841,8 +871,8 @@ siteWorldCards.push({
     supportsBatchRollout: true,
     supportsCameraViews: true,
     supportsStream: false,
-    healthStatus: "healthy",
-    launchable: true,
+    healthStatus: DEMO_RUNTIME_BASE_URL ? "healthy" : "unknown",
+    launchable: Boolean(DEMO_RUNTIME_BASE_URL),
   },
   taskCatalog: [
     {

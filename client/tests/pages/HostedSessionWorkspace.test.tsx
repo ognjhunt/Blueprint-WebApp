@@ -429,12 +429,41 @@ describe("HostedSessionWorkspace", () => {
         if (String(input).includes("/api/site-worlds/sessions/session-presentation/render?cameraId=head_rgb")) {
           return new Response("head-frame", { status: 200, headers: { "Content-Type": "image/png" } });
         }
+        if (String(input).includes("/api/site-worlds/sessions/session-presentation/explorer-render")) {
+          return new Response(
+            JSON.stringify({
+              explorerState: {
+                explorerFrame: {
+                  framePath: "/api/site-worlds/sessions/session-presentation/explorer-frame?cameraId=head_rgb",
+                  viewport: { width: 1600, height: 1200 },
+                  snapshotId: "snapshot-1",
+                },
+                explorerQualityFlags: { presentation_quality: "preview" },
+                groundedSource: "pose_preview",
+                refineStatus: "idle",
+                debugArtifacts: {},
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
         if (String(input).includes("/api/site-worlds/sessions/session-presentation") && (!init?.method || init.method === "GET")) {
           return new Response(
             JSON.stringify(
               buildRuntimeSession({
                 sessionId: "session-presentation",
                 sessionMode: "presentation_demo",
+                presentationLaunchState: {
+                  status: "artifact_backed",
+                  mode: "presentation_ui_unconfigured",
+                  blockers: [],
+                  blockerDetails: [],
+                  presentationWorldManifestUri:
+                    "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/presentation_world/presentation_world_manifest.json",
+                  runtimeDemoManifestUri:
+                    "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/presentation_world/runtime_demo_manifest.json",
+                  uiBaseUrl: null,
+                },
                 latestEpisode: {
                   episodeId: "episode-2",
                   taskId: "9483414B-8776-4F68-AC80-D3B3BA774A90",
@@ -489,6 +518,24 @@ describe("HostedSessionWorkspace", () => {
         if (String(input).includes("/api/site-worlds/sessions/session-operator/ui-access")) {
           return new Response(
             JSON.stringify({ bootstrapUrl: "/api/site-worlds/sessions/session-operator/ui/bootstrap?token=test" }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (String(input).includes("/api/site-worlds/sessions/session-operator/explorer-render")) {
+          return new Response(
+            JSON.stringify({
+              explorerState: {
+                explorerFrame: {
+                  framePath: "/api/site-worlds/sessions/session-operator/explorer-frame?cameraId=head_rgb",
+                  viewport: { width: 1600, height: 1200 },
+                  snapshotId: "snapshot-operator-1",
+                },
+                explorerQualityFlags: { presentation_quality: "preview" },
+                groundedSource: "pose_preview",
+                refineStatus: "idle",
+                debugArtifacts: {},
+              },
+            }),
             { status: 200, headers: { "Content-Type": "application/json" } },
           );
         }

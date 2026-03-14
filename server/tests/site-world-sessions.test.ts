@@ -590,6 +590,25 @@ async function stopServer(server: Server) {
 
 beforeEach(() => {
   global.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input) === "http://runtime.local/v1/site-worlds/siteworld-1") {
+      return new Response(JSON.stringify({
+        canonical_package_uri: "gs://runtime/registered/site_world_spec.json",
+        canonical_package_version: "runtime-v2",
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (String(input) === "http://runtime.local/v1/site-worlds/siteworld-1/health") {
+      return new Response(JSON.stringify({
+        status: "healthy",
+        launchable: true,
+        blockers: [],
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
     if (String(input).startsWith("http://runtime.local/")) {
       return new Response(JSON.stringify({ detail: "Not Found" }), {
         status: 404,
@@ -672,9 +691,7 @@ afterEach(async () => {
   );
   state.artifactPayloads.set(
     "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/presentation_world/runtime_demo_manifest.json",
-    {
-      ui_base_url: "https://neoverse.example/demo",
-    },
+    {},
   );
   const { resetHostedSessionRouteState } = await import("../routes/site-world-sessions");
   resetHostedSessionRouteState();
@@ -1016,6 +1033,25 @@ describe("site world session routes", () => {
     const previousTimeout = process.env.BLUEPRINT_HOSTED_SESSION_RENDER_TIMEOUT_MS;
     process.env.BLUEPRINT_HOSTED_SESSION_RENDER_TIMEOUT_MS = "5";
     global.fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "http://runtime.local/v1/site-worlds/siteworld-1") {
+        return Promise.resolve(new Response(JSON.stringify({
+          canonical_package_uri: "gs://runtime/registered/site_world_spec.json",
+          canonical_package_version: "runtime-v2",
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }));
+      }
+      if (String(input) === "http://runtime.local/v1/site-worlds/siteworld-1/health") {
+        return Promise.resolve(new Response(JSON.stringify({
+          status: "healthy",
+          launchable: true,
+          blockers: [],
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }));
+      }
       if (String(input).startsWith("http://runtime.local/v1/sessions/") && String(input).includes("/render?")) {
         return new Promise((_, reject) => {
           const signal = init?.signal;
@@ -1099,7 +1135,13 @@ describe("site world session routes", () => {
     }
   });
 
-  it("blocks runtime-only controls on presentation demo sessions and stops them", async () => {
+  it("allows runtime reset on artifact-backed presentation demo sessions and stops them", async () => {
+    state.presentationLaunchConfig = {
+      manifest: {},
+      uiBaseUrl: "",
+      instanceId: "vast-config",
+      expiresAt: "2026-03-12T02:00:00Z",
+    };
     const { server, baseUrl } = await startServer();
     try {
       const create = await fetch(`${baseUrl}/`, {
@@ -1124,8 +1166,8 @@ describe("site world session routes", () => {
         body: JSON.stringify({}),
       });
       const resetPayload = (await reset.json()) as Record<string, unknown>;
-      expect(reset.status).toBe(409);
-      expect(resetPayload.code).toBe("session_mode_unsupported");
+      expect(reset.status).toBe(200);
+      expect(String((resetPayload.episode as Record<string, unknown>)?.episodeId || "")).toBe("episode-1");
 
       const stop = await fetch(`${baseUrl}/${createPayload.sessionId}/stop`, {
         method: "POST",
@@ -1268,7 +1310,7 @@ describe("site world session routes", () => {
     }
   });
 
-  it("reports presentation ui configuration blockers before creating a demo session", async () => {
+  it("creates an artifact-backed presentation demo session when no UI URL is configured", async () => {
     state.presentationLaunchConfig = {
       manifest: {},
       uiBaseUrl: "",
@@ -1292,16 +1334,20 @@ describe("site world session routes", () => {
         }),
       });
       const payload = (await response.json()) as Record<string, unknown>;
-      expect(response.status).toBe(409);
-      expect(payload.code).toBe("presentation_ui_unconfigured");
-      expect(payload.blockers).toContain("Presentation demo UI base URL is not configured.");
-      expect(state.hostedSessions.size).toBe(0);
+      expect(response.status).toBe(201);
+      expect(payload.launchable).toBe(true);
+      expect(payload.uiReady).toBe(false);
+      expect(String(payload.workspaceUrl || "")).toContain("/site-worlds/sw-chi-01/workspace?sessionId=");
+      expect(state.hostedSessions.size).toBe(1);
+      const storedSession = Array.from(state.hostedSessions.values())[0] as Record<string, unknown>;
+      expect((storedSession.presentationLaunchState as Record<string, unknown>)?.status).toBe("artifact_backed");
+      expect(storedSession.presentationRuntime).toBeNull();
     } finally {
       await stopServer(server);
     }
   });
 
-  it("classifies launch readiness as artifact-explorer-ready when manifests exist but no UI URL is configured", async () => {
+  it("classifies launch readiness as artifact-backed when manifests exist but no UI URL is configured", async () => {
     state.presentationLaunchConfig = {
       manifest: {},
       uiBaseUrl: "",
@@ -1317,8 +1363,67 @@ describe("site world session routes", () => {
       expect(payload.status).toBe("presentation_ui_unconfigured");
       expect((payload.presentation_demo as Record<string, unknown>).status).toBe("presentation_ui_unconfigured");
       expect((payload.runtime_only as Record<string, unknown>).status).toBe("runtime_live_ready");
-      expect(payload.blockers).toContain("Presentation demo UI base URL is not configured.");
+      expect(payload.launchable).toBe(true);
+      expect((payload.presentation_demo as Record<string, unknown>).launchable).toBe(true);
+      expect(payload.blockers).not.toContain("Presentation demo UI base URL is not configured.");
       expect(payload.blockers).not.toContain("This site is missing the presentation package required for embedded demos.");
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("does not launch the presentation bridge during runtime-only session creation", async () => {
+    state.presentationLaunchConfig = {
+      manifest: {},
+      uiBaseUrl: "",
+      instanceId: "vast-config",
+      expiresAt: "2026-03-12T02:00:00Z",
+    };
+    const presentationRuntime = await import("../utils/presentation-demo-runtime");
+    const launchPresentationDemoRuntimeMock = vi.mocked(presentationRuntime.launchPresentationDemoRuntime);
+    launchPresentationDemoRuntimeMock.mockClear();
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteWorldId: "sw-chi-01",
+          sessionMode: "runtime_only",
+          robotProfileId: "other_sample",
+          taskId: "sw-chi-01-task-1",
+          scenarioId: "sw-chi-01-scenario-1",
+          startStateId: "sw-chi-01-start-1",
+        }),
+      });
+      const payload = (await response.json()) as Record<string, unknown>;
+      expect(response.status).toBe(201);
+      expect(payload.launchable).toBe(true);
+      expect(launchPresentationDemoRuntimeMock).not.toHaveBeenCalled();
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("marks runtime launch unavailable when the runtime handle stops answering probes", async () => {
+    global.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).startsWith("http://runtime.local/v1/site-worlds/siteworld-1")) {
+        throw new Error("connect ETIMEDOUT runtime.local");
+      }
+      return originalFetch(input, init);
+    }) as typeof global.fetch;
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/launch-readiness?siteWorldId=sw-chi-01`);
+      const payload = (await response.json()) as Record<string, unknown>;
+      expect(response.status).toBe(200);
+      expect((payload.runtime_only as Record<string, unknown>).launchable).toBe(false);
+      expect((payload.runtime_only as Record<string, unknown>).status).toBe("runtime_live_unavailable");
+      expect((payload.runtime_only as Record<string, unknown>).blockers).toContain(
+        "The hosted runtime handle is registered, but the runtime did not answer the site-world readiness probe.",
+      );
     } finally {
       await stopServer(server);
     }

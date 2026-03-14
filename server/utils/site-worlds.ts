@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { siteWorldCards, type SiteWorldCard, type SiteWorldPackage } from "../../client/src/data/siteWorlds";
+import { getConfiguredEnvValue } from "../config/env";
 import type {
   DeploymentReadinessSummary,
   InboundRequest,
@@ -33,6 +34,41 @@ type ArtifactJson = Record<string, unknown> | null;
 const DEMO_SITE_WORLD_ID = "siteworld-f5fd54898cfb";
 const DEMO_BUNDLE_PIPELINE_ROOT =
   "/Users/nijelhunt_1/Downloads/neoverse_a100_20260313_133908_demo_bundle/remote/storage/capture/pipeline";
+
+function deriveWebsocketUrl(runtimeBaseUrl: string | null): string | null {
+  const normalized = String(runtimeBaseUrl || "").trim();
+  if (!normalized) {
+    return null;
+  }
+  try {
+    const url = new URL(normalized);
+    if (url.protocol === "https:") url.protocol = "wss:";
+    if (url.protocol === "http:") url.protocol = "ws:";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return null;
+  }
+}
+
+function resolveDemoRuntimeManifest(runtimeManifest: SiteWorldCard["runtimeManifest"]): SiteWorldCard["runtimeManifest"] {
+  const runtimeBaseUrl = getConfiguredEnvValue(
+    "BLUEPRINT_HOSTED_DEMO_RUNTIME_BASE_URL",
+    "VITE_HOSTED_DEMO_RUNTIME_BASE_URL",
+  );
+  const websocketBaseUrl =
+    getConfiguredEnvValue(
+      "BLUEPRINT_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL",
+      "VITE_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL",
+    ) || deriveWebsocketUrl(runtimeBaseUrl);
+
+  return {
+    ...runtimeManifest,
+    runtimeBaseUrl,
+    websocketBaseUrl,
+    healthStatus: runtimeBaseUrl ? runtimeManifest.healthStatus || "healthy" : "unknown",
+    launchable: Boolean(runtimeBaseUrl),
+  };
+}
 
 function demoBundleAssetPath(relativePath: string) {
   return path.join(DEMO_BUNDLE_PIPELINE_ROOT, relativePath);
@@ -130,7 +166,9 @@ function buildPresentationDemoReadiness(params: {
       : "presentation_ui_unconfigured";
 
   return {
-    launchable: status === "presentation_ui_live" && blockers.length === 0,
+    launchable:
+      (status === "presentation_ui_live" || status === "presentation_ui_unconfigured") &&
+      blockers.length === 0,
     blockers,
     presentationWorldManifestUri,
     runtimeDemoManifestUri,
@@ -823,7 +861,10 @@ function buildStaticRecord(template: SiteWorldCard): SiteWorldCard {
     };
   return {
     ...template,
-    runtimeManifest: template.runtimeManifest || buildFallbackRuntimeManifest(template),
+    runtimeManifest:
+      template.id === DEMO_SITE_WORLD_ID
+        ? resolveDemoRuntimeManifest(template.runtimeManifest || buildFallbackRuntimeManifest(template))
+        : template.runtimeManifest || buildFallbackRuntimeManifest(template),
     taskCatalog: template.taskCatalog || buildFallbackTaskCatalog(template),
     scenarioCatalog: template.scenarioCatalog || buildFallbackScenarioCatalog(template),
     startStateCatalog: template.startStateCatalog || buildFallbackStartStateCatalog(template),

@@ -66,6 +66,16 @@ async function readTextFromUri(uri: string): Promise<string> {
     const [buffer] = await storageAdmin.bucket(bucket).file(objectPath).download();
     return buffer.toString("utf-8");
   }
+  if (uri.startsWith("http://") || uri.startsWith("https://")) {
+    const response = await fetch(uri);
+    if (!response.ok) {
+      throw new PresentationDemoRuntimeError(
+        "artifact_download_failed",
+        `Failed to fetch presentation-demo artifact: ${response.status}`,
+      );
+    }
+    return response.text();
+  }
   return fs.readFile(uri, "utf-8");
 }
 

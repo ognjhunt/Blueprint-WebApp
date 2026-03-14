@@ -261,7 +261,7 @@ async function updateSession(
 }
 
 function shouldRefreshSessionFromRuntime(session: HostedSessionRecord | null | undefined) {
-  if (!session || sessionUsesPresentationDemo(session)) {
+  if (!session) {
     return false;
   }
   return ["ready", "running"].includes(String(session.status || "").trim());
@@ -494,6 +494,9 @@ function buildWorkspaceUrl(siteWorldId: string, sessionId: string) {
 }
 
 function buildSessionCreateResponse(record: HostedSessionRecord) {
+  const artifactBackedPresentation =
+    record.sessionMode === "presentation_demo" &&
+    record.presentationLaunchState?.status === "artifact_backed";
   return {
     sessionId: record.sessionId,
     status: record.status,
@@ -501,7 +504,7 @@ function buildSessionCreateResponse(record: HostedSessionRecord) {
     runtimeBackend: record.runtime_backend_selected,
     launchable:
       record.sessionMode === "presentation_demo"
-        ? record.presentationRuntime?.status === "live"
+        ? record.presentationRuntime?.status === "live" || artifactBackedPresentation
         : Boolean(record.runtimeHandle?.runtime_base_url || record.status === "ready"),
     uiReady: record.presentationRuntime?.status === "live",
     uiMode: record.presentationRuntime?.status === "live" ? "embedded" : "redirect",
@@ -803,13 +806,6 @@ async function buildPresentationDemoReadiness(params: {
     sessionId: "readiness-check",
     runtime: params.runtime,
   }).catch(() => null);
-  if (presentationManifestRegistered && runtimeDemoManifestRegistered && !config?.uiBaseUrl) {
-    addBlocker(details, {
-      code: "presentation_ui_unconfigured",
-      message: "Presentation demo UI base URL is not configured.",
-      source: "presentation_demo",
-    });
-  }
 
   const status =
     !presentationManifestRegistered || !runtimeDemoManifestRegistered
@@ -820,7 +816,9 @@ async function buildPresentationDemoReadiness(params: {
 
   return {
     status,
-    launchable: status === "presentation_ui_live" && details.length === 0,
+    launchable:
+      (status === "presentation_ui_live" || status === "presentation_ui_unconfigured") &&
+      details.length === 0,
     blockers: details.map((item) => item.message),
     blocker_details: details,
     presentationWorldManifestUri: params.runtime.presentationWorldManifestUri ?? null,
@@ -877,15 +875,25 @@ async function buildRuntimeOnlyReadiness(params: {
     });
   }
 
+  if (runtimeBaseUrl && siteWorldId && !params.runtime.runtimeSiteWorldRecord) {
+    addBlocker(details, {
+      code: "runtime_probe_failed",
+      message: "The hosted runtime handle is registered, but the runtime did not answer the site-world readiness probe.",
+      source: "runtime",
+    });
+  }
+
   if (
-    siteWorldHealth?.launchable === false &&
+    (params.runtime.runtimeHealthRecord?.launchable === false || siteWorldHealth?.launchable === false) &&
     params.runtime.allowBlockedSiteWorld !== true &&
     params.runtimeSessionConfig?.unsafe_allow_blocked_site_world !== true
   ) {
+    const liveBlockers = stringsFromUnknown(params.runtime.runtimeHealthRecord?.blockers);
+    const artifactBlockers = stringsFromUnknown(siteWorldHealth?.blockers);
     addBlocker(details, {
       code: "runtime_unlaunchable",
       message:
-        `The site-world runtime is not launchable: ${stringsFromUnknown(siteWorldHealth.blockers).join(", ") || "blocked"}`,
+        `The site-world runtime is not launchable: ${liveBlockers.join(", ") || artifactBlockers.join(", ") || "blocked"}`,
       source: "runtime",
     });
   }
@@ -1422,9 +1430,6 @@ async function proxyRuntimeRenderForSession(session: HostedSessionRecord, req: R
 
 async function proxyRuntimeExplorerFrameForSession(session: HostedSessionRecord, req: Request, res: Response) {
   try {
-    if (sessionUsesPresentationDemo(session)) {
-      return sessionModeUnsupportedResponse(res);
-    }
     await ensureRuntimeMetadataForSession(session);
     const payload = await fetchHostedSessionExplorerFrame({
       sessionId: session.sessionId,
@@ -1451,10 +1456,6 @@ async function proxyRuntimeExplorerFrameForSession(session: HostedSessionRecord,
 }
 
 async function ensureRuntimeMetadataForSession(session: HostedSessionRecord) {
-  if (sessionUsesPresentationDemo(session)) {
-    return;
-  }
-
   const preferredHandle = preferredRuntimeHandleForSession(session);
   const preferredRuntimeBaseUrl = String(preferredHandle.runtime_base_url || "").trim();
   const preferredWebsocketBaseUrl = String(preferredHandle.websocket_base_url || "").trim();
@@ -1679,6 +1680,17 @@ async function launchPresentationDemoSession(
             errorCode: readiness.blocker_details[0]?.code || "presentation_demo_blocked",
             errorMessage: readiness.blockers[0] || "Presentation viewer is blocked.",
           },
+    });
+    return;
+  }
+  if (readiness.status === "presentation_ui_unconfigured") {
+    await updateSession(record.sessionId, {
+      runtime_backend_selected: record.runtime_backend_selected || "neoverse",
+      status: record.status === "creating" ? "ready" : record.status,
+      startedAt: record.startedAt || nowTimestamp(),
+      presentationRuntime: null,
+      presentationLaunchState: buildPresentationLaunchState({ readiness, runtime }),
+      latestRuntimeFailure: null,
     });
     return;
   }
@@ -2169,14 +2181,14 @@ publicSiteWorldSessionsRouter.post("/", async (req, res, next) => {
     await writeSession(record);
 
     if (sessionMode === "presentation_demo") {
-      await launchPresentationDemoSession(record, runtime, { failSessionOnError: true });
+      const finalizedRecord = await createRuntimeOnlySession({ body, runtime, record });
+      await launchPresentationDemoSession(finalizedRecord, runtime, { failSessionOnError: true });
       return res
         .status(201)
-        .json(buildSessionCreateResponse((await loadHostedSession(record.sessionId)) || record));
+        .json(buildSessionCreateResponse((await loadHostedSession(finalizedRecord.sessionId)) || finalizedRecord));
     }
 
     const finalizedRecord = await createRuntimeOnlySession({ body, runtime, record });
-    await launchPresentationDemoSession(finalizedRecord, runtime, { failSessionOnError: false });
     return res
       .status(201)
       .json(buildSessionCreateResponse((await loadHostedSession(finalizedRecord.sessionId)) || finalizedRecord));
@@ -2209,7 +2221,7 @@ publicSiteWorldSessionsRouter.post("/:sessionId/reset", async (req, res, next) =
     if (!session || !isPublicDemoSession(session)) {
       return next();
     }
-    if (sessionUsesPresentationDemo(session)) {
+    if (sessionUsesPresentationDemo(session) && session.presentationRuntime) {
       return sessionModeUnsupportedResponse(res);
     }
     const logContext = hostedSessionRouteLogContext(req, res, session, "reset", "public");
@@ -2303,9 +2315,6 @@ publicSiteWorldSessionsRouter.post("/:sessionId/step", async (req, res, next) =>
     if (!session || !isPublicDemoSession(session)) {
       return next();
     }
-    if (sessionUsesPresentationDemo(session)) {
-      return sessionModeUnsupportedResponse(res);
-    }
     await ensureRuntimeMetadataForSession(session);
     const payload = await stepHostedSessionRun({
       sessionId: session.sessionId,
@@ -2356,7 +2365,7 @@ publicSiteWorldSessionsRouter.post("/:sessionId/run-batch", async (req, res, nex
     if (!session || !isPublicDemoSession(session)) {
       return next();
     }
-    if (sessionUsesPresentationDemo(session)) {
+    if (sessionUsesPresentationDemo(session) && session.presentationRuntime) {
       return sessionModeUnsupportedResponse(res);
     }
     await ensureRuntimeMetadataForSession(session);
@@ -2409,7 +2418,7 @@ publicSiteWorldSessionsRouter.post("/:sessionId/stop", async (req, res, next) =>
       return next();
     }
 
-    if (session.presentationRuntime?.status === "live" || sessionUsesPresentationDemo(session)) {
+    if (session.presentationRuntime?.status === "live") {
       await stopPresentationDemoRuntime({
         sessionId: session.sessionId,
         presentationRuntime: session.presentationRuntime,
@@ -2457,9 +2466,6 @@ publicSiteWorldSessionsRouter.post("/:sessionId/explorer-render", async (req, re
     if (!session || !isPublicDemoSession(session)) {
       return next();
     }
-    if (sessionUsesPresentationDemo(session)) {
-      return sessionModeUnsupportedResponse(res);
-    }
     await ensureRuntimeMetadataForSession(session);
     const payload = await renderHostedSessionExplorer({
       sessionId: session.sessionId,
@@ -2503,7 +2509,7 @@ publicSiteWorldSessionsRouter.post("/:sessionId/export", async (req, res, next) 
     if (!session || !isPublicDemoSession(session)) {
       return next();
     }
-    if (sessionUsesPresentationDemo(session)) {
+    if (sessionUsesPresentationDemo(session) && session.presentationRuntime) {
       return sessionModeUnsupportedResponse(res);
     }
     await ensureRuntimeMetadataForSession(session);
@@ -2636,14 +2642,14 @@ protectedRouter.post("/", async (req: Request, res: Response) => {
     await writeSession(record);
 
     if (sessionMode === "presentation_demo") {
-      await launchPresentationDemoSession(record, runtime, { failSessionOnError: true });
+      const finalizedRecord = await createRuntimeOnlySession({ body, runtime, record });
+      await launchPresentationDemoSession(finalizedRecord, runtime, { failSessionOnError: true });
       return res
         .status(201)
-        .json(buildSessionCreateResponse((await loadHostedSession(record.sessionId)) || record));
+        .json(buildSessionCreateResponse((await loadHostedSession(finalizedRecord.sessionId)) || finalizedRecord));
     }
 
     const finalizedRecord = await createRuntimeOnlySession({ body, runtime, record });
-    await launchPresentationDemoSession(finalizedRecord, runtime, { failSessionOnError: false });
     return res
       .status(201)
       .json(buildSessionCreateResponse((await loadHostedSession(finalizedRecord.sessionId)) || finalizedRecord));
@@ -2710,7 +2716,7 @@ protectedRouter.post("/:sessionId/reset", async (req, res) => {
     if (!session) {
       return res.status(404).json({ error: "Hosted session not found" });
     }
-    if (sessionUsesPresentationDemo(session)) {
+    if (sessionUsesPresentationDemo(session) && session.presentationRuntime) {
       return sessionModeUnsupportedResponse(res);
     }
     const logContext = hostedSessionRouteLogContext(req, res, session, "reset", "protected");
@@ -2802,9 +2808,6 @@ protectedRouter.post("/:sessionId/step", async (req, res) => {
     if (!session) {
       return res.status(404).json({ error: "Hosted session not found" });
     }
-    if (sessionUsesPresentationDemo(session)) {
-      return sessionModeUnsupportedResponse(res);
-    }
     await ensureRuntimeMetadataForSession(session);
     const payload = await stepHostedSessionRun({
       sessionId: session.sessionId,
@@ -2855,9 +2858,6 @@ protectedRouter.post("/:sessionId/run-batch", async (req, res) => {
     const session = await loadHostedSession(String(req.params.sessionId || ""));
     if (!session) {
       return res.status(404).json({ error: "Hosted session not found" });
-    }
-    if (sessionUsesPresentationDemo(session)) {
-      return sessionModeUnsupportedResponse(res);
     }
     await ensureRuntimeMetadataForSession(session);
     const runtime = await resolveHostedRuntime(session.site.siteWorldId);
@@ -2910,7 +2910,7 @@ protectedRouter.post("/:sessionId/stop", async (req, res) => {
       return res.status(404).json({ error: "Hosted session not found" });
     }
 
-    if (session.presentationRuntime?.status === "live" || sessionUsesPresentationDemo(session)) {
+    if (session.presentationRuntime?.status === "live") {
       await stopPresentationDemoRuntime({
         sessionId: session.sessionId,
         presentationRuntime: session.presentationRuntime,
@@ -2958,9 +2958,6 @@ protectedRouter.post("/:sessionId/explorer-render", async (req, res) => {
     const session = await loadHostedSession(String(req.params.sessionId || ""));
     if (!session) {
       return res.status(404).json({ error: "Hosted session not found" });
-    }
-    if (sessionUsesPresentationDemo(session)) {
-      return sessionModeUnsupportedResponse(res);
     }
     await ensureRuntimeMetadataForSession(session);
     const payload = await renderHostedSessionExplorer({

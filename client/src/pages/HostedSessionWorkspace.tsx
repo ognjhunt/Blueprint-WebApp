@@ -177,7 +177,13 @@ function resolveWorkspaceStatus(record: HostedSessionRecord | null): "starting" 
     return "stopped";
   }
   if (record.sessionMode === "presentation_demo") {
-    return record.presentationRuntime?.status === "live" ? "live" : "starting";
+    if (record.presentationRuntime) {
+      return record.presentationRuntime.status === "live" ? "live" : "starting";
+    }
+    if (record.presentationLaunchState?.status === "artifact_backed") {
+      return "live";
+    }
+    return record.status === "creating" ? "starting" : "live";
   }
   return record.status === "creating" ? "starting" : "live";
 }
@@ -742,7 +748,6 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const openDemoUrl = uiBootstrapUrl || "";
   const runtimeInteractive =
     Boolean(sessionId) &&
-    sessionMode !== "presentation_demo" &&
     sessionStatus !== "starting" &&
     sessionStatus !== "stopped" &&
     sessionStatus !== "error";

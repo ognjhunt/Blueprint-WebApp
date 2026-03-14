@@ -20,6 +20,7 @@ interface LaunchBlockerDetail {
 }
 
 interface LaunchModeReadiness {
+  status?: "presentation_assets_missing" | "presentation_ui_unconfigured" | "presentation_ui_live" | "runtime_live_ready" | "runtime_live_unavailable";
   launchable: boolean;
   blockers: string[];
   blocker_details?: LaunchBlockerDetail[];
@@ -327,7 +328,9 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                   {checkingReadiness
                     ? "Checking whether this site can launch an embedded NeoVerse demo."
                     : presentationReadiness?.launchable
-                      ? "This site is ready for an embedded NeoVerse demo session."
+                      ? presentationReadiness?.status === "presentation_ui_unconfigured"
+                        ? "This site can launch an artifact-backed presentation session. The private operator view is optional and currently unavailable."
+                        : "This site is ready for an embedded NeoVerse demo session."
                       : "This site cannot launch the embedded NeoVerse demo yet."}
                 </p>
                 {presentationReadiness?.presentationWorldManifestUri ? (
@@ -343,6 +346,11 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                       </li>
                     ))}
                   </ul>
+                ) : null}
+                {!checkingReadiness && presentationReadiness?.launchable && presentationReadiness?.status === "presentation_ui_unconfigured" ? (
+                  <p className="mt-3 text-xs text-amber-900">
+                    The saved presentation world is ready now. A live private operator bridge can be added later without blocking this launch.
+                  </p>
                 ) : null}
               </div>
 
@@ -539,9 +547,18 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
 
                 {suggestRuntimeFallback ? (
                   <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
-                    <p className="font-semibold">Embedded demo is blocked, but the live runtime is ready.</p>
+                    <p className="font-semibold">Embedded demo is blocked, but a runtime-only launch path is available.</p>
                     <p className="mt-1 text-sky-900">
-                      You can still launch the runtime-only workspace for this fresh site world while the demo UI handle is unavailable.
+                      You can still try the canonical runtime workspace while the embedded demo UI is unavailable.
+                    </p>
+                  </div>
+                ) : null}
+
+                {!checkingReadiness && presentationReadiness?.launchable && presentationReadiness?.status === "presentation_ui_unconfigured" ? (
+                  <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+                    <p className="font-semibold">Presentation can launch without the private operator bridge.</p>
+                    <p className="mt-1 text-sky-900">
+                      This will open the saved presentation world immediately and keep the live runtime available in the same workspace.
                     </p>
                   </div>
                 ) : null}

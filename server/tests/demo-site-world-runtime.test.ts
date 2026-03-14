@@ -2,6 +2,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createServer } from "node:http";
 
+const originalFetch = global.fetch;
+
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   default: {},
   dbAdmin: null,
@@ -19,10 +21,49 @@ vi.mock("../middleware/verifyFirebaseToken", () => ({
 }));
 
 describe("demo site-world runtime fallback", () => {
+  it("resolves hosted runtime with the demo launch override", async () => {
+    process.env.BLUEPRINT_HOSTED_DEMO_RUNTIME_BASE_URL = "https://demo-runtime.example.com";
+    process.env.BLUEPRINT_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL = "wss://demo-runtime.example.com";
+    global.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "https://demo-runtime.example.com/v1/site-worlds/siteworld-f5fd54898cfb") {
+        return new Response(
+          JSON.stringify({
+            canonical_package_uri:
+              "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/evaluation_prep/site_world_spec.json",
+            canonical_package_version: "demo-runtime-v1",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (String(input) === "https://demo-runtime.example.com/v1/site-worlds/siteworld-f5fd54898cfb/health") {
+        return new Response(
+          JSON.stringify({
+            status: "healthy",
+            launchable: true,
+            blockers: [],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return originalFetch(input, init);
+    }) as typeof global.fetch;
+
+    const runtime = await resolveHostedRuntime("siteworld-f5fd54898cfb");
+
+    expect(runtime.runtimeBaseUrl).toBe("https://demo-runtime.example.com");
+    expect(runtime.websocketBaseUrl).toBe("wss://demo-runtime.example.com");
+    expect(runtime.allowBlockedSiteWorld).toBe(true);
+    expect(runtime.qualificationState).toBe("qualified_ready");
+    expect(runtime.deploymentReadiness?.qualification_state).toBe("qualified_ready");
+    expect(runtime.resolvedArtifactCanonicalUri).toContain("blueprint-8c1ca.appspot.com");
+    expect(runtime.registeredCanonicalPackageUri).toContain("site_world_spec.json");
+    expect(String(runtime.registeredCanonicalPackageVersion || "")).toBe("demo-runtime-v1");
+  }, 15000);
+
   it("exposes the hardcoded site-world in client and server catalogs", async () => {
     const clientRecord = getSiteWorldById("siteworld-f5fd54898cfb");
     expect(clientRecord).not.toBeNull();
-    expect(clientRecord?.runtimeManifest.runtimeBaseUrl).toBe("https://tom-interventions-geographical-filtering.trycloudflare.com");
+    expect(clientRecord?.runtimeManifest.runtimeBaseUrl).toBeNull();
     expect(clientRecord?.hostedSessionOverride?.allowBlockedSiteWorld).toBe(true);
 
     const serverRecord = await getPublicSiteWorldById("siteworld-f5fd54898cfb");
@@ -33,24 +74,40 @@ describe("demo site-world runtime fallback", () => {
     expect((serverRecord?.artifactExplorer?.objects || []).length).toBeGreaterThan(0);
   });
 
-  it("resolves hosted runtime with the demo launch override", async () => {
-    const runtime = await resolveHostedRuntime("siteworld-f5fd54898cfb");
-
-    expect(runtime.runtimeBaseUrl).toBe("https://tom-interventions-geographical-filtering.trycloudflare.com");
-    expect(runtime.websocketBaseUrl).toBe("wss://tom-interventions-geographical-filtering.trycloudflare.com");
-    expect(runtime.allowBlockedSiteWorld).toBe(true);
-    expect(runtime.qualificationState).toBe("qualified_ready");
-    expect(runtime.deploymentReadiness?.qualification_state).toBe("qualified_ready");
-    expect(runtime.resolvedArtifactCanonicalUri).toContain("blueprint-8c1ca.appspot.com");
-    expect(runtime.registeredCanonicalPackageUri).toContain("site_world_spec.json");
-    expect(String(runtime.registeredCanonicalPackageVersion || "")).not.toHaveLength(0);
-  }, 15000);
-
   afterEach(() => {
+    delete process.env.BLUEPRINT_HOSTED_DEMO_RUNTIME_BASE_URL;
+    delete process.env.BLUEPRINT_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL;
+    global.fetch = originalFetch;
     vi.restoreAllMocks();
   });
 
   it("allows launch-readiness for the demo site-world from a non-robot-team signed-in account", async () => {
+    process.env.BLUEPRINT_HOSTED_DEMO_RUNTIME_BASE_URL = "https://demo-runtime.example.com";
+    process.env.BLUEPRINT_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL = "wss://demo-runtime.example.com";
+    global.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "https://demo-runtime.example.com/v1/site-worlds/siteworld-f5fd54898cfb") {
+        return new Response(
+          JSON.stringify({
+            canonical_package_uri:
+              "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/evaluation_prep/site_world_spec.json",
+            canonical_package_version: "demo-runtime-v1",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (String(input) === "https://demo-runtime.example.com/v1/site-worlds/siteworld-f5fd54898cfb/health") {
+        return new Response(
+          JSON.stringify({
+            status: "healthy",
+            launchable: true,
+            blockers: [],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return originalFetch(input, init);
+    }) as typeof global.fetch;
+
     const app = express();
     app.use((req, res, next) => {
       res.locals.firebaseUser = { uid: "user-1", email: "demo@example.com", admin: false };
