@@ -1,13 +1,17 @@
+import { execFile as execFileCallback } from "node:child_process";
 import http from "node:http";
 import https from "node:https";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { attachRequestMeta, logger } from "../logger";
 import type { HostedRuntimeSessionConfig } from "../types/hosted-session";
 import { parseGsUri } from "./pipeline-dashboard";
 import type { HostedRuntimeResolution } from "./hosted-session-runtime";
+
+const execFile = promisify(execFileCallback);
 
 export class HostedSessionOrchestratorError extends Error {
   code: string;
@@ -68,6 +72,10 @@ function shouldUseNodeRuntimeHttp() {
   return process.env.BLUEPRINT_HOSTED_SESSION_USE_NODE_HTTP === "1" || process.env.NODE_ENV === "production";
 }
 
+function shouldUseCurlRuntimeHttp() {
+  return process.env.BLUEPRINT_HOSTED_SESSION_USE_CURL === "1" || process.env.NODE_ENV === "production";
+}
+
 async function runtimeRequestViaNode(
   url: string,
   init?: RequestInit,
@@ -122,6 +130,59 @@ async function runtimeRequestViaNode(
   });
 }
 
+async function runtimeRequestViaCurl(
+  url: string,
+  init?: RequestInit,
+): Promise<{ statusCode: number; headers: Record<string, string>; body: Buffer }> {
+  const timeoutMs = Math.max(1000, Number(process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_TIMEOUT_MS || 45000));
+  const body =
+    typeof init?.body === "string"
+      ? init.body
+      : init?.body instanceof URLSearchParams
+        ? init.body.toString()
+        : Buffer.isBuffer(init?.body)
+          ? init.body.toString("utf-8")
+          : init?.body
+            ? String(init.body)
+            : "";
+  const headers = new Headers(init?.headers || {});
+  const args = [
+    "--silent",
+    "--show-error",
+    "--location",
+    "--http1.1",
+    "--max-time",
+    String(Math.ceil(timeoutMs / 1000)),
+    "--request",
+    init?.method || "GET",
+    "--write-out",
+    "\n__BLUEPRINT_STATUS__:%{http_code}",
+  ];
+  headers.forEach((value, key) => {
+    args.push("--header", `${key}: ${value}`);
+  });
+  if (body && (init?.method || "GET").toUpperCase() !== "GET" && (init?.method || "GET").toUpperCase() !== "HEAD") {
+    args.push("--data-binary", body);
+  }
+  args.push(url);
+
+  const { stdout } = await execFile("curl", args, {
+    encoding: "buffer",
+    maxBuffer: 10 * 1024 * 1024,
+  });
+  const marker = Buffer.from("\n__BLUEPRINT_STATUS__:");
+  const markerIndex = stdout.lastIndexOf(marker);
+  if (markerIndex < 0) {
+    throw new Error("curl runtime request did not return an HTTP status marker");
+  }
+  const statusCode = Number(stdout.subarray(markerIndex + marker.length).toString("utf-8").trim() || "0");
+  return {
+    statusCode,
+    headers: {},
+    body: stdout.subarray(0, markerIndex),
+  };
+}
+
 async function runtimeFetchJson(
   baseUrl: string,
   relativePath: string,
@@ -134,20 +195,26 @@ async function runtimeFetchJson(
   const startedAt = Date.now();
 
   try {
-    const payload = shouldUseNodeRuntimeHttp()
-      ? await runtimeRequestViaNode(url, init).then((response) => ({
+    const payload = shouldUseCurlRuntimeHttp()
+      ? await runtimeRequestViaCurl(url, init).then((response) => ({
           ok: response.statusCode >= 200 && response.statusCode < 300,
           status: response.statusCode,
           payload: JSON.parse(response.body.toString("utf-8") || "{}") as Record<string, unknown>,
         }))
-      : await fetch(url, {
-          ...init,
-          signal: controller.signal,
-        }).then(async (response) => ({
-          ok: response.ok,
-          status: response.status,
-          payload: (await response.json().catch(() => ({}))) as Record<string, unknown>,
-        }));
+      : shouldUseNodeRuntimeHttp()
+        ? await runtimeRequestViaNode(url, init).then((response) => ({
+          ok: response.statusCode >= 200 && response.statusCode < 300,
+          status: response.statusCode,
+          payload: JSON.parse(response.body.toString("utf-8") || "{}") as Record<string, unknown>,
+        }))
+        : await fetch(url, {
+            ...init,
+            signal: controller.signal,
+          }).then(async (response) => ({
+            ok: response.ok,
+            status: response.status,
+            payload: (await response.json().catch(() => ({}))) as Record<string, unknown>,
+          }));
     if (!payload.ok) {
       throw new HostedSessionOrchestratorError(
         "runtime_proxy_failed",

@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
+import { execFile as execFileCallback } from "node:child_process";
 import http from "node:http";
 import https from "node:https";
 import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
+import { promisify } from "node:util";
 import { Router, Request, Response } from "express";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { attachRequestMeta, logger } from "../logger";
@@ -45,6 +47,7 @@ const protectedRouter = Router();
 export const publicSiteWorldSessionsRouter = Router();
 const inMemorySessions = new Map<string, HostedSessionRecord>();
 const activePresentationSessionIndex = new Map<string, string>();
+const execFile = promisify(execFileCallback);
 
 export function resetHostedSessionRouteState() {
   inMemorySessions.clear();
@@ -1014,6 +1017,10 @@ function shouldUseNodeRuntimeHttp() {
   return process.env.BLUEPRINT_HOSTED_SESSION_USE_NODE_HTTP === "1" || process.env.NODE_ENV === "production";
 }
 
+function shouldUseCurlRuntimeHttp() {
+  return process.env.BLUEPRINT_HOSTED_SESSION_USE_CURL === "1" || process.env.NODE_ENV === "production";
+}
+
 async function runtimeBinaryRequest(url: string, timeoutMs: number) {
   if (!shouldUseNodeRuntimeHttp()) {
     const controller = new AbortController();
@@ -1028,6 +1035,38 @@ async function runtimeBinaryRequest(url: string, timeoutMs: number) {
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  if (shouldUseCurlRuntimeHttp()) {
+    const { stdout } = await execFile(
+      "curl",
+      [
+        "--silent",
+        "--show-error",
+        "--location",
+        "--http1.1",
+        "--max-time",
+        String(Math.ceil(timeoutMs / 1000)),
+        "--write-out",
+        "\n__BLUEPRINT_STATUS__:%{http_code}",
+        url,
+      ],
+      {
+        encoding: "buffer",
+        maxBuffer: 20 * 1024 * 1024,
+      },
+    );
+    const marker = Buffer.from("\n__BLUEPRINT_STATUS__:");
+    const markerIndex = stdout.lastIndexOf(marker);
+    if (markerIndex < 0) {
+      throw new Error("curl runtime render request did not return an HTTP status marker");
+    }
+    const statusCode = Number(stdout.subarray(markerIndex + marker.length).toString("utf-8").trim() || "0");
+    return {
+      statusCode,
+      headers: {} as Record<string, string>,
+      body: stdout.subarray(0, markerIndex),
+    };
   }
 
   const target = new URL(url);
