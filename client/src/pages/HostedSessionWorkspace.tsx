@@ -390,6 +390,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const [observationRefreshKey, setObservationRefreshKey] = useState(0);
   const [observationLoadError, setObservationLoadError] = useState(false);
   const [liveObservationSrc, setLiveObservationSrc] = useState("");
+  const [liveViewportAspect, setLiveViewportAspect] = useState<number | null>(null);
   const [lastLiveRenderContext, setLastLiveRenderContext] = useState<{
     cameraId: string;
     stepIndex: number;
@@ -579,6 +580,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       }
       return "";
     });
+    setLiveViewportAspect(null);
     setLastLiveRenderContext(null);
     setControlError("");
     setUiBootstrapUrl("");
@@ -765,6 +767,10 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const hasVisibleObservation = Boolean(
     selectedObservationSrc && isRenderableObservationPath(selectedObservationSrc) && !observationLoadError,
   );
+  const liveViewportFrameMode =
+    liveViewportAspect != null && liveViewportAspect < 1.05 ? "portrait" : "landscape";
+  const liveViewportMinHeight =
+    liveViewportFrameMode === "portrait" ? "min(82vh, 1100px)" : "min(74vh, 980px)";
   const hasGenuineLiveObservation = Boolean(
     runtimeInteractive &&
       liveObservationSrc &&
@@ -794,6 +800,13 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       : runtimeDiagnostic
         ? { label: "Live Runtime: Failed", tone: "rose" as const }
         : { label: "Live Runtime: Ready", tone: "slate" as const };
+  const handleViewportImageLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
+    const { naturalWidth, naturalHeight } = event.currentTarget;
+    if (naturalWidth > 0 && naturalHeight > 0) {
+      setLiveViewportAspect(naturalWidth / naturalHeight);
+    }
+    setObservationLoadError(false);
+  };
   const presentationModeState = presentationInteractive
     ? { label: "Explore Site-World: Operator view live", tone: "emerald" as const }
     : artifactExplorerReady
@@ -1211,7 +1224,11 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       />
 
       <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.06),_transparent_30%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)]">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div
+          className={`mx-auto px-4 py-10 sm:px-6 lg:px-8 ${
+            activeMode === "live_runtime" ? "max-w-[1900px]" : "max-w-7xl"
+          }`}
+        >
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <a
@@ -1275,238 +1292,292 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
             diagnostic={runtimeDiagnostic}
           />
 
-          <section className="mt-6 rounded-[32px] border border-slate-200 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(238,242,255,0.92))] p-6 shadow-sm">
-            <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Built World Model Demo</p>
-                <h2 className="mt-3 max-w-3xl text-3xl font-bold tracking-tight text-slate-950">
-                  The site-world is already built. This page now optimizes for dependable exploration first, live runtime second.
-                </h2>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-                  `Explore Site-World` is the default customer-facing path when live runtime frames are unavailable.
-                  `Live Runtime` stays grounded in the real session outputs, and the private operator bridge only appears when
-                  a real internal NeoVerse UI is actually live.
-                </p>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <DetailPill label="Canonical Version" value={canonicalPackageVersion || "Unspecified"} />
-                  <DetailPill label="Runtime Step" value={String(latestEpisode?.stepIndex ?? 0)} />
-                  <DetailPill label="Reward" value={latestEpisode?.reward != null ? String(latestEpisode.reward) : "0"} />
-                  <DetailPill label="Exploration Mode" value={presentationAvailabilityLabel} />
+          {activeMode !== "live_runtime" ? (
+            <>
+              <section className="mt-6 rounded-[32px] border border-slate-200 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(238,242,255,0.92))] p-6 shadow-sm">
+                <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Built World Model Demo</p>
+                    <h2 className="mt-3 max-w-3xl text-3xl font-bold tracking-tight text-slate-950">
+                      The site-world is already built. This page now optimizes for dependable exploration first, live runtime second.
+                    </h2>
+                    <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+                      `Explore Site-World` is the default customer-facing path when live runtime frames are unavailable.
+                      `Live Runtime` stays grounded in the real session outputs, and the private operator bridge only appears when
+                      a real internal NeoVerse UI is actually live.
+                    </p>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                      <DetailPill label="Canonical Version" value={canonicalPackageVersion || "Unspecified"} />
+                      <DetailPill label="Runtime Step" value={String(latestEpisode?.stepIndex ?? 0)} />
+                      <DetailPill label="Reward" value={latestEpisode?.reward != null ? String(latestEpisode.reward) : "0"} />
+                      <DetailPill label="Exploration Mode" value={presentationAvailabilityLabel} />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <ModeToggleButton
+                        title="Live Runtime"
+                        description="Robot-session controls, camera switching, first-frame bootstrapping, and runtime outputs."
+                        active={false}
+                        onClick={() => {
+                          setUserSelectedMode(true);
+                          setActiveMode("live_runtime");
+                        }}
+                      />
+                      <ModeToggleButton
+                        title="Explore Site-World"
+                        description="Artifact-backed exploration first, with a private operator bridge only when a live internal UI exists."
+                        active
+                        onClick={() => {
+                          setUserSelectedMode(true);
+                          setActiveMode("presentation_world");
+                        }}
+                      />
+                    </div>
+                    <div className="rounded-3xl border border-slate-200 bg-slate-950 p-5 text-slate-100">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Demo Guarantees</p>
+                      <ul className="mt-4 space-y-3 text-sm text-slate-300">
+                        {[
+                          "Canonical site-world is the grounded source of truth.",
+                          "Scene-memory conditioning is related support data, not the canonical runtime binding.",
+                          "Runtime session outputs stay labeled as downstream observations and exports.",
+                        ].map((item) => (
+                          <li key={item} className="flex items-start gap-3">
+                            <span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </section>
 
-              <div className="grid gap-4">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <ModeToggleButton
-                    title="Live Runtime"
-                    description="Robot-session controls, camera switching, first-frame bootstrapping, and runtime outputs."
-                    active={activeMode === "live_runtime"}
-                    onClick={() => {
-                      setUserSelectedMode(true);
-                      setActiveMode("live_runtime");
-                    }}
-                  />
-                  <ModeToggleButton
-                    title="Explore Site-World"
-                    description="Artifact-backed exploration first, with a private operator bridge only when a live internal UI exists."
-                    active={activeMode === "presentation_world"}
-                    onClick={() => {
-                      setUserSelectedMode(true);
-                      setActiveMode("presentation_world");
-                    }}
-                  />
-                </div>
-                <div className="rounded-3xl border border-slate-200 bg-slate-950 p-5 text-slate-100">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Demo Guarantees</p>
-                  <ul className="mt-4 space-y-3 text-sm text-slate-300">
-                    {[
-                      "Canonical site-world is the grounded source of truth.",
-                      "Scene-memory conditioning is related support data, not the canonical runtime binding.",
-                      "Runtime session outputs stay labeled as downstream observations and exports.",
-                    ].map((item) => (
-                      <li key={item} className="flex items-start gap-3">
-                        <span className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </section>
+              <section className="mt-6 grid gap-4 lg:grid-cols-3">
+                <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Canonical Site-World</p>
+                  <h3 className="mt-3 text-lg font-semibold text-slate-950">Grounded runtime binding</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    The grounded site-world package is the authoritative source the runtime is bound to for this session.
+                  </p>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <DetailPill label="Scene" value={site.sceneId} />
+                    <DetailPill label="Capture" value={site.captureId} />
+                    <DetailPill label="Qualification" value={humanizeValue(site.deploymentReadiness?.qualification_state, "qualified")} />
+                    <DetailPill label="Health" value={humanizeValue(sessionRecord?.runtimeHandle?.health_status || site.runtimeManifest?.healthStatus, "unknown")} />
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <MetadataLink href={canonicalPackageUri} label="View canonical package" />
+                    <MetadataLink href={siteWorldRegistrationUri} label="View runtime registration" />
+                    <MetadataLink href={siteWorldHealthUri} label="View site-world health" />
+                  </div>
+                </article>
 
-          <section className="mt-6 grid gap-4 lg:grid-cols-3">
-            <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Canonical Site-World</p>
-              <h3 className="mt-3 text-lg font-semibold text-slate-950">Grounded runtime binding</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                The grounded site-world package is the authoritative source the runtime is bound to for this session.
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <DetailPill label="Scene" value={site.sceneId} />
-                <DetailPill label="Capture" value={site.captureId} />
-                <DetailPill label="Qualification" value={humanizeValue(site.deploymentReadiness?.qualification_state, "qualified")} />
-                <DetailPill label="Health" value={humanizeValue(sessionRecord?.runtimeHandle?.health_status || site.runtimeManifest?.healthStatus, "unknown")} />
-              </div>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <MetadataLink href={canonicalPackageUri} label="View canonical package" />
-                <MetadataLink href={siteWorldRegistrationUri} label="View runtime registration" />
-                <MetadataLink href={siteWorldHealthUri} label="View site-world health" />
-              </div>
-            </article>
+                <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Scene-Memory Conditioning Package</p>
+                  <h3 className="mt-3 text-lg font-semibold text-slate-950">Support artifacts for conditioning</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    These artifacts inform reconstruction and presentation, but they are not the same object as the canonical
+                    runtime package.
+                  </p>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <DetailPill label="Primary backend" value={sessionRecord?.siteModel?.defaultRuntimeBackend || site.defaultRuntimeBackend} />
+                    <DetailPill label="Scenario variants" value={String(sessionRecord?.siteModel?.availableScenarioVariants?.length || site.scenarioVariants.length)} />
+                    <DetailPill label="Start states" value={String(sessionRecord?.siteModel?.availableStartStates?.length || site.startStates.length)} />
+                    <DetailPill label="Pipeline prefix" value={site.pipelinePrefix.split("/").slice(-2).join("/")} />
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <MetadataLink href={sceneMemoryManifestUri} label="View scene-memory manifest" />
+                    <MetadataLink href={conditioningBundleUri} label="View conditioning bundle" />
+                    <MetadataLink href={presentationWorldManifestUri} label="View presentation manifest" />
+                  </div>
+                </article>
 
-            <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Scene-Memory Conditioning Package</p>
-              <h3 className="mt-3 text-lg font-semibold text-slate-950">Support artifacts for conditioning</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                These artifacts inform reconstruction and presentation, but they are not the same object as the canonical
-                runtime package.
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <DetailPill label="Primary backend" value={sessionRecord?.siteModel?.defaultRuntimeBackend || site.defaultRuntimeBackend} />
-                <DetailPill label="Scenario variants" value={String(sessionRecord?.siteModel?.availableScenarioVariants?.length || site.scenarioVariants.length)} />
-                <DetailPill label="Start states" value={String(sessionRecord?.siteModel?.availableStartStates?.length || site.startStates.length)} />
-                <DetailPill label="Pipeline prefix" value={site.pipelinePrefix.split("/").slice(-2).join("/")} />
-              </div>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <MetadataLink href={sceneMemoryManifestUri} label="View scene-memory manifest" />
-                <MetadataLink href={conditioningBundleUri} label="View conditioning bundle" />
-                <MetadataLink href={presentationWorldManifestUri} label="View presentation manifest" />
-              </div>
-            </article>
+                <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Runtime Session Outputs</p>
+                  <h3 className="mt-3 text-lg font-semibold text-slate-950">Downstream session products</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    Observation frames, rollout media, exports, and batch summaries all come from the current runtime session.
+                  </p>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <DetailPill label="Current step" value={String(latestEpisode?.stepIndex ?? 0)} />
+                    <DetailPill label="Protected regions" value={String(protectedRegionViolations.length)} />
+                    <DetailPill label="Rollout video" value={rolloutVideoPath ? "Available" : "Pending"} />
+                    <DetailPill label="Raw bundle" value={rawBundlePath ? "Available" : "Pending"} />
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <MetadataLink href={renderRouteHref || null} label="Open latest frame" />
+                    <MetadataLink href={rolloutVideoPath || null} label="Open rollout video" />
+                    <MetadataLink href={exportManifestPath || null} label="Open export manifest" />
+                    <MetadataLink href={rawBundlePath || null} label="Open raw bundle" />
+                  </div>
+                </article>
+              </section>
+            </>
+          ) : null}
 
-            <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Runtime Session Outputs</p>
-              <h3 className="mt-3 text-lg font-semibold text-slate-950">Downstream session products</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Observation frames, rollout media, exports, and batch summaries all come from the current runtime session.
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <DetailPill label="Current step" value={String(latestEpisode?.stepIndex ?? 0)} />
-                <DetailPill label="Protected regions" value={String(protectedRegionViolations.length)} />
-                <DetailPill label="Rollout video" value={rolloutVideoPath ? "Available" : "Pending"} />
-                <DetailPill label="Raw bundle" value={rawBundlePath ? "Available" : "Pending"} />
-              </div>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <MetadataLink href={renderRouteHref || null} label="Open latest frame" />
-                <MetadataLink href={rolloutVideoPath || null} label="Open rollout video" />
-                <MetadataLink href={exportManifestPath || null} label="Open export manifest" />
-                <MetadataLink href={rawBundlePath || null} label="Open raw bundle" />
-              </div>
-            </article>
-          </section>
-
-          <div className="mt-8 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className={`mt-8 ${activeMode === "live_runtime" ? "space-y-6" : "grid gap-6 xl:grid-cols-[1.2fr_0.8fr]"}`}>
             {activeMode === "live_runtime" ? (
               <>
-                <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
+                <section className="overflow-hidden rounded-[36px] border border-slate-200 bg-white/95 p-4 shadow-[0_24px_80px_rgba(15,23,42,0.12)] sm:p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Live Runtime</p>
-                      <h2 className="mt-2 text-2xl font-bold text-slate-900">Human-explorable robot viewport</h2>
+                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Live Runtime</p>
+                      <h2 className="mt-2 text-[clamp(2rem,3vw,3.6rem)] font-bold tracking-[-0.04em] text-slate-950">
+                        Explore the site-world directly
+                      </h2>
+                      <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+                        The viewport is now the primary surface. Movement, orientation, and grasp actions stay attached to
+                        the live world instead of living inside a small preview box.
+                      </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
                       <ModeStateBadge label={runtimeModeState.label} tone={runtimeModeState.tone} />
-                      <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
+                      <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
                         {runtimeBusyLabel || (autoBootstrapState === "running" ? "Resetting runtime and fetching the first frame" : "Ready")}
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                    {hasVisibleObservation ? (
-                      <img
-                        key={selectedObservationSrc}
-                        src={selectedObservationSrc}
-                        alt="Latest robot observation frame"
-                        className="h-[360px] w-full rounded-2xl object-cover"
-                        onError={() => setObservationLoadError(true)}
-                        onLoad={() => setObservationLoadError(false)}
-                      />
-                    ) : showRuntimeReferencePreview ? (
-                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+                    <div
+                      className="relative overflow-hidden rounded-[32px] border border-slate-200 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.78),rgba(238,242,255,0.48)_34%),linear-gradient(180deg,#f8fafc_0%,#e2e8f0_100%)]"
+                      style={{ minHeight: liveViewportMinHeight }}
+                    >
+                      {hasVisibleObservation ? (
                         <img
-                          src={runtimeReferenceImageUrl || ""}
-                          alt="Validated runtime reference frame"
-                          className="h-[360px] w-full rounded-2xl object-cover"
+                          key={selectedObservationSrc}
+                          src={selectedObservationSrc}
+                          alt="Latest robot observation frame"
+                          className={`absolute inset-0 h-full w-full ${
+                            liveViewportFrameMode === "portrait" ? "object-contain" : "object-cover"
+                          }`}
+                          onError={() => setObservationLoadError(true)}
+                          onLoad={handleViewportImageLoad}
                         />
-                        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-                          Live stepping did not return a browser-visible frame. Showing the validated March 13 reference
-                          render in-page while the current runtime path is unavailable.
+                      ) : showRuntimeReferencePreview ? (
+                        <div className="absolute inset-0 flex flex-col bg-white/92">
+                          <img
+                            src={runtimeReferenceImageUrl || ""}
+                            alt="Validated runtime reference frame"
+                            className={`h-full w-full flex-1 ${
+                              liveViewportFrameMode === "portrait" ? "object-contain" : "object-cover"
+                            }`}
+                            onLoad={handleViewportImageLoad}
+                          />
+                          <div className="border-t border-amber-200 bg-amber-50 px-6 py-4 text-sm text-amber-950">
+                            Live stepping did not return a browser-visible frame. Showing the validated March 13 reference render while the current runtime path is unavailable.
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
+                          <div className="max-w-lg rounded-[28px] border border-slate-200 bg-white/88 px-8 py-10 text-slate-900 backdrop-blur-sm">
+                            <Camera className="mx-auto h-10 w-10 text-slate-400" />
+                            <p className="mt-4 text-lg font-semibold">
+                              {runtimeInteractive ? "No browser-visible frame yet" : "Live runtime controls are unavailable in this session mode"}
+                            </p>
+                            <p className="mt-3 text-sm leading-6 text-slate-600">
+                              {runtimeInteractive
+                                ? "Reset the session, move one step, or use the guided walkthrough to fetch the first visible frame."
+                                : "This session was launched as a presentation-only demo. Switch to Explore Site-World to inspect the saved derived representation instead."}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-4">
+                        <div className="pointer-events-auto rounded-full border border-white/70 bg-white/88 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-700 backdrop-blur-sm">
+                          Camera {selectedCameraId || primaryCameraId || "head_rgb"}
+                        </div>
+                        <div className="pointer-events-auto flex flex-wrap items-center gap-2">
+                          <MetadataLink href={renderRouteHref || null} label="Open latest frame" />
                         </div>
                       </div>
-                    ) : (
-                      <div className="flex h-[360px] items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center">
-                        <div className="max-w-md">
-                          <Camera className="mx-auto h-8 w-8 text-slate-400" />
-                          <p className="mt-3 text-sm font-semibold text-slate-900">
-                            {runtimeInteractive
-                              ? "No browser-visible frame yet"
-                              : "Live runtime controls are unavailable in this session mode"}
-                          </p>
-                          <p className="mt-2 text-sm leading-6 text-slate-600">
-                            {runtimeInteractive
-                              ? "This workspace never leaves you with a dead observation box. Reset the session, run one step, or use the scripted walkthrough to fetch the first visible frame."
-                              : "This session was launched as a presentation-only demo. Switch to Explore Site-World to inspect the saved derived representation instead."}
-                          </p>
-                          <div className="mt-4 flex flex-wrap justify-center gap-3">
+
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 p-4 sm:p-5">
+                        <div className="grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
+                          <div className="pointer-events-auto rounded-[24px] border border-white/70 bg-white/88 px-5 py-4 text-slate-900 backdrop-blur-md">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Movement</p>
+                            <p className="mt-2 text-base font-semibold">Use WASD or the arrow keys to move through the world.</p>
+                            <p className="mt-2 text-sm text-slate-600">
+                              Forward and backward translate the camera. Left and right rotate the current observation cone.
+                            </p>
+                          </div>
+                          <div className="pointer-events-auto grid grid-cols-3 gap-2">
+                            <div className="rounded-[22px] border border-white/70 bg-white/88 px-4 py-4 text-slate-900 backdrop-blur-sm">
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Step</p>
+                              <p className="mt-2 text-2xl font-bold">{latestEpisode?.stepIndex ?? 0}</p>
+                            </div>
+                            <div className="rounded-[22px] border border-white/70 bg-white/88 px-4 py-4 text-slate-900 backdrop-blur-sm">
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Reward</p>
+                              <p className="mt-2 text-2xl font-bold">{latestEpisode?.reward != null ? latestEpisode.reward : "0"}</p>
+                            </div>
+                            <div className="rounded-[22px] border border-white/70 bg-white/88 px-4 py-4 text-slate-900 backdrop-blur-sm">
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Quality</p>
+                              <p className="mt-2 text-base font-bold">{humanizeValue(String(qualityFlags?.presentation_quality || ""), "unknown")}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <aside className="flex flex-col gap-4">
+                      <article className="rounded-[28px] border border-slate-200 bg-[linear-gradient(180deg,#fffaf0,#ffffff)] p-5 shadow-sm">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Navigator</p>
+                        <div className="mt-4 grid gap-3">
+                          <button
+                            type="button"
+                            onClick={() => void handleReset()}
+                            disabled={!runtimeInteractive || Boolean(runtimeBusyLabel)}
+                            className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                          >
+                            <RotateCcw className="mr-2 h-4 w-4" />
+                            Reset camera
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleScriptedWalkthrough()}
+                            disabled={!runtimeInteractive || Boolean(runtimeBusyLabel)}
+                            className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
+                          >
+                            <Camera className="mr-2 h-4 w-4" />
+                            Guided sweep
+                          </button>
+                        </div>
+                        <div className="mt-5 grid gap-2">
+                          {RUNTIME_ACTION_PRESETS.map((preset) => (
                             <button
-                              type="button"
-                              onClick={() => void handleReset()}
-                              disabled={!runtimeInteractive || Boolean(runtimeBusyLabel)}
-                              className="inline-flex items-center rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-                            >
-                              <RotateCcw className="mr-2 h-4 w-4" />
-                              Reset and fetch first frame
-                            </button>
-                            <button
+                              key={preset.id}
                               type="button"
                               onClick={() =>
                                 void stepRuntime({
-                                  label: "Advancing one runtime step",
-                                  action: DEFAULT_RUNTIME_ACTION,
-                                  autoPolicy: true,
+                                  label: preset.label,
+                                  action: preset.action,
+                                  autoPolicy: preset.autoPolicy,
                                 })
                               }
                               disabled={!runtimeInteractive || Boolean(runtimeBusyLabel)}
-                              className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
+                              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
                             >
-                              Advance one step
+                              <p className="text-sm font-semibold text-slate-900">{preset.label}</p>
+                              <p className="mt-1 text-xs leading-5 text-slate-600">{preset.description}</p>
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setUserSelectedMode(true);
-                                setActiveMode("presentation_world");
-                              }}
-                              className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                            >
-                              Open Explore Site-World
-                            </button>
-                          </div>
+                          ))}
                         </div>
-                      </div>
-                    )}
+                      </article>
 
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <MetadataLink href={renderRouteHref || null} label="Open latest frame" />
-                      <MetadataLink href={rolloutVideoPath || null} label="Open rollout video" />
-                      <MetadataLink href={exportManifestPath || null} label="Open export manifest" />
-                      <MetadataLink href={rawBundlePath || null} label="Open raw bundle" />
-                    </div>
-
-                    <div className="mt-4 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
                         <div className="flex items-center justify-between gap-3">
                           <div>
-                            <p className="text-sm font-semibold text-slate-900">Observation cameras</p>
-                            <p className="mt-1 text-xs text-slate-500">Switch the render camera without leaving the runtime.</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Observation cameras</p>
+                            <p className="mt-1 text-xs text-slate-500">Swap camera feeds without leaving the runtime.</p>
                           </div>
                           <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                            {selectedCameraId || "No camera"}
+                            {selectedCameraId || "Auto"}
                           </div>
                         </div>
-                        <div className="mt-3 flex flex-wrap gap-2">
+                        <div className="mt-4 flex flex-wrap gap-2">
                           {cameraOptions.map((camera) => (
                             <button
                               key={camera.id}
@@ -1526,152 +1597,54 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                             </button>
                           ))}
                         </div>
-                      </div>
-                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                        <p className="text-sm font-semibold text-slate-900">Runtime quality state</p>
-                        <p className="mt-2 text-sm text-slate-600">
-                          Presentation quality: {humanizeValue(String(qualityFlags?.presentation_quality || ""), "unknown")}
-                        </p>
-                        <p className="mt-2 text-sm text-slate-600">
-                          Fallback mode: {humanizeValue(String(qualityFlags?.fallback_mode || ""), "none")}
-                        </p>
-                        <p className="mt-2 text-xs text-slate-500">
-                          Protected-region violations: {protectedRegionViolations.length}
-                        </p>
-                        {runtimeDegraded && lastLiveRenderContext ? (
-                          <p className="mt-3 text-xs text-amber-700">
-                            Showing the last good live frame from {lastLiveRenderContext.cameraId} at step {lastLiveRenderContext.stepIndex} while the current render path is degraded.
-                          </p>
-                        ) : showRuntimeReferencePreview ? (
-                          <p className="mt-3 text-xs text-slate-500">
-                            In-page preview is currently a validated reference frame, not a live stepped render.
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
+                      </article>
+
+                      <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Runtime quality</p>
+                        <div className="mt-4 space-y-3 text-sm text-slate-700">
+                          <p>Presentation quality: {humanizeValue(String(qualityFlags?.presentation_quality || ""), "unknown")}</p>
+                          <p>Fallback mode: {humanizeValue(String(qualityFlags?.fallback_mode || ""), "none")}</p>
+                          <p>Protected-region violations: {protectedRegionViolations.length}</p>
+                          {runtimeDegraded && lastLiveRenderContext ? (
+                            <p className="text-xs text-amber-700">
+                              Showing the last good live frame from {lastLiveRenderContext.cameraId} at step {lastLiveRenderContext.stepIndex} while the current render path is degraded.
+                            </p>
+                          ) : showRuntimeReferencePreview ? (
+                            <p className="text-xs text-slate-500">
+                              In-page preview is currently a validated reference frame, not a live stepped render.
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="mt-5 flex flex-wrap gap-3">
+                          <MetadataLink href={rolloutVideoPath || null} label="Open rollout video" />
+                          <MetadataLink href={exportManifestPath || null} label="Open export manifest" />
+                          <MetadataLink href={rawBundlePath || null} label="Open raw bundle" />
+                        </div>
+                      </article>
+
+                      <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Run Context</p>
+                        <div className="mt-4 space-y-4">
+                          <div>
+                            <p className="text-sm font-medium text-slate-500">Robot profile</p>
+                            <p className="mt-1 text-sm text-slate-900">{robotProfile.displayName}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-slate-500">Task / scenario / start state</p>
+                            <p className="mt-1 text-sm text-slate-900">
+                              {taskSelection?.taskText} · {scenario?.name || "Pending"} · {startState?.name || "Pending"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-slate-500">Runtime endpoint</p>
+                            <p className="mt-1 break-all text-sm text-slate-900">
+                              {String(sessionRecord?.runtimeHandle?.runtime_base_url || site.runtimeManifest?.runtimeBaseUrl || "Not connected")}
+                            </p>
+                          </div>
+                        </div>
+                      </article>
+                    </aside>
                   </div>
-
-                  <div className="mt-6 grid gap-4 md:grid-cols-3">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Step count</p>
-                      <p className="mt-2 text-3xl font-bold text-slate-900">{latestEpisode?.stepIndex ?? 0}</p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Reward</p>
-                      <p className="mt-2 text-3xl font-bold text-slate-900">
-                        {latestEpisode?.reward != null ? latestEpisode.reward : "0"}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Batch success rate</p>
-                      <p className="mt-2 text-3xl font-bold text-slate-900">
-                        {batchSummary?.successRate != null ? `${Math.round(batchSummary.successRate * 100)}%` : "Pending"}
-                      </p>
-                    </div>
-                  </div>
-                </section>
-
-                <section className="space-y-6">
-                  <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Session Controls</p>
-                    <div className="mt-4 grid gap-3">
-                      <button
-                        type="button"
-                        onClick={() => void handleReset()}
-                        disabled={!runtimeInteractive || Boolean(runtimeBusyLabel)}
-                        className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-                      >
-                        <RotateCcw className="mr-2 h-4 w-4" />
-                        Reset and fetch first frame
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleScriptedWalkthrough()}
-                        disabled={!runtimeInteractive || Boolean(runtimeBusyLabel)}
-                        className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
-                      >
-                        <Camera className="mr-2 h-4 w-4" />
-                        Run scripted walkthrough
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleBatch}
-                        disabled={!runtimeInteractive || Boolean(runtimeBusyLabel)}
-                        className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
-                      >
-                        <BarChart3 className="mr-2 h-4 w-4" />
-                        Run scripted demo batch
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleExport}
-                        disabled={!runtimeInteractive || Boolean(runtimeBusyLabel)}
-                        className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
-                      >
-                        <Download className="mr-2 h-4 w-4" />
-                        Export demo package
-                      </button>
-                    </div>
-                  </article>
-
-                  <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Step Controls</p>
-                    <p className="mt-2 text-sm text-slate-600">
-                      Free-roam with <span className="font-semibold text-slate-900">WASD</span> or the arrow keys.
-                    </p>
-                    <div className="mt-4 space-y-3">
-                      {RUNTIME_ACTION_PRESETS.map((preset) => (
-                        <button
-                          key={preset.id}
-                          type="button"
-                          onClick={() =>
-                            void stepRuntime({
-                              label: preset.label,
-                              action: preset.action,
-                              autoPolicy: preset.autoPolicy,
-                            })
-                          }
-                          disabled={!runtimeInteractive || Boolean(runtimeBusyLabel)}
-                          className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition hover:bg-white disabled:cursor-not-allowed disabled:text-slate-400"
-                        >
-                          <p className="text-sm font-semibold text-slate-900">{preset.label}</p>
-                          <p className="mt-1 text-sm text-slate-600">{preset.description}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </article>
-
-                  <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Run Context</p>
-                    <div className="mt-4 space-y-4">
-                      <div>
-                        <p className="text-sm font-medium text-slate-500">Robot profile</p>
-                        <p className="mt-1 text-sm text-slate-900">{robotProfile.displayName}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-slate-500">Task / scenario / start state</p>
-                        <p className="mt-1 text-sm text-slate-900">
-                          {taskSelection?.taskText} · {scenario?.name || "Pending"} · {startState?.name || "Pending"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-slate-500">Action space</p>
-                        <p className="mt-1 text-sm text-slate-900">{robotProfile.actionSpaceSummary}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-slate-500">Runtime endpoint</p>
-                        <p className="mt-1 break-all text-sm text-slate-900">
-                          {String(sessionRecord?.runtimeHandle?.runtime_base_url || site.runtimeManifest?.runtimeBaseUrl || "Not connected")}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-slate-500">Build / VM</p>
-                        <p className="mt-1 break-all text-sm text-slate-900">
-                          {String(sessionRecord?.runtimeHandle?.build_id || "Pending")} · {String(sessionRecord?.runtimeHandle?.vm_instance_id || "Unknown")}
-                        </p>
-                      </div>
-                    </div>
-                  </article>
                 </section>
               </>
             ) : (
