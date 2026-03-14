@@ -6,7 +6,7 @@ import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
 import { promisify } from "node:util";
 import { Router, Request, Response } from "express";
-import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import admin, { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { attachRequestMeta, logger } from "../logger";
 import type {
   CreateHostedSessionRequest,
@@ -54,6 +54,7 @@ import {
   stepHostedSessionRun,
   stopHostedSessionRun,
 } from "../utils/hosted-session-orchestrator";
+import { parseGsUri } from "../utils/pipeline-dashboard";
 
 const protectedRouter = Router();
 export const publicSiteWorldSessionsRouter = Router();
@@ -1302,7 +1303,90 @@ async function readRuntimeErrorDetail(response: globalThis.Response) {
   };
 }
 
+function preferredPublishedArtifactBucket(session: HostedSessionRecord) {
+  const candidates = [
+    session.siteModel?.siteWorldHealthUri,
+    session.siteModel?.siteWorldSpecUri,
+    session.launchContext.site_world_health_uri,
+    session.launchContext.site_world_spec_uri,
+  ];
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (!value.startsWith("gs://")) {
+      continue;
+    }
+    const { bucket } = parseGsUri(value);
+    if (bucket && bucket !== "local-blueprint") {
+      return bucket;
+    }
+  }
+  return null;
+}
+
+function normalizePublishedArtifactUri(uri: string, session: HostedSessionRecord) {
+  const normalized = String(uri || "").trim();
+  if (!normalized.startsWith("gs://local-blueprint/")) {
+    return normalized;
+  }
+  const publishedBucket = preferredPublishedArtifactBucket(session);
+  if (!publishedBucket) {
+    return normalized;
+  }
+  const { objectPath } = parseGsUri(normalized);
+  return `gs://${publishedBucket}/${objectPath}`;
+}
+
+async function authoritativeFrameArtifactUriForSession(session: HostedSessionRecord, cameraId: string) {
+  const healthPayload =
+    (await readHostedRuntimeArtifactJson(session.siteModel?.siteWorldHealthUri || session.launchContext.site_world_health_uri)) || {};
+  const canonicalWorldModel =
+    healthPayload.canonical_world_model && typeof healthPayload.canonical_world_model === "object"
+      ? (healthPayload.canonical_world_model as Record<string, unknown>)
+      : {};
+  const supportingAssets = Array.isArray(canonicalWorldModel.supporting_assets)
+    ? (canonicalWorldModel.supporting_assets as Array<Record<string, unknown>>)
+    : [];
+  const expectedName = `${cameraId}-frame0.png`;
+  const supportingMatch = supportingAssets.find((asset) => String(asset?.name || "").trim() === expectedName);
+  const supportingUri = String(supportingMatch?.uri || "").trim();
+  if (supportingUri) {
+    return normalizePublishedArtifactUri(supportingUri, session);
+  }
+  const primaryAssetUri = String(canonicalWorldModel.primary_asset_uri || "").trim();
+  if (!primaryAssetUri.startsWith("gs://")) {
+    return null;
+  }
+  if (!primaryAssetUri.endsWith(".mp4")) {
+    return normalizePublishedArtifactUri(primaryAssetUri, session);
+  }
+  return normalizePublishedArtifactUri(primaryAssetUri.replace(/\.mp4$/i, "-frame0.png"), session);
+}
+
+async function maybeServeCanonicalRenderFrame(session: HostedSessionRecord, req: Request, res: Response) {
+  if (!isPublicDemoSession(session)) {
+    return false;
+  }
+  if (String(session.siteModel?.runtimeRenderSource || "").trim() !== "neoverse_full_capture") {
+    return false;
+  }
+  const cameraId = String(req.query.cameraId || req.query.camera_id || "head_rgb").trim() || "head_rgb";
+  const artifactUri = await authoritativeFrameArtifactUriForSession(session, cameraId);
+  if (!artifactUri?.startsWith("gs://") || !storageAdmin) {
+    return false;
+  }
+  const { bucket, objectPath } = parseGsUri(artifactUri);
+  const [buffer] = await storageAdmin.bucket(bucket).file(objectPath).download();
+  res.setHeader("Content-Type", objectPath.toLowerCase().endsWith(".png") ? "image/png" : "application/octet-stream");
+  res.setHeader("Cache-Control", "public, max-age=60");
+  res.setHeader("X-Blueprint-Render-Source", "canonical-authoritative-frame");
+  res.status(200).send(buffer);
+  return true;
+}
+
 async function proxyRuntimeRenderForSession(session: HostedSessionRecord, req: Request, res: Response) {
+  if (await maybeServeCanonicalRenderFrame(session, req, res).catch(() => false)) {
+    return;
+  }
   const runtimeBaseUrl = String(session.runtimeHandle?.runtime_base_url || "").trim();
   if (!runtimeBaseUrl) {
     const diagnostic = buildFailureDiagnostic({
