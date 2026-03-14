@@ -1384,11 +1384,11 @@ async function maybeServeCanonicalRenderFrame(session: HostedSessionRecord, req:
 }
 
 async function proxyRuntimeRenderForSession(session: HostedSessionRecord, req: Request, res: Response) {
-  if (await maybeServeCanonicalRenderFrame(session, req, res).catch(() => false)) {
-    return;
-  }
   const runtimeBaseUrl = String(session.runtimeHandle?.runtime_base_url || "").trim();
   if (!runtimeBaseUrl) {
+    if (await maybeServeCanonicalRenderFrame(session, req, res).catch(() => false)) {
+      return;
+    }
     const diagnostic = buildFailureDiagnostic({
       source: "runtime",
       operation: "render",
@@ -1436,6 +1436,9 @@ async function proxyRuntimeRenderForSession(session: HostedSessionRecord, req: R
       }),
       "Hosted session render proxy failed before receiving a response",
     );
+    if (await maybeServeCanonicalRenderFrame(session, req, res).catch(() => false)) {
+      return;
+    }
     const diagnostic = buildFailureDiagnostic({
       source: "runtime",
       operation: "render",
@@ -1454,6 +1457,9 @@ async function proxyRuntimeRenderForSession(session: HostedSessionRecord, req: R
         ? response.headers["content-type"][0]
         : "";
   if (response.statusCode < 200 || response.statusCode >= 300) {
+    if (await maybeServeCanonicalRenderFrame(session, req, res).catch(() => false)) {
+      return;
+    }
     const runtimeError = contentType.toLowerCase().includes("application/json")
       ? (() => {
           const payload = JSON.parse(response.body.toString("utf-8") || "{}") as Record<string, unknown>;
@@ -1496,6 +1502,8 @@ async function proxyRuntimeRenderForSession(session: HostedSessionRecord, req: R
     await updateSession(session.sessionId, { latestRuntimeFailure: null });
   }
   res.setHeader("Content-Type", contentType || "image/png");
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("X-Blueprint-Render-Source", "runtime-proxy");
   return res.send(response.body);
 }
 
