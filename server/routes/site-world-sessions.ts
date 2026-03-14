@@ -2256,7 +2256,7 @@ publicSiteWorldSessionsRouter.post("/:sessionId/reset", async (req, res, next) =
       session.sessionId,
       reconciledEpisode,
     );
-    void updateSession(session.sessionId, {
+    await updateSession(session.sessionId, {
       latestEpisode,
       status: "running",
       latestRuntimeFailure: null,
@@ -2325,7 +2325,7 @@ publicSiteWorldSessionsRouter.post("/:sessionId/step", async (req, res, next) =>
       expectedStepIndex,
     });
     const latestEpisode = normalizeEpisodeSummary(session.sessionId, reconciledEpisode);
-    void updateSession(session.sessionId, {
+    await updateSession(session.sessionId, {
       latestEpisode,
       latestRuntimeFailure: null,
     }, { awaitPersist: false });
