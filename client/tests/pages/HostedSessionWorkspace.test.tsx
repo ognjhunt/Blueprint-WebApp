@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import HostedSessionWorkspace, { shouldScheduleLiveRenderRetry } from "@/pages/HostedSessionWorkspace";
+import HostedSessionWorkspace, { defaultWorkspaceViewMode, shouldScheduleLiveRenderRetry } from "@/pages/HostedSessionWorkspace";
 import { getSiteWorldById } from "@/data/siteWorlds";
 
 let mockSearch = "";
@@ -204,13 +204,8 @@ describe("HostedSessionWorkspace", () => {
     expect(
       await screen.findByRole("heading", { name: /Interactive Site-World Viewer/i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Live Runtime/i })).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Explore Site-World/i }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Canonical Site-World")).toBeInTheDocument();
-    expect(screen.getByText("Scene-Memory Conditioning Package")).toBeInTheDocument();
-    expect(screen.getByText("Runtime Session Outputs")).toBeInTheDocument();
+    expect(await findModeLabel("Live Runtime")).toBeInTheDocument();
+    expect(screen.getByText("World-first live exploration")).toBeInTheDocument();
     expect(screen.getByText(/Hosted session ID is missing\./i)).toBeInTheDocument();
   });
 
@@ -295,10 +290,10 @@ describe("HostedSessionWorkspace", () => {
     );
     expect(resetCallIndex).toBeGreaterThanOrEqual(0);
     expect(renderCallIndex).toBeGreaterThan(resetCallIndex);
-    await findModeLabel("Explorer");
+    await findModeLabel("Live Runtime");
   });
 
-  it("keeps Explorer as the default mode even after a live frame is fetched", async () => {
+  it("keeps Live Runtime as the default mode for runtime-only sessions after a live frame is fetched", async () => {
     mockSearch = "sessionId=session-live-flip";
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input).includes("/api/site-worlds/sessions/session-live-flip/render?cameraId=head_rgb")) {
@@ -347,7 +342,7 @@ describe("HostedSessionWorkspace", () => {
         ),
       ).toBe(true);
     });
-    await findModeLabel("Explorer");
+    await findModeLabel("Live Runtime");
   });
 
   it("marks canonical fallback frames as retryable live renders", () => {
@@ -374,6 +369,12 @@ describe("HostedSessionWorkspace", () => {
       episodeId: "episode-retry-live",
       cameraId: "head_rgb",
     })).toBe(false);
+  });
+
+  it("defaults runtime-only sessions to Live Runtime and presentation demos to Explorer", () => {
+    expect(defaultWorkspaceViewMode({ sessionMode: "runtime_only" })).toBe("live_runtime");
+    expect(defaultWorkspaceViewMode({ sessionMode: "presentation_demo" })).toBe("presentation_world");
+    expect(defaultWorkspaceViewMode({ sessionMode: null })).toBe("live_runtime");
   });
 
   it("switches the render camera in live runtime mode", async () => {
@@ -431,10 +432,6 @@ describe("HostedSessionWorkspace", () => {
         ),
       ).toBe(true);
     });
-    await findModeLabel("Explorer");
-
-    fireEvent.click(screen.getByRole("button", { name: /Live Runtime/i }));
-
     await findModeLabel("Live Runtime");
 
     fireEvent.click(screen.getByRole("button", { name: /wrist/i }));

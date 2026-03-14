@@ -376,6 +376,12 @@ export function shouldScheduleLiveRenderRetry(params: {
   );
 }
 
+export function defaultWorkspaceViewMode(params: {
+  sessionMode?: HostedSessionMode | null;
+}) {
+  return params.sessionMode === "presentation_demo" ? "presentation_world" : "live_runtime";
+}
+
 export default function HostedSessionWorkspace({ params }: HostedSessionWorkspaceProps) {
   const fallbackSite = getSiteWorldById(params.slug);
   const [siteDetail, setSiteDetail] = useState(fallbackSite);
@@ -944,8 +950,8 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     if (userSelectedMode) {
       return;
     }
-    setActiveMode("presentation_world");
-  }, [userSelectedMode]);
+    setActiveMode(defaultWorkspaceViewMode({ sessionMode: sessionRecord?.sessionMode || null }));
+  }, [sessionRecord?.sessionMode, userSelectedMode]);
 
   const applyExplorerState = (nextExplorerState: ExplorerState) => {
     setExplorerState(nextExplorerState);
