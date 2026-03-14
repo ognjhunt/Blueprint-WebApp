@@ -1841,9 +1841,11 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                       </article>
 
                       <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Runtime quality</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">World model quality</p>
                         <div className="mt-4 space-y-3 text-sm text-slate-700">
-                          <p>Presentation quality: {humanizeValue(String(qualityFlags?.presentation_quality || ""), "unknown")}</p>
+                          <p>Render quality: {humanizeValue(String(qualityFlags?.presentation_quality || ""), "unknown")}</p>
+                          <p>Render source: {humanizeValue(String(qualityFlags?.preview_source || qualityFlags?.renderer_backend || ""), "unknown")}</p>
+                          <p>Scene representation: {humanizeValue(String(qualityFlags?.scene_representation || ""), "unknown")}</p>
                           <p>Fallback mode: {humanizeValue(String(qualityFlags?.fallback_mode || ""), "none")}</p>
                           <p>Protected-region violations: {protectedRegionViolations.length}</p>
                           {runtimeDegraded && lastLiveRenderContext ? (

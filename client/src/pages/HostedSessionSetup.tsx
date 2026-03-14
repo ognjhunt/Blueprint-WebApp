@@ -256,7 +256,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
 
   const handleLaunch = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    await launchSession("presentation_demo");
+    await launchSession("runtime_only");
   };
 
   const cameraSummary = selectedRobotProfile.observationCameras.map((item) => item.role).join(", ");
@@ -355,13 +355,13 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
               </div>
 
               <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-800">
-                <p className="font-semibold">Runtime session readiness</p>
+                <p className="font-semibold">World-model runtime readiness</p>
                 <p className="mt-2">
                   {checkingReadiness
-                    ? "Checking whether this site can launch a hosted runtime session."
+                    ? "Checking whether this site can launch a hosted world-model runtime session."
                     : runtimeReadiness?.launchable
-                      ? "This site is ready for a hosted runtime session."
-                      : "This site cannot launch a hosted runtime session yet."}
+                      ? "This site is ready for a hosted world-model runtime session."
+                      : "This site cannot launch a hosted world-model runtime session yet."}
                 </p>
                 {runtimeReadiness?.blocker_details?.length ? (
                   <ul className="mt-3 space-y-2 text-xs text-slate-700">
@@ -547,9 +547,9 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
 
                 {suggestRuntimeFallback ? (
                   <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
-                    <p className="font-semibold">Embedded demo is blocked, but a runtime-only launch path is available.</p>
+                    <p className="font-semibold">Embedded demo is blocked, but the world-model runtime is available.</p>
                     <p className="mt-1 text-sky-900">
-                      You can still try the canonical runtime workspace while the embedded demo UI is unavailable.
+                      Launch the runtime workspace directly while the embedded demo UI is unavailable.
                     </p>
                   </div>
                 ) : null}
@@ -566,18 +566,18 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <button
                     type="submit"
-                    disabled={submitting || launchBlocked}
+                    disabled={submitting || runtimeLaunchBlocked}
                     className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {submitting ? "Launching session..." : launchBlocked ? "Hosted demo not ready" : "Launch embedded demo"}
+                    {submitting ? "Launching session..." : runtimeLaunchBlocked ? "Runtime session not ready" : "Launch runtime session"}
                   </button>
                   <button
                     type="button"
-                    disabled={submitting || runtimeLaunchBlocked}
-                    onClick={() => void launchSession("runtime_only")}
+                    disabled={submitting || launchBlocked}
+                    onClick={() => void launchSession("presentation_demo")}
                     className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:border-slate-900 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {submitting ? "Launching session..." : runtimeLaunchBlocked ? "Runtime session not ready" : "Launch runtime session"}
+                    {submitting ? "Launching session..." : launchBlocked ? "Embedded demo not ready" : "Launch embedded demo"}
                   </button>
                 </div>
               </form>

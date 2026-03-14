@@ -124,7 +124,7 @@ describe("HostedSessionSetup", () => {
     expect(
       screen.getByText(/A live private operator bridge can be added later without blocking this launch\./i),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Runtime session readiness/i)).toBeInTheDocument();
+    expect(screen.getByText(/World-model runtime readiness/i)).toBeInTheDocument();
     expect(screen.getByText(/The site-world registration does not include a live runtime handle yet\./i)).toBeInTheDocument();
   });
 
