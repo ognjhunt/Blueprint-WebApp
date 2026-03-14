@@ -1135,7 +1135,7 @@ async function proxyRuntimeRenderForSession(session: HostedSessionRecord, req: R
     `${runtimeBaseUrl}/v1/sessions/${encodeURIComponent(session.sessionId)}/render?camera_id=${encodeURIComponent(cameraId)}`;
   const timeoutMs = Math.max(
     1000,
-    Number(process.env.BLUEPRINT_HOSTED_SESSION_RENDER_TIMEOUT_MS || process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_TIMEOUT_MS || 45000),
+    Number(process.env.BLUEPRINT_HOSTED_SESSION_RENDER_TIMEOUT_MS || process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_TIMEOUT_MS || 120000),
   );
   const startedAt = Date.now();
   let response: { statusCode: number; headers: http.IncomingHttpHeaders | Record<string, string>; body: Buffer };

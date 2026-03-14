@@ -80,7 +80,7 @@ async function runtimeRequestViaNode(
   url: string,
   init?: RequestInit,
 ): Promise<{ statusCode: number; headers: http.IncomingHttpHeaders; body: Buffer }> {
-  const timeoutMs = Math.max(1000, Number(process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_TIMEOUT_MS || 45000));
+  const timeoutMs = Math.max(1000, Number(process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_TIMEOUT_MS || 120000));
   const target = new URL(url);
   const requestFn = target.protocol === "https:" ? https.request : http.request;
   const body =
@@ -134,7 +134,7 @@ async function runtimeRequestViaCurl(
   url: string,
   init?: RequestInit,
 ): Promise<{ statusCode: number; headers: Record<string, string>; body: Buffer }> {
-  const timeoutMs = Math.max(1000, Number(process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_TIMEOUT_MS || 45000));
+  const timeoutMs = Math.max(1000, Number(process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_TIMEOUT_MS || 120000));
   const body =
     typeof init?.body === "string"
       ? init.body
