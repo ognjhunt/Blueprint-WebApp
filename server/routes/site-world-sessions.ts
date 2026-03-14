@@ -16,6 +16,8 @@ import type {
   HostedSessionFailureOperation,
   HostedSessionLaunchBlockerDetail,
   HostedSessionMode,
+  HostedSessionPendingOperation,
+  HostedSessionPendingOperationKind,
   HostedRuntimeSessionConfig,
   HostedSessionRecord,
   PresentationDemoReadinessStatus,
@@ -58,6 +60,7 @@ export const publicSiteWorldSessionsRouter = Router();
 const inMemorySessions = new Map<string, HostedSessionRecord>();
 const activePresentationSessionIndex = new Map<string, string>();
 const pendingSessionMirrors = new Map<string, Promise<void>>();
+const pendingRuntimeOperations = new Map<string, Promise<void>>();
 const execFile = promisify(execFileCallback);
 
 export function resetHostedSessionRouteState() {
@@ -76,6 +79,10 @@ function nowIso() {
 
 function liveSessionReadTimeoutMs() {
   return Math.max(250, Number(process.env.BLUEPRINT_HOSTED_SESSION_LIVE_READ_TIMEOUT_MS || 1500));
+}
+
+function shouldUseAsyncRuntimeMutations() {
+  return process.env.BLUEPRINT_HOSTED_SESSION_ASYNC_RUNTIME_MUTATIONS === "1" || process.env.NODE_ENV === "production";
 }
 
 function toIsoString(value: unknown) {
@@ -262,6 +269,9 @@ async function updateSession(
 
 function shouldRefreshSessionFromRuntime(session: HostedSessionRecord | null | undefined) {
   if (!session) {
+    return false;
+  }
+  if (session.activeOperation) {
     return false;
   }
   return ["ready", "running"].includes(String(session.status || "").trim());
@@ -1527,6 +1537,99 @@ function hostedSessionRouteLogContext(
   });
 }
 
+function pendingOperationLabel(operation: HostedSessionPendingOperationKind) {
+  return operation === "reset" ? "Resetting runtime" : "Applying action";
+}
+
+function buildPendingOperation(
+  operation: HostedSessionPendingOperationKind,
+  status: HostedSessionPendingOperation["status"] = "queued",
+): HostedSessionPendingOperation {
+  const timestamp = nowIso();
+  return {
+    operation,
+    status,
+    label: pendingOperationLabel(operation),
+    startedAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
+function operationInProgressResponse(
+  res: Response,
+  session: HostedSessionRecord,
+  operation: HostedSessionPendingOperationKind,
+) {
+  const activeOperation = session.activeOperation;
+  if (!activeOperation) {
+    return null;
+  }
+  if (activeOperation.operation === operation) {
+    return res.status(202).json({
+      accepted: true,
+      pendingOperation: activeOperation,
+      episode: session.latestEpisode || null,
+    });
+  }
+  return res.status(409).json({
+    error: `${activeOperation.label} is already in progress for this session.`,
+    code: "session_operation_in_progress",
+    pendingOperation: activeOperation,
+    episode: session.latestEpisode || null,
+  });
+}
+
+async function startPendingRuntimeOperation(params: {
+  session: HostedSessionRecord;
+  operation: HostedSessionPendingOperationKind;
+  logContext: Record<string, unknown>;
+  run: () => Promise<void>;
+}) {
+  const queuedOperation = buildPendingOperation(params.operation, "queued");
+  await updateSession(
+    params.session.sessionId,
+    {
+      activeOperation: queuedOperation,
+      latestRuntimeFailure: null,
+    },
+    { awaitPersist: false },
+  );
+
+  let operationPromise: Promise<void> | null = null;
+  operationPromise = (async () => {
+    try {
+      logger.info(
+        attachRequestMeta({
+          ...params.logContext,
+          pendingStatus: "running",
+        }),
+        "Hosted session runtime mutation running in background",
+      );
+      await updateSession(
+        params.session.sessionId,
+        {
+          activeOperation: {
+            ...queuedOperation,
+            status: "running",
+            updatedAt: nowIso(),
+          },
+          latestRuntimeFailure: null,
+        },
+        { awaitPersist: false },
+      );
+      await params.run();
+      logger.info(params.logContext, "Hosted session runtime mutation completed in background");
+    } finally {
+      if (pendingRuntimeOperations.get(params.session.sessionId) === operationPromise) {
+        pendingRuntimeOperations.delete(params.session.sessionId);
+      }
+    }
+  })();
+
+  pendingRuntimeOperations.set(params.session.sessionId, operationPromise);
+  return queuedOperation;
+}
+
 async function resolveResetRouteInputs(
   session: HostedSessionRecord,
   body: Record<string, unknown> | null | undefined,
@@ -2225,6 +2328,91 @@ publicSiteWorldSessionsRouter.post("/:sessionId/reset", async (req, res, next) =
       }),
       "Hosted session reset runtime inputs resolved",
     );
+    if (session.activeOperation) {
+      return operationInProgressResponse(res, session, "reset");
+    }
+    if (shouldUseAsyncRuntimeMutations()) {
+      const pendingOperation = await startPendingRuntimeOperation({
+        session,
+        operation: "reset",
+        logContext,
+        run: async () => {
+          try {
+            const payload = await resetHostedSessionRun({
+              sessionId: session.sessionId,
+              workDir: sessionWorkDir(session.sessionId),
+              taskId: req.body?.taskId || session.taskSelection?.taskId || undefined,
+              scenarioId: scenario,
+              startStateId: startState,
+              seed,
+            });
+            logger.info(logContext, "Hosted session reset runtime call completed");
+            const reconciledEpisode = await reconcileHostedEpisode({
+              sessionId: session.sessionId,
+              workDir: sessionWorkDir(session.sessionId),
+              episode: payload.rawEpisode,
+              expectedStepIndex: 0,
+            });
+            logger.info(logContext, "Hosted session reset snapshot reconciled");
+            const latestEpisode = normalizeEpisodeSummary(session.sessionId, reconciledEpisode);
+            await updateSession(
+              session.sessionId,
+              {
+                activeOperation: null,
+                latestEpisode,
+                status: "running",
+                latestRuntimeFailure: null,
+                runtimeConfig: {
+                  ...(session.runtimeConfig || {}),
+                  scenarioId: scenario,
+                  startStateId: startState,
+                  seed: seed ?? null,
+                  requestedBackend: session.runtime_backend_selected,
+                },
+              },
+              { awaitPersist: false },
+            );
+            logger.info(
+              attachRequestMeta({
+                ...logContext,
+                episodeId: latestEpisode?.episodeId || undefined,
+                stepIndex: latestEpisode?.stepIndex || 0,
+              }),
+              "Hosted session reset completed",
+            );
+          } catch (error) {
+            const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
+              source: "runtime",
+              operation: "reset",
+              error,
+              fallbackCode: error instanceof HostedSessionOrchestratorError ? error.code : "reset_failed",
+              fallbackSummary: "Reset failed.",
+            }), await loadHostedSession(session.sessionId));
+            await updateSession(
+              session.sessionId,
+              {
+                activeOperation: null,
+                latestRuntimeFailure: diagnostic,
+              },
+              { awaitPersist: false },
+            );
+            logger.warn(
+              attachRequestMeta({
+                ...logContext,
+                code: diagnostic.code,
+                statusCode: diagnostic.statusCode || undefined,
+              }),
+              "Hosted session reset failed in background",
+            );
+          }
+        },
+      });
+      return res.status(202).json({
+        accepted: true,
+        pendingOperation,
+        episode: session.latestEpisode || null,
+      });
+    }
     const payload = await resetHostedSessionRun({
       sessionId: session.sessionId,
       workDir: sessionWorkDir(session.sessionId),
@@ -2292,7 +2480,78 @@ publicSiteWorldSessionsRouter.post("/:sessionId/step", async (req, res, next) =>
     if (!session || !isPublicDemoSession(session)) {
       return next();
     }
+    if (session.activeOperation) {
+      return operationInProgressResponse(res, session, "step");
+    }
     await ensureRuntimeMetadataForSession(session);
+    const logContext = hostedSessionRouteLogContext(req, res, session, "step", "public");
+    if (shouldUseAsyncRuntimeMutations()) {
+      const pendingOperation = await startPendingRuntimeOperation({
+        session,
+        operation: "step",
+        logContext,
+        run: async () => {
+          try {
+            const payload = await stepHostedSessionRun({
+              sessionId: session.sessionId,
+              workDir: sessionWorkDir(session.sessionId),
+              episodeId: String(req.body?.episodeId || ""),
+              action: Array.isArray(req.body?.action) ? req.body.action : undefined,
+              autoPolicy: req.body?.autoPolicy !== false,
+            });
+            const expectedStepIndex = Math.max(
+              Number(session.latestEpisode?.stepIndex || 0) + 1,
+              Number(payload.episode?.stepIndex || 0),
+            );
+            const reconciledEpisode = await reconcileHostedEpisode({
+              sessionId: session.sessionId,
+              workDir: sessionWorkDir(session.sessionId),
+              episode: payload.rawEpisode,
+              expectedStepIndex,
+            });
+            const latestEpisode = normalizeEpisodeSummary(session.sessionId, reconciledEpisode);
+            await updateSession(
+              session.sessionId,
+              {
+                activeOperation: null,
+                latestEpisode,
+                latestRuntimeFailure: null,
+              },
+              { awaitPersist: false },
+            );
+          } catch (error) {
+            const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
+              source: "runtime",
+              operation: "step",
+              error,
+              fallbackCode: error instanceof HostedSessionOrchestratorError ? error.code : "step_failed",
+              fallbackSummary: "Step failed.",
+            }), await loadHostedSession(session.sessionId));
+            await updateSession(
+              session.sessionId,
+              {
+                activeOperation: null,
+                latestRuntimeFailure: diagnostic,
+              },
+              { awaitPersist: false },
+            );
+            logger.warn(
+              attachRequestMeta({
+                ...logContext,
+                code: diagnostic.code,
+                statusCode: diagnostic.statusCode || undefined,
+              }),
+              "Hosted session step failed in background",
+            );
+          }
+        },
+      });
+      return res.status(202).json({
+        accepted: true,
+        pendingOperation,
+        episode: session.latestEpisode || null,
+      });
+    }
     const payload = await stepHostedSessionRun({
       sessionId: session.sessionId,
       workDir: sessionWorkDir(session.sessionId),
@@ -2720,6 +2979,91 @@ protectedRouter.post("/:sessionId/reset", async (req, res) => {
       }),
       "Hosted session reset runtime inputs resolved",
     );
+    if (session.activeOperation) {
+      return operationInProgressResponse(res, session, "reset");
+    }
+    if (shouldUseAsyncRuntimeMutations()) {
+      const pendingOperation = await startPendingRuntimeOperation({
+        session,
+        operation: "reset",
+        logContext,
+        run: async () => {
+          try {
+            const payload = await resetHostedSessionRun({
+              sessionId: session.sessionId,
+              workDir: sessionWorkDir(session.sessionId),
+              taskId: req.body?.taskId || session.taskSelection?.taskId || undefined,
+              scenarioId: scenario,
+              startStateId: startState,
+              seed,
+            });
+            logger.info(logContext, "Hosted session reset runtime call completed");
+            const reconciledEpisode = await reconcileHostedEpisode({
+              sessionId: session.sessionId,
+              workDir: sessionWorkDir(session.sessionId),
+              episode: payload.rawEpisode,
+              expectedStepIndex: 0,
+            });
+            logger.info(logContext, "Hosted session reset snapshot reconciled");
+            const latestEpisode = normalizeEpisodeSummary(session.sessionId, reconciledEpisode);
+            await updateSession(
+              session.sessionId,
+              {
+                activeOperation: null,
+                latestEpisode,
+                status: "running",
+                latestRuntimeFailure: null,
+                runtimeConfig: {
+                  ...(session.runtimeConfig || {}),
+                  scenarioId: scenario,
+                  startStateId: startState,
+                  seed: seed ?? null,
+                  requestedBackend: session.runtime_backend_selected,
+                },
+              },
+              { awaitPersist: false },
+            );
+            logger.info(
+              attachRequestMeta({
+                ...logContext,
+                episodeId: latestEpisode?.episodeId || undefined,
+                stepIndex: latestEpisode?.stepIndex || 0,
+              }),
+              "Hosted session reset completed",
+            );
+          } catch (error) {
+            const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
+              source: "runtime",
+              operation: "reset",
+              error,
+              fallbackCode: error instanceof HostedSessionOrchestratorError ? error.code : "reset_failed",
+              fallbackSummary: "Reset failed.",
+            }), await loadHostedSession(session.sessionId));
+            await updateSession(
+              session.sessionId,
+              {
+                activeOperation: null,
+                latestRuntimeFailure: diagnostic,
+              },
+              { awaitPersist: false },
+            );
+            logger.warn(
+              attachRequestMeta({
+                ...logContext,
+                code: diagnostic.code,
+                statusCode: diagnostic.statusCode || undefined,
+              }),
+              "Hosted session reset failed in background",
+            );
+          }
+        },
+      });
+      return res.status(202).json({
+        accepted: true,
+        pendingOperation,
+        episode: session.latestEpisode || null,
+      });
+    }
     const payload = await resetHostedSessionRun({
       sessionId: session.sessionId,
       workDir: sessionWorkDir(session.sessionId),
@@ -2785,7 +3129,78 @@ protectedRouter.post("/:sessionId/step", async (req, res) => {
     if (!session) {
       return res.status(404).json({ error: "Hosted session not found" });
     }
+    if (session.activeOperation) {
+      return operationInProgressResponse(res, session, "step");
+    }
     await ensureRuntimeMetadataForSession(session);
+    const logContext = hostedSessionRouteLogContext(req, res, session, "step", "protected");
+    if (shouldUseAsyncRuntimeMutations()) {
+      const pendingOperation = await startPendingRuntimeOperation({
+        session,
+        operation: "step",
+        logContext,
+        run: async () => {
+          try {
+            const payload = await stepHostedSessionRun({
+              sessionId: session.sessionId,
+              workDir: sessionWorkDir(session.sessionId),
+              episodeId: String(req.body?.episodeId || ""),
+              action: Array.isArray(req.body?.action) ? req.body.action : undefined,
+              autoPolicy: req.body?.autoPolicy !== false,
+            });
+            const expectedStepIndex = Math.max(
+              Number(session.latestEpisode?.stepIndex || 0) + 1,
+              Number(payload.episode?.stepIndex || 0),
+            );
+            const reconciledEpisode = await reconcileHostedEpisode({
+              sessionId: session.sessionId,
+              workDir: sessionWorkDir(session.sessionId),
+              episode: payload.rawEpisode,
+              expectedStepIndex,
+            });
+            const latestEpisode = normalizeEpisodeSummary(session.sessionId, reconciledEpisode);
+            await updateSession(
+              session.sessionId,
+              {
+                activeOperation: null,
+                latestEpisode,
+                latestRuntimeFailure: null,
+              },
+              { awaitPersist: false },
+            );
+          } catch (error) {
+            const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
+              source: "runtime",
+              operation: "step",
+              error,
+              fallbackCode: error instanceof HostedSessionOrchestratorError ? error.code : "step_failed",
+              fallbackSummary: "Step failed.",
+            }), await loadHostedSession(session.sessionId));
+            await updateSession(
+              session.sessionId,
+              {
+                activeOperation: null,
+                latestRuntimeFailure: diagnostic,
+              },
+              { awaitPersist: false },
+            );
+            logger.warn(
+              attachRequestMeta({
+                ...logContext,
+                code: diagnostic.code,
+                statusCode: diagnostic.statusCode || undefined,
+              }),
+              "Hosted session step failed in background",
+            );
+          }
+        },
+      });
+      return res.status(202).json({
+        accepted: true,
+        pendingOperation,
+        episode: session.latestEpisode || null,
+      });
+    }
     const payload = await stepHostedSessionRun({
       sessionId: session.sessionId,
       workDir: sessionWorkDir(session.sessionId),

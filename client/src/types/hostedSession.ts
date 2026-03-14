@@ -178,6 +178,18 @@ export interface HostedSessionFailureDiagnostic {
   occurredAt: string;
 }
 
+export type HostedSessionPendingOperationKind = Extract<HostedSessionFailureOperation, "reset" | "step">;
+
+export type HostedSessionPendingOperationStatus = "queued" | "running";
+
+export interface HostedSessionPendingOperation {
+  operation: HostedSessionPendingOperationKind;
+  status: HostedSessionPendingOperationStatus;
+  label: string;
+  startedAt: string;
+  updatedAt: string;
+}
+
 export type HostedSessionLaunchBlockerSource =
   | "access"
   | "qualification"
@@ -412,6 +424,7 @@ export interface HostedSessionRecord {
   } | null;
   presentationRuntime?: PresentationRuntimeState | null;
   presentationLaunchState?: PresentationLaunchState | null;
+  activeOperation?: HostedSessionPendingOperation | null;
   latestRuntimeFailure?: HostedSessionFailureDiagnostic | null;
   metering: {
     sessionSeconds: number;

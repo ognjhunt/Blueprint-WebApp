@@ -166,6 +166,19 @@ function humanizeValue(value?: string | null, fallback = "Unavailable") {
   return normalized ? normalized.replaceAll("_", " ") : fallback;
 }
 
+function isAcceptedRuntimeMutationPayload(
+  payload: unknown,
+): payload is { accepted: true; pendingOperation: NonNullable<HostedSessionRecord["activeOperation"]> } {
+  return Boolean(
+    payload &&
+      typeof payload === "object" &&
+      "accepted" in payload &&
+      (payload as { accepted?: unknown }).accepted === true &&
+      "pendingOperation" in payload &&
+      (payload as { pendingOperation?: unknown }).pendingOperation,
+  );
+}
+
 function resolveWorkspaceStatus(record: HostedSessionRecord | null): "starting" | "live" | "stopped" | "error" {
   if (!record) {
     return "starting";
@@ -501,7 +514,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
         setSessionRecord(payload);
         setSessionStatus(nextStatus);
         setWorkspaceError("");
-        const nextDelay = nextStatus === "starting" ? 3000 : nextStatus === "live" ? 10000 : 0;
+        const nextDelay = payload.activeOperation ? 3000 : nextStatus === "starting" ? 3000 : nextStatus === "live" ? 10000 : 0;
         if (nextDelay > 0) {
           timeoutId = window.setTimeout(poll, nextDelay);
         }
@@ -522,6 +535,17 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       }
     };
   }, [previewPayload, sessionId]);
+
+  useEffect(() => {
+    const activeOperation = sessionRecord?.activeOperation;
+    if (activeOperation?.label) {
+      setRuntimeBusyLabel(activeOperation.label);
+      return;
+    }
+    setRuntimeBusyLabel((current) =>
+      current === "Resetting runtime" || current === "Applying action" ? "" : current,
+    );
+  }, [sessionRecord?.activeOperation?.label, sessionRecord?.activeOperation?.status, sessionRecord?.activeOperation?.updatedAt]);
 
   useEffect(() => {
     if (!sessionRecord?.startedAt || sessionStatus === "stopped" || sessionStatus === "error") {
@@ -1202,6 +1226,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       : "Resetting runtime";
     setRuntimeBusyLabel(busyLabel);
     setControlError("");
+    let keepBusyLabel = false;
     try {
       const response = await authorizedJsonFetch(`/api/site-worlds/sessions/${sessionId}/reset`, {
         method: "POST",
@@ -1215,18 +1240,43 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
         episode?: HostedSessionRecord["latestEpisode"];
         error?: string;
         diagnostic?: HostedSessionRecord["latestRuntimeFailure"];
+        accepted?: boolean;
+        pendingOperation?: HostedSessionRecord["activeOperation"];
       } | null;
+      if (response.status === 202 && isAcceptedRuntimeMutationPayload(payload)) {
+        keepBusyLabel = true;
+        setSessionRecord((current) =>
+          current
+            ? {
+                ...current,
+                activeOperation: payload.pendingOperation,
+                latestRuntimeFailure: null,
+              }
+            : current,
+        );
+        return true;
+      }
       if (!response.ok || !payload?.episode) {
         applyRuntimeDiagnostic(payload?.diagnostic, payload?.error || "Reset failed");
         return false;
       }
+      setSessionRecord((current) =>
+        current
+          ? {
+              ...current,
+              activeOperation: null,
+            }
+          : current,
+      );
       applyEpisodeUpdate(payload.episode);
       return true;
     } catch (error) {
       setControlError(error instanceof Error ? error.message : "Reset failed");
       return false;
     } finally {
-      setRuntimeBusyLabel("");
+      if (!keepBusyLabel) {
+        setRuntimeBusyLabel("");
+      }
     }
   };
 
@@ -1240,6 +1290,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     }
     setRuntimeBusyLabel(params.label);
     setControlError("");
+    let keepBusyLabel = false;
     try {
       const response = await authorizedJsonFetch(`/api/site-worlds/sessions/${sessionId}/step`, {
         method: "POST",
@@ -1253,18 +1304,43 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
         episode?: HostedSessionRecord["latestEpisode"];
         error?: string;
         diagnostic?: HostedSessionRecord["latestRuntimeFailure"];
+        accepted?: boolean;
+        pendingOperation?: HostedSessionRecord["activeOperation"];
       } | null;
+      if (response.status === 202 && isAcceptedRuntimeMutationPayload(payload)) {
+        keepBusyLabel = true;
+        setSessionRecord((current) =>
+          current
+            ? {
+                ...current,
+                activeOperation: payload.pendingOperation,
+                latestRuntimeFailure: null,
+              }
+            : current,
+        );
+        return true;
+      }
       if (!response.ok || !payload?.episode) {
         applyRuntimeDiagnostic(payload?.diagnostic, payload?.error || "Step failed");
         return false;
       }
+      setSessionRecord((current) =>
+        current
+          ? {
+              ...current,
+              activeOperation: null,
+            }
+          : current,
+      );
       applyEpisodeUpdate(payload.episode);
       return true;
     } catch (error) {
       setControlError(error instanceof Error ? error.message : "Step failed");
       return false;
     } finally {
-      setRuntimeBusyLabel("");
+      if (!keepBusyLabel) {
+        setRuntimeBusyLabel("");
+      }
     }
   };
 
