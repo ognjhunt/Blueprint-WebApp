@@ -50,7 +50,7 @@ const globalLimiter = createRateLimiter({
   windowMs: globalRateLimitWindowMs,
   limit: globalRateLimitMax,
   prefix: "rl:global:",
-  skipPaths: ["/health"],
+  skipPaths: ["/health", "/site-worlds/sessions"],
 });
 
 const aiLimiter = createRateLimiter({
@@ -69,6 +69,12 @@ const uploadLimiter = createRateLimiter({
   windowMs: Number(process.env.RATE_LIMIT_UPLOAD_WINDOW_MS ?? 60 * 60 * 1000),
   limit: Number(process.env.RATE_LIMIT_UPLOAD_MAX ?? 10),
   prefix: "rl:upload:",
+});
+
+const hostedSessionLimiter = createRateLimiter({
+  windowMs: Number(process.env.RATE_LIMIT_HOSTED_SESSION_WINDOW_MS ?? 15 * 60 * 1000),
+  limit: Number(process.env.RATE_LIMIT_HOSTED_SESSION_MAX ?? 1500),
+  prefix: "rl:hosted-session:",
 });
 
 // Configure middleware
@@ -149,6 +155,7 @@ app.use((req, res, next) => {
 // Apply the baseline limiter to API-style routes without throttling public page loads.
 app.use("/api", globalLimiter);
 app.use("/v1", globalLimiter);
+app.use("/api/site-worlds/sessions", hostedSessionLimiter);
 
 // Apply limiter for Gemini endpoints (routes registered in routes.ts)
 app.use("/api/gemini", aiLimiter);

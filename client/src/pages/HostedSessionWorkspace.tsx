@@ -391,7 +391,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const [workspaceError, setWorkspaceError] = useState("");
   const [controlError, setControlError] = useState("");
   const [uiBootstrapUrl, setUiBootstrapUrl] = useState("");
-  const [activeMode, setActiveMode] = useState<WorkspaceViewMode>("presentation_world");
+  const [activeMode, setActiveMode] = useState<WorkspaceViewMode>(() => defaultWorkspaceViewMode({ sessionMode: null }));
   const [userSelectedMode, setUserSelectedMode] = useState(false);
   const [selectedCameraId, setSelectedCameraId] = useState("");
   const [runtimeBusyLabel, setRuntimeBusyLabel] = useState("");
