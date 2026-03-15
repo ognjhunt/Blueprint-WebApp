@@ -21,8 +21,13 @@ import {
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
+const viteEnv =
+  typeof import.meta !== "undefined" && import.meta.env
+    ? import.meta.env
+    : ({} as Record<string, string | boolean | undefined>);
+
 const isFirestoreDebugEnabled =
-  import.meta.env.DEV || import.meta.env.VITE_FIREBASE_DEBUG === "true";
+  viteEnv.DEV === true || viteEnv.VITE_FIREBASE_DEBUG === "true";
 
 const logDebug = (...args: unknown[]) => {
   if (isFirestoreDebugEnabled) {

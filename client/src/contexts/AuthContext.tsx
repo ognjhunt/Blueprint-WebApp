@@ -30,6 +30,11 @@ interface AuthContextType {
 
 const AuthContext = React.createContext<AuthContextType | null>(null);
 
+const viteEnv =
+  typeof import.meta !== "undefined" && import.meta.env
+    ? import.meta.env
+    : ({} as Record<string, string | boolean | undefined>);
+
 export function useAuth() {
   const context = React.useContext(AuthContext);
   if (!context) {
@@ -59,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     null,
   );
   const [userData, setUserData] = React.useState<UserData | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(typeof window !== "undefined");
   const [, setLocation] = useLocation();
 
   const normalizeUserData = React.useCallback((data: UserData | null) => {
@@ -75,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const resolveRedirectPath = React.useCallback(
     (data: UserData | null): string => {
       const marketingDestination =
-        (import.meta.env.VITE_MARKETING_DESTINATION as string | undefined)?.trim() ||
+        (viteEnv.VITE_MARKETING_DESTINATION as string | undefined)?.trim() ||
         "/onboarding";
       let storedRedirect: string | null = null;
       try {

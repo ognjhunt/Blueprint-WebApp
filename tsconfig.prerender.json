@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.client.json",
+  "include": ["client/src/**/*", "scripts/prerender.tsx"],
+  "compilerOptions": {
+    "jsx": "react-jsx"
+  }
+}

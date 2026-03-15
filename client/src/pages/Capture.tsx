@@ -110,18 +110,18 @@ export default function Capture() {
 
       <div className="min-h-screen bg-white">
         {/* Hero */}
-        <section className="relative overflow-hidden bg-gradient-to-b from-indigo-950 to-zinc-900 pb-16 pt-20 text-white sm:pb-24 sm:pt-28">
+        <section className="relative overflow-hidden border-b border-zinc-200 bg-white pb-16 pt-20 text-zinc-950 sm:pb-24 sm:pt-28">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
               <div className="space-y-6">
-                <div className="inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-500/10 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-300">
+                <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-700">
                   <DollarSign className="h-3 w-3" />
                   Earn With Blueprint
                 </div>
-                <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+                <h1 className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl">
                   Get paid to walk through buildings.
                 </h1>
-                <p className="max-w-xl text-lg leading-relaxed text-zinc-300">
+                <p className="max-w-xl text-lg leading-relaxed text-zinc-600">
                   Use your phone or smart glasses to capture indoor spaces. Grocery stores,
                   offices, warehouses, gyms -- any indoor location. No robotics knowledge
                   needed. Just walk, capture, earn.
@@ -129,14 +129,14 @@ export default function Capture() {
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <a
                     href="/signup?role=capturer"
-                    className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100"
+                    className="inline-flex items-center justify-center rounded-lg bg-zinc-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800"
                   >
                     Start capturing
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
                     href="#how-it-works"
-                    className="inline-flex items-center justify-center rounded-lg border border-zinc-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
+                    className="inline-flex items-center justify-center rounded-lg border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
                   >
                     See how it works
                   </a>
@@ -144,26 +144,26 @@ export default function Capture() {
               </div>
 
               {/* Stats card */}
-              <div className="rounded-2xl border border-zinc-700 bg-zinc-800/50 p-6 backdrop-blur-sm">
-                <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-6">
+                <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
                   Platform Stats
                 </p>
                 <div className="mt-4 grid grid-cols-2 gap-4">
-                  <div className="rounded-xl bg-zinc-700/50 p-4">
-                    <p className="text-2xl font-bold text-white">$5-$40</p>
-                    <p className="text-xs text-zinc-400">Per capture session</p>
+                  <div className="rounded-xl border border-zinc-200 bg-white p-4">
+                    <p className="text-2xl font-bold text-zinc-950">$5-$40</p>
+                    <p className="text-xs text-zinc-500">Per capture session</p>
                   </div>
-                  <div className="rounded-xl bg-zinc-700/50 p-4">
-                    <p className="text-2xl font-bold text-white">15-30</p>
-                    <p className="text-xs text-zinc-400">Minutes per session</p>
+                  <div className="rounded-xl border border-zinc-200 bg-white p-4">
+                    <p className="text-2xl font-bold text-zinc-950">15-30</p>
+                    <p className="text-xs text-zinc-500">Minutes per session</p>
                   </div>
-                  <div className="rounded-xl bg-zinc-700/50 p-4">
-                    <p className="text-2xl font-bold text-white">10%</p>
-                    <p className="text-xs text-zinc-400">Lifetime referral share</p>
+                  <div className="rounded-xl border border-zinc-200 bg-white p-4">
+                    <p className="text-2xl font-bold text-zinc-950">10%</p>
+                    <p className="text-xs text-zinc-500">Lifetime referral share</p>
                   </div>
-                  <div className="rounded-xl bg-zinc-700/50 p-4">
-                    <p className="text-2xl font-bold text-white">$25</p>
-                    <p className="text-xs text-zinc-400">Minimum cashout</p>
+                  <div className="rounded-xl border border-zinc-200 bg-white p-4">
+                    <p className="text-2xl font-bold text-zinc-950">$25</p>
+                    <p className="text-xs text-zinc-500">Minimum cashout</p>
                   </div>
                 </div>
               </div>
