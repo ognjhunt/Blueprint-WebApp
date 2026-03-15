@@ -1,4 +1,6 @@
 import { SEO } from "@/components/SEO";
+import { ScrollReveal, StaggerGroup, InteractiveCard, AnimatedCounter } from "@/components/motion";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   Building2,
   CheckCircle2,
@@ -61,6 +63,8 @@ const whatYouControl = [
 ];
 
 export default function ForSiteOperators() {
+  const shouldReduce = useReducedMotion();
+
   return (
     <>
       <SEO
@@ -72,129 +76,164 @@ export default function ForSiteOperators() {
       <div className="min-h-screen bg-white">
         <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
           {/* Header */}
-          <div className="space-y-6">
-            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-700">
-              <Building2 className="h-3 w-3" />
-              For Site Operators
-            </span>
-            <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Your facility is an asset. Earn from it.
-            </h1>
-            <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
-              Register your warehouse, store, office, gym, or any indoor space with Blueprint.
-              Capturers walk through and map it. Robot teams buy the world models. You earn a
-              revenue share on every sale -- automatically.
-            </p>
-          </div>
+          <ScrollReveal>
+            <div className="space-y-6">
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-700">
+                <Building2 className="h-3 w-3" />
+                For Site Operators
+              </span>
+              <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+                Your facility is an asset. Earn from it.
+              </h1>
+              <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
+                Register your warehouse, store, office, gym, or any indoor space with Blueprint.
+                Capturers walk through and map it. Robot teams buy the world models. You earn a
+                revenue share on every sale -- automatically.
+              </p>
+            </div>
+          </ScrollReveal>
 
           {/* Benefits */}
-          <section className="mt-12 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-6">
-            <div className="mb-4 flex items-center gap-2">
-              <HandCoins className="h-5 w-5 text-emerald-700" />
-              <h2 className="text-xl font-bold text-slate-900">What you get</h2>
-            </div>
-            <ul className="space-y-3">
-              {benefits.map((item) => (
-                <li key={item} className="flex items-start gap-3 text-slate-700">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
+          <ScrollReveal delay={0.1}>
+            <section className="mt-12 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-6">
+              <div className="mb-4 flex items-center gap-2">
+                <HandCoins className="h-5 w-5 text-emerald-700" />
+                <h2 className="text-xl font-bold text-slate-900">What you get</h2>
+              </div>
+              <ul className="space-y-3">
+                {benefits.map((item) => (
+                  <li key={item} className="flex items-start gap-3 text-slate-700">
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </ScrollReveal>
 
-          {/* Revenue highlight */}
-          <section className="mt-8 rounded-2xl bg-zinc-900 p-6 text-white sm:p-8">
-            <div className="grid gap-6 sm:grid-cols-3">
-              <div>
-                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
-                  <DollarSign className="h-4 w-4" />
-                  Revenue share
-                </p>
-                <p className="mt-2 text-3xl font-bold">15-25%</p>
-                <p className="mt-1 text-sm text-zinc-400">of every world model sale from your facility</p>
+          {/* Revenue highlight — with animated counters */}
+          <ScrollReveal>
+            <section className="mt-8 rounded-2xl bg-zinc-900 p-6 text-white sm:p-8">
+              <div className="grid gap-6 sm:grid-cols-3">
+                <div>
+                  <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
+                    <DollarSign className="h-4 w-4" />
+                    Revenue share
+                  </p>
+                  <p className="mt-2 text-3xl font-bold">
+                    <AnimatedCounter value={15} duration={600} />-<AnimatedCounter value={25} duration={800} suffix="%" />
+                  </p>
+                  <p className="mt-1 text-sm text-zinc-400">of every world model sale from your facility</p>
+                </div>
+                <div>
+                  <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
+                    <TrendingUp className="h-4 w-4" />
+                    Potential earnings
+                  </p>
+                  <p className="mt-2 text-3xl font-bold">
+                    $<AnimatedCounter value={100} duration={700} />-$<AnimatedCounter value={500} duration={1000} />
+                  </p>
+                  <p className="mt-1 text-sm text-zinc-400">per month for popular location types</p>
+                </div>
+                <div>
+                  <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
+                    <Shield className="h-4 w-4" />
+                    Upfront cost
+                  </p>
+                  <p className="mt-2 text-3xl font-bold">
+                    $<AnimatedCounter value={0} duration={400} />
+                  </p>
+                  <p className="mt-1 text-sm text-zinc-400">free to register, you only earn</p>
+                </div>
               </div>
-              <div>
-                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
-                  <TrendingUp className="h-4 w-4" />
-                  Potential earnings
-                </p>
-                <p className="mt-2 text-3xl font-bold">$100-$500</p>
-                <p className="mt-1 text-sm text-zinc-400">per month for popular location types</p>
-              </div>
-              <div>
-                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
-                  <Shield className="h-4 w-4" />
-                  Upfront cost
-                </p>
-                <p className="mt-2 text-3xl font-bold">$0</p>
-                <p className="mt-1 text-sm text-zinc-400">free to register, you only earn</p>
-              </div>
-            </div>
-          </section>
+            </section>
+          </ScrollReveal>
 
           {/* How it works */}
           <section className="mt-10">
-            <h2 className="text-2xl font-bold text-slate-900">How it works</h2>
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <ScrollReveal>
+              <h2 className="text-2xl font-bold text-slate-900">How it works</h2>
+            </ScrollReveal>
+            <StaggerGroup className="mt-5 grid gap-4 sm:grid-cols-2" stagger={0.1}>
               {howItWorks.map((step) => (
-                <article key={step.title} className="rounded-xl border border-slate-200 p-5">
+                <InteractiveCard key={step.title} accent="emerald" className="p-5">
                   <h3 className="font-semibold text-slate-900">{step.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-slate-600">{step.description}</p>
-                </article>
+                </InteractiveCard>
               ))}
-            </div>
+            </StaggerGroup>
           </section>
 
           {/* What you control */}
-          <section className="mt-10 rounded-2xl border border-slate-200 p-6">
-            <div className="mb-3 flex items-center gap-2">
-              <Shield className="h-5 w-5 text-slate-700" />
-              <h2 className="text-xl font-bold text-slate-900">You stay in control</h2>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {whatYouControl.map((item) => (
-                <div key={item.label} className="rounded-lg bg-slate-50 p-4">
-                  <p className="font-semibold text-slate-900">{item.label}</p>
-                  <p className="mt-1 text-sm text-slate-600">{item.detail}</p>
-                </div>
-              ))}
-            </div>
-          </section>
+          <ScrollReveal>
+            <section className="mt-10 rounded-2xl border border-slate-200 p-6">
+              <div className="mb-3 flex items-center gap-2">
+                <Shield className="h-5 w-5 text-slate-700" />
+                <h2 className="text-xl font-bold text-slate-900">You stay in control</h2>
+              </div>
+              <StaggerGroup className="grid gap-4 sm:grid-cols-2" stagger={0.08}>
+                {whatYouControl.map((item) => (
+                  <motion.div
+                    key={item.label}
+                    whileHover={shouldReduce ? {} : { y: -2 }}
+                    className="rounded-lg bg-slate-50 p-4 transition-shadow hover:shadow-sm"
+                  >
+                    <p className="font-semibold text-slate-900">{item.label}</p>
+                    <p className="mt-1 text-sm text-slate-600">{item.detail}</p>
+                  </motion.div>
+                ))}
+              </StaggerGroup>
+            </section>
+          </ScrollReveal>
 
           {/* Facility types */}
-          <section className="mt-10">
-            <h2 className="text-xl font-bold text-slate-900">Any indoor facility qualifies</h2>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {facilityTypes.map((type) => (
-                <span
-                  key={type}
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700"
+          <ScrollReveal>
+            <section className="mt-10">
+              <h2 className="text-xl font-bold text-slate-900">Any indoor facility qualifies</h2>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {facilityTypes.map((type, i) => (
+                  <motion.span
+                    key={type}
+                    initial={shouldReduce ? {} : { opacity: 0, scale: 0.9 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.04, duration: 0.3 }}
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-shadow hover:shadow-sm"
+                  >
+                    {type}
+                  </motion.span>
+                ))}
+                <motion.span
+                  initial={shouldReduce ? {} : { opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: facilityTypes.length * 0.04, duration: 0.3 }}
+                  className="rounded-full border border-dashed border-slate-300 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-500"
                 >
-                  {type}
-                </span>
-              ))}
-              <span className="rounded-full border border-dashed border-slate-300 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-500">
-                + any indoor space
-              </span>
-            </div>
-          </section>
+                  + any indoor space
+                </motion.span>
+              </div>
+            </section>
+          </ScrollReveal>
 
           {/* CTAs */}
-          <section className="mt-10 flex flex-wrap gap-3">
-            <a
-              href="/contact?interest=site-registration"
-              className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-            >
-              Register your space
-            </a>
-            <a
-              href="/how-it-works"
-              className="inline-flex items-center rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
-            >
-              See how Blueprint works
-            </a>
-          </section>
+          <ScrollReveal>
+            <section className="mt-10 flex flex-wrap gap-3">
+              <a
+                href="/contact?interest=site-registration"
+                className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-slate-800 hover:shadow-md"
+              >
+                Register your space
+              </a>
+              <a
+                href="/how-it-works"
+                className="inline-flex items-center rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition-all hover:bg-slate-50"
+              >
+                See how Blueprint works
+              </a>
+            </section>
+          </ScrollReveal>
         </div>
       </div>
     </>

@@ -1,4 +1,6 @@
 import { SEO } from "@/components/SEO";
+import { ScrollReveal, StaggerGroup, InteractiveCard } from "@/components/motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { FileCheck2, Gauge, GitBranchPlus, Play, Share2 } from "lucide-react";
 
 const useCaseCards = [
@@ -42,6 +44,8 @@ const includedItems = [
 ];
 
 export default function ForRobotIntegrators() {
+  const shouldReduce = useReducedMotion();
+
   return (
     <>
       <SEO
@@ -52,7 +56,12 @@ export default function ForRobotIntegrators() {
 
       <div className="min-h-screen bg-white">
         <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="grid gap-8 rounded-3xl border border-slate-200 bg-slate-50 p-6 sm:p-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
+          <motion.div
+            initial={shouldReduce ? {} : { opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+            className="grid gap-8 rounded-3xl border border-slate-200 bg-slate-50 p-6 sm:p-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-start"
+          >
             <div className="space-y-5">
               <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-700">
                 For Robot Teams
@@ -68,20 +77,25 @@ export default function ForRobotIntegrators() {
               <div className="flex flex-wrap gap-3">
                 <a
                   href="/world-models"
-                  className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-slate-800 hover:shadow-md"
                 >
                   Browse world models
                 </a>
                 <a
                   href="/contact?interest=evaluation-package"
-                  className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
+                  className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 transition-all hover:bg-slate-50"
                 >
                   Talk to us
                 </a>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-6">
+            <motion.div
+              initial={shouldReduce ? {} : { opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="rounded-3xl border border-slate-200 bg-white p-6"
+            >
               <p className="text-sm font-semibold text-slate-900">What this is</p>
               <p className="mt-3 text-sm leading-relaxed text-slate-600">
                 A site-specific world model you can buy as a package or run as a hosted session.
@@ -101,51 +115,67 @@ export default function ForRobotIntegrators() {
                   <span>Release checks and customer demos</span>
                 </li>
               </ul>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
           <section className="mt-12">
-            <div className="max-w-3xl">
-              <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                What robot teams use it for.
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-slate-600">
-                The point is simple: answer the deployment question before the expensive part
-                starts.
-              </p>
-            </div>
-            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <ScrollReveal>
+              <div className="max-w-3xl">
+                <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+                  What robot teams use it for.
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  The point is simple: answer the deployment question before the expensive part
+                  starts.
+                </p>
+              </div>
+            </ScrollReveal>
+
+            <StaggerGroup className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5" stagger={0.08}>
               {useCaseCards.map((item) => (
-                <article key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                  <div className="inline-flex rounded-lg bg-white p-2">{item.icon}</div>
+                <InteractiveCard key={item.title} accent="indigo" className="p-5 bg-slate-50">
+                  <motion.div
+                    whileHover={shouldReduce ? {} : { scale: 1.05 }}
+                    className="inline-flex rounded-lg bg-white p-2"
+                  >
+                    {item.icon}
+                  </motion.div>
                   <h3 className="mt-3 text-base font-semibold text-slate-900">{item.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.description}</p>
-                </article>
+                </InteractiveCard>
               ))}
-            </div>
+            </StaggerGroup>
           </section>
 
           <section className="mt-12 grid gap-6 lg:grid-cols-[1fr_0.9fr]">
-            <article className="rounded-3xl border border-slate-200 bg-white p-6">
-              <h2 className="text-2xl font-bold text-slate-900">What you get</h2>
-              <ul className="mt-5 space-y-3">
-                {includedItems.map((item) => (
-                  <li key={item} className="flex items-start gap-3 text-slate-700">
-                    <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </article>
+            <ScrollReveal>
+              <InteractiveCard className="h-full p-6">
+                <h2 className="text-2xl font-bold text-slate-900">What you get</h2>
+                <ul className="mt-5 space-y-3">
+                  {includedItems.map((item) => (
+                    <li key={item} className="flex items-start gap-3 text-slate-700">
+                      <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </InteractiveCard>
+            </ScrollReveal>
 
-            <article className="rounded-3xl border border-slate-200 bg-slate-900 p-6 text-white">
-              <h2 className="text-2xl font-bold">What to expect</h2>
-              <p className="mt-4 text-sm leading-7 text-white">
-                This is strong for validation, site-specific data generation, operator rehearsal,
-                and remote demos. It is not the final signoff for deployment, and it is not a
-                contact-perfect manipulation simulator for every task.
-              </p>
-            </article>
+            <ScrollReveal delay={0.1}>
+              <motion.article
+                whileHover={shouldReduce ? {} : { y: -3 }}
+                transition={{ duration: 0.25 }}
+                className="h-full rounded-3xl border border-slate-200 bg-slate-900 p-6 text-white shadow-sm"
+              >
+                <h2 className="text-2xl font-bold">What to expect</h2>
+                <p className="mt-4 text-sm leading-7 text-white">
+                  This is strong for validation, site-specific data generation, operator rehearsal,
+                  and remote demos. It is not the final signoff for deployment, and it is not a
+                  contact-perfect manipulation simulator for every task.
+                </p>
+              </motion.article>
+            </ScrollReveal>
           </section>
         </div>
       </div>

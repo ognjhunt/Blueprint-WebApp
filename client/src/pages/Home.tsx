@@ -1,5 +1,13 @@
 import { SEO } from "@/components/SEO";
 import {
+  ScrollReveal,
+  StaggerGroup,
+  InteractiveCard,
+  AnimatedCounter,
+  HeroPipelineGraphic,
+} from "@/components/motion";
+import { motion, useReducedMotion } from "framer-motion";
+import {
   ArrowRight,
   Bot,
   Building2,
@@ -15,6 +23,7 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
+import { useState } from "react";
 
 const offeringCards = [
   {
@@ -29,6 +38,7 @@ const offeringCards = [
     ctaLabel: "Start earning",
     ctaHref: "/capture",
     icon: <Camera className="h-8 w-8 text-zinc-900" />,
+    accent: "indigo" as const,
   },
   {
     title: "World Models",
@@ -42,6 +52,7 @@ const offeringCards = [
     ctaLabel: "Browse world models",
     ctaHref: "/world-models",
     icon: <Globe className="h-8 w-8 text-zinc-900" />,
+    accent: "emerald" as const,
   },
   {
     title: "Enterprise",
@@ -55,6 +66,7 @@ const offeringCards = [
     ctaLabel: "Contact us",
     ctaHref: "/contact?interest=enterprise",
     icon: <Building2 className="h-8 w-8 text-zinc-900" />,
+    accent: "violet" as const,
   },
 ];
 
@@ -87,16 +99,19 @@ const whyBlueprint = [
     title: "Site-specific beats generalized",
     description:
       "Research shows training on an actual site twin gives dramatically better results than generalizing. Blueprint gives robot teams the exact environment they need.",
+    icon: <MapPinned className="h-5 w-5" />,
   },
   {
     title: "Qualification is the quality moat",
     description:
       "Anyone can collect raw spatial data. Blueprint's automated qualification pipeline ensures every world model meets a verified readiness standard.",
+    icon: <ShieldCheck className="h-5 w-5" />,
   },
   {
     title: "The long tail is the strategy",
     description:
       "Grocery stores, coffee shops, clinics, gyms, offices, warehouses -- the more diverse the capture network, the more likely you find your exact target environment.",
+    icon: <Globe className="h-5 w-5" />,
   },
 ];
 
@@ -139,6 +154,8 @@ const forPersonas = {
   },
 };
 
+const personaKeys = ["capturers", "robotTeams", "siteOperators"] as const;
+
 const devices = [
   { name: "iPhone / iPad", detail: "ARKit + LiDAR", available: true },
   { name: "Meta Ray-Ban", detail: "DAT SDK", available: true },
@@ -170,6 +187,10 @@ function DotPattern() {
 }
 
 export default function Home() {
+  const [activePersona, setActivePersona] = useState<typeof personaKeys[number]>("capturers");
+  const shouldReduce = useReducedMotion();
+  const persona = forPersonas[activePersona];
+
   return (
     <>
       <SEO
@@ -181,25 +202,45 @@ export default function Home() {
       <div className="relative min-h-screen overflow-hidden bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
         <DotPattern />
 
-        {/* Hero */}
+        {/* ── Hero ── */}
         <div className="relative pb-16 pt-10 sm:pb-20 sm:pt-24">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid gap-8 sm:gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-12">
               <div className="space-y-6 sm:space-y-8">
                 <div className="space-y-4 sm:space-y-6">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
+                  <motion.div
+                    initial={shouldReduce ? {} : { opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600"
+                  >
                     <Sparkles className="h-3 w-3" />
                     Indoor Spatial Data Marketplace
-                  </div>
-                  <h1 className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl">
+                  </motion.div>
+                  <motion.h1
+                    initial={shouldReduce ? {} : { opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.1 }}
+                    className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl"
+                  >
                     The indoor spatial data marketplace for robotics.
-                  </h1>
-                  <p className="max-w-xl text-base leading-relaxed text-zinc-600 sm:text-lg">
+                  </motion.h1>
+                  <motion.p
+                    initial={shouldReduce ? {} : { opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                    className="max-w-xl text-base leading-relaxed text-zinc-600 sm:text-lg"
+                  >
                     People capture real indoor spaces with smart glasses and phones. Robot teams
                     train on the actual sites they'll deploy to. Every world model is
                     qualification-verified.
-                  </p>
-                  <ul className="flex flex-wrap gap-2 pt-1">
+                  </motion.p>
+                  <motion.ul
+                    initial={shouldReduce ? {} : { opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.35, duration: 0.4 }}
+                    className="flex flex-wrap gap-2 pt-1"
+                  >
                     {["Capture & earn", "World models", "Qualification-verified"].map(
                       (point) => (
                         <li
@@ -210,61 +251,45 @@ export default function Home() {
                         </li>
                       ),
                     )}
-                  </ul>
+                  </motion.ul>
                 </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row">
+                <motion.div
+                  initial={shouldReduce ? {} : { opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4, duration: 0.4 }}
+                  className="flex flex-col gap-3 sm:flex-row"
+                >
                   <a
                     href="/capture"
-                    className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-700"
+                    className="group inline-flex items-center justify-center rounded-lg bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-zinc-700 hover:shadow-lg"
                   >
                     Start earning
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </a>
                   <a
                     href="/world-models"
-                    className="inline-flex items-center justify-center rounded-lg border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
+                    className="inline-flex items-center justify-center rounded-lg border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-900 transition-all hover:bg-zinc-50 hover:shadow-sm"
                   >
                     Browse world models
                   </a>
-                </div>
+                </motion.div>
               </div>
 
-              {/* Hero card */}
-              <div className="relative">
-                <div className="absolute -inset-4 rounded-full bg-indigo-500/20 blur-3xl filter" />
-                <div className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white/80 p-6 shadow-xl backdrop-blur-md">
-                  <div className="overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50">
-                    <img
-                      src="/images/hero-digital-twin-v3.svg"
-                      alt="Indoor spatial capture to world model pipeline"
-                      className="h-48 w-full object-cover"
-                      loading="lazy"
-                    />
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    <div className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                      How It Works
-                    </div>
-                    <p className="text-sm text-zinc-600">
-                      Capturers walk through real indoor spaces. Blueprint qualifies the data and
-                      builds site-specific world models. Robot teams train on the exact environments
-                      they'll deploy to.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              {/* Animated hero graphic — replaces static SVG */}
+              <HeroPipelineGraphic />
             </div>
           </div>
         </div>
 
-        {/* Offering cards */}
+        {/* ── Offering cards ── */}
         <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6 sm:pb-20 lg:px-8">
-          <div className="mobile-snap-row md:grid md:grid-cols-3 md:gap-6">
+          <StaggerGroup className="mobile-snap-row md:grid md:grid-cols-3 md:gap-6" stagger={0.12}>
             {offeringCards.map((offering) => (
-              <article
+              <InteractiveCard
                 key={offering.title}
-                className="group flex h-full flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-indigo-200 hover:shadow-md sm:p-6"
+                accent={offering.accent}
+                className="flex h-full flex-col gap-4 p-5 sm:p-6"
               >
                 <div className="rounded-xl bg-zinc-100 p-3 text-zinc-900 transition-colors group-hover:bg-indigo-50 group-hover:text-indigo-600">
                   {offering.icon}
@@ -287,38 +312,42 @@ export default function Home() {
                 <div className="mt-auto pt-2">
                   <a
                     href={offering.ctaHref}
-                    className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-indigo-600"
+                    className="group/link inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-indigo-600"
                   >
                     {offering.ctaLabel}
-                    <ArrowRight className="h-4 w-4" />
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover/link:translate-x-0.5" />
                   </a>
                 </div>
-              </article>
+              </InteractiveCard>
             ))}
-          </div>
+          </StaggerGroup>
         </section>
 
-        {/* How it works */}
+        {/* ── How it works ── */}
         <section className="border-y border-zinc-100 bg-zinc-50/50 py-12 sm:py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="max-w-3xl">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
-                <ScanLine className="h-3 w-3" />
-                How It Works
+            <ScrollReveal>
+              <div className="max-w-3xl">
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
+                  <ScanLine className="h-3 w-3" />
+                  How It Works
+                </div>
+                <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
+                  Capture. Qualify. Deploy.
+                </h2>
+                <p className="mt-4 text-zinc-600">
+                  A three-step pipeline from real-world capture to robot-ready world models.
+                </p>
               </div>
-              <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
-                Capture. Qualify. Deploy.
-              </h2>
-              <p className="mt-4 text-zinc-600">
-                A three-step pipeline from real-world capture to robot-ready world models.
-              </p>
-            </div>
-            <div className="mobile-snap-row mt-8 md:grid md:grid-cols-3 md:gap-4">
+            </ScrollReveal>
+
+            <StaggerGroup
+              className="mt-8 mobile-snap-row md:grid md:grid-cols-3 md:gap-4"
+              stagger={0.15}
+              baseDelay={0.1}
+            >
               {howItWorks.map((item) => (
-                <div
-                  key={item.step}
-                  className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6"
-                >
+                <InteractiveCard key={item.step} accent="emerald" className="p-5 sm:p-6">
                   <div className="flex items-center gap-3">
                     <p className="font-mono text-sm font-bold text-indigo-600">{item.step}</p>
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700">
@@ -327,128 +356,155 @@ export default function Home() {
                   </div>
                   <h3 className="mt-3 font-semibold text-zinc-900">{item.title}</h3>
                   <p className="mt-2 text-sm text-zinc-600">{item.description}</p>
-                </div>
+                </InteractiveCard>
               ))}
-            </div>
+            </StaggerGroup>
           </div>
         </section>
 
-        {/* Why Blueprint */}
+        {/* ── Why Blueprint ── */}
         <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
-          <div className="mb-10">
-            <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">Why Blueprint</h2>
-            <p className="mt-2 text-zinc-600">
-              The only marketplace where every world model is built from real captures and
-              passes a verified qualification standard.
-            </p>
-          </div>
+          <ScrollReveal>
+            <div className="mb-10">
+              <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">Why Blueprint</h2>
+              <p className="mt-2 text-zinc-600">
+                The only marketplace where every world model is built from real captures and
+                passes a verified qualification standard.
+              </p>
+            </div>
+          </ScrollReveal>
 
-          <div className="mobile-snap-row md:grid md:grid-cols-3 md:gap-6">
+          <StaggerGroup className="mobile-snap-row md:grid md:grid-cols-3 md:gap-6" stagger={0.12}>
             {whyBlueprint.map((item) => (
-              <div
-                key={item.title}
-                className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-zinc-200 sm:p-6"
-              >
+              <InteractiveCard key={item.title} className="p-5 sm:p-6">
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                  {item.icon}
+                </div>
                 <h3 className="font-bold text-zinc-900">{item.title}</h3>
                 <p className="mt-2 text-sm text-zinc-600">{item.description}</p>
-              </div>
+              </InteractiveCard>
             ))}
-          </div>
+          </StaggerGroup>
         </section>
 
-        {/* Three personas */}
+        {/* ── Three personas — interactive tabs ── */}
         <section className="border-y border-zinc-100 bg-zinc-50/50 py-12 sm:py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="mobile-snap-row md:grid md:grid-cols-3 md:gap-6">
-              {/* Capturers */}
-              <div className="rounded-2xl bg-indigo-900 p-6 text-white sm:p-8">
-                <p className="text-xs font-bold uppercase tracking-widest text-indigo-300">
-                  {forPersonas.capturers.label}
+            <ScrollReveal>
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">Built for every side of the market</h2>
+                <p className="mt-2 text-zinc-600">
+                  Whether you capture, build robots, or operate facilities — Blueprint works for you.
                 </p>
-                <h3 className="mt-2 text-xl font-bold text-white">
-                  {forPersonas.capturers.headline}
-                </h3>
-                <ul className="mt-4 space-y-2">
-                  {forPersonas.capturers.bullets.map((item) => (
-                    <li key={item} className="flex items-start gap-2 text-sm text-indigo-100">
-                      <DollarSign className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <a
-                  href={forPersonas.capturers.ctaHref}
-                  className="mt-6 inline-block rounded-lg bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
-                >
-                  {forPersonas.capturers.ctaLabel}
-                </a>
               </div>
+            </ScrollReveal>
 
-              {/* Robot Teams */}
-              <div className="rounded-2xl border border-zinc-200 bg-white p-6 sm:p-8">
-                <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                  {forPersonas.robotTeams.label}
-                </p>
-                <h3 className="mt-2 text-xl font-bold text-zinc-900">
-                  {forPersonas.robotTeams.headline}
-                </h3>
-                <ul className="mt-4 space-y-2">
-                  {forPersonas.robotTeams.bullets.map((item) => (
-                    <li key={item} className="flex items-start gap-2 text-sm text-zinc-600">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <a
-                  href={forPersonas.robotTeams.ctaHref}
-                  className="mt-6 inline-flex rounded-lg border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-50"
-                >
-                  {forPersonas.robotTeams.ctaLabel}
-                </a>
+            {/* Tab buttons */}
+            <ScrollReveal delay={0.1}>
+              <div className="mb-6 flex flex-wrap gap-2">
+                {personaKeys.map((key) => {
+                  const isActive = activePersona === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setActivePersona(key)}
+                      className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
+                        isActive
+                          ? "bg-zinc-900 text-white shadow-md"
+                          : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                      }`}
+                    >
+                      {forPersonas[key].label}
+                    </button>
+                  );
+                })}
               </div>
+            </ScrollReveal>
 
-              {/* Site Operators */}
-              <div className="rounded-2xl bg-zinc-900 p-6 text-white sm:p-8">
-                <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-                  {forPersonas.siteOperators.label}
-                </p>
-                <h3 className="mt-2 text-xl font-bold text-white">
-                  {forPersonas.siteOperators.headline}
-                </h3>
-                <ul className="mt-4 space-y-2">
-                  {forPersonas.siteOperators.bullets.map((item) => (
-                    <li key={item} className="flex items-start gap-2 text-sm text-zinc-300">
-                      <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <a
-                  href={forPersonas.siteOperators.ctaHref}
-                  className="mt-6 inline-block rounded-lg bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
-                >
-                  {forPersonas.siteOperators.ctaLabel}
-                </a>
+            {/* Active persona content */}
+            <motion.div
+              key={activePersona}
+              initial={shouldReduce ? {} : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: "easeOut" }}
+              className={`rounded-2xl p-6 sm:p-8 ${
+                activePersona === "capturers"
+                  ? "bg-indigo-900 text-white"
+                  : activePersona === "siteOperators"
+                    ? "bg-zinc-900 text-white"
+                    : "border border-zinc-200 bg-white"
+              }`}
+            >
+              <div className="grid gap-6 lg:grid-cols-2 lg:items-center">
+                <div>
+                  <p
+                    className={`text-xs font-bold uppercase tracking-widest ${
+                      activePersona === "robotTeams" ? "text-zinc-400" : "text-white/60"
+                    }`}
+                  >
+                    {persona.label}
+                  </p>
+                  <h3
+                    className={`mt-2 text-2xl font-bold ${
+                      activePersona === "robotTeams" ? "text-zinc-900" : "text-white"
+                    }`}
+                  >
+                    {persona.headline}
+                  </h3>
+                </div>
+                <div>
+                  <ul className="space-y-2">
+                    {persona.bullets.map((item) => (
+                      <li
+                        key={item}
+                        className={`flex items-start gap-2 text-sm ${
+                          activePersona === "robotTeams" ? "text-zinc-600" : "text-white/80"
+                        }`}
+                      >
+                        <CheckCircle2
+                          className={`mt-0.5 h-4 w-4 shrink-0 ${
+                            activePersona === "robotTeams" ? "text-emerald-500" : "text-emerald-400"
+                          }`}
+                        />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                  <a
+                    href={persona.ctaHref}
+                    className={`mt-6 inline-flex items-center gap-1 rounded-lg px-4 py-2 text-sm font-semibold transition-all hover:shadow-md ${
+                      activePersona === "robotTeams"
+                        ? "border border-zinc-200 text-zinc-900 hover:bg-zinc-50"
+                        : "bg-white text-zinc-900 hover:bg-zinc-100"
+                    }`}
+                  >
+                    {persona.ctaLabel}
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
+                </div>
               </div>
-            </div>
+            </motion.div>
           </div>
         </section>
 
-        {/* Supported devices */}
+        {/* ── Supported devices ── */}
         <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-zinc-900">Capture with any device</h2>
-            <p className="mt-2 text-zinc-600">
-              Start with your iPhone today. LiDAR-equipped iPhone and iPad captures earn the
-              highest rates.
-            </p>
-          </div>
-          <div className="mobile-snap-row md:grid md:grid-cols-4 md:gap-4">
+          <ScrollReveal>
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-zinc-900">Capture with any device</h2>
+              <p className="mt-2 text-zinc-600">
+                Start with your iPhone today. LiDAR-equipped iPhone and iPad captures earn the
+                highest rates.
+              </p>
+            </div>
+          </ScrollReveal>
+
+          <StaggerGroup className="mobile-snap-row md:grid md:grid-cols-4 md:gap-4" stagger={0.08}>
             {devices.map((device) => (
-              <div
+              <InteractiveCard
                 key={device.name}
-                className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm"
+                accent={device.available ? "emerald" : "zinc"}
+                className="p-5"
               >
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-100">
@@ -474,14 +530,14 @@ export default function Home() {
                     </span>
                   )}
                 </div>
-              </div>
+              </InteractiveCard>
             ))}
-          </div>
+          </StaggerGroup>
         </section>
 
-        {/* Bottom nav links */}
+        {/* ── Bottom nav links ── */}
         <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 sm:pb-20 lg:px-8">
-          <div className="mobile-snap-row md:grid md:grid-cols-3 md:gap-4">
+          <StaggerGroup className="mobile-snap-row md:grid md:grid-cols-3 md:gap-4" stagger={0.1}>
             <a
               href="/how-it-works"
               className="group rounded-xl border border-zinc-200 bg-white p-5 transition-all hover:border-indigo-200 hover:shadow-md sm:p-6"
@@ -529,35 +585,55 @@ export default function Home() {
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
             </a>
-          </div>
+          </StaggerGroup>
         </section>
 
-        {/* Final CTA */}
-        <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
-          <div className="rounded-2xl bg-zinc-900 p-8 text-center sm:p-12">
-            <h2 className="text-2xl font-bold text-white sm:text-3xl">
-              The world&apos;s indoor spaces, captured and qualified for robotics.
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-zinc-400">
-              Whether you want to earn by capturing, deploy robots to real sites, or monetize
-              your facility -- Blueprint connects every side of the market.
-            </p>
-            <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
-              <a
-                href="/capture"
-                className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
-              >
-                Start earning
-              </a>
-              <a
-                href="/world-models"
-                className="inline-flex items-center justify-center rounded-lg border border-zinc-700 px-6 py-3 text-sm font-semibold text-white hover:bg-zinc-800"
-              >
-                Browse world models
-              </a>
+        {/* ── Final CTA ── */}
+        <ScrollReveal as="section" className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
+          <div className="relative overflow-hidden rounded-2xl bg-zinc-900 p-8 text-center sm:p-12">
+            {/* Subtle animated glow */}
+            <motion.div
+              animate={shouldReduce ? {} : {
+                opacity: [0.3, 0.5, 0.3],
+                scale: [1, 1.05, 1],
+              }}
+              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute -right-20 -top-20 h-60 w-60 rounded-full bg-indigo-500/20 blur-3xl"
+            />
+            <motion.div
+              animate={shouldReduce ? {} : {
+                opacity: [0.2, 0.4, 0.2],
+                scale: [1, 1.08, 1],
+              }}
+              transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+              className="absolute -bottom-20 -left-20 h-48 w-48 rounded-full bg-emerald-500/15 blur-3xl"
+            />
+
+            <div className="relative">
+              <h2 className="text-2xl font-bold text-white sm:text-3xl">
+                The world&apos;s indoor spaces, captured and qualified for robotics.
+              </h2>
+              <p className="mx-auto mt-4 max-w-2xl text-zinc-400">
+                Whether you want to earn by capturing, deploy robots to real sites, or monetize
+                your facility -- Blueprint connects every side of the market.
+              </p>
+              <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
+                <a
+                  href="/capture"
+                  className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition-all hover:bg-zinc-100 hover:shadow-lg"
+                >
+                  Start earning
+                </a>
+                <a
+                  href="/world-models"
+                  className="inline-flex items-center justify-center rounded-lg border border-zinc-700 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-zinc-800"
+                >
+                  Browse world models
+                </a>
+              </div>
             </div>
           </div>
-        </section>
+        </ScrollReveal>
       </div>
     </>
   );
