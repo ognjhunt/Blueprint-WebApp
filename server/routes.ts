@@ -19,6 +19,7 @@ import errorsRouter from "./routes/errors";
 import siteContentRouter from "./routes/site-content";
 import inboundRequestRouter from "./routes/inbound-request";
 import adminLeadsRouter from "./routes/admin-leads";
+import requestsRouter from "./routes/requests";
 import marketplaceRouter from "./routes/marketplace";
 import internalPipelineRouter from "./routes/internal-pipeline";
 import siteWorldsRouter from "./routes/site-worlds";
@@ -69,6 +70,7 @@ export function registerRoutes(app: Express) {
   app.post("/api/apply", csrfProtection, applyHandler);
   // Inbound request (lead pipeline) - public submission endpoint
   app.use("/api/inbound-request", csrfProtection, inboundRequestRouter);
+  app.use("/api/requests", csrfProtection, requestsRouter);
   // Admin leads management - requires Firebase auth
   app.use(
     "/api/admin/leads",

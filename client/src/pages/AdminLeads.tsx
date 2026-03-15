@@ -10,6 +10,7 @@ import {
   Filter,
   Mail,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
@@ -186,6 +187,35 @@ export default function AdminLeads() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-submission-detail"] });
       setNote("");
+    },
+  });
+
+  const createCaptureJobMutation = useMutation({
+    mutationFn: async (requestId: string) => {
+      const response = await fetch(`/api/admin/leads/${requestId}/capture-job`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+      });
+      if (!response.ok) throw new Error("Failed to create capture job");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-submissions"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-submission-detail"] });
+    },
+  });
+
+  const triggerPreviewMutation = useMutation({
+    mutationFn: async (requestId: string) => {
+      const response = await fetch(`/api/admin/leads/${requestId}/trigger-preview`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+      });
+      if (!response.ok) throw new Error("Failed to trigger preview");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-submission-detail"] });
     },
   });
 
@@ -375,6 +405,31 @@ export default function AdminLeads() {
                   </a>
                 </div>
 
+                <div className="flex flex-wrap gap-3">
+                  <a
+                    href={`/requests/${selectedLead.requestId}`}
+                    className="inline-flex items-center rounded-full border border-zinc-200 px-4 py-2 text-sm text-zinc-700"
+                  >
+                    Buyer console
+                    <ArrowUpRight className="ml-2 h-4 w-4" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => createCaptureJobMutation.mutate(selectedLead.requestId)}
+                    className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-medium text-white"
+                  >
+                    Create capture job
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => triggerPreviewMutation.mutate(selectedLead.requestId)}
+                    className="inline-flex items-center rounded-full border border-zinc-200 px-4 py-2 text-sm text-zinc-700"
+                  >
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Trigger preview
+                  </button>
+                </div>
+
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-xl bg-zinc-50 p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Contact</p>
@@ -449,6 +504,41 @@ export default function AdminLeads() {
                     ))}
                   </div>
                 </div>
+
+                {selectedLead.deployment_readiness ? (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="rounded-xl border border-zinc-200 p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Buyer trust</p>
+                      <p className="mt-2 text-3xl font-semibold text-zinc-950">
+                        {selectedLead.deployment_readiness.buyer_trust_score?.score ?? "N/A"}
+                      </p>
+                      <p className="mt-1 text-sm text-zinc-600">
+                        {selectedLead.deployment_readiness.buyer_trust_score?.band ?? "unknown"} confidence
+                      </p>
+                      {selectedLead.deployment_readiness.buyer_trust_score?.reasons?.length ? (
+                        <ul className="mt-3 list-disc space-y-1 pl-4 text-sm text-zinc-600">
+                          {selectedLead.deployment_readiness.buyer_trust_score.reasons.map((reason) => (
+                            <li key={reason}>{reason}</li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </div>
+                    <div className="rounded-xl border border-zinc-200 p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Preview run</p>
+                      <p className="mt-2 text-sm text-zinc-700">
+                        Status: {selectedLead.deployment_readiness.preview_status || "not_requested"}
+                      </p>
+                      <p className="mt-1 text-sm text-zinc-700">
+                        Provider: {selectedLead.deployment_readiness.provider_run?.provider_name || "none"}
+                      </p>
+                      {selectedLead.deployment_readiness.provider_run?.failure_reason ? (
+                        <p className="mt-3 text-sm text-rose-700">
+                          {selectedLead.deployment_readiness.provider_run.failure_reason}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>

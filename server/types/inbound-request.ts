@@ -129,6 +129,11 @@ export interface PipelineArtifacts {
   readiness_decision_uri?: string | null;
   readiness_report_uri?: string | null;
   qualification_quality_report_uri?: string | null;
+  qualification_summary_uri?: string | null;
+  capture_quality_summary_uri?: string | null;
+  rights_and_compliance_summary_uri?: string | null;
+  provider_run_manifest_uri?: string | null;
+  preview_manifest_uri?: string | null;
   opportunity_handoff_uri?: string | null;
   human_actions_required_uri?: string | null;
   agent_review_bundle_uri?: string | null;
@@ -149,6 +154,32 @@ export interface PipelineArtifacts {
   compatibility_matrix_uri?: string | null;
   recapture_diff_uri?: string | null;
   launchable_export_bundle_uri?: string | null;
+}
+
+export type ProviderRunStatus =
+  | "not_requested"
+  | "queued"
+  | "submitted"
+  | "processing"
+  | "succeeded"
+  | "failed";
+
+export interface ProviderRunSummary {
+  provider_name?: string | null;
+  provider_model?: string | null;
+  provider_run_id?: string | null;
+  status?: ProviderRunStatus | null;
+  preview_manifest_uri?: string | null;
+  cost_usd?: number | null;
+  latency_ms?: number | null;
+  failure_reason?: string | null;
+  provenance?: Record<string, unknown> | null;
+}
+
+export interface BuyerTrustScore {
+  score: number;
+  band: "high" | "medium" | "low";
+  reasons: string[];
 }
 
 export interface RobotCapabilityEnvelope {
@@ -173,6 +204,9 @@ export interface RightsAndComplianceSummary {
 export interface DeploymentReadinessSummary {
   qualification_state?: QualificationState;
   opportunity_state?: OpportunityState;
+  buyer_trust_score?: BuyerTrustScore;
+  qualification_summary?: Record<string, unknown> | null;
+  capture_quality_summary?: Record<string, unknown> | null;
   benchmark_coverage_status?: "missing" | "partial" | "ready" | null;
   benchmark_task_count?: number | null;
   export_readiness_status?: "missing" | "partial" | "ready" | null;
@@ -185,6 +219,8 @@ export interface DeploymentReadinessSummary {
   exports_available?: string[];
   task_categories?: string[];
   runtime_label?: string | null;
+  preview_status?: ProviderRunStatus | "preview_unavailable" | null;
+  provider_run?: ProviderRunSummary | null;
 }
 
 export type DerivedAssetStatus =
@@ -211,6 +247,8 @@ export interface DerivedAssetsAttachment {
 }
 
 export interface PipelineAttachment {
+  buyer_request_id?: string | null;
+  capture_job_id?: string | null;
   scene_id: string;
   capture_id: string;
   pipeline_prefix: string;
@@ -222,6 +260,7 @@ export interface PipelineAttachment {
 export interface InboundRequest {
   requestId: string;
   site_submission_id: string;
+  buyer_request_id?: string | null;
   createdAt: FirebaseFirestore.Timestamp;
   status: RequestStatus;
   qualification_state: QualificationState;
@@ -391,6 +430,7 @@ export interface SceneDashboardSummary {
 export interface InboundRequestListItem {
   requestId: string;
   site_submission_id: string;
+  buyer_request_id?: string | null;
   createdAt: string; // ISO string for client
   status: RequestStatus;
   qualification_state: QualificationState;
@@ -414,6 +454,7 @@ export interface InboundRequestListItem {
   owner: RequestOwner;
   pipeline?: PipelineAttachment;
   derived_assets?: DerivedAssetsAttachment;
+  deployment_readiness?: DeploymentReadinessSummary;
 }
 
 export interface UpdateRequestStatusPayload {

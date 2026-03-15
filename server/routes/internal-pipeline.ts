@@ -11,6 +11,7 @@ import { parsePipelineAttachmentSyncPayload } from "../utils/pipelineAttachmentC
 import type {
   DerivedAssetEntry,
   DerivedAssetsAttachment,
+  DeploymentReadinessSummary,
   OpportunityState,
   PipelineAttachment,
   PipelineArtifacts,
@@ -49,6 +50,8 @@ function buildPipelineAttachment(
 ): PipelineAttachment {
   const artifacts = body.artifacts && typeof body.artifacts === "object" ? body.artifacts : {};
   return {
+    buyer_request_id: String(body.buyer_request_id || current?.buyer_request_id || ""),
+    capture_job_id: String(body.capture_job_id || current?.capture_job_id || ""),
     scene_id: String(body.scene_id || current?.scene_id || ""),
     capture_id: String(body.capture_id || current?.capture_id || ""),
     pipeline_prefix: String(body.pipeline_prefix || current?.pipeline_prefix || ""),
@@ -100,6 +103,20 @@ function buildDerivedAssets(
 
   next.synced_at = admin.firestore.FieldValue.serverTimestamp() as never;
   return next;
+}
+
+function buildDeploymentReadiness(
+  body: Record<string, unknown>,
+  current?: DeploymentReadinessSummary
+): DeploymentReadinessSummary | undefined {
+  const readiness = body.deployment_readiness;
+  if (!readiness || typeof readiness !== "object") {
+    return current;
+  }
+  return {
+    ...(current || {}),
+    ...(readiness as DeploymentReadinessSummary),
+  };
 }
 
 router.post("/attachments", requirePipelineToken, async (req: Request, res: Response) => {
@@ -157,6 +174,10 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       parsedBody,
       currentData?.derived_assets as DerivedAssetsAttachment | undefined
     );
+    const deploymentReadiness = buildDeploymentReadiness(
+      parsedBody,
+      currentData?.deployment_readiness as DeploymentReadinessSummary | undefined
+    );
     const nextQualificationState = authoritativeStateUpdate
       ? (qualificationState as QualificationState)
       : String(
@@ -176,6 +197,10 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       updatePayload.derived_assets = derivedAssets;
     }
 
+    if (deploymentReadiness) {
+      updatePayload.deployment_readiness = deploymentReadiness;
+    }
+
     if (authoritativeStateUpdate) {
       updatePayload.status = nextQualificationState;
       updatePayload.qualification_state = nextQualificationState;
@@ -192,6 +217,7 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       opportunity_state: nextOpportunityState,
       pipeline,
       derived_assets: derivedAssets,
+      deployment_readiness: deploymentReadiness,
     });
   } catch (error) {
     if (error instanceof ZodError) {

@@ -37,6 +37,7 @@ const Settings = lazy(() => import("../pages/Settings"));
 const AdminLeads = lazy(() => import("../pages/AdminLeads"));
 const Dashboard = lazy(() => import("../pages/Dashboard"));
 const OffWaitlistSignUpFlow = lazy(() => import("../pages/OffWaitlistSignUpFlow"));
+const RequestConsole = lazy(() => import("../pages/RequestConsole"));
 const NotFound = lazy(() => import("../pages/NotFound"));
 
 // Legacy redirects
@@ -157,6 +158,10 @@ export const appRoutes: AppRoute[] = [
   { path: "/privacy", layout: "public", component: Privacy },
   { path: "/terms", layout: "public", component: Terms },
   { path: "/settings", layout: "public", component: Settings },
+  { path: "/requests/:requestId", layout: "public", component: RequestConsole },
+  { path: "/requests/:requestId/evidence", layout: "public", component: RequestConsole },
+  { path: "/requests/:requestId/qualification", layout: "public", component: RequestConsole },
+  { path: "/requests/:requestId/preview", layout: "public", component: RequestConsole },
 
   // Admin
   { path: "/admin/leads", layout: "protected", component: AdminLeads },

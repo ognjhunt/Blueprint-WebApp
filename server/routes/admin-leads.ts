@@ -13,6 +13,7 @@ import {
 } from "../../client/src/lib/requestTaxonomy";
 import type {
   DerivedAssetsAttachment,
+  DeploymentReadinessSummary,
   InboundRequest,
   InboundRequestStored,
   RequestStatus,
@@ -102,10 +103,12 @@ function normalizeDecryptedRequest(decrypted: InboundRequest) {
   const buyerType: BuyerType = decrypted.request.buyerType ?? "site_operator";
   const pipeline = normalizePipelineAttachment(decrypted.pipeline);
   const derivedAssets = normalizeDerivedAssets(decrypted.derived_assets);
+  const deploymentReadiness = normalizeDeploymentReadiness(decrypted.deployment_readiness);
 
   return {
     ...decrypted,
     site_submission_id: decrypted.site_submission_id || decrypted.requestId,
+    buyer_request_id: decrypted.buyer_request_id || decrypted.requestId,
     status: qualificationState as RequestStatus,
     qualification_state: qualificationState,
     opportunity_state: opportunityState,
@@ -120,6 +123,7 @@ function normalizeDecryptedRequest(decrypted: InboundRequest) {
     },
     pipeline,
     derived_assets: derivedAssets,
+    deployment_readiness: deploymentReadiness,
   };
 }
 
@@ -131,6 +135,8 @@ function normalizePipelineAttachment(raw: unknown): PipelineAttachment | undefin
   const artifacts = value.artifacts && typeof value.artifacts === "object" ? value.artifacts : {};
   const syncedAt = value.synced_at as { toDate?: () => Date } | null | undefined;
   return {
+    buyer_request_id: String(value.buyer_request_id || ""),
+    capture_job_id: String(value.capture_job_id || ""),
     scene_id: String(value.scene_id || ""),
     capture_id: String(value.capture_id || ""),
     pipeline_prefix: String(value.pipeline_prefix || ""),
@@ -148,6 +154,62 @@ function normalizeDerivedAssets(raw: unknown): DerivedAssetsAttachment | undefin
   return {
     ...(value as DerivedAssetsAttachment),
     synced_at: syncedAt?.toDate?.()?.toISOString() || null,
+  };
+}
+
+function normalizeDeploymentReadiness(raw: unknown): DeploymentReadinessSummary | undefined {
+  if (!raw || typeof raw !== "object") {
+    return undefined;
+  }
+  return { ...(raw as DeploymentReadinessSummary) };
+}
+
+function buildCaptureJobPayload(decrypted: ReturnType<typeof normalizeDecryptedRequest>) {
+  const priorityWeight =
+    decrypted.priority === "high" ? 1.5 : decrypted.priority === "normal" ? 1.0 : 0.75;
+  const specialTaskType =
+    decrypted.request.requestedLanes.includes("preview_simulation")
+      ? "buyer_requested_preview"
+      : decrypted.request.requestedLanes.includes("deeper_evaluation")
+      ? "buyer_requested_evaluation"
+      : "managed_capture";
+  const quotedPayoutCents = decrypted.priority === "high" ? 6500 : 4500;
+
+  return {
+    title: decrypted.request.siteName,
+    address: decrypted.request.siteLocation,
+    lat: 0,
+    lng: 0,
+    payout_cents: quotedPayoutCents,
+    quoted_payout_cents: quotedPayoutCents,
+    est_minutes: 25,
+    active: true,
+    updated_at: admin.firestore.FieldValue.serverTimestamp(),
+    workflow_name: decrypted.request.taskStatement,
+    workflow_steps: decrypted.request.workflowContext
+      ? [decrypted.request.workflowContext]
+      : [decrypted.request.taskStatement],
+    target_kpi: decrypted.request.details || "",
+    known_blockers: decrypted.request.knownBlockers ? [decrypted.request.knownBlockers] : [],
+    privacy_restrictions: decrypted.request.privacySecurityConstraints
+      ? [decrypted.request.privacySecurityConstraints]
+      : [],
+    region_id: "managed-alpha",
+    task_type: "buyer_requested_special_task",
+    special_task_type: specialTaskType,
+    buyer_request_id: decrypted.requestId,
+    site_submission_id: decrypted.site_submission_id,
+    priority_weight: priorityWeight,
+    approval_requirements: ["ops_review", "rights_review"],
+    rights_checklist: [
+      "permission doc present or policy recorded",
+      "consent scope documented",
+      "restricted zones listed",
+    ],
+    requested_outputs: decrypted.request.requestedLanes,
+    due_window: "managed",
+    recapture_reason: "",
+    capture_job_state: "ready_to_submit",
   };
 }
 
@@ -240,6 +302,7 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
         return {
           requestId: decrypted.requestId,
           site_submission_id: decrypted.site_submission_id,
+          buyer_request_id: decrypted.buyer_request_id,
           createdAt: decrypted.createdAt?.toDate?.()?.toISOString() || "",
           status: decrypted.status,
           qualification_state: decrypted.qualification_state,
@@ -263,6 +326,7 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
           owner: decrypted.owner,
           pipeline: decrypted.pipeline,
           derived_assets: decrypted.derived_assets,
+          deployment_readiness: decrypted.deployment_readiness,
         } satisfies InboundRequestListItem;
       })
     );
@@ -333,6 +397,7 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
     return res.json({
       requestId: decrypted.requestId,
       site_submission_id: decrypted.site_submission_id,
+      buyer_request_id: decrypted.buyer_request_id,
       createdAt: decrypted.createdAt?.toDate?.()?.toISOString() || "",
       status: decrypted.status,
       qualification_state: decrypted.qualification_state,
@@ -368,6 +433,8 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
       },
       enrichment: decrypted.enrichment,
       pipeline: decrypted.pipeline,
+      derived_assets: decrypted.derived_assets,
+      deployment_readiness: decrypted.deployment_readiness,
       events: {
         confirmationEmailSentAt:
           decrypted.events.confirmationEmailSentAt?.toDate?.()?.toISOString() ||
@@ -443,6 +510,94 @@ router.get("/:requestId/pipeline/dashboard", requireAdmin, async (req: Request, 
       "Error fetching scene dashboard"
     );
     return res.status(500).json({ error: "Failed to fetch scene dashboard" });
+  }
+});
+
+router.post("/:requestId/capture-job", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: "Database not available" });
+    }
+
+    const { requestId } = req.params;
+    const requestDoc = await db.collection("inboundRequests").doc(requestId).get();
+    if (!requestDoc.exists) {
+      return res.status(404).json({ error: "Request not found" });
+    }
+
+    const decrypted = normalizeDecryptedRequest(
+      (await decryptInboundRequestForAdmin(requestDoc.data() as any)) as InboundRequest
+    );
+    const captureJobId = `job_${requestId}`;
+    const payload = buildCaptureJobPayload(decrypted);
+
+    await db.collection("capture_jobs").doc(captureJobId).set(payload, { merge: true });
+    await requestDoc.ref.update({
+      qualification_state: "capture_requested",
+      status: "capture_requested",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return res.json({
+      ok: true,
+      capture_job_id: captureJobId,
+      site_submission_id: decrypted.site_submission_id,
+      buyer_request_id: decrypted.requestId,
+      payload,
+    });
+  } catch (error) {
+    logger.error({ error, requestId: req.params.requestId }, "Error creating capture job");
+    return res.status(500).json({ error: "Failed to create capture job" });
+  }
+});
+
+router.post("/:requestId/trigger-preview", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: "Database not available" });
+    }
+
+    const { requestId } = req.params;
+    const requestRef = db.collection("inboundRequests").doc(requestId);
+    const doc = await requestRef.get();
+    if (!doc.exists) {
+      return res.status(404).json({ error: "Request not found" });
+    }
+
+    const current = (doc.data() as Record<string, unknown>) || {};
+    const deploymentReadiness = normalizeDeploymentReadiness(current.deployment_readiness) || {};
+    const derivedAssets = normalizeDerivedAssets(current.derived_assets) || {};
+
+    await requestRef.update({
+      derived_assets: {
+        ...derivedAssets,
+        preview_simulation: {
+          ...(derivedAssets.preview_simulation || {}),
+          status: "generating",
+          updated_at: new Date().toISOString(),
+        },
+        synced_at: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      deployment_readiness: {
+        ...deploymentReadiness,
+        preview_status: "queued",
+        provider_run: {
+          ...(deploymentReadiness.provider_run || {}),
+          status: "queued",
+          provider_name: "world_model_provider",
+        },
+      },
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return res.json({
+      ok: true,
+      requestId,
+      preview_status: "queued",
+    });
+  } catch (error) {
+    logger.error({ error, requestId: req.params.requestId }, "Error triggering provider preview");
+    return res.status(500).json({ error: "Failed to trigger provider preview" });
   }
 });
 
