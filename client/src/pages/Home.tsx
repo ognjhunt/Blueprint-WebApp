@@ -540,7 +540,7 @@ export default function Home() {
           <StaggerGroup className="mobile-snap-row md:grid md:grid-cols-3 md:gap-4" stagger={0.1}>
             <a
               href="/how-it-works"
-              className="group rounded-xl border border-zinc-200 bg-white p-5 transition-all hover:border-indigo-200 hover:shadow-md sm:p-6"
+              className="group block h-full rounded-xl border border-zinc-200 bg-white p-5 transition-all hover:border-indigo-200 hover:shadow-md sm:p-6"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-emerald-50 p-2 text-emerald-600">
@@ -556,7 +556,7 @@ export default function Home() {
 
             <a
               href="/capture"
-              className="group rounded-xl border border-zinc-200 bg-white p-5 transition-all hover:border-indigo-200 hover:shadow-md sm:p-6"
+              className="group block h-full rounded-xl border border-zinc-200 bg-white p-5 transition-all hover:border-indigo-200 hover:shadow-md sm:p-6"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600">
@@ -572,7 +572,7 @@ export default function Home() {
 
             <a
               href="/for-robot-teams"
-              className="group rounded-xl border border-zinc-200 bg-white p-5 transition-all hover:border-indigo-200 hover:shadow-md sm:p-6"
+              className="group block h-full rounded-xl border border-zinc-200 bg-white p-5 transition-all hover:border-indigo-200 hover:shadow-md sm:p-6"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-violet-50 p-2 text-violet-600">
