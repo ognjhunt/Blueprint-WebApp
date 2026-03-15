@@ -1,5 +1,5 @@
 export type SimplePricingOption = {
-  id: "readiness-pack" | "qualified-opportunity" | "technical-evaluation" | "deployment-prep";
+  id: "capture" | "world-models" | "simulation" | "enterprise";
   step: string;
   name: string;
   internalName: string;
@@ -12,75 +12,74 @@ export type SimplePricingOption = {
 
 export const simplePricingOptions: SimplePricingOption[] = [
   {
-    id: "readiness-pack",
+    id: "capture",
+    step: "Supply side",
+    name: "Capture & Earn",
+    internalName: "Capturer",
+    price: "Free",
+    unit: "you get paid per capture",
+    payer: "Capturers (people with phones or smart glasses)",
+    summary: "Walk through any indoor space and get paid. No cost to join -- we pay you.",
+    includes: [
+      "Sign up free and start capturing immediately",
+      "$5-$40 per capture depending on device and quality",
+      "Quality bonuses for coverage, depth, and multi-pass",
+      "10% lifetime referral earnings on invites",
+    ],
+  },
+  {
+    id: "world-models",
     step: "Start here",
-    name: "Readiness Pack",
-    internalName: "Qualification",
-    price: "$1,500 - $4,000",
-    unit: "per site or workflow",
-    payer: "Site operator",
-    summary: "The default product. Start with the site, the task, and a clear readiness report.",
-    includes: [
-      "Site intake and workflow scoping",
-      "Capture request or captured evidence review",
-      "Qualification report with ready, risky, or not-ready call",
-      "Handoff-ready brief for later team review",
-    ],
-  },
-  {
-    id: "qualified-opportunity",
-    step: "Next layer",
-    name: "Qualified Opportunity",
-    internalName: "Exchange Access",
-    price: "$2,000 - $10,000",
-    unit: "per brief or subscription access",
+    name: "World Models",
+    internalName: "World Model License",
+    price: "$500 - $2,000",
+    unit: "per world model",
     payer: "Robot team / OEM / integrator",
-    summary: "Pay to review qualified site briefs instead of chasing cold leads.",
+    summary: "Buy site-specific, qualification-verified world models of real indoor locations.",
     includes: [
-      "Access to scoped site briefs",
-      "Task and constraint summary",
-      "Readiness pack and handoff review",
-      "A cleaner path into deeper evaluation",
+      "Qualification-verified spatial data",
+      "Simulation-ready environment",
+      "Coverage and completeness guarantees",
+      "Filterable by location type, size, and robot compatibility",
     ],
   },
   {
-    id: "technical-evaluation",
-    step: "When both sides are serious",
-    name: "Evaluation Package",
-    internalName: "Evaluation Package",
-    price: "$7,500 - $20,000",
-    unit: "per site",
+    id: "simulation",
+    step: "Next layer",
+    name: "Simulation Access",
+    internalName: "Hosted Sessions",
+    price: "$10 - $30",
+    unit: "per session-hour",
     payer: "Robot team / OEM / integrator",
     summary:
-      "Managed technical diligence for a specific robot, team, and site after self-serve hosted evals have narrowed the question.",
+      "Run your robot in hosted simulation environments built from real-world captures.",
     includes: [
-      "Priority or higher-touch hosted evaluation support when justified",
-      "Preview or simulation-backed review when the workflow needs it",
-      "Robot/team-specific fit checks",
-      "Stronger blocker and feasibility analysis",
-      "Decision on whether to proceed to deployment prep",
+      "Self-serve hosted simulation sessions",
+      "Reset and rerun scenarios",
+      "Export rollout datasets and policy comparisons",
+      "Subscription tiers for teams with ongoing needs ($5K-$20K/month)",
     ],
   },
   {
-    id: "deployment-prep",
-    step: "Highest-touch lane",
-    name: "Deployment Prep / Managed Tuning",
-    internalName: "Managed Tuning",
-    price: "$20,000 - $100,000+",
-    unit: "scoped engagement",
+    id: "enterprise",
+    step: "Full service",
+    name: "Blueprint Enterprise",
+    internalName: "Enterprise",
+    price: "$50,000 - $200,000+",
+    unit: "annual contract",
     payer: "Robot team / OEM / enterprise pilot budget",
-    summary: "Use this when the site is real, the stack is known, and the team wants Blueprint to do the heavy lifting.",
+    summary: "On-demand captures, exclusive access, managed deployment support, and custom work.",
     includes: [
-      "Scenario generation or validation package",
-      "Managed tuning on supported stacks",
-      "Offline evaluation gates before redeploy",
-      "Licensing, data, or private terms when needed",
+      "On-demand capture requests for specific locations",
+      "Exclusive world model access and custom capture specs",
+      "Managed evaluation and deployment assistance",
+      "Scenario generation, validation, tuning, and licensing",
     ],
   },
 ];
 
 export function getPricingContactInterest(id: SimplePricingOption["id"]): string {
-  if (id === "readiness-pack") return "site-qualification";
-  if (id === "deployment-prep") return "managed-tuning";
-  return "evaluation-package";
+  if (id === "capture") return "capturer-signup";
+  if (id === "enterprise") return "enterprise";
+  return "world-models";
 }

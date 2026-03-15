@@ -54,14 +54,14 @@ export default function Contact() {
     : "Fill out the form and our team will get back to you within 24 hours to talk through the site, the qualification record, and the best next step.";
   const learnMoreLinks = hostedMode
     ? [
-        { href: "/site-worlds", label: "Back to Site Worlds" },
-        { href: "/for-robot-integrators", label: "For Robot Teams" },
+        { href: "/world-models", label: "Back to Site Worlds" },
+        { href: "/for-robot-teams", label: "For Robot Teams" },
         { href: "/how-it-works", label: "How Blueprint works" },
       ]
     : [
         { href: "/how-it-works", label: "How It Works" },
         { href: "/readiness-pack", label: "See the deliverable" },
-        { href: "/for-robot-integrators", label: "For Robot Teams" },
+        { href: "/for-robot-teams", label: "For Robot Teams" },
       ];
 
   return (

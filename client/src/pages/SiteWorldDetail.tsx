@@ -114,7 +114,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
           The site world you are looking for does not exist in this placeholder catalog.
         </p>
         <a
-          href="/site-worlds"
+          href="/world-models"
           className="mt-6 inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
         >
           Back to Site Worlds
@@ -162,13 +162,13 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
       <SEO
         title={`${site.siteName} | Site Worlds | Blueprint`}
         description={`${site.siteName} is a site-specific world model that robot teams can review, stream, and use for validation or data generation before a site visit.`}
-        canonical={`/site-worlds/${site.id}`}
+        canonical={`/world-models/${site.id}`}
       />
 
       <div className="min-h-screen bg-white">
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
           <a
-            href="/site-worlds"
+            href="/world-models"
             className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 transition hover:text-slate-900"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -516,7 +516,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               {relatedSites.map((relatedSite) => (
                 <a
                   key={relatedSite.id}
-                  href={`/site-worlds/${relatedSite.id}`}
+                  href={`/world-models/${relatedSite.id}`}
                   className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300"
                 >
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">

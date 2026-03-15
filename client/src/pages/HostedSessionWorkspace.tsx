@@ -816,7 +816,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const presentationLaunchState = sessionRecord?.presentationLaunchState || null;
   const peerBackendHref =
     site && peerBackend
-      ? `/site-worlds/${site.id}/start?taskId=${encodeURIComponent(selectedTaskId || "")}&scenarioId=${encodeURIComponent(runtimeConfig.scenarioId || "")}&startStateId=${encodeURIComponent(runtimeConfig.startStateId || "")}&robotProfileId=${encodeURIComponent(String(robotProfile.id || ""))}&requestedBackend=${encodeURIComponent(peerBackend)}`
+      ? `/world-models/${site.id}/start?taskId=${encodeURIComponent(selectedTaskId || "")}&scenarioId=${encodeURIComponent(runtimeConfig.scenarioId || "")}&startStateId=${encodeURIComponent(runtimeConfig.startStateId || "")}&robotProfileId=${encodeURIComponent(String(robotProfile.id || ""))}&requestedBackend=${encodeURIComponent(peerBackend)}`
       : null;
   const runtimeReferenceImageUrl = site?.runtimeReferenceImageUrl || null;
   const artifactExplorer = sessionRecord?.siteModel?.artifactExplorer || site?.artifactExplorer || null;
@@ -1594,7 +1594,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       <SEO
         title={`Hosted Session | ${site.siteName} | Blueprint`}
         description={`Hosted session workspace for ${site.siteName}.`}
-        canonical={`/site-worlds/${site.id}/workspace`}
+        canonical={`/world-models/${site.id}/workspace`}
       />
 
       <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.06),_transparent_30%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)]">
@@ -1606,7 +1606,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <a
-                href={`/site-worlds/${site.id}/start`}
+                href={`/world-models/${site.id}/start`}
                 className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 transition hover:text-slate-900"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -2338,7 +2338,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     </div>
                     <button
                       type="button"
-                      onClick={() => setLocation(`/site-worlds/${site.id}`)}
+                      onClick={() => setLocation(`/world-models/${site.id}`)}
                       className="mt-5 inline-flex items-center rounded-full border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                     >
                       Return to site detail

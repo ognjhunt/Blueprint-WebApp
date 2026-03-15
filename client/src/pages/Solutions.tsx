@@ -35,7 +35,7 @@ const roleCards = [
     title: "For Robot Teams",
     description:
       "For humanoid integrators and deployment teams who either already know the site or need operator demand coming through the marketplace.",
-    href: "/for-robot-integrators",
+    href: "/for-robot-teams",
     cta: "Open humanoid team guide",
     icon: <Bot className="h-6 w-6 text-slate-900" />,
   },
@@ -103,7 +103,7 @@ export default function Solutions() {
               Site operator guide
             </a>
             <a
-              href="/for-robot-integrators"
+              href="/for-robot-teams"
               className="inline-flex items-center rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
             >
               Humanoid team guide

@@ -1,42 +1,63 @@
 import { SEO } from "@/components/SEO";
-import { CheckCircle2, ClipboardList, Clock3, Handshake, ShieldCheck } from "lucide-react";
+import {
+  Building2,
+  CheckCircle2,
+  DollarSign,
+  HandCoins,
+  Shield,
+  TrendingUp,
+} from "lucide-react";
 
-const intakeChecklist = [
-  "Basic site profile: facility type, size, hours, and known constraints",
-  "Task list: which workflows you want checked first",
-  "Access plan: escort policy, restricted zones, and capture windows",
-  "Review rules: privacy, permissions, and who can see the site materials",
+const benefits = [
+  "Earn 15-25% of every world model sale from your facility",
+  "Get a free qualification report of your space's robot-readiness",
+  "Attract robot teams who are ready to deploy at your exact location",
+  "No upfront cost -- you earn passively from your existing facility",
 ];
 
-const processSteps = [
+const howItWorks = [
   {
-    title: "1. Intake and scope alignment",
+    title: "1. Register your space",
     description:
-      "We define the site, the task, and what your team needs to understand first.",
+      "Tell us about your facility -- type, size, hours, and any access restrictions. Takes 5 minutes.",
   },
   {
-    title: "2. Build the qualification record",
+    title: "2. Approve capture windows",
     description:
-      "Blueprint captures the site and turns it into a qualification record your team can review.",
+      "Choose when capturers can visit. You control the schedule, restricted zones, and privacy rules.",
   },
   {
-    title: "3. Feasibility and readiness",
+    title: "3. Earn from world model sales",
     description:
-      "You get a clear read on what is feasible, what is blocked, and what still needs work.",
+      "When robot teams buy world models built from captures of your space, you earn a revenue share. Every sale, automatically.",
   },
   {
-    title: "4. Robot-team evaluation",
+    title: "4. Attract robot deployments",
     description:
-      "If the site is a fit, robot teams can review the qualified brief before the pilot starts.",
+      "Robot teams browsing the marketplace discover your facility. When they're ready to deploy, your site is already mapped and qualified.",
   },
 ];
 
-const logisticsDetails = [
-  "Scheduling: choose a time that does not disrupt operations",
-  "Data governance: decide who can review the site materials",
-  "Scope: agree on the task, work area, and success bar up front",
-  "Next step: move forward, adjust the plan, or pause",
-  "Follow-up: open robot-team evaluation only if the site is a fit",
+const facilityTypes = [
+  "Warehouse",
+  "Retail store",
+  "Grocery store",
+  "Office building",
+  "Restaurant",
+  "Gym / fitness center",
+  "Hotel / hospitality",
+  "University / campus",
+  "Medical clinic",
+  "Coworking space",
+  "Library",
+  "Industrial facility",
+];
+
+const whatYouControl = [
+  { label: "Scheduling", detail: "Choose exact capture windows that don't disrupt operations" },
+  { label: "Privacy", detail: "Define restricted zones, camera rules, and data governance" },
+  { label: "Permissions", detail: "Approve or decline every capture request" },
+  { label: "Revenue share", detail: "Earn automatically on every world model sold from your space" },
 ];
 
 export default function ForSiteOperators() {
@@ -44,33 +65,36 @@ export default function ForSiteOperators() {
     <>
       <SEO
         title="For Site Operators | Blueprint"
-        description="Guide for site operators using Blueprint to qualify a site, understand feasibility, and get a readiness report before a pilot."
+        description="Register your facility with Blueprint. Earn passive income from world model sales, get a free qualification report, and attract robot teams to your space."
         canonical="/for-site-operators"
       />
 
       <div className="min-h-screen bg-white">
         <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
+          {/* Header */}
           <div className="space-y-6">
-            <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-700">
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-700">
+              <Building2 className="h-3 w-3" />
               For Site Operators
             </span>
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Start with a simple site check
+              Your facility is an asset. Earn from it.
             </h1>
             <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
-              If you run a warehouse, store, factory, or lab, Blueprint comes to the site, builds
-              the qualification record, and shows what is feasible, what is blocked, and what
-              needs more proof before a pilot.
+              Register your warehouse, store, office, gym, or any indoor space with Blueprint.
+              Capturers walk through and map it. Robot teams buy the world models. You earn a
+              revenue share on every sale -- automatically.
             </p>
           </div>
 
-          <section className="mt-12 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+          {/* Benefits */}
+          <section className="mt-12 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-6">
             <div className="mb-4 flex items-center gap-2">
-              <ClipboardList className="h-5 w-5 text-slate-700" />
-              <h2 className="text-xl font-bold text-slate-900">What we need from your team</h2>
+              <HandCoins className="h-5 w-5 text-emerald-700" />
+              <h2 className="text-xl font-bold text-slate-900">What you get</h2>
             </div>
             <ul className="space-y-3">
-              {intakeChecklist.map((item) => (
+              {benefits.map((item) => (
                 <li key={item} className="flex items-start gap-3 text-slate-700">
                   <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
                   <span>{item}</span>
@@ -79,10 +103,41 @@ export default function ForSiteOperators() {
             </ul>
           </section>
 
+          {/* Revenue highlight */}
+          <section className="mt-8 rounded-2xl bg-zinc-900 p-6 text-white sm:p-8">
+            <div className="grid gap-6 sm:grid-cols-3">
+              <div>
+                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
+                  <DollarSign className="h-4 w-4" />
+                  Revenue share
+                </p>
+                <p className="mt-2 text-3xl font-bold">15-25%</p>
+                <p className="mt-1 text-sm text-zinc-400">of every world model sale from your facility</p>
+              </div>
+              <div>
+                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
+                  <TrendingUp className="h-4 w-4" />
+                  Potential earnings
+                </p>
+                <p className="mt-2 text-3xl font-bold">$100-$500</p>
+                <p className="mt-1 text-sm text-zinc-400">per month for popular location types</p>
+              </div>
+              <div>
+                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
+                  <Shield className="h-4 w-4" />
+                  Upfront cost
+                </p>
+                <p className="mt-2 text-3xl font-bold">$0</p>
+                <p className="mt-1 text-sm text-zinc-400">free to register, you only earn</p>
+              </div>
+            </div>
+          </section>
+
+          {/* How it works */}
           <section className="mt-10">
-            <h2 className="text-2xl font-bold text-slate-900">Typical process</h2>
+            <h2 className="text-2xl font-bold text-slate-900">How it works</h2>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              {processSteps.map((step) => (
+              {howItWorks.map((step) => (
                 <article key={step.title} className="rounded-xl border border-slate-200 p-5">
                   <h3 className="font-semibold text-slate-900">{step.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-slate-600">{step.description}</p>
@@ -91,51 +146,53 @@ export default function ForSiteOperators() {
             </div>
           </section>
 
+          {/* What you control */}
           <section className="mt-10 rounded-2xl border border-slate-200 p-6">
             <div className="mb-3 flex items-center gap-2">
-              <Handshake className="h-5 w-5 text-slate-700" />
-              <h2 className="text-xl font-bold text-slate-900">Exchange and logistics</h2>
+              <Shield className="h-5 w-5 text-slate-700" />
+              <h2 className="text-xl font-bold text-slate-900">You stay in control</h2>
             </div>
-            <ul className="space-y-2 text-sm text-slate-600">
-              {logisticsDetails.map((item) => (
-                <li key={item} className="flex items-start gap-3">
-                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                  <span>{item}</span>
-                </li>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {whatYouControl.map((item) => (
+                <div key={item.label} className="rounded-lg bg-slate-50 p-4">
+                  <p className="font-semibold text-slate-900">{item.label}</p>
+                  <p className="mt-1 text-sm text-slate-600">{item.detail}</p>
+                </div>
               ))}
-            </ul>
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-lg bg-slate-50 p-4">
-                <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                  <Clock3 className="h-4 w-4" />
-                  Typical capture kickoff
-                </p>
-                <p className="mt-1 text-sm text-slate-600">1-2 weeks after scope and approvals.</p>
-              </div>
-              <div className="rounded-lg bg-slate-50 p-4">
-                <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                  <ShieldCheck className="h-4 w-4" />
-                  What comes back
-                </p>
-                <p className="mt-1 text-sm text-slate-600">
-                  A qualification record, a report, and a clearer next step for your team.
-                </p>
-              </div>
             </div>
           </section>
 
+          {/* Facility types */}
+          <section className="mt-10">
+            <h2 className="text-xl font-bold text-slate-900">Any indoor facility qualifies</h2>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {facilityTypes.map((type) => (
+                <span
+                  key={type}
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700"
+                >
+                  {type}
+                </span>
+              ))}
+              <span className="rounded-full border border-dashed border-slate-300 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-500">
+                + any indoor space
+              </span>
+            </div>
+          </section>
+
+          {/* CTAs */}
           <section className="mt-10 flex flex-wrap gap-3">
             <a
-              href="/contact?interest=site-qualification"
+              href="/contact?interest=site-registration"
               className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Request qualification
+              Register your space
             </a>
             <a
-              href="/readiness-pack"
+              href="/how-it-works"
               className="inline-flex items-center rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
             >
-              See the Readiness Pack
+              See how Blueprint works
             </a>
           </section>
         </div>

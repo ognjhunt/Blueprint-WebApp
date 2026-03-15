@@ -271,13 +271,13 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
       <SEO
         title={`Start Hosted Session | ${site.siteName} | Blueprint`}
         description={`Set up a streamed world-model session for ${site.siteName}.`}
-        canonical={`/site-worlds/${site.id}/start`}
+        canonical={`/world-models/${site.id}/start`}
       />
 
       <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_30%),linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)]">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
           <a
-            href={`/site-worlds/${site.id}`}
+            href={`/world-models/${site.id}`}
             className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 transition hover:text-slate-900"
           >
             <ArrowLeft className="h-4 w-4" />

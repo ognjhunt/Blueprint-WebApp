@@ -1,204 +1,150 @@
-import { useEffect, useState } from "react";
-import { analyticsEvents } from "@/components/Analytics";
-import { CTAButtons } from "@/components/site/CTAButtons";
-import { CurrentRobotStateSection } from "@/components/site/CurrentRobotStateSection";
-import { LogoWall } from "@/components/site/LogoWall";
 import { SEO } from "@/components/SEO";
 import {
   ArrowRight,
   Bot,
+  Building2,
+  Camera,
   CheckCircle2,
-  FileText,
+  DollarSign,
+  Glasses,
+  Globe,
   MapPinned,
   ScanLine,
+  ShieldCheck,
+  Smartphone,
   Sparkles,
+  Users,
 } from "lucide-react";
-
-type HomeHeroVariant = {
-  id: string;
-  eyebrow: string;
-  headline: string;
-  body: string;
-  supportingPoints: string[];
-};
-
-const HOME_HERO_STORAGE_KEY = "bp_home_hero_variant_v2";
-const HOME_HERO_QUERY_PARAM = "hero";
 
 const offeringCards = [
   {
-    title: "Readiness Pack",
-    badge: "Step 1",
+    title: "Capture & Earn",
     description:
-      "Start with the site, the task, and a clear readiness decision before anyone buys deeper work.",
+      "Walk through any indoor space with your glasses or phone. Grocery stores, offices, warehouses, gyms -- anywhere. Get paid per capture.",
     bullets: [
-      "Low-friction qualification for site operators",
-      "A scoped brief and recommendation the team can use right away",
+      "No robotics knowledge needed",
+      "Use smart glasses or iPhone with LiDAR",
+      "Quality-based pay with device multipliers",
     ],
-    ctaLabel: "Start with qualification",
-    ctaHref: "/contact?interest=site-qualification",
-    icon: <FileText className="h-8 w-8 text-zinc-900" />,
+    ctaLabel: "Start earning",
+    ctaHref: "/capture",
+    icon: <Camera className="h-8 w-8 text-zinc-900" />,
   },
   {
-    title: "Qualified Opportunity",
-    badge: "Step 2",
+    title: "World Models",
     description:
-      "Robot teams should review qualified site briefs, not random inbound opportunities.",
+      "Train on the exact site you're deploying to. Site-specific world models dramatically outperform generalized simulations. Browse thousands of real locations.",
     bullets: [
-      "Monetize better opportunities, not cold leads",
-      "Open the right sites to the right teams after qualification",
+      "Qualification-verified spatial data",
+      "Simulation-ready environments",
+      "Any indoor location type",
     ],
-    ctaLabel: "View qualified opportunities",
-    ctaHref: "/qualified-opportunities",
-    icon: <MapPinned className="h-8 w-8 text-zinc-900" />,
+    ctaLabel: "Browse world models",
+    ctaHref: "/world-models",
+    icon: <Globe className="h-8 w-8 text-zinc-900" />,
   },
   {
-    title: "Technical Evaluation",
-    badge: "Step 3",
+    title: "Enterprise",
     description:
-      "When both sides are serious, Blueprint adds deeper site-specific diligence for that exact site and team.",
+      "Need a specific location captured? Request on-demand captures, get exclusive access, or add managed deployment support.",
     bullets: [
-      "Premium technical upsell once the site is real",
-      "A cleaner decision on whether to move toward deployment prep",
+      "On-demand capture requests",
+      "Exclusive world model access",
+      "Managed deployment assistance",
     ],
-    ctaLabel: "For robot teams",
-    ctaHref: "/for-robot-integrators",
-    icon: <Bot className="h-8 w-8 text-zinc-900" />,
+    ctaLabel: "Contact us",
+    ctaHref: "/contact?interest=enterprise",
+    icon: <Building2 className="h-8 w-8 text-zinc-900" />,
+  },
+];
+
+const howItWorks = [
+  {
+    step: "01",
+    title: "Capture",
+    description:
+      "People walk through indoor spaces wearing smart glasses or using their phones. Video, depth, and sensor data are collected automatically.",
+    icon: <Glasses className="h-6 w-6" />,
   },
   {
-    title: "Deployment Prep",
-    badge: "Step 4",
+    step: "02",
+    title: "Qualify",
     description:
-      "Only selected programs move into managed tuning, validation packages, and later data or licensing work.",
-    bullets: [
-      "Highest-touch enterprise layer",
-      "Scene, validation, tuning, and licensing when justified",
-    ],
-    ctaLabel: "See pricing",
-    ctaHref: "/pricing",
-    icon: <ScanLine className="h-8 w-8 text-zinc-900" />,
+      "Every capture passes through automated quality gates -- coverage checks, blur detection, completeness scoring. Only verified data becomes a world model.",
+    icon: <ShieldCheck className="h-6 w-6" />,
+  },
+  {
+    step: "03",
+    title: "Deploy",
+    description:
+      "Robot teams buy site-specific world models, run simulations, and train on the exact environments they'll deploy to. No more generalized guesswork.",
+    icon: <Bot className="h-6 w-6" />,
   },
 ];
 
 const whyBlueprint = [
   {
-    title: "The site matters more than the pitch deck",
+    title: "Site-specific beats generalized",
     description:
-      "Most deployment trouble starts in the building. A clean qualification record makes the real constraints hard to ignore.",
+      "Research shows training on an actual site twin gives dramatically better results than generalizing. Blueprint gives robot teams the exact environment they need.",
   },
   {
-    title: "Qualification is the front door",
+    title: "Qualification is the quality moat",
     description:
-      "The first product is a clear readiness call, not a generic marketplace listing.",
+      "Anyone can collect raw spatial data. Blueprint's automated qualification pipeline ensures every world model meets a verified readiness standard.",
   },
   {
-    title: "The marketplace comes later",
+    title: "The long tail is the strategy",
     description:
-      "Robot teams should pay for qualified opportunities and deeper checks only after a site is scoped.",
+      "Grocery stores, coffee shops, clinics, gyms, offices, warehouses -- the more diverse the capture network, the more likely you find your exact target environment.",
   },
 ];
 
-const whatYouGet = [
-  {
-    title: "Readiness Pack",
-    description: "A clear qualification record, blockers, and next-step recommendation.",
+const forPersonas = {
+  capturers: {
+    label: "For Capturers",
+    headline: "Earn money walking through buildings.",
+    bullets: [
+      "Any indoor space counts -- no special access required",
+      "Use your iPhone, iPad, or smart glasses",
+      "Get paid within days, cash out at $25",
+      "Referral program: 10% lifetime on invites",
+    ],
+    ctaLabel: "Start capturing",
+    ctaHref: "/capture",
   },
-  {
-    title: "Qualified opportunity",
-    description: "A handoff-ready site brief that the right robot teams can actually review.",
+  robotTeams: {
+    label: "For Robot Teams",
+    headline: "Train on the exact site you're deploying to.",
+    bullets: [
+      "Browse world models by location type and robot compatibility",
+      "Run simulations in qualification-verified environments",
+      "Subscription access for teams with ongoing deployment needs",
+      "Request on-demand captures of specific locations",
+    ],
+    ctaLabel: "Browse world models",
+    ctaHref: "/world-models",
   },
-  {
-    title: "Technical and deployment lanes",
-    description: "Deeper evaluation, deployment prep, tuning, or licensing only when the site earns it.",
+  siteOperators: {
+    label: "For Site Operators",
+    headline: "Your facility is an asset. Earn from it.",
+    bullets: [
+      "Register your space and approve capture windows",
+      "Earn 15-25% of every world model sale from your facility",
+      "Get a free qualification report of your space",
+      "Attract robot teams ready to deploy at your site",
+    ],
+    ctaLabel: "Register your space",
+    ctaHref: "/for-site-operators",
   },
+};
+
+const devices = [
+  { name: "iPhone / iPad", detail: "ARKit + LiDAR", available: true },
+  { name: "Meta Ray-Ban", detail: "DAT SDK", available: true },
+  { name: "Android XR Glasses", detail: "Google / Samsung", available: false },
+  { name: "Apple Glasses", detail: "Coming 2027", available: false },
 ];
-
-const routeToMarket = [
-  {
-    title: "An operator starts with a site",
-    description:
-      "Blueprint qualifies the site first so the operator can understand whether the opportunity is worth opening up.",
-  },
-  {
-    title: "A robot team starts with a qualified brief",
-    description:
-      "Robot teams review a real, qualified site before buying deeper technical work or deployment prep.",
-  },
-];
-
-const labBullets = [
-  "Review a qualified site before travel and field time",
-  "See blockers early instead of finding them during a pilot",
-  "Move faster when the site is ready for a real deployment",
-];
-
-const providerBullets = [
-  "See what is possible, blocked, and still unknown",
-  "Get a readiness record first and add downstream assets only when needed",
-];
-
-export const HOME_HERO_VARIANTS: HomeHeroVariant[] = [
-  {
-    id: "platform",
-    eyebrow: "Deployment Readiness Platform",
-    headline: "The deployment readiness platform for physical AI.",
-    body:
-      "Blueprint starts with qualification, turns good sites into qualified opportunities, and only then opens deeper evaluation, deployment prep, and later tuning work.",
-    supportingPoints: ["Qualification", "Qualified opportunities", "Technical evaluation"],
-  },
-  {
-    id: "sites-ready",
-    eyebrow: "Deployment Readiness Platform",
-    headline: "We help sites get ready for robot deployment.",
-    body:
-      "It starts with a low-friction readiness pack, then a cleaner handoff to the right robot teams when the site is real.",
-    supportingPoints: ["Readiness pack", "Qualified brief", "Next step"],
-  },
-  {
-    id: "deployable-opportunity",
-    eyebrow: "Deployment Readiness Platform",
-    headline: "Blueprint turns a real site into a deployable opportunity.",
-    body:
-      "We do not lead with a generic marketplace. We qualify the site first, open it to the right teams second, and sell deeper technical work only when it is justified.",
-    supportingPoints: ["Qualify first", "Open to teams", "Go deeper only when needed"],
-  },
-];
-
-export const HERO_HEADLINES = HOME_HERO_VARIANTS.map((variant) => variant.headline);
-
-function isHomeHeroVariantId(value: string | null): value is HomeHeroVariant["id"] {
-  return HOME_HERO_VARIANTS.some((variant) => variant.id === value);
-}
-
-function selectHomeHeroVariant(): { variant: HomeHeroVariant; source: string } {
-  if (typeof window === "undefined") {
-    return { variant: HOME_HERO_VARIANTS[0], source: "default" };
-  }
-
-  const params = new URLSearchParams(window.location.search);
-  const requestedVariant = params.get(HOME_HERO_QUERY_PARAM);
-
-  if (isHomeHeroVariantId(requestedVariant)) {
-    window.localStorage.setItem(HOME_HERO_STORAGE_KEY, requestedVariant);
-    return {
-      variant: HOME_HERO_VARIANTS.find((variant) => variant.id === requestedVariant)!,
-      source: "query",
-    };
-  }
-
-  const storedVariant = window.localStorage.getItem(HOME_HERO_STORAGE_KEY);
-  if (isHomeHeroVariantId(storedVariant)) {
-    return {
-      variant: HOME_HERO_VARIANTS.find((variant) => variant.id === storedVariant)!,
-      source: "storage",
-    };
-  }
-
-  const randomVariant =
-    HOME_HERO_VARIANTS[Math.floor(Math.random() * HOME_HERO_VARIANTS.length)];
-  window.localStorage.setItem(HOME_HERO_STORAGE_KEY, randomVariant.id);
-  return { variant: randomVariant, source: "random" };
-}
 
 function DotPattern() {
   return (
@@ -224,23 +170,18 @@ function DotPattern() {
 }
 
 export default function Home() {
-  const [{ variant: heroVariant, source: heroVariantSource }] = useState(selectHomeHeroVariant);
-
-  useEffect(() => {
-    analyticsEvents.homeHeroView(heroVariant.id, heroVariantSource);
-  }, [heroVariant.id, heroVariantSource]);
-
   return (
     <>
       <SEO
-        title="Blueprint | Qualification For Robot Deployments"
-        description="Blueprint qualifies real sites for robot deployment, routes the right opportunities, and prepares downstream evaluation assets only when needed."
+        title="Blueprint | The Indoor Spatial Data Marketplace for Robotics"
+        description="People capture real indoor spaces with smart glasses and phones. Robot teams buy qualification-verified world models. Train on the exact site you're deploying to."
         canonical="/"
         image="https://tryblueprint.io/images/og-home.png"
       />
       <div className="relative min-h-screen overflow-hidden bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
         <DotPattern />
 
+        {/* Hero */}
         <div className="relative pb-16 pt-10 sm:pb-20 sm:pt-24">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid gap-8 sm:gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-12">
@@ -248,57 +189,67 @@ export default function Home() {
                 <div className="space-y-4 sm:space-y-6">
                   <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
                     <Sparkles className="h-3 w-3" />
-                    {heroVariant.eyebrow}
+                    Indoor Spatial Data Marketplace
                   </div>
                   <h1 className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl">
-                    {heroVariant.headline}
+                    The indoor spatial data marketplace for robotics.
                   </h1>
                   <p className="max-w-xl text-base leading-relaxed text-zinc-600 sm:text-lg">
-                    {heroVariant.body}
+                    People capture real indoor spaces with smart glasses and phones. Robot teams
+                    train on the actual sites they'll deploy to. Every world model is
+                    qualification-verified.
                   </p>
                   <ul className="flex flex-wrap gap-2 pt-1">
-                    {heroVariant.supportingPoints.map((point) => (
-                      <li
-                        key={point}
-                        className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700"
-                      >
-                        {point}
-                      </li>
-                    ))}
+                    {["Capture & earn", "World models", "Qualification-verified"].map(
+                      (point) => (
+                        <li
+                          key={point}
+                          className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700"
+                        >
+                          {point}
+                        </li>
+                      ),
+                    )}
                   </ul>
                 </div>
 
-                <CTAButtons
-                  primaryHref="/how-it-works"
-                  primaryLabel="See how it works"
-                  secondaryHref="/contact?interest=site-qualification"
-                  secondaryLabel="Request qualification"
-                />
-
-                <div className="pt-2 opacity-80 grayscale transition-all duration-500 hover:opacity-100 hover:grayscale-0 sm:pt-4">
-                  <LogoWall />
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <a
+                    href="/capture"
+                    className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-700"
+                  >
+                    Start earning
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
+                  <a
+                    href="/world-models"
+                    className="inline-flex items-center justify-center rounded-lg border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
+                  >
+                    Browse world models
+                  </a>
                 </div>
               </div>
 
+              {/* Hero card */}
               <div className="relative">
                 <div className="absolute -inset-4 rounded-full bg-indigo-500/20 blur-3xl filter" />
                 <div className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white/80 p-6 shadow-xl backdrop-blur-md">
                   <div className="overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50">
                     <img
                       src="/images/hero-digital-twin-v3.svg"
-                      alt="Illustration of a commercial site prepared for robot deployment review"
+                      alt="Indoor spatial capture to world model pipeline"
                       className="h-48 w-full object-cover"
                       loading="lazy"
                     />
                   </div>
                   <div className="mt-4 space-y-3">
                     <div className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                      What Blueprint Does
+                      How It Works
                     </div>
                     <p className="text-sm text-zinc-600">
-                      Blueprint qualifies a real site, shows what is and is not feasible, and
-                      gives robot teams a cleaner way to review the opportunity before burning
-                      pilot budget.
+                      Capturers walk through real indoor spaces. Blueprint qualifies the data and
+                      builds site-specific world models. Robot teams train on the exact environments
+                      they'll deploy to.
                     </p>
                   </div>
                 </div>
@@ -307,6 +258,7 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Offering cards */}
         <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6 sm:pb-20 lg:px-8">
           <div className="mobile-snap-row md:grid md:grid-cols-3 md:gap-6">
             {offeringCards.map((offering) => (
@@ -314,13 +266,8 @@ export default function Home() {
                 key={offering.title}
                 className="group flex h-full flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-indigo-200 hover:shadow-md sm:p-6"
               >
-                <div className="flex items-start justify-between">
-                  <div className="rounded-xl bg-zinc-100 p-3 text-zinc-900 transition-colors group-hover:bg-indigo-50 group-hover:text-indigo-600">
-                    {offering.icon}
-                  </div>
-                  <span className="rounded-full border border-zinc-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                    {offering.badge}
-                  </span>
+                <div className="rounded-xl bg-zinc-100 p-3 text-zinc-900 transition-colors group-hover:bg-indigo-50 group-hover:text-indigo-600">
+                  {offering.icon}
                 </div>
 
                 <div>
@@ -351,30 +298,34 @@ export default function Home() {
           </div>
         </section>
 
-        <CurrentRobotStateSection />
-
+        {/* How it works */}
         <section className="border-y border-zinc-100 bg-zinc-50/50 py-12 sm:py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="max-w-3xl">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
                 <ScanLine className="h-3 w-3" />
-                What You Get
+                How It Works
               </div>
               <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
-                A simple path from site intake to a clear next step.
+                Capture. Qualify. Deploy.
               </h2>
               <p className="mt-4 text-zinc-600">
-                First we qualify the site. Then we route the right next step, whether that is a
-                qualified opportunity, a preview asset, or a deeper evaluation package.
+                A three-step pipeline from real-world capture to robot-ready world models.
               </p>
             </div>
             <div className="mobile-snap-row mt-8 md:grid md:grid-cols-3 md:gap-4">
-              {whatYouGet.map((item) => (
+              {howItWorks.map((item) => (
                 <div
-                  key={item.title}
+                  key={item.step}
                   className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6"
                 >
-                  <h3 className="font-semibold text-zinc-900">{item.title}</h3>
+                  <div className="flex items-center gap-3">
+                    <p className="font-mono text-sm font-bold text-indigo-600">{item.step}</p>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700">
+                      {item.icon}
+                    </div>
+                  </div>
+                  <h3 className="mt-3 font-semibold text-zinc-900">{item.title}</h3>
                   <p className="mt-2 text-sm text-zinc-600">{item.description}</p>
                 </div>
               ))}
@@ -382,98 +333,153 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Why Blueprint */}
         <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
-          <div className="max-w-3xl">
-            <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">Two ways a project starts</h2>
-            <p className="mt-4 text-zinc-600">
-              Sometimes the operator starts with a site they want to understand. Sometimes a robot
-              team starts with a site they want to evaluate. Either way, qualification comes first.
+          <div className="mb-10">
+            <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">Why Blueprint</h2>
+            <p className="mt-2 text-zinc-600">
+              The only marketplace where every world model is built from real captures and
+              passes a verified qualification standard.
             </p>
           </div>
-          <div className="mobile-snap-row mt-8 md:grid md:grid-cols-2 md:gap-6">
-            {routeToMarket.map((item) => (
-              <div key={item.title} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
-                <h3 className="font-semibold text-zinc-900">{item.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-zinc-600">{item.description}</p>
+
+          <div className="mobile-snap-row md:grid md:grid-cols-3 md:gap-6">
+            {whyBlueprint.map((item) => (
+              <div
+                key={item.title}
+                className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-zinc-200 sm:p-6"
+              >
+                <h3 className="font-bold text-zinc-900">{item.title}</h3>
+                <p className="mt-2 text-sm text-zinc-600">{item.description}</p>
               </div>
             ))}
           </div>
         </section>
 
+        {/* Three personas */}
         <section className="border-y border-zinc-100 bg-zinc-50/50 py-12 sm:py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="mb-10">
-              <h2 className="text-2xl font-bold text-zinc-900">Why teams use Blueprint</h2>
-              <p className="mt-2 text-zinc-600">
-                The qualification record gives operators and robot teams the same view of the site
-                before money and time start disappearing into a pilot.
-              </p>
-            </div>
-
             <div className="mobile-snap-row md:grid md:grid-cols-3 md:gap-6">
-              {whyBlueprint.map((item) => (
-                <div
-                  key={item.title}
-                  className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-zinc-200 sm:p-6"
+              {/* Capturers */}
+              <div className="rounded-2xl bg-indigo-900 p-6 text-white sm:p-8">
+                <p className="text-xs font-bold uppercase tracking-widest text-indigo-300">
+                  {forPersonas.capturers.label}
+                </p>
+                <h3 className="mt-2 text-xl font-bold text-white">
+                  {forPersonas.capturers.headline}
+                </h3>
+                <ul className="mt-4 space-y-2">
+                  {forPersonas.capturers.bullets.map((item) => (
+                    <li key={item} className="flex items-start gap-2 text-sm text-indigo-100">
+                      <DollarSign className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <a
+                  href={forPersonas.capturers.ctaHref}
+                  className="mt-6 inline-block rounded-lg bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
                 >
-                  <h3 className="font-bold text-zinc-900">{item.title}</h3>
-                  <p className="mt-2 text-sm text-zinc-600">{item.description}</p>
-                </div>
-              ))}
+                  {forPersonas.capturers.ctaLabel}
+                </a>
+              </div>
+
+              {/* Robot Teams */}
+              <div className="rounded-2xl border border-zinc-200 bg-white p-6 sm:p-8">
+                <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
+                  {forPersonas.robotTeams.label}
+                </p>
+                <h3 className="mt-2 text-xl font-bold text-zinc-900">
+                  {forPersonas.robotTeams.headline}
+                </h3>
+                <ul className="mt-4 space-y-2">
+                  {forPersonas.robotTeams.bullets.map((item) => (
+                    <li key={item} className="flex items-start gap-2 text-sm text-zinc-600">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <a
+                  href={forPersonas.robotTeams.ctaHref}
+                  className="mt-6 inline-flex rounded-lg border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-50"
+                >
+                  {forPersonas.robotTeams.ctaLabel}
+                </a>
+              </div>
+
+              {/* Site Operators */}
+              <div className="rounded-2xl bg-zinc-900 p-6 text-white sm:p-8">
+                <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+                  {forPersonas.siteOperators.label}
+                </p>
+                <h3 className="mt-2 text-xl font-bold text-white">
+                  {forPersonas.siteOperators.headline}
+                </h3>
+                <ul className="mt-4 space-y-2">
+                  {forPersonas.siteOperators.bullets.map((item) => (
+                    <li key={item} className="flex items-start gap-2 text-sm text-zinc-300">
+                      <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <a
+                  href={forPersonas.siteOperators.ctaHref}
+                  className="mt-6 inline-block rounded-lg bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
+                >
+                  {forPersonas.siteOperators.ctaLabel}
+                </a>
+              </div>
             </div>
           </div>
         </section>
 
+        {/* Supported devices */}
         <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
-          <div className="mobile-snap-row md:grid md:grid-cols-2 md:gap-6">
-            <div className="rounded-2xl border border-zinc-200 bg-white p-6 sm:p-8">
-              <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                For Robot Teams
-              </p>
-              <h3 className="mt-2 text-xl font-bold text-zinc-900">
-                Review a qualified site before you burn pilot budget.
-              </h3>
-              <ul className="mt-4 space-y-2">
-                {labBullets.map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-sm text-zinc-600">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <a
-                href="/for-robot-integrators"
-                className="mt-6 inline-flex rounded-lg border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-50"
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-zinc-900">Capture with any device</h2>
+            <p className="mt-2 text-zinc-600">
+              Start with your iPhone today. Smart glasses earn higher rates thanks to richer
+              sensor data.
+            </p>
+          </div>
+          <div className="mobile-snap-row md:grid md:grid-cols-4 md:gap-4">
+            {devices.map((device) => (
+              <div
+                key={device.name}
+                className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm"
               >
-                For robot teams
-              </a>
-            </div>
-
-            <div className="rounded-2xl bg-zinc-900 p-6 text-white sm:p-8">
-              <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-                For Site Operators
-              </p>
-              <h3 className="mt-2 text-xl font-bold text-white">
-                See what is possible, what is blocked, and what needs to change.
-              </h3>
-              <ul className="mt-4 space-y-2">
-                {providerBullets.map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-sm text-zinc-300">
-                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <a
-                href="/readiness-pack"
-                className="mt-6 inline-block rounded-lg bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
-              >
-                See the Readiness Pack
-              </a>
-            </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-100">
+                    {device.name.includes("iPhone") ? (
+                      <Smartphone className="h-5 w-5 text-zinc-700" />
+                    ) : (
+                      <Glasses className="h-5 w-5 text-zinc-700" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-zinc-900">{device.name}</p>
+                    <p className="text-xs text-zinc-500">{device.detail}</p>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  {device.available ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                      <CheckCircle2 className="h-3 w-3" /> Available
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-500">
+                      Coming soon
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 
+        {/* Bottom nav links */}
         <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 sm:pb-20 lg:px-8">
           <div className="mobile-snap-row md:grid md:grid-cols-3 md:gap-4">
             <a
@@ -486,30 +492,30 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="font-semibold text-zinc-900">How it works</p>
-                  <p className="text-sm text-zinc-500">From site intake to qualification and routing</p>
+                  <p className="text-sm text-zinc-500">Capture, qualify, deploy</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
             </a>
 
             <a
-              href="/readiness-pack"
+              href="/capture"
               className="group rounded-xl border border-zinc-200 bg-white p-5 transition-all hover:border-indigo-200 hover:shadow-md sm:p-6"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600">
-                  <FileText className="h-5 w-5" />
+                  <Camera className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-zinc-900">Readiness Pack</p>
-                  <p className="text-sm text-zinc-500">See the report that comes out of qualification</p>
+                  <p className="font-semibold text-zinc-900">Start earning</p>
+                  <p className="text-sm text-zinc-500">Get paid to capture indoor spaces</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
             </a>
 
             <a
-              href="/for-robot-integrators"
+              href="/for-robot-teams"
               className="group rounded-xl border border-zinc-200 bg-white p-5 transition-all hover:border-indigo-200 hover:shadow-md sm:p-6"
             >
               <div className="flex items-center gap-3">
@@ -518,7 +524,7 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="font-semibold text-zinc-900">For robot teams</p>
-                  <p className="text-sm text-zinc-500">Review qualified opportunities before a pilot</p>
+                  <p className="text-sm text-zinc-500">Site-specific world models for deployment</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
@@ -526,27 +532,28 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Final CTA */}
         <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
           <div className="rounded-2xl bg-zinc-900 p-8 text-center sm:p-12">
             <h2 className="text-2xl font-bold text-white sm:text-3xl">
-              Share the site and workflow. We&apos;ll qualify it from there.
+              The world&apos;s indoor spaces, captured and qualified for robotics.
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-zinc-400">
-              Blueprint returns a readiness record first, then opens the right downstream lane only
-              when the site earns it.
+              Whether you want to earn by capturing, deploy robots to real sites, or monetize
+              your facility -- Blueprint connects every side of the market.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
               <a
-                href="/contact?interest=site-qualification"
+                href="/capture"
                 className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
               >
-                Request qualification
+                Start earning
               </a>
               <a
-                href="/readiness-pack"
+                href="/world-models"
                 className="inline-flex items-center justify-center rounded-lg border border-zinc-700 px-6 py-3 text-sm font-semibold text-white hover:bg-zinc-800"
               >
-                See the Readiness Pack
+                Browse world models
               </a>
             </div>
           </div>

@@ -14,8 +14,8 @@ import {
 const navLinks = [
   { href: "/how-it-works", label: "Site Qualification" },
   { href: "/for-site-operators", label: "For Sites" },
-  { href: "/for-robot-integrators", label: "For Robot Teams" },
-  { href: "/site-worlds", label: "Site Worlds" },
+  { href: "/for-robot-teams", label: "For Robot Teams" },
+  { href: "/world-models", label: "World Models" },
   { href: "/pricing", label: "Pricing" },
 ];
 

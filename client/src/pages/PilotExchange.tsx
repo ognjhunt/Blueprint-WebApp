@@ -587,7 +587,7 @@ export default function PilotExchange() {
                     <p className="text-sm font-medium text-zinc-500">Price</p>
                     <p className="mt-2 text-3xl font-bold text-zinc-950">{option.price}</p>
                     <p className="mt-1 text-sm text-zinc-500">{option.unit}</p>
-                    {option.id === "qualified-opportunity" ? (
+                    {option.id === "world-models" ? (
                       <Button onClick={() => openEvalDialog()} className="mt-5 w-full bg-zinc-900 text-white hover:bg-zinc-800">
                         Review this site
                       </Button>

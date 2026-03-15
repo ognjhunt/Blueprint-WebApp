@@ -1,12 +1,16 @@
-import { CTAButtons } from "@/components/site/CTAButtons";
 import { SEO } from "@/components/SEO";
 import {
   ArrowRight,
   Bot,
+  Camera,
   CheckCircle2,
-  FileText,
+  DollarSign,
+  Glasses,
+  Globe,
   MapPinned,
   ScanLine,
+  ShieldCheck,
+  Smartphone,
   Sparkles,
 } from "lucide-react";
 
@@ -33,63 +37,81 @@ function DotPattern() {
   );
 }
 
-const whyQualificationFirst = [
+const threeWhy = [
   {
-    title: "Qualification is the first product",
+    title: "Site-specific beats generalized",
     description:
-      "We start with a scoped site and task, then produce a readiness decision before offering deeper technical work.",
+      "Research shows training on an actual site twin gives dramatically better results. Blueprint gives robot teams the exact environment they need.",
     icon: <MapPinned className="h-6 w-6" />,
   },
   {
-    title: "Qualified opportunities come next",
+    title: "Qualification is the quality moat",
     description:
-      "Robot teams should review qualified site briefs, not random inbound leads or generic scene listings.",
-    icon: <ScanLine className="h-6 w-6" />,
+      "Anyone can collect raw spatial data. Blueprint's automated pipeline ensures every world model passes coverage, completeness, and readiness checks.",
+    icon: <ShieldCheck className="h-6 w-6" />,
   },
   {
-    title: "The heavy work is selective",
+    title: "Crowdsourced scale",
     description:
-      "Deeper evaluation, deployment prep, and managed tuning only happen when both sides are serious.",
-    icon: <Bot className="h-6 w-6" />,
+      "Instead of expensive professional scanning teams, Blueprint's capture network covers any indoor location -- from grocery stores to warehouses to gyms.",
+    icon: <Globe className="h-6 w-6" />,
   },
 ];
 
 const pipelineSteps = [
   {
     step: "01",
-    title: "Scope the site and task",
-    icon: <ScanLine className="h-5 w-5" />,
+    title: "Capture any indoor space",
+    icon: <Camera className="h-5 w-5" />,
     description:
-      "We start with the actual workflow, work area, handoff points, constraints, and success bar.",
+      "Capturers walk through real indoor locations using iPhones or smart glasses. Video, depth, and sensor data are collected automatically during a 15-30 minute session.",
   },
   {
     step: "02",
-    title: "Capture and qualify the site",
-    icon: <MapPinned className="h-5 w-5" />,
+    title: "Automated quality pipeline",
+    icon: <ScanLine className="h-5 w-5" />,
     description:
-      "Blueprint captures the evidence and turns it into a readiness pack with blockers, gaps, and a recommendation.",
+      "Every capture passes through coverage checks, blur detection, and completeness scoring. Only captures that meet the quality bar become world models.",
   },
   {
     step: "03",
-    title: "Open the qualified opportunity",
-    icon: <FileText className="h-5 w-5" />,
+    title: "Qualification verification",
+    icon: <ShieldCheck className="h-5 w-5" />,
     description:
-      "If the site is worth pursuing, the handoff becomes a better brief for robot teams and integrators.",
+      "World models are scored against Blueprint's readiness standard -- physical access, environmental conditions, safety constraints, and task feasibility.",
   },
   {
     step: "04",
-    title: "Add deeper work only when needed",
+    title: "Robot teams train and deploy",
     icon: <Bot className="h-5 w-5" />,
     description:
-      "Only selected sites move into technical evaluation, deployment prep, managed tuning, or later licensing work.",
+      "Robot teams browse the marketplace, purchase site-specific world models, run simulations, and train on the exact locations they'll deploy to.",
   },
 ];
 
-const deliverables = [
-  "A qualification record tied to the site and workflow",
-  "A scoped workflow and work area",
-  "A readiness pack with blockers and next steps",
-  "A qualified opportunity brief for robot-team review",
+const whoEarns = [
+  {
+    persona: "Capturers",
+    icon: <Camera className="h-5 w-5" />,
+    description: "Get paid $5-$40 per capture session. Quality bonuses and device multipliers increase earnings.",
+  },
+  {
+    persona: "Site Operators",
+    icon: <MapPinned className="h-5 w-5" />,
+    description: "Earn 15-25% revenue share on every world model sold from your facility. Zero upfront cost.",
+  },
+  {
+    persona: "Blueprint",
+    icon: <Globe className="h-5 w-5" />,
+    description: "Operates the marketplace, runs the quality pipeline, and connects supply with demand.",
+  },
+];
+
+const devices = [
+  { name: "iPhone / iPad", detail: "ARKit + LiDAR", icon: <Smartphone className="h-5 w-5" /> },
+  { name: "Meta Ray-Ban", detail: "720p + IMU via DAT SDK", icon: <Glasses className="h-5 w-5" /> },
+  { name: "Android XR", detail: "Google/Samsung, coming 2026", icon: <Glasses className="h-5 w-5" /> },
+  { name: "Apple Glasses", detail: "Coming 2027", icon: <Glasses className="h-5 w-5" /> },
 ];
 
 export default function HowItWorks() {
@@ -97,13 +119,14 @@ export default function HowItWorks() {
     <>
       <SEO
         title="How It Works | Blueprint"
-        description="How Blueprint moves from site intake to qualification, then into qualified opportunities, deeper evaluation, and later deployment work."
+        description="How Blueprint turns crowdsourced indoor captures into qualification-verified world models for robot deployment."
         canonical="/how-it-works"
       />
 
       <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
         <DotPattern />
 
+        {/* Hero */}
         <section className="relative overflow-hidden pb-16 pt-14 sm:pb-20 sm:pt-24">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
@@ -111,24 +134,33 @@ export default function HowItWorks() {
                 <div className="space-y-6">
                   <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
                     <Sparkles className="h-3 w-3" />
-                    Qualification First
+                    How It Works
                   </div>
                   <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
-                    We start with qualification, not a generic marketplace.
+                    Capture. Qualify. Deploy.
                   </h1>
                   <p className="max-w-2xl text-lg leading-relaxed text-zinc-600">
-                    Blueprint scopes the site, captures the evidence, returns a readiness decision,
-                    and only then opens qualified opportunities, deeper evaluation, and later
-                    deployment work.
+                    People capture real indoor spaces with smart glasses and phones. Blueprint
+                    qualifies the data and builds world models. Robot teams train on the exact
+                    environments they'll deploy to.
                   </p>
                 </div>
 
-                <CTAButtons
-                  primaryHref="/contact?interest=site-qualification"
-                  primaryLabel="Request qualification"
-                  secondaryHref="/readiness-pack"
-                  secondaryLabel="See the Readiness Pack"
-                />
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <a
+                    href="/capture"
+                    className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-700"
+                  >
+                    Start earning
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
+                  <a
+                    href="/world-models"
+                    className="inline-flex items-center justify-center rounded-lg border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
+                  >
+                    Browse world models
+                  </a>
+                </div>
               </div>
 
               <div className="relative">
@@ -136,22 +168,16 @@ export default function HowItWorks() {
                 <div className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white/80 p-6 shadow-xl backdrop-blur-md">
                   <div className="flex items-start gap-4">
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-zinc-100 text-zinc-800">
-                      <MapPinned className="h-5 w-5" />
+                      <Globe className="h-5 w-5" />
                     </div>
                     <div className="space-y-2">
                       <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                        What you get
+                        Three-sided marketplace
                       </p>
                       <p className="text-sm text-zinc-600">
-                        A readiness pack first, a qualified handoff second, and premium technical
-                        work only when the site earns it.
+                        Capturers earn money. Robot teams get site-specific world models. Site
+                        operators earn passive income from their facilities.
                       </p>
-                      <a
-                        href="/readiness-pack"
-                        className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-indigo-600"
-                      >
-                        See the deliverable <ArrowRight className="h-4 w-4" />
-                      </a>
                     </div>
                   </div>
                 </div>
@@ -160,18 +186,22 @@ export default function HowItWorks() {
           </div>
         </section>
 
+        {/* Why */}
         <section className="border-y border-zinc-100 bg-zinc-50/50 py-12 sm:py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-10 max-w-2xl">
-              <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">Why start with qualification</h2>
+              <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
+                Why this works
+              </h2>
               <p className="mt-4 text-zinc-600">
-                The ladder is simple: qualify first, open good sites to the right teams, then sell
-                the deeper technical work only when it matters.
+                Professional 3D scanning costs $1,000-$3,500 per site and doesn't scale.
+                Blueprint crowdsources captures at a fraction of the cost and covers every type
+                of indoor location.
               </p>
             </div>
 
             <div className="mobile-snap-row md:grid md:grid-cols-3 md:gap-6">
-              {whyQualificationFirst.map((item) => (
+              {threeWhy.map((item) => (
                 <div
                   key={item.title}
                   className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6"
@@ -187,15 +217,16 @@ export default function HowItWorks() {
           </div>
         </section>
 
+        {/* Pipeline */}
         <section className="py-14 sm:py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-12 max-w-3xl">
               <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
-                The process is simple
+                The pipeline
               </h2>
               <p className="mt-4 text-lg text-zinc-600">
-                Start with the real site and task. Return the readiness decision. Then let the
-                right teams decide whether to go deeper.
+                From a person walking through a building to a robot training on that exact
+                environment.
               </p>
             </div>
 
@@ -206,7 +237,7 @@ export default function HowItWorks() {
                   className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6"
                 >
                   <div className="flex items-center gap-3">
-                    <p className="text-sm font-mono font-bold text-indigo-600">{step.step}</p>
+                    <p className="font-mono text-sm font-bold text-indigo-600">{step.step}</p>
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700">
                       {step.icon}
                     </div>
@@ -219,61 +250,81 @@ export default function HowItWorks() {
           </div>
         </section>
 
+        {/* Who earns */}
         <section className="border-y border-zinc-100 bg-zinc-50/50 py-12 sm:py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-              <div className="space-y-5">
-                <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
-                  What you receive
-                </h2>
-                <p className="text-zinc-600">
-                  The report matters because it routes the next commercial step. Qualification is
-                  the product center. Exchange, evaluation, and tuning sit on top of it.
-                </p>
-                <a
-                  href="/readiness-pack"
-                  className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-700"
+            <div className="mb-10">
+              <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
+                Everyone benefits
+              </h2>
+            </div>
+            <div className="grid gap-6 md:grid-cols-3">
+              {whoEarns.map((item) => (
+                <div
+                  key={item.persona}
+                  className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6"
                 >
-                  See the Readiness Pack
-                  <ArrowRight className="h-4 w-4" />
-                </a>
-              </div>
-
-              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-6">
-                <ul className="space-y-3">
-                  {deliverables.map((item) => (
-                    <li key={item} className="flex items-start gap-3 text-sm text-zinc-700">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+                    {item.icon}
+                  </div>
+                  <h3 className="font-bold text-zinc-900">{item.persona}</h3>
+                  <p className="mt-2 text-sm text-zinc-600">{item.description}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-4 pb-24 pt-20 sm:px-6 lg:px-8">
+        {/* Supported devices */}
+        <section className="py-12 sm:py-16">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-zinc-900">Supported capture devices</h2>
+              <p className="mt-2 text-zinc-600">
+                Start with your iPhone today. Smart glasses earn higher rates.
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {devices.map((device) => (
+                <div
+                  key={device.name}
+                  className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white p-4"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-100 text-zinc-700">
+                    {device.icon}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-zinc-900">{device.name}</p>
+                    <p className="text-xs text-zinc-500">{device.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <section className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6 lg:px-8">
           <div className="rounded-2xl bg-zinc-900 p-8 text-center sm:p-12">
             <h2 className="text-2xl font-bold text-white sm:text-3xl">
-              Start with the site. We&apos;ll tell you whether it is worth taking further.
+              Ready to get started?
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-zinc-400">
-              Share the site and workflow. Blueprint will qualify it, show what is feasible, and
-              route the next step with less guesswork.
+              Whether you want to earn by capturing spaces, buy world models for robot
+              deployment, or register your facility -- there's a place for you.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
               <a
-                href="/contact?interest=site-qualification"
+                href="/capture"
                 className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
               >
-                Request qualification
+                Start earning
               </a>
               <a
-                href="/readiness-pack"
+                href="/world-models"
                 className="inline-flex items-center justify-center rounded-lg border border-zinc-700 px-6 py-3 text-sm font-semibold text-white hover:bg-zinc-800"
               >
-                See the Readiness Pack
+                Browse world models
               </a>
             </div>
           </div>

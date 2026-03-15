@@ -47,7 +47,7 @@ export default function ForRobotIntegrators() {
       <SEO
         title="For Robot Teams | Blueprint"
         description="Blueprint turns real sites into hosted world models for robot testing, site-specific data, release checks, and remote demos."
-        canonical="/for-robot-integrators"
+        canonical="/for-robot-teams"
       />
 
       <div className="min-h-screen bg-white">
@@ -58,19 +58,19 @@ export default function ForRobotIntegrators() {
                 For Robot Teams
               </span>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                See the site before your robot does.
+                Train on the exact site you're deploying to.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
-                Blueprint turns a real site into a hosted world model your team can use before the
-                field visit. Test deployment fit, make site-specific data, compare releases, and
-                show the customer exactly what your robot will be working in.
+                Site-specific world models dramatically outperform generalized simulations.
+                Blueprint's capture network maps real indoor spaces -- grocery stores, warehouses,
+                offices, clinics -- and every world model is qualification-verified.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
-                  href="/site-worlds"
+                  href="/world-models"
                   className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Browse site worlds
+                  Browse world models
                 </a>
                 <a
                   href="/contact?interest=evaluation-package"

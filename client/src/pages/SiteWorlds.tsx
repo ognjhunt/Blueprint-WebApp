@@ -85,9 +85,9 @@ export default function SiteWorlds() {
   return (
     <>
       <SEO
-        title="Site Worlds | Blueprint"
-        description="Browse site-specific world models that robot teams can stream for validation, site-specific data, and remote demos."
-        canonical="/site-worlds"
+        title="World Models | Blueprint"
+        description="Browse site-specific, qualification-verified world models of real indoor spaces. Train your robot on the exact environment it will deploy to."
+        canonical="/world-models"
       />
 
       <div className="min-h-screen bg-white">
@@ -95,15 +95,16 @@ export default function SiteWorlds() {
           <header className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
             <div className="space-y-4">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Site Worlds For Robot Teams
+                World Models
               </p>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Test on the site before you go to the site.
+                Train on the exact site you're deploying to.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
-                Each Site World is a hosted model of one real site and one real workflow. Use it
-                to check deployment fit, generate site-specific data, compare releases, and run
-                customer demos before the field visit.
+                Each world model is built from real indoor captures and verified against
+                Blueprint's qualification standard. Use it to train on the exact environment,
+                generate site-specific data, compare releases, and run simulations before
+                deployment.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -187,7 +188,7 @@ export default function SiteWorlds() {
                 Why teams buy this
               </p>
               <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                Common reasons robot teams use a Site World.
+                Common reasons robot teams use world models.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 These are practical reasons to use it before you commit travel, pilot time, or
@@ -256,7 +257,7 @@ export default function SiteWorlds() {
                   key={site.id}
                   className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:border-slate-300"
                 >
-                  <a href={`/site-worlds/${site.id}`} className="block">
+                  <a href={`/world-models/${site.id}`} className="block">
                     <SiteWorldGraphic site={site} />
                   </a>
                   <div className="space-y-3 p-5 sm:p-6">
@@ -265,7 +266,7 @@ export default function SiteWorlds() {
                         {site.industry}
                       </p>
                       <h3 className="mt-2 text-[1.85rem] font-bold leading-[1.02] tracking-tight text-slate-900">
-                        <a href={`/site-worlds/${site.id}`} className="hover:text-slate-700">
+                        <a href={`/world-models/${site.id}`} className="hover:text-slate-700">
                           {site.siteName}
                         </a>
                       </h3>
