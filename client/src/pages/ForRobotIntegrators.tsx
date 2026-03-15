@@ -50,7 +50,7 @@ export default function ForRobotIntegrators() {
     <>
       <SEO
         title="For Robot Teams | Blueprint"
-        description="Blueprint turns real sites into hosted world models for robot testing, site-specific data, release checks, and remote demos."
+        description="Blueprint helps robot teams qualify a site and workflow first, then move into previews, hosted world models, and deeper evaluation only when justified."
         canonical="/for-robot-teams"
       />
 
@@ -67,19 +67,19 @@ export default function ForRobotIntegrators() {
                 For Robot Teams
               </span>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Train on the exact site you're deploying to.
+                Qualify the site before you commit pilot time.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
-                Site-specific world models dramatically outperform generalized simulations.
-                Blueprint's capture network maps real indoor spaces -- grocery stores, warehouses,
-                offices, clinics -- and every world model is qualification-verified.
+                Blueprint starts with the site, task, and constraints that matter for deployment.
+                The first output is a qualification read and routing decision. Hosted world models,
+                previews, and deeper evaluation stay available after that record is strong enough.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
-                  href="/world-models"
+                  href="/contact?buyerType=robot_team&interest=qualification"
                   className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-slate-800 hover:shadow-md"
                 >
-                  Browse world models
+                  Start qualification
                 </a>
                 <a
                   href="/contact?interest=evaluation-package"
@@ -98,7 +98,7 @@ export default function ForRobotIntegrators() {
             >
               <p className="text-sm font-semibold text-slate-900">What this is</p>
               <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                A site-specific world model you can buy as a package or run as a hosted session.
+                A qualification-first review path with optional hosted world-model access downstream.
               </p>
               <p className="mt-5 text-sm font-semibold text-slate-900">What it helps with</p>
               <ul className="mt-3 space-y-2 text-sm text-slate-600">
@@ -122,11 +122,10 @@ export default function ForRobotIntegrators() {
             <ScrollReveal>
               <div className="max-w-3xl">
                 <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                  What robot teams use it for.
+                  What robot teams use Blueprint for.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  The point is simple: answer the deployment question before the expensive part
-                  starts.
+                  The point is simple: answer the deployment question before travel, tuning, or hosted runtime work starts.
                 </p>
               </div>
             </ScrollReveal>
@@ -170,9 +169,7 @@ export default function ForRobotIntegrators() {
               >
                 <h2 className="text-2xl font-bold">What to expect</h2>
                 <p className="mt-4 text-sm leading-7 text-white">
-                  This is strong for validation, site-specific data generation, operator rehearsal,
-                  and remote demos. It is not the final signoff for deployment, and it is not a
-                  contact-perfect manipulation simulator for every task.
+                  This is strong for site qualification, early feasibility review, site-specific data follow-ons, and remote demos. It is not the final deployment signoff and it does not replace stack-specific validation.
                 </p>
               </motion.article>
             </ScrollReveal>

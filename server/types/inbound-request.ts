@@ -201,6 +201,49 @@ export interface RightsAndComplianceSummary {
   retention_policy?: string | null;
 }
 
+export type RequestCapturePolicyTier =
+  | "approved_capture"
+  | "review_required"
+  | "permission_required"
+  | "not_allowed";
+
+export type RequestRightsStatus =
+  | "unknown"
+  | "verified"
+  | "permission_required"
+  | "blocked";
+
+export type RequestQuoteStatus =
+  | "not_started"
+  | "buyer_ready"
+  | "quoted"
+  | "paid";
+
+export type RequestCaptureStatus =
+  | "not_requested"
+  | "capture_requested"
+  | "under_review"
+  | "approved"
+  | "needs_recapture"
+  | "paid";
+
+export interface BuyerReviewAccess {
+  buyer_review_url?: string | null;
+  token_issued_at?: FirebaseFirestore.Timestamp | string | null;
+  last_sent_at?: FirebaseFirestore.Timestamp | string | null;
+}
+
+export interface OpsSummary {
+  assigned_region_id?: string | null;
+  rights_status?: RequestRightsStatus;
+  capture_policy_tier?: RequestCapturePolicyTier;
+  capture_status?: RequestCaptureStatus;
+  recapture_reason?: string | null;
+  quote_status?: RequestQuoteStatus;
+  next_step?: string | null;
+  last_buyer_ready_at?: FirebaseFirestore.Timestamp | string | null;
+}
+
 export interface DeploymentReadinessSummary {
   qualification_state?: QualificationState;
   opportunity_state?: OpportunityState;
@@ -272,6 +315,8 @@ export interface InboundRequest {
   context: RequestContext;
   enrichment: EnrichmentData;
   events: RequestEvents;
+  buyer_review_access?: BuyerReviewAccess;
+  ops?: OpsSummary;
   pipeline?: PipelineAttachment;
   derived_assets?: DerivedAssetsAttachment;
   deployment_readiness?: DeploymentReadinessSummary;
@@ -452,6 +497,8 @@ export interface InboundRequestListItem {
     taskStatement: string;
   };
   owner: RequestOwner;
+  buyer_review_access?: BuyerReviewAccess;
+  ops?: OpsSummary;
   pipeline?: PipelineAttachment;
   derived_assets?: DerivedAssetsAttachment;
   deployment_readiness?: DeploymentReadinessSummary;
@@ -474,4 +521,16 @@ export interface AssignRequestOwnerPayload {
 export interface AddRequestNotePayload {
   requestId: string;
   content: string;
+}
+
+export interface UpdateRequestOpsPayload {
+  requestId: string;
+  assigned_region_id?: string | null;
+  rights_status?: RequestRightsStatus;
+  capture_policy_tier?: RequestCapturePolicyTier;
+  capture_status?: RequestCaptureStatus;
+  recapture_reason?: string | null;
+  quote_status?: RequestQuoteStatus;
+  next_step?: string | null;
+  note?: string;
 }

@@ -27,44 +27,44 @@ import { useState } from "react";
 
 const offeringCards = [
   {
-    title: "Capture & Earn",
+    title: "Capture Evidence",
     description:
-      "Walk through any indoor space with your glasses or phone. Grocery stores, offices, warehouses, gyms -- anywhere. Get paid per capture.",
+      "Contributors capture real spaces with phones or glasses so Blueprint can review workflow fit, coverage, and rights before deeper work begins.",
     bullets: [
-      "No robotics knowledge needed",
-      "Use smart glasses or iPhone with LiDAR",
-      "Quality-based pay with device multipliers",
+      "Evidence-first contributor flow",
+      "Rights-aware review path",
+      "Quality and coverage determine reuse",
     ],
-    ctaLabel: "Start earning",
+    ctaLabel: "See contributor flow",
     ctaHref: "/capture",
     icon: <Camera className="h-8 w-8 text-zinc-900" />,
     accent: "indigo" as const,
   },
   {
-    title: "World Models",
+    title: "Qualification Review",
     description:
-      "Train on the exact site you're deploying to. Site-specific world models dramatically outperform generalized simulations. Browse thousands of real locations.",
+      "Blueprint starts with intake, task scoping, and qualification. World models and previews stay available, but only after the record is strong enough.",
     bullets: [
-      "Qualification-verified spatial data",
-      "Simulation-ready environments",
-      "Any indoor location type",
+      "Structured site and workflow intake",
+      "Buyer-facing readiness review",
+      "Optional downstream preview lane",
     ],
-    ctaLabel: "Browse world models",
-    ctaHref: "/world-models",
+    ctaLabel: "Start intake",
+    ctaHref: "/contact?buyerType=robot_team&interest=qualification",
     icon: <Globe className="h-8 w-8 text-zinc-900" />,
     accent: "emerald" as const,
   },
   {
-    title: "Enterprise",
+    title: "Downstream Lanes",
     description:
-      "Need a specific location captured? Request on-demand captures, get exclusive access, or add managed deployment support.",
+      "Preview assets, hosted world models, evaluation, and managed support stay in the product, but they follow qualification instead of replacing it.",
     bullets: [
-      "On-demand capture requests",
-      "Exclusive world model access",
-      "Managed deployment assistance",
+      "Provider-backed preview assets",
+      "Curated hosted world-model examples",
+      "Managed evaluation and deployment support",
     ],
-    ctaLabel: "Contact us",
-    ctaHref: "/contact?interest=enterprise",
+    ctaLabel: "See downstream options",
+    ctaHref: "/solutions",
     icon: <Building2 className="h-8 w-8 text-zinc-900" />,
     accent: "violet" as const,
   },
@@ -73,23 +73,23 @@ const offeringCards = [
 const howItWorks = [
   {
     step: "01",
-    title: "Capture",
+    title: "Intake",
     description:
-      "People walk through indoor spaces wearing smart glasses or using their phones. Video, depth, and sensor data are collected automatically.",
+      "A robot team or operator starts with the site, task, constraints, and workflow so Blueprint knows what needs to be checked.",
     icon: <Glasses className="h-6 w-6" />,
   },
   {
     step: "02",
     title: "Qualify",
     description:
-      "Every capture passes through automated quality gates -- coverage checks, blur detection, completeness scoring. Only verified data becomes a world model.",
+      "Evidence passes through scope, coverage, rights, and readiness checks. The qualification record becomes the source of truth for review.",
     icon: <ShieldCheck className="h-6 w-6" />,
   },
   {
     step: "03",
-    title: "Deploy",
+    title: "Route",
     description:
-      "Robot teams buy site-specific world models, run simulations, and train on the exact environments they'll deploy to. No more generalized guesswork.",
+      "Once qualification is stable, Blueprint can route the request into capture, preview assets, hosted world models, evaluation, or managed follow-on work.",
     icon: <Bot className="h-6 w-6" />,
   },
 ];
@@ -130,24 +130,24 @@ const forPersonas = {
   },
   robotTeams: {
     label: "For Robot Teams",
-    headline: "Train on the exact site you're deploying to.",
+    headline: "Start with a cleaner readiness read.",
     bullets: [
-      "Browse world models by location type and robot compatibility",
-      "Run simulations in qualification-verified environments",
-      "Subscription access for teams with ongoing deployment needs",
-      "Request on-demand captures of specific locations",
+      "Submit the site, task, and robot context first",
+      "Review a qualification record before spending pilot time",
+      "Request preview or hosted world-model follow-ons later",
+      "Use managed capture only when the workflow is clear",
     ],
-    ctaLabel: "Browse world models",
-    ctaHref: "/world-models",
+    ctaLabel: "Start qualification",
+    ctaHref: "/contact?buyerType=robot_team&interest=qualification",
   },
   siteOperators: {
     label: "For Site Operators",
-    headline: "Your facility is an asset. Earn from it.",
+    headline: "Control the right capture and review path.",
     bullets: [
-      "Register your space and approve capture windows",
-      "Earn 15-25% of every world model sale from your facility",
-      "Get a free qualification report of your space",
-      "Attract robot teams ready to deploy at your site",
+      "Set access rules and restricted zones up front",
+      "Approve when capture or review should happen",
+      "Keep rights and downstream sharing explicit",
+      "Join commercialization only after a workflow is qualified",
     ],
     ctaLabel: "Register your space",
     ctaHref: "/for-site-operators",
@@ -194,8 +194,8 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | The Indoor Spatial Data Marketplace for Robotics"
-        description="People capture real indoor spaces with smart glasses and phones. Robot teams buy qualification-verified world models. Train on the exact site you're deploying to."
+        title="Blueprint | Qualification-First Deployment Readiness"
+        description="Blueprint helps robot teams and site operators submit a site, qualify the workflow, review evidence, and route the right downstream lane."
         canonical="/"
         image="https://tryblueprint.io/images/og-home.png"
       />
@@ -215,7 +215,7 @@ export default function Home() {
                     className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600"
                   >
                     <Sparkles className="h-3 w-3" />
-                    Indoor Spatial Data Marketplace
+                    Qualification-First Readiness
                   </motion.div>
                   <motion.h1
                     initial={shouldReduce ? {} : { opacity: 0, y: 20 }}
@@ -223,7 +223,7 @@ export default function Home() {
                     transition={{ duration: 0.6, delay: 0.1 }}
                     className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl"
                   >
-                    The indoor spatial data marketplace for robotics.
+                    Qualify the site before you buy the deeper work.
                   </motion.h1>
                   <motion.p
                     initial={shouldReduce ? {} : { opacity: 0, y: 16 }}
@@ -231,9 +231,7 @@ export default function Home() {
                     transition={{ duration: 0.5, delay: 0.2 }}
                     className="max-w-xl text-base leading-relaxed text-zinc-600 sm:text-lg"
                   >
-                    People capture real indoor spaces with smart glasses and phones. Robot teams
-                    train on the actual sites they'll deploy to. Every world model is
-                    qualification-verified.
+                    Blueprint starts with the site, task, and evidence needed to answer the deployment question. World models, previews, and evaluation remain available after qualification.
                   </motion.p>
                   <motion.ul
                     initial={shouldReduce ? {} : { opacity: 0 }}
@@ -241,7 +239,7 @@ export default function Home() {
                     transition={{ delay: 0.35, duration: 0.4 }}
                     className="flex flex-wrap gap-2 pt-1"
                   >
-                    {["Capture & earn", "World models", "Qualification-verified"].map(
+                    {["Site intake", "Qualification review", "Downstream world-model lane"].map(
                       (point) => (
                         <li
                           key={point}

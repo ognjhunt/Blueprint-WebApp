@@ -86,7 +86,7 @@ export default function SiteWorlds() {
     <>
       <SEO
         title="World Models | Blueprint"
-        description="Browse site-specific, qualification-verified world models of real indoor spaces. Train your robot on the exact environment it will deploy to."
+        description="Blueprint world models are a downstream lane after qualification. Review curated examples of what can follow a strong site record."
         canonical="/world-models"
       />
 
@@ -98,13 +98,12 @@ export default function SiteWorlds() {
                 World Models
               </p>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Train on the exact site you're deploying to.
+                Review what can follow a qualified site.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
-                Each world model is built from real indoor captures and verified against
-                Blueprint's qualification standard. Use it to train on the exact environment,
-                generate site-specific data, compare releases, and run simulations before
-                deployment.
+                These are curated examples of the hosted and package-based outputs Blueprint can
+                prepare after a site clears qualification. For alpha, intake and buyer review come
+                first, while hosted world-model access stays downstream.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -117,7 +116,7 @@ export default function SiteWorlds() {
                   href="#catalog"
                   className="inline-flex items-center rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
                 >
-                  Browse sites
+                  Review examples
                 </a>
               </div>
             </div>
@@ -153,8 +152,7 @@ export default function SiteWorlds() {
                 Choose how you want access.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Some teams want the site package. Others want the hosted version so they can start
-                testing right away. Both options are tied to the same real place.
+                Some teams want the site package. Others want the hosted version so they can test quickly. In alpha, both remain downstream of the qualification record.
               </p>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -188,7 +186,7 @@ export default function SiteWorlds() {
                 Why teams buy this
               </p>
               <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                Common reasons robot teams use world models.
+                Common reasons teams request this lane.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 These are practical reasons to use it before you commit travel, pilot time, or
@@ -218,8 +216,7 @@ export default function SiteWorlds() {
                   Sites your team could test against right now.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Open any site to see what the workflow looks like, what your team can buy, and
-                  how to start a hosted session.
+                  Open any sample site to see what Blueprint can attach after qualification, not what every inbound request receives on day one.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">

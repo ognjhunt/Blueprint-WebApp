@@ -11,6 +11,7 @@ import aiStudioRouter from "./routes/ai-studio";
 import qrLinkRouter from "./routes/qr-link";
 import appleAssociationRouter from "./routes/apple-app-site-association";
 import stripeAccountRouter from "./routes/stripe";
+import creatorRouter from "./routes/creator";
 import contactHandler from "./routes/contact";
 import waitlistHandler from "./routes/waitlist";
 import applyHandler from "./routes/apply";
@@ -94,5 +95,6 @@ export function registerRoutes(app: Express) {
   app.use("/api/gemini", csrfProtection, verifyFirebaseToken, geminiRouter);
   app.use("/api/ai-studio", csrfProtection, verifyFirebaseToken, aiStudioRouter);
   app.use("/api/qr", csrfProtection, verifyFirebaseToken, qrLinkRouter);
+  app.use("/v1/creator", creatorRouter);
   app.use("/v1/stripe", csrfProtection, stripeAccountRouter);
 }

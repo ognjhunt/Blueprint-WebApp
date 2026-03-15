@@ -5,30 +5,30 @@
 
 ### System Framing
 
-- `BlueprintCapture` captures raw evidence packages -- now sourced from a crowdsourced capture network (phones, smart glasses) in addition to first-party captures.
-- `BlueprintCapturePipeline` converts evidence plus intake into qualification artifacts, readiness decisions, and handoffs.
-- `Blueprint-WebApp` is the three-sided marketplace and operating system connecting capturers, robot teams, and site operators around qualification-verified world models.
-- `BlueprintValidation` performs post-qualification scene derivation, robot evaluation, adaptation, and tuning work.
+- `BlueprintCapture` is the contributor evidence-capture tool inside Blueprint's three-sided marketplace.
+- `BlueprintCapturePipeline` is the authoritative qualification, provenance, and provider-routing service.
+- `Blueprint-WebApp` is the three-sided marketplace and operating system connecting capturers, robot teams, and site operators around qualification records and downstream work.
+- `BlueprintValidation` is optional downstream infrastructure for provider benchmarking, runtime-backed demos, and deeper robot evaluation after qualification.
 
-This platform is a spatial data marketplace with qualification as the quality moat.
+This platform is qualification-first, with the marketplace organized around trusted qualification outcomes.
 
 ### Three-Sided Marketplace
 
-- **Capturers** (supply side): people with phones or smart glasses who walk through indoor spaces and get paid per capture
-- **Robot teams** (demand side, primary revenue): companies deploying robots that buy site-specific world models and simulation access
-- **Site operators** (access grantors): facility managers who register spaces, grant capture permissions, and earn revenue share on world model sales
+- **Capturers** (supply side): people with phones or smart glasses who gather evidence packages from real spaces
+- **Robot teams** (demand side, primary revenue): companies deploying robots that buy trusted qualification outcomes, previews, and later technical work
+- **Site operators** (access grantors): facility managers who register spaces, grant capture permissions, and control commercialization and sharing boundaries
 
 ### Truth Hierarchy
 
-- qualification records, readiness decisions, and supporting evidence links are authoritative
-- capture-backed world models are the primary commercial product, built from crowdsourced and first-party captures
+- qualification records, readiness decisions, trust/provenance links, and supporting evidence are authoritative
+- capture-backed previews, scene-memory bundles, and world-model outputs are downstream commercial products when qualification justifies them
 - preview simulations, world-model outputs, and world-model-trained policies are derived downstream assets; they do not rewrite qualification truth
 
 ### Product Stack
 
-1. primary product: crowdsourced capture marketplace + qualification-verified world models
-2. secondary product: simulation access / hosted sessions for robot teams
-3. third product: enterprise contracts (on-demand captures, exclusive access, managed evaluation)
+1. primary product: qualification intake, review, and routing across the three-sided marketplace
+2. secondary product: contributor capture network and provider-backed preview lane
+3. third product: scene memory / hosted world models / runtime-backed evaluation
 4. fourth product: deployment assistance, managed tuning, training data, licensing
 
 ### Downstream Training Rule
@@ -39,35 +39,35 @@ This platform is a spatial data marketplace with qualification as the quality mo
 
 ### Data Rule
 
-- passive site capture and walkthrough evidence are valuable context for world model construction, scene memory, preview simulation, and downstream conditioning
+- passive site capture and walkthrough evidence are valuable context for qualification, scene memory, preview simulation, and downstream conditioning
 - strong robot adaptation gains usually require action-conditioned robot interaction data such as play, teleop logs, or task rollouts; site video alone is usually not enough for reliable policy training from scratch
 - derived assets may inform routing and downstream work, but they must not mutate qualification state or source-of-truth readiness records
 <!-- SHARED_PLATFORM_CONTEXT_END -->
 
-This repo is the three-sided marketplace and operating system connecting capturers, robot teams, and site operators around qualification-verified world models.
+This repo is the three-sided marketplace and operating system connecting capturers, robot teams, and site operators around qualification records and downstream technical work.
 
 ## What This Repo Owns
 
-`Blueprint-WebApp` is the marketplace and commercial layer around crowdsourced spatial capture and world model distribution.
+`Blueprint-WebApp` is the marketplace, intake, buyer review, and ops layer around crowdsourced spatial capture and qualification-first routing.
 
 Its main jobs are:
 
+- collect site/task intake from robot teams and site operators
 - attract and onboard capturers (supply side)
-- manage the world model catalog for robot teams (demand side)
-- support site operator registration and revenue share (access grantors)
-- track qualification and quality state for all captures
-- support admin review
-- expose world models to robot teams with qualification verification
-- package enterprise evaluation and deployment assistance offers
-- monetize world models, simulation access, datasets, and related products
+- let ops route requests into capture, review, recapture, preview, or deeper evaluation
+- support site operator registration, access rules, and revenue share (access grantors)
+- track qualification, trust, provenance, rights, and quality state for captures and requests
+- present buyer-safe review surfaces before downstream technical work
+- expose qualified downstream products to robot teams only after the record is strong enough
+- monetize qualified opportunities, previews, hosted examples, evaluation, and related products
 
-This repo should be treated as the marketplace shell around qualification-verified world models, not as the source of truth for capture evidence itself.
+This repo should be treated as the operating system around qualification-first marketplace activity, not as the source of truth for evidence or technical evaluation itself.
 
 ## Relationship To The Other Repos
 
 ### Upstream evidence
 
-`BlueprintCapture` produces the raw evidence package -- from both the crowdsourced capture network and first-party captures.
+`BlueprintCapture` produces the raw evidence package.
 
 ### Qualification engine
 
@@ -75,8 +75,9 @@ This repo should be treated as the marketplace shell around qualification-verifi
 
 - qualification artifacts
 - readiness decisions
-- world model construction
-- quality scores and verification badges
+- trust, provenance, and rights summaries
+- provider preview state
+- scene/world outputs when a downstream lane is justified
 
 ### This repo
 
@@ -86,24 +87,25 @@ This repo should ingest, route, present, and monetize those outputs through the 
 
 The correct product stack is:
 
-1. primary product: capture marketplace (capturers earn) + world model catalog (robot teams buy)
-2. secondary product: simulation access / hosted sessions
-3. third product: enterprise contracts (on-demand captures, exclusive access, managed work)
+1. primary product: qualification-first intake and buyer review
+2. secondary product: contributor capture network and preview/world-model routing
+3. third product: hosted world models, runtime demos, and deeper evaluation
 4. fourth product: deployment assistance / managed tuning / training data / licensing
 
 That means the default product center in this repo should be:
 
+- intake submission and ops routing
 - capturer onboarding and payout management
-- world model catalog and qualification verification
-- robot team purchase and simulation access
+- buyer review of qualification, rights, provenance, and recapture status
+- downstream purchase or escalation only after qualification
 
 Not:
 
-- qualification sold as a standalone product to site operators
 - generic marketplace browsing by itself
+- runtime-only flows as the default motion
 - managed tuning as the first product motion
 
-Enterprise and deployment features should sit on top of the marketplace, not replace it.
+Hosted/runtime and enterprise features should sit on top of qualification and marketplace routing, not replace them.
 The app should separately track derived scene/data asset states without letting them rewrite readiness state.
 
 Important read:
@@ -117,6 +119,7 @@ Real infrastructure already present in this repo:
 - intake submission API
 - admin request workflow
 - qualification/opportunity state model
+- buyer review request surfaces
 - requested lanes
 - Stripe commerce plumbing
 - semantic search endpoint
@@ -127,26 +130,27 @@ Still mostly static or placeholder:
 - much marketplace inventory in `client/src/data/content.ts`
 - much world model catalog content in `client/src/data/siteWorlds.ts`
 
-So the key gap is not product definition. The key gap is that pipeline outputs are not yet fully feeding the webapp's live inventory and state surfaces, and the capturer-side infrastructure (task assignment, payout management, quality scoring) is not yet built.
+So the key gap is not product definition. The key gap is that live pipeline outputs are not yet fully feeding every buyer-facing and ops-facing surface, and some older catalog/runtime assumptions still dominate public copy and static inventory.
 
 ## Operational Model
 
 The intended lifecycle is:
 
-1. a capturer walks through an indoor space and uploads capture data
-2. `BlueprintCapturePipeline` processes the capture, runs quality checks, and generates world model artifacts
-3. this repo ingests those outputs, assigns qualification scores, and publishes to the catalog
-4. robot teams browse, purchase, and simulate against world models
-5. site operators earn revenue share on sales from their facilities
-6. enterprise clients can request on-demand captures and managed deployment work
+1. a robot team or site operator submits a site, task, constraints, and requested lane
+2. ops requests capture or routes existing evidence into review
+3. a capturer uploads evidence
+4. `BlueprintCapturePipeline` processes the bundle and emits qualification, trust, rights, provenance, and optional preview state
+5. this repo ingests those outputs and renders a buyer-safe review workspace
+6. only then does the request move into preview, hosted world-model work, evaluation, or managed deployment follow-ons
 
 ## Biggest Integration Gaps
 
 The biggest missing system boundaries today are:
 
-- capturer app infrastructure: task assignment, quality scoring, payout management
-- `BlueprintCapturePipeline` to webapp bridge: automated world model publishing from pipeline outputs
+- full live pipeline-to-webapp attachment coverage across all review surfaces
+- clearer buyer and ops workflows around recapture, rights review, and preview triggers
 - site operator registration and revenue share tracking
+- de-emphasizing legacy catalog/runtime-first framing where qualification should be primary
 
 Agents in this repo should treat these as high-priority architecture targets.
 
@@ -154,9 +158,9 @@ Agents in this repo should treat these as high-priority architecture targets.
 
 When making changes here, optimize for:
 
-1. marketplace-first routing: capturers earn, robot teams buy, site operators grant access
-2. clear separation between the marketplace layer, enterprise services, and managed deployment
-3. representing real world model catalog items, not just static content
-4. making world models actionable for robot teams with qualification verification badges
+1. qualification-first routing across capturers, robot teams, and site operators
+2. clear separation between the marketplace/ops layer and technical downstream services
+3. buyer-safe review surfaces that reflect live pipeline truth
+4. downstream catalog/runtime features that are explicitly secondary to qualification
 
-Do not treat this repo as if it is only a storefront. It is the operating system around a three-sided spatial data marketplace.
+Do not treat this repo as if it is only a storefront, and do not treat it as if runtime demos are the default product. It is the operating system around a qualification-first three-sided marketplace.

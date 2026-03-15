@@ -1,0 +1,303 @@
+import { Request, Response, Router } from "express";
+import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+
+const router = Router();
+
+function creatorIdFromRequest(req: Request) {
+  const headerValue = String(req.header("X-Blueprint-Creator-Id") || "").trim();
+  const queryValue = String(req.query.creator_id || "").trim();
+  const bodyValue = typeof req.body?.creator_id === "string" ? req.body.creator_id.trim() : "";
+  return headerValue || queryValue || bodyValue;
+}
+
+function toIso(value: unknown) {
+  const raw = value as { toDate?: () => Date } | string | Date | null | undefined;
+  if (!raw) {
+    return null;
+  }
+  if (typeof raw === "string") {
+    return raw;
+  }
+  if (raw instanceof Date) {
+    return raw.toISOString();
+  }
+  return raw.toDate?.()?.toISOString?.() || null;
+}
+
+function serializeCapture(doc: FirebaseFirestore.QueryDocumentSnapshot | FirebaseFirestore.DocumentSnapshot) {
+  const data = (doc.data() || {}) as Record<string, unknown>;
+  return {
+    id: String(data.id || doc.id),
+    target_address: String(data.target_address || "Submitted space"),
+    captured_at: toIso(data.captured_at) || new Date().toISOString(),
+    status: String(data.status || "submitted"),
+    estimated_payout_cents:
+      typeof data.estimated_payout_cents === "number" ? data.estimated_payout_cents : null,
+    thumbnail_url: typeof data.thumbnail_url === "string" ? data.thumbnail_url : null,
+  };
+}
+
+router.get("/profile", async (req: Request, res: Response) => {
+  if (!db) {
+    return res.status(500).json({ error: "Database not available" });
+  }
+
+  const creatorId = creatorIdFromRequest(req);
+  if (!creatorId) {
+    return res.status(400).json({ error: "Missing creator id" });
+  }
+
+  const profileDoc = await db.collection("creatorProfiles").doc(creatorId).get();
+  const data = (profileDoc.data() || {}) as Record<string, unknown>;
+  return res.json({
+    full_name: typeof data.full_name === "string" ? data.full_name : "",
+    email: typeof data.email === "string" ? data.email : "",
+    phone_number: typeof data.phone_number === "string" ? data.phone_number : "",
+    company: typeof data.company === "string" ? data.company : "",
+  });
+});
+
+router.put("/profile", async (req: Request, res: Response) => {
+  if (!db) {
+    return res.status(500).json({ error: "Database not available" });
+  }
+
+  const creatorId = creatorIdFromRequest(req);
+  if (!creatorId) {
+    return res.status(400).json({ error: "Missing creator id" });
+  }
+
+  const payload = {
+    full_name: String(req.body?.full_name || ""),
+    email: String(req.body?.email || ""),
+    phone_number: String(req.body?.phone_number || ""),
+    company: String(req.body?.company || ""),
+    updated_at: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  await db.collection("creatorProfiles").doc(creatorId).set(payload, { merge: true });
+  return res.json(payload);
+});
+
+router.get("/earnings", async (req: Request, res: Response) => {
+  if (!db) {
+    return res.status(500).json({ error: "Database not available" });
+  }
+
+  const creatorId = creatorIdFromRequest(req);
+  if (!creatorId) {
+    return res.status(400).json({ error: "Missing creator id" });
+  }
+
+  const snapshot = await db
+    .collection("creatorCaptures")
+    .where("creator_id", "==", creatorId)
+    .get();
+
+  let totalEarnedCents = 0;
+  let pendingPayoutCents = 0;
+  let scansCompleted = 0;
+
+  snapshot.docs.forEach((doc) => {
+    const data = doc.data() as Record<string, unknown>;
+    const amount = typeof data.estimated_payout_cents === "number" ? data.estimated_payout_cents : 0;
+    const status = String(data.status || "");
+    if (["approved", "paid"].includes(status)) {
+      totalEarnedCents += amount;
+      scansCompleted += 1;
+    }
+    if (["submitted", "under_review", "approved"].includes(status)) {
+      pendingPayoutCents += amount;
+    }
+  });
+
+  return res.json({
+    total_earned_cents: totalEarnedCents,
+    pending_payout_cents: pendingPayoutCents,
+    scans_completed: scansCompleted,
+  });
+});
+
+router.get("/captures", async (req: Request, res: Response) => {
+  if (!db) {
+    return res.status(500).json({ error: "Database not available" });
+  }
+
+  const creatorId = creatorIdFromRequest(req);
+  if (!creatorId) {
+    return res.status(400).json({ error: "Missing creator id" });
+  }
+
+  const snapshot = await db
+    .collection("creatorCaptures")
+    .where("creator_id", "==", creatorId)
+    .get();
+  const captures = snapshot.docs
+    .map((doc) => serializeCapture(doc))
+    .sort((a, b) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime())
+    .slice(0, 50);
+
+  return res.json(captures);
+});
+
+router.post("/captures", async (req: Request, res: Response) => {
+  if (!db) {
+    return res.status(500).json({ error: "Database not available" });
+  }
+
+  const creatorId = creatorIdFromRequest(req);
+  if (!creatorId) {
+    return res.status(400).json({ error: "Missing creator id" });
+  }
+
+  const captureId = String(req.body?.id || req.body?.capture_id || "").trim();
+  if (!captureId) {
+    return res.status(400).json({ error: "Missing capture id" });
+  }
+
+  const capturedAt = req.body?.captured_at ? new Date(String(req.body.captured_at)) : new Date();
+  const estimatedPayoutCents =
+    typeof req.body?.estimated_payout_cents === "number"
+      ? req.body.estimated_payout_cents
+      : typeof req.body?.quoted_payout_cents === "number"
+      ? req.body.quoted_payout_cents
+      : 0;
+  const status = String(req.body?.status || "submitted");
+
+  const timeline = [
+    { label: "Capture uploaded", completed_at: capturedAt.toISOString(), state: "completed" },
+    { label: "Review queued", completed_at: null, state: status === "submitted" ? "completed" : "pending" },
+    { label: "Payout", completed_at: null, state: status === "paid" ? "completed" : "pending" },
+  ];
+
+  const payload = {
+    id: captureId,
+    creator_id: creatorId,
+    capture_job_id: req.body?.capture_job_id || null,
+    buyer_request_id: req.body?.buyer_request_id || null,
+    site_submission_id: req.body?.site_submission_id || null,
+    target_address: String(req.body?.target_address || "Submitted space"),
+    captured_at: capturedAt.toISOString(),
+    status,
+    estimated_payout_cents: estimatedPayoutCents,
+    rights_profile: req.body?.rights_profile || null,
+    requested_outputs: Array.isArray(req.body?.requested_outputs) ? req.body.requested_outputs : [],
+    thumbnail_url: req.body?.thumbnail_url || null,
+    rejection_reason: req.body?.rejection_reason || null,
+    quality: req.body?.quality || null,
+    earnings: {
+      base_payout_cents: estimatedPayoutCents,
+      device_multiplier: req.body?.device_multiplier ?? 1,
+      bonuses: Array.isArray(req.body?.bonuses) ? req.body.bonuses : [],
+      total_payout_cents: estimatedPayoutCents,
+    },
+    timeline,
+    updated_at: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  await db.collection("creatorCaptures").doc(captureId).set(payload, { merge: true });
+  return res.status(201).json({ ok: true, id: captureId });
+});
+
+router.get("/captures/:captureId", async (req: Request, res: Response) => {
+  if (!db) {
+    return res.status(500).json({ error: "Database not available" });
+  }
+
+  const creatorId = creatorIdFromRequest(req);
+  if (!creatorId) {
+    return res.status(400).json({ error: "Missing creator id" });
+  }
+
+  const doc = await db.collection("creatorCaptures").doc(req.params.captureId).get();
+  if (!doc.exists) {
+    return res.status(404).end();
+  }
+
+  const data = doc.data() as Record<string, unknown>;
+  if (String(data.creator_id || "") !== creatorId) {
+    return res.status(404).end();
+  }
+
+  return res.json({
+    id: String(data.id || req.params.captureId),
+    target_address: String(data.target_address || "Submitted space"),
+    captured_at: toIso(data.captured_at),
+    status: String(data.status || "submitted"),
+    quality: data.quality || null,
+    earnings: data.earnings || null,
+    rejection_reason: data.rejection_reason || null,
+    timeline: Array.isArray(data.timeline) ? data.timeline : [],
+  });
+});
+
+router.get("/qc", async (req: Request, res: Response) => {
+  if (!db) {
+    return res.status(500).json({ error: "Database not available" });
+  }
+
+  const creatorId = creatorIdFromRequest(req);
+  if (!creatorId) {
+    return res.status(400).json({ error: "Missing creator id" });
+  }
+
+  const snapshot = await db
+    .collection("creatorCaptures")
+    .where("creator_id", "==", creatorId)
+    .get();
+
+  let pendingCount = 0;
+  let needsFixCount = 0;
+  let approvedCount = 0;
+
+  snapshot.docs.forEach((doc) => {
+    const status = String(doc.data().status || "");
+    if (["submitted", "under_review"].includes(status)) pendingCount += 1;
+    if (["needs_recapture", "needs_fix", "rejected"].includes(status)) needsFixCount += 1;
+    if (["approved", "paid"].includes(status)) approvedCount += 1;
+  });
+
+  return res.json({
+    pending_count: pendingCount,
+    needs_fix_count: needsFixCount,
+    approved_count: approvedCount,
+    average_turnaround_hours: 24,
+    last_updated: new Date().toISOString(),
+  });
+});
+
+router.get("/payouts/ledger", async (req: Request, res: Response) => {
+  if (!db) {
+    return res.status(500).json({ error: "Database not available" });
+  }
+
+  const creatorId = creatorIdFromRequest(req);
+  if (!creatorId) {
+    return res.status(400).json({ error: "Missing creator id" });
+  }
+
+  const snapshot = await db
+    .collection("creatorCaptures")
+    .where("creator_id", "==", creatorId)
+    .get();
+
+  const entries = snapshot.docs
+    .filter((doc) => ["approved", "paid"].includes(String(doc.data().status || "")))
+    .slice(0, 50)
+    .map((doc) => {
+    const data = doc.data() as Record<string, unknown>;
+    const capturedAt = toIso(data.captured_at) || new Date().toISOString();
+    return {
+      id: String(data.id || doc.id),
+      scheduled_for: capturedAt,
+      amount_cents:
+        typeof data.estimated_payout_cents === "number" ? data.estimated_payout_cents : 0,
+      status: data.status === "paid" ? "paid" : "pending",
+      description: String(data.target_address || "Capture payout"),
+    };
+  });
+
+  return res.json(entries);
+});
+
+export default router;

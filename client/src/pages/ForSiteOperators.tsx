@@ -69,7 +69,7 @@ export default function ForSiteOperators() {
     <>
       <SEO
         title="For Site Operators | Blueprint"
-        description="Register your facility with Blueprint. Earn passive income from world model sales, get a free qualification report, and attract robot teams to your space."
+        description="Blueprint helps site operators scope the workflow, set access rules, and decide whether a site should move into deeper robotics work."
         canonical="/for-site-operators"
       />
 
@@ -83,12 +83,10 @@ export default function ForSiteOperators() {
                 For Site Operators
               </span>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Your facility is an asset. Earn from it.
+                Control the site review path before deeper work starts.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
-                Register your warehouse, store, office, gym, or any indoor space with Blueprint.
-                Capturers walk through and map it. Robot teams buy the world models. You earn a
-                revenue share on every sale -- automatically.
+                Register the site, set access and privacy rules, and let Blueprint qualify whether the workflow is worth deeper robotics work. Commercial follow-ons remain possible, but they come after the qualification record is clear.
               </p>
             </div>
           </ScrollReveal>
@@ -224,7 +222,7 @@ export default function ForSiteOperators() {
                 href="/contact?interest=site-registration"
                 className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-slate-800 hover:shadow-md"
               >
-                Register your space
+                Start site intake
               </a>
               <a
                 href="/how-it-works"

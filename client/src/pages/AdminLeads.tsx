@@ -25,12 +25,17 @@ import type {
   QualificationState,
   RequestPriority,
   SceneDashboardSummary,
+  UpdateRequestOpsPayload,
 } from "@/types/inbound-request";
 import {
   BUYER_TYPE_LABELS as buyerTypeLabels,
+  REQUEST_CAPTURE_POLICY_LABELS as capturePolicyLabels,
+  REQUEST_CAPTURE_STATUS_LABELS as captureStatusLabels,
   OPPORTUNITY_STATE_LABELS as opportunityStateLabels,
+  REQUEST_QUOTE_STATUS_LABELS as quoteStatusLabels,
   REQUESTED_LANE_LABELS as requestedLaneLabels,
   REQUEST_PRIORITY_LABELS as priorityLabels,
+  REQUEST_RIGHTS_STATUS_LABELS as rightsStatusLabels,
   REQUEST_STATUS_LABELS as statusLabels,
 } from "@/types/inbound-request";
 
@@ -213,6 +218,37 @@ export default function AdminLeads() {
       });
       if (!response.ok) throw new Error("Failed to trigger preview");
       return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-submission-detail"] });
+    },
+  });
+
+  const updateOpsMutation = useMutation({
+    mutationFn: async (payload: UpdateRequestOpsPayload) => {
+      const response = await fetch(`/api/admin/leads/${payload.requestId}/ops`, {
+        method: "PATCH",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error("Failed to update ops state");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-submissions"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-submission-detail"] });
+      setNote("");
+    },
+  });
+
+  const reviewLinkMutation = useMutation({
+    mutationFn: async (requestId: string) => {
+      const response = await fetch(`/api/admin/leads/${requestId}/review-link`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+      });
+      if (!response.ok) throw new Error("Failed to issue review link");
+      return response.json() as Promise<{ buyer_review_url: string }>;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-submission-detail"] });
@@ -406,13 +442,24 @@ export default function AdminLeads() {
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                  <a
-                    href={`/requests/${selectedLead.requestId}`}
+                  {selectedLead.buyer_review_access?.buyer_review_url ? (
+                    <a
+                      href={selectedLead.buyer_review_access.buyer_review_url}
+                      className="inline-flex items-center rounded-full border border-zinc-200 px-4 py-2 text-sm text-zinc-700"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Buyer review
+                      <ArrowUpRight className="ml-2 h-4 w-4" />
+                    </a>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => reviewLinkMutation.mutate(selectedLead.requestId)}
                     className="inline-flex items-center rounded-full border border-zinc-200 px-4 py-2 text-sm text-zinc-700"
                   >
-                    Buyer console
-                    <ArrowUpRight className="ml-2 h-4 w-4" />
-                  </a>
+                    Issue review link
+                  </button>
                   <button
                     type="button"
                     onClick={() => createCaptureJobMutation.mutate(selectedLead.requestId)}
@@ -502,6 +549,144 @@ export default function AdminLeads() {
                         {requestedLaneLabels[lane]}
                       </span>
                     ))}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-zinc-200 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Ops controls</p>
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-zinc-700">
+                        Assigned region
+                      </label>
+                      <input
+                        className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                        defaultValue={selectedLead.ops?.assigned_region_id || ""}
+                        onBlur={(event) =>
+                          updateOpsMutation.mutate({
+                            requestId: selectedLead.requestId,
+                            assigned_region_id: event.target.value || null,
+                          })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-zinc-700">
+                        Rights status
+                      </label>
+                      <select
+                        className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                        value={selectedLead.ops?.rights_status || "unknown"}
+                        onChange={(event) =>
+                          updateOpsMutation.mutate({
+                            requestId: selectedLead.requestId,
+                            rights_status: event.target.value as UpdateRequestOpsPayload["rights_status"],
+                          })
+                        }
+                      >
+                        {Object.entries(rightsStatusLabels).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-zinc-700">
+                        Capture policy
+                      </label>
+                      <select
+                        className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                        value={selectedLead.ops?.capture_policy_tier || "review_required"}
+                        onChange={(event) =>
+                          updateOpsMutation.mutate({
+                            requestId: selectedLead.requestId,
+                            capture_policy_tier:
+                              event.target.value as UpdateRequestOpsPayload["capture_policy_tier"],
+                          })
+                        }
+                      >
+                        {Object.entries(capturePolicyLabels).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-zinc-700">
+                        Capture status
+                      </label>
+                      <select
+                        className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                        value={selectedLead.ops?.capture_status || "not_requested"}
+                        onChange={(event) =>
+                          updateOpsMutation.mutate({
+                            requestId: selectedLead.requestId,
+                            capture_status:
+                              event.target.value as UpdateRequestOpsPayload["capture_status"],
+                          })
+                        }
+                      >
+                        {Object.entries(captureStatusLabels).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-zinc-700">
+                        Quote status
+                      </label>
+                      <select
+                        className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                        value={selectedLead.ops?.quote_status || "not_started"}
+                        onChange={(event) =>
+                          updateOpsMutation.mutate({
+                            requestId: selectedLead.requestId,
+                            quote_status:
+                              event.target.value as UpdateRequestOpsPayload["quote_status"],
+                          })
+                        }
+                      >
+                        {Object.entries(quoteStatusLabels).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="mb-1 block text-sm font-medium text-zinc-700">
+                        Next step
+                      </label>
+                      <input
+                        className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                        defaultValue={selectedLead.ops?.next_step || ""}
+                        onBlur={(event) =>
+                          updateOpsMutation.mutate({
+                            requestId: selectedLead.requestId,
+                            next_step: event.target.value || null,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="mb-1 block text-sm font-medium text-zinc-700">
+                        Recapture guidance
+                      </label>
+                      <textarea
+                        className="min-h-20 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                        defaultValue={selectedLead.ops?.recapture_reason || ""}
+                        onBlur={(event) =>
+                          updateOpsMutation.mutate({
+                            requestId: selectedLead.requestId,
+                            recapture_reason: event.target.value || null,
+                          })
+                        }
+                      />
+                    </div>
                   </div>
                 </div>
 

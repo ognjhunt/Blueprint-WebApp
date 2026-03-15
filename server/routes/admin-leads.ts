@@ -7,6 +7,7 @@ import {
   decryptInboundRequestForAdmin,
   encryptFieldValue,
 } from "../utils/field-encryption";
+import { createRequestReviewToken } from "../utils/request-review-auth";
 import {
   OPPORTUNITY_STATES,
   QUALIFICATION_STATES,
@@ -26,12 +27,30 @@ import type {
   PipelineAttachment,
   RequestedLane,
   BuyerType,
+  UpdateRequestOpsPayload,
 } from "../types/inbound-request";
 import { parseGsUri, sceneDashboardSchema } from "../utils/pipeline-dashboard";
 
 const router = Router();
 
 const CSV_FORMULA_PREFIX = /^[=+\-@]/;
+
+function normalizeTimestamp(value: unknown) {
+  const timestamp = value as { toDate?: () => Date } | string | null | undefined;
+  if (!timestamp) {
+    return null;
+  }
+  if (typeof timestamp === "string") {
+    return timestamp;
+  }
+  return timestamp.toDate?.()?.toISOString?.() || null;
+}
+
+function buildBuyerReviewUrl(requestId: string) {
+  const token = createRequestReviewToken(requestId);
+  const baseUrl = (process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "");
+  return `${baseUrl}/requests/${encodeURIComponent(requestId)}?access=${encodeURIComponent(token)}`;
+}
 
 function sanitizeCsvCell(value: unknown): string {
   const normalized = String(value ?? "").replace(/\r?\n|\r/g, " ");
@@ -324,6 +343,21 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
             taskStatement: decrypted.request.taskStatement,
           },
           owner: decrypted.owner,
+          buyer_review_access: {
+            buyer_review_url: decrypted.buyer_review_access?.buyer_review_url || null,
+            token_issued_at: normalizeTimestamp(decrypted.buyer_review_access?.token_issued_at),
+            last_sent_at: normalizeTimestamp(decrypted.buyer_review_access?.last_sent_at),
+          },
+          ops: {
+            assigned_region_id: decrypted.ops?.assigned_region_id || null,
+            rights_status: decrypted.ops?.rights_status || "unknown",
+            capture_policy_tier: decrypted.ops?.capture_policy_tier || "review_required",
+            capture_status: decrypted.ops?.capture_status || "not_requested",
+            recapture_reason: decrypted.ops?.recapture_reason || null,
+            quote_status: decrypted.ops?.quote_status || "not_started",
+            next_step: decrypted.ops?.next_step || null,
+            last_buyer_ready_at: normalizeTimestamp(decrypted.ops?.last_buyer_ready_at),
+          },
           pipeline: decrypted.pipeline,
           derived_assets: decrypted.derived_assets,
           deployment_readiness: decrypted.deployment_readiness,
@@ -426,6 +460,21 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
         details: decrypted.request.details,
       },
       owner: decrypted.owner,
+      buyer_review_access: {
+        buyer_review_url: decrypted.buyer_review_access?.buyer_review_url || null,
+        token_issued_at: normalizeTimestamp(decrypted.buyer_review_access?.token_issued_at),
+        last_sent_at: normalizeTimestamp(decrypted.buyer_review_access?.last_sent_at),
+      },
+      ops: {
+        assigned_region_id: decrypted.ops?.assigned_region_id || null,
+        rights_status: decrypted.ops?.rights_status || "unknown",
+        capture_policy_tier: decrypted.ops?.capture_policy_tier || "review_required",
+        capture_status: decrypted.ops?.capture_status || "not_requested",
+        recapture_reason: decrypted.ops?.recapture_reason || null,
+        quote_status: decrypted.ops?.quote_status || "not_started",
+        next_step: decrypted.ops?.next_step || null,
+        last_buyer_ready_at: normalizeTimestamp(decrypted.ops?.last_buyer_ready_at),
+      },
       context: {
         sourcePageUrl: decrypted.context.sourcePageUrl,
         referrer: decrypted.context.referrer,
@@ -535,6 +584,12 @@ router.post("/:requestId/capture-job", requireAdmin, async (req: Request, res: R
     await requestDoc.ref.update({
       qualification_state: "capture_requested",
       status: "capture_requested",
+      ops: {
+        ...(decrypted.ops || {}),
+        assigned_region_id: decrypted.ops?.assigned_region_id || payload.region_id || "managed-alpha",
+        capture_status: "capture_requested",
+        next_step: "Contributor capture requested. Wait for upload or assign a closer space.",
+      },
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
@@ -586,6 +641,10 @@ router.post("/:requestId/trigger-preview", requireAdmin, async (req: Request, re
           status: "queued",
           provider_name: "world_model_provider",
         },
+      },
+      ops: {
+        ...(current.ops as Record<string, unknown> | undefined),
+        next_step: "Preview queued. Buyer can review qualification while preview is processing.",
       },
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -706,6 +765,98 @@ router.patch(
     }
   }
 );
+
+router.patch("/:requestId/ops", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: "Database not available" });
+    }
+
+    const { requestId } = req.params;
+    const {
+      assigned_region_id,
+      rights_status,
+      capture_policy_tier,
+      capture_status,
+      recapture_reason,
+      quote_status,
+      next_step,
+      note,
+    } = req.body as UpdateRequestOpsPayload;
+    const user = res.locals.firebaseUser!;
+
+    const docRef = db.collection("inboundRequests").doc(requestId);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      return res.status(404).json({ error: "Request not found" });
+    }
+
+    const existing = (doc.data() as Record<string, unknown>) || {};
+    const ops = (existing.ops as Record<string, unknown> | undefined) || {};
+    const nextOps = {
+      ...ops,
+      ...(assigned_region_id !== undefined ? { assigned_region_id } : {}),
+      ...(rights_status !== undefined ? { rights_status } : {}),
+      ...(capture_policy_tier !== undefined ? { capture_policy_tier } : {}),
+      ...(capture_status !== undefined ? { capture_status } : {}),
+      ...(recapture_reason !== undefined ? { recapture_reason } : {}),
+      ...(quote_status !== undefined ? { quote_status } : {}),
+      ...(next_step !== undefined ? { next_step } : {}),
+      ...(quote_status === "buyer_ready"
+        ? { last_buyer_ready_at: admin.firestore.FieldValue.serverTimestamp() }
+        : {}),
+    };
+
+    await docRef.update({
+      ops: nextOps,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    if (note?.trim()) {
+      await docRef.collection("notes").add({
+        content: await encryptFieldValue(note.trim()),
+        authorUid: user.uid || "unknown",
+        authorEmail: user.email || "unknown",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    return res.json({ ok: true, ops: nextOps });
+  } catch (error) {
+    logger.error({ error, requestId: req.params.requestId }, "Error updating request ops");
+    return res.status(500).json({ error: "Failed to update request ops" });
+  }
+});
+
+router.post("/:requestId/review-link", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: "Database not available" });
+    }
+
+    const { requestId } = req.params;
+    const docRef = db.collection("inboundRequests").doc(requestId);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      return res.status(404).json({ error: "Request not found" });
+    }
+
+    const buyer_review_url = buildBuyerReviewUrl(requestId);
+    await docRef.update({
+      buyer_review_access: {
+        buyer_review_url,
+        token_issued_at: admin.firestore.FieldValue.serverTimestamp(),
+        last_sent_at: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return res.json({ ok: true, buyer_review_url });
+  } catch (error) {
+    logger.error({ error, requestId: req.params.requestId }, "Error issuing buyer review link");
+    return res.status(500).json({ error: "Failed to issue buyer review link" });
+  }
+});
 
 /**
  * PATCH /api/admin/leads/:requestId/owner

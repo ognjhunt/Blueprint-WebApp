@@ -11,6 +11,7 @@ import { logger } from "../logger";
 import { isValidEmailAddress } from "../utils/validation";
 import { getRateLimitRedisClient } from "../utils/rate-limit-redis";
 import { encryptInboundRequestForStorage } from "../utils/field-encryption";
+import { createRequestReviewToken } from "../utils/request-review-auth";
 import {
   HELP_WITH_OPTIONS,
   LEGACY_HELP_WITH_TO_LANE,
@@ -268,6 +269,11 @@ function isProduction(): boolean {
 
 function writeDevInboundRequest(payload: Record<string, unknown>) {
   fs.appendFileSync(DEV_INBOUND_REQUEST_LOG, `${JSON.stringify(payload)}\n`, "utf8");
+}
+
+function buyerReviewUrl(requestId: string, token: string) {
+  const baseUrl = (process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "");
+  return `${baseUrl}/requests/${encodeURIComponent(requestId)}?access=${encodeURIComponent(token)}`;
 }
 
 /**
@@ -605,12 +611,15 @@ router.post("/", async (req: Request, res: Response) => {
       return res.status(HTTP_STATUS.OK).json({
         ok: true,
         requestId: payload.requestId,
+        siteSubmissionId: payload.requestId,
         status: existingData.status,
       } satisfies SubmitInboundRequestResponse);
     }
 
     // 7. Build the document
     const now = admin.firestore.FieldValue.serverTimestamp();
+    const reviewToken = createRequestReviewToken(payload.requestId);
+    const reviewUrl = buyerReviewUrl(payload.requestId, reviewToken);
     const inboundRequest: Omit<InboundRequest, "createdAt"> & {
       createdAt: FirebaseFirestore.FieldValue;
     } = {
@@ -673,6 +682,21 @@ router.post("/", async (req: Request, res: Response) => {
         confirmationEmailSentAt: null,
         slackNotifiedAt: null,
         crmSyncedAt: null,
+      },
+      buyer_review_access: {
+        buyer_review_url: reviewUrl,
+        token_issued_at: now as never,
+        last_sent_at: null,
+      },
+      ops: {
+        assigned_region_id: "managed-alpha",
+        rights_status: "unknown",
+        capture_policy_tier: "review_required",
+        capture_status: "not_requested",
+        recapture_reason: null,
+        quote_status: "not_started",
+        next_step: "Review the site scope and decide whether to request capture.",
+        last_buyer_ready_at: null,
       },
       debug: {
         schemaVersion: 2,

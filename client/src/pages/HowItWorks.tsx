@@ -141,7 +141,7 @@ export default function HowItWorks() {
     <>
       <SEO
         title="How It Works | Blueprint"
-        description="How Blueprint turns crowdsourced indoor captures into qualification-verified world models for robot deployment."
+        description="How Blueprint moves from site intake to qualification review, then into optional previews, hosted world models, and deeper evaluation."
         canonical="/how-it-works"
       />
 
@@ -158,18 +158,18 @@ export default function HowItWorks() {
                     initial={shouldReduce ? {} : { opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
-                    className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600"
-                  >
-                    <Sparkles className="h-3 w-3" />
-                    How It Works
-                  </motion.div>
+                  className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600"
+                >
+                  <Sparkles className="h-3 w-3" />
+                  How It Works
+                </motion.div>
                   <motion.h1
                     initial={shouldReduce ? {} : { opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.1 }}
                     className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl"
                   >
-                    Capture. Qualify. Deploy.
+                    Intake. Qualify. Route.
                   </motion.h1>
                   <motion.p
                     initial={shouldReduce ? {} : { opacity: 0, y: 16 }}
@@ -177,9 +177,7 @@ export default function HowItWorks() {
                     transition={{ duration: 0.5, delay: 0.2 }}
                     className="max-w-2xl text-lg leading-relaxed text-zinc-600"
                   >
-                    People capture real indoor spaces with smart glasses and phones. Blueprint
-                    qualifies the data and builds world models. Robot teams train on the exact
-                    environments they'll deploy to.
+                    Blueprint starts with the site, task, and evidence needed to answer the deployment question. Hosted world models and preview assets can follow, but qualification stays first.
                   </motion.p>
                 </div>
 
@@ -193,7 +191,7 @@ export default function HowItWorks() {
                     href="/capture"
                     className="group inline-flex items-center justify-center rounded-lg bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-zinc-700 hover:shadow-lg"
                   >
-                    Start earning
+                    Start intake
                     <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </a>
                   <a
@@ -401,7 +399,7 @@ export default function HowItWorks() {
               </p>
               <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
                 <a
-                  href="/capture"
+                    href="/contact?buyerType=robot_team&interest=qualification"
                   className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition-all hover:bg-zinc-100 hover:shadow-lg"
                 >
                   Start earning
@@ -410,7 +408,7 @@ export default function HowItWorks() {
                   href="/world-models"
                   className="inline-flex items-center justify-center rounded-lg border border-zinc-700 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-zinc-800"
                 >
-                  Browse world models
+                    Review downstream lanes
                 </a>
               </div>
             </div>

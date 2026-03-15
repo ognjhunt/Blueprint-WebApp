@@ -193,6 +193,49 @@ export interface RightsAndComplianceSummary {
   retention_policy?: string | null;
 }
 
+export type RequestCapturePolicyTier =
+  | "approved_capture"
+  | "review_required"
+  | "permission_required"
+  | "not_allowed";
+
+export type RequestRightsStatus =
+  | "unknown"
+  | "verified"
+  | "permission_required"
+  | "blocked";
+
+export type RequestQuoteStatus =
+  | "not_started"
+  | "buyer_ready"
+  | "quoted"
+  | "paid";
+
+export type RequestCaptureStatus =
+  | "not_requested"
+  | "capture_requested"
+  | "under_review"
+  | "approved"
+  | "needs_recapture"
+  | "paid";
+
+export interface BuyerReviewAccess {
+  buyer_review_url?: string | null;
+  token_issued_at?: string | null;
+  last_sent_at?: string | null;
+}
+
+export interface OpsSummary {
+  assigned_region_id?: string | null;
+  rights_status?: RequestRightsStatus;
+  capture_policy_tier?: RequestCapturePolicyTier;
+  capture_status?: RequestCaptureStatus;
+  recapture_reason?: string | null;
+  quote_status?: RequestQuoteStatus;
+  next_step?: string | null;
+  last_buyer_ready_at?: string | null;
+}
+
 export interface DeploymentReadinessSummary {
   qualification_state?: QualificationState;
   opportunity_state?: OpportunityState;
@@ -394,6 +437,8 @@ export interface InboundRequestListItem {
     details?: string | null;
   };
   owner: RequestOwner;
+  buyer_review_access?: BuyerReviewAccess;
+  ops?: OpsSummary;
   pipeline?: PipelineAttachment;
   derived_assets?: DerivedAssetsAttachment;
   deployment_readiness?: DeploymentReadinessSummary;
@@ -417,6 +462,8 @@ export interface InboundRequestDetail extends InboundRequestListItem {
     slackNotifiedAt?: string | null;
     crmSyncedAt?: string | null;
   };
+  buyer_review_access?: BuyerReviewAccess;
+  ops?: OpsSummary;
   notes?: RequestNote[];
   pipeline?: PipelineAttachment;
   derived_assets?: DerivedAssetsAttachment;
@@ -462,6 +509,18 @@ export interface AddRequestNotePayload {
   content: string;
 }
 
+export interface UpdateRequestOpsPayload {
+  requestId: string;
+  assigned_region_id?: string | null;
+  rights_status?: RequestRightsStatus;
+  capture_policy_tier?: RequestCapturePolicyTier;
+  capture_status?: RequestCaptureStatus;
+  recapture_reason?: string | null;
+  quote_status?: RequestQuoteStatus;
+  next_step?: string | null;
+  note?: string;
+}
+
 // Status labels for UI
 export const REQUEST_STATUS_LABELS: Record<RequestStatus, string> = {
   submitted: "Submitted",
@@ -480,6 +539,36 @@ export const REQUEST_PRIORITY_LABELS: Record<RequestPriority, string> = {
   low: "Low",
   normal: "Normal",
   high: "High",
+};
+
+export const REQUEST_RIGHTS_STATUS_LABELS: Record<RequestRightsStatus, string> = {
+  unknown: "Unknown",
+  verified: "Verified",
+  permission_required: "Permission Required",
+  blocked: "Blocked",
+};
+
+export const REQUEST_CAPTURE_POLICY_LABELS: Record<RequestCapturePolicyTier, string> = {
+  approved_capture: "Approved Capture",
+  review_required: "Review Required",
+  permission_required: "Permission Required",
+  not_allowed: "Not Allowed",
+};
+
+export const REQUEST_CAPTURE_STATUS_LABELS: Record<RequestCaptureStatus, string> = {
+  not_requested: "Not Requested",
+  capture_requested: "Capture Requested",
+  under_review: "Under Review",
+  approved: "Approved",
+  needs_recapture: "Needs Recapture",
+  paid: "Paid",
+};
+
+export const REQUEST_QUOTE_STATUS_LABELS: Record<RequestQuoteStatus, string> = {
+  not_started: "Not Started",
+  buyer_ready: "Buyer Ready",
+  quoted: "Quoted",
+  paid: "Paid",
 };
 
 // Help with labels for UI
