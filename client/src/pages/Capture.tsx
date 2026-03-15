@@ -18,31 +18,31 @@ import {
 const earningTiers = [
   {
     device: "iPhone / iPad",
-    rate: "$5 - $10",
+    rate: "$35 - $60",
     unit: "per capture",
-    multiplier: "1x",
-    detail: "ARKit camera poses, LiDAR depth on Pro models",
+    multiplier: "4x",
+    detail: "ARKit camera poses plus LiDAR depth on supported models. Highest payout tier.",
   },
   {
     device: "Meta Ray-Ban",
-    rate: "$10 - $20",
+    rate: "$20 - $30",
     unit: "per capture",
-    multiplier: "2x",
+    multiplier: "1x",
     detail: "720p video + IMU data via DAT SDK",
   },
   {
     device: "Android XR Glasses",
-    rate: "$15 - $30",
+    rate: "$25 - $35",
     unit: "per capture",
-    multiplier: "3x",
+    multiplier: "2x",
     detail: "Camera, IMU, touchpad, location. Coming 2026.",
   },
   {
     device: "Apple Glasses",
-    rate: "$20 - $40",
+    rate: "$30 - $45",
     unit: "per capture",
-    multiplier: "4x",
-    detail: "Best-in-class sensors. Coming 2027.",
+    multiplier: "3x",
+    detail: "Expected to support richer capture than current smart glasses. Coming 2027.",
   },
 ];
 
@@ -80,7 +80,7 @@ const howCaptureWorks = [
     step: "3",
     title: "Upload & get paid",
     description:
-      "Upload your capture. Our quality pipeline scores it automatically. Higher quality = higher pay. Cash out at $25 via PayPal or bank transfer.",
+      "Upload your capture. Our quality pipeline scores it automatically. Most approved captures land around $40, with higher payouts for stronger device data and better coverage. Cash out at $25 via PayPal or bank transfer.",
     icon: <DollarSign className="h-6 w-6" />,
   },
 ];
@@ -88,8 +88,8 @@ const howCaptureWorks = [
 const qualityBonuses = [
   { label: "Complete coverage", bonus: "+25%", description: "Capture all zones in the space" },
   { label: "Multi-pass", bonus: "+50%", description: "Multiple angles of the same area" },
-  { label: "LiDAR depth", bonus: "+30%", description: "Use a device with depth sensing" },
-  { label: "Smart glasses", bonus: "+100%", description: "Hands-free, egocentric capture" },
+  { label: "LiDAR depth", bonus: "+100%", description: "Use a LiDAR-equipped iPhone or iPad" },
+  { label: "Steady walkthrough", bonus: "+20%", description: "Stable pacing with fewer rescans and dropouts" },
 ];
 
 const referralBenefits = [
@@ -150,8 +150,9 @@ export default function Capture() {
                 </p>
                 <div className="mt-4 grid grid-cols-2 gap-4">
                   <div className="rounded-xl border border-zinc-200 bg-white p-4">
-                    <p className="text-2xl font-bold text-zinc-950">$5-$40</p>
+                    <p className="text-2xl font-bold text-zinc-950">$20-$60</p>
                     <p className="text-xs text-zinc-500">Per capture session</p>
+                    <p className="mt-1 text-xs text-zinc-500">Most approved captures land around $40</p>
                   </div>
                   <div className="rounded-xl border border-zinc-200 bg-white p-4">
                     <p className="text-2xl font-bold text-zinc-950">15-30</p>
@@ -211,8 +212,8 @@ export default function Capture() {
                 Better devices earn more
               </h2>
               <p className="mt-2 text-zinc-600">
-                Smart glasses capture richer sensor data, which makes for better world models.
-                We pay more for higher-quality captures.
+                LiDAR-equipped iPhone and iPad captures earn the highest rates. We pay more for
+                stronger geometry, cleaner coverage, and higher-confidence capture data.
               </p>
             </div>
 

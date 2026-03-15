@@ -13,15 +13,16 @@ router.get("/", (_req: Request, res: Response) => {
         description: "Overview of Blueprint's qualification-first workflow for deployment readiness.",
       },
       {
-        path: "/readiness-pack",
-        title: "Readiness Pack",
+        path: "/quality-standard",
+        title: "Quality Standard",
         description:
           "Sample deliverable showing what a Blueprint qualification record produces: feasibility, blockers, readiness, and next steps.",
       },
       {
-        path: "/marketplace",
-        title: "Marketplace",
-        description: "Secondary legacy catalog of scenes and datasets. Not the primary product path.",
+        path: "/world-models",
+        title: "World Models",
+        description:
+          "Site-specific world models teams can review, open, and run once a site is known or qualified.",
       },
       {
         path: "/qualified-opportunities",
@@ -49,12 +50,6 @@ router.get("/", (_req: Request, res: Response) => {
         path: "/solutions",
         title: "Solutions",
         description: "Use cases for robotics, autonomy, and AI evaluation workflows.",
-      },
-      {
-        path: "/site-worlds",
-        title: "Site Worlds",
-        description:
-          "Robot-team explainer for site-specific world models, hosted sessions, and site-specific data work built from exact sites.",
       },
       {
         path: "/contact",

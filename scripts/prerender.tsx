@@ -14,7 +14,6 @@ import Capture from "../client/src/pages/Capture";
 import SiteWorlds from "../client/src/pages/SiteWorlds";
 import ForSiteOperators from "../client/src/pages/ForSiteOperators";
 import ForRobotIntegrators from "../client/src/pages/ForRobotIntegrators";
-import Environments from "../client/src/pages/Environments";
 import Solutions from "../client/src/pages/Solutions";
 import Pricing from "../client/src/pages/Pricing";
 import Contact from "../client/src/pages/Contact";
@@ -41,10 +40,10 @@ const staticRoutes: StaticRoute[] = [
   { path: "/for-site-operators", component: ForSiteOperators },
   { path: "/for-robot-teams", component: ForRobotIntegrators },
   { path: "/for-robot-integrators", component: ForRobotIntegrators },
-  { path: "/marketplace", component: Environments },
-  { path: "/marketplace/scenes", component: Environments },
-  { path: "/marketplace/datasets", component: Environments },
-  { path: "/environments", component: Environments },
+  { path: "/marketplace", component: SiteWorlds },
+  { path: "/marketplace/scenes", component: SiteWorlds },
+  { path: "/marketplace/datasets", component: SiteWorlds },
+  { path: "/environments", component: SiteWorlds },
   { path: "/solutions", component: Solutions },
   { path: "/pricing", component: Pricing },
   { path: "/contact", component: Contact },

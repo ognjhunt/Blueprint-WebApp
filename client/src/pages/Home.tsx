@@ -107,7 +107,7 @@ const forPersonas = {
     bullets: [
       "Any indoor space counts -- no special access required",
       "Use your iPhone, iPad, or smart glasses",
-      "Get paid within days, cash out at $25",
+      "Most approved captures land around $40, cash out at $25",
       "Referral program: 10% lifetime on invites",
     ],
     ctaLabel: "Start capturing",
@@ -440,8 +440,8 @@ export default function Home() {
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-zinc-900">Capture with any device</h2>
             <p className="mt-2 text-zinc-600">
-              Start with your iPhone today. Smart glasses earn higher rates thanks to richer
-              sensor data.
+              Start with your iPhone today. LiDAR-equipped iPhone and iPad captures earn the
+              highest rates.
             </p>
           </div>
           <div className="mobile-snap-row md:grid md:grid-cols-4 md:gap-4">

@@ -3,9 +3,10 @@ Blueprint is a qualification-first platform for robot deployment readiness. It h
 High-priority public URLs:
 - /
 - /how-it-works
+- /world-models
+- /quality-standard
 - /qualified-opportunities
 - /qualified-opportunities-guide
-- /site-worlds
 - /pricing
 - /solutions
 - /contact

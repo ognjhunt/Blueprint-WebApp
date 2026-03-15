@@ -64,10 +64,10 @@ export default function Pricing() {
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-700">
                   Capturers
                 </p>
-                <p className="mt-2 text-2xl font-bold text-slate-900">Earn $5-$40</p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">Earn $20-$60</p>
                 <p className="mt-2 text-sm text-slate-600">
-                  Per capture session. Free to join. Quality bonuses and device multipliers
-                  increase your rate.
+                  Per capture session. Most approved captures land around $40. Free to join.
+                  Quality bonuses and device multipliers increase your rate.
                 </p>
               </div>
               <div className="rounded-2xl border border-emerald-200 bg-white p-5">

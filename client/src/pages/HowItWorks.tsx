@@ -93,7 +93,7 @@ const whoEarns = [
   {
     persona: "Capturers",
     icon: <Camera className="h-5 w-5" />,
-    description: "Get paid $5-$40 per capture session. Quality bonuses and device multipliers increase earnings.",
+    description: "Get paid about $20-$60 per capture session, with most approved captures landing around $40. Quality bonuses and device multipliers increase earnings.",
   },
   {
     persona: "Site Operators",
@@ -281,7 +281,7 @@ export default function HowItWorks() {
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-zinc-900">Supported capture devices</h2>
               <p className="mt-2 text-zinc-600">
-                Start with your iPhone today. Smart glasses earn higher rates.
+                Start with your iPhone today. LiDAR-equipped iPhone and iPad captures earn the highest rates.
               </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

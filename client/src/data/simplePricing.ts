@@ -22,7 +22,8 @@ export const simplePricingOptions: SimplePricingOption[] = [
     summary: "Walk through any indoor space and get paid. No cost to join -- we pay you.",
     includes: [
       "Sign up free and start capturing immediately",
-      "$5-$40 per capture depending on device and quality",
+      "$20-$60 per capture depending on device and quality",
+      "Most approved captures land around $40",
       "Quality bonuses for coverage, depth, and multi-pass",
       "10% lifetime referral earnings on invites",
     ],

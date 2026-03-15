@@ -73,6 +73,10 @@ const LegacyForRobotIntegratorsRedirect = () => (
   <MarketingRedirect to="/for-robot-teams" />
 );
 
+const LegacyWorldModelsRedirect = () => (
+  <MarketingRedirect to="/world-models" />
+);
+
 export const appRoutes: AppRoute[] = [
   { path: "/", layout: "public", component: Home },
 
@@ -96,11 +100,11 @@ export const appRoutes: AppRoute[] = [
   { path: "/for-robot-teams", layout: "public", component: ForRobotIntegrators },
   { path: "/for-robot-integrators", layout: "public", component: LegacyForRobotIntegratorsRedirect },
 
-  // Marketplace (redirects to world-models)
-  { path: "/marketplace", layout: "public", component: Environments },
-  { path: "/marketplace/scenes", layout: "public", component: Environments },
-  { path: "/marketplace/datasets", layout: "public", component: Environments },
-  { path: "/environments", layout: "public", component: Environments },
+  // Legacy marketplace redirects
+  { path: "/marketplace", layout: "public", component: LegacyWorldModelsRedirect },
+  { path: "/marketplace/scenes", layout: "public", component: LegacyWorldModelsRedirect },
+  { path: "/marketplace/datasets", layout: "public", component: LegacyWorldModelsRedirect },
+  { path: "/environments", layout: "public", component: LegacyWorldModelsRedirect },
   {
     path: "/marketplace/scenes/:slug",
     layout: "protected",
