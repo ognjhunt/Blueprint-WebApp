@@ -194,8 +194,8 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | Qualification-First Deployment Readiness"
-        description="Blueprint helps robot teams and site operators submit a site, qualify the workflow, review evidence, and route the right downstream lane."
+        title="Blueprint | The Indoor Spatial Data Marketplace for Robotics"
+        description="People capture real indoor spaces with smart glasses and phones. Robot teams buy qualification-verified world models. Train on the exact site you're deploying to."
         canonical="/"
         image="https://tryblueprint.io/images/og-home.png"
       />
@@ -215,7 +215,7 @@ export default function Home() {
                     className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600"
                   >
                     <Sparkles className="h-3 w-3" />
-                    Qualification-First Readiness
+                    Indoor Spatial Data Marketplace
                   </motion.div>
                   <motion.h1
                     initial={shouldReduce ? {} : { opacity: 0, y: 20 }}
@@ -223,7 +223,7 @@ export default function Home() {
                     transition={{ duration: 0.6, delay: 0.1 }}
                     className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl"
                   >
-                    Qualify the site before you buy the deeper work.
+                    The indoor spatial data marketplace for robotics.
                   </motion.h1>
                   <motion.p
                     initial={shouldReduce ? {} : { opacity: 0, y: 16 }}
@@ -231,7 +231,9 @@ export default function Home() {
                     transition={{ duration: 0.5, delay: 0.2 }}
                     className="max-w-xl text-base leading-relaxed text-zinc-600 sm:text-lg"
                   >
-                    Blueprint starts with the site, task, and evidence needed to answer the deployment question. World models, previews, and evaluation remain available after qualification.
+                    People capture real indoor spaces with smart glasses and phones. Robot teams
+                    train on the actual sites they'll deploy to. Every world model is
+                    qualification-verified.
                   </motion.p>
                   <motion.ul
                     initial={shouldReduce ? {} : { opacity: 0 }}
@@ -239,7 +241,7 @@ export default function Home() {
                     transition={{ delay: 0.35, duration: 0.4 }}
                     className="flex flex-wrap gap-2 pt-1"
                   >
-                    {["Site intake", "Qualification review", "Downstream world-model lane"].map(
+                    {["Capture & earn", "World models", "Qualification-verified"].map(
                       (point) => (
                         <li
                           key={point}
