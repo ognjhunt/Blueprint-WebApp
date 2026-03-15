@@ -132,6 +132,10 @@ export interface PipelineArtifacts {
   qualification_summary_uri?: string | null;
   capture_quality_summary_uri?: string | null;
   rights_and_compliance_summary_uri?: string | null;
+  privacy_processed_video_uri?: string | null;
+  world_model_video_uri?: string | null;
+  privacy_processing_manifest_uri?: string | null;
+  privacy_verification_report_uri?: string | null;
   provider_run_manifest_uri?: string | null;
   preview_manifest_uri?: string | null;
   opportunity_handoff_uri?: string | null;
@@ -244,6 +248,17 @@ export interface OpsSummary {
   last_buyer_ready_at?: FirebaseFirestore.Timestamp | string | null;
 }
 
+export interface PrivacyProcessingSummary {
+  status?: string | null;
+  mode?: string | null;
+  fallback_used?: boolean | null;
+  people_detected?: number | null;
+  people_removed?: number | null;
+  face_anonymized_segments?: string[];
+  raw_retained?: boolean | null;
+  fail_closed?: boolean | null;
+}
+
 export interface DeploymentReadinessSummary {
   qualification_state?: QualificationState;
   opportunity_state?: OpportunityState;
@@ -257,6 +272,7 @@ export interface DeploymentReadinessSummary {
   recapture_required?: boolean | null;
   freshness_date?: string | null;
   missing_evidence?: string[];
+  privacy_processing?: PrivacyProcessingSummary;
   capability_envelope?: RobotCapabilityEnvelope;
   rights_and_compliance?: RightsAndComplianceSummary;
   exports_available?: string[];

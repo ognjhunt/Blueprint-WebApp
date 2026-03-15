@@ -10,7 +10,11 @@
   "authoritative_state_update": true,
   "artifacts": {
     "dashboard_summary_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/dashboard_summary.json",
-    "scene_memory_manifest_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/scene_memory/scene_memory_manifest.json"
+    "scene_memory_manifest_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/scene_memory/scene_memory_manifest.json",
+    "privacy_processed_video_uri": "gs://bucket/scenes/scene-1/captures/cap-1/privacy/final_walkthrough.mov",
+    "world_model_video_uri": "gs://bucket/scenes/scene-1/captures/cap-1/privacy/final_walkthrough.mov",
+    "privacy_processing_manifest_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/privacy_processing_manifest.json",
+    "privacy_verification_report_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/privacy_verification_report.json"
   },
   "derived_assets": {
     "scene_memory": {
@@ -20,6 +24,18 @@
     "preview_simulation": {
       "status": "generated",
       "manifest_uri": "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/preview_simulation/preview_simulation_manifest.json"
+    }
+  },
+  "deployment_readiness": {
+    "privacy_processing": {
+      "status": "person_removed",
+      "mode": "removal",
+      "fallback_used": false,
+      "people_detected": 2,
+      "people_removed": 2,
+      "face_anonymized_segments": [],
+      "raw_retained": true,
+      "fail_closed": true
     }
   }
 }

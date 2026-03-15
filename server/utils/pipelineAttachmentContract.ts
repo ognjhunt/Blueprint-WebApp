@@ -32,6 +32,7 @@ const deploymentReadinessSchema = z.object({
   qualification_summary: z.record(z.unknown()).nullable().optional(),
   capture_quality_summary: z.record(z.unknown()).nullable().optional(),
   rights_and_compliance: z.record(z.unknown()).optional(),
+  privacy_processing: z.record(z.unknown()).optional(),
   missing_evidence: z.array(z.string()).optional(),
   preview_status: z.string().nullable().optional(),
   provider_run: providerRunSummarySchema.nullable().optional(),

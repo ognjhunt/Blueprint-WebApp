@@ -182,6 +182,13 @@ describe("pipeline integration routes", () => {
               readiness_report_uri: "gs://bucket/existing-readiness.md",
               dashboard_summary_uri:
                 "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/dashboard_summary.json",
+              privacy_processed_video_uri:
+                "gs://bucket/scenes/scene-1/captures/cap-1/privacy/final_walkthrough.mov",
+            }),
+          }),
+          deployment_readiness: expect.objectContaining({
+            privacy_processing: expect.objectContaining({
+              status: "person_removed",
             }),
           }),
         })
