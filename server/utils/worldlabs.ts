@@ -32,6 +32,21 @@ interface WorldLabsApiOptions {
 }
 
 const DEFAULT_BASE_URL = "https://api.worldlabs.ai";
+export const DEFAULT_WORLDLABS_TEXT_PROMPT = `Create a grounded, explorable Marble world from this walkthrough video of a real indoor media-room / office-like environment.
+
+Requirements:
+- Preserve the real room layout, scale, walkable floor area, and major object placement from the video.
+- Treat this as a practical, cluttered working room, not a stylized showroom.
+- Keep desks, office chairs, printers, shelving, boxes, monitors, TVs, fireplace, doorways, walls, and window-blind surfaces where they appear in the walkthrough.
+- Respect the captured camera path and inferred spatial relationships from the video.
+- Favor physical plausibility over visual embellishment.
+- Do not invent extra rooms, extra corridors, or dramatic architectural changes.
+- Do not clean up clutter unless the video clearly shows open space.
+- Avoid fantasy, cinematic, game-like, or exaggerated design choices.
+- Maintain a neutral, realistic material palette and ordinary indoor lighting.
+- Output should feel like a believable reconstruction of the same site for interactive review and navigation.
+- Prioritize navigability, stable geometry, and faithful scene structure over decorative detail.
+- If any region is ambiguous, infer the simplest continuation consistent with the walkthrough instead of hallucinating new features.`;
 
 function worldLabsBaseUrl() {
   return (
@@ -238,6 +253,17 @@ function normalizeGenerationRequest(requestManifest: Record<string, unknown>) {
   return generationRequest as Record<string, unknown>;
 }
 
+function ensureWorldPrompt(generationRequest: Record<string, unknown>) {
+  const worldPrompt =
+    generationRequest.world_prompt && typeof generationRequest.world_prompt === "object"
+      ? (generationRequest.world_prompt as Record<string, unknown>)
+      : {};
+  const rawTextPrompt = firstString(worldPrompt.text_prompt);
+  worldPrompt.text_prompt = rawTextPrompt || DEFAULT_WORLDLABS_TEXT_PROMPT;
+  generationRequest.world_prompt = worldPrompt;
+  return generationRequest;
+}
+
 function normalizePermission(value: unknown) {
   if (value && typeof value === "object") {
     return value as Record<string, unknown>;
@@ -262,7 +288,7 @@ function normalizePermission(value: unknown) {
 }
 
 export async function createWorldFromRequestManifest(requestManifest: Record<string, unknown>) {
-  const generationRequest = normalizeGenerationRequest(requestManifest);
+  const generationRequest = ensureWorldPrompt(normalizeGenerationRequest(requestManifest));
   generationRequest.permission = normalizePermission(generationRequest.permission);
   const selectedVideoUri = firstString(requestManifest.selected_video_uri);
   const requestedSourceType = firstString(requestManifest.generation_source_type);
