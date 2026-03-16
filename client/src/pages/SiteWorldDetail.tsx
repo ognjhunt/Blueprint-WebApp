@@ -1,10 +1,13 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SEO } from "@/components/SEO";
+import { useAuth } from "@/contexts/AuthContext";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import { getSiteWorldById, siteWorldCards } from "@/data/siteWorlds";
+import { isAdminEmail } from "@/lib/adminAccess";
+import { withCsrfHeader } from "@/lib/csrf";
 import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
-import { ArrowLeft, ExternalLink, Play, ScanLine } from "lucide-react";
-import { useState } from "react";
+import type { PublicSiteWorldRecord } from "@/types/inbound-request";
+import { AlertCircle, ArrowLeft, ExternalLink, Play, RefreshCw, ScanLine, Sparkles } from "lucide-react";
 
 interface SiteWorldDetailProps {
   params: {
@@ -75,12 +78,123 @@ interface SupportBlock {
   items: string[];
 }
 
+type WorldLabsPreviewState = NonNullable<PublicSiteWorldRecord["worldLabsPreview"]>;
+type WorldLabsStatus = WorldLabsPreviewState["status"];
+
+interface AdminWorldLabsResponse {
+  ok?: boolean;
+  preview?: PublicSiteWorldRecord["worldLabsPreview"];
+  error?: string;
+}
+
+const WORLDLABS_STATUS_COPY: Record<
+  WorldLabsStatus,
+  { label: string; tone: string; summary: string }
+> = {
+  not_requested: {
+    label: "Not requested",
+    tone: "border-slate-200 bg-slate-100 text-slate-700",
+    summary: "The pipeline artifacts are ready, but Marble generation has not been requested yet.",
+  },
+  queued: {
+    label: "Queued",
+    tone: "border-amber-200 bg-amber-50 text-amber-700",
+    summary: "World Labs accepted the request and Marble is still waiting to start.",
+  },
+  processing: {
+    label: "Processing",
+    tone: "border-sky-200 bg-sky-50 text-sky-700",
+    summary: "World Labs is still building the interactive Marble world from the walkthrough.",
+  },
+  ready: {
+    label: "Ready",
+    tone: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    summary: "The Marble world is ready and can be launched in a new tab.",
+  },
+  failed: {
+    label: "Failed",
+    tone: "border-rose-200 bg-rose-50 text-rose-700",
+    summary: "The last Marble generation attempt failed. Review the failure reason, then retry.",
+  },
+};
+
+function formatTimestamp(value?: string | null) {
+  if (!value) return "Not available yet";
+  const timestamp = new Date(value);
+  if (Number.isNaN(timestamp.getTime())) {
+    return value;
+  }
+  return timestamp.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatStatusLabel(status: WorldLabsStatus) {
+  return WORLDLABS_STATUS_COPY[status].label;
+}
+
+function getArtifactSourceUri(site: PublicSiteWorldRecord | null | undefined, sourceId: string) {
+  return (
+    site?.artifactExplorer?.sources.find((source) => source.id === sourceId)?.uri ||
+    null
+  );
+}
+
+function deriveWorldLabsStatus(site: PublicSiteWorldRecord | null | undefined): WorldLabsStatus {
+  const preview = site?.worldLabsPreview;
+  if (!preview) {
+    return "not_requested";
+  }
+  if (preview.launchUrl && preview.worldId) {
+    return "ready";
+  }
+  if (preview.failureReason || preview.status === "failed") {
+    return "failed";
+  }
+  if (preview.operationId || preview.operationManifestUri) {
+    return preview.status === "queued" ? "queued" : "processing";
+  }
+
+  const hasRequestManifest =
+    Boolean(preview.requestManifestUri) || Boolean(getArtifactSourceUri(site, "worldlabs-request"));
+  const hasInputVideo = Boolean(getArtifactSourceUri(site, "worldlabs-input-video"));
+  return hasRequestManifest && hasInputVideo ? "not_requested" : preview.status;
+}
+
+function applyWorldLabsPreview(
+  current: PublicSiteWorldRecord | null | undefined,
+  preview: PublicSiteWorldRecord["worldLabsPreview"],
+) {
+  if (!current || !preview) {
+    return current;
+  }
+  return {
+    ...current,
+    worldLabsPreview: preview,
+  };
+}
+
 export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
-  const fallbackSite = getSiteWorldById(params.slug);
-  const [site, setSite] = useState(fallbackSite);
+  const { currentUser } = useAuth();
+  const fallbackSite = getSiteWorldById(params.slug) as PublicSiteWorldRecord | null;
+  const [site, setSite] = useState<PublicSiteWorldRecord | null>(fallbackSite);
+  const [worldLabsAction, setWorldLabsAction] = useState<"generate" | "refresh" | null>(null);
+  const [worldLabsAdminError, setWorldLabsAdminError] = useState<string | null>(null);
+  const [worldLabsAdminNotice, setWorldLabsAdminNotice] = useState<string | null>(null);
+  const isAdmin = isAdminEmail(currentUser?.email);
 
   useEffect(() => {
     window.scrollTo(0, 0);
+  }, [params.slug]);
+
+  useEffect(() => {
+    setWorldLabsAction(null);
+    setWorldLabsAdminError(null);
+    setWorldLabsAdminNotice(null);
   }, [params.slug]);
 
   useEffect(() => {
@@ -106,6 +220,72 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
     return siteWorldCards.filter((item) => item.id !== site.id).slice(0, 3);
   }, [site]);
 
+  void relatedSites;
+
+  const worldLabsPreview = site?.worldLabsPreview || null;
+  const worldLabsStatus = deriveWorldLabsStatus(site);
+  const worldLabsStatusCopy = WORLDLABS_STATUS_COPY[worldLabsStatus];
+  const worldLabsRequestManifestUri =
+    worldLabsPreview?.requestManifestUri || getArtifactSourceUri(site, "worldlabs-request");
+  const worldLabsInputManifestUri = getArtifactSourceUri(site, "worldlabs-input-manifest");
+  const worldLabsInputVideoUri = getArtifactSourceUri(site, "worldlabs-input-video");
+  const hasRequiredWorldLabsArtifacts =
+    Boolean(worldLabsRequestManifestUri) && Boolean(worldLabsInputVideoUri);
+  const missingWorldLabsArtifactFields = [
+    !worldLabsRequestManifestUri ? "worldlabs_request_manifest_uri" : null,
+    !worldLabsInputVideoUri ? "worldlabs_input_video_uri" : null,
+  ].filter(Boolean) as string[];
+  const canRefreshWorldLabsStatus = Boolean(
+    worldLabsPreview?.operationId || worldLabsPreview?.operationManifestUri,
+  );
+  const shouldShowWorldLabsSection = Boolean(worldLabsPreview) || isAdmin;
+
+  const runWorldLabsAdminAction = async (action: "generate" | "refresh") => {
+    if (!site || !currentUser) {
+      return;
+    }
+
+    setWorldLabsAction(action);
+    setWorldLabsAdminError(null);
+    setWorldLabsAdminNotice(null);
+
+    try {
+      const token = await currentUser.getIdToken();
+      const response = await fetch(
+        `/api/admin/site-worlds/${encodeURIComponent(site.id)}/worldlabs-preview/${action}`,
+        {
+          method: "POST",
+          headers: {
+            ...(await withCsrfHeader({})),
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        },
+      );
+      const payload = (await response.json().catch(() => ({}))) as AdminWorldLabsResponse;
+      if (!response.ok || !payload.preview) {
+        throw new Error(payload.error || `worldlabs_${action}_failed`);
+      }
+
+      setSite((currentSite) => applyWorldLabsPreview(currentSite, payload.preview) || currentSite);
+      setWorldLabsAdminNotice(
+        action === "generate"
+          ? "Marble generation requested. Use refresh while World Labs is still processing."
+          : payload.preview.status === "ready"
+            ? "Marble status refreshed. The interactive preview is ready to launch."
+            : "Marble status refreshed.",
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : `worldlabs_${action}_failed`;
+      const friendlyMessage =
+        message === "worldlabs_operation_missing"
+          ? "No World Labs operation exists yet. Generate a Marble preview first."
+          : message;
+      setWorldLabsAdminError(friendlyMessage);
+    } finally {
+      setWorldLabsAction(null);
+    }
+  };
+
   if (!site) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-24 sm:px-6 lg:px-8">
@@ -125,7 +305,6 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
 
   const scenePackage = site.packages[0];
   const hostedSessions = site.packages[1];
-  const worldLabsPreview = site.worldLabsPreview || null;
   const supportBlocks: SupportBlock[] = [
     {
       title: "What goes in",
@@ -229,7 +408,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
           </header>
 
           <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-5 sm:p-6">
-            <SiteWorldGraphic site={site} />
+            <SiteWorldGraphic site={site as Parameters<typeof SiteWorldGraphic>[0]["site"]} />
           </section>
 
           <section className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 px-5 py-6 sm:px-7 sm:py-7">
@@ -325,7 +504,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             </section>
           ) : null}
 
-          {worldLabsPreview ? (
+          {shouldShowWorldLabsSection ? (
             <section className="mt-8 rounded-3xl border border-slate-200 bg-white px-5 py-6 sm:px-7 sm:py-7">
               <div className="flex items-center gap-2">
                 <Play className="h-5 w-5 text-slate-700" />
@@ -345,27 +524,137 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   </p>
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                      Status: {worldLabsPreview.status.replaceAll("_", " ")}
+                      Status: {formatStatusLabel(worldLabsStatus)}
                     </div>
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                      Model: {worldLabsPreview.model || "Pending"}
+                      Model: {worldLabsPreview?.model || "Pending"}
                     </div>
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                      Panorama: {worldLabsPreview.panoUrl ? "Available" : "Not available yet"}
+                      Panorama: {worldLabsPreview?.panoUrl ? "Available" : "Not available yet"}
                     </div>
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                      SPZ export: {(worldLabsPreview.spzUrls || []).length > 0 ? "Available" : "Not available yet"}
+                      SPZ export: {(worldLabsPreview?.spzUrls || []).length > 0 ? "Available" : "Not available yet"}
                     </div>
                   </div>
-                  {worldLabsPreview.caption ? (
+                  <p className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+                    {worldLabsStatusCopy.summary}
+                  </p>
+                  {worldLabsPreview?.caption ? (
                     <p className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
                       {worldLabsPreview.caption}
                     </p>
                   ) : null}
-                  {worldLabsPreview.failureReason ? (
+                  {worldLabsPreview?.failureReason ? (
                     <p className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm leading-6 text-rose-700">
                       Last generation error: {worldLabsPreview.failureReason}
                     </p>
+                  ) : null}
+                  {isAdmin ? (
+                    <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-slate-700" />
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          Admin Marble Controls
+                        </p>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-3">
+                        <span
+                          className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${worldLabsStatusCopy.tone}`}
+                        >
+                          {worldLabsStatusCopy.label}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={worldLabsAction !== null || !hasRequiredWorldLabsArtifacts}
+                          onClick={() => {
+                            void runWorldLabsAdminAction("generate");
+                          }}
+                          className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                        >
+                          {worldLabsAction === "generate" ? (
+                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Sparkles className="mr-2 h-4 w-4" />
+                          )}
+                          Generate Marble Preview
+                        </button>
+                        <button
+                          type="button"
+                          disabled={worldLabsAction !== null || !canRefreshWorldLabsStatus}
+                          onClick={() => {
+                            void runWorldLabsAdminAction("refresh");
+                          }}
+                          className="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                        >
+                          <RefreshCw
+                            className={`mr-2 h-4 w-4 ${worldLabsAction === "refresh" ? "animate-spin" : ""}`}
+                          />
+                          Refresh Marble Status
+                        </button>
+                      </div>
+                      {!hasRequiredWorldLabsArtifacts ? (
+                        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
+                          <div className="flex items-start gap-2">
+                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                            <div>
+                              Pipeline output is required before Marble generation can run for this
+                              site-world. Missing required artifact fields:{" "}
+                              <span className="font-semibold">
+                                {missingWorldLabsArtifactFields.join(", ")}
+                              </span>
+                              .
+                              {!worldLabsInputManifestUri ? (
+                                <> The supporting `worldlabs_input_manifest_uri` artifact is also missing.</>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+                      {worldLabsAdminError ? (
+                        <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm leading-6 text-rose-700">
+                          {worldLabsAdminError}
+                        </div>
+                      ) : null}
+                      {worldLabsAdminNotice ? (
+                        <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-700">
+                          {worldLabsAdminNotice}
+                        </div>
+                      ) : null}
+                      <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                          <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                            Operation ID
+                          </dt>
+                          <dd className="mt-2 break-all text-sm text-slate-700">
+                            {worldLabsPreview?.operationId || "Not available yet"}
+                          </dd>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                          <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                            World ID
+                          </dt>
+                          <dd className="mt-2 break-all text-sm text-slate-700">
+                            {worldLabsPreview?.worldId || "Not available yet"}
+                          </dd>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                          <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                            Failure Reason
+                          </dt>
+                          <dd className="mt-2 break-words text-sm text-slate-700">
+                            {worldLabsPreview?.failureReason || "No failure recorded"}
+                          </dd>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                          <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                            Last Updated
+                          </dt>
+                          <dd className="mt-2 text-sm text-slate-700">
+                            {formatTimestamp(worldLabsPreview?.lastUpdatedAt)}
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
                   ) : null}
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
@@ -373,13 +662,13 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                     Launch state
                   </p>
                   <p className="mt-2 text-lg font-bold text-slate-900">
-                    {worldLabsPreview.status === "ready" ? "Ready to launch" : "Waiting on generation"}
+                    {worldLabsStatus === "ready" ? "Ready to launch" : "Waiting on generation"}
                   </p>
                   <p className="mt-3 text-sm leading-relaxed text-slate-600">
                     The World Labs viewer opens in a new tab because their viewer cannot be embedded
                     inside Blueprint.
                   </p>
-                  {worldLabsPreview.launchUrl ? (
+                  {worldLabsPreview?.launchUrl ? (
                     <a
                       href={worldLabsPreview.launchUrl}
                       target="_blank"

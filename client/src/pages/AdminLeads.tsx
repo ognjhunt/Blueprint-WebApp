@@ -18,6 +18,7 @@ import {
   OPPORTUNITY_STATES,
   QUALIFICATION_STATES,
 } from "@/lib/requestTaxonomy";
+import { isAdminEmail } from "@/lib/adminAccess";
 import type {
   InboundRequestDetail,
   InboundRequestListItem,
@@ -38,8 +39,6 @@ import {
   REQUEST_RIGHTS_STATUS_LABELS as rightsStatusLabels,
   REQUEST_STATUS_LABELS as statusLabels,
 } from "@/types/inbound-request";
-
-const ADMIN_EMAILS = ["ohstnhunt@gmail.com", "ops@tryblueprint.io"];
 
 const qualificationStates: QualificationState[] = [...QUALIFICATION_STATES];
 
@@ -100,7 +99,7 @@ export default function AdminLeads() {
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [note, setNote] = useState("");
 
-  const isAdmin = Boolean(currentUser?.email && ADMIN_EMAILS.includes(currentUser.email));
+  const isAdmin = isAdminEmail(currentUser?.email);
 
   useEffect(() => {
     if (currentUser && !isAdmin) {
