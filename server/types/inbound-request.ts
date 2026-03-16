@@ -138,6 +138,14 @@ export interface PipelineArtifacts {
   privacy_verification_report_uri?: string | null;
   provider_run_manifest_uri?: string | null;
   preview_manifest_uri?: string | null;
+  worldlabs_request_manifest_uri?: string | null;
+  worldlabs_operation_manifest_uri?: string | null;
+  worldlabs_world_manifest_uri?: string | null;
+  worldlabs_preview_thumbnail_uri?: string | null;
+  worldlabs_preview_pano_uri?: string | null;
+  worldlabs_spz_manifest_uri?: string | null;
+  worldlabs_collider_mesh_uri?: string | null;
+  worldlabs_launch_url?: string | null;
   opportunity_handoff_uri?: string | null;
   human_actions_required_uri?: string | null;
   agent_review_bundle_uri?: string | null;
@@ -174,6 +182,9 @@ export interface ProviderRunSummary {
   provider_run_id?: string | null;
   status?: ProviderRunStatus | null;
   preview_manifest_uri?: string | null;
+  operation_id?: string | null;
+  world_id?: string | null;
+  worldlabs_launch_url?: string | null;
   cost_usd?: number | null;
   latency_ms?: number | null;
   failure_reason?: string | null;

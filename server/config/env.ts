@@ -27,6 +27,9 @@ const envSchema = z
     BLUEPRINT_PRESENTATION_DEMO_STARTUP_DELAY_MS: z.coerce.number().int().nonnegative().optional(),
     BLUEPRINT_HOSTED_DEMO_RUNTIME_BASE_URL: z.string().trim().url().optional(),
     BLUEPRINT_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL: z.string().trim().url().optional(),
+    WORLDLABS_API_KEY: z.string().trim().optional(),
+    WORLDLABS_API_BASE_URL: z.string().trim().url().optional(),
+    WORLDLABS_DEFAULT_MODEL: z.string().trim().optional(),
   })
   .passthrough();
 

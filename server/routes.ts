@@ -20,6 +20,7 @@ import errorsRouter from "./routes/errors";
 import siteContentRouter from "./routes/site-content";
 import inboundRequestRouter from "./routes/inbound-request";
 import adminLeadsRouter from "./routes/admin-leads";
+import adminSiteWorldsRouter from "./routes/admin-site-worlds";
 import requestsRouter from "./routes/requests";
 import marketplaceRouter from "./routes/marketplace";
 import internalPipelineRouter from "./routes/internal-pipeline";
@@ -78,6 +79,12 @@ export function registerRoutes(app: Express) {
     csrfProtection,
     verifyFirebaseToken,
     adminLeadsRouter,
+  );
+  app.use(
+    "/api/admin/site-worlds",
+    csrfProtection,
+    verifyFirebaseToken,
+    adminSiteWorldsRouter,
   );
   app.use("/api/site-worlds/sessions", csrfProtection, verifyFirebaseToken, siteWorldSessionsRouter);
   app.post(

@@ -3,7 +3,7 @@ import { SEO } from "@/components/SEO";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import { getSiteWorldById, siteWorldCards } from "@/data/siteWorlds";
 import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
-import { ArrowLeft, Play, ScanLine } from "lucide-react";
+import { ArrowLeft, ExternalLink, Play, ScanLine } from "lucide-react";
 import { useState } from "react";
 
 interface SiteWorldDetailProps {
@@ -125,6 +125,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
 
   const scenePackage = site.packages[0];
   const hostedSessions = site.packages[1];
+  const worldLabsPreview = site.worldLabsPreview || null;
   const supportBlocks: SupportBlock[] = [
     {
       title: "What goes in",
@@ -319,6 +320,80 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                       <li>No flagged evidence gaps on the current readiness package.</li>
                     )}
                   </ul>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          {worldLabsPreview ? (
+            <section className="mt-8 rounded-3xl border border-slate-200 bg-white px-5 py-6 sm:px-7 sm:py-7">
+              <div className="flex items-center gap-2">
+                <Play className="h-5 w-5 text-slate-700" />
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Interactive Preview
+                </p>
+              </div>
+              <div className="mt-3 grid gap-6 lg:grid-cols-[1fr_0.9fr]">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+                    Launch the World Labs preview.
+                  </h2>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    This preview is a derived interactive world generated from the captured walkthrough.
+                    Blueprint keeps the capture-backed scene memory as the source of truth and uses
+                    World Labs only as a launchable demo layer.
+                  </p>
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                      Status: {worldLabsPreview.status.replaceAll("_", " ")}
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                      Model: {worldLabsPreview.model || "Pending"}
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                      Panorama: {worldLabsPreview.panoUrl ? "Available" : "Not available yet"}
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                      SPZ export: {(worldLabsPreview.spzUrls || []).length > 0 ? "Available" : "Not available yet"}
+                    </div>
+                  </div>
+                  {worldLabsPreview.caption ? (
+                    <p className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+                      {worldLabsPreview.caption}
+                    </p>
+                  ) : null}
+                  {worldLabsPreview.failureReason ? (
+                    <p className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm leading-6 text-rose-700">
+                      Last generation error: {worldLabsPreview.failureReason}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Launch state
+                  </p>
+                  <p className="mt-2 text-lg font-bold text-slate-900">
+                    {worldLabsPreview.status === "ready" ? "Ready to launch" : "Waiting on generation"}
+                  </p>
+                  <p className="mt-3 text-sm leading-relaxed text-slate-600">
+                    The World Labs viewer opens in a new tab because their viewer cannot be embedded
+                    inside Blueprint.
+                  </p>
+                  {worldLabsPreview.launchUrl ? (
+                    <a
+                      href={worldLabsPreview.launchUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-5 inline-flex w-full items-center justify-center rounded-xl border border-slate-900 bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                    >
+                      Launch interactive preview
+                      <ExternalLink className="ml-2 h-4 w-4" />
+                    </a>
+                  ) : (
+                    <div className="mt-5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+                      Preview not ready yet. Keep using the grounded Blueprint artifacts until generation completes.
+                    </div>
+                  )}
                 </div>
               </div>
             </section>

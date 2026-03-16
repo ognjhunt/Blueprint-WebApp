@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import SiteWorldDetail from "@/pages/SiteWorldDetail";
 import { getSiteWorldById } from "@/data/siteWorlds";
+import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
 
 vi.mock("@/lib/siteWorldsApi", () => ({
   fetchSiteWorldDetail: vi.fn(async (siteWorldId: string) => getSiteWorldById(siteWorldId)),
@@ -50,6 +51,28 @@ describe("SiteWorldDetail", () => {
     expect(sceneUrl.searchParams.get("interest")).toBe("data-licensing");
 
     const hostedLink = screen.getByRole("link", { name: /Start hosted session/i });
-    expect(hostedLink).toHaveAttribute("href", "/site-worlds/sw-chi-01/start");
+    expect(hostedLink).toHaveAttribute("href", "/world-models/sw-chi-01/start");
+  });
+
+  it("shows the World Labs preview launch CTA when a generated world is ready", async () => {
+    vi.mocked(fetchSiteWorldDetail).mockResolvedValue({
+      ...getSiteWorldById("sw-chi-01")!,
+      worldLabsPreview: {
+        status: "ready",
+        model: "Marble 0.1-mini",
+        launchUrl: "https://marble.worldlabs.ai/worlds/world-123",
+        panoUrl: "https://cdn.worldlabs.ai/pano.jpg",
+        spzUrls: ["https://cdn.worldlabs.ai/world.spz"],
+        colliderMeshUrl: "https://cdn.worldlabs.ai/collider.glb",
+      },
+    });
+
+    render(<SiteWorldDetail params={{ slug: "sw-chi-01" }} />);
+
+    const launchLink = await screen.findByRole("link", { name: /Launch interactive preview/i });
+    expect(launchLink).toHaveAttribute("href", "https://marble.worldlabs.ai/worlds/world-123");
+    expect(launchLink).toHaveAttribute("target", "_blank");
+    expect(screen.getByText(/The World Labs viewer opens in a new tab/i)).toBeInTheDocument();
+    expect(screen.getByText(/SPZ export: Available/i)).toBeInTheDocument();
   });
 });

@@ -123,6 +123,24 @@ export type SiteWorldCard = {
       | "presentation_assets_missing";
     uiBaseUrl?: string | null;
   };
+  worldLabsPreview?: {
+    status: "not_requested" | "queued" | "processing" | "ready" | "failed";
+    model?: string | null;
+    operationId?: string | null;
+    worldId?: string | null;
+    launchUrl?: string | null;
+    thumbnailUrl?: string | null;
+    panoUrl?: string | null;
+    caption?: string | null;
+    spzUrls?: string[];
+    colliderMeshUrl?: string | null;
+    worldManifestUri?: string | null;
+    operationManifestUri?: string | null;
+    requestManifestUri?: string | null;
+    lastUpdatedAt?: string | null;
+    failureReason?: string | null;
+    generationSourceType?: string | null;
+  };
   artifactExplorer?: ArtifactExplorerSummary | null;
   runtimeReferenceImageUrl?: string | null;
   presentationReferenceImageUrl?: string | null;

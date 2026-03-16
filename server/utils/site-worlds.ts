@@ -16,6 +16,7 @@ import type {
 import { decryptInboundRequestForAdmin } from "./field-encryption";
 import { parseGsUri } from "./pipeline-dashboard";
 import { resolvePresentationDemoUiBaseUrl } from "./presentation-demo-runtime";
+import { summarizeWorldLabsPreview } from "./worldlabs";
 
 const LIVE_QUALIFICATION_STATES = new Set<QualificationState>([
   "qualified_ready",
@@ -189,6 +190,10 @@ function buildArtifactExplorer(params: {
   runtimeDemoManifestUri?: string | null;
   presentationWorldManifest?: ArtifactJson;
   runtimeDemoManifest?: ArtifactJson;
+  worldLabsRequestManifestUri?: string | null;
+  worldLabsOperationManifestUri?: string | null;
+  worldLabsWorldManifestUri?: string | null;
+  worldLabsPreview?: SiteWorldCard["worldLabsPreview"];
 }): SiteWorldCard["artifactExplorer"] {
   const uiBaseUrl =
     params.presentationWorldManifestUri && params.runtimeDemoManifestUri
@@ -366,6 +371,42 @@ function buildArtifactExplorer(params: {
       label: "Runtime demo manifest",
       uri: params.runtimeDemoManifestUri || null,
       detail: "Saved demo runtime configuration",
+    },
+    {
+      id: "worldlabs-request",
+      label: "World Labs request manifest",
+      uri: params.worldLabsRequestManifestUri || null,
+      detail: "Manual/admin trigger bundle for Marble generation",
+    },
+    {
+      id: "worldlabs-operation",
+      label: "World Labs operation manifest",
+      uri: params.worldLabsOperationManifestUri || null,
+      detail: "Latest queued or completed Marble operation",
+    },
+    {
+      id: "worldlabs-world",
+      label: "World Labs world manifest",
+      uri: params.worldLabsWorldManifestUri || null,
+      detail: "Normalized World Labs world record and exported assets",
+    },
+    {
+      id: "worldlabs-launch",
+      label: "World Labs launch URL",
+      uri: params.worldLabsPreview?.launchUrl || null,
+      detail: "Open the generated interactive world in a new tab",
+    },
+    {
+      id: "worldlabs-pano",
+      label: "World Labs panorama",
+      uri: params.worldLabsPreview?.panoUrl || null,
+      detail: "Derived panorama image returned by the World Labs API",
+    },
+    {
+      id: "worldlabs-collider",
+      label: "World Labs collider mesh",
+      uri: params.worldLabsPreview?.colliderMeshUrl || null,
+      detail: "Collider mesh export from the generated world",
     },
   ].filter((item) => Boolean(item.uri));
 
@@ -951,6 +992,9 @@ async function buildLiveRecord(
     siteWorldHealth,
     presentationWorldManifest,
     runtimeDemoManifest,
+    worldLabsRequestManifest,
+    worldLabsOperationManifest,
+    worldLabsWorldManifest,
   ] =
     await Promise.all([
       readArtifactJson(
@@ -1011,6 +1055,27 @@ async function buildLiveRecord(
       ),
       readArtifactJson(resolvePresentationWorldManifestUri(pipeline)),
       readArtifactJson(resolveRuntimeDemoManifestUri(pipeline)),
+      readArtifactJson(
+        pipelineArtifactUri(
+          pipeline,
+          pipeline?.artifacts.worldlabs_request_manifest_uri,
+          "worldlabs/worldlabs_request_manifest.json",
+        ),
+      ),
+      readArtifactJson(
+        pipelineArtifactUri(
+          pipeline,
+          pipeline?.artifacts.worldlabs_operation_manifest_uri,
+          "worldlabs/worldlabs_operation_manifest.json",
+        ),
+      ),
+      readArtifactJson(
+        pipelineArtifactUri(
+          pipeline,
+          pipeline?.artifacts.worldlabs_world_manifest_uri,
+          "worldlabs/worldlabs_world_manifest.json",
+        ),
+      ),
     ]);
 
   const readiness = buildDeploymentReadiness({
@@ -1114,6 +1179,32 @@ async function buildLiveRecord(
     pipeline?.artifacts.site_world_health_uri,
     "evaluation_prep/site_world_health.json",
   );
+  const worldLabsRequestManifestUri = pipelineArtifactUri(
+    pipeline,
+    pipeline?.artifacts.worldlabs_request_manifest_uri,
+    "worldlabs/worldlabs_request_manifest.json",
+  );
+  const worldLabsOperationManifestUri = pipelineArtifactUri(
+    pipeline,
+    pipeline?.artifacts.worldlabs_operation_manifest_uri,
+    "worldlabs/worldlabs_operation_manifest.json",
+  );
+  const worldLabsWorldManifestUri = pipelineArtifactUri(
+    pipeline,
+    pipeline?.artifacts.worldlabs_world_manifest_uri,
+    "worldlabs/worldlabs_world_manifest.json",
+  );
+  const worldLabsPreview =
+    worldLabsRequestManifestUri || worldLabsOperationManifestUri || worldLabsWorldManifestUri
+      ? summarizeWorldLabsPreview({
+          requestManifest: worldLabsRequestManifest,
+          operationManifest: worldLabsOperationManifest,
+          worldManifest: worldLabsWorldManifest,
+          requestManifestUri: worldLabsRequestManifestUri,
+          operationManifestUri: worldLabsOperationManifestUri,
+          worldManifestUri: worldLabsWorldManifestUri,
+        })
+      : undefined;
   const artifactExplorer = buildArtifactExplorer({
     template,
     siteWorldId: generatedId,
@@ -1126,6 +1217,10 @@ async function buildLiveRecord(
     runtimeDemoManifestUri: presentationDemoReadiness?.runtimeDemoManifestUri ?? null,
     presentationWorldManifest,
     runtimeDemoManifest,
+    worldLabsRequestManifestUri,
+    worldLabsOperationManifestUri,
+    worldLabsWorldManifestUri,
+    worldLabsPreview,
   });
 
   return {
@@ -1194,6 +1289,7 @@ async function buildLiveRecord(
     exportModes,
     packages,
     presentationDemoReadiness,
+    worldLabsPreview,
     artifactExplorer,
     sceneMemoryManifestUri,
     conditioningBundleUri,
@@ -1250,6 +1346,39 @@ export async function getPublicSiteWorldById(id: string): Promise<SiteWorldCard 
         item.captureId === id,
     ) || null
   );
+}
+
+export async function resolveLiveSiteWorldContext(id: string): Promise<{
+  requestId: string;
+  request: InboundRequest;
+  siteWorld: SiteWorldCard;
+} | null> {
+  if (!db) {
+    return null;
+  }
+
+  const snapshot = await db.collection("inboundRequests").orderBy("createdAt", "desc").limit(100).get();
+  for (const doc of snapshot.docs) {
+    const decrypted = (await decryptInboundRequestForAdmin(doc.data() as InboundRequestStored)) as InboundRequest;
+    const siteWorld = await buildLiveRecord(doc.id, decrypted);
+    if (!siteWorld) {
+      continue;
+    }
+    if (
+      siteWorld.id === id ||
+      siteWorld.siteSubmissionId === id ||
+      siteWorld.sceneId === id ||
+      siteWorld.captureId === id
+    ) {
+      return {
+        requestId: doc.id,
+        request: decrypted,
+        siteWorld,
+      };
+    }
+  }
+
+  return null;
 }
 
 export async function resolvePublicSiteWorldExplorerAssetPath(siteWorldId: string, relativePath: string): Promise<string | null> {
