@@ -191,6 +191,8 @@ function buildArtifactExplorer(params: {
   presentationWorldManifest?: ArtifactJson;
   runtimeDemoManifest?: ArtifactJson;
   worldLabsRequestManifestUri?: string | null;
+  worldLabsInputManifestUri?: string | null;
+  worldLabsInputVideoUri?: string | null;
   worldLabsOperationManifestUri?: string | null;
   worldLabsWorldManifestUri?: string | null;
   worldLabsPreview?: SiteWorldCard["worldLabsPreview"];
@@ -377,6 +379,18 @@ function buildArtifactExplorer(params: {
       label: "World Labs request manifest",
       uri: params.worldLabsRequestManifestUri || null,
       detail: "Manual/admin trigger bundle for Marble generation",
+    },
+    {
+      id: "worldlabs-input-manifest",
+      label: "World Labs input manifest",
+      uri: params.worldLabsInputManifestUri || null,
+      detail: "Prepared World Labs-compatible input clip",
+    },
+    {
+      id: "worldlabs-input-video",
+      label: "World Labs input video",
+      uri: params.worldLabsInputVideoUri || null,
+      detail: "Trimmed and transcoded video used for Marble generation",
     },
     {
       id: "worldlabs-operation",
@@ -1184,6 +1198,16 @@ async function buildLiveRecord(
     pipeline?.artifacts.worldlabs_request_manifest_uri,
     "worldlabs/worldlabs_request_manifest.json",
   );
+  const worldLabsInputManifestUri = pipelineArtifactUri(
+    pipeline,
+    pipeline?.artifacts.worldlabs_input_manifest_uri,
+    "worldlabs_input/worldlabs_input_manifest.json",
+  );
+  const worldLabsInputVideoUri = pipelineArtifactUri(
+    pipeline,
+    pipeline?.artifacts.worldlabs_input_video_uri,
+    "worldlabs_input/worldlabs_input.mp4",
+  );
   const worldLabsOperationManifestUri = pipelineArtifactUri(
     pipeline,
     pipeline?.artifacts.worldlabs_operation_manifest_uri,
@@ -1218,6 +1242,8 @@ async function buildLiveRecord(
     presentationWorldManifest,
     runtimeDemoManifest,
     worldLabsRequestManifestUri,
+    worldLabsInputManifestUri,
+    worldLabsInputVideoUri,
     worldLabsOperationManifestUri,
     worldLabsWorldManifestUri,
     worldLabsPreview,

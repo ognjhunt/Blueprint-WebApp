@@ -139,6 +139,8 @@ export interface PipelineArtifacts {
   provider_run_manifest_uri?: string | null;
   preview_manifest_uri?: string | null;
   worldlabs_request_manifest_uri?: string | null;
+  worldlabs_input_manifest_uri?: string | null;
+  worldlabs_input_video_uri?: string | null;
   worldlabs_operation_manifest_uri?: string | null;
   worldlabs_world_manifest_uri?: string | null;
   worldlabs_preview_thumbnail_uri?: string | null;
