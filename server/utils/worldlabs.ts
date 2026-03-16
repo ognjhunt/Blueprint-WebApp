@@ -238,8 +238,32 @@ function normalizeGenerationRequest(requestManifest: Record<string, unknown>) {
   return generationRequest as Record<string, unknown>;
 }
 
+function normalizePermission(value: unknown) {
+  if (value && typeof value === "object") {
+    return value as Record<string, unknown>;
+  }
+
+  const normalized = firstString(value).toLowerCase();
+  if (normalized === "public") {
+    return {
+      public: true,
+      allow_id_access: true,
+      allowed_readers: [],
+      allowed_writers: [],
+    };
+  }
+
+  return {
+    public: false,
+    allow_id_access: false,
+    allowed_readers: [],
+    allowed_writers: [],
+  };
+}
+
 export async function createWorldFromRequestManifest(requestManifest: Record<string, unknown>) {
   const generationRequest = normalizeGenerationRequest(requestManifest);
+  generationRequest.permission = normalizePermission(generationRequest.permission);
   const selectedVideoUri = firstString(requestManifest.selected_video_uri);
   const requestedSourceType = firstString(requestManifest.generation_source_type);
   const worldPrompt =
