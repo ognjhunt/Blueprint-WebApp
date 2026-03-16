@@ -2,7 +2,7 @@ import { SEO } from "@/components/SEO";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import { categoryFilters, siteWorldCards, type SiteCategory } from "@/data/siteWorlds";
 import { fetchSiteWorldCatalog } from "@/lib/siteWorldsApi";
-import { Filter, Play, ScanLine } from "lucide-react";
+import { ExternalLink, Filter, Play, ScanLine } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 const layerCards = [
@@ -86,7 +86,7 @@ export default function SiteWorlds() {
     <>
       <SEO
         title="World Models | Blueprint"
-        description="Blueprint world models are a downstream lane after qualification. Review curated examples of what can follow a strong site record."
+        description="Browse site-specific, qualification-verified world models of real indoor spaces. Train your robot on the exact environment it will deploy to."
         canonical="/world-models"
       />
 
@@ -98,12 +98,13 @@ export default function SiteWorlds() {
                 World Models
               </p>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Review what can follow a qualified site.
+                Train on the exact site you're deploying to.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
-                These are curated examples of the hosted and package-based outputs Blueprint can
-                prepare after a site clears qualification. For alpha, intake and buyer review come
-                first, while hosted world-model access stays downstream.
+                Each world model is built from real indoor captures and verified against
+                Blueprint's qualification standard. Use it to train on the exact environment,
+                generate site-specific data, compare releases, and run simulations before
+                deployment.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -116,7 +117,7 @@ export default function SiteWorlds() {
                   href="#catalog"
                   className="inline-flex items-center rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
                 >
-                  Review examples
+                  Browse sites
                 </a>
               </div>
             </div>
@@ -152,7 +153,8 @@ export default function SiteWorlds() {
                 Choose how you want access.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Some teams want the site package. Others want the hosted version so they can test quickly. In alpha, both remain downstream of the qualification record.
+                Some teams want the site package. Others want the hosted version so they can start
+                testing right away. Both options are tied to the same real place.
               </p>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -186,7 +188,7 @@ export default function SiteWorlds() {
                 Why teams buy this
               </p>
               <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                Common reasons teams request this lane.
+                Common reasons robot teams use world models.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 These are practical reasons to use it before you commit travel, pilot time, or
@@ -216,7 +218,8 @@ export default function SiteWorlds() {
                   Sites your team could test against right now.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Open any sample site to see what Blueprint can attach after qualification, not what every inbound request receives on day one.
+                  Open any site to see what the workflow looks like, what your team can buy, and
+                  how to start a hosted session.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
@@ -254,8 +257,16 @@ export default function SiteWorlds() {
                   key={site.id}
                   className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:border-slate-300"
                 >
-                  <a href={`/world-models/${site.id}`} className="block">
+                  <a href={`/world-models/${site.id}`} className="relative block">
                     <SiteWorldGraphic site={site} />
+                    {site.worldLabsPreview?.status === "ready" && (
+                      <div className="absolute bottom-4 left-4">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 shadow-sm backdrop-blur">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          Interactive preview ready
+                        </span>
+                      </div>
+                    )}
                   </a>
                   <div className="space-y-3 p-5 sm:p-6">
                     <div>
@@ -271,6 +282,19 @@ export default function SiteWorlds() {
                       <p className="mt-2 text-sm text-slate-600">{site.taskLane}</p>
                       <p className="mt-1.5 text-sm text-slate-500">{site.bestFor}</p>
                     </div>
+
+                    {site.worldLabsPreview?.launchUrl && (
+                      <a
+                        href={site.worldLabsPreview.launchUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        Launch Marble preview
+                      </a>
+                    )}
 
                     <div className="space-y-2.5">
                       {site.deploymentReadiness ? (

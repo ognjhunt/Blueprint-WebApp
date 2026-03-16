@@ -21,6 +21,26 @@ import { ZodError } from "zod";
 
 const router = Router();
 
+const AUTO_CREATED_CONTACT = {
+  firstName: "Pipeline",
+  lastName: "Sync",
+  email: "pipeline-sync@tryblueprint.io",
+  roleTitle: "Automation",
+  company: "Blueprint",
+} as const;
+
+function inferDefaultOpportunityState(
+  qualificationState: QualificationState
+): OpportunityState {
+  if (
+    qualificationState === "qualified_ready" ||
+    qualificationState === "qualified_risky"
+  ) {
+    return "handoff_ready";
+  }
+  return "not_applicable";
+}
+
 function isQualificationState(value: string): value is QualificationState {
   return (QUALIFICATION_STATES as readonly string[]).includes(value);
 }
@@ -119,6 +139,95 @@ function buildDeploymentReadiness(
   };
 }
 
+function buildPlaceholderInboundRequest(params: {
+  requestId: string;
+  siteSubmissionId: string;
+  buyerRequestId?: string;
+  qualificationState: QualificationState;
+  opportunityState: OpportunityState;
+  sceneId?: string;
+  captureId?: string;
+}) {
+  const siteLabel =
+    String(params.siteSubmissionId || params.sceneId || params.requestId).trim() ||
+    params.requestId;
+  const sceneLabel = String(params.sceneId || "").trim();
+  const captureLabel = String(params.captureId || "").trim();
+  const locationDetail = sceneLabel ? `Scene ${sceneLabel}` : "Location pending";
+  const taskDetail = captureLabel
+    ? `Pipeline-backed site world from capture ${captureLabel}.`
+    : "Pipeline-backed site world awaiting request details.";
+
+  return {
+    requestId: params.requestId,
+    site_submission_id: params.siteSubmissionId,
+    buyer_request_id: params.buyerRequestId || null,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    status: params.qualificationState,
+    qualification_state: params.qualificationState,
+    opportunity_state: params.opportunityState,
+    priority: "normal",
+    owner: {},
+    contact: AUTO_CREATED_CONTACT,
+    request: {
+      budgetBucket: "Undecided/Unsure",
+      requestedLanes: ["qualification"],
+      helpWith: [],
+      buyerType: "site_operator",
+      siteName: `Pipeline site ${siteLabel}`,
+      siteLocation: locationDetail,
+      taskStatement: taskDetail,
+      workflowContext: null,
+      operatingConstraints: null,
+      privacySecurityConstraints: null,
+      knownBlockers: null,
+      targetRobotTeam: null,
+      captureRights: null,
+      derivedScenePermission: null,
+      datasetLicensingPermission: null,
+      payoutEligibility: null,
+      details:
+        "Auto-created by /api/internal/pipeline/attachments because no inbound request record existed yet.",
+    },
+    context: {
+      sourcePageUrl: "pipeline://attachments",
+      referrer: null,
+      utm: {},
+      userAgent: "internal-pipeline",
+      timezoneOffset: null,
+      locale: null,
+      ipHash: null,
+    },
+    enrichment: {
+      companyDomain: "tryblueprint.io",
+      companySize: null,
+      geo: null,
+      notes:
+        "Placeholder request seeded automatically from pipeline artifact sync.",
+    },
+    events: {
+      confirmationEmailSentAt: null,
+      slackNotifiedAt: null,
+      crmSyncedAt: null,
+    },
+    ops: {
+      assigned_region_id: "managed-alpha",
+      rights_status: "unknown",
+      capture_policy_tier: "review_required",
+      capture_status: "approved",
+      recapture_reason: null,
+      quote_status: "not_started",
+      next_step:
+        "Review the auto-created pipeline-backed request and backfill customer metadata if needed.",
+      last_buyer_ready_at: null,
+    },
+    debug: {
+      schemaVersion: 2,
+      autoCreatedByPipeline: true,
+    },
+  };
+}
+
 router.post("/attachments", requirePipelineToken, async (req: Request, res: Response) => {
   try {
     if (!db) {
@@ -139,6 +248,7 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
 
     let docRef: FirebaseFirestore.DocumentReference | null = null;
     let currentData: Record<string, unknown> | null = null;
+    let shouldCreate = false;
     if (siteSubmissionId) {
       const snapshot = await db
         .collection("inboundRequests")
@@ -158,7 +268,9 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       }
     }
     if (!docRef) {
-      return res.status(404).json({ error: "Inbound request not found" });
+      const targetDocId = requestId || siteSubmissionId;
+      docRef = db.collection("inboundRequests").doc(targetDocId);
+      shouldCreate = true;
     }
 
     if (authoritativeStateUpdate && !isQualificationState(qualificationState)) {
@@ -181,17 +293,26 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
     const nextQualificationState = authoritativeStateUpdate
       ? (qualificationState as QualificationState)
       : String(
-          currentData?.qualification_state || currentData?.status || ""
-        ).trim();
-    const nextOpportunityState =
-      authoritativeStateUpdate && opportunityState
-        ? (opportunityState as OpportunityState)
-        : (String(currentData?.opportunity_state || "").trim() as OpportunityState);
+          currentData?.qualification_state || currentData?.status || "submitted"
+        ).trim() as QualificationState;
+    const nextOpportunityState = (
+      authoritativeStateUpdate
+        ? opportunityState || currentData?.opportunity_state || inferDefaultOpportunityState(nextQualificationState)
+        : currentData?.opportunity_state || inferDefaultOpportunityState(nextQualificationState)
+    ) as OpportunityState;
 
     const updatePayload: Record<string, unknown> = {
       pipeline,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
+
+    if (siteSubmissionId && !currentData?.site_submission_id) {
+      updatePayload.site_submission_id = siteSubmissionId;
+    }
+
+    if (parsedBody.buyer_request_id) {
+      updatePayload.buyer_request_id = String(parsedBody.buyer_request_id || "").trim();
+    }
 
     if (derivedAssets) {
       updatePayload.derived_assets = derivedAssets;
@@ -207,7 +328,25 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       updatePayload.opportunity_state = nextOpportunityState;
     }
 
-    await docRef.update(updatePayload);
+    if (shouldCreate) {
+      await docRef.set(
+        {
+          ...buildPlaceholderInboundRequest({
+            requestId: docRef.id,
+            siteSubmissionId: siteSubmissionId || docRef.id,
+            buyerRequestId: String(parsedBody.buyer_request_id || "").trim() || undefined,
+            qualificationState: nextQualificationState,
+            opportunityState: nextOpportunityState,
+            sceneId: pipeline.scene_id,
+            captureId: pipeline.capture_id,
+          }),
+          ...updatePayload,
+        },
+        { merge: true }
+      );
+    } else {
+      await docRef.update(updatePayload);
+    }
 
     return res.json({
       ok: true,

@@ -38,6 +38,45 @@ vi.mock("../utils/field-encryption", () => ({
 import { getPublicSiteWorldById } from "../utils/site-worlds";
 
 describe("live site-world World Labs projection", () => {
+  it("builds a visible live site-world from an auto-created pipeline placeholder request", async () => {
+    state.storagePayloads.clear();
+    state.docs = [
+      {
+        id: "req-auto-1",
+        data: () => ({
+          requestId: "req-auto-1",
+          site_submission_id: "req-auto-1",
+          status: "qualified_ready",
+          qualification_state: "qualified_ready",
+          opportunity_state: "handoff_ready",
+          request: {
+            siteName: "Pipeline site req-auto-1",
+            siteLocation: "Scene scene-auto-1",
+            taskStatement: "Pipeline-backed site world from capture capture-auto-1.",
+            targetRobotTeam: null,
+          },
+          pipeline: {
+            scene_id: "scene-auto-1",
+            capture_id: "capture-auto-1",
+            pipeline_prefix: "scenes/scene-auto-1/captures/capture-auto-1/pipeline",
+            artifacts: {},
+          },
+        }),
+      },
+    ];
+
+    const record = await getPublicSiteWorldById("sw-req-auto-1");
+
+    expect(record).toMatchObject({
+      id: "sw-req-auto-1",
+      dataSource: "pipeline",
+      siteName: "Pipeline site req-auto-1",
+      siteAddress: "Scene scene-auto-1",
+      sceneId: "scene-auto-1",
+      captureId: "capture-auto-1",
+    });
+  });
+
   it("surfaces a ready World Labs preview from pipeline artifacts", async () => {
     state.storagePayloads.clear();
     state.docs = [

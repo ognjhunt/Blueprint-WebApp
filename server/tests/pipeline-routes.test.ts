@@ -15,6 +15,8 @@ const state = vi.hoisted(() => ({
   }>,
   docExists: true,
   docData: {} as Record<string, unknown>,
+  docSet: vi.fn().mockResolvedValue(undefined),
+  docUpdate: vi.fn().mockResolvedValue(undefined),
   storageText: "",
   storageShouldFail: false,
 }));
@@ -34,11 +36,14 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
           get: async () => ({ docs: state.queryDocs }),
         }),
       }),
-      doc: () => ({
+      doc: (id?: string) => ({
+        id: id || "mock-doc-id",
         get: async () => ({
           exists: state.docExists,
           data: () => state.docData,
         }),
+        set: state.docSet,
+        update: state.docUpdate,
       }),
     }),
   },
@@ -102,6 +107,10 @@ afterEach(() => {
   state.queryDocs = [];
   state.docExists = true;
   state.docData = {};
+  state.docSet.mockReset();
+  state.docSet.mockResolvedValue(undefined);
+  state.docUpdate.mockReset();
+  state.docUpdate.mockResolvedValue(undefined);
   state.storageText = "";
   state.storageShouldFail = false;
   delete process.env.PIPELINE_SYNC_TOKEN;
@@ -238,6 +247,58 @@ describe("pipeline integration routes", () => {
           qualification_state: "qualified_ready",
           opportunity_state: "handoff_ready",
         })
+      );
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("creates a placeholder inbound request when pipeline sync arrives before request bootstrap", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "secret";
+    state.queryDocs = [];
+    state.docExists = false;
+
+    const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
+
+    try {
+      const response = await fetch(`${baseUrl}/attachments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Blueprint-Pipeline-Token": "secret",
+        },
+        body: JSON.stringify(pipelineAttachmentFixture),
+      });
+
+      expect(response.status).toBe(200);
+      expect(state.docSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requestId: "req-1",
+          site_submission_id: "req-1",
+          buyer_request_id: null,
+          status: "qualified_ready",
+          qualification_state: "qualified_ready",
+          opportunity_state: "handoff_ready",
+          request: expect.objectContaining({
+            siteName: "Pipeline site req-1",
+            siteLocation: "Scene scene-1",
+          }),
+          pipeline: expect.objectContaining({
+            scene_id: "scene-1",
+            capture_id: "cap-1",
+          }),
+          derived_assets: expect.objectContaining({
+            scene_memory: expect.objectContaining({
+              status: "prep_ready",
+            }),
+          }),
+          deployment_readiness: expect.objectContaining({
+            privacy_processing: expect.objectContaining({
+              status: "person_removed",
+            }),
+          }),
+        }),
+        { merge: true }
       );
     } finally {
       await stopServer(server);

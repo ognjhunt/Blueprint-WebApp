@@ -1,6 +1,23 @@
 import type { SiteWorldCard } from "@/data/siteWorlds";
 
 export function SiteWorldGraphic({ site }: { site: SiteWorldCard }) {
+  const realImageUrl = site.worldLabsPreview?.panoUrl || site.worldLabsPreview?.thumbnailUrl;
+
+  if (realImageUrl) {
+    return (
+      <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${site.tone} p-3`}>
+        <div className="absolute right-4 top-4 z-10 rounded-full border border-white/70 bg-white/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600 backdrop-blur">
+          {site.siteCode}
+        </div>
+        <img
+          src={realImageUrl}
+          alt={site.siteName}
+          className="relative h-44 w-full rounded-2xl border border-white/70 object-cover shadow-sm"
+        />
+      </div>
+    );
+  }
+
   const labelStyle = "fill-slate-500 text-[10px] font-semibold tracking-[0.18em] uppercase";
 
   const renderByKind = () => {

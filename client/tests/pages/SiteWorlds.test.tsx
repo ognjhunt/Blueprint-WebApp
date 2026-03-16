@@ -8,19 +8,19 @@ describe("SiteWorlds", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Test on the site before you go to the site\./i,
+        name: /Train on the exact site you're deploying to\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Each Site World is a hosted model of one real site and one real workflow\./i,
+        /Each world model is built from real indoor captures and verified against Blueprint's qualification standard\./i,
       ),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /Choose how you want access\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Common reasons robot teams use a Site World\./i }),
+      screen.getByRole("heading", { name: /Common reasons robot teams use world models\./i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Get the package/i)).toBeInTheDocument();
     expect(screen.getByText(/Run it hosted/i)).toBeInTheDocument();
@@ -41,6 +41,6 @@ describe("SiteWorlds", () => {
     expect(sceneUrl.searchParams.get("siteName")).toBe("Harborview Grocery Distribution Annex");
 
     const hostedLinks = screen.getAllByRole("link", { name: /Start hosted session/i });
-    expect(hostedLinks[0]).toHaveAttribute("href", "/site-worlds/sw-chi-01/start");
+    expect(hostedLinks[0]).toHaveAttribute("href", "/world-models/sw-chi-01/start");
   });
 });
