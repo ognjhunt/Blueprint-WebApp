@@ -1357,21 +1357,20 @@ export async function listPublicSiteWorlds(limit = 24): Promise<SiteWorldCard[]>
 }
 
 export async function getPublicSiteWorldById(id: string): Promise<SiteWorldCard | null> {
-  const staticRecord = findStaticSiteWorldById(id);
-  if (staticRecord) {
-    return staticRecord;
-  }
-
   const catalog = await listPublicSiteWorlds(100);
-  return (
+  const liveOrStaticRecord =
     catalog.find(
       (item) =>
         item.id === id ||
         item.siteSubmissionId === id ||
         item.sceneId === id ||
         item.captureId === id,
-    ) || null
-  );
+    ) || null;
+  if (liveOrStaticRecord) {
+    return liveOrStaticRecord;
+  }
+
+  return findStaticSiteWorldById(id);
 }
 
 export async function resolveLiveSiteWorldContext(id: string): Promise<{

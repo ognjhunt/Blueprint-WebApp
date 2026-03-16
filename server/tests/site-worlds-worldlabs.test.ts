@@ -128,4 +128,70 @@ describe("live site-world World Labs projection", () => {
       ]),
     );
   });
+
+  it("prefers a live pipeline-backed record over the static demo entry", async () => {
+    state.storagePayloads.clear();
+    state.docs = [
+      {
+        id: "req-live-demo",
+        data: () => ({
+          requestId: "req-live-demo",
+          site_submission_id: "9483414B-8776-4F68-AC80-D3B3BA774A90:6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3",
+          status: "qualified_ready",
+          qualification_state: "qualified_ready",
+          opportunity_state: "handoff_ready",
+          request: {
+            siteName: "Media Room Demo Walkthrough",
+            siteLocation: "Blueprint hosted runtime demo",
+            taskStatement: "Media room",
+            targetRobotTeam: "Mobile manipulator with head and wrist cameras",
+          },
+          pipeline: {
+            scene_id: "9483414B-8776-4F68-AC80-D3B3BA774A90",
+            capture_id: "6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3",
+            pipeline_prefix:
+              "scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline",
+            artifacts: {
+              worldlabs_request_manifest_uri:
+                "gs://blueprint-8c1ca.appspot.com/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/worldlabs_request_manifest.json",
+              worldlabs_input_manifest_uri:
+                "gs://blueprint-8c1ca.appspot.com/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/worldlabs_input/worldlabs_input_manifest.json",
+              worldlabs_input_video_uri:
+                "gs://blueprint-8c1ca.appspot.com/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/worldlabs_input/worldlabs_input.mp4",
+            },
+          },
+        }),
+      },
+    ];
+
+    state.storagePayloads.set(
+      "scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/worldlabs_request_manifest.json",
+      JSON.stringify({
+        schema_version: "v1",
+        provider_model: "Marble 0.1-mini",
+        status: "ready_for_manual_generation",
+        generation_source_type: "video_media_asset",
+      }),
+    );
+    state.storagePayloads.set(
+      "scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/worldlabs_input/worldlabs_input_manifest.json",
+      JSON.stringify({
+        schema_version: "v1",
+        status: "ready",
+        output_video_uri:
+          "gs://blueprint-8c1ca.appspot.com/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/worldlabs_input/worldlabs_input.mp4",
+      }),
+    );
+
+    const record = await getPublicSiteWorldById("siteworld-f5fd54898cfb");
+
+    expect(record?.dataSource).toBe("pipeline");
+    expect(record?.worldLabsPreview).toMatchObject({
+      status: "queued",
+      model: "Marble 0.1-mini",
+      requestManifestUri:
+        "gs://blueprint-8c1ca.appspot.com/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/worldlabs_request_manifest.json",
+    });
+    expect(record?.worldLabsPreview?.generationSourceType).toBe("video_media_asset");
+  });
 });
