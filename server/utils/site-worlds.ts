@@ -259,7 +259,7 @@ function buildArtifactExplorer(params: {
           status: objects.length > 0 ? "ready" : "partial",
           headline: "Canonical site-world object geometry",
           summary:
-            "Explore the site-specific canonical world model through object geometry reconstructed from the capture pipeline.",
+            "Explore the primary internal site-world package built from canonical geometry, retrieval memory, and captured scene evidence.",
           derivationMode: "grounded object geometry",
           canonicalPackageVersion: params.template?.siteWorldSpecUri ? null : null,
           presentationStatus: "secondary derived overlays available",

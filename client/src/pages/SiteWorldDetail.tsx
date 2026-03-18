@@ -515,12 +515,13 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               <div className="mt-3 grid gap-6 lg:grid-cols-[1fr_0.9fr]">
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                    Launch the World Labs preview.
+                    Launch the optional World Labs preview.
                   </h2>
                   <p className="mt-3 text-sm leading-6 text-slate-600">
-                    This preview is a derived interactive world generated from the captured walkthrough.
-                    Blueprint keeps the capture-backed scene memory as the source of truth and uses
-                    World Labs only as a launchable demo layer.
+                    This is an optional provider-generated demo layer built from the walkthrough.
+                    Blueprint treats the internal geometry, retrieval, and scene-memory artifacts as
+                    the primary world-model package and uses World Labs only when a launchable
+                    external preview is useful.
                   </p>
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
