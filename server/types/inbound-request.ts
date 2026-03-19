@@ -160,6 +160,7 @@ export interface PipelineArtifacts {
   preview_simulation_manifest_uri?: string | null;
   presentation_world_manifest_uri?: string | null;
   runtime_demo_manifest_uri?: string | null;
+  authoritative_runtime_render_manifest_uri?: string | null;
   site_world_spec_uri?: string | null;
   site_world_registration_uri?: string | null;
   site_world_health_uri?: string | null;

@@ -307,12 +307,12 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
               </div>
 
               <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-950 p-5 text-slate-100">
-                <p className="text-sm font-semibold">NeoVerse is the default runtime for this hosted world model.</p>
+                <p className="text-sm font-semibold">Native site world is the default runtime path for this hosted session.</p>
                 <ul className="mt-4 space-y-3 text-sm text-slate-300">
                   {[
-                    "The world model comes from the captured site package, not from the robot profile.",
+                    "The primary viewer and launch path come from the native captured site package.",
                     "Robot, task, scenario, and start state are selected separately.",
-                    "Embedded demos and runtime sessions have different launch requirements.",
+                    "World Labs remains a fallback preview path rather than the default success path.",
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-3">
                       <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
@@ -363,6 +363,26 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                       ? "This site is ready for a hosted world-model runtime session."
                       : "This site cannot launch a hosted world-model runtime session yet."}
                 </p>
+                {site.deploymentReadiness ? (
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-xl bg-white px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Native status</p>
+                      <p className="mt-1 font-semibold text-slate-900">
+                        {site.deploymentReadiness.native_world_model_primary
+                          ? "Primary ready"
+                          : site.deploymentReadiness.native_world_model_status || "not_ready"}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-white px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Fallback preview</p>
+                      <p className="mt-1 font-semibold text-slate-900">
+                        {site.deploymentReadiness.provider_fallback_only
+                          ? "Fallback only"
+                          : site.deploymentReadiness.provider_fallback_preview_status || "not_requested"}
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
                 {runtimeReadiness?.blocker_details?.length ? (
                   <ul className="mt-3 space-y-2 text-xs text-slate-700">
                     {runtimeReadiness.blocker_details.map((blocker) => (

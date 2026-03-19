@@ -862,6 +862,9 @@ function buildDeploymentReadiness({
   compatibilityMatrix,
   recaptureDiff,
   launchableExportBundle,
+  siteWorldSpec,
+  siteWorldHealth,
+  worldLabsPreview,
   template,
 }: {
   request: InboundRequest;
@@ -873,6 +876,9 @@ function buildDeploymentReadiness({
   compatibilityMatrix: ArtifactJson;
   recaptureDiff: ArtifactJson;
   launchableExportBundle: ArtifactJson;
+  siteWorldSpec: ArtifactJson;
+  siteWorldHealth: ArtifactJson;
+  worldLabsPreview?: SiteWorldCard["worldLabsPreview"];
   template?: SiteWorldCard;
 }): DeploymentReadinessSummary & {
   qualification_state: QualificationState;
@@ -884,7 +890,21 @@ function buildDeploymentReadiness({
   const benchmark = deriveBenchmarkStatus(benchmarkSuite, pipeline);
   const recapture = deriveRecapture(recaptureDiff, qualificationState);
   const exportsAvailable = extractExports(launchableExportBundle, pipeline);
-  const runtimeLabel = String(launchableExportBundle?.public_runtime_label || template?.runtime || "Qualified site runtime");
+  const nativeWorldModelPrimary = Boolean(
+    siteWorldSpec?.native_world_model_primary
+      ?? siteWorldHealth?.native_world_model_primary
+      ?? siteWorldHealth?.launchable
+      ?? siteWorldSpec?.runtime_eligibility?.launchable
+  );
+  const providerFallbackAvailable = Boolean(
+    worldLabsPreview?.status && worldLabsPreview.status !== "not_requested"
+  ) || Boolean(pipeline?.artifacts.preview_simulation_manifest_uri || pipeline?.artifacts.world_model_video_uri);
+  const runtimeLabel = String(
+    launchableExportBundle?.public_runtime_label
+      || (nativeWorldModelPrimary ? "Native hosted site world" : "")
+      || template?.runtime
+      || "Qualified site runtime"
+  );
 
   return {
     qualification_state: qualificationState,
@@ -901,6 +921,14 @@ function buildDeploymentReadiness({
     exports_available: exportsAvailable,
     task_categories: benchmark.categories,
     runtime_label: runtimeLabel,
+    native_world_model_status: nativeWorldModelPrimary ? "primary_ready" : "not_ready",
+    native_world_model_primary: nativeWorldModelPrimary,
+    provider_fallback_preview_status: providerFallbackAvailable ? "fallback_available" : "not_requested",
+    provider_fallback_only: !nativeWorldModelPrimary && providerFallbackAvailable,
+    runtime_health_status: String(siteWorldHealth?.status || ""),
+    runtime_launchable: Boolean(siteWorldHealth?.launchable),
+    runtime_registration_status: String(siteWorldHealth?.runtime_registration_status || ""),
+    evaluation_prep_summary: launchableExportBundle || null,
   };
 }
 
@@ -1102,6 +1130,9 @@ async function buildLiveRecord(
     compatibilityMatrix,
     recaptureDiff,
     launchableExportBundle,
+    siteWorldSpec,
+    siteWorldHealth,
+    worldLabsPreview: undefined,
     template,
   });
 
@@ -1143,14 +1174,20 @@ async function buildLiveRecord(
       : {};
   const runtimeManifest = siteWorldRegistration
     ? {
-        defaultBackend: "neoverse",
+        defaultBackend: String(
+          siteWorldRegistration.default_backend
+            || siteWorldRegistration.primary_runtime_backend
+            || "neoverse"
+        ),
         runtimeBaseUrl: String(siteWorldRegistration.runtime_base_url || ""),
         websocketBaseUrl: String(siteWorldRegistration.websocket_base_url || ""),
         supportedCameras: Array.isArray(siteWorldRegistration.supported_cameras)
           ? (siteWorldRegistration.supported_cameras as unknown[]).map((item) => String(item))
           : [],
         exportModes,
-        launchableBackends: ["neoverse"],
+        launchableBackends: Array.isArray(siteWorldRegistration.launchable_backends)
+          ? (siteWorldRegistration.launchable_backends as unknown[]).map((item) => String(item))
+          : [String(siteWorldRegistration.default_backend || siteWorldRegistration.primary_runtime_backend || "neoverse")],
         supportsStepRollout: Boolean(runtimeCapabilities.supports_step_rollout ?? true),
         supportsBatchRollout: Boolean(runtimeCapabilities.supports_batch_rollout ?? true),
         supportsCameraViews: Boolean(runtimeCapabilities.supports_camera_views ?? true),
@@ -1229,6 +1266,21 @@ async function buildLiveRecord(
           worldManifestUri: worldLabsWorldManifestUri,
         })
       : undefined;
+  const refreshedReadiness = buildDeploymentReadiness({
+    request,
+    qualificationState,
+    opportunityState,
+    pipeline,
+    siteNormalization,
+    benchmarkSuite,
+    compatibilityMatrix,
+    recaptureDiff,
+    launchableExportBundle,
+    siteWorldSpec,
+    siteWorldHealth,
+    worldLabsPreview,
+    template,
+  });
   const artifactExplorer = buildArtifactExplorer({
     template,
     siteWorldId: generatedId,
@@ -1260,11 +1312,11 @@ async function buildLiveRecord(
       thumbnailKind: "parcel" as const,
       summary: "Qualified deployment-readiness record prepared from pipeline artifacts.",
       bestFor: "Teams reviewing exact-site readiness before a pilot.",
-      runtime: readiness.runtime_label,
+      runtime: refreshedReadiness.runtime_label,
       defaultRuntimeBackend: runtimeManifest.defaultBackend,
       availableRuntimeBackends: runtimeManifest.launchableBackends,
       samplePolicy: "Submitted checkpoint",
-      exportArtifacts: readiness.exports_available,
+      exportArtifacts: refreshedReadiness.exports_available,
       startStates,
       scenarioVariants,
       runtimeManifest,
@@ -1298,7 +1350,7 @@ async function buildLiveRecord(
       template?.summary ||
       "Qualified site packaged for deployment-readiness review and downstream evaluation.",
     bestFor: template?.bestFor || "Deployment readiness review on one exact site.",
-    runtime: readiness.runtime_label,
+    runtime: refreshedReadiness.runtime_label,
     defaultRuntimeBackend: runtimeManifest.defaultBackend,
     availableRuntimeBackends: runtimeManifest.launchableBackends,
     sampleRobot,
@@ -1306,7 +1358,7 @@ async function buildLiveRecord(
     sampleTask,
     startStates,
     scenarioVariants,
-    exportArtifacts: readiness.exports_available.length > 0 ? readiness.exports_available : template?.exportArtifacts || [],
+    exportArtifacts: refreshedReadiness.exports_available.length > 0 ? refreshedReadiness.exports_available : template?.exportArtifacts || [],
     runtimeManifest,
     taskCatalog,
     scenarioCatalog,
@@ -1323,7 +1375,7 @@ async function buildLiveRecord(
     siteWorldRegistrationUri,
     siteWorldHealthUri,
     dataSource: "pipeline",
-    deploymentReadiness: readiness,
+    deploymentReadiness: refreshedReadiness,
   };
 }
 

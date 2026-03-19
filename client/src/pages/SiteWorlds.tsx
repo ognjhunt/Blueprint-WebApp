@@ -257,17 +257,32 @@ export default function SiteWorlds() {
                   key={site.id}
                   className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:border-slate-300"
                 >
+                  {(() => {
+                    const nativePrimary = site.deploymentReadiness?.native_world_model_primary === true;
+                    const fallbackAvailable =
+                      site.deploymentReadiness?.provider_fallback_preview_status === "fallback_available"
+                      || Boolean(site.worldLabsPreview?.launchUrl);
+                    return (
                   <a href={`/world-models/${site.id}`} className="relative block">
                     <SiteWorldGraphic site={site} />
-                    {site.worldLabsPreview?.status === "ready" && (
+                    {nativePrimary ? (
                       <div className="absolute bottom-4 left-4">
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 shadow-sm backdrop-blur">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                          Interactive preview ready
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-sky-700 shadow-sm backdrop-blur">
+                          <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
+                          Native site world ready
                         </span>
                       </div>
-                    )}
+                    ) : fallbackAvailable ? (
+                      <div className="absolute bottom-4 left-4">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-amber-700 shadow-sm backdrop-blur">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                          Fallback preview only
+                        </span>
+                      </div>
+                    ) : null}
                   </a>
+                    );
+                  })()}
                   <div className="space-y-3 p-5 sm:p-6">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -283,7 +298,30 @@ export default function SiteWorlds() {
                       <p className="mt-1.5 text-sm text-slate-500">{site.bestFor}</p>
                     </div>
 
-                    {site.worldLabsPreview?.launchUrl && (
+                    {site.deploymentReadiness?.native_world_model_primary ? (
+                      <div className="space-y-2">
+                        <a
+                          href={`/world-models/${site.id}/start`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                        >
+                          <Play className="h-4 w-4" />
+                          Start native hosted session
+                        </a>
+                        {site.worldLabsPreview?.launchUrl ? (
+                          <a
+                            href={site.worldLabsPreview.launchUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            Open fallback preview
+                          </a>
+                        ) : null}
+                      </div>
+                    ) : site.worldLabsPreview?.launchUrl ? (
                       <a
                         href={site.worldLabsPreview.launchUrl}
                         target="_blank"
@@ -292,9 +330,9 @@ export default function SiteWorlds() {
                         className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                       >
                         <ExternalLink className="h-4 w-4" />
-                        Launch Marble preview
+                        Launch fallback preview
                       </a>
-                    )}
+                    ) : null}
 
                     <div className="space-y-2.5">
                       {site.deploymentReadiness ? (
@@ -332,14 +370,34 @@ export default function SiteWorlds() {
                             </div>
                             <div className="rounded-xl bg-white px-3 py-2">
                               <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                                Refresh
+                                Native
                               </p>
                               <p className="mt-1 text-sm font-semibold text-slate-900">
-                                {site.deploymentReadiness.recapture_required
-                                  ? "Needs refresh"
-                                  : site.deploymentReadiness.recapture_status || "Current"}
+                                {site.deploymentReadiness.native_world_model_primary
+                                  ? "Primary"
+                                  : site.deploymentReadiness.native_world_model_status || "not_ready"}
                               </p>
                             </div>
+                            <div className="rounded-xl bg-white px-3 py-2">
+                              <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                                Fallback
+                              </p>
+                              <p className="mt-1 text-sm font-semibold text-slate-900">
+                                {site.deploymentReadiness.provider_fallback_only
+                                  ? "Fallback only"
+                                  : site.deploymentReadiness.provider_fallback_preview_status || "not_requested"}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="mt-3 rounded-xl bg-white px-3 py-2">
+                            <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
+                              Refresh
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-slate-900">
+                              {site.deploymentReadiness.recapture_required
+                                ? "Needs refresh"
+                                : site.deploymentReadiness.recapture_status || "Current"}
+                            </p>
                           </div>
                         </div>
                       ) : null}

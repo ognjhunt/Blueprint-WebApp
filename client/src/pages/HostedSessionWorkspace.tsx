@@ -1757,6 +1757,22 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     <DetailPill label="Capture" value={site.captureId} />
                     <DetailPill label="Qualification" value={humanizeValue(site.deploymentReadiness?.qualification_state, "qualified")} />
                     <DetailPill label="Health" value={humanizeValue(sessionRecord?.runtimeHandle?.health_status || site.runtimeManifest?.healthStatus, "unknown")} />
+                    <DetailPill
+                      label="Native"
+                      value={
+                        site.deploymentReadiness?.native_world_model_primary
+                          ? "Primary ready"
+                          : humanizeValue(site.deploymentReadiness?.native_world_model_status, "not ready")
+                      }
+                    />
+                    <DetailPill
+                      label="Fallback"
+                      value={
+                        site.deploymentReadiness?.provider_fallback_only
+                          ? "Fallback only"
+                          : humanizeValue(site.deploymentReadiness?.provider_fallback_preview_status, "not requested")
+                      }
+                    />
                   </div>
                   <div className="mt-4 flex flex-wrap gap-3">
                     <MetadataLink href={canonicalPackageUri} label="View canonical package" />
