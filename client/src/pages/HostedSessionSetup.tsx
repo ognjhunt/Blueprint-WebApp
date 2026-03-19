@@ -326,12 +326,12 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                 <p className="font-semibold">Embedded demo readiness</p>
                 <p className="mt-2">
                   {checkingReadiness
-                    ? "Checking whether this site can launch an embedded NeoVerse demo."
+                    ? "Checking whether this site can launch an embedded runtime demo."
                     : presentationReadiness?.launchable
                       ? presentationReadiness?.status === "presentation_ui_unconfigured"
                         ? "This site can launch an artifact-backed presentation session. The private operator view is optional and currently unavailable."
-                        : "This site is ready for an embedded NeoVerse demo session."
-                      : "This site cannot launch the embedded NeoVerse demo yet."}
+                        : "This site is ready for an embedded runtime demo session."
+                      : "This site cannot launch the embedded runtime demo yet."}
                 </p>
                 {presentationReadiness?.presentationWorldManifestUri ? (
                   <p className="mt-2 break-all text-xs text-amber-900">

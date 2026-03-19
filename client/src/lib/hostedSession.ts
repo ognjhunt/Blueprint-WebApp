@@ -8,7 +8,7 @@ import type {
   TaskSelection,
 } from "@/types/hostedSession";
 
-export const DEFAULT_RUNTIME_BACKEND = "neoverse";
+export const DEFAULT_RUNTIME_BACKEND = "site_world_runtime";
 
 export const REQUESTED_OUTPUT_DEFINITIONS: RequestedOutputDefinition[] = [
   { id: "start_state", label: "Start state", description: "Persist the selected episode start state." },

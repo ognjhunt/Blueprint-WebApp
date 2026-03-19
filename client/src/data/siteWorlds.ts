@@ -306,7 +306,7 @@ function buildStaticArtifactExplorer(site: RawSiteWorldCard): ArtifactExplorerSu
       uiBaseUrl: site.presentationDemoReadiness?.uiBaseUrl || null,
       label: site.presentationDemoReadiness?.uiBaseUrl ? "Private operator view available" : "Private operator view unavailable",
       description: site.presentationDemoReadiness?.uiBaseUrl
-        ? "An internal NeoVerse UI is configured for this site."
+        ? "An internal runtime operator UI is configured for this site."
         : "Use artifact-backed exploration when no private operator bridge is configured.",
     },
   };
@@ -337,12 +337,12 @@ function withDerivedSessionDefaults(site: RawSiteWorldCard): SiteWorldCard {
   const exportModes = ["raw_bundle", "rlds_dataset"];
   return {
     ...site,
-    defaultRuntimeBackend: "neoverse",
-    availableRuntimeBackends: ["neoverse", "gen3c"],
+    defaultRuntimeBackend: "site_world_runtime",
+    availableRuntimeBackends: ["site_world_runtime", "gen3c"],
     sampleRobotProfile,
     runtimeManifest: {
-      defaultBackend: "neoverse",
-      launchableBackends: ["neoverse", "gen3c"],
+      defaultBackend: "site_world_runtime",
+      launchableBackends: ["site_world_runtime", "gen3c"],
       exportModes,
       supportsStepRollout: true,
       supportsBatchRollout: true,

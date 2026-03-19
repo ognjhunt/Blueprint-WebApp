@@ -1857,7 +1857,8 @@ async function launchPresentationDemoSession(
   }
   if (readiness.status === "presentation_ui_unconfigured") {
     await updateSession(record.sessionId, {
-      runtime_backend_selected: record.runtime_backend_selected || "neoverse",
+      runtime_backend_selected:
+        record.runtime_backend_selected || record.runtime_backend_requested || runtime.defaultRuntimeBackend || "site_world_runtime",
       status: record.status === "creating" ? "ready" : record.status,
       startedAt: record.startedAt || nowTimestamp(),
       presentationRuntime: null,
@@ -1868,7 +1869,7 @@ async function launchPresentationDemoSession(
   }
   try {
     await updateSession(record.sessionId, {
-      runtime_backend_selected: "neoverse",
+      runtime_backend_selected: record.runtime_backend_requested || runtime.defaultRuntimeBackend || "site_world_runtime",
       presentationRuntime: {
         ...(record.presentationRuntime || { provider: "vast" as const }),
         status: "starting",
@@ -1894,7 +1895,7 @@ async function launchPresentationDemoSession(
       proxyPath,
     });
     await updateSession(record.sessionId, {
-      runtime_backend_selected: "neoverse",
+      runtime_backend_selected: record.runtime_backend_requested || runtime.defaultRuntimeBackend || "site_world_runtime",
       status: record.status === "creating" ? "ready" : record.status,
       startedAt: nowTimestamp(),
       presentationRuntime,
@@ -1979,7 +1980,10 @@ function createSessionRecord(params: {
     sessionMode,
     runtimeUi: sessionMode === "presentation_demo" ? (params.body.runtimeUi || "neoverse_gradio") : null,
     runtime_backend_requested: runtimeConfig.requestedBackend || params.runtime.defaultRuntimeBackend,
-    runtime_backend_selected: sessionMode === "presentation_demo" ? (runtimeConfig.requestedBackend || "neoverse") : "pending",
+    runtime_backend_selected:
+      sessionMode === "presentation_demo"
+        ? (runtimeConfig.requestedBackend || params.runtime.defaultRuntimeBackend || "site_world_runtime")
+        : "pending",
     runtime_execution_mode:
       params.runtime.runtimeManifest?.backendVariants?.[runtimeConfig.requestedBackend || params.runtime.defaultRuntimeBackend || ""]?.runtimeMode
       || null,

@@ -1692,7 +1692,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
                       `Explore Site-World` is the default customer-facing path when live runtime frames are unavailable.
                       `Live Runtime` stays grounded in the real session outputs, and the private operator bridge only appears when
-                      a real internal NeoVerse UI is actually live.
+                      a real internal operator UI is actually live.
                     </p>
                     <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                       <DetailPill label="Canonical Version" value={canonicalPackageVersion || "Unspecified"} />
@@ -2236,7 +2236,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                           Private Operator View
                         </p>
                         <p className="mt-4 text-lg font-semibold">
-                          {presentationInteractive ? "Internal NeoVerse bridge is live" : artifactExplorer?.operatorView.label || "Internal bridge unavailable"}
+                          {presentationInteractive ? "Internal runtime bridge is live" : artifactExplorer?.operatorView.label || "Internal bridge unavailable"}
                         </p>
                         <p className="mt-2 text-sm leading-6 text-slate-300">
                           {presentationInteractive
@@ -2274,7 +2274,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     <div>
                       <p className="text-lg font-semibold text-slate-950">Grounded preview first, refinement second</p>
                       <p className="mt-2 text-sm leading-6 text-slate-600">
-                        The explorer frame is sourced from ARKit/video reprojection when available and only uses masked NeoVerse refinement for uncertain or unseen regions.
+                        The explorer frame is sourced from ARKit/video reprojection when available and only uses masked runtime refinement for uncertain or unseen regions.
                       </p>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -2329,7 +2329,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                       <div>
                         <p className="text-sm font-medium text-slate-500">Derived presentation caveat</p>
                         <p className="mt-1 text-sm text-slate-900">
-                          NeoVerse refinement is advisory and mask-limited. Protected regions stay grounded to canonical/site evidence.
+                          Runtime refinement is advisory and mask-limited. Protected regions stay grounded to canonical/site evidence.
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-3">

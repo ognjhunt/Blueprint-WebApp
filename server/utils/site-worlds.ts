@@ -300,7 +300,7 @@ function buildArtifactExplorer(params: {
             uiBaseUrl,
             label: uiBaseUrl ? "Private operator view available" : "Private operator view unavailable",
             description: uiBaseUrl
-              ? "A private NeoVerse UI is configured for internal movement and debugging."
+              ? "A private runtime operator UI is configured for internal movement and debugging."
               : "The canonical explorer is the primary path when no private operator bridge is configured.",
           },
         };
@@ -444,7 +444,7 @@ function buildArtifactExplorer(params: {
       uiBaseUrl,
       label: uiBaseUrl ? "Private operator view available" : "Private operator view unavailable",
       description: uiBaseUrl
-        ? "A private NeoVerse UI is configured for internal movement and debugging."
+        ? "A private runtime operator UI is configured for internal movement and debugging."
         : "Use artifact-backed exploration when no private operator bridge is configured.",
     },
   };
@@ -1172,12 +1172,49 @@ async function buildLiveRecord(
     siteWorldRegistration && typeof siteWorldRegistration.runtime_capabilities === "object"
       ? (siteWorldRegistration.runtime_capabilities as Record<string, unknown>)
       : {};
+  const backendVariants =
+    siteWorldRegistration && typeof siteWorldRegistration.backend_variants === "object"
+      ? Object.fromEntries(
+          Object.entries(siteWorldRegistration.backend_variants as Record<string, Record<string, unknown>>).map(
+            ([backendId, payload]) => [
+              backendId,
+              {
+                backendId,
+                bundleManifestUri: String(payload.bundle_manifest_uri || "").trim() || null,
+                adapterManifestUri: String(payload.adapter_manifest_uri || "").trim() || null,
+                launchable: Boolean(payload.launchable),
+                readinessState: String(payload.readiness_state || "incomplete"),
+                blockers: Array.isArray(payload.blockers) ? payload.blockers.map((item) => String(item)) : [],
+                warnings: Array.isArray(payload.warnings) ? payload.warnings.map((item) => String(item)) : [],
+                runtimeMode: String(payload.runtime_mode || "unknown"),
+                groundingStatus: payload.grounding_status ? String(payload.grounding_status) : null,
+                provenance:
+                  payload.provenance && typeof payload.provenance === "object"
+                    ? (payload.provenance as Record<string, unknown>)
+                    : null,
+                conversion:
+                  payload.conversion && typeof payload.conversion === "object"
+                    ? (payload.conversion as Record<string, unknown>)
+                    : null,
+                qualityFlags:
+                  payload.quality_flags && typeof payload.quality_flags === "object"
+                    ? (payload.quality_flags as Record<string, unknown>)
+                    : null,
+                canonicalWriteAllowed:
+                  typeof payload.canonical_write_allowed === "boolean"
+                    ? payload.canonical_write_allowed
+                    : null,
+              },
+            ],
+          ),
+        )
+      : undefined;
   const runtimeManifest = siteWorldRegistration
     ? {
         defaultBackend: String(
           siteWorldRegistration.default_backend
             || siteWorldRegistration.primary_runtime_backend
-            || "neoverse"
+            || "site_world_runtime"
         ),
         runtimeBaseUrl: String(siteWorldRegistration.runtime_base_url || ""),
         websocketBaseUrl: String(siteWorldRegistration.websocket_base_url || ""),
@@ -1187,13 +1224,18 @@ async function buildLiveRecord(
         exportModes,
         launchableBackends: Array.isArray(siteWorldRegistration.launchable_backends)
           ? (siteWorldRegistration.launchable_backends as unknown[]).map((item) => String(item))
-          : [String(siteWorldRegistration.default_backend || siteWorldRegistration.primary_runtime_backend || "neoverse")],
+          : backendVariants
+            ? Object.values(backendVariants)
+                .filter((item) => item.launchable)
+                .map((item) => item.backendId)
+            : [String(siteWorldRegistration.default_backend || siteWorldRegistration.primary_runtime_backend || "site_world_runtime")],
         supportsStepRollout: Boolean(runtimeCapabilities.supports_step_rollout ?? true),
         supportsBatchRollout: Boolean(runtimeCapabilities.supports_batch_rollout ?? true),
         supportsCameraViews: Boolean(runtimeCapabilities.supports_camera_views ?? true),
         supportsStream: Boolean(runtimeCapabilities.supports_stream ?? true),
         healthStatus: String(siteWorldHealth?.status || "unknown"),
         launchable: Boolean(siteWorldHealth?.launchable ?? true),
+        backendVariants,
       }
     : template?.runtimeManifest || buildFallbackRuntimeManifest(template || buildStaticRecord(siteWorldCards[0]));
   const presentationDemoReadiness = buildPresentationDemoReadiness({

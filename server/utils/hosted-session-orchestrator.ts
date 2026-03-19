@@ -782,7 +782,7 @@ export async function createHostedSessionRun(params: {
   return {
     payload: {
       runtime_backend_requested: String(params.requestedBackend || params.runtime.defaultRuntimeBackend || "").trim() || null,
-      runtime_backend_selected: String(payload.runtime_backend_selected || params.requestedBackend || params.runtime.defaultRuntimeBackend || "neoverse"),
+      runtime_backend_selected: String(payload.runtime_backend_selected || params.requestedBackend || params.runtime.defaultRuntimeBackend || "site_world_runtime"),
       runtime_execution_mode: String(payload.runtime_execution_mode || "").trim() || null,
       runtime_session_id: payload.session_id,
       runtime_session_metadata: {
