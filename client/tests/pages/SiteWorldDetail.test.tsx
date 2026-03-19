@@ -23,6 +23,14 @@ function buildSiteWorld(overrides: Partial<PublicSiteWorldRecord> = {}): PublicS
   const base = getSiteWorldById("sw-chi-01") as PublicSiteWorldRecord;
   return {
     ...base,
+    deploymentReadiness: {
+      native_world_model_primary: true,
+      native_world_model_status: "primary_ready",
+      provider_fallback_only: true,
+      provider_fallback_preview_status: "fallback_available",
+      ...(base.deploymentReadiness || {}),
+      ...((overrides.deploymentReadiness as Record<string, unknown> | undefined) || {}),
+    },
     artifactExplorer: {
       status: "partial",
       headline: "Explore the site-world through saved artifacts",
@@ -156,8 +164,9 @@ describe("SiteWorldDetail", () => {
     render(<SiteWorldDetail params={{ slug: "sw-chi-01" }} />);
 
     expect(
-      await screen.findByRole("link", { name: /Launch interactive preview/i }),
+      await screen.findByRole("link", { name: /Launch fallback preview/i }),
     ).toBeInTheDocument();
+    expect(screen.getByText(/Native Blueprint world-model artifacts are the primary path for this site\./i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Generate Marble Preview/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Refresh Marble Status/i })).not.toBeInTheDocument();
   });
@@ -314,7 +323,7 @@ describe("SiteWorldDetail", () => {
 
     render(<SiteWorldDetail params={{ slug: "sw-chi-01" }} />);
 
-    const launchLink = await screen.findByRole("link", { name: /Launch interactive preview/i });
+    const launchLink = await screen.findByRole("link", { name: /Launch fallback preview/i });
     expect(launchLink).toHaveAttribute("href", "https://marble.worldlabs.ai/worlds/world-123");
     expect(launchLink).toHaveAttribute("target", "_blank");
     expect(screen.getByText(/The World Labs viewer opens in a new tab/i)).toBeInTheDocument();

@@ -223,6 +223,8 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
   void relatedSites;
 
   const worldLabsPreview = site?.worldLabsPreview || null;
+  const nativeWorldModelPrimary =
+    Boolean(site?.deploymentReadiness?.native_world_model_primary) || Boolean(site?.siteWorldSpecUri);
   const worldLabsStatus = deriveWorldLabsStatus(site);
   const worldLabsStatusCopy = WORLDLABS_STATUS_COPY[worldLabsStatus];
   const worldLabsRequestManifestUri =
@@ -515,14 +517,20 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               <div className="mt-3 grid gap-6 lg:grid-cols-[1fr_0.9fr]">
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                    Launch the optional World Labs preview.
+                    Launch the fallback World Labs preview.
                   </h2>
                   <p className="mt-3 text-sm leading-6 text-slate-600">
                     This is an optional provider-generated demo layer built from the walkthrough.
-                    Blueprint treats the internal geometry, retrieval, and scene-memory artifacts as
-                    the primary world-model package and uses World Labs only when a launchable
-                    external preview is useful.
+                    Blueprint treats the internal geometry, retrieval, scene-memory, and site-world
+                    artifacts as the primary package and uses World Labs only as a secondary fallback
+                    when an external preview is still useful.
                   </p>
+                  {nativeWorldModelPrimary ? (
+                    <p className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-800">
+                      Native Blueprint world-model artifacts are the primary path for this site.
+                      World Labs is secondary and does not define readiness truth.
+                    </p>
+                  ) : null}
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
                       Status: {formatStatusLabel(worldLabsStatus)}
@@ -660,7 +668,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    Launch state
+                    Fallback launch state
                   </p>
                   <p className="mt-2 text-lg font-bold text-slate-900">
                     {worldLabsStatus === "ready" ? "Ready to launch" : "Waiting on generation"}
@@ -676,7 +684,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                       rel="noreferrer"
                       className="mt-5 inline-flex w-full items-center justify-center rounded-xl border border-slate-900 bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                     >
-                      Launch interactive preview
+                      Launch fallback preview
                       <ExternalLink className="ml-2 h-4 w-4" />
                     </a>
                   ) : (

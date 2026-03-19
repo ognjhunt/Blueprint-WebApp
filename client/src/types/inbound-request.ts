@@ -267,6 +267,8 @@ export interface OpsSummary {
 export interface DeploymentReadinessSummary {
   qualification_state?: QualificationState;
   opportunity_state?: OpportunityState;
+  capture_source?: string | null;
+  capture_modality?: string | null;
   buyer_trust_score?: BuyerTrustScore;
   qualification_summary?: Record<string, unknown> | null;
   capture_quality_summary?: Record<string, unknown> | null;
@@ -283,6 +285,15 @@ export interface DeploymentReadinessSummary {
   exports_available?: string[];
   task_categories?: string[];
   runtime_label?: string | null;
+  native_world_model_status?: "primary_ready" | "not_ready" | null;
+  native_world_model_primary?: boolean | null;
+  provider_fallback_preview_status?: "fallback_available" | "not_requested" | null;
+  provider_fallback_only?: boolean | null;
+  runtime_health_status?: string | null;
+  runtime_launchable?: boolean | null;
+  runtime_registration_status?: string | null;
+  evaluation_prep_summary?: Record<string, unknown> | null;
+  alpha_readiness?: Record<string, unknown> | null;
   preview_status?: ProviderRunStatus | "preview_unavailable" | null;
   provider_run?: ProviderRunSummary | null;
 }
