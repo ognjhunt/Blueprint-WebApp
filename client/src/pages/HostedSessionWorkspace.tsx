@@ -429,6 +429,8 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const [liveVideoSrc, setLiveVideoSrc] = useState("");
   const [liveVideoChunkId, setLiveVideoChunkId] = useState("");
   const [liveMediaStatus, setLiveMediaStatus] = useState("");
+  // Set immediately when the WS emits a chunk_ready media_event (not the 250ms state poll).
+  const [pendingMseChunkId, setPendingMseChunkId] = useState("");
   const [runtimeStreamState, setRuntimeStreamState] = useState<Record<string, unknown> | null>(null);
   const [liveViewportAspect, setLiveViewportAspect] = useState<number | null>(null);
   const [lastLiveRenderContext, setLastLiveRenderContext] = useState<{
@@ -447,6 +449,17 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const liveControlKeysRef = useRef<Set<string>>(new Set());
   const liveControlSeqRef = useRef(0);
   const lastControlSignatureRef = useRef("");
+  // MSE (Media Source Extensions) state for flash-free chunk append.
+  // The browser keeps a single <video> element; we stream fMP4 segments into
+  // its SourceBuffer instead of rotating src= (which forces a re-buffer).
+  const mediaSourceRef = useRef<MediaSource | null>(null);
+  const sourceBufferRef = useRef<SourceBuffer | null>(null);
+  const mseReadyRef = useRef(false);
+  const mseChunksAppendedRef = useRef(new Set<string>());
+  const msePendingRef = useRef<ArrayBuffer[]>([]);
+  // Callback ref updated each render so media_event handlers always close over
+  // fresh setState functions without requiring them in dependency arrays.
+  const handleMediaEventRef = useRef<((ev: Record<string, unknown>) => void) | null>(null);
   const explorerDragRef = useRef<{ active: boolean; lastX: number; lastY: number }>({
     active: false,
     lastX: 0,
@@ -939,7 +952,10 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const frameObservationSrc = liveObservationSrc || renderRouteHref || selectedCameraRenderableFallback;
   const selectedObservationSrc = frameObservationSrc;
   const activeRolloutChunkId = String(runtimeRollout?.active_chunk_id || "").trim();
-  const hasLiveVideoObservation = Boolean(liveVideoSrc && activeRolloutChunkId && !observationLoadError);
+  // True when either the MSE path has data or the blob-rotation fallback is ready.
+  const hasLiveVideoObservation = Boolean(
+    liveVideoSrc && (activeRolloutChunkId || pendingMseChunkId) && !observationLoadError,
+  );
   const hasVisibleObservation = Boolean(
     (frameObservationSrc && isRenderableObservationPath(frameObservationSrc) && !observationLoadError) ||
       hasLiveVideoObservation,
@@ -1244,9 +1260,20 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
         return;
       }
       try {
-        const payload = JSON.parse(String(event.data || "")) as Record<string, unknown>;
-        if (payload && typeof payload === "object" && !("error" in payload)) {
-          setRuntimeStreamState(payload);
+        const msg = JSON.parse(String(event.data || "")) as Record<string, unknown>;
+        if (!msg || typeof msg !== "object" || "error" in msg) {
+          return;
+        }
+        if (msg.type === "state" && msg.payload && typeof msg.payload === "object") {
+          // Session 8+ typed state broadcast
+          setRuntimeStreamState(msg.payload as Record<string, unknown>);
+        } else if (msg.type === "media_event" && msg.payload && typeof msg.payload === "object") {
+          // Session 8+: chunk_ready / chunk_underrun / chunk_generation_started
+          // — emitted immediately by the chunk worker, not delayed by the 250ms poll.
+          handleMediaEventRef.current?.(msg.payload as Record<string, unknown>);
+        } else if (!("type" in msg)) {
+          // Legacy (pre-Session 8): plain state broadcast without type wrapper.
+          setRuntimeStreamState(msg);
         }
       } catch {
         // Ignore malformed runtime messages.
@@ -1262,6 +1289,149 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       websocket.close();
     };
   }, [runtimeInteractive, runtimeWebsocketBaseUrl, sessionId]);
+
+  // Keep handleMediaEventRef always current so it closes over fresh setState fns.
+  // No dep array — runs on every render (cheap ref assignment).
+  useEffect(() => {
+    handleMediaEventRef.current = (ev: Record<string, unknown>) => {
+      const evtName = String(ev.event || "");
+      const chunkId = String(ev.chunk_id || "");
+      if (evtName === "chunk_ready" && chunkId) {
+        // Signal the MSE append effect immediately (bypasses 250ms state poll).
+        setPendingMseChunkId(chunkId);
+        setLiveVideoChunkId(chunkId);
+        setLiveMediaStatus("playing");
+      } else if (evtName === "chunk_underrun") {
+        setLiveMediaStatus("underrun");
+      }
+      // chunk_generation_started: no UI action needed (could add a spinner here)
+    };
+  });
+
+  // MSE fetch-and-append effect: fires immediately when a chunk_ready event
+  // arrives via the WS media_event channel (target: <50ms after chunk is ready).
+  // Falls back to blob-URL rotation when MSE is unavailable (older browsers).
+  useEffect(() => {
+    if (!pendingMseChunkId || !runtimeInteractive || !sessionId) return;
+    if (mseChunksAppendedRef.current.has(pendingMseChunkId)) return;
+    mseChunksAppendedRef.current.add(pendingMseChunkId);
+
+    let cancelled = false;
+    const chunkId = pendingMseChunkId;
+    const video = liveVideoRef.current;
+    const cameraId = selectedCameraId || primaryCameraId || "head_rgb";
+
+    // Initialise MSE lazily on first chunk (video element must be in DOM).
+    const ensureMse = (): Promise<SourceBuffer | null> => {
+      if (mseReadyRef.current && sourceBufferRef.current) {
+        return Promise.resolve(sourceBufferRef.current);
+      }
+      if (!("MediaSource" in window) || !video) return Promise.resolve(null);
+
+      return new Promise<SourceBuffer | null>((resolve) => {
+        const ms = new MediaSource();
+        mediaSourceRef.current = ms;
+
+        ms.addEventListener(
+          "sourceopen",
+          () => {
+            // H.264 baseline is universally supported; fall back to generic video/mp4.
+            const MIME = MediaSource.isTypeSupported('video/mp4; codecs="avc1.42E01E"')
+              ? 'video/mp4; codecs="avc1.42E01E"'
+              : "video/mp4";
+            try {
+              const sb = ms.addSourceBuffer(MIME);
+              // sequence mode: browser assigns monotonically increasing timestamps
+              // so each complete fMP4 appended in order plays seamlessly.
+              sb.mode = "sequence";
+              sourceBufferRef.current = sb;
+              mseReadyRef.current = true;
+              sb.addEventListener("updateend", () => {
+                const queue = msePendingRef.current;
+                if (queue.length > 0 && !sb.updating) {
+                  const next = queue.shift()!;
+                  try {
+                    sb.appendBuffer(next);
+                  } catch {
+                    msePendingRef.current = [];
+                  }
+                }
+              });
+              resolve(sb);
+            } catch {
+              URL.revokeObjectURL(video.src);
+              resolve(null);
+            }
+          },
+          { once: true },
+        );
+
+        // Attaching src triggers sourceopen.
+        const blobUrl = URL.createObjectURL(ms);
+        video.src = blobUrl;
+        // Store so hasLiveVideoObservation becomes true and <video> renders.
+        setLiveVideoSrc(blobUrl);
+      });
+    };
+
+    void (async () => {
+      try {
+        const sb = await ensureMse();
+        if (cancelled) return;
+
+        const response = await authorizedFetch(
+          `/api/site-worlds/sessions/${encodeURIComponent(sessionId)}/media?cameraId=${encodeURIComponent(cameraId)}&chunkId=${encodeURIComponent(chunkId)}`,
+          { cache: "no-store" },
+        );
+        if (cancelled) return;
+
+        const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+        if (!response.ok || contentType.includes("application/json")) return;
+        if (!contentType.startsWith("video/")) return;
+
+        setLiveObservationRenderSource(
+          String(response.headers.get("x-blueprint-render-source") || "").trim(),
+        );
+        setLiveMediaStatus(
+          String(response.headers.get("x-blueprint-media-status") || "playing").trim(),
+        );
+        setObservationLoadError(false);
+
+        if (sb && mseReadyRef.current && mediaSourceRef.current?.readyState === "open") {
+          // MSE path: append fMP4 segment into existing SourceBuffer — no flash.
+          const data = await response.arrayBuffer();
+          if (cancelled) return;
+          if (sb.updating) {
+            msePendingRef.current.push(data);
+          } else {
+            try {
+              sb.appendBuffer(data);
+            } catch {
+              // appendBuffer failed (codec change, quota exceeded, etc) — reset.
+              msePendingRef.current = [];
+            }
+          }
+        } else {
+          // Fallback: blob URL rotation (causes brief re-buffer but works everywhere).
+          const blob = await response.blob();
+          if (cancelled) return;
+          const objectUrl = URL.createObjectURL(blob);
+          setLiveVideoSrc((current) => {
+            if (current.startsWith("blob:") && !mseReadyRef.current) {
+              URL.revokeObjectURL(current);
+            }
+            return objectUrl;
+          });
+        }
+      } catch {
+        if (!cancelled) setLiveMediaStatus("media_failed");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingMseChunkId, runtimeInteractive, sessionId, selectedCameraId, primaryCameraId]);
 
   useEffect(() => {
     if (!runtimeInteractive || !sessionId || !activeRolloutChunkId) {
@@ -2065,7 +2235,11 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     >
                       {hasLiveVideoObservation ? (
                         <video
-                          key={liveVideoChunkId}
+                          // Do NOT use key={liveVideoChunkId} here: that would
+                          // remount the element on each chunk transition, forcing
+                          // a full re-buffer and causing the visible flash we're
+                          // eliminating with MSE. The element is stable; MSE
+                          // appends new fMP4 segments into its SourceBuffer.
                           ref={liveVideoRef}
                           src={liveVideoSrc}
                           className={`absolute inset-0 h-full w-full ${
