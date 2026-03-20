@@ -721,7 +721,7 @@ describe("site world session routes", () => {
       expect(response.status).toBe(201);
       expect(payload.status).toBe("ready");
       expect(String(payload.runtimeBackend)).toBe("neoverse");
-      expect(String(payload.workspaceUrl)).toContain("/site-worlds/sw-chi-01/workspace?sessionId=");
+      expect(String(payload.workspaceUrl)).toContain("/world-models/sw-chi-01/workspace?sessionId=");
       expect(state.hostedSessions.size).toBe(1);
       const stored = state.hostedSessions.get(String(payload.sessionId)) as Record<string, unknown>;
       expect((stored.siteModel as Record<string, unknown>).sceneId).toBe("scene-harborview-grocery-annex");
@@ -1400,7 +1400,7 @@ describe("site world session routes", () => {
       });
       const reusePayload = (await reuse.json()) as Record<string, unknown>;
       expect([200, 201]).toContain(reuse.status);
-      expect(String(reusePayload.workspaceUrl || "")).toContain("/site-worlds/sw-chi-01/workspace?sessionId=");
+      expect(String(reusePayload.workspaceUrl || "")).toContain("/world-models/sw-chi-01/workspace?sessionId=");
     } finally {
       await stopServer(server);
     }
@@ -1608,7 +1608,7 @@ describe("site world session routes", () => {
       expect(response.status).toBe(201);
       expect(payload.launchable).toBe(true);
       expect(payload.uiReady).toBe(false);
-      expect(String(payload.workspaceUrl || "")).toContain("/site-worlds/sw-chi-01/workspace?sessionId=");
+      expect(String(payload.workspaceUrl || "")).toContain("/world-models/sw-chi-01/workspace?sessionId=");
       expect(state.hostedSessions.size).toBe(1);
       const storedSession = Array.from(state.hostedSessions.values())[0] as Record<string, unknown>;
       expect((storedSession.presentationLaunchState as Record<string, unknown>)?.status).toBe("artifact_backed");

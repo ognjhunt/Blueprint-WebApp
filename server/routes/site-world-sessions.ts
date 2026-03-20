@@ -506,7 +506,7 @@ async function findReusablePresentationSession(uid: string, siteWorldId: string)
 }
 
 function buildWorkspaceUrl(siteWorldId: string, sessionId: string) {
-  return `/site-worlds/${siteWorldId}/workspace?sessionId=${encodeURIComponent(sessionId)}`;
+  return `/world-models/${siteWorldId}/workspace?sessionId=${encodeURIComponent(sessionId)}`;
 }
 
 function buildSessionCreateResponse(record: HostedSessionRecord) {
