@@ -8,6 +8,7 @@ import { ProvenanceBadge } from "@/components/site/DatasheetPanel";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
+import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 
 interface MarketplaceCardProps {
   item: SyntheticDataset | MarketplaceScene | TrainingDataset;
@@ -85,7 +86,10 @@ export function MarketplaceCard({ item, type }: MarketplaceCardProps) {
       try {
         const response = await fetch("/api/create-checkout-session", {
           method: "POST",
-          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+          headers: await withFirebaseAuthHeaders(
+            currentUser,
+            await withCsrfHeader({ "Content-Type": "application/json" }),
+          ),
           body: JSON.stringify({
             sessionType: "marketplace",
             successPath: `${detailPath}?checkout=success`,

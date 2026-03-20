@@ -5,6 +5,7 @@ import { createServer } from "http";
 import rateLimit from "express-rate-limit";
 
 import { registerRoutes } from "./routes";
+import { stripeWebhookHandler } from "./routes/stripe-webhooks";
 import { handleHostedSessionUiUpgrade } from "./routes/site-world-sessions";
 import { setupVite, serveStatic } from "./vite";
 import { attachRequestMeta, logger, generateTraceId, logSecurityEvent } from "./logger";
@@ -90,6 +91,11 @@ const hostedSessionLimiter = createRateLimiter({
 
 // Configure middleware
 const defaultBodyLimit = env.API_BODY_LIMIT || "1mb";
+app.post(
+  "/api/stripe/webhooks",
+  express.raw({ type: "application/json", limit: defaultBodyLimit }),
+  stripeWebhookHandler,
+);
 app.use(express.json({ limit: defaultBodyLimit }));
 app.use(express.urlencoded({ extended: false, limit: defaultBodyLimit }));
 

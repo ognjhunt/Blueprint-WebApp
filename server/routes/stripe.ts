@@ -1,18 +1,60 @@
-import { Router, type Response } from "express";
+import { Router, type Request, type Response } from "express";
 import type Stripe from "stripe";
 import { HTTP_STATUS } from "../constants/http-status";
 import {
   STRIPE_ONBOARDING_REFRESH_URL,
   STRIPE_ONBOARDING_RETURN_URL,
-  getStripeConnectAccountId,
-  stripeConnectAccountConfigured,
   stripeClient,
 } from "../constants/stripe";
+import {
+  beginCreatorPayoutDisbursement,
+  failCreatorPayoutDisbursement,
+  finalizeCreatorPayoutDisbursement,
+  markCreatorPayoutDisbursementFunded,
+  markCreatorPayoutDisbursementFundingFailure,
+} from "../utils/accounting";
+import { resolveStripeAccountForRequest } from "../utils/stripeConnectAccounts";
 
 const VALID_SCHEDULES = new Set(["daily", "weekly", "monthly", "manual"]);
 type OnboardingStatusCode = typeof HTTP_STATUS.OK | typeof HTTP_STATUS.CREATED;
 
 const router = Router();
+
+router.use((req: Request, res: Response, next) => {
+  const authenticatedUid = String(res.locals.firebaseUser?.uid || "").trim();
+  if (!authenticatedUid) {
+    return next();
+  }
+
+  const headerValue = String(req.header("X-Blueprint-Creator-Id") || "").trim();
+  const queryValue = String(req.query.creator_id || "").trim();
+  const bodyValue =
+    typeof req.body?.creator_id === "string" ? req.body.creator_id.trim() : "";
+  const requestedCreatorId = headerValue || queryValue || bodyValue;
+
+  if (requestedCreatorId && requestedCreatorId !== authenticatedUid) {
+    return res.status(403).json({
+      error: "Creator identity does not match authenticated user",
+    });
+  }
+
+  if (req.method === "GET" || req.method === "DELETE") {
+    if (!String(req.query.creator_id || "").trim()) {
+      (req.query as Record<string, unknown>).creator_id = authenticatedUid;
+    }
+  } else {
+    const nextBody =
+      req.body && typeof req.body === "object"
+        ? { ...(req.body as Record<string, unknown>) }
+        : {};
+    if (typeof nextBody.creator_id !== "string" || !nextBody.creator_id.trim()) {
+      nextBody.creator_id = authenticatedUid;
+    }
+    req.body = nextBody;
+  }
+
+  next();
+});
 
 async function fetchPrimaryBankAccount(
   stripe: Stripe,
@@ -35,36 +77,60 @@ function ensureStripeConfigured(res: Response) {
     });
     return false;
   }
-  if (!stripeConnectAccountConfigured) {
-    res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({
-      error: "Stripe Connect account is not configured.",
-    });
-    return false;
-  }
 
   return true;
 }
 
-function getStripeContext(res: Response) {
+async function getScopedStripeContext(
+  req: Request,
+  res: Response,
+  options?: {
+    createIfMissing?: boolean;
+  },
+) {
   if (!ensureStripeConfigured(res) || !stripeClient) {
     return null;
   }
 
-  const accountId = getStripeConnectAccountId();
-  if (!accountId) {
+  const resolution = await resolveStripeAccountForRequest(req, {
+    createIfMissing: options?.createIfMissing,
+  });
+  if (!resolution.accountId) {
+    if (resolution.creatorId) {
+      res.status(HTTP_STATUS.NOT_FOUND).json({
+        error: "Creator Stripe account is not set up yet.",
+      });
+      return null;
+    }
+
     res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({
       error: "Stripe Connect account is not configured.",
     });
     return null;
   }
 
-  return { stripe: stripeClient, accountId };
+  return {
+    stripe: stripeClient,
+    accountId: resolution.accountId,
+    creatorId: resolution.creatorId,
+    source: resolution.source,
+  };
 }
 
-router.get("/account", async (_req, res) => {
+router.get("/account", async (req, res) => {
   try {
-    const stripeContext = getStripeContext(res);
+    const stripeContext = await getScopedStripeContext(req, res);
     if (!stripeContext) {
+      if (String(req.header("X-Blueprint-Creator-Id") || "").trim()) {
+        return res.status(200).json({
+          onboarding_complete: false,
+          payouts_enabled: false,
+          payout_schedule: "manual",
+          instant_payout_eligible: false,
+          next_payout: null,
+          requirements_due: null,
+        });
+      }
       return;
     }
     const { stripe, accountId } = stripeContext;
@@ -110,9 +176,9 @@ router.get("/account", async (_req, res) => {
   }
 });
 
-router.get("/accounts/current", async (_req, res) => {
+router.get("/accounts/current", async (req, res) => {
   try {
-    const stripeContext = getStripeContext(res);
+    const stripeContext = await getScopedStripeContext(req, res);
     if (!stripeContext) {
       return;
     }
@@ -139,10 +205,13 @@ router.get("/accounts/current", async (_req, res) => {
 });
 
 async function createOnboardingLink(
+  req: Request,
   res: Response,
   statusCode: OnboardingStatusCode = HTTP_STATUS.OK,
 ) {
-  const stripeContext = getStripeContext(res);
+  const stripeContext = await getScopedStripeContext(req, res, {
+    createIfMissing: true,
+  });
   if (!stripeContext) {
     return res;
   }
@@ -165,9 +234,9 @@ async function createOnboardingLink(
   });
 }
 
-router.post("/account/onboarding_link", async (_req, res) => {
+router.post("/account/onboarding_link", async (req, res) => {
   try {
-    await createOnboardingLink(res, HTTP_STATUS.CREATED);
+    await createOnboardingLink(req, res, HTTP_STATUS.CREATED);
   } catch (error) {
     const status = (error as any)?.status || 500;
     const message = (error as Error).message || "Failed to create onboarding link";
@@ -175,9 +244,9 @@ router.post("/account/onboarding_link", async (_req, res) => {
   }
 });
 
-router.get("/account/onboarding_link", async (_req, res) => {
+router.get("/account/onboarding_link", async (req, res) => {
   try {
-    await createOnboardingLink(res, HTTP_STATUS.OK);
+    await createOnboardingLink(req, res, HTTP_STATUS.OK);
   } catch (error) {
     const status = (error as any)?.status || 500;
     const message = (error as Error).message || "Failed to create onboarding link";
@@ -187,7 +256,7 @@ router.get("/account/onboarding_link", async (_req, res) => {
 
 router.put("/account/payout_schedule", async (req, res) => {
   try {
-    const stripeContext = getStripeContext(res);
+    const stripeContext = await getScopedStripeContext(req, res);
     if (!stripeContext) {
       return;
     }
@@ -220,16 +289,122 @@ router.put("/account/payout_schedule", async (req, res) => {
 
 router.post("/account/instant_payout", async (req, res) => {
   try {
-    const stripeContext = getStripeContext(res);
+    const stripeContext = await getScopedStripeContext(req, res);
     if (!stripeContext) {
       return;
     }
 
     const amount = req.body?.amount_cents;
 
+    if (
+      amount !== undefined &&
+      (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0)
+    ) {
+      return res.status(400).json({
+        error: "Invalid amount_cents. It must be a positive integer when provided.",
+      });
+    }
+
+    if (stripeContext.creatorId) {
+      const disbursement = await beginCreatorPayoutDisbursement({
+        creatorId: stripeContext.creatorId,
+        stripeConnectAccountId: stripeContext.accountId,
+        requestedAmountCents:
+          typeof amount === "number" ? Math.round(amount) : undefined,
+      });
+      if (!disbursement) {
+        return res.status(409).json({
+          error: "No approved capturer payouts are available for disbursement.",
+        });
+      }
+
+      let transferFunded = Boolean(disbursement.disbursement.stripe_transfer_id);
+      try {
+        if (!transferFunded) {
+          const platformBalance = await stripeContext.stripe.balance.retrieve();
+          const availableCents = (platformBalance.available || [])
+            .filter((entry) => entry.currency === "usd")
+            .reduce((sum, entry) => sum + entry.amount, 0);
+
+          if (availableCents < disbursement.disbursement.disbursed_amount_cents) {
+            await markCreatorPayoutDisbursementFundingFailure({
+              disbursementId: disbursement.disbursement.id,
+              status: "insufficient_platform_balance",
+              reason: "Platform treasury balance is insufficient to fund this payout.",
+              platformAvailableBalanceCents: availableCents,
+            });
+            return res.status(409).json({
+              error: "Platform treasury balance is insufficient to fund this payout.",
+            });
+          }
+
+          const transfer = await stripeContext.stripe.transfers.create({
+            amount: disbursement.disbursement.disbursed_amount_cents,
+            currency: "usd",
+            destination: stripeContext.accountId,
+            transfer_group: `creator-payout:${disbursement.disbursement.id}`,
+            metadata: {
+              creator_id: stripeContext.creatorId,
+              disbursement_id: disbursement.disbursement.id,
+            },
+          });
+
+          await markCreatorPayoutDisbursementFunded({
+            disbursementId: disbursement.disbursement.id,
+            stripeTransferId: transfer.id,
+            platformAvailableBalanceCents: availableCents,
+          });
+          transferFunded = true;
+        }
+
+        const payout = await stripeContext.stripe.payouts.create(
+          {
+            amount: disbursement.disbursement.disbursed_amount_cents,
+            currency: "usd",
+            method: "instant",
+            metadata: {
+              creator_id: stripeContext.creatorId,
+              disbursement_id: disbursement.disbursement.id,
+            },
+          },
+          { stripeAccount: stripeContext.accountId },
+        );
+
+        await finalizeCreatorPayoutDisbursement({
+          disbursementId: disbursement.disbursement.id,
+          stripePayoutId: payout.id,
+        });
+
+        return res.status(HTTP_STATUS.CREATED).json({
+          success: true,
+          payout_id: payout.id,
+          disbursement_id: disbursement.disbursement.id,
+          amount_cents: disbursement.disbursement.disbursed_amount_cents,
+        });
+      } catch (error) {
+        const reason =
+          error instanceof Error
+            ? error.message
+            : "Stripe payout creation failed.";
+        if (!transferFunded) {
+          await markCreatorPayoutDisbursementFundingFailure({
+            disbursementId: disbursement.disbursement.id,
+            status: "transfer_failed",
+            reason,
+          });
+        } else {
+          await failCreatorPayoutDisbursement({
+            disbursementId: disbursement.disbursement.id,
+            reason,
+          });
+        }
+        throw error;
+      }
+    }
+
     if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({
-        error: "Invalid amount_cents. It must be a positive integer.",
+        error: "amount_cents is required when no creator context is supplied.",
       });
     }
 
@@ -255,7 +430,7 @@ router.post("/account/instant_payout", async (req, res) => {
 
 router.delete("/accounts/:stripeAccountId", async (req, res) => {
   try {
-    const stripeContext = getStripeContext(res);
+    const stripeContext = await getScopedStripeContext(req, res);
     if (!stripeContext) {
       return;
     }

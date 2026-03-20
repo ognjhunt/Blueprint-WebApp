@@ -1,5 +1,10 @@
 import { Request, Response, Router } from "express";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import {
+  listCreatorPayouts,
+  mapCreatorPayoutStatusForLedger,
+} from "../utils/accounting";
+import { creatorIdFromRequest } from "../utils/creatorIdentity";
 
 const router = Router();
 
@@ -10,13 +15,6 @@ const DEFAULT_NOTIFICATION_PREFERENCES = {
   payouts: true,
   account: true,
 } as const;
-
-function creatorIdFromRequest(req: Request) {
-  const headerValue = String(req.header("X-Blueprint-Creator-Id") || "").trim();
-  const queryValue = String(req.query.creator_id || "").trim();
-  const bodyValue = typeof req.body?.creator_id === "string" ? req.body.creator_id.trim() : "";
-  return headerValue || queryValue || bodyValue;
-}
 
 function toIso(value: unknown) {
   const raw = value as { toDate?: () => Date } | string | Date | null | undefined;
@@ -31,6 +29,37 @@ function toIso(value: unknown) {
   }
   return raw.toDate?.()?.toISOString?.() || null;
 }
+
+router.use((req: Request, res: Response, next) => {
+  const authenticatedUid = String(res.locals.firebaseUser?.uid || "").trim();
+  if (!authenticatedUid) {
+    return next();
+  }
+
+  const requestedCreatorId = creatorIdFromRequest(req);
+  if (requestedCreatorId && requestedCreatorId !== authenticatedUid) {
+    return res.status(403).json({
+      error: "Creator identity does not match authenticated user",
+    });
+  }
+
+  if (req.method === "GET" || req.method === "DELETE") {
+    if (!String(req.query.creator_id || "").trim()) {
+      (req.query as Record<string, unknown>).creator_id = authenticatedUid;
+    }
+  } else {
+    const nextBody =
+      req.body && typeof req.body === "object"
+        ? { ...(req.body as Record<string, unknown>) }
+        : {};
+    if (typeof nextBody.creator_id !== "string" || !nextBody.creator_id.trim()) {
+      nextBody.creator_id = authenticatedUid;
+    }
+    req.body = nextBody;
+  }
+
+  next();
+});
 
 function serializeCapture(doc: FirebaseFirestore.QueryDocumentSnapshot | FirebaseFirestore.DocumentSnapshot) {
   const data = (doc.data() || {}) as Record<string, unknown>;
@@ -97,27 +126,20 @@ router.get("/earnings", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "Missing creator id" });
   }
 
-  const snapshot = await db
-    .collection("creatorCaptures")
-    .where("creator_id", "==", creatorId)
-    .get();
-
-  let totalEarnedCents = 0;
-  let pendingPayoutCents = 0;
-  let scansCompleted = 0;
-
-  snapshot.docs.forEach((doc) => {
-    const data = doc.data() as Record<string, unknown>;
-    const amount = typeof data.estimated_payout_cents === "number" ? data.estimated_payout_cents : 0;
-    const status = String(data.status || "");
-    if (["approved", "paid"].includes(status)) {
-      totalEarnedCents += amount;
-      scansCompleted += 1;
-    }
-    if (["submitted", "under_review", "approved"].includes(status)) {
-      pendingPayoutCents += amount;
-    }
-  });
+  const payouts = await listCreatorPayouts(creatorId);
+  const totalEarnedCents = payouts.reduce((sum, payout) => {
+    return payout.status === "paid"
+      ? sum + payout.approved_amount_cents
+      : sum;
+  }, 0);
+  const pendingPayoutCents = payouts.reduce((sum, payout) => {
+    return ["approved", "in_transit", "review_required"].includes(payout.status)
+      ? sum + payout.approved_amount_cents
+      : sum;
+  }, 0);
+  const scansCompleted = payouts.filter((payout) =>
+    ["approved", "in_transit", "paid"].includes(payout.status),
+  ).length;
 
   return res.json({
     total_earned_cents: totalEarnedCents,
@@ -392,26 +414,19 @@ router.get("/payouts/ledger", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "Missing creator id" });
   }
 
-  const snapshot = await db
-    .collection("creatorCaptures")
-    .where("creator_id", "==", creatorId)
-    .get();
-
-  const entries = snapshot.docs
-    .filter((doc) => ["approved", "paid"].includes(String(doc.data().status || "")))
+  const entries = (await listCreatorPayouts(creatorId))
+    .filter((entry) => entry.approved_amount_cents > 0)
     .slice(0, 50)
-    .map((doc) => {
-    const data = doc.data() as Record<string, unknown>;
-    const capturedAt = toIso(data.captured_at) || new Date().toISOString();
-    return {
-      id: String(data.id || doc.id),
-      scheduled_for: capturedAt,
-      amount_cents:
-        typeof data.estimated_payout_cents === "number" ? data.estimated_payout_cents : 0,
-      status: data.status === "paid" ? "paid" : "pending",
-      description: String(data.target_address || "Capture payout"),
-    };
-  });
+    .map((entry) => ({
+      id: entry.id,
+      scheduled_for:
+        entry.paid_at || entry.approved_at || entry.updated_at || new Date().toISOString(),
+      amount_cents: entry.approved_amount_cents,
+      status: mapCreatorPayoutStatusForLedger(entry.status),
+      description: entry.scene_id
+        ? `Capture payout for ${entry.scene_id}`
+        : "Capture payout",
+    }));
 
   return res.json(entries);
 });

@@ -13,6 +13,11 @@ import {
   type LicenseTier,
 } from "../../../client/src/data/content";
 import { findPublishedMarketplaceInventoryBySku } from "../../utils/marketplaceInventory";
+import {
+  attachStripeCheckoutSessionToBuyerOrder,
+  createBuyerOrderDraft,
+  markBuyerOrderCheckoutFailure,
+} from "../../utils/accounting";
 
 type PaymentSessionType = "onboarding" | "legacy-hourly" | "marketplace";
 
@@ -102,6 +107,51 @@ function findTrainingBySku(sku: string) {
 
 function roundToCurrency(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+export function buildMarketplaceCheckoutMetadata(params: {
+  orderId: string;
+  marketplaceItem: NonNullable<CheckoutRequestBody["marketplaceItem"]>;
+  itemType: string | undefined;
+  liveInventoryRecord?: {
+    deliveryMode?: string | null;
+    fulfillmentStatus?: string | null;
+  } | null;
+  computedPrice: number;
+  quantity: number;
+  expectedBasePrice: number;
+  licenseTier: LicenseTier;
+  exclusivity: ExclusivityType;
+  addons: string[];
+}) {
+  const {
+    orderId,
+    marketplaceItem,
+    itemType,
+    liveInventoryRecord,
+    computedPrice,
+    quantity,
+    expectedBasePrice,
+    licenseTier,
+    exclusivity,
+    addons,
+  } = params;
+  return {
+    order_id: orderId,
+    marketplaceSku: marketplaceItem.sku || "",
+    marketplaceItemType: itemType || "",
+    marketplaceTitle: marketplaceItem.title || "",
+    marketplaceDescription: (marketplaceItem.description || "").slice(0, 500),
+    marketplacePrice: computedPrice.toFixed(2),
+    marketplaceQuantity: quantity.toString(),
+    marketplaceInventorySource: liveInventoryRecord ? "firestore" : "static",
+    marketplaceDeliveryMode: liveInventoryRecord?.deliveryMode || "",
+    marketplaceFulfillmentStatus: liveInventoryRecord?.fulfillmentStatus || "",
+    licenseTier,
+    exclusivity,
+    basePrice: expectedBasePrice.toFixed(2),
+    addons: addons.join(","),
+  };
 }
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
@@ -322,50 +372,113 @@ export default async function handler(req: Request, res: Response) {
         ? `${sanitizedDescription} | ${licenseLabel}${exclusivityLabel}`
         : `${licenseLabel}${exclusivityLabel}`;
 
-      const session = await stripe.checkout.sessions.create({
-        mode: "payment",
-        payment_method_types: ["card"],
-        line_items: [
-          {
-            price_data: {
-              currency: "usd",
-              product_data: {
-                name: marketplaceItem.title,
-                description: fullDescription || undefined,
-                metadata: {
-                  sku: marketplaceItem.sku || "",
-                  itemType: marketplaceItem.itemType || null,
-                  licenseTier,
-                  exclusivity,
+      const successUrl = resolveUrl(
+        originBase,
+        body.successPath,
+        "/environments?checkout=success",
+      );
+      const cancelUrl = resolveUrl(
+        originBase,
+        body.cancelPath,
+        "/environments?checkout=cancel",
+      );
+
+      const firebaseUser = (res.locals.firebaseUser || {}) as {
+        uid?: string;
+        email?: string;
+      };
+      const order = await createBuyerOrderDraft({
+        buyerUserId:
+          typeof firebaseUser.uid === "string" ? firebaseUser.uid : null,
+        buyerEmail:
+          typeof firebaseUser.email === "string" ? firebaseUser.email : null,
+        sku: marketplaceItem.sku,
+        title: marketplaceItem.title,
+        description: sanitizedDescription,
+        itemType: itemType || liveInventoryRecord?.itemType || "",
+        quantity,
+        licenseTier,
+        exclusivity,
+        addons,
+        inventorySource: liveInventoryRecord ? "firestore-live" : "static",
+        liveInventoryRecordId: liveInventoryRecord?.id || null,
+        deliveryMode: liveInventoryRecord?.deliveryMode || null,
+        inventoryFulfillmentStatus: liveInventoryRecord?.fulfillmentStatus || null,
+        rightsStatus: liveInventoryRecord?.rightsStatus || null,
+        unitAmountCents: Math.round(computedPrice * 100),
+        totalAmountCents: Math.round(computedPrice * 100 * quantity),
+        currency: "usd",
+        successUrl,
+        cancelUrl,
+      });
+      if (!order) {
+        return res.status(500).json({ error: "Order ledger is not available" });
+      }
+
+      let session: Stripe.Checkout.Session;
+      try {
+        session = await stripe.checkout.sessions.create({
+          client_reference_id: order.id,
+          mode: "payment",
+          payment_method_types: ["card"],
+          line_items: [
+            {
+              price_data: {
+                currency: "usd",
+                product_data: {
+                  name: marketplaceItem.title,
+                  description: fullDescription || undefined,
+                  metadata: {
+                    orderId: order.id,
+                    sku: marketplaceItem.sku || "",
+                    itemType: marketplaceItem.itemType || null,
+                    licenseTier,
+                    exclusivity,
+                  },
                 },
+                unit_amount: Math.round(computedPrice * 100),
               },
-              unit_amount: Math.round(computedPrice * 100),
+              quantity,
             },
+          ],
+          metadata: buildMarketplaceCheckoutMetadata({
+            orderId: order.id,
+            marketplaceItem,
+            itemType,
+            liveInventoryRecord,
+            computedPrice,
             quantity,
+            expectedBasePrice,
+            licenseTier,
+            exclusivity,
+            addons,
+          }),
+          payment_intent_data: {
+            metadata: {
+              order_id: order.id,
+              marketplace_sku: marketplaceItem.sku || "",
+            },
           },
-        ],
-        metadata: {
-          marketplaceSku: marketplaceItem.sku || "",
-          marketplaceItemType: itemType || "",
-          marketplaceTitle: marketplaceItem.title,
-          marketplaceDescription: sanitizedDescription,
-          marketplacePrice: computedPrice.toFixed(2),
-          marketplaceQuantity: quantity.toString(),
-          marketplaceInventorySource: liveInventoryRecord ? "firestore" : "static",
-          marketplaceDeliveryMode: liveInventoryRecord?.deliveryMode || "",
-          marketplaceFulfillmentStatus: liveInventoryRecord?.fulfillmentStatus || "",
-          // Hybrid marketplace metadata
-          licenseTier,
-          exclusivity,
-          basePrice: expectedBasePrice.toFixed(2),
-          addons: addons.join(','),
-        },
-        success_url: resolveUrl(
-          originBase,
-          body.successPath,
-          "/environments?checkout=success",
-        ),
-        cancel_url: resolveUrl(originBase, body.cancelPath, "/environments?checkout=cancel"),
+          success_url: successUrl,
+          cancel_url: cancelUrl,
+        });
+      } catch (error) {
+        await markBuyerOrderCheckoutFailure({
+          orderId: order.id,
+          reason:
+            error instanceof Error
+              ? error.message
+              : "Stripe failed to create the checkout session.",
+        });
+        throw error;
+      }
+
+      await attachStripeCheckoutSessionToBuyerOrder({
+        orderId: order.id,
+        checkoutSessionId: session.id,
+        checkoutSessionUrl:
+          typeof session.url === "string" ? session.url : null,
+        livemode: session.livemode,
       });
 
       return res.json({ sessionId: session.id, sessionUrl: session.url });

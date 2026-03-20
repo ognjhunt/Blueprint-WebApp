@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet";
 import { loadStripe } from "@stripe/stripe-js";
 import { withCsrfHeader } from "@/lib/csrf";
+import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   scenes,
   syntheticDatasets,
@@ -54,6 +56,7 @@ import {
   Users,
   Zap,
   Info,
+  Download,
 } from "lucide-react";
 
 // Icon mapping for premium capabilities
@@ -81,7 +84,13 @@ type PurchaseOption = 'bundle' | 'scene' | 'episodes';
 type DatasetTier = 'basic' | 'standard' | 'premium';
 
 export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
+  const { currentUser } = useAuth();
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [entitlementState, setEntitlementState] = useState<{
+    entitlement: Record<string, unknown> | null;
+    access: { url: string; label: string; kind: string } | null;
+  } | null>(null);
+  const [isLoadingEntitlement, setIsLoadingEntitlement] = useState(false);
   const [selectedOption, setSelectedOption] = useState<PurchaseOption>('bundle');
   const [selectedAddons, setSelectedAddons] = useState<Set<string>>(new Set());
   const [showAddons, setShowAddons] = useState(true);
@@ -90,6 +99,10 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
   // Hybrid marketplace state - license tiers and exclusivity
   const [selectedLicenseTier, setSelectedLicenseTier] = useState<LicenseTier>('commercial');
   const [selectedExclusivity, setSelectedExclusivity] = useState<ExclusivityType>('non-exclusive');
+  const checkoutResult =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("checkout")
+      : null;
 
   // Scroll to top when navigating to this page
   useEffect(() => {
@@ -198,6 +211,57 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
   const selectedLicenseConfig = licenseTiers.find(t => t.tier === selectedLicenseTier);
   const selectedExclusivityConfig = exclusivityOptions.find(o => o.type === selectedExclusivity);
 
+  useEffect(() => {
+    if (!currentUser || !detailSlug) {
+      setEntitlementState(null);
+      return;
+    }
+
+    let cancelled = false;
+    let attempts = checkoutResult === "success" ? 4 : 1;
+
+    const loadEntitlement = async () => {
+      setIsLoadingEntitlement(true);
+      while (attempts > 0 && !cancelled) {
+        const response = await fetch(
+          `/api/marketplace/entitlements/current?sku=${encodeURIComponent(detailSlug)}`,
+          {
+            headers: await withFirebaseAuthHeaders(currentUser, {
+              Accept: "application/json",
+            }),
+          },
+        );
+
+        if (response.ok) {
+          const payload = (await response.json()) as {
+            entitlement: Record<string, unknown> | null;
+            access: { url: string; label: string; kind: string } | null;
+          };
+          if (!cancelled) {
+            setEntitlementState(payload);
+          }
+          if (payload.entitlement || checkoutResult !== "success") {
+            break;
+          }
+        }
+
+        attempts -= 1;
+        if (attempts > 0) {
+          await new Promise((resolve) => window.setTimeout(resolve, 1500));
+        }
+      }
+      if (!cancelled) {
+        setIsLoadingEntitlement(false);
+      }
+    };
+
+    void loadEntitlement();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [checkoutResult, currentUser, detailSlug]);
+
   const handleCheckout = useCallback(async () => {
     if (!marketplaceItem || isRedirecting) return;
 
@@ -236,7 +300,10 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     try {
       const response = await fetch("/api/create-checkout-session", {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withFirebaseAuthHeaders(
+          currentUser,
+          await withCsrfHeader({ "Content-Type": "application/json" }),
+        ),
           body: JSON.stringify({
             sessionType: "marketplace",
             successPath: `${detailPath}?checkout=success`,
@@ -301,6 +368,7 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
     selectedExclusivity,
     selectedLicenseConfig,
     basePrice,
+    currentUser,
   ]);
 
   if (marketplaceItem) {
@@ -404,6 +472,40 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
               </h1>
               <p className="text-lg text-zinc-600">{marketplaceItem.description}</p>
             </div>
+
+            {(checkoutResult === "success" || entitlementState?.entitlement) && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="space-y-2">
+                    <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
+                      <Check className="h-3.5 w-3.5" />
+                      Licensed Access
+                    </div>
+                    <h2 className="text-lg font-semibold text-emerald-950">
+                      {entitlementState?.entitlement
+                        ? "Your purchase is on file."
+                        : "Checkout completed. Waiting for provisioned access."}
+                    </h2>
+                    <p className="text-sm text-emerald-900/80">
+                      {entitlementState?.access
+                        ? "This page is now reading your canonical entitlement record."
+                        : isLoadingEntitlement
+                          ? "Waiting for the server-authoritative order ledger to finish provisioning access."
+                          : "Your order was recorded, but access still needs final provisioning."}
+                    </p>
+                  </div>
+                  {entitlementState?.access ? (
+                    <a
+                      href={entitlementState.access.url}
+                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                    >
+                      <Download className="h-4 w-4" />
+                      {entitlementState.access.label}
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            )}
 
             <div className="overflow-hidden rounded-3xl border border-zinc-200">
               <img
@@ -989,7 +1091,10 @@ export default function EnvironmentDetail({ params }: EnvironmentDetailProps) {
       try {
         const response = await fetch("/api/create-checkout-session", {
           method: "POST",
-          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+          headers: await withFirebaseAuthHeaders(
+            currentUser,
+            await withCsrfHeader({ "Content-Type": "application/json" }),
+          ),
           body: JSON.stringify({
             sessionType: "marketplace",
             successPath: `${detailPath}?checkout=success`,

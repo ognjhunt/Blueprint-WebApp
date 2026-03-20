@@ -28,6 +28,7 @@ import siteWorldsRouter from "./routes/site-worlds";
 import siteWorldSessionsRouter, { publicSiteWorldSessionsRouter } from "./routes/site-world-sessions";
 import verifyFirebaseToken from "./middleware/verifyFirebaseToken";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
+import marketplaceEntitlementsRouter from "./routes/marketplace-entitlements";
 
 export function registerRoutes(app: Express) {
   app.use(appleAssociationRouter);
@@ -44,6 +45,11 @@ export function registerRoutes(app: Express) {
   // API routes for Express
   app.get("/api/csrf", csrfCookieHandler);
   // Public semantic search for the marketplace (CSRF-protected, no auth required).
+  app.use(
+    "/api/marketplace/entitlements",
+    verifyFirebaseToken,
+    marketplaceEntitlementsRouter,
+  );
   app.use("/api/marketplace", csrfProtection, marketplaceRouter);
   app.use("/api/errors", csrfProtection, errorsRouter);
   app.post(
@@ -102,6 +108,6 @@ export function registerRoutes(app: Express) {
   app.use("/api/gemini", csrfProtection, verifyFirebaseToken, geminiRouter);
   app.use("/api/ai-studio", csrfProtection, verifyFirebaseToken, aiStudioRouter);
   app.use("/api/qr", csrfProtection, verifyFirebaseToken, qrLinkRouter);
-  app.use("/v1/creator", creatorRouter);
-  app.use("/v1/stripe", csrfProtection, stripeAccountRouter);
+  app.use("/v1/creator", verifyFirebaseToken, creatorRouter);
+  app.use("/v1/stripe", csrfProtection, verifyFirebaseToken, stripeAccountRouter);
 }

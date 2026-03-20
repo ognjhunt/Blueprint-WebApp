@@ -2,6 +2,8 @@ import { useState, useCallback } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import { analyticsEvents } from "@/components/Analytics";
 import { withCsrfHeader } from "@/lib/csrf";
+import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
+import { useAuth } from "@/contexts/AuthContext";
 
 const stripePublishableKey =
   import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
@@ -29,6 +31,7 @@ interface UseStripeCheckoutReturn extends CheckoutState {
 }
 
 export function useStripeCheckout(): UseStripeCheckoutReturn {
+  const { currentUser } = useAuth();
   const [state, setState] = useState<CheckoutState>({
     isLoading: false,
     error: null,
@@ -47,7 +50,10 @@ export function useStripeCheckout(): UseStripeCheckoutReturn {
 
       const response = await fetch("/api/create-checkout-session", {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withFirebaseAuthHeaders(
+          currentUser,
+          await withCsrfHeader({ "Content-Type": "application/json" }),
+        ),
         body: JSON.stringify({
           sessionType: "marketplace",
           marketplaceItem: {
@@ -94,7 +100,7 @@ export function useStripeCheckout(): UseStripeCheckoutReturn {
         error: error instanceof Error ? error.message : "Checkout failed. Please try again.",
       });
     }
-  }, []);
+  }, [currentUser]);
 
   return {
     ...state,

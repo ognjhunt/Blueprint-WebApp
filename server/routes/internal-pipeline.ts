@@ -8,6 +8,11 @@ import {
 } from "../../client/src/lib/requestTaxonomy";
 import { logger } from "../logger";
 import { parsePipelineAttachmentSyncPayload } from "../utils/pipelineAttachmentContract";
+import {
+  resolveCreatorIdForCapture,
+  upsertCreatorPayoutFromPipeline,
+} from "../utils/accounting";
+import { ensureCreatorStripeAccountId } from "../utils/stripeConnectAccounts";
 import type {
   DerivedAssetEntry,
   DerivedAssetsAttachment,
@@ -320,6 +325,40 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
 
     if (deploymentReadiness) {
       updatePayload.deployment_readiness = deploymentReadiness;
+    }
+
+    const payoutRecommendationSource =
+      deploymentReadiness && typeof deploymentReadiness === "object"
+        ? (deploymentReadiness as Record<string, unknown>)
+        : null;
+    const payoutRecommendation =
+      payoutRecommendationSource &&
+      typeof payoutRecommendationSource.capturer_payout_recommendation === "object"
+        ? (payoutRecommendationSource.capturer_payout_recommendation as Record<string, unknown>)
+        : null;
+    if (parsedBody.capture_id && payoutRecommendation) {
+      const creatorId = await resolveCreatorIdForCapture(
+        String(parsedBody.capture_id || ""),
+      );
+      const stripeConnectAccountId = creatorId
+        ? await ensureCreatorStripeAccountId(creatorId)
+        : null;
+      await upsertCreatorPayoutFromPipeline({
+        captureId: String(parsedBody.capture_id || ""),
+        sceneId: String(parsedBody.scene_id || "") || null,
+        captureJobId: String(parsedBody.capture_job_id || "") || null,
+        buyerRequestId: String(parsedBody.buyer_request_id || "") || null,
+        siteSubmissionId:
+          String(parsedBody.site_submission_id || parsedBody.request_id || "") || null,
+        qualificationState: String(parsedBody.qualification_state || "") || null,
+        opportunityState: String(parsedBody.opportunity_state || "") || null,
+        recommendation: payoutRecommendation,
+        recommendationUri:
+          typeof parsedBody.artifacts?.capturer_payout_recommendation_uri === "string"
+            ? parsedBody.artifacts.capturer_payout_recommendation_uri
+            : null,
+        stripeConnectAccountId,
+      });
     }
 
     if (authoritativeStateUpdate) {

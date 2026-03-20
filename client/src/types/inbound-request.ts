@@ -125,6 +125,7 @@ export interface PipelineArtifacts {
   qualification_summary_uri?: string | null;
   capture_quality_summary_uri?: string | null;
   rights_and_compliance_summary_uri?: string | null;
+  capturer_payout_recommendation_uri?: string | null;
   privacy_processed_video_uri?: string | null;
   world_model_video_uri?: string | null;
   privacy_processing_manifest_uri?: string | null;
@@ -147,6 +148,7 @@ export interface PipelineArtifacts {
   agent_readiness_memo_uri?: string | null;
   dashboard_summary_uri?: string | null;
   scene_deployment_summary_uri?: string | null;
+  launch_gate_summary_uri?: string | null;
   scene_memory_manifest_uri?: string | null;
   scene_memory_readiness_uri?: string | null;
   conditioning_bundle_uri?: string | null;
