@@ -364,14 +364,12 @@ export function shouldScheduleLiveRenderRetry(params: {
   renderSource: string;
   runtimeInteractive: boolean;
   sessionId: string;
-  episodeId: string;
   cameraId: string;
 }) {
   return (
     params.renderSource === "canonical-authoritative-frame" &&
     params.runtimeInteractive &&
     Boolean(params.sessionId) &&
-    Boolean(params.episodeId) &&
     Boolean(params.cameraId)
   );
 }
@@ -868,7 +866,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
         ? remoteObservationFramePath
         : "";
   const canRequestLiveRender = Boolean(
-    runtimeInteractive && sessionId && latestEpisode?.episodeId && (selectedCameraId || primaryCameraId),
+    runtimeInteractive && sessionId && latestEpisode && (selectedCameraId || primaryCameraId),
   );
   const renderRouteHref =
     canRequestLiveRender
@@ -1166,7 +1164,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   }, [activeMode, explorerMoveSpeed]);
 
   useEffect(() => {
-    if (!runtimeInteractive || !sessionId || !latestEpisode?.episodeId || !(selectedCameraId || primaryCameraId)) {
+    if (!runtimeInteractive || !sessionId || !latestEpisode || !(selectedCameraId || primaryCameraId)) {
       return undefined;
     }
     const controller = new AbortController();
@@ -1239,7 +1237,6 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       controller.abort();
     };
   }, [
-    latestEpisode?.episodeId,
     latestEpisode?.stepIndex,
     observationRefreshKey,
     primaryCameraId,
@@ -1253,7 +1250,6 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       renderSource: liveObservationRenderSource,
       runtimeInteractive,
       sessionId,
-      episodeId: latestEpisode?.episodeId || "",
       cameraId: selectedCameraId || primaryCameraId || "",
     })) {
       return;
@@ -1263,7 +1259,6 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     }, LIVE_RENDER_RETRY_MS);
     return () => window.clearTimeout(timeoutId);
   }, [
-    latestEpisode?.episodeId,
     latestEpisode?.stepIndex,
     liveObservationRenderSource,
     primaryCameraId,
@@ -1563,7 +1558,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     if (!runtimeInteractive || sessionStatus !== "live" || autoBootstrapState !== "idle") {
       return;
     }
-    if (latestEpisode?.episodeId && (selectedObservationSrc || observationFramePath || remoteObservationFramePath)) {
+    if (selectedObservationSrc || observationFramePath || remoteObservationFramePath) {
       setAutoBootstrapState("done");
       return;
     }
@@ -1573,7 +1568,6 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     });
   }, [
     autoBootstrapState,
-    latestEpisode?.episodeId,
     observationFramePath,
     remoteObservationFramePath,
     runtimeInteractive,

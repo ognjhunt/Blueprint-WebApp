@@ -350,7 +350,6 @@ describe("HostedSessionWorkspace", () => {
       renderSource: "canonical-authoritative-frame",
       runtimeInteractive: true,
       sessionId: "session-retry-live",
-      episodeId: "episode-retry-live",
       cameraId: "head_rgb",
     })).toBe(true);
 
@@ -358,7 +357,6 @@ describe("HostedSessionWorkspace", () => {
       renderSource: "runtime-proxy",
       runtimeInteractive: true,
       sessionId: "session-retry-live",
-      episodeId: "episode-retry-live",
       cameraId: "head_rgb",
     })).toBe(false);
 
@@ -366,9 +364,59 @@ describe("HostedSessionWorkspace", () => {
       renderSource: "canonical-authoritative-frame",
       runtimeInteractive: false,
       sessionId: "session-retry-live",
-      episodeId: "episode-retry-live",
       cameraId: "head_rgb",
     })).toBe(false);
+  });
+
+  it("fetches the live render even when the runtime omits episodeId", async () => {
+    mockSearch = "sessionId=session-missing-episode-id";
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/api/site-worlds/sessions/session-missing-episode-id/render?cameraId=head_rgb")) {
+        return new Response("frame", { status: 200, headers: { "Content-Type": "image/png" } });
+      }
+      if (String(input).includes("/api/site-worlds/sessions/session-missing-episode-id") && (!init?.method || init.method === "GET")) {
+        return new Response(
+          JSON.stringify(
+            buildRuntimeSession({
+              sessionId: "session-missing-episode-id",
+              latestEpisode: {
+                episodeId: "",
+                taskId: "9483414B-8776-4F68-AC80-D3B3BA774A90",
+                task: "Media room",
+                scenarioId: "scenario_default",
+                scenario: "default",
+                startStateId: "start_default_start_state",
+                startState: "default_start_state",
+                status: "running",
+                stepIndex: 1,
+                done: false,
+                reward: 0.2,
+                observation: {
+                  frame_path: "/api/site-worlds/sessions/session-missing-episode-id/render?cameraId=head_rgb",
+                  primaryCameraId: "head_rgb",
+                },
+                observationCameras: [{ id: "head_rgb", role: "head", required: true, defaultEnabled: true }],
+                actionTrace: [],
+                artifactUris: {},
+              },
+            }),
+          ),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(JSON.stringify({ error: "not found" }), { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<HostedSessionWorkspace params={{ slug: "siteworld-f5fd54898cfb" }} />);
+
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(([input]) =>
+          String(input).includes("/api/site-worlds/sessions/session-missing-episode-id/render?cameraId=head_rgb"),
+        ),
+      ).toBe(true);
+    });
   });
 
   it("defaults runtime-only sessions to Live Runtime and presentation demos to Explorer", () => {
