@@ -17,6 +17,17 @@ const env = validateEnv();
 const app = express();
 const isProduction = process.env.NODE_ENV === "production";
 
+const cspConnectAllowlist = Array.from(
+  new Set(
+    [
+      env.BLUEPRINT_HOSTED_DEMO_RUNTIME_BASE_URL,
+      env.BLUEPRINT_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL,
+    ]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean),
+  ),
+);
+
 const createRateLimitStore = (prefix: string) => createRateLimitRedisStore(prefix);
 
 const createRateLimiter = ({
@@ -98,7 +109,7 @@ const cspDirectives = [
   "media-src 'self' blob: https:",
   `connect-src 'self' ${
     isProduction ? "" : "http://localhost:5173 ws://localhost:5173"
-  } https://api.openai.com https://api.lumalabs.ai https://api.firecrawl.dev https://api.gumloop.com https://public.lindy.ai https://chat.lindy.ai https://*.googleapis.com https://*.gstatic.com https://*.firebaseio.com https://*.firebaseapp.com https://firebasestorage.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://maps.googleapis.com https://places.googleapis.com https://generativelanguage.googleapis.com wss://generativelanguage.googleapis.com https://js.stripe.com`,
+  } ${cspConnectAllowlist.join(" ")} https://api.openai.com https://api.lumalabs.ai https://api.firecrawl.dev https://api.gumloop.com https://public.lindy.ai https://chat.lindy.ai https://*.googleapis.com https://*.gstatic.com https://*.firebaseio.com https://*.firebaseapp.com https://firebasestorage.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://maps.googleapis.com https://places.googleapis.com https://generativelanguage.googleapis.com wss://generativelanguage.googleapis.com https://js.stripe.com`,
   "upgrade-insecure-requests",
 ]
   .map((directive) => directive.trim())
