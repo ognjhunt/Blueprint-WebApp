@@ -1271,6 +1271,105 @@ describe("site world session routes", () => {
     }
   });
 
+  it("does not mask native runtime render failures with canonical fallback for public demos", async () => {
+    state.hostedSessions.set("public-render-native-failure", {
+      sessionId: "public-render-native-failure",
+      site: {
+        siteWorldId: "siteworld-f5fd54898cfb",
+        siteName: "Media Room Demo Walkthrough",
+        siteAddress: "Blueprint hosted runtime demo",
+      },
+      siteModel: {
+        runtimeRenderSource: "site_world_runtime_full_capture",
+        siteWorldHealthUri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_health.json",
+        runtimeBaseUrl: "http://runtime.local",
+        websocketBaseUrl: "ws://runtime.local",
+        primaryRuntimeBackend: "native_world_model",
+      },
+      sessionMode: "runtime_only",
+      runtime_backend_selected: "native_world_model",
+      status: "running",
+      robot: "Mobile manipulator",
+      policy: {},
+      task: "Media room",
+      scenario: "default",
+      createdBy: { uid: "public-demo-user" },
+      createdAt: "2026-03-14T00:00:00Z",
+      elapsedSeconds: 0,
+      artifactUris: {},
+      metering: {
+        sessionSeconds: 0,
+        billableHours: 0,
+      },
+      runtimeHandle: {
+        site_world_id: "siteworld-f5fd54898cfb",
+        runtime_base_url: "http://runtime.local",
+        websocket_base_url: "ws://runtime.local",
+      },
+      launchContext: {
+        site_world_spec_uri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_spec.json",
+        site_world_registration_uri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_registration.json",
+        site_world_health_uri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_health.json",
+        runtime_base_url: "http://runtime.local",
+        websocket_base_url: "ws://runtime.local",
+        conditioning_bundle_uri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/scene_memory/conditioning_bundle.json",
+        scene_memory_manifest_uri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/scene_memory/scene_memory_manifest.json",
+      },
+    });
+    state.artifactPayloads.set(
+      "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_health.json",
+      {
+        status: "healthy",
+        launchable: true,
+        blockers: [],
+        canonical_world_model: {
+          render_source: "site_world_runtime_full_capture",
+          fallback_mode: "none",
+          supporting_assets: [
+            {
+              name: "head_rgb-frame0.png",
+              uri: "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/presentation_world/authoritative_runtime_render/head_rgb-frame0.png",
+            },
+          ],
+        },
+      },
+    );
+    state.artifactPayloads.set(
+      "scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/presentation_world/authoritative_runtime_render/head_rgb-frame0.png",
+      {
+        frame: "canonical-authoritative",
+      },
+    );
+    const priorFetch = global.fetch;
+    global.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "http://runtime.local/v1/sessions/public-render-native-failure/render?camera_id=head_rgb") {
+        return new Response(JSON.stringify({ detail: "runtime unavailable" }), {
+          status: 502,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return priorFetch(input, init);
+    }) as typeof global.fetch;
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const render = await fetch(`${baseUrl}/public-render-native-failure/render?cameraId=head_rgb`);
+      const payload = await render.json();
+
+      expect(render.status).toBe(502);
+      expect(render.headers.get("x-blueprint-render-source")).toBeNull();
+      expect(payload.code).toBe("runtime_render_failed");
+    } finally {
+      await stopServer(server);
+    }
+  });
+
   it("creates and reuses a presentation demo session", async () => {
     const { server, baseUrl } = await startServer();
     try {

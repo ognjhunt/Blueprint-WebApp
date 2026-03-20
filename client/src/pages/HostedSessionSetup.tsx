@@ -43,7 +43,22 @@ interface HostedSessionSetupProps {
   };
 }
 
-const PUBLIC_DEMO_SITE_WORLD_IDS = new Set(["siteworld-f5fd54898cfb"]);
+function publicDemoSiteWorldIds() {
+  const ids = new Set(["siteworld-f5fd54898cfb"]);
+  const envSiteWorldId = String(
+    import.meta.env.VITE_HOSTED_DEMO_SITE_WORLD_ID
+    || import.meta.env.BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID
+    || "",
+  ).trim();
+  if (envSiteWorldId) {
+    ids.add(envSiteWorldId);
+  }
+  return ids;
+}
+
+function isPublicDemoSiteWorldId(siteWorldId: string) {
+  return publicDemoSiteWorldIds().has(String(siteWorldId || "").trim());
+}
 
 export default function HostedSessionSetup({ params }: HostedSessionSetupProps) {
   const fallbackSite = getSiteWorldById(params.slug);
@@ -97,7 +112,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
     (async () => {
       try {
         const token = auth?.currentUser ? await auth.currentUser.getIdToken() : "";
-        const usePublicDemoRoutes = PUBLIC_DEMO_SITE_WORLD_IDS.has(site.id);
+        const usePublicDemoRoutes = isPublicDemoSiteWorldId(site.id);
         if (!token && !usePublicDemoRoutes) {
           throw new Error("Missing authenticated user");
         }
@@ -209,14 +224,14 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
         trajectory: null,
         presentation_model: null,
         debug_mode: false,
-        unsafe_allow_blocked_site_world: PUBLIC_DEMO_SITE_WORLD_IDS.has(site.id),
+        unsafe_allow_blocked_site_world: isPublicDemoSiteWorldId(site.id),
       },
       notes,
     };
 
     try {
       const token = auth?.currentUser ? await auth.currentUser.getIdToken() : "";
-      const usePublicDemoRoutes = PUBLIC_DEMO_SITE_WORLD_IDS.has(site.id);
+      const usePublicDemoRoutes = isPublicDemoSiteWorldId(site.id);
       if (!token && !usePublicDemoRoutes) throw new Error("Missing authenticated user");
       const response = await fetch("/api/site-worlds/sessions", {
         method: "POST",

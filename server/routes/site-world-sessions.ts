@@ -108,7 +108,12 @@ async function loadUserProfile(uid: string) {
   return userDoc.data() as Record<string, unknown>;
 }
 
-const PUBLIC_DEMO_SITE_WORLD_IDS = new Set(["siteworld-f5fd54898cfb"]);
+const PUBLIC_DEMO_SITE_WORLD_IDS = new Set<string>(["siteworld-f5fd54898cfb"]);
+// Env-gated demo path: when BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID is set, allow
+// that site world through the public (no-auth) session lane. Local/demo only.
+if (process.env.BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID) {
+  PUBLIC_DEMO_SITE_WORLD_IDS.add(process.env.BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID.trim());
+}
 
 function isPublicDemoSiteWorldId(siteWorldId: string) {
   return PUBLIC_DEMO_SITE_WORLD_IDS.has(String(siteWorldId || "").trim());
@@ -1366,7 +1371,12 @@ async function maybeServeCanonicalRenderFrame(session: HostedSessionRecord, req:
   if (!isPublicDemoSession(session)) {
     return false;
   }
-  if (String(session.siteModel?.runtimeRenderSource || "").trim() !== "neoverse_full_capture") {
+  const selectedBackend = String(session.runtime_backend_selected || session.siteModel?.primaryRuntimeBackend || "").trim();
+  if (selectedBackend === "native_world_model") {
+    return false;
+  }
+  const renderSource = String(session.siteModel?.runtimeRenderSource || "").trim();
+  if (!renderSource || renderSource === "worldlabs_fallback_preview") {
     return false;
   }
   const cameraId = String(req.query.cameraId || req.query.camera_id || "head_rgb").trim() || "head_rgb";

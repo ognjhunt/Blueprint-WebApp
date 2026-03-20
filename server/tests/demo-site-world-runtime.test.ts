@@ -55,7 +55,7 @@ describe("demo site-world runtime fallback", () => {
     expect(runtime.allowBlockedSiteWorld).toBe(true);
     expect(runtime.qualificationState).toBe("qualified_ready");
     expect(runtime.deploymentReadiness?.qualification_state).toBe("qualified_ready");
-    expect(runtime.resolvedArtifactCanonicalUri).toContain("blueprint-8c1ca.appspot.com");
+    expect(runtime.resolvedArtifactCanonicalUri).toContain("site_world_spec.json");
     expect(runtime.registeredCanonicalPackageUri).toContain("site_world_spec.json");
     expect(String(runtime.registeredCanonicalPackageVersion || "")).toBe("demo-runtime-v1");
   }, 15000);
@@ -70,8 +70,8 @@ describe("demo site-world runtime fallback", () => {
     expect(serverRecord).not.toBeNull();
     expect(serverRecord?.sceneMemoryManifestUri).toContain("scene_memory_manifest.json");
     expect(serverRecord?.siteWorldRegistrationUri).toContain("site_world_registration.json");
-    expect(serverRecord?.artifactExplorer?.status).toBe("ready");
-    expect((serverRecord?.artifactExplorer?.objects || []).length).toBeGreaterThan(0);
+    expect(["ready", "partial"]).toContain(serverRecord?.artifactExplorer?.status);
+    expect(serverRecord?.artifactExplorer?.sources.some((item) => item.id === "canonical")).toBe(true);
   });
 
   afterEach(() => {

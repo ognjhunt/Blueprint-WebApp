@@ -197,6 +197,16 @@ function artifactUri(
   return `gs://${bucket}/${pipelinePrefix}/${fallbackRelative}`;
 }
 
+function firstNonEmptyString(...values: unknown[]): string {
+  for (const value of values) {
+    const normalized = String(value || "").trim();
+    if (normalized) {
+      return normalized;
+    }
+  }
+  return "";
+}
+
 function preferredArtifactUri(
   pipelinePrefix: string,
   primaryValue: unknown,
@@ -263,32 +273,22 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
     );
   }
 
-  const siteWorldSpecUri = artifactUri(
-    pipelinePrefix,
-    artifacts.site_world_spec_uri,
-    "evaluation_prep/site_world_spec.json",
-  );
-  const siteWorldRegistrationUri = artifactUri(
-    pipelinePrefix,
-    artifacts.site_world_registration_uri,
-    "evaluation_prep/site_world_registration.json",
-  );
-  const siteWorldHealthUri = artifactUri(
-    pipelinePrefix,
-    artifacts.site_world_health_uri,
-    "evaluation_prep/site_world_health.json",
-  );
+  const siteWorldSpecUri =
+    firstNonEmptyString(site.siteWorldSpecUri, artifacts.site_world_spec_uri)
+    || artifactUri(pipelinePrefix, null, "evaluation_prep/site_world_spec.json");
+  const siteWorldRegistrationUri =
+    firstNonEmptyString(site.siteWorldRegistrationUri, artifacts.site_world_registration_uri)
+    || artifactUri(pipelinePrefix, null, "evaluation_prep/site_world_registration.json");
+  const siteWorldHealthUri =
+    firstNonEmptyString(site.siteWorldHealthUri, artifacts.site_world_health_uri)
+    || artifactUri(pipelinePrefix, null, "evaluation_prep/site_world_health.json");
   const resolvedArtifactCanonicalUri = siteWorldSpecUri;
-  const sceneMemoryManifestUri = artifactUri(
-    pipelinePrefix,
-    artifacts.scene_memory_manifest_uri,
-    "scene_memory/scene_memory_manifest.json",
-  );
-  const conditioningBundleUri = artifactUri(
-    pipelinePrefix,
-    artifacts.conditioning_bundle_uri,
-    "scene_memory/conditioning_bundle.json",
-  );
+  const sceneMemoryManifestUri =
+    firstNonEmptyString(site.sceneMemoryManifestUri, artifacts.scene_memory_manifest_uri)
+    || artifactUri(pipelinePrefix, null, "scene_memory/scene_memory_manifest.json");
+  const conditioningBundleUri =
+    firstNonEmptyString(site.conditioningBundleUri, artifacts.conditioning_bundle_uri)
+    || artifactUri(pipelinePrefix, null, "scene_memory/conditioning_bundle.json");
   if (!sceneMemoryManifestUri) {
     throw new HostedSessionRuntimeError(
       "missing_scene_memory",
@@ -343,6 +343,7 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
       "presentation_world_manifest_url",
       "presentationWorldManifestUrl",
     ) ||
+    firstNonEmptyString(site.presentationDemoReadiness?.presentationWorldManifestUri) ||
     preferredArtifactUri(
       pipelinePrefix,
       artifacts.presentation_world_manifest_uri,
@@ -354,6 +355,7 @@ export async function resolveHostedRuntime(siteWorldId: string): Promise<HostedR
       "runtime_demo_manifest_url",
       "runtimeDemoManifestUrl",
     ) ||
+    firstNonEmptyString(site.presentationDemoReadiness?.runtimeDemoManifestUri) ||
     preferredArtifactUri(
       pipelinePrefix,
       artifacts.runtime_demo_manifest_uri,

@@ -890,11 +890,15 @@ function buildDeploymentReadiness({
   const benchmark = deriveBenchmarkStatus(benchmarkSuite, pipeline);
   const recapture = deriveRecapture(recaptureDiff, qualificationState);
   const exportsAvailable = extractExports(launchableExportBundle, pipeline);
+  const runtimeEligibility =
+    siteWorldSpec?.runtime_eligibility && typeof siteWorldSpec.runtime_eligibility === "object"
+      ? (siteWorldSpec.runtime_eligibility as Record<string, unknown>)
+      : null;
   const nativeWorldModelPrimary = Boolean(
     siteWorldSpec?.native_world_model_primary
       ?? siteWorldHealth?.native_world_model_primary
       ?? siteWorldHealth?.launchable
-      ?? siteWorldSpec?.runtime_eligibility?.launchable
+      ?? runtimeEligibility?.launchable
   );
   const providerFallbackAvailable = Boolean(
     worldLabsPreview?.status && worldLabsPreview.status !== "not_requested"
@@ -1451,6 +1455,11 @@ export async function listPublicSiteWorlds(limit = 24): Promise<SiteWorldCard[]>
 }
 
 export async function getPublicSiteWorldById(id: string): Promise<SiteWorldCard | null> {
+  const staticDirectMatch = findStaticSiteWorldById(id);
+  if (staticDirectMatch?.hostedSessionOverride?.allowBlockedSiteWorld) {
+    return staticDirectMatch;
+  }
+
   const catalog = await listPublicSiteWorlds(100);
   const liveOrStaticRecord =
     catalog.find(
@@ -1464,7 +1473,7 @@ export async function getPublicSiteWorldById(id: string): Promise<SiteWorldCard 
     return liveOrStaticRecord;
   }
 
-  return findStaticSiteWorldById(id);
+  return staticDirectMatch;
 }
 
 export async function resolveLiveSiteWorldContext(id: string): Promise<{

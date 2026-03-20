@@ -16,6 +16,10 @@ function readOptionalSiteWorldEnv(key: string): string | null {
   return value || null;
 }
 
+function readHostedDemoEnv(suffix: string): string | null {
+  return readOptionalSiteWorldEnv(`VITE_${suffix}`) || readOptionalSiteWorldEnv(`BLUEPRINT_${suffix}`);
+}
+
 function deriveWebsocketUrl(runtimeBaseUrl: string | null): string | null {
   const normalized = String(runtimeBaseUrl || "").trim();
   if (!normalized) {
@@ -38,6 +42,25 @@ const DEMO_RUNTIME_WEBSOCKET_BASE_URL =
   readOptionalSiteWorldEnv("VITE_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL")
   || readOptionalSiteWorldEnv("BLUEPRINT_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL")
   || deriveWebsocketUrl(DEMO_RUNTIME_BASE_URL);
+const HOSTED_DEMO_SITE_WORLD_ID = readHostedDemoEnv("HOSTED_DEMO_SITE_WORLD_ID");
+const HOSTED_DEMO_PIPELINE_URI_PREFIX = readHostedDemoEnv("HOSTED_DEMO_PIPELINE_URI_PREFIX");
+const HOSTED_DEMO_PIPELINE_PREFIX = readHostedDemoEnv("HOSTED_DEMO_PIPELINE_PREFIX");
+const HOSTED_DEMO_GCS_BUCKET = readHostedDemoEnv("HOSTED_DEMO_GCS_BUCKET");
+const HOSTED_DEMO_SITE_NAME = readHostedDemoEnv("HOSTED_DEMO_SITE_NAME");
+const HOSTED_DEMO_SITE_ADDRESS = readHostedDemoEnv("HOSTED_DEMO_SITE_ADDRESS");
+const HOSTED_DEMO_SCENE_ID = readHostedDemoEnv("HOSTED_DEMO_SCENE_ID");
+const HOSTED_DEMO_CAPTURE_ID = readHostedDemoEnv("HOSTED_DEMO_CAPTURE_ID");
+const HOSTED_DEMO_SITE_SUBMISSION_ID = readHostedDemoEnv("HOSTED_DEMO_SITE_SUBMISSION_ID");
+const HOSTED_DEMO_TASK_ID = readHostedDemoEnv("HOSTED_DEMO_TASK_ID") || "alpha-current-location";
+const HOSTED_DEMO_TASK_TEXT = readHostedDemoEnv("HOSTED_DEMO_TASK_TEXT") || HOSTED_DEMO_TASK_ID;
+const HOSTED_DEMO_SCENARIO_ID = readHostedDemoEnv("HOSTED_DEMO_SCENARIO_ID") || "scenario_default";
+const HOSTED_DEMO_SCENARIO_NAME = readHostedDemoEnv("HOSTED_DEMO_SCENARIO_NAME") || "default";
+const HOSTED_DEMO_START_STATE_ID = readHostedDemoEnv("HOSTED_DEMO_START_STATE_ID") || "start_default_start_state";
+const HOSTED_DEMO_START_STATE_NAME = readHostedDemoEnv("HOSTED_DEMO_START_STATE_NAME") || "default_start_state";
+type HostedDemoQualificationState = NonNullable<NonNullable<SiteWorldCard["hostedSessionOverride"]>["qualificationState"]>;
+const HOSTED_DEMO_QUALIFICATION_STATE =
+  (readHostedDemoEnv("HOSTED_DEMO_QUALIFICATION_STATE") as HostedDemoQualificationState | null)
+  || "not_ready_yet";
 
 export type SiteCategory =
   | "All"
@@ -177,6 +200,237 @@ type PackageConfig = {
   sampleTask: string;
   sampleRobot: string;
 };
+
+function stripGsPrefix(value: string | null): string | null {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return null;
+  }
+  if (!normalized.startsWith("gs://")) {
+    return normalized.replace(/^\/+|\/+$/g, "");
+  }
+  const withoutScheme = normalized.slice("gs://".length);
+  const slashIndex = withoutScheme.indexOf("/");
+  if (slashIndex === -1) {
+    return null;
+  }
+  return withoutScheme.slice(slashIndex + 1).replace(/^\/+|\/+$/g, "");
+}
+
+function buildHostedDemoArtifactUri(relativePath: string): string | null {
+  const normalizedRelativePath = String(relativePath || "").trim().replace(/^\/+/, "");
+  if (!normalizedRelativePath) {
+    return null;
+  }
+  const pipelineUriPrefix = String(HOSTED_DEMO_PIPELINE_URI_PREFIX || "").trim().replace(/\/+$/, "");
+  if (pipelineUriPrefix) {
+    return `${pipelineUriPrefix}/${normalizedRelativePath}`;
+  }
+  const pipelinePrefix = String(HOSTED_DEMO_PIPELINE_PREFIX || "").trim().replace(/^\/+|\/+$/g, "");
+  const bucket = String(HOSTED_DEMO_GCS_BUCKET || "").trim();
+  if (pipelinePrefix && bucket) {
+    return `gs://${bucket}/${pipelinePrefix}/${normalizedRelativePath}`;
+  }
+  return null;
+}
+
+function parseHostedDemoCaptureContext() {
+  const rawPrefix = stripGsPrefix(HOSTED_DEMO_PIPELINE_URI_PREFIX) || stripGsPrefix(HOSTED_DEMO_PIPELINE_PREFIX);
+  if (!rawPrefix) {
+    return {
+      pipelinePrefix: "",
+      sceneId: null as string | null,
+      captureId: null as string | null,
+    };
+  }
+  const parts = rawPrefix.split("/").filter(Boolean);
+  const scenesIndex = parts.indexOf("scenes");
+  const capturesIndex = parts.indexOf("captures");
+  return {
+    pipelinePrefix: rawPrefix,
+    sceneId: scenesIndex >= 0 ? parts[scenesIndex + 1] || null : null,
+    captureId: capturesIndex >= 0 ? parts[capturesIndex + 1] || null : null,
+  };
+}
+
+function buildHostedDemoOverrideCard(): SiteWorldCard | null {
+  const siteWorldId = String(HOSTED_DEMO_SITE_WORLD_ID || "").trim();
+  if (!siteWorldId || siteWorldId === "siteworld-f5fd54898cfb") {
+    return null;
+  }
+
+  const parsedContext = parseHostedDemoCaptureContext();
+  const sceneId = HOSTED_DEMO_SCENE_ID || parsedContext.sceneId || "scene-live-demo";
+  const captureId = HOSTED_DEMO_CAPTURE_ID || parsedContext.captureId || "capture-live-demo";
+  const siteSubmissionId = HOSTED_DEMO_SITE_SUBMISSION_ID || `${sceneId}:${captureId}`;
+  const pipelinePrefix = parsedContext.pipelinePrefix;
+  const runtimeBaseUrl = DEMO_RUNTIME_BASE_URL;
+  const websocketBaseUrl = DEMO_RUNTIME_WEBSOCKET_BASE_URL;
+  const siteName = HOSTED_DEMO_SITE_NAME || "Temporary Live Site-World Demo";
+  const siteAddress = HOSTED_DEMO_SITE_ADDRESS || "Blueprint tunnel-backed runtime demo";
+  const sceneMemoryManifestUri = buildHostedDemoArtifactUri("scene_memory/scene_memory_manifest.json");
+  const conditioningBundleUri = buildHostedDemoArtifactUri("scene_memory/conditioning_bundle.json");
+  const siteWorldSpecUri = buildHostedDemoArtifactUri("evaluation_prep/site_world_spec.json");
+  const siteWorldRegistrationUri = buildHostedDemoArtifactUri("evaluation_prep/site_world_registration.json");
+  const siteWorldHealthUri = buildHostedDemoArtifactUri("evaluation_prep/site_world_health.json");
+  const presentationWorldManifestUri = buildHostedDemoArtifactUri("presentation_world/presentation_world_manifest.json");
+  const runtimeDemoManifestUri = buildHostedDemoArtifactUri("presentation_world/runtime_demo_manifest.json");
+
+  return {
+    id: siteWorldId,
+    siteCode: "SW-DEMO-LIVE",
+    siteName,
+    siteAddress,
+    sceneId,
+    captureId,
+    siteSubmissionId,
+    pipelinePrefix,
+    category: "Service",
+    industry: "Temporary hosted demo",
+    taskLane: "Native runtime verification",
+    tone: "from-emerald-100 via-white to-sky-50",
+    accent: "#0f766e",
+    thumbnailKind: "electronics",
+    summary:
+      "A temporary truthful demo card pointing at one exact live site-world package and runtime bridge. This is for local/demo verification, not proof that the production catalog is wired.",
+    bestFor: "Internal verification of one live native-runtime site world through a tunnel-backed launch path.",
+    startStates: [HOSTED_DEMO_START_STATE_NAME],
+    runtime: "Native runtime via SSH tunnel",
+    defaultRuntimeBackend: "native_world_model",
+    availableRuntimeBackends: ["native_world_model"],
+    sampleRobot: "Mobile manipulator with head RGB camera",
+    sampleRobotProfile: {
+      id: "mobile_manipulator_rgb_v1",
+      displayName: "Mobile manipulator",
+      embodimentType: "mobile_manipulator",
+      observationCameras: [
+        { id: "head_rgb", role: "head", required: true, defaultEnabled: true },
+      ],
+      actionSpace: {
+        name: "ee_delta_pose_gripper",
+        dim: 7,
+        labels: ["base_x", "base_y", "base_yaw", "ee_x", "ee_y", "ee_z", "gripper"],
+      },
+      actionSpaceSummary: "Bounded robot action vector for exact-site runtime verification.",
+      gripperSemantics: "Binary grasp / release state on the active manipulator.",
+      baseSemantics: "Planar base translation with heading control for site navigation.",
+      urdfRef: null,
+      usdRef: null,
+      allowedPolicyAdapters: ["openvla_oft", "pi05", "dreamzero"],
+      defaultPolicyAdapter: "openvla_oft",
+    },
+    sampleTask: HOSTED_DEMO_TASK_TEXT,
+    samplePolicy: "Tunnel-backed live runtime probe",
+    scenarioVariants: [HOSTED_DEMO_SCENARIO_NAME],
+    exportArtifacts: ["Runtime render", "Runtime session log", "Canonical package links", "Benchmark bundle"],
+    runtimeManifest: {
+      defaultBackend: "native_world_model",
+      runtimeBaseUrl,
+      websocketBaseUrl,
+      supportedCameras: ["head_rgb"],
+      launchableBackends: ["native_world_model"],
+      exportModes: ["raw_bundle", "rlds_dataset"],
+      supportsStepRollout: true,
+      supportsBatchRollout: true,
+      supportsCameraViews: true,
+      supportsStream: true,
+      healthStatus: runtimeBaseUrl ? "healthy" : "unknown",
+      launchable: Boolean(runtimeBaseUrl),
+    },
+    taskCatalog: [
+      {
+        id: HOSTED_DEMO_TASK_ID,
+        taskId: HOSTED_DEMO_TASK_ID,
+        taskText: HOSTED_DEMO_TASK_TEXT,
+        taskCategory: "generic",
+      },
+    ],
+    scenarioCatalog: [
+      { id: HOSTED_DEMO_SCENARIO_ID, name: HOSTED_DEMO_SCENARIO_NAME, source: "site_world_runtime" },
+    ],
+    startStateCatalog: [
+      {
+        id: HOSTED_DEMO_START_STATE_ID,
+        name: HOSTED_DEMO_START_STATE_NAME,
+        taskId: HOSTED_DEMO_TASK_ID,
+        source: "site_world_runtime",
+      },
+    ],
+    robotProfiles: [
+      {
+        id: "mobile_manipulator_rgb_v1",
+        displayName: "Mobile manipulator",
+        embodimentType: "mobile_manipulator",
+        observationCameras: [
+          { id: "head_rgb", role: "head", required: true, defaultEnabled: true },
+        ],
+        actionSpace: {
+          name: "ee_delta_pose_gripper",
+          dim: 7,
+          labels: ["base_x", "base_y", "base_yaw", "ee_x", "ee_y", "ee_z", "gripper"],
+        },
+        actionSpaceSummary: "Bounded robot action vector for exact-site runtime verification.",
+        gripperSemantics: "Binary grasp / release state on the active manipulator.",
+        baseSemantics: "Planar base translation with heading control for site navigation.",
+        urdfRef: null,
+        usdRef: null,
+        allowedPolicyAdapters: ["openvla_oft", "pi05", "dreamzero"],
+        defaultPolicyAdapter: "openvla_oft",
+      },
+    ],
+    exportModes: ["raw_bundle", "rlds_dataset"],
+    packages: buildPackages({
+      siteId: siteWorldId,
+      siteName,
+      siteAddress,
+      scenePrice: "$0",
+      hostedRate: "Tunnel runtime",
+      sampleTask: HOSTED_DEMO_TASK_TEXT,
+      sampleRobot: "Mobile manipulator with head RGB camera",
+    }),
+    dataSource: "pipeline",
+    deploymentReadiness: {
+      qualification_state: HOSTED_DEMO_QUALIFICATION_STATE,
+      opportunity_state: "not_applicable",
+      benchmark_coverage_status: "partial",
+      benchmark_task_count: 1,
+      export_readiness_status: "partial",
+      recapture_status: "unchanged",
+      recapture_required: false,
+      freshness_date: null,
+      missing_evidence: [],
+      exports_available: ["raw_bundle"],
+      task_categories: ["generic"],
+      runtime_label: "Native runtime via SSH tunnel",
+      native_world_model_status: "primary_ready",
+      native_world_model_primary: true,
+      provider_fallback_preview_status: "not_requested",
+      provider_fallback_only: false,
+      runtime_health_status: runtimeBaseUrl ? "healthy" : "unknown",
+      runtime_launchable: Boolean(runtimeBaseUrl),
+      runtime_registration_status: "registered",
+    },
+    presentationDemoReadiness: {
+      launchable: false,
+      blockers: ["Temporary tunnel-backed runtime only. Presentation demo assets are not being claimed as production-ready."],
+      status: "presentation_ui_unconfigured",
+      presentationWorldManifestUri,
+      runtimeDemoManifestUri,
+      uiBaseUrl: null,
+    },
+    runtimeReferenceImageUrl: null,
+    presentationReferenceImageUrl: null,
+    sceneMemoryManifestUri,
+    conditioningBundleUri,
+    siteWorldSpecUri,
+    siteWorldRegistrationUri,
+    siteWorldHealthUri,
+    hostedSessionOverride: {
+      allowBlockedSiteWorld: true,
+      qualificationState: HOSTED_DEMO_QUALIFICATION_STATE,
+    },
+  };
+}
 
 export const categoryFilters: SiteCategory[] = [
   "All",
@@ -845,10 +1099,10 @@ siteWorldCards.push({
   accent: "#0f766e",
   thumbnailKind: "electronics",
   summary:
-    "A hard-wired demo of the already-built site-world and production NeoVerse runtime path for the March 13, 2026 walkthrough.",
-  bestFor: "Customer-facing runtime-only review of a proven world model.",
+    "A hard-wired demo of the native-first site-world package with a legacy-backed hosted runtime for the March 13, 2026 walkthrough.",
+  bestFor: "Customer-facing runtime-only review of a proven native site-world package.",
   startStates: ["default_start_state"],
-  runtime: "NeoVerse production runtime",
+  runtime: "Native hosted runtime demo",
   defaultRuntimeBackend: "neoverse",
   availableRuntimeBackends: ["neoverse"],
   sampleRobot: "Mobile manipulator with head and wrist cameras",
@@ -989,6 +1243,11 @@ siteWorldCards.push({
     qualificationState: "qualified_ready",
   },
 });
+
+const hostedDemoOverrideCard = buildHostedDemoOverrideCard();
+if (hostedDemoOverrideCard) {
+  siteWorldCards.push(hostedDemoOverrideCard);
+}
 
 export function getSiteWorldById(id: string) {
   return siteWorldCards.find((site) => site.id === id) ?? null;

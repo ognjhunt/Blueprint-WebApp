@@ -2,8 +2,16 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import HostedSessionSetup from "@/pages/HostedSessionSetup";
 import { getSiteWorldById } from "@/data/siteWorlds";
+import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
 
 const setLocationMock = vi.fn();
+const { authMock } = vi.hoisted(() => ({
+  authMock: {
+    currentUser: {
+      getIdToken: vi.fn(async () => "token-1"),
+    },
+  },
+}));
 
 vi.mock("wouter", async () => {
   const actual = await vi.importActual<typeof import("wouter")>("wouter");
@@ -25,14 +33,13 @@ vi.mock("@/lib/csrf", () => ({
 }));
 
 vi.mock("@/lib/firebase", () => ({
-  auth: {
-    currentUser: {
-      getIdToken: vi.fn(async () => "token-1"),
-    },
-  },
+  auth: authMock,
 }));
 
 afterEach(() => {
+  authMock.currentUser = {
+    getIdToken: vi.fn(async () => "token-1"),
+  };
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -184,5 +191,44 @@ describe("HostedSessionSetup", () => {
     expect((request.runtimeSessionConfig as Record<string, unknown>).canonical_package_uri).toBe(
       getSiteWorldById(demoSiteId)?.siteWorldSpecUri || null,
     );
+  });
+
+  it("treats the env-configured hosted demo site world as public even without Firebase auth", async () => {
+    const demoSiteId = "siteworld-707ec52ef0a8";
+    vi.stubEnv("VITE_HOSTED_DEMO_SITE_WORLD_ID", demoSiteId);
+    authMock.currentUser = null;
+    vi.mocked(fetchSiteWorldDetail).mockResolvedValue({
+      ...getSiteWorldById("siteworld-f5fd54898cfb"),
+      id: demoSiteId,
+    } as never);
+
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          launchable: true,
+          entitled: true,
+          blockers: [],
+          presentation_demo: {
+            launchable: false,
+            blockers: ["Temporary runtime-only demo"],
+            blocker_details: [],
+          },
+          runtime_only: {
+            launchable: true,
+            blockers: [],
+            blocker_details: [],
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<HostedSessionSetup params={{ slug: demoSiteId }} />);
+
+    expect(await screen.findByText(/World-model runtime readiness/i)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const headers = (fetchMock.mock.calls[0]?.[1]?.headers || {}) as Record<string, string>;
+    expect(headers.Authorization).toBeUndefined();
   });
 });
