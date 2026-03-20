@@ -865,6 +865,28 @@ export async function stepHostedSessionRun(params: {
   };
 }
 
+export async function controlHostedSessionRun(params: {
+  sessionId: string;
+  workDir: string;
+  control: Record<string, unknown>;
+}) {
+  const metadata = await readRuntimeMetadata(params.workDir);
+  const runtimeBaseUrl = String(metadata.runtime_base_url || "").trim();
+  if (!runtimeBaseUrl) {
+    throw new HostedSessionOrchestratorError("runtime_handle_missing", "Missing runtime base URL.");
+  }
+  return runtimeFetchJson(
+    runtimeBaseUrl,
+    `/v2/sessions/${encodeURIComponent(params.sessionId)}/control`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params.control || {}),
+    },
+    { timeoutMs: Math.max(250, Number(process.env.BLUEPRINT_HOSTED_SESSION_CONTROL_TIMEOUT_MS || 5000)) },
+  );
+}
+
 export async function renderHostedSessionExplorer(params: {
   sessionId: string;
   workDir: string;

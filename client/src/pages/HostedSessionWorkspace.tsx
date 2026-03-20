@@ -358,6 +358,34 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+function readRuntimeObservation(payload: Record<string, unknown> | null) {
+  return payload?.observation && typeof payload.observation === "object"
+    ? (payload.observation as Record<string, unknown>)
+    : null;
+}
+
+function readRuntimeRollout(payload: Record<string, unknown> | null) {
+  return payload?.rollout && typeof payload.rollout === "object"
+    ? (payload.rollout as Record<string, unknown>)
+    : null;
+}
+
+function controlIntentFromKeys(keys: Set<string>) {
+  const has = (value: string) => keys.has(value);
+  const forward = has("arrowup") || has("w");
+  const backward = has("arrowdown") || has("s");
+  const left = has("arrowleft") || has("a");
+  const right = has("arrowright") || has("d");
+  return {
+    vx: forward ? 0.7 : backward ? -0.55 : 0,
+    vy: 0,
+    vz: 0,
+    yawRate: left ? 0.5 : right ? -0.5 : 0,
+    pitchRate: 0,
+    durationMs: 1200,
+  };
+}
+
 const LIVE_RENDER_RETRY_MS = 5000;
 
 export function shouldScheduleLiveRenderRetry(params: {
@@ -398,6 +426,10 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const [observationLoadError, setObservationLoadError] = useState(false);
   const [liveObservationSrc, setLiveObservationSrc] = useState("");
   const [liveObservationRenderSource, setLiveObservationRenderSource] = useState("");
+  const [liveVideoSrc, setLiveVideoSrc] = useState("");
+  const [liveVideoChunkId, setLiveVideoChunkId] = useState("");
+  const [liveMediaStatus, setLiveMediaStatus] = useState("");
+  const [runtimeStreamState, setRuntimeStreamState] = useState<Record<string, unknown> | null>(null);
   const [liveViewportAspect, setLiveViewportAspect] = useState<number | null>(null);
   const [lastLiveRenderContext, setLastLiveRenderContext] = useState<{
     cameraId: string;
@@ -411,6 +443,10 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const [explorerMoveSpeed, setExplorerMoveSpeed] = useState(0.18);
   const [explorerPose, setExplorerPose] = useState<ExplorerPose>({ x: 0, y: 0, z: 0, yaw: 0, pitch: 0 });
   const explorerViewportRef = useRef<HTMLDivElement | null>(null);
+  const liveVideoRef = useRef<HTMLVideoElement | null>(null);
+  const liveControlKeysRef = useRef<Set<string>>(new Set());
+  const liveControlSeqRef = useRef(0);
+  const lastControlSignatureRef = useRef("");
   const explorerDragRef = useRef<{ active: boolean; lastX: number; lastY: number }>({
     active: false,
     lastX: 0,
@@ -628,6 +664,15 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       }
       return "";
     });
+    setLiveVideoSrc((current) => {
+      if (current.startsWith("blob:")) {
+        URL.revokeObjectURL(current);
+      }
+      return "";
+    });
+    setLiveVideoChunkId("");
+    setLiveMediaStatus("");
+    setRuntimeStreamState(null);
     setLiveObservationRenderSource("");
     setLiveViewportAspect(null);
     setLastLiveRenderContext(null);
@@ -653,6 +698,14 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       }
     };
   }, [liveObservationSrc]);
+
+  useEffect(() => {
+    return () => {
+      if (liveVideoSrc.startsWith("blob:")) {
+        URL.revokeObjectURL(liveVideoSrc);
+      }
+    };
+  }, [liveVideoSrc]);
 
   useEffect(() => {
     return () => {
@@ -740,7 +793,9 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     REQUESTED_OUTPUT_DEFINITIONS.map((item) => item.id);
   const latestEpisode = sessionRecord?.latestEpisode || null;
   const batchSummary = sessionRecord?.batchSummary || null;
-  const observation = latestEpisode?.observation as Record<string, unknown> | undefined;
+  const runtimeObservation = readRuntimeObservation(runtimeStreamState);
+  const runtimeRollout = readRuntimeRollout(runtimeStreamState);
+  const observation = (runtimeObservation || latestEpisode?.observation || null) as Record<string, unknown> | null;
   const remoteObservation = (observation?.remoteObservation || null) as Record<string, unknown> | null;
   const observationFramePath = String(observation?.frame_path || "").trim();
   const remoteObservationFramePath = String(
@@ -776,6 +831,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     null;
   const renderSource = String(
     qualityFlags?.render_source ||
+      runtimeRollout?.current_render_source ||
       qualityFlags?.preview_source ||
       qualityFlags?.renderer_backend ||
       sessionRecord?.siteModel?.runtimeRenderSource ||
@@ -824,6 +880,12 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     sessionStatus !== "starting" &&
     sessionStatus !== "stopped" &&
     sessionStatus !== "error";
+  const runtimeWebsocketBaseUrl = String(
+    sessionRecord?.runtimeHandle?.websocket_base_url ||
+      sessionRecord?.siteModel?.websocketBaseUrl ||
+      site?.runtimeManifest?.websocketBaseUrl ||
+      "",
+  ).trim();
   const presentationInteractive =
     sessionStatus === "live" && sessionRecord?.presentationRuntime?.status === "live" && Boolean(openDemoUrl);
   const statusTone =
@@ -874,10 +936,16 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
           selectedCameraId || primaryCameraId,
         )}&refresh=${observationRefreshKey}`
       : selectedCameraRenderableFallback;
-  const selectedObservationSrc = liveObservationSrc || renderRouteHref || selectedCameraRenderableFallback;
+  const frameObservationSrc = liveObservationSrc || renderRouteHref || selectedCameraRenderableFallback;
+  const selectedObservationSrc = frameObservationSrc;
+  const activeRolloutChunkId = String(runtimeRollout?.active_chunk_id || "").trim();
+  const hasLiveVideoObservation = Boolean(liveVideoSrc && activeRolloutChunkId && !observationLoadError);
   const hasVisibleObservation = Boolean(
-    selectedObservationSrc && isRenderableObservationPath(selectedObservationSrc) && !observationLoadError,
+    (frameObservationSrc && isRenderableObservationPath(frameObservationSrc) && !observationLoadError) ||
+      hasLiveVideoObservation,
   );
+  const rolloutStatus = String(runtimeRollout?.status || "").trim() || "idle";
+  const runtimeStepIndex = Number(runtimeStreamState?.step_index || runtimeStreamState?.stepIndex || latestEpisode?.stepIndex || 0);
   const liveViewportFrameMode =
     liveViewportAspect != null && liveViewportAspect < 1.05 ? "portrait" : "landscape";
   const liveViewportMinHeight =
@@ -899,7 +967,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       : "Exploration assets unavailable";
   const runtimeModeState = runtimeDegraded
     ? { label: "Live Runtime: Degraded", tone: "amber" as const }
-    : hasGenuineLiveObservation
+    : hasLiveVideoObservation || hasGenuineLiveObservation
       ? { label: "Live Runtime: Live", tone: "emerald" as const }
       : runtimeDiagnostic
         ? { label: "Live Runtime: Failed", tone: "rose" as const }
@@ -930,7 +998,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     { label: "Task", value: taskSelection?.taskText || "Pending" },
     { label: "Scenario", value: scenario?.name || "Pending" },
     { label: "Start state", value: startState?.name || "Pending" },
-    { label: "Step count", value: String(latestEpisode?.stepIndex ?? 0) },
+    { label: "Step count", value: String(runtimeStepIndex) },
     { label: "Reward / score", value: latestEpisode?.reward != null ? String(latestEpisode.reward) : "Pending" },
     {
       label: "Success / failure",
@@ -1164,7 +1232,101 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   }, [activeMode, explorerMoveSpeed]);
 
   useEffect(() => {
-    if (!runtimeInteractive || !sessionId || !latestEpisode || !(selectedCameraId || primaryCameraId)) {
+    if (!runtimeInteractive || !sessionId || !runtimeWebsocketBaseUrl) {
+      return;
+    }
+    let cancelled = false;
+    const websocket = new WebSocket(
+      `${runtimeWebsocketBaseUrl.replace(/\/$/, "")}/v1/sessions/${encodeURIComponent(sessionId)}/stream`,
+    );
+    websocket.onmessage = (event) => {
+      if (cancelled) {
+        return;
+      }
+      try {
+        const payload = JSON.parse(String(event.data || "")) as Record<string, unknown>;
+        if (payload && typeof payload === "object" && !("error" in payload)) {
+          setRuntimeStreamState(payload);
+        }
+      } catch {
+        // Ignore malformed runtime messages.
+      }
+    };
+    websocket.onerror = () => {
+      if (!cancelled) {
+        setLiveMediaStatus((current) => current || "stream_unavailable");
+      }
+    };
+    return () => {
+      cancelled = true;
+      websocket.close();
+    };
+  }, [runtimeInteractive, runtimeWebsocketBaseUrl, sessionId]);
+
+  useEffect(() => {
+    if (!runtimeInteractive || !sessionId || !activeRolloutChunkId) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await authorizedFetch(
+          `/api/site-worlds/sessions/${encodeURIComponent(sessionId)}/media?cameraId=${encodeURIComponent(
+            selectedCameraId || primaryCameraId || "head_rgb",
+          )}&chunkId=${encodeURIComponent(activeRolloutChunkId)}`,
+          { cache: "no-store" },
+        );
+        const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+        if (!response.ok || contentType.includes("application/json")) {
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(payload?.error || "Runtime media fetch failed");
+        }
+        if (!contentType.startsWith("video/")) {
+          return;
+        }
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        if (cancelled) {
+          URL.revokeObjectURL(objectUrl);
+          return;
+        }
+        setLiveVideoSrc((current) => {
+          if (current.startsWith("blob:")) {
+            URL.revokeObjectURL(current);
+          }
+          return objectUrl;
+        });
+        setLiveVideoChunkId(String(response.headers.get("x-blueprint-chunk-id") || activeRolloutChunkId).trim());
+        setLiveMediaStatus(String(response.headers.get("x-blueprint-media-status") || rolloutStatus).trim());
+        setLiveObservationRenderSource(String(response.headers.get("x-blueprint-render-source") || "").trim());
+        setObservationLoadError(false);
+      } catch (error) {
+        if (!cancelled) {
+          setLiveMediaStatus("media_failed");
+          setControlError(error instanceof Error ? error.message : "Runtime media fetch failed");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeRolloutChunkId,
+    primaryCameraId,
+    rolloutStatus,
+    runtimeInteractive,
+    selectedCameraId,
+    sessionId,
+  ]);
+
+  useEffect(() => {
+    if (
+      activeRolloutChunkId ||
+      !runtimeInteractive ||
+      !sessionId ||
+      !latestEpisode ||
+      !(selectedCameraId || primaryCameraId)
+    ) {
       return undefined;
     }
     const controller = new AbortController();
@@ -1399,27 +1561,77 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
         event.defaultPrevented ||
-        event.repeat ||
         event.metaKey ||
         event.ctrlKey ||
         event.altKey ||
-        isEditableTarget(event.target) ||
-        Boolean(runtimeBusyLabel)
+        isEditableTarget(event.target)
       ) {
         return;
       }
-      const binding = RUNTIME_KEYBOARD_ACTIONS[event.key.toLowerCase()];
-      if (!binding) {
+      const key = event.key.toLowerCase();
+      if (!(key in RUNTIME_KEYBOARD_ACTIONS)) {
         return;
       }
       event.preventDefault();
-      void stepRuntime(binding);
+      liveControlKeysRef.current.add(key);
+    };
+    const handleKeyUp = (event: KeyboardEvent) => {
+      liveControlKeysRef.current.delete(event.key.toLowerCase());
     };
     window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [activeMode, runtimeBusyLabel, runtimeInteractive, stepRuntime]);
+  }, [activeMode, runtimeInteractive]);
+
+  useEffect(() => {
+    if (!runtimeInteractive || activeMode !== "live_runtime" || !sessionId) {
+      return;
+    }
+    let cancelled = false;
+    const sendControl = async () => {
+      const baseIntent = controlIntentFromKeys(liveControlKeysRef.current);
+      const signature = JSON.stringify(baseIntent);
+      if (signature === lastControlSignatureRef.current && baseIntent.vx === 0 && baseIntent.yawRate === 0) {
+        return;
+      }
+      lastControlSignatureRef.current = signature;
+      const payload = {
+        ...baseIntent,
+        seq: ++liveControlSeqRef.current,
+        tClientMs: Date.now(),
+      };
+      try {
+        const response = await authorizedJsonFetch(`/api/site-worlds/sessions/${sessionId}/control`, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        const runtimePayload = (await response.json().catch(() => null)) as Record<string, unknown> | { error?: string } | null;
+        if (!response.ok) {
+          throw new Error(
+            String((runtimePayload && "error" in runtimePayload && runtimePayload.error) || "Control update failed"),
+          );
+        }
+        if (!cancelled && runtimePayload && typeof runtimePayload === "object") {
+          setRuntimeStreamState(runtimePayload as Record<string, unknown>);
+          setControlError("");
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setControlError(error instanceof Error ? error.message : "Control update failed");
+        }
+      }
+    };
+    const intervalId = window.setInterval(() => {
+      void sendControl();
+    }, 180);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [activeMode, runtimeInteractive, sessionId]);
 
   const handleScriptedWalkthrough = async () => {
     if (!sessionId || !runtimeInteractive) {
@@ -1558,7 +1770,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     if (!runtimeInteractive || sessionStatus !== "live" || autoBootstrapState !== "idle") {
       return;
     }
-    if (selectedObservationSrc || observationFramePath || remoteObservationFramePath) {
+    if (selectedObservationSrc || liveVideoSrc || observationFramePath || remoteObservationFramePath) {
       setAutoBootstrapState("done");
       return;
     }
@@ -1568,6 +1780,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     });
   }, [
     autoBootstrapState,
+    liveVideoSrc,
     observationFramePath,
     remoteObservationFramePath,
     runtimeInteractive,
@@ -1693,7 +1906,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                       <DetailPill label="Requested Backend" value={requestedBackend || "Unspecified"} />
                       <DetailPill label="Active Backend" value={activeBackend || "Unspecified"} />
                       <DetailPill label="Runtime Mode" value={activeExecutionMode || "Unknown"} />
-                      <DetailPill label="Runtime Step" value={String(latestEpisode?.stepIndex ?? 0)} />
+                      <DetailPill label="Runtime Step" value={String(runtimeStepIndex)} />
                       <DetailPill label="Reward" value={latestEpisode?.reward != null ? String(latestEpisode.reward) : "0"} />
                       <DetailPill label="Exploration Mode" value={presentationAvailabilityLabel} />
                     </div>
@@ -1806,7 +2019,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                     Observation frames, rollout media, exports, and batch summaries all come from the current runtime session.
                   </p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <DetailPill label="Current step" value={String(latestEpisode?.stepIndex ?? 0)} />
+                    <DetailPill label="Current step" value={String(runtimeStepIndex)} />
                     <DetailPill label="Protected regions" value={String(protectedRegionViolations.length)} />
                     <DetailPill label="Rollout video" value={rolloutVideoPath ? "Available" : "Pending"} />
                     <DetailPill label="Raw bundle" value={rawBundlePath ? "Available" : "Pending"} />
@@ -1850,7 +2063,31 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                       className="relative overflow-hidden rounded-[32px] border border-slate-200 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.78),rgba(238,242,255,0.48)_34%),linear-gradient(180deg,#f8fafc_0%,#e2e8f0_100%)]"
                       style={{ minHeight: liveViewportMinHeight }}
                     >
-                      {hasVisibleObservation ? (
+                      {hasLiveVideoObservation ? (
+                        <video
+                          key={liveVideoChunkId}
+                          ref={liveVideoRef}
+                          src={liveVideoSrc}
+                          className={`absolute inset-0 h-full w-full ${
+                            liveViewportFrameMode === "portrait" ? "object-contain" : "object-cover"
+                          }`}
+                          autoPlay
+                          muted
+                          playsInline
+                          onLoadedMetadata={(event) => {
+                            const video = event.currentTarget;
+                            if (video.videoWidth > 0 && video.videoHeight > 0) {
+                              setLiveViewportAspect(video.videoWidth / video.videoHeight);
+                            }
+                            void video.play().catch(() => undefined);
+                            setObservationLoadError(false);
+                          }}
+                          onEnded={() => {
+                            setLiveMediaStatus("waiting_next_chunk");
+                          }}
+                          onError={() => setObservationLoadError(true)}
+                        />
+                      ) : hasVisibleObservation ? (
                         <img
                           key={selectedObservationSrc}
                           src={selectedObservationSrc}
@@ -1896,7 +2133,20 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                           Camera {selectedCameraId || primaryCameraId || "head_rgb"}
                         </div>
                         <div className="pointer-events-auto flex flex-wrap items-center gap-2">
+                          {hasLiveVideoObservation ? (
+                            <div className="rounded-full border border-white/70 bg-white/88 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 backdrop-blur-sm">
+                              {humanizeValue(liveMediaStatus || rolloutStatus, "buffering")}
+                            </div>
+                          ) : null}
                           <MetadataLink href={renderRouteHref || null} label="Open latest frame" />
+                          {hasLiveVideoObservation ? (
+                            <MetadataLink
+                              href={`/api/site-worlds/sessions/${encodeURIComponent(sessionId)}/media?cameraId=${encodeURIComponent(
+                                selectedCameraId || primaryCameraId || "head_rgb",
+                              )}&chunkId=${encodeURIComponent(liveVideoChunkId || activeRolloutChunkId)}`}
+                              label="Open active chunk"
+                            />
+                          ) : null}
                         </div>
                       </div>
 
@@ -1904,23 +2154,23 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                         <div className="grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
                           <div className="pointer-events-auto rounded-[24px] border border-white/70 bg-white/88 px-5 py-4 text-slate-900 backdrop-blur-md">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Movement</p>
-                            <p className="mt-2 text-base font-semibold">Use WASD or the arrow keys to move through the world.</p>
+                            <p className="mt-2 text-base font-semibold">Hold WASD or the arrow keys to steer the chunked rollout.</p>
                             <p className="mt-2 text-sm text-slate-600">
-                              Forward and backward translate the camera. Left and right rotate the current observation cone.
+                              Control updates stream continuously. Video chunks catch up as the runtime generates them and will report buffering or underrun explicitly if generation falls behind.
                             </p>
                           </div>
                           <div className="pointer-events-auto grid grid-cols-3 gap-2">
                             <div className="rounded-[22px] border border-white/70 bg-white/88 px-4 py-4 text-slate-900 backdrop-blur-sm">
                               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Step</p>
-                              <p className="mt-2 text-2xl font-bold">{latestEpisode?.stepIndex ?? 0}</p>
+                              <p className="mt-2 text-2xl font-bold">{runtimeStepIndex}</p>
                             </div>
                             <div className="rounded-[22px] border border-white/70 bg-white/88 px-4 py-4 text-slate-900 backdrop-blur-sm">
                               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Reward</p>
                               <p className="mt-2 text-2xl font-bold">{latestEpisode?.reward != null ? latestEpisode.reward : "0"}</p>
                             </div>
                             <div className="rounded-[22px] border border-white/70 bg-white/88 px-4 py-4 text-slate-900 backdrop-blur-sm">
-                              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Quality</p>
-                              <p className="mt-2 text-base font-bold">{humanizeValue(String(qualityFlags?.presentation_quality || ""), "unknown")}</p>
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Rollout</p>
+                              <p className="mt-2 text-base font-bold">{humanizeValue(rolloutStatus, "idle")}</p>
                             </div>
                           </div>
                         </div>
@@ -2009,6 +2259,8 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                         <div className="mt-4 space-y-3 text-sm text-slate-700">
                           <p>Render quality: {humanizeValue(String(qualityFlags?.presentation_quality || ""), "unknown")}</p>
                           <p>Render source: {humanizeValue(renderSource, "unknown")}</p>
+                          <p>Media status: {humanizeValue(liveMediaStatus || rolloutStatus, "idle")}</p>
+                          <p>Active chunk: {liveVideoChunkId || activeRolloutChunkId || "Pending"}</p>
                           <p>Primary runtime backend: {humanizeValue(primaryRuntimeBackend, "unknown")}</p>
                           <p>World-model backend: {humanizeValue(worldModelBackend, "unknown")}</p>
                           <p>Scene representation: {humanizeValue(sceneRepresentation, "unknown")}</p>

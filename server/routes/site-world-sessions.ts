@@ -39,6 +39,7 @@ import {
 } from "../utils/presentation-demo-runtime";
 import {
   createHostedSessionRun,
+  controlHostedSessionRun,
   exportHostedSessionRun,
   fetchHostedSessionExplorerFrame,
   fetchHostedSessionState,
@@ -1517,6 +1518,89 @@ async function proxyRuntimeRenderForSession(session: HostedSessionRecord, req: R
   return res.send(response.body);
 }
 
+async function proxyRuntimeMediaForSession(session: HostedSessionRecord, req: Request, res: Response) {
+  const runtimeBaseUrl = String(session.runtimeHandle?.runtime_base_url || "").trim();
+  if (!runtimeBaseUrl) {
+    const diagnostic = buildFailureDiagnostic({
+      source: "runtime",
+      operation: "render",
+      error: new HostedSessionRuntimeError("runtime_handle_missing", "Runtime handle missing for hosted session"),
+      fallbackCode: "runtime_handle_missing",
+      fallbackSummary: "Runtime media handle missing for hosted session.",
+      statusCode: 409,
+    });
+    await updateSession(session.sessionId, { latestRuntimeFailure: diagnostic });
+    return res.status(409).json({ error: diagnostic.summary, code: diagnostic.code, diagnostic });
+  }
+  const cameraId = String(req.query.cameraId || req.query.camera_id || "head_rgb").trim() || "head_rgb";
+  const chunkId = String(req.query.chunkId || req.query.chunk_id || "").trim();
+  const mediaUrl =
+    `${runtimeBaseUrl}/v2/sessions/${encodeURIComponent(session.sessionId)}/media?camera_id=${encodeURIComponent(cameraId)}`
+    + (chunkId ? `&chunk_id=${encodeURIComponent(chunkId)}` : "");
+  const timeoutMs = Math.max(
+    1000,
+    Number(process.env.BLUEPRINT_HOSTED_SESSION_RENDER_TIMEOUT_MS || process.env.BLUEPRINT_HOSTED_SESSION_RUNTIME_TIMEOUT_MS || 300000),
+  );
+  let response: { statusCode: number; headers: http.IncomingHttpHeaders | Record<string, string>; body: Buffer };
+  try {
+    response = await runtimeBinaryRequest(mediaUrl, timeoutMs);
+  } catch (error) {
+    const diagnostic = buildFailureDiagnostic({
+      source: "runtime",
+      operation: "render",
+      error: error instanceof Error ? error : new Error(String(error)),
+      fallbackCode: "runtime_media_proxy_failed",
+      fallbackSummary: "Failed to proxy runtime media.",
+      statusCode: error instanceof Error && /Timed out after \d+ms/.test(error.message) ? 504 : 502,
+    });
+    await updateSession(session.sessionId, { latestRuntimeFailure: diagnostic });
+    return res.status(diagnostic.statusCode || 500).json({ error: diagnostic.summary, code: diagnostic.code, diagnostic });
+  }
+  const contentType =
+    typeof response.headers?.["content-type"] === "string"
+      ? response.headers["content-type"]
+      : Array.isArray(response.headers?.["content-type"])
+        ? response.headers["content-type"][0]
+        : "";
+  if (response.statusCode < 200 || response.statusCode >= 300) {
+    const diagnostic = buildFailureDiagnostic({
+      source: "runtime",
+      operation: "render",
+      error: new Error(response.body.toString("utf-8").trim() || `Runtime media request failed: ${response.statusCode}`),
+      fallbackCode: "runtime_media_proxy_failed",
+      fallbackSummary: "Failed to proxy runtime media.",
+      statusCode: response.statusCode,
+    });
+    await updateSession(session.sessionId, { latestRuntimeFailure: diagnostic });
+    return res.status(response.statusCode).json({ error: diagnostic.summary, code: diagnostic.code, diagnostic });
+  }
+  if (session.latestRuntimeFailure?.operation === "render") {
+    await updateSession(session.sessionId, { latestRuntimeFailure: null });
+  }
+  res.setHeader("Content-Type", contentType || "video/mp4");
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("X-Blueprint-Render-Source", "runtime-media-proxy");
+  const chunkHeader =
+    typeof response.headers?.["x-blueprint-chunk-id"] === "string"
+      ? response.headers["x-blueprint-chunk-id"]
+      : Array.isArray(response.headers?.["x-blueprint-chunk-id"])
+        ? response.headers["x-blueprint-chunk-id"][0]
+        : "";
+  const mediaStatusHeader =
+    typeof response.headers?.["x-blueprint-media-status"] === "string"
+      ? response.headers["x-blueprint-media-status"]
+      : Array.isArray(response.headers?.["x-blueprint-media-status"])
+        ? response.headers["x-blueprint-media-status"][0]
+        : "";
+  if (chunkHeader) {
+    res.setHeader("X-Blueprint-Chunk-Id", chunkHeader);
+  }
+  if (mediaStatusHeader) {
+    res.setHeader("X-Blueprint-Media-Status", mediaStatusHeader);
+  }
+  return res.send(response.body);
+}
+
 async function proxyRuntimeExplorerFrameForSession(session: HostedSessionRecord, req: Request, res: Response) {
   try {
     await ensureRuntimeMetadataForSession(session);
@@ -2802,6 +2886,44 @@ publicSiteWorldSessionsRouter.get("/:sessionId/render", async (req, res, next) =
   return proxyRuntimeRenderForSession(session, req, res);
 });
 
+publicSiteWorldSessionsRouter.get("/:sessionId/media", async (req, res, next) => {
+  const session = await loadHostedSession(String(req.params.sessionId || ""));
+  if (!session || !isPublicDemoSession(session)) {
+    return next();
+  }
+  return proxyRuntimeMediaForSession(session, req, res);
+});
+
+publicSiteWorldSessionsRouter.post("/:sessionId/control", async (req, res, next) => {
+  try {
+    const session = await loadHostedSession(String(req.params.sessionId || ""));
+    if (!session || !isPublicDemoSession(session)) {
+      return next();
+    }
+    await ensureRuntimeMetadataForSession(session);
+    const payload = await controlHostedSessionRun({
+      sessionId: session.sessionId,
+      workDir: sessionWorkDir(session.sessionId),
+      control: req.body && typeof req.body === "object" ? (req.body as Record<string, unknown>) : {},
+    });
+    void updateSession(session.sessionId, { latestRuntimeFailure: null }, { awaitPersist: false });
+    return res.json(payload);
+  } catch (error) {
+    const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
+      source: "runtime",
+      operation: "step",
+      error,
+      fallbackCode: error instanceof HostedSessionOrchestratorError ? error.code : "control_failed",
+      fallbackSummary: "Control update failed.",
+    }), await loadHostedSession(String(req.params.sessionId || "")));
+    const sessionId = String(req.params.sessionId || "");
+    if (sessionId) {
+      await updateSession(sessionId, { latestRuntimeFailure: diagnostic });
+    }
+    return res.status(diagnostic.statusCode || 500).json({ error: diagnostic.summary, code: diagnostic.code, diagnostic });
+  }
+});
+
 publicSiteWorldSessionsRouter.post("/:sessionId/explorer-render", async (req, res, next) => {
   try {
     const session = await loadHostedSession(String(req.params.sessionId || ""));
@@ -3448,6 +3570,45 @@ protectedRouter.get("/:sessionId/render", async (req, res) => {
     return res.status(404).json({ error: "Hosted session not found" });
   }
   return proxyRuntimeRenderForSession(session, req, res);
+});
+
+protectedRouter.get("/:sessionId/media", async (req, res) => {
+  const session = await loadHostedSession(String(req.params.sessionId || ""));
+  if (!session) {
+    return res.status(404).json({ error: "Hosted session not found" });
+  }
+  return proxyRuntimeMediaForSession(session, req, res);
+});
+
+protectedRouter.post("/:sessionId/control", async (req, res) => {
+  try {
+    await ensureLaunchAccess(req, res);
+    const session = await loadHostedSession(String(req.params.sessionId || ""));
+    if (!session) {
+      return res.status(404).json({ error: "Hosted session not found" });
+    }
+    await ensureRuntimeMetadataForSession(session);
+    const payload = await controlHostedSessionRun({
+      sessionId: session.sessionId,
+      workDir: sessionWorkDir(session.sessionId),
+      control: req.body && typeof req.body === "object" ? (req.body as Record<string, unknown>) : {},
+    });
+    void updateSession(session.sessionId, { latestRuntimeFailure: null }, { awaitPersist: false });
+    return res.json(payload);
+  } catch (error) {
+    const diagnostic = appendCanonicalPackageMismatch(buildFailureDiagnostic({
+      source: "runtime",
+      operation: "step",
+      error,
+      fallbackCode: error instanceof HostedSessionOrchestratorError ? error.code : "control_failed",
+      fallbackSummary: "Control update failed.",
+    }), await loadHostedSession(String(req.params.sessionId || "")));
+    const sessionId = String(req.params.sessionId || "");
+    if (sessionId) {
+      await updateSession(sessionId, { latestRuntimeFailure: diagnostic });
+    }
+    return res.status(diagnostic.statusCode || 500).json({ error: diagnostic.summary, code: diagnostic.code, diagnostic });
+  }
 });
 
 protectedRouter.post("/:sessionId/explorer-render", async (req, res) => {
