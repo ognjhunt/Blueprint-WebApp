@@ -14,6 +14,20 @@ type OnboardingStatusCode = typeof HTTP_STATUS.OK | typeof HTTP_STATUS.CREATED;
 
 const router = Router();
 
+async function fetchPrimaryBankAccount(
+  stripe: Stripe,
+  accountId: string,
+): Promise<Stripe.BankAccount | null> {
+  const response = await stripe.accounts.listExternalAccounts(accountId, {
+    object: "bank_account",
+    limit: 10,
+  });
+  const bankAccount = response.data.find(
+    (item): item is Stripe.BankAccount => item.object === "bank_account",
+  );
+  return bankAccount ?? null;
+}
+
 function ensureStripeConfigured(res: Response) {
   if (!stripeClient) {
     res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({
@@ -92,6 +106,34 @@ router.get("/account", async (_req, res) => {
   } catch (error) {
     const status = (error as any)?.status || 500;
     const message = (error as Error).message || "Failed to fetch account";
+    return res.status(status).json({ error: message });
+  }
+});
+
+router.get("/accounts/current", async (_req, res) => {
+  try {
+    const stripeContext = getStripeContext(res);
+    if (!stripeContext) {
+      return;
+    }
+
+    const bankAccount = await fetchPrimaryBankAccount(
+      stripeContext.stripe,
+      stripeContext.accountId,
+    );
+    if (!bankAccount) {
+      return res.status(204).end();
+    }
+
+    return res.status(200).json({
+      bank_name: bankAccount.bank_name || "Bank account",
+      last4: bankAccount.last4 || "",
+      account_holder_name: bankAccount.account_holder_name || "Account holder",
+      stripe_account_id: stripeContext.accountId,
+    });
+  } catch (error) {
+    const status = (error as any)?.status || 500;
+    const message = (error as Error).message || "Failed to fetch billing info";
     return res.status(status).json({ error: message });
   }
 });
@@ -207,6 +249,45 @@ router.post("/account/instant_payout", async (req, res) => {
   } catch (error) {
     const status = (error as any)?.status || 500;
     const message = (error as Error).message || "Failed to create instant payout";
+    return res.status(status).json({ error: message });
+  }
+});
+
+router.delete("/accounts/:stripeAccountId", async (req, res) => {
+  try {
+    const stripeContext = getStripeContext(res);
+    if (!stripeContext) {
+      return;
+    }
+
+    const requestedAccountId = String(req.params.stripeAccountId || "").trim();
+    if (requestedAccountId && requestedAccountId !== stripeContext.accountId) {
+      return res.status(404).json({ error: "Stripe account not found" });
+    }
+
+    const bankAccounts = await stripeContext.stripe.accounts.listExternalAccounts(
+      stripeContext.accountId,
+      {
+        object: "bank_account",
+        limit: 25,
+      },
+    );
+
+    for (const account of bankAccounts.data) {
+      if (account.object !== "bank_account") {
+        continue;
+      }
+      await stripeContext.stripe.accounts.deleteExternalAccount(
+        stripeContext.accountId,
+        account.id,
+      );
+    }
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    const status = (error as any)?.status || 500;
+    const message =
+      (error as Error).message || "Failed to disconnect bank account";
     return res.status(status).json({ error: message });
   }
 });

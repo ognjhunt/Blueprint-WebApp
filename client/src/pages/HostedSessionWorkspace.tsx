@@ -408,6 +408,10 @@ export function defaultWorkspaceViewMode(params: {
   return params.sessionMode === "presentation_demo" ? "presentation_world" : "live_runtime";
 }
 
+export function shouldUseChunkReplacementMode(presentationMode?: string | null) {
+  return String(presentationMode || "").trim().toLowerCase() === "truthful_preview";
+}
+
 export default function HostedSessionWorkspace({ params }: HostedSessionWorkspaceProps) {
   const fallbackSite = getSiteWorldById(params.slug);
   const [siteDetail, setSiteDetail] = useState(fallbackSite);
@@ -426,6 +430,8 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const [observationLoadError, setObservationLoadError] = useState(false);
   const [liveObservationSrc, setLiveObservationSrc] = useState("");
   const [liveObservationRenderSource, setLiveObservationRenderSource] = useState("");
+  const [livePresentationMode, setLivePresentationMode] = useState("");
+  const [liveRefinementStatus, setLiveRefinementStatus] = useState("");
   const [liveVideoSrc, setLiveVideoSrc] = useState("");
   const [liveVideoChunkId, setLiveVideoChunkId] = useState("");
   const [liveMediaStatus, setLiveMediaStatus] = useState("");
@@ -685,6 +691,9 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     });
     setLiveVideoChunkId("");
     setLiveMediaStatus("");
+    setLivePresentationMode("");
+    setLiveRefinementStatus("");
+    setPendingMseChunkId("");
     setRuntimeStreamState(null);
     setLiveObservationRenderSource("");
     setLiveViewportAspect(null);
@@ -952,6 +961,11 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const frameObservationSrc = liveObservationSrc || renderRouteHref || selectedCameraRenderableFallback;
   const selectedObservationSrc = frameObservationSrc;
   const activeRolloutChunkId = String(runtimeRollout?.active_chunk_id || "").trim();
+  const runtimePresentationMode = String(runtimeRollout?.presentation_mode || "").trim();
+  const runtimeRefinementStatus = String(runtimeRollout?.refinement_status || "").trim();
+  const effectivePresentationMode = livePresentationMode || runtimePresentationMode;
+  const effectiveRefinementStatus = liveRefinementStatus || runtimeRefinementStatus;
+  const shouldUseChunkReplacement = shouldUseChunkReplacementMode(effectivePresentationMode);
   // True when either the MSE path has data or the blob-rotation fallback is ready.
   const hasLiveVideoObservation = Boolean(
     liveVideoSrc && (activeRolloutChunkId || pendingMseChunkId) && !observationLoadError,
@@ -1296,22 +1310,44 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     handleMediaEventRef.current = (ev: Record<string, unknown>) => {
       const evtName = String(ev.event || "");
       const chunkId = String(ev.chunk_id || "");
+      const eventPresentationMode = String(ev.presentation_mode || effectivePresentationMode).trim();
+      const eventRefinementStatus = String(ev.refinement_status || effectiveRefinementStatus).trim();
+      const shouldReplaceChunks = shouldUseChunkReplacementMode(eventPresentationMode);
+      if (eventPresentationMode) {
+        setLivePresentationMode(eventPresentationMode);
+      }
+      if (eventRefinementStatus) {
+        setLiveRefinementStatus(eventRefinementStatus);
+      }
       if (evtName === "chunk_ready" && chunkId) {
-        // Signal the MSE append effect immediately (bypasses 250ms state poll).
-        setPendingMseChunkId(chunkId);
-        setLiveVideoChunkId(chunkId);
+        if (!shouldReplaceChunks) {
+          // Signal the MSE append effect immediately (bypasses 250ms state poll).
+          setPendingMseChunkId(chunkId);
+          setLiveVideoChunkId(chunkId);
+        } else {
+          setPendingMseChunkId("");
+        }
         setLiveMediaStatus("playing");
+      } else if (evtName === "chunk_refinement_ready") {
+        setLiveMediaStatus(Boolean(ev.promoted) ? "refined" : "refinement_ready");
       } else if (evtName === "chunk_underrun") {
         setLiveMediaStatus("underrun");
       }
       // chunk_generation_started: no UI action needed (could add a spinner here)
     };
-  });
+  }, [effectivePresentationMode, effectiveRefinementStatus]);
+
+  useEffect(() => {
+    if (shouldUseChunkReplacement) {
+      setPendingMseChunkId("");
+    }
+  }, [shouldUseChunkReplacement]);
 
   // MSE fetch-and-append effect: fires immediately when a chunk_ready event
   // arrives via the WS media_event channel (target: <50ms after chunk is ready).
   // Falls back to blob-URL rotation when MSE is unavailable (older browsers).
   useEffect(() => {
+    if (shouldUseChunkReplacement) return;
     if (!pendingMseChunkId || !runtimeInteractive || !sessionId) return;
     if (mseChunksAppendedRef.current.has(pendingMseChunkId)) return;
     mseChunksAppendedRef.current.add(pendingMseChunkId);
@@ -1392,6 +1428,12 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
         setLiveObservationRenderSource(
           String(response.headers.get("x-blueprint-render-source") || "").trim(),
         );
+        setLivePresentationMode(
+          String(response.headers.get("x-blueprint-presentation-mode") || "").trim(),
+        );
+        setLiveRefinementStatus(
+          String(response.headers.get("x-blueprint-refinement-status") || "").trim(),
+        );
         setLiveMediaStatus(
           String(response.headers.get("x-blueprint-media-status") || "playing").trim(),
         );
@@ -1431,7 +1473,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     return () => {
       cancelled = true;
     };
-  }, [pendingMseChunkId, runtimeInteractive, sessionId, selectedCameraId, primaryCameraId]);
+  }, [pendingMseChunkId, primaryCameraId, runtimeInteractive, selectedCameraId, sessionId, shouldUseChunkReplacement]);
 
   useEffect(() => {
     if (!runtimeInteractive || !sessionId || !activeRolloutChunkId) {
@@ -1469,6 +1511,8 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
         setLiveVideoChunkId(String(response.headers.get("x-blueprint-chunk-id") || activeRolloutChunkId).trim());
         setLiveMediaStatus(String(response.headers.get("x-blueprint-media-status") || rolloutStatus).trim());
         setLiveObservationRenderSource(String(response.headers.get("x-blueprint-render-source") || "").trim());
+        setLivePresentationMode(String(response.headers.get("x-blueprint-presentation-mode") || "").trim());
+        setLiveRefinementStatus(String(response.headers.get("x-blueprint-refinement-status") || "").trim());
         setObservationLoadError(false);
       } catch (error) {
         if (!cancelled) {
@@ -1483,10 +1527,13 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   }, [
     activeRolloutChunkId,
     primaryCameraId,
+    runtimePresentationMode,
+    runtimeRefinementStatus,
     rolloutStatus,
     runtimeInteractive,
     selectedCameraId,
     sessionId,
+    shouldUseChunkReplacement,
   ]);
 
   useEffect(() => {
@@ -2312,6 +2359,11 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                               {humanizeValue(liveMediaStatus || rolloutStatus, "buffering")}
                             </div>
                           ) : null}
+                          {effectivePresentationMode ? (
+                            <div className="rounded-full border border-white/70 bg-white/88 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 backdrop-blur-sm">
+                              {humanizeValue(effectivePresentationMode, "live_runtime")}
+                            </div>
+                          ) : null}
                           <MetadataLink href={renderRouteHref || null} label="Open latest frame" />
                           {hasLiveVideoObservation ? (
                             <MetadataLink
@@ -2346,6 +2398,14 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Rollout</p>
                               <p className="mt-2 text-base font-bold">{humanizeValue(rolloutStatus, "idle")}</p>
                             </div>
+                          </div>
+                          <div className="pointer-events-auto rounded-[22px] border border-white/70 bg-white/88 px-4 py-4 text-slate-900 backdrop-blur-sm">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Output Path</p>
+                            <p className="mt-2 text-sm font-semibold">
+                              {shouldUseChunkReplacement
+                                ? `Truthful preview, ${humanizeValue(effectiveRefinementStatus || "pending", "pending")}`
+                                : "Chunk append"}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -2433,6 +2493,8 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                         <div className="mt-4 space-y-3 text-sm text-slate-700">
                           <p>Render quality: {humanizeValue(String(qualityFlags?.presentation_quality || ""), "unknown")}</p>
                           <p>Render source: {humanizeValue(renderSource, "unknown")}</p>
+                          <p>Presentation mode: {humanizeValue(effectivePresentationMode, "unknown")}</p>
+                          <p>Refinement status: {humanizeValue(effectiveRefinementStatus, "disabled")}</p>
                           <p>Media status: {humanizeValue(liveMediaStatus || rolloutStatus, "idle")}</p>
                           <p>Active chunk: {liveVideoChunkId || activeRolloutChunkId || "Pending"}</p>
                           <p>Primary runtime backend: {humanizeValue(primaryRuntimeBackend, "unknown")}</p>

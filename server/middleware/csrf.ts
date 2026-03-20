@@ -4,6 +4,7 @@ import type { NextFunction, Request, Response } from "express";
 const CSRF_COOKIE_NAME = "csrf_token";
 const CSRF_HEADER_NAME = "x-csrf-token";
 const STATE_CHANGING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const NATIVE_CLIENT_HEADER_NAME = "x-blueprint-native-client";
 
 const parseCookies = (cookieHeader?: string) => {
   if (!cookieHeader) {
@@ -35,6 +36,11 @@ export const csrfCookieHandler = (_req: Request, res: Response) => {
 
 export const csrfProtection = (req: Request, res: Response, next: NextFunction) => {
   if (!STATE_CHANGING_METHODS.has(req.method)) {
+    return next();
+  }
+
+  const nativeClient = String(req.header(NATIVE_CLIENT_HEADER_NAME) || "").trim().toLowerCase();
+  if (nativeClient === "ios" || nativeClient === "android" || nativeClient === "blueprint-capture") {
     return next();
   }
 

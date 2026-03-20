@@ -370,13 +370,17 @@ export async function getWorldLabsWorld(worldId: string) {
 
 export function summarizeWorldLabsPreview(params: {
   requestManifest?: Record<string, unknown> | null;
+  inputManifest?: Record<string, unknown> | null;
   operationManifest?: Record<string, unknown> | null;
   worldManifest?: Record<string, unknown> | null;
   requestManifestUri?: string | null;
+  inputManifestUri?: string | null;
+  inputVideoUri?: string | null;
   operationManifestUri?: string | null;
   worldManifestUri?: string | null;
 }): WorldLabsPreviewSummary {
   const requestManifest = params.requestManifest || {};
+  const inputManifest = params.inputManifest || {};
   const operationManifest = params.operationManifest || {};
   const worldManifest = params.worldManifest || {};
 
@@ -425,7 +429,13 @@ export function summarizeWorldLabsPreview(params: {
   } else if (operationId && !operationDone) {
     const rawStatus = firstString(operationManifest.status).toLowerCase();
     status = rawStatus === "queued" || rawStatus === "pending" ? "queued" : "processing";
-  } else if (params.requestManifestUri || Object.keys(requestManifest).length > 0) {
+  } else if (
+    params.requestManifestUri ||
+    params.inputManifestUri ||
+    params.inputVideoUri ||
+    Object.keys(requestManifest).length > 0 ||
+    Object.keys(inputManifest).length > 0
+  ) {
     status = "queued";
   }
 
@@ -449,6 +459,7 @@ export function summarizeWorldLabsPreview(params: {
       worldManifest.generation_source_type,
       operationManifest.generation_source_type,
       requestManifest.generation_source_type,
+      inputManifest.generation_source_type,
     ) || null,
   };
 }

@@ -6,9 +6,13 @@ import {
   premiumCapabilities,
   syntheticDatasets,
   trainingDatasets,
+  type MarketplaceScene,
+  type SyntheticDataset,
+  type TrainingDataset,
   type ExclusivityType,
   type LicenseTier,
 } from "../../../client/src/data/content";
+import { findPublishedMarketplaceInventoryBySku } from "../../utils/marketplaceInventory";
 
 type PaymentSessionType = "onboarding" | "legacy-hourly" | "marketplace";
 
@@ -215,9 +219,15 @@ export default async function handler(req: Request, res: Response) {
       const itemType = marketplaceItem.itemType;
       let expectedBasePrice = 0;
       let expectedQuantity = quantity;
+      const liveInventoryRecord = await findPublishedMarketplaceInventoryBySku(
+        marketplaceItem.sku,
+      );
 
-      if (itemType === "scene") {
-        const scene = findSceneBySku(marketplaceItem.sku);
+      if ((liveInventoryRecord?.itemType || itemType) === "scene") {
+        const scene: MarketplaceScene | undefined =
+          liveInventoryRecord?.itemType === "scene"
+            ? (liveInventoryRecord.item as MarketplaceScene)
+            : findSceneBySku(marketplaceItem.sku);
         if (!scene) {
           return res.status(400).json({ error: "Unknown marketplace scene SKU" });
         }
@@ -233,16 +243,22 @@ export default async function handler(req: Request, res: Response) {
         }
 
         expectedQuantity = 1;
-      } else if (itemType === "dataset") {
-        const dataset = findDatasetBySku(marketplaceItem.sku);
+      } else if ((liveInventoryRecord?.itemType || itemType) === "dataset") {
+        const dataset: SyntheticDataset | undefined =
+          liveInventoryRecord?.itemType === "dataset"
+            ? (liveInventoryRecord.item as SyntheticDataset)
+            : findDatasetBySku(marketplaceItem.sku);
         if (!dataset) {
           return res.status(400).json({ error: "Unknown marketplace dataset SKU" });
         }
 
         expectedBasePrice = dataset.pricePerScene;
         expectedQuantity = dataset.sceneCount || 1;
-      } else if (itemType === "training") {
-        const training = findTrainingBySku(marketplaceItem.sku);
+      } else if ((liveInventoryRecord?.itemType || itemType) === "training") {
+        const training: TrainingDataset | undefined =
+          liveInventoryRecord?.itemType === "training"
+            ? (liveInventoryRecord.item as TrainingDataset)
+            : findTrainingBySku(marketplaceItem.sku);
         if (!training) {
           return res.status(400).json({ error: "Unknown marketplace training SKU" });
         }
@@ -259,6 +275,12 @@ export default async function handler(req: Request, res: Response) {
         expectedQuantity = 1;
       } else {
         return res.status(400).json({ error: "Unknown marketplace item type" });
+      }
+
+      if (liveInventoryRecord?.rightsStatus === "blocked") {
+        return res.status(409).json({
+          error: "This marketplace item is not commercially publishable.",
+        });
       }
 
       if (quantity !== expectedQuantity) {
@@ -312,7 +334,7 @@ export default async function handler(req: Request, res: Response) {
                 description: fullDescription || undefined,
                 metadata: {
                   sku: marketplaceItem.sku || "",
-                  itemType: marketplaceItem.itemType || "",
+                  itemType: marketplaceItem.itemType || null,
                   licenseTier,
                   exclusivity,
                 },
@@ -324,11 +346,14 @@ export default async function handler(req: Request, res: Response) {
         ],
         metadata: {
           marketplaceSku: marketplaceItem.sku || "",
-          marketplaceItemType: itemType,
+          marketplaceItemType: itemType || "",
           marketplaceTitle: marketplaceItem.title,
           marketplaceDescription: sanitizedDescription,
           marketplacePrice: computedPrice.toFixed(2),
           marketplaceQuantity: quantity.toString(),
+          marketplaceInventorySource: liveInventoryRecord ? "firestore" : "static",
+          marketplaceDeliveryMode: liveInventoryRecord?.deliveryMode || "",
+          marketplaceFulfillmentStatus: liveInventoryRecord?.fulfillmentStatus || "",
           // Hybrid marketplace metadata
           licenseTier,
           exclusivity,

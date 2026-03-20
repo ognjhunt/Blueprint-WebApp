@@ -1,6 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import HostedSessionWorkspace, { defaultWorkspaceViewMode, shouldScheduleLiveRenderRetry } from "@/pages/HostedSessionWorkspace";
+import HostedSessionWorkspace, {
+  defaultWorkspaceViewMode,
+  shouldScheduleLiveRenderRetry,
+  shouldUseChunkReplacementMode,
+} from "@/pages/HostedSessionWorkspace";
 import { getSiteWorldById } from "@/data/siteWorlds";
 
 let mockSearch = "";
@@ -649,5 +653,13 @@ describe("HostedSessionWorkspace", () => {
       "href",
       expect.stringContaining("/api/site-worlds/sessions/session-operator/ui/bootstrap"),
     );
+  });
+});
+
+describe("shouldUseChunkReplacementMode", () => {
+  it("enables replacement mode for truthful preview presentation", () => {
+    expect(shouldUseChunkReplacementMode("truthful_preview")).toBe(true);
+    expect(shouldUseChunkReplacementMode("generated_chunk")).toBe(false);
+    expect(shouldUseChunkReplacementMode("")).toBe(false);
   });
 });

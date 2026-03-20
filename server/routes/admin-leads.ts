@@ -69,6 +69,20 @@ const ADMIN_EMAILS = [
 const VALID_QUALIFICATION_STATES: QualificationState[] = [...QUALIFICATION_STATES];
 
 const VALID_OPPORTUNITY_STATES: OpportunityState[] = [...OPPORTUNITY_STATES];
+const CAPTURE_JOB_MARKETPLACE_STATES = [
+  "draft",
+  "approved_for_marketplace",
+  "claimable",
+  "reserved",
+  "in_progress",
+  "uploaded",
+  "under_review",
+  "approved",
+  "paid",
+  "needs_recapture",
+  "cancelled",
+] as const;
+type CaptureJobMarketplaceState = (typeof CAPTURE_JOB_MARKETPLACE_STATES)[number];
 
 function legacyStatusToQualificationState(status?: string | null): QualificationState {
   switch (status) {
@@ -183,7 +197,88 @@ function normalizeDeploymentReadiness(raw: unknown): DeploymentReadinessSummary 
   return { ...(raw as DeploymentReadinessSummary) };
 }
 
-function buildCaptureJobPayload(decrypted: ReturnType<typeof normalizeDecryptedRequest>) {
+function parseCoordinate(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function parseGeoPoint(raw: unknown): { lat: number; lng: number } | null {
+  if (typeof raw === "string" && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      const lat = parseCoordinate(parsed.lat ?? parsed.latitude);
+      const lng = parseCoordinate(parsed.lng ?? parsed.longitude);
+      if (lat !== null && lng !== null) {
+        return { lat, lng };
+      }
+    } catch {
+      const [latValue, lngValue] = raw.split(",").map((value) => parseCoordinate(value));
+      if (latValue !== null && lngValue !== null) {
+        return { lat: latValue, lng: lngValue };
+      }
+    }
+  }
+
+  if (raw && typeof raw === "object") {
+    const value = raw as Record<string, unknown>;
+    const lat = parseCoordinate(value.lat ?? value.latitude);
+    const lng = parseCoordinate(value.lng ?? value.longitude);
+    if (lat !== null && lng !== null) {
+      return { lat, lng };
+    }
+  }
+
+  return null;
+}
+
+function isValidMarketplaceCoordinate(lat: number, lng: number) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return false;
+  }
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+    return false;
+  }
+  return !(lat === 0 && lng === 0);
+}
+
+function resolveCaptureJobCoordinates(
+  decrypted: ReturnType<typeof normalizeDecryptedRequest>,
+  body: Record<string, unknown>,
+): { lat: number; lng: number } | null {
+  const lat = parseCoordinate(body.lat ?? body.latitude);
+  const lng = parseCoordinate(body.lng ?? body.longitude);
+  if (lat !== null && lng !== null) {
+    return isValidMarketplaceCoordinate(lat, lng) ? { lat, lng } : null;
+  }
+
+  const requestGeo = parseGeoPoint((decrypted as Record<string, unknown>).geo);
+  if (requestGeo && isValidMarketplaceCoordinate(requestGeo.lat, requestGeo.lng)) {
+    return requestGeo;
+  }
+
+  const enrichmentGeo = parseGeoPoint((decrypted.enrichment as Record<string, unknown> | undefined)?.geo);
+  if (enrichmentGeo && isValidMarketplaceCoordinate(enrichmentGeo.lat, enrichmentGeo.lng)) {
+    return enrichmentGeo;
+  }
+
+  return null;
+}
+
+function buildCaptureJobPayload(
+  decrypted: ReturnType<typeof normalizeDecryptedRequest>,
+  params: {
+    coordinates: { lat: number; lng: number };
+    marketplaceState?: CaptureJobMarketplaceState;
+    availabilityStartsAt?: string | null;
+    availabilityEndsAt?: string | null;
+  },
+) {
   const priorityWeight =
     decrypted.priority === "high" ? 1.5 : decrypted.priority === "normal" ? 1.0 : 0.75;
   const specialTaskType =
@@ -193,17 +288,19 @@ function buildCaptureJobPayload(decrypted: ReturnType<typeof normalizeDecryptedR
       ? "buyer_requested_evaluation"
       : "managed_capture";
   const quotedPayoutCents = decrypted.priority === "high" ? 6500 : 4500;
+  const marketplaceState = params.marketplaceState || "claimable";
 
   return {
     title: decrypted.request.siteName,
     address: decrypted.request.siteLocation,
-    lat: 0,
-    lng: 0,
+    lat: params.coordinates.lat,
+    lng: params.coordinates.lng,
     payout_cents: quotedPayoutCents,
     quoted_payout_cents: quotedPayoutCents,
     est_minutes: 25,
     active: true,
     updated_at: admin.firestore.FieldValue.serverTimestamp(),
+    published_at: admin.firestore.FieldValue.serverTimestamp(),
     workflow_name: decrypted.request.taskStatement,
     workflow_steps: decrypted.request.workflowContext
       ? [decrypted.request.workflowContext]
@@ -219,16 +316,26 @@ function buildCaptureJobPayload(decrypted: ReturnType<typeof normalizeDecryptedR
     buyer_request_id: decrypted.requestId,
     site_submission_id: decrypted.site_submission_id,
     priority_weight: priorityWeight,
+    marketplace_state: marketplaceState,
     approval_requirements: ["ops_review", "rights_review"],
     rights_checklist: [
       "permission doc present or policy recorded",
       "consent scope documented",
       "restricted zones listed",
     ],
+    rights_status: decrypted.ops?.rights_status || "unknown",
+    capture_policy_tier: decrypted.ops?.capture_policy_tier || "review_required",
     requested_outputs: decrypted.request.requestedLanes,
     due_window: "managed",
     recapture_reason: "",
-    capture_job_state: "ready_to_submit",
+    capture_job_state: marketplaceState,
+    availability_window:
+      params.availabilityStartsAt || params.availabilityEndsAt
+        ? {
+            starts_at: params.availabilityStartsAt || null,
+            ends_at: params.availabilityEndsAt || null,
+          }
+        : null,
   };
 }
 
@@ -577,8 +684,40 @@ router.post("/:requestId/capture-job", requireAdmin, async (req: Request, res: R
     const decrypted = normalizeDecryptedRequest(
       (await decryptInboundRequestForAdmin(requestDoc.data() as any)) as InboundRequest
     );
+    const coordinates = resolveCaptureJobCoordinates(
+      decrypted,
+      (req.body || {}) as Record<string, unknown>,
+    );
+    if (!coordinates) {
+      return res.status(409).json({
+        error:
+          "Capture job cannot be published without valid site coordinates. Provide lat/lng or backfill request geo data first.",
+      });
+    }
+
+    if (decrypted.ops?.rights_status === "blocked" || decrypted.ops?.capture_policy_tier === "not_allowed") {
+      return res.status(409).json({
+        error:
+          "Capture job cannot be published while rights status or capture policy blocks commercialization.",
+      });
+    }
+
     const captureJobId = `job_${requestId}`;
-    const payload = buildCaptureJobPayload(decrypted);
+    const requestedMarketplaceState = String(req.body?.marketplace_state || "").trim() as CaptureJobMarketplaceState;
+    const payload = buildCaptureJobPayload(decrypted, {
+      coordinates,
+      marketplaceState: CAPTURE_JOB_MARKETPLACE_STATES.includes(requestedMarketplaceState)
+        ? requestedMarketplaceState
+        : "claimable",
+      availabilityStartsAt:
+        typeof req.body?.availability_starts_at === "string"
+          ? req.body.availability_starts_at
+          : null,
+      availabilityEndsAt:
+        typeof req.body?.availability_ends_at === "string"
+          ? req.body.availability_ends_at
+          : null,
+    });
 
     await db.collection("capture_jobs").doc(captureJobId).set(payload, { merge: true });
     await requestDoc.ref.update({

@@ -12,8 +12,12 @@ import {
 
 import { embedTexts } from "./embeddings";
 import { logger } from "../logger";
+import { loadPublishedMarketplaceInventory } from "../utils/marketplaceInventory";
 
-export type MarketplaceSearchBackend = "firestore-vector" | "static-inmemory";
+export type MarketplaceSearchBackend =
+  | "firestore-vector"
+  | "firestore-live"
+  | "static-inmemory";
 
 export type MarketplaceSearchFilters = {
   itemType?: "all" | "scenes" | "training";
@@ -531,6 +535,27 @@ async function ensureStaticIndex(): Promise<{
   };
 }
 
+async function loadLiveInventoryCandidates(): Promise<Candidate[]> {
+  const inventory = await loadPublishedMarketplaceInventory(250);
+  const policyTitleMap = buildPolicyTitleMap();
+  return inventory
+    .filter(
+      (record): record is typeof record & { itemType: "scene" | "training" } =>
+        record.itemType === "scene" || record.itemType === "training",
+    )
+    .map((record) => {
+      const candidate: Candidate = {
+        type: record.itemType,
+        item: record.item as MarketplaceScene | TrainingDataset,
+        searchDoc: "",
+        embedding: record.embedding,
+      };
+      candidate.searchDoc =
+        record.searchDoc || buildSearchDoc(candidate, policyTitleMap);
+      return candidate;
+    });
+}
+
 async function tryFirestoreVectorSearch(params: {
   query: string;
   queryEmbedding: number[];
@@ -652,7 +677,10 @@ export async function searchMarketplace(params: {
   const staticData = await ensureStaticIndex();
   warnings.push(...staticData.warnings);
 
-  const filtered = staticData.candidates
+  const liveCandidates = await loadLiveInventoryCandidates();
+  const candidatePool = liveCandidates.length > 0 ? liveCandidates : staticData.candidates;
+
+  const filtered = candidatePool
     .filter((candidate) => passesFilters(candidate, params.filters))
     .filter((candidate) => passesHardConstraints(candidate, params.hard));
 
@@ -676,9 +704,12 @@ export async function searchMarketplace(params: {
   return {
     results: applySort(results, params.filters.sort),
     meta: {
-      backend: "static-inmemory",
+      backend: liveCandidates.length > 0 ? "firestore-live" : "static-inmemory",
       embeddingModel: DEFAULT_EMBEDDING_MODEL,
-      usedEmbeddings: Boolean(queryEmbedding) && staticData.usedEmbeddings,
+      usedEmbeddings:
+        Boolean(queryEmbedding) &&
+        (liveCandidates.some((candidate) => Array.isArray(candidate.embedding) && candidate.embedding.length > 0) ||
+          staticData.usedEmbeddings),
     },
     warnings,
   };

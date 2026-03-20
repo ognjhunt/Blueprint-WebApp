@@ -693,6 +693,71 @@ function pipelineArtifactUri(
   return `gs://${bucket}/${pipelinePrefix}/${relativePath}`;
 }
 
+async function buildWorldLabsPreviewFromPipeline(
+  pipeline: PipelineAttachment | undefined,
+): Promise<SiteWorldCard["worldLabsPreview"] | undefined> {
+  if (!pipeline) {
+    return undefined;
+  }
+
+  const requestManifestUri = pipelineArtifactUri(
+    pipeline,
+    pipeline.artifacts.worldlabs_request_manifest_uri,
+    "worldlabs/worldlabs_request_manifest.json",
+  );
+  const inputManifestUri = pipelineArtifactUri(
+    pipeline,
+    pipeline.artifacts.worldlabs_input_manifest_uri,
+    "worldlabs_input/worldlabs_input_manifest.json",
+  );
+  const inputVideoUri = pipelineArtifactUri(
+    pipeline,
+    pipeline.artifacts.worldlabs_input_video_uri,
+    "worldlabs_input/worldlabs_input.mp4",
+  );
+  const operationManifestUri = pipelineArtifactUri(
+    pipeline,
+    pipeline.artifacts.worldlabs_operation_manifest_uri,
+    "worldlabs/worldlabs_operation_manifest.json",
+  );
+  const worldManifestUri = pipelineArtifactUri(
+    pipeline,
+    pipeline.artifacts.worldlabs_world_manifest_uri,
+    "worldlabs/worldlabs_world_manifest.json",
+  );
+
+  const hasWorldLabsArtifacts = [
+    requestManifestUri,
+    inputManifestUri,
+    inputVideoUri,
+    operationManifestUri,
+    worldManifestUri,
+  ].some(Boolean);
+  if (!hasWorldLabsArtifacts) {
+    return undefined;
+  }
+
+  const [requestManifest, inputManifest, operationManifest, worldManifest] =
+    await Promise.all([
+      readArtifactJson(requestManifestUri),
+      readArtifactJson(inputManifestUri),
+      readArtifactJson(operationManifestUri),
+      readArtifactJson(worldManifestUri),
+    ]);
+
+  return summarizeWorldLabsPreview({
+    requestManifest,
+    inputManifest,
+    operationManifest,
+    worldManifest,
+    requestManifestUri,
+    inputManifestUri,
+    inputVideoUri,
+    operationManifestUri,
+    worldManifestUri,
+  });
+}
+
 function buildFallbackPackages(siteId: string, siteName: string, siteAddress: string, sampleTask: string, sampleRobot: string): [SiteWorldPackage, SiteWorldPackage] {
   const params = new URLSearchParams({
     interest: "data-licensing",
@@ -1038,9 +1103,6 @@ async function buildLiveRecord(
     siteWorldHealth,
     presentationWorldManifest,
     runtimeDemoManifest,
-    worldLabsRequestManifest,
-    worldLabsOperationManifest,
-    worldLabsWorldManifest,
   ] =
     await Promise.all([
       readArtifactJson(
@@ -1101,27 +1163,6 @@ async function buildLiveRecord(
       ),
       readArtifactJson(resolvePresentationWorldManifestUri(pipeline)),
       readArtifactJson(resolveRuntimeDemoManifestUri(pipeline)),
-      readArtifactJson(
-        pipelineArtifactUri(
-          pipeline,
-          pipeline?.artifacts.worldlabs_request_manifest_uri,
-          "worldlabs/worldlabs_request_manifest.json",
-        ),
-      ),
-      readArtifactJson(
-        pipelineArtifactUri(
-          pipeline,
-          pipeline?.artifacts.worldlabs_operation_manifest_uri,
-          "worldlabs/worldlabs_operation_manifest.json",
-        ),
-      ),
-      readArtifactJson(
-        pipelineArtifactUri(
-          pipeline,
-          pipeline?.artifacts.worldlabs_world_manifest_uri,
-          "worldlabs/worldlabs_world_manifest.json",
-        ),
-      ),
     ]);
 
   const readiness = buildDeploymentReadiness({
@@ -1276,42 +1317,37 @@ async function buildLiveRecord(
     pipeline?.artifacts.site_world_health_uri,
     "evaluation_prep/site_world_health.json",
   );
-  const worldLabsRequestManifestUri = pipelineArtifactUri(
-    pipeline,
-    pipeline?.artifacts.worldlabs_request_manifest_uri,
-    "worldlabs/worldlabs_request_manifest.json",
-  );
-  const worldLabsInputManifestUri = pipelineArtifactUri(
-    pipeline,
-    pipeline?.artifacts.worldlabs_input_manifest_uri,
-    "worldlabs_input/worldlabs_input_manifest.json",
-  );
-  const worldLabsInputVideoUri = pipelineArtifactUri(
-    pipeline,
-    pipeline?.artifacts.worldlabs_input_video_uri,
-    "worldlabs_input/worldlabs_input.mp4",
-  );
-  const worldLabsOperationManifestUri = pipelineArtifactUri(
-    pipeline,
-    pipeline?.artifacts.worldlabs_operation_manifest_uri,
-    "worldlabs/worldlabs_operation_manifest.json",
-  );
-  const worldLabsWorldManifestUri = pipelineArtifactUri(
-    pipeline,
-    pipeline?.artifacts.worldlabs_world_manifest_uri,
-    "worldlabs/worldlabs_world_manifest.json",
-  );
-  const worldLabsPreview =
-    worldLabsRequestManifestUri || worldLabsOperationManifestUri || worldLabsWorldManifestUri
-      ? summarizeWorldLabsPreview({
-          requestManifest: worldLabsRequestManifest,
-          operationManifest: worldLabsOperationManifest,
-          worldManifest: worldLabsWorldManifest,
-          requestManifestUri: worldLabsRequestManifestUri,
-          operationManifestUri: worldLabsOperationManifestUri,
-          worldManifestUri: worldLabsWorldManifestUri,
-        })
-      : undefined;
+  const worldLabsPreview = await buildWorldLabsPreviewFromPipeline(pipeline);
+  const worldLabsRequestManifestUri =
+    pipelineArtifactUri(
+      pipeline,
+      pipeline?.artifacts.worldlabs_request_manifest_uri,
+      "worldlabs/worldlabs_request_manifest.json",
+    ) || null;
+  const worldLabsInputManifestUri =
+    pipelineArtifactUri(
+      pipeline,
+      pipeline?.artifacts.worldlabs_input_manifest_uri,
+      "worldlabs_input/worldlabs_input_manifest.json",
+    ) || null;
+  const worldLabsInputVideoUri =
+    pipelineArtifactUri(
+      pipeline,
+      pipeline?.artifacts.worldlabs_input_video_uri,
+      "worldlabs_input/worldlabs_input.mp4",
+    ) || null;
+  const worldLabsOperationManifestUri =
+    pipelineArtifactUri(
+      pipeline,
+      pipeline?.artifacts.worldlabs_operation_manifest_uri,
+      "worldlabs/worldlabs_operation_manifest.json",
+    ) || null;
+  const worldLabsWorldManifestUri =
+    pipelineArtifactUri(
+      pipeline,
+      pipeline?.artifacts.worldlabs_world_manifest_uri,
+      "worldlabs/worldlabs_world_manifest.json",
+    ) || null;
   const refreshedReadiness = buildDeploymentReadiness({
     request,
     qualificationState,
@@ -1456,11 +1492,25 @@ export async function listPublicSiteWorlds(limit = 24): Promise<SiteWorldCard[]>
 
 export async function getPublicSiteWorldById(id: string): Promise<SiteWorldCard | null> {
   const staticDirectMatch = findStaticSiteWorldById(id);
-  if (staticDirectMatch?.hostedSessionOverride?.allowBlockedSiteWorld) {
-    return staticDirectMatch;
+  const catalog = await listPublicSiteWorlds(100);
+  if (staticDirectMatch) {
+    const liveEquivalent =
+      catalog.find(
+        (item) =>
+          item.dataSource === "pipeline" &&
+          (item.id === id ||
+            item.siteSubmissionId === staticDirectMatch.siteSubmissionId ||
+            item.sceneId === staticDirectMatch.sceneId ||
+            item.captureId === staticDirectMatch.captureId),
+      ) || null;
+    if (liveEquivalent) {
+      return liveEquivalent;
+    }
+    if (staticDirectMatch.hostedSessionOverride?.allowBlockedSiteWorld) {
+      return staticDirectMatch;
+    }
   }
 
-  const catalog = await listPublicSiteWorlds(100);
   const liveOrStaticRecord =
     catalog.find(
       (item) =>
@@ -1470,6 +1520,30 @@ export async function getPublicSiteWorldById(id: string): Promise<SiteWorldCard 
         item.captureId === id,
     ) || null;
   if (liveOrStaticRecord) {
+    if (liveOrStaticRecord.dataSource === "pipeline" && !liveOrStaticRecord.worldLabsPreview && db) {
+      const snapshot = await db.collection("inboundRequests").orderBy("createdAt", "desc").limit(100).get();
+      for (const doc of snapshot.docs) {
+        const decrypted = (await decryptInboundRequestForAdmin(doc.data() as InboundRequestStored)) as InboundRequest;
+        const pipeline = decrypted.pipeline;
+        if (!pipeline) {
+          continue;
+        }
+        if (
+          liveOrStaticRecord.siteSubmissionId !== (decrypted.site_submission_id || doc.id) &&
+          liveOrStaticRecord.sceneId !== pipeline.scene_id &&
+          liveOrStaticRecord.captureId !== pipeline.capture_id
+        ) {
+          continue;
+        }
+        const worldLabsPreview = await buildWorldLabsPreviewFromPipeline(pipeline);
+        if (worldLabsPreview) {
+          return {
+            ...liveOrStaticRecord,
+            worldLabsPreview,
+          };
+        }
+      }
+    }
     return liveOrStaticRecord;
   }
 

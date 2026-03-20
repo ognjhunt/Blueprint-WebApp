@@ -3,6 +3,14 @@ import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 
 const router = Router();
 
+const DEFAULT_NOTIFICATION_PREFERENCES = {
+  nearby_jobs: true,
+  reservations: true,
+  capture_status: true,
+  payouts: true,
+  account: true,
+} as const;
+
 function creatorIdFromRequest(req: Request) {
   const headerValue = String(req.header("X-Blueprint-Creator-Id") || "").trim();
   const queryValue = String(req.query.creator_id || "").trim();
@@ -229,6 +237,114 @@ router.get("/captures/:captureId", async (req: Request, res: Response) => {
     rejection_reason: data.rejection_reason || null,
     timeline: Array.isArray(data.timeline) ? data.timeline : [],
   });
+});
+
+router.put("/devices/current", async (req: Request, res: Response) => {
+  if (!db) {
+    return res.status(500).json({ error: "Database not available" });
+  }
+
+  const creatorId = creatorIdFromRequest(req);
+  if (!creatorId) {
+    return res.status(400).json({ error: "Missing creator id" });
+  }
+
+  const payload = {
+    creator_id: creatorId,
+    platform: String(req.body?.platform || ""),
+    fcm_token: String(req.body?.fcm_token || ""),
+    authorization_status: String(req.body?.authorization_status || "unknown"),
+    app_version: String(req.body?.app_version || ""),
+    last_seen_at: req.body?.last_seen_at || new Date().toISOString(),
+    updated_at: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  await db
+    .collection("creatorProfiles")
+    .doc(creatorId)
+    .set(
+      {
+        notification_device: payload,
+        updated_at: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+  return res.json({ ok: true });
+});
+
+router.get("/notifications/preferences", async (req: Request, res: Response) => {
+  if (!db) {
+    return res.status(500).json({ error: "Database not available" });
+  }
+
+  const creatorId = creatorIdFromRequest(req);
+  if (!creatorId) {
+    return res.status(400).json({ error: "Missing creator id" });
+  }
+
+  const profileDoc = await db.collection("creatorProfiles").doc(creatorId).get();
+  const data = (profileDoc.data() || {}) as Record<string, unknown>;
+  const stored =
+    data.notification_preferences &&
+    typeof data.notification_preferences === "object"
+      ? (data.notification_preferences as Record<string, unknown>)
+      : {};
+
+  return res.json({
+    nearby_jobs:
+      typeof stored.nearby_jobs === "boolean"
+        ? stored.nearby_jobs
+        : DEFAULT_NOTIFICATION_PREFERENCES.nearby_jobs,
+    reservations:
+      typeof stored.reservations === "boolean"
+        ? stored.reservations
+        : DEFAULT_NOTIFICATION_PREFERENCES.reservations,
+    capture_status:
+      typeof stored.capture_status === "boolean"
+        ? stored.capture_status
+        : DEFAULT_NOTIFICATION_PREFERENCES.capture_status,
+    payouts:
+      typeof stored.payouts === "boolean"
+        ? stored.payouts
+        : DEFAULT_NOTIFICATION_PREFERENCES.payouts,
+    account:
+      typeof stored.account === "boolean"
+        ? stored.account
+        : DEFAULT_NOTIFICATION_PREFERENCES.account,
+  });
+});
+
+router.put("/notifications/preferences", async (req: Request, res: Response) => {
+  if (!db) {
+    return res.status(500).json({ error: "Database not available" });
+  }
+
+  const creatorId = creatorIdFromRequest(req);
+  if (!creatorId) {
+    return res.status(400).json({ error: "Missing creator id" });
+  }
+
+  const payload = {
+    nearby_jobs: Boolean(req.body?.nearby_jobs),
+    reservations: Boolean(req.body?.reservations),
+    capture_status: Boolean(req.body?.capture_status),
+    payouts: Boolean(req.body?.payouts),
+    account: Boolean(req.body?.account),
+  };
+
+  await db
+    .collection("creatorProfiles")
+    .doc(creatorId)
+    .set(
+      {
+        notification_preferences: payload,
+        updated_at: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+  return res.json(payload);
 });
 
 router.get("/qc", async (req: Request, res: Response) => {

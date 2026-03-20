@@ -52,8 +52,7 @@ export type MarketplaceSearchResponse = {
     parsed: Record<string, unknown>;
   };
   meta: {
-    backend: "firestore-vector" | "static-inmemory";
+    backend: "firestore-vector" | "firestore-live" | "static-inmemory";
     embeddingModel: string;
   };
 };
-
