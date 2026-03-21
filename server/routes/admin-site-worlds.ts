@@ -11,26 +11,9 @@ import {
   writeJsonArtifact,
 } from "../utils/worldlabs";
 import type { InboundRequest } from "../types/inbound-request";
+import { hasAnyRole } from "../utils/access-control";
 
 const router = Router();
-
-const ADMIN_EMAILS = new Set([
-  "ohstnhunt@gmail.com",
-  "ops@tryblueprint.io",
-]);
-
-function currentUser(res: Response) {
-  return res.locals.firebaseUser as { email?: string; admin?: boolean } | undefined;
-}
-
-function ensureAdmin(res: Response) {
-  const user = currentUser(res);
-  const email = String(user?.email || "").trim().toLowerCase();
-  if (user?.admin || (email && ADMIN_EMAILS.has(email))) {
-    return;
-  }
-  throw new Error("forbidden");
-}
 
 function jsonObject(value: unknown) {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
@@ -215,7 +198,9 @@ async function resolveContext(siteWorldId: string) {
 
 router.get("/:siteWorldId/worldlabs-preview", async (req: Request, res: Response) => {
   try {
-    ensureAdmin(res);
+    if (!(await hasAnyRole(res, ["admin", "ops"]))) {
+      throw new Error("forbidden");
+    }
     const context = await resolveContext(String(req.params.siteWorldId || ""));
     const operationManifestUri = asString(context.artifacts.worldlabs_operation_manifest_uri);
     const worldManifestUri = asString(context.artifacts.worldlabs_world_manifest_uri);
@@ -267,7 +252,9 @@ router.get("/:siteWorldId/worldlabs-preview", async (req: Request, res: Response
 
 router.post("/:siteWorldId/worldlabs-preview/generate", async (req: Request, res: Response) => {
   try {
-    ensureAdmin(res);
+    if (!(await hasAnyRole(res, ["admin", "ops"]))) {
+      throw new Error("forbidden");
+    }
     const context = await resolveContext(String(req.params.siteWorldId || ""));
     const requestManifest: Record<string, unknown> = {
       ...context.requestManifest,
@@ -330,7 +317,9 @@ router.post("/:siteWorldId/worldlabs-preview/generate", async (req: Request, res
 router.post("/:siteWorldId/worldlabs-preview/refresh", async (req: Request, res: Response) => {
   void req;
   try {
-    ensureAdmin(res);
+    if (!(await hasAnyRole(res, ["admin", "ops"]))) {
+      throw new Error("forbidden");
+    }
     const context = await resolveContext(String(req.params.siteWorldId || ""));
     const operationManifestUri = asString(context.artifacts.worldlabs_operation_manifest_uri);
     const operationManifest = await readArtifactJson(operationManifestUri);

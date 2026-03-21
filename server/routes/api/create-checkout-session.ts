@@ -180,6 +180,8 @@ const allowedOrigins = new Set<string>([
   fallbackOrigin,
   ...configuredOrigins,
 ]);
+const staticMarketplaceFallbackEnabled =
+  process.env.NODE_ENV !== "production" || process.env.BLUEPRINT_ENABLE_DEMO_SITE_WORLDS === "1";
 
 function resolveBaseOrigin(originHeader: string | undefined): string {
   if (originHeader && allowedOrigins.has(originHeader)) {
@@ -272,6 +274,12 @@ export default async function handler(req: Request, res: Response) {
       const liveInventoryRecord = await findPublishedMarketplaceInventoryBySku(
         marketplaceItem.sku,
       );
+
+      if (!liveInventoryRecord && !staticMarketplaceFallbackEnabled) {
+        return res.status(409).json({
+          error: "This marketplace item is not available from live inventory.",
+        });
+      }
 
       if ((liveInventoryRecord?.itemType || itemType) === "scene") {
         const scene: MarketplaceScene | undefined =

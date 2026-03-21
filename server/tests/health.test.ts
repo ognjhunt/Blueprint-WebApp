@@ -53,15 +53,16 @@ describe("health routes", () => {
     }
   });
 
-  it("reports the hosted session live-store backend in readiness payloads", async () => {
+  it("fails readiness when launch-critical dependencies are unavailable and still reports backend detail", async () => {
     const { server, baseUrl } = await startServer();
     try {
       const response = await fetch(`${baseUrl}/health/ready`);
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(503);
       const payload = (await response.json()) as Record<string, unknown>;
       expect(
         ((((payload.dependencies as Record<string, unknown>).liveSessionStore) as Record<string, unknown>).backend),
       ).toBe("redis");
+      expect(((payload.checks as Record<string, unknown>).firebaseAdmin)).toBe(false);
     } finally {
       await stopServer(server);
     }

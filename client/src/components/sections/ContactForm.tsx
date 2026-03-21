@@ -280,7 +280,7 @@ export default function ContactForm() {
           <p className="text-base md:text-xl text-slate-300 mt-3">
             Launch a hands-free AI guide in ~60 minutes. No app required, and it
             works on the smart glasses your teams and guests will soon wear.
-            Durham & nearby businesses welcome.
+            US alpha applications welcome.
           </p>
         </motion.div>
 

@@ -18,7 +18,7 @@ import {
   OPPORTUNITY_STATES,
   QUALIFICATION_STATES,
 } from "@/lib/requestTaxonomy";
-import { isAdminEmail } from "@/lib/adminAccess";
+import { hasAnyRole } from "@/lib/adminAccess";
 import type {
   InboundRequestDetail,
   InboundRequestListItem,
@@ -91,7 +91,7 @@ function formatDate(dateString: string) {
 }
 
 export default function AdminLeads() {
-  const { currentUser } = useAuth();
+  const { currentUser, userData, tokenClaims } = useAuth();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const [qualificationFilter, setQualificationFilter] = useState<QualificationState | "">("");
@@ -99,7 +99,7 @@ export default function AdminLeads() {
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [note, setNote] = useState("");
 
-  const isAdmin = isAdminEmail(currentUser?.email);
+  const isAdmin = hasAnyRole(["admin", "ops"], userData, tokenClaims);
 
   useEffect(() => {
     if (currentUser && !isAdmin) {

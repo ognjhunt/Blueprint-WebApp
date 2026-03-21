@@ -10,6 +10,7 @@ vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({
     currentUser: null,
     userData: null,
+    tokenClaims: null,
     logout: vi.fn(),
   }),
 }));
@@ -43,12 +44,12 @@ describe("Header", () => {
     expect(screen.queryByRole("link", { name: /Partners/i })).not.toBeInTheDocument();
   });
 
-  it("shows Site Worlds in the top navigation", () => {
+  it("shows World Models in the top navigation", () => {
     render(<Header />);
 
-    const link = screen.getByRole("link", { name: /^Site Worlds$/i });
+    const link = screen.getByRole("link", { name: /^World Models$/i });
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute("href", "/site-worlds");
+    expect(link).toHaveAttribute("href", "/world-models");
   });
 
   it("uses Request Site Qualification as the primary CTA", () => {

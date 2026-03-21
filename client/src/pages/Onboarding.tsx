@@ -1548,7 +1548,7 @@ export default function Onboarding() {
             id="location-address"
             value={locationAddress}
             onChange={(event) => setLocationAddress(event.target.value)}
-            placeholder="123 Main Street, Durham, NC"
+            placeholder="123 Main Street, Chicago, IL"
             className="border-white/10 bg-white/5 text-slate-100"
           />
         </div>

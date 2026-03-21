@@ -971,7 +971,7 @@ type WaitlistValidationResponse = {
           Welcome off the waitlist
         </h2>
         <p className="text-slate-300 mt-2">
-          Durham/Triangle pilot: set up your account to book mapping & demo.
+          US alpha access: set up your account to book mapping and demo.
           This takes ~2 minutes.
         </p>
       </div>
@@ -1974,13 +1974,13 @@ type WaitlistValidationResponse = {
               <div>
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 text-emerald-200 mb-3">
                   <MapPin className="w-4 h-4" />
-                  Durham & Triangle: Pilot Access
+                  US Alpha: Pilot Access
                 </div>
                 <h1 className="text-3xl md:text-4xl font-black leading-tight text-white">
                   Join the Blueprint Pilot
                 </h1>
                 <p className="text-slate-300 mt-2 max-w-2xl">
-                  For local decision-makers (retail, museums, restaurants,
+                  For US decision-makers (retail, museums, restaurants,
                   showrooms). Set up your account, add location details, and
                   book your mapping + demo in minutes.
                 </p>
@@ -2059,7 +2059,7 @@ type WaitlistValidationResponse = {
                         </li>
                       </ul>
                       <div className="mt-4 text-xs text-slate-400">
-                        Serving businesses within ~30 minutes of Durham, NC.
+                        Serving qualifying businesses across the United States.
                       </div>
                     </div>
 

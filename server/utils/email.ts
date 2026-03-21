@@ -40,6 +40,17 @@ function getTransporter() {
   return cachedTransporter;
 }
 
+export function getEmailTransportStatus() {
+  const host = process.env.SMTP_HOST;
+  const port = process.env.SMTP_PORT;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  return {
+    enabled: Boolean(host || port || user || pass),
+    configured: Boolean(host && port && user && pass),
+  };
+}
+
 export async function sendEmail({
   to,
   subject,

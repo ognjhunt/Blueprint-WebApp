@@ -36,6 +36,8 @@ describe("AdminLeads scene readiness", () => {
   beforeEach(() => {
     useAuthMock.mockReturnValue({
       currentUser: { email: "ops@tryblueprint.io" },
+      userData: { roles: ["admin"] },
+      tokenClaims: { roles: ["admin"] },
     });
     vi.spyOn(global, "fetch").mockImplementation((input) => {
       const url = String(input);

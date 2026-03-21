@@ -72,7 +72,7 @@ function buildSiteWorld(overrides: Partial<PublicSiteWorldRecord> = {}): PublicS
 
 describe("SiteWorldDetail", () => {
   beforeEach(() => {
-    useAuthMock.mockReturnValue({ currentUser: null });
+    useAuthMock.mockReturnValue({ currentUser: null, userData: null, tokenClaims: null });
     vi.mocked(fetchSiteWorldDetail).mockResolvedValue(buildSiteWorld());
   });
 
@@ -127,6 +127,8 @@ describe("SiteWorldDetail", () => {
         email: "ops@tryblueprint.io",
         getIdToken: vi.fn(async () => "test-token"),
       },
+      userData: { roles: ["admin"] },
+      tokenClaims: { roles: ["admin"] },
     });
     vi.mocked(fetchSiteWorldDetail).mockResolvedValue(
       buildSiteWorld({
@@ -149,6 +151,8 @@ describe("SiteWorldDetail", () => {
       currentUser: {
         email: "user@example.com",
       },
+      userData: null,
+      tokenClaims: null,
     });
     vi.mocked(fetchSiteWorldDetail).mockResolvedValue(
       buildSiteWorld({
@@ -178,6 +182,8 @@ describe("SiteWorldDetail", () => {
         email: "ops@tryblueprint.io",
         getIdToken,
       },
+      userData: { roles: ["admin"] },
+      tokenClaims: { roles: ["admin"] },
     });
     vi.mocked(fetchSiteWorldDetail).mockResolvedValue(
       buildSiteWorld({
@@ -227,6 +233,8 @@ describe("SiteWorldDetail", () => {
         email: "ops@tryblueprint.io",
         getIdToken,
       },
+      userData: { roles: ["admin"] },
+      tokenClaims: { roles: ["admin"] },
     });
     vi.mocked(fetchSiteWorldDetail).mockResolvedValue(
       buildSiteWorld({
@@ -277,6 +285,8 @@ describe("SiteWorldDetail", () => {
         email: "ops@tryblueprint.io",
         getIdToken: vi.fn(async () => "test-token"),
       },
+      userData: { roles: ["admin"] },
+      tokenClaims: { roles: ["admin"] },
     });
     vi.mocked(fetchSiteWorldDetail).mockResolvedValue(
       buildSiteWorld({

@@ -8,6 +8,14 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
         throw new Error(`Unexpected collection: ${name}`);
       }
       return {
+        doc: () => ({
+          get: async () => ({ exists: false }),
+        }),
+        where: () => ({
+          limit: () => ({
+            get: async () => ({ docs: [] }),
+          }),
+        }),
         orderBy: () => {
           throw new Error("dynamic catalog lookup should not run for static site worlds");
         },

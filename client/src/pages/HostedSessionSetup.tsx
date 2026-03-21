@@ -44,7 +44,10 @@ interface HostedSessionSetupProps {
 }
 
 function publicDemoSiteWorldIds() {
-  const ids = new Set(["siteworld-f5fd54898cfb"]);
+  const ids = new Set<string>();
+  if (import.meta.env.MODE !== "production" || import.meta.env.VITE_ENABLE_DEMO_SITE_WORLDS === "1") {
+    ids.add("siteworld-f5fd54898cfb");
+  }
   const envSiteWorldId = String(
     import.meta.env.VITE_HOSTED_DEMO_SITE_WORLD_ID
     || import.meta.env.BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID

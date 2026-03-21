@@ -35,17 +35,29 @@ const logDebug = (...args: unknown[]) => {
   }
 };
 
-// Firebase configuration - hardcoded for Render deployment
-// TODO: Move to environment variables when possible
+function requireFirebaseEnv(key: string): string {
+  const value = typeof viteEnv[key] === "string" ? String(viteEnv[key]).trim() : "";
+  if (!value) {
+    throw new Error(`Missing required Firebase client environment variable: ${key}`);
+  }
+  return value;
+}
+
 const firebaseConfig: FirebaseOptions = {
-  apiKey: "AIzaSyAbIZbjqsG9daPQYfpFTfCUHWszqHAfgjI",
-  authDomain: "blueprint-8c1ca.firebaseapp.com",
-  projectId: "blueprint-8c1ca",
-  storageBucket: "blueprint-8c1ca.appspot.com",
-  messagingSenderId: "744608654760",
-  appId: "1:744608654760:web:5b697e80345ac2b0f4a99d",
-  databaseURL: "https://blueprint-8c1ca-default-rtdb.firebaseio.com",
-  measurementId: "G-7LHTQSRF9L",
+  apiKey: requireFirebaseEnv("VITE_FIREBASE_API_KEY"),
+  authDomain: requireFirebaseEnv("VITE_FIREBASE_AUTH_DOMAIN"),
+  projectId: requireFirebaseEnv("VITE_FIREBASE_PROJECT_ID"),
+  storageBucket: requireFirebaseEnv("VITE_FIREBASE_STORAGE_BUCKET"),
+  messagingSenderId: requireFirebaseEnv("VITE_FIREBASE_MESSAGING_SENDER_ID"),
+  appId: requireFirebaseEnv("VITE_FIREBASE_APP_ID"),
+  databaseURL:
+    typeof viteEnv.VITE_FIREBASE_DATABASE_URL === "string"
+      ? viteEnv.VITE_FIREBASE_DATABASE_URL.trim() || undefined
+      : undefined,
+  measurementId:
+    typeof viteEnv.VITE_FIREBASE_MEASUREMENT_ID === "string"
+      ? viteEnv.VITE_FIREBASE_MEASUREMENT_ID.trim() || undefined
+      : undefined,
 };
 
 // Initialize Firebase - this will throw if configuration is invalid
@@ -232,6 +244,10 @@ export interface UserData {
   activeBlueprintsPercentage?: number;
   planCost?: number | string;
   planHours?: number | string;
+  role?: string;
+  roles?: string[];
+  admin?: boolean;
+  ops?: boolean;
   currentMonthHours?: number;
   accountSettings?: {
     email2FA?: boolean;

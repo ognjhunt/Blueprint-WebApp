@@ -834,7 +834,7 @@ export default function OutboundSignUpFlow() {
           Create your Blueprint account
         </h2>
         <p className="text-slate-300 mt-2">
-          Durham/Triangle pilot: invite-only access for local venues. This
+          US alpha access: invite-only onboarding for qualified venues. This
           takes ~2 minutes.
         </p>
       </div>

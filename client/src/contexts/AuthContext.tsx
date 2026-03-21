@@ -16,11 +16,12 @@ import {
   createUserDocument,
   UserData,
 } from "@/lib/firebase";
-import { User as FirebaseUser } from "firebase/auth";
+import { IdTokenResult, User as FirebaseUser } from "firebase/auth";
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
   userData: UserData | null;
+  tokenClaims: IdTokenResult["claims"] | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<string>;
   signUp: (email: string, password: string, name?: string) => Promise<string>;
@@ -64,6 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     null,
   );
   const [userData, setUserData] = React.useState<UserData | null>(null);
+  const [tokenClaims, setTokenClaims] = React.useState<IdTokenResult["claims"] | null>(null);
   const [loading, setLoading] = React.useState(typeof window !== "undefined");
   const [, setLocation] = useLocation();
 
@@ -194,13 +196,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setCurrentUser(user);
           if (user) {
             try {
-              const userData = await getUserData(user.uid);
+              const [userData, tokenResult] = await Promise.all([
+                getUserData(user.uid),
+                user.getIdTokenResult().catch(() => null),
+              ]);
               setUserData(normalizeUserData(userData));
+              setTokenClaims(tokenResult?.claims || null);
             } catch (error) {
               console.error("Error fetching user data:", error);
             }
           } else {
             setUserData(null);
+            setTokenClaims(null);
           }
           clearFallbackTimeout();
           setLoading(false);
@@ -247,6 +254,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const normalizedUserData = normalizeUserData(userDataRecord);
       setUserData(normalizedUserData);
+      setTokenClaims((await user.getIdTokenResult().catch(() => null))?.claims || null);
       return navigateAfterAuth(normalizedUserData);
     } catch (error: any) {
       console.error("Sign in error:", {
@@ -284,6 +292,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const normalizedUserData = normalizeUserData(userDataRecord);
       setUserData(normalizedUserData);
+      setTokenClaims((await user.getIdTokenResult().catch(() => null))?.claims || null);
       return navigateAfterAuth(normalizedUserData);
     } catch (error: any) {
       console.error("Sign up error:", {
@@ -360,6 +369,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         : normalizedUserData;
 
       setUserData(onboardingReadyUserData);
+      setTokenClaims((await user.getIdTokenResult().catch(() => null))?.claims || null);
       return navigateAfterAuth(onboardingReadyUserData);
     } catch (error: any) {
       console.error("Google sign in error:", {
@@ -374,6 +384,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await logOut();
       setUserData(null);
+      setTokenClaims(null);
       console.log("User logged out successfully");
     } catch (error: any) {
       console.error("Logout error:", {
@@ -417,6 +428,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = {
     currentUser,
     userData,
+    tokenClaims,
     loading,
     signIn,
     signUp,

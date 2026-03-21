@@ -3,7 +3,7 @@ import { SEO } from "@/components/SEO";
 import { useAuth } from "@/contexts/AuthContext";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import { getSiteWorldById, siteWorldCards } from "@/data/siteWorlds";
-import { isAdminEmail } from "@/lib/adminAccess";
+import { hasAnyRole } from "@/lib/adminAccess";
 import { withCsrfHeader } from "@/lib/csrf";
 import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
 import type { PublicSiteWorldRecord } from "@/types/inbound-request";
@@ -179,13 +179,13 @@ function applyWorldLabsPreview(
 }
 
 export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
-  const { currentUser } = useAuth();
+  const { currentUser, userData, tokenClaims } = useAuth();
   const fallbackSite = getSiteWorldById(params.slug) as PublicSiteWorldRecord | null;
   const [site, setSite] = useState<PublicSiteWorldRecord | null>(fallbackSite);
   const [worldLabsAction, setWorldLabsAction] = useState<"generate" | "refresh" | null>(null);
   const [worldLabsAdminError, setWorldLabsAdminError] = useState<string | null>(null);
   const [worldLabsAdminNotice, setWorldLabsAdminNotice] = useState<string | null>(null);
-  const isAdmin = isAdminEmail(currentUser?.email);
+  const isAdmin = hasAnyRole(["admin", "ops"], userData, tokenClaims);
 
   useEffect(() => {
     window.scrollTo(0, 0);

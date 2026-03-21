@@ -1,6 +1,10 @@
 import { Router, Request, Response } from "express";
+import { authAdmin, dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { getHostedSessionLiveStoreStatus } from "../utils/hosted-session-live-store";
+import { getEmailTransportStatus } from "../utils/email";
+import { stripeClient } from "../constants/stripe";
+import { isTruthyEnvValue } from "../config/env";
 
 const router = Router();
 
@@ -49,13 +53,30 @@ router.get("/health/live", (_req: Request, res: Response) => {
 router.get("/health/ready", async (_req: Request, res: Response) => {
   try {
     const liveSessionStore = getHostedSessionLiveStoreStatus();
-    // Add additional readiness checks here as needed
-    // For example: database connectivity, external service availability
+    const emailTransport = getEmailTransportStatus();
+    const stripeEnabled = Boolean(
+      process.env.STRIPE_SECRET_KEY?.trim()
+      || process.env.CHECKOUT_ALLOWED_ORIGINS?.trim()
+      || process.env.STRIPE_WEBHOOK_SECRET?.trim(),
+    );
+    const pipelineSyncEnabled = Boolean(
+      process.env.PIPELINE_SYNC_TOKEN?.trim()
+      || isTruthyEnvValue(process.env.BLUEPRINT_PIPELINE_SYNC_REQUIRED),
+    );
+    const emailRequired =
+      emailTransport.enabled || isTruthyEnvValue(process.env.BLUEPRINT_EMAIL_DELIVERY_REQUIRED);
+    const redisRequired =
+      Boolean(process.env.REDIS_URL?.trim()) || Boolean(process.env.RATE_LIMIT_REDIS_URL?.trim());
 
     const checks = {
       server: true,
-      // database: await checkDatabase(),
-      // redis: await checkRedis(),
+      firebaseAdmin: Boolean(dbAdmin && authAdmin),
+      redis:
+        !redisRequired
+        || (liveSessionStore.backend === "redis" && liveSessionStore.redisConnected === true),
+      stripe: !stripeEnabled || Boolean(stripeClient && process.env.STRIPE_WEBHOOK_SECRET?.trim()),
+      email: !emailRequired || emailTransport.configured,
+      pipelineSync: !pipelineSyncEnabled || Boolean(process.env.PIPELINE_SYNC_TOKEN?.trim()),
     };
 
     const allHealthy = Object.values(checks).every(Boolean);
@@ -66,6 +87,10 @@ router.get("/health/ready", async (_req: Request, res: Response) => {
         checks,
         dependencies: {
           liveSessionStore,
+          emailTransport,
+          stripeEnabled,
+          pipelineSyncEnabled,
+          redisRequired,
         },
         timestamp: new Date().toISOString(),
       });
@@ -75,6 +100,10 @@ router.get("/health/ready", async (_req: Request, res: Response) => {
         checks,
         dependencies: {
           liveSessionStore,
+          emailTransport,
+          stripeEnabled,
+          pipelineSyncEnabled,
+          redisRequired,
         },
         timestamp: new Date().toISOString(),
       });

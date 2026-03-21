@@ -30,6 +30,7 @@ import type {
   UpdateRequestOpsPayload,
 } from "../types/inbound-request";
 import { parseGsUri, sceneDashboardSchema } from "../utils/pipeline-dashboard";
+import { hasAnyRole } from "../utils/access-control";
 
 const router = Router();
 
@@ -59,12 +60,6 @@ function sanitizeCsvCell(value: unknown): string {
     : normalized;
   return `"${formulaSafe.replace(/"/g, '""')}"`;
 }
-
-// Admin email allowlist (in production, use Firebase Custom Claims)
-const ADMIN_EMAILS = [
-  "ohstnhunt@gmail.com",
-  "ops@tryblueprint.io",
-];
 
 const VALID_QUALIFICATION_STATES: QualificationState[] = [...QUALIFICATION_STATES];
 
@@ -349,16 +344,12 @@ async function requireAdmin(_req: Request, res: Response, next: () => void) {
     return res.status(401).json({ error: "Authentication required" });
   }
 
-  // Check if user email is in admin list
-  if (!ADMIN_EMAILS.includes(user.email || "")) {
-    // Also check for admin custom claim
-    if (!user.admin) {
-      logger.warn(
-        { email: user.email },
-        "Non-admin user attempted to access admin routes"
-      );
-      return res.status(403).json({ error: "Admin access required" });
-    }
+  if (!(await hasAnyRole(res, ["admin", "ops"]))) {
+    logger.warn(
+      { email: user.email, uid: user.uid },
+      "Non-admin user attempted to access admin routes"
+    );
+    return res.status(403).json({ error: "Admin access required" });
   }
 
   next();

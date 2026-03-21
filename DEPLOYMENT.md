@@ -11,6 +11,12 @@ npm run test:coverage
 npm run build
 ```
 
+Release gate:
+
+```bash
+npm run alpha:check
+```
+
 - Client build: Vite (`dist/public`)
 - Server build: esbuild bundle from `server/index.ts` (`dist/index.js`)
 - Runtime start command:
@@ -29,6 +35,9 @@ npm start
 - `VITE_FIREBASE_MESSAGING_SENDER_ID`
 - `VITE_FIREBASE_APP_ID`
 - Optional: `VITE_FIREBASE_DATABASE_URL`, `VITE_FIREBASE_MEASUREMENT_ID`
+
+Launch-critical note:
+- The client no longer falls back to source-level Firebase values. These variables must be present in the runtime environment used for builds and tests.
 
 ### Firebase Admin (server)
 Provide one of the following, or run on Cloud Run / Cloud Functions with an attached service account:
@@ -55,9 +64,11 @@ Launch-critical note:
 - `PIPELINE_SYNC_TOKEN`
 - `BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET`
 - Optional internal-only fallback: `PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS=true`
+- Optional internal demo flags: `BLUEPRINT_ENABLE_DEMO_SITE_WORLDS=1`, `BLUEPRINT_DEMO_BUNDLE_PIPELINE_ROOT=/abs/path`, `BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID=<id>`
 
 Launch-critical note:
 - Leave `PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS` unset in paid/production flows so pipeline sync fails closed when inbound request bootstrap is missing.
+- Leave demo site-world flags unset in production unless you explicitly want the internal demo world exposed.
 
 ### Redis (server, recommended for live hosted sessions)
 - Optional but recommended: `REDIS_URL`
@@ -76,7 +87,9 @@ REDIS_URL=rediss://default:<token>@active-phoenix-39183.upstash.io:6379
 ## Notes
 
 - Firestore is the active datastore.
+- In production, public world-model pages should surface pipeline-backed site worlds only. Static fixture cards are for non-production and explicit demo mode.
 - Live hosted-session state now prefers Redis when `REDIS_URL` is configured, then falls back to in-process memory, with Firestore acting as async mirroring/trail storage.
 - Marketplace checkout and artifact entitlement flows are only truthful when Firebase Admin, Stripe checkout, and Stripe webhooks are all configured together.
+- Marketplace search and checkout now fail toward live `marketplace_items` inventory in production instead of silently relying on static sample content.
 - Legacy manual deployment scripts were removed; deployment should always run through project scripts.
 - `client/public/robots.txt` must exist at build time and be served in production.

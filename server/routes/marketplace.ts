@@ -15,6 +15,7 @@ import type {
 
 import { parseMarketplaceQuery } from "../utils/marketplaceQueryParser";
 import { searchMarketplace } from "../retrieval/marketplaceSearch";
+import { loadPublishedMarketplaceInventory } from "../utils/marketplaceInventory";
 
 const router = Router();
 
@@ -89,15 +90,25 @@ router.post("/search", async (req: Request, res: Response) => {
   const ignoredKeys = new Set(
     (payload.ignoreParsedKeys || []).map((key) => key.trim()).filter(Boolean),
   );
+  const liveInventory = await loadPublishedMarketplaceInventory(250);
+  const liveItems = liveInventory.map((record) => record.item);
 
   const knownLocationTypes = uniq([
-    ...marketplaceScenes.map((s) => s.locationType),
-    ...trainingDatasets.map((t) => t.locationType),
+    ...(liveItems.length > 0
+      ? liveItems.map((item) => item.locationType)
+      : [
+          ...marketplaceScenes.map((s) => s.locationType),
+          ...trainingDatasets.map((t) => t.locationType),
+        ]),
   ]);
 
   const knownObjectTags = uniq([
-    ...marketplaceScenes.flatMap((s) => s.objectTags),
-    ...trainingDatasets.flatMap((t) => t.objectTags),
+    ...(liveItems.length > 0
+      ? liveItems.flatMap((item) => item.objectTags || [])
+      : [
+          ...marketplaceScenes.flatMap((s) => s.objectTags),
+          ...trainingDatasets.flatMap((t) => t.objectTags),
+        ]),
   ]);
 
   const knownPolicies = environmentPolicies.map((policy) => ({

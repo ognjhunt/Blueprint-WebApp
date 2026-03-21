@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { siteWorldCards, type SiteWorldCard, type SiteWorldPackage } from "../../client/src/data/siteWorlds";
-import { getConfiguredEnvValue } from "../config/env";
+import { getConfiguredEnvValue, isEnvFlagEnabled } from "../config/env";
 import type {
   DeploymentReadinessSummary,
   InboundRequest,
@@ -33,8 +33,11 @@ const LIVE_OPPORTUNITY_STATES = new Set<OpportunityState>([
 type ArtifactJson = Record<string, unknown> | null;
 
 const DEMO_SITE_WORLD_ID = "siteworld-f5fd54898cfb";
-const DEMO_BUNDLE_PIPELINE_ROOT =
-  "/Users/nijelhunt_1/Downloads/neoverse_a100_20260313_133908_demo_bundle/remote/storage/capture/pipeline";
+const DEMO_SITE_WORLDS_ENABLED = isEnvFlagEnabled("BLUEPRINT_ENABLE_DEMO_SITE_WORLDS");
+const STATIC_SITE_WORLD_FIXTURES_ENABLED = process.env.NODE_ENV !== "production";
+const SITE_WORLD_FALLBACKS_ENABLED =
+  STATIC_SITE_WORLD_FIXTURES_ENABLED || DEMO_SITE_WORLDS_ENABLED;
+const DEMO_BUNDLE_PIPELINE_ROOT = getConfiguredEnvValue("BLUEPRINT_DEMO_BUNDLE_PIPELINE_ROOT");
 
 function deriveWebsocketUrl(runtimeBaseUrl: string | null): string | null {
   const normalized = String(runtimeBaseUrl || "").trim();
@@ -72,10 +75,16 @@ function resolveDemoRuntimeManifest(runtimeManifest: SiteWorldCard["runtimeManif
 }
 
 function demoBundleAssetPath(relativePath: string) {
+  if (!DEMO_BUNDLE_PIPELINE_ROOT) {
+    return null;
+  }
   return path.join(DEMO_BUNDLE_PIPELINE_ROOT, relativePath);
 }
 
 function resolveDemoBundlePathFromRuntimePath(rawPath: string) {
+  if (!DEMO_BUNDLE_PIPELINE_ROOT) {
+    return null;
+  }
   const normalized = String(rawPath || "").trim();
   const marker = "/pipeline/";
   const index = normalized.indexOf(marker);
@@ -84,7 +93,7 @@ function resolveDemoBundlePathFromRuntimePath(rawPath: string) {
   }
   const relative = normalized.slice(index + marker.length);
   const local = demoBundleAssetPath(relative);
-  return fs.existsSync(local) ? local : null;
+  return local && fs.existsSync(local) ? local : null;
 }
 
 function buildExplorerAssetUrl(siteWorldId: string, relativePath: string) {
@@ -210,7 +219,8 @@ function buildArtifactExplorer(params: {
 
   if (params.siteWorldId === DEMO_SITE_WORLD_ID) {
     const manifestPath = demoBundleAssetPath("evaluation_prep/object_geometry_manifest.json");
-    if (fs.existsSync(manifestPath)) {
+    const demoBundleRoot = DEMO_BUNDLE_PIPELINE_ROOT;
+    if (demoBundleRoot && manifestPath && fs.existsSync(manifestPath)) {
       try {
         const objectGeometryManifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8")) as Record<string, unknown>;
         const rawObjects = Array.isArray(objectGeometryManifest.objects)
@@ -235,7 +245,7 @@ function buildArtifactExplorer(params: {
             const selectedViewUrls = selectedViews
               .map((view) => resolveDemoBundlePathFromRuntimePath(String(view.image_path || "").trim()))
               .filter((value): value is string => Boolean(value))
-              .map((value) => buildExplorerAssetUrl(params.siteWorldId, path.relative(DEMO_BUNDLE_PIPELINE_ROOT, value)));
+              .map((value) => buildExplorerAssetUrl(params.siteWorldId, path.relative(demoBundleRoot, value)));
             return {
               id: String(item.object_id || ""),
               label: String(item.label || item.object_id || "object"),
@@ -243,10 +253,10 @@ function buildArtifactExplorer(params: {
               taskCritical: Boolean(item.task_critical),
               groundingLevel: String(item.grounding_level || item.source_mode || "").trim() || null,
               meshUrl: localMeshPath
-                ? buildExplorerAssetUrl(params.siteWorldId, path.relative(DEMO_BUNDLE_PIPELINE_ROOT, localMeshPath))
+                ? buildExplorerAssetUrl(params.siteWorldId, path.relative(demoBundleRoot, localMeshPath))
                 : null,
               previewImageUrl: localImagePath
-                ? buildExplorerAssetUrl(params.siteWorldId, path.relative(DEMO_BUNDLE_PIPELINE_ROOT, localImagePath))
+                ? buildExplorerAssetUrl(params.siteWorldId, path.relative(demoBundleRoot, localImagePath))
                 : null,
               selectedViewUrls,
               center: center as [number, number, number],
@@ -1045,7 +1055,108 @@ function buildStaticRecord(template: SiteWorldCard): SiteWorldCard {
   };
 }
 
+function createdAtMillis(value: unknown): number {
+  if (!value) {
+    return 0;
+  }
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if (typeof value === "object" && typeof (value as { toDate?: () => Date }).toDate === "function") {
+    return (value as { toDate: () => Date }).toDate().getTime();
+  }
+  return 0;
+}
+
+async function findInboundRequestByIdentity(
+  identity: string,
+): Promise<FirebaseFirestore.QueryDocumentSnapshot | FirebaseFirestore.DocumentSnapshot | null> {
+  if (!db) {
+    return null;
+  }
+
+  const normalizedIdentity = String(identity || "").trim();
+  if (!normalizedIdentity) {
+    return null;
+  }
+
+  const collectionRef = db.collection("inboundRequests") as FirebaseFirestore.CollectionReference | FirebaseFirestore.Query;
+  const docAccessor = collectionRef as FirebaseFirestore.CollectionReference;
+
+  if (typeof docAccessor.doc === "function") {
+    const directDoc = await docAccessor.doc(normalizedIdentity).get();
+    if (directDoc.exists) {
+      return directDoc;
+    }
+  }
+
+  const lookupFields = [
+    "site_submission_id",
+    "pipeline.scene_id",
+    "pipeline.capture_id",
+  ] as const;
+
+  for (const field of lookupFields) {
+    const snapshot = await collectionRef
+      .where(field, "==", normalizedIdentity)
+      .limit(1)
+      .get();
+    const matched = snapshot.docs[0];
+    if (matched) {
+      return matched;
+    }
+  }
+
+  return null;
+}
+
+async function listLiveInboundRequestDocs(limit: number): Promise<FirebaseFirestore.QueryDocumentSnapshot[]> {
+  if (!db) {
+    return [];
+  }
+  const firestore = db;
+
+  const perStateLimit = Math.max(limit * 2, 24);
+  const qualificationQueries = [...LIVE_QUALIFICATION_STATES].map((state) =>
+    firestore
+      .collection("inboundRequests")
+      .where("qualification_state", "==", state)
+      .limit(perStateLimit)
+      .get()
+      .catch(() => null),
+  );
+  const opportunityQueries = [...LIVE_OPPORTUNITY_STATES].map((state) =>
+    firestore
+      .collection("inboundRequests")
+      .where("opportunity_state", "==", state)
+      .limit(perStateLimit)
+      .get()
+      .catch(() => null),
+  );
+
+  const snapshots = await Promise.all([...qualificationQueries, ...opportunityQueries]);
+  const deduped = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
+
+  for (const snapshot of snapshots) {
+    for (const doc of snapshot?.docs || []) {
+      deduped.set(doc.id, doc);
+    }
+  }
+
+  return [...deduped.values()]
+    .sort((left, right) => {
+      const rightCreatedAt = createdAtMillis((right.data() as Record<string, unknown>)?.createdAt);
+      const leftCreatedAt = createdAtMillis((left.data() as Record<string, unknown>)?.createdAt);
+      return rightCreatedAt - leftCreatedAt;
+    })
+    .slice(0, Math.max(1, limit));
+}
+
 function findStaticSiteWorldById(id: string): SiteWorldCard | null {
+  if (!SITE_WORLD_FALLBACKS_ENABLED) {
+    return null;
+  }
   const normalizedId = String(id || "").trim();
   if (!normalizedId) {
     return null;
@@ -1463,14 +1574,22 @@ async function buildLiveRecord(
 
 export async function listPublicSiteWorlds(limit = 24): Promise<SiteWorldCard[]> {
   if (!db) {
-    return siteWorldCards.slice(0, limit).map(buildStaticRecord);
+    return SITE_WORLD_FALLBACKS_ENABLED
+      ? siteWorldCards.slice(0, limit).map(buildStaticRecord)
+      : [];
   }
 
-  const snapshot = await db.collection("inboundRequests").orderBy("createdAt", "desc").limit(100).get();
+  const liveDocs = await listLiveInboundRequestDocs(limit);
   const liveRecords = await Promise.all(
-    snapshot.docs.map(async (doc) => {
-      const decrypted = (await decryptInboundRequestForAdmin(doc.data() as InboundRequestStored)) as InboundRequest;
-      return buildLiveRecord(doc.id, decrypted);
+    liveDocs.map(async (doc) => {
+      try {
+        const decrypted = (await decryptInboundRequestForAdmin(
+          doc.data() as InboundRequestStored,
+        )) as InboundRequest;
+        return await buildLiveRecord(doc.id, decrypted);
+      } catch {
+        return null;
+      }
     }),
   );
 
@@ -1481,9 +1600,11 @@ export async function listPublicSiteWorlds(limit = 24): Promise<SiteWorldCard[]>
     }
   }
 
-  for (const template of siteWorldCards) {
-    if (!deduped.has(template.id)) {
-      deduped.set(template.id, buildStaticRecord(template));
+  if (SITE_WORLD_FALLBACKS_ENABLED) {
+    for (const template of siteWorldCards) {
+      if (!deduped.has(template.id)) {
+        deduped.set(template.id, buildStaticRecord(template));
+      }
     }
   }
 
@@ -1521,26 +1642,24 @@ export async function getPublicSiteWorldById(id: string): Promise<SiteWorldCard 
     ) || null;
   if (liveOrStaticRecord) {
     if (liveOrStaticRecord.dataSource === "pipeline" && !liveOrStaticRecord.worldLabsPreview && db) {
-      const snapshot = await db.collection("inboundRequests").orderBy("createdAt", "desc").limit(100).get();
-      for (const doc of snapshot.docs) {
-        const decrypted = (await decryptInboundRequestForAdmin(doc.data() as InboundRequestStored)) as InboundRequest;
-        const pipeline = decrypted.pipeline;
-        if (!pipeline) {
-          continue;
-        }
-        if (
-          liveOrStaticRecord.siteSubmissionId !== (decrypted.site_submission_id || doc.id) &&
-          liveOrStaticRecord.sceneId !== pipeline.scene_id &&
-          liveOrStaticRecord.captureId !== pipeline.capture_id
-        ) {
-          continue;
-        }
-        const worldLabsPreview = await buildWorldLabsPreviewFromPipeline(pipeline);
-        if (worldLabsPreview) {
-          return {
-            ...liveOrStaticRecord,
-            worldLabsPreview,
-          };
+      const matchingDoc =
+        (await findInboundRequestByIdentity(liveOrStaticRecord.siteSubmissionId))
+        || (await findInboundRequestByIdentity(liveOrStaticRecord.sceneId))
+        || (await findInboundRequestByIdentity(liveOrStaticRecord.captureId));
+      if (matchingDoc) {
+        try {
+          const decrypted = (await decryptInboundRequestForAdmin(
+            matchingDoc.data() as InboundRequestStored,
+          )) as InboundRequest;
+          const worldLabsPreview = await buildWorldLabsPreviewFromPipeline(decrypted.pipeline);
+          if (worldLabsPreview) {
+            return {
+              ...liveOrStaticRecord,
+              worldLabsPreview,
+            };
+          }
+        } catch {
+          return liveOrStaticRecord;
         }
       }
     }
@@ -1559,40 +1678,41 @@ export async function resolveLiveSiteWorldContext(id: string): Promise<{
     return null;
   }
 
-  const snapshot = await db.collection("inboundRequests").orderBy("createdAt", "desc").limit(100).get();
-  for (const doc of snapshot.docs) {
-    const decrypted = (await decryptInboundRequestForAdmin(doc.data() as InboundRequestStored)) as InboundRequest;
+  const doc = await findInboundRequestByIdentity(id);
+  if (!doc) {
+    return null;
+  }
+
+  try {
+    const decrypted = (await decryptInboundRequestForAdmin(
+      doc.data() as InboundRequestStored,
+    )) as InboundRequest;
     const siteWorld = await buildLiveRecord(doc.id, decrypted);
-    if (!siteWorld) {
-      continue;
-    }
-    if (
-      siteWorld.id === id ||
-      siteWorld.siteSubmissionId === id ||
-      siteWorld.sceneId === id ||
-      siteWorld.captureId === id
-    ) {
+    if (siteWorld) {
       return {
         requestId: doc.id,
         request: decrypted,
         siteWorld,
       };
     }
+  } catch {
+    return null;
   }
 
   return null;
 }
 
 export async function resolvePublicSiteWorldExplorerAssetPath(siteWorldId: string, relativePath: string): Promise<string | null> {
-  if (siteWorldId !== DEMO_SITE_WORLD_ID) {
+  if (siteWorldId !== DEMO_SITE_WORLD_ID || !DEMO_BUNDLE_PIPELINE_ROOT) {
     return null;
   }
+  const demoBundleRoot = DEMO_BUNDLE_PIPELINE_ROOT;
   const normalized = path.normalize(String(relativePath || "").trim()).replace(/^(\.\.(\/|\\|$))+/, "");
   if (!normalized || normalized.startsWith("..")) {
     return null;
   }
-  const resolved = path.resolve(DEMO_BUNDLE_PIPELINE_ROOT, normalized);
-  const allowedRoot = path.resolve(DEMO_BUNDLE_PIPELINE_ROOT);
+  const resolved = path.resolve(demoBundleRoot, normalized);
+  const allowedRoot = path.resolve(demoBundleRoot);
   if (!resolved.startsWith(`${allowedRoot}${path.sep}`) && resolved !== allowedRoot) {
     return null;
   }

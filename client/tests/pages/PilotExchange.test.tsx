@@ -131,12 +131,13 @@ describe("PilotExchange", () => {
     render(<PilotExchange />);
 
     expect(screen.getByRole("heading", { name: /Pay for the job you need\./i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^Evaluation Package$/i })).toBeInTheDocument();
-    expect(screen.getByText(/simulation-backed review/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Deployment Prep \/ Managed Tuning/i })).toBeInTheDocument();
+    expect(screen.getByText(/Pay for the next layer/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^World Models$/i })).toBeInTheDocument();
+    expect(screen.getByText(/qualification-verified world models of real indoor locations/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Simulation Access/i })).toBeInTheDocument();
     expect(screen.getByText(/Private site terms are custom\./i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole("button", { name: /Check a qualified site/i })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: /Review this site/i })[0]);
 
     expect(screen.getByRole("heading", { name: /Check a qualified site/i })).toBeInTheDocument();
     expect(analyticsEventsMock.pilotExchangeOpenPolicyForm).toHaveBeenCalledTimes(1);

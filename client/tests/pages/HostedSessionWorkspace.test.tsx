@@ -10,6 +10,27 @@ import { getSiteWorldById } from "@/data/siteWorlds";
 let mockSearch = "";
 const originalCreateObjectURL = globalThis.URL.createObjectURL;
 const originalRevokeObjectURL = globalThis.URL.revokeObjectURL;
+const originalWebSocket = globalThis.WebSocket;
+
+class MockWebSocket {
+  static OPEN = 1;
+  static CLOSED = 3;
+
+  readyState = MockWebSocket.OPEN;
+  onopen = null;
+  onclose = null;
+  onerror = null;
+  onmessage = null;
+
+  constructor(public url: string) {}
+
+  addEventListener() {}
+  removeEventListener() {}
+  send() {}
+  close() {
+    this.readyState = MockWebSocket.CLOSED;
+  }
+}
 
 vi.mock("wouter", async () => {
   const actual = await vi.importActual<typeof import("wouter")>("wouter");
@@ -172,6 +193,7 @@ afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  globalThis.WebSocket = originalWebSocket;
   Object.defineProperty(globalThis.URL, "createObjectURL", {
     configurable: true,
     writable: true,
@@ -186,6 +208,7 @@ afterEach(() => {
 
 beforeEach(() => {
   let objectUrlCounter = 0;
+  vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
   Object.defineProperty(globalThis.URL, "createObjectURL", {
     configurable: true,
     writable: true,

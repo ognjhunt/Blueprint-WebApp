@@ -5,6 +5,8 @@ const PLACEHOLDER_VALUES = new Set(["PLACEHOLDER", "DUMMY"]);
 const isPlaceholderValue = (value: string | undefined) =>
   Boolean(value && PLACEHOLDER_VALUES.has(value.trim().toUpperCase()));
 
+const TRUTHY_VALUES = new Set(["1", "true", "yes", "on"]);
+
 const envSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -61,6 +63,14 @@ export function getConfiguredEnvValue(...keys: string[]): string | null {
   }
 
   return null;
+}
+
+export function isTruthyEnvValue(value: string | undefined | null): boolean {
+  return TRUTHY_VALUES.has(String(value || "").trim().toLowerCase());
+}
+
+export function isEnvFlagEnabled(...keys: string[]): boolean {
+  return keys.some((key) => isTruthyEnvValue(process.env[key]));
 }
 
 export function requireConfiguredEnvValue(

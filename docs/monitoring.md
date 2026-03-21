@@ -24,7 +24,16 @@ curl -i https://<your-render-domain>/health
 curl -i https://<your-render-domain>/health/ready
 ```
 
-Both should return `200` when the service is healthy and ready.
+`/health` should return `200` when the process is alive.
+
+`/health/ready` should return `200` only when launch-critical dependencies for enabled features are ready. That now includes:
+- Firebase Admin
+- Redis, when Redis-backed live session state is configured
+- Stripe, when checkout is enabled
+- SMTP, when email delivery is required
+- pipeline sync secret config, when pipeline sync is required
+
+If one of those dependencies is missing or unhealthy, `/health/ready` should return `503`.
 
 ## 4) Add uptime monitoring + 5xx alerting
 

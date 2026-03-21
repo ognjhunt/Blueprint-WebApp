@@ -39,7 +39,7 @@ export function buildWaitlistAIPrompt(data: WaitlistDataForPrompt): string {
 
  STEP 1: Create Google Sheet row in "Blueprint Waitlist" spreadsheet - Sheet named: 'Inbound (Website)' with columns: Name="${name}", Company="${company}", Email="${email}", City="${city}", State="${state}", Address="${companyAddress}", Website="${companyWebsite}", Additional Comments="${message}", Date of Waitlist="${currentDate}", Time of Waitlist="${currentTime}", Does Company Meet Criteria="", Have we sent off the waitlist email="No", Have they picked a date+time for mapping="No", Have we Onboarded="No".
 
- STEP 2: Use Perplexity to evaluate: "${company} located in ${city}, ${state} - Evaluate for Blueprint pilot program criteria: customer-facing business, retail/hospitality type, physical presence with foot traffic, located in or near Durham NC area. Respond with Yes (meets all criteria) or No (does not meet criteria) plus brief reason."
+ STEP 2: Use Perplexity to evaluate: "${company} located in ${city}, ${state} - Evaluate for Blueprint US alpha criteria: customer-facing business, retail/hospitality/workplace/venue relevance, physical presence with foot traffic or guided customer workflows, and likely fit for an on-site AI guidance pilot in the United States. Respond with Yes (meets criteria) or No (does not meet criteria) plus brief reason."
 
  STEP 3: Draft (DO NOT SEND - JUST CREATE DRAFT) appropriate email:
  - If Perplexity says YES: Subject="Hello - From Blueprint", Body="Hey ${firstName},
@@ -135,6 +135,8 @@ export function buildMappingConfirmationPhase1AIPrompt(
 
   // Ensure address is cleaned for display if needed, e.g. removing ", USA"
   const displayAddress = address.replace(", USA", "");
+  const operationsOrigin =
+    process.env.BLUEPRINT_ALPHA_OPERATIONS_ORIGIN?.trim() || "Blueprint field ops hub";
 
   return `
 Blueprint Post-Signup - Phase 1: Initial Mapping Setup for ${company_name}.
@@ -190,7 +192,7 @@ Co-Founder at Blueprint"
 Event Title: "Blueprint Mapping: ${company_name}"
 Description: "Company: ${company_name}\nContact (Webhook): ${contact_name} (${contact_phone_number})\nPrimary Contact (Sheet): [SheetContactName] ([SheetContactEmail])\nAddress: ${address}\nEst. Sq. Ft: ${estimated_square_footage}"
 Location: ${address}
-Start: ${chosen_date_of_mapping} ${chosen_time_of_mapping} (Ensure this is in a Zapier-compatible format, assume EST if no timezone specified by user. If the provided time is already in a specific timezone, use that.)
+Start: ${chosen_date_of_mapping} ${chosen_time_of_mapping} (Ensure this is in a Zapier-compatible format. Use the local timezone for ${address}; if a timezone is not provided, infer it from the destination address.)
 End: Calculate end time based on a 60-minute duration from the start time.
 Attendees: Add [SheetContactEmail] AND support@tryblueprint.io.
 Allow conflicts: Yes
@@ -200,7 +202,7 @@ To: ${contact_phone_number} (Fallback: +19196389913 if primary is invalid/missin
 Message: "Hi ${contact_name}! Your Blueprint Mapping for ${company_name} is confirmed for ${chosen_date_of_mapping} at ${chosen_time_of_mapping} (${displayAddress}). Email to [SheetContactEmail] & Calendar invite sent. Reminder SMS 1hr prior. - Blueprint"
 
 **TASK 6: GET TRAVEL TIME (Use Google Maps via Zapier if available, otherwise Perplexity. Prioritize Zapier's Google Maps tool for reliability)**
-Origin: "1005 Crete St, Durham, NC 27707"
+Origin: "${operationsOrigin}"
 Destination: "${address}"
 Return ONLY minutes for car/Uber travel time as [CarTravelMinutes] AND public transport travel time as [PublicTransportMinutes]. If a mode is unavailable, return 'N/A' for it.
 

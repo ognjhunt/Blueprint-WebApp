@@ -9,6 +9,30 @@ const state = vi.hoisted(() => ({
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   dbAdmin: {
     collection: () => ({
+      doc: (id: string) => ({
+        get: async () => {
+          const matched = state.docs.find((doc) => doc.id === id);
+          return matched
+            ? { exists: true, id: matched.id, data: matched.data }
+            : { exists: false, id, data: () => ({}) };
+        },
+      }),
+      where: (field: string, _operator: string, value: unknown) => ({
+        limit: () => ({
+          get: async () => ({
+            docs: state.docs.filter((doc) => {
+              const payload = doc.data();
+              const resolved = field.split(".").reduce<unknown>((acc, part) => {
+                if (!acc || typeof acc !== "object") {
+                  return undefined;
+                }
+                return (acc as Record<string, unknown>)[part];
+              }, payload);
+              return resolved === value;
+            }),
+          }),
+        }),
+      }),
       orderBy: () => ({
         limit: () => ({
           get: async () => ({ docs: state.docs }),

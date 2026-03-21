@@ -1,26 +1,36 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import Home, { HERO_HEADLINES, HOME_HERO_VARIANTS } from '@/pages/Home';
+import Home from '@/pages/Home';
+
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({
+    currentUser: null,
+    userData: null,
+    tokenClaims: null,
+    logout: vi.fn(),
+  }),
+}));
 
 describe('Home', () => {
   it('renders the hero messaging and primary CTAs', { timeout: 10000 }, () => {
     window.localStorage.clear();
     render(<Home />);
 
-    const heroHeading = screen.getByRole('heading', { level: 1 });
-
-    expect(HERO_HEADLINES).toContain(heroHeading.textContent);
     expect(
-      HOME_HERO_VARIANTS.some((variant) => screen.queryAllByText(variant.eyebrow).length > 0),
-    ).toBe(true);
+      screen.getByRole('heading', {
+        level: 1,
+        name: /indoor spatial data marketplace for robotics/i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/capture evidence/i)).toBeInTheDocument();
     expect(
-      screen.getAllByRole('link', { name: /See how it works/i }).some(
-        (link) => link.getAttribute('href') === '/how-it-works',
+      screen.getAllByRole('link', { name: /Browse world models/i }).some(
+        (link) => link.getAttribute('href') === '/world-models',
       ),
     ).toBe(true);
     expect(
-      screen.getAllByRole('link', { name: /Request qualification/i }).some(
-        (link) => link.getAttribute('href') === '/contact?interest=site-qualification',
+      screen.getAllByRole('link', { name: /Start earning/i }).some(
+        (link) => link.getAttribute('href') === '/capture',
       ),
     ).toBe(true);
   });
@@ -30,23 +40,20 @@ describe('Home', () => {
     render(<Home />);
 
     expect(
-      screen.getByRole('heading', { name: /Why teams use Blueprint/i }),
+      screen.getByRole('heading', { name: /Why Blueprint/i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('heading', {
-        name: /A simple path from site intake to a clear next step\./i,
+        name: /Capture\. Qualify\. Deploy\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('heading', {
-        name: /Robots are getting good in known environments\./i,
+        name: /Built for every side of the market/i,
       }),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Market trajectory/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Humanoid programs are scaling faster than sites are getting ready\./i)).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Figure Helix 02/i })).toHaveAttribute(
-      'href',
-      'https://www.figure.ai/news/helix-02-living-room-tidy',
-    );
+    expect(screen.getByText(/qualification is the quality moat/i)).toBeInTheDocument();
   });
 });

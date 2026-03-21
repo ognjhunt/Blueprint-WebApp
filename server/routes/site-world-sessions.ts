@@ -109,10 +109,11 @@ async function loadUserProfile(uid: string) {
   return userDoc.data() as Record<string, unknown>;
 }
 
-const PUBLIC_DEMO_SITE_WORLD_IDS = new Set<string>(["siteworld-f5fd54898cfb"]);
-// Env-gated demo path: when BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID is set, allow
-// that site world through the public (no-auth) session lane. Local/demo only.
-if (process.env.BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID) {
+const PUBLIC_DEMO_SITE_WORLD_IDS = new Set<string>();
+if (process.env.NODE_ENV !== "production" || process.env.BLUEPRINT_ENABLE_DEMO_SITE_WORLDS === "1") {
+  PUBLIC_DEMO_SITE_WORLD_IDS.add("siteworld-f5fd54898cfb");
+}
+if (process.env.BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID?.trim()) {
   PUBLIC_DEMO_SITE_WORLD_IDS.add(process.env.BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID.trim());
 }
 
@@ -814,7 +815,9 @@ async function buildRuntimeOnlyReadiness(params: {
     });
   }
 
-  const siteWorldId = String(siteWorldRegistration?.site_world_id || "").trim();
+  const siteWorldId = String(
+    params.runtime.siteWorldId || siteWorldRegistration?.site_world_id || "",
+  ).trim();
   const runtimeBaseUrl = String(params.runtime.runtimeBaseUrl || siteWorldRegistration?.runtime_base_url || "").trim();
   if (siteWorldRegistration && (!siteWorldId || !runtimeBaseUrl)) {
     addBlocker(details, {
@@ -2989,6 +2992,16 @@ protectedRouter.get("/launch-readiness", async (req, res) => {
     const siteWorldId = String(req.query.siteWorldId || "").trim();
     if (!siteWorldId) {
       return res.status(400).json({ error: "siteWorldId is required" });
+    }
+    if (isPublicDemoSiteWorldId(siteWorldId)) {
+      const runtime = await resolveHostedRuntime(siteWorldId);
+      return res.json(
+        await buildLaunchReadiness({
+          runtime,
+          entitled: true,
+          accessBlockers: [],
+        }),
+      );
     }
     const access = await getLaunchAccessState(req, res);
     const runtime = await resolveHostedRuntime(siteWorldId);

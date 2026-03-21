@@ -16,6 +16,11 @@ function readOptionalSiteWorldEnv(key: string): string | null {
   return value || null;
 }
 
+function isTruthyFlag(value: string | null): boolean {
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
 function readHostedDemoEnv(suffix: string): string | null {
   return readOptionalSiteWorldEnv(`VITE_${suffix}`) || readOptionalSiteWorldEnv(`BLUEPRINT_${suffix}`);
 }
@@ -61,6 +66,11 @@ type HostedDemoQualificationState = NonNullable<NonNullable<SiteWorldCard["hoste
 const HOSTED_DEMO_QUALIFICATION_STATE =
   (readHostedDemoEnv("HOSTED_DEMO_QUALIFICATION_STATE") as HostedDemoQualificationState | null)
   || "not_ready_yet";
+const SITE_WORLD_FIXTURE_MODE = String(
+  ((import.meta as unknown as { env?: Record<string, string | undefined> }).env?.MODE || process.env?.NODE_ENV || "development"),
+).trim().toLowerCase();
+const DEMO_SITE_WORLDS_ENABLED = isTruthyFlag(readHostedDemoEnv("ENABLE_DEMO_SITE_WORLDS"));
+const STATIC_SITE_WORLD_FIXTURES_ENABLED = SITE_WORLD_FIXTURE_MODE !== "production";
 
 export type SiteCategory =
   | "All"
@@ -1080,9 +1090,12 @@ const rawSiteWorldCards: RawSiteWorldCard[] = [
   },
 ];
 
-export const siteWorldCards: SiteWorldCard[] = rawSiteWorldCards.map(withDerivedSessionDefaults);
+export const siteWorldCards: SiteWorldCard[] = STATIC_SITE_WORLD_FIXTURES_ENABLED
+  ? rawSiteWorldCards.map(withDerivedSessionDefaults)
+  : [];
 
-siteWorldCards.push({
+if (DEMO_SITE_WORLDS_ENABLED || SITE_WORLD_FIXTURE_MODE !== "production") {
+  siteWorldCards.push({
   id: "siteworld-f5fd54898cfb",
   siteCode: "SW-DEMO-01",
   siteName: "Media Room Demo Walkthrough",
@@ -1242,10 +1255,11 @@ siteWorldCards.push({
     allowBlockedSiteWorld: true,
     qualificationState: "qualified_ready",
   },
-});
+  });
+}
 
 const hostedDemoOverrideCard = buildHostedDemoOverrideCard();
-if (hostedDemoOverrideCard) {
+if (hostedDemoOverrideCard && (DEMO_SITE_WORLDS_ENABLED || SITE_WORLD_FIXTURE_MODE !== "production")) {
   siteWorldCards.push(hostedDemoOverrideCard);
 }
 

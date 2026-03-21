@@ -2,8 +2,8 @@
 
 This repo supports a hybrid semantic search for the Marketplace UI:
 
-- **Now (no DB):** in-memory search over placeholder items from `client/src/data/content.ts`
-- **Later (Firestore):** vector search over `marketplace_items` using Firestore vector queries
+- **Production default:** live search over Firestore `marketplace_items`, with vector search when embeddings and `findNearest` are available.
+- **Local/demo fallback:** in-memory search over fixture items from `client/src/data/content.ts`
 
 ## Endpoint
 
@@ -13,7 +13,11 @@ This repo supports a hybrid semantic search for the Marketplace UI:
 
 ## Firestore Vector Backend (optional)
 
-When the server has Firebase Admin credentials and the Firestore SDK supports vector search (`findNearest`), the search endpoint will prefer Firestore.
+When the server has Firebase Admin credentials and the Firestore SDK supports vector search (`findNearest`), the search endpoint will prefer Firestore vector search.
+
+When vector search is unavailable, the endpoint still uses live Firestore inventory records for lexical ranking.
+
+In production, if live Firestore inventory is unavailable, the endpoint returns no results instead of silently switching to fixture content.
 
 ### Collection
 
@@ -55,4 +59,3 @@ Server-side:
 - `OPENAI_API_KEY` (enables semantic embeddings; otherwise the backend falls back to lexical scoring)
 - `OPENAI_EMBEDDING_MODEL` (optional; defaults to `text-embedding-3-small`)
 - `FIREBASE_SERVICE_ACCOUNT_JSON` (optional; enables Firestore Admin + vector search backend)
-

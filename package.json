@@ -10,7 +10,8 @@
     "check": "tsc -p tsconfig.full.json --noEmit",
     "audit:assets": "tsx scripts/audit-assets.ts",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "alpha:check": "node scripts/alpha-check.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",

@@ -63,6 +63,8 @@ type Candidate = {
 
 const DEFAULT_EMBEDDING_MODEL =
   process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small";
+const STATIC_MARKETPLACE_FALLBACK_ENABLED =
+  process.env.NODE_ENV !== "production" || process.env.BLUEPRINT_ENABLE_DEMO_SITE_WORLDS === "1";
 
 const STOPWORDS = new Set([
   "a",
@@ -674,10 +676,22 @@ export async function searchMarketplace(params: {
     }
   }
 
+  const liveCandidates = await loadLiveInventoryCandidates();
+  if (liveCandidates.length === 0 && !STATIC_MARKETPLACE_FALLBACK_ENABLED) {
+    warnings.push("Live marketplace inventory is unavailable in production.");
+    return {
+      results: [],
+      meta: {
+        backend: "firestore-live",
+        embeddingModel: DEFAULT_EMBEDDING_MODEL,
+        usedEmbeddings: Boolean(queryEmbedding),
+      },
+      warnings,
+    };
+  }
+
   const staticData = await ensureStaticIndex();
   warnings.push(...staticData.warnings);
-
-  const liveCandidates = await loadLiveInventoryCandidates();
   const candidatePool = liveCandidates.length > 0 ? liveCandidates : staticData.candidates;
 
   const filtered = candidatePool
