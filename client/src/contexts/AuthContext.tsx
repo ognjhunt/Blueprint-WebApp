@@ -5,18 +5,8 @@ import {
   browserLocalPersistence,
   setPersistence as firebasePersistence,
 } from "firebase/auth";
-import {
-  auth,
-  loginWithEmailAndPassword,
-  registerWithEmailAndPassword,
-  signInWithGoogle as firebaseSignInWithGoogle,
-  logOut,
-  onAuthStateChanged,
-  getUserData,
-  createUserDocument,
-  UserData,
-} from "@/lib/firebase";
 import { IdTokenResult, User as FirebaseUser } from "firebase/auth";
+import type { UserData } from "@/lib/firebase";
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -36,6 +26,24 @@ const viteEnv =
     ? import.meta.env
     : ({} as Record<string, string | boolean | undefined>);
 
+type FirebaseClientModule = typeof import("@/lib/firebase");
+
+let firebaseClientModulePromise: Promise<FirebaseClientModule> | null = null;
+
+function loadFirebaseClientModule(): Promise<FirebaseClientModule> {
+  if (typeof window === "undefined") {
+    return Promise.reject(
+      new Error("Firebase client module is only available in a browser runtime."),
+    );
+  }
+
+  if (!firebaseClientModulePromise) {
+    firebaseClientModulePromise = import("@/lib/firebase");
+  }
+
+  return firebaseClientModulePromise;
+}
+
 export function useAuth() {
   const context = React.useContext(AuthContext);
   if (!context) {
@@ -47,14 +55,14 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Set persistence to LOCAL
   React.useEffect(() => {
-    if (!auth) {
-      console.warn("Firebase auth not initialized. Skipping persistence setup.");
+    if (typeof window === "undefined") {
       return;
     }
-    
+
     const initPersistence = async () => {
       try {
-        await firebasePersistence(auth!, browserLocalPersistence);
+        const { auth } = await loadFirebaseClientModule();
+        await firebasePersistence(auth, browserLocalPersistence);
       } catch (error) {
         console.error("Error setting persistence:", error);
       }
@@ -171,11 +179,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   React.useEffect(() => {
-    if (!auth) {
+    if (typeof window === "undefined") {
       setLoading(false);
       return;
     }
 
+    let isMounted = true;
     let fallbackTimeout: ReturnType<typeof setTimeout> | null = setTimeout(() => {
       console.warn("Auth initialization timed out. Rendering app without auth state.");
       setLoading(false);
@@ -189,42 +198,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    try {
-      unsubscribe = onAuthStateChanged(
-        auth,
-        async (user) => {
-          setCurrentUser(user);
-          if (user) {
-            try {
-              const [userData, tokenResult] = await Promise.all([
-                getUserData(user.uid),
-                user.getIdTokenResult().catch(() => null),
-              ]);
-              setUserData(normalizeUserData(userData));
-              setTokenClaims(tokenResult?.claims || null);
-            } catch (error) {
-              console.error("Error fetching user data:", error);
+    void (async () => {
+      try {
+        const firebase = await loadFirebaseClientModule();
+        unsubscribe = firebase.onAuthStateChanged(
+          firebase.auth,
+          async (user) => {
+            if (!isMounted) {
+              return;
             }
-          } else {
-            setUserData(null);
-            setTokenClaims(null);
-          }
-          clearFallbackTimeout();
+
+            setCurrentUser(user);
+            if (user) {
+              try {
+                const [userData, tokenResult] = await Promise.all([
+                  firebase.getUserData(user.uid),
+                  user.getIdTokenResult().catch(() => null),
+                ]);
+                if (!isMounted) {
+                  return;
+                }
+                setUserData(normalizeUserData(userData));
+                setTokenClaims(tokenResult?.claims || null);
+              } catch (error) {
+                console.error("Error fetching user data:", error);
+              }
+            } else {
+              setUserData(null);
+              setTokenClaims(null);
+            }
+            clearFallbackTimeout();
+            setLoading(false);
+          },
+          (error) => {
+            console.error("Auth state change listener error:", error);
+            clearFallbackTimeout();
+            setLoading(false);
+          },
+        );
+      } catch (error) {
+        console.error("Failed to initialize auth state listener:", error);
+        clearFallbackTimeout();
+        if (isMounted) {
           setLoading(false);
-        },
-        (error) => {
-          console.error("Auth state change listener error:", error);
-          clearFallbackTimeout();
-          setLoading(false);
-        },
-      );
-    } catch (error) {
-      console.error("Failed to initialize auth state listener:", error);
-      clearFallbackTimeout();
-      setLoading(false);
-    }
+        }
+      }
+    })();
 
     return () => {
+      isMounted = false;
       clearFallbackTimeout();
       unsubscribe();
     };
@@ -232,12 +254,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signIn(email: string, password: string) {
     try {
-      const user = await loginWithEmailAndPassword(email, password);
+      const firebase = await loadFirebaseClientModule();
+      const user = await firebase.loginWithEmailAndPassword(email, password);
       console.log("User signed in successfully:", user.uid);
 
       let userDataRecord: UserData | null = null;
       try {
-        userDataRecord = await getUserData(user.uid);
+        userDataRecord = await firebase.getUserData(user.uid);
       } catch (userDataError: any) {
         console.error("Error fetching user data after sign in:", userDataError);
         if (isPermissionDeniedError(userDataError)) {
@@ -267,12 +290,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signUp(email: string, password: string, name?: string) {
     try {
-      const user = await registerWithEmailAndPassword(email, password, name);
+      const firebase = await loadFirebaseClientModule();
+      const user = await firebase.registerWithEmailAndPassword(email, password, name);
       console.log("User registered successfully:", user.uid);
 
       let userDataRecord: UserData | null = null;
       try {
-        userDataRecord = await getUserData(user.uid);
+        userDataRecord = await firebase.getUserData(user.uid);
       } catch (userDataError: any) {
         console.error(
           "Error creating/fetching user data after registration:",
@@ -305,12 +329,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function signInWithGoogle() {
     try {
-      const user = await firebaseSignInWithGoogle();
+      const firebase = await loadFirebaseClientModule();
+      const user = await firebase.signInWithGoogle();
       console.log("User signed in with Google successfully:", user.uid);
       let userDataRecord: UserData | null = null;
 
       try {
-        userDataRecord = await getUserData(user.uid);
+        userDataRecord = await firebase.getUserData(user.uid);
       } catch (userDataError: any) {
         console.error("Error fetching Google user data:", userDataError);
         if (isPermissionDeniedError(userDataError)) {
@@ -325,7 +350,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!userDataRecord) {
         try {
-          await createUserDocument(user, {
+          await firebase.createUserDocument(user, {
             name: user.displayName ?? undefined,
           });
           createdProfile = true;
@@ -340,7 +365,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         try {
-          userDataRecord = await getUserData(user.uid);
+          userDataRecord = await firebase.getUserData(user.uid);
         } catch (userDataFetchError: any) {
           console.error(
             "Error fetching user data after creating Google profile:",
@@ -382,7 +407,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function logout() {
     try {
-      await logOut();
+      const firebase = await loadFirebaseClientModule();
+      await firebase.logOut();
       setUserData(null);
       setTokenClaims(null);
       console.log("User logged out successfully");
