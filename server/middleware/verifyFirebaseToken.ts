@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 
-import admin from "../../client/src/lib/firebaseAdmin";
+import { authAdmin } from "../../client/src/lib/firebaseAdmin";
 
 export default async function verifyFirebaseToken(
   req: Request,
@@ -14,8 +14,14 @@ export default async function verifyFirebaseToken(
     return res.status(401).json({ error: "Missing or invalid authorization" });
   }
 
+  if (!authAdmin) {
+    return res.status(503).json({
+      error: "Firebase Admin auth is not configured on this server.",
+    });
+  }
+
   try {
-    const decodedToken = await admin.auth().verifyIdToken(token);
+    const decodedToken = await authAdmin.verifyIdToken(token);
     res.locals.firebaseUser = decodedToken;
     return next();
   } catch (error) {

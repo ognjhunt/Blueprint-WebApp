@@ -31,9 +31,12 @@ npm start
 - Optional: `VITE_FIREBASE_DATABASE_URL`, `VITE_FIREBASE_MEASUREMENT_ID`
 
 ### Firebase Admin (server)
-Provide one:
+Provide one of the following, or run on Cloud Run / Cloud Functions with an attached service account:
 - `FIREBASE_SERVICE_ACCOUNT_JSON`
 - `GOOGLE_APPLICATION_CREDENTIALS`
+
+Launch-critical note:
+- Buyer checkout auth, marketplace entitlements, pipeline attachment sync, creator ledgers, and inbound request persistence all depend on Firebase Admin being live in production.
 
 ### Contact + Signup Links
 - `VITE_PUBLIC_APP_URL` (canonical public origin used for generated links)
@@ -44,7 +47,13 @@ Provide one:
 ### Stripe (server)
 - `STRIPE_SECRET_KEY`
 - `STRIPE_CONNECT_ACCOUNT_ID`
+- `STRIPE_WEBHOOK_SECRET`
+- `CHECKOUT_ALLOWED_ORIGINS`
 - Optional: `STRIPE_PUBLIC_BASE_URL`, `STRIPE_ONBOARDING_REFRESH_URL`, `STRIPE_ONBOARDING_RETURN_URL`
+
+### Internal Marketplace + Pipeline
+- `PIPELINE_SYNC_TOKEN`
+- `BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET`
 
 ### Redis (server, recommended for live hosted sessions)
 - Optional but recommended: `REDIS_URL`
@@ -64,5 +73,6 @@ REDIS_URL=rediss://default:<token>@active-phoenix-39183.upstash.io:6379
 
 - Firestore is the active datastore.
 - Live hosted-session state now prefers Redis when `REDIS_URL` is configured, then falls back to in-process memory, with Firestore acting as async mirroring/trail storage.
+- Marketplace checkout and artifact entitlement flows are only truthful when Firebase Admin, Stripe checkout, and Stripe webhooks are all configured together.
 - Legacy manual deployment scripts were removed; deployment should always run through project scripts.
 - `client/public/robots.txt` must exist at build time and be served in production.

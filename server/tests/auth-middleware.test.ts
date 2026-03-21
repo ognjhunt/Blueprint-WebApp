@@ -14,7 +14,9 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   },
   dbAdmin: null,
   storageAdmin: null,
-  authAdmin: null,
+  authAdmin: {
+    verifyIdToken,
+  },
 }));
 
 let server: Server;
