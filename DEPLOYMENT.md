@@ -54,6 +54,10 @@ Launch-critical note:
 ### Internal Marketplace + Pipeline
 - `PIPELINE_SYNC_TOKEN`
 - `BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET`
+- Optional internal-only fallback: `PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS=true`
+
+Launch-critical note:
+- Leave `PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS` unset in paid/production flows so pipeline sync fails closed when inbound request bootstrap is missing.
 
 ### Redis (server, recommended for live hosted sessions)
 - Optional but recommended: `REDIS_URL`

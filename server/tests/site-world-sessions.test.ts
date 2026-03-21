@@ -624,6 +624,7 @@ afterEach(async () => {
   state.releaseHostedSessionUpdates();
   state.hostedSessions.clear();
   state.lastCreateHostedSessionRunParams = null;
+  state.userData.buyerType = "robot_team";
   state.presentationLaunchConfig = {
     manifest: {},
     uiBaseUrl: "https://neoverse.example/demo",
@@ -1365,6 +1366,67 @@ describe("site world session routes", () => {
       expect(render.status).toBe(502);
       expect(render.headers.get("x-blueprint-render-source")).toBeNull();
       expect(payload.code).toBe("runtime_render_failed");
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("keeps protected UI access robot-team-only even for demo site worlds", async () => {
+    state.userData.buyerType = "site_operator";
+    state.hostedSessions.set("public-demo-protected-ui", {
+      sessionId: "public-demo-protected-ui",
+      site: {
+        siteWorldId: "siteworld-f5fd54898cfb",
+        siteName: "Media Room Demo Walkthrough",
+        siteAddress: "Blueprint hosted runtime demo",
+      },
+      siteModel: {
+        runtimeRenderSource: "neoverse_full_capture",
+      },
+      sessionMode: "presentation_demo",
+      runtime_backend_selected: "neoverse",
+      status: "running",
+      robot: "Mobile manipulator",
+      policy: {},
+      task: "Media room",
+      scenario: "default",
+      createdBy: { uid: "public-demo-user" },
+      createdAt: "2026-03-14T00:00:00Z",
+      elapsedSeconds: 0,
+      artifactUris: {},
+      metering: {
+        sessionSeconds: 0,
+        billableHours: 0,
+      },
+      presentationRuntime: {
+        status: "live",
+        proxyPath: "/demo/ui/",
+        expiresAt: "2026-03-14T01:00:00Z",
+      },
+      runtimeHandle: {
+        site_world_id: "siteworld-f5fd54898cfb",
+        runtime_base_url: "http://runtime.local",
+        websocket_base_url: "ws://runtime.local",
+      },
+      launchContext: {
+        site_world_spec_uri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_spec.json",
+        site_world_registration_uri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_registration.json",
+        site_world_health_uri:
+          "gs://bucket/scenes/scene-harborview-grocery-annex/captures/cap-harborview-grocery-annex-v1/pipeline/evaluation_prep/site_world_health.json",
+      },
+    });
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/public-demo-protected-ui/ui-access`);
+      expect(response.status).toBe(500);
+      await expect(response.json()).resolves.toEqual(
+        expect.objectContaining({
+          error: "Hosted sessions are only available to robot-team accounts.",
+        })
+      );
     } finally {
       await stopServer(server);
     }

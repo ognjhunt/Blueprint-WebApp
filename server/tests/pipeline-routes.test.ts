@@ -114,6 +114,7 @@ afterEach(() => {
   state.storageText = "";
   state.storageShouldFail = false;
   delete process.env.PIPELINE_SYNC_TOKEN;
+  delete process.env.PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS;
 });
 
 const fixturePath = path.resolve(
@@ -253,8 +254,40 @@ describe("pipeline integration routes", () => {
     }
   });
 
-  it("creates a placeholder inbound request when pipeline sync arrives before request bootstrap", async () => {
+  it("fails closed when pipeline sync arrives before inbound request bootstrap", async () => {
     process.env.PIPELINE_SYNC_TOKEN = "secret";
+    state.queryDocs = [];
+    state.docExists = false;
+
+    const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
+
+    try {
+      const response = await fetch(`${baseUrl}/attachments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Blueprint-Pipeline-Token": "secret",
+        },
+        body: JSON.stringify(pipelineAttachmentFixture),
+      });
+
+      expect(response.status).toBe(409);
+      await expect(response.json()).resolves.toEqual(
+        expect.objectContaining({
+          code: "missing_inbound_request_bootstrap",
+          request_id: "req-1",
+          site_submission_id: "req-1",
+        })
+      );
+      expect(state.docSet).not.toHaveBeenCalled();
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("allows explicit placeholder fallback when pipeline sync fallback is enabled", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "secret";
+    process.env.PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS = "true";
     state.queryDocs = [];
     state.docExists = false;
 

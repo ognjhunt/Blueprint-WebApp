@@ -34,6 +34,13 @@ const AUTO_CREATED_CONTACT = {
   company: "Blueprint",
 } as const;
 
+function allowPipelinePlaceholderRequests() {
+  const normalized = String(process.env.PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS || "")
+    .trim()
+    .toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
 function inferDefaultOpportunityState(
   qualificationState: QualificationState
 ): OpportunityState {
@@ -273,6 +280,14 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       }
     }
     if (!docRef) {
+      if (!allowPipelinePlaceholderRequests()) {
+        return res.status(409).json({
+          error: "Inbound request bootstrap is required before pipeline attachment sync.",
+          code: "missing_inbound_request_bootstrap",
+          request_id: requestId || null,
+          site_submission_id: siteSubmissionId || null,
+        });
+      }
       const targetDocId = requestId || siteSubmissionId;
       docRef = db.collection("inboundRequests").doc(targetDocId);
       shouldCreate = true;
