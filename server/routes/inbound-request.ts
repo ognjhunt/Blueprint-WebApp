@@ -12,6 +12,7 @@ import { isValidEmailAddress } from "../utils/validation";
 import { getRateLimitRedisClient } from "../utils/rate-limit-redis";
 import { encryptInboundRequestForStorage } from "../utils/field-encryption";
 import { createRequestReviewToken } from "../utils/request-review-auth";
+import { runInboundQualificationForRequest } from "../agents";
 import {
   HELP_WITH_OPTIONS,
   LEGACY_HELP_WITH_TO_LANE,
@@ -683,6 +684,26 @@ router.post("/", async (req: Request, res: Response) => {
         slackNotifiedAt: null,
         crmSyncedAt: null,
       },
+      ops_automation: {
+        status: "pending",
+        queue: "inbound_request_review",
+        intent: "inbound_qualification",
+        next_action: "generate qualification recommendation",
+        recommended_path: null,
+        confidence: null,
+        requires_human_review: null,
+        provider: null,
+        runtime: null,
+        model: null,
+        tool_mode: null,
+        execution_id: null,
+        session_key: `inbound:${payload.requestId}`,
+        last_error: null,
+        last_attempt_at: null,
+        processed_at: null,
+      },
+      human_review_required: null,
+      automation_confidence: null,
       buyer_review_access: {
         buyer_review_url: reviewUrl,
         token_issued_at: now as never,
@@ -882,6 +903,19 @@ View in admin: ${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/$
     );
 
     // Fire and forget automations
+    automationPromises.push(
+      (async () => {
+        try {
+          await runInboundQualificationForRequest(inboundRequest as InboundRequest);
+        } catch (error) {
+          logger.error(
+            { error, requestId: payload.requestId },
+            "Failed to run inbound qualification automation"
+          );
+        }
+      })()
+    );
+
     Promise.all(automationPromises).catch((error) => {
       logger.error({ error }, "Error in automation promises");
     });

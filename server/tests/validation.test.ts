@@ -1,7 +1,11 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 
-import { isValidEmailAddress, validateWaitlistData } from "../utils/validation";
+import {
+  isValidEmailAddress,
+  isValidPhoneNumber,
+  validateWaitlistData,
+} from "../utils/validation";
 
 describe("email validation", () => {
   it("rejects known invalid email formats", () => {
@@ -32,5 +36,12 @@ describe("email validation", () => {
     });
 
     expect(errors.some((error) => error.field === "email")).toBe(true);
+  });
+
+  it("accepts common phone formats and rejects invalid ones", () => {
+    expect(isValidPhoneNumber("(919) 555-0123")).toBe(true);
+    expect(isValidPhoneNumber("+1 919 555 0123")).toBe(true);
+    expect(isValidPhoneNumber("555-0123")).toBe(false);
+    expect(isValidPhoneNumber("abc-def-ghij")).toBe(false);
   });
 });

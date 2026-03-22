@@ -1,0 +1,369 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+
+import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { embedTexts } from "../retrieval/embeddings";
+import { searchVenue } from "../retrieval/venueIndexer";
+import type { KnowledgeSource } from "../types/knowledge";
+import { getOpsDocumentsByIds, listOpsDocuments } from "./ops-documents";
+import { getStartupPacksByIds, listStartupPacks } from "./startup-packs";
+import type {
+  ExternalKnowledgeSource,
+  StartupContextMetadata,
+  StartupPackRecord,
+} from "./types";
+
+function normalizeMetadata(metadata?: Record<string, unknown>): StartupContextMetadata {
+  const startupContext =
+    metadata?.startupContext && typeof metadata.startupContext === "object"
+      ? (metadata.startupContext as Record<string, unknown>)
+      : metadata || {};
+
+  return {
+    startupPackIds: Array.isArray(startupContext.startupPackIds)
+      ? startupContext.startupPackIds
+          .filter((value): value is string => typeof value === "string")
+          .map((value) => value.trim())
+          .filter(Boolean)
+      : [],
+    repoDocPaths: Array.isArray(startupContext.repoDocPaths)
+      ? startupContext.repoDocPaths
+          .filter((value): value is string => typeof value === "string")
+          .map((value) => value.trim())
+          .filter(Boolean)
+      : [],
+    blueprintIds: Array.isArray(startupContext.blueprintIds)
+      ? startupContext.blueprintIds
+          .filter((value): value is string => typeof value === "string")
+          .map((value) => value.trim())
+          .filter(Boolean)
+      : [],
+    documentIds: Array.isArray(startupContext.documentIds)
+      ? startupContext.documentIds
+          .filter((value): value is string => typeof value === "string")
+          .map((value) => value.trim())
+          .filter(Boolean)
+      : [],
+    externalSources: Array.isArray(startupContext.externalSources)
+      ? startupContext.externalSources
+          .filter((value): value is ExternalKnowledgeSource =>
+            Boolean(
+              value &&
+                typeof value === "object" &&
+                typeof (value as ExternalKnowledgeSource).title === "string" &&
+                typeof (value as ExternalKnowledgeSource).url === "string",
+            ),
+          )
+          .map((value) => ({
+            title: value.title.trim(),
+            url: value.url.trim(),
+            description: value.description?.trim() || undefined,
+            source_type: value.source_type?.trim() || undefined,
+          }))
+          .filter((value) => value.title && value.url)
+      : [],
+    operatorNotes:
+      typeof startupContext.operatorNotes === "string"
+        ? startupContext.operatorNotes.trim()
+        : "",
+  };
+}
+
+function dedupeStringValues(values: string[]) {
+  return Array.from(
+    new Set(values.map((value) => value.trim()).filter(Boolean)),
+  );
+}
+
+function dedupeExternalSources(sources: ExternalKnowledgeSource[]) {
+  const dedupe = new Map<string, ExternalKnowledgeSource>();
+
+  for (const source of sources) {
+    const title = source.title?.trim() || "";
+    const url = source.url?.trim() || "";
+    if (!title || !url) {
+      continue;
+    }
+
+    dedupe.set(`${title}::${url}`, {
+      title,
+      url,
+      description: source.description?.trim() || undefined,
+      source_type: source.source_type?.trim() || undefined,
+    });
+  }
+
+  return [...dedupe.values()];
+}
+
+function mergeOperatorNotes(
+  packs: StartupPackRecord[],
+  sessionOperatorNotes: string,
+) {
+  const sections = packs
+    .map((pack) => {
+      const notes = pack.operator_notes?.trim() || "";
+      if (!notes) {
+        return "";
+      }
+
+      return `Startup pack: ${pack.name}\n${notes}`;
+    })
+    .filter(Boolean);
+
+  if (sessionOperatorNotes.trim()) {
+    sections.push(`Session notes\n${sessionOperatorNotes.trim()}`);
+  }
+
+  return sections.join("\n\n").trim();
+}
+
+async function walkMarkdownFiles(rootDir: string, relativePrefix = ""): Promise<string[]> {
+  const absoluteDir = relativePrefix ? path.join(rootDir, relativePrefix) : rootDir;
+  let entries: Awaited<ReturnType<typeof fs.readdir>> = [];
+  try {
+    entries = await fs.readdir(absoluteDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const results: string[] = [];
+  for (const entry of entries) {
+    if (entry.name.startsWith(".")) {
+      continue;
+    }
+    const relativePath = path.join(relativePrefix, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...(await walkMarkdownFiles(rootDir, relativePath)));
+      continue;
+    }
+    if (/\.(md|mdx|txt)$/i.test(entry.name)) {
+      results.push(relativePath.replace(/\\/g, "/"));
+    }
+  }
+  return results.sort((a, b) => a.localeCompare(b));
+}
+
+async function readRepoDocExcerpt(relativeDocPath: string) {
+  const workspaceRoot = process.cwd();
+  const absolutePath = path.join(workspaceRoot, relativeDocPath);
+  try {
+    const content = await fs.readFile(absolutePath, "utf8");
+    return {
+      path: relativeDocPath,
+      excerpt: content.slice(0, 4000).trim(),
+    };
+  } catch {
+    return {
+      path: relativeDocPath,
+      excerpt: "Unable to read this repo document in the current environment.",
+    };
+  }
+}
+
+function normalizeKnowledgeSources(value: unknown): KnowledgeSource[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((entry): entry is KnowledgeSource =>
+      Boolean(
+        entry &&
+          typeof entry === "object" &&
+          typeof (entry as KnowledgeSource).title === "string" &&
+          typeof (entry as KnowledgeSource).url === "string",
+      ),
+    )
+    .map((entry) => ({
+      title: entry.title.trim(),
+      url: entry.url.trim(),
+      category: entry.category?.trim() || undefined,
+      description: entry.description?.trim() || undefined,
+    }))
+    .filter((entry) => entry.title && entry.url);
+}
+
+async function loadBlueprintContext(blueprintId: string, queryText: string) {
+  if (!db || !blueprintId) {
+    return null;
+  }
+
+  const snapshot = await db.collection("blueprints").doc(blueprintId).get();
+  if (!snapshot.exists) {
+    return null;
+  }
+
+  const data = snapshot.data() as Record<string, unknown>;
+  const sources = normalizeKnowledgeSources(
+    data.knowledgeSourceUrls || data.aiKnowledgeSources,
+  );
+
+  let searchMatches: Array<Record<string, unknown>> = [];
+  if (queryText.trim()) {
+    const embeddings = await embedTexts([queryText]);
+    if (embeddings[0] && embeddings[0].length > 0) {
+      const venueResults = await searchVenue(blueprintId, embeddings[0], 4);
+      searchMatches = venueResults.map((result) => ({
+        title: result.sourceTitle,
+        url: result.sourceUrl,
+        snippet: result.text.slice(0, 500),
+        distance: result.distance ?? null,
+      }));
+    }
+  }
+
+  return {
+    blueprintId,
+    blueprintName:
+      String(data.businessName || data.name || data.title || blueprintId).trim(),
+    knowledgeSources: sources,
+    searchMatches,
+  };
+}
+
+export async function getStartupContextOptions() {
+  const docsDir = path.join(process.cwd(), "docs");
+  const docs = await walkMarkdownFiles(docsDir).then((entries) =>
+    entries.map((entry) => `docs/${entry}`),
+  );
+
+  let blueprints: Array<{ id: string; name: string }> = [];
+  if (db) {
+    try {
+      const snapshot = await db.collection("blueprints").limit(20).get();
+      blueprints = snapshot.docs.map((doc) => {
+        const data = doc.data() as Record<string, unknown>;
+        return {
+          id: doc.id,
+          name: String(data.businessName || data.name || doc.id).trim(),
+        };
+      });
+    } catch {
+      blueprints = [];
+    }
+  }
+
+  const startupPacks = await listStartupPacks(25).catch(() => []);
+  const opsDocuments = await listOpsDocuments(25).catch(() => []);
+
+  return {
+    repoDocs: docs,
+    blueprints,
+    opsDocuments: opsDocuments.map((document) => ({
+      id: document.id,
+      title: document.title,
+      sourceFileUri: document.source_file_uri,
+      mimeType: document.mime_type || null,
+      blueprintIds: document.blueprint_ids || [],
+      startupPackIds: document.startup_pack_ids || [],
+      extractionStatus: document.extraction_status,
+      indexingStatus: document.indexing_status,
+      createdAt:
+        typeof (document.created_at as { toDate?: () => Date })?.toDate === "function"
+          ? (document.created_at as { toDate: () => Date }).toDate().toISOString()
+          : typeof document.created_at === "string"
+            ? document.created_at
+            : null,
+      updatedAt:
+        typeof (document.updated_at as { toDate?: () => Date })?.toDate === "function"
+          ? (document.updated_at as { toDate: () => Date }).toDate().toISOString()
+          : typeof document.updated_at === "string"
+            ? document.updated_at
+            : null,
+    })),
+    startupPacks: startupPacks.map((pack) => ({
+      id: pack.id,
+      name: pack.name,
+      description: pack.description || "",
+      repoDocPaths: pack.repo_doc_paths || [],
+      blueprintIds: pack.blueprint_ids || [],
+      documentIds: pack.document_ids || [],
+      externalSources: pack.external_sources || [],
+      operatorNotes: pack.operator_notes || "",
+      toolPolicies: pack.tool_policies || {},
+      ownerScope: pack.owner_scope || "workspace_admin",
+      ownerId: pack.owner_id || null,
+      visibility: pack.visibility || "workspace",
+      version: pack.version || 1,
+      createdBy: pack.created_by || null,
+      updatedBy: pack.updated_by || null,
+      createdAt:
+        typeof (pack.created_at as { toDate?: () => Date })?.toDate === "function"
+          ? (pack.created_at as { toDate: () => Date }).toDate().toISOString()
+          : typeof pack.created_at === "string"
+            ? pack.created_at
+            : null,
+      updatedAt:
+        typeof (pack.updated_at as { toDate?: () => Date })?.toDate === "function"
+          ? (pack.updated_at as { toDate: () => Date }).toDate().toISOString()
+          : typeof pack.updated_at === "string"
+            ? pack.updated_at
+            : null,
+    })),
+    externalSourceTypes: [
+      "notion_reference",
+      "google_drive_reference",
+      "manual_url_reference",
+    ],
+  };
+}
+
+export async function resolveStartupContext(
+  metadata?: Record<string, unknown>,
+  queryText = "",
+) {
+  const normalized = normalizeMetadata(metadata);
+  const startupPacks = await getStartupPacksByIds(normalized.startupPackIds || []);
+  const mergedRepoDocPaths = dedupeStringValues([
+    ...startupPacks.flatMap((pack) => pack.repo_doc_paths || []),
+    ...(normalized.repoDocPaths || []),
+  ]);
+  const mergedBlueprintIds = dedupeStringValues([
+    ...startupPacks.flatMap((pack) => pack.blueprint_ids || []),
+    ...(normalized.blueprintIds || []),
+  ]);
+  const mergedDocumentIds = dedupeStringValues([
+    ...startupPacks.flatMap((pack) => pack.document_ids || []),
+    ...(normalized.documentIds || []),
+  ]);
+  const mergedExternalSources = dedupeExternalSources([
+    ...startupPacks.flatMap((pack) => pack.external_sources || []),
+    ...(normalized.externalSources || []),
+  ]);
+  const mergedOperatorNotes = mergeOperatorNotes(
+    startupPacks,
+    normalized.operatorNotes || "",
+  );
+  const repoDocs = await Promise.all(
+    mergedRepoDocPaths.slice(0, 8).map(readRepoDocExcerpt),
+  );
+  const attachedDocuments = await getOpsDocumentsByIds(mergedDocumentIds.slice(0, 10));
+  const blueprintContexts = (
+    await Promise.all(
+      mergedBlueprintIds
+        .slice(0, 6)
+        .map((blueprintId) => loadBlueprintContext(blueprintId, queryText)),
+    )
+  ).filter(Boolean);
+
+  return {
+    mode: "interactive_operator_attached",
+    operator_notes: mergedOperatorNotes,
+    repo_docs: repoDocs,
+    blueprint_contexts: blueprintContexts,
+    attached_documents: attachedDocuments.map((document) => ({
+      id: document.id,
+      title: document.title,
+      source_file_uri: document.source_file_uri,
+      extracted_summary: document.extracted_summary || "",
+      extraction_status: document.extraction_status,
+    })),
+    external_sources: mergedExternalSources,
+    attached_startup_packs: startupPacks.map((pack) => ({
+      id: pack.id,
+      name: pack.name,
+      description: pack.description || "",
+      version: pack.version || 1,
+    })),
+  };
+}

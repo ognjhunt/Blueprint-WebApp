@@ -31,6 +31,7 @@ import type {
 } from "../types/inbound-request";
 import { parseGsUri, sceneDashboardSchema } from "../utils/pipeline-dashboard";
 import { hasAnyRole } from "../utils/access-control";
+import { runWaitlistAutomationLoop } from "../utils/waitlistAutomation";
 
 const router = Router();
 
@@ -45,6 +46,88 @@ function normalizeTimestamp(value: unknown) {
     return timestamp;
   }
   return timestamp.toDate?.()?.toISOString?.() || null;
+}
+
+function normalizeWaitlistSubmission(
+  doc: FirebaseFirestore.QueryDocumentSnapshot | FirebaseFirestore.DocumentSnapshot,
+) {
+  const data = doc.data() as Record<string, unknown> | undefined;
+  if (!data) {
+    return null;
+  }
+
+  const opsAutomation =
+    data.ops_automation && typeof data.ops_automation === "object"
+      ? (data.ops_automation as Record<string, unknown>)
+      : {};
+
+  return {
+    id: doc.id,
+    email: typeof data.email === "string" ? data.email : "",
+    email_domain: typeof data.email_domain === "string" ? data.email_domain : "",
+    location_type: typeof data.location_type === "string" ? data.location_type : "",
+    market: typeof data.market === "string" ? data.market : "",
+    role: typeof data.role === "string" ? data.role : "",
+    device: typeof data.device === "string" ? data.device : "",
+    phone: typeof data.phone === "string" ? data.phone : "",
+    source: typeof data.source === "string" ? data.source : "",
+    status: typeof data.status === "string" ? data.status : "new",
+    queue: typeof data.queue === "string" ? data.queue : "",
+    filter_tags: Array.isArray(data.filter_tags)
+      ? data.filter_tags.filter((tag): tag is string => typeof tag === "string")
+      : [],
+    intent: typeof data.intent === "string" ? data.intent : "",
+    created_at: normalizeTimestamp(data.created_at),
+    updated_at: normalizeTimestamp(data.updated_at),
+    ops_automation: {
+      status: typeof opsAutomation.status === "string" ? opsAutomation.status : "pending",
+      version: typeof opsAutomation.version === "string" ? opsAutomation.version : "",
+      model: typeof opsAutomation.model === "string" ? opsAutomation.model : "",
+      next_action:
+        typeof opsAutomation.next_action === "string" ? opsAutomation.next_action : "",
+      recommended_path:
+        typeof opsAutomation.recommended_path === "string"
+          ? opsAutomation.recommended_path
+          : "",
+      eligible_for_ai_triage: opsAutomation.eligible_for_ai_triage === true,
+      confidence:
+        typeof opsAutomation.confidence === "number" ? opsAutomation.confidence : null,
+      market_fit_score:
+        typeof opsAutomation.market_fit_score === "number"
+          ? opsAutomation.market_fit_score
+          : null,
+      device_fit_score:
+        typeof opsAutomation.device_fit_score === "number"
+          ? opsAutomation.device_fit_score
+          : null,
+      invite_readiness_score:
+        typeof opsAutomation.invite_readiness_score === "number"
+          ? opsAutomation.invite_readiness_score
+          : null,
+      recommendation:
+        typeof opsAutomation.recommendation === "string" ? opsAutomation.recommendation : "",
+      rationale: typeof opsAutomation.rationale === "string" ? opsAutomation.rationale : "",
+      market_summary:
+        typeof opsAutomation.market_summary === "string" ? opsAutomation.market_summary : "",
+      requires_human_review: opsAutomation.requires_human_review === true,
+      last_error: typeof opsAutomation.last_error === "string" ? opsAutomation.last_error : null,
+      last_attempt_at: normalizeTimestamp(opsAutomation.last_attempt_at),
+      processed_at: normalizeTimestamp(opsAutomation.processed_at),
+      draft_email:
+        opsAutomation.draft_email && typeof opsAutomation.draft_email === "object"
+          ? {
+              subject:
+                typeof (opsAutomation.draft_email as Record<string, unknown>).subject === "string"
+                  ? String((opsAutomation.draft_email as Record<string, unknown>).subject)
+                  : "",
+              body:
+                typeof (opsAutomation.draft_email as Record<string, unknown>).body === "string"
+                  ? String((opsAutomation.draft_email as Record<string, unknown>).body)
+                  : "",
+            }
+          : null,
+    },
+  };
 }
 
 function buildBuyerReviewUrl(requestId: string) {
@@ -482,6 +565,126 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
     return res.status(500).json({ error: "Failed to fetch leads" });
   }
 });
+
+router.get("/waitlist-submissions", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: "Database not available" });
+    }
+
+    const {
+      role,
+      device,
+      status,
+      queue,
+      market,
+      limit = "100",
+      startAfter,
+    } = req.query;
+
+    let query = db.collection("waitlistSubmissions") as FirebaseFirestore.Query;
+
+    if (role && typeof role === "string") {
+      query = query.where("role_normalized", "==", role.trim().toLowerCase());
+    }
+
+    if (device && typeof device === "string") {
+      query = query.where("device_normalized", "==", device.trim().toLowerCase());
+    }
+
+    if (status && typeof status === "string") {
+      query = query.where("status", "==", status.trim());
+    }
+
+    if (queue && typeof queue === "string") {
+      query = query.where("queue", "==", queue.trim());
+    }
+
+    if (market && typeof market === "string") {
+      query = query.where("market_normalized", "==", market.trim().toLowerCase());
+    }
+
+    query = query.orderBy("created_at", "desc");
+
+    const limitNum = Math.min(parseInt(limit as string, 10) || 100, 200);
+
+    if (startAfter && typeof startAfter === "string") {
+      const startDoc = await db.collection("waitlistSubmissions").doc(startAfter).get();
+      if (startDoc.exists) {
+        query = query.startAfter(startDoc);
+      }
+    }
+
+    query = query.limit(limitNum);
+
+    const snapshot = await query.get();
+    const submissions = snapshot.docs
+      .map((doc) => normalizeWaitlistSubmission(doc))
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+    let countQuery = db.collection("waitlistSubmissions") as FirebaseFirestore.Query;
+    if (role && typeof role === "string") {
+      countQuery = countQuery.where("role_normalized", "==", role.trim().toLowerCase());
+    }
+    if (device && typeof device === "string") {
+      countQuery = countQuery.where("device_normalized", "==", device.trim().toLowerCase());
+    }
+    if (status && typeof status === "string") {
+      countQuery = countQuery.where("status", "==", status.trim());
+    }
+    if (queue && typeof queue === "string") {
+      countQuery = countQuery.where("queue", "==", queue.trim());
+    }
+    if (market && typeof market === "string") {
+      countQuery = countQuery.where("market_normalized", "==", market.trim().toLowerCase());
+    }
+
+    const countSnapshot = await countQuery.count().get();
+    const totalCount = countSnapshot.data().count;
+
+    return res.json({
+      submissions,
+      pagination: {
+        total: totalCount,
+        limit: limitNum,
+        hasMore: submissions.length === limitNum,
+        lastId: submissions.length > 0 ? submissions[submissions.length - 1].id : null,
+      },
+    });
+  } catch (error) {
+    logger.error({ error }, "Error fetching waitlist submissions");
+    return res.status(500).json({ error: "Failed to fetch waitlist submissions" });
+  }
+});
+
+router.post(
+  "/waitlist-submissions/automation/run",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const submissionId =
+        typeof req.body?.submissionId === "string" ? req.body.submissionId.trim() : undefined;
+      const queue = typeof req.body?.queue === "string" ? req.body.queue.trim() : undefined;
+      const limit =
+        typeof req.body?.limit === "number"
+          ? req.body.limit
+          : typeof req.body?.limit === "string"
+            ? Number(req.body.limit)
+            : undefined;
+
+      const result = await runWaitlistAutomationLoop({
+        submissionId,
+        queue,
+        limit: Number.isFinite(limit) ? limit : undefined,
+      });
+
+      return res.json(result);
+    } catch (error) {
+      logger.error({ error }, "Error running waitlist automation");
+      return res.status(500).json({ error: "Failed to run waitlist automation" });
+    }
+  },
+);
 
 /**
  * GET /api/admin/leads/:requestId

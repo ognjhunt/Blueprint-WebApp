@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   OPPORTUNITY_STATES,
   QUALIFICATION_STATES,
@@ -39,6 +40,7 @@ import {
   REQUEST_RIGHTS_STATUS_LABELS as rightsStatusLabels,
   REQUEST_STATUS_LABELS as statusLabels,
 } from "@/types/inbound-request";
+import AdminAgentConsole from "@/components/admin/AdminAgentConsole";
 
 const qualificationStates: QualificationState[] = [...QUALIFICATION_STATES];
 
@@ -80,6 +82,72 @@ interface StatsResponse {
   byPriority: Record<string, number>;
 }
 
+interface WaitlistSubmissionItem {
+  id: string;
+  email: string;
+  email_domain: string;
+  location_type: string;
+  market: string;
+  role: string;
+  device: string;
+  phone: string;
+  source: string;
+  status: string;
+  queue: string;
+  intent: string;
+  filter_tags: string[];
+  created_at: string | null;
+  updated_at: string | null;
+  ops_automation: {
+    status: string;
+    version: string;
+    model: string;
+    next_action: string;
+    recommended_path: string;
+    eligible_for_ai_triage: boolean;
+    confidence: number | null;
+    market_fit_score: number | null;
+    device_fit_score: number | null;
+    invite_readiness_score: number | null;
+    recommendation: string;
+    rationale: string;
+    market_summary: string;
+    requires_human_review: boolean;
+    last_error: string | null;
+    last_attempt_at: string | null;
+    processed_at: string | null;
+    draft_email: {
+      subject: string;
+      body: string;
+    } | null;
+  };
+}
+
+interface WaitlistSubmissionsResponse {
+  submissions: WaitlistSubmissionItem[];
+  pagination: {
+    total: number;
+    limit: number;
+    hasMore: boolean;
+    lastId: string | null;
+  };
+}
+
+interface WaitlistAutomationRunResponse {
+  ok: boolean;
+  processedCount: number;
+  failedCount: number;
+  results: Array<{
+    submissionId: string;
+    status: "processed" | "failed";
+    recommendation?: string;
+    recommendedQueue?: string;
+    inviteReadinessScore?: number;
+    requiresHumanReview?: boolean;
+    error?: string;
+  }>;
+}
+
 function formatDate(dateString: string) {
   const date = new Date(dateString);
   return date.toLocaleString("en-US", {
@@ -94,9 +162,16 @@ export default function AdminLeads() {
   const { currentUser, userData, tokenClaims } = useAuth();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const [activeView, setActiveView] = useState<"submissions" | "waitlist" | "agent">("submissions");
   const [qualificationFilter, setQualificationFilter] = useState<QualificationState | "">("");
   const [priorityFilter, setPriorityFilter] = useState<RequestPriority | "">("");
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [selectedWaitlistSubmissionId, setSelectedWaitlistSubmissionId] = useState<string | null>(null);
+  const [waitlistRoleFilter, setWaitlistRoleFilter] = useState("");
+  const [waitlistDeviceFilter, setWaitlistDeviceFilter] = useState("");
+  const [waitlistStatusFilter, setWaitlistStatusFilter] = useState("");
+  const [waitlistQueueFilter, setWaitlistQueueFilter] = useState("");
+  const [waitlistSearch, setWaitlistSearch] = useState("");
   const [note, setNote] = useState("");
 
   const isAdmin = hasAnyRole(["admin", "ops"], userData, tokenClaims);
@@ -136,7 +211,7 @@ export default function AdminLeads() {
 
   const detailQuery = useQuery<InboundRequestDetail>({
     queryKey: ["admin-submission-detail", selectedRequestId],
-    enabled: isAdmin && !!selectedRequestId,
+    enabled: isAdmin && activeView === "submissions" && !!selectedRequestId,
     queryFn: async () => {
       const response = await fetch(`/api/admin/leads/${selectedRequestId}`, {
         headers: await withCsrfHeader({}),
@@ -253,6 +328,29 @@ export default function AdminLeads() {
       queryClient.invalidateQueries({ queryKey: ["admin-submission-detail"] });
     },
   });
+  const runWaitlistAutomationMutation = useMutation({
+    mutationFn: async ({
+      submissionId,
+      limit,
+    }: {
+      submissionId?: string;
+      limit?: number;
+    }) => {
+      const response = await fetch("/api/admin/leads/waitlist-submissions/automation/run", {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          submissionId,
+          limit,
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to run waitlist automation");
+      return response.json() as Promise<WaitlistAutomationRunResponse>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-waitlist-submissions"] });
+    },
+  });
 
   const selectedLead = detailQuery.data;
   const sceneDashboardQuery = useQuery<SceneDashboardSummary>({
@@ -273,10 +371,104 @@ export default function AdminLeads() {
       return response.json();
     },
   });
-  const leads = leadsQuery.data?.leads ?? [];
+  const waitlistQuery = useQuery<WaitlistSubmissionsResponse>({
+    queryKey: [
+      "admin-waitlist-submissions",
+      waitlistRoleFilter,
+      waitlistDeviceFilter,
+      waitlistStatusFilter,
+      waitlistQueueFilter,
+    ],
+    enabled: isAdmin && activeView === "waitlist",
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (waitlistRoleFilter) params.set("role", waitlistRoleFilter);
+      if (waitlistDeviceFilter) params.set("device", waitlistDeviceFilter);
+      if (waitlistStatusFilter) params.set("status", waitlistStatusFilter);
+      if (waitlistQueueFilter) params.set("queue", waitlistQueueFilter);
+      params.set("limit", "150");
 
-  const statCards = useMemo(
-    () => [
+      const response = await fetch(`/api/admin/leads/waitlist-submissions?${params.toString()}`, {
+        headers: await withCsrfHeader({}),
+      });
+      if (!response.ok) throw new Error("Failed to fetch waitlist submissions");
+      return response.json();
+    },
+  });
+  const leads = leadsQuery.data?.leads ?? [];
+  const waitlistSubmissions = waitlistQuery.data?.submissions ?? [];
+  const filteredWaitlistSubmissions = useMemo(() => {
+    const search = waitlistSearch.trim().toLowerCase();
+    if (!search) {
+      return waitlistSubmissions;
+    }
+
+    return waitlistSubmissions.filter((submission) => {
+      const haystacks = [
+        submission.email,
+        submission.market,
+        submission.phone,
+        submission.role,
+        submission.device,
+        submission.queue,
+        submission.status,
+        submission.location_type,
+        submission.source,
+        ...submission.filter_tags,
+      ]
+        .filter(Boolean)
+        .map((value) => value.toLowerCase());
+
+      return haystacks.some((value) => value.includes(search));
+    });
+  }, [waitlistSearch, waitlistSubmissions]);
+  const selectedWaitlistSubmission =
+    filteredWaitlistSubmissions.find((submission) => submission.id === selectedWaitlistSubmissionId) ??
+    waitlistSubmissions.find((submission) => submission.id === selectedWaitlistSubmissionId) ??
+    filteredWaitlistSubmissions[0] ??
+    null;
+
+  useEffect(() => {
+    if (activeView === "waitlist" && !selectedWaitlistSubmissionId && filteredWaitlistSubmissions[0]) {
+      setSelectedWaitlistSubmissionId(filteredWaitlistSubmissions[0].id);
+    }
+  }, [activeView, filteredWaitlistSubmissions, selectedWaitlistSubmissionId]);
+
+  const statCards = useMemo(() => {
+    if (activeView === "waitlist") {
+      const now = Date.now();
+      return [
+        {
+          label: "Total requests",
+          value: waitlistQuery.data?.pagination.total ?? filteredWaitlistSubmissions.length,
+        },
+        {
+          label: "Last 24h",
+          value: filteredWaitlistSubmissions.filter((submission) => {
+            if (!submission.created_at) return false;
+            return now - new Date(submission.created_at).getTime() <= 24 * 60 * 60 * 1000;
+          }).length,
+        },
+        {
+          label: "AI-triage eligible",
+          value: filteredWaitlistSubmissions.filter(
+            (submission) => submission.ops_automation.eligible_for_ai_triage,
+          ).length,
+        },
+        {
+          label: "Pending automation",
+          value: filteredWaitlistSubmissions.filter(
+            (submission) => submission.ops_automation.status === "pending",
+          ).length,
+        },
+      ];
+    }
+
+    if (activeView === "agent") {
+      return [];
+    }
+
+    return [
       { label: "Total submissions", value: statsQuery.data?.total ?? 0 },
       { label: "Last 24h", value: statsQuery.data?.newLast24h ?? 0 },
       {
@@ -286,9 +478,8 @@ export default function AdminLeads() {
           (statsQuery.data?.byStatus?.qualified_risky ?? 0),
       },
       { label: "Needs evidence", value: statsQuery.data?.byStatus?.needs_more_evidence ?? 0 },
-    ],
-    [statsQuery.data]
-  );
+    ];
+  }, [activeView, filteredWaitlistSubmissions, statsQuery.data, waitlistQuery.data?.pagination.total]);
 
   if (!isAdmin) {
     return (
@@ -307,117 +498,172 @@ export default function AdminLeads() {
         <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-              Admin Review Queue
+              {activeView === "submissions"
+                ? "Admin Review Queue"
+                : activeView === "waitlist"
+                  ? "Ops Intake Queue"
+                  : "Ops Agent Console"}
             </p>
-            <h1 className="mt-2 text-3xl font-semibold text-zinc-950">Qualification submissions</h1>
+            <h1 className="mt-2 text-3xl font-semibold text-zinc-950">
+              {activeView === "submissions"
+                ? "Qualification submissions"
+                : activeView === "waitlist"
+                  ? "Waitlist and beta requests"
+                  : "Startup operations agent"}
+            </h1>
             <p className="mt-2 text-zinc-600">
-              Move submissions through qualification state and only activate opportunity state once a site clears review.
+              {activeView === "submissions"
+                ? "Move submissions through qualification state and only activate opportunity state once a site clears review."
+                : activeView === "waitlist"
+                  ? "Review structured waitlist and private beta intake without dropping into Firestore."
+                  : "Create agent threads, attach startup context, route work into Codex or Claude Code, and approve sensitive runs in one place."}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => leadsQuery.refetch()}
-            className="inline-flex items-center rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700"
-          >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Tabs
+      value={activeView}
+      onValueChange={(value) => setActiveView(value as "submissions" | "waitlist" | "agent")}
+            >
+              <TabsList className="rounded-full border border-zinc-200 bg-white p-1">
+                <TabsTrigger value="submissions" className="rounded-full px-4">
+                  Qualification
+                </TabsTrigger>
+                <TabsTrigger value="waitlist" className="rounded-full px-4">
+                  Waitlist / Beta
+                </TabsTrigger>
+                <TabsTrigger value="agent" className="rounded-full px-4">
+                  Agent
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <button
+              type="button"
+              onClick={() =>
+                activeView === "submissions"
+                  ? leadsQuery.refetch()
+                  : activeView === "waitlist"
+                    ? waitlistQuery.refetch()
+                    : queryClient.invalidateQueries({ queryKey: ["admin-agent-sessions"] })
+              }
+              className="inline-flex items-center rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </button>
+            {activeView === "waitlist" ? (
+              <button
+                type="button"
+                onClick={() => runWaitlistAutomationMutation.mutate({ limit: 10 })}
+                className="inline-flex items-center rounded-full bg-zinc-950 px-4 py-2 text-sm text-white"
+                disabled={runWaitlistAutomationMutation.isPending}
+              >
+                <Sparkles className="mr-2 h-4 w-4" />
+                {runWaitlistAutomationMutation.isPending ? "Running AI triage..." : "Run AI triage"}
+              </button>
+            ) : null}
+          </div>
         </div>
 
-        <div className="mb-6 grid gap-4 md:grid-cols-4">
-          {statCards.map((card) => (
-            <div key={card.label} className="rounded-2xl border border-zinc-200 bg-white p-5">
-              <p className="text-sm text-zinc-500">{card.label}</p>
-              <p className="mt-2 text-3xl font-semibold text-zinc-950">{card.value}</p>
+        {statCards.length > 0 ? (
+          <div className="mb-6 grid gap-4 md:grid-cols-4">
+            {statCards.map((card) => (
+              <div key={card.label} className="rounded-2xl border border-zinc-200 bg-white p-5">
+                <p className="text-sm text-zinc-500">{card.label}</p>
+                <p className="mt-2 text-3xl font-semibold text-zinc-950">{card.value}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {activeView === "agent" ? (
+          <AdminAgentConsole />
+        ) : activeView === "submissions" ? (
+          <>
+            <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 md:flex-row">
+              <div className="flex items-center gap-2 text-sm font-medium text-zinc-700">
+                <Filter className="h-4 w-4" />
+                Filters
+              </div>
+              <select
+                className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                value={qualificationFilter}
+                onChange={(event) => setQualificationFilter(event.target.value as QualificationState | "")}
+              >
+                <option value="">All qualification states</option>
+                {qualificationStates.map((state) => (
+                  <option key={state} value={state}>
+                    {statusLabels[state]}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                value={priorityFilter}
+                onChange={(event) => setPriorityFilter(event.target.value as RequestPriority | "")}
+              >
+                <option value="">All priorities</option>
+                {(["low", "normal", "high"] as RequestPriority[]).map((priority) => (
+                  <option key={priority} value={priority}>
+                    {priorityLabels[priority]}
+                  </option>
+                ))}
+              </select>
             </div>
-          ))}
-        </div>
 
-        <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 md:flex-row">
-          <div className="flex items-center gap-2 text-sm font-medium text-zinc-700">
-            <Filter className="h-4 w-4" />
-            Filters
-          </div>
-          <select
-            className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-            value={qualificationFilter}
-            onChange={(event) => setQualificationFilter(event.target.value as QualificationState | "")}
-          >
-            <option value="">All qualification states</option>
-            {qualificationStates.map((state) => (
-              <option key={state} value={state}>
-                {statusLabels[state]}
-              </option>
-            ))}
-          </select>
-          <select
-            className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-            value={priorityFilter}
-            onChange={(event) => setPriorityFilter(event.target.value as RequestPriority | "")}
-          >
-            <option value="">All priorities</option>
-            {(["low", "normal", "high"] as RequestPriority[]).map((priority) => (
-              <option key={priority} value={priority}>
-                {priorityLabels[priority]}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-          <div className="space-y-3">
-            {leadsQuery.isLoading ? (
-              <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
-                Loading submissions...
-              </div>
-            ) : leads.length === 0 ? (
-              <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
-                No submissions match the current filters.
-              </div>
-            ) : (
-              leads.map((lead) => (
-                <button
-                  key={lead.requestId}
-                  type="button"
-                  onClick={() => setSelectedRequestId(lead.requestId)}
-                  className={`w-full rounded-2xl border p-5 text-left ${
-                    selectedRequestId === lead.requestId
-                      ? "border-zinc-900 bg-white"
-                      : "border-zinc-200 bg-white"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-zinc-900">{lead.request.siteName}</p>
-                      <p className="text-sm text-zinc-600">
-                        {lead.contact.company} · {lead.request.siteLocation}
-                      </p>
-                    </div>
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${qualificationColors[lead.qualification_state]}`}
+            <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+              <div className="space-y-3">
+                {leadsQuery.isLoading ? (
+                  <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+                    Loading submissions...
+                  </div>
+                ) : leads.length === 0 ? (
+                  <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+                    No submissions match the current filters.
+                  </div>
+                ) : (
+                  leads.map((lead) => (
+                    <button
+                      key={lead.requestId}
+                      type="button"
+                      onClick={() => setSelectedRequestId(lead.requestId)}
+                      className={`w-full rounded-2xl border p-5 text-left ${
+                        selectedRequestId === lead.requestId
+                          ? "border-zinc-900 bg-white"
+                          : "border-zinc-200 bg-white"
+                      }`}
                     >
-                      {statusLabels[lead.qualification_state]}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-sm text-zinc-600">{lead.request.taskStatement}</p>
-                  <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                    <span className={`rounded-full px-3 py-1 ${priorityColors[lead.priority]}`}>
-                      {priorityLabels[lead.priority]}
-                    </span>
-                    {lead.request.requestedLanes.map((lane) => (
-                      <span key={lane} className="rounded-full bg-zinc-100 px-3 py-1 text-zinc-700">
-                        {requestedLaneLabels[lane]}
-                      </span>
-                    ))}
-                  </div>
-                  <p className="mt-3 text-xs text-zinc-400">{formatDate(lead.createdAt)}</p>
-                </button>
-              ))
-            )}
-          </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-zinc-900">{lead.request.siteName}</p>
+                          <p className="text-sm text-zinc-600">
+                            {lead.contact.company} · {lead.request.siteLocation}
+                          </p>
+                        </div>
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-medium ${qualificationColors[lead.qualification_state]}`}
+                        >
+                          {statusLabels[lead.qualification_state]}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-sm text-zinc-600">{lead.request.taskStatement}</p>
+                      <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                        <span className={`rounded-full px-3 py-1 ${priorityColors[lead.priority]}`}>
+                          {priorityLabels[lead.priority]}
+                        </span>
+                        {lead.request.requestedLanes.map((lane) => (
+                          <span key={lane} className="rounded-full bg-zinc-100 px-3 py-1 text-zinc-700">
+                            {requestedLaneLabels[lane]}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="mt-3 text-xs text-zinc-400">{formatDate(lead.createdAt)}</p>
+                    </button>
+                  ))
+                )}
+              </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-white p-6">
-            {selectedLead ? (
+              <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+                {selectedLead ? (
               <div className="space-y-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -924,15 +1170,349 @@ export default function AdminLeads() {
                     )}
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="flex min-h-[420px] flex-col items-center justify-center text-center text-zinc-500">
-                <ClipboardList className="mb-3 h-10 w-10" />
-                <p>Select a submission to review the intake and update its states.</p>
-              </div>
-            )}
+                </div>
+              ) : (
+                <div className="flex min-h-[420px] flex-col items-center justify-center text-center text-zinc-500">
+                  <ClipboardList className="mb-3 h-10 w-10" />
+                  <p>Select a submission to review the intake and update its states.</p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </>
+        ) : (
+          <>
+            <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 md:flex-row md:flex-wrap">
+              <div className="flex items-center gap-2 text-sm font-medium text-zinc-700">
+                <Filter className="h-4 w-4" />
+                Filters
+              </div>
+              <select
+                className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                value={waitlistRoleFilter}
+                onChange={(event) => setWaitlistRoleFilter(event.target.value)}
+              >
+                <option value="">All roles</option>
+                <option value="capturer">Capturer</option>
+              </select>
+              <select
+                className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                value={waitlistDeviceFilter}
+                onChange={(event) => setWaitlistDeviceFilter(event.target.value)}
+              >
+                <option value="">All devices</option>
+                <option value="iphone">iPhone</option>
+                <option value="ipad">iPad</option>
+                <option value="smart_glasses">Smart glasses</option>
+                <option value="android">Android</option>
+              </select>
+              <select
+                className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                value={waitlistStatusFilter}
+                onChange={(event) => setWaitlistStatusFilter(event.target.value)}
+              >
+                <option value="">All statuses</option>
+                <option value="new">New</option>
+              </select>
+              <select
+                className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                value={waitlistQueueFilter}
+                onChange={(event) => setWaitlistQueueFilter(event.target.value)}
+              >
+                <option value="">All queues</option>
+                <option value="capturer_beta_review">Capturer beta review</option>
+                <option value="website_waitlist_review">Website waitlist review</option>
+              </select>
+              <input
+                className="min-w-[260px] flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                value={waitlistSearch}
+                onChange={(event) => setWaitlistSearch(event.target.value)}
+                placeholder="Search market, email, phone, source, or tags"
+              />
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+              <div className="space-y-3">
+                {waitlistQuery.isLoading ? (
+                  <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+                    Loading waitlist submissions...
+                  </div>
+                ) : filteredWaitlistSubmissions.length === 0 ? (
+                  <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+                    No waitlist requests match the current filters.
+                  </div>
+                ) : (
+                  filteredWaitlistSubmissions.map((submission) => (
+                    <button
+                      key={submission.id}
+                      type="button"
+                      onClick={() => setSelectedWaitlistSubmissionId(submission.id)}
+                      className={`w-full rounded-2xl border p-5 text-left ${
+                        selectedWaitlistSubmission?.id === submission.id
+                          ? "border-zinc-900 bg-white"
+                          : "border-zinc-200 bg-white"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-zinc-900">
+                            {submission.market || "Unknown market"}
+                          </p>
+                          <p className="text-sm text-zinc-600">
+                            {submission.email} {submission.phone ? `· ${submission.phone}` : ""}
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                          {submission.status}
+                        </span>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                        {submission.role ? (
+                          <span className="rounded-full bg-zinc-100 px-3 py-1 text-zinc-700">
+                            {submission.role}
+                          </span>
+                        ) : null}
+                        {submission.device ? (
+                          <span className="rounded-full bg-zinc-100 px-3 py-1 text-zinc-700">
+                            {submission.device}
+                          </span>
+                        ) : null}
+                        {submission.queue ? (
+                          <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-800">
+                            {submission.queue}
+                          </span>
+                        ) : null}
+                        {submission.ops_automation.eligible_for_ai_triage ? (
+                          <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-700">
+                            AI triage
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-3 text-xs text-zinc-400">
+                        {submission.created_at ? formatDate(submission.created_at) : "Unknown date"}
+                      </p>
+                    </button>
+                  ))
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+                {selectedWaitlistSubmission ? (
+                  <div className="space-y-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                          Waitlist submission
+                        </p>
+                        <h2 className="mt-2 text-2xl font-semibold text-zinc-950">
+                          {selectedWaitlistSubmission.market || "Unknown market"}
+                        </h2>
+                        <p className="mt-1 text-zinc-600">
+                          {selectedWaitlistSubmission.location_type || "No location type"}
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-zinc-200 px-3 py-1 text-xs text-zinc-600">
+                        {selectedWaitlistSubmission.id}
+                      </span>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="rounded-xl bg-zinc-50 p-4">
+                        <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Contact</p>
+                        <a
+                          href={`mailto:${selectedWaitlistSubmission.email}`}
+                          className="mt-2 inline-flex items-center text-sm text-zinc-700 hover:text-zinc-900"
+                        >
+                          <Mail className="mr-2 h-4 w-4" />
+                          {selectedWaitlistSubmission.email}
+                        </a>
+                        {selectedWaitlistSubmission.phone ? (
+                          <p className="mt-2 text-sm text-zinc-600">
+                            {selectedWaitlistSubmission.phone}
+                          </p>
+                        ) : null}
+                        {selectedWaitlistSubmission.email_domain ? (
+                          <p className="mt-2 text-xs text-zinc-400">
+                            Domain: {selectedWaitlistSubmission.email_domain}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="rounded-xl bg-zinc-50 p-4">
+                        <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Request facts</p>
+                        <div className="mt-2 space-y-2 text-sm text-zinc-700">
+                          <p>Role: {selectedWaitlistSubmission.role || "unknown"}</p>
+                          <p>Device: {selectedWaitlistSubmission.device || "unknown"}</p>
+                          <p>Queue: {selectedWaitlistSubmission.queue || "unassigned"}</p>
+                          <p>Source: {selectedWaitlistSubmission.source || "unknown"}</p>
+                          <p>
+                            Created:{" "}
+                            {selectedWaitlistSubmission.created_at
+                              ? formatDate(selectedWaitlistSubmission.created_at)
+                              : "Unknown"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-zinc-200 p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Automation state</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-700">
+                          {selectedWaitlistSubmission.ops_automation.status}
+                        </span>
+                        {selectedWaitlistSubmission.ops_automation.recommendation ? (
+                          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs text-emerald-700">
+                            {selectedWaitlistSubmission.ops_automation.recommendation}
+                          </span>
+                        ) : null}
+                        {selectedWaitlistSubmission.ops_automation.requires_human_review ? (
+                          <span className="rounded-full bg-amber-100 px-3 py-1 text-xs text-amber-800">
+                            Human review
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="mt-3 grid gap-4 md:grid-cols-2">
+                        <div>
+                          <p className="text-sm text-zinc-500">Status</p>
+                          <p className="mt-1 font-medium text-zinc-900">
+                            {selectedWaitlistSubmission.ops_automation.status}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-zinc-500">Next action</p>
+                          <p className="mt-1 font-medium text-zinc-900">
+                            {selectedWaitlistSubmission.ops_automation.next_action || "None"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-zinc-500">Recommended path</p>
+                          <p className="mt-1 font-medium text-zinc-900">
+                            {selectedWaitlistSubmission.ops_automation.recommended_path || "None"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-zinc-500">AI triage</p>
+                          <p className="mt-1 font-medium text-zinc-900">
+                            {selectedWaitlistSubmission.ops_automation.eligible_for_ai_triage
+                              ? "Eligible"
+                              : "No"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-zinc-500">Invite readiness</p>
+                          <p className="mt-1 font-medium text-zinc-900">
+                            {selectedWaitlistSubmission.ops_automation.invite_readiness_score ?? "N/A"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-zinc-500">Confidence</p>
+                          <p className="mt-1 font-medium text-zinc-900">
+                            {selectedWaitlistSubmission.ops_automation.confidence !== null
+                              ? `${Math.round(selectedWaitlistSubmission.ops_automation.confidence * 100)}%`
+                              : "N/A"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-zinc-500">Market fit</p>
+                          <p className="mt-1 font-medium text-zinc-900">
+                            {selectedWaitlistSubmission.ops_automation.market_fit_score ?? "N/A"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-zinc-500">Device fit</p>
+                          <p className="mt-1 font-medium text-zinc-900">
+                            {selectedWaitlistSubmission.ops_automation.device_fit_score ?? "N/A"}
+                          </p>
+                        </div>
+                      </div>
+                      {selectedWaitlistSubmission.ops_automation.model ? (
+                        <p className="mt-4 text-xs text-zinc-500">
+                          Model: {selectedWaitlistSubmission.ops_automation.model}
+                        </p>
+                      ) : null}
+                      {selectedWaitlistSubmission.ops_automation.market_summary ? (
+                        <p className="mt-4 text-sm text-zinc-700">
+                          {selectedWaitlistSubmission.ops_automation.market_summary}
+                        </p>
+                      ) : null}
+                      {selectedWaitlistSubmission.ops_automation.rationale ? (
+                        <p className="mt-3 text-sm text-zinc-600">
+                          {selectedWaitlistSubmission.ops_automation.rationale}
+                        </p>
+                      ) : null}
+                      {selectedWaitlistSubmission.ops_automation.last_error ? (
+                        <p className="mt-4 text-sm text-rose-700">
+                          Last error: {selectedWaitlistSubmission.ops_automation.last_error}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div className="rounded-xl border border-zinc-200 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                          Draft response
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            runWaitlistAutomationMutation.mutate({
+                              submissionId: selectedWaitlistSubmission.id,
+                            })
+                          }
+                          className="inline-flex items-center rounded-full border border-zinc-200 px-3 py-1.5 text-xs text-zinc-700"
+                          disabled={runWaitlistAutomationMutation.isPending}
+                        >
+                          <Sparkles className="mr-2 h-3.5 w-3.5" />
+                          Re-run AI triage
+                        </button>
+                      </div>
+                      {selectedWaitlistSubmission.ops_automation.draft_email ? (
+                        <div className="mt-3 space-y-3">
+                          <div className="rounded-lg bg-zinc-50 p-3">
+                            <p className="text-xs text-zinc-500">Subject</p>
+                            <p className="mt-1 text-sm font-medium text-zinc-900">
+                              {selectedWaitlistSubmission.ops_automation.draft_email.subject}
+                            </p>
+                          </div>
+                          <div className="rounded-lg bg-zinc-50 p-3">
+                            <p className="text-xs text-zinc-500">Body</p>
+                            <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-700">
+                              {selectedWaitlistSubmission.ops_automation.draft_email.body}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-sm text-zinc-500">
+                          No AI draft yet. Run triage to generate one.
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="rounded-xl border border-zinc-200 p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Filter tags</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {selectedWaitlistSubmission.filter_tags.length ? (
+                          selectedWaitlistSubmission.filter_tags.map((tag) => (
+                            <span key={tag} className="rounded-full bg-zinc-100 px-3 py-1 text-sm text-zinc-700">
+                              {tag}
+                            </span>
+                          ))
+                        ) : (
+                          <p className="text-sm text-zinc-500">No tags assigned.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex min-h-[420px] flex-col items-center justify-center text-center text-zinc-500">
+                    <ClipboardList className="mb-3 h-10 w-10" />
+                    <p>Select a waitlist request to inspect its automation fields.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

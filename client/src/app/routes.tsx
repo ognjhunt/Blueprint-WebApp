@@ -11,6 +11,8 @@ export type AppRoute = {
 
 const Home = lazy(() => import("../pages/Home"));
 const Capture = lazy(() => import("../pages/Capture"));
+const CapturerSignUpFlow = lazy(() => import("../pages/CapturerSignUpFlow"));
+const CaptureAppPlaceholder = lazy(() => import("../pages/CaptureAppPlaceholder"));
 const Environments = lazy(() => import("../pages/Environments"));
 const BusinessSignUpFlow = lazy(() => import("../pages/BusinessSignUpFlow"));
 const OnboardingChecklist = lazy(() => import("../pages/OnboardingChecklist"));
@@ -83,6 +85,7 @@ export const appRoutes: AppRoute[] = [
 
   // Capture / Earn (new)
   { path: "/capture", layout: "public", component: Capture },
+  { path: "/capture-app", layout: "public", component: CaptureAppPlaceholder },
 
   // World Models (renamed from site-worlds)
   { path: "/world-models", layout: "public", component: SiteWorlds },
@@ -153,6 +156,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/login", layout: "public", component: Login },
   { path: "/signup", layout: "public", component: BusinessSignUpFlow },
   { path: "/signup/business", layout: "public", component: BusinessSignUpFlow },
+  { path: "/signup/capturer", layout: "public", component: CapturerSignUpFlow },
   { path: "/onboarding", layout: "protected", component: OnboardingChecklist },
   { path: "/forgot-password", layout: "public", component: ForgotPassword },
   { path: "/privacy", layout: "public", component: Privacy },

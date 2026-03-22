@@ -5,7 +5,8 @@ type ClientEnvKey =
   | "VITE_INTERNAL_SCENE_ACCESS_CODE"
   | "VITE_GOOGLE_CLIENT_ID"
   | "VITE_GOOGLE_APP_ID"
-  | "VITE_PUBLIC_APP_URL";
+  | "VITE_PUBLIC_APP_URL"
+  | "VITE_CAPTURE_APP_PLACEHOLDER_URL";
 
 const cache = new Map<ClientEnvKey, string | null>();
 
@@ -106,6 +107,15 @@ export function getPublicAppUrl(): string {
   }
 
   return "http://localhost:5173";
+}
+
+export function getCaptureAppPlaceholderUrl(): string {
+  const configured = getOptionalClientEnv("VITE_CAPTURE_APP_PLACEHOLDER_URL");
+  if (configured) {
+    return configured.replace(/\/$/, "");
+  }
+
+  return `${getPublicAppUrl()}/capture-app`;
 }
 
 export function resetClientEnvCacheForTests() {

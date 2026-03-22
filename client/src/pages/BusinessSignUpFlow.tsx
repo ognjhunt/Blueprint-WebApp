@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
@@ -169,6 +169,15 @@ export default function BusinessSignUpFlow() {
   const [targetRobotTeam, setTargetRobotTeam] = useState("");
   const [budgetRange, setBudgetRange] = useState<BudgetRange | "">("");
   const [referralSource, setReferralSource] = useState<ReferralSource | "">("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("role") === "capturer") {
+      setLocation("/signup/capturer");
+    }
+  }, [setLocation]);
 
   const step1Valid = useMemo(
     () =>

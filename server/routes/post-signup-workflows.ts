@@ -3,6 +3,11 @@ import { Request, Response } from "express";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { HTTP_STATUS } from "../constants/http-status";
 import { attachRequestMeta, logger } from "../logger";
+import { runPostSignupSchedulingTask } from "../agents";
+import {
+  executePostSignupDirectActions,
+  resolvePostSignupExecutionContext,
+} from "../utils/post-signup-actions";
 
 type PostSignupWorkflowRequest = {
   blueprintId: string;
@@ -17,6 +22,10 @@ type PostSignupWorkflowRequest = {
   squareFootage?: number | null;
   onboardingGoal?: string;
   audienceType?: string;
+  mappingDate?: string | null;
+  mappingTime?: string | null;
+  demoDate?: string | null;
+  demoTime?: string | null;
 };
 
 export default async function postSignupWorkflowsHandler(
@@ -76,29 +85,97 @@ export default async function postSignupWorkflowsHandler(
   try {
     const timestamp = admin.firestore.FieldValue.serverTimestamp();
     const blueprintRef = firestore.collection("blueprints").doc(blueprintId);
+    const executionContext = await resolvePostSignupExecutionContext({
+      blueprintId,
+      userId,
+      companyName,
+      address,
+      companyUrl: requestBody.companyUrl,
+      contactName: requestBody.contactName,
+      contactEmail: requestBody.contactEmail,
+      contactPhone: requestBody.contactPhone,
+      locationType: requestBody.locationType,
+      squareFootage: requestBody.squareFootage ?? null,
+      onboardingGoal: requestBody.onboardingGoal,
+      audienceType: requestBody.audienceType,
+      mappingDate: requestBody.mappingDate ?? null,
+      mappingTime: requestBody.mappingTime ?? null,
+      demoDate: requestBody.demoDate ?? null,
+      demoTime: requestBody.demoTime ?? null,
+    });
+    const schedulingResult = await runPostSignupSchedulingTask({
+      blueprintId,
+      userId,
+      companyName,
+      address,
+      companyUrl: requestBody.companyUrl,
+      contactName: requestBody.contactName,
+      contactEmail: requestBody.contactEmail,
+      contactPhone: requestBody.contactPhone,
+      locationType: requestBody.locationType,
+      squareFootage: requestBody.squareFootage ?? null,
+      onboardingGoal: requestBody.onboardingGoal,
+      audienceType: requestBody.audienceType,
+      mappingDate: executionContext.booking?.date || null,
+      mappingTime: executionContext.booking?.time || null,
+      demoDate: executionContext.booking?.demoScheduleDate || null,
+      demoTime: executionContext.booking?.demoScheduleTime || null,
+    });
+    const executionResult = await executePostSignupDirectActions({
+      input: {
+        blueprintId,
+        userId,
+        companyName,
+        address,
+        companyUrl: requestBody.companyUrl,
+        contactName: requestBody.contactName,
+        contactEmail: requestBody.contactEmail,
+        contactPhone: requestBody.contactPhone,
+        locationType: requestBody.locationType,
+        squareFootage: requestBody.squareFootage ?? null,
+        onboardingGoal: requestBody.onboardingGoal,
+        audienceType: requestBody.audienceType,
+        mappingDate: executionContext.booking?.date || null,
+        mappingTime: executionContext.booking?.time || null,
+        demoDate: executionContext.booking?.demoScheduleDate || null,
+        demoTime: executionContext.booking?.demoScheduleTime || null,
+      },
+      scheduling: schedulingResult,
+      context: executionContext,
+    });
 
     await blueprintRef.set(
       {
         postSignupWorkflowStatus: {
           lastRunAt: timestamp,
           triggeredBy: userId || null,
-          skipped: true,
-          reason: "ai_provider_disabled",
+          skipped: false,
+          status: executionResult.status,
+          reason: null,
+          confidence: schedulingResult.confidence,
+          requiresHumanReview: schedulingResult.requires_human_review,
+          nextAction: schedulingResult.next_action,
+          scheduleSummary: schedulingResult.schedule_summary,
+          contactLookupPlan: schedulingResult.contact_lookup_plan,
+          confirmations: schedulingResult.confirmations,
+          actionPlan: schedulingResult.action_plan,
+          actions: executionResult.actionResults,
+          resolvedContact: executionContext.resolvedContact,
+          bookingContext: executionContext.booking,
         },
       },
       { merge: true },
     );
 
-    logger.info(requestMeta, "Post-signup workflows skipped");
+    logger.info(requestMeta, "Post-signup workflows completed");
 
     return res.status(HTTP_STATUS.OK).json({
       success: true,
       blueprintId,
-      knowledgeSourceCount: 0,
-      topQuestionCount: 0,
-      storedInstructions: false,
-      welcomeMessageCount: 0,
-      skipped: true,
+      skipped: false,
+      status: executionResult.status,
+      result: schedulingResult,
+      actions: executionResult.actionResults,
     });
   } catch (error: any) {
     logger.error(

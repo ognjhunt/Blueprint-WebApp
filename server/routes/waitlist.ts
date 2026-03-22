@@ -7,7 +7,15 @@ import {
   fetchIdempotencyResponse,
   storeIdempotencyResponse,
 } from "../utils/idempotency";
-import { isValidEmailAddress } from "../utils/validation";
+import { isValidEmailAddress, isValidPhoneNumber } from "../utils/validation";
+
+function toFilterToken(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
 
 export default async function waitlistHandler(req: Request, res: Response) {
   if (req.method !== "POST") {
@@ -100,7 +108,7 @@ export default async function waitlistHandler(req: Request, res: Response) {
     return res.status(HTTP_STATUS.OK).json({ success: true });
   }
 
-  const { email, locationType } = req.body ?? {};
+  const { email, locationType, role, device, phone, market } = req.body ?? {};
 
   if (!email || !locationType) {
     return res.status(400).json({ error: "Missing required fields" });
@@ -108,6 +116,20 @@ export default async function waitlistHandler(req: Request, res: Response) {
 
   const emailValue = typeof email === "string" ? email.trim() : "";
   const locationTypeValue = typeof locationType === "string" ? locationType.trim() : "";
+  const roleValue = typeof role === "string" ? role.trim() : "";
+  const deviceValue = typeof device === "string" ? device.trim() : "";
+  const phoneValue = typeof phone === "string" ? phone.trim() : "";
+  const marketValue = typeof market === "string" ? market.trim() : "";
+  const normalizedEmail = emailValue.toLowerCase();
+  const normalizedRole = roleValue.toLowerCase();
+  const normalizedDevice = deviceValue.toLowerCase();
+  const normalizedMarket = marketValue.toLowerCase();
+  const filterTags = [
+    normalizedRole ? `role:${toFilterToken(normalizedRole)}` : null,
+    normalizedDevice ? `device:${toFilterToken(normalizedDevice)}` : null,
+    normalizedMarket ? `market:${toFilterToken(normalizedMarket)}` : null,
+    locationTypeValue ? `location_type:${toFilterToken(locationTypeValue)}` : null,
+  ].filter(Boolean);
 
   if (!emailValue || !isValidEmailAddress(emailValue)) {
     return res.status(400).json({ error: "Invalid email format" });
@@ -117,12 +139,20 @@ export default async function waitlistHandler(req: Request, res: Response) {
     return res.status(400).json({ error: "Invalid location type" });
   }
 
+  if (phoneValue && !isValidPhoneNumber(phoneValue)) {
+    return res.status(400).json({ error: "Invalid phone number" });
+  }
+
   const { key: idempotencyKey, ttlMs: idempotencyTtlMs } = buildIdempotencyKey({
     scope: "waitlist",
     email: emailValue,
     payload: {
       email: emailValue,
       locationType: locationTypeValue,
+      role: roleValue || null,
+      device: deviceValue || null,
+      phone: phoneValue || null,
+      market: marketValue || null,
     },
   });
 
@@ -132,12 +162,72 @@ export default async function waitlistHandler(req: Request, res: Response) {
   }
 
   const to = process.env.WAITLIST_TO ?? "ops@tryblueprint.io";
-  const subject = "New on-site capture waitlist submission";
-  const text = `Email: ${emailValue}\nLocation type: ${locationTypeValue}`;
+  const subject =
+    roleValue === "capturer"
+      ? "New Blueprint Capture private beta request"
+      : "New on-site capture waitlist submission";
+  const text = [
+    `Email: ${emailValue}`,
+    `Location type: ${locationTypeValue}`,
+    marketValue ? `Market: ${marketValue}` : null,
+    roleValue ? `Role: ${roleValue}` : null,
+    deviceValue ? `Device: ${deviceValue}` : null,
+    phoneValue ? `Phone: ${phoneValue}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  let submissionId: string | null = null;
+  let persisted = false;
+
+  if (db) {
+    submissionId = idempotencyKey;
+
+    await db.collection("waitlistSubmissions").doc(submissionId).set({
+      email: emailValue,
+      email_normalized: normalizedEmail,
+      email_domain: normalizedEmail.includes("@") ? normalizedEmail.split("@")[1] : "",
+      location_type: locationTypeValue,
+      market: marketValue || null,
+      market_normalized: marketValue ? normalizedMarket : null,
+      role: roleValue || null,
+      role_normalized: roleValue ? normalizedRole : null,
+      device: deviceValue || null,
+      device_normalized: deviceValue ? normalizedDevice : null,
+      phone: phoneValue || null,
+      source:
+        normalizedRole === "capturer" ? "capture_app_private_beta" : "website_waitlist",
+      status: "new",
+      queue:
+        normalizedRole === "capturer" ? "capturer_beta_review" : "website_waitlist_review",
+      intent:
+        normalizedRole === "capturer" ? "capturer_beta_access" : "website_waitlist_access",
+      filter_tags: filterTags,
+      ops_automation: {
+        status: "pending",
+        version: "waitlist_v1",
+        next_action:
+          normalizedRole === "capturer"
+            ? "route_by_market_device_and_role"
+            : "manual_waitlist_review",
+        recommended_path:
+          normalizedRole === "capturer" ? "capturer_beta_workflow" : "website_waitlist_workflow",
+        eligible_for_ai_triage: normalizedRole === "capturer",
+        last_error: null,
+        last_attempt_at: null,
+      },
+      human_review_required: null,
+      automation_confidence: null,
+      idempotency_key: idempotencyKey,
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
+      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    persisted = true;
+  }
 
   const { sent } = await sendEmail({ to, subject, text });
   const responseStatus = sent ? HTTP_STATUS.OK : HTTP_STATUS.ACCEPTED;
-  const responseBody = { success: true, sent };
+  const responseBody = { success: true, sent, persisted, submissionId };
 
   await storeIdempotencyResponse({
     key: idempotencyKey,

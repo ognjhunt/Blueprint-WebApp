@@ -246,6 +246,11 @@ export interface UserData {
   planHours?: number | string;
   role?: string;
   roles?: string[];
+  capturerApplicationStatus?: "applied" | "active" | "paused";
+  capturerMarket?: string;
+  capturerEquipment?: string[];
+  capturerAvailability?: "weekdays" | "evenings" | "weekends" | "flexible";
+  capturerReferralSource?: string;
   admin?: boolean;
   ops?: boolean;
   currentMonthHours?: number;

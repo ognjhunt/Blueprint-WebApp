@@ -12,6 +12,7 @@ import { attachRequestMeta, logger, generateTraceId, logSecurityEvent } from "./
 import { incrementRequestCount, incrementErrorCount } from "./routes/health";
 import { validateEnv } from "./config/env";
 import { createRateLimitRedisStore } from "./utils/rate-limit-redis";
+import { startOpsAutomationScheduler } from "./utils/opsAutomationScheduler";
 
 const env = validateEnv();
 
@@ -351,6 +352,10 @@ app.use((req, res, next) => {
   }
 
   const PORT = env.PORT;
+  const stopOpsAutomationScheduler = startOpsAutomationScheduler();
+  server.on("close", () => {
+    stopOpsAutomationScheduler();
+  });
   server.listen(PORT, "0.0.0.0", () => {
     logger.info({ port: PORT }, "Server listening");
   });

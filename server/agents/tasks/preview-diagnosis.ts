@@ -1,0 +1,79 @@
+import { z } from "zod";
+
+import type { StructuredTaskDefinition } from "../types";
+
+export const previewDiagnosisOutputSchema = z.object({
+  disposition: z.enum([
+    "retry_now",
+    "retry_later",
+    "manual_review_required",
+    "provider_escalation",
+    "not_actionable",
+  ]),
+  queue: z.string().min(1).max(120),
+  confidence: z.number().min(0).max(1),
+  requires_human_review: z.boolean(),
+  retry_recommended: z.boolean(),
+  next_action: z.string().min(1).max(240),
+  rationale: z.string().min(1).max(1400),
+  internal_summary: z.string().min(1).max(1600),
+});
+
+export type PreviewDiagnosisInput = {
+  requestId: string;
+  siteWorldId?: string | null;
+  preview_status?: string | null;
+  provider_name?: string | null;
+  provider_model?: string | null;
+  provider_run_id?: string | null;
+  failure_reason?: string | null;
+  preview_manifest_uri?: string | null;
+  worldlabs_operation_manifest_uri?: string | null;
+  worldlabs_world_manifest_uri?: string | null;
+};
+
+export const previewDiagnosisTask: StructuredTaskDefinition<
+  PreviewDiagnosisInput,
+  z.infer<typeof previewDiagnosisOutputSchema>
+> = {
+  kind: "preview_diagnosis",
+  default_provider: "openclaw",
+  model_by_provider: {
+    openclaw:
+      process.env.OPENCLAW_PREVIEW_DIAGNOSIS_MODEL ||
+      process.env.OPENCLAW_DEFAULT_MODEL ||
+      "openai/gpt-5.4",
+  },
+  output_schema: previewDiagnosisOutputSchema,
+  tool_policy: {
+    mode: "api",
+    prefer_direct_api: true,
+  },
+  build_prompt(input) {
+    return `You are Blueprint's preview diagnosis copilot.
+
+Analyze the preview failure state and decide whether the issue is transient, retryable, or needs escalation.
+
+Output JSON only. No markdown. No explanation outside JSON.
+
+Rules:
+- Use retry_now only when the failure looks transient and bounded.
+- Use provider_escalation for repeated provider-side or artifact-side failures.
+- Use requires_human_review=true when customer-facing release risk is involved.
+
+Payload:
+${JSON.stringify(input, null, 2)}
+
+Return JSON with this exact shape:
+{
+  "disposition": "retry_now" | "retry_later" | "manual_review_required" | "provider_escalation" | "not_actionable",
+  "queue": "",
+  "confidence": 0.0,
+  "requires_human_review": true,
+  "retry_recommended": false,
+  "next_action": "",
+  "rationale": "",
+  "internal_summary": ""
+}`;
+  },
+};

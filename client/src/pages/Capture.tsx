@@ -168,7 +168,7 @@ export default function Capture() {
                   className="flex flex-col gap-3 sm:flex-row"
                 >
                   <a
-                    href="/signup?role=capturer"
+                    href="/signup/capturer"
                     className="group inline-flex items-center justify-center rounded-lg bg-zinc-950 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-zinc-800 hover:shadow-lg"
                   >
                     Start capturing
@@ -456,7 +456,7 @@ export default function Capture() {
               </p>
               <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
                 <a
-                  href="/signup?role=capturer"
+                  href="/signup/capturer"
                   className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition-all hover:bg-zinc-100 hover:shadow-lg"
                 >
                   Create your account

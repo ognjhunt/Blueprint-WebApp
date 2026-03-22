@@ -36,6 +36,11 @@ export function isValidEmailAddress(email: string): boolean {
   return validator.isEmail(email, EMAIL_VALIDATION_OPTIONS);
 }
 
+export function isValidPhoneNumber(phone: string): boolean {
+  const digits = phone.replace(/\D/g, "");
+  return digits.length >= 10 && digits.length <= 15;
+}
+
 /**
  * Validates the request body for waitlist signup.
  * @param {WaitlistData | null | undefined} requestBody The request body to validate.

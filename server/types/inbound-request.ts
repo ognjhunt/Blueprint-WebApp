@@ -125,6 +125,43 @@ export interface RequestEvents {
   crmSyncedAt?: FirebaseFirestore.Timestamp | null;
 }
 
+export interface DraftMessage {
+  subject: string;
+  body: string;
+}
+
+export interface OpsAutomationEnvelope {
+  status?: string;
+  queue?: string;
+  intent?: string;
+  next_action?: string | null;
+  recommended_path?: string | null;
+  confidence?: number | null;
+  requires_human_review?: boolean | null;
+  provider?: string | null;
+  runtime?: string | null;
+  model?: string | null;
+  tool_mode?: string | null;
+  execution_id?: string | null;
+  session_key?: string | null;
+  last_error?: string | null;
+  last_attempt_at?: FirebaseFirestore.Timestamp | string | null;
+  processed_at?: FirebaseFirestore.Timestamp | string | null;
+  recommendation?: string | null;
+  rationale?: string | null;
+  market_fit_score?: number | null;
+  device_fit_score?: number | null;
+  invite_readiness_score?: number | null;
+  market_summary?: string | null;
+  market_context?: Record<string, unknown> | null;
+  draft_email?: DraftMessage | null;
+  qualification_state_recommendation?: QualificationState | null;
+  opportunity_state_recommendation?: OpportunityState | null;
+  missing_information?: string[];
+  internal_summary?: string | null;
+  buyer_follow_up?: DraftMessage | null;
+}
+
 export interface PipelineArtifacts {
   readiness_decision_uri?: string | null;
   readiness_report_uri?: string | null;
@@ -358,6 +395,9 @@ export interface InboundRequest {
   context: RequestContext;
   enrichment: EnrichmentData;
   events: RequestEvents;
+  ops_automation?: OpsAutomationEnvelope;
+  human_review_required?: boolean | null;
+  automation_confidence?: number | null;
   buyer_review_access?: BuyerReviewAccess;
   ops?: OpsSummary;
   pipeline?: PipelineAttachment;
