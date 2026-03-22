@@ -25,7 +25,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { db, signInWithGoogle } from "@/lib/firebase";
 import type { UserData } from "@/lib/firebase";
 import {
   REQUESTED_LANE_DESCRIPTIONS,
@@ -237,6 +236,7 @@ export default function BusinessSignUpFlow() {
     setErrorMessage("");
 
     try {
+      const { signInWithGoogle } = await import("@/lib/firebase");
       const user = await signInWithGoogle();
 
       sessionStorage.setItem(
@@ -275,6 +275,7 @@ export default function BusinessSignUpFlow() {
 
     try {
       const auth = getAuth();
+      const { db } = await import("@/lib/firebase");
       const timestamp = serverTimestamp();
 
       let uid: string;

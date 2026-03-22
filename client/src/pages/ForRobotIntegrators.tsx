@@ -50,7 +50,7 @@ export default function ForRobotIntegrators() {
     <>
       <SEO
         title="For Robot Teams | Blueprint"
-        description="Blueprint helps robot teams qualify a site and workflow first, then move into previews, hosted world models, and deeper evaluation only when justified."
+        description="Blueprint helps robot teams buy site-specific world models and hosted access built from real indoor capture."
         canonical="/for-robot-teams"
       />
 
@@ -67,19 +67,19 @@ export default function ForRobotIntegrators() {
                 For Robot Teams
               </span>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Qualify the site before you commit pilot time.
+                Buy access to the exact site your robot needs.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
-                Blueprint starts with the site, task, and constraints that matter for deployment.
-                The first output is a qualification read and routing decision. Hosted world models,
-                previews, and deeper evaluation stay available after that record is strong enough.
+                Blueprint gives robot teams site-specific world models and hosted sessions built
+                from real indoor capture. Trust checks still exist, but they support the product
+                instead of replacing it.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
-                  href="/contact?buyerType=robot_team&interest=qualification"
+                  href="/world-models"
                   className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-slate-800 hover:shadow-md"
                 >
-                  Start qualification
+                  Browse world models
                 </a>
                 <a
                   href="/contact?interest=evaluation-package"
@@ -98,7 +98,7 @@ export default function ForRobotIntegrators() {
             >
               <p className="text-sm font-semibold text-slate-900">What this is</p>
               <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                A qualification-first review path with optional hosted world-model access downstream.
+                A direct path to real-site world models, hosted sessions, and optional support when the site matters.
               </p>
               <p className="mt-5 text-sm font-semibold text-slate-900">What it helps with</p>
               <ul className="mt-3 space-y-2 text-sm text-slate-600">
@@ -125,7 +125,7 @@ export default function ForRobotIntegrators() {
                   What robot teams use Blueprint for.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  The point is simple: answer the deployment question before travel, tuning, or hosted runtime work starts.
+                  The point is simple: give your team the exact site in a useful format before travel, tuning, or customer time starts.
                 </p>
               </div>
             </ScrollReveal>
@@ -169,7 +169,7 @@ export default function ForRobotIntegrators() {
               >
                 <h2 className="text-2xl font-bold">What to expect</h2>
                 <p className="mt-4 text-sm leading-7 text-white">
-                  This is strong for site qualification, early feasibility review, site-specific data follow-ons, and remote demos. It is not the final deployment signoff and it does not replace stack-specific validation.
+                  This is strong for site-specific testing, synthetic data generation, release checks, and customer demos. It is not the final deployment signoff and it does not replace stack-specific validation.
                 </p>
               </motion.article>
             </ScrollReveal>

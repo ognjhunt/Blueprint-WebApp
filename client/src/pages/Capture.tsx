@@ -336,7 +336,7 @@ export default function Capture() {
                 <h2 className="text-2xl font-bold text-zinc-900">Any indoor space counts</h2>
                 <p className="mt-2 text-zinc-600">
                   Robot teams need world models of every kind of indoor environment. The more
-                  diverse the locations you capture, the more valuable the marketplace becomes.
+                  diverse the locations you capture, the stronger Blueprint's world-model library becomes.
                 </p>
               </div>
             </ScrollReveal>

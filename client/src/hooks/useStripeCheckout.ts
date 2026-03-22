@@ -64,8 +64,8 @@ export function useStripeCheckout(): UseStripeCheckoutReturn {
             quantity: item.quantity || 1,
             itemType: item.itemType,
           },
-          successPath: "/marketplace?checkout=success",
-          cancelPath: "/marketplace?checkout=cancel",
+          successPath: "/world-models?checkout=success",
+          cancelPath: "/world-models?checkout=cancel",
         }),
       });
 

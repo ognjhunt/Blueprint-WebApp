@@ -1,5 +1,14 @@
 # Blueprint First-Principles MVP Report
 
+Archived note: this memo reflects an older qualification-first product thesis.
+It is kept as historical strategy context only and is not the current public product direction of `Blueprint-WebApp`.
+
+Current product direction:
+
+1. capture supply through `BlueprintCapture`
+2. site-specific world models and hosted access as the primary sell
+3. qualification / readiness as an optional support layer, not the main story
+
 Date: 2026-03-10
 
 Status: Internal working memo

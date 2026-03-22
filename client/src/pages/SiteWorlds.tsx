@@ -4,6 +4,7 @@ import { categoryFilters, siteWorldCards, type SiteCategory } from "@/data/siteW
 import { fetchSiteWorldCatalog } from "@/lib/siteWorldsApi";
 import { ExternalLink, Filter, Play, ScanLine } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useSearch } from "wouter";
 
 const layerCards = [
   {
@@ -58,6 +59,9 @@ const useCaseCards = [
 export default function SiteWorlds() {
   const [activeCategory, setActiveCategory] = useState<SiteCategory>("All");
   const [catalog, setCatalog] = useState(siteWorldCards);
+  const search = useSearch();
+  const searchParams = useMemo(() => new URLSearchParams(search), [search]);
+  const checkoutState = searchParams.get("checkout");
 
   useEffect(() => {
     let cancelled = false;
@@ -86,12 +90,30 @@ export default function SiteWorlds() {
     <>
       <SEO
         title="World Models | Blueprint"
-        description="Browse site-specific, qualification-verified world models of real indoor spaces. Train your robot on the exact environment it will deploy to."
+        description="Browse site-specific world models of real indoor spaces. Buy packaged access or open a hosted session on the exact site your robot cares about."
         canonical="/world-models"
       />
 
       <div className="min-h-screen bg-white">
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
+          {checkoutState ? (
+            <div
+              className={`mb-6 rounded-2xl border px-4 py-3 text-sm ${
+                checkoutState === "success"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                  : "border-amber-200 bg-amber-50 text-amber-800"
+              }`}
+            >
+              <p className="font-semibold">
+                {checkoutState === "success" ? "Purchase successful" : "Checkout canceled"}
+              </p>
+              <p className="mt-1">
+                {checkoutState === "success"
+                  ? "Your team can keep browsing world models or open the purchased site package from the follow-up email."
+                  : "Your checkout did not complete. You can keep browsing or reopen a hosted world-model purchase when ready."}
+              </p>
+            </div>
+          ) : null}
           <header className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
             <div className="space-y-4">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
@@ -101,8 +123,8 @@ export default function SiteWorlds() {
                 Train on the exact site you're deploying to.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
-                Each world model is built from real indoor captures and verified against
-                Blueprint's qualification standard. Use it to train on the exact environment,
+                Each world model is built from real indoor captures and tied to a specific site and
+                workflow. Use it to train on the exact environment,
                 generate site-specific data, compare releases, and run simulations before
                 deployment.
               </p>

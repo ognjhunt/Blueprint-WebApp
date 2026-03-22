@@ -29,42 +29,42 @@ const offeringCards = [
   {
     title: "Capture Evidence",
     description:
-      "Contributors capture real spaces with phones or glasses so Blueprint can review workflow fit, coverage, and rights before deeper work begins.",
+      "Contributors capture real spaces with phones or glasses so Blueprint can turn them into reusable, site-specific world models.",
     bullets: [
-      "Evidence-first contributor flow",
-      "Rights-aware review path",
-      "Quality and coverage determine reuse",
+      "Capture on iPhone, iPad, or glasses",
+      "Quality and coverage determine payout and reuse",
+      "Rights and privacy stay attached to every capture",
     ],
-    ctaLabel: "See contributor flow",
+    ctaLabel: "Start capturing",
     ctaHref: "/capture",
     icon: <Camera className="h-8 w-8 text-zinc-900" />,
     accent: "indigo" as const,
   },
   {
-    title: "Qualification Review",
+    title: "World Models",
     description:
-      "Blueprint starts with intake, task scoping, and qualification. World models and previews stay available, but only after the record is strong enough.",
+      "Robot teams buy site-specific world models and hosted access built from real indoor captures, not synthetic stand-ins.",
     bullets: [
-      "Structured site and workflow intake",
-      "Buyer-facing readiness review",
-      "Optional downstream preview lane",
+      "Real sites tied to real workflows",
+      "Hosted access or packaged deliverables",
+      "Useful for testing, demos, and internal review",
     ],
-    ctaLabel: "Start intake",
-    ctaHref: "/contact?buyerType=robot_team&interest=qualification",
+    ctaLabel: "Browse world models",
+    ctaHref: "/world-models",
     icon: <Globe className="h-8 w-8 text-zinc-900" />,
     accent: "emerald" as const,
   },
   {
-    title: "Downstream Lanes",
+    title: "Support Layer",
     description:
-      "Preview assets, hosted world models, evaluation, and managed support stay in the product, but they follow qualification instead of replacing it.",
+      "Blueprint can still review scope, rights, and deployment questions, but that support layer exists to help capture and world-model sales land cleanly.",
     bullets: [
-      "Provider-backed preview assets",
-      "Curated hosted world-model examples",
-      "Managed evaluation and deployment support",
+      "Optional scoping and review support",
+      "Managed evaluation and deployment help",
+      "Commercial licensing and follow-on services",
     ],
-    ctaLabel: "See downstream options",
-    ctaHref: "/solutions",
+    ctaLabel: "Talk to Blueprint",
+    ctaHref: "/contact?interest=world-models",
     icon: <Building2 className="h-8 w-8 text-zinc-900" />,
     accent: "violet" as const,
   },
@@ -73,23 +73,23 @@ const offeringCards = [
 const howItWorks = [
   {
     step: "01",
-    title: "Intake",
+    title: "Capture",
     description:
-      "A robot team or operator starts with the site, task, constraints, and workflow so Blueprint knows what needs to be checked.",
+      "Capturers record real indoor spaces with phones or glasses, preserving the geometry, media, and context needed downstream.",
     icon: <Glasses className="h-6 w-6" />,
   },
   {
     step: "02",
-    title: "Qualify",
+    title: "Build",
     description:
-      "Evidence passes through scope, coverage, rights, and readiness checks. The qualification record becomes the source of truth for review.",
+      "BlueprintCapturePipeline turns those captures into site-specific world models, hosted sessions, and exportable artifacts.",
     icon: <ShieldCheck className="h-6 w-6" />,
   },
   {
     step: "03",
-    title: "Route",
+    title: "Run",
     description:
-      "Once qualification is stable, Blueprint can route the request into capture, preview assets, hosted world models, evaluation, or managed follow-on work.",
+      "Robot teams buy access to the exact site they care about, then test, demo, compare releases, or request deeper support when needed.",
     icon: <Bot className="h-6 w-6" />,
   },
 ];
@@ -102,9 +102,9 @@ const whyBlueprint = [
     icon: <MapPinned className="h-5 w-5" />,
   },
   {
-    title: "Qualification is the quality moat",
+    title: "Capture quality compounds",
     description:
-      "Anyone can collect raw spatial data. Blueprint's automated qualification pipeline ensures every world model meets a verified readiness standard.",
+      "Anyone can talk about spatial AI. Blueprint's advantage is a growing supply of real, reusable capture from real sites tied to downstream products.",
     icon: <ShieldCheck className="h-5 w-5" />,
   },
   {
@@ -130,26 +130,26 @@ const forPersonas = {
   },
   robotTeams: {
     label: "For Robot Teams",
-    headline: "Start with a cleaner readiness read.",
+    headline: "Buy the exact site your robot needs.",
     bullets: [
-      "Submit the site, task, and robot context first",
-      "Review a qualification record before spending pilot time",
-      "Request preview or hosted world-model follow-ons later",
-      "Use managed capture only when the workflow is clear",
+      "Browse site-specific world models built from real spaces",
+      "Run hosted sessions before a field visit",
+      "Generate site-specific data and compare releases",
+      "Request managed support when the site matters enough",
     ],
-    ctaLabel: "Start qualification",
-    ctaHref: "/contact?buyerType=robot_team&interest=qualification",
+    ctaLabel: "Browse world models",
+    ctaHref: "/world-models",
   },
   siteOperators: {
     label: "For Site Operators",
-    headline: "Control the right capture and review path.",
+    headline: "Turn your facility into a sellable digital asset.",
     bullets: [
       "Set access rules and restricted zones up front",
-      "Approve when capture or review should happen",
+      "Approve when capture should happen",
       "Keep rights and downstream sharing explicit",
-      "Join commercialization only after a workflow is qualified",
+      "Earn when your site becomes a world-model product",
     ],
-    ctaLabel: "Register your space",
+    ctaLabel: "List your site",
     ctaHref: "/for-site-operators",
   },
 };
@@ -194,8 +194,8 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | The Indoor Spatial Data Marketplace for Robotics"
-        description="People capture real indoor spaces with smart glasses and phones. Robot teams buy qualification-verified world models. Train on the exact site you're deploying to."
+        title="Blueprint | Capture Real Sites. Buy Site-Specific World Models."
+        description="Blueprint pays capturers to record real indoor spaces and sells site-specific world models and hosted access to robot teams."
         canonical="/"
         image="https://tryblueprint.io/images/og-home.png"
       />
@@ -215,7 +215,7 @@ export default function Home() {
                     className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600"
                   >
                     <Sparkles className="h-3 w-3" />
-                    Indoor Spatial Data Marketplace
+                    Capture + World Models
                   </motion.div>
                   <motion.h1
                     initial={shouldReduce ? {} : { opacity: 0, y: 20 }}
@@ -223,7 +223,7 @@ export default function Home() {
                     transition={{ duration: 0.6, delay: 0.1 }}
                     className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl"
                   >
-                    The indoor spatial data marketplace for robotics.
+                    Capture real sites. Run the exact world model later.
                   </motion.h1>
                   <motion.p
                     initial={shouldReduce ? {} : { opacity: 0, y: 16 }}
@@ -232,8 +232,7 @@ export default function Home() {
                     className="max-w-xl text-base leading-relaxed text-zinc-600 sm:text-lg"
                   >
                     People capture real indoor spaces with smart glasses and phones. Robot teams
-                    train on the actual sites they'll deploy to. Every world model is
-                    qualification-verified.
+                    buy site-specific world models and hosted access built from those real captures.
                   </motion.p>
                   <motion.ul
                     initial={shouldReduce ? {} : { opacity: 0 }}
@@ -241,7 +240,7 @@ export default function Home() {
                     transition={{ delay: 0.35, duration: 0.4 }}
                     className="flex flex-wrap gap-2 pt-1"
                   >
-                    {["Capture & earn", "World models", "Qualification-verified"].map(
+                    {["Capture & earn", "World models", "Hosted access"].map(
                       (point) => (
                         <li
                           key={point}
@@ -264,7 +263,7 @@ export default function Home() {
                     href="/capture"
                     className="group inline-flex items-center justify-center rounded-lg bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-zinc-700 hover:shadow-lg"
                   >
-                    Start earning
+                    Start capturing
                     <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </a>
                   <a
@@ -333,10 +332,10 @@ export default function Home() {
                   How It Works
                 </div>
                 <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
-                  Capture. Qualify. Deploy.
+                  Capture. Build. Run.
                 </h2>
                 <p className="mt-4 text-zinc-600">
-                  A three-step pipeline from real-world capture to robot-ready world models.
+                  A three-step pipeline from real-world capture to site-specific world models and hosted testing.
                 </p>
               </div>
             </ScrollReveal>
@@ -368,8 +367,8 @@ export default function Home() {
             <div className="mb-10">
               <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">Why Blueprint</h2>
               <p className="mt-2 text-zinc-600">
-                The only marketplace where every world model is built from real captures and
-                passes a verified qualification standard.
+                Blueprint wins by building and selling site-specific world models from real capture,
+                not by pretending every deployment question can be answered from generic data.
               </p>
             </div>
           </ScrollReveal>
@@ -392,9 +391,9 @@ export default function Home() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <ScrollReveal>
               <div className="mb-8">
-                <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">Built for every side of the market</h2>
+                <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">Built for the capture side and the buyer side</h2>
                 <p className="mt-2 text-zinc-600">
-                  Whether you capture, build robots, or operate facilities — Blueprint works for you.
+                  Blueprint pays people to capture spaces and gives robot teams a cleaner way to access the exact sites they care about.
                 </p>
               </div>
             </ScrollReveal>
@@ -564,7 +563,7 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="font-semibold text-zinc-900">Start earning</p>
-                  <p className="text-sm text-zinc-500">Get paid to capture indoor spaces</p>
+                  <p className="text-sm text-zinc-500">Get paid to record real indoor spaces</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
@@ -611,18 +610,18 @@ export default function Home() {
 
             <div className="relative">
               <h2 className="text-2xl font-bold text-white sm:text-3xl">
-                The world&apos;s indoor spaces, captured and qualified for robotics.
+                Real spaces in. Site-specific world models out.
               </h2>
               <p className="mx-auto mt-4 max-w-2xl text-zinc-400">
-                Whether you want to earn by capturing, deploy robots to real sites, or monetize
-                your facility -- Blueprint connects every side of the market.
+                Whether you want to earn by capturing or test against the exact site your team cares
+                about, Blueprint connects real-world supply to useful world-model products.
               </p>
               <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
                 <a
                   href="/capture"
                   className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition-all hover:bg-zinc-100 hover:shadow-lg"
                 >
-                  Start earning
+                  Start capturing
                 </a>
                 <a
                   href="/world-models"

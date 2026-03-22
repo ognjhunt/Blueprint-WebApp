@@ -12,11 +12,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const navLinks = [
-  { href: "/how-it-works", label: "Site Qualification" },
-  { href: "/for-site-operators", label: "For Sites" },
-  { href: "/for-robot-teams", label: "For Robot Teams" },
+  { href: "/capture", label: "Capture" },
   { href: "/world-models", label: "World Models" },
+  { href: "/for-robot-teams", label: "For Robot Teams" },
+  { href: "/for-site-operators", label: "For Sites" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/contact", label: "Contact" },
 ];
 
 export function Header() {
@@ -75,7 +76,7 @@ export function Header() {
             href="/contact"
             className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
           >
-            Request Site Qualification
+            Talk to Blueprint
           </a>
           {!currentUser ? (
             <>
@@ -150,7 +151,7 @@ export function Header() {
               className="mt-2 inline-flex min-h-11 items-center justify-center rounded-full bg-slate-900 px-4 py-2.5 text-center text-white"
               onClick={() => setOpen(false)}
             >
-              Request Site Qualification
+              Talk to Blueprint
             </a>
             {!currentUser ? (
               <>

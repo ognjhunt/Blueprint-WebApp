@@ -130,8 +130,8 @@ export default function PilotExchangeGuide() {
   return (
     <>
       <SEO
-        title="Qualified Opportunities Guide"
-        description="Beginner guide to how Blueprint qualifies sites before robot teams review and respond."
+        title="Site Opportunities Guide"
+        description="Beginner guide to how Blueprint turns real captured sites into buyer-facing world-model and evaluation opportunities."
         canonical="/qualified-opportunities-guide"
       />
       <div className="relative min-h-screen bg-white text-zinc-900 font-sans selection:bg-zinc-200 selection:text-zinc-900">
@@ -144,16 +144,16 @@ export default function PilotExchangeGuide() {
               Beginner's Guide
             </div>
             <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 mb-6">
-              How qualified opportunities work
+              How site opportunities work
             </h1>
             <p className="text-lg text-zinc-600 leading-relaxed mb-8">
-              Blueprint qualifies the site and workflow first. Then robot teams can review a
-              clearer brief, run checks, and respond with less guesswork.
+              Blueprint captures and packages real sites first. Then robot teams can review a
+              clearer brief, open hosted access, and respond with less guesswork.
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <a href="/qualified-opportunities">
                 <Button className="bg-zinc-900 text-white hover:bg-zinc-800 px-6 py-5 text-sm font-medium">
-                  Open Qualified Opportunities <ArrowRight className="ml-2 w-4 h-4" />
+                  Open Site Opportunities <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>
               </a>
               <a href="/contact" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 underline underline-offset-4 decoration-zinc-300">
@@ -198,7 +198,7 @@ export default function PilotExchangeGuide() {
             <div className="max-w-3xl mb-8">
               <h2 className="text-3xl font-bold text-zinc-900 mb-3">The Core Deployment Gap</h2>
               <p className="text-zinc-600">
-                Qualified opportunity exchange exists to reduce the lab-to-site drop. These are related problems, but they are not the same step in the pipeline.
+                Site opportunity exchange exists to reduce the lab-to-site drop. These are related problems, but they are not the same step in the pipeline.
               </p>
             </div>
             <div className="mobile-snap-row md:grid md:grid-cols-2 md:gap-6">
@@ -609,12 +609,12 @@ export default function PilotExchangeGuide() {
             <ShieldCheck className="w-12 h-12 text-white mx-auto mb-6 opacity-80" />
             <h2 className="text-3xl font-bold text-white mb-4">Ready to test your policy?</h2>
             <p className="max-w-xl mx-auto text-zinc-400 mb-8">
-              Review qualified opportunities, submit your robot policy package, and receive standardized evaluation scorecards.
+              Review site opportunities, submit your robot policy package, and receive standardized evaluation scorecards.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <a href="/qualified-opportunities">
                 <Button className="w-full sm:w-auto rounded-md bg-white text-zinc-900 hover:bg-zinc-200 px-8 py-6 text-base font-bold">
-                  Open Qualified Opportunities
+                  Open Site Opportunities
                 </Button>
               </a>
               <a href="/contact">

@@ -17,8 +17,8 @@ vi.mock("@/contexts/AuthContext", () => ({
   }),
 }));
 
-describe("public qualification-first copy", () => {
-  it("uses qualification language across header, homepage, and footer", { timeout: 10000 }, () => {
+describe("public capture and world-model copy", () => {
+  it("uses capture and world-model language across header, homepage, and footer", { timeout: 10000 }, () => {
     window.localStorage.clear();
     const { container } = render(
       <>
@@ -28,12 +28,12 @@ describe("public qualification-first copy", () => {
       </>,
     );
 
-    expect(screen.getAllByRole("link", { name: /Request site qualification/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Talk to Blueprint/i }).length).toBeGreaterThan(0);
     expect(
-      screen.getByRole("heading", { level: 1, name: /indoor spatial data marketplace for robotics/i }),
+      screen.getByRole("heading", { level: 1, name: /Capture real sites\. Run the exact world model later\./i }),
     ).toBeInTheDocument();
-    expect(container).toHaveTextContent(/qualification/i);
-    expect(container).toHaveTextContent(/feasible|blocked|readiness/i);
+    expect(container).toHaveTextContent(/world models/i);
+    expect(container).toHaveTextContent(/capture/i);
     expect(container).toHaveTextContent(/robot teams?/i);
     expect(container).not.toHaveTextContent(/digital twin/i);
 

@@ -41,29 +41,30 @@ export default function Contact() {
 
   const seoTitle = hostedMode ? "Start Hosted Session | Blueprint" : "Contact Us";
   const seoDescription = hostedMode
-    ? "Start a hosted robot-team evaluation session for a site-specific world model."
-    : "Get in touch with Blueprint to qualify a site, scope the workflow, and plan the right next step.";
+    ? "Start a hosted robot-team session for a site-specific world model."
+    : "Get in touch with Blueprint to source capture, buy world-model access, or scope the right next step.";
 
-  const badgeLabel = hostedMode ? "Hosted Session Start" : "Qualification Intake";
+  const badgeLabel = hostedMode ? "Hosted Session Start" : "Capture + World Models";
   const heroTitle = hostedMode
     ? "Start a hosted session for this site."
-    : "Tell us the site, the task, and what you need checked.";
+    : "Tell us the site, the task, and what you want to unlock.";
   const heroBody = hostedMode
     ? "Confirm the site, the task, and the robot setup. Blueprint will use that to line up the next step for a hosted evaluation run."
-    : "Blueprint reviews the site, task, and constraints first, then routes the right next step for qualification, exchange, preview assets, or deeper evaluation.";
+    : "Blueprint can help source capture, package a site-specific world model, or line up hosted access for the exact environment your team wants to test.";
   const responseTitle = hostedMode ? "Hosted session setup" : "Quick Response";
   const responseBody = hostedMode
     ? "Fill out the short form and our team will follow up within 24 hours to confirm the site, the robot setup, and the next step toward launch."
-    : "Fill out the form and our team will get back to you within 24 hours to talk through the site, the qualification record, and the best next step.";
+    : "Fill out the form and our team will get back to you within 24 hours to talk through capture supply, world-model access, and the right commercial path.";
   const learnMoreLinks = hostedMode
     ? [
-        { href: "/world-models", label: "Back to Site Worlds" },
+        { href: "/world-models", label: "Back to World Models" },
         { href: "/for-robot-teams", label: "For Robot Teams" },
         { href: "/how-it-works", label: "How Blueprint works" },
       ]
     : [
+        { href: "/capture", label: "Capture with Blueprint" },
+        { href: "/world-models", label: "Browse world models" },
         { href: "/how-it-works", label: "How It Works" },
-        { href: "/readiness-pack", label: "See the deliverable" },
         { href: "/for-robot-teams", label: "For Robot Teams" },
       ];
 

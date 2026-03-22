@@ -52,7 +52,7 @@ describe('ContactForm', () => {
 
   const clickSubmit = async () => {
     fireEvent.click(
-      screen.getByRole('button', { name: /Join AI Pilot Program/i }),
+      screen.getByRole('button', { name: /Request early access/i }),
     );
     await waitFor(() => {});
   };
@@ -90,7 +90,7 @@ describe('ContactForm', () => {
       expect(
         screen.queryByText('Company name is required'),
       ).not.toBeInTheDocument();
-      expect(screen.queryByText(/Welcome to the Future!/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Request received/i)).toBeInTheDocument();
     });
 
     it('should show error for empty name', async () => {
@@ -115,7 +115,7 @@ describe('ContactForm', () => {
         '/api/contact',
         expect.anything(),
       );
-      expect(screen.queryByText(/Welcome to the Future!/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Request received/i)).not.toBeInTheDocument();
     });
 
     it('should show error for empty email', async () => {
@@ -215,7 +215,7 @@ describe('ContactForm', () => {
 
       await clickSubmit();
 
-      expect(screen.getByText(/Welcome to the Future!/i)).toBeInTheDocument();
+      expect(screen.getByText(/Request received/i)).toBeInTheDocument();
 
       fireEvent.click(
         screen.getByRole('button', { name: /Submit Another Request/i }),

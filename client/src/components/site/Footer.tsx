@@ -20,8 +20,8 @@ export function Footer() {
             Blueprint
           </a>
           <p className="text-sm text-slate-500">
-            Blueprint qualifies real sites for robot deployment and opens downstream evaluation
-            work only when the record supports it.
+            Blueprint turns real indoor spaces into site-specific world models and hosted testing
+            surfaces, powered by a distributed capture network.
           </p>
         </div>
         <nav className="grid flex-1 grid-cols-2 gap-3 text-sm text-slate-600 sm:grid-cols-3">
@@ -35,7 +35,7 @@ export function Footer() {
       <div className="border-t border-slate-200 bg-white py-4">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>Qualification first. Evaluation and licensing follow when needed.</p>
+          <p>Capture supply. Site-specific world models. Hosted access when teams are ready.</p>
         </div>
       </div>
     </footer>

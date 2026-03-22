@@ -95,15 +95,15 @@ describe("PilotExchange", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders qualified opportunities framing", () => {
+  it("renders site opportunities framing", () => {
     render(<PilotExchange />);
 
     expect(
-      screen.getByRole("heading", { name: /Qualified opportunities for robot teams\./i }),
+      screen.getByRole("heading", { name: /Site opportunities for robot teams\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/These sites and workflows have already been scoped by Blueprint\./i)).toBeInTheDocument();
+    expect(screen.getByText(/These are sites and workflows Blueprint has already captured and packaged\./i)).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /See Pricing/i })[0]).toHaveAttribute("href", "#pricing");
-    expect(screen.getByRole("link", { name: /See how qualification works/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /See how site opportunities work/i })).toHaveAttribute(
       "href",
       "/qualified-opportunities-guide",
     );
@@ -133,7 +133,7 @@ describe("PilotExchange", () => {
     expect(screen.getByRole("heading", { name: /Pay for the job you need\./i })).toBeInTheDocument();
     expect(screen.getByText(/Pay for the next layer/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^World Models$/i })).toBeInTheDocument();
-    expect(screen.getByText(/qualification-verified world models of real indoor locations/i)).toBeInTheDocument();
+    expect(screen.getByText(/Buy site-specific world models of real indoor locations/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Simulation Access/i })).toBeInTheDocument();
     expect(screen.getByText(/Private site terms are custom\./i)).toBeInTheDocument();
 

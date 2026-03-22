@@ -268,19 +268,18 @@ export default function ContactForm() {
           <div className="inline-flex items-center justify-center gap-2 mb-4 bg-emerald-400/10 text-emerald-300 py-2 px-4 rounded-full border border-emerald-500/30">
             <RocketLaunchIcon className="w-4 h-4" />
             <span className="text-xs font-bold uppercase tracking-wider">
-              Limited Pilot Program
+              Early Access
             </span>
           </div>
           <h2 className="text-3xl md:text-5xl font-black leading-tight text-white">
-            Ready to Transform Your{" "}
+            Ready to Turn Your{" "}
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-300 to-cyan-300">
-              In-Person Experience with Blueprint?
+              Real Site Into a World Model?
             </span>
           </h2>
           <p className="text-base md:text-xl text-slate-300 mt-3">
-            Launch a hands-free AI guide in ~60 minutes. No app required, and it
-            works on the smart glasses your teams and guests will soon wear.
-            US alpha applications welcome.
+            Blueprint captures your space, builds a site-specific world model,
+            and helps your team open hosted access on the exact environment that matters.
           </p>
         </motion.div>
 
@@ -302,12 +301,11 @@ export default function ContactForm() {
                   </span>
                 </div>
                 <h3 className="font-black text-2xl md:text-3xl mb-4 leading-tight">
-                  Be Among the First to Deploy AI Glasses Experiences
+                  Bring your real site into Blueprint
                 </h3>
                 <p className="mb-6 text-sm md:text-base text-slate-300">
-                  Blueprint readies your space for the AI wearables wave, across
-                  retail, hospitality, workplaces, and venues. Join the free
-                  pilot to feel how on-site AI guidance works.
+                  Blueprint turns real retail, hospitality, workplace, and venue spaces into
+                  site-specific world models and hosted testing surfaces.
                 </p>
 
                 <div className="space-y-4">
@@ -318,7 +316,7 @@ export default function ContactForm() {
                     <div>
                       <h4 className="font-semibold">Exclusive Early Access</h4>
                       <p className="text-sm text-slate-400">
-                        Free pilot with priority support.
+                        Priority support for early world-model and hosted-access requests.
                       </p>
                     </div>
                   </div>
@@ -329,7 +327,7 @@ export default function ContactForm() {
                     <div>
                       <h4 className="font-semibold">White-Glove Onboarding</h4>
                       <p className="text-sm text-slate-400">
-                        We scan, design AI flows, and activate on-site.
+                        We help scope capture, packaging, and hosted access around your exact site.
                       </p>
                     </div>
                   </div>
@@ -367,11 +365,10 @@ export default function ContactForm() {
                     <CheckCircleIcon className="h-10 w-10 text-emerald-600" />
                   </div>
                   <h3 className="text-2xl md:text-3xl font-black text-slate-900 mb-3">
-                    Welcome to the Future! 🎉
+                    Request received
                   </h3>
                   <p className="text-slate-600 max-w-md">
-                    You've successfully signed up for the Pilot Program! Expect
-                    to hear from our team within 5 minutes.
+                    We have your site and contact details. Expect a follow-up from Blueprint shortly.
                   </p>
                   <Button
                     className="mt-6 bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-900 font-semibold border-0"
@@ -608,7 +605,7 @@ export default function ContactForm() {
                     ) : (
                       <div className="flex items-center justify-center gap-3">
                         <RocketLaunchIcon className="w-5 h-5" />
-                        Join AI Pilot Program
+                        Request early access
                       </div>
                     )}
                   </Button>

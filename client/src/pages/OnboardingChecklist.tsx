@@ -140,13 +140,13 @@ export default function OnboardingChecklist() {
       },
       {
         id: "opportunities",
-        title: "Review qualified opportunities",
+        title: "Review world-model opportunities",
         description:
-          "See what the downstream handoff looks like after a site clears qualification.",
+          "See what downstream buyer-facing world-model access can look like once a site is ready to package.",
         completed: progress.reviewQualifiedOpportunities,
         icon: FileSearch,
         action: {
-          label: "Open qualified opportunities",
+          label: "Open opportunities",
           href: "/qualified-opportunities",
           updateField: "onboardingProgress.reviewQualifiedOpportunities",
         },
@@ -212,7 +212,7 @@ export default function OnboardingChecklist() {
             Qualification intake hub
           </h1>
           <p className="mt-2 text-zinc-600">
-            Confirm the submission, route it into review, and keep marketplace browsing secondary.
+            Confirm the submission, route it into review, and keep capture and world-model delivery at the center of the workflow.
           </p>
         </div>
 

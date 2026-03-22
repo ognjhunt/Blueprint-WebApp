@@ -43,20 +43,20 @@ beforeEach(() => {
 });
 
 describe("Contact page", () => {
-  it("renders the default qualification intake mode", () => {
+  it("renders the default capture and world-model request mode", () => {
     render(<Contact />);
 
     expect(
       screen.getByRole("heading", {
-        name: /Tell us the site, the task, and what you need checked\./i,
+        name: /Tell us the site, the task, and what you want to unlock\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Qualification Intake/i)).toBeInTheDocument();
+    expect(screen.getByText(/Capture \+ World Models/i)).toBeInTheDocument();
     expect(screen.getByText(/Quick Response/i)).toBeInTheDocument();
     expect(screen.getByText(/Prefer email\?/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /See the deliverable/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Browse world models/i })).toHaveAttribute(
       "href",
-      "/readiness-pack",
+      "/world-models",
     );
     expect(screen.getByText(/Buyer type/i)).toBeInTheDocument();
     expect(screen.getByText(/Requested lanes/i)).toBeInTheDocument();
@@ -88,7 +88,7 @@ describe("Contact page", () => {
     expect(screen.queryByText(/Known blockers/i)).not.toBeInTheDocument();
   });
 
-  it("submits the qualification intake when required fields are filled", async () => {
+  it("submits the default request when required fields are filled", async () => {
     render(<Contact />);
 
     fireEvent.change(screen.getByPlaceholderText("First name*"), {
@@ -110,14 +110,14 @@ describe("Contact page", () => {
       target: { value: "Durham, NC" },
     });
     fireEvent.change(
-      screen.getByPlaceholderText("Describe the exact task Blueprint should qualify.*"),
+      screen.getByPlaceholderText("Describe the exact task or workflow you want represented.*"),
       {
         target: { value: "Qualify a tote picking workflow." },
       },
     );
 
     fireEvent.click(screen.getByRole("button", { name: "$50K-$300K" }));
-    fireEvent.click(screen.getByRole("button", { name: /Submit site intake/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Submit request/i }));
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(

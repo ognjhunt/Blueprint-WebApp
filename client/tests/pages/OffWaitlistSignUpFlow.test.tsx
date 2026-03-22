@@ -65,7 +65,7 @@ describe('OffWaitlistSignUpFlow', () => {
     render(<OffWaitlistSignUpFlow />);
 
     expect(
-      await screen.findByRole('heading', { name: /Welcome off the waitlist/i }),
+      await screen.findByRole('heading', { name: /Welcome through a legacy invite link/i }),
     ).toBeInTheDocument();
 
     const emailInput = screen.getByPlaceholderText('you@business.com');

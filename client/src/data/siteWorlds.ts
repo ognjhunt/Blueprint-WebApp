@@ -11,7 +11,11 @@ import type {
 
 function readOptionalSiteWorldEnv(key: string): string | null {
   const importMetaEnv = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
-  const rawValue = importMetaEnv?.[key] ?? process.env?.[key];
+  const nodeEnv =
+    typeof process !== "undefined" && process?.env
+      ? (process.env as Record<string, string | undefined>)
+      : undefined;
+  const rawValue = importMetaEnv?.[key] ?? nodeEnv?.[key];
   const value = typeof rawValue === "string" ? rawValue.trim() : "";
   return value || null;
 }
@@ -67,7 +71,11 @@ const HOSTED_DEMO_QUALIFICATION_STATE =
   (readHostedDemoEnv("HOSTED_DEMO_QUALIFICATION_STATE") as HostedDemoQualificationState | null)
   || "not_ready_yet";
 const SITE_WORLD_FIXTURE_MODE = String(
-  ((import.meta as unknown as { env?: Record<string, string | undefined> }).env?.MODE || process.env?.NODE_ENV || "development"),
+  (
+    (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.MODE
+    || (typeof process !== "undefined" ? process.env?.NODE_ENV : undefined)
+    || "development"
+  ),
 ).trim().toLowerCase();
 const DEMO_SITE_WORLDS_ENABLED = isTruthyFlag(readHostedDemoEnv("ENABLE_DEMO_SITE_WORLDS"));
 const STATIC_SITE_WORLD_FIXTURES_ENABLED = SITE_WORLD_FIXTURE_MODE !== "production";

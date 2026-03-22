@@ -28,7 +28,7 @@ export const PILOT_FAQ: FAQ[] = [
   },
   {
     q: "What happens after the pilot?",
-    a: "We'll send a survey to all Demo Day participants about the Pilot Program. Feedback helps us improve Blueprint. As of today, there’s no option to continue with a full implementation yet.",
+    a: "We'll send a survey to everyone who joined the demo day. Feedback helps us improve Blueprint and decide what level of follow-on access to offer next.",
   },
 ];
 

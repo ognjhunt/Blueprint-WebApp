@@ -12,31 +12,31 @@ import {
 
 const benefits = [
   "Earn 15-25% of every world model sale from your facility",
-  "Get a free qualification report of your space's robot-readiness",
-  "Attract robot teams who are ready to deploy at your exact location",
-  "No upfront cost -- you earn passively from your existing facility",
+  "Let Blueprint turn your site into a sellable digital asset",
+  "Set the rules for privacy, access, and downstream usage",
+  "No upfront cost -- opt in only when it fits your business",
 ];
 
 const howItWorks = [
   {
     title: "1. Register your space",
     description:
-      "Tell us about your facility -- type, size, hours, and any access restrictions. Takes 5 minutes.",
+      "Tell us about your facility, the type of environment it is, and any access restrictions. Takes 5 minutes.",
   },
   {
     title: "2. Approve capture windows",
     description:
-      "Choose when capturers can visit. You control the schedule, restricted zones, and privacy rules.",
+      "Choose when capturers can visit. You control scheduling, restricted zones, and privacy rules.",
   },
   {
     title: "3. Earn from world model sales",
     description:
-      "When robot teams buy world models built from captures of your space, you earn a revenue share. Every sale, automatically.",
+      "When robot teams buy world models built from your site, you earn a revenue share automatically.",
   },
   {
     title: "4. Attract robot deployments",
     description:
-      "Robot teams browsing the marketplace discover your facility. When they're ready to deploy, your site is already mapped and qualified.",
+      "Robot teams can discover and evaluate your site remotely before committing travel, pilot time, or custom integration work.",
   },
 ];
 
@@ -69,7 +69,7 @@ export default function ForSiteOperators() {
     <>
       <SEO
         title="For Site Operators | Blueprint"
-        description="Blueprint helps site operators scope the workflow, set access rules, and decide whether a site should move into deeper robotics work."
+        description="Blueprint helps site operators control capture access, rights, and commercialization for site-specific world models."
         canonical="/for-site-operators"
       />
 
@@ -83,10 +83,12 @@ export default function ForSiteOperators() {
                 For Site Operators
               </span>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Control the site review path before deeper work starts.
+                Turn your facility into a site-specific world-model asset.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
-                Register the site, set access and privacy rules, and let Blueprint qualify whether the workflow is worth deeper robotics work. Commercial follow-ons remain possible, but they come after the qualification record is clear.
+                Register the site, set access and privacy rules, and choose whether Blueprint can
+                commercialize capture from your facility. Optional review and qualification support
+                stays available, but it is not the only reason to participate.
               </p>
             </div>
           </ScrollReveal>
@@ -222,7 +224,7 @@ export default function ForSiteOperators() {
                 href="/contact?interest=site-registration"
                 className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-slate-800 hover:shadow-md"
               >
-                Start site intake
+                List your site
               </a>
               <a
                 href="/how-it-works"

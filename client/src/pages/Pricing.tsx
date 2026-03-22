@@ -38,7 +38,7 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Blueprint pricing: capturers earn for free, robot teams buy world models and simulation access, enterprise gets custom captures and managed deployment."
+        description="Blueprint pricing: capturers earn per approved site, robot teams buy world models and hosted access, and enterprise teams add managed support."
         canonical="/pricing"
       />
 
@@ -50,12 +50,12 @@ export default function Pricing() {
                 Pricing
               </p>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Earn, buy, or partner. Pick your side of the marketplace.
+                Capture supply on one side. World-model demand on the other.
               </h1>
               <p className="text-lg text-slate-600">
-                Capturers earn money for free. Robot teams buy world models and simulation access.
-                Site operators register their spaces and earn passive revenue. Enterprise gets
-                custom captures and managed deployment support.
+                Capturers earn money for free. Robot teams buy site-specific world models and hosted
+                access. Site operators can opt into licensing and enterprise teams can add managed
+                support when the workflow matters enough.
               </p>
             </header>
           </ScrollReveal>
@@ -64,7 +64,7 @@ export default function Pricing() {
           <ScrollReveal delay={0.1}>
             <section className="mt-10 rounded-3xl border border-emerald-200 bg-emerald-50 p-6 sm:p-8">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
-                Three-sided marketplace
+                Core pricing lanes
               </p>
               <StaggerGroup className="mt-2 grid gap-6 lg:grid-cols-3" stagger={0.12}>
                 <InteractiveCard accent="emerald" className="p-5">
@@ -97,7 +97,7 @@ export default function Pricing() {
                     Earn <AnimatedCounter value={15} duration={600} />-<AnimatedCounter value={25} duration={800} suffix="%" />
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
-                    Revenue share on every world model sold from your facility. Free to register.
+                    Optional licensing participation for facilities that want their site sold downstream.
                   </p>
                 </InteractiveCard>
               </StaggerGroup>

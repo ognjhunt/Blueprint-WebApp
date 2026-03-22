@@ -19,7 +19,7 @@ describe('Home', () => {
     expect(
       screen.getByRole('heading', {
         level: 1,
-        name: /indoor spatial data marketplace for robotics/i,
+        name: /Capture real sites\. Run the exact world model later\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getByText(/capture evidence/i)).toBeInTheDocument();
@@ -44,16 +44,16 @@ describe('Home', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole('heading', {
-        name: /Capture\. Qualify\. Deploy\./i,
+        name: /Capture\. Build\. Run\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('heading', {
-        name: /Built for every side of the market/i,
+        name: /Built for the capture side and the buyer side/i,
       }),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Market trajectory/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Humanoid programs are scaling faster than sites are getting ready\./i)).not.toBeInTheDocument();
-    expect(screen.getByText(/qualification is the quality moat/i)).toBeInTheDocument();
+    expect(screen.getByText(/Capture quality compounds/i)).toBeInTheDocument();
   });
 });

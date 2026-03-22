@@ -541,10 +541,10 @@ type WaitlistValidationResponse = {
 
     if (checkoutStatus === "success") {
       setPaymentStatus("success");
-      setStep(6);
+      setStep(5);
     } else if (checkoutStatus === "canceled") {
       setPaymentStatus("canceled");
-      setStep(5);
+      setStep(4);
     }
     setPaymentError(null);
 
@@ -712,7 +712,7 @@ type WaitlistValidationResponse = {
           mappingScheduleDate: scheduleDate,
           mappingScheduleTime: scheduleTime,
         });
-        setStep((p) => p + 1);
+        setStep(4);
       } catch (error: unknown) {
         console.error("Error updating mapping schedule:", error);
         const msg = error instanceof Error ? error.message : "Unknown error";
@@ -720,20 +720,6 @@ type WaitlistValidationResponse = {
         return;
       }
     } else if (step === 4) {
-      const expectedDemoDate = new Date(scheduleDate);
-      expectedDemoDate.setHours(0, 0, 0, 0);
-      expectedDemoDate.setDate(expectedDemoDate.getDate() + 1);
-
-      const normalizedDemoDate = new Date(demoDate);
-      normalizedDemoDate.setHours(0, 0, 0, 0);
-
-      if (normalizedDemoDate.getTime() !== expectedDemoDate.getTime()) {
-        setErrorMessage(
-          "Demo must happen the day after mapping so we can deliver within 24 hours.",
-        );
-        return;
-      }
-
       const auth = getAuth();
       const user = auth.currentUser;
       if (!user) {
@@ -968,11 +954,11 @@ type WaitlistValidationResponse = {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl md:text-3xl font-bold text-white">
-          Welcome off the waitlist
+          Welcome through a legacy invite link
         </h2>
         <p className="text-slate-300 mt-2">
-          US alpha access: set up your account to book mapping and demo.
-          This takes ~2 minutes.
+          This legacy access flow still lets you set up an account and reserve a mapping slot.
+          This takes about two minutes.
         </p>
       </div>
 
@@ -1049,7 +1035,7 @@ type WaitlistValidationResponse = {
       <div className="flex items-center justify-between pt-2">
         <div className="text-xs text-slate-400 flex items-center gap-2">
           <Shield className="w-4 h-4 text-emerald-300" />
-          Optional Stripe checkout in the final step. Invite valid for 14 days.
+          Optional payment in the final step. Legacy invite links remain valid until revoked.
         </div>
         <Button
           onClick={handleNextStep}
@@ -1455,120 +1441,7 @@ type WaitlistValidationResponse = {
   };
 
   const Step4 = () => {
-    const [demoBookedTimes, setDemoBookedTimes] = useState<string[]>([]);
-    const [isLoadingDemoSlots, setIsLoadingDemoSlots] = useState(true);
-
-    const minDemoDate = useCallback(() => {
-      const date = new Date(scheduleDate);
-      date.setDate(date.getDate() + 1);
-      return date;
-    }, [scheduleDate]);
-
-    const maxDemoDate = useCallback(() => {
-      const date = new Date(scheduleDate);
-      date.setDate(date.getDate() + 1);
-      return date;
-    }, [scheduleDate]);
-
-    const formatSlot = (time: string) => {
-      const [hh, mm] = time.split(":");
-      let h = parseInt(hh, 10);
-      const am = h < 12;
-      const ampm = am ? "AM" : "PM";
-      if (h === 0) h = 12;
-      else if (h > 12) h -= 12;
-      return `${h}:${mm} ${ampm}`;
-    };
-
-    useEffect(() => {
-      const fetchDemoBookedTimes = async () => {
-        setIsLoadingDemoSlots(true);
-        try {
-          const bookingDate = demoDate.toISOString().split("T")[0];
-          const demoRef = collection(db, "demoBookings");
-          const qy = query(demoRef, where("date", "==", bookingDate));
-          const snap = await getDocs(qy);
-          const times: string[] = [];
-          snap.forEach((d) => {
-            const data = d.data();
-            if (data && data.time) times.push(data.time as string);
-          });
-          setDemoBookedTimes(times);
-        } catch (error) {
-          console.error("Error fetching demo booked times:", error);
-          setErrorMessage(
-            "Could not load demo availability. Please try again.",
-          );
-        } finally {
-          setIsLoadingDemoSlots(false);
-        }
-      };
-      fetchDemoBookedTimes();
-    }, [demoDate]);
-
-    const isDemoSlotUnavailable = useCallback(
-      (slot: string) => demoBookedTimes.includes(slot),
-      [demoBookedTimes],
-    );
-
-    const generateDemoTimeSlots = useCallback(() => {
-      const slots: string[] = [];
-      for (let hour = 9; hour < 18; hour++) {
-        slots.push(`${hour.toString().padStart(2, "0")}:00`);
-        slots.push(`${hour.toString().padStart(2, "0")}:30`);
-      }
-      slots.push("18:00");
-      return slots.filter((s) => !isDemoSlotUnavailable(s));
-    }, [isDemoSlotUnavailable]);
-
-    const slots = generateDemoTimeSlots();
-    const morning = slots.filter((s) => parseInt(s.split(":")[0]) < 12);
-    const afternoon = slots.filter((s) => {
-      const h = parseInt(s.split(":")[0]);
-      return h >= 12 && h < 17;
-    });
-    const evening = slots.filter((s) => parseInt(s.split(":")[0]) >= 17);
-
-    // NOTE: Next-Day Demo UI temporarily disabled. Preserve previous markup below for future restoration.
-    return null;
-
-    /*
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl md:text-3xl font-bold text-white">
-          Schedule Next-Day Demo
-        </h2>
-        <p className="text-slate-300 mt-2">
-          We present your completed Blueprint within 24 hours. Choose the
-          time for the follow-up visit the day after mapping.
-        </p>
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-6">
-        [Calendar UI]
-        [Time slots UI]
-      </div>
-
-      <div className="flex items-center justify-between pt-2">
-        <Button
-          variant="outline"
-          onClick={handlePrevStep}
-          className="border-white/20 text-slate-200 hover:bg-white/10"
-        >
-          <ChevronLeft className="w-4 h-4 mr-1" />
-          Back
-        </Button>
-        <Button
-          onClick={handleNextStep}
-          disabled={!demoTime || isLoadingDemoSlots}
-          className="rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-600 hover:from-emerald-600 hover:to-cyan-700"
-        >
-          Complete Setup
-          <CheckCircle2 className="w-4 h-4 ml-2" />
-        </Button>
-      </div>
-    </div>
-    */
+    return <PaymentStep />;
   };
 
   const PaymentStep = () => {
@@ -1734,18 +1607,18 @@ type WaitlistValidationResponse = {
     const handleSkip = () => {
       setPaymentStatus("skipped");
       setPaymentError(null);
-      setStep(6);
+      setStep(5);
     };
 
     return (
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl md:text-3xl font-bold text-white">
-            Plan & Payment (Optional)
+            Confirm access (Optional payment)
           </h2>
           <p className="text-slate-300 mt-2">
-            Secure your onboarding with a one-time payment or skip for now. Your
-            monthly plan only begins once Blueprint is live on-site.
+            This legacy invite flow can still reserve access. Payment is optional here, and your
+            team can keep moving even if you skip it for now.
           </p>
         </div>
 
@@ -1764,11 +1637,11 @@ type WaitlistValidationResponse = {
                     <span className="text-3xl font-bold text-white">
                       ${ONBOARDING_FEE.toFixed(2)}
                     </span>
-                    <span className="text-sm text-slate-300">due today</span>
+                    <span className="text-sm text-slate-300">due today if used</span>
                   </div>
                   <p className="text-sm text-slate-300 mt-2">
-                    Covers our team on-site, LiDAR mapping kit, content prep,
-                    and concierge rollout.
+                    Legacy invite access can optionally collect payment here. You can also skip and
+                    continue into the dashboard.
                   </p>
                 </div>
               </div>
@@ -1776,11 +1649,11 @@ type WaitlistValidationResponse = {
             <ul className="mt-4 space-y-2 text-sm text-slate-200">
               <li className="flex items-start gap-2">
                 <BadgeCheck className="w-4 h-4 text-emerald-300 mt-0.5" />
-                Dedicated onboarding crew + day-of playbook.
+                Optional payment collection for older invite flows.
               </li>
               <li className="flex items-start gap-2">
                 <BadgeCheck className="w-4 h-4 text-emerald-300 mt-0.5" />
-                Guaranteed slot on {mappingDisplay} so your team is ready.
+                Mapping slot reserved for {mappingDisplay}.
               </li>
             </ul>
           </div>
@@ -1801,8 +1674,7 @@ type WaitlistValidationResponse = {
                   <span className="text-sm text-slate-300">per month</span>
                 </div>
                 <p className="text-sm text-slate-300 mt-2">
-                  Starts {billingDisplay}, 24 hours after your onboarding
-                  wraps.
+                  Starts {billingDisplay} if your team enables the care plan after access is live.
                 </p>
               </div>
             </div>
@@ -1826,8 +1698,7 @@ type WaitlistValidationResponse = {
               <p className="text-sm text-slate-300">Onboarding is locked for</p>
               <p className="text-white font-semibold">{mappingDisplay}</p>
               <p className="text-xs text-slate-400 mt-1">
-                Monthly billing begins {billingDisplay} so you never pay before
-                Blueprint is live.
+                Any recurring billing would begin {billingDisplay}, after the reserved access flow is active.
               </p>
             </div>
           </div>
@@ -1851,7 +1722,7 @@ type WaitlistValidationResponse = {
             onClick={handlePrevStep}
             className="border-white/20 text-slate-200 hover:bg-white/10"
           >
-            <ChevronLeft className="w-4 h-4 mr-1" /> Back to Demo
+            <ChevronLeft className="w-4 h-4 mr-1" /> Back to Mapping
           </Button>
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             <Button
@@ -1859,7 +1730,7 @@ type WaitlistValidationResponse = {
               onClick={handleSkip}
               className="border-white/20 text-slate-200 hover:bg-white/10"
             >
-              Skip for now
+              Skip payment
             </Button>
             <Button
               onClick={startStripeCheckout}
@@ -1873,7 +1744,7 @@ type WaitlistValidationResponse = {
                 </span>
               ) : (
                 <span className="flex items-center gap-2">
-                  Pay ${ONBOARDING_FEE.toFixed(2)} now
+                  Continue to payment
                   <ArrowRight className="w-4 h-4" />
                 </span>
               )}
@@ -1904,8 +1775,8 @@ type WaitlistValidationResponse = {
         )}
         {paymentStatus === "skipped" && (
           <div className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
-            You can take care of the $499.99 onboarding invoice later. Your
-            account access is fully unlocked in the meantime.
+            Payment was skipped. Your account access is still unlocked and the reserved schedule
+            remains attached to this legacy invite flow.
           </div>
         )}
         <p className="text-xs text-slate-400">
@@ -1934,8 +1805,7 @@ type WaitlistValidationResponse = {
     { id: 1, label: "Account" },
     { id: 2, label: "Contact & Location" },
     { id: 3, label: "Mapping" },
-    { id: 4, label: "Next-Day Demo" },
-    { id: 5, label: "Plan & Payment" },
+    { id: 4, label: "Access" },
   ];
 
   return (
@@ -1974,21 +1844,20 @@ type WaitlistValidationResponse = {
               <div>
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 text-emerald-200 mb-3">
                   <MapPin className="w-4 h-4" />
-                  US Alpha: Pilot Access
+                  Legacy access link
                 </div>
                 <h1 className="text-3xl md:text-4xl font-black leading-tight text-white">
-                  Join the Blueprint Pilot
+                  Legacy Blueprint access
                 </h1>
                 <p className="text-slate-300 mt-2 max-w-2xl">
-                  For US decision-makers (retail, museums, restaurants,
-                  showrooms). Set up your account, add location details, and
-                  book your mapping + demo in minutes.
+                  This legacy invite flow can still create an account, collect
+                  site details, and reserve a mapping window for older invite links.
                 </p>
               </div>
               <div className="hidden md:flex items-center gap-3 text-slate-300">
                 <Shield className="w-5 h-5 text-emerald-300" />
                 <span className="text-sm">
-                  Optional Stripe checkout • Cancel anytime
+                  Legacy flow • kept for older invite links
                 </span>
               </div>
             </div>
@@ -2035,7 +1904,7 @@ type WaitlistValidationResponse = {
                         <div>
                           <p className="text-sm text-slate-300">Why join</p>
                           <h3 className="text-lg font-bold text-white">
-                            AI glasses that drive results
+                            A legacy path into Blueprint
                           </h3>
                         </div>
                       </div>
@@ -2043,23 +1912,22 @@ type WaitlistValidationResponse = {
                         <li className="flex items-start gap-2">
                           <CheckCircle2 className="w-4 h-4 text-emerald-300 mt-0.5" />
                           <span>
-                            Delight visitors with guided product & exhibit
-                            moments on wearable AI
+                            Create an account and preserve access tied to an older invite link
                           </span>
                         </li>
                         <li className="flex items-start gap-2">
                           <CheckCircle2 className="w-4 h-4 text-emerald-300 mt-0.5" />
-                          <span>No app downloads, instant access via QR</span>
+                          <span>Keep site details, mapping, and scheduling attached to that invite</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <CheckCircle2 className="w-4 h-4 text-emerald-300 mt-0.5" />
                           <span>
-                            We handle mapping, content & analytics for you
+                            Continue into the dashboard even if payment is skipped
                           </span>
                         </li>
                       </ul>
                       <div className="mt-4 text-xs text-slate-400">
-                        Serving qualifying businesses across the United States.
+                        This page is kept for backwards compatibility with older invite links.
                       </div>
                     </div>
 
@@ -2131,7 +1999,7 @@ type WaitlistValidationResponse = {
                         <div className="flex items-start gap-2">
                           <Calendar className="w-4 h-4 text-emerald-300 mt-0.5" />
                           <div>
-                            <p className="text-slate-400">Next-Day Demo</p>
+                            <p className="text-slate-400">Follow-up window</p>
                             <p className="text-white">
                               {demoDate ? demoDate.toLocaleDateString() : "N/A"} •{" "}
                               {demoTime || "N/A"}
@@ -2210,8 +2078,7 @@ type WaitlistValidationResponse = {
                           {step === 2 && Step2}
                           {step === 3 && <Step3 />}
                           {step === 4 && <Step4 />}
-                          {step === 5 && <PaymentStep />}
-                          {step === 6 && <Confirmation />}
+                          {step === 5 && <Confirmation />}
                         </motion.div>
                       </AnimatePresence>
                     </div>
@@ -2262,7 +2129,7 @@ type WaitlistValidationResponse = {
                         </span>
                       </div>
                       <div>
-                        Next-Day Demo:{" "}
+                        Follow-up window:{" "}
                         <span className="text-white">
                           {demoDate?.toLocaleDateString() || "N/A"} •{" "}
                           {demoTime || "N/A"}

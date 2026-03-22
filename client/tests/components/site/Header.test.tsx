@@ -22,20 +22,20 @@ describe("Header", () => {
     expect(screen.queryByRole("link", { name: /How It Works/i })).not.toBeInTheDocument();
   });
 
-  it("shows Site Qualification in the top navigation", () => {
+  it("shows Capture in the top navigation", () => {
     render(<Header />);
 
-    const link = screen.getByRole("link", { name: /^Site Qualification$/i });
+    const link = screen.getByRole("link", { name: /^Capture$/i });
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute("href", "/how-it-works");
+    expect(link).toHaveAttribute("href", "/capture");
   });
 
-  it("puts Site Qualification first in the top navigation", () => {
+  it("puts Capture first in the top navigation", () => {
     render(<Header />);
 
     const nav = screen.getByRole("navigation");
     const navLinks = within(nav).getAllByRole("link");
-    expect(navLinks[0]).toHaveTextContent("Site Qualification");
+    expect(navLinks[0]).toHaveTextContent("Capture");
   });
 
   it("does not show legacy partners nav link", () => {
@@ -52,10 +52,10 @@ describe("Header", () => {
     expect(link).toHaveAttribute("href", "/world-models");
   });
 
-  it("uses Request Site Qualification as the primary CTA", () => {
+  it("uses Talk to Blueprint as the primary CTA", () => {
     render(<Header />);
 
-    expect(screen.getByRole("link", { name: /Request Site Qualification/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Talk to Blueprint/i })).toHaveAttribute(
       "href",
       "/contact",
     );

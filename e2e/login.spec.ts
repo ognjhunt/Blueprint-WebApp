@@ -9,4 +9,7 @@ test('login page renders core auth UI', async ({ page }) => {
   await expect(
     page.getByRole('button', { name: /Continue with Google/i }),
   ).toBeVisible();
+  await expect(
+    page.getByText(/Sign in to continue to Blueprint/i),
+  ).toBeVisible();
 });

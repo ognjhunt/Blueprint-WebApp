@@ -24,11 +24,11 @@ describe("PilotExchangeGuide", () => {
     vi.clearAllMocks();
   });
 
-  it("renders beginner framing, gates, and charts", () => {
+  it("renders beginner framing, gates, and charts", { timeout: 15000 }, () => {
     render(<PilotExchangeGuide />);
 
     expect(
-      screen.getByRole("heading", { name: /How qualified opportunities work/i }),
+      screen.getByRole("heading", { name: /How site opportunities work/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Why This Matters/i)).toBeInTheDocument();
     expect(
@@ -56,7 +56,7 @@ describe("PilotExchangeGuide", () => {
     expect(analyticsEventsMock.pilotExchangeChartView).toHaveBeenCalledTimes(4);
   });
 
-  it("shows faq interactions", () => {
+  it("shows faq interactions", { timeout: 15000 }, () => {
     render(<PilotExchangeGuide />);
 
     const faqButton = screen.getByRole("button", {

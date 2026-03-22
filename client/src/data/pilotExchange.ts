@@ -333,9 +333,9 @@ export const pilotExchangeFaq: PilotExchangeFaqItem[] = [
   },
   {
     id: "faq-05",
-    question: "Who pays for qualified opportunity exchange?",
+    question: "Who pays for site opportunity access?",
     answer:
-      "Site operators pay for qualification first. Robot teams buy access to qualified opportunities, deeper evaluation, and later managed work only when the site is real.",
+      "Robot teams buy access to site opportunities, deeper evaluation, and later managed work when the site is real and useful. Site operators can participate through commercialization and access agreements.",
   },
   {
     id: "faq-06",

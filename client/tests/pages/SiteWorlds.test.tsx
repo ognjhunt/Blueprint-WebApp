@@ -13,7 +13,7 @@ describe("SiteWorlds", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Each world model is built from real indoor captures and verified against Blueprint's qualification standard\./i,
+        /Each world model is built from real indoor captures and tied to a specific site and workflow\./i,
       ),
     ).toBeInTheDocument();
     expect(

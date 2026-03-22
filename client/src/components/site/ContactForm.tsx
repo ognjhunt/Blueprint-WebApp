@@ -297,7 +297,7 @@ export function ContactForm() {
         <p className="mt-4 text-zinc-600">
           {hostedMode
             ? "Blueprint now has the site, task, and robot setup. We will follow up with the next step to get the hosted session moving."
-            : "Blueprint now has the site, task, and constraints. We will review the submission and follow up with the right next step."}
+            : "Blueprint now has the site, task, and commercial context. We will follow up with the right next step for capture, world-model access, or hosted support."}
         </p>
         <div className="mt-8 rounded-xl bg-zinc-50 p-6 text-left">
           <h3 className="mb-4 text-sm font-semibold text-zinc-900">What happens next?</h3>
@@ -309,7 +309,7 @@ export function ContactForm() {
               <p>
                 {hostedMode
                   ? "We confirm the site, robot embodiment, and the task you want to test."
-                  : "We review scope, evidence quality, and the likely qualification path."}
+                  : "We confirm whether you need capture supply, world-model access, hosted sessions, or managed support."}
               </p>
             </div>
             <div className="flex items-start gap-3">
@@ -319,7 +319,7 @@ export function ContactForm() {
               <p>
                 {hostedMode
                   ? "We align on the outputs you need back, such as videos, metrics, and failure cases."
-                  : "If evidence is missing, we request a tighter capture pass instead of guessing."}
+                  : "If the site still needs fresh capture or tighter scope, we line that up instead of overselling what exists."}
               </p>
             </div>
             <div className="flex items-start gap-3">
@@ -329,7 +329,7 @@ export function ContactForm() {
               <p>
                 {hostedMode
                   ? "We return with the next step to launch or scope the hosted session."
-                  : "Qualified sites move toward handoff, preview assets, evaluation packages, or later managed work."}
+                  : "From there we route into world-model packaging, hosted access, or follow-on support."}
               </p>
             </div>
           </div>
@@ -459,7 +459,7 @@ export function ContactForm() {
           placeholder={
             hostedMode
               ? "Describe the task you want to test.*"
-              : "Describe the exact task Blueprint should qualify.*"
+              : "Describe the exact task or workflow you want represented.*"
           }
           value={taskStatement}
           onChange={(event) => setTaskStatement(event.target.value)}
@@ -583,7 +583,11 @@ export function ContactForm() {
         </label>
         <textarea
           className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-          placeholder={hostedMode ? "Policy, checkpoint, outputs, or other notes." : "Add anything important for review."}
+          placeholder={
+            hostedMode
+              ? "Policy, checkpoint, outputs, or other notes."
+              : "Add anything important about capture needs, delivery format, or commercial context."
+          }
           value={detailsMessage}
           onChange={(event) => setDetailsMessage(event.target.value)}
         />
@@ -611,7 +615,7 @@ export function ContactForm() {
           ? "Submitting..."
           : hostedMode
             ? "Start hosted session"
-            : "Submit site intake"}
+            : "Submit request"}
         <ArrowRight className="ml-2 h-4 w-4" />
       </button>
     </form>

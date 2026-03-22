@@ -53,15 +53,15 @@ const threeWhy = [
     icon: <MapPinned className="h-6 w-6" />,
   },
   {
-    title: "Qualification is the quality moat",
+    title: "Real capture is the moat",
     description:
-      "Anyone can collect raw spatial data. Blueprint's automated pipeline ensures every world model passes coverage, completeness, and readiness checks.",
+      "Anyone can talk about digital twins. Blueprint compounds real indoor capture and turns it into sellable, site-specific world-model products.",
     icon: <ShieldCheck className="h-6 w-6" />,
   },
   {
-    title: "Crowdsourced scale",
+    title: "Distributed capture creates coverage",
     description:
-      "Instead of expensive professional scanning teams, Blueprint's capture network covers any indoor location -- from grocery stores to warehouses to gyms.",
+      "Instead of relying only on expensive specialist scans, Blueprint can source coverage across grocery stores, warehouses, gyms, offices, and other real sites.",
     icon: <Globe className="h-6 w-6" />,
   },
 ];
@@ -76,24 +76,24 @@ const pipelineSteps = [
   },
   {
     step: "02",
-    title: "Automated quality pipeline",
+    title: "Build the world model",
     icon: <ScanLine className="h-5 w-5" />,
     description:
-      "Every capture passes through coverage checks, blur detection, and completeness scoring. Only captures that meet the quality bar become world models.",
+      "BlueprintCapturePipeline turns usable capture into site-specific world models, hosted sessions, and exportable artifacts for downstream teams.",
   },
   {
     step: "03",
-    title: "Qualification verification",
+    title: "Apply trust checks",
     icon: <ShieldCheck className="h-5 w-5" />,
     description:
-      "World models are scored against Blueprint's readiness standard -- physical access, environmental conditions, safety constraints, and task feasibility.",
+      "Blueprint can still apply coverage, rights, privacy, and review checks so teams know what they are buying and what remains uncertain.",
   },
   {
     step: "04",
-    title: "Robot teams train and deploy",
+    title: "Run or buy access",
     icon: <Bot className="h-5 w-5" />,
     description:
-      "Robot teams browse the marketplace, purchase site-specific world models, run simulations, and train on the exact locations they'll deploy to.",
+      "Robot teams buy access to the exact site, open a hosted session, export outputs, and use the same environment for demos, evals, and release checks.",
   },
 ];
 
@@ -123,7 +123,7 @@ const whoEarns = [
     statPrefix: "",
     statSuffix: "",
     statLabel: "",
-    description: "Operates the marketplace, runs the quality pipeline, and connects supply with demand.",
+    description: "Runs the product layer that turns capture supply into useful world-model products and hosted access.",
   },
 ];
 
@@ -141,7 +141,7 @@ export default function HowItWorks() {
     <>
       <SEO
         title="How It Works | Blueprint"
-        description="How Blueprint moves from site intake to qualification review, then into optional previews, hosted world models, and deeper evaluation."
+        description="How Blueprint moves from real-world capture into site-specific world models, hosted access, and optional trust checks."
         canonical="/how-it-works"
       />
 
@@ -169,7 +169,7 @@ export default function HowItWorks() {
                     transition={{ duration: 0.6, delay: 0.1 }}
                     className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl"
                   >
-                    Intake. Qualify. Route.
+                    Capture. Build. Run.
                   </motion.h1>
                   <motion.p
                     initial={shouldReduce ? {} : { opacity: 0, y: 16 }}
@@ -177,7 +177,7 @@ export default function HowItWorks() {
                     transition={{ duration: 0.5, delay: 0.2 }}
                     className="max-w-2xl text-lg leading-relaxed text-zinc-600"
                   >
-                    Blueprint starts with the site, task, and evidence needed to answer the deployment question. Hosted world models and preview assets can follow, but qualification stays first.
+                    Blueprint starts with real-world capture, turns it into site-specific world models, and gives robot teams a browser path into the exact site they care about.
                   </motion.p>
                 </div>
 
@@ -191,7 +191,7 @@ export default function HowItWorks() {
                     href="/capture"
                     className="group inline-flex items-center justify-center rounded-lg bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-zinc-700 hover:shadow-lg"
                   >
-                    Start intake
+                    Start capturing
                     <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </a>
                   <a
@@ -222,11 +222,11 @@ export default function HowItWorks() {
                     </motion.div>
                     <div className="space-y-2">
                       <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                        Three-sided marketplace
+                        Capture + world models
                       </p>
                       <p className="text-sm text-zinc-600">
-                        Capturers earn money. Robot teams get site-specific world models. Site
-                        operators earn passive income from their facilities.
+                        Capturers supply the raw site data. Robot teams buy access to site-specific
+                        world models and hosted sessions. Sites can opt into commercialization when useful.
                       </p>
                     </div>
                   </div>
@@ -237,7 +237,7 @@ export default function HowItWorks() {
                       <p className="text-lg font-bold text-zinc-900">
                         <AnimatedCounter value={3} duration={800} />
                       </p>
-                      <p className="text-xs text-zinc-500">market sides</p>
+                      <p className="text-xs text-zinc-500">core lanes</p>
                     </div>
                     <div className="h-6 w-px bg-zinc-200" />
                     <div className="text-center">
@@ -251,7 +251,7 @@ export default function HowItWorks() {
                       <p className="text-lg font-bold text-zinc-900">
                         <AnimatedCounter value={100} suffix="%" duration={1200} />
                       </p>
-                      <p className="text-xs text-zinc-500">verified</p>
+                      <p className="text-xs text-zinc-500">site-specific</p>
                     </div>
                   </div>
                 </div>
@@ -399,16 +399,16 @@ export default function HowItWorks() {
               </p>
               <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
                 <a
-                    href="/contact?buyerType=robot_team&interest=qualification"
+                  href="/capture"
                   className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition-all hover:bg-zinc-100 hover:shadow-lg"
                 >
-                  Start earning
+                  Start capturing
                 </a>
                 <a
                   href="/world-models"
                   className="inline-flex items-center justify-center rounded-lg border border-zinc-700 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-zinc-800"
                 >
-                    Review downstream lanes
+                  Browse world models
                 </a>
               </div>
             </div>

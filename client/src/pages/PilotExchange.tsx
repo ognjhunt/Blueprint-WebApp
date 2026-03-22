@@ -485,8 +485,8 @@ export default function PilotExchange() {
   return (
     <>
       <SEO
-        title="Qualified Opportunities | Blueprint"
-        description="Qualified site briefs that robot teams can review, evaluate, and respond to after site qualification."
+        title="Site Opportunities | Blueprint"
+        description="Site briefs and world-model opportunities that robot teams can review, evaluate, and respond to once a site is ready."
         canonical="/qualified-opportunities"
       />
       <div className="relative min-h-screen bg-white text-zinc-900 font-sans selection:bg-zinc-200 selection:text-zinc-900">
@@ -511,27 +511,27 @@ export default function PilotExchange() {
           {/* Hero */}
           <section className="mb-16 max-w-3xl">
             <div className="mb-3 inline-flex items-center rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-zinc-600">
-              After site qualification
+              Downstream site opportunities
             </div>
             <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-zinc-950 mb-6">
-              Qualified opportunities for robot teams.
+              Site opportunities for robot teams.
             </h1>
             <p className="text-lg text-zinc-600 mb-8 leading-relaxed">
-              These are sites and workflows Blueprint has already scoped. Robot teams can review
-              the brief, run a check, and respond with less guesswork.
+              These are sites and workflows Blueprint has already captured and packaged. Robot
+              teams can review the brief, run a check, and respond with less guesswork.
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <Button
                 onClick={() => openEvalDialog()}
                 className="bg-zinc-900 text-white hover:bg-zinc-800 px-6 py-5 text-sm font-medium"
               >
-                Check a qualified site
+                Check a site package
               </Button>
               <a href="#pricing" className="text-sm font-medium text-zinc-900 hover:text-zinc-700 underline underline-offset-4 decoration-zinc-300">
                 See pricing
               </a>
               <a href="/qualified-opportunities-guide" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 underline underline-offset-4 decoration-zinc-300">
-                See how qualification works
+                See how site opportunities work
               </a>
             </div>
           </section>
@@ -541,8 +541,8 @@ export default function PilotExchange() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Simple pricing</p>
               <h2 className="mt-3 text-3xl font-bold tracking-tight text-zinc-950">Pay for the job you need.</h2>
               <p className="mt-3 text-base leading-7 text-zinc-600">
-                This page starts after qualification. Robot teams pay for access to better
-                opportunities and only buy deeper work when the site is real.
+                This page sits downstream of capture and world-model packaging. Robot teams pay for
+                access to better opportunities and only buy deeper work when the site is real.
               </p>
             </div>
 
@@ -550,7 +550,7 @@ export default function PilotExchange() {
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Before this page</p>
                 <p className="mt-2 text-2xl font-bold text-emerald-950">Readiness Pack</p>
-                <p className="mt-2 text-sm text-emerald-900">Site operators buy qualification first. This page opens only after a site has been scoped and reviewed.</p>
+                <p className="mt-2 text-sm text-emerald-900">This page opens after a site has been captured, reviewed, and packaged into a buyer-facing opportunity.</p>
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-white p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Robot teams</p>

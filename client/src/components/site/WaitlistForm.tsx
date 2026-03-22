@@ -23,11 +23,11 @@ export function WaitlistForm() {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to join waitlist");
+        throw new Error("Failed to request access");
       }
 
       setStatus("success");
-      setMessage("You're on the waitlist. We'll be in touch soon.");
+      setMessage("Access request received. We'll be in touch soon.");
       setEmail("");
       setLocationType("");
     } catch (error) {
@@ -75,7 +75,7 @@ export function WaitlistForm() {
               Submitting...
             </>
           ) : (
-            "Join waitlist"
+            "Request access"
           )}
         </button>
       </form>
