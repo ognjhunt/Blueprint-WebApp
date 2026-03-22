@@ -4,7 +4,7 @@ import {
   StaggerGroup,
   InteractiveCard,
   AnimatedCounter,
-  HeroPipelineGraphic,
+  HeroPipelineAnimated,
 } from "@/components/motion";
 import { motion, useReducedMotion } from "framer-motion";
 import {
@@ -276,7 +276,7 @@ export default function Home() {
               </div>
 
               {/* Animated hero graphic — replaces static SVG */}
-              <HeroPipelineGraphic />
+              <HeroPipelineAnimated />
             </div>
           </div>
         </div>
