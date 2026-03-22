@@ -25,7 +25,7 @@
   h4,
   h5,
   h6 {
-    color: hsl(var(--heading));
+    color: inherit;
     letter-spacing: -0.03em;
   }
 
