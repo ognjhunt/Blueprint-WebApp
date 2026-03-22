@@ -81,6 +81,9 @@ describe("post signup direct actions", () => {
         mappingTime: "10:00",
       },
       scheduling: {
+        automation_status: "completed",
+        block_reason_code: null,
+        retryable: false,
         confidence: 0.92,
         requires_human_review: false,
         next_action: "Send confirmation and calendar invite",
@@ -131,7 +134,7 @@ describe("post signup direct actions", () => {
     expect(result.actionResults.google_sheet.status).toBe("executed");
   });
 
-  it("returns partial when schedule or config is missing", async () => {
+  it("returns blocked when schedule or config is missing", async () => {
     sendEmail.mockResolvedValue({ sent: true });
     sendSlackMessage.mockResolvedValue({ sent: false });
 
@@ -143,8 +146,11 @@ describe("post signup direct actions", () => {
         address: "100 Main St",
       },
       scheduling: {
+        automation_status: "blocked",
+        block_reason_code: "missing_schedule_context",
+        retryable: true,
         confidence: 0.75,
-        requires_human_review: true,
+        requires_human_review: false,
         next_action: "Collect scheduling info",
         schedule_summary: "No mapping slot found.",
         contact_lookup_plan: ["Resolve booking contact"],
@@ -179,7 +185,8 @@ describe("post signup direct actions", () => {
       },
     });
 
-    expect(result.status).toBe("partial");
+    expect(result.status).toBe("blocked");
+    expect(result.blockingReasonCodes).toContain("blocked_missing_config");
     expect(result.actionResults.calendar.status).toBe("blocked_missing_config");
     expect(result.actionResults.google_sheet.status).toBe("blocked_missing_config");
   });

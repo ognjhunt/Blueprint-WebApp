@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const originalFetch = global.fetch;
 
@@ -10,6 +10,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
 }));
 
 const overrideEnvKeys = [
+  "NODE_ENV",
+  "BLUEPRINT_ENABLE_DEMO_SITE_WORLDS",
   "BLUEPRINT_HOSTED_DEMO_RUNTIME_BASE_URL",
   "BLUEPRINT_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL",
   "BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID",
@@ -20,6 +22,10 @@ const overrideEnvKeys = [
 ];
 
 describe("env-gated hosted demo site-world override", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
   afterEach(() => {
     for (const key of overrideEnvKeys) {
       delete process.env[key];
@@ -94,5 +100,19 @@ describe("env-gated hosted demo site-world override", () => {
     expect(runtime.allowBlockedSiteWorld).toBe(true);
     expect(runtime.qualificationState).toBe("not_ready_yet");
     expect(runtime.registeredCanonicalPackageUri).toBe(runtime.siteWorldSpecUri);
+  });
+
+  it("hides the hosted demo override from the production catalog unless the demo flag is enabled", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.BLUEPRINT_HOSTED_DEMO_RUNTIME_BASE_URL = "https://demo-runtime.example.com";
+    process.env.BLUEPRINT_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL = "wss://demo-runtime.example.com";
+    process.env.BLUEPRINT_HOSTED_DEMO_SITE_WORLD_ID = "siteworld-hidden";
+    process.env.BLUEPRINT_HOSTED_DEMO_PIPELINE_URI_PREFIX =
+      "gs://vast-local/scenes/hidden/captures/demo/pipeline";
+    process.env.BLUEPRINT_HOSTED_DEMO_SITE_NAME = "Hidden Demo";
+    process.env.BLUEPRINT_HOSTED_DEMO_SITE_ADDRESS = "Tunnel-backed local demo";
+
+    const { getSiteWorldById } = await import("../../client/src/data/siteWorlds");
+    expect(getSiteWorldById("siteworld-hidden")).toBeNull();
   });
 });

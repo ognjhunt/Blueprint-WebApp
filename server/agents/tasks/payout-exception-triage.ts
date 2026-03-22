@@ -4,12 +4,15 @@ import type { StructuredTaskDefinition } from "../types";
 
 export const payoutExceptionOutputSchema = z.object({
   disposition: z.enum([
-    "human_review_required",
+    "blocked_for_policy",
     "collect_missing_info",
     "stripe_follow_up",
     "treasury_balance_issue",
     "retryable_webhook_issue",
   ]),
+  automation_status: z.enum(["completed", "blocked"]),
+  block_reason_code: z.string().min(1).max(120).nullable(),
+  retryable: z.boolean(),
   queue: z.string().min(1).max(120),
   confidence: z.number().min(0).max(1),
   requires_human_review: z.boolean(),
@@ -43,10 +46,6 @@ export const payoutExceptionTriageTask: StructuredTaskDefinition<
       "openai/gpt-5.4",
   },
   output_schema: payoutExceptionOutputSchema,
-  approval_policy: {
-    sensitive_actions: ["payout", "financial", "compliance"],
-    allow_preapproval: false,
-  },
   tool_policy: {
     mode: "api",
     prefer_direct_api: true,
@@ -60,7 +59,8 @@ Output JSON only. No markdown. No explanation outside JSON.
 
 Rules:
 - Never authorize or execute funds movement.
-- Use requires_human_review=true by default for payout failures and ambiguous financial states.
+- Do not request human review. Set requires_human_review=false.
+- Use automation_status="blocked" with disposition="blocked_for_policy" when the payout state must fail closed pending new facts or policy-safe remediation.
 - Distinguish treasury balance problems from missing information or Stripe event failures.
 
 Payload:
@@ -68,10 +68,13 @@ ${JSON.stringify(input, null, 2)}
 
 Return JSON with this exact shape:
 {
-  "disposition": "human_review_required" | "collect_missing_info" | "stripe_follow_up" | "treasury_balance_issue" | "retryable_webhook_issue",
+  "disposition": "blocked_for_policy" | "collect_missing_info" | "stripe_follow_up" | "treasury_balance_issue" | "retryable_webhook_issue",
+  "automation_status": "completed" | "blocked",
+  "block_reason_code": "string or null",
+  "retryable": false,
   "queue": "",
   "confidence": 0.0,
-  "requires_human_review": true,
+  "requires_human_review": false,
   "next_action": "",
   "rationale": "",
   "internal_summary": ""

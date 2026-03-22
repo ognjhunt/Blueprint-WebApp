@@ -1060,7 +1060,8 @@ export default function AdminAgentConsole() {
                       </pre>
                     ) : null}
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {run.status === "pending_approval" ? (
+                      {run.status === "pending_approval" &&
+                      ["operator_thread", "external_harness_thread"].includes(run.task_kind) ? (
                         <button
                           type="button"
                           onClick={() => approveRunMutation.mutate(run.id)}

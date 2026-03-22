@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import AdminAgentConsole from "@/components/admin/AdminAgentConsole";
@@ -219,7 +219,14 @@ describe("AdminAgentConsole", () => {
     renderConsole();
 
     expect(await screen.findByText(/Ops thread/i)).toBeInTheDocument();
-    expect(await screen.findAllByText(/docs\/ops-automation-analysis-2026\.md/i)).toHaveLength(2);
+    const selectedSessionCard = await screen.findByRole("heading", { name: /Selected session/i });
+    const selectedSessionPanel = selectedSessionCard.parentElement;
+    expect(selectedSessionPanel).not.toBeNull();
+    expect(
+      within(selectedSessionPanel as HTMLElement).getByText(
+        /docs\/ops-automation-analysis-2026\.md/i,
+      ),
+    ).toBeInTheDocument();
     expect(await screen.findByText(/https:\/\/openclaw\.internal/i)).toBeInTheDocument();
     expect(await screen.findByText(/Sensitive actions require approval/i)).toBeInTheDocument();
 

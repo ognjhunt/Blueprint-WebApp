@@ -20,6 +20,8 @@ export type ActionResult = {
   status: ActionStatus;
   detail: string;
   id?: string | null;
+  block_reason_code?: string | null;
+  retryable?: boolean;
 };
 
 type BookingRecord = {
@@ -324,9 +326,31 @@ function deriveWorkflowStatus(results: Record<string, ActionResult>) {
     return "failed";
   }
   if (hasBlocked) {
-    return "partial";
+    return "blocked";
   }
   return "completed";
+}
+
+function withActionMetadata(result: ActionResult): ActionResult {
+  if (result.status.startsWith("blocked_")) {
+    return {
+      ...result,
+      block_reason_code: result.status,
+      retryable: true,
+    };
+  }
+
+  return {
+    ...result,
+    block_reason_code: null,
+    retryable: false,
+  };
+}
+
+function collectBlockingReasonCodes(results: Record<string, ActionResult>) {
+  return Object.values(results)
+    .map((result) => result.block_reason_code)
+    .filter((value): value is string => typeof value === "string" && value.length > 0);
 }
 
 export async function executePostSignupDirectActions(params: {
@@ -338,7 +362,7 @@ export async function executePostSignupDirectActions(params: {
   const actionPlan = scheduling.action_plan;
   const actionResults: Record<string, ActionResult> = {};
 
-  actionResults.resolve_contact = {
+  actionResults.resolve_contact = withActionMetadata({
     status: actionPlan.resolve_contact
       ? context.resolvedContact.email || context.resolvedContact.name
         ? "executed"
@@ -349,43 +373,45 @@ export async function executePostSignupDirectActions(params: {
           context.resolvedContact.email ? ` <${context.resolvedContact.email}>` : ""
         }.`
       : "No contact could be resolved from payload, Firestore, or Google Sheets.",
-  };
+  });
 
   if (actionPlan.create_calendar_event) {
-    actionResults.calendar = await createCalendarEvent({
-      title: actionPlan.calendar_title,
-      description: actionPlan.calendar_description,
-      address: input.address,
-      mappingDate: input.mappingDate || context.booking?.date || null,
-      mappingTime: input.mappingTime || context.booking?.time || null,
-      contactEmail: context.resolvedContact.email,
-    });
+    actionResults.calendar = withActionMetadata(
+      await createCalendarEvent({
+        title: actionPlan.calendar_title,
+        description: actionPlan.calendar_description,
+        address: input.address,
+        mappingDate: input.mappingDate || context.booking?.date || null,
+        mappingTime: input.mappingTime || context.booking?.time || null,
+        contactEmail: context.resolvedContact.email,
+      }),
+    );
   } else {
-    actionResults.calendar = {
+    actionResults.calendar = withActionMetadata({
       status: "skipped",
       detail: "Calendar event creation was not requested by the action plan.",
-    };
+    });
   }
 
   if (actionPlan.send_confirmation_email) {
     const emailStatus = getEmailTransportStatus();
     if (!emailStatus.configured) {
-      actionResults.email = {
+      actionResults.email = withActionMetadata({
         status: "blocked_missing_config",
         detail: "SMTP is not configured for direct email delivery.",
-      };
+      });
     } else if (!context.resolvedContact.email) {
-      actionResults.email = {
+      actionResults.email = withActionMetadata({
         status: "blocked_missing_contact",
         detail: "No contact email is available for post-signup confirmation.",
-      };
+      });
     } else {
       const emailResult = await sendEmail({
         to: context.resolvedContact.email,
         subject: scheduling.confirmations.email.subject,
         text: scheduling.confirmations.email.body,
       });
-      actionResults.email = emailResult.sent
+      actionResults.email = withActionMetadata(emailResult.sent
         ? {
             status: "executed",
             detail: `Sent confirmation email to ${context.resolvedContact.email}.`,
@@ -393,18 +419,18 @@ export async function executePostSignupDirectActions(params: {
         : {
             status: "failed",
             detail: "SMTP send failed for the post-signup confirmation email.",
-          };
+          });
     }
   } else {
-    actionResults.email = {
+    actionResults.email = withActionMetadata({
       status: "skipped",
       detail: "Confirmation email sending was not requested by the action plan.",
-    };
+    });
   }
 
   if (actionPlan.send_slack_notification) {
     const slackResult = await sendSlackMessage(scheduling.confirmations.slack);
-    actionResults.slack = slackResult.sent
+    actionResults.slack = withActionMetadata(slackResult.sent
       ? {
           status: "executed",
           detail: "Posted Slack notification for the post-signup workflow.",
@@ -412,38 +438,45 @@ export async function executePostSignupDirectActions(params: {
       : {
           status: "blocked_missing_config",
           detail: "Slack webhook is not configured for post-signup notifications.",
-        };
+        });
   } else {
-    actionResults.slack = {
+    actionResults.slack = withActionMetadata({
       status: "skipped",
       detail: "Slack notification sending was not requested by the action plan.",
-    };
+    });
   }
 
   if (actionPlan.update_google_sheet) {
     if (!context.sheetRow || !context.sheetRow.found) {
-      actionResults.google_sheet = {
+      actionResults.google_sheet = withActionMetadata({
         status: context.sheetRow?.reason || "skipped",
         detail: context.sheetRow?.detail || "No matching Google Sheets row was found to update.",
-      };
-    } else {
-      actionResults.google_sheet = await updateSheetRow(context.sheetRow, {
-        "Have they picked a date+time for mapping?":
-          input.mappingDate || context.booking?.date ? "Yes" : "No",
-        "Contact Name": context.resolvedContact.name || "",
-        "Contact Phone Number": context.resolvedContact.phone || "",
-        "Post Signup Workflow Status": actionPlan.sheet_status_note,
       });
+    } else {
+      actionResults.google_sheet = withActionMetadata(
+        await updateSheetRow(context.sheetRow, {
+          "Have they picked a date+time for mapping?":
+            input.mappingDate || context.booking?.date ? "Yes" : "No",
+          "Contact Name": context.resolvedContact.name || "",
+          "Contact Phone Number": context.resolvedContact.phone || "",
+          "Post Signup Workflow Status": actionPlan.sheet_status_note,
+        }),
+      );
     }
   } else {
-    actionResults.google_sheet = {
+    actionResults.google_sheet = withActionMetadata({
       status: "skipped",
       detail: "Google Sheets update was not requested by the action plan.",
-    };
+    });
   }
 
+  const status = deriveWorkflowStatus(actionResults);
+  const blockingReasonCodes = collectBlockingReasonCodes(actionResults);
+
   return {
-    status: deriveWorkflowStatus(actionResults),
+    status,
     actionResults,
+    blockingReasonCodes,
+    retryable: status === "blocked" && blockingReasonCodes.length > 0,
   };
 }

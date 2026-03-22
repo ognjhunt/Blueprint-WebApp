@@ -3,10 +3,7 @@ import { logger } from "../logger";
 import type { InboundRequest } from "../types/inbound-request";
 import { decryptInboundRequestForAdmin } from "../utils/field-encryption";
 import { runAgentTask } from "./runtime";
-import {
-  deriveInboundHumanReviewFlag,
-  type InboundQualificationOutput,
-} from "./tasks/inbound-qualification";
+import type { InboundQualificationOutput } from "./tasks/inbound-qualification";
 import type { PreviewDiagnosisInput } from "./tasks/preview-diagnosis";
 import type {
   PostSignupSchedulingTaskInput,
@@ -55,12 +52,17 @@ type WaitlistMarketContext = {
 export type WaitlistAutomationRunResult = {
   submissionId: string;
   status: "processed" | "failed";
+  automationStatus?: "completed" | "blocked";
   recommendation?: WaitlistTriageOutput["recommendation"];
   recommendedQueue?: string;
   inviteReadinessScore?: number;
   requiresHumanReview?: boolean;
   error?: string;
 };
+
+function normalizeAutomationStatus(value: unknown): "completed" | "blocked" {
+  return value === "blocked" ? "blocked" : "completed";
+}
 
 function normalizeWaitlistSubmission(
   doc: FirebaseFirestore.DocumentSnapshot | FirebaseFirestore.QueryDocumentSnapshot,
@@ -146,10 +148,10 @@ async function buildWaitlistMarketContext(
 
 function nextWaitlistStatus(
   recommendation: WaitlistTriageOutput["recommendation"],
-  requiresHumanReview: boolean,
+  automationStatus: "completed" | "blocked",
 ) {
-  if (requiresHumanReview) {
-    return "review_ready";
+  if (automationStatus === "blocked") {
+    return "follow_up_required";
   }
 
   switch (recommendation) {
@@ -252,23 +254,21 @@ export async function runWaitlistAutomationLoop(params?: {
         throw new Error(result.error || "Waitlist automation did not complete");
       }
 
-      const nextStatus = nextWaitlistStatus(
-        result.output.recommendation,
-        result.output.requires_human_review,
+      const automationStatus = normalizeAutomationStatus(
+        result.output.automation_status,
       );
+      const nextStatus = nextWaitlistStatus(result.output.recommendation, automationStatus);
 
       await doc.ref.set(
         {
           status: nextStatus,
           queue: result.output.recommended_queue,
           updated_at: admin.firestore.FieldValue.serverTimestamp(),
-          human_review_required: result.output.requires_human_review,
+          human_review_required: false,
           automation_confidence: result.output.confidence,
           ops_automation: {
             ...(submission.ops_automation || {}),
-            status: result.output.requires_human_review
-              ? "completed_human_review_needed"
-              : "completed",
+            status: automationStatus,
             version: "waitlist_v3",
             provider: result.provider,
             runtime: result.runtime,
@@ -289,7 +289,9 @@ export async function runWaitlistAutomationLoop(params?: {
             recommendation: result.output.recommendation,
             rationale: result.output.rationale,
             market_summary: result.output.market_summary,
-            requires_human_review: result.output.requires_human_review,
+            requires_human_review: false,
+            block_reason_code: result.output.block_reason_code,
+            retryable: result.output.retryable,
             market_context: marketContext,
             draft_email: result.output.draft_email,
           },
@@ -300,10 +302,11 @@ export async function runWaitlistAutomationLoop(params?: {
       results.push({
         submissionId: submission.id,
         status: "processed",
+        automationStatus,
         recommendation: result.output.recommendation,
         recommendedQueue: result.output.recommended_queue,
         inviteReadinessScore: result.output.invite_readiness_score,
-        requiresHumanReview: result.output.requires_human_review,
+        requiresHumanReview: false,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown waitlist automation error";
@@ -427,17 +430,17 @@ export async function runInboundQualificationForRequest(
     throw new Error(result.error || "Inbound qualification failed");
   }
 
-  const requiresHumanReview = deriveInboundHumanReviewFlag(result.output);
+  const automationStatus = normalizeAutomationStatus(
+    result.output.automation_status,
+  );
 
   await docRef.set(
     {
-      human_review_required: requiresHumanReview,
+      human_review_required: false,
       automation_confidence: result.output.confidence,
       ops_automation: {
         ...(request.ops_automation || {}),
-        status: requiresHumanReview
-          ? "completed_human_review_needed"
-          : "completed",
+        status: automationStatus,
         queue: request.ops_automation?.queue || "inbound_request_review",
         intent: request.ops_automation?.intent || "inbound_qualification",
         next_action: result.output.next_action,
@@ -449,7 +452,9 @@ export async function runInboundQualificationForRequest(
         execution_id: `${request.requestId}:${Date.now()}`,
         session_key: `inbound:${request.requestId}`,
         confidence: result.output.confidence,
-        requires_human_review: requiresHumanReview,
+        requires_human_review: false,
+        block_reason_code: result.output.block_reason_code,
+        retryable: result.output.retryable,
         qualification_state_recommendation:
           result.output.qualification_state_recommendation,
         opportunity_state_recommendation:
@@ -596,15 +601,13 @@ export async function runSupportTriageLoop(params?: { limit?: number }) {
       await doc.ref.set(
         {
           queue: result.output.queue,
-          human_review_required: result.output.requires_human_review,
+          human_review_required: false,
           automation_confidence: result.output.confidence,
           ops_automation: {
             ...(data.ops_automation && typeof data.ops_automation === "object"
               ? data.ops_automation
               : {}),
-            status: result.output.requires_human_review
-              ? "completed_human_review_needed"
-              : "completed",
+            status: normalizeAutomationStatus(result.output.automation_status),
             queue: result.output.queue,
             intent: "support_triage",
             next_action: result.output.next_action,
@@ -616,7 +619,9 @@ export async function runSupportTriageLoop(params?: { limit?: number }) {
             execution_id: `${doc.id}:${Date.now()}`,
             session_key: `support:${doc.id}`,
             confidence: result.output.confidence,
-            requires_human_review: result.output.requires_human_review,
+            requires_human_review: false,
+            block_reason_code: result.output.block_reason_code,
+            retryable: result.output.retryable,
             rationale: result.output.rationale,
             internal_summary: result.output.internal_summary,
             suggested_response: result.output.suggested_response,
@@ -694,47 +699,39 @@ export async function runPayoutExceptionTriageLoop(params?: { limit?: number }) 
         session_key: `payout:${doc.id}`,
         metadata: {
           payout_id: doc.id,
-          approved: false,
         },
       });
 
-      if (
-        (result.status !== "completed" && result.status !== "pending_approval") ||
-        (!result.output && result.status === "completed")
-      ) {
+      if (result.status !== "completed" || !result.output) {
         throw new Error(result.error || "Payout exception triage failed");
       }
 
       await doc.ref.set(
         {
-          human_review_required: true,
-          automation_confidence: result.output?.confidence ?? null,
+          human_review_required: false,
+          automation_confidence: result.output.confidence,
           ops_automation: {
-            status:
-              result.status === "pending_approval"
-                ? "pending_approval"
-                : "completed_human_review_needed",
-            queue: result.output?.queue || "payout_exception_queue",
+            status: normalizeAutomationStatus(result.output.automation_status),
+            queue: result.output.queue || "payout_exception_queue",
             intent: "payout_exception_triage",
-            next_action: result.output?.next_action || result.approval_reason || "",
-            recommended_path: result.output?.disposition || "human_review_required",
+            next_action: result.output.next_action,
+            recommended_path: result.output.disposition,
             provider: result.provider,
             runtime: result.runtime,
             model: result.model,
             tool_mode: result.tool_mode,
             execution_id: `${doc.id}:${Date.now()}`,
             session_key: `payout:${doc.id}`,
-            confidence: result.output?.confidence ?? null,
-            requires_human_review: true,
-            rationale: result.output?.rationale || null,
-            internal_summary: result.output?.internal_summary || null,
-            approval_reason: result.approval_reason || null,
+            confidence: result.output.confidence,
+            requires_human_review: false,
+            block_reason_code: result.output.block_reason_code,
+            retryable: result.output.retryable,
+            rationale: result.output.rationale,
+            internal_summary: result.output.internal_summary,
+            approval_reason: null,
             last_error: result.error || null,
             last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
-            processed_at:
-              result.status === "pending_approval"
-                ? null
-                : admin.firestore.FieldValue.serverTimestamp(),
+            processed_at: admin.firestore.FieldValue.serverTimestamp(),
           },
         },
         { merge: true },
@@ -840,13 +837,11 @@ export async function runPreviewDiagnosisLoop(params?: { limit?: number }) {
 
       await doc.ref.set(
         {
-          human_review_required: result.output.requires_human_review,
+          human_review_required: false,
           automation_confidence: result.output.confidence,
           ops_automation: {
             ...(decrypted.ops_automation || {}),
-            status: result.output.requires_human_review
-              ? "completed_human_review_needed"
-              : "completed",
+            status: normalizeAutomationStatus(result.output.automation_status),
             queue: result.output.queue,
             intent: "preview_diagnosis",
             next_action: result.output.next_action,
@@ -858,7 +853,9 @@ export async function runPreviewDiagnosisLoop(params?: { limit?: number }) {
             execution_id: `${doc.id}:${Date.now()}`,
             session_key: `preview:${doc.id}`,
             confidence: result.output.confidence,
-            requires_human_review: result.output.requires_human_review,
+            requires_human_review: false,
+            block_reason_code: result.output.block_reason_code,
+            retryable: result.output.retryable,
             rationale: result.output.rationale,
             internal_summary: result.output.internal_summary,
             retry_recommended: result.output.retry_recommended,

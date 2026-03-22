@@ -70,6 +70,17 @@ function resultStatus(result: AgentResult) {
   return result.status;
 }
 
+function isAutonomousAutomationTask(kind: AgentTaskKind) {
+  return [
+    "waitlist_triage",
+    "inbound_qualification",
+    "post_signup_scheduling",
+    "support_triage",
+    "payout_exception_triage",
+    "preview_diagnosis",
+  ].includes(kind);
+}
+
 function openClawModeForTask(task: NormalizedAgentTask<unknown, unknown>) {
   if (
     task.kind === "operator_thread" ||
@@ -200,7 +211,10 @@ async function executeTask<TInput, TOutput>(
       startup_context: startupContext,
       policy: {
         risk_level: riskLevelForTask(taskForPolicy),
-        requires_approval: task.approval_policy.require_human_approval,
+        requires_approval:
+          isAutonomousAutomationTask(task.kind)
+            ? false
+            : task.approval_policy.require_human_approval,
         allowed_domains: task.tool_policy.allowed_domains || [],
         allowed_tools: allowedToolsForTask(taskForPolicy),
         allowed_skill_ids: [],
@@ -252,7 +266,8 @@ async function executeTask<TInput, TOutput>(
           : undefined,
       raw_output_text: finalResponse.raw_output_text,
       error: finalResponse.error || null,
-      requires_human_review: finalStatus !== "completed",
+      requires_human_review:
+        isAutonomousAutomationTask(task.kind) ? false : finalStatus !== "completed",
       requires_approval: false,
       openclaw_session_id: finalResponse.openclaw_session_id || null,
       openclaw_run_id: finalResponse.openclaw_run_id || null,
@@ -267,7 +282,7 @@ async function executeTask<TInput, TOutput>(
       model: task.model,
       tool_mode: task.tool_policy.mode,
       error: error instanceof Error ? error.message : "OpenClaw execution failed",
-      requires_human_review: true,
+      requires_human_review: !isAutonomousAutomationTask(task.kind),
       requires_approval: false,
     };
   }
@@ -432,7 +447,9 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
     sessionKey: normalizedTask.session_key || undefined,
   });
   const runId = options?.runId || crypto.randomUUID();
-  const approval = requiresApproval(task, normalizedTask.approval_policy);
+  const approval = isAutonomousAutomationTask(normalizedTask.kind)
+    ? { required: false, reason: null }
+    : requiresApproval(task, normalizedTask.approval_policy);
 
   if (approval.required) {
     const pendingResult: AgentResult<TOutput> = {
@@ -460,7 +477,7 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
         dispatch_mode: normalizedTask.session_policy.dispatch_mode,
         input: task,
         approval_reason: approval.reason,
-        requires_human_review: true,
+        requires_human_review: !isAutonomousAutomationTask(normalizedTask.kind),
         tool_policy: normalizedTask.tool_policy,
         approval_policy: normalizedTask.approval_policy,
         metadata: normalizedTask.metadata,
@@ -582,7 +599,7 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
     if (db) {
       await markRunStatus(runId, "failed", {
         error: message,
-        requires_human_review: true,
+        requires_human_review: !isAutonomousAutomationTask(normalizedTask.kind),
       });
     }
 
@@ -613,7 +630,7 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
       model: normalizedTask.model,
       tool_mode: normalizedTask.tool_policy.mode,
       error: message,
-      requires_human_review: true,
+      requires_human_review: !isAutonomousAutomationTask(normalizedTask.kind),
       requires_approval: false,
     };
   }

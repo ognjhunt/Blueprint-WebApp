@@ -103,6 +103,9 @@ describe("inbound qualification worker", () => {
       requires_human_review: false,
       requires_approval: false,
       output: {
+        automation_status: "blocked",
+        block_reason_code: "missing_site_evidence",
+        retryable: true,
         qualification_state_recommendation: "needs_more_evidence",
         opportunity_state_recommendation: "not_applicable",
         confidence: 0.83,

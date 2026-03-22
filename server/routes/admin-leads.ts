@@ -110,6 +110,11 @@ function normalizeWaitlistSubmission(
       market_summary:
         typeof opsAutomation.market_summary === "string" ? opsAutomation.market_summary : "",
       requires_human_review: opsAutomation.requires_human_review === true,
+      block_reason_code:
+        typeof opsAutomation.block_reason_code === "string"
+          ? opsAutomation.block_reason_code
+          : null,
+      retryable: opsAutomation.retryable === true,
       last_error: typeof opsAutomation.last_error === "string" ? opsAutomation.last_error : null,
       last_attempt_at: normalizeTimestamp(opsAutomation.last_attempt_at),
       processed_at: normalizeTimestamp(opsAutomation.processed_at),

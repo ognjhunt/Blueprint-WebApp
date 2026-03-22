@@ -151,9 +151,16 @@ export default async function postSignupWorkflowsHandler(
           triggeredBy: userId || null,
           skipped: false,
           status: executionResult.status,
-          reason: null,
+          reason:
+            executionResult.blockingReasonCodes[0] ||
+            schedulingResult.block_reason_code ||
+            null,
           confidence: schedulingResult.confidence,
-          requiresHumanReview: schedulingResult.requires_human_review,
+          requiresHumanReview: false,
+          automationStatus: schedulingResult.automation_status,
+          blockReasonCode: schedulingResult.block_reason_code,
+          retryable: schedulingResult.retryable || executionResult.retryable,
+          blockingReasonCodes: executionResult.blockingReasonCodes,
           nextAction: schedulingResult.next_action,
           scheduleSummary: schedulingResult.schedule_summary,
           contactLookupPlan: schedulingResult.contact_lookup_plan,
@@ -174,6 +181,8 @@ export default async function postSignupWorkflowsHandler(
       blueprintId,
       skipped: false,
       status: executionResult.status,
+      blockingReasonCodes: executionResult.blockingReasonCodes,
+      retryable: schedulingResult.retryable || executionResult.retryable,
       result: schedulingResult,
       actions: executionResult.actionResults,
     });

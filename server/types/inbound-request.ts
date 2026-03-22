@@ -138,6 +138,8 @@ export interface OpsAutomationEnvelope {
   recommended_path?: string | null;
   confidence?: number | null;
   requires_human_review?: boolean | null;
+  block_reason_code?: string | null;
+  retryable?: boolean | null;
   provider?: string | null;
   runtime?: string | null;
   model?: string | null;

@@ -3,6 +3,9 @@ import { z } from "zod";
 import type { StructuredTaskDefinition } from "../types";
 
 export const supportTriageOutputSchema = z.object({
+  automation_status: z.enum(["completed", "blocked"]),
+  block_reason_code: z.string().min(1).max(120).nullable(),
+  retryable: z.boolean(),
   category: z.enum([
     "general_support",
     "sales_follow_up",
@@ -63,7 +66,8 @@ Output JSON only. No markdown. No explanation outside JSON.
 
 Rules:
 - Prioritize mapping reschedules and technical blockers.
-- Use requires_human_review=true for billing, refunds, legal, or unclear account issues.
+- Do not request human review. Set requires_human_review=false.
+- Use automation_status="blocked" for billing, refunds, legal, or unclear account issues that must fail closed.
 - Keep the suggested response concise and operator-friendly.
 
 Payload:
@@ -71,11 +75,14 @@ ${JSON.stringify(input, null, 2)}
 
 Return JSON with this exact shape:
 {
+  "automation_status": "completed" | "blocked",
+  "block_reason_code": "string or null",
+  "retryable": false,
   "category": "general_support" | "sales_follow_up" | "mapping_reschedule" | "billing_question" | "technical_issue" | "qualification_follow_up",
   "queue": "",
   "priority": "low" | "normal" | "high",
   "confidence": 0.0,
-  "requires_human_review": true,
+  "requires_human_review": false,
   "next_action": "",
   "rationale": "",
   "internal_summary": "",

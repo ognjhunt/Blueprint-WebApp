@@ -31,6 +31,9 @@ const buyerFollowUpSchema = z.object({
 });
 
 export const inboundQualificationOutputSchema = z.object({
+  automation_status: z.enum(["completed", "blocked"]),
+  block_reason_code: z.string().min(1).max(120).nullable(),
+  retryable: z.boolean(),
   qualification_state_recommendation: qualificationStateEnum,
   opportunity_state_recommendation: opportunityStateEnum,
   confidence: z.number().min(0).max(1),
@@ -69,17 +72,6 @@ export type InboundQualificationTaskInput = {
   details?: string | null;
 };
 
-export function deriveInboundHumanReviewFlag(
-  result: InboundQualificationOutput,
-): boolean {
-  return (
-    result.requires_human_review ||
-    result.qualification_state_recommendation === "qualified_risky" ||
-    result.qualification_state_recommendation === "needs_refresh" ||
-    result.opportunity_state_recommendation !== "not_applicable"
-  );
-}
-
 export const inboundQualificationTask: StructuredTaskDefinition<
   InboundQualificationTaskInput,
   InboundQualificationOutput
@@ -106,7 +98,9 @@ Output JSON only. No markdown. No explanation outside JSON.
 
 Rules:
 - Do not make binding commercial or legal decisions.
-- If the request has rights, licensing, privacy, payout, or unclear evidence concerns, set requires_human_review=true.
+- Do not request human review. Set requires_human_review=false.
+- If the request has rights, licensing, privacy, payout, or unclear evidence concerns, use automation_status="blocked".
+- When automation_status="blocked", set block_reason_code to a short snake_case reason and retryable=true only when new buyer evidence could unblock the request.
 - Only recommend "qualified_ready" when the request is unusually clear, low-risk, and already has enough detail to move confidently.
 - Prefer "in_review" or "needs_more_evidence" when information is incomplete.
 - Keep buyer follow-up specific and concise.
@@ -116,10 +110,13 @@ ${JSON.stringify(input, null, 2)}
 
 Return JSON with this exact shape:
 {
+  "automation_status": "completed" | "blocked",
+  "block_reason_code": "string or null",
+  "retryable": false,
   "qualification_state_recommendation": "submitted" | "capture_requested" | "qa_passed" | "needs_more_evidence" | "in_review" | "qualified_ready" | "qualified_risky" | "needs_refresh" | "not_ready_yet",
   "opportunity_state_recommendation": "not_applicable" | "handoff_ready" | "escalated_to_geometry" | "escalated_to_validation",
   "confidence": 0.0,
-  "requires_human_review": true,
+  "requires_human_review": false,
   "next_action": "",
   "rationale": "",
   "internal_summary": "",
@@ -133,6 +130,9 @@ Return JSON with this exact shape:
 };
 
 export type InboundQualificationRecommendation = {
+  automation_status: "completed" | "blocked";
+  block_reason_code: string | null;
+  retryable: boolean;
   qualification_state_recommendation: QualificationState;
   opportunity_state_recommendation: OpportunityState;
   confidence: number;

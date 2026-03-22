@@ -17,6 +17,18 @@ Release gate:
 npm run alpha:check
 ```
 
+Launch preflight:
+
+```bash
+npm run alpha:preflight
+```
+
+Live alpha smoke:
+
+```bash
+npm run smoke:launch
+```
+
 - Client build: Vite (`dist/public`)
 - Server build: esbuild bundle from `server/index.ts` (`dist/index.js`)
 - Runtime start command:
@@ -24,6 +36,16 @@ npm run alpha:check
 ```bash
 npm start
 ```
+
+## Render Blueprint
+
+The repo now includes [render.yaml](/Users/nijelhunt_1/workspace/Blueprint-WebApp/render.yaml) for the primary alpha deployment path.
+
+- Build command: `npm ci && npm run build`
+- Start command: `npm start`
+- Health check: `/health/ready`
+
+Render should hold all secrets in the service environment, not in `render.yaml`.
 
 ## Required Environment Variables
 
@@ -60,6 +82,19 @@ Launch-critical note:
 - `CHECKOUT_ALLOWED_ORIGINS`
 - Optional: `STRIPE_PUBLIC_BASE_URL`, `STRIPE_ONBOARDING_REFRESH_URL`, `STRIPE_ONBOARDING_RETURN_URL`
 
+### OpenClaw (server)
+- `OPENCLAW_BASE_URL`
+- `OPENCLAW_AUTH_TOKEN`
+- `OPENCLAW_DEFAULT_MODEL`
+- Optional per-lane overrides:
+  `OPENCLAW_WAITLIST_AUTOMATION_MODEL`,
+  `OPENCLAW_INBOUND_QUALIFICATION_MODEL`,
+  `OPENCLAW_POST_SIGNUP_MODEL`,
+  `OPENCLAW_SUPPORT_TRIAGE_MODEL`,
+  `OPENCLAW_PAYOUT_EXCEPTION_MODEL`,
+  `OPENCLAW_PREVIEW_DIAGNOSIS_MODEL`,
+  `OPENCLAW_OPERATOR_THREAD_MODEL`
+
 ### Internal Marketplace + Pipeline
 - `PIPELINE_SYNC_TOKEN`
 - `BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET`
@@ -84,6 +119,28 @@ REDIS_URL=rediss://default:<token>@active-phoenix-39183.upstash.io:6379
 - Optional: `VITE_SENTRY_DSN`
 - Optional: `VITE_ENABLE_ERROR_TRACKING_SMOKE_TEST=true`
 
+### Autonomous Alpha Automation
+
+These should be enabled for the no-human-in-the-loop alpha configuration:
+
+- `BLUEPRINT_WAITLIST_AUTOMATION_ENABLED=1`
+- `BLUEPRINT_INBOUND_AUTOMATION_ENABLED=1`
+- `BLUEPRINT_SUPPORT_TRIAGE_ENABLED=1`
+- `BLUEPRINT_PAYOUT_TRIAGE_ENABLED=1`
+- `BLUEPRINT_PREVIEW_DIAGNOSIS_ENABLED=1`
+
+Post-signup automation also requires:
+
+- `GOOGLE_CLIENT_EMAIL`
+- `GOOGLE_PRIVATE_KEY`
+- `GOOGLE_CALENDAR_ID`
+- `POST_SIGNUP_SPREADSHEET_ID` or `SPREADSHEET_ID`
+- `SLACK_WEBHOOK_URL`
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USER`
+- `SMTP_PASS`
+
 ## Notes
 
 - Firestore is the active datastore.
@@ -93,3 +150,5 @@ REDIS_URL=rediss://default:<token>@active-phoenix-39183.upstash.io:6379
 - Marketplace search and checkout now fail toward live `marketplace_items` inventory in production instead of silently relying on static sample content.
 - Legacy manual deployment scripts were removed; deployment should always run through project scripts.
 - `client/public/robots.txt` must exist at build time and be served in production.
+- `npm run alpha:preflight` is the launch-environment validator for Render and should pass before promoting the service.
+- `npm run smoke:launch` is the live alpha smoke runner for `/health`, `/health/ready`, OpenClaw, inbound qualification, and post-signup workflows.

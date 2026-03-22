@@ -54,6 +54,14 @@ router.get("/health/ready", async (_req: Request, res: Response) => {
   try {
     const liveSessionStore = getHostedSessionLiveStoreStatus();
     const emailTransport = getEmailTransportStatus();
+    const automationFlags = {
+      waitlist: isTruthyEnvValue(process.env.BLUEPRINT_WAITLIST_AUTOMATION_ENABLED),
+      inbound: isTruthyEnvValue(process.env.BLUEPRINT_INBOUND_AUTOMATION_ENABLED),
+      support: isTruthyEnvValue(process.env.BLUEPRINT_SUPPORT_TRIAGE_ENABLED),
+      payout: isTruthyEnvValue(process.env.BLUEPRINT_PAYOUT_TRIAGE_ENABLED),
+      preview: isTruthyEnvValue(process.env.BLUEPRINT_PREVIEW_DIAGNOSIS_ENABLED),
+    };
+    const anyAutomationEnabled = Object.values(automationFlags).some(Boolean);
     const stripeEnabled = Boolean(
       process.env.STRIPE_SECRET_KEY?.trim()
       || process.env.CHECKOUT_ALLOWED_ORIGINS?.trim()
@@ -67,16 +75,95 @@ router.get("/health/ready", async (_req: Request, res: Response) => {
       emailTransport.enabled || isTruthyEnvValue(process.env.BLUEPRINT_EMAIL_DELIVERY_REQUIRED);
     const redisRequired =
       Boolean(process.env.REDIS_URL?.trim()) || Boolean(process.env.RATE_LIMIT_REDIS_URL?.trim());
+    const firebaseAdminReady = Boolean(dbAdmin && authAdmin);
+    const redisReady =
+      !redisRequired
+      || (liveSessionStore.backend === "redis" && liveSessionStore.redisConnected === true);
+    const stripeReady =
+      !stripeEnabled || Boolean(stripeClient && process.env.STRIPE_WEBHOOK_SECRET?.trim());
+    const emailReady = !emailRequired || emailTransport.configured;
+    const pipelineSyncReady =
+      !pipelineSyncEnabled || Boolean(process.env.PIPELINE_SYNC_TOKEN?.trim());
+    const openClawReady =
+      !anyAutomationEnabled || Boolean(process.env.OPENCLAW_BASE_URL?.trim());
 
     const checks = {
       server: true,
-      firebaseAdmin: Boolean(dbAdmin && authAdmin),
-      redis:
-        !redisRequired
-        || (liveSessionStore.backend === "redis" && liveSessionStore.redisConnected === true),
-      stripe: !stripeEnabled || Boolean(stripeClient && process.env.STRIPE_WEBHOOK_SECRET?.trim()),
-      email: !emailRequired || emailTransport.configured,
-      pipelineSync: !pipelineSyncEnabled || Boolean(process.env.PIPELINE_SYNC_TOKEN?.trim()),
+      firebaseAdmin: firebaseAdminReady,
+      redis: redisReady,
+      stripe: stripeReady,
+      email: emailReady,
+      pipelineSync: pipelineSyncReady,
+      openclaw: openClawReady,
+    };
+
+    const launchChecks = {
+      firebaseAdmin: {
+        required: true,
+        ready: firebaseAdminReady,
+        detail: firebaseAdminReady
+          ? "Firebase Admin auth and firestore are configured."
+          : "Firebase Admin auth/firestore is unavailable.",
+      },
+      redis: {
+        required: redisRequired,
+        ready: redisReady,
+        detail: redisRequired
+          ? liveSessionStore.redisConnected
+            ? "Redis-backed live session state is connected."
+            : "Redis is configured for live session state but is not connected."
+          : "Redis-backed live session state is not required.",
+      },
+      stripe: {
+        required: stripeEnabled,
+        ready: stripeReady,
+        detail: stripeEnabled
+          ? stripeReady
+            ? "Stripe secret and webhook configuration are present."
+            : "Stripe is enabled but secret key or webhook secret is missing."
+          : "Stripe launch checks are disabled because Stripe envs are unset.",
+      },
+      email: {
+        required: emailRequired,
+        ready: emailReady,
+        detail: emailRequired
+          ? emailReady
+            ? "SMTP delivery is configured."
+            : "SMTP delivery is required but not fully configured."
+          : "SMTP delivery is not required.",
+      },
+      pipelineSync: {
+        required: pipelineSyncEnabled,
+        ready: pipelineSyncReady,
+        detail: pipelineSyncEnabled
+          ? pipelineSyncReady
+            ? "Pipeline sync token is configured."
+            : "Pipeline sync is enabled but PIPELINE_SYNC_TOKEN is missing."
+          : "Pipeline sync is not required.",
+      },
+      openclaw: {
+        required: anyAutomationEnabled,
+        ready: openClawReady,
+        detail: anyAutomationEnabled
+          ? openClawReady
+            ? "OpenClaw base URL is configured for enabled automation lanes."
+            : "Automation lanes are enabled but OPENCLAW_BASE_URL is missing."
+          : "OpenClaw is not required because automation lanes are disabled.",
+      },
+      postSignupDirect: {
+        required: false,
+        ready: Boolean(
+          process.env.GOOGLE_CLIENT_EMAIL?.trim()
+          && process.env.GOOGLE_PRIVATE_KEY?.trim()
+          && process.env.GOOGLE_CALENDAR_ID?.trim()
+          && (
+            process.env.POST_SIGNUP_SPREADSHEET_ID?.trim()
+            || process.env.SPREADSHEET_ID?.trim()
+          ),
+        ),
+        detail: "Tracks whether post-signup calendar and sheet credentials are present for alpha launch.",
+      },
+      automationFlags,
     };
 
     const allHealthy = Object.values(checks).every(Boolean);
@@ -91,6 +178,7 @@ router.get("/health/ready", async (_req: Request, res: Response) => {
           stripeEnabled,
           pipelineSyncEnabled,
           redisRequired,
+          launchChecks,
         },
         timestamp: new Date().toISOString(),
       });
@@ -104,6 +192,7 @@ router.get("/health/ready", async (_req: Request, res: Response) => {
           stripeEnabled,
           pipelineSyncEnabled,
           redisRequired,
+          launchChecks,
         },
         timestamp: new Date().toISOString(),
       });

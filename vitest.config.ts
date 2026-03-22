@@ -17,6 +17,13 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       reportsDirectory: './coverage',
+      exclude: [
+        'e2e/**',
+        'node_modules/**',
+        'dist/**',
+        'scripts/launch-preflight.mjs',
+        'scripts/launch-smoke.mjs',
+      ],
       thresholds: {
         lines: 25.5,
         functions: 35,

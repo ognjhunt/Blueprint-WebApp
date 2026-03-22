@@ -8,6 +8,9 @@ const draftSchema = z.object({
 });
 
 export const postSignupSchedulingOutputSchema = z.object({
+  automation_status: z.enum(["completed", "blocked"]),
+  block_reason_code: z.string().min(1).max(120).nullable(),
+  retryable: z.boolean(),
   confidence: z.number().min(0).max(1),
   requires_human_review: z.boolean(),
   next_action: z.string().min(1).max(240),
@@ -79,7 +82,8 @@ Output JSON only. No markdown. No explanation outside JSON.
 
 Rules:
 - Prefer MCP/direct API style actions conceptually over browser automation.
-- If contact or scheduling data is incomplete, set requires_human_review=true.
+- Do not request human review. Set requires_human_review=false.
+- If contact or scheduling data is incomplete, use automation_status="blocked" with a short snake_case block_reason_code.
 - Do not claim that external actions have already been executed.
 - Draft communications should be ready for an ops reviewer to send.
 
@@ -88,8 +92,11 @@ ${JSON.stringify(input, null, 2)}
 
 Return JSON with this exact shape:
 {
+  "automation_status": "completed" | "blocked",
+  "block_reason_code": "string or null",
+  "retryable": false,
   "confidence": 0.0,
-  "requires_human_review": true,
+  "requires_human_review": false,
   "next_action": "",
   "schedule_summary": "",
   "contact_lookup_plan": [],

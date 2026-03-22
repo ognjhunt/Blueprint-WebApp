@@ -113,6 +113,8 @@ interface WaitlistSubmissionItem {
     rationale: string;
     market_summary: string;
     requires_human_review: boolean;
+    block_reason_code?: string | null;
+    retryable?: boolean;
     last_error: string | null;
     last_attempt_at: string | null;
     processed_at: string | null;

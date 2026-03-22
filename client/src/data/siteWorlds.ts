@@ -70,13 +70,16 @@ type HostedDemoQualificationState = NonNullable<NonNullable<SiteWorldCard["hoste
 const HOSTED_DEMO_QUALIFICATION_STATE =
   (readHostedDemoEnv("HOSTED_DEMO_QUALIFICATION_STATE") as HostedDemoQualificationState | null)
   || "not_ready_yet";
-const SITE_WORLD_FIXTURE_MODE = String(
-  (
-    (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.MODE
-    || (typeof process !== "undefined" ? process.env?.NODE_ENV : undefined)
-    || "development"
-  ),
+const rawSiteWorldMode = String(
+  (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.MODE || "",
 ).trim().toLowerCase();
+const rawNodeEnv = String(
+  (typeof process !== "undefined" ? process.env?.NODE_ENV : undefined) || "",
+).trim().toLowerCase();
+const SITE_WORLD_FIXTURE_MODE =
+  rawSiteWorldMode === "production" || rawNodeEnv === "production"
+    ? "production"
+    : rawSiteWorldMode || rawNodeEnv || "development";
 const DEMO_SITE_WORLDS_ENABLED = isTruthyFlag(readHostedDemoEnv("ENABLE_DEMO_SITE_WORLDS"));
 const STATIC_SITE_WORLD_FIXTURES_ENABLED = SITE_WORLD_FIXTURE_MODE !== "production";
 

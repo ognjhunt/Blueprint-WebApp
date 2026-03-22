@@ -89,6 +89,9 @@ describe("waitlist automation loop", () => {
       requires_human_review: false,
       requires_approval: false,
       output: {
+        automation_status: "completed",
+        block_reason_code: null,
+        retryable: false,
         recommendation: "invite_now",
         confidence: 0.91,
         market_fit_score: 88,

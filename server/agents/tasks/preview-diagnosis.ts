@@ -6,10 +6,13 @@ export const previewDiagnosisOutputSchema = z.object({
   disposition: z.enum([
     "retry_now",
     "retry_later",
-    "manual_review_required",
+    "blocked_release_risk",
     "provider_escalation",
     "not_actionable",
   ]),
+  automation_status: z.enum(["completed", "blocked"]),
+  block_reason_code: z.string().min(1).max(120).nullable(),
+  retryable: z.boolean(),
   queue: z.string().min(1).max(120),
   confidence: z.number().min(0).max(1),
   requires_human_review: z.boolean(),
@@ -59,17 +62,21 @@ Output JSON only. No markdown. No explanation outside JSON.
 Rules:
 - Use retry_now only when the failure looks transient and bounded.
 - Use provider_escalation for repeated provider-side or artifact-side failures.
-- Use requires_human_review=true when customer-facing release risk is involved.
+- Do not request human review. Set requires_human_review=false.
+- Use automation_status="blocked" with disposition="blocked_release_risk" when the release must fail closed until artifacts or provider state are corrected.
 
 Payload:
 ${JSON.stringify(input, null, 2)}
 
 Return JSON with this exact shape:
 {
-  "disposition": "retry_now" | "retry_later" | "manual_review_required" | "provider_escalation" | "not_actionable",
+  "disposition": "retry_now" | "retry_later" | "blocked_release_risk" | "provider_escalation" | "not_actionable",
+  "automation_status": "completed" | "blocked",
+  "block_reason_code": "string or null",
+  "retryable": false,
   "queue": "",
   "confidence": 0.0,
-  "requires_human_review": true,
+  "requires_human_review": false,
   "retry_recommended": false,
   "next_action": "",
   "rationale": "",

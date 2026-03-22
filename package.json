@@ -9,10 +9,12 @@
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc -p tsconfig.full.json --noEmit",
     "smoke:openclaw": "bash scripts/openclaw-smoke.sh",
+    "smoke:launch": "node scripts/launch-smoke.mjs",
     "audit:assets": "tsx scripts/audit-assets.ts",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "alpha:check": "node scripts/alpha-check.mjs"
+    "alpha:check": "node scripts/alpha-check.mjs",
+    "alpha:preflight": "node scripts/launch-preflight.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",

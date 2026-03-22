@@ -8,6 +8,9 @@ const draftEmailSchema = z.object({
 });
 
 export const waitlistTriageOutputSchema = z.object({
+  automation_status: z.enum(["completed", "blocked"]),
+  block_reason_code: z.string().min(1).max(120).nullable(),
+  retryable: z.boolean(),
   recommendation: z.enum([
     "invite_now",
     "hold_for_market",
@@ -92,7 +95,9 @@ Decision rules:
 - iPad is acceptable but usually weaker than iPhone.
 - Android is currently the weakest fit unless other factors are unusually strong.
 - If the market has multiple existing requests, market fit improves.
-- If confidence is low, set requires_human_review=true.
+- Do not request human review. Set requires_human_review=false.
+- Use automation_status="blocked" only when the submission is too ambiguous or incomplete to route safely.
+- When automation_status="blocked", set block_reason_code to a short snake_case reason and retryable=true only when additional buyer data could unblock the route.
 - recommended_queue must be one of:
   - capturer_beta_invite_review
   - capturer_beta_hold
@@ -118,6 +123,9 @@ ${JSON.stringify(
 
 Return JSON with this exact shape:
 {
+  "automation_status": "completed" | "blocked",
+  "block_reason_code": "string or null",
+  "retryable": false,
   "recommendation": "invite_now" | "hold_for_market" | "request_follow_up" | "decline_for_now",
   "confidence": 0.0,
   "market_fit_score": 0,
@@ -127,7 +135,7 @@ Return JSON with this exact shape:
   "next_action": "",
   "rationale": "",
   "market_summary": "",
-  "requires_human_review": true,
+  "requires_human_review": false,
   "draft_email": {
     "subject": "",
     "body": ""
