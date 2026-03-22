@@ -9,7 +9,6 @@ import {
 import { getSiteWorldById } from "@/data/siteWorlds";
 import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
 import { withCsrfHeader } from "@/lib/csrf";
-import { auth } from "@/lib/firebase";
 import type { CreateHostedSessionRequest } from "@/types/hostedSession";
 import type { HostedSessionMode } from "@/types/hostedSession";
 
@@ -63,6 +62,19 @@ function isPublicDemoSiteWorldId(siteWorldId: string) {
   return publicDemoSiteWorldIds().has(String(siteWorldId || "").trim());
 }
 
+async function getFirebaseIdToken(): Promise<string> {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  try {
+    const firebase = await import("@/lib/firebase");
+    return firebase.auth?.currentUser ? await firebase.auth.currentUser.getIdToken() : "";
+  } catch {
+    return "";
+  }
+}
+
 export default function HostedSessionSetup({ params }: HostedSessionSetupProps) {
   const fallbackSite = getSiteWorldById(params.slug);
   const [site, setSite] = useState(fallbackSite);
@@ -114,7 +126,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
 
     (async () => {
       try {
-        const token = auth?.currentUser ? await auth.currentUser.getIdToken() : "";
+        const token = await getFirebaseIdToken();
         const usePublicDemoRoutes = isPublicDemoSiteWorldId(site.id);
         if (!token && !usePublicDemoRoutes) {
           throw new Error("Missing authenticated user");
@@ -233,7 +245,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
     };
 
     try {
-      const token = auth?.currentUser ? await auth.currentUser.getIdToken() : "";
+      const token = await getFirebaseIdToken();
       const usePublicDemoRoutes = isPublicDemoSiteWorldId(site.id);
       if (!token && !usePublicDemoRoutes) throw new Error("Missing authenticated user");
       const response = await fetch("/api/site-worlds/sessions", {

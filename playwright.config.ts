@@ -16,7 +16,7 @@ export default defineConfig({
   webServer: {
     command: `PORT=${port} npm run dev`,
     url: baseURL,
-    reuseExistingServer: false,
+    reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },
 });

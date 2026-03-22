@@ -11,7 +11,6 @@ export type AppRoute = {
 
 const Home = lazy(() => import("../pages/Home"));
 const Capture = lazy(() => import("../pages/Capture"));
-const CapturerSignUpFlow = lazy(() => import("../pages/CapturerSignUpFlow"));
 const CaptureAppPlaceholder = lazy(() => import("../pages/CaptureAppPlaceholder"));
 const Environments = lazy(() => import("../pages/Environments"));
 const BusinessSignUpFlow = lazy(() => import("../pages/BusinessSignUpFlow"));
@@ -78,6 +77,10 @@ const LegacyForRobotIntegratorsRedirect = () => (
 
 const LegacyWorldModelsRedirect = () => (
   <MarketingRedirect to="/world-models" />
+);
+
+const LegacyCapturerSignupRedirect = () => (
+  <MarketingRedirect to="/capture-app" />
 );
 
 export const appRoutes: AppRoute[] = [
@@ -156,7 +159,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/login", layout: "public", component: Login },
   { path: "/signup", layout: "public", component: BusinessSignUpFlow },
   { path: "/signup/business", layout: "public", component: BusinessSignUpFlow },
-  { path: "/signup/capturer", layout: "public", component: CapturerSignUpFlow },
+  { path: "/signup/capturer", layout: "public", component: LegacyCapturerSignupRedirect },
   { path: "/onboarding", layout: "protected", component: OnboardingChecklist },
   { path: "/forgot-password", layout: "public", component: ForgotPassword },
   { path: "/privacy", layout: "public", component: Privacy },

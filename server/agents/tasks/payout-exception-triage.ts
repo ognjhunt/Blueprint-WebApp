@@ -38,12 +38,12 @@ export const payoutExceptionTriageTask: StructuredTaskDefinition<
   z.infer<typeof payoutExceptionOutputSchema>
 > = {
   kind: "payout_exception_triage",
-  default_provider: "openclaw",
+  default_provider: "openai_responses",
   model_by_provider: {
-    openclaw:
-      process.env.OPENCLAW_PAYOUT_EXCEPTION_MODEL ||
-      process.env.OPENCLAW_DEFAULT_MODEL ||
-      "openai/gpt-5.4",
+    openai_responses:
+      process.env.OPENAI_PAYOUT_EXCEPTION_MODEL ||
+      process.env.OPENAI_DEFAULT_MODEL ||
+      "gpt-5.4",
   },
   output_schema: payoutExceptionOutputSchema,
   tool_policy: {
@@ -59,7 +59,7 @@ Output JSON only. No markdown. No explanation outside JSON.
 
 Rules:
 - Never authorize or execute funds movement.
-- Do not request human review. Set requires_human_review=false.
+- Always set requires_human_review=true. Finance and payout exceptions must be reviewed by a human operator before any irreversible follow-up.
 - Use automation_status="blocked" with disposition="blocked_for_policy" when the payout state must fail closed pending new facts or policy-safe remediation.
 - Distinguish treasury balance problems from missing information or Stripe event failures.
 
@@ -74,7 +74,7 @@ Return JSON with this exact shape:
   "retryable": false,
   "queue": "",
   "confidence": 0.0,
-  "requires_human_review": false,
+  "requires_human_review": true,
   "next_action": "",
   "rationale": "",
   "internal_summary": ""

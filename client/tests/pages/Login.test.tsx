@@ -32,4 +32,12 @@ describe('Login', () => {
       screen.getByRole('button', { name: /Continue with Google/i }),
     ).toBeInTheDocument();
   });
+
+  it('sends capturers to the mobile app instead of web auth', () => {
+    render(<Login />);
+
+    expect(
+      screen.getByRole('link', { name: /Download the app/i }),
+    ).toHaveAttribute('href', '/capture-app');
+  });
 });

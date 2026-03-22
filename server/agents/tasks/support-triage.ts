@@ -45,12 +45,12 @@ export const supportTriageTask: StructuredTaskDefinition<
   z.infer<typeof supportTriageOutputSchema>
 > = {
   kind: "support_triage",
-  default_provider: "openclaw",
+  default_provider: "openai_responses",
   model_by_provider: {
-    openclaw:
-      process.env.OPENCLAW_SUPPORT_TRIAGE_MODEL ||
-      process.env.OPENCLAW_DEFAULT_MODEL ||
-      "openai/gpt-5.4",
+    openai_responses:
+      process.env.OPENAI_SUPPORT_TRIAGE_MODEL ||
+      process.env.OPENAI_DEFAULT_MODEL ||
+      "gpt-5.4",
   },
   output_schema: supportTriageOutputSchema,
   tool_policy: {
@@ -66,7 +66,7 @@ Output JSON only. No markdown. No explanation outside JSON.
 
 Rules:
 - Prioritize mapping reschedules and technical blockers.
-- Do not request human review. Set requires_human_review=false.
+- Set requires_human_review=true for billing, refund, legal, account-access, or otherwise blocked issues that should stay with an operator.
 - Use automation_status="blocked" for billing, refunds, legal, or unclear account issues that must fail closed.
 - Keep the suggested response concise and operator-friendly.
 
@@ -82,7 +82,7 @@ Return JSON with this exact shape:
   "queue": "",
   "priority": "low" | "normal" | "high",
   "confidence": 0.0,
-  "requires_human_review": false,
+  "requires_human_review": true,
   "next_action": "",
   "rationale": "",
   "internal_summary": "",

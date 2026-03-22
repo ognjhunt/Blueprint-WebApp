@@ -782,9 +782,10 @@ export default function CapturerSignUpFlow() {
                   <div className="flex items-start gap-4">
                     <QrCode className="mt-1 h-5 w-5 text-[color:var(--leaf-deep)]" />
                     <div className="w-full">
-                      <p className="font-semibold text-[color:var(--ink)]">Temporary app link and QR</p>
+                      <p className="font-semibold text-[color:var(--ink)]">Mobile access link and QR</p>
                       <p className="mt-1 text-sm leading-6 text-[color:var(--ink-soft)]">
-                        This is a stable placeholder, similar to an app-store handoff page. Replace the destination later without reworking signup.
+                        This stays stable even if the downstream mobile destination changes, so
+                        signup does not need to be reworked when the app access path is updated.
                       </p>
 
                       <div className="mt-4 flex flex-col gap-5 md:flex-row md:items-center">
@@ -825,7 +826,7 @@ export default function CapturerSignUpFlow() {
                               className="rounded-full border-[color:var(--line-strong)]"
                             >
                               <a href={captureAppUrl} target="_blank" rel="noreferrer">
-                                Open placeholder
+                                Open access link
                                 <ExternalLink className="ml-2 h-4 w-4" />
                               </a>
                             </Button>

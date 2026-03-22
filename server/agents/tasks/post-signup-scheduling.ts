@@ -60,12 +60,12 @@ export const postSignupSchedulingTask: StructuredTaskDefinition<
   PostSignupSchedulingOutput
 > = {
   kind: "post_signup_scheduling",
-  default_provider: "openclaw",
+  default_provider: "openai_responses",
   model_by_provider: {
-    openclaw:
-      process.env.OPENCLAW_POST_SIGNUP_MODEL ||
-      process.env.OPENCLAW_DEFAULT_MODEL ||
-      "openai/gpt-5.4",
+    openai_responses:
+      process.env.OPENAI_POST_SIGNUP_MODEL ||
+      process.env.OPENAI_DEFAULT_MODEL ||
+      "gpt-5.4",
   },
   output_schema: postSignupSchedulingOutputSchema,
   tool_policy: {
@@ -82,7 +82,7 @@ Output JSON only. No markdown. No explanation outside JSON.
 
 Rules:
 - Prefer MCP/direct API style actions conceptually over browser automation.
-- Do not request human review. Set requires_human_review=false.
+- Set requires_human_review=true when automation_status="blocked" or when the plan is missing the contact or schedule needed to complete execution cleanly.
 - If contact or scheduling data is incomplete, use automation_status="blocked" with a short snake_case block_reason_code.
 - Do not claim that external actions have already been executed.
 - Draft communications should be ready for an ops reviewer to send.
@@ -96,7 +96,7 @@ Return JSON with this exact shape:
   "block_reason_code": "string or null",
   "retryable": false,
   "confidence": 0.0,
-  "requires_human_review": false,
+  "requires_human_review": true,
   "next_action": "",
   "schedule_summary": "",
   "contact_lookup_plan": [],

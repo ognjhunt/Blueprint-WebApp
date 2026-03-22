@@ -37,7 +37,7 @@ const sessionTaskOptions: Array<{
   {
     value: "support_triage",
     label: "Support triage",
-    description: "Structured support investigations through OpenClaw.",
+    description: "Structured support investigations through the alpha agent runtime.",
   },
 ];
 
@@ -122,15 +122,10 @@ function formatLatency(latencyMs?: number | null) {
 type OpenClawConnectivityResponse = {
   ok: boolean;
   connectivity: {
+    provider?: string;
     configured: boolean;
-    base_url: string | null;
     auth_configured: boolean;
     timeout_ms: number;
-    wait_timeout_ms: number;
-    agent_path: string;
-    wait_path: string;
-    cancel_path_template: string;
-    artifacts_path_template: string;
     default_model: string | null;
     task_models?: Record<string, string | null>;
   };
@@ -181,6 +176,9 @@ export default function AdminAgentConsole() {
     },
   });
 
+  const activeSessionId =
+    selectedSessionId ?? sessionsQuery.data?.sessions?.[0]?.id ?? null;
+
   const contextOptionsQuery = useQuery<AgentContextOptionsResponse>({
     queryKey: ["admin-agent-context-options"],
     queryFn: async () => {
@@ -193,10 +191,10 @@ export default function AdminAgentConsole() {
   });
 
   const sessionDetailQuery = useQuery<{ ok: boolean; session: AgentSessionRecord }>({
-    queryKey: ["admin-agent-session", selectedSessionId],
-    enabled: Boolean(selectedSessionId),
+    queryKey: ["admin-agent-session", activeSessionId],
+    enabled: Boolean(activeSessionId),
     queryFn: async () => {
-      const response = await fetch(`/api/admin/agent/sessions/${selectedSessionId}`, {
+      const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}`, {
         headers: await withCsrfHeader({}),
       });
       if (!response.ok) throw new Error("Failed to fetch agent session");
@@ -205,10 +203,10 @@ export default function AdminAgentConsole() {
   });
 
   const runsQuery = useQuery<{ ok: boolean; runs: AgentRunRecord[] }>({
-    queryKey: ["admin-agent-runs", selectedSessionId],
-    enabled: Boolean(selectedSessionId),
+    queryKey: ["admin-agent-runs", activeSessionId],
+    enabled: Boolean(activeSessionId),
     queryFn: async () => {
-      const response = await fetch(`/api/admin/agent/sessions/${selectedSessionId}/runs`, {
+      const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/runs`, {
         headers: await withCsrfHeader({}),
       });
       if (!response.ok) throw new Error("Failed to fetch agent runs");
@@ -217,11 +215,11 @@ export default function AdminAgentConsole() {
   });
 
   const actionLogsQuery = useQuery<{ ok: boolean; actionLogs: OpsActionLogRecord[] }>({
-    queryKey: ["admin-agent-action-logs", selectedSessionId],
-    enabled: Boolean(selectedSessionId),
+    queryKey: ["admin-agent-action-logs", activeSessionId],
+    enabled: Boolean(activeSessionId),
     queryFn: async () => {
       const response = await fetch(
-        `/api/admin/agent/sessions/${selectedSessionId}/action-logs`,
+        `/api/admin/agent/sessions/${activeSessionId}/action-logs`,
         {
           headers: await withCsrfHeader({}),
         },
@@ -234,10 +232,10 @@ export default function AdminAgentConsole() {
   const openClawConnectivityQuery = useQuery<OpenClawConnectivityResponse>({
     queryKey: ["admin-agent-openclaw-connectivity"],
     queryFn: async () => {
-      const response = await fetch("/api/admin/agent/openclaw/connectivity", {
+      const response = await fetch("/api/admin/agent/runtime/connectivity", {
         headers: await withCsrfHeader({}),
       });
-      if (!response.ok) throw new Error("Failed to fetch OpenClaw connectivity");
+      if (!response.ok) throw new Error("Failed to fetch agent runtime connectivity");
       return response.json();
     },
   });
@@ -248,7 +246,10 @@ export default function AdminAgentConsole() {
     }
   }, [selectedSessionId, sessionsQuery.data?.sessions]);
 
-  const selectedSession = sessionDetailQuery.data?.session || null;
+  const selectedSession =
+    sessionDetailQuery.data?.session
+    || sessionsQuery.data?.sessions?.find((session) => session.id === activeSessionId)
+    || null;
 
   const createSessionMutation = useMutation({
     mutationFn: async () => {
@@ -353,7 +354,7 @@ export default function AdminAgentConsole() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedSessionId) {
+      if (!activeSessionId) {
         throw new Error("No session selected");
       }
       const body = {
@@ -362,7 +363,7 @@ export default function AdminAgentConsole() {
       };
 
       const response = await fetch(
-        `/api/admin/agent/sessions/${selectedSessionId}/messages`,
+        `/api/admin/agent/sessions/${activeSessionId}/messages`,
         {
           method: "POST",
           headers: await withCsrfHeader({ "Content-Type": "application/json" }),
@@ -373,10 +374,10 @@ export default function AdminAgentConsole() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-agent-runs", selectedSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-runs", activeSessionId] });
       queryClient.invalidateQueries({ queryKey: ["admin-agent-sessions"] });
       queryClient.invalidateQueries({
-        queryKey: ["admin-agent-action-logs", selectedSessionId],
+        queryKey: ["admin-agent-action-logs", activeSessionId],
       });
       setMessage("");
     },
@@ -392,9 +393,9 @@ export default function AdminAgentConsole() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-agent-runs", selectedSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-runs", activeSessionId] });
       queryClient.invalidateQueries({
-        queryKey: ["admin-agent-action-logs", selectedSessionId],
+        queryKey: ["admin-agent-action-logs", activeSessionId],
       });
     },
   });
@@ -409,16 +410,16 @@ export default function AdminAgentConsole() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-agent-runs", selectedSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-runs", activeSessionId] });
       queryClient.invalidateQueries({
-        queryKey: ["admin-agent-action-logs", selectedSessionId],
+        queryKey: ["admin-agent-action-logs", activeSessionId],
       });
     },
   });
 
   const openClawSmokeTestMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch("/api/admin/agent/openclaw/smoke-test", {
+      const response = await fetch("/api/admin/agent/runtime/smoke-test", {
         method: "POST",
         headers: await withCsrfHeader({ "Content-Type": "application/json" }),
         body: JSON.stringify({
@@ -524,7 +525,7 @@ export default function AdminAgentConsole() {
                 ))}
               </select>
               <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
-                Execution backend: OpenClaw
+                Execution backend: OpenAI Responses
               </div>
 
               <div className="rounded-xl border border-zinc-200 p-3">
@@ -822,7 +823,7 @@ export default function AdminAgentConsole() {
                       <div>
                         <p className="font-medium text-zinc-900">{session.title}</p>
                         <p className="text-xs text-zinc-500">
-                          {session.task_kind} · OpenClaw
+                          {session.task_kind} · {session.provider}
                         </p>
                       </div>
                       <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-700">
@@ -844,7 +845,7 @@ export default function AdminAgentConsole() {
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Bot className="h-4 w-4 text-zinc-500" />
-                <h2 className="font-semibold text-zinc-950">OpenClaw</h2>
+                <h2 className="font-semibold text-zinc-950">Agent runtime</h2>
               </div>
               <button
                 type="button"
@@ -856,13 +857,13 @@ export default function AdminAgentConsole() {
                 className="rounded-full border border-zinc-200 px-3 py-1 text-xs text-zinc-700"
                 disabled={openClawConnectivityQuery.isFetching}
               >
-                {openClawConnectivityQuery.isFetching ? "Checking..." : "Check OpenClaw connectivity"}
+                {openClawConnectivityQuery.isFetching ? "Checking..." : "Check runtime connectivity"}
               </button>
             </div>
 
             <div className="mt-4 space-y-3 text-sm text-zinc-700">
               {openClawConnectivityQuery.isLoading ? (
-                <p className="text-zinc-500">Loading OpenClaw connectivity...</p>
+                <p className="text-zinc-500">Loading runtime connectivity...</p>
               ) : openClawConnectivity ? (
                 <>
                   <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
@@ -883,17 +884,14 @@ export default function AdminAgentConsole() {
                             : "bg-zinc-100 text-zinc-700"
                         }`}
                       >
-                        {openClawConnectivity.auth_configured ? "auth set" : "no auth token"}
+                        {openClawConnectivity.auth_configured ? "configured" : "not configured"}
                       </span>
                     </div>
                     <p className="mt-3">
-                      Base URL: {openClawConnectivity.base_url || "Unset"}
+                      Provider: {openClawConnectivity.provider || "openai_responses"}
                     </p>
                     <p className="mt-1">
-                      Paths: {openClawConnectivity.agent_path} · {openClawConnectivity.wait_path}
-                    </p>
-                    <p className="mt-1">
-                      Default model: {openClawConnectivity.default_model || "Fallback to openai/gpt-5.4"}
+                      Default model: {openClawConnectivity.default_model || "Fallback to gpt-5.4"}
                     </p>
                   </div>
 
@@ -927,14 +925,14 @@ export default function AdminAgentConsole() {
                       <div className="mt-3 rounded-lg bg-zinc-950 p-3 text-xs text-zinc-100">
                         <p>Status: {openClawSmokeResult.ok ? "passed" : "failed"}</p>
                         <p>Duration: {formatLatency(openClawSmokeResult.duration_ms) || `${openClawSmokeResult.duration_ms} ms`}</p>
-                        <p>Run ID: {openClawSmokeResult.final?.openclaw_run_id || "Unavailable"}</p>
+                        <p>Provider: {("provider" in (openClawSmokeResult.final || {}) ? (openClawSmokeResult.final as { provider?: string }).provider : "openai_responses") || "openai_responses"}</p>
                         <p>Final status: {openClawSmokeResult.final?.status || "Unknown"}</p>
                       </div>
                     ) : null}
                   </div>
                 </>
               ) : (
-                <p className="text-zinc-500">No OpenClaw connectivity data yet.</p>
+                <p className="text-zinc-500">No runtime connectivity data yet.</p>
               )}
             </div>
           </div>
@@ -946,7 +944,7 @@ export default function AdminAgentConsole() {
                 <div className="rounded-xl bg-zinc-50 p-4">
                   <p className="font-medium text-zinc-900">{selectedSession.title}</p>
                   <p className="mt-1 text-sm text-zinc-600">
-                    {selectedSession.task_kind} · OpenClaw
+                    {selectedSession.task_kind} · {selectedSession.provider}
                   </p>
                   <p className="mt-2 text-xs text-zinc-500">
                     Last updated {formatTimestamp(selectedSession.updated_at)}

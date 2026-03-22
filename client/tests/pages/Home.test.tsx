@@ -29,8 +29,8 @@ describe('Home', () => {
       ),
     ).toBe(true);
     expect(
-      screen.getAllByRole('link', { name: /Start earning/i }).some(
-        (link) => link.getAttribute('href') === '/capture',
+      screen.getAllByRole('link', { name: /Download the app/i }).some(
+        (link) => link.getAttribute('href') === '/capture-app',
       ),
     ).toBe(true);
   });

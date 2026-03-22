@@ -1,6 +1,9 @@
 import crypto from "node:crypto";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { runAcpHarnessTask } from "./adapters/acp-harness";
+import { runAnthropicAgentSdkTask } from "./adapters/anthropic-agent-sdk";
+import { runOpenAIResponsesTask } from "./adapters/openai-responses";
 import {
   cancelActionSession,
   startActionSession,
@@ -26,6 +29,7 @@ import type {
   OpsActionRiskLevel,
   PersistedAgentRun,
   PersistedAgentSession,
+  ApprovalPolicy,
 } from "./types";
 
 function nowTimestamp() {
@@ -33,7 +37,30 @@ function nowTimestamp() {
 }
 
 function normalizeAgentProvider(provider?: AgentProvider): AgentProvider {
-  return provider === "openclaw" ? provider : "openclaw";
+  switch (provider) {
+    case "openai_responses":
+    case "anthropic_agent_sdk":
+    case "acp_harness":
+    case "openclaw":
+      return provider;
+    default:
+      return "openai_responses";
+  }
+}
+
+function defaultModelForProvider(provider: AgentProvider) {
+  switch (provider) {
+    case "openai_responses":
+      return process.env.OPENAI_DEFAULT_MODEL?.trim() || "gpt-5.4";
+    case "anthropic_agent_sdk":
+      return process.env.ANTHROPIC_DEFAULT_MODEL?.trim() || "claude-sonnet-4-5";
+    case "acp_harness":
+      return process.env.ACP_DEFAULT_HARNESS?.trim() || "codex";
+    case "openclaw":
+      return process.env.OPENCLAW_DEFAULT_MODEL?.trim() || "openai/gpt-5.4";
+    default:
+      return "gpt-5.4";
+  }
 }
 
 function normalizeTask<TInput, TOutput>(
@@ -45,8 +72,7 @@ function normalizeTask<TInput, TOutput>(
   const model =
     task.model ||
     definition.model_by_provider?.[provider] ||
-    process.env.OPENCLAW_DEFAULT_MODEL ||
-    "openai/gpt-5.4";
+    defaultModelForProvider(provider);
 
   return {
     ...task,
@@ -79,6 +105,39 @@ function isAutonomousAutomationTask(kind: AgentTaskKind) {
     "payout_exception_triage",
     "preview_diagnosis",
   ].includes(kind);
+}
+
+function shouldRequireHumanReview(
+  task: {
+    approval_policy: ApprovalPolicy;
+  },
+  params: {
+    status: AgentRunStatus;
+    output?: unknown;
+  },
+) {
+  const output =
+    params.output && typeof params.output === "object"
+      ? (params.output as Record<string, unknown>)
+      : null;
+  const outputRequiresHumanReview =
+    output && typeof output.requires_human_review === "boolean"
+      ? output.requires_human_review
+      : false;
+
+  if (task.approval_policy.require_human_approval) {
+    return true;
+  }
+
+  if (task.approval_policy.sensitive_actions.length > 0) {
+    return true;
+  }
+
+  if (outputRequiresHumanReview) {
+    return true;
+  }
+
+  return params.status !== "completed";
 }
 
 function openClawModeForTask(task: NormalizedAgentTask<unknown, unknown>) {
@@ -189,6 +248,18 @@ async function logRunEvent(
 async function executeTask<TInput, TOutput>(
   task: NormalizedAgentTask<TInput, TOutput>,
 ): Promise<AgentResult<TOutput>> {
+  if (task.provider === "openai_responses") {
+    return runOpenAIResponsesTask(task);
+  }
+
+  if (task.provider === "anthropic_agent_sdk") {
+    return runAnthropicAgentSdkTask(task);
+  }
+
+  if (task.provider === "acp_harness") {
+    return runAcpHarnessTask(task);
+  }
+
   const taskForPolicy = task as unknown as NormalizedAgentTask<unknown, unknown>;
   const inputRecord =
     task.input && typeof task.input === "object"
@@ -211,10 +282,7 @@ async function executeTask<TInput, TOutput>(
       startup_context: startupContext,
       policy: {
         risk_level: riskLevelForTask(taskForPolicy),
-        requires_approval:
-          isAutonomousAutomationTask(task.kind)
-            ? false
-            : task.approval_policy.require_human_approval,
+        requires_approval: task.approval_policy.require_human_approval,
         allowed_domains: task.tool_policy.allowed_domains || [],
         allowed_tools: allowedToolsForTask(taskForPolicy),
         allowed_skill_ids: [],
@@ -266,8 +334,10 @@ async function executeTask<TInput, TOutput>(
           : undefined,
       raw_output_text: finalResponse.raw_output_text,
       error: finalResponse.error || null,
-      requires_human_review:
-        isAutonomousAutomationTask(task.kind) ? false : finalStatus !== "completed",
+      requires_human_review: shouldRequireHumanReview(task, {
+        status: finalStatus,
+        output: finalStatus === "completed" ? finalResponse.result : undefined,
+      }),
       requires_approval: false,
       openclaw_session_id: finalResponse.openclaw_session_id || null,
       openclaw_run_id: finalResponse.openclaw_run_id || null,
@@ -282,7 +352,9 @@ async function executeTask<TInput, TOutput>(
       model: task.model,
       tool_mode: task.tool_policy.mode,
       error: error instanceof Error ? error.message : "OpenClaw execution failed",
-      requires_human_review: !isAutonomousAutomationTask(task.kind),
+      requires_human_review: shouldRequireHumanReview(task, {
+        status: "failed",
+      }),
       requires_approval: false,
     };
   }
@@ -447,15 +519,13 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
     sessionKey: normalizedTask.session_key || undefined,
   });
   const runId = options?.runId || crypto.randomUUID();
-  const approval = isAutonomousAutomationTask(normalizedTask.kind)
-    ? { required: false, reason: null }
-    : requiresApproval(task, normalizedTask.approval_policy);
+  const approval = requiresApproval(task, normalizedTask.approval_policy);
 
   if (approval.required) {
     const pendingResult: AgentResult<TOutput> = {
       status: "pending_approval",
-      provider: "openclaw",
-      runtime: "openclaw",
+      provider: normalizedTask.provider,
+      runtime: normalizedTask.runtime,
       model: normalizedTask.model,
       tool_mode: normalizedTask.tool_policy.mode,
       error: null,
@@ -477,7 +547,7 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
         dispatch_mode: normalizedTask.session_policy.dispatch_mode,
         input: task,
         approval_reason: approval.reason,
-        requires_human_review: !isAutonomousAutomationTask(normalizedTask.kind),
+        requires_human_review: true,
         tool_policy: normalizedTask.tool_policy,
         approval_policy: normalizedTask.approval_policy,
         metadata: normalizedTask.metadata,
@@ -514,7 +584,9 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
       status: "running",
       dispatch_mode: normalizedTask.session_policy.dispatch_mode,
       input: task,
-      requires_human_review: false,
+      requires_human_review: shouldRequireHumanReview(normalizedTaskForLogs, {
+        status: "running",
+      }),
       tool_policy: normalizedTask.tool_policy,
       approval_policy: normalizedTask.approval_policy,
       metadata: normalizedTask.metadata,
@@ -599,7 +671,9 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
     if (db) {
       await markRunStatus(runId, "failed", {
         error: message,
-        requires_human_review: !isAutonomousAutomationTask(normalizedTask.kind),
+        requires_human_review: shouldRequireHumanReview(normalizedTaskForLogs, {
+          status: "failed",
+        }),
       });
     }
 
@@ -630,7 +704,9 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
       model: normalizedTask.model,
       tool_mode: normalizedTask.tool_policy.mode,
       error: message,
-      requires_human_review: !isAutonomousAutomationTask(normalizedTask.kind),
+      requires_human_review: shouldRequireHumanReview(normalizedTaskForLogs, {
+        status: "failed",
+      }),
       requires_approval: false,
     };
   }

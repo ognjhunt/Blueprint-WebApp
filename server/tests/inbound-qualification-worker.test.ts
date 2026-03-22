@@ -109,7 +109,7 @@ describe("inbound qualification worker", () => {
         qualification_state_recommendation: "needs_more_evidence",
         opportunity_state_recommendation: "not_applicable",
         confidence: 0.83,
-        requires_human_review: false,
+        requires_human_review: true,
         next_action: "Request missing site evidence",
         rationale: "The request is promising but incomplete.",
         internal_summary: "Missing site evidence and rights clarity.",
@@ -130,7 +130,15 @@ describe("inbound qualification worker", () => {
         kind: "inbound_qualification",
       }),
     );
-    expect(inboundSet).toHaveBeenCalled();
+    expect(inboundSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        human_review_required: true,
+        ops_automation: expect.objectContaining({
+          requires_human_review: true,
+        }),
+      }),
+      { merge: true },
+    );
   }, 15_000);
 
   it("marks the run failed when the provider times out or returns malformed output", async () => {

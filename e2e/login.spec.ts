@@ -7,9 +7,9 @@ test('login page renders core auth UI', async ({ page }) => {
     page.getByRole('heading', { name: /Welcome back/i }),
   ).toBeVisible();
   await expect(
-    page.getByRole('button', { name: /Continue with Google/i }),
+    page.getByText(/Web access is for robot teams and site ops\./i),
   ).toBeVisible();
   await expect(
-    page.getByText(/Sign in to continue to Blueprint/i),
+    page.getByRole('button', { name: /Continue with Google/i }),
   ).toBeVisible();
 });

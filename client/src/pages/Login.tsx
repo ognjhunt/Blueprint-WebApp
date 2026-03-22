@@ -126,8 +126,8 @@ export default function Login() {
   return (
     <>
       <SEO
-        title="Sign In"
-        description="Sign in to access your Blueprint account and continue your qualification intake or submission review."
+        title="Portal Sign In"
+        description="Sign in to access Blueprint's web portal for robot teams and site operators."
         canonical="/login"
       />
       <div className="min-h-screen bg-white text-slate-900">
@@ -141,8 +141,23 @@ export default function Login() {
             Welcome back
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Sign in to continue to Blueprint
+            Web access is for robot teams and site ops.
           </p>
+        </div>
+
+        <div className="mb-6 rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-left">
+          <p className="text-sm font-semibold text-slate-900">Capturer?</p>
+          <p className="mt-1 text-sm leading-6 text-slate-600">
+            Capturers do not sign in on the web app. Use the mobile app to capture, upload,
+            and track payouts.
+          </p>
+          <a
+            href="/capture-app"
+            className="mt-3 inline-flex min-h-11 items-center font-semibold text-indigo-600 hover:text-indigo-500"
+          >
+            Download the app
+            <ArrowRight className="ml-1 h-4 w-4" />
+          </a>
         </div>
 
         {/* Auth Card */}
@@ -314,7 +329,7 @@ export default function Login() {
 
         {/* Bottom Link */}
         <p className="mt-8 text-center text-sm text-slate-600">
-          Don't have an account?{" "}
+          Need web access for a robot team or site?{" "}
           <a
             href="/signup"
             className="inline-flex min-h-11 items-center font-semibold text-indigo-600 hover:text-indigo-500"

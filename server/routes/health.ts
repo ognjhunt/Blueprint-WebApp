@@ -84,8 +84,8 @@ router.get("/health/ready", async (_req: Request, res: Response) => {
     const emailReady = !emailRequired || emailTransport.configured;
     const pipelineSyncReady =
       !pipelineSyncEnabled || Boolean(process.env.PIPELINE_SYNC_TOKEN?.trim());
-    const openClawReady =
-      !anyAutomationEnabled || Boolean(process.env.OPENCLAW_BASE_URL?.trim());
+    const agentRuntimeReady =
+      !anyAutomationEnabled || Boolean(process.env.OPENAI_API_KEY?.trim());
 
     const checks = {
       server: true,
@@ -94,7 +94,7 @@ router.get("/health/ready", async (_req: Request, res: Response) => {
       stripe: stripeReady,
       email: emailReady,
       pipelineSync: pipelineSyncReady,
-      openclaw: openClawReady,
+      agentRuntime: agentRuntimeReady,
     };
 
     const launchChecks = {
@@ -141,20 +141,23 @@ router.get("/health/ready", async (_req: Request, res: Response) => {
             : "Pipeline sync is enabled but PIPELINE_SYNC_TOKEN is missing."
           : "Pipeline sync is not required.",
       },
-      openclaw: {
+      agentRuntime: {
         required: anyAutomationEnabled,
-        ready: openClawReady,
+        ready: agentRuntimeReady,
         detail: anyAutomationEnabled
-          ? openClawReady
-            ? "OpenClaw base URL is configured for enabled automation lanes."
-            : "Automation lanes are enabled but OPENCLAW_BASE_URL is missing."
-          : "OpenClaw is not required because automation lanes are disabled.",
+          ? agentRuntimeReady
+            ? "OpenAI Responses runtime is configured for enabled automation lanes."
+            : "Automation lanes are enabled but OPENAI_API_KEY is missing."
+          : "Agent runtime is not required because automation lanes are disabled.",
       },
       postSignupDirect: {
         required: false,
         ready: Boolean(
-          process.env.GOOGLE_CLIENT_EMAIL?.trim()
-          && process.env.GOOGLE_PRIVATE_KEY?.trim()
+          (
+            (process.env.GOOGLE_CLIENT_EMAIL?.trim() && process.env.GOOGLE_PRIVATE_KEY?.trim())
+            || process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim()
+            || process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim()
+          )
           && process.env.GOOGLE_CALENDAR_ID?.trim()
           && (
             process.env.POST_SIGNUP_SPREADSHEET_ID?.trim()

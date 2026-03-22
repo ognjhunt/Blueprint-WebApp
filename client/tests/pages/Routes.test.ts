@@ -50,4 +50,13 @@ describe("Route registration", () => {
     expect(source).toContain('path: "/dashboard"');
     expect(source).toContain('path: "/off-waitlist-signup"');
   });
+
+  it("keeps the capturer signup slug as a redirect to the app handoff", () => {
+    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
+    const source = fs.readFileSync(routesPath, "utf-8");
+
+    expect(source).toContain('path: "/capture-app"');
+    expect(source).toContain('path: "/signup/capturer"');
+    expect(source).toContain("LegacyCapturerSignupRedirect");
+  });
 });

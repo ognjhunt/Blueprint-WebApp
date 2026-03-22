@@ -27,6 +27,12 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
       } else if (!userData) {
         // Wait for user data to be loaded
         return;
+      } else if (
+        userData.role === "capturer" ||
+        userData.roles?.includes("capturer") === true
+      ) {
+        sessionStorage.removeItem("redirectAfterAuth");
+        setLocation("/capture-app");
       } else {
         setIsReady(true);
       }

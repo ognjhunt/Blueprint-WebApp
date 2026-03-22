@@ -77,12 +77,12 @@ export const inboundQualificationTask: StructuredTaskDefinition<
   InboundQualificationOutput
 > = {
   kind: "inbound_qualification",
-  default_provider: "openclaw",
+  default_provider: "openai_responses",
   model_by_provider: {
-    openclaw:
-      process.env.OPENCLAW_INBOUND_QUALIFICATION_MODEL ||
-      process.env.OPENCLAW_DEFAULT_MODEL ||
-      "openai/gpt-5.4",
+    openai_responses:
+      process.env.OPENAI_INBOUND_QUALIFICATION_MODEL ||
+      process.env.OPENAI_DEFAULT_MODEL ||
+      "gpt-5.4",
   },
   output_schema: inboundQualificationOutputSchema,
   tool_policy: {
@@ -98,7 +98,8 @@ Output JSON only. No markdown. No explanation outside JSON.
 
 Rules:
 - Do not make binding commercial or legal decisions.
-- Do not request human review. Set requires_human_review=false.
+- Set requires_human_review=true when automation_status="blocked".
+- Set requires_human_review=true when recommending "qualified_ready" or "qualified_risky" because those recommendations can change buyer-facing commitments.
 - If the request has rights, licensing, privacy, payout, or unclear evidence concerns, use automation_status="blocked".
 - When automation_status="blocked", set block_reason_code to a short snake_case reason and retryable=true only when new buyer evidence could unblock the request.
 - Only recommend "qualified_ready" when the request is unusually clear, low-risk, and already has enough detail to move confidently.
@@ -116,7 +117,7 @@ Return JSON with this exact shape:
   "qualification_state_recommendation": "submitted" | "capture_requested" | "qa_passed" | "needs_more_evidence" | "in_review" | "qualified_ready" | "qualified_risky" | "needs_refresh" | "not_ready_yet",
   "opportunity_state_recommendation": "not_applicable" | "handoff_ready" | "escalated_to_geometry" | "escalated_to_validation",
   "confidence": 0.0,
-  "requires_human_review": false,
+  "requires_human_review": true,
   "next_action": "",
   "rationale": "",
   "internal_summary": "",

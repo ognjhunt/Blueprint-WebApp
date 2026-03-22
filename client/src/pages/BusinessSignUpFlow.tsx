@@ -175,7 +175,7 @@ export default function BusinessSignUpFlow() {
 
     const params = new URLSearchParams(window.location.search);
     if (params.get("role") === "capturer") {
-      setLocation("/signup/capturer");
+      setLocation("/capture-app");
     }
   }, [setLocation]);
 

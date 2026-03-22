@@ -92,11 +92,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const marketingDestination =
         (viteEnv.VITE_MARKETING_DESTINATION as string | undefined)?.trim() ||
         "/onboarding";
+      const isCapturer =
+        data?.role === "capturer" || data?.roles?.includes("capturer") === true;
       let storedRedirect: string | null = null;
       try {
         storedRedirect = sessionStorage.getItem("redirectAfterAuth");
       } catch (storageError) {
         console.error("Unable to read redirectAfterAuth from sessionStorage:", storageError);
+      }
+
+      if (isCapturer) {
+        if (storedRedirect) {
+          try {
+            sessionStorage.removeItem("redirectAfterAuth");
+          } catch (storageError) {
+            console.error(
+              "Unable to clear redirectAfterAuth from sessionStorage:",
+              storageError,
+            );
+          }
+        }
+        return "/capture-app";
       }
 
       if (storedRedirect) {
@@ -114,12 +130,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           );
         }
         return normalizedRedirect;
-      }
-
-      const isCapturer =
-        data?.role === "capturer" || data?.roles?.includes("capturer") === true;
-      if (isCapturer) {
-        return "/capture";
       }
 
       // If user just signed up (has onboardingStep set but not completed)

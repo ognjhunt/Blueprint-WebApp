@@ -1,11 +1,6 @@
-"use client";
-
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
 import {
   ArrowRight,
-  CheckCircle2,
-  Compass,
   Copy,
   ExternalLink,
   Loader2,
@@ -13,18 +8,9 @@ import {
   QrCode,
   Shield,
   Smartphone,
-  Sparkles,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
+import { SEO } from "@/components/SEO";
 import { withCsrfHeader } from "@/lib/csrf";
 import { getCaptureAppPlaceholderUrl } from "@/lib/client-env";
 
@@ -49,7 +35,7 @@ export default function CaptureAppPlaceholder() {
   const captureAppUrl = useMemo(() => getCaptureAppPlaceholderUrl(), []);
   const smsBody = useMemo(
     () =>
-      `Blueprint Capture private beta link:\n${captureAppUrl}\n\nUse this link for invite-only access and install instructions.`,
+      `Blueprint Capture access link:\n${captureAppUrl}\n\nOpen this link on your phone for the latest capturer access flow.`,
     [captureAppUrl],
   );
   const smsHref = useMemo(
@@ -64,11 +50,11 @@ export default function CaptureAppPlaceholder() {
       try {
         const qrcode = await import("qrcode");
         const dataUrl = await qrcode.toDataURL(captureAppUrl, {
-          width: 360,
+          width: 320,
           margin: 1,
           color: {
-            dark: "#111418",
-            light: "#fbf8ef",
+            dark: "#111827",
+            light: "#f8fafc",
           },
         });
 
@@ -76,7 +62,7 @@ export default function CaptureAppPlaceholder() {
           setQrCodeUrl(dataUrl);
         }
       } catch (error) {
-        console.error("Failed to generate placeholder QR code:", error);
+        console.error("Failed to generate capture access QR code:", error);
       }
     }
 
@@ -127,11 +113,11 @@ export default function CaptureAppPlaceholder() {
 
       const responseBody = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(responseBody?.error || "Failed to join the private beta list.");
+        throw new Error(responseBody?.error || "Failed to join the capturer access list.");
       }
 
       setStatus("success");
-      setMessage("Private beta request received. We’ll send access instructions when your market opens.");
+      setMessage("Request received. We’ll send the right capture access instructions for your market.");
       setEmail("");
       setMarket("");
       setPhone("");
@@ -148,7 +134,7 @@ export default function CaptureAppPlaceholder() {
       await navigator.clipboard.writeText(captureAppUrl);
       setCopyState("copied");
     } catch (error) {
-      console.error("Failed to copy placeholder link:", error);
+      console.error("Failed to copy capture access link:", error);
       setCopyState("failed");
     } finally {
       window.setTimeout(() => setCopyState("idle"), 1800);
@@ -156,291 +142,225 @@ export default function CaptureAppPlaceholder() {
   };
 
   return (
-    <main
-      className="min-h-screen overflow-hidden bg-[#f2ebde] px-4 py-8 text-[#15181a] sm:py-10"
-      style={{
-        backgroundImage:
-          "radial-gradient(circle at 18% 12%, rgba(92, 143, 79, 0.18), transparent 24%), radial-gradient(circle at 82% 18%, rgba(223, 168, 58, 0.22), transparent 22%), linear-gradient(180deg, #f6f0e5 0%, #efe5d7 100%)",
-      }}
-    >
-      <div className="mx-auto max-w-6xl">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.34 }}
-          className="overflow-hidden rounded-[2.25rem] border border-[#d9c9ae] bg-[#fbf8ef] shadow-[0_30px_120px_rgba(77,57,24,0.11)]"
-        >
-          <div className="grid lg:grid-cols-[1.04fr_0.96fr]">
-            <section className="relative border-b border-[#e6d9c4] p-7 sm:p-10 lg:border-b-0 lg:border-r">
-              <div className="absolute inset-x-0 top-0 h-36 bg-[radial-gradient(circle_at_top_left,_rgba(92,143,79,0.2),_transparent_64%)]" />
-              <div className="relative">
-                <div className="inline-flex items-center gap-2 rounded-full border border-[#d9c9ae] bg-white/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#4a7045]">
-                  <Compass className="h-3.5 w-3.5" />
-                  Invite-Only Beta
-                </div>
+    <>
+      <SEO
+        title="Blueprint Capture App"
+        description="Download the Blueprint Capture app, scan the QR code, or request launch access for your market."
+        canonical="/capture-app"
+      />
+      <main className="min-h-screen bg-slate-950 text-slate-100">
+        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
+          <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+            <section className="rounded-[2rem] border border-slate-800 bg-slate-900/70 p-8 shadow-[0_30px_100px_rgba(0,0,0,0.35)]">
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-200">
+                <Smartphone className="h-3.5 w-3.5" />
+                Blueprint Capture App
+              </div>
 
-                <div className="mt-7 max-w-xl">
-                  <p className="text-sm uppercase tracking-[0.22em] text-[#7d6f5d]">
-                    Blueprint Capture
-                  </p>
-                  <h1 className="mt-3 text-[clamp(3rem,8vw,5.5rem)] font-semibold leading-[0.94] tracking-[-0.07em] text-[#111418]">
-                    Download flow now.
-                    <br />
-                    Native app next.
-                  </h1>
-                  <p className="mt-5 max-w-lg text-base leading-7 text-[#5b5145] sm:text-lg">
-                    This page acts like an app-store handoff before the store exists. Join the
-                    private beta, scan the QR, or text the link to yourself so capturers move from
-                    web signup into an app-first funnel.
+              <h1 className="mt-6 max-w-3xl text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+                Your mobile gateway to Blueprint's capture network.
+              </h1>
+              <p className="mt-5 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
+                Capturers do not create web accounts. Download the app on the phone that will do
+                the work, scan the QR code from another device, or request launch access for your
+                market.
+              </p>
+
+              <div className="mt-8 grid gap-4 sm:grid-cols-3">
+                <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5">
+                  <Shield className="h-5 w-5 text-emerald-300" />
+                  <p className="mt-4 text-sm font-semibold text-white">Capture and upload fast</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">
+                    Start sessions from your phone, upload on the move, and keep every submission
+                    tied to the right device flow.
                   </p>
                 </div>
-
-                <div className="mt-8 flex flex-wrap gap-3 text-sm">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-[#d9c9ae] bg-white px-4 py-2 text-[#40382f]">
-                    <CheckCircle2 className="h-4 w-4 text-[#4a7045]" />
-                    Indoor capture only
-                  </div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-[#d9c9ae] bg-white px-4 py-2 text-[#40382f]">
-                    <Smartphone className="h-4 w-4 text-[#4a7045]" />
-                    iPhone-first beta
-                  </div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-[#d9c9ae] bg-white px-4 py-2 text-[#40382f]">
-                    <Shield className="h-4 w-4 text-[#4a7045]" />
-                    Market-by-market rollout
-                  </div>
+                <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5">
+                  <MessageSquareShare className="h-5 w-5 text-sky-300" />
+                  <p className="mt-4 text-sm font-semibold text-white">Task feed and payouts</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">
+                    Browse available work, monitor approval status, and keep payout activity in one
+                    mobile workflow.
+                  </p>
                 </div>
+                <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-5">
+                  <QrCode className="h-5 w-5 text-amber-300" />
+                  <p className="mt-4 text-sm font-semibold text-white">QR and link handoff</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">
+                    Open the app listing directly, text yourself the link, or keep a scannable
+                    download path live for recruiting and ops.
+                  </p>
+                </div>
+              </div>
 
-                <div className="mt-10 grid gap-4 sm:grid-cols-[1.15fr_0.85fr]">
-                  <div className="rounded-[1.8rem] border border-[#d9c9ae] bg-[#12181c] p-5 text-[#f7f2e7]">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#d8c9b0]">
-                        Beta access
-                      </p>
-                      <Sparkles className="h-4 w-4 text-[#d8b14d]" />
-                    </div>
-                    <p className="mt-5 text-2xl font-semibold tracking-[-0.04em]">
-                      Join the list and we’ll route you when your market opens.
-                    </p>
-                    <p className="mt-3 text-sm leading-6 text-[#d7c9b5]">
-                      Current site usage is placeholder-first: invite handling, install instructions,
-                      and a stable link for QR scans.
-                    </p>
-                  </div>
-
-                  <div className="rounded-[1.8rem] border border-[#d9c9ae] bg-[#efe3cf] p-5">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#7c6d58]">
-                      Handoff pattern
-                    </p>
-                    <p className="mt-5 text-2xl font-semibold leading-tight tracking-[-0.04em] text-[#1a1d1f]">
-                      Website for signup.
-                      <br />
-                      Capture app for work.
-                    </p>
-                    <p className="mt-3 text-sm leading-6 text-[#5e5448]">
-                      Same split used by the strongest worker funnels: brief web onboarding, then an
-                      app-first operating surface.
-                    </p>
-                  </div>
+              <div className="mt-8 rounded-3xl border border-slate-800 bg-slate-950/80 p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+                  Current mobile app link
+                </p>
+                <p className="mt-4 break-all rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-200">
+                  {captureAppUrl}
+                </p>
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={handleCopyLink}
+                    className="inline-flex items-center justify-center rounded-full border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:border-slate-500 hover:bg-slate-800"
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    {copyState === "copied"
+                      ? "Copied"
+                      : copyState === "failed"
+                        ? "Copy failed"
+                        : "Copy link"}
+                  </button>
+                  <a
+                    href={captureAppUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
+                  >
+                    Download the app
+                    <ExternalLink className="ml-2 h-4 w-4" />
+                  </a>
+                  <a
+                    href={smsHref}
+                    className="inline-flex items-center justify-center rounded-full border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:border-slate-500 hover:bg-slate-800"
+                  >
+                    Text to phone
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
                 </div>
               </div>
             </section>
 
-            <section className="bg-[#fcf9f2] p-7 sm:p-10">
-              <div className="grid gap-6">
-                <div className="rounded-[2rem] border border-[#ded1bb] bg-white p-6">
-                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7d6f5d]">
-                    <ArrowRight className="h-3.5 w-3.5" />
-                    Request access
-                  </div>
-                  <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-[#131619]">
-                    Join the private beta
-                  </h2>
-                  <p className="mt-2 text-sm leading-6 text-[#5b5145]">
-                    Leave your email and market. We’ll use this to send invite instructions and
-                    prioritize cities where capturers are already ready to go.
+            <section className="grid gap-6">
+              <div className="rounded-[2rem] border border-slate-800 bg-white p-6 text-slate-950">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                  Early access
+                </p>
+                <h2 className="mt-3 text-3xl font-semibold tracking-tight">
+                  Request launch access
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Tell us where you are and which device you plan to use. We’ll route the right
+                  instructions when your market is active.
+                </p>
+
+                <form onSubmit={handleWaitlistSubmit} className="mt-6 space-y-4">
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Email</span>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="you@example.com"
+                      className="mt-2 h-12 w-full rounded-2xl border border-slate-300 px-4 text-sm outline-none transition focus:border-slate-950"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Home market</span>
+                    <input
+                      value={market}
+                      onChange={(event) => setMarket(event.target.value)}
+                      placeholder="Raleigh-Durham, NC"
+                      className="mt-2 h-12 w-full rounded-2xl border border-slate-300 px-4 text-sm outline-none transition focus:border-slate-950"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Phone</span>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(event) => setPhone(event.target.value)}
+                      placeholder="(919) 555-0123"
+                      className="mt-2 h-12 w-full rounded-2xl border border-slate-300 px-4 text-sm outline-none transition focus:border-slate-950"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Primary capture device</span>
+                    <select
+                      value={device}
+                      onChange={(event) => setDevice(event.target.value)}
+                      className="mt-2 h-12 w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm outline-none transition focus:border-slate-950"
+                    >
+                      <option value="iphone">iPhone</option>
+                      <option value="ipad">iPad</option>
+                      <option value="smart_glasses">Smart glasses</option>
+                      <option value="android">Android phone</option>
+                    </select>
+                  </label>
+
+                  <button
+                    type="submit"
+                    disabled={status === "loading"}
+                    className="inline-flex h-12 w-full items-center justify-center rounded-full bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {status === "loading" ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Sending request
+                      </>
+                    ) : (
+                      <>
+                        Request launch access
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                {message ? (
+                  <p
+                    className={`mt-4 text-sm ${
+                      status === "error" ? "text-rose-600" : "text-emerald-700"
+                    }`}
+                  >
+                    {message}
                   </p>
+                ) : null}
+              </div>
 
-                  <form onSubmit={handleWaitlistSubmit} className="mt-6 space-y-4">
-                    <div>
-                      <Label htmlFor="capture-beta-email" className="text-[#1f2326]">
-                        Email
-                      </Label>
-                      <Input
-                        id="capture-beta-email"
-                        type="email"
-                        value={email}
-                        onChange={(event) => setEmail(event.target.value)}
-                        placeholder="you@example.com"
-                        className="mt-2 h-12 rounded-2xl border-[#d8cab3] bg-[#fbf8ef]"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="capture-beta-market" className="text-[#1f2326]">
-                        Home market
-                      </Label>
-                      <Input
-                        id="capture-beta-market"
-                        value={market}
-                        onChange={(event) => setMarket(event.target.value)}
-                        placeholder="Raleigh-Durham, NC"
-                        className="mt-2 h-12 rounded-2xl border-[#d8cab3] bg-[#fbf8ef]"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="capture-beta-phone" className="text-[#1f2326]">
-                        Phone
-                      </Label>
-                      <Input
-                        id="capture-beta-phone"
-                        type="tel"
-                        value={phone}
-                        onChange={(event) => setPhone(event.target.value)}
-                        placeholder="(919) 555-0123"
-                        className="mt-2 h-12 rounded-2xl border-[#d8cab3] bg-[#fbf8ef]"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-[#1f2326]">Capture device</Label>
-                      <Select value={device} onValueChange={setDevice}>
-                        <SelectTrigger className="mt-2 h-12 rounded-2xl border-[#d8cab3] bg-[#fbf8ef]">
-                          <SelectValue placeholder="Select your primary device" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="iphone">iPhone</SelectItem>
-                          <SelectItem value="ipad">iPad</SelectItem>
-                          <SelectItem value="smart_glasses">Smart glasses</SelectItem>
-                          <SelectItem value="android">Android phone</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="rounded-[1.4rem] border border-[#e6d9c4] bg-[#fbf8ef] px-4 py-3 text-sm text-[#5b5145]">
-                      Role: <span className="font-semibold text-[#1f2326]">Capturer applicant</span>
-                    </div>
-                    <Button
-                      type="submit"
-                      disabled={status === "loading"}
-                      className="h-12 w-full rounded-full bg-[#111418] text-white hover:bg-[#4a7045]"
-                    >
-                      {status === "loading" ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Sending request
-                        </>
-                      ) : (
-                        <>
-                          Request beta access
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </>
-                      )}
-                    </Button>
-                  </form>
-
-                  {message ? (
-                    <p
-                      className={`mt-4 text-sm ${
-                        status === "error" ? "text-[#b6423c]" : "text-[#316c46]"
-                      }`}
-                    >
-                      {message}
-                    </p>
-                  ) : null}
+              <div className="rounded-[2rem] border border-slate-800 bg-slate-900 p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+                  Scan QR
+                </p>
+                <div className="mt-5 flex items-center justify-center rounded-3xl border border-slate-800 bg-white p-4">
+                  {qrCodeUrl ? (
+                    <img
+                      src={qrCodeUrl}
+                      alt="QR code for Blueprint Capture access"
+                      className="h-44 w-44 rounded-2xl"
+                    />
+                  ) : (
+                    <div className="py-16 text-sm text-slate-500">Generating QR code...</div>
+                  )}
                 </div>
-
-                <div className="rounded-[2rem] border border-[#ded1bb] bg-[#f4ebdc] p-6">
-                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7d6f5d]">
-                    <MessageSquareShare className="h-3.5 w-3.5" />
-                    SMS handoff
-                  </div>
-                  <h2 className="mt-3 text-2xl font-semibold tracking-[-0.05em] text-[#131619]">
-                    Send the link to your phone
-                  </h2>
-                  <p className="mt-2 text-sm leading-6 text-[#5b5145]">
-                    Useful before distribution is public. Open the placeholder link on mobile, then
-                    swap the destination later when TestFlight or the App Store is ready.
-                  </p>
-
-                  <div className="mt-5 rounded-[1.5rem] border border-[#d8cab3] bg-white p-4">
-                    <p className="break-all text-sm leading-6 text-[#2d3134]">{captureAppUrl}</p>
-                  </div>
-
-                  <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleCopyLink}
-                      className="rounded-full border-[#cbb99b] bg-white"
-                    >
-                      <Copy className="mr-2 h-4 w-4" />
-                      {copyState === "copied"
-                        ? "Copied"
-                        : copyState === "failed"
-                          ? "Copy failed"
-                          : "Copy link"}
-                    </Button>
-                    <Button
-                      asChild
-                      type="button"
-                      variant="outline"
-                      className="rounded-full border-[#cbb99b] bg-white"
-                    >
-                      <a href={smsHref}>
-                        Start SMS draft
-                        <ExternalLink className="ml-2 h-4 w-4" />
-                      </a>
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="grid gap-6 md:grid-cols-[0.84fr_1.16fr]">
-                  <div className="rounded-[2rem] border border-[#ded1bb] bg-white p-5">
-                    <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7d6f5d]">
-                      <QrCode className="h-3.5 w-3.5" />
-                      Scan
-                    </div>
-                    <div className="mt-4 flex items-center justify-center rounded-[1.5rem] border border-[#e4d8c6] bg-[#fbf8ef] p-3">
-                      {qrCodeUrl ? (
-                        <img
-                          src={qrCodeUrl}
-                          alt="QR code for Blueprint Capture private beta landing page"
-                          className="h-40 w-40 rounded-xl"
-                        />
-                      ) : (
-                        <div className="py-16 text-xs text-[#7d6f5d]">Generating QR...</div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="rounded-[2rem] border border-[#ded1bb] bg-[#111418] p-6 text-[#f7f2e7]">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#d7c8b2]">
-                      Before launch
-                    </p>
-                    <div className="mt-4 space-y-4 text-sm leading-6 text-[#d7c8b2]">
-                      <p>
-                        Keep this page live during private beta. It gives you a stable destination
-                        for signup handoff, QR scans, and outbound invites before mobile
-                        distribution exists.
-                      </p>
-                      <p>
-                        Once the native app is ready, update the env placeholder URL and this whole
-                        flow becomes your real download surface without changing the capturer signup
-                        route again.
-                      </p>
-                    </div>
-                    <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                      <Button asChild className="rounded-full bg-[#f7f2e7] text-[#131619] hover:bg-white">
-                        <a href="/signup/capturer">Capturer signup</a>
-                      </Button>
-                      <Button asChild variant="outline" className="rounded-full border-[#7e6e58] text-[#f7f2e7] hover:bg-white/5">
-                        <a href="/capture">Capture overview</a>
-                      </Button>
-                    </div>
-                  </div>
+                <p className="mt-4 text-sm leading-6 text-slate-400">
+                  Keep this route stable. It gives recruiting, ops, and public capturer traffic one
+                  shareable destination even as the downstream app link changes.
+                </p>
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                  <a
+                    href="/capture"
+                    className="inline-flex items-center justify-center rounded-full border border-slate-700 bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:border-slate-500 hover:bg-slate-800"
+                  >
+                    Learn about capture
+                  </a>
+                  <a
+                    href="/login"
+                    className="inline-flex items-center justify-center rounded-full border border-slate-700 bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:border-slate-500 hover:bg-slate-800"
+                  >
+                    Web portal sign in
+                  </a>
                 </div>
               </div>
             </section>
           </div>
-        </motion.div>
-      </div>
-    </main>
+        </div>
+      </main>
+    </>
   );
 }

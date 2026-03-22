@@ -11,6 +11,6 @@ test('homepage leads with capture and world models', async ({ page }) => {
   await expect(nav.getByRole('link', { name: /^World Models$/i })).toBeVisible();
   await expect(nav.getByRole('link', { name: /^For Robot Teams$/i })).toBeVisible();
   await expect(nav.getByRole('link', { name: /^For Sites$/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Start capturing/i }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: /Download the app/i }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: /Browse world models/i }).first()).toBeVisible();
 });

@@ -264,7 +264,7 @@ export async function runWaitlistAutomationLoop(params?: {
           status: nextStatus,
           queue: result.output.recommended_queue,
           updated_at: admin.firestore.FieldValue.serverTimestamp(),
-          human_review_required: false,
+          human_review_required: result.output.requires_human_review,
           automation_confidence: result.output.confidence,
           ops_automation: {
             ...(submission.ops_automation || {}),
@@ -289,7 +289,7 @@ export async function runWaitlistAutomationLoop(params?: {
             recommendation: result.output.recommendation,
             rationale: result.output.rationale,
             market_summary: result.output.market_summary,
-            requires_human_review: false,
+            requires_human_review: result.output.requires_human_review,
             block_reason_code: result.output.block_reason_code,
             retryable: result.output.retryable,
             market_context: marketContext,
@@ -306,7 +306,7 @@ export async function runWaitlistAutomationLoop(params?: {
         recommendation: result.output.recommendation,
         recommendedQueue: result.output.recommended_queue,
         inviteReadinessScore: result.output.invite_readiness_score,
-        requiresHumanReview: false,
+        requiresHumanReview: result.output.requires_human_review,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown waitlist automation error";
@@ -436,7 +436,7 @@ export async function runInboundQualificationForRequest(
 
   await docRef.set(
     {
-      human_review_required: false,
+      human_review_required: result.output.requires_human_review,
       automation_confidence: result.output.confidence,
       ops_automation: {
         ...(request.ops_automation || {}),
@@ -452,7 +452,7 @@ export async function runInboundQualificationForRequest(
         execution_id: `${request.requestId}:${Date.now()}`,
         session_key: `inbound:${request.requestId}`,
         confidence: result.output.confidence,
-        requires_human_review: false,
+        requires_human_review: result.output.requires_human_review,
         block_reason_code: result.output.block_reason_code,
         retryable: result.output.retryable,
         qualification_state_recommendation:
@@ -601,7 +601,7 @@ export async function runSupportTriageLoop(params?: { limit?: number }) {
       await doc.ref.set(
         {
           queue: result.output.queue,
-          human_review_required: false,
+          human_review_required: result.output.requires_human_review,
           automation_confidence: result.output.confidence,
           ops_automation: {
             ...(data.ops_automation && typeof data.ops_automation === "object"
@@ -619,7 +619,7 @@ export async function runSupportTriageLoop(params?: { limit?: number }) {
             execution_id: `${doc.id}:${Date.now()}`,
             session_key: `support:${doc.id}`,
             confidence: result.output.confidence,
-            requires_human_review: false,
+            requires_human_review: result.output.requires_human_review,
             block_reason_code: result.output.block_reason_code,
             retryable: result.output.retryable,
             rationale: result.output.rationale,
@@ -708,7 +708,7 @@ export async function runPayoutExceptionTriageLoop(params?: { limit?: number }) 
 
       await doc.ref.set(
         {
-          human_review_required: false,
+          human_review_required: result.output.requires_human_review,
           automation_confidence: result.output.confidence,
           ops_automation: {
             status: normalizeAutomationStatus(result.output.automation_status),
@@ -723,7 +723,7 @@ export async function runPayoutExceptionTriageLoop(params?: { limit?: number }) 
             execution_id: `${doc.id}:${Date.now()}`,
             session_key: `payout:${doc.id}`,
             confidence: result.output.confidence,
-            requires_human_review: false,
+            requires_human_review: result.output.requires_human_review,
             block_reason_code: result.output.block_reason_code,
             retryable: result.output.retryable,
             rationale: result.output.rationale,
@@ -837,7 +837,7 @@ export async function runPreviewDiagnosisLoop(params?: { limit?: number }) {
 
       await doc.ref.set(
         {
-          human_review_required: false,
+          human_review_required: result.output.requires_human_review,
           automation_confidence: result.output.confidence,
           ops_automation: {
             ...(decrypted.ops_automation || {}),
@@ -853,7 +853,7 @@ export async function runPreviewDiagnosisLoop(params?: { limit?: number }) {
             execution_id: `${doc.id}:${Date.now()}`,
             session_key: `preview:${doc.id}`,
             confidence: result.output.confidence,
-            requires_human_review: false,
+            requires_human_review: result.output.requires_human_review,
             block_reason_code: result.output.block_reason_code,
             retryable: result.output.retryable,
             rationale: result.output.rationale,

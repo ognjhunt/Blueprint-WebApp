@@ -7,5 +7,5 @@ test('capture page sells contributor-side capture supply', async ({ page }) => {
     page.getByRole('heading', { name: /Get paid to walk through buildings\./i }),
   ).toBeVisible();
   await expect(page.getByText(/Use your phone or smart glasses to capture indoor spaces/i)).toBeVisible();
-  await expect(page.getByRole('link', { name: /Start capturing/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Download the app/i }).first()).toBeVisible();
 });

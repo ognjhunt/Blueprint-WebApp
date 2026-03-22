@@ -82,18 +82,17 @@ Launch-critical note:
 - `CHECKOUT_ALLOWED_ORIGINS`
 - Optional: `STRIPE_PUBLIC_BASE_URL`, `STRIPE_ONBOARDING_REFRESH_URL`, `STRIPE_ONBOARDING_RETURN_URL`
 
-### OpenClaw (server)
-- `OPENCLAW_BASE_URL`
-- `OPENCLAW_AUTH_TOKEN`
-- `OPENCLAW_DEFAULT_MODEL`
+### Agent Runtime (server)
+- `OPENAI_API_KEY`
+- Optional: `OPENAI_DEFAULT_MODEL`
 - Optional per-lane overrides:
-  `OPENCLAW_WAITLIST_AUTOMATION_MODEL`,
-  `OPENCLAW_INBOUND_QUALIFICATION_MODEL`,
-  `OPENCLAW_POST_SIGNUP_MODEL`,
-  `OPENCLAW_SUPPORT_TRIAGE_MODEL`,
-  `OPENCLAW_PAYOUT_EXCEPTION_MODEL`,
-  `OPENCLAW_PREVIEW_DIAGNOSIS_MODEL`,
-  `OPENCLAW_OPERATOR_THREAD_MODEL`
+  `OPENAI_WAITLIST_AUTOMATION_MODEL`,
+  `OPENAI_INBOUND_QUALIFICATION_MODEL`,
+  `OPENAI_POST_SIGNUP_MODEL`,
+  `OPENAI_SUPPORT_TRIAGE_MODEL`,
+  `OPENAI_PAYOUT_EXCEPTION_MODEL`,
+  `OPENAI_PREVIEW_DIAGNOSIS_MODEL`,
+  `OPENAI_OPERATOR_THREAD_MODEL`
 
 ### Internal Marketplace + Pipeline
 - `PIPELINE_SYNC_TOKEN`
@@ -131,8 +130,10 @@ These should be enabled for the no-human-in-the-loop alpha configuration:
 
 Post-signup automation also requires:
 
-- `GOOGLE_CLIENT_EMAIL`
-- `GOOGLE_PRIVATE_KEY`
+- one of:
+  `GOOGLE_CLIENT_EMAIL` + `GOOGLE_PRIVATE_KEY`
+  or `FIREBASE_SERVICE_ACCOUNT_JSON`
+  or `GOOGLE_APPLICATION_CREDENTIALS`
 - `GOOGLE_CALENDAR_ID`
 - `POST_SIGNUP_SPREADSHEET_ID` or `SPREADSHEET_ID`
 - `SLACK_WEBHOOK_URL`
@@ -151,4 +152,4 @@ Post-signup automation also requires:
 - Legacy manual deployment scripts were removed; deployment should always run through project scripts.
 - `client/public/robots.txt` must exist at build time and be served in production.
 - `npm run alpha:preflight` is the launch-environment validator for Render and should pass before promoting the service.
-- `npm run smoke:launch` is the live alpha smoke runner for `/health`, `/health/ready`, OpenClaw, inbound qualification, and post-signup workflows.
+- `npm run smoke:launch` is the live alpha smoke runner for `/health`, `/health/ready`, the OpenAI agent runtime, inbound qualification, and post-signup workflows.

@@ -40,12 +40,12 @@ export const previewDiagnosisTask: StructuredTaskDefinition<
   z.infer<typeof previewDiagnosisOutputSchema>
 > = {
   kind: "preview_diagnosis",
-  default_provider: "openclaw",
+  default_provider: "openai_responses",
   model_by_provider: {
-    openclaw:
-      process.env.OPENCLAW_PREVIEW_DIAGNOSIS_MODEL ||
-      process.env.OPENCLAW_DEFAULT_MODEL ||
-      "openai/gpt-5.4",
+    openai_responses:
+      process.env.OPENAI_PREVIEW_DIAGNOSIS_MODEL ||
+      process.env.OPENAI_DEFAULT_MODEL ||
+      "gpt-5.4",
   },
   output_schema: previewDiagnosisOutputSchema,
   tool_policy: {
@@ -62,7 +62,7 @@ Output JSON only. No markdown. No explanation outside JSON.
 Rules:
 - Use retry_now only when the failure looks transient and bounded.
 - Use provider_escalation for repeated provider-side or artifact-side failures.
-- Do not request human review. Set requires_human_review=false.
+- Set requires_human_review=true when automation_status="blocked" or when the disposition is "provider_escalation" or "blocked_release_risk".
 - Use automation_status="blocked" with disposition="blocked_release_risk" when the release must fail closed until artifacts or provider state are corrected.
 
 Payload:
@@ -76,7 +76,7 @@ Return JSON with this exact shape:
   "retryable": false,
   "queue": "",
   "confidence": 0.0,
-  "requires_human_review": false,
+  "requires_human_review": true,
   "retry_recommended": false,
   "next_action": "",
   "rationale": "",

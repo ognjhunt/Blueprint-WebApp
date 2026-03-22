@@ -20,12 +20,11 @@ export const externalHarnessThreadTask: StructuredTaskDefinition<
   z.infer<typeof externalHarnessThreadOutputSchema>
 > = {
   kind: "external_harness_thread",
-  default_provider: "openclaw",
+  default_provider: "acp_harness",
   model_by_provider: {
-    openclaw:
-      process.env.OPENCLAW_EXTERNAL_HARNESS_MODEL ||
-      process.env.OPENCLAW_DEFAULT_MODEL ||
-      "openai/gpt-5.4",
+    acp_harness:
+      process.env.ACP_DEFAULT_HARNESS ||
+      "codex",
   },
   output_schema: externalHarnessThreadOutputSchema,
   tool_policy: {

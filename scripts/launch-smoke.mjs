@@ -50,15 +50,15 @@ async function runHealthChecks() {
   console.log("Health checks passed.");
 }
 
-function runOpenClawSmoke() {
-  const result = spawnSync("bash", ["scripts/openclaw-smoke.sh"], {
+function runAgentRuntimeSmoke() {
+  const result = spawnSync("npm", ["run", "smoke:agent"], {
     cwd: process.cwd(),
     stdio: "inherit",
     env: process.env,
   });
 
   if (result.status !== 0) {
-    throw new Error("OpenClaw smoke test failed.");
+    throw new Error("Agent runtime smoke test failed.");
   }
 }
 
@@ -140,7 +140,7 @@ async function runPostSignupSmoke(csrfSession) {
 
 try {
   await runHealthChecks();
-  runOpenClawSmoke();
+  runAgentRuntimeSmoke();
   const csrfSession = await getCsrfSession();
   await runInboundSmoke(csrfSession);
   await runPostSignupSmoke(csrfSession);

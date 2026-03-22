@@ -32,6 +32,15 @@ function extractJsonPayload(rawText: string) {
   }
 }
 
+function inferRequiresHumanReview<TOutput>(output: TOutput) {
+  return Boolean(
+    output
+    && typeof output === "object"
+    && "requires_human_review" in (output as Record<string, unknown>)
+    && (output as Record<string, unknown>).requires_human_review === true,
+  );
+}
+
 export async function runOpenAIResponsesTask<TInput, TOutput>(
   task: NormalizedAgentTask<TInput, TOutput>,
 ): Promise<AgentResult<TOutput>> {
@@ -69,7 +78,7 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
     tool_mode: task.tool_policy.mode,
     output: parsed,
     raw_output_text: rawText,
-    requires_human_review: false,
+    requires_human_review: inferRequiresHumanReview(parsed),
     requires_approval: false,
   };
 }

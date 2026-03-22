@@ -69,12 +69,12 @@ export const waitlistTriageTask: StructuredTaskDefinition<
   WaitlistTriageOutput
 > = {
   kind: "waitlist_triage",
-  default_provider: "openclaw",
+  default_provider: "openai_responses",
   model_by_provider: {
-    openclaw:
-      process.env.OPENCLAW_WAITLIST_AUTOMATION_MODEL ||
-      process.env.OPENCLAW_DEFAULT_MODEL ||
-      "openai/gpt-5.4",
+    openai_responses:
+      process.env.OPENAI_WAITLIST_AUTOMATION_MODEL ||
+      process.env.OPENAI_DEFAULT_MODEL ||
+      "gpt-5.4",
   },
   output_schema: waitlistTriageOutputSchema,
   tool_policy: {

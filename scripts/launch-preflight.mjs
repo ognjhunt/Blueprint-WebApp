@@ -39,12 +39,7 @@ requireCheck(
   "Firebase Admin is not configured. Set FIREBASE_SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS, or run on Cloud Run/Functions with an attached service account.",
 );
 
-requireCheck(Boolean(envValue("OPENCLAW_BASE_URL")), "OPENCLAW_BASE_URL is required for alpha launch.");
-requireCheck(Boolean(envValue("OPENCLAW_AUTH_TOKEN")), "OPENCLAW_AUTH_TOKEN is required for alpha launch.");
-requireCheck(
-  Boolean(envValue("OPENCLAW_DEFAULT_MODEL")),
-  "OPENCLAW_DEFAULT_MODEL should be set explicitly for alpha launch.",
-);
+requireCheck(Boolean(envValue("OPENAI_API_KEY")), "OPENAI_API_KEY is required for alpha launch.");
 
 requireCheck(Boolean(envValue("STRIPE_SECRET_KEY")), "STRIPE_SECRET_KEY is required for checkout.");
 requireCheck(
@@ -72,8 +67,14 @@ for (const [key, enabled] of Object.entries(automationFlags)) {
   requireCheck(enabled, `${key} must be enabled for the autonomous alpha launch configuration.`);
 }
 
-const googleAuthReady = Boolean(envValue("GOOGLE_CLIENT_EMAIL") && envValue("GOOGLE_PRIVATE_KEY"));
-requireCheck(googleAuthReady, "GOOGLE_CLIENT_EMAIL and GOOGLE_PRIVATE_KEY are required for post-signup automation.");
+const googleAuthReady = Boolean(
+  (envValue("GOOGLE_CLIENT_EMAIL") && envValue("GOOGLE_PRIVATE_KEY"))
+  || envValue("FIREBASE_SERVICE_ACCOUNT_JSON", "GOOGLE_APPLICATION_CREDENTIALS"),
+);
+requireCheck(
+  googleAuthReady,
+  "Google service account credentials are required for post-signup automation. Set GOOGLE_CLIENT_EMAIL and GOOGLE_PRIVATE_KEY, or reuse FIREBASE_SERVICE_ACCOUNT_JSON / GOOGLE_APPLICATION_CREDENTIALS.",
+);
 requireCheck(Boolean(envValue("GOOGLE_CALENDAR_ID")), "GOOGLE_CALENDAR_ID is required for post-signup calendar automation.");
 requireCheck(
   Boolean(envValue("POST_SIGNUP_SPREADSHEET_ID", "SPREADSHEET_ID")),

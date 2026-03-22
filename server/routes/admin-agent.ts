@@ -22,9 +22,9 @@ import {
   updateStartupPack,
 } from "../agents";
 import {
-  getOpenClawConnectionMetadata,
-  runOpenClawSmokeTest,
-} from "../integrations/openclaw/client";
+  getAgentRuntimeConnectionMetadata,
+  runAgentRuntimeSmokeTest,
+} from "../agents/runtime-connectivity";
 import { requireAdminRole } from "../middleware/requireAdminRole";
 import { resolveAccessContext } from "../utils/access-control";
 
@@ -235,9 +235,8 @@ const updateOpsDocumentSchema = createOpsDocumentSchema
   .omit({ autoExtract: true })
   .partial();
 
-const openClawSmokeTestSchema = z.object({
+const runtimeSmokeTestSchema = z.object({
   model: z.string().min(1).max(200).optional(),
-  includeArtifactProbe: z.boolean().optional(),
 });
 
 router.post("/sessions", requireAdminRole, async (req: Request, res: Response) => {
@@ -335,25 +334,24 @@ router.get("/context/options", requireAdminRole, async (_req: Request, res: Resp
   }
 });
 
-router.get("/openclaw/connectivity", requireAdminRole, async (_req: Request, res: Response) => {
+async function runtimeConnectivityHandler(_req: Request, res: Response) {
   try {
     return res.json({
       ok: true,
-      connectivity: getOpenClawConnectionMetadata(),
+      connectivity: getAgentRuntimeConnectionMetadata(),
     });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Failed to inspect OpenClaw connectivity";
+      error instanceof Error ? error.message : "Failed to inspect agent runtime connectivity";
     return res.status(400).json({ ok: false, error: message });
   }
-});
+}
 
-router.post("/openclaw/smoke-test", requireAdminRole, async (req: Request, res: Response) => {
+async function runtimeSmokeHandler(req: Request, res: Response) {
   try {
-    const payload = openClawSmokeTestSchema.parse(req.body ?? {});
-    const result = await runOpenClawSmokeTest({
+    const payload = runtimeSmokeTestSchema.parse(req.body ?? {});
+    const result = await runAgentRuntimeSmokeTest({
       model: payload.model,
-      includeArtifactProbe: payload.includeArtifactProbe,
     });
     return res.status(result.ok ? 200 : 502).json({
       ok: result.ok,
@@ -361,10 +359,15 @@ router.post("/openclaw/smoke-test", requireAdminRole, async (req: Request, res: 
     });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "OpenClaw smoke test failed";
+      error instanceof Error ? error.message : "Agent runtime smoke test failed";
     return res.status(400).json({ ok: false, error: message });
   }
-});
+}
+
+router.get("/runtime/connectivity", requireAdminRole, runtimeConnectivityHandler);
+router.post("/runtime/smoke-test", requireAdminRole, runtimeSmokeHandler);
+router.get("/openclaw/connectivity", requireAdminRole, runtimeConnectivityHandler);
+router.post("/openclaw/smoke-test", requireAdminRole, runtimeSmokeHandler);
 
 router.get("/startup-packs", requireAdminRole, async (req: Request, res: Response) => {
   try {

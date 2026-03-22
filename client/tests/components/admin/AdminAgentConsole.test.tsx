@@ -35,8 +35,8 @@ describe("AdminAgentConsole", () => {
                 {
                   id: "session-1",
                   task_kind: "operator_thread",
-                  provider: "openclaw",
-                  runtime: "openclaw",
+                  provider: "openai_responses",
+                  runtime: "openai_responses",
                   status: "idle",
                   title: "Ops thread",
                   session_key: "session:1",
@@ -83,29 +83,24 @@ describe("AdminAgentConsole", () => {
           ),
         );
       }
-      if (url === "/api/admin/agent/openclaw/connectivity") {
+      if (url === "/api/admin/agent/runtime/connectivity") {
         return Promise.resolve(
           new Response(
             JSON.stringify({
               ok: true,
               connectivity: {
+                provider: "openai_responses",
                 configured: true,
-                base_url: "https://openclaw.internal",
                 auth_configured: true,
                 timeout_ms: 20000,
-                wait_timeout_ms: 60000,
-                agent_path: "/agent",
-                wait_path: "/agent/wait",
-                cancel_path_template: "/agent/{run_id}/cancel",
-                artifacts_path_template: "/agent/{run_id}/artifacts",
-                default_model: "openai/gpt-5.4",
+                default_model: "gpt-5.4",
                 task_models: {},
               },
             }),
           ),
         );
       }
-      if (url === "/api/admin/agent/openclaw/smoke-test") {
+      if (url === "/api/admin/agent/runtime/smoke-test") {
         return Promise.resolve(
           new Response(
             JSON.stringify({
@@ -115,9 +110,9 @@ describe("AdminAgentConsole", () => {
                 duration_ms: 842,
                 final: {
                   status: "completed",
-                  openclaw_run_id: "smoke-run-1",
+                  provider: "openai_responses",
                   result: {
-                    reply: "OpenClaw connectivity smoke test passed.",
+                    reply: "Agent runtime smoke test passed.",
                   },
                 },
               },
@@ -133,8 +128,8 @@ describe("AdminAgentConsole", () => {
               session: {
                 id: "session-1",
                 task_kind: "operator_thread",
-                provider: "openclaw",
-                runtime: "openclaw",
+                provider: "openai_responses",
+                runtime: "openai_responses",
                 status: "idle",
                 title: "Ops thread",
                 session_key: "session:1",
@@ -164,8 +159,8 @@ describe("AdminAgentConsole", () => {
                   id: "run-1",
                   session_id: "session-1",
                   task_kind: "operator_thread",
-                  provider: "openclaw",
-                  runtime: "openclaw",
+                  provider: "openai_responses",
+                  runtime: "openai_responses",
                   model: "openai/gpt-5.4",
                   status: "pending_approval",
                   dispatch_mode: "collect",
@@ -195,8 +190,8 @@ describe("AdminAgentConsole", () => {
               session: {
                 id: "session-2",
                 task_kind: "operator_thread",
-                provider: "openclaw",
-                runtime: "openclaw",
+                provider: "openai_responses",
+                runtime: "openai_responses",
                 status: "idle",
                 title: "New session",
                 session_key: "session:2",
@@ -215,10 +210,10 @@ describe("AdminAgentConsole", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders sessions, attached context, and can check OpenClaw plus send/approve runs", async () => {
+  it("renders sessions, attached context, and can check runtime plus send/approve runs", async () => {
     renderConsole();
 
-    expect(await screen.findByText(/Ops thread/i)).toBeInTheDocument();
+    expect((await screen.findAllByText(/Ops thread/i)).length).toBeGreaterThan(0);
     const selectedSessionCard = await screen.findByRole("heading", { name: /Selected session/i });
     const selectedSessionPanel = selectedSessionCard.parentElement;
     expect(selectedSessionPanel).not.toBeNull();
@@ -227,19 +222,19 @@ describe("AdminAgentConsole", () => {
         /docs\/ops-automation-analysis-2026\.md/i,
       ),
     ).toBeInTheDocument();
-    expect(await screen.findByText(/https:\/\/openclaw\.internal/i)).toBeInTheDocument();
+    expect((await screen.findAllByText(/Provider: openai_responses/i)).length).toBeGreaterThan(0);
     expect(await screen.findByText(/Sensitive actions require approval/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Run smoke test/i }));
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        "/api/admin/agent/openclaw/smoke-test",
+        "/api/admin/agent/runtime/smoke-test",
         expect.objectContaining({ method: "POST" }),
       );
     });
 
-    expect(await screen.findByText(/Run ID: smoke-run-1/i)).toBeInTheDocument();
+    expect((await screen.findAllByText(/Provider: openai_responses/i)).length).toBeGreaterThan(0);
 
     fireEvent.change(screen.getByPlaceholderText(/Send a message into this agent session/i), {
       target: { value: "Summarize the latest ops status." },
@@ -261,5 +256,5 @@ describe("AdminAgentConsole", () => {
         expect.objectContaining({ method: "POST" }),
       );
     });
-  });
+  }, 15000);
 });

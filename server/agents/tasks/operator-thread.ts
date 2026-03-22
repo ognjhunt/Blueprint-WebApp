@@ -19,12 +19,12 @@ export const operatorThreadTask: StructuredTaskDefinition<
   z.infer<typeof operatorThreadOutputSchema>
 > = {
   kind: "operator_thread",
-  default_provider: "openclaw",
+  default_provider: "openai_responses",
   model_by_provider: {
-    openclaw:
-      process.env.OPENCLAW_OPERATOR_THREAD_MODEL ||
-      process.env.OPENCLAW_DEFAULT_MODEL ||
-      "openai/gpt-5.4",
+    openai_responses:
+      process.env.OPENAI_OPERATOR_THREAD_MODEL ||
+      process.env.OPENAI_DEFAULT_MODEL ||
+      "gpt-5.4",
   },
   output_schema: operatorThreadOutputSchema,
   tool_policy: {

@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { google } from "googleapis";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -68,9 +69,41 @@ export type ResolvedPostSignupContext = {
   };
 };
 
+type GoogleServiceAccountLike = {
+  client_email?: string;
+  private_key?: string;
+};
+
+function loadGoogleServiceAccount(): GoogleServiceAccountLike | null {
+  const inlineJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
+  if (inlineJson) {
+    try {
+      return JSON.parse(inlineJson) as GoogleServiceAccountLike;
+    } catch {
+      return null;
+    }
+  }
+
+  const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim();
+  if (!credentialsPath) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(fs.readFileSync(credentialsPath, "utf8")) as GoogleServiceAccountLike;
+  } catch {
+    return null;
+  }
+}
+
 function getGoogleAuth() {
-  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL?.trim();
-  const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const serviceAccount = loadGoogleServiceAccount();
+  const clientEmail =
+    process.env.GOOGLE_CLIENT_EMAIL?.trim() || serviceAccount?.client_email?.trim() || null;
+  const privateKey =
+    process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n")
+    || serviceAccount?.private_key?.replace(/\\n/g, "\n")
+    || null;
   if (!clientEmail || !privateKey) {
     return null;
   }

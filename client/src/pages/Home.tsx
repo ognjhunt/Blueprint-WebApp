@@ -35,8 +35,8 @@ const offeringCards = [
       "Quality and coverage determine payout and reuse",
       "Rights and privacy stay attached to every capture",
     ],
-    ctaLabel: "Start capturing",
-    ctaHref: "/capture",
+    ctaLabel: "Download the app",
+    ctaHref: "/capture-app",
     icon: <Camera className="h-8 w-8 text-zinc-900" />,
     accent: "indigo" as const,
   },
@@ -125,8 +125,8 @@ const forPersonas = {
       "Most approved captures land around $40, cash out at $25",
       "Referral program: 10% lifetime on invites",
     ],
-    ctaLabel: "Start capturing",
-    ctaHref: "/capture",
+    ctaLabel: "Download the app",
+    ctaHref: "/capture-app",
   },
   robotTeams: {
     label: "For Robot Teams",
@@ -260,10 +260,10 @@ export default function Home() {
                   className="flex flex-col gap-3 sm:flex-row"
                 >
                   <a
-                    href="/capture"
+                    href="/capture-app"
                     className="group inline-flex items-center justify-center rounded-lg bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-zinc-700 hover:shadow-lg"
                   >
-                    Start capturing
+                    Download the app
                     <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </a>
                   <a
@@ -554,7 +554,7 @@ export default function Home() {
             </a>
 
             <a
-              href="/capture"
+              href="/capture-app"
               className="group block h-full rounded-xl border border-zinc-200 bg-white p-5 transition-all hover:border-indigo-200 hover:shadow-md sm:p-6"
             >
               <div className="flex items-center gap-3">
@@ -562,8 +562,8 @@ export default function Home() {
                   <Camera className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-zinc-900">Start earning</p>
-                  <p className="text-sm text-zinc-500">Get paid to record real indoor spaces</p>
+                  <p className="font-semibold text-zinc-900">Download the app</p>
+                  <p className="text-sm text-zinc-500">Capturers use the mobile app, not web signup</p>
                 </div>
                 <ArrowRight className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-1" />
               </div>
@@ -618,10 +618,10 @@ export default function Home() {
               </p>
               <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
                 <a
-                  href="/capture"
+                  href="/capture-app"
                   className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition-all hover:bg-zinc-100 hover:shadow-lg"
                 >
-                  Start capturing
+                  Download the app
                 </a>
                 <a
                   href="/world-models"

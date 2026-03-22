@@ -27,3 +27,6 @@ temp_large_assets/
 attached_assets/playwright-smoke-20260306/
 firebase-debug.log
 coverage/
+.tmp/
+test-results/
+playwright-report/

@@ -168,10 +168,10 @@ export default function Capture() {
                   className="flex flex-col gap-3 sm:flex-row"
                 >
                   <a
-                    href="/signup/capturer"
+                    href="/capture-app"
                     className="group inline-flex items-center justify-center rounded-lg bg-zinc-950 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-zinc-800 hover:shadow-lg"
                   >
-                    Start capturing
+                    Download the app
                     <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </a>
                   <a
@@ -452,14 +452,14 @@ export default function Capture() {
               </h2>
               <p className="mx-auto mt-4 max-w-2xl text-indigo-200">
                 Every indoor space you walk through could become a world model that helps robots
-                deploy. Sign up, start capturing, and get paid.
+                deploy. Download the mobile app, start capturing, and get paid.
               </p>
               <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
                 <a
-                  href="/signup/capturer"
+                  href="/capture-app"
                   className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition-all hover:bg-zinc-100 hover:shadow-lg"
                 >
-                  Create your account
+                  Download the app
                 </a>
                 <a
                   href="/"
