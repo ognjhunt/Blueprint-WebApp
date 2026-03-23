@@ -40,7 +40,9 @@ function readClientEnv(key: ClientEnvKey): string | null {
     return cache.get(key) ?? null;
   }
 
-  const value = (import.meta.env as Record<string, string | undefined>)[key];
+  const value = (
+    import.meta as unknown as { env?: Record<string, string | undefined> }
+  )?.env?.[key];
   const normalized = typeof value === "string" && value.trim() ? value.trim() : null;
   cache.set(key, normalized);
   return normalized;
