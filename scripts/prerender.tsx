@@ -9,6 +9,7 @@ import { Router } from "wouter";
 
 import { queryClient } from "../client/src/lib/queryClient";
 import { AuthProvider } from "../client/src/contexts/AuthContext";
+import { SiteLayout } from "../client/src/components/site/SiteLayout";
 import Home from "../client/src/pages/Home";
 import Capture from "../client/src/pages/Capture";
 import CaptureAppPlaceholder from "../client/src/pages/CaptureAppPlaceholder";
@@ -95,7 +96,9 @@ function renderRoute(route: StaticRoute) {
     <Router ssrPath={route.path}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <Page {...(route.props || {})} />
+          <SiteLayout>
+            <Page {...(route.props || {})} />
+          </SiteLayout>
         </AuthProvider>
       </QueryClientProvider>
     </Router>,
