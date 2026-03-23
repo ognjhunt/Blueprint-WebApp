@@ -1,26 +1,62 @@
 import { SEO } from "@/components/SEO";
-import {
-  ScrollReveal,
-  StaggerGroup,
-  InteractiveCard,
-  AnimatedCounter,
-  PipelineDiagram,
-} from "@/components/motion";
-import { motion, useReducedMotion } from "framer-motion";
+import { InteractiveCard, ScrollReveal, StaggerGroup } from "@/components/motion";
 import {
   ArrowRight,
-  Bot,
   Camera,
-  CheckCircle2,
-  DollarSign,
-  Glasses,
-  Globe,
-  MapPinned,
-  ScanLine,
+  FileSearch,
+  Play,
   ShieldCheck,
-  Smartphone,
   Sparkles,
 } from "lucide-react";
+
+const buyerSteps = [
+  {
+    step: "01",
+    title: "Choose the site",
+    description:
+      "Start with a world model that matches the workflow, environment, and constraints your robot actually needs to handle.",
+    icon: FileSearch,
+  },
+  {
+    step: "02",
+    title: "Inspect the deliverables",
+    description:
+      "Review package contents, hosted evaluation availability, outputs, and stated limitations before your team commits time.",
+    icon: ShieldCheck,
+  },
+  {
+    step: "03",
+    title: "Request the right path",
+    description:
+      "Ask for the scene package or a hosted evaluation with the site, task, and robot context already attached.",
+    icon: Play,
+  },
+  {
+    step: "04",
+    title: "Use one site across the workflow",
+    description:
+      "Run the same site for tuning, release checks, demos, and internal review instead of rebuilding context for every step.",
+    icon: Sparkles,
+  },
+];
+
+const behindScenes = [
+  {
+    title: "Real indoor capture upstream",
+    body:
+      "Blueprint starts with walkthrough data from real facilities. That capture work exists to support the buyer path, not compete with it.",
+  },
+  {
+    title: "Packaging and rights stay visible",
+    body:
+      "Each listing carries deliverables, pricing, and usage constraints so the commercial surface stays concrete.",
+  },
+  {
+    title: "Capturer pages stay separate",
+    body:
+      "Capturers only need a short explainer and the mobile handoff. The main site stays focused on robot teams.",
+  },
+];
 
 function DotPattern() {
   return (
@@ -45,406 +81,169 @@ function DotPattern() {
   );
 }
 
-const threeWhy = [
-  {
-    title: "Site-specific beats generalized",
-    description:
-      "When a robot must work in one exact facility, the layout, lighting, bottlenecks, and task setup matter. Blueprint gives teams that site early enough to tune against it.",
-    icon: <MapPinned className="h-6 w-6" />,
-  },
-  {
-    title: "Real capture is the moat",
-    description:
-      "Anyone can pitch a broad robotics platform story. The harder part is turning messy real capture into a package, hosted run, and data surface a buyer can actually use.",
-    icon: <ShieldCheck className="h-6 w-6" />,
-  },
-  {
-    title: "Distributed capture creates coverage",
-    description:
-      "Instead of relying only on expensive specialist scans, Blueprint can source coverage across grocery stores, warehouses, gyms, offices, and other real sites.",
-    icon: <Globe className="h-6 w-6" />,
-  },
-];
-
-const pipelineSteps = [
-  {
-    step: "01",
-    title: "Capture any indoor space",
-    icon: <Camera className="h-5 w-5" />,
-    description:
-      "Capturers walk through real indoor locations using iPhones or smart glasses. Video, depth, and sensor data are collected automatically during a 15-30 minute session.",
-  },
-  {
-    step: "02",
-    title: "Build the world model",
-    icon: <ScanLine className="h-5 w-5" />,
-    description:
-      "BlueprintCapturePipeline turns usable capture into site-specific world models, hosted sessions, and exportable artifacts for downstream teams.",
-  },
-  {
-    step: "03",
-    title: "Apply trust checks",
-    icon: <ShieldCheck className="h-5 w-5" />,
-    description:
-      "Blueprint can still apply coverage, rights, privacy, and review checks so teams know what they are buying and what remains uncertain.",
-  },
-  {
-    step: "04",
-    title: "Run or buy access",
-    icon: <Bot className="h-5 w-5" />,
-    description:
-      "Robot teams buy access to the exact site, open a hosted session, export outputs, and use the same environment for tuning, evals, release checks, and demos.",
-  },
-];
-
-const whoEarns = [
-  {
-    persona: "Capturers",
-    icon: <Camera className="h-5 w-5" />,
-    stat: 40,
-    statPrefix: "$",
-    statSuffix: "",
-    statLabel: "avg per capture",
-    description: "Get paid about $20-$60 per capture session, with most approved captures landing around $40. Quality bonuses and device multipliers increase earnings.",
-  },
-  {
-    persona: "Site Operators",
-    icon: <MapPinned className="h-5 w-5" />,
-    stat: 25,
-    statPrefix: "",
-    statSuffix: "%",
-    statLabel: "revenue share",
-    description: "Earn 15-25% revenue share on every world model sold from your facility. Zero upfront cost.",
-  },
-  {
-    persona: "Blueprint",
-    icon: <Globe className="h-5 w-5" />,
-    stat: 0,
-    statPrefix: "",
-    statSuffix: "",
-    statLabel: "",
-    description: "Runs the product layer that turns capture supply into useful world-model products and hosted access.",
-  },
-];
-
-const availableNowDevices = [
-  { name: "iPhone / iPad", detail: "ARKit + LiDAR", icon: <Smartphone className="h-5 w-5" /> },
-  { name: "Meta Ray-Ban", detail: "720p + IMU via DAT SDK", icon: <Glasses className="h-5 w-5" /> },
-];
-
-const comingSoonDevices = [
-  { name: "Android XR", detail: "Google/Samsung, coming 2026", icon: <Glasses className="h-5 w-5" /> },
-  { name: "Apple Glasses", detail: "Coming 2027", icon: <Glasses className="h-5 w-5" /> },
-];
-
 export default function HowItWorks() {
-  const shouldReduce = useReducedMotion();
-
   return (
     <>
       <SEO
         title="How It Works | Blueprint"
-        description="How Blueprint turns real-world capture into site-specific world models for robot training, evaluation, and hosted access."
+        description="How Blueprint helps robot teams choose a real site, inspect concrete deliverables, and request the right evaluation path."
         canonical="/how-it-works"
       />
 
       <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
         <DotPattern />
 
-        {/* Hero */}
         <section className="relative overflow-hidden pb-16 pt-14 sm:pb-20 sm:pt-24">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-              <div className="space-y-8">
-                <div className="space-y-6">
-                  <motion.div
-                    initial={shouldReduce ? {} : { opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
-                  className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600"
-                >
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
+              <div className="space-y-6">
+                <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
                   <Sparkles className="h-3 w-3" />
                   How It Works
-                </motion.div>
-                  <motion.h1
-                    initial={shouldReduce ? {} : { opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.1 }}
-                    className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl"
-                  >
-                    Capture. Build. Run.
-                  </motion.h1>
-                  <motion.p
-                    initial={shouldReduce ? {} : { opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.2 }}
-                    className="max-w-2xl text-lg leading-relaxed text-zinc-600"
-                  >
-                    Blueprint starts with real-world capture, turns it into a site-specific
-                    world model, and gives robot teams a browser path into the exact facility
-                    they want to train on, evaluate against, or review with a customer.
-                  </motion.p>
                 </div>
-
-                <motion.div
-                  initial={shouldReduce ? {} : { opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3, duration: 0.4 }}
-                  className="flex flex-col gap-3 sm:flex-row"
-                >
-                  <a
-                    href="/capture"
-                    className="group inline-flex items-center justify-center rounded-lg bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-zinc-700 hover:shadow-lg"
-                  >
-                    Start capturing
-                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                  </a>
+                <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
+                  One buyer path from site selection to hosted evaluation.
+                </h1>
+                <p className="max-w-2xl text-lg leading-relaxed text-zinc-600">
+                  Blueprint should be easy to explain: choose the exact site, inspect what your
+                  team gets, and request the right next step. Capture stays upstream. The buyer
+                  journey stays front and center.
+                </p>
+                <div className="flex flex-col gap-3 sm:flex-row">
                   <a
                     href="/world-models"
-                    className="inline-flex items-center justify-center rounded-lg border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-900 transition-all hover:bg-zinc-50"
+                    className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-700"
                   >
                     Browse world models
+                    <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
-                </motion.div>
+                  <a
+                    href="/contact?persona=robot-team&interest=evaluation-package"
+                    className="inline-flex items-center justify-center rounded-lg border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
+                  >
+                    Request hosted eval
+                  </a>
+                </div>
               </div>
 
-              {/* Hero sidebar card */}
-              <motion.div
-                initial={shouldReduce ? {} : { opacity: 0, scale: 0.96, y: 16 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-                className="relative"
-              >
-                <div className="absolute -inset-6 rounded-full bg-indigo-500/15 blur-3xl filter" />
-                <div className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white/80 p-6 shadow-xl backdrop-blur-md">
-                  <div className="flex items-start gap-4">
-                    <motion.div
-                      animate={shouldReduce ? {} : { rotate: [0, 5, -5, 0] }}
-                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                      className="flex h-11 w-11 items-center justify-center rounded-xl bg-zinc-100 text-zinc-800"
-                    >
-                      <Globe className="h-5 w-5" />
-                    </motion.div>
-                    <div className="space-y-2">
-                      <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                        Capture + world models
-                      </p>
-                      <p className="text-sm text-zinc-600">
-                        Capturers supply the raw site data. Robot teams buy access to site-specific
-                        world models and hosted sessions. Sites can opt into commercialization when useful.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Animated stats row */}
-                  <div className="mt-5 flex items-center justify-between rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3">
-                    <div className="text-center">
-                      <p className="text-lg font-bold text-zinc-900">
-                        <AnimatedCounter value={3} duration={800} />
-                      </p>
-                      <p className="text-xs text-zinc-500">core lanes</p>
-                    </div>
-                    <div className="h-6 w-px bg-zinc-200" />
-                    <div className="text-center">
-                      <p className="text-lg font-bold text-zinc-900">
-                        <AnimatedCounter value={40} prefix="$" duration={1000} />
-                      </p>
-                      <p className="text-xs text-zinc-500">avg payout</p>
-                    </div>
-                    <div className="h-6 w-px bg-zinc-200" />
-                    <div className="text-center">
-                      <p className="text-lg font-bold text-zinc-900">
-                        <AnimatedCounter value={100} suffix="%" duration={1200} />
-                      </p>
-                      <p className="text-xs text-zinc-500">site-specific</p>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
+              <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-6">
+                <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
+                  What this page should answer
+                </p>
+                <ul className="mt-4 space-y-3 text-sm leading-7 text-zinc-600">
+                  <li className="flex items-start gap-3">
+                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-zinc-400" />
+                    <span>What a robot team can buy or request.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-zinc-400" />
+                    <span>How the catalog, deliverables, and hosted path fit together.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-zinc-400" />
+                    <span>Where capturers fit without crowding the main buyer story.</span>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Why */}
         <section className="border-y border-zinc-100 bg-zinc-50/50 py-12 sm:py-16">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <ScrollReveal>
               <div className="mb-10 max-w-2xl">
                 <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
-                  Why this works
+                  The robot-team workflow
                 </h2>
                 <p className="mt-4 text-zinc-600">
-                  A one-off scan can show geometry. It usually does not give a robot team a clean
-                  path into policy tuning, repeatable evals, hosted review, and exportable data.
-                  Blueprint packages the site so teams can actually use it.
+                  Four steps are enough. If the buyer still needs a marketplace explainer after
+                  this page, the site is doing too much.
                 </p>
               </div>
             </ScrollReveal>
 
-            <StaggerGroup className="mobile-snap-row md:grid md:grid-cols-3 md:gap-6" stagger={0.12}>
-              {threeWhy.map((item) => (
-                <InteractiveCard key={item.title} accent="indigo" className="p-5 sm:p-6">
-                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">
-                    {item.icon}
-                  </div>
-                  <h3 className="font-semibold text-zinc-900">{item.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-zinc-600">{item.description}</p>
-                </InteractiveCard>
-              ))}
+            <StaggerGroup className="grid gap-4 md:grid-cols-2 xl:grid-cols-4" stagger={0.1}>
+              {buyerSteps.map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <InteractiveCard key={item.step} accent="indigo" className="p-5">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
+                        {item.step}
+                      </div>
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-zinc-700">
+                        <Icon className="h-5 w-5" />
+                      </div>
+                    </div>
+                    <h3 className="mt-4 text-lg font-semibold text-zinc-900">{item.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-zinc-600">{item.description}</p>
+                  </InteractiveCard>
+                );
+              })}
             </StaggerGroup>
           </div>
         </section>
 
-        {/* Pipeline — now with animated connected diagram */}
         <section className="py-14 sm:py-20">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <ScrollReveal>
-              <div className="mb-12 max-w-3xl">
-                <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
-                  The pipeline
+              <div className="max-w-3xl">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                  Upstream
+                </p>
+                <h2 className="mt-2 text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
+                  What happens behind the scenes
                 </h2>
                 <p className="mt-4 text-lg text-zinc-600">
-                  From one walkthrough to a site your policy can train on and your team can
-                  evaluate against.
+                  Capture, packaging, and governance are real parts of the system. They just should
+                  not dominate the public buying path.
                 </p>
               </div>
             </ScrollReveal>
 
-            <PipelineDiagram steps={pipelineSteps} />
-          </div>
-        </section>
-
-        {/* Who earns — with animated counters */}
-        <section className="border-y border-zinc-100 bg-zinc-50/50 py-12 sm:py-16">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <ScrollReveal>
-              <div className="mb-10">
-                <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
-                  Everyone benefits
-                </h2>
-              </div>
-            </ScrollReveal>
-
-            <StaggerGroup className="grid gap-6 md:grid-cols-3" stagger={0.12}>
-              {whoEarns.map((item) => (
-                <InteractiveCard key={item.persona} accent="emerald" className="p-5 sm:p-6">
-                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
-                    {item.icon}
+            <div className="mt-8 grid gap-4 md:grid-cols-3">
+              {behindScenes.map((item, index) => (
+                <article
+                  key={item.title}
+                  className={`rounded-3xl border p-6 ${
+                    index === 0 ? "border-zinc-200 bg-white" : "border-zinc-200 bg-zinc-50"
+                  }`}
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-700">
+                    {index === 0 ? <Camera className="h-5 w-5" /> : <ShieldCheck className="h-5 w-5" />}
                   </div>
-                  <h3 className="font-bold text-zinc-900">{item.persona}</h3>
-                  {item.stat > 0 && (
-                    <p className="mt-1 text-2xl font-bold text-emerald-600">
-                      <AnimatedCounter
-                        value={item.stat}
-                        prefix={item.statPrefix}
-                        suffix={item.statSuffix}
-                        duration={1000}
-                      />
-                    </p>
-                  )}
-                  {item.statLabel && (
-                    <p className="text-xs text-zinc-500">{item.statLabel}</p>
-                  )}
-                  <p className="mt-2 text-sm text-zinc-600">{item.description}</p>
-                </InteractiveCard>
+                  <h3 className="mt-4 text-lg font-semibold text-zinc-900">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-7 text-zinc-600">{item.body}</p>
+                </article>
               ))}
-            </StaggerGroup>
-          </div>
-        </section>
-
-        {/* Supported devices */}
-        <section className="py-12 sm:py-16">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <ScrollReveal>
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold text-zinc-900">Supported capture devices</h2>
-                <p className="mt-2 text-zinc-600">
-                  Start with what works now. LiDAR-equipped iPhone and iPad captures earn the highest
-                  rates today. Glasses support is split below so current hardware and future hardware do
-                  not get blurred together.
-                </p>
-              </div>
-            </ScrollReveal>
-
-            <div className="grid gap-8 lg:grid-cols-2">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                  Available now
-                </p>
-                <StaggerGroup className="mt-3 grid gap-4 sm:grid-cols-2" stagger={0.08}>
-                  {availableNowDevices.map((device) => (
-                    <InteractiveCard key={device.name} className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-100 text-zinc-700">
-                          {device.icon}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-zinc-900">{device.name}</p>
-                          <p className="text-xs text-zinc-500">{device.detail}</p>
-                        </div>
-                      </div>
-                    </InteractiveCard>
-                  ))}
-                </StaggerGroup>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                  Coming soon
-                </p>
-                <StaggerGroup className="mt-3 grid gap-4 sm:grid-cols-2" stagger={0.08}>
-                  {comingSoonDevices.map((device) => (
-                    <InteractiveCard key={device.name} className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-100 text-zinc-700">
-                          {device.icon}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-zinc-900">{device.name}</p>
-                          <p className="text-xs text-zinc-500">{device.detail}</p>
-                        </div>
-                      </div>
-                    </InteractiveCard>
-                  ))}
-                </StaggerGroup>
-              </div>
             </div>
           </div>
         </section>
 
-        {/* CTA */}
-        <ScrollReveal as="section" className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-2xl bg-zinc-900 p-8 text-center sm:p-12">
-            <motion.div
-              animate={shouldReduce ? {} : {
-                opacity: [0.3, 0.5, 0.3],
-                scale: [1, 1.05, 1],
-              }}
-              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-indigo-500/20 blur-3xl"
-            />
-
-            <div className="relative">
-              <h2 className="text-2xl font-bold text-white sm:text-3xl">
-                Ready to get started?
-              </h2>
-              <p className="mx-auto mt-4 max-w-2xl text-zinc-400">
-                Whether you want to supply capture, register a facility, or buy a site-specific
-                world model for robot work, the next step should be obvious.
-              </p>
-              <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
-                <a
-                  href="/capture"
-                  className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition-all hover:bg-zinc-100 hover:shadow-lg"
-                >
-                  Start capturing
-                </a>
-                <a
-                  href="/world-models"
-                  className="inline-flex items-center justify-center rounded-lg border border-zinc-700 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-zinc-800"
-                >
-                  Browse world models
-                </a>
-              </div>
+        <ScrollReveal as="section" className="mx-auto max-w-6xl px-4 pb-24 pt-4 sm:px-6 lg:px-8">
+          <div className="rounded-3xl bg-zinc-900 p-8 sm:p-10">
+            <h2 className="text-2xl font-bold text-white sm:text-3xl">
+              Keep the site simple and let the catalog do the selling.
+            </h2>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-300">
+              Robot teams should move from homepage to world model to contact without getting pulled
+              into side stories. Capturers still have a clear handoff when they need it.
+            </p>
+            <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+              <a
+                href="/world-models"
+                className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100"
+              >
+                Browse world models
+              </a>
+              <a
+                href="/capture-app"
+                className="inline-flex items-center justify-center rounded-lg border border-zinc-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800"
+              >
+                Capturer handoff
+              </a>
             </div>
           </div>
         </ScrollReveal>

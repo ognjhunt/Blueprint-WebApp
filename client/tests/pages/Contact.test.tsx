@@ -70,14 +70,13 @@ describe("Contact page", () => {
     render(<Contact />);
 
     expect(
-      screen.getByRole("heading", { name: /Start a hosted session for this site\./i }),
+      screen.getByRole("heading", { name: /Request a hosted evaluation for this site\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Hosted Session Start/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue("Harborview Grocery Distribution Annex")).toBeInTheDocument();
     expect(screen.getByDisplayValue("1847 W Fulton St, Chicago, IL 60612")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Walk to shelf staging and pick the blue tote")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Unitree G1 with head cam and wrist cam")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Start hosted session/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Request hosted evaluation/i })).toBeInTheDocument();
 
     expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
@@ -143,7 +142,7 @@ describe("Contact page", () => {
     fireEvent.change(screen.getByPlaceholderText("Work email*"), {
       target: { value: "ada@example.com" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Start hosted session/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Request hosted evaluation/i }));
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
@@ -160,6 +159,6 @@ describe("Contact page", () => {
     expect(body.requestedLanes).toEqual(["deeper_evaluation"]);
     expect(body.budgetBucket).toBe("Undecided/Unsure");
     expect(body.siteName).toBe("Harborview Grocery Distribution Annex");
-    expect(screen.getByText(/Hosted session request received/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hosted evaluation request received/i)).toBeInTheDocument();
   });
 });

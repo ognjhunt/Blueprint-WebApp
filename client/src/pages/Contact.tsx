@@ -47,34 +47,34 @@ export default function Contact() {
         : "robot_team";
 
   const seoTitle = hostedMode
-    ? "Start Hosted Session | Blueprint"
+    ? "Request Hosted Evaluation | Blueprint"
     : persona === "site_operator"
       ? "For Site Operators | Blueprint"
       : "For Robot Teams | Blueprint";
   const seoDescription = hostedMode
-    ? "Start a hosted robot-team session for a site-specific world model."
+    ? "Request a hosted robot-team evaluation for a site-specific world model."
     : persona === "site_operator"
       ? "Talk to Blueprint about facility participation, access rules, and governance."
       : "Talk to Blueprint about site-specific world models, deliverables, and hosted access.";
 
   const badgeLabel = hostedMode
-    ? "Hosted Session Start"
+    ? "Hosted Evaluation"
     : persona === "site_operator"
       ? "For Site Operators"
       : "For Robot Teams";
   const heroTitle = hostedMode
-    ? "Start a hosted session for this site."
+    ? "Request a hosted evaluation for this site."
     : persona === "site_operator"
       ? "Tell us about the facility and the rules around it."
       : "Tell us the site, the workflow, and what your team needs.";
   const heroBody = hostedMode
-    ? "Confirm the site, the task, and the robot setup. Blueprint will use that to line up the next step for a hosted evaluation run."
+    ? "Confirm the site, the task, and the robot setup. Blueprint will use that to line up the right hosted evaluation path for your team."
     : persona === "site_operator"
       ? "Use this form if you run the facility and want a clean conversation about capture access, privacy rules, or whether the site should become a sellable listing."
       : "Use this form if your team needs to inspect a real site, understand the deliverables, or figure out whether a hosted session is the right next step.";
-  const responseTitle = hostedMode ? "Hosted session setup" : "What happens after you send this";
+  const responseTitle = hostedMode ? "Hosted evaluation request" : "What happens after you send this";
   const responseBody = hostedMode
-    ? "Fill out the short form and our team will follow up within 24 hours to confirm the site, the robot setup, and the next step toward launch."
+    ? "Fill out the short form and our team will follow up to confirm the site, robot setup, and the next step toward a hosted evaluation."
     : persona === "site_operator"
       ? "Blueprint reviews the facility details, access rules, and privacy notes first. The reply should narrow the next step instead of reopening the whole conversation."
       : "Blueprint reviews the site, workflow, and embodiment details first. The reply should get your team to a concrete next step, not another vague intake round.";

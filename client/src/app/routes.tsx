@@ -1,5 +1,6 @@
-import { lazy } from "react";
+import { lazy, useEffect } from "react";
 import type { ComponentType } from "react";
+import { useLocation } from "wouter";
 import { MarketingRedirect } from "../pages/MarketingRedirect";
 
 export type AppRoute = {
@@ -15,8 +16,6 @@ const CaptureAppPlaceholder = lazy(() => import("../pages/CaptureAppPlaceholder"
 const BusinessSignUpFlow = lazy(() => import("../pages/BusinessSignUpFlow"));
 const OnboardingChecklist = lazy(() => import("../pages/OnboardingChecklist"));
 const Solutions = lazy(() => import("../pages/Solutions"));
-const ForSiteOperators = lazy(() => import("../pages/ForSiteOperators"));
-const ForRobotIntegrators = lazy(() => import("../pages/ForRobotIntegrators"));
 const SiteWorlds = lazy(() => import("../pages/SiteWorlds"));
 const SiteWorldDetail = lazy(() => import("../pages/SiteWorldDetail"));
 const HostedSessionSetup = lazy(() => import("../pages/HostedSessionSetup"));
@@ -71,9 +70,27 @@ const LegacyForRobotIntegratorsRedirect = () => (
   <MarketingRedirect to="/for-robot-teams" />
 );
 
+const LegacyRobotTeamsRedirect = () => <MarketingRedirect to="/" />;
+
 const LegacyCapturerSignupRedirect = () => (
   <MarketingRedirect to="/capture-app" />
 );
+
+const LegacySiteOperatorsRedirect = () => {
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    const params = new URLSearchParams(
+      typeof window !== "undefined" ? window.location.search : "",
+    );
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
+
+    params.set("persona", "site-operator");
+    setLocation(`/contact?${params.toString()}${hash}`, { replace: true });
+  }, [setLocation]);
+
+  return null;
+};
 
 const LegacyLoginRedirect = () => (
   <MarketingRedirect to="/sign-in" />
@@ -99,8 +116,8 @@ export const appRoutes: AppRoute[] = [
   { path: "/site-worlds/:slug/workspace", layout: "public", component: LegacySiteWorldsRedirect },
 
   // Persona pages
-  { path: "/for-site-operators", layout: "public", component: ForSiteOperators },
-  { path: "/for-robot-teams", layout: "public", component: ForRobotIntegrators },
+  { path: "/for-site-operators", layout: "public", component: LegacySiteOperatorsRedirect },
+  { path: "/for-robot-teams", layout: "public", component: LegacyRobotTeamsRedirect },
   { path: "/for-robot-integrators", layout: "public", component: LegacyForRobotIntegratorsRedirect },
 
   // Core pages

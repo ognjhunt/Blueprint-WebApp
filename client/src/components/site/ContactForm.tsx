@@ -239,14 +239,14 @@ export function ContactForm() {
         </div>
         <h2 className="text-2xl font-bold text-zinc-900">
           {hostedMode
-            ? "Hosted session request received"
+            ? "Hosted evaluation request received"
             : persona === "site_operator"
               ? "Facility inquiry received"
               : "Robot-team inquiry received"}
         </h2>
         <p className="mt-4 text-zinc-600">
           {hostedMode
-            ? "Blueprint now has the site, task, and embodiment details for this hosted-session request."
+            ? "Blueprint now has the site, task, and embodiment details for this hosted evaluation request."
             : persona === "site_operator"
               ? "Blueprint now has the facility details, access notes, and governance context needed for a follow-up."
               : "Blueprint now has the site, workflow, and embodiment details for your follow-up."}
@@ -287,7 +287,7 @@ export function ContactForm() {
     <form className="space-y-6" onSubmit={handleSubmit}>
       {hostedMode ? (
         <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-sm text-zinc-700">
-          You are starting the hosted-session path for a specific site. Keep the submission tight.
+          You are requesting a hosted evaluation for a specific site. Keep the submission tight.
         </div>
       ) : null}
 
@@ -465,7 +465,7 @@ export function ContactForm() {
         {status === "loading"
           ? "Submitting..."
           : hostedMode
-            ? "Start hosted session"
+            ? "Request hosted evaluation"
             : persona === "site_operator"
               ? "Send facility inquiry"
               : "Send robot-team inquiry"}

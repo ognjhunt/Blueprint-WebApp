@@ -3,11 +3,19 @@ import { describe, expect, it } from "vitest";
 import Pricing from "@/pages/Pricing";
 
 describe("Pricing", () => {
-  it("aligns public pricing with the current catalog ranges", () => {
+  it("keeps pricing focused on the robot-team buying path", () => {
     render(<Pricing />);
 
-    expect(screen.getByText(/\$2,100-\$3,400 per site package/i)).toBeInTheDocument();
-    expect(screen.getByText(/\$16 and \$29 per session-hour/i)).toBeInTheDocument();
-    expect(screen.getByText(/\$2,100 - \$3,400/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: /Pricing for robot teams, not the whole marketplace story\./i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(/\$2,100 - \$3,400/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/\$16 - \$29/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: /Request hosted eval/i })).toHaveAttribute(
+      "href",
+      "/contact?persona=robot-team&interest=evaluation-package",
+    );
   });
 });

@@ -2,7 +2,6 @@ import { SEO } from "@/components/SEO";
 import { ProofModule } from "@/components/site/ProofModule";
 import {
   ArrowRight,
-  Building2,
   Camera,
   FolderOutput,
   Play,
@@ -11,38 +10,40 @@ import {
 
 const buyerReasons = [
   {
-    title: "Train on the real site, not a proxy",
+    title: "See the exact site before deployment work starts",
     body:
-      "Fine-tune against the actual deployment layout, sightlines, and task geometry. The point is not to admire the site. It is to make your policy work better there.",
+      "Review the actual layout, constraints, and workflow area instead of using a generic stand-in environment.",
   },
   {
-    title: "Evaluate against the place that matters",
+    title: "Decide faster with real deliverables",
     body:
-      "Run the same release against the same facility before you spend travel, hardware, or customer time. Catch regressions, bad assumptions, and workflow mismatches early.",
+      "Each listing shows the package, hosted evaluation path, and the limits attached to that site so your team can make a concrete call.",
   },
   {
-    title: "Generate site-specific data on demand",
+    title: "Use one site across tuning, evals, and review",
     body:
-      "Vary scenarios, export rollouts, and build RLDS-style datasets tied to one real facility. That gives your team a grounded data surface for tuning, debugging, and internal review.",
+      "Run the same site for checkpoint comparisons, customer review, and site-specific data work without reinventing the environment each time.",
   },
 ];
 
-const secondaryPaths = [
+const buyerJourney = [
   {
-    title: "Capture App",
+    title: "Browse the catalog",
     body:
-      "Capturers use the mobile app to record walkthroughs and get paid. If you are a robot team, this page is not your starting point.",
-    href: "/capture-app",
-    label: "Open capture app page",
-    icon: Camera,
+      "Start with a site that matches the workflow your robot needs to handle.",
+    icon: FolderOutput,
   },
   {
-    title: "For Site Operators",
+    title: "Review deliverables",
     body:
-      "Facility teams can control access, set privacy rules, and earn revenue share on every world model sold from their space.",
-    href: "/for-site-operators",
-    label: "See site operator page",
-    icon: Building2,
+      "Inspect the package scope, hosted evaluation path, outputs, and rights before you spend engineering time.",
+    icon: ShieldCheck,
+  },
+  {
+    title: "Request the next step",
+    body:
+      "Ask for the package or a hosted evaluation with the site, task, and robot details already filled in.",
+    icon: Play,
   },
 ];
 
@@ -66,8 +67,8 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | Real Sites, Clear World Models"
-        description="Blueprint helps robot teams train, evaluate, and generate data on site-specific world models built from real indoor capture."
+        title="Blueprint | World Models For Robot Teams"
+        description="Blueprint helps robot teams buy access to the exact site they need, review concrete deliverables, and request hosted evaluations grounded in real indoor capture."
         canonical="/"
       />
 
@@ -82,17 +83,16 @@ export default function Home() {
                   For Robot Teams
                 </p>
                 <h1 className="mt-5 max-w-4xl text-5xl font-semibold tracking-tight text-slate-950 sm:text-6xl">
-                  Train, test, and ship on the real site.
+                  Buy access to the exact site your robot needs.
                 </h1>
                 <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
-                  Blueprint sells site-specific world models built from real indoor capture.
-                  Use them to fine-tune policies, run evaluations, and generate training data
-                  grounded to the actual facility your robot will work in. Not a synthetic
-                  proxy. The real place.
+                  Blueprint sells site-specific world models built from real indoor capture. Use
+                  them to review the actual facility, request concrete deliverables, and run hosted
+                  evaluations before travel, pilots, or on-site debugging starts.
                 </p>
                 <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
-                  Think of each one as a site-faithful 3D environment with hosted runs,
-                  exportable outputs, and clear rights around one exact facility.
+                  The site is organized around one buyer journey: find the right facility, inspect
+                  what you get, and move to the next step quickly.
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <a
@@ -103,16 +103,16 @@ export default function Home() {
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
-                    href="/world-models/sw-chi-01"
+                    href="/contact?persona=robot-team&interest=evaluation-package"
                     className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
                   >
-                    See sample deliverables
+                    Request hosted eval
                   </a>
                   <a
-                    href="/contact?persona=robot-team"
+                    href="/world-models/sw-chi-01"
                     className="inline-flex items-center justify-center rounded-full border border-transparent px-3 py-3 text-sm font-semibold text-slate-700 transition hover:text-slate-950"
                   >
-                    Talk to Blueprint
+                    See sample deliverables
                   </a>
                 </div>
               </div>
@@ -120,9 +120,9 @@ export default function Home() {
               <div className="lg:pl-4">
                 <ProofModule
                   eyebrow="Product proof"
-                  title="A robot team should see the site, the task, and the eval surface immediately."
-                  description="This reel shows the current public proof path: one exact site, one concrete listing, and one hosted surface for review, evals, and dataset work. The product should feel usable on first glance."
-                  caption="Current public proof built from the Media Room walkthrough and the hosted-session surface already in the repo."
+                  title="A buyer should see the site, the deliverables, and the hosted path immediately."
+                  description="The proof reel is there to show one concrete listing end to end: the real site, the buyer-facing deliverables, and the review surface your team would actually use."
+                  caption="Sample listing and hosted review surface from a real Blueprint world model."
                   compact={true}
                 />
               </div>
@@ -136,7 +136,7 @@ export default function Home() {
               Why teams buy
             </p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              Your policy needs the real site, not a guess.
+              The value is specificity, not volume.
             </h2>
           </div>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -150,74 +150,66 @@ export default function Home() {
         </section>
 
         <section className="border-y border-slate-200 bg-white">
-          <div className="mx-auto grid max-w-6xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
-            <div>
+          <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
+            <div className="max-w-2xl">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Product shape
+                Buyer journey
               </p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-                One catalog. One proof path. One clear next step.
+                Keep the path simple.
               </h2>
+              <p className="mt-3 text-sm leading-7 text-slate-600">
+                The public site should answer three things quickly: what site is available, what
+                your team gets, and how to request the right next step.
+              </p>
             </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <article className="rounded-[1.5rem] border border-slate-200 bg-stone-50 p-5">
-                <FolderOutput className="h-5 w-5 text-slate-700" />
-                <h3 className="mt-4 text-lg font-semibold text-slate-900">Package</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Review the site assets, workflow notes, and export surface before you commit engineering time.
-                </p>
-              </article>
-              <article className="rounded-[1.5rem] border border-slate-200 bg-stone-50 p-5">
-                <Play className="h-5 w-5 text-slate-700" />
-                <h3 className="mt-4 text-lg font-semibold text-slate-900">Hosted eval session</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Rerun the same site, compare checkpoints, and inspect failure cases without passing files around first.
-                </p>
-              </article>
-              <article className="rounded-[1.5rem] border border-slate-200 bg-stone-50 p-5">
-                <ShieldCheck className="h-5 w-5 text-slate-700" />
-                <h3 className="mt-4 text-lg font-semibold text-slate-900">Rights and provenance</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Keep rights, privacy, and workflow limits visible instead of discovering them halfway through a deal.
-                </p>
-              </article>
+
+            <div className="mt-8 grid gap-4 sm:grid-cols-3">
+              {buyerJourney.map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <article key={item.title} className="rounded-[1.5rem] border border-slate-200 bg-stone-50 p-5">
+                    <Icon className="h-5 w-5 text-slate-700" />
+                    <h3 className="mt-4 text-lg font-semibold text-slate-900">{item.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">{item.body}</p>
+                  </article>
+                );
+              })}
             </div>
           </div>
         </section>
 
         <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-            <div className="max-w-2xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Other ways in
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 sm:p-8 lg:grid lg:grid-cols-[1fr_auto] lg:items-center lg:gap-8">
+            <div>
+              <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                <Camera className="h-4 w-4" />
+                For Capturers
               </p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-                Keep the other audiences clear.
+              <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+                Need the capture side instead?
               </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
+                Keep it lightweight. Capturers only need two public pages: a short explanation and
+                the mobile app handoff.
+              </p>
             </div>
-            <a
-              href="/faq"
-              className="text-sm font-semibold text-slate-700 transition hover:text-slate-950"
-            >
-              Read the FAQ
-            </a>
-          </div>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-2">
-            {secondaryPaths.map((item) => {
-              const Icon = item.icon;
-              return (
-                <article key={item.title} className="rounded-[1.75rem] border border-slate-200 bg-white p-6">
-                  <Icon className="h-5 w-5 text-slate-700" />
-                  <h3 className="mt-4 text-xl font-semibold text-slate-900">{item.title}</h3>
-                  <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
-                  <a href={item.href} className="mt-5 inline-flex text-sm font-semibold text-slate-900">
-                    {item.label}
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
-                </article>
-              );
-            })}
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row lg:mt-0">
+              <a
+                href="/capture"
+                className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+              >
+                Capture basics
+              </a>
+              <a
+                href="/capture-app"
+                className="inline-flex items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                Open capture app
+              </a>
+            </div>
           </div>
         </section>
       </div>

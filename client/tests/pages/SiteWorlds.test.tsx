@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 import SiteWorlds from "@/pages/SiteWorlds";
 
 describe("SiteWorlds", () => {
-  it("renders realistic deployment sites and direct hosted-session start links", () => {
+  it("renders realistic deployment sites and request-based hosted evaluation links", () => {
     render(<SiteWorlds />);
 
     expect(
       screen.getByRole("heading", {
-        name: /Review the exact site before your team shows up\./i,
+        name: /Train and evaluate on the exact site before your team shows up\./i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -25,7 +25,7 @@ describe("SiteWorlds", () => {
     expect(screen.getByText(/Get the package/i)).toBeInTheDocument();
     expect(screen.getByText(/Run it hosted/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/A model of the exact site and workflow/i),
+      screen.getByText(/A site-faithful model of the exact workflow area/i),
     ).toBeInTheDocument();
     expect(screen.getByText(/Harborview Grocery Distribution Annex/i)).toBeInTheDocument();
     expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();
@@ -39,7 +39,10 @@ describe("SiteWorlds", () => {
     expect(sceneUrl.searchParams.get("buyerType")).toBe("robot_team");
     expect(sceneUrl.searchParams.get("siteName")).toBe("Harborview Grocery Distribution Annex");
 
-    const hostedLinks = screen.getAllByRole("link", { name: /Start hosted session/i });
-    expect(hostedLinks[0]).toHaveAttribute("href", "/world-models/sw-chi-01/start");
+    const hostedLinks = screen.getAllByRole("link", { name: /Request hosted evaluation/i });
+    const hostedUrl = new URL(hostedLinks[0].getAttribute("href")!, "https://example.com");
+    expect(hostedUrl.pathname).toBe("/contact");
+    expect(hostedUrl.searchParams.get("interest")).toBe("evaluation-package");
+    expect(hostedUrl.searchParams.get("buyerType")).toBe("robot_team");
   });
 });

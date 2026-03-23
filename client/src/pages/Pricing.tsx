@@ -1,44 +1,34 @@
 import { SEO } from "@/components/SEO";
-import { ScrollReveal, StaggerGroup, InteractiveCard, AnimatedCounter } from "@/components/motion";
-import { motion, useReducedMotion } from "framer-motion";
-import { getPricingContactInterest, simplePricingOptions } from "@/data/simplePricing";
-import { CheckCircle2, CreditCard, ShieldCheck } from "lucide-react";
+import { InteractiveCard, ScrollReveal, StaggerGroup } from "@/components/motion";
+import { simplePricingOptions } from "@/data/simplePricing";
+import { ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react";
 
-const hostedSessionBands = [
+const buyerPricingOptions = simplePricingOptions.filter((option) => option.id !== "capture");
+
+const pricingHighlights = [
   {
-    title: "Self-serve simulation",
-    price: "$10 - $30",
-    unit: "per session-hour",
-    description:
-      "Open a world model and test immediately. Best for robot teams that know the robot, task, and outputs they need. Each world model card shows its own exact rate.",
-    bullets: [
-      "Fast time to first test on a real site",
-      "Repeatable policy evaluation without field visits",
-      "Checkpoint comparison and exportable rollout outputs",
-    ],
+    title: "World model package",
+    price: "$2,100 - $3,400",
+    detail: "Per site package on the current public catalog.",
   },
   {
-    title: "Managed or priority session",
-    price: "$30 - $100",
-    unit: "per session-hour",
-    description:
-      "Priority turnaround, custom scenario work, deeper support, or higher-fidelity handling. Final pricing scoped per session.",
-    bullets: [
-      "Priority scheduling and hands-on support",
-      "Heavier scenario setup and deeper review",
-      "Better fit for high-stakes evals and tighter timelines",
-    ],
+    title: "Hosted evaluation",
+    price: "$16 - $29",
+    detail: "Per session-hour depending on the site.",
+  },
+  {
+    title: "Custom engagement",
+    price: "$50,000+",
+    detail: "For custom capture, exclusive access, or managed support.",
   },
 ];
 
 export default function Pricing() {
-  const shouldReduce = useReducedMotion();
-
   return (
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Blueprint pricing: capturers earn per approved site, robot teams buy world models and hosted access, and enterprise teams add managed support."
+        description="Blueprint pricing for robot teams: site-specific world model packages, hosted evaluations, and custom engagements."
         canonical="/pricing"
       />
 
@@ -50,134 +40,64 @@ export default function Pricing() {
                 Pricing
               </p>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Capture supply on one side. World-model demand on the other.
+                Pricing for robot teams, not the whole marketplace story.
               </h1>
-              <p className="text-lg text-slate-600">
-                Capturers record a site and get paid for the capture. Robot teams buy site-specific
-                world models and hosted access. Site operators can opt into licensing, and enterprise
-                teams can add managed support if they need it.
+              <p className="text-lg leading-8 text-slate-600">
+                Start with the site package or request a hosted evaluation. If the public catalog
+                is not enough, Blueprint can scope custom capture, exclusive access, or a managed
+                engagement around one real facility.
               </p>
             </header>
           </ScrollReveal>
 
-          {/* Three-sided overview */}
           <ScrollReveal delay={0.1}>
-            <section className="mt-10 rounded-3xl border border-emerald-200 bg-emerald-50 p-6 sm:p-8">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
-                Core pricing lanes
+            <section className="mt-10 rounded-3xl border border-slate-200 bg-slate-50 p-6 sm:p-8">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Current public range
               </p>
-              <StaggerGroup className="mt-2 grid gap-6 lg:grid-cols-3" stagger={0.12}>
-                <InteractiveCard accent="emerald" className="p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-700">
-                    Capturers
-                  </p>
-                  <p className="mt-2 text-2xl font-bold text-slate-900">
-                    Earn $<AnimatedCounter value={20} duration={600} />-$<AnimatedCounter value={60} duration={900} />
-                  </p>
-                  <p className="mt-2 text-sm text-slate-600">
-                    Per capture session. Most approved captures land around $40. Free to join.
-                    Quality bonuses and device multipliers increase your rate.
-                  </p>
-                </InteractiveCard>
-                <InteractiveCard accent="emerald" className="p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
-                    Robot teams
-                  </p>
-                  <p className="mt-2 text-2xl font-bold text-slate-900">Buy world models</p>
-                  <p className="mt-2 text-sm text-slate-600">
-                    $2,100-$3,400 per site package on the current public catalog. Hosted sessions
-                    currently start between $16 and $29 per session-hour depending on the site.
-                  </p>
-                </InteractiveCard>
-                <InteractiveCard accent="emerald" className="p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-700">
-                    Site operators
-                  </p>
-                  <p className="mt-2 text-2xl font-bold text-slate-900">
-                    Earn <AnimatedCounter value={15} duration={600} />-<AnimatedCounter value={25} duration={800} suffix="%" />
-                  </p>
-                  <p className="mt-2 text-sm text-slate-600">
-                    Optional licensing participation for facilities that want their site sold downstream.
-                  </p>
-                </InteractiveCard>
-              </StaggerGroup>
-            </section>
-          </ScrollReveal>
-
-          {/* Hosted session bands */}
-          <ScrollReveal>
-            <section className="mt-10 rounded-3xl border border-slate-200 bg-white p-6 sm:p-8">
-              <div className="max-w-3xl">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Simulation access
-                </p>
-                <h2 className="mt-2 text-3xl font-bold text-slate-900">
-                  Run your robot against a real site record.
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Open a world model and start testing. Pricing is per session-hour. Use it when
-                  you need a quick answer on a real site, a repeatable benchmark, or counterfactual
-                  runs before deployment.
-                </p>
-              </div>
-              <StaggerGroup className="mt-6 grid gap-4 md:grid-cols-2" stagger={0.15}>
-                {hostedSessionBands.map((band) => (
-                  <InteractiveCard key={band.title} accent="indigo" className="p-5 bg-slate-50">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                      {band.title}
+              <div className="mt-4 grid gap-4 md:grid-cols-3">
+                {pricingHighlights.map((item) => (
+                  <article
+                    key={item.title}
+                    className="rounded-2xl border border-slate-200 bg-white p-5"
+                  >
+                    <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                    <p className="mt-3 text-3xl font-bold tracking-tight text-slate-950">
+                      {item.price}
                     </p>
-                    <div className="mt-2 flex flex-wrap items-end gap-2">
-                      <p className="text-3xl font-bold text-slate-900">{band.price}</p>
-                      <p className="pb-1 text-sm text-slate-500">{band.unit}</p>
-                    </div>
-                    <p className="mt-3 text-sm leading-6 text-slate-600">{band.description}</p>
-                    <ul className="mt-4 space-y-2">
-                      {band.bullets.map((bullet) => (
-                        <li key={bullet} className="flex items-start gap-2 text-sm text-slate-700">
-                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                          <span>{bullet}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </InteractiveCard>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">{item.detail}</p>
+                  </article>
                 ))}
-              </StaggerGroup>
+              </div>
             </section>
           </ScrollReveal>
 
-          {/* Four tiers */}
           <ScrollReveal>
             <section className="mt-10">
               <div className="max-w-3xl">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  All tiers
+                  Options
                 </p>
                 <h2 className="mt-2 text-3xl font-bold text-slate-900">
-                  From free captures to enterprise contracts.
+                  Pick the buying path that matches the work.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Start capturing for free or buy a single world model. Scale up to subscription
-                  access or enterprise-level managed deployment when the public catalog is not enough.
+                  The catalog should make it obvious whether your team needs the package, the
+                  hosted path, or a heavier custom engagement.
                 </p>
               </div>
             </section>
           </ScrollReveal>
 
           <StaggerGroup className="mt-6 space-y-4" stagger={0.12}>
-            {simplePricingOptions.map((option) => (
-              <InteractiveCard key={option.id} className="p-0 overflow-hidden">
+            {buyerPricingOptions.map((option) => (
+              <InteractiveCard key={option.id} className="overflow-hidden p-0">
                 <article className="grid h-full gap-5 p-5 sm:p-6 lg:grid-cols-[1.15fr_0.85fr]">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                       {option.step}
                     </p>
-                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <h2 className="text-2xl font-bold text-slate-900">{option.name}</h2>
-                      <span className="text-sm text-slate-500">({option.internalName})</span>
-                    </div>
-                    <div className="mt-3 inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700">
-                      Who pays: {option.payer}
-                    </div>
+                    <h2 className="mt-2 text-2xl font-bold text-slate-900">{option.name}</h2>
                     <p className="mt-3 text-sm leading-6 text-slate-600">{option.summary}</p>
                     <ul className="mt-4 space-y-2">
                       {option.includes.map((item) => (
@@ -195,19 +115,19 @@ export default function Pricing() {
                     <p className="mt-1 text-sm text-slate-500">{option.unit}</p>
                     <a
                       href={
-                        option.id === "capture"
-                          ? "/capture"
-                          : option.id === "world-models"
-                            ? "/world-models"
-                            : `/contact?interest=${getPricingContactInterest(option.id)}`
+                        option.id === "world-models"
+                          ? "/world-models"
+                          : option.id === "simulation"
+                            ? "/contact?persona=robot-team&interest=evaluation-package"
+                            : "/contact?persona=robot-team&interest=enterprise"
                       }
-                      className="mt-5 inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-slate-800 hover:shadow-md"
+                      className="mt-5 inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                     >
-                      {option.id === "capture"
-                        ? "Start earning"
-                        : option.id === "world-models"
-                          ? "Browse world models"
-                          : "Talk to sales"}
+                      {option.id === "world-models"
+                        ? "Browse world models"
+                        : option.id === "simulation"
+                          ? "Request hosted eval"
+                          : "Talk to Blueprint"}
                     </a>
                   </div>
                 </article>
@@ -219,25 +139,27 @@ export default function Pricing() {
             <section className="mt-10 rounded-2xl border border-slate-200 bg-slate-50 p-6">
               <div className="mb-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Enterprise
+                  Notes
                 </p>
                 <h2 className="mt-2 text-xl font-bold text-slate-900">
-                  Need custom captures, exclusive access, or managed deployment?
+                  Need a site that is not in the catalog yet?
                 </h2>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                  Enterprise contracts include on-demand capture requests for specific locations,
-                  exclusive world model access, managed evaluation, and deployment assistance.
+                  Ask about a custom capture or a private engagement. The public pricing page stays
+                  focused on the robot-team buying path, but Blueprint can scope custom work when a
+                  specific site matters.
                 </p>
                 <a
-                  href="/contact?interest=enterprise"
-                  className="mt-4 inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition-all hover:bg-slate-100 hover:shadow-sm"
+                  href="/contact?persona=robot-team&interest=enterprise"
+                  className="mt-4 inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
                 >
-                  Talk to us about enterprise
+                  Request a custom quote
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
               </div>
               <p className="flex items-center gap-2 text-sm text-slate-600">
                 <ShieldCheck className="h-4 w-4 text-slate-500" />
-                Private or higher-control terms available when the engagement needs them.
+                Capturer payouts live in the app handoff and do not need to compete with buyer pricing.
               </p>
             </section>
           </ScrollReveal>

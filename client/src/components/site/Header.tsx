@@ -16,7 +16,6 @@ const navLinks = [
   { href: "/pricing", label: "Pricing" },
   { href: "/how-it-works", label: "How It Works" },
   { href: "/faq", label: "FAQ" },
-  { href: "/contact?persona=robot-team", label: "Contact" },
 ];
 
 export function Header() {
@@ -72,16 +71,10 @@ export function Header() {
         </nav>
         <div className="hidden items-center gap-3 md:flex">
           <a
-            href="/contact?persona=robot-team"
+            href="/contact?persona=robot-team&interest=evaluation-package"
             className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
           >
-            Talk to Blueprint
-          </a>
-          <a
-            href="/capture-app"
-            className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
-          >
-            Capture App
+            Request hosted eval
           </a>
           {!currentUser ? (
             <>
@@ -152,18 +145,11 @@ export function Header() {
               </a>
             ))}
             <a
-              href="/contact?persona=robot-team"
+              href="/contact?persona=robot-team&interest=evaluation-package"
               className="mt-2 inline-flex min-h-11 items-center justify-center rounded-full bg-slate-900 px-4 py-2.5 text-center text-white"
               onClick={() => setOpen(false)}
             >
-              Talk to Blueprint
-            </a>
-            <a
-              href="/capture-app"
-              className="inline-flex min-h-11 items-center justify-center rounded-full border border-slate-200 px-4 py-2.5 text-center text-slate-700"
-              onClick={() => setOpen(false)}
-            >
-              Capture App
+              Request hosted eval
             </a>
             {!currentUser ? (
               <>

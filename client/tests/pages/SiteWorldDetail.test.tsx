@@ -76,7 +76,7 @@ describe("SiteWorldDetail", () => {
     vi.mocked(fetchSiteWorldDetail).mockResolvedValue(buildSiteWorld());
   });
 
-  it("keeps the explainer secondary and uses direct hosted-session start CTAs", async () => {
+  it("keeps the explainer secondary and uses hosted evaluation request CTAs", async () => {
     window.history.replaceState({}, "", "/site-worlds/sw-chi-01");
 
     render(<SiteWorldDetail params={{ slug: "sw-chi-01" }} />);
@@ -89,7 +89,7 @@ describe("SiteWorldDetail", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /What this site world is good for\./i }),
+      screen.getByRole("heading", { name: /What this listing is good for\./i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /Get the site package\./i }),
@@ -117,8 +117,10 @@ describe("SiteWorldDetail", () => {
     expect(sceneUrl.pathname).toBe("/contact");
     expect(sceneUrl.searchParams.get("interest")).toBe("data-licensing");
 
-    const hostedLink = screen.getByRole("link", { name: /Start hosted session/i });
-    expect(hostedLink).toHaveAttribute("href", "/world-models/sw-chi-01/start");
+    const hostedLink = screen.getByRole("link", { name: /Request hosted evaluation/i });
+    const hostedUrl = new URL(hostedLink.getAttribute("href")!, "https://example.com");
+    expect(hostedUrl.pathname).toBe("/contact");
+    expect(hostedUrl.searchParams.get("interest")).toBe("evaluation-package");
   });
 
   it("shows admin Marble controls to allowed admin users", async () => {

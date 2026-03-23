@@ -670,8 +670,8 @@ function buildPackages(config: PackageConfig): [SiteWorldPackage, SiteWorldPacka
       summary: "Stream the site-specific world model in a Blueprint-managed session.",
       priceLabel: config.hostedRate,
       payerLabel: "Robot team",
-      actionLabel: "Start hosted session",
-      actionHref: `/world-models/${config.siteId}/start`,
+      actionLabel: "Request hosted evaluation",
+      actionHref: buildContactHref("evaluation-package", config),
       deliverables: [
         "Streamed world-model runtime",
         "Reset, rerun, and scenario changes",
