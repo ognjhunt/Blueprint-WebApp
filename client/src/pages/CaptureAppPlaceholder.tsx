@@ -1,14 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
-  Copy,
-  ExternalLink,
-  Loader2,
-  MessageSquareShare,
-  QrCode,
-  Shield,
-  Smartphone,
   Apple,
+  Loader2,
 } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 
@@ -24,7 +18,7 @@ function isValidPhone(value: string) {
   return value.replace(/\D/g, "").length >= 10;
 }
 
-/* Laurel wreath SVG — mirrors Kled's badge style */
+/* ── Laurel wreath SVG badge ── */
 function LaurelBadge({
   children,
   className = "",
@@ -32,25 +26,28 @@ function LaurelBadge({
   children: React.ReactNode;
   className?: string;
 }) {
+  const wreath = (
+    <svg
+      viewBox="0 0 32 64"
+      className="h-14 w-7 text-zinc-300"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.2"
+    >
+      <path d="M28 4c-6 4-10 12-12 20" />
+      <path d="M26 8c-8 2-12 8-14 14" />
+      <path d="M22 14c-6 2-10 8-10 14" />
+      <path d="M20 20c-4 4-6 8-6 12" />
+      <path d="M16 28c-2 4-2 6-2 8" />
+      <path d="M28 4c-2 6-2 10 0 14" />
+      <path d="M26 8c-2 4-2 8 0 10" />
+      <path d="M22 14c-2 4-1 8 1 8" />
+      <path d="M20 20c-1 2 0 6 0 6" />
+    </svg>
+  );
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      <svg
-        viewBox="0 0 32 64"
-        className="h-14 w-7 text-zinc-300"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.2"
-      >
-        <path d="M28 4c-6 4-10 12-12 20" />
-        <path d="M26 8c-8 2-12 8-14 14" />
-        <path d="M22 14c-6 2-10 8-10 14" />
-        <path d="M20 20c-4 4-6 8-6 12" />
-        <path d="M16 28c-2 4-2 6-2 8" />
-        <path d="M28 4c-2 6-2 10 0 14" />
-        <path d="M26 8c-2 4-2 8 0 10" />
-        <path d="M22 14c-2 4-1 8 1 8" />
-        <path d="M20 20c-1 2 0 6 0 6" />
-      </svg>
+      {wreath}
       <div>{children}</div>
       <svg
         viewBox="0 0 32 64"
@@ -73,25 +70,238 @@ function LaurelBadge({
   );
 }
 
-/* Stylized phone mockup showing Blueprint Capture UI */
-function PhoneMockup() {
+/* ── Reusable phone frame ── */
+function PhoneFrame({
+  children,
+  className = "",
+  tilt,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  tilt?: "left" | "right";
+}) {
+  const tiltClass =
+    tilt === "left"
+      ? "-rotate-[8deg]"
+      : tilt === "right"
+        ? "rotate-[8deg]"
+        : "";
+  return (
+    <div className={`relative ${tiltClass} ${className}`}>
+      <div className="w-[260px] rounded-[2.8rem] border-[5px] border-zinc-800 bg-zinc-900 p-1.5 shadow-2xl shadow-zinc-900/20">
+        <div className="absolute left-1/2 top-2.5 z-10 h-5 w-24 -translate-x-1/2 rounded-full bg-zinc-800" />
+        <div className="overflow-hidden rounded-[2rem] bg-zinc-950">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Phone screen: Capture Upload ── */
+function ScreenUpload() {
+  return (
+    <div className="px-4 pb-5 pt-10">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-medium text-zinc-500">Blueprint Capture</span>
+        <div className="h-5 w-5 rounded-full bg-zinc-800" />
+      </div>
+      <div className="mt-5 flex flex-col items-center">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/20">
+          <svg viewBox="0 0 24 24" className="h-8 w-8 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M5 12l5 5L20 7" />
+          </svg>
+        </div>
+        <p className="mt-4 text-sm font-semibold text-white">Upload Complete</p>
+        <p className="mt-1 text-[10px] text-zinc-500">112.7M / 112.7k</p>
+        <div className="mt-3 h-1.5 w-32 rounded-full bg-zinc-800">
+          <div className="h-full w-full rounded-full bg-emerald-400" />
+        </div>
+        <p className="mt-1 text-[9px] text-emerald-400">100%</p>
+      </div>
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        <div className="rounded-xl bg-zinc-800/60 px-3 py-2">
+          <p className="text-[9px] text-zinc-500">Duration</p>
+          <p className="text-[11px] font-medium text-white">18 min</p>
+        </div>
+        <div className="rounded-xl bg-zinc-800/60 px-3 py-2">
+          <p className="text-[9px] text-zinc-500">Coverage</p>
+          <p className="text-[11px] font-medium text-white">94%</p>
+        </div>
+        <div className="rounded-xl bg-zinc-800/60 px-3 py-2">
+          <p className="text-[9px] text-zinc-500">Quality</p>
+          <p className="text-[11px] font-medium text-emerald-400">High</p>
+        </div>
+        <div className="rounded-xl bg-zinc-800/60 px-3 py-2">
+          <p className="text-[9px] text-zinc-500">LiDAR</p>
+          <p className="text-[11px] font-medium text-emerald-400">Active</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Phone screen: Tasks ── */
+function ScreenTasks() {
+  return (
+    <div className="px-4 pb-5 pt-10">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-white">Available Tasks</span>
+        <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[9px] text-emerald-400">3 nearby</span>
+      </div>
+      {[
+        { name: "Target - Brier Creek", pay: "$55", tags: ["Retail", "LiDAR bonus"], distance: "2.1 mi" },
+        { name: "Planet Fitness - Cary", pay: "$40", tags: ["Gym", "Featured"], distance: "4.3 mi" },
+        { name: "Marriott - RTP", pay: "$60", tags: ["Hotel", "Multi-floor"], distance: "6.7 mi" },
+      ].map((task) => (
+        <div key={task.name} className="mt-3 rounded-2xl bg-zinc-800/60 p-3">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-[11px] font-medium text-white">{task.name}</p>
+              <p className="mt-0.5 text-[9px] text-zinc-500">{task.distance}</p>
+            </div>
+            <span className="text-[12px] font-bold text-emerald-400">{task.pay}</span>
+          </div>
+          <div className="mt-2 flex gap-1">
+            {task.tags.map((tag) => (
+              <span key={tag} className="rounded-full bg-zinc-700/60 px-2 py-0.5 text-[8px] font-medium text-zinc-300">
+                {tag}
+              </span>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Phone screen: Dashboard ── */
+function ScreenDashboard() {
+  return (
+    <div className="px-4 pb-5 pt-10">
+      <p className="text-xs font-semibold text-white">Your Dashboard</p>
+      <div className="mt-4 rounded-2xl bg-gradient-to-br from-indigo-900/60 to-zinc-800 p-3">
+        <p className="text-[9px] uppercase tracking-wider text-zinc-400">Capturer Rank</p>
+        <p className="mt-1 text-lg font-bold text-white">#1,854</p>
+        <p className="text-[9px] text-indigo-300">Top 15%</p>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="rounded-xl bg-zinc-800/60 p-3">
+          <p className="text-[9px] text-zinc-500">Total Captures</p>
+          <p className="text-base font-bold text-white">26</p>
+          <p className="text-[9px] text-zinc-500">18 photos + 8 video</p>
+        </div>
+        <div className="rounded-xl bg-zinc-800/60 p-3">
+          <p className="text-[9px] text-zinc-500">Leaderboard</p>
+          <div className="mt-1 flex -space-x-2">
+            {["bg-indigo-400", "bg-emerald-400", "bg-amber-400"].map((c, i) => (
+              <div key={i} className={`h-6 w-6 rounded-full ${c} border-2 border-zinc-900`} />
+            ))}
+          </div>
+        </div>
+        <div className="rounded-xl bg-zinc-800/60 p-3">
+          <p className="text-[9px] text-zinc-500">Earnings</p>
+          <p className="text-base font-bold text-white">$832.57</p>
+          <p className="text-[9px] text-zinc-500">8 payouts</p>
+        </div>
+        <div className="rounded-xl bg-zinc-800/60 p-3">
+          <p className="text-[9px] text-zinc-500">Member Since</p>
+          <p className="text-base font-bold text-white">Mar 2026</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Phone screen: Earnings / Wallet ── */
+function ScreenEarnings() {
+  return (
+    <div className="px-4 pb-5 pt-10">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-zinc-400">Earnings</span>
+        <div className="h-5 w-5 rounded-lg bg-zinc-800" />
+      </div>
+      <div className="mt-4 rounded-2xl bg-gradient-to-br from-zinc-800 to-zinc-900 p-4">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Balance</p>
+        <p className="mt-1 text-2xl font-bold text-white">$536.50</p>
+        <div className="mt-2 flex items-center gap-2">
+          <span className="text-[9px] text-zinc-500">12 captures approved</span>
+          <button className="rounded-full bg-white px-3 py-1 text-[10px] font-semibold text-zinc-900">
+            Cash out
+          </button>
+        </div>
+      </div>
+      <div className="mt-3 flex gap-2">
+        {["Payouts", "Cashouts", "Ledger"].map((tab, i) => (
+          <span
+            key={tab}
+            className={`rounded-xl px-3 py-1.5 text-[10px] font-medium ${i === 2 ? "bg-zinc-800 text-white" : "text-zinc-500"}`}
+          >
+            {tab}
+          </span>
+        ))}
+      </div>
+      <div className="mt-3">
+        <div className="flex items-center justify-between text-[10px]">
+          <span className="text-zinc-500">Transactions</span>
+          <span className="text-zinc-500">75</span>
+        </div>
+        {[
+          { name: "Payout No. 13", amount: "+$18.50" },
+          { name: "Payout No. 12", amount: "+$42.00" },
+        ].map((tx) => (
+          <div key={tx.name} className="mt-2 flex items-center justify-between rounded-xl bg-zinc-800/60 px-3 py-2.5">
+            <p className="text-[11px] font-medium text-white">{tx.name}</p>
+            <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+              {tx.amount}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Phone screen: Multi-device ── */
+function ScreenDevices() {
+  return (
+    <div className="px-4 pb-5 pt-10">
+      <p className="text-xs font-semibold text-white">Supported Devices</p>
+      <p className="mt-1 text-[9px] text-zinc-500">Connect and manage your capture hardware</p>
+      {[
+        { name: "iPhone 16 Pro", status: "Connected", icon: "bg-emerald-400", detail: "LiDAR + ARKit" },
+        { name: "Meta Ray-Ban", status: "Available", icon: "bg-sky-400", detail: "720p + IMU" },
+        { name: "iPad Pro", status: "Not connected", icon: "bg-amber-400", detail: "LiDAR + ARKit" },
+        { name: "Android XR", status: "Coming 2026", icon: "bg-zinc-500", detail: "Camera + IMU" },
+      ].map((d) => (
+        <div key={d.name} className="mt-2.5 flex items-center gap-3 rounded-xl bg-zinc-800/60 px-3 py-2.5">
+          <div className={`h-8 w-8 rounded-xl ${d.icon}/20 flex items-center justify-center`}>
+            <div className={`h-4 w-4 rounded-md ${d.icon}`} />
+          </div>
+          <div className="flex-1">
+            <p className="text-[11px] font-medium text-white">{d.name}</p>
+            <p className="text-[9px] text-zinc-500">{d.detail}</p>
+          </div>
+          <span className={`text-[9px] font-medium ${d.status === "Connected" ? "text-emerald-400" : "text-zinc-500"}`}>
+            {d.status}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Hero phone (main capture list view) ── */
+function HeroPhoneMockup() {
   return (
     <div className="relative mx-auto w-[280px] sm:w-[320px]">
-      {/* Phone frame */}
       <div className="rounded-[3rem] border-[6px] border-zinc-800 bg-zinc-900 p-2 shadow-2xl shadow-zinc-900/30">
-        {/* Notch */}
         <div className="absolute left-1/2 top-3 z-10 h-6 w-28 -translate-x-1/2 rounded-full bg-zinc-800" />
-        {/* Screen */}
         <div className="overflow-hidden rounded-[2.2rem] bg-zinc-950">
-          {/* Status bar */}
           <div className="flex items-center justify-between px-8 pb-1 pt-8 text-[10px] font-semibold text-white">
             <span>9:41</span>
             <div className="flex items-center gap-1">
               <div className="h-2 w-3 rounded-sm border border-white/60" />
             </div>
           </div>
-
-          {/* App header */}
           <div className="px-5 pb-3 pt-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -103,40 +313,21 @@ function PhoneMockup() {
               <div className="h-6 w-6 rounded-full bg-zinc-800" />
             </div>
           </div>
-
-          {/* Balance card */}
           <div className="mx-4 rounded-2xl bg-gradient-to-br from-zinc-800 to-zinc-900 p-4">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">
-              Earnings
-            </p>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Earnings</p>
             <p className="mt-1 text-2xl font-bold text-white">$536.50</p>
             <div className="mt-3 flex items-center gap-2">
-              <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[9px] font-medium text-emerald-400">
-                12 captures approved
-              </span>
-              <button className="rounded-full bg-white px-3 py-1 text-[10px] font-semibold text-zinc-900">
-                Cash out
-              </button>
+              <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[9px] font-medium text-emerald-400">12 captures approved</span>
+              <button className="rounded-full bg-white px-3 py-1 text-[10px] font-semibold text-zinc-900">Cash out</button>
             </div>
           </div>
-
-          {/* Tab bar */}
           <div className="mt-3 flex gap-2 px-4">
             {["Payouts", "Captures", "Tasks"].map((tab, i) => (
-              <div
-                key={tab}
-                className={`rounded-xl px-3 py-2 text-[10px] font-medium ${
-                  i === 1
-                    ? "bg-zinc-800 text-white"
-                    : "text-zinc-500"
-                }`}
-              >
+              <div key={tab} className={`rounded-xl px-3 py-2 text-[10px] font-medium ${i === 1 ? "bg-zinc-800 text-white" : "text-zinc-500"}`}>
                 {tab}
               </div>
             ))}
           </div>
-
-          {/* Capture list */}
           <div className="mt-2 space-y-2 px-4 pb-6">
             <p className="text-[10px] font-medium text-zinc-500">Recent</p>
             {[
@@ -144,19 +335,12 @@ function PhoneMockup() {
               { name: "WeWork - RTP", amount: "$38.50", status: "Approved" },
               { name: "Planet Fitness - Cary", amount: "Pending", status: "In review" },
             ].map((item) => (
-              <div
-                key={item.name}
-                className="flex items-center justify-between rounded-xl bg-zinc-800/60 px-3 py-2.5"
-              >
+              <div key={item.name} className="flex items-center justify-between rounded-xl bg-zinc-800/60 px-3 py-2.5">
                 <div>
                   <p className="text-[11px] font-medium text-white">{item.name}</p>
                   <p className="text-[9px] text-zinc-500">{item.status}</p>
                 </div>
-                <span
-                  className={`text-[11px] font-semibold ${
-                    item.amount === "Pending" ? "text-amber-400" : "text-emerald-400"
-                  }`}
-                >
+                <span className={`text-[11px] font-semibold ${item.amount === "Pending" ? "text-amber-400" : "text-emerald-400"}`}>
                   {item.amount}
                 </span>
               </div>
@@ -164,11 +348,14 @@ function PhoneMockup() {
           </div>
         </div>
       </div>
-      {/* Reflection */}
       <div className="absolute -bottom-8 left-1/2 h-8 w-[90%] -translate-x-1/2 rounded-[50%] bg-zinc-200/30 blur-xl" />
     </div>
   );
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   Main page
+   ════════════════════════════════════════════════════════════════════ */
 
 export default function CaptureAppPlaceholder() {
   const [email, setEmail] = useState("");
@@ -178,78 +365,42 @@ export default function CaptureAppPlaceholder() {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const [qrCodeUrl, setQrCodeUrl] = useState("");
-  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const shouldReduce = useReducedMotion();
 
   const captureAppUrl = useMemo(() => getCaptureAppPlaceholderUrl(), []);
-  const smsBody = useMemo(
-    () =>
-      `Blueprint Capture access link:\n${captureAppUrl}\n\nOpen this link on your phone for the latest capturer access flow.`,
-    [captureAppUrl],
-  );
-  const smsHref = useMemo(
-    () => `sms:?&body=${encodeURIComponent(smsBody)}`,
-    [smsBody],
-  );
 
   useEffect(() => {
     let active = true;
-
     async function generateQrCode() {
       try {
         const qrcode = await import("qrcode");
         const dataUrl = await qrcode.toDataURL(captureAppUrl, {
           width: 320,
           margin: 1,
-          color: {
-            dark: "#18181b",
-            light: "#ffffff",
-          },
+          color: { dark: "#18181b", light: "#ffffff" },
         });
-
-        if (active) {
-          setQrCodeUrl(dataUrl);
-        }
+        if (active) setQrCodeUrl(dataUrl);
       } catch (error) {
         console.error("Failed to generate capture access QR code:", error);
       }
     }
-
     void generateQrCode();
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [captureAppUrl]);
 
   const handleWaitlistSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
-    if (!isValidEmail(email)) {
-      setStatus("error");
-      setMessage("Enter a valid email address.");
-      return;
-    }
-
-    if (!market.trim()) {
-      setStatus("error");
-      setMessage("Tell us your home market.");
-      return;
-    }
-
-    if (!isValidPhone(phone)) {
-      setStatus("error");
-      setMessage("Enter a valid phone number.");
-      return;
-    }
+    if (!isValidEmail(email)) { setStatus("error"); setMessage("Enter a valid email address."); return; }
+    if (!market.trim()) { setStatus("error"); setMessage("Tell us your home market."); return; }
+    if (!isValidPhone(phone)) { setStatus("error"); setMessage("Enter a valid phone number."); return; }
 
     setStatus("loading");
     setMessage("");
-
     try {
+      const { withCsrfHeader: csrf } = await import("@/lib/csrf");
       const response = await fetch("/api/waitlist", {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await csrf({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           email: email.trim(),
           locationType: `Blueprint Capture beta - ${market.trim()}`,
@@ -259,34 +410,15 @@ export default function CaptureAppPlaceholder() {
           phone: phone.trim(),
         }),
       });
-
       const responseBody = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(responseBody?.error || "Failed to join the capturer access list.");
-      }
-
+      if (!response.ok) throw new Error(responseBody?.error || "Failed to join the capturer access list.");
       setStatus("success");
       setMessage("Request received. We'll send the right capture access instructions for your market.");
-      setEmail("");
-      setMarket("");
-      setPhone("");
-      setDevice("iphone");
+      setEmail(""); setMarket(""); setPhone(""); setDevice("iphone");
     } catch (error) {
       console.error(error);
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Something went wrong. Please try again.");
-    }
-  };
-
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(captureAppUrl);
-      setCopyState("copied");
-    } catch (error) {
-      console.error("Failed to copy capture access link:", error);
-      setCopyState("failed");
-    } finally {
-      window.setTimeout(() => setCopyState("idle"), 1800);
     }
   };
 
@@ -299,11 +431,11 @@ export default function CaptureAppPlaceholder() {
       />
 
       <main className="min-h-screen bg-[#fafaf8]">
-        {/* ── Hero ── */}
+        {/* ═══════════════ HERO ═══════════════ */}
         <section className="relative overflow-hidden pb-20 pt-16 sm:pb-28 sm:pt-24">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid items-center gap-12 lg:grid-cols-[1fr_auto_auto] lg:gap-8">
-              {/* Left — headline + CTA */}
+              {/* Left — headline */}
               <motion.div
                 initial={shouldReduce ? {} : { opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -321,7 +453,6 @@ export default function CaptureAppPlaceholder() {
                   Everything you need to capture indoor spaces, complete tasks, and
                   monitor earnings, right from your phone. Available for iOS.
                 </p>
-
                 <a
                   href={captureAppUrl}
                   target="_blank"
@@ -336,45 +467,37 @@ export default function CaptureAppPlaceholder() {
                 </a>
               </motion.div>
 
-              {/* Center — phone mockup */}
+              {/* Center — phone */}
               <motion.div
                 initial={shouldReduce ? {} : { opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, delay: 0.15 }}
                 className="flex justify-center"
               >
-                <PhoneMockup />
+                <HeroPhoneMockup />
               </motion.div>
 
-              {/* Right — stat badges + QR */}
+              {/* Right — badges + QR */}
               <motion.div
                 initial={shouldReduce ? {} : { opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.6, delay: 0.3 }}
                 className="flex flex-col items-center gap-6 lg:items-end"
               >
-                {/* QR code — top right like Kled */}
                 {qrCodeUrl && (
                   <div className="rounded-xl border border-zinc-200 bg-white p-2 shadow-sm">
-                    <img
-                      src={qrCodeUrl}
-                      alt="QR code for Blueprint Capture access"
-                      className="h-20 w-20"
-                    />
+                    <img src={qrCodeUrl} alt="QR code for Blueprint Capture access" className="h-20 w-20" />
                   </div>
                 )}
-
                 <LaurelBadge>
                   <p className="text-base font-bold text-zinc-700">Capture & Earn</p>
                   <p className="text-xs text-zinc-400">$20 - $60 Per Session</p>
                 </LaurelBadge>
-
                 <div className="flex gap-6">
                   <LaurelBadge>
                     <p className="text-base font-bold text-zinc-700">15-30 Min</p>
                     <p className="text-xs text-zinc-400">Average Session</p>
                   </LaurelBadge>
-
                   <LaurelBadge>
                     <p className="text-base font-bold text-zinc-700">4 Devices</p>
                     <p className="mt-0.5 flex items-center gap-0.5">
@@ -394,226 +517,265 @@ export default function CaptureAppPlaceholder() {
           </div>
         </section>
 
-        {/* ── Features row ── */}
-        <section className="border-y border-zinc-200 bg-white py-16 sm:py-20">
+        {/* ═══════════════ FEATURE 1 — Full-width: Capture & Upload ═══════════════ */}
+        <section className="py-4 sm:py-6">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="grid gap-8 sm:grid-cols-3">
-              {[
-                {
-                  icon: <Shield className="h-5 w-5 text-zinc-600" />,
-                  title: "Capture and upload fast",
-                  desc: "Start sessions from your phone, upload on the move, and keep every submission tied to the right device flow.",
-                },
-                {
-                  icon: <MessageSquareShare className="h-5 w-5 text-zinc-600" />,
-                  title: "Task feed and payouts",
-                  desc: "Browse available work, monitor approval status, and keep payout activity in one mobile workflow.",
-                },
-                {
-                  icon: <QrCode className="h-5 w-5 text-zinc-600" />,
-                  title: "QR and link handoff",
-                  desc: "Open the app listing directly, text yourself the link, or keep a scannable download path live for recruiting.",
-                },
-              ].map((feature) => (
-                <motion.div
-                  key={feature.title}
-                  initial={shouldReduce ? {} : { opacity: 0, y: 16 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5 }}
-                  className="group"
-                >
-                  <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 transition group-hover:border-zinc-300">
-                    {feature.icon}
-                  </div>
-                  <h3 className="text-base font-semibold text-zinc-900">{feature.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-zinc-500">{feature.desc}</p>
-                </motion.div>
-              ))}
+            <motion.div
+              initial={shouldReduce ? {} : { opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="relative overflow-hidden rounded-3xl bg-zinc-100 p-8 sm:p-12 lg:min-h-[480px]"
+            >
+              <div className="relative z-10 max-w-md">
+                <div className="h-px w-10 bg-zinc-400" />
+                <h2 className="mt-5 text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">
+                  Capture and Upload in Seconds
+                </h2>
+                <p className="mt-4 text-sm leading-6 text-zinc-500">
+                  Walk through any indoor space with your phone. Track upload progress,
+                  check quality scores, and submit captures with the simplest
+                  workflow possible.
+                </p>
+              </div>
+              {/* Phone — positioned to the right, tilted */}
+              <div className="mt-8 flex justify-center lg:absolute lg:bottom-[-40px] lg:right-12 lg:mt-0">
+                <PhoneFrame tilt="right">
+                  <ScreenUpload />
+                </PhoneFrame>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+
+        {/* ═══════════════ FEATURE 2+3 — Two-column ═══════════════ */}
+        <section className="py-4 sm:py-6">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Browse Capture Tasks */}
+              <motion.div
+                initial={shouldReduce ? {} : { opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6 }}
+                className="flex flex-col items-center rounded-3xl bg-zinc-100 p-8 text-center sm:p-10"
+              >
+                <div className="h-px w-10 bg-zinc-400" />
+                <h3 className="mt-5 text-2xl font-semibold tracking-tight text-zinc-900">
+                  Browse High-Value Capture Tasks
+                </h3>
+                <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-zinc-500">
+                  Access curated capture tasks near you. See payout rates upfront,
+                  get guidance, and track your progress in real time.
+                </p>
+                <div className="mt-8">
+                  <PhoneFrame>
+                    <ScreenTasks />
+                  </PhoneFrame>
+                </div>
+              </motion.div>
+
+              {/* Multi-Device Support */}
+              <motion.div
+                initial={shouldReduce ? {} : { opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                className="flex flex-col items-center rounded-3xl bg-zinc-100 p-8 text-center sm:p-10"
+              >
+                <div className="h-px w-10 bg-zinc-400" />
+                <h3 className="mt-5 text-2xl font-semibold tracking-tight text-zinc-900">
+                  Multi-Device Capture Support
+                </h3>
+                <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-zinc-500">
+                  Connect your iPhone, iPad, or smart glasses. Better devices earn higher
+                  payouts. A clean device hub shows status and capabilities.
+                </p>
+                <div className="mt-8">
+                  <PhoneFrame>
+                    <ScreenDevices />
+                  </PhoneFrame>
+                </div>
+              </motion.div>
             </div>
           </div>
         </section>
 
-        {/* ── Download + Access section ── */}
-        <section className="py-16 sm:py-20">
+        {/* ═══════════════ FEATURE 4+5 — Two-column ═══════════════ */}
+        <section className="py-4 sm:py-6">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="grid gap-10 lg:grid-cols-2">
-              {/* Download / link card */}
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
-                  Get the app
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Dashboard */}
+              <motion.div
+                initial={shouldReduce ? {} : { opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6 }}
+                className="flex flex-col items-center rounded-3xl bg-zinc-100 p-8 text-center sm:p-10"
+              >
+                <div className="h-px w-10 bg-zinc-400" />
+                <h3 className="mt-5 text-2xl font-semibold tracking-tight text-zinc-900">
+                  Your Personal Dashboard
+                </h3>
+                <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-zinc-500">
+                  View personal metrics, capture history, and quality trends.
+                  See how you rank on the leaderboard and keep improving with a
+                  transparent performance dashboard.
                 </p>
-                <h2 className="mt-4 text-3xl font-semibold tracking-tight text-zinc-900">
-                  Download Blueprint Capture
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-zinc-500">
-                  Capturers do not create web accounts. Download the app on the phone
-                  that will do the work, scan the QR code from another device, or
-                  request launch access for your market.
-                </p>
-
-                <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5">
-                  <p className="text-xs font-medium text-zinc-400">Current app link</p>
-                  <p className="mt-3 break-all rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 font-mono text-sm text-zinc-600">
-                    {captureAppUrl}
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={handleCopyLink}
-                      className="inline-flex items-center gap-2 rounded-full border border-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50"
-                    >
-                      <Copy className="h-3.5 w-3.5" />
-                      {copyState === "copied"
-                        ? "Copied"
-                        : copyState === "failed"
-                          ? "Copy failed"
-                          : "Copy link"}
-                    </button>
-                    <a
-                      href={captureAppUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
-                    >
-                      Download
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
-                    <a
-                      href={smsHref}
-                      className="inline-flex items-center gap-2 rounded-full border border-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50"
-                    >
-                      <Smartphone className="h-3.5 w-3.5" />
-                      Text to phone
-                    </a>
-                  </div>
+                <div className="mt-8">
+                  <PhoneFrame>
+                    <ScreenDashboard />
+                  </PhoneFrame>
                 </div>
+              </motion.div>
 
-                {/* QR section */}
-                <div className="mt-6 flex items-start gap-5">
-                  {qrCodeUrl && (
-                    <div className="shrink-0 rounded-xl border border-zinc-200 bg-white p-3">
-                      <img
-                        src={qrCodeUrl}
-                        alt="QR code for Blueprint Capture"
-                        className="h-28 w-28"
-                      />
-                    </div>
-                  )}
-                  <div className="pt-2">
-                    <p className="text-sm font-medium text-zinc-700">Scan to download</p>
-                    <p className="mt-1 text-sm leading-6 text-zinc-400">
-                      Point your phone camera at this QR code to open the app listing
-                      directly. Works for recruiting and field ops too.
-                    </p>
-                    <div className="mt-3 flex gap-3">
-                      <a
-                        href="/capture"
-                        className="text-sm font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-4 transition hover:decoration-zinc-900"
-                      >
-                        Learn about capture
-                      </a>
-                      <a
-                        href="/login"
-                        className="text-sm font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-4 transition hover:decoration-zinc-900"
-                      >
-                        Web portal
-                      </a>
-                    </div>
-                  </div>
+              {/* Earnings */}
+              <motion.div
+                initial={shouldReduce ? {} : { opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                className="flex flex-col items-center rounded-3xl bg-zinc-100 p-8 text-center sm:p-10"
+              >
+                <div className="h-px w-10 bg-zinc-400" />
+                <h3 className="mt-5 text-2xl font-semibold tracking-tight text-zinc-900">
+                  Track Earnings and Cash Out Anytime
+                </h3>
+                <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-zinc-500">
+                  Monitor your balance, view detailed payout history, and withdraw
+                  securely through PayPal or bank transfer — all inside one clean
+                  wallet interface.
+                </p>
+                <div className="mt-8">
+                  <PhoneFrame>
+                    <ScreenEarnings />
+                  </PhoneFrame>
                 </div>
-              </div>
-
-              {/* Early access form */}
-              <div className="rounded-2xl border border-zinc-200 bg-white p-8">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
-                  Early access
-                </p>
-                <h2 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-900">
-                  Request launch access
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-zinc-500">
-                  Tell us where you are and which device you plan to use. We'll route
-                  the right instructions when your market is active.
-                </p>
-
-                <form onSubmit={handleWaitlistSubmit} className="mt-6 space-y-4">
-                  <label className="block">
-                    <span className="text-sm font-medium text-zinc-700">Email</span>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                      placeholder="you@example.com"
-                      className="mt-1.5 h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="text-sm font-medium text-zinc-700">Home market</span>
-                    <input
-                      value={market}
-                      onChange={(event) => setMarket(event.target.value)}
-                      placeholder="Raleigh-Durham, NC"
-                      className="mt-1.5 h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="text-sm font-medium text-zinc-700">Phone</span>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(event) => setPhone(event.target.value)}
-                      placeholder="(919) 555-0123"
-                      className="mt-1.5 h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="text-sm font-medium text-zinc-700">Primary capture device</span>
-                    <select
-                      value={device}
-                      onChange={(event) => setDevice(event.target.value)}
-                      className="mt-1.5 h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400"
-                    >
-                      <option value="iphone">iPhone</option>
-                      <option value="ipad">iPad</option>
-                      <option value="smart_glasses">Smart glasses</option>
-                      <option value="android">Android phone</option>
-                    </select>
-                  </label>
-
-                  <button
-                    type="submit"
-                    disabled={status === "loading"}
-                    className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-zinc-900 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    {status === "loading" ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Sending request
-                      </>
-                    ) : (
-                      <>
-                        Request launch access
-                        <ArrowRight className="h-4 w-4" />
-                      </>
-                    )}
-                  </button>
-                </form>
-
-                {message ? (
-                  <p
-                    className={`mt-4 text-sm ${
-                      status === "error" ? "text-rose-600" : "text-emerald-600"
-                    }`}
-                  >
-                    {message}
-                  </p>
-                ) : null}
-              </div>
+              </motion.div>
             </div>
+          </div>
+        </section>
+
+        {/* ═══════════════ EARLY ACCESS / WAITLIST ═══════════════ */}
+        <section className="py-16 sm:py-20">
+          <div className="mx-auto max-w-xl px-4 sm:px-6 lg:px-8">
+            <div className="rounded-3xl border border-zinc-200 bg-white p-8 sm:p-10">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
+                Early access
+              </p>
+              <h2 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-900">
+                Request launch access
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-500">
+                Tell us where you are and which device you plan to use. We'll route
+                the right instructions when your market is active.
+              </p>
+
+              <form onSubmit={handleWaitlistSubmit} className="mt-6 space-y-4">
+                <label className="block">
+                  <span className="text-sm font-medium text-zinc-700">Email</span>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="mt-1.5 h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm font-medium text-zinc-700">Home market</span>
+                  <input
+                    value={market}
+                    onChange={(e) => setMarket(e.target.value)}
+                    placeholder="Raleigh-Durham, NC"
+                    className="mt-1.5 h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm font-medium text-zinc-700">Phone</span>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="(919) 555-0123"
+                    className="mt-1.5 h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm font-medium text-zinc-700">Primary capture device</span>
+                  <select
+                    value={device}
+                    onChange={(e) => setDevice(e.target.value)}
+                    className="mt-1.5 h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400"
+                  >
+                    <option value="iphone">iPhone</option>
+                    <option value="ipad">iPad</option>
+                    <option value="smart_glasses">Smart glasses</option>
+                    <option value="android">Android phone</option>
+                  </select>
+                </label>
+                <button
+                  type="submit"
+                  disabled={status === "loading"}
+                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-zinc-900 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {status === "loading" ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Sending request
+                    </>
+                  ) : (
+                    <>
+                      Request launch access
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {message ? (
+                <p className={`mt-4 text-sm ${status === "error" ? "text-rose-600" : "text-emerald-600"}`}>
+                  {message}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </section>
+
+        {/* ═══════════════ FINAL CTA ═══════════════ */}
+        <section className="border-t border-zinc-200 py-20 sm:py-28">
+          <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
+            <motion.div
+              initial={shouldReduce ? {} : { opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
+              <h2 className="text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">
+                Start Earning With Your Captures Today.
+              </h2>
+              <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-zinc-500">
+                Currently on iOS. Android and smart glasses support coming soon.
+              </p>
+              <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
+                <a
+                  href={captureAppUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2.5 rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                >
+                  <Apple className="h-4 w-4" />
+                  Download for iOS
+                </a>
+                <a
+                  href="/capture"
+                  className="inline-flex items-center gap-2 text-sm font-medium text-zinc-600 transition hover:text-zinc-900"
+                >
+                  Learn about capture
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </a>
+              </div>
+            </motion.div>
           </div>
         </section>
       </main>
