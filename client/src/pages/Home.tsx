@@ -1,11 +1,9 @@
 import { SEO } from "@/components/SEO";
 import { ProofModule } from "@/components/site/ProofModule";
-import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowRight,
   Building2,
   Camera,
-  CheckCircle2,
   FolderOutput,
   Play,
   ShieldCheck,
@@ -65,8 +63,6 @@ function DotPattern() {
 }
 
 export default function Home() {
-  const shouldReduce = useReducedMotion();
-
   return (
     <>
       <SEO
@@ -82,39 +78,19 @@ export default function Home() {
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
             <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
               <div>
-                <motion.p
-                  initial={shouldReduce ? {} : { opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.35 }}
-                  className="inline-flex rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600"
-                >
+                <p className="inline-flex rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
                   For Robot Teams
-                </motion.p>
-                <motion.h1
-                  initial={shouldReduce ? {} : { opacity: 0, y: 18 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.45, delay: 0.05 }}
-                  className="mt-5 max-w-4xl text-5xl font-semibold tracking-tight text-slate-950 sm:text-6xl"
-                >
+                </p>
+                <h1 className="mt-5 max-w-4xl text-5xl font-semibold tracking-tight text-slate-950 sm:text-6xl">
                   Inspect the real site before your team shows up.
-                </motion.h1>
-                <motion.p
-                  initial={shouldReduce ? {} : { opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.12 }}
-                  className="mt-5 max-w-2xl text-lg leading-8 text-slate-600"
-                >
+                </h1>
+                <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
                   Blueprint sells site-specific world models built from real indoor capture. These
                   are reconstructions of real facilities, not synthetic worlds. Your team can look
                   at the actual site, the actual workflow, and the actual deliverables before
                   travel or on-site setup starts.
-                </motion.p>
-                <motion.div
-                  initial={shouldReduce ? {} : { opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.35, delay: 0.18 }}
-                  className="mt-8 flex flex-col gap-3 sm:flex-row"
-                >
+                </p>
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <a
                     href="/world-models"
                     className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
@@ -134,15 +110,10 @@ export default function Home() {
                   >
                     Talk to Blueprint
                   </a>
-                </motion.div>
+                </div>
               </div>
 
-              <motion.div
-                initial={shouldReduce ? {} : { opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.45, delay: 0.15 }}
-                className="lg:pl-4"
-              >
+              <div className="lg:pl-4">
                 <ProofModule
                   eyebrow="Product proof"
                   title="A buyer should not have to imagine what this is."
@@ -150,7 +121,7 @@ export default function Home() {
                   caption="Current public proof built from the Media Room walkthrough and the hosted-session surface already in the repo."
                   compact={true}
                 />
-              </motion.div>
+              </div>
             </div>
           </div>
         </section>
