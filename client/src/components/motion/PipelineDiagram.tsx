@@ -24,7 +24,7 @@ export function PipelineDiagram({ steps, className }: PipelineDiagramProps) {
   return (
     <div className={className}>
       {/* Desktop: horizontal connected pipeline */}
-      <div className="hidden md:block">
+      <div className="hidden md:block" aria-hidden="true">
         <motion.div
           initial="hidden"
           whileInView="visible"

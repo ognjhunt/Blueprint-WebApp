@@ -13,6 +13,7 @@ import Home from "../client/src/pages/Home";
 import Capture from "../client/src/pages/Capture";
 import CaptureAppPlaceholder from "../client/src/pages/CaptureAppPlaceholder";
 import SiteWorlds from "../client/src/pages/SiteWorlds";
+import SiteWorldDetail from "../client/src/pages/SiteWorldDetail";
 import ForSiteOperators from "../client/src/pages/ForSiteOperators";
 import ForRobotIntegrators from "../client/src/pages/ForRobotIntegrators";
 import Solutions from "../client/src/pages/Solutions";
@@ -29,6 +30,9 @@ import PilotExchangeGuide from "../client/src/pages/PilotExchangeGuide";
 import Privacy from "../client/src/pages/Privacy";
 import Terms from "../client/src/pages/Terms";
 import Login from "../client/src/pages/Login";
+import Blog from "../client/src/pages/Blog";
+import Docs from "../client/src/pages/Docs";
+import { siteWorldCards } from "../client/src/data/siteWorlds";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,6 +40,7 @@ const __dirname = path.dirname(__filename);
 type StaticRoute = {
   path: string;
   component: ComponentType;
+  props?: Record<string, unknown>;
 };
 
 const staticRoutes: StaticRoute[] = [
@@ -54,6 +59,8 @@ const staticRoutes: StaticRoute[] = [
   { path: "/faq", component: FAQ },
   { path: "/governance", component: Governance },
   { path: "/about", component: About },
+  { path: "/docs", component: Docs },
+  { path: "/blog", component: Blog },
   { path: "/careers", component: Careers },
   { path: "/sign-in", component: Login },
   { path: "/quality-standard", component: ReadinessPack },
@@ -65,6 +72,11 @@ const staticRoutes: StaticRoute[] = [
   { path: "/partners", component: Contact },
   { path: "/privacy", component: Privacy },
   { path: "/terms", component: Terms },
+  ...siteWorldCards.map((site) => ({
+    path: `/world-models/${site.id}`,
+    component: SiteWorldDetail,
+    props: { params: { slug: site.id } },
+  })),
 ];
 
 const rootPattern = /<div id="root"><\/div>/;
@@ -83,7 +95,7 @@ function renderRoute(route: StaticRoute) {
     <Router ssrPath={route.path}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <Page />
+          <Page {...(route.props || {})} />
         </AuthProvider>
       </QueryClientProvider>
     </Router>,

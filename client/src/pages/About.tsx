@@ -1,9 +1,10 @@
 import { SEO } from "@/components/SEO";
 
 const principles = [
-  "Start with the real site, not a generic benchmark.",
-  "Say what the buyer receives in plain language.",
-  "Keep rights, privacy, and workflow limits visible.",
+  "Start with the real site. Generic stand-ins are useful until they are not.",
+  "Keep capture truth, rights, privacy, and provenance visible all the way through the product.",
+  "Treat hosted access and site packages as the product, not as side effects of a model demo.",
+  "Stay flexible on runtimes and providers so the buyer surface survives backend swaps.",
 ];
 
 export default function About() {
@@ -11,7 +12,7 @@ export default function About() {
     <>
       <SEO
         title="About | Blueprint"
-        description="Blueprint helps robot teams get grounded on a real site before travel, tuning, or customer time starts."
+        description="Blueprint exists to turn real-site capture into site-specific world-model products that robot teams can browse, buy, and run before they travel."
         canonical="/about"
       />
       <div className="min-h-screen bg-white">
@@ -22,17 +23,22 @@ export default function About() {
                 About Blueprint
               </p>
               <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Blueprint exists to make site-specific evaluation less fuzzy.
+                Blueprint exists to make real sites easier to inspect before the expensive part starts.
               </h1>
               <p className="mt-4 text-lg leading-relaxed text-slate-600">
-                Most robotics teams do not fail because they lack another abstract benchmark. They
-                fail because the real site shows up late, the workflow assumptions are muddy, and
-                the customer context never gets translated into something the team can actually use.
+                A lot of robotics work goes sideways for a simple reason: the real site shows up
+                too late. Teams talk in abstractions, pilots get scoped around vague assumptions,
+                and then the actual building changes the whole conversation.
               </p>
               <p className="mt-4 text-base leading-7 text-slate-600">
-                Blueprint is built around that gap. The job is simple to describe and hard to do
-                well: capture a real indoor site, package it clearly, and give buyers a believable
-                way to review it before they burn field time.
+                Blueprint is built around that gap. The job is to capture real indoor spaces, turn
+                them into site-specific world-model products, and give buyers a clean way to browse,
+                buy, and run those products before travel, tuning, and customer time pile up.
+              </p>
+              <p className="mt-4 text-base leading-7 text-slate-600">
+                The company is not built around one permanent runtime or one permanent world-model
+                provider. That part will keep moving. What should stay stable is the capture,
+                provenance, site package, hosted-session contract, and buyer surface around them.
               </p>
             </div>
 

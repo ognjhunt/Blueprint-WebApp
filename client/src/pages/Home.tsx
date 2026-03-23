@@ -1,4 +1,5 @@
 import { SEO } from "@/components/SEO";
+import { ProofModule } from "@/components/site/ProofModule";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowRight,
@@ -24,15 +25,8 @@ const buyerReasons = [
   {
     title: "Choose the level of access",
     body:
-      "Some teams want the package. Others want hosted access first. The point is to make the next step obvious instead of forcing every buyer into the same flow.",
+      "Some teams want the package. Others want hosted access first. The next step should be obvious from the page, not buried in a sales call.",
   },
-];
-
-const deliverables = [
-  "Site-specific summary and workflow notes",
-  "Package or hosted session path for the exact site",
-  "Exports, runtime details, and stated limitations",
-  "Rights and governance context when the listing requires it",
 ];
 
 const secondaryPaths = [
@@ -110,9 +104,10 @@ export default function Home() {
                   transition={{ duration: 0.4, delay: 0.12 }}
                   className="mt-5 max-w-2xl text-lg leading-8 text-slate-600"
                 >
-                  Blueprint sells site-specific world models built from real indoor capture. In
-                  plain terms: your team can review the actual facility, the actual workflow, and
-                  the actual deliverables before travel, tuning, or customer time starts.
+                  Blueprint sells site-specific world models built from real indoor capture. These
+                  are reconstructions of real facilities, not synthetic worlds. Your team can look
+                  at the actual site, the actual workflow, and the actual deliverables before
+                  travel or on-site setup starts.
                 </motion.p>
                 <motion.div
                   initial={shouldReduce ? {} : { opacity: 0, y: 12 }}
@@ -142,40 +137,20 @@ export default function Home() {
                 </motion.div>
               </div>
 
-              <motion.aside
+              <motion.div
                 initial={shouldReduce ? {} : { opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45, delay: 0.15 }}
-                className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_20px_70px_-40px_rgba(15,23,42,0.45)]"
+                className="lg:pl-4"
               >
-                <p className="text-sm font-semibold text-slate-900">What buyers should see right away</p>
-                <ul className="mt-5 space-y-3">
-                  {deliverables.map((item) => (
-                    <li key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-600">
-                      <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-emerald-600" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="mt-6 rounded-2xl bg-slate-950 p-5 text-white">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-                    Sample proof page
-                  </p>
-                  <p className="mt-2 text-xl font-semibold">Harborview Grocery Distribution Annex</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-300">
-                    A concrete example with hosted access, package details, export artifacts, and
-                    an honest statement of what the listing is good for.
-                  </p>
-                  <a
-                    href="/world-models/sw-chi-01"
-                    className="mt-5 inline-flex items-center text-sm font-semibold text-white"
-                  >
-                    Open sample site
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
-                </div>
-              </motion.aside>
+                <ProofModule
+                  eyebrow="Product proof"
+                  title="A buyer should not have to imagine what this is."
+                  description="This reel uses the current demo assets to show the shape of the product: one exact site, one clear proof page, and a hosted path that feels real instead of hypothetical."
+                  caption="Current public proof built from the Media Room walkthrough and the hosted-session surface already in the repo."
+                  compact={true}
+                />
+              </motion.div>
             </div>
           </div>
         </section>
@@ -226,9 +201,9 @@ export default function Home() {
               </article>
               <article className="rounded-[1.5rem] border border-slate-200 bg-stone-50 p-5">
                 <ShieldCheck className="h-5 w-5 text-slate-700" />
-                <h3 className="mt-4 text-lg font-semibold text-slate-900">Governance</h3>
+                <h3 className="mt-4 text-lg font-semibold text-slate-900">Rights and usage</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Keep rights, privacy, and workflow limits visible instead of hiding them behind sales follow-up.
+                  Keep rights, privacy, and workflow limits visible instead of hiding them behind follow-up.
                 </p>
               </article>
             </div>
@@ -239,10 +214,10 @@ export default function Home() {
           <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div className="max-w-2xl">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Secondary paths
+                Other ways in
               </p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-                The buyer story comes first. The rest still needs to be clean.
+                Keep the other audiences clear.
               </h2>
             </div>
             <a

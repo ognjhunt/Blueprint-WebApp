@@ -117,7 +117,11 @@ export function getCaptureAppPlaceholderUrl(): string {
     return configured.replace(/\/$/, "");
   }
 
-  return `${getPublicAppUrl()}/capture-app`;
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return `${window.location.origin.replace(/\/$/, "")}/capture-app`;
+  }
+
+  return "/capture-app";
 }
 
 export function resetClientEnvCacheForTests() {

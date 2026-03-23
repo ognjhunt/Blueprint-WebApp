@@ -28,11 +28,12 @@ export function AnimatedCounter({
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, margin: "-40px 0px" });
   const shouldReduce = useReducedMotion();
-  const [display, setDisplay] = useState(shouldReduce ? value : 0);
+  const [display, setDisplay] = useState(value);
+  const [hasAnimated, setHasAnimated] = useState(false);
 
   useEffect(() => {
-    if (!inView || shouldReduce) {
-      if (shouldReduce) setDisplay(value);
+    if (!inView || shouldReduce || hasAnimated) {
+      setDisplay(value);
       return;
     }
 
@@ -49,12 +50,15 @@ export function AnimatedCounter({
 
       if (progress < 1) {
         raf = requestAnimationFrame(step);
+      } else {
+        setHasAnimated(true);
       }
     };
 
+    setDisplay(0);
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, [inView, value, duration, shouldReduce]);
+  }, [inView, value, duration, shouldReduce, hasAnimated]);
 
   return (
     <span ref={ref} className={className}>

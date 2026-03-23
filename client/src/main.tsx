@@ -1,5 +1,5 @@
 import { StrictMode, Suspense } from "react";
-import { createRoot } from "react-dom/client";
+import { createRoot, hydrateRoot } from "react-dom/client";
 import { Route, Switch } from "wouter";
 import "./index.css";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -61,7 +61,7 @@ function Router() {
   );
 }
 
-createRoot(document.getElementById("root")!).render(
+const app = (
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -71,5 +71,12 @@ createRoot(document.getElementById("root")!).render(
         <CookieConsent />
       </AuthProvider>
     </QueryClientProvider>
-  </StrictMode>,
+  </StrictMode>
 );
+
+const rootElement = document.getElementById("root")!;
+if (rootElement.hasChildNodes()) {
+  hydrateRoot(rootElement, app);
+} else {
+  createRoot(rootElement).render(app);
+}

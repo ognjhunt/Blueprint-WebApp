@@ -655,7 +655,7 @@ function buildPackages(config: PackageConfig): [SiteWorldPackage, SiteWorldPacka
       name: "Scene Package",
       summary: "License the site-specific world-model package for this exact workflow area.",
       priceLabel: config.scenePrice,
-      payerLabel: "Likely buyer: Robot team",
+      payerLabel: "Robot team",
       actionLabel: "Request scene package",
       actionHref: buildContactHref("data-licensing", config),
       deliverables: [
@@ -670,7 +670,7 @@ function buildPackages(config: PackageConfig): [SiteWorldPackage, SiteWorldPacka
       name: "Hosted Sessions",
       summary: "Stream the site-specific world model in a Blueprint-managed session.",
       priceLabel: config.hostedRate,
-      payerLabel: "Likely buyer: Robot team",
+      payerLabel: "Robot team",
       actionLabel: "Start hosted session",
       actionHref: `/world-models/${config.siteId}/start`,
       deliverables: [
@@ -1220,7 +1220,7 @@ if (DEMO_SITE_WORLDS_ENABLED || SITE_WORLD_FIXTURE_MODE !== "production") {
     siteId: "siteworld-f5fd54898cfb",
     siteName: "Media Room Demo Walkthrough",
     siteAddress: "Blueprint hosted runtime demo",
-    scenePrice: "$0",
+    scenePrice: "Public walkthrough",
     hostedRate: "Demo runtime",
     sampleTask: "Media room",
     sampleRobot: "Mobile manipulator with head and wrist cameras",

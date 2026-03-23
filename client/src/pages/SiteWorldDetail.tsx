@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { SEO } from "@/components/SEO";
 import { useAuth } from "@/contexts/AuthContext";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
+import { ProofModule } from "@/components/site/ProofModule";
 import { getSiteWorldById, siteWorldCards } from "@/data/siteWorlds";
 import { hasAnyRole } from "@/lib/adminAccess";
 import { withCsrfHeader } from "@/lib/csrf";
@@ -241,6 +242,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
     worldLabsPreview?.operationId || worldLabsPreview?.operationManifestUri,
   );
   const shouldShowWorldLabsSection = Boolean(worldLabsPreview) || isAdmin;
+  const isDemoWalkthrough = site?.id === "siteworld-f5fd54898cfb";
 
   const runWorldLabsAdminAction = async (action: "generate" | "refresh") => {
     if (!site || !currentUser) {
@@ -412,6 +414,18 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
           <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-5 sm:p-6">
             <SiteWorldGraphic site={site as Parameters<typeof SiteWorldGraphic>[0]["site"]} />
           </section>
+
+          {isDemoWalkthrough ? (
+            <div className="mt-8">
+              <ProofModule
+                eyebrow="Public walkthrough"
+                title="See the buyer proof path before you ask for anything else."
+                description="This is the strongest public example on the site. It shows the kind of walkthrough, hosted framing, and package language a buyer should see when they land on a real world-model listing."
+                caption="Silent proof reel built from the current demo assets and product framing. It is there to make the product feel concrete, fast."
+                compact={true}
+              />
+            </div>
+          ) : null}
 
           <section className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 px-5 py-6 sm:px-7 sm:py-7">
             <div className="max-w-3xl">
@@ -729,10 +743,10 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Likely buyer
+                  Best fit
                 </p>
                 <p className="mt-2 text-lg font-bold text-slate-900">
-                  {scenePackage.payerLabel.replace("Likely buyer: ", "")}
+                  Teams that want the site files and package notes
                 </p>
                 <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                   Starting price
@@ -793,10 +807,10 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Likely buyer
+                  Best fit
                 </p>
                 <p className="mt-2 text-lg font-bold text-slate-900">
-                  {hostedSessions.payerLabel.replace("Likely buyer: ", "")}
+                  Teams that want to run the site now
                 </p>
                 <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                   Self-serve starting rate

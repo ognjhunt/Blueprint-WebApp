@@ -85,8 +85,8 @@ export default function Pricing() {
                   </p>
                   <p className="mt-2 text-2xl font-bold text-slate-900">Buy world models</p>
                   <p className="mt-2 text-sm text-slate-600">
-                    $500-$2,000 per model or subscription access. Simulation sessions from
-                    $10/hour.
+                    $2,100-$3,400 per site package on the current public catalog. Hosted sessions
+                    currently start between $16 and $29 per session-hour depending on the site.
                   </p>
                 </InteractiveCard>
                 <InteractiveCard accent="emerald" className="p-5">
@@ -115,8 +115,8 @@ export default function Pricing() {
                   Run your robot against a real site record.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Open a world model and start testing. Priced per session-hour. Use it when you
-                  need a quick answer on a real site, a repeatable benchmark, or counterfactual
+                  Open a world model and start testing. Pricing is per session-hour. Use it when
+                  you need a quick answer on a real site, a repeatable benchmark, or counterfactual
                   runs before deployment.
                 </p>
               </div>
@@ -157,7 +157,7 @@ export default function Pricing() {
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
                   Start capturing for free or buy a single world model. Scale up to subscription
-                  access or enterprise-level managed deployment.
+                  access or enterprise-level managed deployment when the public catalog is not enough.
                 </p>
               </div>
             </section>

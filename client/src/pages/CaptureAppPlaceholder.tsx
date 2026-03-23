@@ -14,8 +14,18 @@ const basics = [
   "If you are a robot team or site operator, this page is not your main entry point.",
 ];
 
+const hasExternalAppLink = (value: string) => {
+  try {
+    const url = new URL(value, "https://tryblueprint.io");
+    return url.origin !== "https://tryblueprint.io" || url.pathname !== "/capture-app";
+  } catch {
+    return false;
+  }
+};
+
 export default function CaptureAppPlaceholder() {
   const captureAppUrl = getCaptureAppPlaceholderUrl();
+  const showExternalHandoff = hasExternalAppLink(captureAppUrl);
 
   return (
     <>
@@ -42,13 +52,23 @@ export default function CaptureAppPlaceholder() {
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <a
-                  href={captureAppUrl}
-                  className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                >
-                  Open app handoff
-                  <ExternalLink className="ml-2 h-4 w-4" />
-                </a>
+                {showExternalHandoff ? (
+                  <a
+                    href={captureAppUrl}
+                    className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  >
+                    Open app handoff
+                    <ExternalLink className="ml-2 h-4 w-4" />
+                  </a>
+                ) : (
+                  <a
+                    href="/contact?interest=capture-app-beta"
+                    className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  >
+                    Join the capture beta
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
+                )}
                 <a
                   href="/capture"
                   className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
@@ -87,8 +107,9 @@ export default function CaptureAppPlaceholder() {
                       Download
                     </p>
                     <p className="mt-2 text-sm leading-6 text-slate-600">
-                      If your team has a direct app link configured, the button above will open it.
-                      Otherwise this page stays as the handoff and support reference.
+                      {showExternalHandoff
+                        ? "This workspace has a real app handoff configured, so the button above opens it directly."
+                        : "The public mobile build is not linked yet. This page stays live as the beta handoff and support reference until the app link is ready."}
                     </p>
                   </div>
                   <div className="rounded-2xl bg-stone-50 p-4">

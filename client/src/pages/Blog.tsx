@@ -1,124 +1,75 @@
-import React from "react";
-import { Link } from "wouter";
-import Nav from "@/components/Nav";
-import Footer from "@/components/Footer";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { SEO } from "@/components/SEO";
 
-type Post = {
-  title: string;
-  description: string;
-  href: string;
-};
+const updates = [
+  {
+    title: "Why the product starts with capture",
+    body:
+      "Blueprint gets stronger when real-site coverage gets stronger. That is the supply side that makes the buyer side believable.",
+  },
+  {
+    title: "Why site packages matter before deployment",
+    body:
+      "The point is not to replace the final on-site visit. The point is to stop showing up blind.",
+  },
+  {
+    title: "Why hosted access should survive backend swaps",
+    body:
+      "Runtimes will move. Buyers still need one clean path to the exact site, the exact task lane, and the exact outputs that matter.",
+  },
+];
 
 export default function Blog() {
-  const posts: Post[] = [
-    {
-      title: "roboticsOS – spatial context for autonomous crews",
-      description:
-        "Living digital twins give humanoids and mobile robots instant context the moment they reach a new site.",
-      href: "/blog/robotics-os",
-    },
-    {
-      title: "workplaceOS – our seventh phase",
-      description:
-        "AI glasses + AI for offices and frontline hubs: live KPIs for managers, guided work and instant answers for teams.",
-      href: "/blog/workplace-os",
-    },
-    {
-      title: "restaurantOS – our sixth phase",
-      description:
-        "Guest-centric AI glasses: photoreal 3D menus, chef stories, smart recs, and contactless flows that enhance the meal.",
-      href: "/blog/restaurant-os",
-    },
-    {
-      title: "hospitalityOS – our fifth vertical",
-      description:
-        "Wayfinding, amenity cues, and in-room overlays for guests, plus staff tools that lift satisfaction and service efficiency.",
-      href: "/blog/hospitality-os",
-    },
-    {
-      title: "museumOS – our fourth vertical",
-      description:
-        "Immersive storytelling, AI guides, and accessible wayfinding that deepen engagement and learning in cultural spaces.",
-      href: "/blog/museum-os",
-    },
-    {
-      title: "propertyOS – our third era",
-      description:
-        "How Blueprint uses AI glasses + AI to personalize your own space beyond the limits of the physical world.",
-      href: "/blog/property-os",
-    },
-    {
-      title: "retailOS – our second phase",
-      description:
-        "How Blueprint uses AI glasses + AI to elevate in-store ops and customer experience in retail.",
-      href: "/blog/retail-os",
-    },
-    {
-      title: "warehouseOS – our first vertical",
-      description:
-        "How Blueprint brings AI glasses and AI to warehouses for faster, safer operations.",
-      href: "/blog/warehouse-os",
-    },
-  ];
-
   return (
-    <div className="min-h-screen flex flex-col bg-[#0B1220] text-slate-100">
-      {/* BACKGROUND: subtle dot grid + emerald→cyan wash */}
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div
-          className="absolute inset-0 opacity-[0.08]"
-          style={{
-            background:
-              "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.18) 1px, transparent 1px)",
-            backgroundSize: "32px 32px",
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/[0.10] via-cyan-500/[0.08] to-transparent mix-blend-screen" />
-      </div>
+    <>
+      <SEO
+        title="Blog | Blueprint"
+        description="Short product notes from Blueprint on capture supply, world-model packages, hosted access, and buyer workflow."
+        canonical="/blog"
+      />
+      <div className="min-h-screen bg-white">
+        <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Blog
+            </p>
+            <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+              Product notes from the world-model side of Blueprint.
+            </h1>
+            <p className="mt-4 text-lg leading-relaxed text-slate-600">
+              This is a lightweight updates surface. It is here to show what the product cares
+              about right now: real capture, site packages, hosted access, and the buyer workflow
+              around them.
+            </p>
+          </div>
 
-      <Nav />
-
-      <main className="flex-1 pt-24 px-4 md:px-8">
-        <section className="max-w-6xl mx-auto">
-          <h1 className="text-4xl md:text-5xl font-extrabold text-center mb-10 leading-[1.12]">
-            <span
-              className="inline-block bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400 pb-[0.08em]"
-              style={{ WebkitTextFillColor: "transparent" }}
-            >
-              Blueprint Blog
-            </span>
-          </h1>
-
-          <div className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {posts.map((post) => (
-              <Link
-                key={post.href}
-                href={post.href}
-                className="group block focus:outline-none"
+          <div className="mt-12 grid gap-4 md:grid-cols-3">
+            {updates.map((item) => (
+              <article
+                key={item.title}
+                className="rounded-3xl border border-slate-200 bg-slate-50 p-6"
               >
-                <Card className="h-full rounded-2xl border border-white/10 bg-white/[0.05] backdrop-blur-sm shadow-xl transition-all duration-300 hover:shadow-2xl hover:border-white/20">
-                  <CardHeader>
-                    <CardTitle className="text-white group-hover:text-emerald-300 transition-colors">
-                      {post.title}
-                    </CardTitle>
-                    <CardDescription className="text-slate-300">
-                      {post.description}
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
+                <h2 className="text-2xl font-semibold text-slate-900">{item.title}</h2>
+                <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
+              </article>
             ))}
           </div>
-        </section>
-      </main>
 
-      <Footer />
-    </div>
+          <div className="mt-10 flex flex-wrap gap-3">
+            <a
+              href="/world-models"
+              className="inline-flex items-center rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              Browse world models
+            </a>
+            <a
+              href="/docs"
+              className="inline-flex items-center rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+            >
+              Read the docs
+            </a>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }

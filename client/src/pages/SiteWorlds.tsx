@@ -1,6 +1,7 @@
 import { SEO } from "@/components/SEO";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import { categoryFilters, siteWorldCards, type SiteCategory } from "@/data/siteWorlds";
+import { getSiteWorldBadge } from "@/lib/siteWorldBadges";
 import { fetchSiteWorldCatalog } from "@/lib/siteWorldsApi";
 import { ExternalLink, Filter, Play, ScanLine } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -283,9 +284,18 @@ export default function SiteWorlds() {
                     const fallbackAvailable =
                       site.deploymentReadiness?.provider_fallback_preview_status === "fallback_available"
                       || Boolean(site.worldLabsPreview?.launchUrl);
+                    const badge = getSiteWorldBadge(site);
                     return (
                   <a href={`/world-models/${site.id}`} className="relative block">
                     <SiteWorldGraphic site={site} />
+                    <div className="absolute left-4 top-4">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold shadow-sm backdrop-blur ${badge.tone}`}
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-current opacity-75" />
+                        {badge.label}
+                      </span>
+                    </div>
                     {nativePrimary ? (
                       <div className="absolute bottom-4 left-4">
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-sky-700 shadow-sm backdrop-blur">
@@ -442,9 +452,6 @@ export default function SiteWorlds() {
                               {pkg.priceLabel}
                             </span>
                           </div>
-                          <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-slate-500">
-                            {pkg.payerLabel}
-                          </p>
                           <a
                             href={pkg.actionHref}
                             className={`mt-3 inline-flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition ${

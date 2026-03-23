@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { siteWorldCards } from "../client/src/data/siteWorlds";
 
 const BASE_URL = "https://tryblueprint.io";
 const BUILD_DATE =
@@ -16,10 +17,18 @@ const BUILD_DATE =
 const routes = [
   { path: "/", changefreq: "weekly", priority: 1.0 },
   { path: "/world-models", changefreq: "weekly", priority: 0.9 },
+  ...siteWorldCards.map((site) => ({
+    path: `/world-models/${site.id}`,
+    changefreq: "weekly",
+    priority: 0.8,
+  })),
   { path: "/for-robot-teams", changefreq: "weekly", priority: 0.8 },
   { path: "/for-site-operators", changefreq: "monthly", priority: 0.7 },
+  { path: "/pricing", changefreq: "monthly", priority: 0.7 },
   { path: "/contact", changefreq: "monthly", priority: 0.6 },
   { path: "/faq", changefreq: "monthly", priority: 0.6 },
+  { path: "/docs", changefreq: "monthly", priority: 0.6 },
+  { path: "/blog", changefreq: "monthly", priority: 0.5 },
   { path: "/governance", changefreq: "monthly", priority: 0.5 },
   { path: "/about", changefreq: "monthly", priority: 0.5 },
   { path: "/careers", changefreq: "weekly", priority: 0.5 },

@@ -8,7 +8,7 @@ describe("SiteWorlds", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Train on the exact site you're deploying to\./i,
+        name: /Review the exact site before your team shows up\./i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -27,11 +27,10 @@ describe("SiteWorlds", () => {
     expect(
       screen.getByText(/A model of the exact site and workflow/i),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/each site card shows its own self-serve hourly rate/i),
-    ).toBeInTheDocument();
     expect(screen.getByText(/Harborview Grocery Distribution Annex/i)).toBeInTheDocument();
     expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Public walkthrough/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Likely buyer:/i)).not.toBeInTheDocument();
 
     const sceneLinks = screen.getAllByRole("link", { name: /Request scene package/i });
     const sceneUrl = new URL(sceneLinks[0].getAttribute("href")!, "https://example.com");

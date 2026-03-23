@@ -23,7 +23,7 @@ describe("Home", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Blueprint sells site-specific world models built from real indoor capture\./i),
+      screen.getByText(/These are reconstructions of real facilities, not synthetic worlds\./i),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Browse world models/i })).toHaveAttribute(
       "href",
@@ -37,6 +37,7 @@ describe("Home", () => {
       "href",
       "/contact?persona=robot-team",
     );
+    expect(screen.getByText(/A buyer should not have to imagine what this is\./i)).toBeInTheDocument();
   });
 
   it("keeps capture and site-operator paths secondary", { timeout: 10000 }, () => {
@@ -49,7 +50,7 @@ describe("Home", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /The buyer story comes first\. The rest still needs to be clean\./i,
+        name: /Keep the other audiences clear\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/Capture App/i).length).toBeGreaterThan(0);

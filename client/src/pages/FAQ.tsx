@@ -2,34 +2,54 @@ import { SEO } from "@/components/SEO";
 
 const faqs = [
   {
-    question: "What is a world model?",
+    question: "What is a Blueprint world model?",
     answer:
-      "A Blueprint world model is a site-specific digital representation of one real facility and one real workflow. Teams use it to review the site, plan evaluation work, and open hosted sessions before a visit.",
+      "It is a site-specific digital reconstruction of one real facility and one real workflow. Blueprint builds it from capture collected in the actual place. This is not a synthetic environment generator and it is not a generic benchmark scene.",
   },
   {
     question: "What does a buyer actually receive?",
     answer:
-      "Each listing spells it out. In general, buyers get a site package, hosted session access, or both, along with notes about the workflow, exports, and any limits on reuse or sharing.",
+      "Each listing shows the path clearly. Buyers can request a scene package, start hosted access, or use the public walkthrough when a listing is meant to prove the surface rather than sell a paid package directly. The package usually includes walkthrough media, site notes, and any geometry or depth artifacts that are available for that site.",
+  },
+  {
+    question: "What formats and exports should we expect?",
+    answer:
+      "The exact export set depends on the listing, but Blueprint surfaces the package notes, runtime details, and export readiness on the site page. Common outputs include walkthrough video, camera poses, rollout video, RLDS-style datasets, and raw bundles tied to the hosted session.",
+  },
+  {
+    question: "How close is this to a deployment guarantee?",
+    answer:
+      "It is not a deployment guarantee. The point is to ground your team on the real site sooner, cut bad assumptions earlier, and make the first real visit less blind. You still need stack-specific validation, safety review, and on-site signoff.",
+  },
+  {
+    question: "How fresh is the site data?",
+    answer:
+      "Freshness is a property of the listing, not a hand-wavy promise. When the readiness package has freshness metadata or a recapture state, the page shows it. If the site has changed enough that the package is stale, that should be treated as a refresh problem, not brushed aside in sales copy.",
+  },
+  {
+    question: "What happens if the site changes after capture?",
+    answer:
+      "Then the value of the package depends on how much changed and what question your team is asking. Sometimes the existing package is still useful for planning and hosted review. Sometimes it needs a refresh. Blueprint keeps the refresh state visible when that information exists.",
+  },
+  {
+    question: "Can this work with different robots and runtimes?",
+    answer:
+      "Yes, but Blueprint should not be read as a single-backend product. The stable layer is the capture, provenance, site package, hosted-session contract, and buyer surface around it. Runtime backends can change over time without changing the core product story.",
+  },
+  {
+    question: "What robot embodiments have been tested?",
+    answer:
+      "Each listing names a sample robot profile so buyers can judge relevance quickly. That profile is there to ground the example, not to claim exclusive support for one robot family.",
   },
   {
     question: "What is a hosted session?",
     answer:
-      "It is a browser-based way to inspect and rerun a specific site setup without passing files around first. It is useful for internal review, debugging, and customer-facing walkthroughs.",
+      "It is the managed browser path into one exact site. Teams use it to rerun the same setup, compare releases, inspect failures, and export results without passing files around first.",
   },
   {
-    question: "Is this a deployment guarantee?",
+    question: "What if the exact site we care about is not in the catalog?",
     answer:
-      "No. Blueprint helps teams get grounded on the real site earlier. It does not replace stack-specific validation, safety review, or the final on-site signoff.",
-  },
-  {
-    question: "How do buying and scoping work?",
-    answer:
-      "Teams can browse the catalog, inspect a sample site, and contact Blueprint with the site, task, and embodiment they care about. From there the next step is a site package, hosted session, or a scoped follow-up.",
-  },
-  {
-    question: "What if the exact site is not already listed?",
-    answer:
-      "Blueprint can scope fresh capture or a site-specific follow-up. The public catalog is the starting point, not the full universe of available work.",
+      "The catalog is the public starting point, not the full supply of work Blueprint can support. If your team needs a specific site, use the contact path and say which facility, workflow, and robot question matter.",
   },
 ];
 
@@ -38,7 +58,7 @@ export default function FAQ() {
     <>
       <SEO
         title="FAQ | Blueprint"
-        description="Answers about Blueprint world models, hosted sessions, buyer deliverables, and how teams buy access to a real site."
+        description="Answers about Blueprint world models, hosted sessions, exports, freshness, and how robot teams buy access to real site packages."
         canonical="/faq"
       />
       <div className="min-h-screen bg-white">
@@ -51,14 +71,17 @@ export default function FAQ() {
               Straight answers about what Blueprint sells.
             </h1>
             <p className="mt-4 text-lg leading-relaxed text-slate-600">
-              This page is here to remove guesswork. If a team is deciding whether Blueprint is
-              useful, these are usually the first questions that come up.
+              The point of this page is simple: give a buyer enough detail to decide whether the
+              product is real, relevant, and worth a closer look.
             </p>
           </div>
 
           <div className="mt-12 space-y-4">
             {faqs.map((item) => (
-              <section key={item.question} className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
+              <section
+                key={item.question}
+                className="rounded-3xl border border-slate-200 bg-slate-50 p-6"
+              >
                 <h2 className="text-xl font-semibold text-slate-900">{item.question}</h2>
                 <p className="mt-3 text-sm leading-7 text-slate-600">{item.answer}</p>
               </section>

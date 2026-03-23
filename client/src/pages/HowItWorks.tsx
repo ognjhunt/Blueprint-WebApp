@@ -127,9 +127,12 @@ const whoEarns = [
   },
 ];
 
-const devices = [
+const availableNowDevices = [
   { name: "iPhone / iPad", detail: "ARKit + LiDAR", icon: <Smartphone className="h-5 w-5" /> },
   { name: "Meta Ray-Ban", detail: "720p + IMU via DAT SDK", icon: <Glasses className="h-5 w-5" /> },
+];
+
+const comingSoonDevices = [
   { name: "Android XR", detail: "Google/Samsung, coming 2026", icon: <Glasses className="h-5 w-5" /> },
   { name: "Apple Glasses", detail: "Coming 2027", icon: <Glasses className="h-5 w-5" /> },
 ];
@@ -354,26 +357,55 @@ export default function HowItWorks() {
               <div className="mb-8">
                 <h2 className="text-2xl font-bold text-zinc-900">Supported capture devices</h2>
                 <p className="mt-2 text-zinc-600">
-                  Start with your iPhone today. LiDAR-equipped iPhone and iPad captures earn the highest rates.
+                  Start with what works now. LiDAR-equipped iPhone and iPad captures earn the highest
+                  rates today. Glasses support is split below so current hardware and future hardware do
+                  not get blurred together.
                 </p>
               </div>
             </ScrollReveal>
 
-            <StaggerGroup className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" stagger={0.08}>
-              {devices.map((device) => (
-                <InteractiveCard key={device.name} className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-100 text-zinc-700">
-                      {device.icon}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-zinc-900">{device.name}</p>
-                      <p className="text-xs text-zinc-500">{device.detail}</p>
-                    </div>
-                  </div>
-                </InteractiveCard>
-              ))}
-            </StaggerGroup>
+            <div className="grid gap-8 lg:grid-cols-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  Available now
+                </p>
+                <StaggerGroup className="mt-3 grid gap-4 sm:grid-cols-2" stagger={0.08}>
+                  {availableNowDevices.map((device) => (
+                    <InteractiveCard key={device.name} className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-100 text-zinc-700">
+                          {device.icon}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-zinc-900">{device.name}</p>
+                          <p className="text-xs text-zinc-500">{device.detail}</p>
+                        </div>
+                      </div>
+                    </InteractiveCard>
+                  ))}
+                </StaggerGroup>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  Coming soon
+                </p>
+                <StaggerGroup className="mt-3 grid gap-4 sm:grid-cols-2" stagger={0.08}>
+                  {comingSoonDevices.map((device) => (
+                    <InteractiveCard key={device.name} className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-100 text-zinc-700">
+                          {device.icon}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-zinc-900">{device.name}</p>
+                          <p className="text-xs text-zinc-500">{device.detail}</p>
+                        </div>
+                      </div>
+                    </InteractiveCard>
+                  ))}
+                </StaggerGroup>
+              </div>
+            </div>
           </div>
         </section>
 

@@ -1,622 +1,75 @@
-// export default function Docs() {
-//   return (
-//     <div className="mx-auto max-w-5xl space-y-16 px-4 pb-24 pt-16 sm:px-6">
-//       <header className="space-y-4">
-//         <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-//           Documentation
-//         </p>
-//         <h1 className="text-4xl font-semibold text-slate-900">
-//           Blueprint SimReady specification.
-//         </h1>
-//         <p className="max-w-3xl text-sm text-slate-600">
-//           Every scene we ship follows the SimReady spec: metric accuracy, clean articulation, physics-ready materials, and semantic coverage. Use this guide to integrate Blueprint scenes into your simulator or extend them with your own tooling.
-//         </p>
-//       </header>
-
-//       <section className="space-y-6">
-//         <h2 className="text-2xl font-semibold text-slate-900">Units & coordinate system</h2>
-//         <div className="space-y-3 text-sm text-slate-600">
-//           <p>• Linear units: meters. Angular units: degrees. Scene origin at floor center unless otherwise annotated.</p>
-//           <p>• Forward axis: +X, up axis: +Z, matching common robotics sim defaults.</p>
-//           <p>• Scale variations for dataset diversity are provided as USD variants.</p>
-//         </div>
-//       </section>
-
-//       <section className="space-y-6">
-//         <h2 className="text-2xl font-semibold text-slate-900">Pivots, joints & articulation</h2>
-//         <div className="space-y-3 text-sm text-slate-600">
-//           <p>• All articulated assets ship with authored joints, axis definitions, and limits validated in simulation.</p>
-//           <p>• Revolute joints use degrees; prismatic joints use meters. Pivots align with physical hinges or slides.</p>
-//           <p>• Optional articulation presets: soft-close damping, friction overrides, and event callbacks for buttons/knobs.</p>
-//         </div>
-//       </section>
-
-//       <section className="space-y-6">
-//         <h2 className="text-2xl font-semibold text-slate-900">Colliders & physics</h2>
-//         <div className="space-y-3 text-sm text-slate-600">
-//           <p>• Default collider strategy mixes convex decomposition and SDF volumes. Each scene ships with collider preview renders.</p>
-//           <p>• Physics materials use calibrated coefficients for stainless, polymer, wood, and fabric surfaces.</p>
-//           <p>• AMR clearance envelopes, safety zones, and interaction volumes are packaged as USD prims.</p>
-//         </div>
-//       </section>
-
-//       <section className="space-y-6">
-//         <h2 className="text-2xl font-semibold text-slate-900">Semantics & annotations</h2>
-//         <div className="space-y-3 text-sm text-slate-600">
-//           <p>• Semantic labels follow Blueprint’s ontology and map cleanly to class, instance, and SKU exports.</p>
-//           <p>• Scenes include optional CSV/JSON metadata for planograms, signage, and device IDs.</p>
-//           <p>• Ask for annotation bundles to receive camera rigs, lighting frames, and sensor trajectories.</p>
-//         </div>
-//       </section>
-
-//       <section className="space-y-6">
-//         <h2 className="text-2xl font-semibold text-slate-900">Importing into your simulator</h2>
-//         <div className="space-y-3 text-sm text-slate-600">
-//           <p>1. Add the scene package to your preferred project workspace or file mount.</p>
-//           <p>2. Load the stage, enable physics inspection, and confirm articulation limits.</p>
-//           <p>3. Attach your policies or task graphs; Blueprint colliders and semantics are ready for pick-place, inspection, or manipulation workflows.</p>
-//         </div>
-//       </section>
-
-//       <section className="space-y-6">
-//         <h2 className="text-2xl font-semibold text-slate-900">What we deliver vs what you finish</h2>
-//         <div className="overflow-hidden rounded-3xl border border-slate-200">
-//           <table className="w-full table-auto text-left text-sm text-slate-600">
-//             <thead className="bg-slate-50 text-xs uppercase tracking-[0.3em] text-slate-400">
-//               <tr>
-//                 <th className="px-4 py-3 font-medium text-slate-500">Blueprint</th>
-//                 <th className="px-4 py-3 font-medium text-slate-500">You</th>
-//               </tr>
-//             </thead>
-//             <tbody>
-//               <tr className="border-t border-slate-100">
-//                 <td className="px-4 py-3">Watertight geometry, clean UVs, and PBR textures</td>
-//                 <td className="px-4 py-3">Optional lookdev tweaks, branding, decals</td>
-//               </tr>
-//               <tr className="border-t border-slate-100">
-//                 <td className="px-4 py-3">Joints, limits, physics materials, collider tuning</td>
-//                 <td className="px-4 py-3">Custom task graphs, policy training</td>
-//               </tr>
-//               <tr className="border-t border-slate-100">
-//                 <td className="px-4 py-3">Semantic labels, annotation schemas, metadata exports</td>
-//                 <td className="px-4 py-3">Integration with internal analytics, additional sensors</td>
-//               </tr>
-//             </tbody>
-//           </table>
-//         </div>
-//       </section>
-//     </div>
-//   );
-// }
-import { useState, useEffect } from "react";
 import { SEO } from "@/components/SEO";
-import {
-  Axis3d,
-  Box,
-  FileJson,
-  Layers,
-  Settings2,
-  Terminal,
-  Check,
-  BookOpen,
-} from "lucide-react";
 
-// Section definitions for navigation
 const sections = [
-  { id: "overview", label: "Overview" },
-  { id: "coordinates", label: "Coordinates" },
-  { id: "articulation", label: "Articulation" },
-  { id: "physics", label: "Physics" },
-  { id: "semantics", label: "Semantics" },
-  { id: "import-guide", label: "Import Guide" },
-  { id: "data-generation", label: "Data Generation" },
+  {
+    title: "What stays stable",
+    body:
+      "Blueprint is built around stable product contracts: the capture bundle, timestamps, poses, device metadata, rights and privacy metadata, site package manifests, and hosted-session contracts. Those are the pieces buyers and operators should be able to rely on even if the runtime backend changes later.",
+  },
+  {
+    title: "Typical package contents",
+    body:
+      "A site package can include walkthrough media, camera poses, site notes, geometry or depth artifacts when available, and the package-level rights and usage framing for that listing. The exact export set is listing-specific and should be read from the package surface, not guessed from a generic promise.",
+  },
+  {
+    title: "Hosted session contract",
+    body:
+      "Hosted sessions are tied to one exact site. Buyers should be able to launch, reset, rerun, compare policy behavior, and export results through the same session contract. That contract should survive backend swaps even when the underlying runtime improves.",
+  },
+  {
+    title: "Provenance and privacy",
+    body:
+      "Capture truth is authoritative. That includes walkthrough video, timestamps, poses, depth when present, device metadata, and any site-level privacy or rights metadata attached to the package. Downstream readiness or review layers are useful, but they should not rewrite the underlying capture truth.",
+  },
+  {
+    title: "Freshness and refresh state",
+    body:
+      "Site packages are only as current as the capture behind them. When a package has freshness metadata, refresh state, or recapture requirements, that information belongs on the listing. If a site changed, the answer should be a refresh decision, not softer wording.",
+  },
+  {
+    title: "Backend flexibility",
+    body:
+      "Blueprint should not read like a product tied forever to one provider, checkpoint family, or runtime trick. The long-lived value is in real-site capture, packaging, hosted access, and buyer workflow. The model backend is important, but it should remain replaceable.",
+  },
 ];
 
-// --- Visual Helper ---
-function DotPattern() {
-  return (
-    <svg
-      className="absolute inset-0 -z-10 h-full w-full stroke-zinc-200 [mask-image:radial-gradient(100%_100%_at_top_right,white,transparent)]"
-      aria-hidden="true"
-    >
-      <defs>
-        <pattern
-          id="grid-pattern"
-          width={40}
-          height={40}
-          x="50%"
-          y={-1}
-          patternUnits="userSpaceOnUse"
-        >
-          <path d="M.5 40V.5H40" fill="none" />
-        </pattern>
-      </defs>
-      <rect
-        width="100%"
-        height="100%"
-        strokeWidth={0}
-        fill="url(#grid-pattern)"
-      />
-    </svg>
-  );
-}
-
-function SpecCard({
-  icon,
-  title,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="group relative overflow-hidden rounded-2xl border border-zinc-200 bg-white p-6 transition-all hover:shadow-md hover:border-indigo-200">
-      <div className="mb-4 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-50 text-indigo-600 group-hover:bg-indigo-50 group-hover:scale-110 transition-transform duration-300">
-          {icon}
-        </div>
-        <h3 className="font-bold text-zinc-900">{title}</h3>
-      </div>
-      <div className="space-y-3 text-sm text-zinc-600">{children}</div>
-    </div>
-  );
-}
-
 export default function Docs() {
-  const [activeSection, setActiveSection] = useState("overview");
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const sectionElements = sections.map(({ id }) => ({
-        id,
-        element: document.getElementById(id),
-      }));
-
-      // Find the section currently in view
-      for (const { id, element } of sectionElements) {
-        if (element) {
-          const rect = element.getBoundingClientRect();
-          // Section is considered active if its top is within the top 40% of viewport
-          if (rect.top <= window.innerHeight * 0.4 && rect.bottom > 0) {
-            setActiveSection(id);
-          }
-        }
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll(); // Initial check
-
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
-    e.preventDefault();
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
-      // Update URL hash without jumping
-      window.history.pushState(null, "", `#${id}`);
-    }
-  };
-
   return (
     <>
       <SEO
-        title="Documentation | SimReady Specification"
-        description="Technical specification for Blueprint certified SimReady scenes. Coordinate systems, physics materials, articulation, semantics, certification gates, and integration guides."
+        title="Docs | Blueprint"
+        description="Technical notes on Blueprint world-model packages, hosted-session contracts, exports, provenance, privacy, and freshness."
         canonical="/docs"
       />
-      <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
-        <DotPattern />
+      <div className="min-h-screen bg-white">
+        <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Docs
+            </p>
+            <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+              Technical notes for world-model packages and hosted access.
+            </h1>
+            <p className="mt-4 text-lg leading-relaxed text-slate-600">
+              This page is here to make the product contract legible. It is not a giant simulator
+              manual. It is the short version of what should stay true across capture, packaging,
+              hosted access, and future backend swaps.
+            </p>
+          </div>
 
-        <div className="mx-auto max-w-7xl px-4 pb-24 pt-16 sm:px-6 lg:px-8">
-          <div className="grid gap-12 lg:grid-cols-[240px_1fr]">
-            {/* --- Sidebar Navigation (Desktop) --- */}
-            <aside className="hidden lg:block">
-              <div className="sticky top-8 space-y-8">
-                <div className="flex items-center gap-2 text-sm font-bold text-zinc-900">
-                  <BookOpen className="h-4 w-4" />
-                  Documentation
-                </div>
-              <nav className="space-y-1 border-l border-zinc-200 pl-4">
-                {sections.map(({ id, label }) => (
-                  <a
-                    key={id}
-                    href={`#${id}`}
-                    onClick={(e) => scrollToSection(e, id)}
-                    className={`block border-l-2 py-2 pl-4 text-sm transition-colors -ml-[17px] ${activeSection === id ? "border-indigo-600 font-medium text-indigo-600" : "border-transparent text-zinc-500 hover:text-zinc-900"}`}
-                  >
-                    {label}
-                  </a>
-                ))}
-              </nav>
-
-              <div className="rounded-xl bg-indigo-50 p-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-indigo-900">
-                  Need help?
-                </p>
-                <p className="mt-1 text-xs text-indigo-700">
-                  Join our Discord for real-time integration support.
-                </p>
-              </div>
-            </div>
-          </aside>
-
-          {/* --- Main Content --- */}
-          <main className="space-y-16">
-            {/* Header / Overview */}
-            <header id="overview" className="space-y-6 border-b border-zinc-100 pb-10 scroll-mt-8">
-              <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-bold uppercase tracking-wider text-zinc-500">
-                Version 2.1
-              </div>
-              <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl">
-                The SimReady Standard.
-              </h1>
-              <p className="max-w-3xl text-lg leading-relaxed text-zinc-600">
-                Every scene we ship follows strict engineering specs: metric
-                accuracy, clean articulation, physics-ready materials, and
-                semantic coverage, plus certification gates and provenance
-                metadata. Use this guide to integrate Blueprint scenes into your
-                simulator.
-              </p>
-              <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-                <img
-                  src="/images/Gemini_Docs.png"
-                  alt="SimReady standard specification visual"
-                  className="w-full object-cover"
-                  loading="lazy"
-                />
-              </div>
-            </header>
-
-            {/* Per-scene deliverables */}
-            <section className="space-y-4">
-              <h2 className="text-2xl font-bold text-zinc-900">
-                What ships with every scene
-              </h2>
-              <div className="grid gap-4 lg:grid-cols-2">
-                <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-                  <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold text-zinc-900">
-                    <Layers className="h-5 w-5 text-indigo-600" />
-                    Shaping templates
-                  </h3>
-                  <ul className="space-y-3 text-sm text-zinc-600">
-                    <li className="flex gap-2">
-                      <div className="mt-2 h-1.5 w-1.5 rounded-full bg-indigo-500" />
-                      <span>Default reward, observation, and action-controller templates tailored to the scene (kitchen, warehouse, or workcell).</span>
-                    </li>
-                    <li className="flex gap-2">
-                      <div className="mt-2 h-1.5 w-1.5 rounded-full bg-indigo-500" />
-                      <span>Standard termination and reset schemes that drop directly into the Park et al. style APIs.</span>
-                    </li>
-                    <li className="flex gap-2">
-                      <div className="mt-2 h-1.5 w-1.5 rounded-full bg-indigo-500" />
-                      <span>Auto-shaping suggestions generated with LLM + heuristics so labs start from a tuned baseline instead of a blank file.</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-                  <h3 className="mb-3 flex items-center gap-2 text-lg font-semibold text-zinc-900">
-                    <Box className="h-5 w-5 text-indigo-600" />
-                    Bundled variants
-                  </h3>
-                  <ul className="space-y-3 text-sm text-zinc-600">
-                    <li className="flex gap-2">
-                      <div className="mt-2 h-1.5 w-1.5 rounded-full bg-indigo-500" />
-                      <span>Unshaped version of each scene for raw, minimal baselines.</span>
-                    </li>
-                    <li className="flex gap-2">
-                      <div className="mt-2 h-1.5 w-1.5 rounded-full bg-indigo-500" />
-                      <span>One or more shaped baselines (human-designed or AI-assisted) that match the benchmark call for paired unshaped + shaped environments.</span>
-                    </li>
-                    <li className="flex gap-2">
-                      <div className="mt-2 h-1.5 w-1.5 rounded-full bg-indigo-500" />
-                      <span>Environment-shaping playground: generated-from-photo scenes ready for testing shaping algorithms on realistic layouts.</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </section>
-
-            {/* Tech Specs Grid */}
-            <section className="space-y-6">
-              <h2 className="text-2xl font-bold text-zinc-900">
-                Core Specifications
-              </h2>
-              <div className="grid gap-6 md:grid-cols-2">
-                {/* Coordinates */}
-                <div id="coordinates" className="scroll-mt-8">
-                  <SpecCard
-                    icon={<Axis3d className="h-5 w-5" />}
-                    title="Coordinate System"
-                  >
-                    <div className="grid grid-cols-2 gap-2 rounded-lg bg-zinc-50 p-3 text-xs">
-                      <div className="text-zinc-500">Linear Units</div>
-                      <div className="font-mono font-bold text-zinc-900">
-                        Meters
-                      </div>
-                      <div className="text-zinc-500">Angular Units</div>
-                      <div className="font-mono font-bold text-zinc-900">
-                        Degrees
-                      </div>
-                      <div className="text-zinc-500">Up Axis</div>
-                      <div className="font-mono font-bold text-indigo-600">
-                        +Z Axis
-                      </div>
-                      <div className="text-zinc-500">Forward</div>
-                      <div className="font-mono font-bold text-indigo-600">
-                        +X Axis
-                      </div>
-                    </div>
-                    <p>
-                      Scene origin is always normalized to floor center (0,0,0)
-                      unless annotated.
-                    </p>
-                  </SpecCard>
-                </div>
-
-                {/* Articulation */}
-                <div id="articulation" className="scroll-mt-8">
-                  <SpecCard
-                    icon={<Settings2 className="h-5 w-5" />}
-                    title="Joints & Pivots"
-                  >
-                    <ul className="space-y-2">
-                      <li className="flex items-start gap-2">
-                        <Check className="mt-0.5 h-4 w-4 text-emerald-500 shrink-0" />
-                        <span>
-                          Revolute joints in degrees; Prismatic in meters.
-                        </span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <Check className="mt-0.5 h-4 w-4 text-emerald-500 shrink-0" />
-                        <span>Real-world limits validated in Isaac Sim.</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <Check className="mt-0.5 h-4 w-4 text-emerald-500 shrink-0" />
-                        <span>
-                          Optional soft-close damping & friction presets.
-                        </span>
-                      </li>
-                    </ul>
-                  </SpecCard>
-                </div>
-
-                {/* Physics */}
-                <div id="physics" className="scroll-mt-8">
-                  <SpecCard
-                    icon={<Box className="h-5 w-5" />}
-                    title="Colliders & Physics"
-                  >
-                    <ul className="space-y-2">
-                      <li className="flex items-start gap-2">
-                        <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-indigo-500 shrink-0" />
-                        <span>Hybrid convex decomposition + SDF volumes.</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-indigo-500 shrink-0" />
-                        <span>
-                          Calibrated friction coefficients (PBR materials).
-                        </span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-indigo-500 shrink-0" />
-                        <span>
-                          AMR clearance envelopes included as invisible prims.
-                        </span>
-                      </li>
-                    </ul>
-                  </SpecCard>
-                </div>
-
-                {/* Semantics */}
-                <div id="semantics" className="scroll-mt-8">
-                  <SpecCard
-                    icon={<FileJson className="h-5 w-5" />}
-                    title="Semantics & Data"
-                  >
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {["Class", "Instance", "SKU", "Material"].map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-md bg-zinc-100 border border-zinc-200 px-2 py-1 text-xs font-medium text-zinc-600"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                    <p>
-                      Scenes include optional CSV/JSON metadata for planograms,
-                      signage, and device IDs. Genie Sim 3.0 uses these semantics
-                      for LLM-driven task generation and VLM-based evaluation.
-                    </p>
-                  </SpecCard>
-                </div>
-              </div>
-            </section>
-
-            {/* Import Guide (Terminal Style) */}
-            <section id="import-guide" className="space-y-6 scroll-mt-8">
-              <h2 className="text-2xl font-bold text-zinc-900">
-                Integration Flow
-              </h2>
-              <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 text-zinc-300 shadow-xl">
-                <div className="flex items-center gap-2 border-b border-zinc-800 bg-zinc-900/50 px-4 py-3">
-                  <div className="flex gap-1.5">
-                    <div className="h-3 w-3 rounded-full bg-red-500/20" />
-                    <div className="h-3 w-3 rounded-full bg-amber-500/20" />
-                    <div className="h-3 w-3 rounded-full bg-emerald-500/20" />
-                  </div>
-                  <span className="ml-2 font-mono text-xs text-zinc-500">
-                    simulator_terminal
-                  </span>
-                </div>
-                <div className="p-6 font-mono text-sm space-y-6">
-                  <div className="space-y-2">
-                    <p className="text-zinc-500"># 1. Mount the USD package</p>
-                    <p className="flex gap-2">
-                      <span className="text-emerald-400">$</span>
-                      <span>blueprint load --scene=kitchen_v3.usd</span>
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="text-zinc-500">
-                      # 2. Verify physics state (optional)
-                    </p>
-                    <p className="flex gap-2">
-                      <span className="text-emerald-400">$</span>
-                      <span>sim.physics.inspect --colliders --joints</span>
-                    </p>
-                    <p className="text-indigo-400">
-                      &gt;&gt; Physics mesh: WATERTIGHT
-                    </p>
-                    <p className="text-indigo-400">
-                      &gt;&gt; Joints: 14 articulated
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="text-zinc-500">
-                      # 3. Attach your agent policy
-                    </p>
-                    <p className="flex gap-2">
-                      <span className="text-emerald-400">$</span>
-                      <span>agent.spawn --pose=start_point_A</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* Genie Sim 3.0 Data Generation */}
-            <section id="data-generation" className="space-y-6 scroll-mt-8">
-              <h2 className="text-2xl font-bold text-zinc-900">
-                Genie Sim 3.0 Data Generation
-              </h2>
-              <p className="text-zinc-600 max-w-3xl">
-                Blueprint uses AGIBOT's Genie Sim 3.0 as the default data generation backend.
-                This provides automated, scalable episode generation without manual task authoring.
-              </p>
-              <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/50 to-white">
-                <div className="p-6 border-b border-emerald-100">
-                  <div className="flex items-center gap-2 text-sm font-bold text-emerald-800">
-                    <Layers className="h-4 w-4" />
-                    Data Pipeline
-                  </div>
-                </div>
-                <div className="grid gap-4 p-6 md:grid-cols-2 lg:grid-cols-4">
-                  <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-emerald-100">
-                    <div className="text-xs font-bold uppercase tracking-wider text-emerald-600 mb-2">01</div>
-                    <div className="font-bold text-zinc-900">LLM Task Generation</div>
-                    <p className="mt-1 text-xs text-zinc-500">
-                      Auto-generates task instructions and evaluation configs from scene content.
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-emerald-100">
-                    <div className="text-xs font-bold uppercase tracking-wider text-emerald-600 mb-2">02</div>
-                    <div className="font-bold text-zinc-900">cuRobo Trajectories</div>
-                    <p className="mt-1 text-xs text-zinc-500">
-                      GPU-accelerated motion planning with waypoint filtering and failure recovery.
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-emerald-100">
-                    <div className="text-xs font-bold uppercase tracking-wider text-emerald-600 mb-2">03</div>
-                    <div className="font-bold text-zinc-900">Automated Collection</div>
-                    <p className="mt-1 text-xs text-zinc-500">
-                      Logs joint states, visual observations, and object poses into LeRobot format.
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-emerald-100">
-                    <div className="text-xs font-bold uppercase tracking-wider text-emerald-600 mb-2">04</div>
-                    <div className="font-bold text-zinc-900">VLM Evaluation</div>
-                    <p className="mt-1 text-xs text-zinc-500">
-                      Vision-language models score task completion with evidence-based justification.
-                    </p>
-                  </div>
-                </div>
-                <div className="px-6 pb-6">
-                  <div className="rounded-lg bg-emerald-50 p-4 text-sm text-emerald-800">
-                    <strong>Output:</strong> LeRobot v0.3.3 episodes with multi-sensor streams (RGB-D, stereo vision, whole-body kinematics) across 200+ task templates.
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* Responsibility Matrix (Comparison) */}
-            <section className="space-y-6">
-              <h2 className="text-2xl font-bold text-zinc-900">
-                Responsibility Matrix
-              </h2>
-              <div className="grid overflow-hidden rounded-2xl border border-zinc-200 md:grid-cols-2">
-                {/* Blueprint Side */}
-                <div className="bg-indigo-50/30 p-8">
-                  <div className="mb-6 flex items-center gap-2 font-bold text-indigo-900">
-                    <Layers className="h-5 w-5" />
-                    We Deliver
-                  </div>
-                  <ul className="space-y-4 text-sm text-zinc-700">
-                    <li className="flex gap-3">
-                      <div className="h-px w-4 bg-indigo-400 mt-2.5"></div>
-                      <span>
-                        Watertight geometry, clean UVs, and PBR textures ready
-                        for raytracing.
-                      </span>
-                    </li>
-                    <li className="flex gap-3">
-                      <div className="h-px w-4 bg-indigo-400 mt-2.5"></div>
-                      <span>
-                        Rigged joints, physics materials, and tuned collision
-                        proxies.
-                      </span>
-                    </li>
-                    <li className="flex gap-3">
-                      <div className="h-px w-4 bg-indigo-400 mt-2.5"></div>
-                      <span>
-                        Semantic labels, annotation schemas, and metadata
-                        exports.
-                      </span>
-                    </li>
-                  </ul>
-                </div>
-
-                {/* Client Side */}
-                <div className="bg-white p-8 border-t md:border-t-0 md:border-l border-zinc-200">
-                  <div className="mb-6 flex items-center gap-2 font-bold text-zinc-900">
-                    <Terminal className="h-5 w-5" />
-                    You Control
-                  </div>
-                  <ul className="space-y-4 text-sm text-zinc-600">
-                    <li className="flex gap-3">
-                      <div className="h-px w-4 bg-zinc-300 mt-2.5"></div>
-                      <span>
-                        Lookdev tweaks, customer branding, and specific decals.
-                      </span>
-                    </li>
-                    <li className="flex gap-3">
-                      <div className="h-px w-4 bg-zinc-300 mt-2.5"></div>
-                      <span>
-                        Custom task graphs, rewards, and policy training loops.
-                      </span>
-                    </li>
-                    <li className="flex gap-3">
-                      <div className="h-px w-4 bg-zinc-300 mt-2.5"></div>
-                      <span>
-                        Integration with your internal analytics and sensor
-                        stack.
-                      </span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </section>
-          </main>
+          <div className="mt-12 grid gap-4">
+            {sections.map((section) => (
+              <section
+                key={section.title}
+                className="rounded-3xl border border-slate-200 bg-slate-50 p-6"
+              >
+                <h2 className="text-2xl font-semibold text-slate-900">{section.title}</h2>
+                <p className="mt-3 text-sm leading-7 text-slate-600">{section.body}</p>
+              </section>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
     </>
   );
 }

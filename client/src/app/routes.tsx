@@ -34,6 +34,8 @@ const Careers = lazy(() => import("../pages/Careers"));
 const FAQ = lazy(() => import("../pages/FAQ"));
 const Governance = lazy(() => import("../pages/Governance"));
 const About = lazy(() => import("../pages/About"));
+const Docs = lazy(() => import("../pages/Docs"));
+const Blog = lazy(() => import("../pages/Blog"));
 const Privacy = lazy(() => import("../pages/Privacy"));
 const Terms = lazy(() => import("../pages/Terms"));
 const Settings = lazy(() => import("../pages/Settings"));
@@ -109,6 +111,8 @@ export const appRoutes: AppRoute[] = [
   { path: "/faq", layout: "public", component: FAQ },
   { path: "/governance", layout: "public", component: Governance },
   { path: "/about", layout: "public", component: About },
+  { path: "/docs", layout: "public", component: Docs },
+  { path: "/blog", layout: "public", component: Blog },
   { path: "/careers", layout: "public", component: Careers },
   { path: "/quality-standard", layout: "public", component: ReadinessPack },
   { path: "/readiness-pack", layout: "public", component: LegacyReadinessPackRedirect },

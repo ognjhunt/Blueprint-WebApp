@@ -33,15 +33,15 @@ export const simplePricingOptions: SimplePricingOption[] = [
     step: "Start here",
     name: "World Models",
     internalName: "World Model License",
-    price: "$500 - $2,000",
+    price: "$2,100 - $3,400",
     unit: "per world model",
     payer: "Robot team / OEM / integrator",
     summary: "Buy site-specific world models of real indoor locations.",
     includes: [
       "Site-specific spatial data from real capture",
-      "Simulation-ready environment",
+      "Scene package tied to one exact site and workflow",
       "Hosted access or packaged delivery paths",
-      "Filterable by location type, size, and robot compatibility",
+      "Exports, runtime notes, and stated limitations for that listing",
     ],
   },
   {
@@ -49,7 +49,7 @@ export const simplePricingOptions: SimplePricingOption[] = [
     step: "Next layer",
     name: "Simulation Access",
     internalName: "Hosted Sessions",
-    price: "$10 - $30",
+    price: "$16 - $29",
     unit: "per session-hour",
     payer: "Robot team / OEM / integrator",
     summary:
@@ -58,7 +58,7 @@ export const simplePricingOptions: SimplePricingOption[] = [
       "Self-serve hosted simulation sessions",
       "Reset and rerun scenarios",
       "Export rollout datasets and policy comparisons",
-      "Subscription tiers for teams with ongoing needs ($5K-$20K/month)",
+      "Managed or priority support when a run needs more help",
     ],
   },
   {

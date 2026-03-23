@@ -5,6 +5,8 @@ const footerLinks = [
   { label: "Capture App", href: "/capture-app" },
   { label: "Careers", href: "/careers" },
   { label: "FAQ", href: "/faq" },
+  { label: "Docs", href: "/docs" },
+  { label: "Blog", href: "/blog" },
   { label: "Governance", href: "/governance" },
   { label: "About", href: "/about" },
   { label: "Contact", href: "/contact?persona=robot-team" },

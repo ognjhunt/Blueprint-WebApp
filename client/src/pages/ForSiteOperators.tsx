@@ -227,10 +227,10 @@ export default function ForSiteOperators() {
                 List your site
               </a>
               <a
-                href="/how-it-works"
+                href="/governance"
                 className="inline-flex items-center rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition-all hover:bg-slate-50"
               >
-                See how Blueprint works
+                Review rights and privacy
               </a>
             </section>
           </ScrollReveal>

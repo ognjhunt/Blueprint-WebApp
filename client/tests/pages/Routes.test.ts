@@ -14,6 +14,8 @@ describe("Route registration", () => {
     expect(source).toContain('path: "/for-robot-teams"');
     expect(source).toContain('path: "/for-site-operators"');
     expect(source).toContain('path: "/faq"');
+    expect(source).toContain('path: "/docs"');
+    expect(source).toContain('path: "/blog"');
     expect(source).toContain('path: "/governance"');
     expect(source).toContain('path: "/about"');
     expect(source).toContain('path: "/careers"');
