@@ -23,7 +23,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
           window.location.search +
           window.location.hash;
         sessionStorage.setItem("redirectAfterAuth", currentPath);
-        setLocation("/login");
+        setLocation("/sign-in");
       } else if (!userData) {
         // Wait for user data to be loaded
         return;

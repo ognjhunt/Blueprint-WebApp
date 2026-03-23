@@ -82,7 +82,7 @@ export default function ForRobotIntegrators() {
                   Browse world models
                 </a>
                 <a
-                  href="/contact?interest=evaluation-package"
+                  href="/contact?persona=robot-team&interest=evaluation-package"
                   className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 transition-all hover:bg-slate-50"
                 >
                   Talk to us

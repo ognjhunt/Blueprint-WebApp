@@ -1,12 +1,14 @@
 const footerLinks = [
-  { label: "How It Works", href: "/how-it-works" },
   { label: "World Models", href: "/world-models" },
-  { label: "Earn (Capture)", href: "/capture" },
   { label: "For Robot Teams", href: "/for-robot-teams" },
   { label: "For Site Operators", href: "/for-site-operators" },
-  { label: "Quality Standard", href: "/quality-standard" },
-  { label: "Pricing", href: "/pricing" },
-  { label: "Contact", href: "/contact" },
+  { label: "Capture App", href: "/capture-app" },
+  { label: "Careers", href: "/careers" },
+  { label: "FAQ", href: "/faq" },
+  { label: "Governance", href: "/governance" },
+  { label: "About", href: "/about" },
+  { label: "Contact", href: "/contact?persona=robot-team" },
+  { label: "Sign In", href: "/sign-in" },
   { label: "Privacy", href: "/privacy" },
   { label: "Terms", href: "/terms" },
 ];
@@ -20,8 +22,8 @@ export function Footer() {
             Blueprint
           </a>
           <p className="text-sm text-slate-500">
-            Blueprint turns real indoor spaces into site-specific world models and hosted testing
-            surfaces, powered by a distributed capture network.
+            Blueprint helps robot teams inspect a real site before travel, tuning, or customer
+            time starts.
           </p>
         </div>
         <nav className="grid flex-1 grid-cols-2 gap-3 text-sm text-slate-600 sm:grid-cols-3">
@@ -35,7 +37,7 @@ export function Footer() {
       <div className="border-t border-slate-200 bg-white py-4">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>Capture supply. Site-specific world models. Hosted access when teams are ready.</p>
+          <p>Real sites. Clear deliverables. Hosted access when the workflow matters.</p>
         </div>
       </div>
     </footer>

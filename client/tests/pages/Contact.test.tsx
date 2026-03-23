@@ -43,23 +43,24 @@ beforeEach(() => {
 });
 
 describe("Contact page", () => {
-  it("renders the default capture and world-model request mode", () => {
+  it("renders the default robot-team intake", () => {
     render(<Contact />);
 
     expect(
       screen.getByRole("heading", {
-        name: /Tell us the site, the task, and what you want to unlock\./i,
+        name: /Tell us the site, the workflow, and what your team needs\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Capture \+ World Models/i)).toBeInTheDocument();
-    expect(screen.getByText(/Quick Response/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/For Robot Teams/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/What happens after you send this/i)).toBeInTheDocument();
     expect(screen.getByText(/Prefer email\?/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Browse world models/i })).toHaveAttribute(
       "href",
       "/world-models",
     );
-    expect(screen.getByText(/Buyer type/i)).toBeInTheDocument();
-    expect(screen.getByText(/Requested lanes/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Task/i)).toBeInTheDocument();
   });
 
   it("renders a compact hosted-session mode with prefilled robot-team data", () => {
@@ -75,20 +76,16 @@ describe("Contact page", () => {
     expect(screen.getByDisplayValue("Harborview Grocery Distribution Annex")).toBeInTheDocument();
     expect(screen.getByDisplayValue("1847 W Fulton St, Chicago, IL 60612")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Walk to shelf staging and pick the blue tote")).toBeInTheDocument();
-    expect(
-      screen.getByDisplayValue("Unitree G1 with head cam and wrist cam"),
-    ).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Unitree G1 with head cam and wrist cam")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Start hosted session/i })).toBeInTheDocument();
 
     expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Budget range/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Operating constraints/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Privacy and security constraints/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Known blockers/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Access rules/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Privacy and security notes/i)).not.toBeInTheDocument();
   });
 
-  it("submits the default request when required fields are filled", async () => {
+  it("submits the default robot-team request when required fields are filled", async () => {
     render(<Contact />);
 
     fireEvent.change(screen.getByPlaceholderText("First name*"), {
@@ -110,14 +107,13 @@ describe("Contact page", () => {
       target: { value: "Durham, NC" },
     });
     fireEvent.change(
-      screen.getByPlaceholderText("Describe the exact task or workflow you want represented.*"),
+      screen.getByPlaceholderText("Describe the workflow or task you need this site to support.*"),
       {
         target: { value: "Qualify a tote picking workflow." },
       },
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "$50K-$300K" }));
-    fireEvent.click(screen.getByRole("button", { name: /Submit request/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Send robot-team inquiry/i }));
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
@@ -126,7 +122,7 @@ describe("Contact page", () => {
       );
     });
 
-    expect(screen.getByText(/Submission received/i)).toBeInTheDocument();
+    expect(screen.getByText(/Robot-team inquiry received/i)).toBeInTheDocument();
   });
 
   it("submits hosted-session mode with robot-team defaults", async () => {

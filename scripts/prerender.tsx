@@ -11,6 +11,7 @@ import { queryClient } from "../client/src/lib/queryClient";
 import { AuthProvider } from "../client/src/contexts/AuthContext";
 import Home from "../client/src/pages/Home";
 import Capture from "../client/src/pages/Capture";
+import CaptureAppPlaceholder from "../client/src/pages/CaptureAppPlaceholder";
 import SiteWorlds from "../client/src/pages/SiteWorlds";
 import ForSiteOperators from "../client/src/pages/ForSiteOperators";
 import ForRobotIntegrators from "../client/src/pages/ForRobotIntegrators";
@@ -18,11 +19,16 @@ import Solutions from "../client/src/pages/Solutions";
 import Pricing from "../client/src/pages/Pricing";
 import Contact from "../client/src/pages/Contact";
 import HowItWorks from "../client/src/pages/HowItWorks";
+import FAQ from "../client/src/pages/FAQ";
+import Governance from "../client/src/pages/Governance";
+import About from "../client/src/pages/About";
+import Careers from "../client/src/pages/Careers";
 import ReadinessPack from "../client/src/pages/ReadinessPack";
 import PilotExchange from "../client/src/pages/PilotExchange";
 import PilotExchangeGuide from "../client/src/pages/PilotExchangeGuide";
 import Privacy from "../client/src/pages/Privacy";
 import Terms from "../client/src/pages/Terms";
+import Login from "../client/src/pages/Login";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,23 +43,23 @@ const staticRoutes: StaticRoute[] = [
   { path: "/capture", component: Capture },
   { path: "/world-models", component: SiteWorlds },
   { path: "/site-worlds", component: SiteWorlds },
+  { path: "/capture-app", component: CaptureAppPlaceholder },
   { path: "/for-site-operators", component: ForSiteOperators },
   { path: "/for-robot-teams", component: ForRobotIntegrators },
   { path: "/for-robot-integrators", component: ForRobotIntegrators },
-  { path: "/marketplace", component: SiteWorlds },
-  { path: "/marketplace/scenes", component: SiteWorlds },
-  { path: "/marketplace/datasets", component: SiteWorlds },
-  { path: "/environments", component: SiteWorlds },
   { path: "/solutions", component: Solutions },
   { path: "/pricing", component: Pricing },
   { path: "/contact", component: Contact },
   { path: "/how-it-works", component: HowItWorks },
+  { path: "/faq", component: FAQ },
+  { path: "/governance", component: Governance },
+  { path: "/about", component: About },
+  { path: "/careers", component: Careers },
+  { path: "/sign-in", component: Login },
   { path: "/quality-standard", component: ReadinessPack },
   { path: "/readiness-pack", component: ReadinessPack },
   { path: "/qualified-opportunities", component: PilotExchange },
   { path: "/qualified-opportunities-guide", component: PilotExchangeGuide },
-  { path: "/deployment-marketplace", component: PilotExchange },
-  { path: "/deployment-marketplace-guide", component: PilotExchangeGuide },
   { path: "/pilot-exchange", component: PilotExchange },
   { path: "/pilot-exchange-guide", component: PilotExchangeGuide },
   { path: "/partners", component: Contact },

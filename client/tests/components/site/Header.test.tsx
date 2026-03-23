@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Header } from "@/components/site/Header";
 
@@ -16,40 +16,19 @@ vi.mock("@/contexts/AuthContext", () => ({
 }));
 
 describe("Header", () => {
-  it("does not show How It Works in the top navigation", () => {
+  it("keeps the buyer-facing nav focused", () => {
     render(<Header />);
 
-    expect(screen.queryByRole("link", { name: /How It Works/i })).not.toBeInTheDocument();
-  });
-
-  it("shows Capture in the top navigation", () => {
-    render(<Header />);
-
-    const link = screen.getByRole("link", { name: /^Capture$/i });
-    expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute("href", "/capture");
-  });
-
-  it("puts Capture first in the top navigation", () => {
-    render(<Header />);
-
-    const nav = screen.getByRole("navigation");
-    const navLinks = within(nav).getAllByRole("link");
-    expect(navLinks[0]).toHaveTextContent("Capture");
-  });
-
-  it("does not show legacy partners nav link", () => {
-    render(<Header />);
-
-    expect(screen.queryByRole("link", { name: /Partners/i })).not.toBeInTheDocument();
-  });
-
-  it("shows World Models in the top navigation", () => {
-    render(<Header />);
-
-    const link = screen.getByRole("link", { name: /^World Models$/i });
-    expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute("href", "/world-models");
+    expect(screen.getByRole("link", { name: /^World Models$/i })).toHaveAttribute(
+      "href",
+      "/world-models",
+    );
+    expect(screen.getByRole("link", { name: /^For Robot Teams$/i })).toHaveAttribute(
+      "href",
+      "/for-robot-teams",
+    );
+    expect(screen.getByRole("link", { name: /^FAQ$/i })).toHaveAttribute("href", "/faq");
+    expect(screen.queryByRole("link", { name: /^Capture$/i })).not.toBeInTheDocument();
   });
 
   it("uses Talk to Blueprint as the primary CTA", () => {
@@ -57,7 +36,20 @@ describe("Header", () => {
 
     expect(screen.getByRole("link", { name: /Talk to Blueprint/i })).toHaveAttribute(
       "href",
-      "/contact",
+      "/contact?persona=robot-team",
+    );
+  });
+
+  it("keeps utility links available for capture and auth", () => {
+    render(<Header />);
+
+    expect(screen.getByRole("link", { name: /Capture App/i })).toHaveAttribute(
+      "href",
+      "/capture-app",
+    );
+    expect(screen.getByRole("link", { name: /Sign in/i })).toHaveAttribute(
+      "href",
+      "/sign-in",
     );
   });
 });

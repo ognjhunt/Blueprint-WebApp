@@ -5,10 +5,10 @@ test("capture app access page renders the handoff flow", async ({ page }) => {
 
   await expect(
     page.getByRole("heading", {
-      name: /Your mobile gateway to Blueprint's capture network\./i,
+      name: /This is the mobile handoff for people capturing real sites\./i,
     }),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: /Request launch access/i })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Download the app/i })).toBeVisible();
-  await expect(page.getByAltText(/QR code for Blueprint Capture access/i)).toBeVisible();
+  await expect(page.getByRole("link", { name: /Open app handoff/i })).toBeVisible();
+  await expect(page.getByText(/Capturers use the app, not the web portal\./i)).toBeVisible();
+  await expect(page.getByRole("link", { name: /Browse world models/i })).toBeVisible();
 });

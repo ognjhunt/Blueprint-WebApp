@@ -15,14 +15,14 @@ const BUILD_DATE =
 
 const routes = [
   { path: "/", changefreq: "weekly", priority: 1.0 },
-  { path: "/how-it-works", changefreq: "weekly", priority: 0.9 },
   { path: "/world-models", changefreq: "weekly", priority: 0.9 },
-  { path: "/quality-standard", changefreq: "weekly", priority: 0.9 },
-  { path: "/qualified-opportunities", changefreq: "weekly", priority: 0.7 },
-  { path: "/qualified-opportunities-guide", changefreq: "weekly", priority: 0.8 },
-  { path: "/solutions", changefreq: "monthly", priority: 0.8 },
-  { path: "/pricing", changefreq: "monthly", priority: 0.8 },
+  { path: "/for-robot-teams", changefreq: "weekly", priority: 0.8 },
+  { path: "/for-site-operators", changefreq: "monthly", priority: 0.7 },
   { path: "/contact", changefreq: "monthly", priority: 0.6 },
+  { path: "/faq", changefreq: "monthly", priority: 0.6 },
+  { path: "/governance", changefreq: "monthly", priority: 0.5 },
+  { path: "/about", changefreq: "monthly", priority: 0.5 },
+  { path: "/careers", changefreq: "weekly", priority: 0.5 },
   { path: "/privacy", changefreq: "yearly", priority: 0.3 },
   { path: "/terms", changefreq: "yearly", priority: 0.3 },
 ];

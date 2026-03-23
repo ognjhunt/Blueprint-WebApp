@@ -120,13 +120,12 @@ export default function SiteWorlds() {
                 World Models
               </p>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Train on the exact site you're deploying to.
+                Review the exact site before your team shows up.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
                 Each world model is built from real indoor captures and tied to a specific site and
-                workflow. Use it to train on the exact environment,
-                generate site-specific data, compare releases, and run simulations before
-                deployment.
+                workflow. Use it to review deliverables, compare releases, generate site-specific
+                outputs, and decide whether a hosted session is worth opening before deployment.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -291,7 +290,7 @@ export default function SiteWorlds() {
                       <div className="absolute bottom-4 left-4">
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-sky-700 shadow-sm backdrop-blur">
                           <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
-                          Native site world ready
+                          Native package ready
                         </span>
                       </div>
                     ) : fallbackAvailable ? (

@@ -126,9 +126,10 @@ export default function Login() {
   return (
     <>
       <SEO
-        title="Portal Sign In"
-        description="Sign in to access Blueprint's web portal for robot teams and site operators."
-        canonical="/login"
+        title="Sign In"
+        description="Sign in to the Blueprint web portal for robot teams and site operators."
+        canonical="/sign-in"
+        noIndex={true}
       />
       <div className="min-h-screen bg-white text-slate-900">
         <div className="mx-auto max-w-md px-4 py-16 sm:px-6 lg:px-8">
@@ -137,13 +138,13 @@ export default function Login() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-500">
               Blueprint
             </p>
-          <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-            Welcome back
-          </h1>
-          <p className="mt-2 text-sm text-slate-600">
-            Web access is for robot teams and site ops.
-          </p>
-        </div>
+            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+              Sign in to the web portal
+            </h1>
+            <p className="mt-2 text-sm text-slate-600">
+              This route is for robot teams and site operators using the web product.
+            </p>
+          </div>
 
         <div className="mb-6 rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-left">
           <p className="text-sm font-semibold text-slate-900">Capturer?</p>
@@ -155,7 +156,7 @@ export default function Login() {
             href="/capture-app"
             className="mt-3 inline-flex min-h-11 items-center font-semibold text-indigo-600 hover:text-indigo-500"
           >
-            Download the app
+            Open the capture app page
             <ArrowRight className="ml-1 h-4 w-4" />
           </a>
         </div>

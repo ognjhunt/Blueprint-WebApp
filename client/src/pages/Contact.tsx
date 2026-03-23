@@ -36,36 +36,64 @@ export default function Contact() {
   const searchParams = useMemo(() => new URLSearchParams(search), [search]);
   const interest = searchParams.get("interest")?.trim() ?? "";
   const buyerType = searchParams.get("buyerType")?.trim() ?? "";
+  const personaParam = searchParams.get("persona")?.trim() ?? "";
   const hostedMode =
     normalizeInterestToLane(interest) === "deeper_evaluation" && buyerType === "robot_team";
+  const persona =
+    hostedMode || personaParam === "robot-team" || buyerType === "robot_team"
+      ? "robot_team"
+      : personaParam === "site-operator" || buyerType === "site_operator"
+        ? "site_operator"
+        : "robot_team";
 
-  const seoTitle = hostedMode ? "Start Hosted Session | Blueprint" : "Contact Us";
+  const seoTitle = hostedMode
+    ? "Start Hosted Session | Blueprint"
+    : persona === "site_operator"
+      ? "For Site Operators | Blueprint"
+      : "For Robot Teams | Blueprint";
   const seoDescription = hostedMode
     ? "Start a hosted robot-team session for a site-specific world model."
-    : "Get in touch with Blueprint to source capture, buy world-model access, or scope the right next step.";
+    : persona === "site_operator"
+      ? "Talk to Blueprint about facility participation, access rules, and governance."
+      : "Talk to Blueprint about site-specific world models, deliverables, and hosted access.";
 
-  const badgeLabel = hostedMode ? "Hosted Session Start" : "Capture + World Models";
+  const badgeLabel = hostedMode
+    ? "Hosted Session Start"
+    : persona === "site_operator"
+      ? "For Site Operators"
+      : "For Robot Teams";
   const heroTitle = hostedMode
     ? "Start a hosted session for this site."
-    : "Tell us the site, the task, and what you want to unlock.";
+    : persona === "site_operator"
+      ? "Tell us about the facility and the rules around it."
+      : "Tell us the site, the workflow, and what your team needs.";
   const heroBody = hostedMode
     ? "Confirm the site, the task, and the robot setup. Blueprint will use that to line up the next step for a hosted evaluation run."
-    : "Blueprint can help source capture, package a site-specific world model, or line up hosted access for the exact environment your team wants to test.";
-  const responseTitle = hostedMode ? "Hosted session setup" : "Quick Response";
+    : persona === "site_operator"
+      ? "Use this form if you run the facility and want a clean conversation about capture access, privacy rules, or whether the site should become a sellable listing."
+      : "Use this form if your team needs to inspect a real site, understand the deliverables, or figure out whether a hosted session is the right next step.";
+  const responseTitle = hostedMode ? "Hosted session setup" : "What happens after you send this";
   const responseBody = hostedMode
     ? "Fill out the short form and our team will follow up within 24 hours to confirm the site, the robot setup, and the next step toward launch."
-    : "Fill out the form and our team will get back to you within 24 hours to talk through capture supply, world-model access, and the right commercial path.";
+    : persona === "site_operator"
+      ? "Blueprint reviews the facility details, access rules, and privacy notes first. The reply should narrow the next step instead of reopening the whole conversation."
+      : "Blueprint reviews the site, workflow, and embodiment details first. The reply should get your team to a concrete next step, not another vague intake round.";
   const learnMoreLinks = hostedMode
     ? [
         { href: "/world-models", label: "Back to World Models" },
         { href: "/for-robot-teams", label: "For Robot Teams" },
-        { href: "/how-it-works", label: "How Blueprint works" },
+        { href: "/faq", label: "FAQ" },
       ]
-    : [
-        { href: "/capture", label: "Capture with Blueprint" },
+    : persona === "site_operator"
+      ? [
+          { href: "/for-site-operators", label: "For Site Operators" },
+          { href: "/governance", label: "Governance" },
+          { href: "/about", label: "About Blueprint" },
+        ]
+      : [
         { href: "/world-models", label: "Browse world models" },
-        { href: "/how-it-works", label: "How It Works" },
         { href: "/for-robot-teams", label: "For Robot Teams" },
+        { href: "/faq", label: "FAQ" },
       ];
 
   return (

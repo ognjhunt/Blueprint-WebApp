@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import Home from '@/pages/Home';
+import { describe, it, expect, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import Home from "@/pages/Home";
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({
@@ -11,49 +11,48 @@ vi.mock("@/contexts/AuthContext", () => ({
   }),
 }));
 
-describe('Home', () => {
-  it('renders the hero messaging and primary CTAs', { timeout: 10000 }, () => {
+describe("Home", () => {
+  it("renders the buyer-first hero and primary CTAs", { timeout: 10000 }, () => {
     window.localStorage.clear();
     render(<Home />);
 
     expect(
-      screen.getByRole('heading', {
+      screen.getByRole("heading", {
         level: 1,
-        name: /Capture real sites\. Run the exact world model later\./i,
+        name: /Inspect the real site before your team shows up\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/capture evidence/i)).toBeInTheDocument();
     expect(
-      screen.getAllByRole('link', { name: /Browse world models/i }).some(
-        (link) => link.getAttribute('href') === '/world-models',
-      ),
-    ).toBe(true);
-    expect(
-      screen.getAllByRole('link', { name: /Download the app/i }).some(
-        (link) => link.getAttribute('href') === '/capture-app',
-      ),
-    ).toBe(true);
+      screen.getByText(/Blueprint sells site-specific world models built from real indoor capture\./i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Browse world models/i })).toHaveAttribute(
+      "href",
+      "/world-models",
+    );
+    expect(screen.getByRole("link", { name: /See sample deliverables/i })).toHaveAttribute(
+      "href",
+      "/world-models/sw-chi-01",
+    );
+    expect(screen.getByRole("link", { name: /Talk to Blueprint/i })).toHaveAttribute(
+      "href",
+      "/contact?persona=robot-team",
+    );
   });
 
-  it('highlights the service outcomes', { timeout: 10000 }, () => {
+  it("keeps capture and site-operator paths secondary", { timeout: 10000 }, () => {
     window.localStorage.clear();
     render(<Home />);
 
+    expect(screen.getByText(/Why teams buy/i)).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { name: /Why Blueprint/i }),
+      screen.getByRole("heading", { name: /One catalog\. One proof path\. One clear next step\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', {
-        name: /Capture\. Build\. Run\./i,
+      screen.getByRole("heading", {
+        name: /The buyer story comes first\. The rest still needs to be clean\./i,
       }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', {
-        name: /Built for the capture side and the buyer side/i,
-      }),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/Market trajectory/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Humanoid programs are scaling faster than sites are getting ready\./i)).not.toBeInTheDocument();
-    expect(screen.getByText(/Capture quality compounds/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Capture App/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/For Site Operators/i).length).toBeGreaterThan(0);
   });
 });

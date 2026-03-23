@@ -1,14 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import Login from '@/pages/Login';
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import Login from "@/pages/Login";
 
 const useAuthMock = vi.hoisted(() => vi.fn());
 
-vi.mock('@/contexts/AuthContext', () => ({
+vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => useAuthMock(),
 }));
 
-describe('Login', () => {
+describe("Login", () => {
   beforeEach(() => {
     useAuthMock.mockReturnValue({
       signIn: vi.fn(),
@@ -16,28 +16,27 @@ describe('Login', () => {
     });
   });
 
-  it('shows validation errors when submitting an empty form', () => {
+  it("shows validation errors when submitting an empty form", () => {
     render(<Login />);
 
-    fireEvent.click(screen.getByRole('button', { name: /^sign in$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
 
     expect(screen.getByText(/Email is required/i)).toBeInTheDocument();
     expect(screen.getByText(/Password is required/i)).toBeInTheDocument();
   });
 
-  it('renders the Google sign-in CTA', () => {
+  it("renders the Google sign-in CTA", () => {
     render(<Login />);
 
-    expect(
-      screen.getByRole('button', { name: /Continue with Google/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Continue with Google/i })).toBeInTheDocument();
   });
 
-  it('sends capturers to the mobile app instead of web auth', () => {
+  it("sends capturers to the mobile app instead of web auth", () => {
     render(<Login />);
 
-    expect(
-      screen.getByRole('link', { name: /Download the app/i }),
-    ).toHaveAttribute('href', '/capture-app');
+    expect(screen.getByRole("link", { name: /Open the capture app page/i })).toHaveAttribute(
+      "href",
+      "/capture-app",
+    );
   });
 });

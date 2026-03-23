@@ -221,7 +221,7 @@ export default function ForSiteOperators() {
           <ScrollReveal>
             <section className="mt-10 flex flex-wrap gap-3">
               <a
-                href="/contact?interest=site-registration"
+                href="/contact?persona=site-operator"
                 className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-slate-800 hover:shadow-md"
               >
                 List your site

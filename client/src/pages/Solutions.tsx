@@ -37,7 +37,7 @@ const roleCards = [
   {
     title: "For Robot Teams",
     description:
-      "For humanoid integrators and deployment teams who either already know the site or need operator demand coming through the marketplace.",
+      "For integrators and deployment teams who either already know the target site or need a cleaner way to line up the right facility.",
     href: "/for-robot-teams",
     cta: "Open humanoid team guide",
     icon: <Bot className="h-6 w-6 text-slate-900" />,

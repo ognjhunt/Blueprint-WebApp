@@ -49,13 +49,13 @@ const threeWhy = [
   {
     title: "Site-specific beats generalized",
     description:
-      "Research shows training on an actual site twin gives dramatically better results. Blueprint gives robot teams the exact environment they need.",
+      "Research keeps pointing in the same direction: teams learn more from the real site than from a generic stand-in. Blueprint gives them that site earlier.",
     icon: <MapPinned className="h-6 w-6" />,
   },
   {
     title: "Real capture is the moat",
     description:
-      "Anyone can talk about digital twins. Blueprint compounds real indoor capture and turns it into sellable, site-specific world-model products.",
+      "Anyone can claim a broad platform story. The harder part is turning messy real capture into a package a buyer can trust and use.",
     icon: <ShieldCheck className="h-6 w-6" />,
   },
   {

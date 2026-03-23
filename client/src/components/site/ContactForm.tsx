@@ -1,16 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearch } from "wouter";
 import { ArrowRight, Calendar, CheckCircle2, Clock, Mail } from "lucide-react";
 import { withCsrfHeader } from "@/lib/csrf";
 import { normalizeInterestToLane } from "@/lib/contactInterest";
-import {
-  REQUESTED_LANE_DESCRIPTIONS,
-  REQUESTED_LANE_LABELS,
-  REQUESTED_LANES,
-} from "@/lib/requestTaxonomy";
 import { useAuth } from "@/contexts/AuthContext";
 import type {
-  BudgetBucket,
   BuyerType,
   InboundRequestPayload,
   RequestedLane,
@@ -18,23 +12,7 @@ import type {
   UTMParams,
 } from "@/types/inbound-request";
 
-const budgetRanges: BudgetBucket[] = [
-  "<$50K",
-  "$50K-$300K",
-  "$300K-$1M",
-  ">$1M",
-  "Undecided/Unsure",
-];
-
-const requestedLaneOptions = REQUESTED_LANES.map((value) => ({
-  value,
-  label: REQUESTED_LANE_LABELS[value],
-  description: REQUESTED_LANE_DESCRIPTIONS[value],
-})) as Array<{
-  value: RequestedLane;
-  label: string;
-  description: string;
-}>;
+type Persona = "robot_team" | "site_operator";
 
 function generateRequestId(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -65,21 +43,32 @@ function getReferrer(): string | null {
   return document.referrer || null;
 }
 
+function getPersonaFromSearch(
+  personaParam: string,
+  buyerTypeParam: string,
+  hostedMode: boolean,
+): Persona {
+  if (hostedMode) return "robot_team";
+  if (personaParam === "site-operator") return "site_operator";
+  if (personaParam === "robot-team") return "robot_team";
+  if (buyerTypeParam === "site_operator") return "site_operator";
+  return "robot_team";
+}
+
 export function ContactForm() {
   const { currentUser, userData } = useAuth();
   const search = useSearch();
   const searchParams = useMemo(() => new URLSearchParams(search), [search]);
   const interest = searchParams.get("interest")?.trim() ?? "";
   const buyerTypeParam = searchParams.get("buyerType")?.trim() ?? "";
+  const personaParam = searchParams.get("persona")?.trim() ?? "";
   const interestLane = normalizeInterestToLane(interest);
   const hostedMode = interestLane === "deeper_evaluation" && buyerTypeParam === "robot_team";
+  const persona = getPersonaFromSearch(personaParam, buyerTypeParam, hostedMode);
 
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const [submittedRequestId, setSubmittedRequestId] = useState<string | null>(null);
-  const [selectedBudget, setSelectedBudget] = useState<BudgetBucket | "">("");
-  const [selectedBuyerType, setSelectedBuyerType] = useState<BuyerType>("site_operator");
-  const [selectedLanes, setSelectedLanes] = useState<RequestedLane[]>(["qualification"]);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [company, setCompany] = useState("");
@@ -88,11 +77,9 @@ export function ContactForm() {
   const [siteName, setSiteName] = useState("");
   const [siteLocation, setSiteLocation] = useState("");
   const [taskStatement, setTaskStatement] = useState("");
-  const [workflowContext, setWorkflowContext] = useState("");
+  const [targetRobotTeam, setTargetRobotTeam] = useState("");
   const [operatingConstraints, setOperatingConstraints] = useState("");
   const [privacySecurityConstraints, setPrivacySecurityConstraints] = useState("");
-  const [knownBlockers, setKnownBlockers] = useState("");
-  const [targetRobotTeam, setTargetRobotTeam] = useState("");
   const [detailsMessage, setDetailsMessage] = useState("");
   const [honeypot, setHoneypot] = useState("");
 
@@ -118,72 +105,46 @@ export function ContactForm() {
     }
     if (!jobTitle && userData?.jobTitle) setJobTitle(userData.jobTitle);
     if (!email && currentUser?.email) setEmail(currentUser.email);
-    if (!siteName && userData?.siteName) setSiteName(userData.siteName);
-    if (!siteLocation && userData?.siteLocation) setSiteLocation(userData.siteLocation);
-    if (!taskStatement && userData?.taskStatement) setTaskStatement(userData.taskStatement);
-    if (!workflowContext && userData?.workflowContext) setWorkflowContext(userData.workflowContext);
+    if (!siteName && (prefills.siteName || userData?.siteName)) {
+      setSiteName(prefills.siteName || userData?.siteName || "");
+    }
+    if (!siteLocation && (prefills.siteLocation || userData?.siteLocation)) {
+      setSiteLocation(prefills.siteLocation || userData?.siteLocation || "");
+    }
+    if (!taskStatement && (prefills.taskStatement || userData?.taskStatement)) {
+      setTaskStatement(prefills.taskStatement || userData?.taskStatement || "");
+    }
+    if (!targetRobotTeam && (prefills.targetRobotTeam || userData?.targetRobotTeam)) {
+      setTargetRobotTeam(prefills.targetRobotTeam || userData?.targetRobotTeam || "");
+    }
     if (!operatingConstraints && userData?.operatingConstraints) {
       setOperatingConstraints(userData.operatingConstraints);
     }
     if (!privacySecurityConstraints && userData?.privacySecurityConstraints) {
       setPrivacySecurityConstraints(userData.privacySecurityConstraints);
     }
-    if (!knownBlockers && userData?.knownBlockers) setKnownBlockers(userData.knownBlockers);
-    if (!targetRobotTeam && userData?.targetRobotTeam) setTargetRobotTeam(userData.targetRobotTeam);
-
-    if (!hostedMode && !selectedBudget && userData?.budgetRange) {
-      setSelectedBudget(userData.budgetRange);
-    }
-    if (!hostedMode && userData?.buyerType) {
-      setSelectedBuyerType(userData.buyerType);
-    }
-    if (!hostedMode && userData?.requestedLanes?.length) {
-      setSelectedLanes(userData.requestedLanes);
-    }
   }, [
     company,
     currentUser,
     email,
     firstName,
-    hostedMode,
     jobTitle,
-    knownBlockers,
     lastName,
     operatingConstraints,
+    persona,
+    prefills,
     privacySecurityConstraints,
-    selectedBudget,
     siteLocation,
     siteName,
     targetRobotTeam,
     taskStatement,
     userData,
-    workflowContext,
   ]);
 
-  useEffect(() => {
-    if (hostedMode) {
-      setSelectedBuyerType("robot_team");
-      setSelectedLanes(["deeper_evaluation"]);
-      setSelectedBudget("Undecided/Unsure");
-      if (prefills.siteName) setSiteName(prefills.siteName);
-      if (prefills.siteLocation) setSiteLocation(prefills.siteLocation);
-      if (prefills.taskStatement) setTaskStatement(prefills.taskStatement);
-      if (prefills.targetRobotTeam) setTargetRobotTeam(prefills.targetRobotTeam);
-      return;
-    }
-
-    if (interestLane) {
-      setSelectedLanes((current) =>
-        current.includes(interestLane) ? current : [...current, interestLane],
-      );
-    }
-  }, [hostedMode, interestLane, prefills]);
-
-  const toggleLane = useCallback((lane: RequestedLane) => {
-    setSelectedLanes((current) =>
-      current.includes(lane) ? current.filter((entry) => entry !== lane) : [...current, lane],
-    );
-  }, []);
+  const buyerType: BuyerType = persona;
+  const requestedLanes: RequestedLane[] = hostedMode
+    ? ["deeper_evaluation"]
+    : [interestLane || "qualification"];
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -191,31 +152,21 @@ export function ContactForm() {
     const missingFields: string[] = [];
     if (!firstName.trim()) missingFields.push("First name");
     if (!lastName.trim()) missingFields.push("Last name");
-    if (!company.trim()) missingFields.push("Company");
+    if (!company.trim()) missingFields.push(persona === "site_operator" ? "Company or operator" : "Company");
     if (!email.trim()) missingFields.push("Work email");
-    if (!siteName.trim()) missingFields.push("Site name");
+    if (!siteName.trim()) missingFields.push(persona === "site_operator" ? "Facility name" : "Site name");
     if (!siteLocation.trim()) missingFields.push("Site location");
-    if (!taskStatement.trim()) missingFields.push("Task statement");
+
+    if (persona === "robot_team" && !taskStatement.trim()) {
+      missingFields.push("Task");
+    }
+    if (persona === "site_operator" && !operatingConstraints.trim()) {
+      missingFields.push("Access rules");
+    }
 
     if (missingFields.length > 0) {
       setStatus("error");
       setMessage(`Please fill in: ${missingFields.join(", ")}`);
-      return;
-    }
-
-    const effectiveBudget = hostedMode ? "Undecided/Unsure" : selectedBudget;
-    const effectiveLanes = hostedMode ? (["deeper_evaluation"] as RequestedLane[]) : selectedLanes;
-    const effectiveBuyerType = hostedMode ? "robot_team" : selectedBuyerType;
-
-    if (!effectiveBudget) {
-      setStatus("error");
-      setMessage("Please select a project budget.");
-      return;
-    }
-
-    if (effectiveLanes.length === 0) {
-      setStatus("error");
-      setMessage("Please choose at least one requested lane.");
       return;
     }
 
@@ -234,19 +185,15 @@ export function ContactForm() {
       company: company.trim(),
       roleTitle: jobTitle.trim(),
       email: email.trim().toLowerCase(),
-      budgetBucket: effectiveBudget,
-      requestedLanes: effectiveLanes,
-      buyerType: effectiveBuyerType,
+      budgetBucket: "Undecided/Unsure",
+      requestedLanes,
+      buyerType,
       siteName: siteName.trim(),
       siteLocation: siteLocation.trim(),
-      taskStatement: taskStatement.trim(),
-      workflowContext: hostedMode ? undefined : workflowContext.trim() || undefined,
-      operatingConstraints: hostedMode ? undefined : operatingConstraints.trim() || undefined,
-      privacySecurityConstraints: hostedMode
-        ? undefined
-        : privacySecurityConstraints.trim() || undefined,
-      knownBlockers: hostedMode ? undefined : knownBlockers.trim() || undefined,
-      targetRobotTeam: targetRobotTeam.trim() || undefined,
+      taskStatement: persona === "robot_team" ? taskStatement.trim() : "Operator intake",
+      operatingConstraints: operatingConstraints.trim() || undefined,
+      privacySecurityConstraints: privacySecurityConstraints.trim() || undefined,
+      targetRobotTeam: persona === "robot_team" ? targetRobotTeam.trim() || undefined : undefined,
       details: detailsMessage.trim() || undefined,
       context: {
         sourcePageUrl: typeof window !== "undefined" ? window.location.href : "",
@@ -276,7 +223,6 @@ export function ContactForm() {
 
       setSubmittedRequestId(json.siteSubmissionId || json.requestId);
       setStatus("success");
-      setMessage("");
     } catch (error) {
       setStatus("error");
       setMessage(
@@ -292,12 +238,18 @@ export function ContactForm() {
           <CheckCircle2 className="h-8 w-8" />
         </div>
         <h2 className="text-2xl font-bold text-zinc-900">
-          {hostedMode ? "Hosted session request received" : "Submission received"}
+          {hostedMode
+            ? "Hosted session request received"
+            : persona === "site_operator"
+              ? "Facility inquiry received"
+              : "Robot-team inquiry received"}
         </h2>
         <p className="mt-4 text-zinc-600">
           {hostedMode
-            ? "Blueprint now has the site, task, and robot setup. We will follow up with the next step to get the hosted session moving."
-            : "Blueprint now has the site, task, and commercial context. We will follow up with the right next step for capture, world-model access, or hosted support."}
+            ? "Blueprint now has the site, task, and embodiment details for this hosted-session request."
+            : persona === "site_operator"
+              ? "Blueprint now has the facility details, access notes, and governance context needed for a follow-up."
+              : "Blueprint now has the site, workflow, and embodiment details for your follow-up."}
         </p>
         <div className="mt-8 rounded-xl bg-zinc-50 p-6 text-left">
           <h3 className="mb-4 text-sm font-semibold text-zinc-900">What happens next?</h3>
@@ -306,31 +258,19 @@ export function ContactForm() {
               <div className="mt-0.5 rounded-full bg-indigo-100 p-1 text-indigo-600">
                 <Clock className="h-3 w-3" />
               </div>
-              <p>
-                {hostedMode
-                  ? "We confirm the site, robot embodiment, and the task you want to test."
-                  : "We confirm whether you need capture supply, world-model access, hosted sessions, or managed support."}
-              </p>
+              <p>Blueprint reviews the request and confirms the most credible next step.</p>
             </div>
             <div className="flex items-start gap-3">
               <div className="mt-0.5 rounded-full bg-indigo-100 p-1 text-indigo-600">
                 <Mail className="h-3 w-3" />
               </div>
-              <p>
-                {hostedMode
-                  ? "We align on the outputs you need back, such as videos, metrics, and failure cases."
-                  : "If the site still needs fresh capture or tighter scope, we line that up instead of overselling what exists."}
-              </p>
+              <p>You get a follow-up from the team rather than a dead-end auto-response.</p>
             </div>
             <div className="flex items-start gap-3">
               <div className="mt-0.5 rounded-full bg-indigo-100 p-1 text-indigo-600">
                 <Calendar className="h-3 w-3" />
               </div>
-              <p>
-                {hostedMode
-                  ? "We return with the next step to launch or scope the hosted session."
-                  : "From there we route into world-model packaging, hosted access, or follow-on support."}
-              </p>
+              <p>If the request looks workable, the next reply will narrow the scope instead of reopening the whole intake from scratch.</p>
             </div>
           </div>
         </div>
@@ -347,15 +287,15 @@ export function ContactForm() {
     <form className="space-y-6" onSubmit={handleSubmit}>
       {hostedMode ? (
         <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-sm text-zinc-700">
-          You are starting the hosted session setup for this site. Confirm the details below and
-          submit the request.
+          You are starting the hosted-session path for a specific site. Keep the submission tight.
         </div>
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-700">First name</label>
+          <label htmlFor="contact-first-name" className="mb-1 block text-sm font-medium text-zinc-700">First name</label>
           <input
+            id="contact-first-name"
             className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
             placeholder="First name*"
             value={firstName}
@@ -363,8 +303,9 @@ export function ContactForm() {
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-700">Last name</label>
+          <label htmlFor="contact-last-name" className="mb-1 block text-sm font-medium text-zinc-700">Last name</label>
           <input
+            id="contact-last-name"
             className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
             placeholder="Last name*"
             value={lastName}
@@ -375,17 +316,21 @@ export function ContactForm() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-700">Company</label>
+          <label htmlFor="contact-company" className="mb-1 block text-sm font-medium text-zinc-700">
+            {persona === "site_operator" ? "Company or operator" : "Company"}
+          </label>
           <input
+            id="contact-company"
             className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-            placeholder="Company name*"
+            placeholder={persona === "site_operator" ? "Operator or company*" : "Company name*"}
             value={company}
             onChange={(event) => setCompany(event.target.value)}
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-700">Work email</label>
+          <label htmlFor="contact-email" className="mb-1 block text-sm font-medium text-zinc-700">Work email</label>
           <input
+            id="contact-email"
             className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
             placeholder="Work email*"
             value={email}
@@ -394,56 +339,38 @@ export function ContactForm() {
         </div>
       </div>
 
-      {!hostedMode ? (
-        <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-700">Title</label>
-          <input
-            className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-            placeholder="Operations lead, robotics lead, integrator, etc."
-            value={jobTitle}
-            onChange={(event) => setJobTitle(event.target.value)}
-          />
-        </div>
-      ) : null}
-
-      {!hostedMode ? (
-        <div>
-          <p className="mb-2 text-sm font-medium text-zinc-700">Buyer type</p>
-          <div className="grid gap-3 md:grid-cols-2">
-            {[
-              { value: "site_operator", label: "Site operator" },
-              { value: "robot_team", label: "Robot team" },
-            ].map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => setSelectedBuyerType(option.value as BuyerType)}
-                className={`rounded-xl border px-4 py-3 text-left text-sm ${
-                  selectedBuyerType === option.value
-                    ? "border-zinc-900 bg-zinc-900 text-white"
-                    : "border-zinc-200 bg-white text-zinc-700"
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
+      <div>
+        <label htmlFor="contact-title" className="mb-1 block text-sm font-medium text-zinc-700">Title</label>
+        <input
+          id="contact-title"
+          className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+          placeholder={
+            persona === "site_operator"
+              ? "Ops lead, facility manager, innovation lead"
+              : "Robotics lead, autonomy engineer, deployment lead"
+          }
+          value={jobTitle}
+          onChange={(event) => setJobTitle(event.target.value)}
+        />
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-700">Site name</label>
+          <label htmlFor="contact-site-name" className="mb-1 block text-sm font-medium text-zinc-700">
+            {persona === "site_operator" ? "Facility name" : "Site name"}
+          </label>
           <input
+            id="contact-site-name"
             className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-            placeholder="Site name*"
+            placeholder={persona === "site_operator" ? "Facility name*" : "Site name*"}
             value={siteName}
             onChange={(event) => setSiteName(event.target.value)}
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-700">Site location</label>
+          <label htmlFor="contact-site-location" className="mb-1 block text-sm font-medium text-zinc-700">Site location</label>
           <input
+            id="contact-site-location"
             className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
             placeholder="City, state, or facility address*"
             value={siteLocation}
@@ -452,141 +379,65 @@ export function ContactForm() {
         </div>
       </div>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium text-zinc-700">Task statement</label>
-        <textarea
-          className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-          placeholder={
-            hostedMode
-              ? "Describe the task you want to test.*"
-              : "Describe the exact task or workflow you want represented.*"
-          }
-          value={taskStatement}
-          onChange={(event) => setTaskStatement(event.target.value)}
-        />
-      </div>
-
-      {!hostedMode ? (
-        <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-700">Workflow context</label>
-          <textarea
-            className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-            placeholder="Describe the workcell, adjacent workflow, handoffs, and zone boundaries."
-            value={workflowContext}
-            onChange={(event) => setWorkflowContext(event.target.value)}
-          />
-        </div>
-      ) : null}
-
-      {!hostedMode ? (
-        <div className="grid gap-4 md:grid-cols-2">
+      {persona === "robot_team" ? (
+        <>
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700">
-              Operating constraints
-            </label>
+            <label htmlFor="contact-task" className="mb-1 block text-sm font-medium text-zinc-700">Task</label>
             <textarea
+              id="contact-task"
               className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-              placeholder="Hours, access windows, floor conditions, safety rules."
+              placeholder="Describe the workflow or task you need this site to support.*"
+              value={taskStatement}
+              onChange={(event) => setTaskStatement(event.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="contact-embodiment" className="mb-1 block text-sm font-medium text-zinc-700">Embodiment</label>
+            <input
+              id="contact-embodiment"
+              className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+              placeholder="Robot, embodiment, or stack"
+              value={targetRobotTeam}
+              onChange={(event) => setTargetRobotTeam(event.target.value)}
+            />
+          </div>
+        </>
+      ) : (
+        <>
+          <div>
+            <label htmlFor="contact-access-rules" className="mb-1 block text-sm font-medium text-zinc-700">Access rules</label>
+            <textarea
+              id="contact-access-rules"
+              className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+              placeholder="Hours, escort requirements, restricted areas, or other operating rules.*"
               value={operatingConstraints}
               onChange={(event) => setOperatingConstraints(event.target.value)}
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700">
-              Privacy and security constraints
+            <label htmlFor="contact-privacy-notes" className="mb-1 block text-sm font-medium text-zinc-700">
+              Privacy and security notes
             </label>
             <textarea
+              id="contact-privacy-notes"
               className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-              placeholder="Restricted zones, camera limits, redactions."
+              placeholder="Camera limits, redaction needs, safety or security restrictions."
               value={privacySecurityConstraints}
               onChange={(event) => setPrivacySecurityConstraints(event.target.value)}
             />
           </div>
-        </div>
-      ) : null}
-
-      <div className={hostedMode ? "" : "grid gap-4 md:grid-cols-2"}>
-        {!hostedMode ? (
-          <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700">Known blockers</label>
-            <textarea
-              className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-              placeholder="Known blockers, safety concerns, or scope gaps."
-              value={knownBlockers}
-              onChange={(event) => setKnownBlockers(event.target.value)}
-            />
-          </div>
-        ) : null}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-700">
-            {hostedMode ? "Target robot or embodiment" : "Target robot team or embodiment"}
-          </label>
-          <input
-            className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-            placeholder={hostedMode ? "Robot, embodiment, or stack*" : "Optional"}
-            value={targetRobotTeam}
-            onChange={(event) => setTargetRobotTeam(event.target.value)}
-          />
-        </div>
-      </div>
-
-      {!hostedMode ? (
-        <div>
-          <p className="mb-2 text-sm font-medium text-zinc-700">Requested lanes</p>
-          <div className="space-y-3">
-            {requestedLaneOptions.map((lane) => (
-              <label
-                key={lane.value}
-                className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200 px-4 py-3"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedLanes.includes(lane.value)}
-                  onChange={() => toggleLane(lane.value)}
-                  className="mt-1"
-                />
-                <span>
-                  <span className="block text-sm font-medium text-zinc-900">{lane.label}</span>
-                  <span className="block text-sm text-zinc-500">{lane.description}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {!hostedMode ? (
-        <div>
-          <p className="mb-2 text-sm font-medium text-zinc-700">Budget range</p>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-            {budgetRanges.map((budget) => (
-              <button
-                key={budget}
-                type="button"
-                onClick={() => setSelectedBudget(budget)}
-                className={`rounded-xl border px-3 py-3 text-sm ${
-                  selectedBudget === budget
-                    ? "border-zinc-900 bg-zinc-900 text-white"
-                    : "border-zinc-200 bg-white text-zinc-700"
-                }`}
-              >
-                {budget}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
+        </>
+      )}
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-zinc-700">
-          {hostedMode ? "Notes" : "Anything else we should know?"}
-        </label>
+        <label htmlFor="contact-notes" className="mb-1 block text-sm font-medium text-zinc-700">Notes</label>
         <textarea
+          id="contact-notes"
           className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
           placeholder={
-            hostedMode
-              ? "Policy, checkpoint, outputs, or other notes."
-              : "Add anything important about capture needs, delivery format, or commercial context."
+            persona === "site_operator"
+              ? "Anything else Blueprint should know about the facility or approval path."
+              : "Anything else Blueprint should know about the site, deliverables, or timing."
           }
           value={detailsMessage}
           onChange={(event) => setDetailsMessage(event.target.value)}
@@ -615,7 +466,9 @@ export function ContactForm() {
           ? "Submitting..."
           : hostedMode
             ? "Start hosted session"
-            : "Submit request"}
+            : persona === "site_operator"
+              ? "Send facility inquiry"
+              : "Send robot-team inquiry"}
         <ArrowRight className="ml-2 h-4 w-4" />
       </button>
     </form>

@@ -112,7 +112,7 @@ export default function Pricing() {
                   Simulation access
                 </p>
                 <h2 className="mt-2 text-3xl font-bold text-slate-900">
-                  Run your robot in real-world environments.
+                  Run your robot against a real site record.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
                   Open a world model and start testing. Priced per session-hour. Use it when you

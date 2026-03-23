@@ -22,7 +22,7 @@ const hostedSessionSteps = [
   },
   {
     title: "Start the hosted session",
-    detail: "Blueprint brings up the managed eval environment built from that site.",
+    detail: "Blueprint brings up the managed hosted run built from that site.",
   },
   {
     title: "Choose robot, sensors, task, policy/checkpoint, and scenario variation",
@@ -38,7 +38,7 @@ const hostedSessionSteps = [
   },
   {
     title: "Get the next observation",
-    detail: "The hosted world model rolls the site forward one step and returns the next view.",
+    detail: "The hosted world model advances the run one step and returns the next view.",
   },
   {
     title: "Repeat until success, failure, or timeout",
@@ -293,13 +293,13 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
       <div className="mx-auto max-w-5xl px-4 py-24 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-slate-900">Site world not found</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-          The site world you are looking for does not exist in this placeholder catalog.
+          The listing you are looking for is not available.
         </p>
         <a
           href="/world-models"
           className="mt-6 inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
         >
-          Back to Site Worlds
+          Back to World Models
         </a>
       </div>
     );
@@ -342,7 +342,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
   return (
     <>
       <SEO
-        title={`${site.siteName} | Site Worlds | Blueprint`}
+        title={`${site.siteName} | World Models | Blueprint`}
         description={`${site.siteName} is a site-specific world model that robot teams can review, stream, and use for validation or data generation before a site visit.`}
         canonical={`/world-models/${site.id}`}
       />
@@ -354,7 +354,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 transition hover:text-slate-900"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Site Worlds
+            Back to World Models
           </a>
 
           <header className="mt-6 grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
@@ -370,8 +370,8 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 {site.summary}
               </p>
               <p className="mt-3 text-sm text-slate-600">
-                Use this site world to test deployment fit, generate site-specific data, compare
-                releases, and run remote demos before the real visit.
+                Use this listing to check deployment fit, compare releases, generate site-specific
+                outputs, and walk through the site before the real visit.
               </p>
               <p className="mt-2 text-sm text-slate-500">{site.bestFor}</p>
               <div className="mt-5 flex flex-wrap gap-3">
@@ -419,7 +419,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 Why teams use this site
               </p>
               <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                What this site world is good for.
+                What this listing is good for.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 Teams usually use this to answer a real deployment question before the expensive

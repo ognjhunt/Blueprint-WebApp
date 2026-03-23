@@ -12,10 +12,8 @@ export type AppRoute = {
 const Home = lazy(() => import("../pages/Home"));
 const Capture = lazy(() => import("../pages/Capture"));
 const CaptureAppPlaceholder = lazy(() => import("../pages/CaptureAppPlaceholder"));
-const Environments = lazy(() => import("../pages/Environments"));
 const BusinessSignUpFlow = lazy(() => import("../pages/BusinessSignUpFlow"));
 const OnboardingChecklist = lazy(() => import("../pages/OnboardingChecklist"));
-const EnvironmentDetail = lazy(() => import("../pages/EnvironmentDetail"));
 const Solutions = lazy(() => import("../pages/Solutions"));
 const ForSiteOperators = lazy(() => import("../pages/ForSiteOperators"));
 const ForRobotIntegrators = lazy(() => import("../pages/ForRobotIntegrators"));
@@ -32,6 +30,10 @@ const PilotExchangeGuide = lazy(() => import("../pages/PilotExchangeGuide"));
 const Portal = lazy(() => import("../pages/Portal"));
 const Login = lazy(() => import("../pages/Login"));
 const ForgotPassword = lazy(() => import("../pages/ForgotPassword"));
+const Careers = lazy(() => import("../pages/Careers"));
+const FAQ = lazy(() => import("../pages/FAQ"));
+const Governance = lazy(() => import("../pages/Governance"));
+const About = lazy(() => import("../pages/About"));
 const Privacy = lazy(() => import("../pages/Privacy"));
 const Terms = lazy(() => import("../pages/Terms"));
 const Settings = lazy(() => import("../pages/Settings"));
@@ -54,14 +56,6 @@ const LegacyPartnersRedirect = () => (
   <MarketingRedirect to="/contact" />
 );
 
-const LegacyDeploymentMarketplaceRedirect = () => (
-  <MarketingRedirect to="/qualified-opportunities" />
-);
-
-const LegacyDeploymentMarketplaceGuideRedirect = () => (
-  <MarketingRedirect to="/qualified-opportunities-guide" />
-);
-
 // Redirects from old site-worlds paths to new world-models paths
 const LegacySiteWorldsRedirect = () => (
   <MarketingRedirect to="/world-models" />
@@ -75,12 +69,12 @@ const LegacyForRobotIntegratorsRedirect = () => (
   <MarketingRedirect to="/for-robot-teams" />
 );
 
-const LegacyWorldModelsRedirect = () => (
-  <MarketingRedirect to="/world-models" />
-);
-
 const LegacyCapturerSignupRedirect = () => (
   <MarketingRedirect to="/capture-app" />
+);
+
+const LegacyLoginRedirect = () => (
+  <MarketingRedirect to="/sign-in" />
 );
 
 export const appRoutes: AppRoute[] = [
@@ -107,29 +101,15 @@ export const appRoutes: AppRoute[] = [
   { path: "/for-robot-teams", layout: "public", component: ForRobotIntegrators },
   { path: "/for-robot-integrators", layout: "public", component: LegacyForRobotIntegratorsRedirect },
 
-  // Legacy marketplace redirects
-  { path: "/marketplace", layout: "public", component: LegacyWorldModelsRedirect },
-  { path: "/marketplace/scenes", layout: "public", component: LegacyWorldModelsRedirect },
-  { path: "/marketplace/datasets", layout: "public", component: LegacyWorldModelsRedirect },
-  { path: "/environments", layout: "public", component: LegacyWorldModelsRedirect },
-  {
-    path: "/marketplace/scenes/:slug",
-    layout: "protected",
-    component: EnvironmentDetail,
-  },
-  {
-    path: "/marketplace/datasets/:slug",
-    layout: "protected",
-    component: EnvironmentDetail,
-  },
-  { path: "/marketplace/:slug", layout: "protected", component: EnvironmentDetail },
-  { path: "/environments/:slug", layout: "protected", component: EnvironmentDetail },
-
   // Core pages
   { path: "/solutions", layout: "public", component: Solutions },
   { path: "/pricing", layout: "public", component: Pricing },
   { path: "/contact", layout: "public", component: Contact },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
+  { path: "/faq", layout: "public", component: FAQ },
+  { path: "/governance", layout: "public", component: Governance },
+  { path: "/about", layout: "public", component: About },
+  { path: "/careers", layout: "public", component: Careers },
   { path: "/quality-standard", layout: "public", component: ReadinessPack },
   { path: "/readiness-pack", layout: "public", component: LegacyReadinessPackRedirect },
   { path: "/qualified-opportunities", layout: "public", component: PilotExchange },
@@ -140,23 +120,14 @@ export const appRoutes: AppRoute[] = [
   },
 
   // Legacy redirects
-  {
-    path: "/deployment-marketplace",
-    layout: "public",
-    component: LegacyDeploymentMarketplaceRedirect,
-  },
-  {
-    path: "/deployment-marketplace-guide",
-    layout: "public",
-    component: LegacyDeploymentMarketplaceGuideRedirect,
-  },
   { path: "/pilot-exchange", layout: "public", component: LegacyPilotExchangeRedirect },
   { path: "/pilot-exchange-guide", layout: "public", component: LegacyPilotExchangeGuideRedirect },
   { path: "/partners", layout: "public", component: LegacyPartnersRedirect },
 
   // Auth & account
   { path: "/portal", layout: "public", component: Portal },
-  { path: "/login", layout: "public", component: Login },
+  { path: "/sign-in", layout: "public", component: Login },
+  { path: "/login", layout: "public", component: LegacyLoginRedirect },
   { path: "/signup", layout: "public", component: BusinessSignUpFlow },
   { path: "/signup/business", layout: "public", component: BusinessSignUpFlow },
   { path: "/signup/capturer", layout: "public", component: LegacyCapturerSignupRedirect },

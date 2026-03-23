@@ -30,12 +30,15 @@ describe("public capture and world-model copy", () => {
 
     expect(screen.getAllByRole("link", { name: /Talk to Blueprint/i }).length).toBeGreaterThan(0);
     expect(
-      screen.getByRole("heading", { level: 1, name: /Capture real sites\. Run the exact world model later\./i }),
+      screen.getByRole("heading", { level: 1, name: /Inspect the real site before your team shows up\./i }),
     ).toBeInTheDocument();
     expect(container).toHaveTextContent(/world models/i);
     expect(container).toHaveTextContent(/capture/i);
     expect(container).toHaveTextContent(/robot teams?/i);
     expect(container).not.toHaveTextContent(/digital twin/i);
+    expect(container).not.toHaveTextContent(/SimReady/i);
+    expect(container).not.toHaveTextContent(/marketplace/i);
+    expect(container).not.toHaveTextContent(/environments/i);
 
     expect(container).not.toHaveTextContent(/adapter weights/i);
     expect(container).not.toHaveTextContent(/LoRA/i);

@@ -3,44 +3,43 @@ import fs from "node:fs";
 import path from "node:path";
 
 describe("Route registration", () => {
-  it("registers core concept routes", () => {
+  it("registers the canonical public routes", () => {
     const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
     const source = fs.readFileSync(routesPath, "utf-8");
 
-    expect(source).toContain('path: "/qualified-opportunities"');
-    expect(source).toContain('path: "/qualified-opportunities-guide"');
+    expect(source).toContain('path: "/"');
+    expect(source).toContain('path: "/world-models"');
+    expect(source).toContain('path: "/world-models/:slug"');
+    expect(source).toContain('path: "/capture-app"');
+    expect(source).toContain('path: "/for-robot-teams"');
+    expect(source).toContain('path: "/for-site-operators"');
+    expect(source).toContain('path: "/faq"');
+    expect(source).toContain('path: "/governance"');
+    expect(source).toContain('path: "/about"');
+    expect(source).toContain('path: "/careers"');
+    expect(source).toContain('path: "/sign-in"');
+  });
+
+  it("keeps legacy site-world slugs as redirect aliases", () => {
+    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
+    const source = fs.readFileSync(routesPath, "utf-8");
+
     expect(source).toContain('path: "/site-worlds"');
     expect(source).toContain('path: "/site-worlds/:slug"');
     expect(source).toContain('path: "/site-worlds/:slug/start"');
     expect(source).toContain('path: "/site-worlds/:slug/workspace"');
-    expect(source).toContain('path: "/marketplace"');
-    expect(source).toContain('path: "/how-it-works"');
-    expect(source).toContain('path: "/readiness-pack"');
-    expect(source).toContain('path: "/solutions"');
-    expect(source).toContain('path: "/pricing"');
   });
 
-  it("keeps legacy deployment-marketplace slugs as redirect aliases", () => {
+  it("does not expose legacy marketplace or environments routes", () => {
     const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
     const source = fs.readFileSync(routesPath, "utf-8");
 
-    expect(source).toContain('path: "/deployment-marketplace"');
-    expect(source).toContain('path: "/deployment-marketplace-guide"');
-    expect(source).toContain('path: "/pilot-exchange"');
-    expect(source).toContain('path: "/pilot-exchange-guide"');
-  });
-
-  it("does not expose deprecated public marketing routes", () => {
-    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
-    const source = fs.readFileSync(routesPath, "utf-8");
-
-    expect(source).not.toContain('path: "/why-simulation"');
-    expect(source).not.toContain('path: "/learn"');
-    expect(source).not.toContain('path: "/docs"');
-    expect(source).not.toContain('path: "/evals"');
-    expect(source).not.toContain('path: "/rl-training"');
-    expect(source).not.toContain('path: "/case-studies"');
-    expect(source).not.toContain('path: "/careers"');
+    expect(source).not.toContain('path: "/marketplace"');
+    expect(source).not.toContain('path: "/marketplace/scenes"');
+    expect(source).not.toContain('path: "/marketplace/datasets"');
+    expect(source).not.toContain('path: "/environments"');
+    expect(source).not.toContain('path: "/deployment-marketplace"');
+    expect(source).not.toContain('path: "/deployment-marketplace-guide"');
   });
 
   it("keeps canonical dashboard and off-waitlist routes reachable", () => {
@@ -58,5 +57,14 @@ describe("Route registration", () => {
     expect(source).toContain('path: "/capture-app"');
     expect(source).toContain('path: "/signup/capturer"');
     expect(source).toContain("LegacyCapturerSignupRedirect");
+  });
+
+  it("makes sign-in canonical and keeps login as a legacy alias", () => {
+    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
+    const source = fs.readFileSync(routesPath, "utf-8");
+
+    expect(source).toContain('path: "/sign-in"');
+    expect(source).toContain('path: "/login"');
+    expect(source).toContain("LegacyLoginRedirect");
   });
 });

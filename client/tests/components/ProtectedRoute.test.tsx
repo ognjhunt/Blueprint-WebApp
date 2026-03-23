@@ -19,7 +19,7 @@ describe('ProtectedRoute', () => {
     setLocationMock.mockClear();
   });
 
-  it('redirects unauthenticated users to login and stores redirect path', async () => {
+  it('redirects unauthenticated users to sign-in and stores redirect path', async () => {
     useAuthMock.mockReturnValue({
       currentUser: null,
       userData: null,
@@ -33,7 +33,7 @@ describe('ProtectedRoute', () => {
     );
 
     await waitFor(() => {
-      expect(setLocationMock).toHaveBeenCalledWith('/login');
+      expect(setLocationMock).toHaveBeenCalledWith('/sign-in');
     });
 
     expect(sessionStorage.getItem('redirectAfterAuth')).toBe('/');
