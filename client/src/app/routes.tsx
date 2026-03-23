@@ -22,6 +22,7 @@ const HostedSessionSetup = lazy(() => import("../pages/HostedSessionSetup"));
 const HostedSessionWorkspace = lazy(() => import("../pages/HostedSessionWorkspace"));
 const Pricing = lazy(() => import("../pages/Pricing"));
 const SampleDeliverables = lazy(() => import("../pages/SampleDeliverables"));
+const CaseStudies = lazy(() => import("../pages/CaseStudies"));
 const Contact = lazy(() => import("../pages/Contact"));
 const HowItWorks = lazy(() => import("../pages/HowItWorks"));
 const ReadinessPack = lazy(() => import("../pages/ReadinessPack"));
@@ -56,6 +57,10 @@ const LegacyPilotExchangeGuideRedirect = () => (
 
 const LegacyPartnersRedirect = () => (
   <MarketingRedirect to="/contact" />
+);
+
+const LegacyEnvironmentsRedirect = () => (
+  <MarketingRedirect to="/world-models" />
 );
 
 // Redirects from old site-worlds paths to new world-models paths
@@ -125,6 +130,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/solutions", layout: "public", component: Solutions },
   { path: "/pricing", layout: "public", component: Pricing },
   { path: "/sample-deliverables", layout: "public", component: SampleDeliverables },
+  { path: "/case-studies", layout: "public", component: CaseStudies },
   { path: "/contact", layout: "public", component: Contact },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
   { path: "/faq", layout: "public", component: FAQ },
@@ -146,6 +152,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/pilot-exchange", layout: "public", component: LegacyPilotExchangeRedirect },
   { path: "/pilot-exchange-guide", layout: "public", component: LegacyPilotExchangeGuideRedirect },
   { path: "/partners", layout: "public", component: LegacyPartnersRedirect },
+  { path: "/environments", layout: "public", component: LegacyEnvironmentsRedirect },
 
   // Auth & account
   { path: "/portal", layout: "public", component: Portal },

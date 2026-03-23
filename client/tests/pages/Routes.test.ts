@@ -13,6 +13,7 @@ describe("Route registration", () => {
     expect(source).toContain('path: "/capture-app"');
     expect(source).toContain('path: "/for-robot-teams"');
     expect(source).toContain('path: "/for-site-operators"');
+    expect(source).toContain('path: "/case-studies"');
     expect(source).toContain('path: "/faq"');
     expect(source).toContain('path: "/docs"');
     expect(source).toContain('path: "/blog"');
@@ -32,14 +33,15 @@ describe("Route registration", () => {
     expect(source).toContain('path: "/site-worlds/:slug/workspace"');
   });
 
-  it("does not expose legacy marketplace or environments routes", () => {
+  it("does not expose legacy marketplace routes and keeps environments as a redirect alias", () => {
     const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
     const source = fs.readFileSync(routesPath, "utf-8");
 
     expect(source).not.toContain('path: "/marketplace"');
     expect(source).not.toContain('path: "/marketplace/scenes"');
     expect(source).not.toContain('path: "/marketplace/datasets"');
-    expect(source).not.toContain('path: "/environments"');
+    expect(source).toContain('path: "/environments"');
+    expect(source).toContain("LegacyEnvironmentsRedirect");
     expect(source).not.toContain('path: "/deployment-marketplace"');
     expect(source).not.toContain('path: "/deployment-marketplace-guide"');
   });

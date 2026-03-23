@@ -383,12 +383,12 @@ export default async function handler(req: Request, res: Response) {
       const successUrl = resolveUrl(
         originBase,
         body.successPath,
-        "/environments?checkout=success",
+        "/world-models?checkout=success",
       );
       const cancelUrl = resolveUrl(
         originBase,
         body.cancelPath,
-        "/environments?checkout=cancel",
+        "/world-models?checkout=cancel",
       );
 
       const firebaseUser = (res.locals.firebaseUser || {}) as {

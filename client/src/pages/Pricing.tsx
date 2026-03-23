@@ -39,7 +39,7 @@ export default function Pricing() {
               Three ways to buy in.
             </h1>
             <p className="text-lg leading-8 text-slate-600">
-              Most teams start with one scene package or one hosted evaluation request. Use the
+              Most teams start with one site package or one hosted evaluation request. Use the
               package when you need the site assets. Use hosted evaluation when you need to run
               the site, inspect failures, and export site-specific data. Enterprise is there when
               you need custom capture, private access, or higher-touch support.

@@ -14,7 +14,7 @@ import {
 const navLinks = [
   { href: "/world-models", label: "World Models" },
   { href: "/pricing", label: "Pricing" },
-  { href: "/how-it-works", label: "How It Works" },
+  { href: "/case-studies", label: "Results" },
   { href: "/faq", label: "FAQ" },
 ];
 
@@ -71,10 +71,10 @@ export function Header() {
         </nav>
         <div className="hidden items-center gap-3 md:flex">
           <a
-            href="/contact?persona=robot-team&interest=evaluation-package"
+            href="/world-models/siteworld-f5fd54898cfb"
             className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
           >
-            Request evaluation
+            Open public demo
           </a>
           {!currentUser ? (
             <>
@@ -145,11 +145,11 @@ export function Header() {
               </a>
             ))}
             <a
-              href="/contact?persona=robot-team&interest=evaluation-package"
+              href="/world-models/siteworld-f5fd54898cfb"
               className="mt-2 inline-flex min-h-11 items-center justify-center rounded-full bg-slate-900 px-4 py-2.5 text-center text-white"
               onClick={() => setOpen(false)}
             >
-              Request evaluation
+              Open public demo
             </a>
             {!currentUser ? (
               <>

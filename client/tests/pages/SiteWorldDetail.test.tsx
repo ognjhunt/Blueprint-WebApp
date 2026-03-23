@@ -89,15 +89,17 @@ describe("SiteWorldDetail", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /What this listing is good for\./i }),
+      screen.getByText(
+        /Use this listing to review the real site, compare the package with the hosted evaluation path/i,
+      ),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Get the site package\./i }),
+      screen.getByRole("heading", { name: /Buy the site package\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Run this site hosted\./i }),
+      screen.getByRole("heading", { name: /Request hosted evaluation for this site\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /What a hosted session looks like/i })).toBeInTheDocument();
+    expect(screen.getByText(/What hosted evaluation looks like/i)).toBeInTheDocument();
     expect(screen.getByText(/Step 1/i)).toBeInTheDocument();
     expect(screen.getByText(/Pick the site/i)).toBeInTheDocument();
     expect(screen.getByText(/Step 8/i)).toBeInTheDocument();
@@ -108,14 +110,12 @@ describe("SiteWorldDetail", () => {
     expect(
       screen.getByRole("heading", { name: /What teams do with this world model/i }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /Example run for Harborview Grocery Distribution Annex/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/A sample review path for Harborview Grocery Distribution Annex/i)).toBeInTheDocument();
 
-    const sceneLink = screen.getByRole("link", { name: /Request scene package/i });
-    const sceneUrl = new URL(sceneLink.getAttribute("href")!, "https://example.com");
-    expect(sceneUrl.pathname).toBe("/contact");
-    expect(sceneUrl.searchParams.get("interest")).toBe("data-licensing");
+    const packageLink = screen.getByRole("link", { name: /Request site package/i });
+    const packageUrl = new URL(packageLink.getAttribute("href")!, "https://example.com");
+    expect(packageUrl.pathname).toBe("/contact");
+    expect(packageUrl.searchParams.get("interest")).toBe("data-licensing");
 
     const hostedLink = screen.getByRole("link", { name: /Request hosted evaluation/i });
     const hostedUrl = new URL(hostedLink.getAttribute("href")!, "https://example.com");

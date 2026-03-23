@@ -30,7 +30,7 @@ describe("public capture and world-model copy", () => {
 
     expect(screen.getAllByRole("link", { name: /Talk to Blueprint/i }).length).toBeGreaterThan(0);
     expect(
-      screen.getByRole("heading", { level: 1, name: /Inspect the real site before your team shows up\./i }),
+      screen.getByRole("heading", { level: 1, name: /Inspect the exact site before your team books the visit\./i }),
     ).toBeInTheDocument();
     expect(container).toHaveTextContent(/world models/i);
     expect(container).toHaveTextContent(/capture/i);

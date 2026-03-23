@@ -28,7 +28,7 @@ const buyerSteps = [
     step: "03",
     title: "Request the right path",
     description:
-      "Ask for the scene package or a hosted evaluation with the site, task, and robot context already attached.",
+      "Ask for the site package or a hosted evaluation with the site, task, and robot context already attached.",
     icon: Play,
   },
   {

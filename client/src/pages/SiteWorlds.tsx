@@ -9,7 +9,7 @@ import { useSearch } from "wouter";
 
 const layerCards = [
   {
-    title: "Buy the scene package",
+    title: "Buy the site package",
     kicker: "Option 1",
     description:
       "Use this when your team needs the site files, package notes, and rights context for internal review or integration work.",
@@ -125,8 +125,8 @@ export default function SiteWorlds() {
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
                 Each world model is built from real indoor capture and tied to one site and one
-                workflow. Open a listing to see the package price, the hosted evaluation rate, and
-                whether the site is a fit before deployment work starts.
+                workflow. Open a listing to see the site package price, the hosted evaluation
+                rate, and whether the site is a fit before deployment work starts.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -153,7 +153,7 @@ export default function SiteWorlds() {
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                  <span>A scene-package price and a hosted-evaluation path</span>
+                  <span>A site-package price and a hosted-evaluation path</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
@@ -172,7 +172,7 @@ export default function SiteWorlds() {
                 Access options
               </p>
               <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                Two ways into the same site.
+                Choose how you want access.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 Some teams need the package first. Others already know they need hosted runtime
@@ -209,9 +209,9 @@ export default function SiteWorlds() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                 Why teams buy this
               </p>
-                <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                  Common reasons teams buy one of these.
-                </h2>
+              <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
+                Common reasons robot teams use world models.
+              </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 These are practical reasons to use it before you commit travel, pilot time, or
                 customer time.
@@ -245,7 +245,7 @@ export default function SiteWorlds() {
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                {filteredSites.length} listed sites · each listing shows its own package price and hosted rate
+                {filteredSites.length} listed sites · each listing shows its own site-package price and hosted rate
               </div>
             </div>
 

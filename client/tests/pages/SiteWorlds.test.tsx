@@ -8,12 +8,12 @@ describe("SiteWorlds", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Train and evaluate on the exact site before your team shows up\./i,
+        name: /Find the site before your team books the visit\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Each world model is built from real indoor captures and tied to a specific site and workflow\./i,
+        /Each world model is built from real indoor capture and tied to one site and one workflow\./i,
       ),
     ).toBeInTheDocument();
     expect(
@@ -22,8 +22,8 @@ describe("SiteWorlds", () => {
     expect(
       screen.getByRole("heading", { name: /Common reasons robot teams use world models\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Get the package/i)).toBeInTheDocument();
-    expect(screen.getByText(/Run it hosted/i)).toBeInTheDocument();
+    expect(screen.getByText(/Buy the site package/i)).toBeInTheDocument();
+    expect(screen.getByText(/Request a hosted evaluation/i)).toBeInTheDocument();
     expect(
       screen.getByText(/A site-faithful model of the exact workflow area/i),
     ).toBeInTheDocument();
@@ -32,12 +32,12 @@ describe("SiteWorlds", () => {
     expect(screen.getAllByText(/Public walkthrough/i).length).toBeGreaterThan(0);
     expect(screen.queryByText(/Likely buyer:/i)).not.toBeInTheDocument();
 
-    const sceneLinks = screen.getAllByRole("link", { name: /Request scene package/i });
-    const sceneUrl = new URL(sceneLinks[0].getAttribute("href")!, "https://example.com");
-    expect(sceneUrl.pathname).toBe("/contact");
-    expect(sceneUrl.searchParams.get("interest")).toBe("data-licensing");
-    expect(sceneUrl.searchParams.get("buyerType")).toBe("robot_team");
-    expect(sceneUrl.searchParams.get("siteName")).toBe("Harborview Grocery Distribution Annex");
+    const packageLinks = screen.getAllByRole("link", { name: /Request site package/i });
+    const packageUrl = new URL(packageLinks[0].getAttribute("href")!, "https://example.com");
+    expect(packageUrl.pathname).toBe("/contact");
+    expect(packageUrl.searchParams.get("interest")).toBe("data-licensing");
+    expect(packageUrl.searchParams.get("buyerType")).toBe("robot_team");
+    expect(packageUrl.searchParams.get("siteName")).toBe("Harborview Grocery Distribution Annex");
 
     const hostedLinks = screen.getAllByRole("link", { name: /Request hosted evaluation/i });
     const hostedUrl = new URL(hostedLinks[0].getAttribute("href")!, "https://example.com");

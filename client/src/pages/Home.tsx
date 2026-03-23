@@ -1,8 +1,15 @@
 import { SEO } from "@/components/SEO";
 import { OfferComparison } from "@/components/site/OfferComparison";
-import { proofHighlights, proofReelPosterSrc, proofReelVideoSrc } from "@/lib/marketingProof";
+import {
+  proofHighlights,
+  proofReelPosterSrc,
+  proofReelVideoSrc,
+  publicDemoHref,
+  resultHighlights,
+} from "@/lib/marketingProof";
 import {
   ArrowRight,
+  BarChart3,
   Camera,
   CheckCircle2,
   FolderOutput,
@@ -69,7 +76,7 @@ export default function Home() {
     <>
       <SEO
         title="Blueprint | World Models For Robot Teams"
-        description="Blueprint helps robot teams buy access to the exact site they need, review concrete deliverables, and request hosted evaluations that produce site-specific data grounded in real indoor capture."
+        description="Blueprint helps robot teams inspect the exact site they need before travel, buy the site package, or request a hosted evaluation on that same real facility."
         canonical="/"
       />
 
@@ -84,37 +91,37 @@ export default function Home() {
                   For Robot Teams
                 </p>
                 <h1 className="mt-5 max-w-4xl text-5xl font-semibold tracking-tight text-slate-950 sm:text-6xl">
-                  See the exact site before your robot shows up.
+                  Inspect the exact site before your team books the visit.
                 </h1>
                 <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
-                  Blueprint sells site-specific world models built from real indoor capture. Buy
-                  the scene package, request a hosted evaluation to run the site and generate
-                  site-specific data, or scope custom work around one facility before travel,
-                  pilots, or on-site debugging starts.
+                  Blueprint gives robot teams a world model of one real facility and workflow.
+                  Start with the public demo, buy the site package, request a hosted evaluation on
+                  that same site, or scope custom work before travel, pilots, or on-site debugging
+                  begin.
                 </p>
                 <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
-                  Most teams know what they need within a minute: the package, the evaluation
-                  path, or a custom conversation.
+                  In the first minute, you should be able to tell what it is, whether it matches
+                  your robot, and what the next step is.
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <a
-                    href="/world-models"
+                    href={publicDemoHref}
                     className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                   >
-                    Browse world models
+                    Open public demo
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
-                    href="/sample-deliverables"
+                    href="/world-models"
                     className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
                   >
-                    See sample deliverables
+                    Browse world models
                   </a>
                   <a
-                    href="/contact?persona=robot-team&interest=evaluation-package"
+                    href="/case-studies"
                     className="inline-flex items-center justify-center rounded-full border border-transparent px-3 py-3 text-sm font-semibold text-slate-700 transition hover:text-slate-950"
                   >
-                    Request evaluation
+                    See results
                   </a>
                 </div>
               </div>
@@ -142,9 +149,8 @@ export default function Home() {
                     See the site, the deliverables, and the next step in one pass.
                   </h2>
                   <p className="mt-4 text-sm leading-7 text-slate-600">
-                    The public sample follows one real listing from first look to hosted review
-                    and export-ready output. If you want to know what the product actually feels
-                    like, start there.
+                    The public demo is the fastest way to understand the product. It follows one
+                    real listing from first look to hosted review and export-ready output.
                   </p>
                   <ul className="mt-5 space-y-3">
                     {proofHighlights.map((item) => (
@@ -154,6 +160,20 @@ export default function Home() {
                       </li>
                     ))}
                   </ul>
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    <a
+                      href={publicDemoHref}
+                      className="inline-flex items-center justify-center rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                    >
+                      Start with the demo
+                    </a>
+                    <a
+                      href="/sample-deliverables"
+                      className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+                    >
+                      See sample deliverables
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>
@@ -211,6 +231,41 @@ export default function Home() {
                 );
               })}
             </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Results
+              </p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+                Delivery examples with concrete outcomes.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-slate-600">
+                The product proof is stronger when buyers can inspect examples of work that led to
+                specific outcomes, not just the package anatomy.
+              </p>
+            </div>
+            <a
+              href="/case-studies"
+              className="inline-flex items-center gap-2 self-start rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+            >
+              <BarChart3 className="h-4 w-4" />
+              Open results page
+            </a>
+          </div>
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            {resultHighlights.map((item) => (
+              <article key={item.title} className="rounded-[1.75rem] border border-slate-200 bg-white p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  {item.outcome}
+                </p>
+                <h3 className="mt-3 text-xl font-semibold text-slate-900">{item.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-slate-600">{item.detail}</p>
+              </article>
+            ))}
           </div>
         </section>
 

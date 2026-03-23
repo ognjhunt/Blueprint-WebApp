@@ -105,7 +105,7 @@ export type ThumbnailKind =
   | "hospital"
   | "electronics";
 
-export type SiteWorldPackageName = "Scene Package" | "Hosted Evaluation";
+export type SiteWorldPackageName = "Site Package" | "Hosted Evaluation";
 
 export type SiteWorldPackage = {
   name: SiteWorldPackageName;
@@ -651,11 +651,11 @@ function buildContactHref(
 function buildPackages(config: PackageConfig): [SiteWorldPackage, SiteWorldPackage] {
   return [
     {
-      name: "Scene Package",
+      name: "Site Package",
       summary: "License the site-specific world-model package for this exact workflow area.",
       priceLabel: config.scenePrice,
       payerLabel: "Robot team",
-      actionLabel: "Request scene package",
+      actionLabel: "Request site package",
       actionHref: buildContactHref("data-licensing", config),
       deliverables: [
         "Walkthrough video and camera poses",

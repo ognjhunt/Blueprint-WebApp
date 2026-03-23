@@ -741,7 +741,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             <div className="flex items-center gap-2">
               <ScanLine className="h-5 w-5 text-slate-700" />
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Scene Package
+                Site Package
               </p>
             </div>
             <div className="mt-3 grid gap-6 lg:grid-cols-[1fr_0.9fr]">

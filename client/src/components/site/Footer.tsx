@@ -1,8 +1,9 @@
 const coreLinks = [
   { label: "World Models", href: "/world-models" },
+  { label: "Public Demo", href: "/world-models/siteworld-f5fd54898cfb" },
   { label: "Sample Deliverables", href: "/sample-deliverables" },
+  { label: "Results", href: "/case-studies" },
   { label: "Pricing", href: "/pricing" },
-  { label: "How It Works", href: "/how-it-works" },
   { label: "FAQ", href: "/faq" },
   { label: "Contact", href: "/contact?persona=robot-team" },
 ];

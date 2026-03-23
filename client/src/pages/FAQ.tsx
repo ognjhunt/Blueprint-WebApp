@@ -9,12 +9,12 @@ const faqs = [
   {
     question: "What does a buyer actually receive?",
     answer:
-      "Each listing shows the same basic split: scene package or hosted evaluation. The package usually includes walkthrough media, site notes, and any geometry or depth artifacts available for that site. Hosted evaluation is the managed runtime path for reruns, exports, and failure review.",
+      "Each listing shows the same basic split: site package or hosted evaluation. The package usually includes walkthrough media, site notes, and any geometry or depth artifacts available for that site. Hosted evaluation is the managed runtime path for reruns, exports, and failure review.",
   },
   {
     question: "How is this priced?",
     answer:
-      "Pricing is listing-specific because the useful output depends on the site and the access mode. The catalog shows scene-package pricing and hosted-session pricing directly on each listing, and the pricing page summarizes the typical ranges.",
+      "Pricing is listing-specific because the useful output depends on the site and the access mode. The catalog shows site-package pricing and hosted-session pricing directly on each listing, and the pricing page summarizes the typical ranges.",
   },
   {
     question: "What formats and exports should we expect?",
@@ -81,8 +81,8 @@ export default function FAQ() {
               Straight answers about what Blueprint sells.
             </h1>
             <p className="mt-4 text-lg leading-relaxed text-slate-600">
-              This page exists for one reason: a buyer should be able to tell whether the product
-              is real, relevant, and worth a closer look.
+              Use this page to understand the product, the package-vs-hosted split, and what a
+              buyer should know before requesting access.
             </p>
           </div>
 

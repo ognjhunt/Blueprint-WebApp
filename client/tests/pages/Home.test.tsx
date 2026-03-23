@@ -19,29 +19,29 @@ describe("Home", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Buy access to the exact site your robot needs\./i,
+        name: /Inspect the exact site before your team books the visit\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Blueprint sells site-specific world models built from real indoor capture\./i,
+        /Blueprint gives robot teams a world model of one real facility and workflow\./i,
       ),
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open public demo/i })).toHaveAttribute(
+      "href",
+      "/world-models/siteworld-f5fd54898cfb",
+    );
     expect(screen.getByRole("link", { name: /Browse world models/i })).toHaveAttribute(
       "href",
       "/world-models",
     );
-    expect(screen.getByRole("link", { name: /Request hosted eval/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /See results/i })).toHaveAttribute(
       "href",
-      "/contact?persona=robot-team&interest=evaluation-package",
-    );
-    expect(screen.getByRole("link", { name: /See sample deliverables/i })).toHaveAttribute(
-      "href",
-      "/world-models/sw-chi-01",
+      "/case-studies",
     );
     expect(
       screen.getByText(
-        /The proof reel is there to show one concrete listing end to end/i,
+        /The public demo is the fastest way to understand the product/i,
       ),
     ).toBeInTheDocument();
   });
@@ -52,7 +52,7 @@ describe("Home", () => {
 
     expect(screen.getByText(/Why teams buy/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Keep the path simple\./i }),
+      screen.getByRole("heading", { name: /Delivery examples with concrete outcomes\./i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {

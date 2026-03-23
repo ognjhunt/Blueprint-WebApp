@@ -9,7 +9,7 @@ type OfferComparisonProps = {
 
 const offerCards = [
   {
-    title: "Scene package",
+    title: "Site package",
     price: "$2,100 - $3,400",
     description:
       "Buy the site files and package notes for one real facility and one workflow lane.",
@@ -19,7 +19,7 @@ const offerCards = [
       "Rights, freshness, and package notes",
     ],
     href: "/world-models",
-    cta: "Browse packages",
+    cta: "Browse site packages",
     icon: ScanLine,
     accent: "bg-slate-950 text-white",
     cardTone: "border-slate-200 bg-white",

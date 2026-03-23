@@ -1,6 +1,7 @@
 import { SEO } from "@/components/SEO";
 import { ProofModule } from "@/components/site/ProofModule";
 import {
+  publicDemoHref,
   proofReferenceImageSrc,
   proofReelPosterSrc,
 } from "@/lib/marketingProof";
@@ -100,7 +101,7 @@ export default function SampleDeliverables() {
 
           <section className="mt-10 grid gap-4 lg:grid-cols-3">
             <article className="rounded-[2rem] border border-slate-200 bg-white p-6">
-              <h2 className="text-2xl font-semibold text-slate-900">Scene package</h2>
+              <h2 className="text-2xl font-semibold text-slate-900">Site package</h2>
               <ul className="mt-5 space-y-3">
                 {packageArtifacts.map((item) => (
                   <li key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
@@ -164,17 +165,17 @@ export default function SampleDeliverables() {
 
           <div className="mt-10 flex flex-col gap-3 sm:flex-row">
             <a
-              href="/world-models"
+              href={publicDemoHref}
               className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Browse world models
+              Open public demo
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
             <a
-              href="/contact?persona=robot-team&interest=evaluation-package"
+              href="/world-models"
               className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
             >
-              Request evaluation
+              Browse world models
             </a>
           </div>
         </div>

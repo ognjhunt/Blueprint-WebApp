@@ -20,6 +20,7 @@ import ForRobotIntegrators from "../client/src/pages/ForRobotIntegrators";
 import Solutions from "../client/src/pages/Solutions";
 import Pricing from "../client/src/pages/Pricing";
 import SampleDeliverables from "../client/src/pages/SampleDeliverables";
+import CaseStudies from "../client/src/pages/CaseStudies";
 import Contact from "../client/src/pages/Contact";
 import HowItWorks from "../client/src/pages/HowItWorks";
 import FAQ from "../client/src/pages/FAQ";
@@ -57,6 +58,7 @@ const staticRoutes: StaticRoute[] = [
   { path: "/solutions", component: Solutions },
   { path: "/pricing", component: Pricing },
   { path: "/sample-deliverables", component: SampleDeliverables },
+  { path: "/case-studies", component: CaseStudies },
   { path: "/contact", component: Contact },
   { path: "/how-it-works", component: HowItWorks },
   { path: "/faq", component: FAQ },
