@@ -1,6 +1,8 @@
 const footerLinks = [
   { label: "World Models", href: "/world-models" },
   { label: "For Robot Teams", href: "/for-robot-teams" },
+  { label: "Pricing", href: "/pricing" },
+  { label: "How It Works", href: "/how-it-works" },
   { label: "For Site Operators", href: "/for-site-operators" },
   { label: "Capture App", href: "/capture-app" },
   { label: "Careers", href: "/careers" },
@@ -24,8 +26,8 @@ export function Footer() {
             Blueprint
           </a>
           <p className="text-sm text-slate-500">
-            Blueprint helps robot teams inspect a real site before travel, tuning, or customer
-            time starts.
+            Blueprint helps robot teams train, evaluate, and generate data on the real site before
+            travel or customer time starts.
           </p>
         </div>
         <nav className="grid flex-1 grid-cols-2 gap-3 text-sm text-slate-600 sm:grid-cols-3">
@@ -39,7 +41,7 @@ export function Footer() {
       <div className="border-t border-slate-200 bg-white py-4">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>Real sites. Clear deliverables. Hosted access when the workflow matters.</p>
+          <p>Real sites. Grounded world models. Hosted access when the workflow matters.</p>
         </div>
       </div>
     </footer>

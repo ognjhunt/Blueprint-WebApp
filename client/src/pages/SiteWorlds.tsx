@@ -41,7 +41,7 @@ const useCaseCards = [
       "See if your robot can localize, fit, see the task, and finish the job before anyone goes on site.",
   },
   {
-    title: "Make site-specific data",
+    title: "Generate site-specific data",
     description:
       "Render views, vary scenarios, and export outputs for training, debugging, or internal review.",
   },
@@ -91,7 +91,7 @@ export default function SiteWorlds() {
     <>
       <SEO
         title="World Models | Blueprint"
-        description="Browse site-specific world models of real indoor spaces. Buy packaged access or open a hosted session on the exact site your robot cares about."
+        description="Browse site-specific world models of real indoor spaces for robot tuning, evaluation, and hosted access."
         canonical="/world-models"
       />
 
@@ -121,11 +121,11 @@ export default function SiteWorlds() {
                 World Models
               </p>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Review the exact site before your team shows up.
+                Train and evaluate on the exact site before your team shows up.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
                 Each world model is built from real indoor captures and tied to a specific site and
-                workflow. Use it to review deliverables, compare releases, generate site-specific
+                workflow. Use it to fine-tune policies, compare releases, generate site-specific
                 outputs, and decide whether a hosted session is worth opening before deployment.
               </p>
               <div className="flex flex-wrap gap-3">
@@ -149,15 +149,15 @@ export default function SiteWorlds() {
               <ul className="mt-3 space-y-2 text-sm text-slate-600">
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                  <span>A model of the exact site and workflow</span>
+                  <span>A site-faithful model of the exact workflow area</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                  <span>A package you can buy or a hosted session you can run</span>
+                  <span>A package you can license or a hosted session you can run</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                  <span>Repeatable runs and exportable outputs</span>
+                  <span>Repeatable runs, exportable outputs, and checkpoint comparison</span>
                 </li>
               </ul>
             </div>
@@ -241,7 +241,7 @@ export default function SiteWorlds() {
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
                   Open any site to see what the workflow looks like, what your team can buy, and
-                  how to start a hosted session.
+                  how to start a hosted session for tuning, evals, or review.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
@@ -366,72 +366,6 @@ export default function SiteWorlds() {
                     ) : null}
 
                     <div className="space-y-2.5">
-                      {site.deploymentReadiness ? (
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                            Deployment Readiness
-                          </p>
-                          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                            <div className="rounded-xl bg-white px-3 py-2">
-                              <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                                Status
-                              </p>
-                              <p className="mt-1 text-sm font-semibold text-slate-900">
-                                {String(site.deploymentReadiness.qualification_state || "unknown").replaceAll("_", " ")}
-                              </p>
-                            </div>
-                            <div className="rounded-xl bg-white px-3 py-2">
-                              <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                                Benchmarks
-                              </p>
-                              <p className="mt-1 text-sm font-semibold text-slate-900">
-                                {site.deploymentReadiness.benchmark_coverage_status || "missing"}
-                                {typeof site.deploymentReadiness.benchmark_task_count === "number"
-                                  ? ` · ${site.deploymentReadiness.benchmark_task_count} tasks`
-                                  : ""}
-                              </p>
-                            </div>
-                            <div className="rounded-xl bg-white px-3 py-2">
-                              <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                                Exports
-                              </p>
-                              <p className="mt-1 text-sm font-semibold text-slate-900">
-                                {site.deploymentReadiness.export_readiness_status || "missing"}
-                              </p>
-                            </div>
-                            <div className="rounded-xl bg-white px-3 py-2">
-                              <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                                Native
-                              </p>
-                              <p className="mt-1 text-sm font-semibold text-slate-900">
-                                {site.deploymentReadiness.native_world_model_primary
-                                  ? "Primary"
-                                  : site.deploymentReadiness.native_world_model_status || "not_ready"}
-                              </p>
-                            </div>
-                            <div className="rounded-xl bg-white px-3 py-2">
-                              <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                                Fallback
-                              </p>
-                              <p className="mt-1 text-sm font-semibold text-slate-900">
-                                {site.deploymentReadiness.provider_fallback_only
-                                  ? "Fallback only"
-                                  : site.deploymentReadiness.provider_fallback_preview_status || "not_requested"}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="mt-3 rounded-xl bg-white px-3 py-2">
-                            <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                              Refresh
-                            </p>
-                            <p className="mt-1 text-sm font-semibold text-slate-900">
-                              {site.deploymentReadiness.recapture_required
-                                ? "Needs refresh"
-                                : site.deploymentReadiness.recapture_status || "Current"}
-                            </p>
-                          </div>
-                        </div>
-                      ) : null}
                       {site.packages.map((pkg) => (
                         <div
                           key={pkg.name}

@@ -81,7 +81,6 @@ const SITE_WORLD_FIXTURE_MODE =
     ? "production"
     : rawSiteWorldMode || rawNodeEnv || "development";
 const DEMO_SITE_WORLDS_ENABLED = isTruthyFlag(readHostedDemoEnv("ENABLE_DEMO_SITE_WORLDS"));
-const STATIC_SITE_WORLD_FIXTURES_ENABLED = SITE_WORLD_FIXTURE_MODE !== "production";
 
 export type SiteCategory =
   | "All"
@@ -404,7 +403,7 @@ function buildHostedDemoOverrideCard(): SiteWorldCard | null {
       siteId: siteWorldId,
       siteName,
       siteAddress,
-      scenePrice: "$0",
+      scenePrice: "Public walkthrough",
       hostedRate: "Tunnel runtime",
       sampleTask: HOSTED_DEMO_TASK_TEXT,
       sampleRobot: "Mobile manipulator with head RGB camera",
@@ -1101,9 +1100,10 @@ const rawSiteWorldCards: RawSiteWorldCard[] = [
   },
 ];
 
-export const siteWorldCards: SiteWorldCard[] = STATIC_SITE_WORLD_FIXTURES_ENABLED
-  ? rawSiteWorldCards.map(withDerivedSessionDefaults)
-  : [];
+// The marketing site needs a stable public fallback catalog even in production.
+// Live inventory can replace this via the API, but the public sample listings
+// should still render when that API is unavailable.
+export const siteWorldCards: SiteWorldCard[] = rawSiteWorldCards.map(withDerivedSessionDefaults);
 
 if (DEMO_SITE_WORLDS_ENABLED || SITE_WORLD_FIXTURE_MODE !== "production") {
   siteWorldCards.push({
@@ -1275,5 +1275,16 @@ if (hostedDemoOverrideCard && (DEMO_SITE_WORLDS_ENABLED || SITE_WORLD_FIXTURE_MO
 }
 
 export function getSiteWorldById(id: string) {
-  return siteWorldCards.find((site) => site.id === id) ?? null;
+  const normalized = String(id || "").trim().replace(/^\/+|\/+$/g, "").toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
+  return (
+    siteWorldCards.find((site) => {
+      const siteId = String(site.id || "").trim().replace(/^\/+|\/+$/g, "").toLowerCase();
+      const siteCode = String(site.siteCode || "").trim().replace(/^\/+|\/+$/g, "").toLowerCase();
+      return siteId === normalized || siteCode === normalized;
+    }) ?? null
+  );
 }

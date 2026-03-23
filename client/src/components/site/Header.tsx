@@ -13,8 +13,8 @@ import {
 
 const navLinks = [
   { href: "/world-models", label: "World Models" },
-  { href: "/for-robot-teams", label: "For Robot Teams" },
-  { href: "/docs", label: "Docs" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/how-it-works", label: "How It Works" },
   { href: "/faq", label: "FAQ" },
   { href: "/contact?persona=robot-team", label: "Contact" },
 ];

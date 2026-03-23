@@ -1,5 +1,5 @@
 import { StrictMode, Suspense } from "react";
-import { createRoot, hydrateRoot } from "react-dom/client";
+import { createRoot } from "react-dom/client";
 import { Route, Switch } from "wouter";
 import "./index.css";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -75,8 +75,14 @@ const app = (
 );
 
 const rootElement = document.getElementById("root")!;
+
+// Prerendered HTML serves SEO crawlers that don't run JS.
+// Lazy-loaded routes inside Suspense produce a LoadingScreen fallback on first
+// render, which never matches the prerendered markup. React's hydration then
+// fails and leaves duplicate DOM nodes. Clearing the prerendered content and
+// using createRoot avoids the mismatch entirely — the JS bundle renders the
+// real page almost immediately.
 if (rootElement.hasChildNodes()) {
-  hydrateRoot(rootElement, app);
-} else {
-  createRoot(rootElement).render(app);
+  rootElement.textContent = "";
 }
+createRoot(rootElement).render(app);

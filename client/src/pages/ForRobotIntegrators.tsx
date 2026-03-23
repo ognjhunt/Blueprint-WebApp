@@ -5,9 +5,9 @@ import { FileCheck2, Gauge, GitBranchPlus, Play, Share2 } from "lucide-react";
 
 const useCaseCards = [
   {
-    title: "Test before travel",
+    title: "Tune before travel",
     description:
-      "Check whether your robot can move through the site, see the task, and finish the job before anyone gets on a plane.",
+      "Fine-tune the policy against the actual deployment layout before anyone gets on a plane.",
     icon: <Gauge className="h-5 w-5 text-slate-700" />,
   },
   {
@@ -37,9 +37,9 @@ const useCaseCards = [
 ];
 
 const includedItems = [
-  "A hosted world model of a real site and workflow",
-  "Resettable runs on the same site so results are easier to compare",
-  "Scenario changes and rollout exports for debugging or data work",
+  "A hosted world model of one real site and workflow",
+  "Resettable runs on the same site so checkpoints are easier to compare",
+  "Scenario changes and rollout exports for debugging, tuning, or data work",
   "A simple browser path for remote review and customer demos",
 ];
 
@@ -50,7 +50,7 @@ export default function ForRobotIntegrators() {
     <>
       <SEO
         title="For Robot Teams | Blueprint"
-        description="Blueprint helps robot teams buy site-specific world models and hosted access built from real indoor capture."
+        description="Blueprint helps robot teams buy site-specific world models for tuning, evaluation, and hosted access built from real indoor capture."
         canonical="/for-robot-teams"
       />
 
@@ -71,8 +71,8 @@ export default function ForRobotIntegrators() {
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
                 Blueprint gives robot teams site-specific world models and hosted sessions built
-                from real indoor capture. Trust checks still exist, but they support the product
-                instead of replacing it.
+                from real indoor capture. Use them to tune policies, run evals, compare releases,
+                and generate site-specific data before the real visit starts.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -98,13 +98,17 @@ export default function ForRobotIntegrators() {
             >
               <p className="text-sm font-semibold text-slate-900">What this is</p>
               <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                A direct path to real-site world models, hosted sessions, and optional support when the site matters.
+                A direct path to real-site world models, hosted sessions, and exportable outputs when the site matters.
               </p>
               <p className="mt-5 text-sm font-semibold text-slate-900">What it helps with</p>
               <ul className="mt-3 space-y-2 text-sm text-slate-600">
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
                   <span>Validation before the site visit</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
+                  <span>Policy tuning on the actual facility</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
@@ -125,7 +129,8 @@ export default function ForRobotIntegrators() {
                   What robot teams use Blueprint for.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  The point is simple: give your team the exact site in a useful format before travel, tuning, or customer time starts.
+                  The point is simple: give your team the exact site in a format that is useful for
+                  tuning, evals, and review before travel or customer time starts.
                 </p>
               </div>
             </ScrollReveal>
@@ -169,7 +174,9 @@ export default function ForRobotIntegrators() {
               >
                 <h2 className="text-2xl font-bold">What to expect</h2>
                 <p className="mt-4 text-sm leading-7 text-white">
-                  This is strong for site-specific testing, synthetic data generation, release checks, and customer demos. It is not the final deployment signoff and it does not replace stack-specific validation.
+                  This is strong for site-specific tuning, synthetic data generation, release checks,
+                  and customer demos. It is not final deployment signoff and it does not replace
+                  stack-specific validation.
                 </p>
               </motion.article>
             </ScrollReveal>

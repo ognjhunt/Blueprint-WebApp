@@ -69,7 +69,7 @@ export default function ForSiteOperators() {
     <>
       <SEO
         title="For Site Operators | Blueprint"
-        description="Blueprint helps site operators control capture access, rights, and commercialization for site-specific world models."
+        description="Blueprint helps site operators control access, rights, and commercialization for site-specific world models used by robot teams."
         canonical="/for-site-operators"
       />
 
@@ -87,8 +87,8 @@ export default function ForSiteOperators() {
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
                 Register the site, set access and privacy rules, and choose whether Blueprint can
-                commercialize capture from your facility. Optional review and qualification support
-                stays available, but it is not the only reason to participate.
+                commercialize capture from your facility. That gives robot teams a grounded place
+                to train, evaluate, and plan against under rules you control.
               </p>
             </div>
           </ScrollReveal>
@@ -128,22 +128,18 @@ export default function ForSiteOperators() {
                 <div>
                   <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
                     <TrendingUp className="h-4 w-4" />
-                    Potential earnings
+                    Access control
                   </p>
-                  <p className="mt-2 text-3xl font-bold">
-                    $<AnimatedCounter value={100} duration={700} />-$<AnimatedCounter value={500} duration={1000} />
-                  </p>
-                  <p className="mt-1 text-sm text-zinc-400">per month for popular location types</p>
+                  <p className="mt-2 text-3xl font-bold">Case by case</p>
+                  <p className="mt-1 text-sm text-zinc-400">Approve capture windows, restricted zones, and downstream usage terms.</p>
                 </div>
                 <div>
                   <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
                     <Shield className="h-4 w-4" />
                     Upfront cost
                   </p>
-                  <p className="mt-2 text-3xl font-bold">
-                    $<AnimatedCounter value={0} duration={400} />
-                  </p>
-                  <p className="mt-1 text-sm text-zinc-400">free to register, you only earn</p>
+                  <p className="mt-2 text-3xl font-bold">No upfront fee</p>
+                  <p className="mt-1 text-sm text-zinc-400">Register the facility first. Earn only when approved usage turns into sales.</p>
                 </div>
               </div>
             </section>

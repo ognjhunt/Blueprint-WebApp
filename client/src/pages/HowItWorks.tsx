@@ -49,13 +49,13 @@ const threeWhy = [
   {
     title: "Site-specific beats generalized",
     description:
-      "Research keeps pointing in the same direction: teams learn more from the real site than from a generic stand-in. Blueprint gives them that site earlier.",
+      "When a robot must work in one exact facility, the layout, lighting, bottlenecks, and task setup matter. Blueprint gives teams that site early enough to tune against it.",
     icon: <MapPinned className="h-6 w-6" />,
   },
   {
     title: "Real capture is the moat",
     description:
-      "Anyone can claim a broad platform story. The harder part is turning messy real capture into a package a buyer can trust and use.",
+      "Anyone can pitch a broad robotics platform story. The harder part is turning messy real capture into a package, hosted run, and data surface a buyer can actually use.",
     icon: <ShieldCheck className="h-6 w-6" />,
   },
   {
@@ -93,7 +93,7 @@ const pipelineSteps = [
     title: "Run or buy access",
     icon: <Bot className="h-5 w-5" />,
     description:
-      "Robot teams buy access to the exact site, open a hosted session, export outputs, and use the same environment for demos, evals, and release checks.",
+      "Robot teams buy access to the exact site, open a hosted session, export outputs, and use the same environment for tuning, evals, release checks, and demos.",
   },
 ];
 
@@ -144,7 +144,7 @@ export default function HowItWorks() {
     <>
       <SEO
         title="How It Works | Blueprint"
-        description="How Blueprint moves from real-world capture into site-specific world models, hosted access, and optional trust checks."
+        description="How Blueprint turns real-world capture into site-specific world models for robot training, evaluation, and hosted access."
         canonical="/how-it-works"
       />
 
@@ -180,7 +180,9 @@ export default function HowItWorks() {
                     transition={{ duration: 0.5, delay: 0.2 }}
                     className="max-w-2xl text-lg leading-relaxed text-zinc-600"
                   >
-                    Blueprint starts with real-world capture, turns it into site-specific world models, and gives robot teams a browser path into the exact site they care about.
+                    Blueprint starts with real-world capture, turns it into a site-specific
+                    world model, and gives robot teams a browser path into the exact facility
+                    they want to train on, evaluate against, or review with a customer.
                   </motion.p>
                 </div>
 
@@ -272,9 +274,9 @@ export default function HowItWorks() {
                   Why this works
                 </h2>
                 <p className="mt-4 text-zinc-600">
-                  Professional 3D scanning costs $1,000-$3,500 per site and doesn't scale.
-                  Blueprint crowdsources captures at a fraction of the cost and covers every type
-                  of indoor location.
+                  A one-off scan can show geometry. It usually does not give a robot team a clean
+                  path into policy tuning, repeatable evals, hosted review, and exportable data.
+                  Blueprint packages the site so teams can actually use it.
                 </p>
               </div>
             </ScrollReveal>
@@ -302,8 +304,8 @@ export default function HowItWorks() {
                   The pipeline
                 </h2>
                 <p className="mt-4 text-lg text-zinc-600">
-                  From a person walking through a building to a robot training on that exact
-                  environment.
+                  From one walkthrough to a site your policy can train on and your team can
+                  evaluate against.
                 </p>
               </div>
             </ScrollReveal>
@@ -426,8 +428,8 @@ export default function HowItWorks() {
                 Ready to get started?
               </h2>
               <p className="mx-auto mt-4 max-w-2xl text-zinc-400">
-                Whether you want to earn by capturing spaces, buy world models for robot
-                deployment, or register your facility -- there's a place for you.
+                Whether you want to supply capture, register a facility, or buy a site-specific
+                world model for robot work, the next step should be obvious.
               </p>
               <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
                 <a

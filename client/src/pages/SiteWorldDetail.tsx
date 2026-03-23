@@ -181,7 +181,25 @@ function applyWorldLabsPreview(
 
 export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
   const { currentUser, userData, tokenClaims } = useAuth();
-  const fallbackSite = getSiteWorldById(params.slug) as PublicSiteWorldRecord | null;
+  const slug = useMemo(() => {
+    const routeSlug = String(params?.slug || "").trim().replace(/^\/+|\/+$/g, "");
+    if (routeSlug) {
+      return routeSlug;
+    }
+
+    if (typeof window === "undefined") {
+      return "";
+    }
+
+    const segments = window.location.pathname.replace(/^\/+|\/+$/g, "").split("/");
+    if (segments[0] === "world-models" && segments[1]) {
+      return segments[1];
+    }
+
+    return "";
+  }, [params?.slug]);
+
+  const fallbackSite = getSiteWorldById(slug) as PublicSiteWorldRecord | null;
   const [site, setSite] = useState<PublicSiteWorldRecord | null>(fallbackSite);
   const [worldLabsAction, setWorldLabsAction] = useState<"generate" | "refresh" | null>(null);
   const [worldLabsAdminError, setWorldLabsAdminError] = useState<string | null>(null);
@@ -190,17 +208,22 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [params.slug]);
+  }, [slug]);
 
   useEffect(() => {
     setWorldLabsAction(null);
     setWorldLabsAdminError(null);
     setWorldLabsAdminNotice(null);
-  }, [params.slug]);
+  }, [slug]);
 
   useEffect(() => {
+    if (!slug) {
+      setSite(null);
+      return;
+    }
+
     let cancelled = false;
-    fetchSiteWorldDetail(params.slug)
+    fetchSiteWorldDetail(slug)
       .then((item) => {
         if (!cancelled) {
           setSite(item as typeof fallbackSite);
@@ -208,13 +231,13 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
       })
       .catch(() => {
         if (!cancelled) {
-          setSite(getSiteWorldById(params.slug));
+          setSite(getSiteWorldById(slug));
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [params.slug]);
+  }, [slug]);
 
   const relatedSites = useMemo(() => {
     if (!site) return [];
@@ -345,7 +368,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
     <>
       <SEO
         title={`${site.siteName} | World Models | Blueprint`}
-        description={`${site.siteName} is a site-specific world model that robot teams can review, stream, and use for validation or data generation before a site visit.`}
+        description={`${site.siteName} is a site-specific world model that robot teams can use for tuning, evaluation, and data generation before a site visit.`}
         canonical={`/world-models/${site.id}`}
       />
 
@@ -372,8 +395,9 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 {site.summary}
               </p>
               <p className="mt-3 text-sm text-slate-600">
-                Use this listing to check deployment fit, compare releases, generate site-specific
-                outputs, and walk through the site before the real visit.
+                Use this listing to fine-tune against the actual site, compare releases on the same
+                workflow, generate site-specific outputs, and walk through the environment before
+                the real visit.
               </p>
               <p className="mt-2 text-sm text-slate-500">{site.bestFor}</p>
               <div className="mt-5 flex flex-wrap gap-3">
@@ -406,7 +430,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               </div>
               <p className="mt-4 text-sm leading-relaxed text-slate-600">
                 Buy the package if your team wants the underlying site assets. Start a hosted
-                session if you want to test this site right away.
+                session if you want to run evals, compare checkpoints, or inspect failures right away.
               </p>
             </aside>
           </header>
@@ -419,8 +443,8 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             <div className="mt-8">
               <ProofModule
                 eyebrow="Public walkthrough"
-                title="See the buyer proof path before you ask for anything else."
-                description="This is the strongest public example on the site. It shows the kind of walkthrough, hosted framing, and package language a buyer should see when they land on a real world-model listing."
+                title="See the public proof path before you ask for anything else."
+                description="This is the strongest public example on the site. It shows the kind of walkthrough, hosted framing, and package language a robot team should see when it lands on a real world-model listing."
                 caption="Silent proof reel built from the current demo assets and product framing. It is there to make the product feel concrete, fast."
                 compact={true}
               />
@@ -436,8 +460,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 What this listing is good for.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Teams usually use this to answer a real deployment question before the expensive
-                part starts.
+                Teams use this page to answer a real deployment question before the expensive part starts.
               </p>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">

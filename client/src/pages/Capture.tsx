@@ -158,8 +158,9 @@ export default function Capture() {
                   className="max-w-xl text-lg leading-relaxed text-zinc-600"
                 >
                   Use your phone or smart glasses to capture indoor spaces. Grocery stores,
-                  offices, warehouses, gyms -- any indoor location. No robotics knowledge
-                  needed. Just walk, capture, earn.
+                  offices, warehouses, gyms -- any indoor location. Your capture becomes the raw
+                  site evidence that downstream robot teams use for world models, training data,
+                  and hosted evals.
                 </motion.p>
                 <motion.div
                   initial={shouldReduce ? {} : { opacity: 0, y: 10 }}
@@ -171,7 +172,7 @@ export default function Capture() {
                     href="/capture-app"
                     className="group inline-flex items-center justify-center rounded-lg bg-zinc-950 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-zinc-800 hover:shadow-lg"
                   >
-                    Download the app
+                    Open capture app handoff
                     <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </a>
                   <a
@@ -452,14 +453,14 @@ export default function Capture() {
               </h2>
               <p className="mx-auto mt-4 max-w-2xl text-indigo-200">
                 Every indoor space you walk through could become a world model that helps robots
-                deploy. Download the mobile app, start capturing, and get paid.
+                train, test, and deploy. Open the capture app handoff, start capturing, and get paid.
               </p>
               <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
                 <a
                   href="/capture-app"
                   className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition-all hover:bg-zinc-100 hover:shadow-lg"
                 >
-                  Download the app
+                  Open capture app handoff
                 </a>
                 <a
                   href="/"

@@ -30,10 +30,27 @@ export function AnimatedCounter({
   const shouldReduce = useReducedMotion();
   const [display, setDisplay] = useState(value);
   const [hasAnimated, setHasAnimated] = useState(false);
+  // Track whether the component has been mounted long enough for a scroll
+  // event to be meaningful. Elements already in the viewport on page load
+  // should show the final value immediately instead of flashing "0".
+  const readyToAnimate = useRef(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      readyToAnimate.current = true;
+    }, 150);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (!inView || shouldReduce || hasAnimated) {
       setDisplay(value);
+      return;
+    }
+
+    // Element was already in view when the page loaded — show value, skip animation.
+    if (!readyToAnimate.current) {
+      setHasAnimated(true);
       return;
     }
 

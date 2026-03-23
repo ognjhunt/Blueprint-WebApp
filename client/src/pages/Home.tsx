@@ -11,19 +11,19 @@ import {
 
 const buyerReasons = [
   {
-    title: "Know the site before travel",
+    title: "Train on the real site, not a proxy",
     body:
-      "Use the real facility and workflow to pressure-test assumptions before anyone spends a week on flights, setup, and customer coordination.",
+      "Fine-tune against the actual deployment layout, sightlines, and task geometry. The point is not to admire the site. It is to make your policy work better there.",
   },
   {
-    title: "Review one workflow, not a vague category",
+    title: "Evaluate against the place that matters",
     body:
-      "Every listing is tied to a specific site and task lane so your team can judge whether the package is relevant before you talk to anyone.",
+      "Run the same release against the same facility before you spend travel, hardware, or customer time. Catch regressions, bad assumptions, and workflow mismatches early.",
   },
   {
-    title: "Choose the level of access",
+    title: "Generate site-specific data on demand",
     body:
-      "Some teams want the package. Others want hosted access first. The next step should be obvious from the page, not buried in a sales call.",
+      "Vary scenarios, export rollouts, and build RLDS-style datasets tied to one real facility. That gives your team a grounded data surface for tuning, debugging, and internal review.",
   },
 ];
 
@@ -31,7 +31,7 @@ const secondaryPaths = [
   {
     title: "Capture App",
     body:
-      "People who help source site data need a clean app handoff, payout basics, and zero confusion about whether the web product is for them.",
+      "Capturers use the mobile app to record walkthroughs and get paid. If you are a robot team, this page is not your starting point.",
     href: "/capture-app",
     label: "Open capture app page",
     icon: Camera,
@@ -39,7 +39,7 @@ const secondaryPaths = [
   {
     title: "For Site Operators",
     body:
-      "Facility teams should be able to understand rights, privacy rules, and commercialization controls without wading through robot-team intake.",
+      "Facility teams can control access, set privacy rules, and earn revenue share on every world model sold from their space.",
     href: "/for-site-operators",
     label: "See site operator page",
     icon: Building2,
@@ -67,7 +67,7 @@ export default function Home() {
     <>
       <SEO
         title="Blueprint | Real Sites, Clear World Models"
-        description="Blueprint helps robot teams review a real site before travel. Browse site-specific world models, inspect deliverables, and open hosted access when the workflow matters."
+        description="Blueprint helps robot teams train, evaluate, and generate data on site-specific world models built from real indoor capture."
         canonical="/"
       />
 
@@ -82,13 +82,17 @@ export default function Home() {
                   For Robot Teams
                 </p>
                 <h1 className="mt-5 max-w-4xl text-5xl font-semibold tracking-tight text-slate-950 sm:text-6xl">
-                  Inspect the real site before your team shows up.
+                  Train, test, and ship on the real site.
                 </h1>
                 <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
-                  Blueprint sells site-specific world models built from real indoor capture. These
-                  are reconstructions of real facilities, not synthetic worlds. Your team can look
-                  at the actual site, the actual workflow, and the actual deliverables before
-                  travel or on-site setup starts.
+                  Blueprint sells site-specific world models built from real indoor capture.
+                  Use them to fine-tune policies, run evaluations, and generate training data
+                  grounded to the actual facility your robot will work in. Not a synthetic
+                  proxy. The real place.
+                </p>
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
+                  Think of each one as a site-faithful 3D environment with hosted runs,
+                  exportable outputs, and clear rights around one exact facility.
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <a
@@ -116,8 +120,8 @@ export default function Home() {
               <div className="lg:pl-4">
                 <ProofModule
                   eyebrow="Product proof"
-                  title="A buyer should not have to imagine what this is."
-                  description="This reel uses the current demo assets to show the shape of the product: one exact site, one clear proof page, and a hosted path that feels real instead of hypothetical."
+                  title="A robot team should see the site, the task, and the eval surface immediately."
+                  description="This reel shows the current public proof path: one exact site, one concrete listing, and one hosted surface for review, evals, and dataset work. The product should feel usable on first glance."
                   caption="Current public proof built from the Media Room walkthrough and the hosted-session surface already in the repo."
                   compact={true}
                 />
@@ -132,7 +136,7 @@ export default function Home() {
               Why teams buy
             </p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              The site matters long before deployment day.
+              Your policy needs the real site, not a guess.
             </h2>
           </div>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -160,21 +164,21 @@ export default function Home() {
                 <FolderOutput className="h-5 w-5 text-slate-700" />
                 <h3 className="mt-4 text-lg font-semibold text-slate-900">Package</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Review the site assets, workflow notes, and stated outputs before committing to deeper work.
+                  Review the site assets, workflow notes, and export surface before you commit engineering time.
                 </p>
               </article>
               <article className="rounded-[1.5rem] border border-slate-200 bg-stone-50 p-5">
                 <Play className="h-5 w-5 text-slate-700" />
-                <h3 className="mt-4 text-lg font-semibold text-slate-900">Hosted session</h3>
+                <h3 className="mt-4 text-lg font-semibold text-slate-900">Hosted eval session</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Open a browser-based review path when the team needs to inspect the site together.
+                  Rerun the same site, compare checkpoints, and inspect failure cases without passing files around first.
                 </p>
               </article>
               <article className="rounded-[1.5rem] border border-slate-200 bg-stone-50 p-5">
                 <ShieldCheck className="h-5 w-5 text-slate-700" />
-                <h3 className="mt-4 text-lg font-semibold text-slate-900">Rights and usage</h3>
+                <h3 className="mt-4 text-lg font-semibold text-slate-900">Rights and provenance</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Keep rights, privacy, and workflow limits visible instead of hiding them behind follow-up.
+                  Keep rights, privacy, and workflow limits visible instead of discovering them halfway through a deal.
                 </p>
               </article>
             </div>

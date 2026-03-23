@@ -12,9 +12,19 @@ const faqs = [
       "Each listing shows the path clearly. Buyers can request a scene package, start hosted access, or use the public walkthrough when a listing is meant to prove the surface rather than sell a paid package directly. The package usually includes walkthrough media, site notes, and any geometry or depth artifacts that are available for that site.",
   },
   {
+    question: "How is this priced?",
+    answer:
+      "Pricing is listing-specific because the useful output depends on the site and the access mode. The catalog shows scene-package pricing and hosted-session pricing directly on each listing, and the pricing page summarizes the typical ranges.",
+  },
+  {
     question: "What formats and exports should we expect?",
     answer:
       "The exact export set depends on the listing, but Blueprint surfaces the package notes, runtime details, and export readiness on the site page. Common outputs include walkthrough video, camera poses, rollout video, RLDS-style datasets, and raw bundles tied to the hosted session.",
+  },
+  {
+    question: "Who can see our facility data?",
+    answer:
+      "Access should follow the rights and privacy rules attached to the site. Blueprint keeps access mode, usage limits, and governance context visible instead of assuming every site is public or fully open to every buyer.",
   },
   {
     question: "How close is this to a deployment guarantee?",
@@ -72,7 +82,7 @@ export default function FAQ() {
             </h1>
             <p className="mt-4 text-lg leading-relaxed text-slate-600">
               The point of this page is simple: give a buyer enough detail to decide whether the
-              product is real, relevant, and worth a closer look.
+              product is real, relevant, and worth using for training, evals, or deeper review.
             </p>
           </div>
 
