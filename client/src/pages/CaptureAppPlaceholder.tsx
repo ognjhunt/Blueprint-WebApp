@@ -2,21 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   Apple,
-  Loader2,
 } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 
 import { SEO } from "@/components/SEO";
-import { withCsrfHeader } from "@/lib/csrf";
 import { getCaptureAppPlaceholderUrl } from "@/lib/client-env";
-
-function isValidEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
-
-function isValidPhone(value: string) {
-  return value.replace(/\D/g, "").length >= 10;
-}
 
 /* ── Laurel wreath SVG badge ── */
 function LaurelBadge({
@@ -358,12 +348,6 @@ function HeroPhoneMockup() {
    ════════════════════════════════════════════════════════════════════ */
 
 export default function CaptureAppPlaceholder() {
-  const [email, setEmail] = useState("");
-  const [market, setMarket] = useState("");
-  const [phone, setPhone] = useState("");
-  const [device, setDevice] = useState("iphone");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [message, setMessage] = useState("");
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const shouldReduce = useReducedMotion();
 
@@ -387,40 +371,6 @@ export default function CaptureAppPlaceholder() {
     void generateQrCode();
     return () => { active = false; };
   }, [captureAppUrl]);
-
-  const handleWaitlistSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!isValidEmail(email)) { setStatus("error"); setMessage("Enter a valid email address."); return; }
-    if (!market.trim()) { setStatus("error"); setMessage("Tell us your home market."); return; }
-    if (!isValidPhone(phone)) { setStatus("error"); setMessage("Enter a valid phone number."); return; }
-
-    setStatus("loading");
-    setMessage("");
-    try {
-      const { withCsrfHeader: csrf } = await import("@/lib/csrf");
-      const response = await fetch("/api/waitlist", {
-        method: "POST",
-        headers: await csrf({ "Content-Type": "application/json" }),
-        body: JSON.stringify({
-          email: email.trim(),
-          locationType: `Blueprint Capture beta - ${market.trim()}`,
-          market: market.trim(),
-          role: "capturer",
-          device,
-          phone: phone.trim(),
-        }),
-      });
-      const responseBody = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(responseBody?.error || "Failed to join the capturer access list.");
-      setStatus("success");
-      setMessage("Request received. We'll send the right capture access instructions for your market.");
-      setEmail(""); setMarket(""); setPhone(""); setDevice("iphone");
-    } catch (error) {
-      console.error(error);
-      setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Something went wrong. Please try again.");
-    }
-  };
 
   return (
     <>
@@ -652,92 +602,6 @@ export default function CaptureAppPlaceholder() {
                   </PhoneFrame>
                 </div>
               </motion.div>
-            </div>
-          </div>
-        </section>
-
-        {/* ═══════════════ EARLY ACCESS / WAITLIST ═══════════════ */}
-        <section className="py-16 sm:py-20">
-          <div className="mx-auto max-w-xl px-4 sm:px-6 lg:px-8">
-            <div className="rounded-3xl border border-zinc-200 bg-white p-8 sm:p-10">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
-                Early access
-              </p>
-              <h2 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-900">
-                Request launch access
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-zinc-500">
-                Tell us where you are and which device you plan to use. We'll route
-                the right instructions when your market is active.
-              </p>
-
-              <form onSubmit={handleWaitlistSubmit} className="mt-6 space-y-4">
-                <label className="block">
-                  <span className="text-sm font-medium text-zinc-700">Email</span>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    className="mt-1.5 h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400"
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-sm font-medium text-zinc-700">Home market</span>
-                  <input
-                    value={market}
-                    onChange={(e) => setMarket(e.target.value)}
-                    placeholder="Raleigh-Durham, NC"
-                    className="mt-1.5 h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400"
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-sm font-medium text-zinc-700">Phone</span>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="(919) 555-0123"
-                    className="mt-1.5 h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400"
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-sm font-medium text-zinc-700">Primary capture device</span>
-                  <select
-                    value={device}
-                    onChange={(e) => setDevice(e.target.value)}
-                    className="mt-1.5 h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400"
-                  >
-                    <option value="iphone">iPhone</option>
-                    <option value="ipad">iPad</option>
-                    <option value="smart_glasses">Smart glasses</option>
-                    <option value="android">Android phone</option>
-                  </select>
-                </label>
-                <button
-                  type="submit"
-                  disabled={status === "loading"}
-                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-zinc-900 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  {status === "loading" ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Sending request
-                    </>
-                  ) : (
-                    <>
-                      Request launch access
-                      <ArrowRight className="h-4 w-4" />
-                    </>
-                  )}
-                </button>
-              </form>
-
-              {message ? (
-                <p className={`mt-4 text-sm ${status === "error" ? "text-rose-600" : "text-emerald-600"}`}>
-                  {message}
-                </p>
-              ) : null}
             </div>
           </div>
         </section>
