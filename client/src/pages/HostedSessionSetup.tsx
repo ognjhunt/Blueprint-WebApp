@@ -299,8 +299,8 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
   return (
     <>
       <SEO
-        title={`Start Hosted Session | ${site.siteName} | Blueprint`}
-        description={`Set up a streamed world-model session for ${site.siteName}.`}
+        title={`Hosted Evaluation Setup | ${site.siteName} | Blueprint`}
+        description={`Configure a hosted evaluation workspace for ${site.siteName}.`}
         canonical={`/world-models/${site.id}/start`}
       />
 
@@ -318,9 +318,9 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
             <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                 <Play className="h-4 w-4" />
-                Hosted Session Setup
+                Hosted Evaluation Setup
               </div>
-              <h1 className="mt-4 text-4xl font-bold tracking-tight text-slate-900">Start Hosted Session</h1>
+              <h1 className="mt-4 text-4xl font-bold tracking-tight text-slate-900">Configure Hosted Evaluation</h1>
               <p className="mt-3 text-lg font-semibold text-slate-900">{site.siteName}</p>
               <div className="mt-2 flex items-start gap-2 text-sm text-slate-500">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
@@ -328,7 +328,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
               </div>
               <p className="mt-4 text-sm leading-6 text-slate-600">{site.taskLane}</p>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                This launches a streamed world-model session for one site, one robot, and one task
+                This opens a streamed world-model workspace for one site, one robot, and one task
                 question.
               </p>
 

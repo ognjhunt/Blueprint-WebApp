@@ -4,22 +4,22 @@ const sections = [
   {
     title: "Capture rights stay explicit",
     body:
-      "Blueprint does not treat facility footage as free-floating training material. Each site needs a clear commercial path, and the rules for reuse and sharing should be visible before anyone buys access.",
+      "Blueprint does not treat facility footage like free-floating training material. Each site needs a clear commercial path, and the rules for reuse and sharing should be visible before anyone buys access.",
   },
   {
     title: "Facility controls come first",
     body:
-      "Site operators should be able to define restricted zones, timing windows, camera limits, and downstream permissions. If those controls are not clear, the site should not move forward as a sellable listing.",
+      "Site operators need control over restricted zones, timing windows, camera limits, and downstream permissions. If those controls are unclear, the site should not move forward as a public listing.",
   },
   {
     title: "Privacy and security are part of the product",
     body:
-      "Privacy review, redaction, retention, and sharing controls are not side notes. They are part of whether a world model is credible enough to buy and safe enough to use inside a customer workflow.",
+      "Privacy review, redaction, retention, and sharing controls are part of the product. Buyers and site operators both need to know what is stored, what is hidden, and how access is tracked.",
   },
   {
-    title: "Hosted access needs limits",
+    title: "Hosted access needs clear boundaries",
     body:
-      "Hosted sessions are useful because they lower the friction to inspect a site. They still need clear entitlement boundaries, auditability, and a plain statement of what a session does and does not expose.",
+      "Hosted evaluation lowers the friction to inspect a site, but it still needs clear entitlement boundaries, auditability, and a plain statement of what the session does and does not expose.",
   },
 ];
 
@@ -39,12 +39,12 @@ export default function Governance() {
                 Governance
               </p>
               <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Rights, privacy, and control have to be legible.
+                Rights, privacy, and control need to be easy to read.
               </h1>
               <p className="mt-4 text-lg leading-relaxed text-slate-600">
-                The fastest way to lose trust is to blur who approved capture, what can be shared,
-                or how long sensitive material stays around. Blueprint needs to be crisp about all
-                three.
+                Trust falls apart fast when nobody can tell who approved capture, what can be
+                shared, or how long sensitive material stays around. Blueprint needs to be direct
+                about all three.
               </p>
             </div>
 

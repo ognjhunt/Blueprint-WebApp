@@ -796,11 +796,11 @@ function buildFallbackPackages(siteId: string, siteName: string, siteAddress: st
       emphasis: "recommended",
     },
     {
-      name: "Hosted Sessions",
-      summary: "Launch Blueprint-managed evaluation sessions when this site is ready for downstream testing.",
+      name: "Hosted Evaluation",
+      summary: "Open Blueprint-managed evaluation setup when this site is ready for downstream testing.",
       priceLabel: "Quoted per session",
       payerLabel: "Likely buyer: Robot team",
-      actionLabel: "Start hosted session",
+      actionLabel: "Open hosted eval setup",
       actionHref: `/site-worlds/${siteId}/start`,
       deliverables: [
         "Managed runtime",

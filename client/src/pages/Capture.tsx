@@ -48,11 +48,11 @@ export default function Capture() {
                   For Capturers
                 </p>
                 <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-                  Capture is a short path to the mobile app.
+                  Capture for Blueprint starts in the app.
                 </h1>
                 <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
-                  This page only exists to explain the basics and send capturers to the app. The
-                  main Blueprint site is for robot teams buying access to real sites.
+                  If you are recording a site for Blueprint, start here for the basics, then open
+                  the app. The main website is for robot teams buying access to real sites.
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <a
@@ -91,9 +91,9 @@ export default function Capture() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
               Process
             </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-              Three steps are enough.
-            </h2>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+              The process is short.
+              </h2>
           </div>
 
           <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -117,8 +117,7 @@ export default function Capture() {
               Looking for the buyer side instead?
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
-              Robot teams should start with the world-model catalog and request flow, not the
-              capture pages.
+              Robot teams should start with the world-model catalog and request flow.
             </p>
             <a
               href="/world-models"

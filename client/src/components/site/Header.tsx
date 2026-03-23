@@ -74,7 +74,7 @@ export function Header() {
             href="/contact?persona=robot-team&interest=evaluation-package"
             className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
           >
-            Request hosted eval
+            Request evaluation
           </a>
           {!currentUser ? (
             <>
@@ -149,7 +149,7 @@ export function Header() {
               className="mt-2 inline-flex min-h-11 items-center justify-center rounded-full bg-slate-900 px-4 py-2.5 text-center text-white"
               onClick={() => setOpen(false)}
             >
-              Request hosted eval
+              Request evaluation
             </a>
             {!currentUser ? (
               <>

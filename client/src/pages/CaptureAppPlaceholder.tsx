@@ -38,11 +38,11 @@ export default function CaptureAppPlaceholder() {
               Capture App
             </p>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-              Open the mobile handoff for capturers.
+              Open the capture app.
             </h1>
             <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
-              This is the public entry point for people recording indoor spaces for Blueprint.
-              Robot teams should go to the world-model catalog instead.
+              This is the public handoff for people recording indoor spaces for Blueprint. If
+              you are here to buy world models, go to the catalog instead.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -88,8 +88,8 @@ export default function CaptureAppPlaceholder() {
             <section className="rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white">
               <p className="text-sm font-semibold">Need the buyer side instead?</p>
               <p className="mt-3 text-sm leading-7 text-slate-300">
-                The public website is primarily for robot teams reviewing site-specific world
-                models and requesting hosted evaluations.
+                The main website is for robot teams reviewing site-specific world models and
+                requesting hosted evaluations.
               </p>
               <a href="/world-models" className="mt-5 inline-flex items-center text-sm font-semibold text-white">
                 Browse world models

@@ -2,19 +2,19 @@ import { SEO } from "@/components/SEO";
 
 const updates = [
   {
-    title: "Why the product starts with capture",
+    title: "Why the product starts with one real site",
     body:
-      "Blueprint gets stronger when real-site coverage gets stronger. That is the supply side that makes the buyer side believable.",
+      "The buyer side only works when the site itself is real. Capture quality is what makes the catalog credible.",
   },
   {
-    title: "Why site packages matter before deployment",
+    title: "Why scene packages matter before deployment",
     body:
-      "The point is not to replace the final on-site visit. The point is to stop showing up blind.",
+      "The goal is not to replace the final site visit. The goal is to stop showing up blind.",
   },
   {
-    title: "Why hosted access should survive backend swaps",
+    title: "Why hosted evaluation should survive backend swaps",
     body:
-      "Runtimes will move. Buyers still need one clean path to the exact site, the exact task lane, and the exact outputs that matter.",
+      "Runtimes will change. Buyers still need one clean path to the exact site, the exact task lane, and the exact outputs that matter.",
   },
 ];
 
@@ -33,12 +33,11 @@ export default function Blog() {
               Blog
             </p>
             <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Product notes from the world-model side of Blueprint.
+              Notes on how Blueprint is being packaged.
             </h1>
             <p className="mt-4 text-lg leading-relaxed text-slate-600">
-              This is a lightweight updates surface. It is here to show what the product cares
-              about right now: real capture, site packages, hosted access, and the buyer workflow
-              around them.
+              This page is for short notes on the product surface: real capture, scene packages,
+              hosted evaluation, and the buyer workflow around them.
             </p>
           </div>
 

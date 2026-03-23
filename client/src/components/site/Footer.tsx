@@ -1,5 +1,6 @@
 const coreLinks = [
   { label: "World Models", href: "/world-models" },
+  { label: "Sample Deliverables", href: "/sample-deliverables" },
   { label: "Pricing", href: "/pricing" },
   { label: "How It Works", href: "/how-it-works" },
   { label: "FAQ", href: "/faq" },
@@ -27,8 +28,8 @@ export function Footer() {
             Blueprint
           </a>
           <p className="text-sm leading-6 text-slate-500">
-            Blueprint helps robot teams inspect the exact site, request the right
-            deliverables, and run hosted evaluations before travel or customer time starts.
+            Blueprint helps robot teams inspect the exact site, compare the package with the hosted
+            path, and request the right next step before travel or customer time starts.
           </p>
         </div>
 
@@ -69,7 +70,7 @@ export function Footer() {
       <div className="border-t border-slate-200 bg-white py-4">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>Real sites. Grounded world models. Clear next steps for robot teams.</p>
+          <p>Real sites. Clear packaging. Fewer surprises before deployment.</p>
         </div>
       </div>
     </footer>

@@ -9,10 +9,10 @@ import { useSearch } from "wouter";
 
 const layerCards = [
   {
-    title: "Get the package",
+    title: "Buy the scene package",
     kicker: "Option 1",
     description:
-      "Use this when your team wants the site package for internal review, integration work, or your own stack.",
+      "Use this when your team needs the site files, package notes, and rights context for internal review or integration work.",
     bullets: [
       "Walkthrough video and camera poses",
       "Geometry, depth, and site notes when available",
@@ -21,10 +21,10 @@ const layerCards = [
     icon: <ScanLine className="h-5 w-5 text-slate-700" />,
   },
   {
-    title: "Run it hosted",
+    title: "Request a hosted evaluation",
     kicker: "Option 2",
     description:
-      "Use this when you want Blueprint to host the world model so your team can test, rerun, and export results right away.",
+      "Use this when you want Blueprint to run the site with you so your team can test, rerun, and export results without moving files first.",
     bullets: [
       "Reset and rerun the same site",
       "Scenario changes for edge-case checks",
@@ -121,19 +121,19 @@ export default function SiteWorlds() {
                 World Models
               </p>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Train and evaluate on the exact site before your team shows up.
+                Find the site before your team books the visit.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
-                Each world model is built from real indoor captures and tied to a specific site and
-                workflow. Use it to fine-tune policies, compare releases, generate site-specific
-                outputs, and decide whether a hosted session is worth opening before deployment.
+                Each world model is built from real indoor capture and tied to one site and one
+                workflow. Open a listing to see the package price, the hosted evaluation rate, and
+                whether the site is a fit before deployment work starts.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
                   href="#layers"
                   className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  See the layers
+                  How buying works
                 </a>
                 <a
                   href="#catalog"
@@ -145,7 +145,7 @@ export default function SiteWorlds() {
             </div>
 
             <div className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-5 sm:px-6">
-              <p className="text-sm font-semibold text-slate-900">What you get</p>
+              <p className="text-sm font-semibold text-slate-900">What every listing should tell you</p>
               <ul className="mt-3 space-y-2 text-sm text-slate-600">
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
@@ -153,11 +153,11 @@ export default function SiteWorlds() {
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                  <span>A package you can license or a hosted session you can run</span>
+                  <span>A scene-package price and a hosted-evaluation path</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                  <span>Repeatable runs, exportable outputs, and checkpoint comparison</span>
+                  <span>Enough detail to decide whether the site is worth deeper work</span>
                 </li>
               </ul>
             </div>
@@ -172,11 +172,11 @@ export default function SiteWorlds() {
                 Access options
               </p>
               <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                Choose how you want access.
+                Two ways into the same site.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Some teams want the site package. Others want the hosted version so they can start
-                testing right away. Both options are tied to the same real place.
+                Some teams need the package first. Others already know they need hosted runtime
+                evidence. Both paths stay tied to the same real place.
               </p>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -209,9 +209,9 @@ export default function SiteWorlds() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                 Why teams buy this
               </p>
-              <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                Common reasons robot teams use world models.
-              </h2>
+                <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
+                  Common reasons teams buy one of these.
+                </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 These are practical reasons to use it before you commit travel, pilot time, or
                 customer time.
@@ -237,15 +237,15 @@ export default function SiteWorlds() {
                   Sample catalog
                 </p>
                 <h2 className="mt-2 text-3xl font-bold text-slate-900">
-                  Sites your team could test against right now.
+                  Sites your team could review right now.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Open any site to see what the workflow looks like, what your team can buy, and
-                  how to start a hosted session for tuning, evals, or review.
+                  Open any listing to see the workflow, compare the package with the hosted
+                  evaluation path, and decide what to do next.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                {filteredSites.length} listed sites · each site card shows its own self-serve hourly rate
+                {filteredSites.length} listed sites · each listing shows its own package price and hosted rate
               </div>
             </div>
 
@@ -337,7 +337,7 @@ export default function SiteWorlds() {
                           className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                         >
                           <Play className="h-4 w-4" />
-                          Start native hosted session
+                          Open hosted eval setup
                         </a>
                         {site.worldLabsPreview?.launchUrl ? (
                           <a
@@ -389,7 +389,7 @@ export default function SiteWorlds() {
                           <a
                             href={pkg.actionHref}
                             className={`mt-3 inline-flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
-                              pkg.name === "Hosted Sessions"
+                              pkg.name === "Hosted Evaluation"
                                 ? "bg-slate-900 text-white hover:bg-slate-800"
                                 : "border border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
                             }`}

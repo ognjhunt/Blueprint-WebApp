@@ -105,7 +105,7 @@ export type ThumbnailKind =
   | "hospital"
   | "electronics";
 
-export type SiteWorldPackageName = "Scene Package" | "Hosted Sessions";
+export type SiteWorldPackageName = "Scene Package" | "Hosted Evaluation";
 
 export type SiteWorldPackage = {
   name: SiteWorldPackageName;
@@ -666,8 +666,8 @@ function buildPackages(config: PackageConfig): [SiteWorldPackage, SiteWorldPacka
       emphasis: "recommended",
     },
     {
-      name: "Hosted Sessions",
-      summary: "Stream the site-specific world model in a Blueprint-managed session.",
+      name: "Hosted Evaluation",
+      summary: "Request a Blueprint-managed runtime session for this exact site.",
       priceLabel: config.hostedRate,
       payerLabel: "Robot team",
       actionLabel: "Request hosted evaluation",

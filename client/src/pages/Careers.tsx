@@ -42,7 +42,7 @@ export default function Careers() {
               Careers
             </p>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-              Build the product layer between raw site capture and a buyer who needs clarity.
+              Build the product layer between raw site capture and a buyer who needs a straight answer.
             </h1>
             <p className="mt-4 text-lg leading-8 text-slate-600">
               Blueprint is trying to make one thing less messy: taking a real facility and turning

@@ -395,9 +395,8 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 {site.summary}
               </p>
               <p className="mt-3 text-sm text-slate-600">
-                Use this listing to fine-tune against the actual site, compare releases on the same
-                workflow, generate site-specific outputs, and walk through the environment before
-                the real visit.
+                Use this listing to review the real site, compare the package with the hosted
+                evaluation path, and decide what your team should do before the real visit.
               </p>
               <p className="mt-2 text-sm text-slate-500">{site.bestFor}</p>
               <div className="mt-5 flex flex-wrap gap-3">
@@ -411,7 +410,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             </div>
 
             <aside className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-5 sm:px-6">
-              <p className="text-sm font-semibold text-slate-900">Choose your access</p>
+              <p className="text-sm font-semibold text-slate-900">What you can buy on this listing</p>
               <div className="mt-4 space-y-2.5">
                 <a
                   href="#scene-package"
@@ -424,13 +423,13 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   href="#hosted-sessions"
                   className="block rounded-2xl border border-slate-200 bg-white p-4 transition hover:bg-slate-50"
                 >
-                  <p className="text-sm font-semibold text-slate-900">Hosted Sessions</p>
+                  <p className="text-sm font-semibold text-slate-900">Hosted evaluation</p>
                   <p className="mt-1 text-sm text-slate-600">{hostedSessions.priceLabel}</p>
                 </a>
               </div>
               <p className="mt-4 text-sm leading-relaxed text-slate-600">
-                Buy the package if your team wants the underlying site assets. Start a hosted
-                session if you want to run evals, compare checkpoints, or inspect failures right away.
+                Buy the package if your team wants the site files. Request hosted evaluation if you
+                want runtime evidence, release comparison, or failure review on the same site.
               </p>
             </aside>
           </header>
@@ -443,9 +442,9 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             <div className="mt-8">
               <ProofModule
                 eyebrow="Public walkthrough"
-                title="See the public proof path before you ask for anything else."
-                description="This is the strongest public example on the site. It shows the kind of walkthrough, hosted framing, and package language a robot team should see when it lands on a real world-model listing."
-                caption="Silent proof reel built from the current demo assets and product framing. It is there to make the product feel concrete, fast."
+                title="See the public proof path before you ask for more."
+                description="This sample is the cleanest public example on the site. It shows the walkthrough, the package framing, and the hosted side in one place."
+                caption="Silent proof reel built from the current demo assets."
                 compact={true}
               />
             </div>
@@ -457,10 +456,11 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 Why teams use this site
               </p>
               <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                What this listing is good for.
+                What teams use this listing for.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Teams use this page to answer a real deployment question before the expensive part starts.
+                The point is to answer one real deployment question before the expensive part
+                starts.
               </p>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -747,7 +747,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             <div className="mt-3 grid gap-6 lg:grid-cols-[1fr_0.9fr]">
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                  Get the site package.
+                  Buy the site package.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
                   Use this when your team wants the site package for internal review, integration
@@ -796,18 +796,18 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             <div className="flex items-center gap-2">
               <Play className="h-5 w-5 text-slate-700" />
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Hosted Sessions
+                Hosted evaluation
               </p>
             </div>
             <div className="mt-3 grid gap-6 lg:grid-cols-[1fr_0.9fr]">
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                  Run this site hosted.
+                  Request hosted evaluation for this site.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Hosted Sessions are for the questions teams ask before a visit: can this robot
+                  Hosted evaluation is for the questions teams ask before a visit: can this robot
                   handle the lane, what fails first, and how do releases compare on the same site?
-                  Use them for repeatable testing, site-specific data generation, and remote demos.
+                  Use it for repeatable testing, site-specific data generation, and remote demos.
                 </p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   {hostedSessions.deliverables.map((item) => (
@@ -840,8 +840,8 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 </p>
                 <p className="mt-2 text-2xl font-bold text-slate-900">{hostedSessions.priceLabel}</p>
                 <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                  That rate is for self-serve hosted eval time. Managed, priority, or higher-touch
-                  sessions are scoped separately when the work needs more support or fidelity.
+                  That rate is for self-serve hosted evaluation time. Managed, priority, or
+                  higher-touch work is scoped separately when the job needs more support.
                 </p>
                 <a
                   href={hostedSessions.actionHref}
@@ -859,7 +859,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 Simple walkthrough
               </p>
               <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                What a hosted session looks like
+                What hosted evaluation looks like
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 One site. One task. One robot question. Start the session, run the task, and
@@ -903,10 +903,10 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
 
           <section className="mt-8 rounded-3xl border border-slate-200 bg-slate-900 px-5 py-6 text-white sm:px-7 sm:py-7">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">
-              Simple example
+              Example
             </p>
             <h2 className="mt-2 text-2xl font-bold sm:text-3xl">
-              Example run for {site.siteName}
+              A sample review path for {site.siteName}
             </h2>
             <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-200">
               A team picks {site.siteName}, chooses {site.sampleRobot}, and tests{" "}

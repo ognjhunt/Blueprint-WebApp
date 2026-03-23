@@ -37,8 +37,9 @@ export default function About() {
               </p>
               <p className="mt-4 text-base leading-7 text-slate-600">
                 The company is not built around one permanent runtime or one permanent world-model
-                provider. That part will keep moving. What should stay stable is the capture,
-                provenance, site package, hosted-session contract, and buyer surface around them.
+                provider. That part will keep moving. What stays stable is the capture,
+                provenance, site package, hosted-evaluation contract, and buyer surface around
+                them.
               </p>
             </div>
 

@@ -9,7 +9,7 @@ const faqs = [
   {
     question: "What does a buyer actually receive?",
     answer:
-      "Each listing shows the path clearly. Buyers can request a scene package, start hosted access, or use the public walkthrough when a listing is meant to prove the surface rather than sell a paid package directly. The package usually includes walkthrough media, site notes, and any geometry or depth artifacts that are available for that site.",
+      "Each listing shows the same basic split: scene package or hosted evaluation. The package usually includes walkthrough media, site notes, and any geometry or depth artifacts available for that site. Hosted evaluation is the managed runtime path for reruns, exports, and failure review.",
   },
   {
     question: "How is this priced?",
@@ -24,7 +24,7 @@ const faqs = [
   {
     question: "Who can see our facility data?",
     answer:
-      "Access should follow the rights and privacy rules attached to the site. Blueprint keeps access mode, usage limits, and governance context visible instead of assuming every site is public or fully open to every buyer.",
+      "Access follows the rights and privacy rules attached to the site. Blueprint keeps the access mode, usage limits, and governance context visible instead of treating every site as open by default.",
   },
   {
     question: "How close is this to a deployment guarantee?",
@@ -44,7 +44,7 @@ const faqs = [
   {
     question: "Can this work with different robots and runtimes?",
     answer:
-      "Yes, but Blueprint should not be read as a single-backend product. The stable layer is the capture, provenance, site package, hosted-session contract, and buyer surface around it. Runtime backends can change over time without changing the core product story.",
+      "Yes. The stable layer is the capture, provenance, site package, hosted-evaluation contract, and buyer surface around it. Runtime backends can change without changing the core product.",
   },
   {
     question: "What robot embodiments have been tested?",
@@ -81,8 +81,8 @@ export default function FAQ() {
               Straight answers about what Blueprint sells.
             </h1>
             <p className="mt-4 text-lg leading-relaxed text-slate-600">
-              The point of this page is simple: give a buyer enough detail to decide whether the
-              product is real, relevant, and worth using for training, evals, or deeper review.
+              This page exists for one reason: a buyer should be able to tell whether the product
+              is real, relevant, and worth a closer look.
             </p>
           </div>
 

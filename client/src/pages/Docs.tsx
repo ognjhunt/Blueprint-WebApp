@@ -48,12 +48,12 @@ export default function Docs() {
               Docs
             </p>
             <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Technical notes for world-model packages and hosted access.
+              What stays consistent across listings.
             </h1>
             <p className="mt-4 text-lg leading-relaxed text-slate-600">
-              This page is here to make the product contract legible. It is not a giant simulator
-              manual. It is the short version of what should stay true across capture, packaging,
-              hosted access, and future backend swaps.
+              This is the short version of the product contract: what the package contains, what
+              the hosted path does, and what details should stay visible even if the backend
+              changes later.
             </p>
           </div>
 

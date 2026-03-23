@@ -1,49 +1,50 @@
 import { SEO } from "@/components/SEO";
+import { OfferComparison } from "@/components/site/OfferComparison";
 import { ProofModule } from "@/components/site/ProofModule";
 import {
   ArrowRight,
   Camera,
+  CheckCircle2,
   FolderOutput,
-  Play,
   ShieldCheck,
 } from "lucide-react";
 
 const buyerReasons = [
   {
-    title: "See the exact site before deployment work starts",
+    title: "Know the site before you burn travel time",
     body:
-      "Review the actual layout, constraints, and workflow area instead of using a generic stand-in environment.",
+      "Review the real layout, constraints, and workflow area instead of relying on a generic stand-in.",
   },
   {
-    title: "Decide faster with real deliverables",
+    title: "See the package and the eval path on the same listing",
     body:
-      "Each listing shows the package, hosted evaluation path, and the limits attached to that site so your team can make a concrete call.",
+      "Each listing shows what you can buy first, what the hosted path looks like, and what limits come with that site.",
   },
   {
-    title: "Use one site across tuning, evals, and review",
+    title: "Reuse one site across review and testing",
     body:
-      "Run the same site for checkpoint comparisons, customer review, and site-specific data work without reinventing the environment each time.",
+      "Use the same site for release checks, customer review, and site-specific data work without rebuilding the context each time.",
   },
 ];
 
-const buyerJourney = [
+const sampleDecision = [
   {
-    title: "Browse the catalog",
+    title: "Pick one listing",
     body:
-      "Start with a site that matches the workflow your robot needs to handle.",
+      "Start with the site that matches the workflow your robot actually needs to handle.",
     icon: FolderOutput,
   },
   {
-    title: "Review deliverables",
+    title: "Decide package or evaluation",
     body:
-      "Inspect the package scope, hosted evaluation path, outputs, and rights before you spend engineering time.",
+      "Check whether the package already answers the question or whether you need runtime evidence from a hosted evaluation.",
     icon: ShieldCheck,
   },
   {
-    title: "Request the next step",
+    title: "Send one clear request",
     body:
-      "Ask for the package or a hosted evaluation with the site, task, and robot details already filled in.",
-    icon: Play,
+      "Send the site, task, and robot setup once so the follow-up starts from the real question.",
+    icon: CheckCircle2,
   },
 ];
 
@@ -83,16 +84,16 @@ export default function Home() {
                   For Robot Teams
                 </p>
                 <h1 className="mt-5 max-w-4xl text-5xl font-semibold tracking-tight text-slate-950 sm:text-6xl">
-                  Buy access to the exact site your robot needs.
+                  See the exact site before your robot shows up.
                 </h1>
                 <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
-                  Blueprint sells site-specific world models built from real indoor capture. Use
-                  them to review the actual facility, request concrete deliverables, and run hosted
-                  evaluations before travel, pilots, or on-site debugging starts.
+                  Blueprint sells site-specific world models built from real indoor capture. Buy
+                  the scene package, request a hosted evaluation, or scope custom work around one
+                  facility before travel, pilots, or on-site debugging starts.
                 </p>
                 <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
-                  The site is organized around one buyer journey: find the right facility, inspect
-                  what you get, and move to the next step quickly.
+                  Most teams know what they need within a minute: the package, the evaluation
+                  path, or a custom conversation.
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <a
@@ -103,16 +104,16 @@ export default function Home() {
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
-                    href="/contact?persona=robot-team&interest=evaluation-package"
+                    href="/sample-deliverables"
                     className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
                   >
-                    Request hosted eval
+                    See sample deliverables
                   </a>
                   <a
-                    href="/world-models/sw-chi-01"
+                    href="/contact?persona=robot-team&interest=evaluation-package"
                     className="inline-flex items-center justify-center rounded-full border border-transparent px-3 py-3 text-sm font-semibold text-slate-700 transition hover:text-slate-950"
                   >
-                    See sample deliverables
+                    Request evaluation
                   </a>
                 </div>
               </div>
@@ -120,9 +121,9 @@ export default function Home() {
               <div className="lg:pl-4">
                 <ProofModule
                   eyebrow="Product proof"
-                  title="A buyer should see the site, the deliverables, and the hosted path immediately."
-                  description="The proof reel is there to show one concrete listing end to end: the real site, the buyer-facing deliverables, and the review surface your team would actually use."
-                  caption="Sample listing and hosted review surface from a real Blueprint world model."
+                  title="See the site, the deliverables, and the next step in one pass."
+                  description="The public sample shows one real listing from first look through hosted review. It is the quickest way to understand what the product feels like in practice."
+                  caption="Sample listing and hosted review surface from a Blueprint world model."
                   compact={true}
                 />
               </div>
@@ -131,12 +132,16 @@ export default function Home() {
         </section>
 
         <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
+          <OfferComparison />
+        </section>
+
+        <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
           <div className="max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
               Why teams buy
             </p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              The value is specificity, not volume.
+              The value is the real site, not more synthetic footage.
             </h2>
           </div>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -153,19 +158,19 @@ export default function Home() {
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
             <div className="max-w-2xl">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Buyer journey
+                A typical first pass
               </p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-                Keep the path simple.
+                Three moves are usually enough.
               </h2>
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                The public site should answer three things quickly: what site is available, what
-                your team gets, and how to request the right next step.
+                A buyer usually goes from listing to decision in a short loop. The goal is not to
+                tell the whole company story. The goal is to answer the next real question.
               </p>
             </div>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
-              {buyerJourney.map((item) => {
+              {sampleDecision.map((item) => {
                 const Icon = item.icon;
 
                 return (
@@ -192,7 +197,7 @@ export default function Home() {
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
                 Keep it lightweight. Capturers only need two public pages: a short explanation and
-                the mobile app handoff.
+                the app handoff.
               </p>
             </div>
 

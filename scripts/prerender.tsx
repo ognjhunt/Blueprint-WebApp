@@ -19,6 +19,7 @@ import ForSiteOperators from "../client/src/pages/ForSiteOperators";
 import ForRobotIntegrators from "../client/src/pages/ForRobotIntegrators";
 import Solutions from "../client/src/pages/Solutions";
 import Pricing from "../client/src/pages/Pricing";
+import SampleDeliverables from "../client/src/pages/SampleDeliverables";
 import Contact from "../client/src/pages/Contact";
 import HowItWorks from "../client/src/pages/HowItWorks";
 import FAQ from "../client/src/pages/FAQ";
@@ -55,6 +56,7 @@ const staticRoutes: StaticRoute[] = [
   { path: "/for-robot-integrators", component: ForRobotIntegrators },
   { path: "/solutions", component: Solutions },
   { path: "/pricing", component: Pricing },
+  { path: "/sample-deliverables", component: SampleDeliverables },
   { path: "/contact", component: Contact },
   { path: "/how-it-works", component: HowItWorks },
   { path: "/faq", component: FAQ },
@@ -122,10 +124,27 @@ function injectHelmet(template: string, helmet: ReturnType<typeof Helmet.renderS
   return template.replace("</head>", `${injectedHead}\n</head>`);
 }
 
+function stripDefaultSeo(template: string) {
+  return template
+    .replace(/<title>[\s\S]*?<\/title>\s*/i, "")
+    .replace(/<meta\s+name="description"[^>]*>\s*/i, "")
+    .replace(/<meta\s+property="og:type"[^>]*>\s*/i, "")
+    .replace(/<meta\s+property="og:url"[^>]*>\s*/i, "")
+    .replace(/<meta\s+property="og:title"[^>]*>\s*/i, "")
+    .replace(/<meta\s+property="og:description"[^>]*>\s*/i, "")
+    .replace(/<meta\s+property="og:image"[^>]*>\s*/i, "")
+    .replace(/<meta\s+name="twitter:card"[^>]*>\s*/i, "")
+    .replace(/<meta\s+name="twitter:title"[^>]*>\s*/i, "")
+    .replace(/<meta\s+name="twitter:description"[^>]*>\s*/i, "")
+    .replace(/<meta\s+name="twitter:image"[^>]*>\s*/i, "")
+    .replace(/<meta\s+name="robots"[^>]*>\s*/i, "")
+    .replace(/<link\s+rel="canonical"[^>]*>\s*/i, "");
+}
+
 async function main() {
   const distPath = path.resolve(__dirname, "..", "dist", "public");
   const templatePath = path.join(distPath, "index.html");
-  const template = await fs.promises.readFile(templatePath, "utf8");
+  const template = stripDefaultSeo(await fs.promises.readFile(templatePath, "utf8"));
 
   if (!rootPattern.test(template)) {
     throw new Error("Could not locate the root element in the built HTML template.");

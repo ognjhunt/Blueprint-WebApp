@@ -102,12 +102,12 @@ export default function HowItWorks() {
                   How It Works
                 </div>
                 <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
-                  One buyer path from site selection to hosted evaluation.
+                  From site listing to clear next step.
                 </h1>
                 <p className="max-w-2xl text-lg leading-relaxed text-zinc-600">
-                  Blueprint should be easy to explain: choose the exact site, inspect what your
-                  team gets, and request the right next step. Capture stays upstream. The buyer
-                  journey stays front and center.
+                  Blueprint starts with one real site. Your team checks the package, sees whether a
+                  hosted evaluation is available, and sends one request with the robot and task
+                  already attached.
                 </p>
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <a
@@ -121,14 +121,14 @@ export default function HowItWorks() {
                     href="/contact?persona=robot-team&interest=evaluation-package"
                     className="inline-flex items-center justify-center rounded-lg border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
                   >
-                    Request hosted eval
+                    Request evaluation
                   </a>
                 </div>
               </div>
 
               <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-6">
                 <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                  What this page should answer
+                  In one minute, a buyer should know
                 </p>
                 <ul className="mt-4 space-y-3 text-sm leading-7 text-zinc-600">
                   <li className="flex items-start gap-3">
@@ -157,8 +157,8 @@ export default function HowItWorks() {
                   The robot-team workflow
                 </h2>
                 <p className="mt-4 text-zinc-600">
-                  Four steps are enough. If the buyer still needs a marketplace explainer after
-                  this page, the site is doing too much.
+                  Four steps are enough. Most buyers do not need a tour of the whole company before
+                  they know whether a site is worth deeper work.
                 </p>
               </div>
             </ScrollReveal>
@@ -197,8 +197,8 @@ export default function HowItWorks() {
                   What happens behind the scenes
                 </h2>
                 <p className="mt-4 text-lg text-zinc-600">
-                  Capture, packaging, and governance are real parts of the system. They just should
-                  not dominate the public buying path.
+                  Capture, packaging, and governance matter. They just need to support the buyer
+                  path instead of getting in the way.
                 </p>
               </div>
             </ScrollReveal>
@@ -225,11 +225,11 @@ export default function HowItWorks() {
         <ScrollReveal as="section" className="mx-auto max-w-6xl px-4 pb-24 pt-4 sm:px-6 lg:px-8">
           <div className="rounded-3xl bg-zinc-900 p-8 sm:p-10">
             <h2 className="text-2xl font-bold text-white sm:text-3xl">
-              Keep the site simple and let the catalog do the selling.
+              Start with one site, not a general promise.
             </h2>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-300">
-              Robot teams should move from homepage to world model to contact without getting pulled
-              into side stories. Capturers still have a clear handoff when they need it.
+              Robot teams should move from homepage to listing to contact without getting dragged
+              into side stories. Capturers still have a clean handoff when they need it.
             </p>
             <div className="mt-8 flex flex-col gap-4 sm:flex-row">
               <a
