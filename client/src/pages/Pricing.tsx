@@ -53,9 +53,9 @@ export default function Pricing() {
                 Capture supply on one side. World-model demand on the other.
               </h1>
               <p className="text-lg text-slate-600">
-                Capturers earn money for free. Robot teams buy site-specific world models and hosted
-                access. Site operators can opt into licensing and enterprise teams can add managed
-                support when the workflow matters enough.
+                Capturers record a site and get paid for the capture. Robot teams buy site-specific
+                world models and hosted access. Site operators can opt into licensing, and enterprise
+                teams can add managed support if they need it.
               </p>
             </header>
           </ScrollReveal>
