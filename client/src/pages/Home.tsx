@@ -1,6 +1,6 @@
 import { SEO } from "@/components/SEO";
 import { OfferComparison } from "@/components/site/OfferComparison";
-import { ProofModule } from "@/components/site/ProofModule";
+import { proofHighlights, proofReelPosterSrc, proofReelVideoSrc } from "@/lib/marketingProof";
 import {
   ArrowRight,
   Camera,
@@ -120,13 +120,41 @@ export default function Home() {
               </div>
 
               <div className="lg:pl-4">
-                <ProofModule
-                  eyebrow="Product proof"
-                  title="See the site, the deliverables, and the next step in one pass."
-                  description="The public sample shows one real listing from first look through hosted review and export-ready output. It is the quickest way to understand what the product feels like in practice."
-                  caption="Sample listing and hosted review surface from a Blueprint world model."
-                  compact={true}
-                />
+                <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-stone-950 shadow-[0_24px_80px_-52px_rgba(15,23,42,0.5)]">
+                  <video
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    controls={false}
+                    poster={proofReelPosterSrc}
+                    className="aspect-[16/10] h-full w-full object-cover"
+                  >
+                    <source src={proofReelVideoSrc} type="video/mp4" />
+                  </video>
+                </div>
+
+                <div className="mt-5 rounded-[1.75rem] border border-slate-200 bg-white/80 p-5 backdrop-blur-sm sm:p-6">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Product proof
+                  </p>
+                  <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+                    See the site, the deliverables, and the next step in one pass.
+                  </h2>
+                  <p className="mt-4 text-sm leading-7 text-slate-600">
+                    The public sample follows one real listing from first look to hosted review
+                    and export-ready output. If you want to know what the product actually feels
+                    like, start there.
+                  </p>
+                  <ul className="mt-5 space-y-3">
+                    {proofHighlights.map((item) => (
+                      <li key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
+                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-400" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             </div>
           </div>

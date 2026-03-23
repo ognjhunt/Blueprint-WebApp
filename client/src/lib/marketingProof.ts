@@ -3,7 +3,7 @@ export const proofReelPosterSrc = "/siteworld-f5fd54898cfb-presentation-referenc
 export const proofReferenceImageSrc = "/siteworld-f5fd54898cfb-runtime-reference.png";
 
 export const proofHighlights = [
-  "Real facility walkthrough built from capture that already exists in the product pipeline.",
-  "Hosted-session framing, package language, and rights context tied to one exact site.",
-  "Grounded world-model surface for buyer review now, without locking the product to one backend.",
+  "A real facility walkthrough built from capture already in the product pipeline.",
+  "Hosted session framing, package language, and rights context tied to a single site.",
+  "A buyer review surface grounded in the world model, without locking the product to one backend.",
 ];
