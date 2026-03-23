@@ -11,7 +11,7 @@ const pricingNotes = [
   {
     title: "Hosted rates cover the runtime layer",
     body:
-      "Use hosted evaluation when the question is about repeatable runs, failure review, exports, or release comparison on one site.",
+      "Use hosted evaluation when the question is about repeatable runs, site-specific data, failure review, or release comparison on one site.",
   },
   {
     title: "Custom work is quoted separately",
@@ -25,7 +25,7 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Blueprint pricing for robot teams: site-specific world model packages, hosted evaluations, and custom engagements."
+        description="Blueprint pricing for robot teams: site-specific world model packages, hosted evaluations that can generate exportable site-specific data, and custom engagements."
         canonical="/pricing"
       />
 
@@ -39,8 +39,10 @@ export default function Pricing() {
               Three ways to buy in.
             </h1>
             <p className="text-lg leading-8 text-slate-600">
-              Most teams start with one scene package or one hosted evaluation request. Enterprise
-              is there when you need custom capture, private access, or higher-touch support.
+              Most teams start with one scene package or one hosted evaluation request. Use the
+              package when you need the site assets. Use hosted evaluation when you need to run
+              the site, inspect failures, and export site-specific data. Enterprise is there when
+              you need custom capture, private access, or higher-touch support.
             </p>
           </header>
 

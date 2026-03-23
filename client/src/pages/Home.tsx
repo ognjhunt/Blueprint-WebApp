@@ -18,12 +18,12 @@ const buyerReasons = [
   {
     title: "See the package and the eval path on the same listing",
     body:
-      "Each listing shows what you can buy first, what the hosted path looks like, and what limits come with that site.",
+      "Each listing shows what you can buy first, what the hosted path covers, and what limits come with that site.",
   },
   {
     title: "Reuse one site across review and testing",
     body:
-      "Use the same site for release checks, customer review, and site-specific data work without rebuilding the context each time.",
+      "Use the same site for release checks, customer review, and site-specific data generation without rebuilding the context each time.",
   },
 ];
 
@@ -37,7 +37,7 @@ const sampleDecision = [
   {
     title: "Decide package or evaluation",
     body:
-      "Check whether the package already answers the question or whether you need runtime evidence from a hosted evaluation.",
+      "Check whether the package already answers the question or whether you need to run the site and export data from a hosted evaluation.",
     icon: ShieldCheck,
   },
   {
@@ -69,7 +69,7 @@ export default function Home() {
     <>
       <SEO
         title="Blueprint | World Models For Robot Teams"
-        description="Blueprint helps robot teams buy access to the exact site they need, review concrete deliverables, and request hosted evaluations grounded in real indoor capture."
+        description="Blueprint helps robot teams buy access to the exact site they need, review concrete deliverables, and request hosted evaluations that produce site-specific data grounded in real indoor capture."
         canonical="/"
       />
 
@@ -88,8 +88,9 @@ export default function Home() {
                 </h1>
                 <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
                   Blueprint sells site-specific world models built from real indoor capture. Buy
-                  the scene package, request a hosted evaluation, or scope custom work around one
-                  facility before travel, pilots, or on-site debugging starts.
+                  the scene package, request a hosted evaluation to run the site and generate
+                  site-specific data, or scope custom work around one facility before travel,
+                  pilots, or on-site debugging starts.
                 </p>
                 <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
                   Most teams know what they need within a minute: the package, the evaluation
@@ -122,7 +123,7 @@ export default function Home() {
                 <ProofModule
                   eyebrow="Product proof"
                   title="See the site, the deliverables, and the next step in one pass."
-                  description="The public sample shows one real listing from first look through hosted review. It is the quickest way to understand what the product feels like in practice."
+                  description="The public sample shows one real listing from first look through hosted review and export-ready output. It is the quickest way to understand what the product feels like in practice."
                   caption="Sample listing and hosted review surface from a Blueprint world model."
                   compact={true}
                 />

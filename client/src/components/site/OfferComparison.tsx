@@ -29,11 +29,11 @@ const offerCards = [
     title: "Hosted evaluation",
     price: "$16 - $29 / session-hour",
     description:
-      "Request Blueprint-managed runtime access when you want to test the site now.",
+      "Request Blueprint-managed runtime access when you want to run the site now and pull back site-specific data.",
     bullets: [
       "Repeatable runs on one exact site",
       "Rollout video, metrics, and failure review",
-      "Raw bundle and RLDS-style exports",
+      "Raw bundle and RLDS-style exports for tuning and adaptation",
     ],
     href: "/contact?persona=robot-team&interest=evaluation-package",
     cta: "Request evaluation",
@@ -64,7 +64,7 @@ const offerCards = [
 export function OfferComparison({
   eyebrow = "What you can buy first",
   title = "Choose the first step that matches the work.",
-  description = "Most teams start with one site package or one hosted evaluation request. Enterprise is there when the public catalog is not enough.",
+  description = "Most teams start with one site package or one hosted evaluation request. Use the package when you need the site assets. Use hosted evaluation when you need to run the site and export data from it.",
   className = "",
 }: OfferComparisonProps) {
   return (
