@@ -20,6 +20,7 @@ describe("Route registration", () => {
     expect(source).toContain('path: "/governance"');
     expect(source).toContain('path: "/about"');
     expect(source).toContain('path: "/careers"');
+    expect(source).toContain('path: "/readiness-pack"');
     expect(source).toContain('path: "/sign-in"');
   });
 
@@ -70,5 +71,14 @@ describe("Route registration", () => {
     expect(source).toContain('path: "/sign-in"');
     expect(source).toContain('path: "/login"');
     expect(source).toContain("LegacyLoginRedirect");
+  });
+
+  it("keeps public persona and readiness pages canonical instead of redirecting after hydration", () => {
+    const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
+    const source = fs.readFileSync(routesPath, "utf-8");
+
+    expect(source).toContain('{ path: "/for-site-operators", layout: "public", component: ForSiteOperators }');
+    expect(source).toContain('{ path: "/for-robot-teams", layout: "public", component: ForRobotIntegrators }');
+    expect(source).toContain('{ path: "/readiness-pack", layout: "public", component: ReadinessPack }');
   });
 });

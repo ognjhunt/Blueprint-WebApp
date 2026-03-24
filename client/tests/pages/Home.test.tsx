@@ -19,29 +19,29 @@ describe("Home", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Inspect the exact site before your team books the visit\./i,
+        name: /Use the exact site before deployment\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Blueprint gives robot teams a world model of one real facility and workflow\./i,
+        /Blueprint turns one real facility into a site-grounded world model your team can evaluate, vary, and export from\./i,
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Open public demo/i })).toHaveAttribute(
-      "href",
-      "/world-models/siteworld-f5fd54898cfb",
-    );
     expect(screen.getByRole("link", { name: /Browse world models/i })).toHaveAttribute(
       "href",
       "/world-models",
     );
-    expect(screen.getByRole("link", { name: /See results/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Open public demo/i })).toHaveAttribute(
       "href",
-      "/case-studies",
+      "/world-models/siteworld-f5fd54898cfb",
+    );
+    expect(screen.getByRole("link", { name: /Why it works/i })).toHaveAttribute(
+      "href",
+      "/how-it-works",
     );
     expect(
       screen.getByText(
-        /The public demo is the fastest way to understand the product/i,
+        /The public demo proves the site is real/i,
       ),
     ).toBeInTheDocument();
   });
@@ -50,7 +50,10 @@ describe("Home", () => {
     window.localStorage.clear();
     render(<Home />);
 
-    expect(screen.getByText(/Why teams buy/i)).toBeInTheDocument();
+    expect(screen.getByText(/What teams use this for/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /The point is not just seeing the site\./i }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /Delivery examples with concrete outcomes\./i }),
     ).toBeInTheDocument();

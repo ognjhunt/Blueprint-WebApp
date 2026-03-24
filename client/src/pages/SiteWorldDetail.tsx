@@ -395,8 +395,9 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 {site.summary}
               </p>
               <p className="mt-3 text-sm text-slate-600">
-                Use this listing to review the real site, compare the package with the hosted
-                evaluation path, and decide what your team should do before the real visit.
+                Use this listing to ground one deployment question on the real site, compare the
+                package with the hosted evaluation path, and decide how your team should test it
+                before the real visit.
               </p>
               <p className="mt-2 text-sm text-slate-500">{site.bestFor}</p>
               <div className="mt-5 flex flex-wrap gap-3">
@@ -750,8 +751,8 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   Buy the site package.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Use this when your team wants the site package for internal review, integration
-                  work, or your own tooling.
+                  Use this when your team wants the grounded site package for internal review,
+                  integration work, or your own tooling.
                 </p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   {scenePackage.deliverables.map((item) => (
@@ -807,7 +808,8 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 <p className="mt-3 text-sm leading-6 text-slate-600">
                   Hosted evaluation is for the questions teams ask before a visit: can this robot
                   handle the lane, what fails first, and how do releases compare on the same site?
-                  Use it for repeatable testing, site-specific data generation, and remote demos.
+                  Use it for repeatable testing, site-specific data generation, policy adaptation,
+                  and remote demos.
                 </p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   {hostedSessions.deliverables.map((item) => (
@@ -855,16 +857,16 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
 
           <section className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 px-5 py-6 sm:px-7 sm:py-7">
             <div className="max-w-3xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Simple walkthrough
-              </p>
-              <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                What hosted evaluation looks like
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-slate-600">
-                One site. One task. One robot question. Start the session, run the task, and
-                export the result.
-              </p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Simple eval loop
+            </p>
+            <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
+              What hosted evaluation looks like
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              One site. One task. One robot question. Start the session, run the task, compare the
+              result, and export what matters.
+            </p>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               {hostedSessionSteps.map((step, index) => (
@@ -906,7 +908,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               Example
             </p>
             <h2 className="mt-2 text-2xl font-bold sm:text-3xl">
-              A sample review path for {site.siteName}
+              A sample eval loop for {site.siteName}
             </h2>
             <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-200">
               A team picks {site.siteName}, chooses {site.sampleRobot}, and tests{" "}

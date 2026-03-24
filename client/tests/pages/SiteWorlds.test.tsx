@@ -8,7 +8,7 @@ describe("SiteWorlds", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Find the site before your team books the visit\./i,
+        name: /Browse exact sites your team can use before deployment\./i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -25,7 +25,7 @@ describe("SiteWorlds", () => {
     expect(screen.getByText(/Buy the site package/i)).toBeInTheDocument();
     expect(screen.getByText(/Request a hosted evaluation/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/A site-faithful model of the exact workflow area/i),
+      screen.getByText(/What real site and workflow the model is anchored to/i),
     ).toBeInTheDocument();
     expect(screen.getByText(/Harborview Grocery Distribution Annex/i)).toBeInTheDocument();
     expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();

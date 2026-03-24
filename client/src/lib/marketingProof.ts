@@ -4,9 +4,9 @@ export const proofReferenceImageSrc = "/siteworld-f5fd54898cfb-runtime-reference
 export const publicDemoHref = "/world-models/siteworld-f5fd54898cfb";
 
 export const proofHighlights = [
-  "A real facility walkthrough built from capture already in the product pipeline.",
-  "Hosted session framing, package language, and rights context tied to a single site.",
-  "A buyer review surface grounded in the world model, without locking the product to one backend.",
+  "A real facility captured once and reused across proof, runtime, and exports.",
+  "A package path for teams that need the grounded site assets first.",
+  "A hosted path for reruns, failure review, and site-grounded dataset export.",
 ];
 
 export const resultHighlights = [

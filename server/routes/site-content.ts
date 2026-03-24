@@ -13,8 +13,8 @@ router.get("/", (_req: Request, res: Response) => {
         description: "Overview of Blueprint's qualification-first workflow for deployment readiness.",
       },
       {
-        path: "/quality-standard",
-        title: "Quality Standard",
+        path: "/readiness-pack",
+        title: "Readiness Pack",
         description:
           "Sample deliverable showing what a Blueprint qualification record produces: feasibility, blockers, readiness, and next steps.",
       },
@@ -35,6 +35,18 @@ router.get("/", (_req: Request, res: Response) => {
         title: "Qualified Opportunities Guide",
         description:
           "Beginner-friendly explainer of Blueprint's site qualification and qualified opportunities workflow.",
+      },
+      {
+        path: "/sample-deliverables",
+        title: "Sample Deliverables",
+        description:
+          "Public examples of the walkthrough, exports, and trust details a robot team can inspect before buying.",
+      },
+      {
+        path: "/case-studies",
+        title: "Results",
+        description:
+          "Selected delivery examples with workflow summaries and concrete outcomes from Blueprint work.",
       },
       {
         path: "/docs",

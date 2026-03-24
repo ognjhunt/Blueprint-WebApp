@@ -1,60 +1,73 @@
 import { SEO } from "@/components/SEO";
-import { InteractiveCard, ScrollReveal, StaggerGroup } from "@/components/motion";
-import {
-  ArrowRight,
-  Camera,
-  FileSearch,
-  Play,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
+import { ScrollReveal, StaggerGroup } from "@/components/motion";
+import { SiteGroundedLoopGraphic } from "@/components/site/SiteGroundedLoopGraphic";
+import { ArrowRight, BarChart3, Database, GitBranch, MapPinned } from "lucide-react";
 
-const buyerSteps = [
+const loopSteps = [
   {
-    step: "01",
-    title: "Choose the site",
+    title: "Anchor to the exact site",
     description:
-      "Start with a world model that matches the workflow, environment, and constraints your robot actually needs to handle.",
-    icon: FileSearch,
+      "Blueprint starts from one real facility and one real workflow, so geometry, constraints, and task context are not guesses.",
+    icon: MapPinned,
   },
   {
-    step: "02",
-    title: "Inspect the deliverables",
+    title: "Branch realistic variations",
     description:
-      "Review package contents, hosted evaluation availability, outputs, and stated limitations before your team commits time.",
-    icon: ShieldCheck,
+      "Once the site is grounded, teams can change lighting, clutter, start states, and other conditions without losing the real-site anchor.",
+    icon: GitBranch,
   },
   {
-    step: "03",
-    title: "Request the right path",
+    title: "Run, score, and compare",
     description:
-      "Ask for the site package or a hosted evaluation with the site, task, and robot context already attached.",
-    icon: Play,
+      "Hosted evaluation gives teams reruns, metrics, failure review, and release comparison on the same site instead of across disconnected demos.",
+    icon: BarChart3,
   },
   {
-    step: "04",
-    title: "Use one site across the workflow",
+    title: "Export data back into the stack",
     description:
-      "Run the same site for tuning, release checks, demos, and internal review instead of rebuilding context for every step.",
-    icon: Sparkles,
+      "The useful output is not the walkthrough alone. It is the rollout data, failure cases, and site-grounded evidence you feed back into training and deployment decisions.",
+    icon: Database,
   },
 ];
 
-const behindScenes = [
+const comparisonRows = [
   {
-    title: "Real indoor capture upstream",
-    body:
-      "Blueprint starts with walkthrough data from real facilities. That capture work exists to support the buyer path, not compete with it.",
+    title: "Generic simulation",
+    bestFor: "Broad pretraining and early iteration",
+    weakOn: "Customer-specific geometry, task semantics, and failure modes",
   },
   {
-    title: "Packaging and rights stay visible",
-    body:
-      "Each listing carries deliverables, pricing, and usage constraints so the commercial surface stays concrete.",
+    title: "Exact site only",
+    bestFor: "Reviewing the real place and checking basic fit",
+    weakOn: "Edge-case probing if the environment stays static",
   },
   {
-    title: "Capturer pages stay separate",
+    title: "Exact site plus controlled variation",
+    bestFor: "Grounded evals, site-specific data, and release comparison before deployment",
+    weakOn: "Nothing here replaces final on-site safety validation",
+  },
+];
+
+const useCaseCards = [
+  {
+    title: "Pre-deployment evals",
     body:
-      "Capturers only need a short explainer and the mobile handoff. The main site stays focused on robot teams.",
+      "Run the real task on the real site before the first travel-heavy customer week starts.",
+  },
+  {
+    title: "Policy adaptation",
+    body:
+      "Use site-grounded exports to adjust the stack around the place the robot actually needs to work.",
+  },
+  {
+    title: "Regression checks",
+    body:
+      "Compare releases on the same site so weak updates show up before they reach the field.",
+  },
+  {
+    title: "Customer readiness",
+    body:
+      "Show operators, buyers, and internal teams the exact site and the expected robot behavior in the same surface.",
   },
 ];
 
@@ -85,101 +98,84 @@ export default function HowItWorks() {
   return (
     <>
       <SEO
-        title="How It Works | Blueprint"
-        description="How Blueprint helps robot teams choose a real site, inspect concrete deliverables, and request the right evaluation path."
+        title="Why It Works | Blueprint"
+        description="Why site-grounded world models improve robot evaluation: anchor to the exact site, branch controlled variations, and export the results back into the stack."
         canonical="/how-it-works"
       />
 
-      <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
+      <div className="relative min-h-screen bg-white text-zinc-900 selection:bg-cyan-100 selection:text-cyan-900">
         <DotPattern />
 
-        <section className="relative overflow-hidden pb-16 pt-14 sm:pb-20 sm:pt-24">
+        <section className="relative overflow-hidden border-b border-zinc-200 bg-[radial-gradient(circle_at_top_left,rgba(8,145,178,0.08),transparent_36%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(244,244,245,0.96))] pb-16 pt-14 sm:pb-20 sm:pt-24">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
-              <div className="space-y-6">
-                <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
-                  <Sparkles className="h-3 w-3" />
-                  How It Works
+            <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-cyan-100 bg-cyan-50/70 px-3 py-1 text-xs font-medium uppercase tracking-wider text-cyan-700">
+                  Why It Works
                 </div>
-                <h1 className="text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
-                  From site listing to clear next step.
+                <h1 className="mt-6 text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
+                  Site grounding matters most when the deployment question gets specific.
                 </h1>
-                <p className="max-w-2xl text-lg leading-relaxed text-zinc-600">
-                  Blueprint starts with one real site. Your team checks the package, sees whether a
-                  hosted evaluation is available, and sends one request with the robot and task
-                  already attached.
+                <p className="mt-6 max-w-2xl text-lg leading-relaxed text-zinc-600">
+                  The hard problems are usually local: aisle width, handoff geometry, occlusion,
+                  lighting, start state, and the exact task lane a customer cares about. That is
+                  why Blueprint starts from one real site, then adds controlled variation around
+                  it instead of stopping at a static walkthrough.
                 </p>
-                <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <a
                     href="/world-models"
-                    className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-700"
+                    className="inline-flex items-center justify-center rounded-full bg-zinc-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800"
                   >
                     Browse world models
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
                     href="/contact?persona=robot-team&interest=evaluation-package"
-                    className="inline-flex items-center justify-center rounded-lg border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
+                    className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
                   >
-                    Request evaluation
+                    Request hosted evaluation
                   </a>
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-6">
-                <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                  In one minute, a buyer should know
-                </p>
-                <ul className="mt-4 space-y-3 text-sm leading-7 text-zinc-600">
-                  <li className="flex items-start gap-3">
-                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-zinc-400" />
-                    <span>What a robot team can buy or request.</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-zinc-400" />
-                    <span>How the catalog, deliverables, and hosted path fit together.</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-zinc-400" />
-                    <span>Where capturers fit without crowding the main buyer story.</span>
-                  </li>
-                </ul>
+              <div className="lg:pl-2">
+                <SiteGroundedLoopGraphic />
               </div>
             </div>
           </div>
         </section>
 
-        <section className="border-y border-zinc-100 bg-zinc-50/50 py-12 sm:py-16">
+        <section className="border-b border-zinc-200 bg-zinc-50/60 py-12 sm:py-16">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <ScrollReveal>
-              <div className="mb-10 max-w-2xl">
-                <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">
-                  The robot-team workflow
+              <div className="mb-10 max-w-3xl">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                  The operating idea
+                </p>
+                <h2 className="mt-3 text-3xl font-bold text-zinc-950 sm:text-4xl">
+                  Exact site plus controlled variation is the useful loop.
                 </h2>
-                <p className="mt-4 text-zinc-600">
-                  Four steps are enough. Most buyers do not need a tour of the whole company before
-                  they know whether a site is worth deeper work.
+                <p className="mt-4 text-sm leading-7 text-zinc-600">
+                  Recent world-model and sim-to-real work keeps circling the same pattern: the
+                  exact site is a strong anchor, but the biggest lift comes when teams can rerun
+                  the task under realistic variations and feed those results back into their stack.
                 </p>
               </div>
             </ScrollReveal>
 
-            <StaggerGroup className="grid gap-4 md:grid-cols-2 xl:grid-cols-4" stagger={0.1}>
-              {buyerSteps.map((item) => {
+            <StaggerGroup className="grid gap-4 md:grid-cols-2 xl:grid-cols-4" stagger={0.08}>
+              {loopSteps.map((item) => {
                 const Icon = item.icon;
 
                 return (
-                  <InteractiveCard key={item.step} accent="indigo" className="p-5">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
-                        {item.step}
-                      </div>
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-zinc-700">
-                        <Icon className="h-5 w-5" />
-                      </div>
+                  <article key={item.title} className="rounded-3xl border border-zinc-200 bg-white p-5">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-800">
+                      <Icon className="h-5 w-5" />
                     </div>
-                    <h3 className="mt-4 text-lg font-semibold text-zinc-900">{item.title}</h3>
+                    <h3 className="mt-4 text-lg font-semibold text-zinc-950">{item.title}</h3>
                     <p className="mt-2 text-sm leading-6 text-zinc-600">{item.description}</p>
-                  </InteractiveCard>
+                  </article>
                 );
               })}
             </StaggerGroup>
@@ -191,58 +187,99 @@ export default function HowItWorks() {
             <ScrollReveal>
               <div className="max-w-3xl">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
-                  Upstream
+                  Comparison
                 </p>
-                <h2 className="mt-2 text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
-                  What happens behind the scenes
+                <h2 className="mt-2 text-3xl font-bold tracking-tight text-zinc-950 sm:text-4xl">
+                  Where Blueprint sits in the workflow
                 </h2>
-                <p className="mt-4 text-lg text-zinc-600">
-                  Capture, packaging, and governance matter. They just need to support the buyer
-                  path instead of getting in the way.
+                <p className="mt-4 text-sm leading-7 text-zinc-600">
+                  Generic simulation is still useful. Final on-site validation is still necessary.
+                  Blueprint sits in the middle, where one exact site can answer real deployment
+                  questions before the expensive part starts.
                 </p>
               </div>
             </ScrollReveal>
 
-            <div className="mt-8 grid gap-4 md:grid-cols-3">
-              {behindScenes.map((item, index) => (
+            <div className="mt-8 grid gap-4 lg:grid-cols-3">
+              {comparisonRows.map((row, index) => (
                 <article
-                  key={item.title}
+                  key={row.title}
                   className={`rounded-3xl border p-6 ${
-                    index === 0 ? "border-zinc-200 bg-white" : "border-zinc-200 bg-zinc-50"
+                    index === 2 ? "border-zinc-950 bg-zinc-950 text-white" : "border-zinc-200 bg-white"
                   }`}
                 >
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-700">
-                    {index === 0 ? <Camera className="h-5 w-5" /> : <ShieldCheck className="h-5 w-5" />}
+                  <h3 className={`text-2xl font-semibold ${index === 2 ? "text-white" : "text-zinc-950"}`}>
+                    {row.title}
+                  </h3>
+                  <div className="mt-5 space-y-4 text-sm leading-7">
+                    <div>
+                      <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${index === 2 ? "text-zinc-300" : "text-zinc-500"}`}>
+                        Best for
+                      </p>
+                      <p className={index === 2 ? "text-zinc-100" : "text-zinc-700"}>{row.bestFor}</p>
+                    </div>
+                    <div>
+                      <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${index === 2 ? "text-zinc-300" : "text-zinc-500"}`}>
+                        Watch-out
+                      </p>
+                      <p className={index === 2 ? "text-zinc-200" : "text-zinc-600"}>{row.weakOn}</p>
+                    </div>
                   </div>
-                  <h3 className="mt-4 text-lg font-semibold text-zinc-900">{item.title}</h3>
-                  <p className="mt-2 text-sm leading-7 text-zinc-600">{item.body}</p>
                 </article>
               ))}
             </div>
           </div>
         </section>
 
-        <ScrollReveal as="section" className="mx-auto max-w-6xl px-4 pb-24 pt-4 sm:px-6 lg:px-8">
-          <div className="rounded-3xl bg-zinc-900 p-8 sm:p-10">
+        <section className="border-y border-zinc-200 bg-zinc-50/60 py-14 sm:py-20">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <ScrollReveal>
+              <div className="max-w-3xl">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                  Common jobs
+                </p>
+                <h2 className="mt-2 text-3xl font-bold tracking-tight text-zinc-950 sm:text-4xl">
+                  What teams actually do with this
+                </h2>
+                <p className="mt-4 text-sm leading-7 text-zinc-600">
+                  These are the practical jobs that matter once a robotics team starts working
+                  against one specific customer site.
+                </p>
+              </div>
+            </ScrollReveal>
+
+            <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {useCaseCards.map((item) => (
+                <article key={item.title} className="rounded-3xl border border-zinc-200 bg-white p-5">
+                  <h3 className="text-lg font-semibold text-zinc-950">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-zinc-600">{item.body}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <ScrollReveal as="section" className="mx-auto max-w-6xl px-4 pb-24 pt-10 sm:px-6 lg:px-8">
+          <div className="rounded-3xl bg-zinc-950 p-8 sm:p-10">
             <h2 className="text-2xl font-bold text-white sm:text-3xl">
-              Start with one site, not a general promise.
+              Start with one real site and one deployment question.
             </h2>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-300">
-              Robot teams should move from homepage to listing to contact without getting dragged
-              into side stories. Capturers still have a clean handoff when they need it.
+              That is enough to decide whether you need the package, hosted evaluation, or a custom
+              engagement. The rest of the workflow gets much cleaner once the site is grounded.
             </p>
             <div className="mt-8 flex flex-col gap-4 sm:flex-row">
               <a
                 href="/world-models"
-                className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100"
+                className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-100"
               >
                 Browse world models
               </a>
               <a
-                href="/capture-app"
-                className="inline-flex items-center justify-center rounded-lg border border-zinc-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                href="/sample-deliverables"
+                className="inline-flex items-center justify-center rounded-full border border-zinc-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-900"
               >
-                Capturer handoff
+                See sample deliverables
               </a>
             </div>
           </div>

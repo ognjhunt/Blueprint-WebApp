@@ -40,9 +40,10 @@ export default function Pricing() {
             </h1>
             <p className="text-lg leading-8 text-slate-600">
               Most teams start with one site package or one hosted evaluation request. Use the
-              package when you need the site assets. Use hosted evaluation when you need to run
-              the site, inspect failures, and export site-specific data. Enterprise is there when
-              you need custom capture, private access, or higher-touch support.
+              package when you need the grounded site assets. Use hosted evaluation when you need
+              to run the site, inspect failures, compare releases, and export site-specific data.
+              Enterprise is there when you need custom capture, private access, or higher-touch
+              support.
             </p>
           </header>
 

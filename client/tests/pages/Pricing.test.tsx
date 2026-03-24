@@ -13,7 +13,7 @@ describe("Pricing", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText(/\$2,100 - \$3,400/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/\$16 - \$29/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole("link", { name: /Request evaluation/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Request hosted evaluation/i })).toHaveAttribute(
       "href",
       "/contact?persona=robot-team&interest=evaluation-package",
     );

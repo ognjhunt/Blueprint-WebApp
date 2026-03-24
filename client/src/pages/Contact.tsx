@@ -71,13 +71,13 @@ export default function Contact() {
     ? "Confirm the site, the task, and the robot setup. Blueprint will use that to line up the right hosted evaluation path for your team."
     : persona === "site_operator"
       ? "Use this form if you run the facility and need to talk through capture access, privacy rules, or whether the site should be listed at all."
-      : "Use this form if your team needs to inspect a real site, understand the deliverables, or decide whether hosted evaluation is the right next step.";
+      : "Use this form if your team needs one exact site for evals, site-grounded data, release comparison, or package access.";
   const responseTitle = hostedMode ? "Hosted evaluation request" : "What happens after you send this";
   const responseBody = hostedMode
     ? "Fill out the short form and our team will follow up to confirm the site, robot setup, and the next step toward a hosted evaluation."
     : persona === "site_operator"
       ? "Blueprint reviews the facility details, access rules, and privacy notes first. The reply should narrow the next step instead of reopening the whole conversation."
-      : "Blueprint reviews the site, workflow, and embodiment details first. The reply should move your team toward a concrete next step, not another vague intake round.";
+      : "Blueprint reviews the site, workflow, and embodiment details first. The reply should move your team toward a concrete eval or package path, not another vague intake round.";
   const learnMoreLinks = hostedMode
     ? [
         { href: "/world-models", label: "Back to World Models" },

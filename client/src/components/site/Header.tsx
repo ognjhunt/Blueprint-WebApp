@@ -13,6 +13,7 @@ import {
 
 const navLinks = [
   { href: "/world-models", label: "World Models" },
+  { href: "/how-it-works", label: "Why It Works" },
   { href: "/pricing", label: "Pricing" },
   { href: "/case-studies", label: "Results" },
   { href: "/faq", label: "FAQ" },

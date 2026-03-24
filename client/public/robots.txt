@@ -1,4 +1,13 @@
 # https://www.robotstxt.org/robotstxt.html
+User-agent: Googlebot
+Allow: /
+
+User-agent: Google-InspectionTool
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
 User-agent: *
 Allow: /
 

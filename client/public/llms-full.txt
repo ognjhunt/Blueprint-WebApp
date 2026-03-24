@@ -20,9 +20,11 @@ Downstream note: passive site capture is useful context, but serious robot adapt
 - **Home (`/`)**: Top-level product narrative for Blueprint as a qualification-first platform for robot deployment readiness.
 - **How It Works (`/how-it-works`)**: Explains intake, evidence review, readiness scoring, and the qualification-first path.
 - **World Models (`/world-models`)**: Explains the hosted layer for site-specific world models that robot teams can open, run, and export from after qualification or when a site is already known.
-- **Quality Standard (`/quality-standard`)**: Shows the qualification record and the kind of readiness outputs Blueprint produces before deeper work starts.
+- **Readiness Pack (`/readiness-pack`)**: Shows the qualification record and the kind of readiness outputs Blueprint produces before deeper work starts.
 - **Qualified Opportunities (`/qualified-opportunities`)**: Shows the downstream brief format robot teams can review after site qualification.
 - **Qualified Opportunities Guide (`/qualified-opportunities-guide`)**: Explains the qualification and handoff workflow in more detail.
+- **Sample Deliverables (`/sample-deliverables`)**: Shows the walkthrough, exports, and package framing a robot team can inspect before buying.
+- **Results (`/case-studies`)**: Concrete delivery examples and outcomes from site-package and hosted-evaluation work.
 - **Pricing (`/pricing`)**: Start with site qualification, then add deeper evaluation or managed work only when justified.
 - **Solutions (`/solutions`)**: Use-case oriented summaries for robotics, autonomy, and AI evaluation workflows.
 - **Contact (`/contact`)**: Site submission intake for qualification, evidence review, and later-stage follow-on lanes.
@@ -39,9 +41,11 @@ Downstream note: passive site capture is useful context, but serious robot adapt
 - / (Home)
 - /how-it-works
 - /world-models
-- /quality-standard
+- /readiness-pack
 - /qualified-opportunities
 - /qualified-opportunities-guide
+- /sample-deliverables
+- /case-studies
 - /pricing
 - /solutions
 - /contact

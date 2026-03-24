@@ -28,9 +28,9 @@ const trustPanel = [
 ];
 
 const sampleDecision = [
-  "A robot team opens one listing before a grocery-site visit.",
-  "They review the walkthrough, confirm the lane, and check whether the package already answers the question.",
-  "If they need runtime evidence, they request a hosted evaluation and look at rollout video, metrics, and failure cases before anyone books travel.",
+  "A robot team opens one listing before a grocery-site deployment sprint.",
+  "They review the walkthrough, confirm the lane, and decide whether they need the package or a hosted eval loop.",
+  "If they need runtime evidence, they request hosted evaluation and inspect rollout video, metrics, failure cases, and exports before anyone books travel.",
 ];
 
 export default function SampleDeliverables() {
@@ -38,7 +38,7 @@ export default function SampleDeliverables() {
     <>
       <SEO
         title="Sample Deliverables | Blueprint"
-        description="See the walkthrough, artifact views, exported outputs, and trust details a robot team can expect from a Blueprint world-model listing."
+        description="See the walkthrough, runtime reference, exported outputs, and trust details a robot team can expect from a Blueprint world-model listing."
         canonical="/sample-deliverables"
       />
 
@@ -49,12 +49,12 @@ export default function SampleDeliverables() {
               Sample deliverables
             </p>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-              See what a robot team actually gets.
+              See what a robot team can run and export.
             </h1>
             <p className="mt-4 text-lg leading-8 text-slate-600">
-              The product is easier to understand when the deliverables are in one place. This
-              page shows the public proof reel, reference views, typical package contents, and the
-              trust details a buyer looks for before requesting access.
+              This page shows the public walkthrough, the runtime reference, the typical package
+              contents, and the outputs teams use for evals, release comparison, and site-grounded
+              data generation.
             </p>
           </header>
 
@@ -62,7 +62,7 @@ export default function SampleDeliverables() {
             <ProofModule
               eyebrow="Public proof"
               title="One listing, one site, one clear path into the product."
-              description="The public sample shows the walkthrough surface first. From there, a buyer can decide whether the package is enough or whether they need a hosted evaluation tied to the same site."
+              description="The public sample proves the site is real. From there, a buyer can decide whether the package is enough or whether they need hosted evaluation tied to the same site."
               caption="Public reel from the current demo listing."
             />
           </div>
@@ -77,8 +77,8 @@ export default function SampleDeliverables() {
               <div className="p-6">
                 <h2 className="text-2xl font-semibold text-slate-900">Walkthrough surface</h2>
                 <p className="mt-3 text-sm leading-7 text-slate-600">
-                  This is the first proof layer. A buyer sees the site, the lane, and the physical
-                  context before choosing a package or evaluation path.
+                  This is the first proof layer. A buyer confirms the site, the lane, and the
+                  physical context before choosing a package or evaluation path.
                 </p>
               </div>
             </article>
@@ -92,8 +92,9 @@ export default function SampleDeliverables() {
               <div className="p-6">
                 <h2 className="text-2xl font-semibold text-slate-900">Runtime reference</h2>
                 <p className="mt-3 text-sm leading-7 text-slate-600">
-                  This is the hosted side. It is where teams inspect runs, compare releases, and
-                  review failure cases without losing the link back to the original site.
+                  This is the hosted side. It is where teams rerun the same site, compare
+                  checkpoints, and review failure cases without losing the link back to the
+                  original facility.
                 </p>
               </div>
             </article>
@@ -142,10 +143,10 @@ export default function SampleDeliverables() {
 
           <section className="mt-10 rounded-[2rem] border border-slate-200 bg-white p-6 sm:p-8">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Sample review path
+              Sample eval path
             </p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-              How a team uses this before a site visit
+              How a team uses this before deployment
             </h2>
             <div className="mt-6 grid gap-4 md:grid-cols-3">
               {sampleDecision.map((item, index) => (
@@ -159,7 +160,7 @@ export default function SampleDeliverables() {
             </div>
             <p className="mt-6 max-w-3xl text-sm leading-7 text-slate-600">
               The point is not to replace the real visit. It is to make the first real visit less
-              expensive, less blind, and easier to scope.
+              blind, easier to scope, and more informed by usable data.
             </p>
           </section>
 

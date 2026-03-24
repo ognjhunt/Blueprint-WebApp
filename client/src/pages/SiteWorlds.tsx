@@ -12,7 +12,7 @@ const layerCards = [
     title: "Buy the site package",
     kicker: "Option 1",
     description:
-      "Use this when your team needs the site files, package notes, and rights context for internal review or integration work.",
+      "Use this when your team needs the grounded site files, package notes, and rights context in your own stack.",
     bullets: [
       "Walkthrough video and camera poses",
       "Geometry, depth, and site notes when available",
@@ -24,7 +24,7 @@ const layerCards = [
     title: "Request a hosted evaluation",
     kicker: "Option 2",
     description:
-      "Use this when you want Blueprint to run the site with you so your team can test, rerun, and export results without moving files first.",
+      "Use this when you want Blueprint to run the exact site with you so your team can test, rerun, and export results without moving files first.",
     bullets: [
       "Reset and rerun the same site",
       "Scenario changes for edge-case checks",
@@ -36,14 +36,14 @@ const layerCards = [
 
 const useCaseCards = [
   {
-    title: "Test before travel",
+    title: "Run site-grounded evals",
     description:
       "See if your robot can localize, fit, see the task, and finish the job before anyone goes on site.",
   },
   {
     title: "Generate site-specific data",
     description:
-      "Render views, vary scenarios, and export outputs for training, debugging, or internal review.",
+      "Render views, vary scenarios, and export outputs for training, debugging, or policy adaptation.",
   },
   {
     title: "Compare releases",
@@ -91,7 +91,7 @@ export default function SiteWorlds() {
     <>
       <SEO
         title="World Models | Blueprint"
-        description="Browse site-specific world models of real indoor spaces for robot tuning, evaluation, and hosted access."
+        description="Browse site-specific world models of real indoor spaces for robot evaluation, site-grounded data generation, and hosted access."
         canonical="/world-models"
       />
 
@@ -121,12 +121,12 @@ export default function SiteWorlds() {
                 World Models
               </p>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Find the site before your team books the visit.
+                Browse exact sites your team can use before deployment.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
                 Each world model is built from real indoor capture and tied to one site and one
-                workflow. Open a listing to see the site package price, the hosted evaluation
-                rate, and whether the site is a fit before deployment work starts.
+                workflow. Open a listing to see the package price, the hosted evaluation path, and
+                whether that site is a good anchor for evals, exports, and deployment prep.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -149,11 +149,11 @@ export default function SiteWorlds() {
               <ul className="mt-3 space-y-2 text-sm text-slate-600">
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                  <span>A site-faithful model of the exact workflow area</span>
+                  <span>What real site and workflow the model is anchored to</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                  <span>A site-package price and a hosted-evaluation path</span>
+                  <span>What can be bought, evaluated, and exported from it</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
@@ -175,8 +175,8 @@ export default function SiteWorlds() {
                 Choose how you want access.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Some teams need the package first. Others already know they need hosted runtime
-                evidence. Both paths stay tied to the same real place.
+                Some teams need the grounded site assets first. Others already know they need
+                reruns, exports, and runtime evidence. Both paths stay tied to the same real place.
               </p>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -213,8 +213,8 @@ export default function SiteWorlds() {
                 Common reasons robot teams use world models.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                These are practical reasons to use it before you commit travel, pilot time, or
-                customer time.
+                These are the practical jobs teams use them for before they commit travel, pilot
+                time, or customer time.
               </p>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">

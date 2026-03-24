@@ -1,57 +1,75 @@
 import { SEO } from "@/components/SEO";
+import { ProofModule } from "@/components/site/ProofModule";
 import { OfferComparison } from "@/components/site/OfferComparison";
-import {
-  proofHighlights,
-  proofReelPosterSrc,
-  proofReelVideoSrc,
-  publicDemoHref,
-  resultHighlights,
-} from "@/lib/marketingProof";
-import {
-  ArrowRight,
-  BarChart3,
-  Camera,
-  CheckCircle2,
-  FolderOutput,
-  ShieldCheck,
-} from "lucide-react";
+import { SiteGroundedLoopGraphic } from "@/components/site/SiteGroundedLoopGraphic";
+import { publicDemoHref, resultHighlights } from "@/lib/marketingProof";
+import { ArrowRight, Camera, CheckCircle2 } from "lucide-react";
 
-const buyerReasons = [
+const heroSignals = [
+  "Evaluate checkpoints on the exact customer site",
+  "Generate site-grounded data for training and debugging",
+  "Compare releases before travel, pilots, or customer demos",
+];
+
+const useCaseCards = [
   {
-    title: "Know the site before you burn travel time",
+    title: "Checkpoint evaluation",
     body:
-      "Review the real layout, constraints, and workflow area instead of relying on a generic stand-in.",
+      "Hold the site fixed and rerun the same task so your team can tell whether a new policy is actually better.",
   },
   {
-    title: "See the package and the eval path on the same listing",
+    title: "Site-grounded data generation",
     body:
-      "Each listing shows what you can buy first, what the hosted path covers, and what limits come with that site.",
+      "Pull back rollouts, observations, and failures from one real facility instead of guessing from a broad synthetic scene.",
   },
   {
-    title: "Reuse one site across review and testing",
+    title: "Controlled variation",
     body:
-      "Use the same site for release checks, customer review, and site-specific data generation without rebuilding the context each time.",
+      "Start from the exact site, then branch into lighting changes, clutter spikes, and start-state shifts that expose weak spots.",
+  },
+  {
+    title: "Pre-deployment readiness",
+    body:
+      "Use the same grounded environment for operator prep, customer review, and remote debugging before the real visit starts.",
   },
 ];
 
-const sampleDecision = [
+const comparisonCards = [
   {
-    title: "Pick one listing",
+    title: "Generic sim",
+    eyebrow: "Useful early",
     body:
-      "Start with the site that matches the workflow your robot actually needs to handle.",
-    icon: FolderOutput,
+      "Good for broad pretraining and fast iteration. Weak when the question depends on one customer's geometry, workflow, and failure modes.",
   },
   {
-    title: "Decide package or evaluation",
+    title: "Exact site only",
+    eyebrow: "Better anchor",
     body:
-      "Check whether the package already answers the question or whether you need to run the site and export data from a hosted evaluation.",
-    icon: ShieldCheck,
+      "Now the layout, occlusions, and handoff points are real. Good for buyer confidence, but still too static if you need to probe edge cases.",
   },
   {
-    title: "Send one clear request",
+    title: "Exact site plus variation",
+    eyebrow: "Where the loop closes",
     body:
-      "Send the site, task, and robot setup once so the follow-up starts from the real question.",
-    icon: CheckCircle2,
+      "This is the Blueprint story: anchor to the site, branch controlled scenarios, then export the results back into eval, training, and release decisions.",
+  },
+];
+
+const buyerSteps = [
+  {
+    title: "Choose one exact site",
+    body:
+      "Start with the facility and workflow that actually matters for the deployment question in front of you.",
+  },
+  {
+    title: "Pick package or hosted evaluation",
+    body:
+      "Use the package when you need the site assets. Use hosted evaluation when you need runs, exports, and failure review on the same site.",
+  },
+  {
+    title: "Feed the result back into the stack",
+    body:
+      "Review the output, compare checkpoints, and export site-grounded data instead of restarting the conversation from scratch.",
   },
 ];
 
@@ -75,126 +93,100 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | World Models For Robot Teams"
-        description="Blueprint helps robot teams inspect the exact site they need before travel, buy the site package, or request a hosted evaluation on that same real facility."
+        title="Blueprint | Site-Grounded World Models For Robot Teams"
+        description="Blueprint turns one real facility into a site-grounded world model your robot team can evaluate, vary, and export from before travel, pilots, or deployment."
         canonical="/"
       />
 
       <div className="relative min-h-screen overflow-hidden bg-stone-50 text-slate-900">
         <DotPattern />
 
-        <section className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.06),_transparent_45%),linear-gradient(180deg,_rgba(255,255,255,0.96),_rgba(248,250,252,0.98))]">
+        <section className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(14,116,144,0.08),_transparent_40%),linear-gradient(180deg,_rgba(255,255,255,0.98),_rgba(248,250,252,0.98))]">
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
-            <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
+            <div className="grid gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-center">
               <div>
                 <p className="inline-flex rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
                   For Robot Teams
                 </p>
                 <h1 className="mt-5 max-w-4xl text-5xl font-semibold tracking-tight text-slate-950 sm:text-6xl">
-                  Inspect the exact site before your team books the visit.
+                  Use the exact site before deployment.
                 </h1>
                 <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
-                  Blueprint gives robot teams a world model of one real facility and workflow.
-                  Start with the public demo, buy the site package, request a hosted evaluation on
-                  that same site, or scope custom work before travel, pilots, or on-site debugging
-                  begin.
+                  Blueprint turns one real facility into a site-grounded world model your team can
+                  evaluate, vary, and export from. Use it to test checkpoints, generate
+                  site-specific data, compare releases, and walk into the real site with fewer bad
+                  assumptions.
                 </p>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">
-                  In the first minute, you should be able to tell what it is, whether it matches
-                  your robot, and what the next step is.
-                </p>
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <div className="mt-6 grid gap-3">
+                  {heroSignals.map((item) => (
+                    <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <a
-                    href={publicDemoHref}
+                    href="/world-models"
                     className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                   >
-                    Open public demo
+                    Browse world models
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
-                    href="/world-models"
+                    href={publicDemoHref}
                     className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
                   >
-                    Browse world models
+                    Open public demo
                   </a>
                   <a
-                    href="/case-studies"
+                    href="/how-it-works"
                     className="inline-flex items-center justify-center rounded-full border border-transparent px-3 py-3 text-sm font-semibold text-slate-700 transition hover:text-slate-950"
                   >
-                    See results
+                    Why it works
                   </a>
                 </div>
               </div>
 
-              <div className="lg:pl-4">
-                <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-stone-950 shadow-[0_24px_80px_-52px_rgba(15,23,42,0.5)]">
-                  <video
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    controls={false}
-                    poster={proofReelPosterSrc}
-                    className="aspect-[16/10] h-full w-full object-cover"
-                  >
-                    <source src={proofReelVideoSrc} type="video/mp4" />
-                  </video>
-                </div>
-
-                <div className="mt-5 rounded-[1.75rem] border border-slate-200 bg-white/80 p-5 backdrop-blur-sm sm:p-6">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    Product proof
-                  </p>
-                  <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
-                    See the site, the deliverables, and the next step in one pass.
-                  </h2>
-                  <p className="mt-4 text-sm leading-7 text-slate-600">
-                    The public demo is the fastest way to understand the product. It follows one
-                    real listing from first look to hosted review and export-ready output.
-                  </p>
-                  <ul className="mt-5 space-y-3">
-                    {proofHighlights.map((item) => (
-                      <li key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
-                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-6 flex flex-wrap gap-3">
-                    <a
-                      href={publicDemoHref}
-                      className="inline-flex items-center justify-center rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-                    >
-                      Start with the demo
-                    </a>
-                    <a
-                      href="/sample-deliverables"
-                      className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
-                    >
-                      See sample deliverables
-                    </a>
-                  </div>
-                </div>
+              <div className="lg:pl-2">
+                <SiteGroundedLoopGraphic />
               </div>
             </div>
           </div>
         </section>
 
         <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
-          <OfferComparison />
+          <ProofModule
+            eyebrow="Public proof"
+            title="A real site is the anchor. The value is what your team does with it."
+            description="The public demo proves the site is real. From there, the product should read as a working surface for evaluation, export, and release comparison, not just a walkthrough."
+            caption="Public reel from the current demo listing."
+          />
+        </section>
+
+        <section className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+          <OfferComparison
+            eyebrow="Start here"
+            title="Choose the access layer that matches the question."
+            description="Most teams either need the grounded site assets or they need to run the site now. Both paths stay tied to one real facility so your evals, exports, and internal review start from the same place."
+          />
         </section>
 
         <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
-          <div className="max-w-2xl">
+          <div className="max-w-3xl">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Why teams buy
+              What teams use this for
             </p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              The value is the real site, not more synthetic footage.
+              The point is not just seeing the site.
             </h2>
+            <p className="mt-4 text-sm leading-7 text-slate-600">
+              The point is using the exact site as a grounded surface for evaluation, data
+              generation, and deployment decisions.
+            </p>
           </div>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {buyerReasons.map((item) => (
+          <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {useCaseCards.map((item) => (
               <article key={item.title} className="rounded-[1.75rem] border border-slate-200 bg-white p-6">
                 <h3 className="text-xl font-semibold text-slate-900">{item.title}</h3>
                 <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
@@ -205,32 +197,63 @@ export default function Home() {
 
         <section className="border-y border-slate-200 bg-white">
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
-            <div className="max-w-2xl">
+            <div className="max-w-3xl">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                A typical first pass
+                Why this beats generic sim
               </p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-                Three moves are usually enough.
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+                The real lift comes from exact site plus controlled variation.
               </h2>
-              <p className="mt-3 text-sm leading-7 text-slate-600">
-                A buyer usually goes from listing to decision in a short loop. The goal is not to
-                tell the whole company story. The goal is to answer the next real question.
+              <p className="mt-4 text-sm leading-7 text-slate-600">
+                Broad simulation still matters. But once the deployment question narrows to one
+                customer site, the useful move is to anchor the model to that place and branch
+                realistic variations around it.
               </p>
             </div>
 
-            <div className="mt-8 grid gap-4 sm:grid-cols-3">
-              {sampleDecision.map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <article key={item.title} className="rounded-[1.5rem] border border-slate-200 bg-stone-50 p-5">
-                    <Icon className="h-5 w-5 text-slate-700" />
-                    <h3 className="mt-4 text-lg font-semibold text-slate-900">{item.title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">{item.body}</p>
-                  </article>
-                );
-              })}
+            <div className="mt-8 grid gap-4 lg:grid-cols-3">
+              {comparisonCards.map((item, index) => (
+                <article
+                  key={item.title}
+                  className={`rounded-[1.75rem] border p-6 ${
+                    index === 2 ? "border-slate-900 bg-slate-950 text-white" : "border-slate-200 bg-stone-50"
+                  }`}
+                >
+                  <p
+                    className={`text-xs font-semibold uppercase tracking-[0.2em] ${
+                      index === 2 ? "text-slate-300" : "text-slate-500"
+                    }`}
+                  >
+                    {item.eyebrow}
+                  </p>
+                  <h3 className={`mt-3 text-2xl font-semibold ${index === 2 ? "text-white" : "text-slate-950"}`}>
+                    {item.title}
+                  </h3>
+                  <p className={`mt-4 text-sm leading-7 ${index === 2 ? "text-slate-200" : "text-slate-600"}`}>
+                    {item.body}
+                  </p>
+                </article>
+              ))}
             </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Buyer path
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              Three moves usually get a team to the right next step.
+            </h2>
+          </div>
+          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+            {buyerSteps.map((item) => (
+              <article key={item.title} className="rounded-[1.5rem] border border-slate-200 bg-white p-5">
+                <h3 className="text-lg font-semibold text-slate-900">{item.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{item.body}</p>
+              </article>
+            ))}
           </div>
         </section>
 
@@ -244,15 +267,14 @@ export default function Home() {
                 Delivery examples with concrete outcomes.
               </h2>
               <p className="mt-4 text-sm leading-7 text-slate-600">
-                The product proof is stronger when buyers can inspect examples of work that led to
-                specific outcomes, not just the package anatomy.
+                The claims land better when buyers can inspect examples of grounded work that led
+                to usable outputs and better deployment calls.
               </p>
             </div>
             <a
               href="/case-studies"
               className="inline-flex items-center gap-2 self-start rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
             >
-              <BarChart3 className="h-4 w-4" />
               Open results page
             </a>
           </div>
@@ -280,8 +302,8 @@ export default function Home() {
                 Need the capture side instead?
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-                Keep it lightweight. Capturers only need two public pages: a short explanation and
-                the app handoff.
+                Keep it lightweight. Capturers only need a short explanation and the app handoff.
+                The buyer-facing site should stay focused on robot teams and deployment questions.
               </p>
             </div>
 

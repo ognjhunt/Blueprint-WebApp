@@ -781,7 +781,7 @@ function buildFallbackPackages(siteId: string, siteName: string, siteAddress: st
 
   return [
     {
-      name: "Scene Package",
+      name: "Site Package",
       summary: "Review the qualified site package and deployment-readiness artifacts for this exact workflow area.",
       priceLabel: "Quoted per site",
       payerLabel: "Likely buyer: Robot team",

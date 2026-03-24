@@ -12,7 +12,7 @@ const offerCards = [
     title: "Site package",
     price: "$2,100 - $3,400",
     description:
-      "Buy the site files and package notes for one real facility and one workflow lane.",
+      "Buy the grounded site files, package notes, and rights context for one real facility.",
     bullets: [
       "Walkthrough media and camera poses",
       "Geometry and depth when available",
@@ -29,14 +29,14 @@ const offerCards = [
     title: "Hosted evaluation",
     price: "$16 - $29 / session-hour",
     description:
-      "Request Blueprint-managed runtime access when you want to run the site now and pull back site-specific data.",
+      "Request Blueprint-managed runtime access when you want to run the exact site now and pull back usable outputs.",
     bullets: [
       "Repeatable runs on one exact site",
       "Rollout video, metrics, and failure review",
       "Raw bundle and RLDS-style exports for tuning and adaptation",
     ],
     href: "/contact?persona=robot-team&interest=evaluation-package",
-    cta: "Request evaluation",
+    cta: "Request hosted evaluation",
     icon: Play,
     accent: "border border-slate-300 bg-white text-slate-900",
     cardTone: "border-slate-200 bg-slate-50",
@@ -64,7 +64,7 @@ const offerCards = [
 export function OfferComparison({
   eyebrow = "What you can buy first",
   title = "Choose the first step that matches the work.",
-  description = "Most teams start with one site package or one hosted evaluation request. Use the package when you need the site assets. Use hosted evaluation when you need to run the site and export data from it.",
+  description = "Most teams start with one site package or one hosted evaluation request. Use the package when you need the grounded site assets. Use hosted evaluation when you need reruns, exports, and failure review on the same site.",
   className = "",
 }: OfferComparisonProps) {
   return (

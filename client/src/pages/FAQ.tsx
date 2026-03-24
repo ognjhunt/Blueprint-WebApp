@@ -12,6 +12,11 @@ const faqs = [
       "Each listing shows the same basic split: site package or hosted evaluation. The package usually includes walkthrough media, site notes, and any geometry or depth artifacts available for that site. Hosted evaluation is the managed runtime path for reruns, exports, and failure review.",
   },
   {
+    question: "Why not just use a generic sim?",
+    answer:
+      "Generic sim is useful for broad training and early iteration. Blueprint matters when the question depends on one exact site: the real geometry, occlusions, handoff points, start states, and failure modes that show up in that facility. The useful pattern is to anchor on the real site and then branch controlled variations around it.",
+  },
+  {
     question: "How is this priced?",
     answer:
       "Pricing is listing-specific because the useful output depends on the site and the access mode. The catalog shows site-package pricing and hosted-session pricing directly on each listing, and the pricing page summarizes the typical ranges.",

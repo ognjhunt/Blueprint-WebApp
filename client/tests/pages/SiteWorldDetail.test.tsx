@@ -90,7 +90,7 @@ describe("SiteWorldDetail", () => {
     expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Use this listing to review the real site, compare the package with the hosted evaluation path/i,
+        /Use this listing to ground one deployment question on the real site, compare the package with the hosted evaluation path/i,
       ),
     ).toBeInTheDocument();
     expect(
@@ -110,7 +110,7 @@ describe("SiteWorldDetail", () => {
     expect(
       screen.getByRole("heading", { name: /What teams do with this world model/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/A sample review path for Harborview Grocery Distribution Annex/i)).toBeInTheDocument();
+    expect(screen.getByText(/A sample eval loop for Harborview Grocery Distribution Annex/i)).toBeInTheDocument();
 
     const packageLink = screen.getByRole("link", { name: /Request site package/i });
     const packageUrl = new URL(packageLink.getAttribute("href")!, "https://example.com");
