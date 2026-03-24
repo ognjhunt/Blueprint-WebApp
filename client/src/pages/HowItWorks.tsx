@@ -1,6 +1,5 @@
 import { SEO } from "@/components/SEO";
 import { ScrollReveal, StaggerGroup } from "@/components/motion";
-import { SiteGroundedLoopGraphic } from "@/components/site/SiteGroundedLoopGraphic";
 import { ArrowRight, BarChart3, Database, GitBranch, MapPinned } from "lucide-react";
 
 const loopSteps = [
@@ -108,39 +107,33 @@ export default function HowItWorks() {
 
         <section className="relative overflow-hidden border-b border-zinc-200 bg-[radial-gradient(circle_at_top_left,rgba(8,145,178,0.08),transparent_36%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(244,244,245,0.96))] pb-16 pt-14 sm:pb-20 sm:pt-24">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-cyan-100 bg-cyan-50/70 px-3 py-1 text-xs font-medium uppercase tracking-wider text-cyan-700">
-                  Why It Works
-                </div>
-                <h1 className="mt-6 text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
-                  Site grounding matters most when the deployment question gets specific.
-                </h1>
-                <p className="mt-6 max-w-2xl text-lg leading-relaxed text-zinc-600">
-                  The hard problems are usually local: aisle width, handoff geometry, occlusion,
-                  lighting, start state, and the exact task lane a customer cares about. That is
-                  why Blueprint starts from one real site, then adds controlled variation around
-                  it instead of stopping at a static walkthrough.
-                </p>
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                  <a
-                    href="/world-models"
-                    className="inline-flex items-center justify-center rounded-full bg-zinc-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800"
-                  >
-                    Browse world models
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
-                  <a
-                    href="/contact?persona=robot-team&interest=evaluation-package"
-                    className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
-                  >
-                    Request hosted evaluation
-                  </a>
-                </div>
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-100 bg-cyan-50/70 px-3 py-1 text-xs font-medium uppercase tracking-wider text-cyan-700">
+                Why It Works
               </div>
-
-              <div className="lg:pl-2">
-                <SiteGroundedLoopGraphic />
+              <h1 className="mt-6 text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
+                Site grounding matters most when the deployment question gets specific.
+              </h1>
+              <p className="mt-6 max-w-2xl text-lg leading-relaxed text-zinc-600">
+                The hard problems are usually local: aisle width, handoff geometry, occlusion,
+                lighting, start state, and the exact task lane a customer cares about. That is
+                why Blueprint starts from one real site, then adds controlled variation around
+                it instead of stopping at a static walkthrough.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <a
+                  href="/world-models"
+                  className="inline-flex items-center justify-center rounded-full bg-zinc-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                >
+                  Browse world models
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+                <a
+                  href="/contact?persona=robot-team&interest=evaluation-package"
+                  className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
+                >
+                  Request hosted evaluation
+                </a>
               </div>
             </div>
           </div>
