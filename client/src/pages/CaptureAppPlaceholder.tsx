@@ -32,7 +32,7 @@ export default function CaptureAppPlaceholder() {
 
       <div className="min-h-screen bg-stone-50 text-slate-900">
         <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 sm:p-8">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
             <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
               <Smartphone className="h-4 w-4" />
               Capture App
@@ -73,7 +73,7 @@ export default function CaptureAppPlaceholder() {
           </div>
 
           <div className="mt-8 grid gap-4 lg:grid-cols-[1fr_0.8fr]">
-            <section className="rounded-[2rem] border border-slate-200 bg-white p-6">
+            <section className="rounded-2xl border border-slate-200 bg-white p-6">
               <p className="text-sm font-semibold text-slate-900">What to expect</p>
               <ul className="mt-4 space-y-3 text-sm leading-7 text-slate-600">
                 {steps.map((item) => (
@@ -85,14 +85,14 @@ export default function CaptureAppPlaceholder() {
               </ul>
             </section>
 
-            <section className="rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white">
+            <section className="rounded-2xl border border-slate-200 bg-slate-950 p-6 text-white">
               <p className="text-sm font-semibold">Need the buyer side instead?</p>
               <p className="mt-3 text-sm leading-7 text-slate-300">
-                The main website is for robot teams reviewing site-specific world models and
-                requesting hosted evaluations.
+                The main website is for robot teams that need exact-site world models for training,
+                evaluation, and data generation.
               </p>
               <a href="/world-models" className="mt-5 inline-flex items-center text-sm font-semibold text-white">
-                Browse world models
+                Explore world models
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
             </section>

@@ -61,7 +61,7 @@ export default function Docs() {
             {sections.map((section) => (
               <section
                 key={section.title}
-                className="rounded-3xl border border-slate-200 bg-slate-50 p-6"
+                className="rounded-2xl border border-slate-200 bg-slate-50 p-6"
               >
                 <h2 className="text-2xl font-semibold text-slate-900">{section.title}</h2>
                 <p className="mt-3 text-sm leading-7 text-slate-600">{section.body}</p>

@@ -29,7 +29,7 @@ export default function CaseStudies() {
           {caseStudies.map((study) => (
             <article
               key={study.slug}
-              className="flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white"
+              className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white"
             >
               <div className="aspect-[4/3] overflow-hidden">
                 <img

@@ -71,7 +71,7 @@ export default function Capture() {
                 </div>
               </div>
 
-              <div className="rounded-[2rem] border border-slate-200 bg-white p-6">
+              <div className="rounded-2xl border border-slate-200 bg-white p-6">
                 <p className="text-sm font-semibold text-slate-900">Who this is for</p>
                 <ul className="mt-4 space-y-3 text-sm leading-7 text-slate-600">
                   {whoItsFor.map((item) => (
@@ -101,7 +101,7 @@ export default function Capture() {
               const Icon = item.icon;
 
               return (
-                <article key={item.title} className="rounded-[1.75rem] border border-slate-200 bg-slate-50 p-6">
+                <article key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
                   <Icon className="h-5 w-5 text-slate-700" />
                   <h3 className="mt-4 text-lg font-semibold text-slate-900">{item.title}</h3>
                   <p className="mt-2 text-sm leading-7 text-slate-600">{item.body}</p>
@@ -112,7 +112,7 @@ export default function Capture() {
         </section>
 
         <section className="mx-auto max-w-5xl px-4 pb-16 sm:px-6 lg:px-8">
-          <div className="rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white">
+          <div className="rounded-2xl border border-slate-200 bg-slate-950 p-6 text-white">
             <h2 className="text-2xl font-semibold tracking-tight">
               Looking for the buyer side instead?
             </h2>
@@ -123,7 +123,7 @@ export default function Capture() {
               href="/world-models"
               className="mt-6 inline-flex items-center text-sm font-semibold text-white"
             >
-              Browse world models
+              Explore world models
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
           </div>

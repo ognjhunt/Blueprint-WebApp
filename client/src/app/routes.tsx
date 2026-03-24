@@ -16,20 +16,15 @@ const BusinessSignUpFlow = lazy(() => import("../pages/BusinessSignUpFlow"));
 const OnboardingChecklist = lazy(() => import("../pages/OnboardingChecklist"));
 const ForSiteOperators = lazy(() => import("../pages/ForSiteOperators"));
 const ForRobotIntegrators = lazy(() => import("../pages/ForRobotIntegrators"));
-const Solutions = lazy(() => import("../pages/Solutions"));
 const SiteWorlds = lazy(() => import("../pages/SiteWorlds"));
 const SiteWorldDetail = lazy(() => import("../pages/SiteWorldDetail"));
 const HostedSessionSetup = lazy(() => import("../pages/HostedSessionSetup"));
 const HostedSessionWorkspace = lazy(() => import("../pages/HostedSessionWorkspace"));
 const Pricing = lazy(() => import("../pages/Pricing"));
-const Proof = lazy(() => import("../pages/Proof"));
 const CaseStudies = lazy(() => import("../pages/CaseStudies"));
 const SampleDeliverables = lazy(() => import("../pages/SampleDeliverables"));
 const Contact = lazy(() => import("../pages/Contact"));
 const HowItWorks = lazy(() => import("../pages/HowItWorks"));
-const ReadinessPack = lazy(() => import("../pages/ReadinessPack"));
-const PilotExchange = lazy(() => import("../pages/PilotExchange"));
-const PilotExchangeGuide = lazy(() => import("../pages/PilotExchangeGuide"));
 const Portal = lazy(() => import("../pages/Portal"));
 const Login = lazy(() => import("../pages/Login"));
 const ForgotPassword = lazy(() => import("../pages/ForgotPassword"));
@@ -74,6 +69,18 @@ const LegacyReadinessPackRedirect = () => (
   <MarketingRedirect to="/how-it-works" />
 );
 
+const LegacyProofRedirect = () => (
+  <MarketingRedirect to="/" />
+);
+
+const LegacySolutionsRedirect = () => (
+  <MarketingRedirect to="/for-robot-teams" />
+);
+
+const LegacyQualifiedOpportunitiesRedirect = () => (
+  <MarketingRedirect to="/world-models" />
+);
+
 const LegacyForRobotIntegratorsRedirect = () => (
   <MarketingRedirect to="/for-robot-teams" />
 );
@@ -111,9 +118,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/for-robot-integrators", layout: "public", component: LegacyForRobotIntegratorsRedirect },
 
   // Core pages
-  { path: "/solutions", layout: "public", component: Solutions },
   { path: "/pricing", layout: "public", component: Pricing },
-  { path: "/proof", layout: "public", component: Proof },
   { path: "/sample-deliverables", layout: "public", component: SampleDeliverables },
   { path: "/case-studies", layout: "public", component: CaseStudies },
   { path: "/contact", layout: "public", component: Contact },
@@ -124,14 +129,14 @@ export const appRoutes: AppRoute[] = [
   { path: "/docs", layout: "public", component: Docs },
   { path: "/blog", layout: "public", component: Blog },
   { path: "/careers", layout: "public", component: Careers },
+
+  // Legacy redirects for removed pages
+  { path: "/proof", layout: "public", component: LegacyProofRedirect },
+  { path: "/solutions", layout: "public", component: LegacySolutionsRedirect },
   { path: "/quality-standard", layout: "public", component: LegacyReadinessPackRedirect },
-  { path: "/readiness-pack", layout: "public", component: ReadinessPack },
-  { path: "/qualified-opportunities", layout: "public", component: PilotExchange },
-  {
-    path: "/qualified-opportunities-guide",
-    layout: "public",
-    component: PilotExchangeGuide,
-  },
+  { path: "/readiness-pack", layout: "public", component: LegacyReadinessPackRedirect },
+  { path: "/qualified-opportunities", layout: "public", component: LegacyQualifiedOpportunitiesRedirect },
+  { path: "/qualified-opportunities-guide", layout: "public", component: LegacyQualifiedOpportunitiesRedirect },
 
   // Legacy redirects
   { path: "/pilot-exchange", layout: "public", component: LegacyPilotExchangeRedirect },

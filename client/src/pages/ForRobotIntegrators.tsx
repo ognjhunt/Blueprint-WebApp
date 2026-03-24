@@ -60,26 +60,26 @@ export default function ForRobotIntegrators() {
             initial={shouldReduce ? {} : { opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
-            className="grid gap-8 rounded-3xl border border-slate-200 bg-slate-50 p-6 sm:p-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-start"
+            className="grid gap-8 rounded-2xl border border-slate-200 bg-slate-50 p-6 sm:p-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-start"
           >
             <div className="space-y-5">
               <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-700">
                 For Robot Teams
               </span>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Buy access to the exact site your robot needs.
+                Train on the exact site before your team visits it.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
-                Blueprint gives robot teams site-specific world models and hosted sessions built
-                from real indoor capture. Use them to tune policies, run evals, compare releases,
-                and generate site-specific data before the real visit starts.
+                Blueprint turns real customer facilities into site-specific world models. Use them
+                to evaluate policies, generate training data, fine-tune against the actual layout,
+                and compare releases — all before anyone books travel.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
                   href="/world-models"
                   className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-slate-800 hover:shadow-md"
                 >
-                  Browse world models
+                  Explore world models
                 </a>
                 <a
                   href="/contact?persona=robot-team&interest=evaluation-package"
@@ -94,17 +94,17 @@ export default function ForRobotIntegrators() {
               initial={shouldReduce ? {} : { opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="rounded-3xl border border-slate-200 bg-white p-6"
+              className="rounded-2xl border border-slate-200 bg-white p-6"
             >
               <p className="text-sm font-semibold text-slate-900">What this is</p>
               <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                A direct path to real-site world models, hosted sessions, and exportable outputs when the site matters.
+                Real-site world models your team can train on and export data from.
               </p>
               <p className="mt-5 text-sm font-semibold text-slate-900">What it helps with</p>
               <ul className="mt-3 space-y-2 text-sm text-slate-600">
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                  <span>Validation before the site visit</span>
+                  <span>Policy evaluation before the site visit</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
@@ -116,7 +116,7 @@ export default function ForRobotIntegrators() {
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                  <span>Release checks and customer demos</span>
+                  <span>Release comparison and regression checks</span>
                 </li>
               </ul>
             </motion.div>
@@ -126,11 +126,11 @@ export default function ForRobotIntegrators() {
             <ScrollReveal>
               <div className="max-w-3xl">
                 <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                  What robot teams use Blueprint for.
+                  What teams train and ship with this.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  The point is simple: give your team the exact site in a format that is useful for
-                  tuning, evals, and review before travel or customer time starts.
+                  Give your team the exact site in a format that feeds directly into your
+                  training pipeline and deployment decisions.
                 </p>
               </div>
             </ScrollReveal>
@@ -170,13 +170,13 @@ export default function ForRobotIntegrators() {
               <motion.article
                 whileHover={shouldReduce ? {} : { y: -3 }}
                 transition={{ duration: 0.25 }}
-                className="h-full rounded-3xl border border-slate-200 bg-slate-900 p-6 text-white shadow-sm"
+                className="h-full rounded-2xl border border-slate-200 bg-slate-900 p-6 text-white shadow-sm"
               >
                 <h2 className="text-2xl font-bold">What to expect</h2>
                 <p className="mt-4 text-sm leading-7 text-white">
-                  This is strong for site-specific tuning, synthetic data generation, release checks,
-                  and customer demos. It is not final deployment signoff and it does not replace
-                  stack-specific validation.
+                  This works well for policy fine-tuning, training data generation, and release
+                  comparison. It does not replace final on-site safety validation or stack-specific
+                  signoff.
                 </p>
               </motion.article>
             </ScrollReveal>

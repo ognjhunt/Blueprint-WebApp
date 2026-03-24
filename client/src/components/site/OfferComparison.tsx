@@ -12,14 +12,14 @@ const offerCards = [
     title: "Buy the site package",
     price: "$2,100 - $3,400",
     description:
-      "Use this when your team wants the grounded site assets in its own stack.",
+      "Use this when your team needs exact-site data for training, fine-tuning, or integration in your own stack.",
     bullets: [
       "Walkthrough media and camera poses",
       "Geometry and depth when available",
       "Rights, freshness, and package notes",
     ],
     href: "/world-models",
-    cta: "Browse site packages",
+    cta: "Explore site packages",
     icon: ScanLine,
     accent: "bg-slate-950 text-white",
     cardTone: "border-slate-200 bg-white",
@@ -29,7 +29,7 @@ const offerCards = [
     title: "Run a hosted evaluation",
     price: "$16 - $29 / session-hour",
     description:
-      "Use this when you want Blueprint to run the exact site with your team and send usable outputs back.",
+      "Use this when you want Blueprint to run evaluations, generate training data, and export results from the exact site.",
     bullets: [
       "Repeatable runs on one exact site",
       "Rollout video, metrics, and failure review",
@@ -46,7 +46,7 @@ const offerCards = [
     title: "Plan a custom program",
     price: "$50,000+",
     description:
-      "Use this for custom capture, exclusive access, or higher-touch support around one facility.",
+      "Use this for custom capture, exclusive training data, or managed evaluation programs around one facility.",
     bullets: [
       "Custom capture scope",
       "Private or exclusive access",
@@ -64,7 +64,7 @@ const offerCards = [
 export function OfferComparison({
   eyebrow = "What you can buy first",
   title = "Choose the first step that matches the work.",
-  description = "Most teams need either the site package or a hosted evaluation. The package is for teams that want the grounded site assets. Hosted evaluation is for teams that want Blueprint to run the site now and send back evidence, exports, and failure review.",
+  description = "The package is for teams that want exact-site data in their own training pipeline. Hosted evaluation is for teams that want Blueprint to run evaluations, generate data, and export results.",
   className = "",
 }: OfferComparisonProps) {
   return (
@@ -86,7 +86,7 @@ export function OfferComparison({
           return (
             <article
               key={card.title}
-              className={`rounded-[1.75rem] border p-6 ${card.cardTone}`}
+              className={`rounded-2xl border p-6 ${card.cardTone}`}
             >
               <div className="flex items-center justify-between gap-4">
                 <div className="rounded-2xl bg-white p-3 text-slate-800 shadow-sm ring-1 ring-slate-200">

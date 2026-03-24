@@ -58,7 +58,7 @@ export default function Blog() {
               href="/world-models"
               className="inline-flex items-center rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Browse world models
+              Explore world models
             </a>
             <a
               href="/docs"

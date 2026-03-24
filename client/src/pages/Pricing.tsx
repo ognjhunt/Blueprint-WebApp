@@ -44,17 +44,17 @@ export default function Pricing() {
               Three ways to buy in.
             </h1>
             <p className="text-lg leading-8 text-slate-600">
-              Most teams start with one of two paths: buy the site package or request a hosted
-              evaluation. Use the package when you need the grounded site assets. Use hosted
-              evaluation when you need Blueprint to run the site, inspect failures, compare
-              releases, and export site-specific data. Enterprise is there for private sites,
-              custom capture, or higher-touch support.
+              Most teams start with one of two paths: buy the site package or request hosted
+              evaluation. Use the package when you need exact-site data in your own training
+              pipeline. Use hosted evaluation when you need Blueprint to run evaluations,
+              generate training data, and export results. Enterprise covers private sites,
+              custom capture, or managed programs.
             </p>
           </header>
 
           <OfferComparison className="mt-10" />
 
-          <section className="mt-10 grid gap-4 md:grid-cols-3">
+          <section className="mt-10 grid gap-4 md:grid-cols-2">
             {pricingNotes.map((note) => (
               <article
                 key={note.title}

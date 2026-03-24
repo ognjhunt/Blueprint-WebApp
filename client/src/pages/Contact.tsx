@@ -10,7 +10,7 @@ import { useSearch } from "wouter";
 function DotPattern() {
   return (
     <svg
-      className="absolute inset-0 -z-10 h-full w-full stroke-zinc-200 [mask-image:radial-gradient(100%_100%_at_top_right,white,transparent)]"
+      className="absolute inset-0 -z-10 h-full w-full stroke-slate-200 [mask-image:radial-gradient(100%_100%_at_top_right,white,transparent)]"
       aria-hidden="true"
     >
       <defs>
@@ -91,7 +91,7 @@ export default function Contact() {
           { href: "/capture", label: "Capture basics" },
         ]
       : [
-        { href: "/world-models", label: "Browse world models" },
+        { href: "/world-models", label: "Explore world models" },
         { href: "/how-it-works", label: "How it works" },
         { href: "/sample-deliverables", label: "Sample deliverables" },
         { href: "/faq", label: "FAQ" },
@@ -100,7 +100,7 @@ export default function Contact() {
   return (
     <>
       <SEO title={seoTitle} description={seoDescription} canonical="/contact" />
-      <div className="relative min-h-screen overflow-hidden bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
+      <div className="relative min-h-screen overflow-hidden bg-white font-sans text-slate-900">
         <DotPattern />
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="mb-12 max-w-2xl">
@@ -108,7 +108,7 @@ export default function Contact() {
               initial={shouldReduce ? {} : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
-              className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600 backdrop-blur-sm"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium uppercase tracking-wider text-slate-600 backdrop-blur-sm"
             >
               <MessageSquare className="h-3 w-3" />
               {badgeLabel}
@@ -117,7 +117,7 @@ export default function Contact() {
               initial={shouldReduce ? {} : { opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
-              className="mt-6 text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl"
+              className="mt-6 text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl"
             >
               {heroTitle}
             </motion.h1>
@@ -125,7 +125,7 @@ export default function Contact() {
               initial={shouldReduce ? {} : { opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="mt-6 text-lg leading-relaxed text-zinc-600"
+              className="mt-6 text-lg leading-relaxed text-slate-600"
             >
               {heroBody}
             </motion.p>
@@ -136,7 +136,7 @@ export default function Contact() {
               <div className="space-y-8">
                 <motion.div
                   whileHover={shouldReduce ? {} : { y: -2 }}
-                  className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm transition-shadow hover:shadow-md"
+                  className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm transition-shadow hover:shadow-md"
                 >
                   <ContactForm />
                 </motion.div>
@@ -147,19 +147,19 @@ export default function Contact() {
               <ScrollReveal delay={0.15}>
                 <motion.div
                   whileHover={shouldReduce ? {} : { y: -2 }}
-                  className="rounded-2xl border border-zinc-200 bg-gradient-to-br from-zinc-50 to-white p-6 transition-shadow hover:shadow-sm"
+                  className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-6 transition-shadow hover:shadow-sm"
                 >
                   <div className="flex items-start gap-4">
                     <motion.div
                       animate={shouldReduce ? {} : { rotate: [0, 5, -5, 0] }}
                       transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600"
                     >
                       <Sparkles className="h-5 w-5" />
                     </motion.div>
                     <div>
-                      <h3 className="font-semibold text-zinc-900">{responseTitle}</h3>
-                      <p className="mt-1 text-sm text-zinc-600">{responseBody}</p>
+                      <h3 className="font-semibold text-slate-900">{responseTitle}</h3>
+                      <p className="mt-1 text-sm text-slate-600">{responseBody}</p>
                     </div>
                   </div>
                 </motion.div>
@@ -168,17 +168,17 @@ export default function Contact() {
               <ScrollReveal delay={0.2}>
                 <motion.div
                   whileHover={shouldReduce ? {} : { y: -2 }}
-                  className="rounded-2xl border border-zinc-200 bg-white p-6 transition-shadow hover:shadow-sm"
+                  className="rounded-2xl border border-slate-200 bg-white p-6 transition-shadow hover:shadow-sm"
                 >
                   <div className="flex items-start gap-4">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
                       <Mail className="h-5 w-5" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-zinc-900">Prefer a lighter first step?</h3>
+                      <h3 className="font-semibold text-slate-900">Prefer a lighter first step?</h3>
                       <a
                         href="mailto:hello@tryblueprint.io?subject=Blueprint%20brief"
-                        className="mt-1 inline-block text-indigo-600 transition hover:text-indigo-700 hover:underline"
+                        className="mt-1 inline-block text-slate-900 transition hover:text-slate-700 hover:underline"
                       >
                         Email a short brief to hello@tryblueprint.io
                       </a>
@@ -188,8 +188,8 @@ export default function Contact() {
               </ScrollReveal>
 
               <ScrollReveal delay={0.25}>
-                <div className="rounded-2xl border border-zinc-200 bg-white p-6">
-                  <h3 className="mb-4 text-sm font-bold uppercase tracking-widest text-zinc-400">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6">
+                  <h3 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-400">
                     Learn More
                   </h3>
                   <ul className="space-y-3">
@@ -197,7 +197,7 @@ export default function Contact() {
                       <li key={link.href}>
                         <a
                           href={link.href}
-                          className="group flex items-center gap-2 text-zinc-700 transition hover:text-indigo-600"
+                          className="group flex items-center gap-2 text-slate-700 transition hover:text-slate-900"
                         >
                           <span>{link.label}</span>
                           <span className="transition-transform group-hover:translate-x-0.5">→</span>

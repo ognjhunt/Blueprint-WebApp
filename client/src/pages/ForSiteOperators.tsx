@@ -78,7 +78,7 @@ export default function ForSiteOperators() {
           {/* Header */}
           <ScrollReveal>
             <div className="space-y-6">
-              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-700">
+              <span className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-600">
                 <Building2 className="h-3 w-3" />
                 For Site Operators
               </span>
@@ -113,33 +113,33 @@ export default function ForSiteOperators() {
 
           {/* Revenue highlight — with animated counters */}
           <ScrollReveal>
-            <section className="mt-8 rounded-2xl bg-zinc-900 p-6 text-white sm:p-8">
+            <section className="mt-8 rounded-2xl bg-slate-900 p-6 text-white sm:p-8">
               <div className="grid gap-6 sm:grid-cols-3">
                 <div>
-                  <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
+                  <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400">
                     <DollarSign className="h-4 w-4" />
                     Revenue share
                   </p>
                   <p className="mt-2 text-3xl font-bold">
                     <AnimatedCounter value={15} duration={600} />-<AnimatedCounter value={25} duration={800} suffix="%" />
                   </p>
-                  <p className="mt-1 text-sm text-zinc-400">of every world model sale from your facility</p>
+                  <p className="mt-1 text-sm text-slate-400">of every world model sale from your facility</p>
                 </div>
                 <div>
-                  <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
+                  <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400">
                     <TrendingUp className="h-4 w-4" />
                     Access control
                   </p>
                   <p className="mt-2 text-3xl font-bold">Case by case</p>
-                  <p className="mt-1 text-sm text-zinc-400">Approve capture windows, restricted zones, and downstream usage terms.</p>
+                  <p className="mt-1 text-sm text-slate-400">Approve capture windows, restricted zones, and downstream usage terms.</p>
                 </div>
                 <div>
-                  <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
+                  <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400">
                     <Shield className="h-4 w-4" />
                     Upfront cost
                   </p>
                   <p className="mt-2 text-3xl font-bold">No upfront fee</p>
-                  <p className="mt-1 text-sm text-zinc-400">Register the facility first. Earn only when approved usage turns into sales.</p>
+                  <p className="mt-1 text-sm text-slate-400">Register the facility first. Earn only when approved usage turns into sales.</p>
                 </div>
               </div>
             </section>

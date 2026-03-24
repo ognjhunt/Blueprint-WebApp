@@ -4,17 +4,17 @@ const faqs = [
   {
     question: "What is a Blueprint world model?",
     answer:
-      "It is a site-specific digital reconstruction of one real facility and one real workflow. Blueprint builds it from capture collected in the actual place. This is not a synthetic environment generator and it is not a generic benchmark scene.",
+      "A site-specific digital reconstruction of one real facility and workflow, built from capture collected on site. Teams use it for policy evaluation, fine-tuning, and training data generation. This is not a synthetic environment generator or a generic benchmark scene.",
   },
   {
     question: "What does a buyer actually receive?",
     answer:
-      "Each listing shows the same basic split: site package or hosted evaluation. The package usually includes walkthrough media, site notes, and any geometry or depth artifacts available for that site. Hosted evaluation is the managed runtime path for reruns, exports, and failure review.",
+      "Each listing shows the same two paths: site package or hosted evaluation. The package gives you exact-site data for your own training pipeline — walkthrough media, site geometry, and depth artifacts. Hosted evaluation is the managed path for running evaluations, generating training data, and exporting results.",
   },
   {
     question: "Why not just use a generic sim?",
     answer:
-      "Generic sim is useful for broad training and early iteration. Blueprint matters when the question depends on one exact site: the real geometry, occlusions, handoff points, start states, and failure modes that show up in that facility. The useful pattern is to anchor on the real site and then branch controlled variations around it.",
+      "Generic sim is useful for broad pre-training and early iteration. Blueprint matters when the question depends on one exact site: the real geometry, occlusions, handoff points, and failure modes specific to that facility. Studies like MIT's RialTo found 50-200% policy improvement from training on reconstructed target environments versus generic scenes.",
   },
   {
     question: "How is this priced?",
@@ -95,7 +95,7 @@ export default function FAQ() {
             {faqs.map((item) => (
               <section
                 key={item.question}
-                className="rounded-3xl border border-slate-200 bg-slate-50 p-6"
+                className="rounded-2xl border border-slate-200 bg-slate-50 p-6"
               >
                 <h2 className="text-xl font-semibold text-slate-900">{item.question}</h2>
                 <p className="mt-3 text-sm leading-7 text-slate-600">{item.answer}</p>

@@ -315,7 +315,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
           </a>
 
           <div className="mt-6 grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-            <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                 <Play className="h-4 w-4" />
                 Hosted Evaluation Setup
@@ -425,7 +425,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
               </div>
             </section>
 
-            <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
               <form className="space-y-6" onSubmit={handleLaunch}>
                 <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
                   <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">

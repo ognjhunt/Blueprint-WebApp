@@ -49,26 +49,25 @@ export default function SampleDeliverables() {
               Sample deliverables
             </p>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-              See what a robot team can run and export.
+              See what your team can train on, evaluate, and export.
             </h1>
             <p className="mt-4 text-lg leading-8 text-slate-600">
-              This page shows the public walkthrough, the runtime reference, the typical package
-              contents, and the outputs teams use for evals, release comparison, and site-grounded
-              data generation.
+              This page shows the package contents and hosted outputs teams use for policy
+              evaluation, fine-tuning, release comparison, and site-specific data generation.
             </p>
           </header>
 
           <div className="mt-10">
             <ProofModule
               eyebrow="Public proof"
-              title="One listing, one site, one clear path into the product."
+              title="One real site, with a clear path into the product."
               description="The public sample proves the site is real. From there, a buyer can decide whether the package is enough or whether they need hosted evaluation tied to the same site."
               caption="Public reel from the current demo listing."
             />
           </div>
 
           <section className="mt-10 grid gap-4 lg:grid-cols-2">
-            <article className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white">
+            <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
               <img
                 src={proofReelPosterSrc}
                 alt="Public walkthrough surface from a sample Blueprint listing"
@@ -83,7 +82,7 @@ export default function SampleDeliverables() {
               </div>
             </article>
 
-            <article className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white">
+            <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
               <img
                 src={proofReferenceImageSrc}
                 alt="Runtime reference view from a sample Blueprint hosted evaluation"
@@ -101,7 +100,7 @@ export default function SampleDeliverables() {
           </section>
 
           <section className="mt-10 grid gap-4 lg:grid-cols-3">
-            <article className="rounded-[2rem] border border-slate-200 bg-white p-6">
+            <article className="rounded-2xl border border-slate-200 bg-white p-6">
               <h2 className="text-2xl font-semibold text-slate-900">Site package</h2>
               <ul className="mt-5 space-y-3">
                 {packageArtifacts.map((item) => (
@@ -113,7 +112,7 @@ export default function SampleDeliverables() {
               </ul>
             </article>
 
-            <article className="rounded-[2rem] border border-slate-200 bg-white p-6">
+            <article className="rounded-2xl border border-slate-200 bg-white p-6">
               <h2 className="text-2xl font-semibold text-slate-900">Hosted evaluation</h2>
               <ul className="mt-5 space-y-3">
                 {hostedArtifacts.map((item) => (
@@ -125,7 +124,7 @@ export default function SampleDeliverables() {
               </ul>
             </article>
 
-            <article className="rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white">
+            <article className="rounded-2xl border border-slate-200 bg-slate-950 p-6 text-white">
               <div className="inline-flex items-center gap-2 rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">
                 <ShieldCheck className="h-3.5 w-3.5" />
                 Trust details
@@ -141,16 +140,16 @@ export default function SampleDeliverables() {
             </article>
           </section>
 
-          <section className="mt-10 rounded-[2rem] border border-slate-200 bg-white p-6 sm:p-8">
+          <section className="mt-10 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
               Sample eval path
             </p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-              How a team uses this before deployment
+              How a team trains and ships with this
             </h2>
             <div className="mt-6 grid gap-4 md:grid-cols-3">
               {sampleDecision.map((item, index) => (
-                <article key={item} className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
+                <article key={item} className="rounded-xl border border-slate-200 bg-slate-50 p-5">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                     Step {index + 1}
                   </p>
@@ -159,8 +158,8 @@ export default function SampleDeliverables() {
               ))}
             </div>
             <p className="mt-6 max-w-3xl text-sm leading-7 text-slate-600">
-              The point is not to replace the real visit. It is to make the first real visit less
-              blind, easier to scope, and more informed by usable data.
+              The point is not to replace the real visit. It is to arrive with a policy that already
+              works on the exact site, trained on real data from that facility.
             </p>
           </section>
 
@@ -176,7 +175,7 @@ export default function SampleDeliverables() {
               href="/world-models"
               className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
             >
-              Browse world models
+              Explore world models
             </a>
           </div>
         </div>

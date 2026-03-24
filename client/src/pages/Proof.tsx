@@ -11,21 +11,21 @@ const proofRoutes = [
   {
     title: "How it works",
     body:
-      "See why Blueprint starts from one real customer site and why that matters once the deployment question gets specific.",
+      "See why training on one real customer site outperforms generic simulation when the deployment question gets specific.",
     href: "/how-it-works",
     cta: "Open how it works",
   },
   {
     title: "Results",
     body:
-      "Review concrete delivery examples that show how robot teams use exact-site assets and hosted evaluation before deployment.",
+      "Review concrete examples of how teams used exact-site data for policy evaluation, fine-tuning, and deployment prep.",
     href: "/case-studies",
     cta: "Review results",
   },
   {
     title: "Deliverables",
     body:
-      "Inspect the package contents, hosted outputs, and trust details buyers can expect from one Blueprint listing.",
+      "See the package contents, training data exports, and hosted outputs your team gets from one Blueprint listing.",
     href: "/sample-deliverables",
     cta: "See deliverables",
   },
@@ -33,16 +33,16 @@ const proofRoutes = [
 
 const packageArtifacts = [
   "Walkthrough media and camera poses tied to one real site",
-  "Site notes, rights context, and freshness details",
-  "Geometry and depth artifacts when the listing supports them",
-  "A package your team can review or integrate in its own stack",
+  "Site geometry and depth artifacts for your training pipeline",
+  "Rights context, freshness details, and provenance notes",
+  "A package your team can integrate into its own stack",
 ];
 
 const hostedArtifacts = [
-  "Repeatable runs on the same site",
+  "Repeatable policy runs on the same site",
   "Rollout video, metrics, and failure review",
-  "Scenario variation for edge-case checks",
-  "Exportable raw bundles and dataset outputs when supported",
+  "Scenario variation for edge-case training data",
+  "Exportable datasets and raw bundles for offline training",
 ];
 
 const trustSignals = [
@@ -67,11 +67,11 @@ export default function Proof() {
               Proof Hub
             </p>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-              Everything a first-time buyer needs to verify the offer.
+              See what you can train on before you commit.
             </h1>
             <p className="mt-4 text-lg leading-8 text-slate-600">
-              Start with the public demo listing, then move into how the product works, what teams
-              receive, and the kinds of outcomes Blueprint helps them reach before deployment.
+              Start with the public demo listing, then check how the product works, what your team
+              gets, and how others have used it for evaluation and deployment prep.
             </p>
           </header>
 
@@ -86,7 +86,7 @@ export default function Proof() {
 
           <section className="mt-10 grid gap-4 md:grid-cols-3">
             {proofRoutes.map((item) => (
-              <article key={item.title} className="rounded-[2rem] border border-slate-200 bg-white p-6">
+              <article key={item.title} className="rounded-2xl border border-slate-200 bg-white p-6">
                 <h2 className="text-2xl font-semibold text-slate-900">{item.title}</h2>
                 <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
                 <a
@@ -101,7 +101,7 @@ export default function Proof() {
           </section>
 
           <section className="mt-10 grid gap-4 lg:grid-cols-2">
-            <article className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white">
+            <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
               <img
                 src={proofReelPosterSrc}
                 alt="Public demo view from a sample Blueprint listing"
@@ -110,30 +110,30 @@ export default function Proof() {
               <div className="p-6">
                 <h2 className="text-2xl font-semibold text-slate-900">Public listing</h2>
                 <p className="mt-3 text-sm leading-7 text-slate-600">
-                  Buyers confirm the site, workflow, and physical context before deciding whether
-                  they need the site package or a hosted evaluation.
+                  Confirm the site, workflow, and physical context before deciding whether you need
+                  the site package for your training pipeline or a hosted evaluation.
                 </p>
               </div>
             </article>
 
-            <article className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white">
+            <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
               <img
                 src={proofReferenceImageSrc}
                 alt="Runtime reference view from a sample Blueprint hosted evaluation"
                 className="aspect-[16/10] w-full object-cover"
               />
               <div className="p-6">
-                <h2 className="text-2xl font-semibold text-slate-900">Hosted runtime evidence</h2>
+                <h2 className="text-2xl font-semibold text-slate-900">Hosted evaluation</h2>
                 <p className="mt-3 text-sm leading-7 text-slate-600">
-                  Hosted evaluation keeps the same site in view while teams rerun tasks, inspect
-                  failures, compare releases, and export evidence.
+                  Run policies on the same site, compare releases, review failure cases, and export
+                  training data and evaluation results.
                 </p>
               </div>
             </article>
           </section>
 
           <section className="mt-10 grid gap-4 lg:grid-cols-3">
-            <article className="rounded-[2rem] border border-slate-200 bg-white p-6">
+            <article className="rounded-2xl border border-slate-200 bg-white p-6">
               <h2 className="text-2xl font-semibold text-slate-900">Buy the site package</h2>
               <ul className="mt-5 space-y-3">
                 {packageArtifacts.map((item) => (
@@ -145,7 +145,7 @@ export default function Proof() {
               </ul>
             </article>
 
-            <article className="rounded-[2rem] border border-slate-200 bg-white p-6">
+            <article className="rounded-2xl border border-slate-200 bg-white p-6">
               <h2 className="text-2xl font-semibold text-slate-900">Run a hosted evaluation</h2>
               <ul className="mt-5 space-y-3">
                 {hostedArtifacts.map((item) => (
@@ -157,7 +157,7 @@ export default function Proof() {
               </ul>
             </article>
 
-            <article className="rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white">
+            <article className="rounded-2xl border border-slate-200 bg-slate-950 p-6 text-white">
               <div className="inline-flex items-center gap-2 rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">
                 <ShieldCheck className="h-3.5 w-3.5" />
                 Trust signals
@@ -185,7 +185,7 @@ export default function Proof() {
               href="/world-models"
               className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
             >
-              Browse world models
+              Explore world models
             </a>
             <a
               href="/contact?persona=robot-team"

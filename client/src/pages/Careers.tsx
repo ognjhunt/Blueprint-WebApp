@@ -55,7 +55,7 @@ export default function Careers() {
             {roles.map((role) => {
               const Icon = role.icon;
               return (
-                <article key={role.title} className="rounded-[2rem] border border-slate-200 bg-slate-50 p-6">
+                <article key={role.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
                   <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                     <div className="flex gap-4">
                       <div className="rounded-2xl bg-white p-3 text-slate-700">
@@ -87,7 +87,7 @@ export default function Careers() {
             })}
           </div>
 
-          <div className="mt-12 rounded-[2rem] border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
+          <div className="mt-12 rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
             Don&apos;t see the right fit? Send a note and portfolio to{" "}
             <a href="mailto:careers@tryblueprint.io" className="font-semibold text-slate-900">
               careers@tryblueprint.io

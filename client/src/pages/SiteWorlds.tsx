@@ -169,30 +169,30 @@ export default function SiteWorlds() {
                 World Models
               </p>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Browse exact sites your team can use before deployment.
+                Train on exact sites your team needs before deployment.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
                 Each world model is built from real indoor capture and tied to one site and one
-                workflow. Open a listing to see the site-package price, the hosted-evaluation
-                path, and whether that site has public proof your team can inspect first.
+                workflow. Open a listing to see training data exports, hosted evaluation options,
+                and whether the site has a public demo you can inspect first.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
                   href="#layers"
                   className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  How buying works
+                  How access works
                 </a>
                 <a
                   href="#catalog"
                   className="inline-flex items-center rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
                 >
-                  Browse sites
+                  See available sites
                 </a>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-5 sm:px-6">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-5 sm:px-6">
               <p className="text-sm font-semibold text-slate-900">What every listing should tell you</p>
               <ul className="mt-3 space-y-2 text-sm text-slate-600">
                 <li className="flex items-start gap-3">
@@ -213,7 +213,7 @@ export default function SiteWorlds() {
 
           <section
             id="layers"
-            className="mt-10 rounded-3xl border border-slate-200 bg-slate-50 px-5 py-6 sm:px-7 sm:py-7"
+            className="mt-10 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-6 sm:px-7 sm:py-7"
           >
             <div className="max-w-3xl">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
@@ -252,7 +252,7 @@ export default function SiteWorlds() {
             </div>
           </section>
 
-          <section className="mt-8 rounded-3xl border border-slate-200 bg-white px-5 py-6 sm:px-7 sm:py-7">
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-white px-5 py-6 sm:px-7 sm:py-7">
             <div className="max-w-3xl">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                 Why teams buy this
@@ -285,11 +285,11 @@ export default function SiteWorlds() {
                   Sample catalog
                 </p>
                 <h2 className="mt-2 text-3xl font-bold text-slate-900">
-                  Sites your team could review right now.
+                  Sites your team can train on right now.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Open any listing to see the workflow, compare the package with the hosted
-                  evaluation path, and decide what to do next.
+                  Open any listing to see training data options, hosted evaluation, and what you
+                  can export.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
@@ -389,7 +389,7 @@ export default function SiteWorlds() {
               {filteredSites.map((site) => (
                 <article
                   key={site.id}
-                  className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:border-slate-300"
+                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-slate-300"
                 >
                   {(() => {
                     const nativePrimary = site.deploymentReadiness?.native_world_model_primary === true;

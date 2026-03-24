@@ -5,7 +5,7 @@ import { ArrowRight, CheckCircle2, FileText, Map, ScanLine, ShieldCheck } from "
 function DotPattern() {
   return (
     <svg
-      className="absolute inset-0 -z-10 h-full w-full stroke-zinc-200 [mask-image:radial-gradient(100%_100%_at_top_right,white,transparent)]"
+      className="absolute inset-0 -z-10 h-full w-full stroke-slate-200 [mask-image:radial-gradient(100%_100%_at_top_right,white,transparent)]"
       aria-hidden="true"
     >
       <defs>
@@ -71,21 +71,21 @@ export default function ReadinessPack() {
         canonical="/readiness-pack"
       />
 
-      <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-indigo-100 selection:text-indigo-900">
+      <div className="relative min-h-screen bg-white font-sans text-slate-900 selection:bg-slate-100 selection:text-slate-900">
         <DotPattern />
 
         <section className="relative overflow-hidden pb-16 pt-16 sm:pb-20 sm:pt-24">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
               <div className="space-y-6">
-                <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
+                <div className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium uppercase tracking-wider text-slate-600">
                   <FileText className="h-3 w-3" />
                   Optional Trust Layer
                 </div>
-                <h1 className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl">
+                <h1 className="text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
                   Use the readiness review when the deployment decision needs extra proof.
                 </h1>
-                <p className="max-w-2xl text-lg leading-relaxed text-zinc-600">
+                <p className="max-w-2xl text-lg leading-relaxed text-slate-600">
                   Most teams start with the site package or hosted evaluation path. The readiness
                   review is the extra layer for high-stakes deployments, buyer signoff, or
                   commercialization decisions that need a clear record of blockers, evidence gaps,
@@ -100,18 +100,18 @@ export default function ReadinessPack() {
                 />
               </div>
 
-              <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-                <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
                   Sample verdict
                 </p>
-                <h2 className="mt-3 text-2xl font-bold text-zinc-950">Ready with two blockers</h2>
-                <p className="mt-3 text-sm leading-relaxed text-zinc-600">
+                <h2 className="mt-3 text-2xl font-bold text-slate-950">Ready with two blockers</h2>
+                <p className="mt-3 text-sm leading-relaxed text-slate-600">
                   The route is workable and the handoff is clear. The current gaps are a narrow dock
                   turn and incomplete evidence around a restricted storage aisle.
                 </p>
-                <div className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                  <p className="text-sm font-semibold text-zinc-900">Next step</p>
-                  <p className="mt-2 text-sm text-zinc-600">
+                <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-semibold text-slate-900">Next step</p>
+                  <p className="mt-2 text-sm text-slate-600">
                     Fix the dock turn, confirm aisle access rules, then open the site brief
                     for robot-team review.
                   </p>
@@ -121,13 +121,13 @@ export default function ReadinessPack() {
           </div>
         </section>
 
-        <section className="border-y border-zinc-100 bg-zinc-50/50 py-12 sm:py-16">
+        <section className="border-y border-slate-100 bg-slate-50/50 py-12 sm:py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="max-w-3xl">
-              <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
+              <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
                 The deliverable is simple
               </h2>
-              <p className="mt-4 text-zinc-600">
+              <p className="mt-4 text-slate-600">
                 You are not buying the core product again. You are adding a concise review layer
                 around it so a high-stakes site can move forward with fewer open questions.
               </p>
@@ -137,13 +137,13 @@ export default function ReadinessPack() {
               {sampleSections.map((section) => (
                 <article
                   key={section.title}
-                  className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6"
+                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
                 >
-                  <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">
+                  <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
                     {section.icon}
                   </div>
-                  <h3 className="text-lg font-semibold text-zinc-900">{section.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-zinc-600">{section.body}</p>
+                  <h3 className="text-lg font-semibold text-slate-900">{section.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600">{section.body}</p>
                 </article>
               ))}
             </div>
@@ -154,27 +154,27 @@ export default function ReadinessPack() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
               <div className="space-y-5">
-                <h2 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">
+                <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
                   What the pack covers
                 </h2>
-                <p className="text-zinc-600">
+                <p className="text-slate-600">
                   Use this when a buyer, operator, or internal deployment lead needs a tighter
                   review before approving deeper work. Robot teams can use it to understand
                   blockers without making review the center of the product story.
                 </p>
                 <a
                   href="/contact?interest=site-qualification"
-                  className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-700"
+                  className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
                 >
                   Request readiness review
                   <ArrowRight className="h-4 w-4" />
                 </a>
               </div>
 
-              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-6">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
                 <ul className="space-y-3">
                   {reportSections.map((item) => (
-                    <li key={item} className="flex items-start gap-3 text-sm text-zinc-700">
+                    <li key={item} className="flex items-start gap-3 text-sm text-slate-700">
                       <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
                       <span>{item}</span>
                     </li>

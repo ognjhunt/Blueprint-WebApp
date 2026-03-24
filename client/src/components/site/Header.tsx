@@ -75,7 +75,7 @@ export function Header() {
             href={publicDemoHref}
             className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
           >
-            View public demo listing
+            View public demo
           </a>
           {!currentUser ? (
             <>
@@ -150,7 +150,7 @@ export function Header() {
               className="mt-2 inline-flex min-h-11 items-center justify-center rounded-full border border-slate-200 px-4 py-2.5 text-center text-slate-700"
               onClick={() => setOpen(false)}
             >
-              View public demo listing
+              View public demo
             </a>
             <a
               href="/contact?persona=robot-team"

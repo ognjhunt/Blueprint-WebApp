@@ -11,17 +11,17 @@ const companyFacts = [
   {
     title: "What Blueprint is",
     body:
-      "Blueprint is a product company focused on turning real indoor sites into site-specific world models and hosted evaluation paths for robot teams.",
+      "Blueprint builds site-specific world models from real indoor capture. Robot teams use them to train policies, generate data, and evaluate deployments on exact customer facilities.",
   },
   {
-    title: "Who it serves",
+    title: "Who it's for",
     body:
-      "The product is built for robot teams that need better answers before a pilot, field visit, or customer deployment sprint.",
+      "Robot teams preparing for a pilot, field visit, or customer deployment.",
   },
   {
-    title: "What makes it credible",
+    title: "Why it holds up",
     body:
-      "The offer is grounded in real-site capture, visible packaging, hosted evaluation outputs, and a buyer flow that stays tied to one exact facility.",
+      "Every listing is tied to one real facility. Capture, packaging, and the buyer flow all point back to the same site.",
   },
 ];
 
@@ -72,22 +72,22 @@ export default function About() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                 About Blueprint
               </p>
-              <h1 className="mt-3 max-w-4xl text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Blueprint exists to make one real customer site understandable before the expensive part starts.
+              <h1 className="mt-3 max-w-4xl text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
+                Blueprint gives robot teams the exact site they need for training, evaluation, and data generation.
               </h1>
               <p className="mt-4 max-w-3xl text-lg leading-relaxed text-slate-600">
-                Robotics projects often go sideways for a simple reason: the real site shows up too
-                late. Teams discuss the work in abstractions, then the actual building changes the
-                whole plan. Blueprint is built to close that gap.
+                Most robotics deployments hit the same wall: the team doesn't see the actual
+                building until the plan is already set. Blueprint gets the real site in front of
+                you sooner.
               </p>
               <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">
-                We turn real indoor capture into site-specific world models, package those sites in
-                a way buyers can understand, and offer a hosted evaluation path when teams need to
-                run the exact site before deployment.
+                We capture real indoor facilities and turn them into site-specific world models.
+                Your team can train policies on them, generate site-specific data, and evaluate
+                releases — before anyone books travel.
               </p>
             </div>
 
-            <aside className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
+            <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
               <p className="text-sm font-semibold text-slate-900">Why teams trust the surface</p>
               <ul className="mt-4 space-y-3 text-sm text-slate-600">
                 {trustReasons.map((item) => (
@@ -97,7 +97,7 @@ export default function About() {
                   </li>
                 ))}
               </ul>
-              <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-5">
+              <div className="mt-8 rounded-xl border border-slate-200 bg-white p-5">
                 <p className="text-sm font-semibold text-slate-900">What buyers can expect</p>
                 <ul className="mt-4 space-y-3 text-sm text-slate-600">
                   {expectations.map((item) => (
@@ -128,7 +128,7 @@ export default function About() {
 
           <div className="mt-12 grid gap-4 md:grid-cols-3">
             {companyFacts.map((item) => (
-              <section key={item.title} className="rounded-3xl border border-slate-200 bg-white p-6">
+              <section key={item.title} className="rounded-2xl border border-slate-200 bg-white p-6">
                 <h2 className="text-2xl font-semibold text-slate-900">{item.title}</h2>
                 <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
               </section>
@@ -136,12 +136,12 @@ export default function About() {
           </div>
 
           <div className="mt-12 grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-            <section className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
+            <section className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                 Operating principles
               </p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">
-                The product stays grounded in four rules.
+                Four rules we follow.
               </h2>
               <ul className="mt-6 space-y-3 text-sm leading-7 text-slate-600">
                 {principles.map((item) => (
@@ -153,16 +153,16 @@ export default function About() {
               </ul>
             </section>
 
-            <section className="rounded-3xl border border-slate-200 bg-white p-6">
+            <section className="rounded-2xl border border-slate-200 bg-white p-6">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                 Why this matters
               </p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">
-                Blueprint is meant to reduce avoidable field surprises, not to sell a fantasy.
+                The goal is fewer blind deployments, not a guarantee.
               </h2>
               <div className="mt-6 grid gap-4 md:grid-cols-3">
                 {realityChecks.map((item) => (
-                  <article key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <article key={item.title} className="rounded-xl border border-slate-200 bg-slate-50 p-5">
                     <h3 className="text-lg font-semibold text-slate-900">{item.title}</h3>
                     <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
                   </article>
@@ -171,9 +171,9 @@ export default function About() {
             </section>
           </div>
 
-          <section className="mt-12 rounded-3xl bg-slate-950 p-8 sm:p-10">
+          <section className="mt-12 rounded-2xl bg-slate-950 p-8 sm:p-10">
             <h2 className="text-2xl font-bold text-white sm:text-3xl">
-              Start with one site and one deployment question.
+              Start with the site your robot needs to work in.
             </h2>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300">
               That is usually enough to decide whether your team needs the site package, a hosted
@@ -184,7 +184,7 @@ export default function About() {
                 href="/world-models"
                 className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
               >
-                Browse world models
+                Explore world models
               </a>
               <a
                 href="/contact?persona=robot-team"

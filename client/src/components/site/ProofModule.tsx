@@ -18,7 +18,7 @@ export function ProofModule({
 }: ProofModuleProps) {
   return (
     <section
-      className={`rounded-[2rem] border border-slate-200 bg-white shadow-[0_24px_80px_-52px_rgba(15,23,42,0.5)] ${
+      className={`rounded-2xl border border-slate-200 bg-white shadow-[0_24px_80px_-52px_rgba(15,23,42,0.5)] ${
         compact ? "p-5 sm:p-6" : "p-6 sm:p-8"
       }`}
     >
@@ -42,7 +42,7 @@ export function ProofModule({
         </div>
 
         <div className="space-y-3">
-          <div className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-stone-950">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-stone-950">
             <video
               autoPlay
               muted
@@ -55,7 +55,7 @@ export function ProofModule({
               <source src={proofReelVideoSrc} type="video/mp4" />
             </video>
           </div>
-          <div className="flex items-start gap-3 rounded-[1.25rem] border border-slate-200 bg-stone-50 px-4 py-3">
+          <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-stone-50 px-4 py-3">
             <PlayCircle className="mt-0.5 h-4 w-4 text-slate-700" />
             <p className="text-sm leading-6 text-slate-600">{caption}</p>
           </div>

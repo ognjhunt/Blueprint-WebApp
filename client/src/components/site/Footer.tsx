@@ -13,9 +13,9 @@ export function Footer() {
             Blueprint
           </a>
           <p className="text-sm leading-6 text-slate-500">
-            Blueprint helps robot teams test on one exact customer site before travel. Start with
-            the public listing, buy the site package, or request a hosted evaluation on the same
-            site.
+            Blueprint gives robot teams site-specific world models for policy evaluation,
+            fine-tuning, and data generation — built from real indoor capture of exact customer
+            facilities.
           </p>
           <a
             href="mailto:hello@tryblueprint.io"
@@ -62,7 +62,7 @@ export function Footer() {
       <div className="border-t border-slate-200 bg-white py-4">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>Exact sites. Clear buying paths. Fewer surprises before deployment.</p>
+          <p>Exact sites. Better policies. Fewer surprises before deployment.</p>
         </div>
       </div>
     </footer>

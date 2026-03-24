@@ -4,9 +4,9 @@ export const proofReferenceImageSrc = "/siteworld-f5fd54898cfb-runtime-reference
 export const publicDemoHref = "/world-models/siteworld-f5fd54898cfb";
 
 export const proofHighlights = [
-  "A real facility captured once and reused across proof, runtime, and exports.",
-  "A package path for teams that need the grounded site assets first.",
-  "A hosted path for reruns, failure review, and site-grounded dataset export.",
+  "A real facility captured once and used for training, evaluation, and data export.",
+  "A package path for teams that need exact-site data in their own training pipeline.",
+  "A hosted path for managed evaluations, release comparison, and dataset generation.",
 ];
 
 export const resultHighlights = [
