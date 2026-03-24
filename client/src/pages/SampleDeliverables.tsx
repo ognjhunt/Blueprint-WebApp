@@ -18,7 +18,7 @@ const hostedArtifacts = [
   "Repeatable runs on the same site",
   "Rollout video and failure review",
   "Metrics summary and checkpoint comparison",
-  "Raw bundle and RLDS-style dataset export",
+  "Raw bundles and dataset exports",
 ];
 
 const trustPanel = [
@@ -169,7 +169,7 @@ export default function SampleDeliverables() {
               href={publicDemoHref}
               className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Open public demo
+              View public demo listing
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
             <a

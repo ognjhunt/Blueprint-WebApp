@@ -9,7 +9,7 @@ const sections = [
   {
     title: "What varies by listing",
     body:
-      "The exact export set, geometry depth coverage, available scenarios, supported tasks, and robot-fit details can differ from site to site. Buyers should read those from the listing rather than assume one global promise applies everywhere.",
+      "The exact export set, geometry depth coverage, available scenarios, supported tasks, and robot-fit details can differ from site to site. Read those details on the listing instead of assuming every site supports the same workflow.",
   },
   {
     title: "Typical site-package contents",
@@ -24,12 +24,12 @@ const sections = [
   {
     title: "Robot compatibility framing",
     body:
-      "Compatibility is practical, not magical. The buyer surface should call out robot assumptions, sensor expectations, path or reach constraints when known, and where a deeper hosted evaluation is the right way to confirm fit.",
+      "Compatibility is practical, not magical. Listings call out robot assumptions, sensor expectations, and path or reach constraints when known. If fit is still unclear, hosted evaluation is the right next step.",
   },
   {
     title: "Governance and freshness",
     body:
-      "Freshness, privacy, sharing rights, and export entitlements belong on the listing. If the site changed or exports are limited, the public surface should say that directly instead of hiding it in follow-up email.",
+      "Freshness, privacy, sharing rights, and export entitlements belong on the listing. If the site changed or exports are limited, Blueprint says that directly before deeper work starts.",
   },
 ];
 
@@ -52,8 +52,8 @@ export default function Docs() {
             </h1>
             <p className="mt-4 text-lg leading-relaxed text-slate-600">
               This page is for technical buyers. It separates the stable product contract from the
-              listing-specific details so your team knows what can be assumed early and what should
-              be confirmed on a site by site basis.
+              listing-specific details so your team knows what can be assumed early and what needs
+              to be confirmed on a site-by-site basis.
             </p>
           </div>
 

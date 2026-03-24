@@ -48,17 +48,18 @@ describe("Contact page", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Tell us what your team needs and we will point you to the right next step\./i,
+        name: /Tell us the site, task, and robot in a few lines\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/For Robot Teams/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/What happens after you send this/i)).toBeInTheDocument();
-    expect(screen.getByText(/Prefer email\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/Prefer a lighter first step\?/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Browse world models/i })).toHaveAttribute(
       "href",
       "/world-models",
     );
-    expect(screen.getByRole("link", { name: /Proof/i })).toHaveAttribute("href", "/proof");
+    expect(screen.getByRole("link", { name: /How it works/i })).toHaveAttribute("href", "/how-it-works");
+    expect(screen.getByRole("link", { name: /Sample deliverables/i })).toHaveAttribute("href", "/sample-deliverables");
     expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/What do you need\?/i)).toBeInTheDocument();
@@ -105,7 +106,7 @@ describe("Contact page", () => {
       },
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Send request/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Send a short brief/i }));
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
@@ -114,7 +115,7 @@ describe("Contact page", () => {
       );
     });
 
-    expect(screen.getByText(/Robot-team inquiry received/i)).toBeInTheDocument();
+    expect(screen.getByText(/Brief received/i)).toBeInTheDocument();
   });
 
   it("submits hosted-session mode with robot-team defaults", async () => {

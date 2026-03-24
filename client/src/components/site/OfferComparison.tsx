@@ -9,10 +9,10 @@ type OfferComparisonProps = {
 
 const offerCards = [
   {
-    title: "Site package",
+    title: "Buy the site package",
     price: "$2,100 - $3,400",
     description:
-      "Buy the grounded site files, package notes, and rights context for one real facility.",
+      "Use this when your team wants the grounded site assets in its own stack.",
     bullets: [
       "Walkthrough media and camera poses",
       "Geometry and depth when available",
@@ -26,14 +26,14 @@ const offerCards = [
     bulletTone: "bg-slate-400",
   },
   {
-    title: "Hosted evaluation",
+    title: "Run a hosted evaluation",
     price: "$16 - $29 / session-hour",
     description:
-      "Request Blueprint-managed runtime access when you want to run the exact site now and pull back usable outputs.",
+      "Use this when you want Blueprint to run the exact site with your team and send usable outputs back.",
     bullets: [
       "Repeatable runs on one exact site",
       "Rollout video, metrics, and failure review",
-      "Raw bundle and RLDS-style exports for tuning and adaptation",
+      "Raw bundles and dataset exports for tuning and adaptation",
     ],
     href: "/contact?persona=robot-team&interest=evaluation-package",
     cta: "Request hosted evaluation",
@@ -43,17 +43,17 @@ const offerCards = [
     bulletTone: "bg-slate-500",
   },
   {
-    title: "Enterprise",
+    title: "Plan a custom program",
     price: "$50,000+",
     description:
-      "Use this for custom capture, exclusive access, or managed support around one facility.",
+      "Use this for custom capture, exclusive access, or higher-touch support around one facility.",
     bullets: [
       "Custom capture scope",
       "Private or exclusive access",
       "Managed support for high-stakes work",
     ],
     href: "/contact?persona=robot-team&interest=enterprise",
-    cta: "Talk to Blueprint",
+    cta: "Contact Blueprint",
     icon: BriefcaseBusiness,
     accent: "border border-slate-300 bg-white text-slate-900",
     cardTone: "border-slate-200 bg-white",
@@ -64,7 +64,7 @@ const offerCards = [
 export function OfferComparison({
   eyebrow = "What you can buy first",
   title = "Choose the first step that matches the work.",
-  description = "Most teams start with one site package or one hosted evaluation request. Use the package when you need the grounded site assets. Use hosted evaluation when you need reruns, exports, and failure review on the same site.",
+  description = "Most teams need either the site package or a hosted evaluation. The package is for teams that want the grounded site assets. Hosted evaluation is for teams that want Blueprint to run the site now and send back evidence, exports, and failure review.",
   className = "",
 }: OfferComparisonProps) {
   return (

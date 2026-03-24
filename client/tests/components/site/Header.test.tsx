@@ -23,16 +23,30 @@ describe("Header", () => {
       "href",
       "/world-models",
     );
-    expect(screen.getByRole("link", { name: /^Proof$/i })).toHaveAttribute("href", "/proof");
+    expect(screen.getByRole("link", { name: /^How It Works$/i })).toHaveAttribute(
+      "href",
+      "/how-it-works",
+    );
+    expect(screen.getByRole("link", { name: /^Results$/i })).toHaveAttribute(
+      "href",
+      "/case-studies",
+    );
+    expect(screen.getByRole("link", { name: /^Deliverables$/i })).toHaveAttribute(
+      "href",
+      "/sample-deliverables",
+    );
+    expect(screen.getByRole("link", { name: /^Pricing$/i })).toHaveAttribute(
+      "href",
+      "/pricing",
+    );
     expect(screen.getByRole("link", { name: /^About$/i })).toHaveAttribute("href", "/about");
-    expect(screen.getByRole("link", { name: /^FAQ$/i })).toHaveAttribute("href", "/faq");
     expect(screen.queryByRole("link", { name: /^Capture$/i })).not.toBeInTheDocument();
   });
 
-  it("uses Talk to Blueprint as the primary CTA", () => {
+  it("uses the hosted-evaluation CTA as the primary action", () => {
     render(<Header />);
 
-    expect(screen.getByRole("link", { name: /Talk to Blueprint/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Request hosted evaluation/i })).toHaveAttribute(
       "href",
       "/contact?persona=robot-team",
     );
@@ -41,7 +55,7 @@ describe("Header", () => {
   it("keeps utility links available for capture and auth", () => {
     render(<Header />);
 
-    expect(screen.getByRole("link", { name: /Open public demo/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /View public demo listing/i })).toHaveAttribute(
       "href",
       "/world-models/siteworld-f5fd54898cfb",
     );

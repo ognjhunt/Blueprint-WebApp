@@ -97,7 +97,7 @@ export default function HowItWorks() {
   return (
     <>
       <SEO
-        title="Why It Works | Blueprint"
+        title="How It Works | Blueprint"
         description="Why site-grounded world models improve robot evaluation: anchor to the exact site, branch controlled variations, and export the results back into the stack."
         canonical="/how-it-works"
       />
@@ -109,7 +109,7 @@ export default function HowItWorks() {
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <div className="max-w-3xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-cyan-100 bg-cyan-50/70 px-3 py-1 text-xs font-medium uppercase tracking-wider text-cyan-700">
-                Why It Works
+                How It Works
               </div>
               <h1 className="mt-6 text-5xl font-bold tracking-tight text-zinc-950 sm:text-6xl">
                 Site grounding matters most when the deployment question gets specific.

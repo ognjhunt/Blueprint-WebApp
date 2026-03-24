@@ -23,6 +23,8 @@ const HostedSessionSetup = lazy(() => import("../pages/HostedSessionSetup"));
 const HostedSessionWorkspace = lazy(() => import("../pages/HostedSessionWorkspace"));
 const Pricing = lazy(() => import("../pages/Pricing"));
 const Proof = lazy(() => import("../pages/Proof"));
+const CaseStudies = lazy(() => import("../pages/CaseStudies"));
+const SampleDeliverables = lazy(() => import("../pages/SampleDeliverables"));
 const Contact = lazy(() => import("../pages/Contact"));
 const HowItWorks = lazy(() => import("../pages/HowItWorks"));
 const ReadinessPack = lazy(() => import("../pages/ReadinessPack"));
@@ -72,10 +74,6 @@ const LegacyReadinessPackRedirect = () => (
   <MarketingRedirect to="/how-it-works" />
 );
 
-const LegacyProofRedirect = () => (
-  <MarketingRedirect to="/proof" />
-);
-
 const LegacyForRobotIntegratorsRedirect = () => (
   <MarketingRedirect to="/for-robot-teams" />
 );
@@ -116,8 +114,8 @@ export const appRoutes: AppRoute[] = [
   { path: "/solutions", layout: "public", component: Solutions },
   { path: "/pricing", layout: "public", component: Pricing },
   { path: "/proof", layout: "public", component: Proof },
-  { path: "/sample-deliverables", layout: "public", component: LegacyProofRedirect },
-  { path: "/case-studies", layout: "public", component: LegacyProofRedirect },
+  { path: "/sample-deliverables", layout: "public", component: SampleDeliverables },
+  { path: "/case-studies", layout: "public", component: CaseStudies },
   { path: "/contact", layout: "public", component: Contact },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
   { path: "/faq", layout: "public", component: FAQ },

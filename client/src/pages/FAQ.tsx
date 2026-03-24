@@ -24,7 +24,7 @@ const faqs = [
   {
     question: "What formats and exports should we expect?",
     answer:
-      "The exact export set depends on the listing, but Blueprint surfaces the package notes, runtime details, and export readiness on the site page. Common outputs include walkthrough video, camera poses, rollout video, RLDS-style datasets, and raw bundles tied to the hosted session.",
+      "The exact export set depends on the listing, but Blueprint surfaces the package notes, runtime details, and export readiness on the site page. Common outputs include walkthrough video, camera poses, rollout video, dataset exports, and raw bundles tied to the hosted session.",
   },
   {
     question: "Who can see our facility data?",
@@ -49,7 +49,7 @@ const faqs = [
   {
     question: "Can this work with different robots and runtimes?",
     answer:
-      "Yes. The stable layer is the capture, provenance, site package, hosted-evaluation contract, and buyer surface around it. Runtime backends can change without changing the core product.",
+      "Yes. The stable layer is the capture, provenance, site package, and hosted-evaluation contract. Runtime backends can change without changing the core product.",
   },
   {
     question: "What robot embodiments have been tested?",

@@ -4,28 +4,51 @@ import {
   proofReferenceImageSrc,
   proofReelPosterSrc,
   publicDemoHref,
-  resultHighlights,
 } from "@/lib/marketingProof";
 import { ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react";
 
+const proofRoutes = [
+  {
+    title: "How it works",
+    body:
+      "See why Blueprint starts from one real customer site and why that matters once the deployment question gets specific.",
+    href: "/how-it-works",
+    cta: "Open how it works",
+  },
+  {
+    title: "Results",
+    body:
+      "Review concrete delivery examples that show how robot teams use exact-site assets and hosted evaluation before deployment.",
+    href: "/case-studies",
+    cta: "Review results",
+  },
+  {
+    title: "Deliverables",
+    body:
+      "Inspect the package contents, hosted outputs, and trust details buyers can expect from one Blueprint listing.",
+    href: "/sample-deliverables",
+    cta: "See deliverables",
+  },
+];
+
 const packageArtifacts = [
-  "Walkthrough video and camera poses tied to one real site",
-  "Site notes attached to one workflow lane",
-  "Geometry and depth artifacts when available",
-  "Rights, freshness, and provenance notes visible before deeper work starts",
+  "Walkthrough media and camera poses tied to one real site",
+  "Site notes, rights context, and freshness details",
+  "Geometry and depth artifacts when the listing supports them",
+  "A package your team can review or integrate in its own stack",
 ];
 
 const hostedArtifacts = [
   "Repeatable runs on the same site",
-  "Rollout video and failure review",
-  "Metrics summary and checkpoint comparison",
-  "Exportable raw bundles and site-specific datasets when supported",
+  "Rollout video, metrics, and failure review",
+  "Scenario variation for edge-case checks",
+  "Exportable raw bundles and dataset outputs when supported",
 ];
 
 const trustSignals = [
-  "Pricing is visible before a call so buyers understand the package path and the hosted path early.",
-  "Each listing stays anchored to one real site instead of drifting into generic robotics marketing language.",
-  "Governance, privacy, freshness, and export constraints are meant to stay on the buyer surface.",
+  "The public demo listing lets buyers confirm the site before outreach.",
+  "Each listing shows the package path and hosted-evaluation path side by side.",
+  "Compatibility, privacy, freshness, and export scope stay visible on the listing.",
 ];
 
 export default function Proof() {
@@ -33,7 +56,7 @@ export default function Proof() {
     <>
       <SEO
         title="Proof | Blueprint"
-        description="See the public demo, example package outputs, hosted-evaluation evidence, and buyer trust signals behind Blueprint."
+        description="Use Blueprint's proof hub to inspect the public demo listing, see how the product works, review sample deliverables, and read concrete results."
         canonical="/proof"
       />
 
@@ -41,25 +64,41 @@ export default function Proof() {
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
           <header className="max-w-3xl">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Proof
+              Proof Hub
             </p>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-              One place to verify what Blueprint sells and why teams trust it.
+              Everything a first-time buyer needs to verify the offer.
             </h1>
             <p className="mt-4 text-lg leading-8 text-slate-600">
-              Start with the public demo, then inspect the site package, hosted evaluation outputs,
-              and validation examples that make the product easier to trust.
+              Start with the public demo listing, then move into how the product works, what teams
+              receive, and the kinds of outcomes Blueprint helps them reach before deployment.
             </p>
           </header>
 
           <div className="mt-10">
             <ProofModule
-              eyebrow="Public demo"
-              title="The real site is the anchor. The product is what your team can do from there."
-              description="The public demo should answer the first trust question fast: is this a real site with a real workflow lane? From there, the package path and hosted evaluation path should read as concrete buyer options."
-              caption="Public reel from the current demo listing."
+              eyebrow="Public demo listing"
+              title="The first proof is simple: the site is real and the workflow is specific."
+              description="Blueprint uses the public demo listing to show the physical site, the task lane, and the buying options before a team ever fills out the intake form."
+              caption="Public walkthrough from the live demo listing."
             />
           </div>
+
+          <section className="mt-10 grid gap-4 md:grid-cols-3">
+            {proofRoutes.map((item) => (
+              <article key={item.title} className="rounded-[2rem] border border-slate-200 bg-white p-6">
+                <h2 className="text-2xl font-semibold text-slate-900">{item.title}</h2>
+                <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
+                <a
+                  href={item.href}
+                  className="mt-5 inline-flex items-center text-sm font-semibold text-slate-900 transition hover:text-slate-700"
+                >
+                  {item.cta}
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+              </article>
+            ))}
+          </section>
 
           <section className="mt-10 grid gap-4 lg:grid-cols-2">
             <article className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white">
@@ -69,10 +108,10 @@ export default function Proof() {
                 className="aspect-[16/10] w-full object-cover"
               />
               <div className="p-6">
-                <h2 className="text-2xl font-semibold text-slate-900">Public demo</h2>
+                <h2 className="text-2xl font-semibold text-slate-900">Public listing</h2>
                 <p className="mt-3 text-sm leading-7 text-slate-600">
-                  Buyers confirm the site, the workflow, and the physical context before deciding
-                  whether to buy the site package or request hosted evaluation.
+                  Buyers confirm the site, workflow, and physical context before deciding whether
+                  they need the site package or a hosted evaluation.
                 </p>
               </div>
             </article>
@@ -84,11 +123,10 @@ export default function Proof() {
                 className="aspect-[16/10] w-full object-cover"
               />
               <div className="p-6">
-                <h2 className="text-2xl font-semibold text-slate-900">Hosted evaluation evidence</h2>
+                <h2 className="text-2xl font-semibold text-slate-900">Hosted runtime evidence</h2>
                 <p className="mt-3 text-sm leading-7 text-slate-600">
-                  Teams use the hosted path to rerun one exact site, compare checkpoints, inspect
-                  failure cases, and export what they need without losing the link back to the real
-                  facility.
+                  Hosted evaluation keeps the same site in view while teams rerun tasks, inspect
+                  failures, compare releases, and export evidence.
                 </p>
               </div>
             </article>
@@ -96,7 +134,7 @@ export default function Proof() {
 
           <section className="mt-10 grid gap-4 lg:grid-cols-3">
             <article className="rounded-[2rem] border border-slate-200 bg-white p-6">
-              <h2 className="text-2xl font-semibold text-slate-900">Site package</h2>
+              <h2 className="text-2xl font-semibold text-slate-900">Buy the site package</h2>
               <ul className="mt-5 space-y-3">
                 {packageArtifacts.map((item) => (
                   <li key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
@@ -108,7 +146,7 @@ export default function Proof() {
             </article>
 
             <article className="rounded-[2rem] border border-slate-200 bg-white p-6">
-              <h2 className="text-2xl font-semibold text-slate-900">Hosted evaluation</h2>
+              <h2 className="text-2xl font-semibold text-slate-900">Run a hosted evaluation</h2>
               <ul className="mt-5 space-y-3">
                 {hostedArtifacts.map((item) => (
                   <li key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
@@ -135,32 +173,12 @@ export default function Proof() {
             </article>
           </section>
 
-          <section className="mt-10 rounded-[2rem] border border-slate-200 bg-white p-6 sm:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Validation examples
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-              Concrete examples of how better packaging and proof should communicate value.
-            </h2>
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
-              {resultHighlights.map((item) => (
-                <article key={item.title} className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    {item.outcome}
-                  </p>
-                  <h3 className="mt-3 text-xl font-semibold text-slate-900">{item.title}</h3>
-                  <p className="mt-3 text-sm leading-7 text-slate-600">{item.detail}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-
           <div className="mt-10 flex flex-col gap-3 sm:flex-row">
             <a
               href={publicDemoHref}
               className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Open public demo
+              View public demo listing
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
             <a
@@ -173,7 +191,7 @@ export default function Proof() {
               href="/contact?persona=robot-team"
               className="inline-flex items-center justify-center rounded-full border border-transparent px-3 py-3 text-sm font-semibold text-slate-700 transition hover:text-slate-950"
             >
-              Talk to Blueprint
+              Contact Blueprint
             </a>
           </div>
         </div>

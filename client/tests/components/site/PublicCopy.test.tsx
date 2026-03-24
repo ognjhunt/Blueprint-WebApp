@@ -18,7 +18,7 @@ vi.mock("@/contexts/AuthContext", () => ({
 }));
 
 describe("public capture and world-model copy", () => {
-  it("uses capture and world-model language across header, homepage, and footer", { timeout: 10000 }, () => {
+  it("keeps the buyer path centered on world models, proof, and hosted evaluation", { timeout: 10000 }, () => {
     window.localStorage.clear();
     const { container } = render(
       <>
@@ -34,10 +34,12 @@ describe("public capture and world-model copy", () => {
         name: /Test your robot on the exact customer site before you travel\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Open public demo/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /View public demo listing/i }).length).toBeGreaterThan(0);
     expect(container).toHaveTextContent(/world models/i);
     expect(container).toHaveTextContent(/capture/i);
     expect(container).toHaveTextContent(/robot teams?/i);
+    expect(container).toHaveTextContent(/deliverables/i);
+    expect(container).toHaveTextContent(/results/i);
     expect(container).not.toHaveTextContent(/digital twin/i);
     expect(container).not.toHaveTextContent(/SimReady/i);
     expect(container).not.toHaveTextContent(/marketplace/i);

@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { publicDemoHref } from "@/lib/marketingProof";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,14 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-const navLinks = [
-  { href: "/world-models", label: "World Models" },
-  { href: "/proof", label: "Proof" },
-  { href: "/pricing", label: "Pricing" },
-  { href: "/about", label: "About" },
-  { href: "/faq", label: "FAQ" },
-];
+import { primaryNavLinks } from "./navigation";
 
 export function Header() {
   const [location, setLocation] = useLocation();
@@ -57,8 +51,8 @@ export function Header() {
         <a href="/" className="inline-flex min-h-11 items-center text-lg font-semibold tracking-tight">
           Blueprint
         </a>
-        <nav className="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
-          {navLinks.map((link) => (
+        <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 xl:flex">
+          {primaryNavLinks.map((link) => (
             <a
               key={link.href}
               href={link.href}
@@ -70,18 +64,18 @@ export function Header() {
             </a>
           ))}
         </nav>
-        <div className="hidden items-center gap-3 md:flex">
-          <a
-            href="/world-models/siteworld-f5fd54898cfb"
-            className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
-          >
-            Open public demo
-          </a>
+        <div className="hidden items-center gap-3 xl:flex">
           <a
             href="/contact?persona=robot-team"
             className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
           >
-            Talk to Blueprint
+            Request hosted evaluation
+          </a>
+          <a
+            href={publicDemoHref}
+            className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+          >
+            View public demo listing
           </a>
           {!currentUser ? (
             <>
@@ -130,7 +124,7 @@ export function Header() {
         </div>
         <button
           type="button"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-slate-200 p-0 md:hidden"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-slate-200 p-0 xl:hidden"
           onClick={() => setOpen((prev) => !prev)}
           aria-expanded={open}
           aria-label="Toggle navigation"
@@ -139,9 +133,9 @@ export function Header() {
         </button>
       </div>
       {open ? (
-        <div className="border-t border-slate-200 bg-white md:hidden">
+        <div className="border-t border-slate-200 bg-white xl:hidden">
           <nav className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4 text-sm font-medium text-slate-700">
-            {navLinks.map((link) => (
+            {primaryNavLinks.map((link) => (
               <a
                 key={link.href}
                 href={link.href}
@@ -152,18 +146,18 @@ export function Header() {
               </a>
             ))}
             <a
-              href="/world-models/siteworld-f5fd54898cfb"
+              href={publicDemoHref}
               className="mt-2 inline-flex min-h-11 items-center justify-center rounded-full border border-slate-200 px-4 py-2.5 text-center text-slate-700"
               onClick={() => setOpen(false)}
             >
-              Open public demo
+              View public demo listing
             </a>
             <a
               href="/contact?persona=robot-team"
               className="inline-flex min-h-11 items-center justify-center rounded-full bg-slate-900 px-4 py-2.5 text-center text-white"
               onClick={() => setOpen(false)}
             >
-              Talk to Blueprint
+              Request hosted evaluation
             </a>
             {!currentUser ? (
               <>

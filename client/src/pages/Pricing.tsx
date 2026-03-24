@@ -18,6 +18,11 @@ const pricingNotes = [
     body:
       "If you need a private site, exclusive rights, or managed support, Blueprint scopes that as enterprise work instead of hiding it inside the self-serve pricing.",
   },
+  {
+    title: "You can start with a short brief",
+    body:
+      "If your team is interested but not ready for a full intake, email a few lines about the site, task, and robot setup and Blueprint can point you in the right direction.",
+  },
 ];
 
 export default function Pricing() {
@@ -39,11 +44,11 @@ export default function Pricing() {
               Three ways to buy in.
             </h1>
             <p className="text-lg leading-8 text-slate-600">
-              Most teams start with one site package or one hosted evaluation request. Use the
-              package when you need the grounded site assets. Use hosted evaluation when you need
-              to run the site, inspect failures, compare releases, and export site-specific data.
-              Enterprise is there when you need custom capture, private access, or higher-touch
-              support.
+              Most teams start with one of two paths: buy the site package or request a hosted
+              evaluation. Use the package when you need the grounded site assets. Use hosted
+              evaluation when you need Blueprint to run the site, inspect failures, compare
+              releases, and export site-specific data. Enterprise is there for private sites,
+              custom capture, or higher-touch support.
             </p>
           </header>
 
@@ -81,11 +86,13 @@ export default function Pricing() {
                 <ArrowRight className="ml-2 h-4 w-4" />
               </a>
             </div>
-            <p className="flex items-center gap-2 text-sm text-slate-600">
+            <a
+              href="mailto:hello@tryblueprint.io?subject=Blueprint%20brief"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 transition hover:text-slate-900"
+            >
               <ShieldCheck className="h-4 w-4 text-slate-500" />
-              Capture payouts live in the app handoff. Buyer pricing stays on the buyer-facing
-              site.
-            </p>
+              Not ready for the full form? Email a short brief.
+            </a>
           </section>
         </div>
       </div>

@@ -293,7 +293,7 @@ export default function SiteWorlds() {
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                {filteredSites.length} listed sites · each listing shows its own site-package price, hosted rate, and buyer-facing proof status
+                {filteredSites.length} listed sites · each listing shows its own site-package price, hosted rate, and public-proof status
               </div>
             </div>
 

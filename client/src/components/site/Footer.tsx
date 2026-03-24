@@ -1,41 +1,35 @@
-const coreLinks = [
-  { label: "World Models", href: "/world-models" },
-  { label: "Proof", href: "/proof" },
-  { label: "Pricing", href: "/pricing" },
-  { label: "About", href: "/about" },
-  { label: "Compatibility", href: "/docs" },
-  { label: "FAQ", href: "/faq" },
-  { label: "Contact", href: "/contact?persona=robot-team" },
-];
-
-const supportLinks = [
-  { label: "Open Public Demo", href: "/world-models/siteworld-f5fd54898cfb" },
-  { label: "Capture App", href: "/capture-app" },
-  { label: "Governance", href: "/governance" },
-  { label: "Privacy", href: "/privacy" },
-  { label: "Terms", href: "/terms" },
-  { label: "Sign In", href: "/sign-in" },
-];
+import {
+  footerExploreLinks,
+  footerReferenceLinks,
+  footerUtilityLinks,
+} from "./navigation";
 
 export function Footer() {
   return (
     <footer className="border-t border-slate-200 bg-slate-50/70">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[1.2fr_0.9fr_0.9fr]">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[1.1fr_0.9fr_0.9fr_0.8fr]">
         <div className="max-w-sm space-y-3">
           <a href="/" className="text-lg font-semibold tracking-tight text-slate-900">
             Blueprint
           </a>
           <p className="text-sm leading-6 text-slate-500">
-            Blueprint helps robot teams inspect one exact site, choose between the site package and
-            hosted evaluation, and move toward deployment with fewer bad assumptions.
+            Blueprint helps robot teams test on one exact customer site before travel. Start with
+            the public listing, buy the site package, or request a hosted evaluation on the same
+            site.
           </p>
+          <a
+            href="mailto:hello@tryblueprint.io"
+            className="inline-flex text-sm font-semibold text-slate-700 transition hover:text-slate-950"
+          >
+            hello@tryblueprint.io
+          </a>
         </div>
 
         <nav className="space-y-3 text-sm text-slate-600">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            For Robot Teams
+            Explore
           </p>
-          {coreLinks.map((link) => (
+          {footerExploreLinks.map((link) => (
             <a key={link.href} href={link.href} className="block transition hover:text-slate-900">
               {link.label}
             </a>
@@ -44,9 +38,20 @@ export function Footer() {
 
         <nav className="space-y-3 text-sm text-slate-600">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Support
+            Reference
           </p>
-          {supportLinks.map((link) => (
+          {footerReferenceLinks.map((link) => (
+            <a key={link.href} href={link.href} className="block transition hover:text-slate-900">
+              {link.label}
+            </a>
+          ))}
+        </nav>
+
+        <nav className="space-y-3 text-sm text-slate-600">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Utility
+          </p>
+          {footerUtilityLinks.map((link) => (
             <a key={link.href} href={link.href} className="block transition hover:text-slate-900">
               {link.label}
             </a>
@@ -57,7 +62,7 @@ export function Footer() {
       <div className="border-t border-slate-200 bg-white py-4">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>Exact sites. Clear packaging. Fewer surprises before deployment.</p>
+          <p>Exact sites. Clear buying paths. Fewer surprises before deployment.</p>
         </div>
       </div>
     </footer>

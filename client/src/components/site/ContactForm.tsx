@@ -246,14 +246,14 @@ export function ContactForm() {
             ? "Hosted evaluation request received"
             : persona === "site_operator"
               ? "Facility inquiry received"
-              : "Robot-team inquiry received"}
+              : "Brief received"}
         </h2>
         <p className="mt-4 text-zinc-600">
           {hostedMode
             ? "Blueprint now has the request details for this hosted evaluation follow-up."
             : persona === "site_operator"
               ? "Blueprint now has the facility details, access notes, and governance context needed for a follow-up."
-              : "Blueprint now has the request details needed for a follow-up."}
+              : "Blueprint now has the site, task, and robot details needed for a follow-up."}
         </p>
         <div className="mt-8 rounded-xl bg-zinc-50 p-6 text-left">
           <h3 className="mb-4 text-sm font-semibold text-zinc-900">What happens next?</h3>
@@ -262,7 +262,7 @@ export function ContactForm() {
               <div className="mt-0.5 rounded-full bg-indigo-100 p-1 text-indigo-600">
                 <Clock className="h-3 w-3" />
               </div>
-              <p>Blueprint reviews the request and confirms the most credible next step.</p>
+              <p>Blueprint reviews the brief and confirms the most credible next step.</p>
             </div>
             <div className="flex items-start gap-3">
               <div className="mt-0.5 rounded-full bg-indigo-100 p-1 text-indigo-600">
@@ -274,7 +274,7 @@ export function ContactForm() {
               <div className="mt-0.5 rounded-full bg-indigo-100 p-1 text-indigo-600">
                 <Calendar className="h-3 w-3" />
               </div>
-              <p>If the request looks workable, the next reply will narrow the scope instead of reopening the whole intake from scratch.</p>
+              <p>If the request looks workable, the next reply narrows the scope instead of reopening discovery from scratch.</p>
             </div>
           </div>
         </div>
@@ -494,7 +494,7 @@ export function ContactForm() {
             ? "Request hosted evaluation"
             : persona === "site_operator"
               ? "Send facility inquiry"
-              : "Send request"}
+              : "Send a short brief"}
         <ArrowRight className="ml-2 h-4 w-4" />
       </button>
     </form>
