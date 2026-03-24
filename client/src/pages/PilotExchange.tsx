@@ -549,7 +549,7 @@ export default function PilotExchange() {
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Before this page</p>
-                <p className="mt-2 text-2xl font-bold text-emerald-950">Readiness Pack</p>
+                <p className="mt-2 text-2xl font-bold text-emerald-950">Site review layer</p>
                 <p className="mt-2 text-sm text-emerald-900">This page opens after a site has been captured, reviewed, and packaged into a buyer-facing opportunity.</p>
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-white p-5">

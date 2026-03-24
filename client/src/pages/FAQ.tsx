@@ -39,7 +39,7 @@ const faqs = [
   {
     question: "How fresh is the site data?",
     answer:
-      "Freshness is a property of the listing, not a hand-wavy promise. When the readiness package has freshness metadata or a recapture state, the page shows it. If the site has changed enough that the package is stale, that should be treated as a refresh problem, not brushed aside in sales copy.",
+      "Freshness is a property of the listing, not a hand-wavy promise. When the listing or review record has freshness metadata or a recapture state, the page shows it. If the site has changed enough that the package is stale, that should be treated as a refresh problem, not brushed aside in sales copy.",
   },
   {
     question: "What happens if the site changes after capture?",

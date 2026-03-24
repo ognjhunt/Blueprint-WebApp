@@ -39,7 +39,7 @@ const sampleSections = [
     icon: <ScanLine className="h-5 w-5" />,
   },
   {
-    title: "Readiness pack",
+    title: "Review memo",
     body:
       "A short report with blockers, evidence quality notes, a risk map, and a clear recommendation on what to do next.",
     icon: <FileText className="h-5 w-5" />,
@@ -47,7 +47,7 @@ const sampleSections = [
   {
     title: "Robot-team evaluation path",
     body:
-      "A simple handoff that lets robot teams review the qualified brief before anyone burns field time or pilot budget.",
+      "A simple handoff that lets robot teams review the site brief before anyone burns field time or pilot budget.",
     icon: <ShieldCheck className="h-5 w-5" />,
   },
 ];
@@ -66,8 +66,8 @@ export default function ReadinessPack() {
   return (
     <>
       <SEO
-        title="Readiness Pack | Blueprint"
-        description="See the default Blueprint product: a readiness pack that scopes the site, surfaces blockers, and tells the team what to do next."
+        title="Readiness Review | Blueprint"
+        description="Use Blueprint's readiness review as an optional trust layer for high-stakes deployments, buyer signoff, and blocker review around one real site."
         canonical="/readiness-pack"
       />
 
@@ -80,20 +80,21 @@ export default function ReadinessPack() {
               <div className="space-y-6">
                 <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-indigo-600">
                   <FileText className="h-3 w-3" />
-                  Default Product
+                  Optional Trust Layer
                 </div>
                 <h1 className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl">
-                  The Readiness Pack is the first thing we sell.
+                  Use the readiness review when the deployment decision needs extra proof.
                 </h1>
                 <p className="max-w-2xl text-lg leading-relaxed text-zinc-600">
-                  The goal is simple: turn a real site and task into a clear readiness decision.
-                  If the site is promising, that pack becomes the handoff into qualified
-                  opportunities and later technical work.
+                  Most teams start with the site package or hosted evaluation path. The readiness
+                  review is the extra layer for high-stakes deployments, buyer signoff, or
+                  commercialization decisions that need a clear record of blockers, evidence gaps,
+                  and next steps.
                 </p>
 
                 <CTAButtons
                   primaryHref="/contact?interest=site-qualification"
-                  primaryLabel="Request qualification"
+                  primaryLabel="Request readiness review"
                   secondaryHref="/how-it-works"
                   secondaryLabel="How it works"
                 />
@@ -111,7 +112,7 @@ export default function ReadinessPack() {
                 <div className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
                   <p className="text-sm font-semibold text-zinc-900">Next step</p>
                   <p className="mt-2 text-sm text-zinc-600">
-                    Fix the dock turn, confirm aisle access rules, then open the qualified brief
+                    Fix the dock turn, confirm aisle access rules, then open the site brief
                     for robot-team review.
                   </p>
                 </div>
@@ -127,8 +128,8 @@ export default function ReadinessPack() {
                 The deliverable is simple
               </h2>
               <p className="mt-4 text-zinc-600">
-                You are not buying a pile of files. You are buying a qualification decision and a
-                better next step.
+                You are not buying the core product again. You are adding a concise review layer
+                around it so a high-stakes site can move forward with fewer open questions.
               </p>
             </div>
 
@@ -157,14 +158,15 @@ export default function ReadinessPack() {
                   What the pack covers
                 </h2>
                 <p className="text-zinc-600">
-                  Site operators use this to understand whether the site is worth pursuing. Robot
-                  teams use it to decide whether the site deserves deeper evaluation.
+                  Use this when a buyer, operator, or internal deployment lead needs a tighter
+                  review before approving deeper work. Robot teams can use it to understand
+                  blockers without making review the center of the product story.
                 </p>
                 <a
                   href="/contact?interest=site-qualification"
                   className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-700"
                 >
-                  Request qualification
+                  Request readiness review
                   <ArrowRight className="h-4 w-4" />
                 </a>
               </div>

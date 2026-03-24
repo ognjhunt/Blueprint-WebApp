@@ -106,7 +106,7 @@ const howItWorksSteps = [
   {
     step: "2",
     title: "We render and evaluate",
-    desc: "We render evaluation video from your target site's qualified record and run your policy through it to estimate likely outcomes.",
+    desc: "We render evaluation video from your target site's grounded record and run your policy through it to estimate likely outcomes.",
     icon: <Video className="h-6 w-6" />,
   },
   {
@@ -190,8 +190,8 @@ export default function Evals() {
   return (
     <>
       <SEO
-        title="Evaluations | Test Your Robot Policy"
-        description="Submit your robot policy for standardized evaluation. Blueprint prepares the right evaluation package for the site and returns a non-authoritative scorecard."
+        title="Evaluations | Compare Your Policy On The Exact Site"
+        description="Run site-grounded evaluation against the exact deployment site. Blueprint returns comparative results, failure analysis, and review outputs your team can act on."
         canonical="/evals"
       />
       <div className="relative min-h-screen bg-white font-sans text-zinc-900 selection:bg-emerald-100 selection:text-emerald-900">
@@ -207,21 +207,19 @@ export default function Evals() {
               </div>
 
               <h1 className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl">
-                Test your robot on
+                Compare your policy on
                 <br />
-                <span className="text-emerald-600">real-world tasks</span>
+                <span className="text-emerald-600">the exact site</span>
               </h1>
 
               <p className="mx-auto max-w-2xl text-lg text-zinc-600">
-                We evaluate your policy two ways.{" "}
-                <strong>World-model evaluation</strong> (available now) feeds
-                video from a site-matched preview package to your model and
-                estimates outcomes in pixels -- no physics engine needed. This is how
-                we generate an early, non-authoritative scorecard.{" "}
-                <strong>Physics-based simulation</strong> (coming soon)
-                uses a validated evaluation package for tasks
-                that need contact physics. This is support material for review,
-                not qualification truth.
+                Blueprint uses a site-grounded world model to evaluate your policy against the
+                exact deployment environment, then returns comparative results your team can act
+                on. <strong>World-model evaluation</strong> (available now) feeds site-matched
+                preview video to your model and estimates outcomes in pixels, so you can compare
+                releases before travel or field work. <strong>Physics-based simulation</strong>{" "}
+                (coming soon) adds a deeper layer for contact-heavy tasks. These outputs support
+                review; they do not replace on-site validation.
               </p>
 
               <div className="flex flex-col gap-4 sm:flex-row sm:justify-center pt-4">
@@ -229,7 +227,7 @@ export default function Evals() {
                   href="/contact?request=evaluation"
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-8 py-4 text-base font-semibold text-white shadow-lg transition hover:bg-emerald-700"
                 >
-                  Request an Evaluation
+                  Request Site-Grounded Evaluation
                   <Send className="h-5 w-5" />
                 </a>
               </div>
@@ -254,7 +252,7 @@ export default function Evals() {
                   <p className="text-sm text-zinc-600">
                     We evaluate against a package prepared for your actual deployment
                     facility, not generic environments. The output is a review aid,
-                    not a substitute for qualification or SAT.
+                    not a substitute for final on-site validation or SAT.
                   </p>
                 </div>
                 <div className="text-center space-y-3">
@@ -277,7 +275,7 @@ export default function Evals() {
                     Get detailed metrics, failure analysis, and a direct
                     comparison between your adapted and unadapted policies to
                     see what changes next. These outputs support review; they do
-                    not rewrite the underlying qualification record.
+                    not rewrite the underlying site record.
                   </p>
                 </div>
               </div>

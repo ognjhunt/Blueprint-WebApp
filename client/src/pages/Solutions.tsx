@@ -5,15 +5,15 @@ import { ArrowRight, Building2, Bot, ClipboardCheck, Route, ShieldCheck } from "
 
 const sharedWorkflow = [
   {
-    title: "Capture and qualification",
+    title: "Capture and site record",
     description:
       "Local walkthrough capture becomes a hosted site record with metadata both sides can reference during a deployment program.",
     icon: <Route className="h-5 w-5 text-slate-700" />,
   },
   {
-    title: "Pre-deployment qualification",
+    title: "Site-grounded review",
     description:
-      "Robot teams are evaluated against the qualified record before live rollout so decisions are based on measurable readiness.",
+      "Robot teams are reviewed against the site record before live rollout so decisions are based on the exact environment, not a generic stand-in.",
     icon: <ClipboardCheck className="h-5 w-5 text-slate-700" />,
   },
   {
@@ -28,7 +28,7 @@ const roleCards = [
   {
     title: "For Site Operators",
     description:
-      "For operators of warehouses, stores, factories, and labs who want qualified pilot demand and a clearer pre-deployment process.",
+      "For operators of warehouses, stores, factories, and labs who want serious robot-team demand and a clearer pre-deployment process.",
     href: "/for-site-operators",
     cta: "Open site operator guide",
     icon: <Building2 className="h-6 w-6 text-slate-900" />,
@@ -52,7 +52,7 @@ export default function Solutions() {
     <>
       <SEO
         title="Solutions | Blueprint"
-        description="Role-based guides for deployment site operators and humanoid teams: process, requirements, exchange workflow, and pre-deployment qualification."
+        description="Role-based guides for deployment site operators and humanoid teams: process, requirements, exchange workflow, and site-grounded deployment review."
         canonical="/solutions"
       />
       <div className="min-h-screen bg-white">
@@ -65,7 +65,7 @@ export default function Solutions() {
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
                 Blueprint sits between deployment sites and robot teams. Some engagements start with a
                 robot team that already has a target site. Others start with a site operator that
-                wants qualified pilot demand. Choose the guide that matches your role.
+                wants serious pilot demand. Choose the guide that matches your role.
               </p>
             </div>
           </ScrollReveal>

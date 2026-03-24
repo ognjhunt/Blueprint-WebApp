@@ -1,7 +1,6 @@
 import { SEO } from "@/components/SEO";
 import { ProofModule } from "@/components/site/ProofModule";
 import { OfferComparison } from "@/components/site/OfferComparison";
-import { SiteGroundedLoopGraphic } from "@/components/site/SiteGroundedLoopGraphic";
 import { publicDemoHref, resultHighlights } from "@/lib/marketingProof";
 import { ArrowRight, Camera, CheckCircle2 } from "lucide-react";
 
@@ -102,54 +101,47 @@ export default function Home() {
         <DotPattern />
 
         <section className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(14,116,144,0.08),_transparent_40%),linear-gradient(180deg,_rgba(255,255,255,0.98),_rgba(248,250,252,0.98))]">
-          <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
-            <div className="grid gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-center">
-              <div>
-                <p className="inline-flex rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
-                  For Robot Teams
-                </p>
-                <h1 className="mt-5 max-w-4xl text-5xl font-semibold tracking-tight text-slate-950 sm:text-6xl">
-                  Use the exact site before deployment.
-                </h1>
-                <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
-                  Blueprint turns one real facility into a site-grounded world model your team can
-                  evaluate, vary, and export from. Use it to test checkpoints, generate
-                  site-specific data, compare releases, and walk into the real site with fewer bad
-                  assumptions.
-                </p>
-                <div className="mt-6 grid gap-3">
-                  {heroSignals.map((item) => (
-                    <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                      <span>{item}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                  <a
-                    href="/world-models"
-                    className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                  >
-                    Browse world models
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
-                  <a
-                    href={publicDemoHref}
-                    className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
-                  >
-                    Open public demo
-                  </a>
-                  <a
-                    href="/how-it-works"
-                    className="inline-flex items-center justify-center rounded-full border border-transparent px-3 py-3 text-sm font-semibold text-slate-700 transition hover:text-slate-950"
-                  >
-                    Why it works
-                  </a>
-                </div>
+          <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
+            <div className="max-w-[42rem]">
+              <p className="inline-flex rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
+                For Robot Teams
+              </p>
+              <h1 className="mt-5 max-w-4xl text-[3.7rem] font-semibold tracking-tight text-slate-950 sm:text-[4.45rem] sm:leading-[0.93]">
+                Use the exact site before deployment.
+              </h1>
+              <p className="mt-4 max-w-2xl text-[1.05rem] leading-8 text-slate-600">
+                Blueprint turns one real facility into a site-grounded world model your team can
+                evaluate, vary, and export from. Use it to test checkpoints, generate site-specific
+                data, compare releases, and walk into the real site with fewer bad assumptions.
+              </p>
+              <div className="mt-5 grid gap-2.5">
+                {heroSignals.map((item) => (
+                  <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <span>{item}</span>
+                  </div>
+                ))}
               </div>
-
-              <div className="lg:pl-2">
-                <SiteGroundedLoopGraphic />
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <a
+                  href="/world-models"
+                  className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Browse world models
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+                <a
+                  href={publicDemoHref}
+                  className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+                >
+                  Open public demo
+                </a>
+                <a
+                  href="/how-it-works"
+                  className="inline-flex items-center justify-center rounded-full border border-transparent px-3 py-3 text-sm font-semibold text-slate-700 transition hover:text-slate-950"
+                >
+                  Why it works
+                </a>
               </div>
             </div>
           </div>

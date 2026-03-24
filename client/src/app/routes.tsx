@@ -70,7 +70,7 @@ const LegacySiteWorldsRedirect = () => (
 );
 
 const LegacyReadinessPackRedirect = () => (
-  <MarketingRedirect to="/readiness-pack" />
+  <MarketingRedirect to="/how-it-works" />
 );
 
 const LegacyForRobotIntegratorsRedirect = () => (
