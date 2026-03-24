@@ -87,16 +87,17 @@ export default function Nav({
     <motion.nav
       role="navigation"
       aria-label="Primary"
-      className={`fixed top-0 left-0 right-0 z-50 h-16 md:h-20 transition-all duration-500 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         isScrolled
           ? "bg-slate-900/85 backdrop-blur-xl border-b border-slate-800 shadow-[0_1px_0_0_rgba(255,255,255,0.04)]"
           : "bg-transparent"
       }`}
+      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
     >
-      <div className="flex items-center justify-between h-full w-full px-4 md:px-6 lg:px-10">
+      <div className="flex items-center justify-between h-16 md:h-20 w-full px-4 md:px-6 lg:px-10">
         {/* Brand */}
         <div className="flex items-center">
           <Link href="/" className="flex items-center space-x-3 group">
@@ -207,7 +208,7 @@ export default function Nav({
 
         {/* Mobile menu button */}
         <button
-          className="md:hidden flex items-center justify-center w-10 h-10 rounded-full bg-slate-800/70 text-slate-100 border border-slate-700"
+          className="md:hidden flex items-center justify-center w-11 h-11 rounded-full bg-slate-800/70 text-slate-100 border border-slate-700"
           onClick={() => setIsMobileMenuOpen((v) => !v)}
           aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
           aria-expanded={isMobileMenuOpen}

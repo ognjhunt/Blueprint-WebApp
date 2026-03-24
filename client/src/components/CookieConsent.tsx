@@ -80,7 +80,7 @@ export function CookieConsent() {
   if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 p-4 sm:p-6">
+    <div className="fixed inset-x-0 bottom-0 z-50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:p-6 sm:pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
       <div className="mx-auto max-w-2xl rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl">
         {/* Header */}
         <div className="mb-4 flex items-start justify-between">
