@@ -23,10 +23,8 @@ describe("Header", () => {
       "href",
       "/world-models",
     );
-    expect(screen.getByRole("link", { name: /^For Robot Teams$/i })).toHaveAttribute(
-      "href",
-      "/for-robot-teams",
-    );
+    expect(screen.getByRole("link", { name: /^Proof$/i })).toHaveAttribute("href", "/proof");
+    expect(screen.getByRole("link", { name: /^About$/i })).toHaveAttribute("href", "/about");
     expect(screen.getByRole("link", { name: /^FAQ$/i })).toHaveAttribute("href", "/faq");
     expect(screen.queryByRole("link", { name: /^Capture$/i })).not.toBeInTheDocument();
   });
@@ -43,9 +41,9 @@ describe("Header", () => {
   it("keeps utility links available for capture and auth", () => {
     render(<Header />);
 
-    expect(screen.getByRole("link", { name: /Capture App/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Open public demo/i })).toHaveAttribute(
       "href",
-      "/capture-app",
+      "/world-models/siteworld-f5fd54898cfb",
     );
     expect(screen.getByRole("link", { name: /Sign in/i })).toHaveAttribute(
       "href",

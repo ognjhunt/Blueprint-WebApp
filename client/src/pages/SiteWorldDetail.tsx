@@ -145,6 +145,35 @@ function getArtifactSourceUri(site: PublicSiteWorldRecord | null | undefined, so
   );
 }
 
+function humanizeToken(value?: string | null) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+  const normalized = raw.toLowerCase();
+  const replacements: Record<string, string> = {
+    qualified_ready: "Ready to review",
+    qualified_risky: "Needs review",
+    needs_refresh: "Needs refresh",
+    not_ready_yet: "Not ready yet",
+    ready: "Ready",
+    partial: "Partial",
+    missing: "Missing",
+    unchanged: "Current",
+    default: "Default scene",
+    default_start_state: "Default start state",
+    counterfactual_lighting: "Lighting variation",
+    counterfactual_clutter: "Clutter variation",
+    generic: "General task",
+  };
+  if (replacements[normalized]) {
+    return replacements[normalized];
+  }
+  return raw
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
 function deriveWorldLabsStatus(site: PublicSiteWorldRecord | null | undefined): WorldLabsStatus {
   const preview = site?.worldLabsPreview;
   if (!preview) {
@@ -266,6 +295,31 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
   );
   const shouldShowWorldLabsSection = Boolean(worldLabsPreview) || isAdmin;
   const isDemoWalkthrough = site?.id === "siteworld-f5fd54898cfb";
+  const capabilityItems = [
+    site?.deploymentReadiness?.capability_envelope?.embodiment_type
+      ? `Embodiment: ${humanizeToken(site.deploymentReadiness.capability_envelope.embodiment_type)}`
+      : null,
+    typeof site?.deploymentReadiness?.capability_envelope?.minimum_path_width_m === "number"
+      ? `Minimum path width: ${site.deploymentReadiness.capability_envelope.minimum_path_width_m} m`
+      : null,
+    typeof site?.deploymentReadiness?.capability_envelope?.maximum_reach_m === "number"
+      ? `Maximum reach: ${site.deploymentReadiness.capability_envelope.maximum_reach_m} m`
+      : null,
+    (site?.deploymentReadiness?.capability_envelope?.sensor_requirements || []).length > 0
+      ? `Sensors: ${site?.deploymentReadiness?.capability_envelope?.sensor_requirements?.join(", ")}`
+      : null,
+  ].filter(Boolean) as string[];
+  const rightsItems = [
+    (site?.deploymentReadiness?.rights_and_compliance?.export_entitlements || []).length > 0
+      ? `Export entitlements: ${site?.deploymentReadiness?.rights_and_compliance?.export_entitlements?.join(", ")}`
+      : null,
+    (site?.deploymentReadiness?.rights_and_compliance?.consent_scope || []).length > 0
+      ? `Consent scope: ${site?.deploymentReadiness?.rights_and_compliance?.consent_scope?.join(", ")}`
+      : null,
+    site?.deploymentReadiness?.rights_and_compliance?.retention_policy
+      ? `Retention policy: ${site?.deploymentReadiness?.rights_and_compliance?.retention_policy}`
+      : null,
+  ].filter(Boolean) as string[];
 
   const runWorldLabsAdminAction = async (action: "generate" | "refresh") => {
     if (!site || !currentUser) {
@@ -340,7 +394,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
         site.runtime,
         site.sampleTask,
         site.samplePolicy,
-        site.scenarioVariants.join(", "),
+        site.scenarioVariants.map((variant) => humanizeToken(variant)).join(", "),
       ],
     },
     {
@@ -411,13 +465,13 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             </div>
 
             <aside className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-5 sm:px-6">
-              <p className="text-sm font-semibold text-slate-900">What you can buy on this listing</p>
+                  <p className="text-sm font-semibold text-slate-900">What you can buy on this listing</p>
               <div className="mt-4 space-y-2.5">
                 <a
                   href="#scene-package"
                   className="block rounded-2xl border border-slate-300 bg-white p-4 transition hover:bg-slate-50"
                 >
-                  <p className="text-sm font-semibold text-slate-900">Scene Package</p>
+                  <p className="text-sm font-semibold text-slate-900">Site Package</p>
                   <p className="mt-1 text-sm text-slate-600">{scenePackage.priceLabel}</p>
                 </a>
                 <a
@@ -442,7 +496,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
           {isDemoWalkthrough ? (
             <div className="mt-8">
               <ProofModule
-                eyebrow="Public walkthrough"
+                eyebrow="Public demo"
                 title="See the public proof path before you ask for more."
                 description="This sample is the cleanest public example on the site. It shows the walkthrough, the package framing, and the hosted side in one place."
                 caption="Silent proof reel built from the current demo assets."
@@ -484,50 +538,41 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               </p>
               <div className="mt-4 grid gap-4 lg:grid-cols-2">
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-                  <p className="text-sm font-semibold text-white">Current site status</p>
+                  <p className="text-sm font-semibold text-white">Current listing status</p>
                   <p className="mt-2 text-2xl font-bold text-white">
-                    {String(site.deploymentReadiness.qualification_state || "unknown").replaceAll("_", " ")}
+                    {humanizeToken(site.deploymentReadiness.qualification_state || "unknown")}
                   </p>
                   <p className="mt-2 text-sm text-slate-300">
-                    Benchmark coverage: {site.deploymentReadiness.benchmark_coverage_status || "missing"}
+                    Benchmark coverage: {humanizeToken(site.deploymentReadiness.benchmark_coverage_status || "missing")}
                     {typeof site.deploymentReadiness.benchmark_task_count === "number"
                       ? ` · ${site.deploymentReadiness.benchmark_task_count} tasks`
                       : ""}
                   </p>
                   <p className="mt-1 text-sm text-slate-300">
-                    Export readiness: {site.deploymentReadiness.export_readiness_status || "missing"}
+                    Export readiness: {humanizeToken(site.deploymentReadiness.export_readiness_status || "missing")}
                   </p>
                   <p className="mt-1 text-sm text-slate-300">
-                    Refresh state: {site.deploymentReadiness.recapture_required ? "Needs refresh" : site.deploymentReadiness.recapture_status || "Current"}
+                    Refresh state: {site.deploymentReadiness.recapture_required ? "Needs refresh" : humanizeToken(site.deploymentReadiness.recapture_status || "Current")}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
                   <p className="text-sm font-semibold text-white">Capability envelope</p>
                   <ul className="mt-3 space-y-2 text-sm text-slate-300">
-                    <li>Embodiment: {site.deploymentReadiness.capability_envelope?.embodiment_type || "Not specified"}</li>
-                    <li>
-                      Minimum path width: {site.deploymentReadiness.capability_envelope?.minimum_path_width_m ?? "N/A"} m
-                    </li>
-                    <li>
-                      Maximum reach: {site.deploymentReadiness.capability_envelope?.maximum_reach_m ?? "N/A"} m
-                    </li>
-                    <li>
-                      Sensors: {(site.deploymentReadiness.capability_envelope?.sensor_requirements || []).join(", ") || "Not specified"}
-                    </li>
+                    {capabilityItems.length > 0 ? (
+                      capabilityItems.map((item) => <li key={item}>{item}</li>)
+                    ) : (
+                      <li>Robot-fit details are confirmed during hosted-evaluation scoping for this site.</li>
+                    )}
                   </ul>
                 </div>
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
                   <p className="text-sm font-semibold text-white">Rights and compliance</p>
                   <ul className="mt-3 space-y-2 text-sm text-slate-300">
-                    <li>
-                      Export entitlements: {(site.deploymentReadiness.rights_and_compliance?.export_entitlements || []).join(", ") || "Review required"}
-                    </li>
-                    <li>
-                      Consent scope: {(site.deploymentReadiness.rights_and_compliance?.consent_scope || []).join(", ") || "Review required"}
-                    </li>
-                    <li>
-                      Retention policy: {site.deploymentReadiness.rights_and_compliance?.retention_policy || "Not specified"}
-                    </li>
+                    {rightsItems.length > 0 ? (
+                      rightsItems.map((item) => <li key={item}>{item}</li>)
+                    ) : (
+                      <li>Rights, privacy, and retention details are reviewed before package access is granted.</li>
+                    )}
                   </ul>
                 </div>
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
@@ -555,13 +600,12 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               <div className="mt-3 grid gap-6 lg:grid-cols-[1fr_0.9fr]">
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                    Launch the fallback World Labs preview.
+                    {isAdmin ? "Launch the optional interactive preview." : "Open the optional interactive preview."}
                   </h2>
                   <p className="mt-3 text-sm leading-6 text-slate-600">
-                    This is an optional provider-generated demo layer built from the walkthrough.
-                    Blueprint treats the internal geometry, retrieval, scene-memory, and site-world
-                    artifacts as the primary package and uses World Labs only as a secondary fallback
-                    when an external preview is still useful.
+                    {isAdmin
+                      ? "This is an optional provider-generated demo layer built from the walkthrough. Blueprint treats the internal package and hosted-evaluation surfaces as primary and keeps this interactive preview secondary."
+                      : "This is an optional browser preview built from the walkthrough. The site package and hosted-evaluation surfaces remain the primary buyer paths."}
                   </p>
                   {nativeWorldModelPrimary ? (
                     <p className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-800">
@@ -722,7 +766,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                       rel="noreferrer"
                       className="mt-5 inline-flex w-full items-center justify-center rounded-xl border border-slate-900 bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                     >
-                      Launch fallback preview
+                      {isAdmin ? "Launch interactive preview" : "Open interactive preview"}
                       <ExternalLink className="ml-2 h-4 w-4" />
                     </a>
                   ) : (
@@ -825,7 +869,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                       key={state}
                       className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"
                     >
-                      {state}
+                      {humanizeToken(state)}
                     </div>
                   ))}
                 </div>
@@ -913,7 +957,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-200">
               A team picks {site.siteName}, chooses {site.sampleRobot}, and tests{" "}
               {site.samplePolicy} on the task to {site.sampleTask.toLowerCase()}. They run a few
-              variations like {site.scenarioVariants.slice(0, 2).join(" and ").toLowerCase()} to
+              variations like {site.scenarioVariants.slice(0, 2).map((variant) => humanizeToken(variant).toLowerCase()).join(" and ")} to
               see whether the lane is viable, what breaks first, and whether the checkpoint is
               ready for a real visit. Then they review the rollout video, metrics, failure cases,
               and exported data.

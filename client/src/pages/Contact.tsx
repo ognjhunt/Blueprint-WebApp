@@ -55,7 +55,7 @@ export default function Contact() {
     ? "Request a hosted robot-team evaluation for a site-specific world model."
     : persona === "site_operator"
       ? "Talk to Blueprint about facility participation, access rules, and governance."
-      : "Talk to Blueprint about site-specific world models, deliverables, and hosted access.";
+      : "Talk to Blueprint about site packages, hosted evaluations, and the right next step for one exact site.";
 
   const badgeLabel = hostedMode
     ? "Hosted Evaluation"
@@ -66,22 +66,22 @@ export default function Contact() {
     ? "Request a hosted evaluation for this site."
     : persona === "site_operator"
       ? "Tell us about the facility and the rules around it."
-      : "Tell us the site, the workflow, and what your team needs.";
+      : "Tell us what your team needs and we will point you to the right next step.";
   const heroBody = hostedMode
     ? "Confirm the site, the task, and the robot setup. Blueprint will use that to line up the right hosted evaluation path for your team."
     : persona === "site_operator"
       ? "Use this form if you run the facility and need to talk through capture access, privacy rules, or whether the site should be listed at all."
-      : "Use this form if your team needs one exact site for evals, site-grounded data, release comparison, or package access.";
+      : "Use this form if your team needs one exact site for evaluation, site-specific data, release comparison, or package access. Keep it short if you are still figuring out fit.";
   const responseTitle = hostedMode ? "Hosted evaluation request" : "What happens after you send this";
   const responseBody = hostedMode
     ? "Fill out the short form and our team will follow up to confirm the site, robot setup, and the next step toward a hosted evaluation."
     : persona === "site_operator"
       ? "Blueprint reviews the facility details, access rules, and privacy notes first. The reply should narrow the next step instead of reopening the whole conversation."
-      : "Blueprint reviews the site, workflow, and embodiment details first. The reply should move your team toward a concrete eval or package path, not another vague intake round.";
+      : "Blueprint reviews the request details first. The reply should move your team toward a concrete package or hosted-evaluation path, not another vague intake round.";
   const learnMoreLinks = hostedMode
     ? [
         { href: "/world-models", label: "Back to World Models" },
-        { href: "/sample-deliverables", label: "Sample deliverables" },
+        { href: "/proof", label: "Proof" },
         { href: "/faq", label: "FAQ" },
       ]
     : persona === "site_operator"
@@ -92,7 +92,7 @@ export default function Contact() {
         ]
       : [
         { href: "/world-models", label: "Browse world models" },
-        { href: "/sample-deliverables", label: "Sample deliverables" },
+        { href: "/proof", label: "Proof" },
         { href: "/faq", label: "FAQ" },
       ];
 

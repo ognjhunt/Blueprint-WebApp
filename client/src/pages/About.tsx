@@ -7,12 +7,36 @@ const principles = [
   "Stay flexible on runtimes and providers so the buyer surface survives backend swaps.",
 ];
 
+const trustReasons = [
+  "The buyer surface stays tied to one real facility and workflow lane instead of vague simulation claims.",
+  "Pricing, package framing, and hosted-evaluation framing are visible before the first call.",
+  "Rights, privacy, freshness, and export assumptions are intended to stay visible on the listing surface.",
+];
+
+const credibilitySignals = [
+  {
+    title: "Built for robotics deployment decisions",
+    body:
+      "The product is framed around the exact questions robot teams ask before travel: can the robot handle the lane, what breaks first, and what should the team export or compare before the visit?",
+  },
+  {
+    title: "Not locked to one backend story",
+    body:
+      "The long-lived value is the real-site package, hosted-evaluation contract, and buyer workflow. Providers and runtime implementations can change without changing what the buyer is purchasing.",
+  },
+  {
+    title: "Designed to reduce avoidable field surprises",
+    body:
+      "Blueprint is meant to make the first real visit less blind by grounding review, evaluation, and export decisions on one exact site earlier in the process.",
+  },
+];
+
 export default function About() {
   return (
     <>
       <SEO
         title="About | Blueprint"
-        description="Blueprint exists to turn real-site capture into site-specific world-model products that robot teams can browse, buy, and run before they travel."
+        description="Why robot teams trust Blueprint: real-site proof, clear packaging, visible governance, and a product surface designed for deployment decisions."
         canonical="/about"
       />
       <div className="min-h-screen bg-white">
@@ -23,7 +47,7 @@ export default function About() {
                 About Blueprint
               </p>
               <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Blueprint exists to make real sites easier to inspect before the expensive part starts.
+                Blueprint exists to make real customer sites legible before the expensive part starts.
               </h1>
               <p className="mt-4 text-lg leading-relaxed text-slate-600">
                 A lot of robotics work goes sideways for a simple reason: the real site shows up
@@ -44,7 +68,16 @@ export default function About() {
             </div>
 
             <aside className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
-              <p className="text-sm font-semibold text-slate-900">What we optimize for</p>
+              <p className="text-sm font-semibold text-slate-900">Why teams trust the surface</p>
+              <ul className="mt-4 space-y-3 text-sm text-slate-600">
+                {trustReasons.map((item) => (
+                  <li key={item} className="flex items-start gap-3">
+                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-400" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-6 text-sm font-semibold text-slate-900">What we optimize for</p>
               <ul className="mt-4 space-y-3 text-sm text-slate-600">
                 {principles.map((item) => (
                   <li key={item} className="flex items-start gap-3">
@@ -60,6 +93,18 @@ export default function About() {
                 Talk to Blueprint
               </a>
             </aside>
+          </div>
+
+          <div className="mt-12 grid gap-4 md:grid-cols-3">
+            {credibilitySignals.map((item) => (
+              <section
+                key={item.title}
+                className="rounded-3xl border border-slate-200 bg-white p-6"
+              >
+                <h2 className="text-2xl font-semibold text-slate-900">{item.title}</h2>
+                <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
+              </section>
+            ))}
           </div>
         </div>
       </div>

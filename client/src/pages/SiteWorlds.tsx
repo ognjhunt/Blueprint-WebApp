@@ -7,6 +7,26 @@ import { ExternalLink, Filter, Play, ScanLine } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearch } from "wouter";
 
+function formatEmbodimentLabel(value?: string | null) {
+  const normalized = String(value || "").trim().toLowerCase();
+  const labels: Record<string, string> = {
+    mobile_manipulator: "Mobile manipulator",
+    fixed_arm: "Fixed arm",
+    humanoid: "Humanoid",
+    cart: "Cart",
+    other: "Other robot",
+  };
+  return labels[normalized] || "Unspecified robot";
+}
+
+function hasPublicDemo(site: (typeof siteWorldCards)[number]) {
+  return site.id === "siteworld-f5fd54898cfb" || Boolean(site.worldLabsPreview?.launchUrl);
+}
+
+function isHostedReady(site: (typeof siteWorldCards)[number]) {
+  return Boolean(site.deploymentReadiness?.native_world_model_primary) || Boolean(site.worldLabsPreview?.launchUrl);
+}
+
 const layerCards = [
   {
     title: "Buy the site package",
@@ -59,10 +79,24 @@ const useCaseCards = [
 
 export default function SiteWorlds() {
   const [activeCategory, setActiveCategory] = useState<SiteCategory>("All");
+  const [activeEmbodiment, setActiveEmbodiment] = useState("All");
+  const [publicDemoOnly, setPublicDemoOnly] = useState(false);
+  const [hostedReadyOnly, setHostedReadyOnly] = useState(false);
+  const [exportReadyOnly, setExportReadyOnly] = useState(false);
   const [catalog, setCatalog] = useState(siteWorldCards);
   const search = useSearch();
   const searchParams = useMemo(() => new URLSearchParams(search), [search]);
   const checkoutState = searchParams.get("checkout");
+
+  const embodimentFilters = useMemo(
+    () => [
+      "All",
+      ...Array.from(
+        new Set(catalog.map((site) => formatEmbodimentLabel(site.sampleRobotProfile?.embodimentType))),
+      ),
+    ],
+    [catalog],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -81,11 +115,25 @@ export default function SiteWorlds() {
   }, []);
 
   const filteredSites = useMemo(() => {
-    if (activeCategory === "All") {
-      return catalog;
-    }
-    return catalog.filter((site) => site.category === activeCategory);
-  }, [activeCategory, catalog]);
+    return catalog.filter((site) => {
+      const matchesCategory = activeCategory === "All" || site.category === activeCategory;
+      const matchesEmbodiment =
+        activeEmbodiment === "All"
+        || formatEmbodimentLabel(site.sampleRobotProfile?.embodimentType) === activeEmbodiment;
+      const matchesPublicDemo = !publicDemoOnly || hasPublicDemo(site);
+      const matchesHostedReady = !hostedReadyOnly || isHostedReady(site);
+      const matchesExportReady =
+        !exportReadyOnly || site.deploymentReadiness?.export_readiness_status === "ready";
+
+      return (
+        matchesCategory
+        && matchesEmbodiment
+        && matchesPublicDemo
+        && matchesHostedReady
+        && matchesExportReady
+      );
+    });
+  }, [activeCategory, activeEmbodiment, catalog, exportReadyOnly, hostedReadyOnly, publicDemoOnly]);
 
   return (
     <>
@@ -125,8 +173,8 @@ export default function SiteWorlds() {
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
                 Each world model is built from real indoor capture and tied to one site and one
-                workflow. Open a listing to see the package price, the hosted evaluation path, and
-                whether that site is a good anchor for evals, exports, and deployment prep.
+                workflow. Open a listing to see the site-package price, the hosted-evaluation
+                path, and whether that site has public proof your team can inspect first.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -245,14 +293,14 @@ export default function SiteWorlds() {
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                {filteredSites.length} listed sites · each listing shows its own site-package price and hosted rate
+                {filteredSites.length} listed sites · each listing shows its own site-package price, hosted rate, and buyer-facing proof status
               </div>
             </div>
 
             <div className="mt-5 flex flex-wrap items-center gap-2">
               <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                 <Filter className="h-3.5 w-3.5" />
-                Filter
+                Industry
               </div>
               {categoryFilters.map((category) => {
                 const isActive = activeCategory === category;
@@ -271,6 +319,70 @@ export default function SiteWorlds() {
                   </button>
                 );
               })}
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <Filter className="h-3.5 w-3.5" />
+                Embodiment
+              </div>
+              {embodimentFilters.map((embodiment) => {
+                const isActive = activeEmbodiment === embodiment;
+                return (
+                  <button
+                    key={embodiment}
+                    type="button"
+                    onClick={() => setActiveEmbodiment(embodiment)}
+                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                      isActive
+                        ? "bg-slate-900 text-white"
+                        : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {embodiment}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <Filter className="h-3.5 w-3.5" />
+                Quick filters
+              </div>
+              <button
+                type="button"
+                onClick={() => setPublicDemoOnly((value) => !value)}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                  publicDemoOnly
+                    ? "bg-slate-900 text-white"
+                    : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                Public demo available
+              </button>
+              <button
+                type="button"
+                onClick={() => setHostedReadyOnly((value) => !value)}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                  hostedReadyOnly
+                    ? "bg-slate-900 text-white"
+                    : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                Hosted path ready
+              </button>
+              <button
+                type="button"
+                onClick={() => setExportReadyOnly((value) => !value)}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                  exportReadyOnly
+                    ? "bg-slate-900 text-white"
+                    : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                Export ready
+              </button>
             </div>
 
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -327,6 +439,22 @@ export default function SiteWorlds() {
                       <p className="mt-2 text-sm text-slate-500">{site.siteAddress}</p>
                       <p className="mt-2 text-sm text-slate-600">{site.taskLane}</p>
                       <p className="mt-1.5 text-sm text-slate-500">{site.bestFor}</p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
+                        {formatEmbodimentLabel(site.sampleRobotProfile?.embodimentType)}
+                      </span>
+                      {site.deploymentReadiness?.export_readiness_status === "ready" ? (
+                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                          Export ready
+                        </span>
+                      ) : null}
+                      {hasPublicDemo(site) ? (
+                        <span className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
+                          Public demo
+                        </span>
+                      ) : null}
                     </div>
 
                     {site.deploymentReadiness?.native_world_model_primary ? (

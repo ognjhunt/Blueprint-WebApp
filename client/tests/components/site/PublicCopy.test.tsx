@@ -29,7 +29,10 @@ describe("public capture and world-model copy", () => {
     );
 
     expect(
-      screen.getByRole("heading", { level: 1, name: /Use the exact site before deployment\./i }),
+      screen.getByRole("heading", {
+        level: 1,
+        name: /Test your robot on the exact customer site before you travel\./i,
+      }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Open public demo/i }).length).toBeGreaterThan(0);
     expect(container).toHaveTextContent(/world models/i);

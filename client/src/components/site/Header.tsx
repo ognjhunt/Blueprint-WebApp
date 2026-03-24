@@ -13,9 +13,9 @@ import {
 
 const navLinks = [
   { href: "/world-models", label: "World Models" },
-  { href: "/how-it-works", label: "Why It Works" },
+  { href: "/proof", label: "Proof" },
   { href: "/pricing", label: "Pricing" },
-  { href: "/case-studies", label: "Results" },
+  { href: "/about", label: "About" },
   { href: "/faq", label: "FAQ" },
 ];
 
@@ -73,9 +73,15 @@ export function Header() {
         <div className="hidden items-center gap-3 md:flex">
           <a
             href="/world-models/siteworld-f5fd54898cfb"
-            className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+            className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
           >
             Open public demo
+          </a>
+          <a
+            href="/contact?persona=robot-team"
+            className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+          >
+            Talk to Blueprint
           </a>
           {!currentUser ? (
             <>
@@ -147,10 +153,17 @@ export function Header() {
             ))}
             <a
               href="/world-models/siteworld-f5fd54898cfb"
-              className="mt-2 inline-flex min-h-11 items-center justify-center rounded-full bg-slate-900 px-4 py-2.5 text-center text-white"
+              className="mt-2 inline-flex min-h-11 items-center justify-center rounded-full border border-slate-200 px-4 py-2.5 text-center text-slate-700"
               onClick={() => setOpen(false)}
             >
               Open public demo
+            </a>
+            <a
+              href="/contact?persona=robot-team"
+              className="inline-flex min-h-11 items-center justify-center rounded-full bg-slate-900 px-4 py-2.5 text-center text-white"
+              onClick={() => setOpen(false)}
+            >
+              Talk to Blueprint
             </a>
             {!currentUser ? (
               <>

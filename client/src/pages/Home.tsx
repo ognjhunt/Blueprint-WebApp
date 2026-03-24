@@ -72,6 +72,24 @@ const buyerSteps = [
   },
 ];
 
+const trustCards = [
+  {
+    title: "Clear buy paths",
+    body:
+      "Every buyer-facing page should resolve into the same choices: site package, hosted evaluation, or a deeper enterprise conversation.",
+  },
+  {
+    title: "Real-site proof",
+    body:
+      "The public demo, package framing, and hosted evidence all stay tied to the same real facility instead of splitting across disconnected pages.",
+  },
+  {
+    title: "Compatibility and governance",
+    body:
+      "Export support, privacy, freshness, and usage constraints stay visible so technical buyers know what is standardized and what is listing-specific.",
+  },
+];
+
 function DotPattern() {
   return (
     <svg
@@ -93,7 +111,7 @@ export default function Home() {
     <>
       <SEO
         title="Blueprint | Site-Grounded World Models For Robot Teams"
-        description="Blueprint turns one real facility into a site-grounded world model your robot team can evaluate, vary, and export from before travel, pilots, or deployment."
+        description="Test your robot on the exact customer site before you travel. Blueprint turns real facility capture into a site-specific world model your team can review, run, and export from."
         canonical="/"
       />
 
@@ -107,12 +125,12 @@ export default function Home() {
                 For Robot Teams
               </p>
               <h1 className="mt-5 max-w-4xl text-[3.7rem] font-semibold tracking-tight text-slate-950 sm:text-[4.45rem] sm:leading-[0.93]">
-                Use the exact site before deployment.
+                Test your robot on the exact customer site before you travel.
               </h1>
               <p className="mt-4 max-w-2xl text-[1.05rem] leading-8 text-slate-600">
-                Blueprint turns one real facility into a site-grounded world model your team can
-                evaluate, vary, and export from. Use it to test checkpoints, generate site-specific
-                data, compare releases, and walk into the real site with fewer bad assumptions.
+                Blueprint turns real facility capture into a site-specific world model your team can
+                review, run, and export from. Buy the site package or request a hosted evaluation
+                to compare policies, generate site-specific data, and catch failures earlier.
               </p>
               <div className="mt-5 grid gap-2.5">
                 {heroSignals.map((item) => (
@@ -253,21 +271,22 @@ export default function Home() {
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Results
+                Proof
               </p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                Delivery examples with concrete outcomes.
+                Proof, package details, and examples in one buyer-facing path.
               </h2>
               <p className="mt-4 text-sm leading-7 text-slate-600">
-                The claims land better when buyers can inspect examples of grounded work that led
-                to usable outputs and better deployment calls.
+                A first-time visitor should not have to decide between demo pages, deliverables
+                pages, and results pages before understanding the product. Keep the proof story in
+                one place.
               </p>
             </div>
             <a
-              href="/case-studies"
+              href="/proof"
               className="inline-flex items-center gap-2 self-start rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
             >
-              Open results page
+              Open proof page
             </a>
           </div>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -284,33 +303,73 @@ export default function Home() {
         </section>
 
         <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Trust
+              </p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+                High-trust technical purchases need a visible reason to believe the surface.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-slate-600">
+                Buyers should be able to understand who Blueprint is, what stays consistent across
+                listings, and what constraints apply before they commit real deployment time.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <a
+                href="/about"
+                className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+              >
+                About Blueprint
+              </a>
+              <a
+                href="/docs"
+                className="inline-flex items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                Compatibility and exports
+              </a>
+            </div>
+          </div>
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            {trustCards.map((item) => (
+              <article key={item.title} className="rounded-[1.75rem] border border-slate-200 bg-white p-6">
+                <h3 className="text-xl font-semibold text-slate-900">{item.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6 lg:px-8">
           <div className="rounded-[2rem] border border-slate-200 bg-white p-6 sm:p-8 lg:grid lg:grid-cols-[1fr_auto] lg:items-center lg:gap-8">
             <div>
               <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                 <Camera className="h-4 w-4" />
-                For Capturers
+                Need capture access?
               </p>
               <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
-                Need the capture side instead?
+                Keep the capture path secondary to the buyer journey.
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-                Keep it lightweight. Capturers only need a short explanation and the app handoff.
-                The buyer-facing site should stay focused on robot teams and deployment questions.
+                Operators and capturers still have a path, but it should live deeper in the site.
+                The main surface stays focused on robot teams, packaging, proof, and deployment
+                decisions.
               </p>
             </div>
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row lg:mt-0">
               <a
-                href="/capture"
+                href="/capture-app"
                 className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
               >
-                Capture basics
+                Open capture app
               </a>
               <a
-                href="/capture-app"
+                href="/capture"
                 className="inline-flex items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
-                Open capture app
+                Read capture basics
               </a>
             </div>
           </div>

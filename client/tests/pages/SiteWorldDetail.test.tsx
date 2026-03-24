@@ -111,6 +111,7 @@ describe("SiteWorldDetail", () => {
       screen.getByRole("heading", { name: /What teams do with this world model/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/A sample eval loop for Harborview Grocery Distribution Annex/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Not specified/i)).not.toBeInTheDocument();
 
     const packageLink = screen.getByRole("link", { name: /Request site package/i });
     const packageUrl = new URL(packageLink.getAttribute("href")!, "https://example.com");
@@ -170,7 +171,7 @@ describe("SiteWorldDetail", () => {
     render(<SiteWorldDetail params={{ slug: "sw-chi-01" }} />);
 
     expect(
-      await screen.findByRole("link", { name: /Launch fallback preview/i }),
+      await screen.findByRole("link", { name: /Open interactive preview/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Native Blueprint world-model artifacts are the primary path for this site\./i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Generate Marble Preview/i })).not.toBeInTheDocument();
@@ -335,7 +336,7 @@ describe("SiteWorldDetail", () => {
 
     render(<SiteWorldDetail params={{ slug: "sw-chi-01" }} />);
 
-    const launchLink = await screen.findByRole("link", { name: /Launch fallback preview/i });
+    const launchLink = await screen.findByRole("link", { name: /Open interactive preview/i });
     expect(launchLink).toHaveAttribute("href", "https://marble.worldlabs.ai/worlds/world-123");
     expect(launchLink).toHaveAttribute("target", "_blank");
     expect(screen.getByText(/The World Labs viewer opens in a new tab/i)).toBeInTheDocument();

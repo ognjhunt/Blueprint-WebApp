@@ -154,11 +154,15 @@ export function ContactForm() {
     if (!lastName.trim()) missingFields.push("Last name");
     if (!company.trim()) missingFields.push(persona === "site_operator" ? "Company or operator" : "Company");
     if (!email.trim()) missingFields.push("Work email");
-    if (!siteName.trim()) missingFields.push(persona === "site_operator" ? "Facility name" : "Site name");
-    if (!siteLocation.trim()) missingFields.push("Site location");
+    if (persona === "site_operator" && !siteName.trim()) {
+      missingFields.push("Facility name");
+    }
+    if (persona === "site_operator" && !siteLocation.trim()) {
+      missingFields.push("Site location");
+    }
 
     if (persona === "robot_team" && !taskStatement.trim()) {
-      missingFields.push("Task");
+      missingFields.push("What you need");
     }
     if (persona === "site_operator" && !operatingConstraints.trim()) {
       missingFields.push("Access rules");
@@ -246,10 +250,10 @@ export function ContactForm() {
         </h2>
         <p className="mt-4 text-zinc-600">
           {hostedMode
-            ? "Blueprint now has the site, task, and embodiment details for this hosted evaluation request."
+            ? "Blueprint now has the request details for this hosted evaluation follow-up."
             : persona === "site_operator"
               ? "Blueprint now has the facility details, access notes, and governance context needed for a follow-up."
-              : "Blueprint now has the site, workflow, and embodiment details for your follow-up."}
+              : "Blueprint now has the request details needed for a follow-up."}
         </p>
         <div className="mt-8 rounded-xl bg-zinc-50 p-6 text-left">
           <h3 className="mb-4 text-sm font-semibold text-zinc-900">What happens next?</h3>
@@ -288,6 +292,8 @@ export function ContactForm() {
       {hostedMode ? (
         <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-sm text-zinc-700">
           You are requesting a hosted evaluation for a specific site. Keep the submission tight.
+          {siteName ? ` Site: ${siteName}.` : ""}
+          {siteLocation ? ` Location: ${siteLocation}.` : ""}
         </div>
       ) : null}
 
@@ -339,64 +345,50 @@ export function ContactForm() {
         </div>
       </div>
 
-      <div>
-        <label htmlFor="contact-title" className="mb-1 block text-sm font-medium text-zinc-700">Title</label>
-        <input
-          id="contact-title"
-          className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-          placeholder={
-            persona === "site_operator"
-              ? "Ops lead, facility manager, innovation lead"
-              : "Robotics lead, autonomy engineer, deployment lead"
-          }
-          value={jobTitle}
-          onChange={(event) => setJobTitle(event.target.value)}
-        />
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div>
-          <label htmlFor="contact-site-name" className="mb-1 block text-sm font-medium text-zinc-700">
-            {persona === "site_operator" ? "Facility name" : "Site name"}
-          </label>
-          <input
-            id="contact-site-name"
-            className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-            placeholder={persona === "site_operator" ? "Facility name*" : "Site name*"}
-            value={siteName}
-            onChange={(event) => setSiteName(event.target.value)}
-          />
-        </div>
-        <div>
-          <label htmlFor="contact-site-location" className="mb-1 block text-sm font-medium text-zinc-700">Site location</label>
-          <input
-            id="contact-site-location"
-            className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-            placeholder="City, state, or facility address*"
-            value={siteLocation}
-            onChange={(event) => setSiteLocation(event.target.value)}
-          />
-        </div>
-      </div>
-
       {persona === "robot_team" ? (
         <>
           <div>
-            <label htmlFor="contact-task" className="mb-1 block text-sm font-medium text-zinc-700">Task</label>
+            <label htmlFor="contact-task" className="mb-1 block text-sm font-medium text-zinc-700">What do you need?</label>
             <textarea
               id="contact-task"
               className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-              placeholder="Describe the workflow or task you need this site to support.*"
+              placeholder="Describe the evaluation, package, workflow, or deployment question you need help with.*"
               value={taskStatement}
               onChange={(event) => setTaskStatement(event.target.value)}
             />
           </div>
+          {!hostedMode ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label htmlFor="contact-site-name" className="mb-1 block text-sm font-medium text-zinc-700">
+                  Site name
+                </label>
+                <input
+                  id="contact-site-name"
+                  className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+                  placeholder="Optional site or customer name"
+                  value={siteName}
+                  onChange={(event) => setSiteName(event.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="contact-site-location" className="mb-1 block text-sm font-medium text-zinc-700">Site location</label>
+                <input
+                  id="contact-site-location"
+                  className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+                  placeholder="Optional city, state, or facility address"
+                  value={siteLocation}
+                  onChange={(event) => setSiteLocation(event.target.value)}
+                />
+              </div>
+            </div>
+          ) : null}
           <div>
-            <label htmlFor="contact-embodiment" className="mb-1 block text-sm font-medium text-zinc-700">Embodiment</label>
+            <label htmlFor="contact-embodiment" className="mb-1 block text-sm font-medium text-zinc-700">Robot setup</label>
             <input
               id="contact-embodiment"
               className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-              placeholder="Robot, embodiment, or stack"
+              placeholder="Optional robot, embodiment, or stack"
               value={targetRobotTeam}
               onChange={(event) => setTargetRobotTeam(event.target.value)}
             />
@@ -404,6 +396,40 @@ export function ContactForm() {
         </>
       ) : (
         <>
+          <div>
+            <label htmlFor="contact-title" className="mb-1 block text-sm font-medium text-zinc-700">Title</label>
+            <input
+              id="contact-title"
+              className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+              placeholder="Ops lead, facility manager, innovation lead"
+              value={jobTitle}
+              onChange={(event) => setJobTitle(event.target.value)}
+            />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label htmlFor="contact-site-name" className="mb-1 block text-sm font-medium text-zinc-700">
+                Facility name
+              </label>
+              <input
+                id="contact-site-name"
+                className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+                placeholder="Facility name*"
+                value={siteName}
+                onChange={(event) => setSiteName(event.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="contact-site-location" className="mb-1 block text-sm font-medium text-zinc-700">Site location</label>
+              <input
+                id="contact-site-location"
+                className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+                placeholder="City, state, or facility address*"
+                value={siteLocation}
+                onChange={(event) => setSiteLocation(event.target.value)}
+              />
+            </div>
+          </div>
           <div>
             <label htmlFor="contact-access-rules" className="mb-1 block text-sm font-medium text-zinc-700">Access rules</label>
             <textarea
@@ -437,7 +463,7 @@ export function ContactForm() {
           placeholder={
             persona === "site_operator"
               ? "Anything else Blueprint should know about the facility or approval path."
-              : "Anything else Blueprint should know about the site, deliverables, or timing."
+              : "Optional site or workflow notes, timing, or constraints."
           }
           value={detailsMessage}
           onChange={(event) => setDetailsMessage(event.target.value)}
@@ -468,7 +494,7 @@ export function ContactForm() {
             ? "Request hosted evaluation"
             : persona === "site_operator"
               ? "Send facility inquiry"
-              : "Send robot-team inquiry"}
+              : "Send request"}
         <ArrowRight className="ml-2 h-4 w-4" />
       </button>
     </form>

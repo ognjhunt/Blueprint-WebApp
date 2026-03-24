@@ -48,7 +48,7 @@ describe("Contact page", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Tell us the site, the workflow, and what your team needs\./i,
+        name: /Tell us what your team needs and we will point you to the right next step\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/For Robot Teams/i).length).toBeGreaterThan(0);
@@ -58,9 +58,10 @@ describe("Contact page", () => {
       "href",
       "/world-models",
     );
+    expect(screen.getByRole("link", { name: /Proof/i })).toHaveAttribute("href", "/proof");
     expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
-    expect(screen.getByLabelText(/Task/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/What do you need\?/i)).toBeInTheDocument();
   });
 
   it("renders a compact hosted-session mode with prefilled robot-team data", () => {
@@ -72,8 +73,6 @@ describe("Contact page", () => {
     expect(
       screen.getByRole("heading", { name: /Request a hosted evaluation for this site\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Harborview Grocery Distribution Annex")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("1847 W Fulton St, Chicago, IL 60612")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Walk to shelf staging and pick the blue tote")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Unitree G1 with head cam and wrist cam")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Request hosted evaluation/i })).toBeInTheDocument();
@@ -99,20 +98,14 @@ describe("Contact page", () => {
     fireEvent.change(screen.getByPlaceholderText("Work email*"), {
       target: { value: "ada@example.com" },
     });
-    fireEvent.change(screen.getByPlaceholderText("Site name*"), {
-      target: { value: "Durham facility" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("City, state, or facility address*"), {
-      target: { value: "Durham, NC" },
-    });
     fireEvent.change(
-      screen.getByPlaceholderText("Describe the workflow or task you need this site to support.*"),
+      screen.getByPlaceholderText("Describe the evaluation, package, workflow, or deployment question you need help with.*"),
       {
         target: { value: "Qualify a tote picking workflow." },
       },
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Send robot-team inquiry/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Send request/i }));
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(

@@ -29,7 +29,9 @@ describe("SiteWorlds", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Harborview Grocery Distribution Annex/i)).toBeInTheDocument();
     expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Public walkthrough/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Public demo/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Embodiment/i)).toBeInTheDocument();
+    expect(screen.getByText(/Quick filters/i)).toBeInTheDocument();
     expect(screen.queryByText(/Likely buyer:/i)).not.toBeInTheDocument();
 
     const packageLinks = screen.getAllByRole("link", { name: /Request site package/i });

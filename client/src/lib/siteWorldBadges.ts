@@ -8,7 +8,7 @@ type SiteWorldBadge = {
 export function getSiteWorldBadge(site: SiteWorldCard): SiteWorldBadge {
   if (site.id === "siteworld-f5fd54898cfb") {
     return {
-      label: "Public walkthrough",
+      label: "Public demo",
       tone: "border-indigo-200 bg-indigo-50 text-indigo-700",
     };
   }

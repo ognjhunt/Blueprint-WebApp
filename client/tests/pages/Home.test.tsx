@@ -19,12 +19,12 @@ describe("Home", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Use the exact site before deployment\./i,
+        name: /Test your robot on the exact customer site before you travel\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Blueprint turns one real facility into a site-grounded world model your team can evaluate, vary, and export from\./i,
+        /Blueprint turns real facility capture into a site-specific world model your team can review, run, and export from\./i,
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Browse world models/i })).toHaveAttribute(
@@ -55,14 +55,29 @@ describe("Home", () => {
       screen.getByRole("heading", { name: /The point is not just seeing the site\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Delivery examples with concrete outcomes\./i }),
+      screen.getByRole("heading", {
+        name: /Proof, package details, and examples in one buyer-facing path\./i,
+      }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Need the capture side instead\?/i,
+        name: /High-trust technical purchases need a visible reason to believe the surface\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Capture basics/i })).toHaveAttribute(
+    expect(
+      screen.getByRole("heading", {
+        name: /Keep the capture path secondary to the buyer journey\./i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /About Blueprint/i })).toHaveAttribute(
+      "href",
+      "/about",
+    );
+    expect(screen.getByRole("link", { name: /Compatibility and exports/i })).toHaveAttribute(
+      "href",
+      "/docs",
+    );
+    expect(screen.getByRole("link", { name: /Read capture basics/i })).toHaveAttribute(
       "href",
       "/capture",
     );

@@ -2,34 +2,34 @@ import { SEO } from "@/components/SEO";
 
 const sections = [
   {
-    title: "What stays stable",
+    title: "What is standardized",
     body:
-      "Blueprint is built around stable product contracts: the capture bundle, timestamps, poses, device metadata, rights and privacy metadata, site package manifests, and hosted-session contracts. Those are the pieces buyers and operators should be able to rely on even if the runtime backend changes later.",
+      "Across listings, buyers should expect the same basic product contract: a site package tied to one real facility, a hosted-evaluation path tied to that same site, and visible provenance, privacy, and rights metadata around both.",
   },
   {
-    title: "Typical package contents",
+    title: "What varies by listing",
     body:
-      "A site package can include walkthrough media, camera poses, site notes, geometry or depth artifacts when available, and the package-level rights and usage framing for that listing. The exact export set is listing-specific and should be read from the package surface, not guessed from a generic promise.",
+      "The exact export set, geometry depth coverage, available scenarios, supported tasks, and robot-fit details can differ from site to site. Buyers should read those from the listing rather than assume one global promise applies everywhere.",
   },
   {
-    title: "Hosted session contract",
+    title: "Typical site-package contents",
     body:
-      "Hosted sessions are tied to one exact site. Buyers should be able to launch, reset, rerun, compare policy behavior, and export results through the same session contract. That contract should survive backend swaps even when the underlying runtime improves.",
+      "A site package can include walkthrough media, camera poses, site notes, geometry or depth artifacts when available, plus rights and usage framing for that listing.",
   },
   {
-    title: "Provenance and privacy",
+    title: "Typical hosted-evaluation outputs",
     body:
-      "Capture truth is authoritative. That includes walkthrough video, timestamps, poses, depth when present, device metadata, and any site-level privacy or rights metadata attached to the package. Downstream readiness or review layers are useful, but they should not rewrite the underlying capture truth.",
+      "Hosted evaluation is the managed runtime path. Teams should expect reruns on one exact site, rollout evidence, comparison surfaces, and exports that stay tied to the same listing.",
   },
   {
-    title: "Freshness and refresh state",
+    title: "Robot compatibility framing",
     body:
-      "Site packages are only as current as the capture behind them. When a package has freshness metadata, refresh state, or recapture requirements, that information belongs on the listing. If a site changed, the answer should be a refresh decision, not softer wording.",
+      "Compatibility is practical, not magical. The buyer surface should call out robot assumptions, sensor expectations, path or reach constraints when known, and where a deeper hosted evaluation is the right way to confirm fit.",
   },
   {
-    title: "Backend flexibility",
+    title: "Governance and freshness",
     body:
-      "Blueprint should not read like a product tied forever to one provider, checkpoint family, or runtime trick. The long-lived value is in real-site capture, packaging, hosted access, and buyer workflow. The model backend is important, but it should remain replaceable.",
+      "Freshness, privacy, sharing rights, and export entitlements belong on the listing. If the site changed or exports are limited, the public surface should say that directly instead of hiding it in follow-up email.",
   },
 ];
 
@@ -37,23 +37,23 @@ export default function Docs() {
   return (
     <>
       <SEO
-        title="Docs | Blueprint"
-        description="Technical notes on Blueprint world-model packages, hosted-session contracts, exports, provenance, privacy, and freshness."
+        title="Compatibility and Exports | Blueprint"
+        description="What stays standardized across Blueprint listings, what varies by site, and how buyers should think about compatibility, exports, privacy, and freshness."
         canonical="/docs"
       />
       <div className="min-h-screen bg-white">
         <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Docs
+              Compatibility and exports
             </p>
             <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              What stays consistent across listings.
+              Practical answers about formats, compatibility, and what a listing can actually support.
             </h1>
             <p className="mt-4 text-lg leading-relaxed text-slate-600">
-              This is the short version of the product contract: what the package contains, what
-              the hosted path does, and what details should stay visible even if the backend
-              changes later.
+              This page is for technical buyers. It separates the stable product contract from the
+              listing-specific details so your team knows what can be assumed early and what should
+              be confirmed on a site by site basis.
             </p>
           </div>
 
