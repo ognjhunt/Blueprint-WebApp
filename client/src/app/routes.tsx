@@ -21,6 +21,8 @@ const SiteWorldDetail = lazy(() => import("../pages/SiteWorldDetail"));
 const HostedSessionSetup = lazy(() => import("../pages/HostedSessionSetup"));
 const HostedSessionWorkspace = lazy(() => import("../pages/HostedSessionWorkspace"));
 const Pricing = lazy(() => import("../pages/Pricing"));
+const CaseStudies = lazy(() => import("../pages/CaseStudies"));
+const SampleDeliverables = lazy(() => import("../pages/SampleDeliverables"));
 const Contact = lazy(() => import("../pages/Contact"));
 const HowItWorks = lazy(() => import("../pages/HowItWorks"));
 const Portal = lazy(() => import("../pages/Portal"));
@@ -117,8 +119,8 @@ export const appRoutes: AppRoute[] = [
 
   // Core pages
   { path: "/pricing", layout: "public", component: Pricing },
-  { path: "/sample-deliverables", layout: "public", component: LegacySiteWorldsRedirect },
-  { path: "/case-studies", layout: "public", component: LegacySiteWorldsRedirect },
+  { path: "/sample-deliverables", layout: "public", component: SampleDeliverables },
+  { path: "/case-studies", layout: "public", component: CaseStudies },
   { path: "/contact", layout: "public", component: Contact },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
   { path: "/faq", layout: "public", component: FAQ },

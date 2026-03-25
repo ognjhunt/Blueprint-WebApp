@@ -4,69 +4,69 @@ import { ArrowRight, BarChart3, Database, GitBranch, MapPinned } from "lucide-re
 
 const loopSteps = [
   {
-    title: "Start from one exact site",
+    title: "Anchor to the exact site",
     description:
-      "Blueprint starts from one real facility and one real workflow so the site, task context, and constraints are not guesses.",
+      "Blueprint starts from one real facility and one real workflow, so geometry, constraints, and task context are not guesses.",
     icon: MapPinned,
   },
   {
-    title: "Inspect the listing first",
+    title: "Branch realistic variations",
     description:
-      "The listing should show the site, workflow, starting price, available artifacts, public demo status, and any obvious limits before your team asks for more.",
+      "Once the site is grounded, teams can change lighting, clutter, start states, and other conditions without losing the real-site anchor.",
     icon: GitBranch,
   },
   {
-    title: "Choose the access path",
+    title: "Run, score, and compare",
     description:
-      "Request site-package access when your team wants the exact-site bundle in its own workflow. Request hosted evaluation when you want Blueprint to run the site and send back results.",
+      "Hosted evaluation gives teams reruns, metrics, failure review, and release comparison on the same site instead of across disconnected demos.",
     icon: BarChart3,
   },
   {
-    title: "Use the outputs to decide next steps",
+    title: "Export data back into the stack",
     description:
-      "Use the walkthrough, exports, failure review, and runtime evidence to decide whether travel, a pilot, or deeper technical work is justified.",
+      "The useful output is not the walkthrough alone. It is the rollout data, failure cases, and site-grounded evidence you feed back into training and deployment decisions.",
     icon: Database,
   },
 ];
 
 const comparisonRows = [
   {
-    title: "Public listing",
-    bestFor: "Initial fit checks before outreach or travel",
-    weakOn: "It is the first proof layer, not the full evaluation surface",
+    title: "Generic simulation",
+    bestFor: "Broad pretraining and early iteration",
+    weakOn: "Customer-specific geometry, task semantics, and failure modes",
   },
   {
-    title: "Site package access",
-    bestFor: "Internal review, integration planning, and teams that want the site in their own workflow",
-    weakOn: "Your team still owns the work once the package is in your stack",
+    title: "Exact site only",
+    bestFor: "Reviewing the real place and checking basic fit",
+    weakOn: "Edge-case probing if the environment stays static",
   },
   {
-    title: "Hosted evaluation",
-    bestFor: "Reruns, release comparison, failure review, and exports on the same exact site",
-    weakOn: "Nothing here replaces final on-site validation or safety signoff",
+    title: "Exact site plus controlled variation (Blueprint)",
+    bestFor: "Policy fine-tuning, site-specific training data, and release comparison before deployment",
+    weakOn: "Nothing here replaces final on-site safety validation",
   },
 ];
 
 const useCaseCards = [
   {
-    title: "Pre-deployment checks",
+    title: "Pre-deployment evals",
     body:
       "Run the real task on the real site before the first travel-heavy customer week starts.",
   },
   {
-    title: "Release comparison",
+    title: "Policy adaptation",
     body:
-      "Compare the same workflow after each autonomy update so weak releases show up earlier.",
+      "Use site-grounded exports to adjust the stack around the place the robot actually needs to work.",
   },
   {
-    title: "Site-grounded exports",
+    title: "Regression checks",
     body:
-      "Pull walkthrough and runtime outputs tied to the facility your team actually cares about.",
+      "Compare releases on the same site so weak updates show up before they reach the field.",
   },
   {
-    title: "Operator alignment",
+    title: "Customer readiness",
     body:
-      "Get buyers, operators, and internal stakeholders aligned around the same exact site instead of abstract demos.",
+      "Show operators, buyers, and internal teams the exact site and the expected robot behavior in the same surface.",
   },
 ];
 
@@ -98,7 +98,7 @@ export default function HowItWorks() {
     <>
       <SEO
         title="How It Works | Blueprint"
-        description="How Blueprint helps robot teams answer exact-site deployment questions earlier: inspect the listing, choose the access path, and use the outputs to decide next steps."
+        description="Why site-grounded world models improve robot evaluation: anchor to the exact site, branch controlled variations, and export the results back into the stack."
         canonical="/how-it-works"
       />
 
@@ -112,12 +112,22 @@ export default function HowItWorks() {
                 How It Works
               </div>
               <h1 className="mt-6 text-5xl font-bold tracking-tight text-slate-950 sm:text-6xl">
-                How Blueprint helps teams answer exact-site questions earlier.
+                Policies trained on exact sites consistently outperform generic simulation.
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-relaxed text-slate-600">
-                Blueprint starts from one real customer site, turns it into a clear listing, and
-                lets the team move into site-package access or hosted evaluation only when the site
-                looks worth deeper work.
+                Blueprint starts from one real customer site and adds controlled variation around
+                it. Research like{" "}
+                <a
+                  href="https://arxiv.org/abs/2308.14711"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-slate-900 underline decoration-slate-300 underline-offset-4"
+                >
+                  MIT's RialTo
+                </a>{" "}
+                helps explain why that matters: training on reconstructed target environments tends
+                to beat training on generic scenes when the deployment question depends on one exact
+                facility.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <a
@@ -146,11 +156,12 @@ export default function HowItWorks() {
                   The operating idea
                 </p>
                 <h2 className="mt-3 text-3xl font-bold text-slate-950 sm:text-4xl">
-                  The product flow should be legible in four steps.
+                  Exact site plus controlled variation is the training loop that works.
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-slate-600">
-                  A first-time visitor should be able to tell what the site is, what each listing
-                  contains, and which path comes next without decoding internal language.
+                  The exact site is a strong anchor, but the biggest lift comes when teams can
+                  rerun the task under realistic variations and feed those results back into
+                  their training stack.
                 </p>
               </div>
             </ScrollReveal>
@@ -181,11 +192,12 @@ export default function HowItWorks() {
                   Comparison
                 </p>
                 <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
-                  What each surface is for
+                  Where Blueprint fits in your training pipeline
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-slate-600">
-                  The public site should make it obvious what a listing gives you, what the site
-                  package gives you, and when hosted evaluation is the better next step.
+                  Generic simulation is still useful. Final on-site validation is still necessary.
+                  Blueprint sits in the middle, where one exact site can answer real deployment
+                  questions before the expensive part starts.
                 </p>
               </div>
             </ScrollReveal>
@@ -229,7 +241,7 @@ export default function HowItWorks() {
                   Common jobs
                 </p>
                 <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
-                  Common jobs teams use it for
+                  What teams train and ship with this
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-slate-600">
                   These are the practical jobs that matter once a robotics team starts working
@@ -266,10 +278,10 @@ export default function HowItWorks() {
                 Explore world models
               </a>
               <a
-                href="/faq"
+                href="/sample-deliverables"
                 className="inline-flex items-center justify-center rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-900"
               >
-                Read the FAQ
+                See sample deliverables
               </a>
             </div>
           </div>

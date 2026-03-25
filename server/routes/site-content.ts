@@ -5,44 +5,68 @@ const router = Router();
 router.get("/", (_req: Request, res: Response) => {
   res.status(200).json({
     summary:
-      "Blueprint gives robot teams exact-site world models, site-package access, and hosted evaluation built from real indoor capture.",
+      "Blueprint qualifies real sites for robot deployment, routes the right opportunities, and prepares downstream evaluation assets when needed.",
     pages: [
       {
         path: "/",
         title: "Home",
-        description: "Overview of Blueprint's exact-site product for robot deployment readiness.",
+        description: "Overview of Blueprint's qualification-first workflow for deployment readiness.",
+      },
+      {
+        path: "/readiness-pack",
+        title: "Readiness Pack",
+        description:
+          "Sample deliverable showing what a Blueprint qualification record produces: feasibility, blockers, readiness, and next steps.",
       },
       {
         path: "/world-models",
         title: "World Models",
         description:
-          "Exact-site world models teams can review before requesting site-package access or hosted evaluation.",
+          "Site-specific world models teams can review, open, and run once a site is known or qualified.",
       },
       {
-        path: "/how-it-works",
-        title: "How It Works",
+        path: "/qualified-opportunities",
+        title: "Qualified Opportunities",
         description:
-          "Explains the listing-first workflow, the access paths, and how teams use the outputs before deployment.",
+          "Site briefs that robot teams can review after Blueprint qualifies the site and workflow.",
+      },
+      {
+        path: "/qualified-opportunities-guide",
+        title: "Qualified Opportunities Guide",
+        description:
+          "Beginner-friendly explainer of Blueprint's site qualification and qualified opportunities workflow.",
+      },
+      {
+        path: "/sample-deliverables",
+        title: "Sample Deliverables",
+        description:
+          "Public examples of the walkthrough, exports, and trust details a robot team can inspect before buying.",
+      },
+      {
+        path: "/case-studies",
+        title: "Results",
+        description:
+          "Selected delivery examples with workflow summaries and concrete outcomes from Blueprint work.",
       },
       {
         path: "/docs",
         title: "Docs",
-        description: "Technical documentation for the stable product contract, exports, and listing-specific variation.",
+        description: "Product documentation, onboarding, and platform guides.",
       },
       {
         path: "/pricing",
         title: "Pricing",
-        description: "Listing-specific starting prices for site-package access, hosted evaluation, and custom engagements.",
+        description: "Plan options and pricing details for teams and enterprises.",
       },
       {
-        path: "/faq",
-        title: "FAQ",
-        description: "Straight answers about world models, hosted evaluation, exports, freshness, and trust.",
+        path: "/solutions",
+        title: "Solutions",
+        description: "Use cases for robotics, autonomy, and AI evaluation workflows.",
       },
       {
         path: "/contact",
         title: "Contact",
-        description: "Tell Blueprint about a site and workflow so the team can confirm the right next step.",
+        description: "Tell Blueprint about a site and workflow so the team can qualify it and plan the next step.",
       },
     ],
     safety: "This endpoint only returns public, non-sensitive summaries.",

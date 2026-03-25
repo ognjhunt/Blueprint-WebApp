@@ -14,8 +14,8 @@ type OfferComparisonProps = {
 
 const offerCards = [
   {
-    title: "Request site package access",
-    price: "Listing-specific",
+    title: "Buy the site package",
+    price: "$2,100 - $3,400",
     description:
       sitePackageDefinition,
     bullets: [
@@ -24,7 +24,7 @@ const offerCards = [
       "Rights, freshness, provenance, and package notes",
     ],
     href: "/world-models",
-    cta: "Browse site packages",
+    cta: "Explore site packages",
     icon: ScanLine,
     accent: "bg-slate-950 text-white",
     cardTone: "border-slate-200 bg-white",
@@ -67,9 +67,9 @@ const offerCards = [
 ];
 
 export function OfferComparison({
-  eyebrow = "How access works",
-  title = "Choose the path that matches the question.",
-  description = "Request site-package access when your team wants the exact-site evidence bundle in its own workflow. Request hosted evaluation when you want Blueprint to run the site, compare checkpoints, and send back results.",
+  eyebrow = "What you can buy first",
+  title = "Choose the first step that matches the work.",
+  description = "Start with the package when your team wants the full grounding bundle in its own stack. Start with hosted evaluation when your team wants Blueprint to run the site, compare checkpoints, and export results on the same facility.",
   className = "",
 }: OfferComparisonProps) {
   return (

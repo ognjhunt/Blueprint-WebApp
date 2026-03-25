@@ -2,13 +2,13 @@ export const worldModelDefinition =
   "A Blueprint world model is a site-specific digital environment built from real capture of one facility and one workflow lane.";
 
 export const sitePackageDefinition =
-  "A site package is the evidence bundle for one exact site: walkthrough media, spatial context, site notes, and access terms for teams that want the site in their own workflow.";
+  "A site package is the full grounding bundle a robot team uses when it wants to run, adapt, or generate its own world model for that site instead of using Blueprint-hosted runtime.";
 
 export const hostedEvaluationDefinition =
-  "Hosted evaluation is the Blueprint-managed runtime path for one exact site. Teams use it for reruns, failure review, release comparison, and exports without moving the site package first.";
+  "Hosted evaluation is the Blueprint-managed runtime path for one exact site, used for reruns, failure review, checkpoint comparison, and export generation without passing files around first.";
 
 export const sessionHourDefinition =
-  "A session-hour is one hour of hosted runtime on one exact site. It covers the live time used to run, rerun, inspect, and export results.";
+  "A session-hour is one hour of self-serve hosted runtime on one exact site. It covers the live session time used to run, rerun, inspect, and export results.";
 
 export const sitePackageIncludes = [
   "Walkthrough video, timestamps, and camera poses tied to one real facility",
@@ -39,9 +39,9 @@ export const listingVariationItems = [
 ];
 
 export const companyTrustItems = [
-  "Blueprint starts from real capture of one facility, not from a generic benchmark scene.",
-  "Blueprint sells site-package access and hosted evaluation, not deployment guarantees.",
-  "Rights, privacy, and commercialization rules stay attached to the listing instead of being implied later.",
+  "Blueprint is a capture-first, world-model-product-first company.",
+  "Blueprint sells site-specific packages and hosted access, not deployment guarantees.",
+  "Rights, privacy, and commercialization controls stay attached to the listing instead of being implied later.",
 ];
 
 export const illustrativeLabel = "Illustrative preview";

@@ -567,7 +567,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                     {capabilityItems.length > 0 ? (
                       capabilityItems.map((item) => <li key={item}>{item}</li>)
                     ) : (
-                      <li>Robot-fit details are confirmed during hosted evaluation scoping for this site.</li>
+                      <li>Robot-fit details are confirmed during hosted-evaluation scoping for this site.</li>
                     )}
                   </ul>
                 </div>
@@ -587,7 +587,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                     {(site.deploymentReadiness.missing_evidence || []).length > 0 ? (
                       site.deploymentReadiness.missing_evidence?.map((item) => <li key={item}>{item}</li>)
                     ) : (
-                      <li>No flagged evidence gaps on the current site record.</li>
+                      <li>No flagged evidence gaps on the current readiness package.</li>
                     )}
                   </ul>
                 </div>
@@ -610,8 +610,8 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   </h2>
                   <p className="mt-3 text-sm leading-6 text-slate-600">
                     {isAdmin
-                      ? "This is an optional provider-generated demo layer built from the walkthrough. Blueprint treats the site package and hosted evaluation surfaces as primary and keeps this interactive preview secondary."
-                      : "This is an optional browser preview built from the walkthrough. The site package and hosted evaluation surfaces remain the primary buyer paths."}
+                      ? "This is an optional provider-generated demo layer built from the walkthrough. Blueprint treats the internal package and hosted-evaluation surfaces as primary and keeps this interactive preview secondary."
+                      : "This is an optional browser preview built from the walkthrough. The site package and hosted-evaluation surfaces remain the primary buyer paths."}
                   </p>
                   {nativeWorldModelPrimary ? (
                     <p className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-800">
@@ -798,7 +798,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             <div className="mt-3 grid gap-6 lg:grid-cols-[1fr_0.9fr]">
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                  Request site-package access for this site.
+                  Buy the site package.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
                   {sitePackageDefinition}

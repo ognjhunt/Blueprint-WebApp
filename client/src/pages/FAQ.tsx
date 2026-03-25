@@ -9,11 +9,11 @@ import {
 const faqs = [
   {
     question: "What is a Blueprint world model?",
-    answer: `${worldModelDefinition} In plain English: it is a digital version of one real facility and one workflow lane, not a generic benchmark scene.`,
+    answer: `${worldModelDefinition} It is not a generic benchmark scene or a synthetic environment generator.`,
   },
   {
-    question: "What does a team actually receive with the site package?",
-    answer: `${sitePackageDefinition} In practice that means the walkthrough media, timestamps, camera poses, site notes, and any available depth or geometry artifacts, plus the privacy, rights, and provenance metadata attached to the listing.`,
+    question: "What does a buyer actually receive with the site package?",
+    answer: `${sitePackageDefinition} In practice that means the walkthrough media, timestamps, camera poses, intrinsics, site notes, and any available depth or geometry artifacts, plus the privacy, rights, and provenance metadata that stay attached to the listing.`,
   },
   {
     question: "What is hosted evaluation?",
@@ -31,7 +31,7 @@ const faqs = [
   {
     question: "What formats and exports should we expect?",
     answer:
-      "The exact export set depends on the listing, but the listing and docs should tell you what is stable versus what varies. Common outputs include walkthrough video, timestamps, camera poses, rollout video, dataset exports, and raw run bundles tied to the hosted session.",
+      "The exact export set depends on the listing, but the public docs and listing notes should tell you what is stable versus what varies. Common outputs include walkthrough video, timestamps, camera poses, rollout video, dataset exports, and raw run bundles tied to the hosted session.",
   },
   {
     question: "Who can see our facility data?",
@@ -51,7 +51,7 @@ const faqs = [
   {
     question: "Can this work with different robots and runtimes?",
     answer:
-      "Often yes, but the listing should say what is known. The stable part is the captured site evidence, the rights metadata, and the access contract, not a promise that every robot is already validated on every site.",
+      "Yes. The stable contract is the capture truth, the rights and provenance metadata, the site package, and the hosted-session contract. The runtime backend can change without changing that buyer-facing contract.",
   },
   {
     question: "What if the exact site we care about is not in the catalog?",
@@ -75,11 +75,11 @@ export default function FAQ() {
               FAQ
             </p>
             <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Straight answers about the product.
+              Straight answers about what Blueprint sells.
             </h1>
             <p className="mt-4 text-lg leading-relaxed text-slate-600">
-              This page is for first-time buyers who want the exact-site model, the access paths,
-              and the trust model explained without hand-waving.
+              This page is for first-time buyers who need the package, the hosted path, and the
+              trust model explained without hand-waving.
             </p>
           </div>
 

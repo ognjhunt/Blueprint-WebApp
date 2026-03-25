@@ -34,7 +34,7 @@ function isHostedReady(site: (typeof siteWorldCards)[number]) {
 
 const layerCards = [
   {
-    title: "Request site package access",
+    title: "Buy the site package",
     kicker: "Option 1",
     description: sitePackageDefinition,
     bullets: [
@@ -59,24 +59,24 @@ const layerCards = [
 
 const useCaseCards = [
   {
-    title: "Pilot scoping",
+    title: "Run site-grounded evals",
     description:
       "See if your robot can localize, fit, see the task, and finish the job before anyone goes on site.",
   },
   {
-    title: "Release comparison",
+    title: "Generate site-specific data",
     description:
-      "Run the same workflow after each autonomy update so weak releases show up earlier.",
+      "Render views, vary scenarios, and export outputs for training, debugging, or policy adaptation.",
   },
   {
-    title: "Site-grounded exports",
+    title: "Compare releases",
     description:
-      "Pull walkthrough and runtime outputs tied to the facility your team actually cares about.",
+      "Run the same site and task after each autonomy update so your team can spot regressions early.",
   },
   {
-    title: "Operator alignment",
+    title: "Train and demo",
     description:
-      "Show the exact site to operators, internal teams, or buyers before the real visit.",
+      "Show the exact customer site to operators, teleop teams, or buyers in a browser before the real visit.",
   },
 ];
 
@@ -142,7 +142,7 @@ export default function SiteWorlds() {
     <>
       <SEO
         title="World Models | Blueprint"
-        description="Browse exact-site world models of real indoor spaces for robot evaluation, site-package access, and hosted evaluation."
+        description="Browse site-specific world models of real indoor spaces for robot evaluation, site-grounded data generation, and hosted access."
         canonical="/world-models"
       />
 
@@ -172,24 +172,25 @@ export default function SiteWorlds() {
                 World Models
               </p>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Review exact sites before you commit travel or customer time.
+                Train on exact sites your team needs before deployment.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
-                {worldModelDefinition} Open a listing to see the real site, workflow, starting
-                price, available artifacts, and whether a public demo exists before you ask for deeper access.
+                {worldModelDefinition} Open a listing to see what package artifacts exist, what the
+                hosted path can export, and whether the site has a public demo you can inspect
+                first.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
-                  href="#catalog"
+                  href="#layers"
                   className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  Browse catalog
+                  How access works
                 </a>
                 <a
-                  href="#layers"
+                  href="#catalog"
                   className="inline-flex items-center rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
                 >
-                  How access works
+                  See available sites
                 </a>
               </div>
             </div>
@@ -225,7 +226,7 @@ export default function SiteWorlds() {
                 Choose how you want access.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Some teams need the exact-site bundle in their own workflow. Others need the
+                Some teams need the full grounding bundle in their own stack. Others need the
                 managed runtime path first. Both paths stay tied to the same real place.
               </p>
             </div>
@@ -260,10 +261,10 @@ export default function SiteWorlds() {
                 Why teams buy this
               </p>
               <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                Common reasons robot teams use this surface.
+                Common reasons robot teams buy this surface.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                These are the practical jobs teams use it for before they commit travel, pilot
+                These are the practical jobs teams use them for before they commit travel, pilot
                 time, or customer time.
               </p>
             </div>
@@ -287,14 +288,15 @@ export default function SiteWorlds() {
                   Sample catalog
                 </p>
                 <h2 className="mt-2 text-3xl font-bold text-slate-900">
-                  Sites your team can review right now.
+                  Sites your team can train on right now.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Open any listing to see the exact site, access path, and what is available.
+                  Open any listing to see training data options, hosted evaluation, and what you
+                  can export.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                {filteredSites.length} listed sites · each listing shows its own starting price, hosted rate, and public demo status
+                {filteredSites.length} listed sites · each listing shows its own site-package price, hosted rate, and public-proof status
               </div>
             </div>
 
