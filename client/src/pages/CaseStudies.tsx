@@ -17,12 +17,12 @@ export default function CaseStudies() {
             Examples
           </p>
           <h1 className="text-4xl font-semibold text-slate-900">
-            Illustrative examples of the buyer surface.
+            Example workflows by industry.
           </h1>
           <p className="max-w-3xl text-sm leading-7 text-slate-600">
-            This page is intentionally honest about what it is. These are example package and
-            hosted-evaluation frames used to explain the product while real customer references and
-            publishable imagery are still limited.
+            These examples show how Blueprint packages and hosted evaluation would be framed for
+            different facility types. Named customer references will be added as they become
+            available.
           </p>
         </header>
 

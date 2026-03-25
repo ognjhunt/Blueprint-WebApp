@@ -3,12 +3,7 @@ import { SEO } from "@/components/SEO";
 import { useAuth } from "@/contexts/AuthContext";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import { ProofModule } from "@/components/site/ProofModule";
-import {
-  hostedEvaluationDefinition,
-  sessionHourDefinition,
-  sitePackageDefinition,
-  worldModelDefinition,
-} from "@/data/marketingDefinitions";
+import { sessionHourDefinition } from "@/data/marketingDefinitions";
 import { getSiteWorldById, siteWorldCards } from "@/data/siteWorlds";
 import { hasAnyRole } from "@/lib/adminAccess";
 import { withCsrfHeader } from "@/lib/csrf";
@@ -454,9 +449,9 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 {site.summary}
               </p>
               <p className="mt-3 text-sm text-slate-600">
-                {worldModelDefinition} Use this listing to ground one deployment question on the
-                real site, compare the package with the hosted path, and decide how your team
-                should test it before the real visit.
+                This world model is built from real capture of this facility. Use it to answer
+                a deployment question on the real site, compare the package with hosted
+                evaluation, and decide how your team should test before visiting.
               </p>
               <p className="mt-2 text-sm text-slate-500">{site.bestFor}</p>
               <div className="mt-5 flex flex-wrap gap-3">
@@ -488,7 +483,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 </a>
               </div>
               <p className="mt-4 text-sm leading-relaxed text-slate-600">
-                Buy the package if your team wants the full grounding bundle in its own stack.
+                Buy the package if your team wants all the site data in its own stack.
                 Request hosted evaluation if your team wants runtime evidence, release comparison,
                 or failure review on the same site.
               </p>
@@ -801,7 +796,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   Buy the site package.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  {sitePackageDefinition}
+                  Everything your team needs to run its own world model on this facility — walkthrough media, geometry, metadata, and rights.
                 </p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   {scenePackage.deliverables.map((item) => (
@@ -819,7 +814,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   Best fit
                 </p>
                 <p className="mt-2 text-lg font-bold text-slate-900">
-                  Teams that want the full grounding bundle in their own stack
+                  Teams that want all the site data in their own stack
                 </p>
                 <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                   Starting price
@@ -855,7 +850,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   Request hosted evaluation for this site.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  {hostedEvaluationDefinition}
+                  Blueprint runs this site for you. Rerun tasks, review failures, compare checkpoints, and export results — no local setup needed.
                 </p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   {hostedSessions.deliverables.map((item) => (

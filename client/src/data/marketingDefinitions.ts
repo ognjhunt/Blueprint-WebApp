@@ -2,7 +2,7 @@ export const worldModelDefinition =
   "A Blueprint world model is a site-specific digital environment built from real capture of one facility and one workflow lane.";
 
 export const sitePackageDefinition =
-  "A site package is the full grounding bundle a robot team uses when it wants to run, adapt, or generate its own world model for that site instead of using Blueprint-hosted runtime.";
+  "A site package is everything a robot team needs to run, adapt, or build its own world model for that site — walkthrough media, geometry, metadata, and rights — instead of using Blueprint-hosted runtime.";
 
 export const hostedEvaluationDefinition =
   "Hosted evaluation is the Blueprint-managed runtime path for one exact site, used for reruns, failure review, checkpoint comparison, and export generation without passing files around first.";
@@ -39,9 +39,9 @@ export const listingVariationItems = [
 ];
 
 export const companyTrustItems = [
-  "Blueprint is a capture-first, world-model-product-first company.",
+  "Blueprint captures real facilities and turns them into products robot teams can buy.",
   "Blueprint sells site-specific packages and hosted access, not deployment guarantees.",
-  "Rights, privacy, and commercialization controls stay attached to the listing instead of being implied later.",
+  "Rights, privacy, and usage controls are attached to every listing up front.",
 ];
 
 export const illustrativeLabel = "Illustrative preview";

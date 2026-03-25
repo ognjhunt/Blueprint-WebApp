@@ -1,27 +1,20 @@
 import { SEO } from "@/components/SEO";
-import {
-  hostedEvaluationDefinition,
-  sessionHourDefinition,
-  sitePackageDefinition,
-  worldModelDefinition,
-} from "@/data/marketingDefinitions";
-
 const faqs = [
   {
     question: "What is a Blueprint world model?",
-    answer: `${worldModelDefinition} It is not a generic benchmark scene or a synthetic environment generator.`,
+    answer: "A digital environment built from real capture of one indoor facility and one workflow lane. It is not a generic benchmark scene or a synthetic environment generator — it represents one exact place.",
   },
   {
     question: "What does a buyer actually receive with the site package?",
-    answer: `${sitePackageDefinition} In practice that means the walkthrough media, timestamps, camera poses, intrinsics, site notes, and any available depth or geometry artifacts, plus the privacy, rights, and provenance metadata that stay attached to the listing.`,
+    answer: "The walkthrough media, timestamps, camera poses, intrinsics, site notes, and any available depth or geometry artifacts for that facility. Privacy, rights, and provenance metadata are included so your team knows what it can use and how.",
   },
   {
     question: "What is hosted evaluation?",
-    answer: `${hostedEvaluationDefinition} Teams use it when the question is about reruns, failure review, checkpoint comparison, or export generation on the exact site.`,
+    answer: "A Blueprint-managed runtime session on one exact site. Your team can rerun tasks, review failures, compare checkpoints, and export results without downloading or moving data into your own stack first.",
   },
   {
     question: "What is a session-hour?",
-    answer: sessionHourDefinition,
+    answer: "One hour of self-serve hosted runtime on one exact site. It covers the live session time used to run, rerun, inspect, and export results.",
   },
   {
     question: "Why not just use a generic sim?",
@@ -78,8 +71,7 @@ export default function FAQ() {
               Straight answers about what Blueprint sells.
             </h1>
             <p className="mt-4 text-lg leading-relaxed text-slate-600">
-              This page is for first-time buyers who need the package, the hosted path, and the
-              trust model explained without hand-waving.
+              Direct answers for first-time buyers evaluating the product.
             </p>
           </div>
 

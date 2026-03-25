@@ -13,8 +13,8 @@ export function Footer() {
             Blueprint
           </a>
           <p className="text-sm leading-6 text-slate-500">
-            Blueprint gives robot teams site-specific world models, site packages, and hosted
-            evaluation built from real indoor capture of exact customer facilities.
+            Blueprint captures real customer facilities and turns them into testable environments
+            for robot teams.
           </p>
           <div className="flex flex-col gap-2">
             <a

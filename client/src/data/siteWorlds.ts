@@ -653,7 +653,7 @@ function buildPackages(config: PackageConfig): [SiteWorldPackage, SiteWorldPacka
     {
       name: "Site Package",
       summary:
-        "License the full grounding bundle for this exact workflow area when your team wants to run or generate its own world model stack.",
+        "Get all the site data for this exact workflow area so your team can run or build its own world model.",
       priceLabel: config.scenePrice,
       payerLabel: "Robot team",
       actionLabel: "Request site package",

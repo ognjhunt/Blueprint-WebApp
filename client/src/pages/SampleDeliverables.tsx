@@ -2,11 +2,9 @@ import { SEO } from "@/components/SEO";
 import { ProofModule } from "@/components/site/ProofModule";
 import {
   hostedEvaluationOutputs,
-  hostedEvaluationDefinition,
   illustrativeLabel,
   listingVariationItems,
   sampleArtifactLabel,
-  sitePackageDefinition,
   sitePackageIncludes,
   stableContractItems,
 } from "@/data/marketingDefinitions";
@@ -39,20 +37,20 @@ export default function SampleDeliverables() {
               Sample deliverables
             </p>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-              What a buyer actually gets from the package and the hosted path.
+              What a buyer actually gets.
             </h1>
             <p className="mt-4 text-lg leading-8 text-slate-600">
-              This page is here to make the product concrete. It shows the shape of the evidence
-              bundle, the hosted outputs, and the trust metadata that stay attached to one listing.
+              This page makes the product concrete. It shows what is in the site package, what
+              comes back from hosted evaluation, and what metadata stays attached to every listing.
             </p>
           </header>
 
           <div className="mt-10">
             <ProofModule
               eyebrow="Public proof"
-              title="Start from a real site, then inspect the buyer surface around it."
-              description="The public sample proves the site is real. From there, the buyer can decide whether it needs the full grounding bundle or the hosted runtime path on that same facility."
-              caption="Sample artifact. The reel mixes current demo assets with clearly labeled placeholder graphics."
+              title="Start from a real site, then inspect what comes with it."
+              description="The public sample proves the site is real. From there, the buyer can decide whether to get the full site package or run hosted evaluation on that same facility."
+              caption="This reel shows current capture and product surfaces. Additional views are added as the product develops."
             />
           </div>
 
@@ -108,7 +106,10 @@ export default function SampleDeliverables() {
                 {illustrativeLabel}
               </p>
               <h2 className="mt-2 text-2xl font-semibold text-slate-900">Site package</h2>
-              <p className="mt-3 text-sm leading-7 text-slate-600">{sitePackageDefinition}</p>
+              <p className="mt-3 text-sm leading-7 text-slate-600">
+                Everything your team needs to run its own world model on that facility — walkthrough
+                media, geometry, metadata, and rights.
+              </p>
               <ul className="mt-5 space-y-3">
                 {sitePackageIncludes.map((item) => (
                   <li key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
@@ -132,7 +133,10 @@ export default function SampleDeliverables() {
                 {sampleArtifactLabel}
               </p>
               <h2 className="mt-2 text-2xl font-semibold text-slate-900">Hosted evaluation</h2>
-              <p className="mt-3 text-sm leading-7 text-slate-600">{hostedEvaluationDefinition}</p>
+              <p className="mt-3 text-sm leading-7 text-slate-600">
+                Blueprint runs the site for you. Rerun tasks, review failures, compare checkpoints,
+                and export results without moving data into your own stack first.
+              </p>
               <ul className="mt-5 space-y-3">
                 {hostedEvaluationOutputs.map((item) => (
                   <li key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
@@ -202,7 +206,7 @@ export default function SampleDeliverables() {
               href={publicDemoHref}
               className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              View public demo listing
+              View sample listing
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
             <a

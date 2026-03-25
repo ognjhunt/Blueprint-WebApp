@@ -1,35 +1,49 @@
 import { SEO } from "@/components/SEO";
-import {
-  hostedEvaluationDefinition,
-  hostedEvaluationOutputs,
-  listingVariationItems,
-  sitePackageDefinition,
-  sitePackageIncludes,
-  stableContractItems,
-} from "@/data/marketingDefinitions";
 
 const sections = [
   {
     title: "Stable contract",
     body:
-      "These are the parts of the product that should survive runtime swaps and product iteration.",
-    bullets: stableContractItems,
+      "These parts of the product stay the same regardless of which site or runtime backend is used.",
+    bullets: [
+      "Capture truth: walkthrough media, timestamps, poses, and device metadata",
+      "Rights, privacy, consent, and provenance metadata",
+      "Package manifests and hosted-session contracts",
+      "Buyer-facing licensing, export, and access rules",
+    ],
   },
   {
-    title: "Site package",
-    body: sitePackageDefinition,
-    bullets: sitePackageIncludes,
+    title: "Site package contents",
+    body:
+      "The site package gives your team everything it needs to run its own world model stack on that facility.",
+    bullets: [
+      "Walkthrough video, timestamps, and camera poses tied to one real facility",
+      "Intrinsics, depth, and geometry artifacts when the source capture supports them",
+      "Site notes, provenance, privacy, and rights metadata",
+      "Package manifest and reference material for building your own world model",
+    ],
   },
   {
-    title: "Hosted evaluation",
-    body: hostedEvaluationDefinition,
-    bullets: hostedEvaluationOutputs,
+    title: "Hosted evaluation outputs",
+    body:
+      "Hosted evaluation is a managed runtime session on one exact site. Your team can run, review, and export without moving data into your own stack first.",
+    bullets: [
+      "Repeatable runs on the same exact site",
+      "Rollout video, failure review, and checkpoint comparison",
+      "Dataset, raw bundle, and export generation tied to the listing",
+      "A browser-accessible runtime session — no local setup required",
+    ],
   },
   {
     title: "What varies by listing",
     body:
-      "Not every site has the same artifacts, export surface, or robot fit. Buyers should check the listing instead of assuming every lane supports the same depth of work.",
-    bullets: listingVariationItems,
+      "Not every site has the same artifacts or export options. Check the listing before assuming every lane supports the same depth of work.",
+    bullets: [
+      "Depth and geometry coverage",
+      "Available scenario variations and start states",
+      "Robot assumptions and sensor requirements",
+      "Export set, freshness state, and any restricted zones",
+    ],
   },
 ];
 

@@ -1,29 +1,23 @@
 import { SEO } from "@/components/SEO";
 import { OfferComparison } from "@/components/site/OfferComparison";
-import {
-  hostedEvaluationDefinition,
-  sessionHourDefinition,
-  sitePackageDefinition,
-} from "@/data/marketingDefinitions";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 
 const pricingNotes = [
   {
     title: "Site package",
-    body: sitePackageDefinition,
+    body: "A one-time purchase of the full data bundle for one facility. Your team runs its own stack on the captured site data.",
   },
   {
     title: "Hosted evaluation",
-    body: hostedEvaluationDefinition,
+    body: "Blueprint runs the site for you. Your team gets a managed runtime session for reruns, failure review, and exports — no local setup needed.",
   },
   {
     title: "Session-hour",
-    body: sessionHourDefinition,
+    body: "One hour of self-serve hosted runtime on one exact site, covering run time, inspection, and export generation.",
   },
   {
     title: "Custom scope",
-    body:
-      "Private sites, exclusive rights, managed support, and custom capture are quoted separately instead of being hidden inside the self-serve pricing.",
+    body: "Private sites, exclusive rights, managed support, and custom capture are quoted separately.",
   },
 ];
 
@@ -46,10 +40,9 @@ export default function Pricing() {
               Start with the package or the hosted runtime.
             </h1>
             <p className="text-lg leading-8 text-slate-600">
-              Most teams need one of two things first: the full grounding bundle for their own
-              stack, or a Blueprint-managed runtime session on the exact site. The catalog shows
-              the range openly so buyers do not need a sales call just to understand the shape of
-              the product.
+              Most teams need one of two things first: all the site data for their own
+              stack, or a Blueprint-managed runtime session on the exact site. Prices are on every
+              listing so you do not need a sales call to understand what you are buying.
             </p>
           </header>
 

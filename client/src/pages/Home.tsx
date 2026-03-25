@@ -11,12 +11,12 @@ import {
   sitePackageIncludes,
   worldModelDefinition,
 } from "@/data/marketingDefinitions";
-import { publicDemoHref } from "@/lib/marketingProof";
+import { publicDemoHref, publicDemoLabel } from "@/lib/marketingProof";
 import { ArrowRight, CheckCircle2, Mail } from "lucide-react";
 
 const heroSignals = [
   "Start from one real customer facility instead of a generic sim scene.",
-  "Choose the package when your team wants the full grounding bundle in its own stack.",
+  "Choose the site package when your team wants all the data in its own stack.",
   "Choose hosted evaluation when your team wants Blueprint to run the site now.",
 ];
 
@@ -88,9 +88,8 @@ export default function Home() {
                 Train your robot on the exact customer site before you visit.
               </h1>
               <p className="mt-4 max-w-3xl text-[1.05rem] leading-8 text-slate-600">
-                Blueprint turns real indoor capture into site-specific world models, site packages,
-                and hosted evaluation so your team can ground one deployment question on the real
-                facility early.
+                Blueprint captures real customer facilities and turns them into digital environments
+                your team can test against before showing up.
               </p>
               <p className="mt-4 max-w-3xl rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm leading-7 text-slate-700">
                 <span className="font-semibold text-slate-900">Plain-English version:</span> a
@@ -110,7 +109,7 @@ export default function Home() {
                   href={publicDemoHref}
                   className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  View public demo
+                  {publicDemoLabel}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <a
@@ -137,11 +136,11 @@ export default function Home() {
               What Blueprint is
             </p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              Three terms buyers should not have to decode on their own.
+              Three things Blueprint sells.
             </h2>
             <p className="mt-4 text-sm leading-7 text-slate-600">
-              The product story is simple: capture the real site, package the evidence cleanly,
-              then let the buyer either run its own stack or use Blueprint-hosted runtime.
+              Capture the real site, package it cleanly, then let the buyer run its own stack
+              or use Blueprint-hosted runtime.
             </p>
           </div>
           <div className="mt-8 grid gap-4 lg:grid-cols-3">
@@ -161,7 +160,7 @@ export default function Home() {
             eyebrow="Visual proof"
             title="See the real site first, then inspect the product around it."
             description="The public demo listing is the first trust check. It shows that the site is real, that the package is grounded to that site, and that the hosted path stays tied to the same facility."
-            caption="Sample artifact. This proof reel uses current demo assets plus labeled placeholder graphics for the package and export surfaces."
+            caption="This reel shows current capture and product surfaces. Additional views are added as the product develops."
           />
         </section>
 
@@ -169,7 +168,7 @@ export default function Home() {
           <OfferComparison
             eyebrow="What teams get"
             title="Start with the path that matches the work."
-            description="Buy the site package if your team wants the full grounding bundle in its own stack. Request hosted evaluation if your team wants Blueprint to run the exact site, compare checkpoints, and export results before the real visit."
+            description="Buy the site package if your team wants all the site data in its own stack. Request hosted evaluation if your team wants Blueprint to run the exact site, compare checkpoints, and export results before the real visit."
           />
         </section>
 
@@ -264,9 +263,9 @@ export default function Home() {
             <div className="rounded-2xl border border-slate-200 bg-stone-50 p-6">
               <p className="text-sm font-semibold text-slate-900">Company references</p>
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                Blueprint is the buyer, licensing, ops, and hosted-access surface around
-                site-specific packages created from real capture. It does not promise deployment
-                success. It makes the site legible earlier.
+                Blueprint handles capture, packaging, licensing, and hosted access for
+                site-specific world models. It does not promise deployment success. It makes the
+                real site available earlier.
               </p>
               <div className="mt-6 flex flex-col gap-3">
                 <a href="/about" className="text-sm font-semibold text-slate-900 transition hover:text-slate-700">

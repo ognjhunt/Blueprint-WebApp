@@ -2,11 +2,12 @@ export const proofReelVideoSrc = "/proof/blueprint-proof-reel.mp4";
 export const proofReelPosterSrc = "/siteworld-f5fd54898cfb-presentation-reference.png";
 export const proofReferenceImageSrc = "/siteworld-f5fd54898cfb-runtime-reference.png";
 export const publicDemoHref = "/world-models/siteworld-f5fd54898cfb";
+export const publicDemoLabel = "View sample listing";
 
 export const proofHighlights = [
-  "Real capture is the source of truth for the package, the hosted session, and the proof surface.",
-  "The site package is the grounding bundle for teams that want to run their own world model stack.",
-  "Hosted evaluation is the managed runtime path for reruns, failure review, and export generation on one exact site.",
+  "Every artifact starts from real capture of a real facility.",
+  "The site package gives your team everything it needs to run its own stack on that site.",
+  "Hosted evaluation lets you rerun, review failures, and export results without moving files first.",
 ];
 
 export const resultHighlights = [

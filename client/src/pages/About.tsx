@@ -1,11 +1,6 @@
 import { SEO } from "@/components/SEO";
 import { ArrowRight, Mail } from "lucide-react";
-import {
-  companyTrustItems,
-  hostedEvaluationDefinition,
-  sitePackageDefinition,
-  worldModelDefinition,
-} from "@/data/marketingDefinitions";
+import { companyTrustItems } from "@/data/marketingDefinitions";
 
 const marketSignals = [
   {
@@ -79,14 +74,24 @@ export default function About() {
               </h1>
               <p className="mt-4 max-w-3xl text-lg leading-relaxed text-slate-600">
                 The industry has raised enormous amounts of money and produced real progress, but
-                deployment still breaks on the same things over and over: unknown sites, late
-                context, messy handoffs, and too much fieldwork before the team has grounded the
-                actual environment.
+                deployment still breaks on the same things: unknown sites, late context, messy
+                handoffs, and too much fieldwork before the team has even seen the actual
+                environment.
               </p>
-              <div className="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-6">
-                <p className="text-sm leading-7 text-slate-700">{worldModelDefinition}</p>
-                <p className="text-sm leading-7 text-slate-700">{sitePackageDefinition}</p>
-                <p className="text-sm leading-7 text-slate-700">{hostedEvaluationDefinition}</p>
+              <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                <p className="text-sm font-semibold text-slate-900">Founded by</p>
+                <p className="mt-2 text-sm leading-7 text-slate-700">
+                  Nijel Hunt — background in robotics simulation, 3D capture, and deployment
+                  operations. Based in Durham, NC.
+                </p>
+                <a
+                  href="https://www.linkedin.com/in/nijelhunt/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-flex text-sm font-semibold text-slate-900 transition hover:text-slate-700"
+                >
+                  LinkedIn
+                </a>
               </div>
             </div>
 

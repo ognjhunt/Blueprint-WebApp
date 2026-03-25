@@ -1,10 +1,5 @@
 import { SEO } from "@/components/SEO";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
-import {
-  hostedEvaluationDefinition,
-  sitePackageDefinition,
-  worldModelDefinition,
-} from "@/data/marketingDefinitions";
 import { categoryFilters, siteWorldCards, type SiteCategory } from "@/data/siteWorlds";
 import { getSiteWorldBadge } from "@/lib/siteWorldBadges";
 import { fetchSiteWorldCatalog } from "@/lib/siteWorldsApi";
@@ -36,7 +31,7 @@ const layerCards = [
   {
     title: "Buy the site package",
     kicker: "Option 1",
-    description: sitePackageDefinition,
+    description: "Everything your team needs to run its own world model on that facility — walkthrough media, geometry, metadata, and rights.",
     bullets: [
       "Walkthrough video and camera poses",
       "Geometry, depth, and site notes when available",
@@ -47,7 +42,7 @@ const layerCards = [
   {
     title: "Request a hosted evaluation",
     kicker: "Option 2",
-    description: hostedEvaluationDefinition,
+    description: "Blueprint runs the site for you. Rerun tasks, review failures, compare checkpoints, and export results without moving files into your own stack first.",
     bullets: [
       "Reset and rerun the same site",
       "Scenario changes for edge-case checks",
@@ -175,9 +170,9 @@ export default function SiteWorlds() {
                 Train on exact sites your team needs before deployment.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
-                {worldModelDefinition} Open a listing to see what package artifacts exist, what the
-                hosted path can export, and whether the site has a public demo you can inspect
-                first.
+                Each world model is built from real capture of one indoor facility and one
+                workflow lane. Open a listing to see what is in the package, what hosted
+                evaluation can export, and whether a sample is available to inspect.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -226,8 +221,8 @@ export default function SiteWorlds() {
                 Choose how you want access.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Some teams need the full grounding bundle in their own stack. Others need the
-                managed runtime path first. Both paths stay tied to the same real place.
+                Some teams want all the site data in their own stack. Others want Blueprint
+                to run it. Both paths stay tied to the same real facility.
               </p>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">

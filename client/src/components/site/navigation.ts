@@ -13,8 +13,8 @@ export const footerExploreLinks = [
 ];
 
 export const footerReferenceLinks = [
-  { href: "/world-models/siteworld-f5fd54898cfb", label: "View Public Demo Listing" },
-  { href: "/case-studies", label: "Illustrative Examples" },
+  { href: "/world-models/siteworld-f5fd54898cfb", label: "Sample Listing" },
+  { href: "/case-studies", label: "Examples" },
   { href: "/docs", label: "Compatibility & Exports" },
   { href: "/governance", label: "Governance" },
 ];

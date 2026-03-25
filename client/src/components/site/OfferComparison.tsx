@@ -1,9 +1,5 @@
 import { ArrowRight, BriefcaseBusiness, Play, ScanLine } from "lucide-react";
-import {
-  hostedEvaluationDefinition,
-  sessionHourDefinition,
-  sitePackageDefinition,
-} from "@/data/marketingDefinitions";
+import { sessionHourDefinition } from "@/data/marketingDefinitions";
 
 type OfferComparisonProps = {
   eyebrow?: string;
@@ -17,7 +13,7 @@ const offerCards = [
     title: "Buy the site package",
     price: "$2,100 - $3,400",
     description:
-      sitePackageDefinition,
+      "Everything your team needs to run its own world model on that facility — walkthrough media, geometry, metadata, and rights.",
     bullets: [
       "Walkthrough video, timestamps, and camera poses",
       "Depth and geometry artifacts when available from source capture",
@@ -34,7 +30,7 @@ const offerCards = [
     title: "Run a hosted evaluation",
     price: "$16 - $29 / session-hour",
     description:
-      hostedEvaluationDefinition,
+      "Blueprint runs the site for you. Rerun tasks, review failures, compare checkpoints, and export results — no local setup needed.",
     bullets: [
       "Repeatable runs on one exact site",
       "Rollout video, metrics, and failure review",
@@ -69,7 +65,7 @@ const offerCards = [
 export function OfferComparison({
   eyebrow = "What you can buy first",
   title = "Choose the first step that matches the work.",
-  description = "Start with the package when your team wants the full grounding bundle in its own stack. Start with hosted evaluation when your team wants Blueprint to run the site, compare checkpoints, and export results on the same facility.",
+  description = "Start with the site package when your team wants all the data in its own stack. Start with hosted evaluation when your team wants Blueprint to run the site, compare checkpoints, and export results.",
   className = "",
 }: OfferComparisonProps) {
   return (
