@@ -36,29 +36,29 @@ export const OPPORTUNITY_STATES = [
 ] as const;
 
 export const REQUESTED_LANE_LABELS = {
-  qualification: "Qualification",
-  preview_simulation: "Preview Simulation",
-  deeper_evaluation: "Evaluation Package",
-  managed_tuning: "Managed Tuning",
-  data_licensing: "Data Licensing",
+  qualification: "Site review",
+  preview_simulation: "Site preview",
+  deeper_evaluation: "Hosted evaluation",
+  managed_tuning: "Managed support",
+  data_licensing: "Site package access",
 } as const;
 
 export const REQUESTED_LANE_DESCRIPTIONS = {
-  qualification: "Review the site, task, and blockers first.",
-  preview_simulation: "Prepare a preview asset after qualification when the record supports it.",
-  deeper_evaluation: "Request a deeper technical review package for a qualified site.",
-  managed_tuning: "Flag later scenario generation or managed tuning work.",
-  data_licensing: "Request licensed datasets or derived asset packages after qualification.",
+  qualification: "Review the site, task, and blockers before deeper work starts.",
+  preview_simulation: "Ask for a lightweight preview of the exact site when one is available.",
+  deeper_evaluation: "Request hosted evaluation on the exact site.",
+  managed_tuning: "Flag later managed support or scoped follow-up work.",
+  data_licensing: "Request site-package access or dataset exports after qualification.",
 } as const;
 
 export const HELP_WITH_LABELS = {
-  "benchmark-packs": "Qualification",
-  "scene-library": "Preview Simulation",
-  "dataset-packs": "Data Licensing",
+  "benchmark-packs": "Site Review",
+  "scene-library": "Site Preview",
+  "dataset-packs": "Site Package Access",
   "custom-capture": "Capture Request",
   "pilot-exchange-location-brief": "Qualified Opportunity Brief",
-  "pilot-exchange-policy-submission": "Evaluation Package",
-  "pilot-exchange-data-licensing": "Managed Tuning / Licensing",
+  "pilot-exchange-policy-submission": "Hosted Evaluation",
+  "pilot-exchange-data-licensing": "Managed Support",
 } as const;
 
 export const LEGACY_HELP_WITH_TO_LANE = {

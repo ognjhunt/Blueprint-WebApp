@@ -81,7 +81,7 @@ export default function Contact() {
   const learnMoreLinks = hostedMode
     ? [
         { href: "/world-models", label: "Back to World Models" },
-        { href: "/sample-deliverables", label: "Sample Deliverables" },
+        { href: "/world-models/siteworld-f5fd54898cfb", label: "Public Demo Listing" },
         { href: "/faq", label: "FAQ" },
       ]
     : persona === "site_operator"
@@ -93,7 +93,7 @@ export default function Contact() {
       : [
         { href: "/world-models", label: "Explore world models" },
         { href: "/how-it-works", label: "How it works" },
-        { href: "/sample-deliverables", label: "Sample deliverables" },
+        { href: "/world-models/siteworld-f5fd54898cfb", label: "Public demo listing" },
         { href: "/faq", label: "FAQ" },
       ];
 

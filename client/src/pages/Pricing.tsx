@@ -9,7 +9,7 @@ import { ArrowRight, ShieldCheck } from "lucide-react";
 
 const pricingNotes = [
   {
-    title: "Site package",
+    title: "Site package access",
     body: sitePackageDefinition,
   },
   {
@@ -32,7 +32,7 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Blueprint pricing for robot teams: site packages for grounding your own world model, hosted evaluation on one exact site, and custom engagements."
+        description="Blueprint pricing for robot teams: listing-specific site-package access, hosted evaluation on one exact site, and custom engagements."
         canonical="/pricing"
       />
 
@@ -43,15 +43,25 @@ export default function Pricing() {
               Pricing
             </p>
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Start with the package or the hosted runtime.
+              Public pricing starts on each listing.
             </h1>
             <p className="text-lg leading-8 text-slate-600">
-              Most teams need one of two things first: the full grounding bundle for their own
-              stack, or a Blueprint-managed runtime session on the exact site. The catalog shows
-              the range openly so buyers do not need a sales call just to understand the shape of
-              the product.
+              Each world-model listing shows its own starting price for site-package access and
+              hosted evaluation. That gives buyers a clear first pass without forcing a sales call
+              just to understand the shape of the offer.
             </p>
           </header>
+
+          <section className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              What to expect
+            </p>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-700">
+              Public prices are starting points, not a promise that every site is instantly
+              self-serve. Some listings can move quickly. Private sites, unusual access rules, and
+              higher-touch work are scoped with the team first.
+            </p>
+          </section>
 
           <OfferComparison className="mt-10" />
 

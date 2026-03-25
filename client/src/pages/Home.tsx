@@ -15,9 +15,9 @@ import { publicDemoHref } from "@/lib/marketingProof";
 import { ArrowRight, CheckCircle2, Mail } from "lucide-react";
 
 const heroSignals = [
-  "Start from one real customer facility instead of a generic sim scene.",
-  "Choose the package when your team wants the full grounding bundle in its own stack.",
-  "Choose hosted evaluation when your team wants Blueprint to run the site now.",
+  "Start from one real customer facility instead of a generic scene.",
+  "Inspect the site, workflow, pricing, and access path before your team travels.",
+  "Choose site-package access or hosted evaluation only after the listing looks worth deeper work.",
 ];
 
 const definitionCards = [
@@ -41,12 +41,16 @@ const workflowCards = [
     body: "Use one exact site to see whether the robot can localize, fit, see the task, and finish the job before the expensive visit starts.",
   },
   {
-    title: "Site-specific data",
-    body: "Generate exports tied to the real facility instead of trying to recover that context later.",
+    title: "Pilot scoping",
+    body: "Ground the conversation around one real facility before the first customer week turns into guesswork.",
   },
   {
     title: "Checkpoint comparison",
     body: "Run the same lane after each autonomy update so regressions show up on the exact environment that matters.",
+  },
+  {
+    title: "Site-grounded exports",
+    body: "Pull out the walkthrough, runtime outputs, and review artifacts tied to the facility your team actually cares about.",
   },
 ];
 
@@ -70,8 +74,8 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | Train Your Robot On The Exact Customer Site"
-        description="Blueprint helps robot teams buy site packages and hosted evaluation on exact customer facilities, built from real indoor capture."
+        title="Blueprint | See And Evaluate The Exact Customer Site Before You Travel"
+        description="Blueprint helps robot teams inspect exact customer facilities, request site-package access, and run hosted evaluation built from real indoor capture."
         canonical="/"
       />
 
@@ -85,12 +89,12 @@ export default function Home() {
                 For Robot Teams
               </p>
               <h1 className="mt-5 text-[3.3rem] font-semibold tracking-tight text-slate-950 sm:text-[4.2rem] sm:leading-[0.95]">
-                Train your robot on the exact customer site before you visit.
+                See and evaluate the exact customer site before you travel.
               </h1>
               <p className="mt-4 max-w-3xl text-[1.05rem] leading-8 text-slate-600">
-                Blueprint turns real indoor capture into site-specific world models, site packages,
-                and hosted evaluation so your team can ground one deployment question on the real
-                facility early.
+                Blueprint turns real indoor capture into exact-site world models your team can
+                inspect before a pilot, field visit, or deployment sprint. Start with the listing,
+                then request site-package access or hosted evaluation if the site is worth deeper work.
               </p>
               <p className="mt-4 max-w-3xl rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm leading-7 text-slate-700">
                 <span className="font-semibold text-slate-900">Plain-English version:</span> a
@@ -107,17 +111,17 @@ export default function Home() {
               </div>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <a
-                  href={publicDemoHref}
+                  href="/world-models"
                   className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  View public demo
+                  Browse world models
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <a
-                  href="/contact?persona=robot-team&interest=evaluation-package"
+                  href={publicDemoHref}
                   className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
                 >
-                  Request hosted evaluation
+                  View public demo
                 </a>
               </div>
               <a
@@ -137,11 +141,11 @@ export default function Home() {
               What Blueprint is
             </p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              Three terms buyers should not have to decode on their own.
+              Three terms the site should explain in plain English.
             </h2>
             <p className="mt-4 text-sm leading-7 text-slate-600">
-              The product story is simple: capture the real site, package the evidence cleanly,
-              then let the buyer either run its own stack or use Blueprint-hosted runtime.
+              The product story is simple: capture one real site, publish a listing that explains
+              what exists, then let the buyer choose between site-package access and hosted evaluation.
             </p>
           </div>
           <div className="mt-8 grid gap-4 lg:grid-cols-3">
@@ -160,7 +164,7 @@ export default function Home() {
           <ProofModule
             eyebrow="Visual proof"
             title="See the real site first, then inspect the product around it."
-            description="The public demo listing is the first trust check. It shows that the site is real, that the package is grounded to that site, and that the hosted path stays tied to the same facility."
+            description="The public demo listing is the first trust check. It shows that the site is real, what workflow is being discussed, and how the site package and hosted path stay tied to the same facility."
             caption="Sample artifact. This proof reel uses current demo assets plus labeled placeholder graphics for the package and export surfaces."
           />
         </section>
@@ -169,7 +173,7 @@ export default function Home() {
           <OfferComparison
             eyebrow="What teams get"
             title="Start with the path that matches the work."
-            description="Buy the site package if your team wants the full grounding bundle in its own stack. Request hosted evaluation if your team wants Blueprint to run the exact site, compare checkpoints, and export results before the real visit."
+            description="Request site-package access if your team wants the exact-site bundle in its own workflow. Request hosted evaluation if you want Blueprint to run the site, compare checkpoints, and export results before the real visit."
           />
         </section>
 
@@ -233,7 +237,7 @@ export default function Home() {
               Use one exact site to answer one expensive question earlier.
             </h2>
           </div>
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {workflowCards.map((item) => (
               <article key={item.title} className="rounded-2xl border border-slate-200 bg-white p-5">
                 <h3 className="text-lg font-semibold text-slate-900">{item.title}</h3>
@@ -264,9 +268,9 @@ export default function Home() {
             <div className="rounded-2xl border border-slate-200 bg-stone-50 p-6">
               <p className="text-sm font-semibold text-slate-900">Company references</p>
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                Blueprint is the buyer, licensing, ops, and hosted-access surface around
-                site-specific packages created from real capture. It does not promise deployment
-                success. It makes the site legible earlier.
+                Blueprint gives robot teams a clearer view of one exact facility before the team
+                commits travel, customer time, or deeper technical work. It does not replace final
+                on-site validation.
               </p>
               <div className="mt-6 flex flex-col gap-3">
                 <a href="/about" className="text-sm font-semibold text-slate-900 transition hover:text-slate-700">

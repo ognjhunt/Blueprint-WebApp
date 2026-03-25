@@ -221,7 +221,7 @@ export default function BusinessSignUpFlow() {
     if (step === 2 && !step2Valid) {
       if (!contactName.trim()) setErrorMessage("Please enter your name.");
       else if (!isValidPhone(phoneNumber)) setErrorMessage("Please enter a valid phone number.");
-      else if (requestedLanes.length === 0) setErrorMessage("Select at least one requested lane.");
+      else if (requestedLanes.length === 0) setErrorMessage("Select at least one next step.");
       else setErrorMessage("Please select your company size.");
       return;
     }
@@ -598,7 +598,7 @@ export default function BusinessSignUpFlow() {
                   </div>
 
                   <div className="space-y-3">
-                    <Label>Requested lanes</Label>
+                    <Label>What do you need first?</Label>
                     {REQUESTED_LANES.map((lane) => (
                       <label
                         key={lane.value}

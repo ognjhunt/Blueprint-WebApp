@@ -13,8 +13,8 @@ export function Footer() {
             Blueprint
           </a>
           <p className="text-sm leading-6 text-slate-500">
-            Blueprint gives robot teams site-specific world models, site packages, and hosted
-            evaluation built from real indoor capture of exact customer facilities.
+            Blueprint gives robot teams exact-site world models, site-package access, and hosted
+            evaluation built from real indoor capture.
           </p>
           <div className="flex flex-col gap-2">
             <a
@@ -69,7 +69,7 @@ export function Footer() {
       <div className="border-t border-slate-200 bg-white py-4">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>Exact sites. Clear packages. Earlier answers before deployment.</p>
+          <p>Exact sites. Clear access. Earlier answers before deployment.</p>
         </div>
       </div>
     </footer>
