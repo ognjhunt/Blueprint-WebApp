@@ -1,0 +1,10 @@
+<svg width="1200" height="760" viewBox="0 0 1200 760" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="760" rx="36" fill="#FDF2F8"/>
+  <rect x="72" y="88" width="1056" height="584" rx="30" fill="#FFFFFF" stroke="#FBCFE8" stroke-width="2"/>
+  <text x="110" y="148" fill="#BE185D" font-family="Arial, sans-serif" font-size="24" font-weight="700">ILLUSTRATIVE EXAMPLE</text>
+  <text x="110" y="196" fill="#0F172A" font-family="Arial, sans-serif" font-size="42" font-weight="700">Retail shelf grasp-place lane</text>
+  <rect x="110" y="248" width="260" height="320" rx="22" fill="#FBCFE8"/>
+  <rect x="406" y="248" width="260" height="320" rx="22" fill="#F9A8D4"/>
+  <rect x="702" y="248" width="260" height="320" rx="22" fill="#F472B6"/>
+  <text x="110" y="620" fill="#9D174D" font-family="Arial, sans-serif" font-size="20">Illustrative preview only. Replace with real shelf imagery and exports later.</text>
+</svg>

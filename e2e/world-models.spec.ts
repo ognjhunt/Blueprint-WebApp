@@ -4,7 +4,7 @@ test('world models page exposes hosted access and package paths', async ({ page 
   await page.goto('/world-models', { waitUntil: 'domcontentloaded' });
 
   await expect(
-    page.getByRole('heading', { name: /Find the site before your team books the visit\./i }),
+    page.getByRole('heading', { name: /Train on exact sites your team needs before deployment\./i }),
   ).toBeVisible();
   await expect(page.getByText(/Choose how you want access\./i)).toBeVisible();
   await expect(page.getByRole('link', { name: /Request site package/i }).first()).toBeVisible();
@@ -30,6 +30,7 @@ test('direct navigation to a world-model detail page stays on the detail page', 
     }),
   ).toBeVisible();
   await expect(
-    page.getByText(/Use this listing to review the real site, compare the package with the hosted evaluation path/i),
+    page.getByText(/Use this listing to ground one deployment question on the real site, compare the package with the hosted path/i),
   ).toBeVisible();
+  await expect(page.getByText(/session-hour is one hour of self-serve hosted runtime/i)).toBeVisible();
 });

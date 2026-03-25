@@ -19,77 +19,59 @@ describe("Home", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Test your robot on the exact customer site before you travel\./i,
+        name: /Train your robot on the exact customer site before you visit\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Blueprint turns one real customer site into a working model your team can inspect, buy, or run before a pilot\./i,
+        /Blueprint turns real indoor capture into site-specific world models, site packages, and hosted evaluation/i,
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Browse world models/i })).toHaveAttribute(
-      "href",
-      "/world-models",
-    );
     expect(
       screen
         .getAllByRole("link", { name: /Request hosted evaluation/i })
         .some(
           (link) =>
             link.getAttribute("href") === "/contact?persona=robot-team&interest=evaluation-package",
-        ),
+      ),
     ).toBe(true);
-    expect(screen.getByRole("link", { name: /View public demo listing/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /View public demo/i })).toHaveAttribute(
       "href",
       "/world-models/siteworld-f5fd54898cfb",
     );
     expect(
-      screen.getByText(
-        /Prefer a lighter first step\? Email a short brief\./i,
-      ),
+      screen.getByText(/a world model is a site-specific digital environment/i),
     ).toBeInTheDocument();
-    expect(screen.getByText(/What it is/i)).toBeInTheDocument();
-    expect(screen.getByText(/How to buy/i)).toBeInTheDocument();
+    expect(screen.getByText(/Prefer email\? Send a short brief\./i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Three terms buyers should not have to decode on their own\./i })).toBeInTheDocument();
   });
 
-  it("surfaces proof, results, and trust without pushing capture into the main flow", { timeout: 10000 }, () => {
+  it("surfaces honest proof, deliverables, and trust", { timeout: 10000 }, () => {
     window.localStorage.clear();
     render(<Home />);
 
-    expect(screen.getByText(/Common jobs/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /What teams actually use Blueprint for/i }),
+      screen.getByRole("heading", { name: /See the real site first, then inspect the product around it\./i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Proof, results, and deliverables now live in one path\./i,
+        name: /What goes into the site package/i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Buyers should not have to guess what is real, supported, or allowed\./i,
+        name: /What comes back from hosted evaluation/i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Open how it works/i })).toHaveAttribute(
-      "href",
-      "/how-it-works",
-    );
-    expect(screen.getByRole("link", { name: /Open results/i })).toHaveAttribute(
-      "href",
-      "/case-studies",
-    );
-    expect(screen.getByRole("link", { name: /See deliverables/i })).toHaveAttribute(
-      "href",
-      "/sample-deliverables",
-    );
-    expect(screen.getByRole("link", { name: /About Blueprint/i })).toHaveAttribute(
+    expect(screen.getByRole("heading", { name: /Use one exact site to answer one expensive question earlier\./i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Read about Blueprint/i })).toHaveAttribute(
       "href",
       "/about",
     );
-    expect(screen.getByRole("link", { name: /Compatibility & exports/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /See compatibility and export notes/i })).toHaveAttribute(
       "href",
       "/docs",
     );
-    expect(screen.queryByRole("link", { name: /Read capture basics/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/capture-first, world-model-product-first/i)).toBeInTheDocument();
   });
 });

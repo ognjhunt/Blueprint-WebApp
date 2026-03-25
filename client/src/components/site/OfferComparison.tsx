@@ -1,4 +1,9 @@
 import { ArrowRight, BriefcaseBusiness, Play, ScanLine } from "lucide-react";
+import {
+  hostedEvaluationDefinition,
+  sessionHourDefinition,
+  sitePackageDefinition,
+} from "@/data/marketingDefinitions";
 
 type OfferComparisonProps = {
   eyebrow?: string;
@@ -12,11 +17,11 @@ const offerCards = [
     title: "Buy the site package",
     price: "$2,100 - $3,400",
     description:
-      "Use this when your team needs exact-site data for training, fine-tuning, or integration in your own stack.",
+      sitePackageDefinition,
     bullets: [
-      "Walkthrough media and camera poses",
-      "Geometry and depth when available",
-      "Rights, freshness, and package notes",
+      "Walkthrough video, timestamps, and camera poses",
+      "Depth and geometry artifacts when available from source capture",
+      "Rights, freshness, provenance, and package notes",
     ],
     href: "/world-models",
     cta: "Explore site packages",
@@ -29,7 +34,7 @@ const offerCards = [
     title: "Run a hosted evaluation",
     price: "$16 - $29 / session-hour",
     description:
-      "Use this when you want Blueprint to run evaluations, generate training data, and export results from the exact site.",
+      hostedEvaluationDefinition,
     bullets: [
       "Repeatable runs on one exact site",
       "Rollout video, metrics, and failure review",
@@ -64,7 +69,7 @@ const offerCards = [
 export function OfferComparison({
   eyebrow = "What you can buy first",
   title = "Choose the first step that matches the work.",
-  description = "The package is for teams that want exact-site data in their own training pipeline. Hosted evaluation is for teams that want Blueprint to run evaluations, generate data, and export results.",
+  description = "Start with the package when your team wants the full grounding bundle in its own stack. Start with hosted evaluation when your team wants Blueprint to run the site, compare checkpoints, and export results on the same facility.",
   className = "",
 }: OfferComparisonProps) {
   return (
@@ -104,6 +109,11 @@ export function OfferComparison({
                   </li>
                 ))}
               </ul>
+              {card.title === "Run a hosted evaluation" ? (
+                <p className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-600">
+                  {sessionHourDefinition}
+                </p>
+              ) : null}
               <a
                 href={card.href}
                 className={`mt-6 inline-flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition hover:opacity-90 ${card.accent}`}

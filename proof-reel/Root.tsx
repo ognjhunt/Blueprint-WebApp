@@ -7,7 +7,7 @@ export const RemotionRoot = () => {
       <Composition
         id="BlueprintProofReel"
         component={BlueprintProofReel}
-        durationInFrames={180}
+        durationInFrames={300}
         fps={30}
         width={1280}
         height={800}

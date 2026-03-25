@@ -1,5 +1,10 @@
 import { SEO } from "@/components/SEO";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
+import {
+  hostedEvaluationDefinition,
+  sitePackageDefinition,
+  worldModelDefinition,
+} from "@/data/marketingDefinitions";
 import { categoryFilters, siteWorldCards, type SiteCategory } from "@/data/siteWorlds";
 import { getSiteWorldBadge } from "@/lib/siteWorldBadges";
 import { fetchSiteWorldCatalog } from "@/lib/siteWorldsApi";
@@ -31,8 +36,7 @@ const layerCards = [
   {
     title: "Buy the site package",
     kicker: "Option 1",
-    description:
-      "Use this when your team needs the grounded site files, package notes, and rights context in your own stack.",
+    description: sitePackageDefinition,
     bullets: [
       "Walkthrough video and camera poses",
       "Geometry, depth, and site notes when available",
@@ -43,8 +47,7 @@ const layerCards = [
   {
     title: "Request a hosted evaluation",
     kicker: "Option 2",
-    description:
-      "Use this when you want Blueprint to run the exact site with you so your team can test, rerun, and export results without moving files first.",
+    description: hostedEvaluationDefinition,
     bullets: [
       "Reset and rerun the same site",
       "Scenario changes for edge-case checks",
@@ -172,9 +175,9 @@ export default function SiteWorlds() {
                 Train on exact sites your team needs before deployment.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
-                Each world model is built from real indoor capture and tied to one site and one
-                workflow. Open a listing to see training data exports, hosted evaluation options,
-                and whether the site has a public demo you can inspect first.
+                {worldModelDefinition} Open a listing to see what package artifacts exist, what the
+                hosted path can export, and whether the site has a public demo you can inspect
+                first.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -201,7 +204,7 @@ export default function SiteWorlds() {
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                  <span>What can be bought, evaluated, and exported from it</span>
+                  <span>What package artifacts and hosted outputs are actually available</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
@@ -223,8 +226,8 @@ export default function SiteWorlds() {
                 Choose how you want access.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Some teams need the grounded site assets first. Others already know they need
-                reruns, exports, and runtime evidence. Both paths stay tied to the same real place.
+                Some teams need the full grounding bundle in their own stack. Others need the
+                managed runtime path first. Both paths stay tied to the same real place.
               </p>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -258,7 +261,7 @@ export default function SiteWorlds() {
                 Why teams buy this
               </p>
               <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                Common reasons robot teams use world models.
+                Common reasons robot teams buy this surface.
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 These are the practical jobs teams use them for before they commit travel, pilot

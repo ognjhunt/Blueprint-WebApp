@@ -1,27 +1,28 @@
 import { SEO } from "@/components/SEO";
+import { illustrativeLabel } from "@/data/marketingDefinitions";
 import { caseStudies } from "@/data/content";
 
 export default function CaseStudies() {
   return (
     <>
       <SEO
-        title="Results | Blueprint"
-        description="Selected Blueprint delivery examples with workflow summaries and concrete outcomes from site-package and hosted-evaluation work."
+        title="Examples | Blueprint"
+        description="Illustrative Blueprint examples showing how site packages, hosted evaluation, and exports can be framed before public customer case studies are available."
         canonical="/case-studies"
       />
 
       <div className="mx-auto max-w-6xl space-y-12 px-4 pb-24 pt-16 sm:px-6">
         <header className="space-y-4">
           <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-            Results
+            Examples
           </p>
           <h1 className="text-4xl font-semibold text-slate-900">
-            Selected delivery examples with concrete outcomes.
+            Illustrative examples of the buyer surface.
           </h1>
-          <p className="max-w-3xl text-sm text-slate-600">
-            These examples make the proof layer more concrete than product copy alone. They show
-            the workflows Blueprint supports, the outputs delivered, and the outcomes teams cared
-            about.
+          <p className="max-w-3xl text-sm leading-7 text-slate-600">
+            This page is intentionally honest about what it is. These are example package and
+            hosted-evaluation frames used to explain the product while real customer references and
+            publishable imagery are still limited.
           </p>
         </header>
 
@@ -31,7 +32,7 @@ export default function CaseStudies() {
               key={study.slug}
               className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white"
             >
-              <div className="aspect-[4/3] overflow-hidden">
+              <div className="aspect-[4/3] overflow-hidden bg-slate-50">
                 <img
                   src={study.hero}
                   alt={study.title}
@@ -41,7 +42,10 @@ export default function CaseStudies() {
               </div>
               <div className="flex flex-1 flex-col gap-4 p-6">
                 <div>
-                  <h2 className="text-2xl font-semibold text-slate-900">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    {illustrativeLabel}
+                  </p>
+                  <h2 className="mt-2 text-2xl font-semibold text-slate-900">
                     {study.title}
                   </h2>
                   <p className="mt-3 text-sm text-slate-600">{study.summary}</p>
@@ -54,7 +58,7 @@ export default function CaseStudies() {
                     </li>
                   ))}
                 </ul>
-                <p className="text-sm text-slate-600">{study.body}</p>
+                <p className="text-sm leading-7 text-slate-600">{study.body}</p>
                 <a
                   href="/contact?persona=robot-team"
                   className="mt-auto inline-flex items-center text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"

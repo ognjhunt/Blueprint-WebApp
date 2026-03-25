@@ -80,6 +80,6 @@ describe("Route registration", () => {
 
     expect(source).toContain('{ path: "/for-site-operators", layout: "public", component: ForSiteOperators }');
     expect(source).toContain('{ path: "/for-robot-teams", layout: "public", component: ForRobotIntegrators }');
-    expect(source).toContain('{ path: "/readiness-pack", layout: "public", component: ReadinessPack }');
+    expect(source).toContain('{ path: "/readiness-pack", layout: "public", component: LegacyReadinessPackRedirect }');
   });
 });

@@ -1,3 +1,4 @@
+import { sampleArtifactLabel } from "@/data/marketingDefinitions";
 import { proofHighlights, proofReelPosterSrc, proofReelVideoSrc } from "@/lib/marketingProof";
 import { PlayCircle } from "lucide-react";
 
@@ -54,6 +55,9 @@ export function ProofModule({
             >
               <source src={proofReelVideoSrc} type="video/mp4" />
             </video>
+          </div>
+          <div className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+            {sampleArtifactLabel}
           </div>
           <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-stone-50 px-4 py-3">
             <PlayCircle className="mt-0.5 h-4 w-4 text-slate-700" />

@@ -6,8 +6,8 @@ describe("FAQ", () => {
   it("covers technical and buyer questions", () => {
     render(<FAQ />);
 
-    expect(screen.getByText(/not a synthetic environment generator/i)).toBeInTheDocument();
-    expect(screen.getByText(/Common outputs include walkthrough video, camera poses/i)).toBeInTheDocument();
-    expect(screen.getByText(/managed browser path into one exact site/i)).toBeInTheDocument();
+    expect(screen.getByText(/not a generic benchmark scene or a synthetic environment generator/i)).toBeInTheDocument();
+    expect(screen.getByText(/camera poses, intrinsics, site notes, and any available depth or geometry artifacts/i)).toBeInTheDocument();
+    expect(screen.getByText(/one hour of self-serve hosted runtime on one exact site/i)).toBeInTheDocument();
   });
 });

@@ -1,0 +1,31 @@
+<svg width="1200" height="760" viewBox="0 0 1200 760" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="760" rx="36" fill="#F5F5F4"/>
+  <rect x="48" y="48" width="1104" height="664" rx="30" fill="#FFFFFF" stroke="#D6D3D1" stroke-width="2"/>
+  <text x="84" y="118" fill="#44403C" font-family="Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="2">SITE PACKAGE</text>
+  <text x="84" y="164" fill="#0F172A" font-family="Arial, sans-serif" font-size="44" font-weight="700">Ground your own world model to one real site.</text>
+  <text x="84" y="208" fill="#57534E" font-family="Arial, sans-serif" font-size="24">The package is the complete evidence bundle for teams that want to run their own stack.</text>
+
+  <rect x="84" y="266" width="320" height="168" rx="24" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2"/>
+  <text x="112" y="312" fill="#0F172A" font-family="Arial, sans-serif" font-size="28" font-weight="700">Capture evidence</text>
+  <text x="112" y="352" fill="#475569" font-family="Arial, sans-serif" font-size="22">Walkthrough video</text>
+  <text x="112" y="384" fill="#475569" font-family="Arial, sans-serif" font-size="22">Timestamps and poses</text>
+  <text x="112" y="416" fill="#475569" font-family="Arial, sans-serif" font-size="22">Intrinsics and source metadata</text>
+
+  <rect x="440" y="266" width="320" height="168" rx="24" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2"/>
+  <text x="468" y="312" fill="#0F172A" font-family="Arial, sans-serif" font-size="28" font-weight="700">Spatial artifacts</text>
+  <text x="468" y="352" fill="#475569" font-family="Arial, sans-serif" font-size="22">Depth when available</text>
+  <text x="468" y="384" fill="#475569" font-family="Arial, sans-serif" font-size="22">Geometry when available</text>
+  <text x="468" y="416" fill="#475569" font-family="Arial, sans-serif" font-size="22">Workflow lane notes</text>
+
+  <rect x="796" y="266" width="320" height="168" rx="24" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2"/>
+  <text x="824" y="312" fill="#0F172A" font-family="Arial, sans-serif" font-size="28" font-weight="700">Trust metadata</text>
+  <text x="824" y="352" fill="#475569" font-family="Arial, sans-serif" font-size="22">Rights and privacy rules</text>
+  <text x="824" y="384" fill="#475569" font-family="Arial, sans-serif" font-size="22">Provenance and freshness</text>
+  <text x="824" y="416" fill="#475569" font-family="Arial, sans-serif" font-size="22">Package manifest and notes</text>
+
+  <path d="M244 470L244 538H956V470" stroke="#94A3B8" stroke-width="8" stroke-linecap="round"/>
+  <rect x="338" y="516" width="524" height="126" rx="26" fill="#0F172A"/>
+  <text x="376" y="568" fill="#F8FAFC" font-family="Arial, sans-serif" font-size="30" font-weight="700">Buyer outcome</text>
+  <text x="376" y="608" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="22">Everything your team needs to ground its own world model to this site.</text>
+  <text x="84" y="686" fill="#78716C" font-family="Arial, sans-serif" font-size="20">Illustrative preview. Layout and labels are placeholders for a future product-native datasheet.</text>
+</svg>

@@ -3,6 +3,12 @@ import { SEO } from "@/components/SEO";
 import { useAuth } from "@/contexts/AuthContext";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import { ProofModule } from "@/components/site/ProofModule";
+import {
+  hostedEvaluationDefinition,
+  sessionHourDefinition,
+  sitePackageDefinition,
+  worldModelDefinition,
+} from "@/data/marketingDefinitions";
 import { getSiteWorldById, siteWorldCards } from "@/data/siteWorlds";
 import { hasAnyRole } from "@/lib/adminAccess";
 import { withCsrfHeader } from "@/lib/csrf";
@@ -390,10 +396,9 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
     {
       title: "What goes in",
       items: [
+        "Exact site selection and workflow lane",
         site.sampleRobot,
-        site.runtime,
         site.sampleTask,
-        site.samplePolicy,
         site.scenarioVariants.map((variant) => humanizeToken(variant)).join(", "),
       ],
     },
@@ -402,9 +407,9 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
       items: [
         `Starting observation from ${site.siteName}`,
         "Step-by-step observations as the run progresses",
-        "Rewards or success signals for the run",
-        "Rollout video for each episode",
-        "Metrics and failure cases for review",
+        "Rollout video, metrics, and failure cases",
+        "Dataset or raw bundle exports tied to the run",
+        "Checkpoint comparison on the same site",
       ],
     },
     {
@@ -449,9 +454,9 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 {site.summary}
               </p>
               <p className="mt-3 text-sm text-slate-600">
-                Use this listing to ground one deployment question on the real site, compare the
-                package with the hosted evaluation path, and decide how your team should test it
-                before the real visit.
+                {worldModelDefinition} Use this listing to ground one deployment question on the
+                real site, compare the package with the hosted path, and decide how your team
+                should test it before the real visit.
               </p>
               <p className="mt-2 text-sm text-slate-500">{site.bestFor}</p>
               <div className="mt-5 flex flex-wrap gap-3">
@@ -483,8 +488,9 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 </a>
               </div>
               <p className="mt-4 text-sm leading-relaxed text-slate-600">
-                Buy the package if your team wants the site files. Request hosted evaluation if you
-                want runtime evidence, release comparison, or failure review on the same site.
+                Buy the package if your team wants the full grounding bundle in its own stack.
+                Request hosted evaluation if your team wants runtime evidence, release comparison,
+                or failure review on the same site.
               </p>
             </aside>
           </header>
@@ -498,8 +504,8 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               <ProofModule
                 eyebrow="Public demo"
                 title="See the public proof path before you ask for more."
-                description="This sample is the cleanest public example on the site. It shows the walkthrough, the package framing, and the hosted side in one place."
-                caption="Silent proof reel built from the current demo assets."
+                description="This sample is the cleanest public example on the site. It shows the walkthrough, the package framing, and the hosted side in one place without pretending to be a full customer case study."
+                caption="Sample artifact. The reel uses current demo assets plus labeled placeholder graphics."
                 compact={true}
               />
             </div>
@@ -795,8 +801,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   Buy the site package.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Use this when your team wants the grounded site package for internal review,
-                  integration work, or your own tooling.
+                  {sitePackageDefinition}
                 </p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   {scenePackage.deliverables.map((item) => (
@@ -814,15 +819,15 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   Best fit
                 </p>
                 <p className="mt-2 text-lg font-bold text-slate-900">
-                  Teams that want the site files and package notes
+                  Teams that want the full grounding bundle in their own stack
                 </p>
                 <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                   Starting price
                 </p>
                 <p className="mt-2 text-2xl font-bold text-slate-900">{scenePackage.priceLabel}</p>
                 <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                  Use this when your team wants the captured site package for review, integration,
-                  or downstream internal work.
+                  This is the path for internal review, integration work, or a team that wants to
+                  run or generate its own world model for the site.
                 </p>
                 <a
                   href={scenePackage.actionHref}
@@ -850,10 +855,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   Request hosted evaluation for this site.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Hosted evaluation is for the questions teams ask before a visit: can this robot
-                  handle the lane, what fails first, and how do releases compare on the same site?
-                  Use it for repeatable testing, site-specific data generation, policy adaptation,
-                  and remote demos.
+                  {hostedEvaluationDefinition}
                 </p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   {hostedSessions.deliverables.map((item) => (
@@ -886,8 +888,8 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 </p>
                 <p className="mt-2 text-2xl font-bold text-slate-900">{hostedSessions.priceLabel}</p>
                 <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                  That rate is for self-serve hosted evaluation time. Managed, priority, or
-                  higher-touch work is scoped separately when the job needs more support.
+                  {sessionHourDefinition} Managed, priority, or higher-touch work is scoped
+                  separately when the job needs more support.
                 </p>
                 <a
                   href={hostedSessions.actionHref}

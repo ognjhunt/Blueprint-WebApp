@@ -7,9 +7,11 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
+import exportBundle from "../client/public/illustrations/export-bundle-diagram.svg";
+import hostedLoop from "../client/public/illustrations/hosted-evaluation-loop.svg";
+import sitePackageDiagram from "../client/public/illustrations/site-package-diagram.svg";
 import presentationReference from "../client/public/siteworld-f5fd54898cfb-presentation-reference.png";
 import runtimeReference from "../client/public/siteworld-f5fd54898cfb-runtime-reference.png";
-import warehouseThumb from "../client/public/thumbnails/warehouse-pallet-buffer.png";
 
 const framesPerBeat = 60;
 
@@ -160,26 +162,44 @@ export const BlueprintProofReel = () => {
         <Slide
           image={presentationReference}
           eyebrow="Real site"
-          title="See the product before you read the pitch."
-          body="Blueprint turns real indoor capture into a site-specific proof page. Buyers should not have to guess what they are buying."
+          title="Start with the real site, not a generic demo."
+          body="The public walkthrough exists to prove that the facility is real before the buyer gets asked to trust the rest of the product."
           accent="#2563eb"
         />
       </Sequence>
       <Sequence from={framesPerBeat} durationInFrames={framesPerBeat}>
         <Slide
-          image={runtimeReference}
-          eyebrow="Hosted access"
-          title="One exact site. One clean next step."
-          body="Use the package when your team wants the files. Use hosted access when your team wants to run the site now."
+          image={sitePackageDiagram}
+          eyebrow="Site package"
+          title="Show what the grounding bundle actually contains."
+          body="The site package is the full bundle for teams that want to run or generate their own world model stack on the exact facility."
           accent="#0f766e"
         />
       </Sequence>
       <Sequence from={framesPerBeat * 2} durationInFrames={framesPerBeat}>
         <Slide
-          image={warehouseThumb}
-          eyebrow="Buyer proof"
-          title="Ground the review in the real place."
-          body="The point is to make the product concrete early: what site this is, what it is good for, what exports exist, and what still needs caution."
+          image={runtimeReference}
+          eyebrow="Hosted access"
+          title="Keep the runtime question tied to one exact site."
+          body="Hosted evaluation is the managed loop for reruns, checkpoint comparison, failure review, and export generation on the same facility."
+          accent="#0f766e"
+        />
+      </Sequence>
+      <Sequence from={framesPerBeat * 3} durationInFrames={framesPerBeat}>
+        <Slide
+          image={hostedLoop}
+          eyebrow="Hosted loop"
+          title="Explain the session before someone buys the time."
+          body="A session-hour is one hour of self-serve runtime on one site. Buyers should not have to infer that from pricing shorthand."
+          accent="#0891b2"
+        />
+      </Sequence>
+      <Sequence from={framesPerBeat * 4} durationInFrames={framesPerBeat}>
+        <Slide
+          image={exportBundle}
+          eyebrow="Exports"
+          title="Make the outputs legible."
+          body="Show the rollout video, metrics, datasets, and raw bundles that come back from the hosted path, even if the final UI still needs polish."
           accent="#7c3aed"
         />
       </Sequence>

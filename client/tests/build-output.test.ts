@@ -50,4 +50,50 @@ describe("build output", () => {
     expect(sitemap).toContain("https://tryblueprint.io/blog");
     expect(sitemap).not.toContain("https://tryblueprint.io/site-worlds");
   });
+
+  it("ships crawl artifacts for public marketing routes", () => {
+    const robots = fs.readFileSync(
+      path.resolve(process.cwd(), "dist/public/robots.txt"),
+      "utf8",
+    );
+    const sitemap = fs.readFileSync(
+      path.resolve(process.cwd(), "dist/public/sitemap.xml"),
+      "utf8",
+    );
+
+    expect(robots).toContain("User-agent: *");
+    expect(robots).toContain("Allow: /");
+    expect(sitemap).toContain("https://tryblueprint.io/about");
+    expect(sitemap).toContain("https://tryblueprint.io/faq");
+  });
+
+  it("ships honest proof surfaces without unsplash references on the examples page", () => {
+    const examplesHtml = fs.readFileSync(
+      path.resolve(process.cwd(), "dist/public/case-studies/index.html"),
+      "utf8",
+    );
+    const homeHtml = fs.readFileSync(
+      path.resolve(process.cwd(), "dist/public/index.html"),
+      "utf8",
+    );
+
+    expect(examplesHtml).not.toContain("images.unsplash.com");
+    expect(examplesHtml).toContain("Illustrative examples of the buyer surface.");
+    expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
+  });
+
+  it("ships the placeholder proof assets", () => {
+    expect(
+      fs.existsSync(path.resolve(process.cwd(), "dist/public/illustrations/site-package-diagram.svg")),
+    ).toBe(true);
+    expect(
+      fs.existsSync(path.resolve(process.cwd(), "dist/public/illustrations/hosted-evaluation-loop.svg")),
+    ).toBe(true);
+    expect(
+      fs.existsSync(path.resolve(process.cwd(), "dist/public/illustrations/export-bundle-diagram.svg")),
+    ).toBe(true);
+    expect(
+      fs.existsSync(path.resolve(process.cwd(), "dist/public/proof/blueprint-proof-reel.mp4")),
+    ).toBe(true);
+  });
 });

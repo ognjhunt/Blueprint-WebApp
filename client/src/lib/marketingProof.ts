@@ -4,25 +4,25 @@ export const proofReferenceImageSrc = "/siteworld-f5fd54898cfb-runtime-reference
 export const publicDemoHref = "/world-models/siteworld-f5fd54898cfb";
 
 export const proofHighlights = [
-  "A real facility captured once and used for training, evaluation, and data export.",
-  "A package path for teams that need exact-site data in their own training pipeline.",
-  "A hosted path for managed evaluations, release comparison, and dataset generation.",
+  "Real capture is the source of truth for the package, the hosted session, and the proof surface.",
+  "The site package is the grounding bundle for teams that want to run their own world model stack.",
+  "Hosted evaluation is the managed runtime path for reruns, failure review, and export generation on one exact site.",
 ];
 
 export const resultHighlights = [
   {
-    title: "Kitchen articulation pack",
-    outcome: "90% policy success rate in sim",
-    detail: "Six validated kitchen scenes with tuned joints across ovens, racks, and drawers.",
+    title: "Package framing",
+    outcome: "Sample artifact",
+    detail: "Show the capture evidence, spatial artifacts, and trust metadata that ground a buyer's own world model work.",
   },
   {
-    title: "Warehouse aisle with totes",
-    outcome: "Cut policy tuning time by 60%",
-    detail: "Pallet-to-tote flows validated before a site visit with clearance checks in place.",
+    title: "Hosted review loop",
+    outcome: "Illustrative preview",
+    detail: "Show how one site moves from setup to rerun to export without claiming customer outcomes the site cannot prove yet.",
   },
   {
-    title: "Retail shelf grasp-place",
-    outcome: "8 shelf variations with product metadata",
-    detail: "Planogrammed retail shelf examples used for grasp-place evaluation and dataset export.",
+    title: "Export bundle",
+    outcome: "Sample artifact",
+    detail: "Show the kinds of outputs a team reviews after a hosted run: rollout video, metrics, datasets, and raw bundles.",
   },
 ];

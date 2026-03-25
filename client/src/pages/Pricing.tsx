@@ -1,27 +1,29 @@
 import { SEO } from "@/components/SEO";
 import { OfferComparison } from "@/components/site/OfferComparison";
+import {
+  hostedEvaluationDefinition,
+  sessionHourDefinition,
+  sitePackageDefinition,
+} from "@/data/marketingDefinitions";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 
 const pricingNotes = [
   {
-    title: "Listing prices stay close to the work",
-    body:
-      "Every world-model listing shows its own package price and hosted evaluation rate. You do not need a sales call to understand the range.",
+    title: "Site package",
+    body: sitePackageDefinition,
   },
   {
-    title: "Hosted rates cover the runtime layer",
-    body:
-      "Use hosted evaluation when the question is about repeatable runs, site-specific data, failure review, or release comparison on one site.",
+    title: "Hosted evaluation",
+    body: hostedEvaluationDefinition,
   },
   {
-    title: "Custom work is quoted separately",
-    body:
-      "If you need a private site, exclusive rights, or managed support, Blueprint scopes that as enterprise work instead of hiding it inside the self-serve pricing.",
+    title: "Session-hour",
+    body: sessionHourDefinition,
   },
   {
-    title: "You can start with a short brief",
+    title: "Custom scope",
     body:
-      "If your team is interested but not ready for a full intake, email a few lines about the site, task, and robot setup and Blueprint can point you in the right direction.",
+      "Private sites, exclusive rights, managed support, and custom capture are quoted separately instead of being hidden inside the self-serve pricing.",
   },
 ];
 
@@ -30,7 +32,7 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Blueprint pricing for robot teams: site-specific world model packages, hosted evaluations that can generate exportable site-specific data, and custom engagements."
+        description="Blueprint pricing for robot teams: site packages for grounding your own world model, hosted evaluation on one exact site, and custom engagements."
         canonical="/pricing"
       />
 
@@ -41,14 +43,13 @@ export default function Pricing() {
               Pricing
             </p>
             <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Three ways to buy in.
+              Start with the package or the hosted runtime.
             </h1>
             <p className="text-lg leading-8 text-slate-600">
-              Most teams start with one of two paths: buy the site package or request hosted
-              evaluation. Use the package when you need exact-site data in your own training
-              pipeline. Use hosted evaluation when you need Blueprint to run evaluations,
-              generate training data, and export results. Enterprise covers private sites,
-              custom capture, or managed programs.
+              Most teams need one of two things first: the full grounding bundle for their own
+              stack, or a Blueprint-managed runtime session on the exact site. The catalog shows
+              the range openly so buyers do not need a sales call just to understand the shape of
+              the product.
             </p>
           </header>
 
@@ -72,11 +73,11 @@ export default function Pricing() {
                 Custom scope
               </p>
               <h2 className="mt-2 text-xl font-bold text-slate-900">
-                Need a site that is not in the catalog yet?
+                Need a site that is not in the public catalog yet?
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                Ask about custom capture or a private engagement. That is the right path when one
-                facility matters more than the public catalog.
+                Use the custom path when one specific facility matters more than the public
+                inventory, or when the rights and privacy model need to be negotiated up front.
               </p>
               <a
                 href="/contact?persona=robot-team&interest=enterprise"

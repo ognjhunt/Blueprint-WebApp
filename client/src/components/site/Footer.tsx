@@ -13,16 +13,23 @@ export function Footer() {
             Blueprint
           </a>
           <p className="text-sm leading-6 text-slate-500">
-            Blueprint gives robot teams site-specific world models for policy evaluation,
-            fine-tuning, and data generation — built from real indoor capture of exact customer
-            facilities.
+            Blueprint gives robot teams site-specific world models, site packages, and hosted
+            evaluation built from real indoor capture of exact customer facilities.
           </p>
-          <a
-            href="mailto:hello@tryblueprint.io"
-            className="inline-flex text-sm font-semibold text-slate-700 transition hover:text-slate-950"
-          >
-            hello@tryblueprint.io
-          </a>
+          <div className="flex flex-col gap-2">
+            <a
+              href="mailto:hello@tryblueprint.io"
+              className="inline-flex text-sm font-semibold text-slate-700 transition hover:text-slate-950"
+            >
+              hello@tryblueprint.io
+            </a>
+            <a
+              href="https://www.linkedin.com/company/blueprintsim/"
+              className="inline-flex text-sm font-semibold text-slate-700 transition hover:text-slate-950"
+            >
+              LinkedIn
+            </a>
+          </div>
         </div>
 
         <nav className="space-y-3 text-sm text-slate-600">
@@ -62,7 +69,7 @@ export function Footer() {
       <div className="border-t border-slate-200 bg-white py-4">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>© {new Date().getFullYear()} Blueprint, Inc. All rights reserved.</p>
-          <p>Exact sites. Better policies. Fewer surprises before deployment.</p>
+          <p>Exact sites. Clear packages. Earlier answers before deployment.</p>
         </div>
       </div>
     </footer>

@@ -1,60 +1,34 @@
 import { SEO } from "@/components/SEO";
-import { ArrowRight, CheckCircle2, Mail } from "lucide-react";
-
-const trustReasons = [
-  "Blueprint starts from one real customer site instead of a generic robotics demo.",
-  "The buying surface stays clear: public listing, site package, hosted evaluation, then deeper custom work only if needed.",
-  "Rights, privacy, freshness, and export scope stay attached to the listing so teams know what they are buying.",
-];
+import { ArrowRight, Mail } from "lucide-react";
+import {
+  companyTrustItems,
+  hostedEvaluationDefinition,
+  sitePackageDefinition,
+  worldModelDefinition,
+} from "@/data/marketingDefinitions";
 
 const companyFacts = [
   {
-    title: "What Blueprint is",
+    title: "What Blueprint sells",
     body:
-      "Blueprint builds site-specific world models from real indoor capture. Robot teams use them to train policies, generate data, and evaluate deployments on exact customer facilities.",
+      "Blueprint sells site-specific world models, site packages, and hosted evaluation built from real indoor capture.",
   },
   {
-    title: "Who it's for",
+    title: "Who it is for",
     body:
-      "Robot teams preparing for a pilot, field visit, or customer deployment.",
+      "Robot teams preparing for a pilot, field visit, or deployment question that depends on one exact facility.",
   },
   {
-    title: "Why it holds up",
+    title: "What it does not claim",
     body:
-      "Every listing is tied to one real facility. Capture, packaging, and the buyer flow all point back to the same site.",
+      "Blueprint does not claim that one package or one hosted session replaces final on-site validation, safety review, or deployment signoff.",
   },
 ];
 
-const principles = [
-  "Start with the real site, not a vague stand-in.",
-  "Keep provenance, privacy, and rights visible all the way through the product.",
-  "Make buying paths clear before a sales conversation starts.",
-  "Keep the runtime swappable while the customer-facing contract stays stable.",
-];
-
-const expectations = [
-  "A public listing or concrete site reference before deeper work starts",
-  "A clear split between buying the package and requesting hosted evaluation",
-  "Straight answers about compatibility, freshness, and export limits",
-  "A follow-up from the team that narrows scope instead of reopening discovery",
-];
-
-const realityChecks = [
-  {
-    title: "Built around deployment questions",
-    body:
-      "Blueprint is shaped around the questions robot teams actually ask: Can the robot handle this lane? What breaks first? What should we review before we travel?",
-  },
-  {
-    title: "Designed for technical buyers",
-    body:
-      "Pricing, outputs, and constraints are shown in public because serious buyers need enough detail to qualify the opportunity before a meeting.",
-  },
-  {
-    title: "Honest about what it does not replace",
-    body:
-      "Blueprint helps teams arrive with better evidence. It does not replace final on-site safety review, SAT, or real-world validation.",
-  },
+const references = [
+  { label: "Company LinkedIn", href: "https://www.linkedin.com/company/blueprintsim/" },
+  { label: "Governance", href: "/governance" },
+  { label: "Compatibility & exports", href: "/docs" },
 ];
 
 export default function About() {
@@ -62,7 +36,7 @@ export default function About() {
     <>
       <SEO
         title="About | Blueprint"
-        description="Blueprint helps robot teams inspect, buy, and run exact-site world models before deployment. Learn what the company does, what buyers can expect, and why the product is built this way."
+        description="What Blueprint is, what it sells, and how it handles world-model packages, hosted evaluation, and trust metadata."
         canonical="/about"
       />
       <div className="min-h-screen bg-white">
@@ -73,40 +47,43 @@ export default function About() {
                 About Blueprint
               </p>
               <h1 className="mt-3 max-w-4xl text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
-                Blueprint gives robot teams the exact site they need for training, evaluation, and data generation.
+                Blueprint is the buyer and hosted-access surface around real-site capture.
               </h1>
               <p className="mt-4 max-w-3xl text-lg leading-relaxed text-slate-600">
-                Most robotics deployments hit the same wall: the team doesn't see the actual
-                building until the plan is already set. Blueprint gets the real site in front of
-                you sooner.
+                The company is capture-first and world-model-product-first. It turns real indoor
+                facilities into products that robot teams can inspect, buy, run, and manage without
+                starting from a generic simulation scene.
               </p>
-              <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">
-                We capture real indoor facilities and turn them into site-specific world models.
-                Your team can train policies on them, generate site-specific data, and evaluate
-                releases — before anyone books travel.
-              </p>
+              <div className="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                <p className="text-sm leading-7 text-slate-700">{worldModelDefinition}</p>
+                <p className="text-sm leading-7 text-slate-700">{sitePackageDefinition}</p>
+                <p className="text-sm leading-7 text-slate-700">{hostedEvaluationDefinition}</p>
+              </div>
             </div>
 
             <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
-              <p className="text-sm font-semibold text-slate-900">Why teams trust the surface</p>
+              <p className="text-sm font-semibold text-slate-900">Trust posture</p>
               <ul className="mt-4 space-y-3 text-sm text-slate-600">
-                {trustReasons.map((item) => (
+                {companyTrustItems.map((item) => (
                   <li key={item} className="flex items-start gap-3">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-400" />
                     <span>{item}</span>
                   </li>
                 ))}
               </ul>
               <div className="mt-8 rounded-xl border border-slate-200 bg-white p-5">
-                <p className="text-sm font-semibold text-slate-900">What buyers can expect</p>
-                <ul className="mt-4 space-y-3 text-sm text-slate-600">
-                  {expectations.map((item) => (
-                    <li key={item} className="flex items-start gap-3">
-                      <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                      <span>{item}</span>
-                    </li>
+                <p className="text-sm font-semibold text-slate-900">Company references</p>
+                <div className="mt-4 flex flex-col gap-3">
+                  {references.map((item) => (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      className="text-sm font-semibold text-slate-900 transition hover:text-slate-700"
+                    >
+                      {item.label}
+                    </a>
                   ))}
-                </ul>
+                </div>
               </div>
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 <a
@@ -120,7 +97,7 @@ export default function About() {
                   className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
                 >
                   <Mail className="h-4 w-4" />
-                  Email the team
+                  hello@tryblueprint.io
                 </a>
               </div>
             </aside>
@@ -135,49 +112,13 @@ export default function About() {
             ))}
           </div>
 
-          <div className="mt-12 grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-            <section className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Operating principles
-              </p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">
-                Four rules we follow.
-              </h2>
-              <ul className="mt-6 space-y-3 text-sm leading-7 text-slate-600">
-                {principles.map((item) => (
-                  <li key={item} className="flex items-start gap-3">
-                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-
-            <section className="rounded-2xl border border-slate-200 bg-white p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Why this matters
-              </p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">
-                The goal is fewer blind deployments, not a guarantee.
-              </h2>
-              <div className="mt-6 grid gap-4 md:grid-cols-3">
-                {realityChecks.map((item) => (
-                  <article key={item.title} className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-                    <h3 className="text-lg font-semibold text-slate-900">{item.title}</h3>
-                    <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
-                  </article>
-                ))}
-              </div>
-            </section>
-          </div>
-
           <section className="mt-12 rounded-2xl bg-slate-950 p-8 sm:p-10">
             <h2 className="text-2xl font-bold text-white sm:text-3xl">
-              Start with the site your robot needs to work in.
+              Start with the site your robot actually needs to work in.
             </h2>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300">
-              That is usually enough to decide whether your team needs the site package, a hosted
-              evaluation, or a custom engagement.
+              That is usually enough to decide whether the next step is the package, the hosted
+              runtime, or a custom engagement around one facility.
             </p>
             <div className="mt-8 flex flex-col gap-4 sm:flex-row">
               <a

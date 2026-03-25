@@ -2342,49 +2342,49 @@ export const scenes: Scene[] = [
 
 export const caseStudies: CaseStudy[] = [
   {
-    title: "Kitchen articulation pack",
+    title: "Kitchen articulation lane",
     slug: "kitchen-articulation-pack",
     summary:
-      "Training manipulation policies across ovens, racks, and drawers in a fast casual kitchen network.",
-    hero: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80",
+      "Illustrative package framing for teams evaluating ovens, racks, drawers, and handoff surfaces in a kitchen lane.",
+    hero: "/illustrations/example-kitchen-lane.svg",
     body:
-      "We delivered a six-scene kitchen bundle with validated revolute and prismatic joints across ovens, reach-ins, and prep storage. The lab used our simulation QA process to author open/slide policies and transfer to in-situ hardware within two sprints.",
+      "This example is here to show how Blueprint would frame the site package, the hosted path, and the export surface for a kitchen workflow. It is not presented as a named customer result.",
     outcomes: [
-      "12x articulated assets with validated limits",
-      "90% policy success rate in sim",
-      "Two-week turnaround including feedback loop",
+      "Show the real lane before talking about automation claims",
+      "Explain what artifacts ground the buyer's own stack",
+      "Show the hosted exports without implying customer proof that is not public",
     ],
-    cta: "Request the kitchen bundle",
+    cta: "Request a similar package",
   },
   {
-    title: "Warehouse aisle with totes",
+    title: "Warehouse tote lane",
     slug: "warehouse-aisle-with-totes",
     summary:
-      "AMR bin-pick tests using Blueprint's tote lanes with calibrated pallet heights and navigation envelopes.",
-    hero: "https://images.unsplash.com/photo-OnbSOhz0oig?auto=format&fit=crop&w=1200&q=80",
+      "Illustrative hosted-review example for a warehouse lane where the buyer cares about reruns, exports, and failure review on one site.",
+    hero: "/illustrations/example-warehouse-lane.svg",
     body:
-      "A robotics integrator used our warehouse lane pack to evaluate pallet-to-tote flows. We tuned colliders for suction grippers, delivered annotation-ready packages, and validated in the Simulation QA suite before deployment.",
+      "This example is meant to make the hosted path concrete: one exact lane, one runtime question, one export bundle. It is not a named customer story.",
     outcomes: [
-      "Cut policy tuning time by 60%",
-      "Validated AMR clearances before site visit",
-      "Delivered 4 scenario variations in under 10 days",
+      "Show the setup-to-rerun-to-export loop",
+      "Keep the same facility attached to every artifact",
+      "Make the runtime question legible before travel",
     ],
-    cta: "Book a warehouse walkthrough",
+    cta: "Request a similar hosted review",
   },
   {
-    title: "Retail shelf grasp-place",
+    title: "Retail shelf grasp-place lane",
     slug: "retail-shelf-grasp-place",
     summary:
-      "Planogrammed shelves with labeled SKUs powering grasp-place evaluations for a retail robotics pilot.",
-    hero: "https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=1200&q=80",
+      "Illustrative retail example for teams that need shelf-level context, package notes, and export framing before the real site visit.",
+    hero: "/illustrations/example-retail-lane.svg",
     body:
-      "We rebuilt a flagship retail aisle with signage, price tags, and semantic IDs. Teams trained grasp-place behaviors, tuned suction compliance, and exported annotation-ready datasets.",
+      "This example shows how Blueprint would explain a retail shelf lane without pretending to publish a real customer case it cannot yet substantiate.",
     outcomes: [
-      "8x shelf variations",
-      "Product-level semantic metadata",
-      "SLAM validation with synthetic-lidar",
+      "Label the lane, the shelf logic, and the export types clearly",
+      "Show where privacy and rights would be attached",
+      "Keep the proof honest while real customer references are still private",
     ],
-    cta: "Get the retail pack",
+    cta: "Request a similar retail package",
   },
 ];
 

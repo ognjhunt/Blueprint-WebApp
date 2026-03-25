@@ -1,70 +1,62 @@
 import { SEO } from "@/components/SEO";
+import {
+  hostedEvaluationDefinition,
+  sessionHourDefinition,
+  sitePackageDefinition,
+  worldModelDefinition,
+} from "@/data/marketingDefinitions";
 
 const faqs = [
   {
     question: "What is a Blueprint world model?",
-    answer:
-      "A site-specific digital reconstruction of one real facility and workflow, built from capture collected on site. Teams use it for policy evaluation, fine-tuning, and training data generation. This is not a synthetic environment generator or a generic benchmark scene.",
+    answer: `${worldModelDefinition} It is not a generic benchmark scene or a synthetic environment generator.`,
   },
   {
-    question: "What does a buyer actually receive?",
-    answer:
-      "Each listing shows the same two paths: site package or hosted evaluation. The package gives you exact-site data for your own training pipeline — walkthrough media, site geometry, and depth artifacts. Hosted evaluation is the managed path for running evaluations, generating training data, and exporting results.",
+    question: "What does a buyer actually receive with the site package?",
+    answer: `${sitePackageDefinition} In practice that means the walkthrough media, timestamps, camera poses, intrinsics, site notes, and any available depth or geometry artifacts, plus the privacy, rights, and provenance metadata that stay attached to the listing.`,
+  },
+  {
+    question: "What is hosted evaluation?",
+    answer: `${hostedEvaluationDefinition} Teams use it when the question is about reruns, failure review, checkpoint comparison, or export generation on the exact site.`,
+  },
+  {
+    question: "What is a session-hour?",
+    answer: sessionHourDefinition,
   },
   {
     question: "Why not just use a generic sim?",
     answer:
-      "Generic sim is useful for broad pre-training and early iteration. Blueprint matters when the question depends on one exact site: the real geometry, occlusions, handoff points, and failure modes specific to that facility. Studies like MIT's RialTo found 50-200% policy improvement from training on reconstructed target environments versus generic scenes.",
-  },
-  {
-    question: "How is this priced?",
-    answer:
-      "Pricing is listing-specific because the useful output depends on the site and the access mode. The catalog shows site-package pricing and hosted-session pricing directly on each listing, and the pricing page summarizes the typical ranges.",
+      "Generic sim is useful for broad pre-training and early iteration. Blueprint matters when the question depends on one exact site: its real geometry, occlusions, handoff points, and failure modes.",
   },
   {
     question: "What formats and exports should we expect?",
     answer:
-      "The exact export set depends on the listing, but Blueprint surfaces the package notes, runtime details, and export readiness on the site page. Common outputs include walkthrough video, camera poses, rollout video, dataset exports, and raw bundles tied to the hosted session.",
+      "The exact export set depends on the listing, but the public docs and listing notes should tell you what is stable versus what varies. Common outputs include walkthrough video, timestamps, camera poses, rollout video, dataset exports, and raw run bundles tied to the hosted session.",
   },
   {
     question: "Who can see our facility data?",
     answer:
-      "Access follows the rights and privacy rules attached to the site. Blueprint keeps the access mode, usage limits, and governance context visible instead of treating every site as open by default.",
+      "Access follows the rights, privacy, and consent rules attached to the site. Blueprint keeps those controls on the listing instead of implying open access by default.",
   },
   {
     question: "How close is this to a deployment guarantee?",
     answer:
-      "It is not a deployment guarantee. The point is to ground your team on the real site sooner, cut bad assumptions earlier, and make the first real visit less blind. You still need stack-specific validation, safety review, and on-site signoff.",
+      "It is not a deployment guarantee. The point is to ground the team on the real site sooner and cut bad assumptions earlier, not to replace stack-specific validation, safety review, or on-site signoff.",
   },
   {
     question: "How fresh is the site data?",
     answer:
-      "Freshness is a property of the listing, not a hand-wavy promise. When the listing or review record has freshness metadata or a recapture state, the page shows it. If the site has changed enough that the package is stale, that should be treated as a refresh problem, not brushed aside in sales copy.",
-  },
-  {
-    question: "What happens if the site changes after capture?",
-    answer:
-      "Then the value of the package depends on how much changed and what question your team is asking. Sometimes the existing package is still useful for planning and hosted review. Sometimes it needs a refresh. Blueprint keeps the refresh state visible when that information exists.",
+      "Freshness is a property of the listing, not a vague promise. If a package is stale, that should be visible as a refresh problem instead of being hidden in sales copy.",
   },
   {
     question: "Can this work with different robots and runtimes?",
     answer:
-      "Yes. The stable layer is the capture, provenance, site package, and hosted-evaluation contract. Runtime backends can change without changing the core product.",
-  },
-  {
-    question: "What robot embodiments have been tested?",
-    answer:
-      "Each listing names a sample robot profile so buyers can judge relevance quickly. That profile is there to ground the example, not to claim exclusive support for one robot family.",
-  },
-  {
-    question: "What is a hosted session?",
-    answer:
-      "It is the managed browser path into one exact site. Teams use it to rerun the same setup, compare releases, inspect failures, and export results without passing files around first.",
+      "Yes. The stable contract is the capture truth, the rights and provenance metadata, the site package, and the hosted-session contract. The runtime backend can change without changing that buyer-facing contract.",
   },
   {
     question: "What if the exact site we care about is not in the catalog?",
     answer:
-      "The catalog is the public starting point, not the full supply of work Blueprint can support. If your team needs a specific site, use the contact path and say which facility, workflow, and robot question matter.",
+      "The public catalog is the starting point, not the full inventory. If your team needs a specific facility, use the contact path and say which site, workflow, and robot question matter.",
   },
 ];
 
@@ -73,7 +65,7 @@ export default function FAQ() {
     <>
       <SEO
         title="FAQ | Blueprint"
-        description="Answers about Blueprint world models, hosted sessions, exports, freshness, and how robot teams buy access to real site packages."
+        description="Answers about Blueprint world models, site packages, hosted evaluation, exports, freshness, and buyer trust."
         canonical="/faq"
       />
       <div className="min-h-screen bg-white">
@@ -86,8 +78,8 @@ export default function FAQ() {
               Straight answers about what Blueprint sells.
             </h1>
             <p className="mt-4 text-lg leading-relaxed text-slate-600">
-              Use this page to understand the product, the package-vs-hosted split, and what a
-              buyer should know before requesting access.
+              This page is for first-time buyers who need the package, the hosted path, and the
+              trust model explained without hand-waving.
             </p>
           </div>
 

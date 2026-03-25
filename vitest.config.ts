@@ -12,7 +12,7 @@ export default defineConfig({
     environment: 'happy-dom',
     setupFiles: './client/tests/setup.ts',
     css: true,
-    exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
+    exclude: ['e2e/**', 'node_modules/**', 'dist/**', '.claude/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -21,6 +21,7 @@ export default defineConfig({
         'e2e/**',
         'node_modules/**',
         'dist/**',
+        '.claude/**',
         'scripts/launch-preflight.mjs',
         'scripts/launch-smoke.mjs',
       ],

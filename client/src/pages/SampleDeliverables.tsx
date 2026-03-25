@@ -1,36 +1,26 @@
 import { SEO } from "@/components/SEO";
 import { ProofModule } from "@/components/site/ProofModule";
 import {
+  hostedEvaluationOutputs,
+  hostedEvaluationDefinition,
+  illustrativeLabel,
+  listingVariationItems,
+  sampleArtifactLabel,
+  sitePackageDefinition,
+  sitePackageIncludes,
+  stableContractItems,
+} from "@/data/marketingDefinitions";
+import {
   publicDemoHref,
   proofReferenceImageSrc,
   proofReelPosterSrc,
 } from "@/lib/marketingProof";
 import { ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react";
 
-const packageArtifacts = [
-  "Walkthrough video and camera poses",
-  "Site notes tied to one workflow lane",
-  "Geometry and depth artifacts when available",
-  "Rights, freshness, and provenance notes",
-];
-
-const hostedArtifacts = [
-  "Repeatable runs on the same site",
-  "Rollout video and failure review",
-  "Metrics summary and checkpoint comparison",
-  "Raw bundles and dataset exports",
-];
-
-const trustPanel = [
-  "Capture source and site scope stay attached to the listing.",
-  "Usage rights and privacy constraints stay visible before access is granted.",
-  "Freshness is treated as a listing property, not a vague promise.",
-];
-
 const sampleDecision = [
-  "A robot team opens one listing before a grocery-site deployment sprint.",
-  "They review the walkthrough, confirm the lane, and decide whether they need the package or a hosted eval loop.",
-  "If they need runtime evidence, they request hosted evaluation and inspect rollout video, metrics, failure cases, and exports before anyone books travel.",
+  "A robot team opens one listing before a customer deployment sprint.",
+  "It confirms the facility, the workflow lane, and whether the package has the evidence needed to ground its own stack.",
+  "If the team needs runtime evidence instead, it opens hosted evaluation on the same site and exports the results it needs.",
 ];
 
 export default function SampleDeliverables() {
@@ -38,7 +28,7 @@ export default function SampleDeliverables() {
     <>
       <SEO
         title="Sample Deliverables | Blueprint"
-        description="See the walkthrough, runtime reference, exported outputs, and trust details a robot team can expect from a Blueprint world-model listing."
+        description="See the package contents, hosted outputs, and trust metadata a robot team should expect from a Blueprint listing."
         canonical="/sample-deliverables"
       />
 
@@ -49,20 +39,20 @@ export default function SampleDeliverables() {
               Sample deliverables
             </p>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-              See what your team can train on, evaluate, and export.
+              What a buyer actually gets from the package and the hosted path.
             </h1>
             <p className="mt-4 text-lg leading-8 text-slate-600">
-              This page shows the package contents and hosted outputs teams use for policy
-              evaluation, fine-tuning, release comparison, and site-specific data generation.
+              This page is here to make the product concrete. It shows the shape of the evidence
+              bundle, the hosted outputs, and the trust metadata that stay attached to one listing.
             </p>
           </header>
 
           <div className="mt-10">
             <ProofModule
               eyebrow="Public proof"
-              title="One real site, with a clear path into the product."
-              description="The public sample proves the site is real. From there, a buyer can decide whether the package is enough or whether they need hosted evaluation tied to the same site."
-              caption="Public reel from the current demo listing."
+              title="Start from a real site, then inspect the buyer surface around it."
+              description="The public sample proves the site is real. From there, the buyer can decide whether it needs the full grounding bundle or the hosted runtime path on that same facility."
+              caption="Sample artifact. The reel mixes current demo assets with clearly labeled placeholder graphics."
             />
           </div>
 
@@ -70,14 +60,17 @@ export default function SampleDeliverables() {
             <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
               <img
                 src={proofReelPosterSrc}
-                alt="Public walkthrough surface from a sample Blueprint listing"
+                alt="Walkthrough reference from the public Blueprint demo"
                 className="aspect-[16/10] w-full object-cover"
               />
               <div className="p-6">
-                <h2 className="text-2xl font-semibold text-slate-900">Walkthrough surface</h2>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  {sampleArtifactLabel}
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold text-slate-900">Walkthrough surface</h2>
                 <p className="mt-3 text-sm leading-7 text-slate-600">
-                  This is the first proof layer. A buyer confirms the site, the lane, and the
-                  physical context before choosing a package or evaluation path.
+                  The walkthrough is the first proof layer. Buyers use it to confirm the facility,
+                  the lane, and the physical context before they decide how much access they need.
                 </p>
               </div>
             </article>
@@ -85,25 +78,39 @@ export default function SampleDeliverables() {
             <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
               <img
                 src={proofReferenceImageSrc}
-                alt="Runtime reference view from a sample Blueprint hosted evaluation"
+                alt="Runtime reference view from the public Blueprint demo"
                 className="aspect-[16/10] w-full object-cover"
               />
               <div className="p-6">
-                <h2 className="text-2xl font-semibold text-slate-900">Runtime reference</h2>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  {sampleArtifactLabel}
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold text-slate-900">Runtime reference</h2>
                 <p className="mt-3 text-sm leading-7 text-slate-600">
-                  This is the hosted side. It is where teams rerun the same site, compare
-                  checkpoints, and review failure cases without losing the link back to the
-                  original facility.
+                  The hosted side keeps the team on the same site. It is where reruns, checkpoint
+                  comparison, failure review, and exports happen.
                 </p>
               </div>
             </article>
           </section>
 
-          <section className="mt-10 grid gap-4 lg:grid-cols-3">
+          <section className="mt-10 grid gap-4 lg:grid-cols-2">
             <article className="rounded-2xl border border-slate-200 bg-white p-6">
-              <h2 className="text-2xl font-semibold text-slate-900">Site package</h2>
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                <img
+                  src="/illustrations/site-package-diagram.svg"
+                  alt="Illustrative site package diagram"
+                  className="aspect-[16/10] w-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                {illustrativeLabel}
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-slate-900">Site package</h2>
+              <p className="mt-3 text-sm leading-7 text-slate-600">{sitePackageDefinition}</p>
               <ul className="mt-5 space-y-3">
-                {packageArtifacts.map((item) => (
+                {sitePackageIncludes.map((item) => (
                   <li key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
                     <span>{item}</span>
@@ -113,11 +120,42 @@ export default function SampleDeliverables() {
             </article>
 
             <article className="rounded-2xl border border-slate-200 bg-white p-6">
-              <h2 className="text-2xl font-semibold text-slate-900">Hosted evaluation</h2>
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                <img
+                  src="/illustrations/export-bundle-diagram.svg"
+                  alt="Illustrative hosted export bundle diagram"
+                  className="aspect-[16/10] w-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                {sampleArtifactLabel}
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-slate-900">Hosted evaluation</h2>
+              <p className="mt-3 text-sm leading-7 text-slate-600">{hostedEvaluationDefinition}</p>
               <ul className="mt-5 space-y-3">
-                {hostedArtifacts.map((item) => (
+                {hostedEvaluationOutputs.map((item) => (
                   <li key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          </section>
+
+          <section className="mt-10 grid gap-4 lg:grid-cols-2">
+            <article className="rounded-2xl border border-slate-200 bg-white p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Stable contract
+              </p>
+              <h2 className="mt-3 text-2xl font-semibold text-slate-900">
+                What should stay stable across sites and runtime swaps
+              </h2>
+              <ul className="mt-5 space-y-3 text-sm leading-6 text-slate-700">
+                {stableContractItems.map((item) => (
+                  <li key={item} className="flex items-start gap-3">
+                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-400" />
                     <span>{item}</span>
                   </li>
                 ))}
@@ -127,10 +165,10 @@ export default function SampleDeliverables() {
             <article className="rounded-2xl border border-slate-200 bg-slate-950 p-6 text-white">
               <div className="inline-flex items-center gap-2 rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">
                 <ShieldCheck className="h-3.5 w-3.5" />
-                Trust details
+                Listing-specific variation
               </div>
               <ul className="mt-5 space-y-3">
-                {trustPanel.map((item) => (
+                {listingVariationItems.map((item) => (
                   <li key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-200">
                     <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-400" />
                     <span>{item}</span>
@@ -145,7 +183,7 @@ export default function SampleDeliverables() {
               Sample eval path
             </p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-              How a team trains and ships with this
+              How a buyer uses these surfaces in practice
             </h2>
             <div className="mt-6 grid gap-4 md:grid-cols-3">
               {sampleDecision.map((item, index) => (
@@ -157,10 +195,6 @@ export default function SampleDeliverables() {
                 </article>
               ))}
             </div>
-            <p className="mt-6 max-w-3xl text-sm leading-7 text-slate-600">
-              The point is not to replace the real visit. It is to arrive with a policy that already
-              works on the exact site, trained on real data from that facility.
-            </p>
           </section>
 
           <div className="mt-10 flex flex-col gap-3 sm:flex-row">

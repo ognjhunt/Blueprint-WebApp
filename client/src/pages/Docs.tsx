@@ -1,35 +1,35 @@
 import { SEO } from "@/components/SEO";
+import {
+  hostedEvaluationDefinition,
+  hostedEvaluationOutputs,
+  listingVariationItems,
+  sitePackageDefinition,
+  sitePackageIncludes,
+  stableContractItems,
+} from "@/data/marketingDefinitions";
 
 const sections = [
   {
-    title: "What is standardized",
+    title: "Stable contract",
     body:
-      "Across listings, buyers should expect the same basic product contract: a site package tied to one real facility, a hosted-evaluation path tied to that same site, and visible provenance, privacy, and rights metadata around both.",
+      "These are the parts of the product that should survive runtime swaps and product iteration.",
+    bullets: stableContractItems,
+  },
+  {
+    title: "Site package",
+    body: sitePackageDefinition,
+    bullets: sitePackageIncludes,
+  },
+  {
+    title: "Hosted evaluation",
+    body: hostedEvaluationDefinition,
+    bullets: hostedEvaluationOutputs,
   },
   {
     title: "What varies by listing",
     body:
-      "The exact export set, geometry depth coverage, available scenarios, supported tasks, and robot-fit details can differ from site to site. Read those details on the listing instead of assuming every site supports the same workflow.",
-  },
-  {
-    title: "Typical site-package contents",
-    body:
-      "A site package can include walkthrough media, camera poses, site notes, geometry or depth artifacts when available, plus rights and usage framing for that listing.",
-  },
-  {
-    title: "Typical hosted-evaluation outputs",
-    body:
-      "Hosted evaluation is the managed runtime path. Teams should expect reruns on one exact site, rollout evidence, comparison surfaces, and exports that stay tied to the same listing.",
-  },
-  {
-    title: "Robot compatibility framing",
-    body:
-      "Compatibility is practical, not magical. Listings call out robot assumptions, sensor expectations, and path or reach constraints when known. If fit is still unclear, hosted evaluation is the right next step.",
-  },
-  {
-    title: "Governance and freshness",
-    body:
-      "Freshness, privacy, sharing rights, and export entitlements belong on the listing. If the site changed or exports are limited, Blueprint says that directly before deeper work starts.",
+      "Not every site has the same artifacts, export surface, or robot fit. Buyers should check the listing instead of assuming every lane supports the same depth of work.",
+    bullets: listingVariationItems,
   },
 ];
 
@@ -38,7 +38,7 @@ export default function Docs() {
     <>
       <SEO
         title="Compatibility and Exports | Blueprint"
-        description="What stays standardized across Blueprint listings, what varies by site, and how buyers should think about compatibility, exports, privacy, and freshness."
+        description="The stable Blueprint product contract, the site package structure, the hosted evaluation path, and the listing details that can vary."
         canonical="/docs"
       />
       <div className="min-h-screen bg-white">
@@ -48,12 +48,12 @@ export default function Docs() {
               Compatibility and exports
             </p>
             <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Practical answers about formats, compatibility, and what a listing can actually support.
+              What stays stable, what the package contains, and what can vary by site.
             </h1>
             <p className="mt-4 text-lg leading-relaxed text-slate-600">
               This page is for technical buyers. It separates the stable product contract from the
-              listing-specific details so your team knows what can be assumed early and what needs
-              to be confirmed on a site-by-site basis.
+              listing-specific details so your team can tell what is safe to assume and what should
+              be checked on the exact site.
             </p>
           </div>
 
@@ -65,6 +65,14 @@ export default function Docs() {
               >
                 <h2 className="text-2xl font-semibold text-slate-900">{section.title}</h2>
                 <p className="mt-3 text-sm leading-7 text-slate-600">{section.body}</p>
+                <ul className="mt-5 space-y-3 text-sm leading-6 text-slate-700">
+                  {section.bullets.map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-400" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
               </section>
             ))}
           </div>

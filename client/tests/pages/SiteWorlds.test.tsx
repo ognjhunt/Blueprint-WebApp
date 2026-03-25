@@ -8,19 +8,19 @@ describe("SiteWorlds", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Browse exact sites your team can use before deployment\./i,
+        name: /Train on exact sites your team needs before deployment\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Each world model is built from real indoor capture and tied to one site and one workflow\./i,
+        /site-specific digital environment built from real capture of one facility and one workflow lane/i,
       ),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /Choose how you want access\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Common reasons robot teams use world models\./i }),
+      screen.getByRole("heading", { name: /Common reasons robot teams buy this surface\./i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Buy the site package/i)).toBeInTheDocument();
     expect(screen.getByText(/Request a hosted evaluation/i)).toBeInTheDocument();

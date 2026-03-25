@@ -8,10 +8,10 @@ describe("Pricing", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Three ways to buy in\./i,
+        name: /Start with the package or the hosted runtime\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/You can start with a short brief/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/session-hour is one hour of self-serve hosted runtime/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/\$2,100 - \$3,400/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/\$16 - \$29/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: /Request hosted evaluation/i })).toHaveAttribute(

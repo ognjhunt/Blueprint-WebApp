@@ -652,30 +652,32 @@ function buildPackages(config: PackageConfig): [SiteWorldPackage, SiteWorldPacka
   return [
     {
       name: "Site Package",
-      summary: "License the site-specific world-model package for this exact workflow area.",
+      summary:
+        "License the full grounding bundle for this exact workflow area when your team wants to run or generate its own world model stack.",
       priceLabel: config.scenePrice,
       payerLabel: "Robot team",
       actionLabel: "Request site package",
       actionHref: buildContactHref("data-licensing", config),
       deliverables: [
-        "Walkthrough video and camera poses",
-        "Site metadata and workflow notes",
-        "Geometry / depth if available",
-        "License for internal review or integration",
+        "Walkthrough video, timestamps, and camera poses",
+        "Site metadata, workflow notes, and provenance",
+        "Geometry / depth artifacts when available from source capture",
+        "Package manifest plus rights and privacy terms",
       ],
       emphasis: "recommended",
     },
     {
       name: "Hosted Evaluation",
-      summary: "Request a Blueprint-managed runtime session for this exact site.",
+      summary:
+        "Request a Blueprint-managed runtime session for this exact site when your team wants reruns, review, and exports without moving the package first.",
       priceLabel: config.hostedRate,
       payerLabel: "Robot team",
       actionLabel: "Request hosted evaluation",
       actionHref: buildContactHref("evaluation-package", config),
       deliverables: [
-        "Streamed world-model runtime",
+        "Streamed world-model runtime on one exact site",
         "Reset, rerun, and scenario changes",
-        "Rollout exports and RLDS dataset",
+        "Rollout exports, datasets, and raw bundles",
         "Policy comparison on the same site",
       ],
     },

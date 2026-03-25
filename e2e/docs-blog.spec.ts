@@ -5,7 +5,7 @@ test("docs page is publicly reachable", async ({ page }) => {
 
   await expect(
     page.getByRole("heading", {
-      name: /Technical notes for world-model packages and hosted access\./i,
+      name: /What stays stable, what the package contains, and what can vary by site\./i,
     }),
   ).toBeVisible();
 });
@@ -15,7 +15,7 @@ test("blog page is publicly reachable", async ({ page }) => {
 
   await expect(
     page.getByRole("heading", {
-      name: /Product notes from the world-model side of Blueprint\./i,
+      name: /Notes on how Blueprint is being packaged\./i,
     }),
   ).toBeVisible();
 });

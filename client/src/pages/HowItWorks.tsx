@@ -115,10 +115,19 @@ export default function HowItWorks() {
                 Policies trained on exact sites consistently outperform generic simulation.
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-relaxed text-slate-600">
-                MIT's RialTo showed 50-200% policy improvement when training on reconstructed
-                target environments. SGFT and similar sim-to-real work found the same pattern.
-                Blueprint starts from one real customer site and adds controlled variation
-                around it.
+                Blueprint starts from one real customer site and adds controlled variation around
+                it. Research like{" "}
+                <a
+                  href="https://arxiv.org/abs/2308.14711"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-slate-900 underline decoration-slate-300 underline-offset-4"
+                >
+                  MIT's RialTo
+                </a>{" "}
+                helps explain why that matters: training on reconstructed target environments tends
+                to beat training on generic scenes when the deployment question depends on one exact
+                facility.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <a
