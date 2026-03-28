@@ -3,7 +3,7 @@
   "githubOwner": "ognjhunt",
   "enableGitRepoScanning": true,
   "enableGithubPolling": true,
-  "enableOutboundNotifications": false,
+  "enableOutboundNotifications": true,
   "repoCatalog": [
     {
       "key": "webapp",
@@ -29,5 +29,29 @@
       "implementationAgent": "capture-codex",
       "reviewAgent": "capture-claude"
     }
-  ]
+  ],
+  "opsDepartment": {
+    "enabled": true,
+    "agents": {
+      "opsLead": "ops-lead",
+      "intake": "intake-agent",
+      "captureQa": "capture-qa-agent",
+      "fieldOps": "field-ops-agent",
+      "financeSupport": "finance-support-agent"
+    }
+  },
+  "growthDepartment": {
+    "enabled": true,
+    "agents": {
+      "growthLead": "growth-lead",
+      "conversionOptimizer": "conversion-agent",
+      "analytics": "analytics-agent",
+      "marketIntel": "market-intel-agent"
+    }
+  },
+  "secrets": {
+    "notionApiToken": "NOTION_API_TOKEN",
+    "slackOpsWebhookUrl": "SLACK_OPS_WEBHOOK_URL",
+    "slackGrowthWebhookUrl": "SLACK_GROWTH_WEBHOOK_URL"
+  }
 }
