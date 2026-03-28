@@ -2,9 +2,19 @@
 set -euo pipefail
 
 WORKSPACE_ROOT="/Users/nijelhunt_1/workspace"
+PAPERCLIP_ENV_FILE="${PAPERCLIP_ENV_FILE:-$WORKSPACE_ROOT/.paperclip-blueprint.env}"
+
+if [ -f "$PAPERCLIP_ENV_FILE" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$PAPERCLIP_ENV_FILE"
+  set +a
+fi
+
 PAPERCLIP_DIR="${PAPERCLIP_DIR:-$WORKSPACE_ROOT/paperclip}"
 PAPERCLIP_HOME="${PAPERCLIP_HOME:-$WORKSPACE_ROOT/.paperclip-blueprint}"
 PACKAGE_DIR="${PACKAGE_DIR:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company}"
+PLUGIN_CONFIGURE_SCRIPT="${PLUGIN_CONFIGURE_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/configure-blueprint-paperclip-plugin.sh}"
 PAPERCLIP_HOST="${PAPERCLIP_HOST:-127.0.0.1}"
 PAPERCLIP_PORT="${PAPERCLIP_PORT:-3100}"
 PAPERCLIP_PUBLIC_URL="${PAPERCLIP_PUBLIC_URL:-http://${PAPERCLIP_HOST}:${PAPERCLIP_PORT}}"
@@ -162,11 +172,28 @@ find_company_id() {
     | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const match=rows.find((row)=>row.name===process.argv[1]);process.stdout.write(match?match.id:"");});' "$COMPANY_NAME"
 }
 
+company_has_required_refresh_marker() {
+  local company_id="$1"
+  curl -fsS "${PAPERCLIP_PUBLIC_URL}/api/companies/${company_id}/routines" \
+    | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const exists=rows.some((row)=>row.title==="CTO Cross-Repo Triage");process.stdout.write(exists?"yes":"no");});'
+}
+
 import_company() {
   local company_id
   company_id="$(find_company_id)"
   if [ -n "$company_id" ]; then
-    echo "Paperclip company already exists: $company_id"
+    if [ "$(company_has_required_refresh_marker "$company_id")" = "yes" ]; then
+      echo "Paperclip company already up to date: $company_id"
+      return
+    fi
+    paperclip_cli company import "$PACKAGE_DIR" \
+      --data-dir "$PAPERCLIP_HOME" \
+      --target existing \
+      --company-id "$company_id" \
+      --yes \
+      --json \
+      >"$IMPORT_LOG"
+    echo "Updated Blueprint company: $company_id"
     return
   fi
   paperclip_cli company import "$PACKAGE_DIR" \
@@ -188,6 +215,7 @@ main() {
   ensure_prereqs
   start_paperclip
   import_company
+  "$PLUGIN_CONFIGURE_SCRIPT"
   echo "Paperclip is running at ${PAPERCLIP_PUBLIC_URL}"
 }
 

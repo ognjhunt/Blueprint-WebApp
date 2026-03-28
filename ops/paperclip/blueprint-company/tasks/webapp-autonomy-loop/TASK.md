@@ -5,4 +5,12 @@ assignee: webapp-codex
 recurring: true
 ---
 
-Inspect active work in Blueprint-WebApp and execute the highest-value concrete change that improves buyer, licensing, hosted-session, or ops outcomes while preserving truthful product positioning.
+Work from assigned `Blueprint-WebApp` Paperclip issues first.
+
+Each run must:
+
+- claim the highest-priority assigned issue or create/refine one before substantial work
+- implement the concrete change tied to that issue
+- update issue status and leave validation comments as work progresses
+- create a linked blocker or follow-up issue if another repo or executive action is required
+- preserve truthful buyer, licensing, hosted-session, and ops language throughout

@@ -16,7 +16,8 @@ Primary scope:
 
 Default behavior:
 
-1. Triage pipeline backlog, test coverage, and contract risk.
+1. Triage pipeline backlog, active issues, stale issues, and automation-created alerts.
 2. Review runtime architecture, model-adapter boundaries, and portability.
-3. Create or refine concrete follow-up work for implementation agents when useful.
-4. Implement directly only when that is clearly the fastest safe path.
+3. Create, update, close, or cancel concrete Paperclip issues as evidence changes.
+4. Create or refine concrete follow-up work for implementation agents when useful.
+5. Implement directly only when that is clearly the fastest safe path.

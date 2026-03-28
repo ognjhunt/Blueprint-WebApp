@@ -1,0 +1,225 @@
+# Blueprint Paperclip Automation
+
+## What This Adds
+
+Blueprint now has three layers working together inside Paperclip:
+
+1. A stronger company package with explicit executive and repo-specialist issue-management behavior.
+2. A Blueprint-specific plugin at `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/plugins/blueprint-automation`.
+3. Bootstrap, configure, verify, and smoke scripts that provision the plugin, secret refs, and automation checks on a persistent trusted host.
+
+The automation loop is deliberately grounded in real repo state and truthful product doctrine:
+
+- repo drift comes from actual local workspaces attached to Paperclip projects
+- CI failures come from real webhook or polling signals
+- issue creation, dedupe, blocker follow-up, and resolution happen as actual Paperclip issues
+- executive routines are instructed to manage issue lifecycle explicitly rather than narrate status
+
+## Architecture
+
+### Company package
+
+- `ceo-daily-review` is the executive prioritization loop.
+- `cto-cross-repo-triage` is the cross-repo technical orchestration loop.
+- Repo implementation and review loops are instructed to work from actual Paperclip issues, create blocker follow-up issues, and close or reprioritize issues explicitly.
+- `blueprint-executive-ops` is the cross-repo / operator project for executive and blocker work.
+
+### Blueprint plugin
+
+The plugin key is `blueprint.automation`.
+
+It provides:
+
+- scheduled repo scans via the `repo-scan` job
+- GitHub workflow and review webhook intake
+- generic CI webhook intake
+- generic operator-intake webhook suitable for Slack workflow or email-forward integrations
+- deduped issue upsert and resolution
+- linked blocker follow-up issue creation
+- a dashboard page and widget for watch-only operators
+- agent tools for CEO/CTO loops:
+  - `blueprint-scan-work`
+  - `blueprint-upsert-work-item`
+  - `blueprint-report-blocker`
+  - `blueprint-resolve-work-item`
+
+### Storage and traceability
+
+- Webhook deliveries are stored by Paperclip in `plugin_webhook_deliveries`.
+- Source-to-issue mappings are stored by the plugin as `source-mapping` plugin entities, keyed by stable fingerprints like `github-workflow:webapp:Build:main`.
+- Recent automation activity and latest scan summaries are stored in company-scoped plugin state.
+
+### Focused Paperclip core patch
+
+`/Users/nijelhunt_1/workspace/paperclip/server/src/services/plugin-host-services.ts` now makes plugin-originated issue create/update flows behave more like the normal issue routes:
+
+- plugin-created or plugin-reassigned issues wake the assignee
+- plugin issue updates sync routine run status when they close or move routine-backed work
+
+Without that patch, the Blueprint plugin could create issues but leave Paperclip’s execution loop partially disconnected.
+
+## Secrets and Config
+
+### Shared env file
+
+Use a single host-local env file:
+
+- `/Users/nijelhunt_1/workspace/.paperclip-blueprint.env`
+
+Start from:
+
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-paperclip.env.example`
+
+The bootstrap, configure, verify, smoke, and LaunchAgent flows all read that file when present.
+
+### Supported env values
+
+- `PAPERCLIP_PUBLIC_URL`
+- `COMPANY_NAME`
+- `BLUEPRINT_PAPERCLIP_GITHUB_OWNER`
+- `BLUEPRINT_PAPERCLIP_GITHUB_TOKEN`
+- `BLUEPRINT_PAPERCLIP_GITHUB_WEBHOOK_SECRET`
+- `BLUEPRINT_PAPERCLIP_CI_SHARED_SECRET`
+- `BLUEPRINT_PAPERCLIP_INTAKE_SHARED_SECRET`
+
+### How secrets are handled
+
+- Bootstrap/configure reads the env file.
+- If a secret value is present, `configure-blueprint-paperclip-plugin.sh` creates or rotates a Paperclip company secret.
+- The plugin config stores only the Paperclip secret UUID reference, not the plaintext secret.
+- The plugin resolves the secret at execution time via `ctx.secrets.resolve(...)`.
+
+This is materially better than relying on random shell state, while still fitting Paperclip’s current self-hosted architecture.
+
+## Commands
+
+Bootstrap the whole stack:
+
+```bash
+/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/bootstrap-blueprint-paperclip.sh
+```
+
+Reconfigure only the plugin and secret refs:
+
+```bash
+/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/configure-blueprint-paperclip-plugin.sh
+```
+
+Verify adapters, routines, plugin readiness, and dashboard reachability:
+
+```bash
+/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/verify-blueprint-paperclip.sh
+```
+
+Run the end-to-end automation smoke:
+
+```bash
+/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/verify-blueprint-paperclip.sh --smoke
+```
+
+Or directly:
+
+```bash
+/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/smoke-blueprint-paperclip-automation.sh
+```
+
+Install the recurring macOS bootstrap agent:
+
+```bash
+/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/install-blueprint-paperclip-launchagent.sh
+```
+
+## Webhook Wiring
+
+All plugin webhooks resolve through:
+
+- `${PAPERCLIP_PUBLIC_URL}/api/plugins/blueprint.automation/webhooks/<endpoint>`
+
+Endpoints:
+
+- `github`
+- `ci`
+- `intake`
+
+### GitHub
+
+Use the `github` endpoint for:
+
+- `workflow_run`
+- `pull_request_review`
+
+If `BLUEPRINT_PAPERCLIP_GITHUB_WEBHOOK_SECRET` is configured, the plugin verifies `X-Hub-Signature-256`.
+
+### Generic CI
+
+Use the `ci` endpoint for any CI system that can POST JSON with:
+
+- `sourceType`
+- `sourceId`
+- `projectName`
+- `assignee`
+- `title`
+- `description`
+- optional `status`, `priority`, `signalUrl`
+
+If `BLUEPRINT_PAPERCLIP_CI_SHARED_SECRET` is configured, send it as:
+
+- `Authorization: Bearer <secret>`
+
+### Operator intake
+
+Use the `intake` endpoint for normalized external signals such as:
+
+- Slack workflow webhooks
+- email-forward automations
+- internal ops relay services
+
+Payloads can:
+
+- upsert work
+- resolve work
+- create blocker follow-up issues
+
+If `BLUEPRINT_PAPERCLIP_INTAKE_SHARED_SECRET` is configured, send it as:
+
+- `Authorization: Bearer <secret>`
+
+## Watch-Only Runbook
+
+If you mostly want to watch updates:
+
+1. Keep the trusted Paperclip host running with the LaunchAgent or another process supervisor.
+2. Open the Blueprint automation page or dashboard widget in Paperclip.
+3. Watch:
+   - recent ingress
+   - open automation issues
+   - repo scan summary
+4. Intervene only when:
+   - a blocker issue escalates to executive ops
+   - a secret or webhook path is broken
+   - the automation dashboard shows repeated scan errors
+
+The intended operator posture is to inspect the queue and recent activity, not manually create most tasks.
+
+## Current Limits And Honest Blockers
+
+These limits still come from Paperclip upstream architecture, not from the Blueprint layer:
+
+- practical deployment remains self-hosted, persistent-filesystem, single-node oriented
+- dynamic plugin installation is not cloud-ready for horizontally scaled multi-instance deployments
+- plugin UI is trusted same-origin code, not a frontend sandbox boundary
+- true multi-user cloud productization is still limited by Paperclip’s broader roadmap
+- direct Slack Events API style challenge/response handling is not implemented here because the current plugin webhook contract returns a generic acknowledgement, not a provider-specific response body
+
+Because of that, the best deployable story right now is:
+
+- one persistent trusted host running Paperclip
+- optional network exposure or Tailscale access from other operator machines
+- local-path Blueprint plugin install from the checked-out repo
+- centralized env file plus Paperclip company secrets on that host
+
+One additional portability quirk showed up during validation:
+
+- re-applying a company package onto an already-existing Paperclip company can duplicate routines, projects, and agents rather than merging cleanly
+
+The bootstrap script now avoids repeated re-import once the new CTO routine marker exists, but if a host already accumulated duplicates from older imports, manual cleanup inside Paperclip is still required.

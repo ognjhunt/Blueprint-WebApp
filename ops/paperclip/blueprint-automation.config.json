@@ -1,0 +1,32 @@
+{
+  "companyName": "Blueprint Autonomous Operations",
+  "githubOwner": "ognjhunt",
+  "enableGitRepoScanning": true,
+  "enableGithubPolling": true,
+  "repoCatalog": [
+    {
+      "key": "webapp",
+      "projectName": "blueprint-webapp",
+      "githubRepo": "Blueprint-WebApp",
+      "defaultBranch": "main",
+      "implementationAgent": "webapp-codex",
+      "reviewAgent": "webapp-claude"
+    },
+    {
+      "key": "pipeline",
+      "projectName": "blueprint-capture-pipeline",
+      "githubRepo": "BlueprintCapturePipeline",
+      "defaultBranch": "main",
+      "implementationAgent": "pipeline-codex",
+      "reviewAgent": "pipeline-claude"
+    },
+    {
+      "key": "capture",
+      "projectName": "blueprint-capture",
+      "githubRepo": "BlueprintCapture",
+      "defaultBranch": "main",
+      "implementationAgent": "capture-codex",
+      "reviewAgent": "capture-claude"
+    }
+  ]
+}

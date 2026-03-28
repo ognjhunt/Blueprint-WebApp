@@ -1,0 +1,1369 @@
+import { promisify } from "node:util";
+import { execFile } from "node:child_process";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import {
+  definePlugin,
+  runWorker,
+  type Agent,
+  type Company,
+  type Issue,
+  type PaperclipPlugin,
+  type PluginContext,
+  type PluginEntityRecord,
+  type PluginHealthDiagnostics,
+  type PluginJobContext,
+  type PluginWorkspace,
+  type ToolResult,
+  type ToolRunContext,
+  type PluginWebhookInput,
+} from "@paperclipai/plugin-sdk";
+import {
+  ACTION_KEYS,
+  DATA_KEYS,
+  DEFAULT_COMPANY_NAME,
+  DEFAULT_REPO_CATALOG,
+  JOB_KEYS,
+  ORIGIN_KIND,
+  PLUGIN_ID,
+  TOOL_NAMES,
+  WEBHOOK_KEYS,
+} from "./constants.js";
+
+const execFileAsync = promisify(execFile);
+const ENTITY_TYPES = {
+  sourceMapping: "source-mapping",
+} as const;
+const STATE_KEYS = {
+  lastScan: "last-scan",
+  recentEvents: "recent-events",
+  health: "health",
+} as const;
+
+type RepoConfig = {
+  key: string;
+  projectName: string;
+  githubRepo: string;
+  defaultBranch: string;
+  implementationAgent: string;
+  reviewAgent: string;
+};
+
+type BlueprintAutomationConfig = {
+  companyName?: string;
+  githubOwner?: string;
+  githubTokenRef?: string;
+  githubWebhookSecretRef?: string;
+  ciSharedSecretRef?: string;
+  intakeSharedSecretRef?: string;
+  enableGitRepoScanning?: boolean;
+  enableGithubPolling?: boolean;
+  repoCatalog?: RepoConfig[];
+};
+
+type SourceMappingData = {
+  fingerprint: string;
+  issueId: string;
+  sourceType: string;
+  sourceId: string;
+  projectName: string;
+  assignee: string;
+  signalUrl?: string;
+  hits: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  resolutionStatus?: string | null;
+  metadata?: Record<string, unknown>;
+};
+
+type RecentEvent = {
+  id: string;
+  kind: string;
+  title: string;
+  fingerprint?: string;
+  issueId?: string;
+  createdAt: string;
+  detail?: string;
+};
+
+type GitRepoScanSummary = {
+  repoKey: string;
+  projectName: string;
+  branch: string;
+  changedFiles: number;
+  untrackedFiles: number;
+  ahead: number;
+  behind: number;
+};
+
+type DashboardData = {
+  companyId: string;
+  companyName: string;
+  pluginId: string;
+  lastScan: Record<string, unknown> | null;
+  recentEvents: RecentEvent[];
+  openManagedIssues: Array<{
+    id: string;
+    title: string;
+    status: string;
+    priority: string;
+    assigneeAgentId: string | null;
+    updatedAt: string;
+  }>;
+  sourceMappings: Array<{
+    externalId: string | null;
+    title: string | null;
+    status: string | null;
+    issueId: string | null;
+    hits: number;
+    lastSeenAt: string | null;
+  }>;
+};
+
+type UpsertManagedIssueInput = {
+  companyId: string;
+  sourceType: string;
+  sourceId: string;
+  title: string;
+  description: string;
+  projectName: string;
+  assignee: string;
+  priority?: "critical" | "high" | "medium" | "low";
+  status?: "backlog" | "todo" | "in_progress" | "in_review" | "blocked" | "done" | "cancelled";
+  parentIssueId?: string;
+  signalUrl?: string;
+  metadata?: Record<string, unknown>;
+  comment?: string;
+};
+
+type ResolveManagedIssueInput = {
+  companyId: string;
+  sourceType: string;
+  sourceId: string;
+  resolutionStatus: "done" | "cancelled";
+  comment: string;
+};
+
+let currentContext: PluginContext | null = null;
+
+function asString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function asBoolean(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function normalizeConfig(rawConfig: Record<string, unknown>): BlueprintAutomationConfig {
+  return {
+    companyName: asString(rawConfig.companyName) ?? DEFAULT_COMPANY_NAME,
+    githubOwner: asString(rawConfig.githubOwner) ?? "ognjhunt",
+    githubTokenRef: asString(rawConfig.githubTokenRef),
+    githubWebhookSecretRef: asString(rawConfig.githubWebhookSecretRef),
+    ciSharedSecretRef: asString(rawConfig.ciSharedSecretRef),
+    intakeSharedSecretRef: asString(rawConfig.intakeSharedSecretRef),
+    enableGitRepoScanning: asBoolean(rawConfig.enableGitRepoScanning, true),
+    enableGithubPolling: asBoolean(rawConfig.enableGithubPolling, true),
+    repoCatalog: Array.isArray(rawConfig.repoCatalog) && rawConfig.repoCatalog.length > 0
+      ? rawConfig.repoCatalog.filter((entry): entry is RepoConfig => {
+        if (!entry || typeof entry !== "object") return false;
+        const record = entry as Record<string, unknown>;
+        return Boolean(
+          asString(record.key) &&
+          asString(record.projectName) &&
+          asString(record.githubRepo) &&
+          asString(record.defaultBranch) &&
+          asString(record.implementationAgent) &&
+          asString(record.reviewAgent),
+        );
+      }).map((entry) => ({
+        key: entry.key,
+        projectName: entry.projectName,
+        githubRepo: entry.githubRepo,
+        defaultBranch: entry.defaultBranch,
+        implementationAgent: entry.implementationAgent,
+        reviewAgent: entry.reviewAgent,
+      }))
+      : [...DEFAULT_REPO_CATALOG],
+  };
+}
+
+function normalizedCandidates(entity: Record<string, unknown>): string[] {
+  const codebase = entity.codebase && typeof entity.codebase === "object"
+    ? entity.codebase as Record<string, unknown>
+    : null;
+  return [
+    entity.id,
+    entity.name,
+    entity.title,
+    entity.slug,
+    entity.key,
+    entity.urlKey,
+    entity.identifier,
+    codebase?.repoName,
+  ]
+    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    .map((value) => value.trim().toLowerCase());
+}
+
+async function getConfig(ctx: PluginContext): Promise<BlueprintAutomationConfig> {
+  return normalizeConfig(await ctx.config.get());
+}
+
+async function findCompany(ctx: PluginContext, companyName?: string): Promise<Company> {
+  const companies = await ctx.companies.list({ limit: 100, offset: 0 });
+  const target = (companyName ?? DEFAULT_COMPANY_NAME).trim().toLowerCase();
+  const company = companies.find((entry) => {
+    const record = entry as unknown as Record<string, unknown>;
+    return normalizedCandidates(record).includes(target);
+  });
+  if (!company) {
+    throw new Error(`Blueprint company not found: ${companyName ?? DEFAULT_COMPANY_NAME}`);
+  }
+  return company;
+}
+
+async function listProjects(ctx: PluginContext, companyId: string) {
+  return await ctx.projects.list({ companyId, limit: 200, offset: 0 });
+}
+
+async function listAgents(ctx: PluginContext, companyId: string) {
+  return await ctx.agents.list({ companyId, limit: 200, offset: 0 });
+}
+
+async function resolveProject(ctx: PluginContext, companyId: string, projectName: string) {
+  const projects = await listProjects(ctx, companyId);
+  const target = projectName.trim().toLowerCase();
+  const project = projects.find((entry) =>
+    normalizedCandidates(entry as unknown as Record<string, unknown>).includes(target),
+  );
+  if (!project) {
+    throw new Error(`Project not found for Blueprint automation: ${projectName}`);
+  }
+  return project;
+}
+
+async function resolveAgent(ctx: PluginContext, companyId: string, agentName: string) {
+  const agents = await listAgents(ctx, companyId);
+  const target = agentName.trim().toLowerCase();
+  const agent = agents.find((entry) =>
+    normalizedCandidates(entry as unknown as Record<string, unknown>).includes(target),
+  );
+  if (!agent) {
+    throw new Error(`Agent not found for Blueprint automation: ${agentName}`);
+  }
+  return agent;
+}
+
+function makeFingerprint(sourceType: string, sourceId: string) {
+  return `${sourceType.trim()}:${sourceId.trim()}`;
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function normalizeIssueStatus(value: unknown, fallback: UpsertManagedIssueInput["status"] = "todo") {
+  const next = asString(value);
+  if (!next) return fallback;
+  if (["backlog", "todo", "in_progress", "in_review", "blocked", "done", "cancelled"].includes(next)) {
+    return next as UpsertManagedIssueInput["status"];
+  }
+  return fallback;
+}
+
+function normalizeIssuePriority(value: unknown, fallback: UpsertManagedIssueInput["priority"] = "medium") {
+  const next = asString(value);
+  if (!next) return fallback;
+  if (["critical", "high", "medium", "low"].includes(next)) {
+    return next as UpsertManagedIssueInput["priority"];
+  }
+  return fallback;
+}
+
+async function readState<T>(ctx: PluginContext, companyId: string, stateKey: string): Promise<T | null> {
+  return await ctx.state.get({
+    scopeKind: "company",
+    scopeId: companyId,
+    namespace: "blueprint-automation",
+    stateKey,
+  }) as T | null;
+}
+
+async function writeState(ctx: PluginContext, companyId: string, stateKey: string, value: unknown) {
+  await ctx.state.set(
+    {
+      scopeKind: "company",
+      scopeId: companyId,
+      namespace: "blueprint-automation",
+      stateKey,
+    },
+    value,
+  );
+}
+
+async function appendRecentEvent(ctx: PluginContext, companyId: string, event: Omit<RecentEvent, "id" | "createdAt">) {
+  const existing = await readState<RecentEvent[]>(ctx, companyId, STATE_KEYS.recentEvents);
+  const next: RecentEvent = {
+    id: randomUUID(),
+    createdAt: nowIso(),
+    ...event,
+  };
+  const recentEvents = [next, ...(existing ?? [])].slice(0, 30);
+  await writeState(ctx, companyId, STATE_KEYS.recentEvents, recentEvents);
+}
+
+async function writeHealth(ctx: PluginContext, companyId: string, status: PluginHealthDiagnostics["status"], message: string) {
+  await writeState(ctx, companyId, STATE_KEYS.health, {
+    status,
+    message,
+    updatedAt: nowIso(),
+  });
+}
+
+async function getMapping(
+  ctx: PluginContext,
+  companyId: string,
+  fingerprint: string,
+): Promise<PluginEntityRecord | null> {
+  const rows = await ctx.entities.list({
+    entityType: ENTITY_TYPES.sourceMapping,
+    scopeKind: "company",
+    scopeId: companyId,
+    externalId: fingerprint,
+    limit: 1,
+    offset: 0,
+  });
+  return rows[0] ?? null;
+}
+
+async function upsertMapping(
+  ctx: PluginContext,
+  companyId: string,
+  fingerprint: string,
+  title: string,
+  status: string,
+  data: SourceMappingData,
+) {
+  return await ctx.entities.upsert({
+    entityType: ENTITY_TYPES.sourceMapping,
+    scopeKind: "company",
+    scopeId: companyId,
+    externalId: fingerprint,
+    title,
+    status,
+    data,
+  });
+}
+
+async function getManagedIssue(ctx: PluginContext, companyId: string, fingerprint: string) {
+  const mapping = await getMapping(ctx, companyId, fingerprint);
+  if (!mapping) return { mapping: null, issue: null };
+  const data = (mapping.data ?? {}) as Partial<SourceMappingData>;
+  const issueId = typeof data.issueId === "string" ? data.issueId : null;
+  const issue = issueId ? await ctx.issues.get(issueId, companyId) : null;
+  return { mapping, issue };
+}
+
+function makeTraceBlock(input: UpsertManagedIssueInput) {
+  const lines = [
+    "## Automation Trace",
+    `- Source type: ${input.sourceType}`,
+    `- Source id: ${input.sourceId}`,
+    `- Project: ${input.projectName}`,
+    `- Assignee: ${input.assignee}`,
+  ];
+  if (input.signalUrl) {
+    lines.push(`- URL: ${input.signalUrl}`);
+  }
+  return `${input.description}\n\n${lines.join("\n")}`;
+}
+
+function makeUpdateComment(input: UpsertManagedIssueInput, hits: number) {
+  const lines = [
+    "Automation refresh",
+    `- Fingerprint: ${makeFingerprint(input.sourceType, input.sourceId)}`,
+    `- Seen count: ${hits}`,
+    `- Updated at: ${nowIso()}`,
+  ];
+  if (input.signalUrl) {
+    lines.push(`- URL: ${input.signalUrl}`);
+  }
+  if (input.comment) {
+    lines.push("", input.comment);
+  }
+  return lines.join("\n");
+}
+
+async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueInput) {
+  const fingerprint = makeFingerprint(input.sourceType, input.sourceId);
+  const project = await resolveProject(ctx, input.companyId, input.projectName);
+  const assignee = await resolveAgent(ctx, input.companyId, input.assignee);
+  const { mapping, issue } = await getManagedIssue(ctx, input.companyId, fingerprint);
+  const existingData = (mapping?.data ?? {}) as Partial<SourceMappingData>;
+  const hits = (existingData.hits ?? 0) + 1;
+  const desiredStatus = normalizeIssueStatus(input.status, "todo");
+  const desiredPriority = normalizeIssuePriority(input.priority, "medium");
+  let currentIssue = issue;
+
+  if (currentIssue) {
+    const nextStatus =
+      currentIssue.status === "done" || currentIssue.status === "cancelled"
+        ? desiredStatus
+        : desiredStatus === "todo"
+          ? currentIssue.status
+          : desiredStatus;
+
+    const updatedIssue = await (ctx.issues.update as any)(
+      currentIssue.id,
+      {
+        title: input.title,
+        description: makeTraceBlock(input),
+        status: nextStatus,
+        priority: desiredPriority,
+        assigneeAgentId: assignee.id,
+      },
+      input.companyId,
+    );
+    currentIssue = updatedIssue;
+    if (!updatedIssue) {
+      throw new Error(`Failed to update managed issue for ${fingerprint}`);
+    }
+    await ctx.issues.createComment(updatedIssue.id, makeUpdateComment(input, hits), input.companyId);
+  } else {
+    const createdIssue = await (ctx.issues.create as any)({
+      companyId: input.companyId,
+      projectId: project.id,
+      parentId: input.parentIssueId,
+      title: input.title,
+      description: makeTraceBlock(input),
+      status: desiredStatus,
+      priority: desiredPriority,
+      assigneeAgentId: assignee.id,
+      originKind: ORIGIN_KIND,
+      originId: fingerprint,
+    });
+    currentIssue = createdIssue;
+    await ctx.issues.createComment(
+      createdIssue.id,
+      makeUpdateComment(input, hits),
+      input.companyId,
+    );
+  }
+
+  if (!currentIssue) {
+    throw new Error(`Failed to create or update managed issue for ${fingerprint}`);
+  }
+
+  await upsertMapping(ctx, input.companyId, fingerprint, input.title, currentIssue.status, {
+    fingerprint,
+    issueId: currentIssue.id,
+    sourceType: input.sourceType,
+    sourceId: input.sourceId,
+    projectName: input.projectName,
+    assignee: input.assignee,
+    signalUrl: input.signalUrl,
+    hits,
+    firstSeenAt: existingData.firstSeenAt ?? nowIso(),
+    lastSeenAt: nowIso(),
+    resolutionStatus: null,
+    metadata: input.metadata,
+  });
+
+  await appendRecentEvent(ctx, input.companyId, {
+    kind: "issue-upserted",
+    title: input.title,
+    fingerprint,
+    issueId: currentIssue.id,
+    detail: `${input.projectName} -> ${input.assignee}`,
+  });
+
+  await ctx.activity.log({
+    companyId: input.companyId,
+    message: "blueprint.automation.issue_upserted",
+    entityType: "issue",
+    entityId: currentIssue.id,
+    metadata: {
+      fingerprint,
+      sourceType: input.sourceType,
+      sourceId: input.sourceId,
+      projectName: input.projectName,
+      assignee: input.assignee,
+      hits,
+    },
+  });
+
+  return { fingerprint, issue: currentIssue, hits };
+}
+
+async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssueInput) {
+  const fingerprint = makeFingerprint(input.sourceType, input.sourceId);
+  const { mapping, issue } = await getManagedIssue(ctx, input.companyId, fingerprint);
+  if (!mapping || !issue) {
+    return { fingerprint, issue: null };
+  }
+
+  const updatedIssue =
+    issue.status === input.resolutionStatus
+      ? issue
+      : await ctx.issues.update(
+        issue.id,
+        { status: input.resolutionStatus },
+        input.companyId,
+      );
+
+  await ctx.issues.createComment(updatedIssue.id, input.comment, input.companyId);
+
+  const existingData = (mapping.data ?? {}) as Partial<SourceMappingData>;
+  await upsertMapping(ctx, input.companyId, fingerprint, mapping.title ?? updatedIssue.title, input.resolutionStatus, {
+    fingerprint,
+    issueId: updatedIssue.id,
+    sourceType: existingData.sourceType ?? input.sourceType,
+    sourceId: existingData.sourceId ?? input.sourceId,
+    projectName: existingData.projectName ?? "unknown",
+    assignee: existingData.assignee ?? "unknown",
+    signalUrl: existingData.signalUrl,
+    hits: existingData.hits ?? 1,
+    firstSeenAt: existingData.firstSeenAt ?? nowIso(),
+    lastSeenAt: nowIso(),
+    resolutionStatus: input.resolutionStatus,
+    metadata: existingData.metadata,
+  });
+
+  await appendRecentEvent(ctx, input.companyId, {
+    kind: "issue-resolved",
+    title: updatedIssue.title,
+    fingerprint,
+    issueId: updatedIssue.id,
+    detail: input.comment,
+  });
+
+  return { fingerprint, issue: updatedIssue };
+}
+
+async function createFollowUpIssue(
+  ctx: PluginContext,
+  companyId: string,
+  input: {
+    parentIssueId: string;
+    title: string;
+    description: string;
+    projectName: string;
+    assignee: string;
+    priority?: string;
+  },
+) {
+  const project = await resolveProject(ctx, companyId, input.projectName);
+  const assignee = await resolveAgent(ctx, companyId, input.assignee);
+  const followUp = await (ctx.issues.create as any)({
+    companyId,
+    projectId: project.id,
+    parentId: input.parentIssueId,
+    title: input.title,
+    description: `${input.description}\n\n## Blocker Trace\n- Parent issue: ${input.parentIssueId}`,
+    priority: normalizeIssuePriority(input.priority, "high"),
+    assigneeAgentId: assignee.id,
+    status: "todo",
+    originKind: ORIGIN_KIND,
+    originId: `blocker:${input.parentIssueId}:${input.projectName}:${input.title}`,
+  });
+  await ctx.issues.createComment(
+    input.parentIssueId,
+    `Created follow-up blocker issue ${followUp.id}: ${followUp.title}`,
+    companyId,
+  );
+  await appendRecentEvent(ctx, companyId, {
+    kind: "blocker-follow-up",
+    title: input.title,
+    issueId: followUp.id,
+    detail: `Parent issue ${input.parentIssueId}`,
+  });
+  return followUp;
+}
+
+async function getPrimaryWorkspaceForRepo(
+  ctx: PluginContext,
+  companyId: string,
+  repoConfig: RepoConfig,
+): Promise<{ projectId: string; workspace: PluginWorkspace }> {
+  const project = await resolveProject(ctx, companyId, repoConfig.projectName);
+  const workspace = await ctx.projects.getPrimaryWorkspace(project.id, companyId);
+  if (!workspace) {
+    throw new Error(`Primary workspace not found for project ${repoConfig.projectName}`);
+  }
+  return { projectId: project.id, workspace };
+}
+
+function parseGitStatus(output: string) {
+  const lines = output.split("\n").filter(Boolean);
+  const branchLine = lines[0] ?? "";
+  const branch = branchLine.replace(/^##\s*/, "").split("...")[0] ?? "unknown";
+  const changedEntries = lines.slice(1);
+  const untrackedFiles = changedEntries.filter((line) => line.startsWith("??")).length;
+  const aheadMatch = branchLine.match(/ahead (\d+)/);
+  const behindMatch = branchLine.match(/behind (\d+)/);
+  return {
+    branch,
+    changedFiles: changedEntries.length,
+    untrackedFiles,
+    ahead: aheadMatch ? Number(aheadMatch[1]) : 0,
+    behind: behindMatch ? Number(behindMatch[1]) : 0,
+  };
+}
+
+async function scanRepoWorkspace(workspacePath: string) {
+  const result = await execFileAsync("git", ["status", "--porcelain=v1", "--branch"], {
+    cwd: workspacePath,
+  });
+  return parseGitStatus(result.stdout);
+}
+
+async function scanRepoDrift(ctx: PluginContext, companyId: string, repoConfig: RepoConfig) {
+  const { workspace } = await getPrimaryWorkspaceForRepo(ctx, companyId, repoConfig);
+  const status = await scanRepoWorkspace(workspace.path);
+
+  if (status.changedFiles > 0) {
+    await upsertManagedIssue(ctx, {
+      companyId,
+      sourceType: "repo-dirty",
+      sourceId: repoConfig.key,
+      title: `${repoConfig.projectName} local worktree drift`,
+      description:
+        `The shared ${repoConfig.projectName} workspace currently has ${status.changedFiles} local changes (${status.untrackedFiles} untracked). ` +
+        `This needs triage so repo specialists are not working off ambiguous local state.`,
+      projectName: repoConfig.projectName,
+      assignee: repoConfig.implementationAgent,
+      priority: "medium",
+      status: "todo",
+      metadata: status,
+    });
+  } else {
+    await resolveManagedIssue(ctx, {
+      companyId,
+      sourceType: "repo-dirty",
+      sourceId: repoConfig.key,
+      resolutionStatus: "done",
+      comment: `Repo scan cleared the local worktree drift condition at ${nowIso()}.`,
+    });
+  }
+
+  const branchDrift = status.branch !== repoConfig.defaultBranch || status.ahead > 0 || status.behind > 0;
+  if (branchDrift) {
+    await upsertManagedIssue(ctx, {
+      companyId,
+      sourceType: "repo-branch-drift",
+      sourceId: repoConfig.key,
+      title: `${repoConfig.projectName} branch drift`,
+      description:
+        `The primary workspace for ${repoConfig.projectName} is on branch ${status.branch} with ahead=${status.ahead} and behind=${status.behind}. ` +
+        `This needs review before autonomous execution can be trusted on this host.`,
+      projectName: repoConfig.projectName,
+      assignee: repoConfig.reviewAgent,
+      priority: "high",
+      status: "todo",
+      metadata: status,
+    });
+  } else {
+    await resolveManagedIssue(ctx, {
+      companyId,
+      sourceType: "repo-branch-drift",
+      sourceId: repoConfig.key,
+      resolutionStatus: "done",
+      comment: `Repo scan cleared the branch drift condition at ${nowIso()}.`,
+    });
+  }
+
+  return {
+    repoKey: repoConfig.key,
+    projectName: repoConfig.projectName,
+    ...status,
+  } satisfies GitRepoScanSummary;
+}
+
+async function fetchJson(ctx: PluginContext, url: string, token?: string) {
+  const headers: Record<string, string> = {
+    "User-Agent": "Blueprint-Paperclip-Automation/0.1",
+    Accept: "application/vnd.github+json",
+  };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  const response = await ctx.http.fetch(url, { headers });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} from ${url}: ${text.slice(0, 200)}`);
+  }
+  return text.length > 0 ? JSON.parse(text) as Record<string, unknown> : {};
+}
+
+async function syncGithubWorkflowRun(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  companyId: string,
+  repoConfig: RepoConfig,
+  workflowRun: Record<string, unknown>,
+) {
+  const workflowName = asString(workflowRun.name) ?? "workflow";
+  const branch = asString(workflowRun.head_branch) ?? repoConfig.defaultBranch;
+  const runId = String(workflowRun.id ?? `${workflowName}:${branch}`);
+  const htmlUrl = asString(workflowRun.html_url);
+  const conclusion = asString(workflowRun.conclusion) ?? asString(workflowRun.status) ?? "unknown";
+  const sourceId = `${repoConfig.key}:${workflowName}:${branch}`;
+
+  if (["success", "neutral", "skipped"].includes(conclusion)) {
+    await resolveManagedIssue(ctx, {
+      companyId,
+      sourceType: "github-workflow",
+      sourceId,
+      resolutionStatus: "done",
+      comment: `GitHub workflow ${workflowName} recovered on branch ${branch} via run ${runId}.`,
+    });
+    return;
+  }
+
+  if (!["failure", "cancelled", "timed_out", "action_required", "startup_failure"].includes(conclusion)) {
+    return;
+  }
+
+  await upsertManagedIssue(ctx, {
+    companyId,
+    sourceType: "github-workflow",
+    sourceId,
+    title: `${repoConfig.projectName} CI failure: ${workflowName}`,
+    description:
+      `GitHub Actions reported ${conclusion} for ${workflowName} on branch ${branch}. This should stay tracked in Paperclip until a succeeding run clears it.`,
+    projectName: repoConfig.projectName,
+    assignee: repoConfig.implementationAgent,
+    priority: "high",
+    status: "todo",
+    signalUrl: htmlUrl,
+    metadata: {
+      runId,
+      workflowName,
+      branch,
+      conclusion,
+      githubOwner: config.githubOwner,
+      githubRepo: repoConfig.githubRepo,
+    },
+    comment: `Latest failing run: ${runId}`,
+  });
+}
+
+async function pollGithubWorkflows(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  companyId: string,
+) {
+  if (!config.enableGithubPolling || !config.githubTokenRef || !config.githubOwner) {
+    return { polled: 0 };
+  }
+
+  const token = await ctx.secrets.resolve(config.githubTokenRef);
+  let polled = 0;
+
+  for (const repoConfig of config.repoCatalog ?? DEFAULT_REPO_CATALOG) {
+    const response = await fetchJson(
+      ctx,
+      `https://api.github.com/repos/${config.githubOwner}/${repoConfig.githubRepo}/actions/runs?per_page=3`,
+      token,
+    );
+    const workflowRuns = Array.isArray(response.workflow_runs)
+      ? response.workflow_runs.filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === "object")
+      : [];
+    if (workflowRuns[0]) {
+      await syncGithubWorkflowRun(ctx, config, companyId, repoConfig, workflowRuns[0]);
+      polled += 1;
+    }
+  }
+
+  return { polled };
+}
+
+async function runFullRepoScan(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+  reason: string,
+) {
+  const repoSummaries: GitRepoScanSummary[] = [];
+  const errors: string[] = [];
+
+  if (config.enableGitRepoScanning) {
+    for (const repoConfig of config.repoCatalog ?? DEFAULT_REPO_CATALOG) {
+      try {
+        repoSummaries.push(await scanRepoDrift(ctx, companyId, repoConfig));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        errors.push(`${repoConfig.projectName}: ${message}`);
+        await upsertManagedIssue(ctx, {
+          companyId,
+          sourceType: "repo-scan-error",
+          sourceId: repoConfig.key,
+          title: `${repoConfig.projectName} repo scan error`,
+          description: `Blueprint automation could not scan ${repoConfig.projectName}: ${message}`,
+          projectName: repoConfig.projectName,
+          assignee: repoConfig.reviewAgent,
+          priority: "high",
+          status: "todo",
+          metadata: { reason },
+        });
+      }
+    }
+  }
+
+  const githubSummary = await pollGithubWorkflows(ctx, config, companyId);
+  const summary = {
+    reason,
+    scannedAt: nowIso(),
+    repoSummaries,
+    githubSummary,
+    errors,
+  };
+  await writeState(ctx, companyId, STATE_KEYS.lastScan, summary);
+  await appendRecentEvent(ctx, companyId, {
+    kind: "repo-scan",
+    title: "Blueprint automation repo scan completed",
+    detail: `Scanned ${repoSummaries.length} repos, polled ${githubSummary.polled} workflow feeds`,
+  });
+  await writeHealth(ctx, companyId, errors.length > 0 ? "degraded" : "ok", "Repo scan completed");
+  return summary;
+}
+
+function parseBearerSecret(headers: Record<string, string | string[]>) {
+  const authorization = headers.authorization;
+  if (typeof authorization === "string" && authorization.toLowerCase().startsWith("bearer ")) {
+    return authorization.slice(7).trim();
+  }
+  const direct = headers["x-blueprint-shared-secret"];
+  if (typeof direct === "string") return direct.trim();
+  return null;
+}
+
+async function assertSharedSecret(
+  ctx: PluginContext,
+  secretRef: string | undefined,
+  headers: Record<string, string | string[]>,
+) {
+  if (!secretRef) {
+    return;
+  }
+  const provided = parseBearerSecret(headers);
+  const expected = await ctx.secrets.resolve(secretRef);
+  if (!provided || provided !== expected) {
+    throw new Error("Shared webhook secret validation failed");
+  }
+}
+
+async function assertGithubSignature(
+  ctx: PluginContext,
+  secretRef: string | undefined,
+  rawBody: string,
+  headers: Record<string, string | string[]>,
+) {
+  if (!secretRef) {
+    return;
+  }
+  const signatureHeader = headers["x-hub-signature-256"];
+  if (typeof signatureHeader !== "string" || !signatureHeader.startsWith("sha256=")) {
+    throw new Error("Missing GitHub webhook signature");
+  }
+  const secret = await ctx.secrets.resolve(secretRef);
+  const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
+  const actual = signatureHeader.slice("sha256=".length);
+  const expectedBuffer = Buffer.from(expected, "hex");
+  const actualBuffer = Buffer.from(actual, "hex");
+  if (expectedBuffer.length !== actualBuffer.length || !timingSafeEqual(expectedBuffer, actualBuffer)) {
+    throw new Error("GitHub webhook signature mismatch");
+  }
+}
+
+async function handleGithubWebhook(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  companyId: string,
+  input: PluginWebhookInput,
+) {
+  await assertGithubSignature(ctx, config.githubWebhookSecretRef, input.rawBody, input.headers);
+  const event = asString(input.headers["x-github-event"]) ?? "unknown";
+  const payload = (input.parsedBody ?? {}) as Record<string, unknown>;
+  const repoName = asString((payload.repository as Record<string, unknown> | undefined)?.name) ?? "";
+  const repoConfig = (config.repoCatalog ?? DEFAULT_REPO_CATALOG).find((entry) => entry.githubRepo === repoName);
+
+  if (!repoConfig) {
+    await appendRecentEvent(ctx, companyId, {
+      kind: "github-ignored",
+      title: `Ignored GitHub event for ${repoName || "unknown repo"}`,
+      detail: `No repo mapping for event ${event}`,
+    });
+    return { ignored: true, event, repoName };
+  }
+
+  if (event === "workflow_run" && payload.workflow_run && typeof payload.workflow_run === "object") {
+    await syncGithubWorkflowRun(ctx, config, companyId, repoConfig, payload.workflow_run as Record<string, unknown>);
+    return { handled: true, event, repoName };
+  }
+
+  if (event === "pull_request_review" && payload.review && typeof payload.review === "object") {
+    const review = payload.review as Record<string, unknown>;
+    const pr = (payload.pull_request ?? {}) as Record<string, unknown>;
+    const reviewState = asString(review.state) ?? "unknown";
+    const reviewUrl = asString(review.html_url) ?? asString(pr.html_url);
+    const prNumber = String(pr.number ?? payload.number ?? "unknown");
+    if (reviewState === "changes_requested") {
+      await upsertManagedIssue(ctx, {
+        companyId,
+        sourceType: "github-review",
+        sourceId: `${repoConfig.key}:${prNumber}`,
+        title: `${repoConfig.projectName} review changes requested on PR #${prNumber}`,
+        description:
+          `GitHub review feedback requested changes on PR #${prNumber}. The assigned review specialist should convert that feedback into concrete Paperclip work and verify the fix.`,
+        projectName: repoConfig.projectName,
+        assignee: repoConfig.reviewAgent,
+        priority: "high",
+        status: "todo",
+        signalUrl: reviewUrl,
+        metadata: {
+          prNumber,
+          reviewState,
+        },
+      });
+      return { handled: true, event, repoName };
+    }
+
+    if (reviewState === "approved") {
+      await resolveManagedIssue(ctx, {
+        companyId,
+        sourceType: "github-review",
+        sourceId: `${repoConfig.key}:${prNumber}`,
+        resolutionStatus: "done",
+        comment: `GitHub review approved PR #${prNumber}; closing the review-change issue.`,
+      });
+      return { handled: true, event, repoName };
+    }
+  }
+
+  await appendRecentEvent(ctx, companyId, {
+    kind: "github-unhandled",
+    title: `Unhandled GitHub event ${event}`,
+    detail: repoConfig.projectName,
+  });
+  return { handled: false, event, repoName };
+}
+
+async function handleGenericCiWebhook(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  companyId: string,
+  input: PluginWebhookInput,
+) {
+  await assertSharedSecret(ctx, config.ciSharedSecretRef, input.headers);
+  const payload = (input.parsedBody ?? {}) as Record<string, unknown>;
+  const sourceType = asString(payload.sourceType) ?? "generic-ci";
+  const sourceId = asString(payload.sourceId) ?? asString(payload.externalId) ?? randomUUID();
+  const state = asString(payload.state) ?? asString(payload.status) ?? "failure";
+  const projectName = asString(payload.projectName) ?? asString(payload.repoName);
+  const assignee = asString(payload.assignee);
+  if (!projectName || !assignee) {
+    throw new Error("Generic CI payload requires projectName and assignee");
+  }
+
+  if (["success", "passed", "resolved"].includes(state)) {
+    return await resolveManagedIssue(ctx, {
+      companyId,
+      sourceType,
+      sourceId,
+      resolutionStatus: "done",
+      comment: asString(payload.comment) ?? `Generic CI signal ${sourceId} resolved successfully.`,
+    });
+  }
+
+  return await upsertManagedIssue(ctx, {
+    companyId,
+    sourceType,
+    sourceId,
+    title: asString(payload.title) ?? `${projectName} CI issue`,
+    description: asString(payload.description) ?? `${projectName} reported a CI issue through the generic webhook path.`,
+    projectName,
+    assignee,
+    priority: normalizeIssuePriority(payload.priority, "high"),
+    status: normalizeIssueStatus(payload.status, "todo"),
+    signalUrl: asString(payload.signalUrl),
+    metadata: payload,
+  });
+}
+
+async function handleOperatorIntakeWebhook(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  companyId: string,
+  input: PluginWebhookInput,
+) {
+  await assertSharedSecret(ctx, config.intakeSharedSecretRef, input.headers);
+  const payload = (input.parsedBody ?? {}) as Record<string, unknown>;
+  const action = asString(payload.action) ?? "upsert";
+
+  if (action === "resolve") {
+    return await resolveManagedIssue(ctx, {
+      companyId,
+      sourceType: asString(payload.sourceType) ?? "operator-signal",
+      sourceId: asString(payload.sourceId) ?? "unknown",
+      resolutionStatus: asString(payload.resolutionStatus) === "cancelled" ? "cancelled" : "done",
+      comment: asString(payload.comment) ?? "Operator intake resolved the work item.",
+    });
+  }
+
+  if (action === "blocker") {
+    return await createFollowUpIssue(ctx, companyId, {
+      parentIssueId: asString(payload.parentIssueId) ?? "",
+      title: asString(payload.title) ?? "Blueprint blocker",
+      description: asString(payload.description) ?? "A blocker was reported through the operator intake path.",
+      projectName: asString(payload.projectName) ?? "",
+      assignee: asString(payload.assignee) ?? "",
+      priority: asString(payload.priority) ?? "high",
+    });
+  }
+
+  return await upsertManagedIssue(ctx, {
+    companyId,
+    sourceType: asString(payload.sourceType) ?? "operator-signal",
+    sourceId: asString(payload.sourceId) ?? randomUUID(),
+    title: asString(payload.title) ?? "Blueprint operator signal",
+    description:
+      asString(payload.description) ??
+      "A normalized operator signal arrived through the intake webhook. This path is suitable for Slack workflow or email-forward integrations.",
+    projectName: asString(payload.projectName) ?? "",
+    assignee: asString(payload.assignee) ?? "",
+    priority: normalizeIssuePriority(payload.priority, "medium"),
+    status: normalizeIssueStatus(payload.status, "todo"),
+    parentIssueId: asString(payload.parentIssueId),
+    signalUrl: asString(payload.signalUrl),
+    metadata: payload,
+  });
+}
+
+async function getDashboardData(ctx: PluginContext, companyId: string): Promise<DashboardData> {
+  const company = await ctx.companies.get(companyId);
+  if (!company) {
+    throw new Error(`Company not found: ${companyId}`);
+  }
+  const recentEvents = await readState<RecentEvent[]>(ctx, companyId, STATE_KEYS.recentEvents) ?? [];
+  const lastScan = await readState<Record<string, unknown>>(ctx, companyId, STATE_KEYS.lastScan);
+  const sourceMappings = await ctx.entities.list({
+    entityType: ENTITY_TYPES.sourceMapping,
+    scopeKind: "company",
+    scopeId: companyId,
+    limit: 100,
+    offset: 0,
+  });
+  const openManagedIssues = (
+    await Promise.all(
+      sourceMappings.map(async (mapping) => {
+        const data = (mapping.data ?? {}) as Partial<SourceMappingData>;
+        return typeof data.issueId === "string"
+          ? await ctx.issues.get(data.issueId, companyId)
+          : null;
+      }),
+    )
+  ).filter((issue): issue is Issue => !!issue);
+
+  return {
+    companyId,
+    companyName: (company as unknown as Record<string, unknown>).name as string,
+    pluginId: PLUGIN_ID,
+    lastScan,
+    recentEvents,
+    openManagedIssues: openManagedIssues.map((issue) => ({
+      id: issue.id,
+      title: issue.title,
+      status: issue.status,
+      priority: issue.priority,
+      assigneeAgentId: issue.assigneeAgentId,
+      updatedAt: issue.updatedAt instanceof Date ? issue.updatedAt.toISOString() : String(issue.updatedAt),
+    })),
+    sourceMappings: sourceMappings.map((mapping) => {
+      const data = (mapping.data ?? {}) as Partial<SourceMappingData>;
+      return {
+        externalId: mapping.externalId,
+        title: mapping.title,
+        status: mapping.status,
+        issueId: typeof data.issueId === "string" ? data.issueId : null,
+        hits: typeof data.hits === "number" ? data.hits : 0,
+        lastSeenAt: typeof data.lastSeenAt === "string" ? data.lastSeenAt : null,
+      };
+    }),
+  };
+}
+
+async function registerDataHandlers(ctx: PluginContext) {
+  ctx.data.register(DATA_KEYS.dashboard, async (params) => {
+    const config = await getConfig(ctx);
+    const companyId =
+      asString(params.companyId) ??
+      (await findCompany(ctx, asString(params.companyName) ?? config.companyName)).id;
+    return await getDashboardData(ctx, companyId);
+  });
+}
+
+async function registerActionHandlers(ctx: PluginContext) {
+  ctx.actions.register(ACTION_KEYS.scanNow, async (params) => {
+    const config = await getConfig(ctx);
+    const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
+    return await runFullRepoScan(ctx, company.id, config, "manual-action");
+  });
+
+  ctx.actions.register(ACTION_KEYS.simulateSignal, async (params) => {
+    const config = await getConfig(ctx);
+    const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
+    return await upsertManagedIssue(ctx, {
+      companyId: company.id,
+      sourceType: asString(params.sourceType) ?? "manual-signal",
+      sourceId: asString(params.sourceId) ?? randomUUID(),
+      title: asString(params.title) ?? "Blueprint simulated signal",
+      description: asString(params.description) ?? "Smoke-test signal injected through the Blueprint automation plugin.",
+      projectName: asString(params.projectName) ?? DEFAULT_REPO_CATALOG[0].projectName,
+      assignee: asString(params.assignee) ?? DEFAULT_REPO_CATALOG[0].implementationAgent,
+      priority: normalizeIssuePriority(params.priority, "medium"),
+      status: normalizeIssueStatus(params.status, "todo"),
+      signalUrl: asString(params.signalUrl),
+      comment: asString(params.comment),
+    });
+  });
+
+  ctx.actions.register(ACTION_KEYS.reportBlocker, async (params) => {
+    const config = await getConfig(ctx);
+    const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
+    return await createFollowUpIssue(ctx, company.id, {
+      parentIssueId: asString(params.parentIssueId) ?? "",
+      title: asString(params.title) ?? "Blueprint blocker",
+      description: asString(params.description) ?? "A blocker follow-up was created by Blueprint automation.",
+      projectName: asString(params.projectName) ?? DEFAULT_REPO_CATALOG[0].projectName,
+      assignee: asString(params.assignee) ?? DEFAULT_REPO_CATALOG[0].reviewAgent,
+      priority: asString(params.priority) ?? "high",
+    });
+  });
+
+  ctx.actions.register(ACTION_KEYS.resolveWorkItem, async (params) => {
+    const config = await getConfig(ctx);
+    const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
+    return await resolveManagedIssue(ctx, {
+      companyId: company.id,
+      sourceType: asString(params.sourceType) ?? "manual-signal",
+      sourceId: asString(params.sourceId) ?? "",
+      resolutionStatus: asString(params.resolutionStatus) === "cancelled" ? "cancelled" : "done",
+      comment: asString(params.comment) ?? "Resolved by Blueprint automation action.",
+    });
+  });
+}
+
+async function registerToolHandlers(ctx: PluginContext) {
+  ctx.tools.register(
+    TOOL_NAMES.scanWork,
+    {
+      displayName: "Blueprint Scan Work",
+      description: "Scan Blueprint repos and GitHub workflow state, then create or update Paperclip issues.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          companyName: { type: "string" },
+          applyChanges: { type: "boolean" },
+        },
+      },
+    },
+    async (params, runContext: ToolRunContext): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, asString((params as Record<string, unknown>).companyName) ?? config.companyName);
+      const summary = await runFullRepoScan(ctx, company.id, config, `agent-tool:${runContext.agentId}`);
+      return {
+        content: `Scanned ${summary.repoSummaries.length} Blueprint repos and polled ${summary.githubSummary.polled} GitHub workflow feeds.`,
+        data: summary,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.upsertWorkItem,
+    {
+      displayName: "Blueprint Upsert Work Item",
+      description: "Create or update a deduped Blueprint Paperclip issue.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          sourceType: { type: "string" },
+          sourceId: { type: "string" },
+          title: { type: "string" },
+          description: { type: "string" },
+          projectName: { type: "string" },
+          assignee: { type: "string" },
+          priority: { type: "string" },
+          status: { type: "string" },
+          parentIssueId: { type: "string" },
+          signalUrl: { type: "string" },
+        },
+        required: ["sourceType", "sourceId", "title", "description", "projectName", "assignee"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      const result = await upsertManagedIssue(ctx, {
+        companyId: company.id,
+        sourceType: asString((params as Record<string, unknown>).sourceType) ?? "manual-signal",
+        sourceId: asString((params as Record<string, unknown>).sourceId) ?? randomUUID(),
+        title: asString((params as Record<string, unknown>).title) ?? "Blueprint work item",
+        description: asString((params as Record<string, unknown>).description) ?? "Blueprint automation created this work item.",
+        projectName: asString((params as Record<string, unknown>).projectName) ?? DEFAULT_REPO_CATALOG[0].projectName,
+        assignee: asString((params as Record<string, unknown>).assignee) ?? DEFAULT_REPO_CATALOG[0].implementationAgent,
+        priority: normalizeIssuePriority((params as Record<string, unknown>).priority, "medium"),
+        status: normalizeIssueStatus((params as Record<string, unknown>).status, "todo"),
+        parentIssueId: asString((params as Record<string, unknown>).parentIssueId),
+        signalUrl: asString((params as Record<string, unknown>).signalUrl),
+      });
+      return {
+        content: `Upserted ${result.issue.title} as Paperclip issue ${result.issue.id}.`,
+        data: result,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.reportBlocker,
+    {
+      displayName: "Blueprint Report Blocker",
+      description: "Create a follow-up blocker issue linked to an existing Paperclip issue.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          parentIssueId: { type: "string" },
+          title: { type: "string" },
+          description: { type: "string" },
+          projectName: { type: "string" },
+          assignee: { type: "string" },
+          priority: { type: "string" },
+        },
+        required: ["parentIssueId", "title", "description", "projectName", "assignee"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      const followUp = await createFollowUpIssue(ctx, company.id, {
+        parentIssueId: asString((params as Record<string, unknown>).parentIssueId) ?? "",
+        title: asString((params as Record<string, unknown>).title) ?? "Blueprint blocker",
+        description: asString((params as Record<string, unknown>).description) ?? "A blocker was reported.",
+        projectName: asString((params as Record<string, unknown>).projectName) ?? DEFAULT_REPO_CATALOG[0].projectName,
+        assignee: asString((params as Record<string, unknown>).assignee) ?? DEFAULT_REPO_CATALOG[0].reviewAgent,
+        priority: asString((params as Record<string, unknown>).priority) ?? "high",
+      });
+      return {
+        content: `Created blocker follow-up issue ${followUp.id}.`,
+        data: followUp,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.resolveWorkItem,
+    {
+      displayName: "Blueprint Resolve Work Item",
+      description: "Resolve a deduped Blueprint automation issue with an explicit trace comment.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          sourceType: { type: "string" },
+          sourceId: { type: "string" },
+          resolutionStatus: { type: "string" },
+          comment: { type: "string" },
+        },
+        required: ["sourceType", "sourceId", "resolutionStatus", "comment"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      const result = await resolveManagedIssue(ctx, {
+        companyId: company.id,
+        sourceType: asString((params as Record<string, unknown>).sourceType) ?? "manual-signal",
+        sourceId: asString((params as Record<string, unknown>).sourceId) ?? "",
+        resolutionStatus:
+          asString((params as Record<string, unknown>).resolutionStatus) === "cancelled"
+            ? "cancelled"
+            : "done",
+        comment: asString((params as Record<string, unknown>).comment) ?? "Resolved by Blueprint automation tool.",
+      });
+      return {
+        content: result.issue ? `Resolved issue ${result.issue.id}.` : "No matching issue found for that source fingerprint.",
+        data: result,
+      };
+    },
+  );
+}
+
+async function runRepoScanJob(ctx: PluginContext, _job: PluginJobContext) {
+  const config = await getConfig(ctx);
+  const company = await findCompany(ctx, config.companyName);
+  await runFullRepoScan(ctx, company.id, config, JOB_KEYS.repoScan);
+}
+
+async function handleWebhook(ctx: PluginContext, input: PluginWebhookInput) {
+  const config = await getConfig(ctx);
+  const payload = (input.parsedBody ?? {}) as Record<string, unknown>;
+  const company = await findCompany(ctx, asString(payload.companyName) ?? config.companyName);
+  await writeHealth(ctx, company.id, "ok", `Webhook ${input.endpointKey} received`);
+
+  if (input.endpointKey === WEBHOOK_KEYS.github) {
+    return await handleGithubWebhook(ctx, config, company.id, input);
+  }
+  if (input.endpointKey === WEBHOOK_KEYS.ci) {
+    return await handleGenericCiWebhook(ctx, config, company.id, input);
+  }
+  if (input.endpointKey === WEBHOOK_KEYS.intake) {
+    return await handleOperatorIntakeWebhook(ctx, config, company.id, input);
+  }
+  throw new Error(`Unsupported Blueprint webhook endpoint: ${input.endpointKey}`);
+}
+
+const plugin: PaperclipPlugin = definePlugin({
+  async setup(ctx) {
+    currentContext = ctx;
+    await registerDataHandlers(ctx);
+    await registerActionHandlers(ctx);
+    await registerToolHandlers(ctx);
+    ctx.jobs.register(JOB_KEYS.repoScan, async (job) => {
+      await runRepoScanJob(ctx, job);
+    });
+  },
+
+  async onHealth(): Promise<PluginHealthDiagnostics> {
+    if (!currentContext) {
+      return { status: "degraded", message: "Blueprint automation worker has not initialized its context yet." };
+    }
+    try {
+      const config = await getConfig(currentContext);
+      const company = await findCompany(currentContext, config.companyName);
+      const health = await readState<Record<string, unknown>>(currentContext, company.id, STATE_KEYS.health);
+      return {
+        status: (health?.status as PluginHealthDiagnostics["status"]) ?? "ok",
+        message: asString(health?.message) ?? "Blueprint automation is ready.",
+        details: {
+          companyId: company.id,
+          updatedAt: health?.updatedAt ?? null,
+        },
+      };
+    } catch (error) {
+      return {
+        status: "error",
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  },
+
+  async onWebhook(input) {
+    if (!currentContext) {
+      throw new Error("Blueprint automation context is not initialized");
+    }
+    await handleWebhook(currentContext, input);
+  },
+});
+
+export default plugin;
+
+runWorker(plugin, import.meta.url);

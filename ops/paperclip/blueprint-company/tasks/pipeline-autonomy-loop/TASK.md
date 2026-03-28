@@ -5,4 +5,12 @@ assignee: pipeline-codex
 recurring: true
 ---
 
-Inspect active work in BlueprintCapturePipeline and execute the highest-value concrete change that improves packaging quality, hosted runtime behavior, or adapter portability.
+Work from assigned `BlueprintCapturePipeline` Paperclip issues first.
+
+Each run must:
+
+- claim the highest-priority assigned issue or create/refine one before substantial work
+- implement the concrete pipeline change tied to that issue
+- update issue status and leave validation comments as work progresses
+- create a linked blocker or follow-up issue if another repo or executive action is required
+- keep packaging quality, hosted runtime behavior, and adapter portability grounded in real contracts

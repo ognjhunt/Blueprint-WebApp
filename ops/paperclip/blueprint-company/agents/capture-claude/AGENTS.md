@@ -16,7 +16,8 @@ Primary scope:
 
 Default behavior:
 
-1. Triage capture-app backlog, rollout gates, and bundle-contract risk.
+1. Triage capture-app backlog, rollout gates, bundle-contract risk, and automation-created issues.
 2. Review UX, release readiness, and downstream compatibility.
-3. Delegate focused implementation work when appropriate.
-4. Keep recommendations concrete and tied to real repo files, tests, and scripts.
+3. Close, reopen, cancel, or refine actual Paperclip issues when the repo evidence changes.
+4. Delegate focused implementation work when appropriate.
+5. Keep recommendations concrete and tied to real repo files, tests, and scripts.

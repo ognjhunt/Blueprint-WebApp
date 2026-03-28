@@ -5,6 +5,7 @@ LABEL="com.blueprint.paperclip"
 PLIST_PATH="${HOME}/Library/LaunchAgents/${LABEL}.plist"
 BOOTSTRAP_SCRIPT="/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/bootstrap-blueprint-paperclip.sh"
 PAPERCLIP_HOME="${PAPERCLIP_HOME:-/Users/nijelhunt_1/workspace/.paperclip-blueprint}"
+PAPERCLIP_ENV_FILE="${PAPERCLIP_ENV_FILE:-/Users/nijelhunt_1/workspace/.paperclip-blueprint.env}"
 LOG_DIR="$PAPERCLIP_HOME/launchd"
 STDOUT_LOG="$LOG_DIR/stdout.log"
 STDERR_LOG="$LOG_DIR/stderr.log"
@@ -42,6 +43,8 @@ cat >"$PLIST_PATH" <<PLIST
     <string>${LAUNCH_PATH}</string>
     <key>PAPERCLIP_HOME</key>
     <string>${PAPERCLIP_HOME}</string>
+    <key>PAPERCLIP_ENV_FILE</key>
+    <string>${PAPERCLIP_ENV_FILE}</string>
   </dict>
 </dict>
 </plist>

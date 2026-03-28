@@ -10,4 +10,5 @@ Focus on:
 
 - contract alignment
 - validation surfaces
-- which specialists should own which repo areas
+- which specialists should own which repo areas through assigned Paperclip issues
+- how executive, cross-repo, and blocker issues should link to repo implementation issues

@@ -106,6 +106,27 @@ agents:
         dangerouslySkipPermissions: true
     budgetMonthlyCents: 3000
 projects:
+  blueprint-executive-ops:
+    status: active
+    color: yellow
+    executionWorkspacePolicy:
+      enabled: true
+      defaultMode: shared_workspace
+      allowIssueOverride: true
+      defaultProjectWorkspaceKey: blueprint-executive-ops
+      workspaceStrategy:
+        type: project_primary
+    workspaces:
+      blueprint-executive-ops:
+        name: Blueprint Executive Ops
+        sourceType: git_repo
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        repoUrl: https://github.com/ognjhunt/Blueprint-WebApp.git
+        repoRef: main
+        defaultRef: main
+        visibility: advanced
+        setupCommand: npm install
+        isPrimary: true
   blueprint-webapp:
     status: active
     color: blue
@@ -172,12 +193,16 @@ tasks:
   ceo-bootstrap:
     status: todo
     priority: high
-    projectWorkspaceKey: blueprint-webapp
+    projectWorkspaceKey: blueprint-executive-ops
   cto-bootstrap:
     status: todo
     priority: high
-    projectWorkspaceKey: blueprint-webapp
+    projectWorkspaceKey: blueprint-executive-ops
   ceo-daily-review:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
+  cto-cross-repo-triage:
     status: active
     priority: high
     projectWorkspaceKey: blueprint-webapp
@@ -237,7 +262,15 @@ routines:
     triggers:
       - kind: schedule
         cronExpression: "0 8 * * 1-5"
-        timezone: America/Los_Angeles
+        timezone: America/New_York
+  cto-cross-repo-triage:
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: "30 8,14 * * 1-5"
+        timezone: America/New_York
   webapp-autonomy-loop:
     priority: high
     concurrencyPolicy: coalesce_if_active
@@ -245,7 +278,7 @@ routines:
     triggers:
       - kind: schedule
         cronExpression: "0 9,15 * * 1-5"
-        timezone: America/Los_Angeles
+        timezone: America/New_York
   webapp-claude-review-loop:
     priority: medium
     concurrencyPolicy: coalesce_if_active
@@ -253,7 +286,7 @@ routines:
     triggers:
       - kind: schedule
         cronExpression: "30 9,15 * * 1-5"
-        timezone: America/Los_Angeles
+        timezone: America/New_York
   pipeline-autonomy-loop:
     priority: high
     concurrencyPolicy: coalesce_if_active
@@ -261,7 +294,7 @@ routines:
     triggers:
       - kind: schedule
         cronExpression: "0 10,16 * * 1-5"
-        timezone: America/Los_Angeles
+        timezone: America/New_York
   pipeline-claude-review-loop:
     priority: medium
     concurrencyPolicy: coalesce_if_active
@@ -269,7 +302,7 @@ routines:
     triggers:
       - kind: schedule
         cronExpression: "30 10,16 * * 1-5"
-        timezone: America/Los_Angeles
+        timezone: America/New_York
   capture-autonomy-loop:
     priority: high
     concurrencyPolicy: coalesce_if_active
@@ -277,7 +310,7 @@ routines:
     triggers:
       - kind: schedule
         cronExpression: "0 11,17 * * 1-5"
-        timezone: America/Los_Angeles
+        timezone: America/New_York
   capture-claude-review-loop:
     priority: medium
     concurrencyPolicy: coalesce_if_active
@@ -285,4 +318,4 @@ routines:
     triggers:
       - kind: schedule
         cronExpression: "30 11,17 * * 1-5"
-        timezone: America/Los_Angeles
+        timezone: America/New_York

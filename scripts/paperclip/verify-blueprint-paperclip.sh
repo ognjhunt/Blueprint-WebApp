@@ -1,8 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+WORKSPACE_ROOT="/Users/nijelhunt_1/workspace"
+PAPERCLIP_ENV_FILE="${PAPERCLIP_ENV_FILE:-$WORKSPACE_ROOT/.paperclip-blueprint.env}"
+
+if [ -f "$PAPERCLIP_ENV_FILE" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$PAPERCLIP_ENV_FILE"
+  set +a
+fi
+
 PAPERCLIP_PUBLIC_URL="${PAPERCLIP_PUBLIC_URL:-http://127.0.0.1:3100}"
 COMPANY_NAME="${COMPANY_NAME:-Blueprint Autonomous Operations}"
+PLUGIN_KEY="blueprint.automation"
+RUN_SMOKE=0
+
+for arg in "$@"; do
+  if [ "$arg" = "--smoke" ]; then
+    RUN_SMOKE=1
+  fi
+done
 
 paperclip_health() {
   curl -fsS "${PAPERCLIP_PUBLIC_URL}/api/health" >/dev/null
@@ -11,6 +29,47 @@ paperclip_health() {
 company_json() {
   curl -fsS "${PAPERCLIP_PUBLIC_URL}/api/companies" \
     | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const match=rows.find((row)=>row.name===process.argv[1]);if(!match){process.exit(2);}process.stdout.write(JSON.stringify(match));});' "$COMPANY_NAME"
+}
+
+plugin_json() {
+  curl -fsS "${PAPERCLIP_PUBLIC_URL}/api/plugins" \
+    | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const match=rows.find((row)=>row.pluginKey===process.argv[1]);if(!match){process.exit(2);}process.stdout.write(JSON.stringify(match));});' "$PLUGIN_KEY"
+}
+
+require_routines() {
+  local company_id="$1"
+  local routines_json
+  routines_json="$(curl -fsS "${PAPERCLIP_PUBLIC_URL}/api/companies/${company_id}/routines")"
+  printf '%s' "$routines_json" | node -e '
+    let data="";
+    process.stdin.on("data",(chunk)=>data+=chunk);
+    process.stdin.on("end",()=>{
+      const rows=JSON.parse(data);
+      const required=[
+        "CEO Daily Review",
+        "CTO Cross-Repo Triage",
+        "WebApp Autonomy Loop",
+        "WebApp Claude Review Loop",
+        "Pipeline Autonomy Loop",
+        "Pipeline Claude Review Loop",
+        "Capture Autonomy Loop",
+        "Capture Claude Review Loop"
+      ];
+      const missing=required.filter((title)=>!rows.find((row)=>row.title===title && row.status==="active"));
+      if(missing.length>0){
+        console.error(`Missing active routines: ${missing.join(", ")}`);
+        process.exit(1);
+      }
+    });
+  '
+}
+
+plugin_dashboard() {
+  local company_id="$1"
+  curl -fsS -X POST \
+    -H "Content-Type: application/json" \
+    -d "$(node -e 'process.stdout.write(JSON.stringify({companyId:process.argv[1]}));' "$company_id")" \
+    "${PAPERCLIP_PUBLIC_URL}/api/plugins/${PLUGIN_KEY}/data/dashboard"
 }
 
 run_test() {
@@ -35,6 +94,14 @@ main() {
   company="$(company_json)"
   local company_id
   company_id="$(printf '%s' "$company" | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const row=JSON.parse(data);process.stdout.write(row.id);});')"
+  local plugin
+  plugin="$(plugin_json)"
+  local plugin_status
+  plugin_status="$(printf '%s' "$plugin" | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const row=JSON.parse(data);process.stdout.write(row.status);});')"
+  [ "$plugin_status" = "ready" ]
+
+  require_routines "$company_id"
+  plugin_dashboard "$company_id" >/dev/null
 
   echo "Running Codex + Claude adapter tests across all three Blueprint repos..."
 
@@ -80,6 +147,10 @@ main() {
       "dangerouslySkipPermissions": true
     }
   }'
+
+  if [ "$RUN_SMOKE" -eq 1 ]; then
+    /Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/smoke-blueprint-paperclip-automation.sh
+  fi
 }
 
 main "$@"
