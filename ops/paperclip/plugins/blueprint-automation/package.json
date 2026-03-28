@@ -23,6 +23,7 @@
   "author": "Blueprint",
   "license": "MIT",
   "dependencies": {
+    "@notionhq/client": "^5.15.0",
     "@paperclipai/plugin-sdk": "file:../../../../../paperclip/packages/plugins/sdk"
   },
   "devDependencies": {
