@@ -11,7 +11,7 @@ if [ -f "$PAPERCLIP_ENV_FILE" ]; then
   set +a
 fi
 
-PAPERCLIP_PUBLIC_URL="${PAPERCLIP_PUBLIC_URL:-http://127.0.0.1:3100}"
+PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://127.0.0.1:3100}"
 COMPANY_NAME="${COMPANY_NAME:-Blueprint Autonomous Operations}"
 APPLY=0
 
@@ -21,15 +21,15 @@ for arg in "$@"; do
   fi
 done
 
-export PAPERCLIP_PUBLIC_URL COMPANY_NAME APPLY
+export PAPERCLIP_API_URL COMPANY_NAME APPLY
 
 node <<'NODE'
-const paperclipPublicUrl = process.env.PAPERCLIP_PUBLIC_URL;
+const paperclipApiUrl = process.env.PAPERCLIP_API_URL;
 const companyName = process.env.COMPANY_NAME;
 const apply = process.env.APPLY === "1";
 
 async function fetchJson(path, init = {}) {
-  const response = await fetch(`${paperclipPublicUrl}${path}`, {
+  const response = await fetch(`${paperclipApiUrl}${path}`, {
     headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
     ...init,
   });
@@ -123,6 +123,7 @@ for (const group of agentGroups.values()) {
 
 const staleRoutineIds = routines
   .filter((routine) => staleProjectIds.has(routine.projectId) || staleAgentIds.has(routine.assigneeAgentId))
+  .filter((routine) => routine.status !== "paused")
   .map((routine) => routine.id);
 
 const staleIssueIds = issues
@@ -135,9 +136,15 @@ const staleIssueIds = issues
 
 const summary = {
   keepProjects: projects.filter((project) => keepProjectIds.has(project.id)).map((project) => project.name),
-  staleProjects: projects.filter((project) => staleProjectIds.has(project.id)).map((project) => project.name),
+  staleProjects: projects
+    .filter((project) => staleProjectIds.has(project.id))
+    .filter((project) => !project.archivedAt)
+    .map((project) => project.name),
   keepAgents: agents.filter((agent) => keepAgentIds.has(agent.id)).map((agent) => agent.name),
-  staleAgents: agents.filter((agent) => staleAgentIds.has(agent.id)).map((agent) => agent.name),
+  staleAgents: agents
+    .filter((agent) => staleAgentIds.has(agent.id))
+    .filter((agent) => agent.status !== "paused")
+    .map((agent) => agent.name),
   staleRoutineIds,
   staleIssueIds,
   apply,

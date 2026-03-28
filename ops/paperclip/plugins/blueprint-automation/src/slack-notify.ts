@@ -7,10 +7,39 @@ export interface SlackDigest {
   }>;
 }
 
+export interface SlackWebhookTargets {
+  default?: string;
+  ops?: string;
+  growth?: string;
+}
+
+function pickWebhookUrl(targets: SlackWebhookTargets, channel: string): string | null {
+  const normalized = channel.trim().toLowerCase();
+  if (normalized.includes("growth") || normalized.includes("analytics")) {
+    return targets.growth ?? targets.default ?? targets.ops ?? null;
+  }
+  if (normalized.includes("ops") || normalized.includes("support")) {
+    return targets.ops ?? targets.default ?? targets.growth ?? null;
+  }
+  return targets.default ?? targets.ops ?? targets.growth ?? null;
+}
+
 export async function postSlackDigest(
-  webhookUrl: string,
+  targets: SlackWebhookTargets,
   digest: SlackDigest
-): Promise<boolean> {
+): Promise<{ ok: boolean; routedChannel: string; target: "ops" | "growth" | "default" | "none" }> {
+  const webhookUrl = pickWebhookUrl(targets, digest.channel);
+  if (!webhookUrl) {
+    return { ok: false, routedChannel: digest.channel, target: "none" };
+  }
+
+  const normalized = digest.channel.trim().toLowerCase();
+  const target =
+    normalized.includes("growth") || normalized.includes("analytics")
+      ? "growth"
+      : normalized.includes("ops") || normalized.includes("support")
+        ? "ops"
+        : "default";
   const blocks: Array<Record<string, unknown>> = [
     {
       type: "header",
@@ -31,17 +60,20 @@ export async function postSlackDigest(
   const response = await fetch(webhookUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ blocks }),
+    body: JSON.stringify({
+      text: `${digest.title} (${digest.channel})`,
+      blocks,
+    }),
   });
 
-  return response.ok;
+  return { ok: response.ok, routedChannel: digest.channel, target };
 }
 
-export function buildSlackToolHandler(webhookUrl: string) {
+export function buildSlackToolHandler(targets: SlackWebhookTargets) {
   return {
     "slack-post-digest": async (params: SlackDigest) => {
-      const ok = await postSlackDigest(webhookUrl, params);
-      return { success: ok };
+      const result = await postSlackDigest(targets, params);
+      return { success: result.ok, ...result };
     },
   };
 }

@@ -37,6 +37,16 @@ echo ""
 create_or_update_hook() {
   local repo="$1"
   local existing_id
+  local stale_ids
+
+  stale_ids="$(gh api "repos/$GITHUB_OWNER/$repo/hooks" --jq ".[] | select(.config.url != \"$WEBHOOK_URL\" and (.config.url | contains(\"/api/plugins/blueprint.automation/webhooks/github\"))) | .id" 2>/dev/null || true)"
+  if [ -n "$stale_ids" ]; then
+    while IFS= read -r stale_id; do
+      [ -n "$stale_id" ] || continue
+      gh api "repos/$GITHUB_OWNER/$repo/hooks/$stale_id" --method DELETE --silent
+    done <<<"$stale_ids"
+  fi
+
   existing_id="$(gh api "repos/$GITHUB_OWNER/$repo/hooks" --jq ".[] | select(.config.url == \"$WEBHOOK_URL\") | .id" 2>/dev/null || true)"
 
   if [ -n "$existing_id" ]; then

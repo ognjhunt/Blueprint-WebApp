@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+WORKSPACE_ROOT="/Users/nijelhunt_1/workspace"
+PAPERCLIP_ENV_FILE="${PAPERCLIP_ENV_FILE:-$WORKSPACE_ROOT/.paperclip-blueprint.env}"
+
+if [ -f "$PAPERCLIP_ENV_FILE" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$PAPERCLIP_ENV_FILE"
+  set +a
+fi
+
+export PATH="$HOME/.bun/bin:/opt/homebrew/bin:$PATH"
+
+PAPERCLIP_HOME="${PAPERCLIP_HOME:-$WORKSPACE_ROOT/.paperclip-blueprint}"
+PAPERCLIP_INSTANCE_ID="${PAPERCLIP_INSTANCE_ID:-default}"
+PAPERCLIP_HOST="${PAPERCLIP_HOST:-127.0.0.1}"
+PAPERCLIP_PORT="${PAPERCLIP_PORT:-3100}"
+PAPERCLIP_PUBLIC_URL="${PAPERCLIP_PUBLIC_URL:-http://${PAPERCLIP_HOST}:${PAPERCLIP_PORT}}"
+INSTANCE_ROOT="$PAPERCLIP_HOME/instances/$PAPERCLIP_INSTANCE_ID"
+CONFIG_PATH="$INSTANCE_ROOT/config.json"
+
+mkdir -p "$PAPERCLIP_HOME"
+
+if [ ! -f "$CONFIG_PATH" ]; then
+  env \
+    PAPERCLIP_HOME="$PAPERCLIP_HOME" \
+    PAPERCLIP_INSTANCE_ID="$PAPERCLIP_INSTANCE_ID" \
+    PAPERCLIP_PUBLIC_URL="$PAPERCLIP_PUBLIC_URL" \
+    HOST="$PAPERCLIP_HOST" \
+    PORT="$PAPERCLIP_PORT" \
+    npx -y paperclipai onboard --data-dir "$PAPERCLIP_HOME" --yes >/dev/null
+fi
+
+exec env \
+  PAPERCLIP_HOME="$PAPERCLIP_HOME" \
+  PAPERCLIP_INSTANCE_ID="$PAPERCLIP_INSTANCE_ID" \
+  PAPERCLIP_PUBLIC_URL="$PAPERCLIP_PUBLIC_URL" \
+  HOST="$PAPERCLIP_HOST" \
+  PORT="$PAPERCLIP_PORT" \
+  npx -y paperclipai run --data-dir "$PAPERCLIP_HOME"

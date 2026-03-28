@@ -13,9 +13,11 @@ Main entrypoints:
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-automation.config.json`: default plugin config template
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/BLUEPRINT_AUTOMATION.md`: setup, architecture, webhook wiring, and operator runbook
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/bootstrap-blueprint-paperclip.sh`: start Paperclip and import the Blueprint company
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/ensure-codex-gstack.sh`: install gstack for Codex and link it into the three Blueprint repos
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/ensure-blueprint-paperclip-public-url.sh`: keep a healthy public Paperclip URL via `cloudflared` when the env file only points at localhost
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/configure-blueprint-paperclip-plugin.sh`: install/build/configure the Blueprint plugin and its secret refs
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/repair-blueprint-paperclip-company.sh`: clean duplicate agents, projects, and stale work left behind by older re-imports
-- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/reconcile-blueprint-paperclip-company.sh`: reconcile the surviving canonical agents and routines back onto the intended Codex-first host configuration
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/reconcile-blueprint-paperclip-company.sh`: reconcile the surviving canonical agents and routines back onto the intended dual-lane Codex/Claude host configuration
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/setup-github-webhooks.sh`: wire GitHub repo hooks to the active public Paperclip URL and validate with ping deliveries
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/verify-blueprint-paperclip.sh`: run environment checks against the imported local adapters
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/smoke-blueprint-paperclip-automation.sh`: end-to-end smoke for issue creation, dedupe, blocker follow-up, and resolution

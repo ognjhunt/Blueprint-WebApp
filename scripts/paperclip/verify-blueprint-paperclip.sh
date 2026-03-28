@@ -11,11 +11,11 @@ if [ -f "$PAPERCLIP_ENV_FILE" ]; then
   set +a
 fi
 
-PAPERCLIP_PUBLIC_URL="${PAPERCLIP_PUBLIC_URL:-http://127.0.0.1:3100}"
+PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://127.0.0.1:3100}"
 COMPANY_NAME="${COMPANY_NAME:-Blueprint Autonomous Operations}"
 PLUGIN_KEY="blueprint.automation"
 RUN_SMOKE=0
-VERIFY_CLAUDE="${BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE:-0}"
+VERIFY_CLAUDE="${BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE:-1}"
 
 for arg in "$@"; do
   if [ "$arg" = "--smoke" ]; then
@@ -24,28 +24,28 @@ for arg in "$@"; do
 done
 
 paperclip_health() {
-  curl -fsS "${PAPERCLIP_PUBLIC_URL}/api/health" >/dev/null
+  curl -fsS "${PAPERCLIP_API_URL}/api/health" >/dev/null
 }
 
 company_json() {
-  curl -fsS "${PAPERCLIP_PUBLIC_URL}/api/companies" \
+  curl -fsS "${PAPERCLIP_API_URL}/api/companies" \
     | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const match=rows.find((row)=>row.name===process.argv[1]);if(!match){process.exit(2);}process.stdout.write(JSON.stringify(match));});' "$COMPANY_NAME"
 }
 
 plugin_json() {
-  curl -fsS "${PAPERCLIP_PUBLIC_URL}/api/plugins" \
+  curl -fsS "${PAPERCLIP_API_URL}/api/plugins" \
     | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const match=rows.find((row)=>row.pluginKey===process.argv[1]);if(!match){process.exit(2);}process.stdout.write(JSON.stringify(match));});' "$PLUGIN_KEY"
 }
 
 plugin_config_json() {
   local plugin_id="$1"
-  curl -fsS "${PAPERCLIP_PUBLIC_URL}/api/plugins/${plugin_id}/config"
+  curl -fsS "${PAPERCLIP_API_URL}/api/plugins/${plugin_id}/config"
 }
 
 require_routines() {
   local company_id="$1"
   local routines_json
-  routines_json="$(curl -fsS "${PAPERCLIP_PUBLIC_URL}/api/companies/${company_id}/routines")"
+  routines_json="$(curl -fsS "${PAPERCLIP_API_URL}/api/companies/${company_id}/routines")"
   printf '%s' "$routines_json" | node -e '
     let data="";
     process.stdin.on("data",(chunk)=>data+=chunk);
@@ -59,7 +59,20 @@ require_routines() {
         "Pipeline Autonomy Loop",
         "Pipeline Claude Review Loop",
         "Capture Autonomy Loop",
-        "Capture Claude Review Loop"
+        "Capture Claude Review Loop",
+        "Ops Lead Morning",
+        "Ops Lead Afternoon",
+        "Intake Agent Hourly",
+        "Capture QA Daily",
+        "Field Ops Daily",
+        "Finance Support Daily",
+        "Growth Lead Daily",
+        "Growth Lead Weekly",
+        "Analytics Daily",
+        "Analytics Weekly",
+        "Conversion Weekly",
+        "Market Intel Daily",
+        "Market Intel Weekly"
       ];
       const missing=required.filter((title)=>!rows.find((row)=>row.title===title && row.status==="active"));
       if(missing.length>0){
@@ -75,7 +88,7 @@ plugin_dashboard() {
   curl -fsS -X POST \
     -H "Content-Type: application/json" \
     -d "$(node -e 'process.stdout.write(JSON.stringify({companyId:process.argv[1]}));' "$company_id")" \
-    "${PAPERCLIP_PUBLIC_URL}/api/plugins/${PLUGIN_KEY}/data/dashboard"
+    "${PAPERCLIP_API_URL}/api/plugins/${PLUGIN_KEY}/data/dashboard"
 }
 
 run_test() {
@@ -87,7 +100,7 @@ run_test() {
   result="$(curl -fsS \
     -H "Content-Type: application/json" \
     -d "$payload" \
-    "${PAPERCLIP_PUBLIC_URL}/api/companies/${company_id}/adapters/${adapter_type}/test-environment")"
+    "${PAPERCLIP_API_URL}/api/companies/${company_id}/adapters/${adapter_type}/test-environment")"
   printf '%s\n' "$result" | jq --arg repo "$repo_label" --arg adapter "$adapter_type" '{repo:$repo,adapter:$adapter,status,checks:[.checks[]|{code,level,message}]}'
   local status
   status="$(printf '%s' "$result" | jq -r '.status')"

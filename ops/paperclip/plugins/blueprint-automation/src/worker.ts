@@ -35,7 +35,7 @@ import {
   handleStripeWebhook,
   handleSupportWebhook,
 } from "./ops-webhooks.js";
-import { createNotionClient, buildNotionToolHandlers } from "./notion.js";
+import { createNotionClient, buildNotionToolHandlers, queryWorkQueue } from "./notion.js";
 import { buildSlackToolHandler } from "./slack-notify.js";
 
 const execFileAsync = promisify(execFile);
@@ -58,6 +58,35 @@ type RepoConfig = {
   reviewAgent: string;
 };
 
+type OpsDepartmentConfig = {
+  enabled: boolean;
+  agents: {
+    opsLead: string;
+    intake: string;
+    captureQa: string;
+    fieldOps: string;
+    financeSupport: string;
+  };
+};
+
+type GrowthDepartmentConfig = {
+  enabled: boolean;
+  agents: {
+    growthLead: string;
+    conversionOptimizer: string;
+    analytics: string;
+    marketIntel: string;
+  };
+};
+
+type SecretRefsConfig = {
+  notionApiTokenRef?: string;
+  slackOpsWebhookUrlRef?: string;
+  slackGrowthWebhookUrlRef?: string;
+  searchApiKeyRef?: string;
+  searchApiProviderRef?: string;
+};
+
 type BlueprintAutomationConfig = {
   companyName?: string;
   githubOwner?: string;
@@ -70,6 +99,9 @@ type BlueprintAutomationConfig = {
   enableGithubPolling?: boolean;
   enableOutboundNotifications?: boolean;
   repoCatalog?: RepoConfig[];
+  opsDepartment?: OpsDepartmentConfig;
+  growthDepartment?: GrowthDepartmentConfig;
+  secrets?: SecretRefsConfig;
 };
 
 type SourceMappingData = {
@@ -145,6 +177,7 @@ type UpsertManagedIssueInput = {
   signalUrl?: string;
   metadata?: Record<string, unknown>;
   comment?: string;
+  suppressRefreshComment?: boolean;
 };
 
 type ResolveManagedIssueInput = {
@@ -166,6 +199,22 @@ function asBoolean(value: unknown, fallback: boolean): boolean {
 }
 
 function normalizeConfig(rawConfig: Record<string, unknown>): BlueprintAutomationConfig {
+  const opsDepartment = rawConfig.opsDepartment && typeof rawConfig.opsDepartment === "object"
+    ? rawConfig.opsDepartment as Record<string, unknown>
+    : {};
+  const opsAgents = opsDepartment.agents && typeof opsDepartment.agents === "object"
+    ? opsDepartment.agents as Record<string, unknown>
+    : {};
+  const growthDepartment = rawConfig.growthDepartment && typeof rawConfig.growthDepartment === "object"
+    ? rawConfig.growthDepartment as Record<string, unknown>
+    : {};
+  const growthAgents = growthDepartment.agents && typeof growthDepartment.agents === "object"
+    ? growthDepartment.agents as Record<string, unknown>
+    : {};
+  const secrets = rawConfig.secrets && typeof rawConfig.secrets === "object"
+    ? rawConfig.secrets as Record<string, unknown>
+    : {};
+
   return {
     companyName: asString(rawConfig.companyName) ?? DEFAULT_COMPANY_NAME,
     githubOwner: asString(rawConfig.githubOwner) ?? "ognjhunt",
@@ -198,6 +247,32 @@ function normalizeConfig(rawConfig: Record<string, unknown>): BlueprintAutomatio
         reviewAgent: entry.reviewAgent,
       }))
       : [...DEFAULT_REPO_CATALOG],
+    opsDepartment: {
+      enabled: asBoolean(opsDepartment.enabled, true),
+      agents: {
+        opsLead: asString(opsAgents.opsLead) ?? "ops-lead",
+        intake: asString(opsAgents.intake) ?? "intake-agent",
+        captureQa: asString(opsAgents.captureQa) ?? "capture-qa-agent",
+        fieldOps: asString(opsAgents.fieldOps) ?? "field-ops-agent",
+        financeSupport: asString(opsAgents.financeSupport) ?? "finance-support-agent",
+      },
+    },
+    growthDepartment: {
+      enabled: asBoolean(growthDepartment.enabled, true),
+      agents: {
+        growthLead: asString(growthAgents.growthLead) ?? "growth-lead",
+        conversionOptimizer: asString(growthAgents.conversionOptimizer) ?? "conversion-agent",
+        analytics: asString(growthAgents.analytics) ?? "analytics-agent",
+        marketIntel: asString(growthAgents.marketIntel) ?? "market-intel-agent",
+      },
+    },
+    secrets: {
+      notionApiTokenRef: asString(secrets.notionApiTokenRef) ?? asString(secrets.notionApiToken),
+      slackOpsWebhookUrlRef: asString(secrets.slackOpsWebhookUrlRef) ?? asString(secrets.slackOpsWebhookUrl),
+      slackGrowthWebhookUrlRef: asString(secrets.slackGrowthWebhookUrlRef) ?? asString(secrets.slackGrowthWebhookUrl),
+      searchApiKeyRef: asString(secrets.searchApiKeyRef) ?? asString(secrets.searchApiKey),
+      searchApiProviderRef: asString(secrets.searchApiProviderRef) ?? asString(secrets.searchApiProvider),
+    },
   };
 }
 
@@ -276,6 +351,59 @@ function scoreAgentMatch(agent: Agent, target: string) {
 
 async function getConfig(ctx: PluginContext): Promise<BlueprintAutomationConfig> {
   return normalizeConfig(await ctx.config.get());
+}
+
+async function resolveOptionalSecret(
+  ctx: PluginContext,
+  ref?: string,
+  fallbackName?: string,
+): Promise<string | null> {
+  if (ref) {
+    const resolved = await ctx.secrets.resolve(ref);
+    if (resolved) return resolved;
+  }
+  if (fallbackName) {
+    const resolved = await ctx.secrets.resolve(fallbackName);
+    if (resolved) return resolved;
+  }
+  return null;
+}
+
+function getOpsRoutingConfig(config: BlueprintAutomationConfig) {
+  const agents = config.opsDepartment?.agents;
+  return {
+    opsLead: agents?.opsLead ?? "ops-lead",
+    intakeAgent: agents?.intake ?? "intake-agent",
+    captureQaAgent: agents?.captureQa ?? "capture-qa-agent",
+    fieldOpsAgent: agents?.fieldOps ?? "field-ops-agent",
+    financeSupportAgent: agents?.financeSupport ?? "finance-support-agent",
+  };
+}
+
+function mapQueueSystemToProject(system: string) {
+  switch (system) {
+    case "WebApp":
+      return "blueprint-webapp";
+    case "Capture":
+      return "blueprint-capture";
+    case "Pipeline":
+      return "blueprint-capture-pipeline";
+    default:
+      return "blueprint-executive-ops";
+  }
+}
+
+function mapQueuePriority(priority: string): UpsertManagedIssueInput["priority"] {
+  switch (priority) {
+    case "P0":
+      return "critical";
+    case "P1":
+      return "high";
+    case "P3":
+      return "low";
+    default:
+      return "medium";
+  }
 }
 
 async function findCompany(ctx: PluginContext, companyName?: string): Promise<Company> {
@@ -579,7 +707,9 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
     if (!updatedIssue) {
       throw new Error(`Failed to update managed issue for ${fingerprint}`);
     }
-    await ctx.issues.createComment(updatedIssue.id, makeUpdateComment(input, hits), input.companyId);
+    if (!input.suppressRefreshComment) {
+      await ctx.issues.createComment(updatedIssue.id, makeUpdateComment(input, hits), input.companyId);
+    }
   } else {
     const createdIssue = await (ctx.issues.create as any)({
       companyId: input.companyId,
@@ -594,11 +724,13 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
       originId: fingerprint,
     });
     currentIssue = createdIssue;
-    await ctx.issues.createComment(
-      createdIssue.id,
-      makeUpdateComment(input, hits),
-      input.companyId,
-    );
+    if (!input.suppressRefreshComment) {
+      await ctx.issues.createComment(
+        createdIssue.id,
+        makeUpdateComment(input, hits),
+        input.companyId,
+      );
+    }
   }
 
   if (!currentIssue) {
@@ -1532,7 +1664,12 @@ async function registerToolHandlers(ctx: PluginContext) {
 
   // ── Notion Tools ──────────────────────────────────────
   try {
-    const notionToken = await ctx.secrets.resolve("NOTION_API_TOKEN");
+    const config = await getConfig(ctx);
+    const notionToken = await resolveOptionalSecret(
+      ctx,
+      config.secrets?.notionApiTokenRef,
+      "NOTION_API_TOKEN",
+    );
     if (notionToken) {
       const notionClient = createNotionClient({ token: notionToken });
       const notionTools = buildNotionToolHandlers(notionClient);
@@ -1547,6 +1684,7 @@ async function registerToolHandlers(ctx: PluginContext) {
             properties: {
               system: { type: "string" },
               priority: { type: "string" },
+              lifecycleStage: { type: "string" },
             },
           },
         },
@@ -1567,8 +1705,9 @@ async function registerToolHandlers(ctx: PluginContext) {
               title: { type: "string" },
               priority: { type: "string" },
               system: { type: "string" },
-              status: { type: "string" },
-              description: { type: "string" },
+              lifecycleStage: { type: "string" },
+              workType: { type: "string" },
+              substage: { type: "string" },
             },
             required: ["title", "priority", "system"],
           },
@@ -1588,11 +1727,11 @@ async function registerToolHandlers(ctx: PluginContext) {
             type: "object",
             properties: {
               title: { type: "string" },
-              category: { type: "string" },
+              type: { type: "string" },
+              system: { type: "string" },
               content: { type: "string" },
-              source: { type: "string" },
             },
-            required: ["title", "category", "content"],
+            required: ["title", "type", "content"],
           },
         },
         async (params): Promise<ToolResult> => {
@@ -1607,9 +1746,23 @@ async function registerToolHandlers(ctx: PluginContext) {
 
   // ── Slack Tools ───────────────────────────────────────
   try {
-    const slackWebhookUrl = await ctx.secrets.resolve("SLACK_OPS_WEBHOOK_URL");
-    if (slackWebhookUrl) {
-      const slackTools = buildSlackToolHandler(slackWebhookUrl);
+    const config = await getConfig(ctx);
+    const slackOpsWebhookUrl = await resolveOptionalSecret(
+      ctx,
+      config.secrets?.slackOpsWebhookUrlRef,
+      "SLACK_OPS_WEBHOOK_URL",
+    );
+    const slackGrowthWebhookUrl = await resolveOptionalSecret(
+      ctx,
+      config.secrets?.slackGrowthWebhookUrlRef,
+      "SLACK_GROWTH_WEBHOOK_URL",
+    );
+    if (slackOpsWebhookUrl || slackGrowthWebhookUrl) {
+      const slackTools = buildSlackToolHandler({
+        default: slackOpsWebhookUrl ?? slackGrowthWebhookUrl ?? undefined,
+        ops: slackOpsWebhookUrl ?? undefined,
+        growth: slackGrowthWebhookUrl ?? undefined,
+      });
       ctx.tools.register(
         TOOL_NAMES.slackPostDigest,
         {
@@ -1636,7 +1789,12 @@ async function registerToolHandlers(ctx: PluginContext) {
         },
         async (params): Promise<ToolResult> => {
           const result = await slackTools[TOOL_NAMES.slackPostDigest](params as any);
-          return { content: result.success ? "Digest posted." : "Failed to post digest.", data: result };
+          return {
+            content: result.success
+              ? `Digest posted to ${result.routedChannel}.`
+              : `Failed to post digest to ${result.routedChannel}.`,
+            data: result,
+          };
         },
       );
     }
@@ -1649,6 +1807,68 @@ async function runRepoScanJob(ctx: PluginContext, _job: PluginJobContext) {
   const config = await getConfig(ctx);
   const company = await findCompany(ctx, config.companyName);
   await runFullRepoScan(ctx, company.id, config, JOB_KEYS.repoScan);
+}
+
+async function runOpsQueueScanJob(ctx: PluginContext, companyId: string, config: BlueprintAutomationConfig) {
+  const notionToken = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.notionApiTokenRef,
+    "NOTION_API_TOKEN",
+  );
+
+  if (!notionToken) {
+    await appendRecentEvent(ctx, companyId, {
+      kind: "ops-queue-scan-skipped",
+      title: "Ops queue scan skipped",
+      detail: "NOTION_API_TOKEN is not configured.",
+    });
+    return { synced: 0, skipped: true };
+  }
+
+  const notionClient = createNotionClient({ token: notionToken });
+  const workQueueItems = await queryWorkQueue(notionClient, {});
+  const opsRouting = getOpsRoutingConfig(config);
+  let synced = 0;
+
+  for (const item of workQueueItems) {
+    await upsertManagedIssue(ctx, {
+      companyId,
+      sourceType: "notion-work-queue",
+      sourceId: item.id,
+      title: `Notion Work Queue: ${item.title}`,
+      description: [
+        "Blueprint automation synced this Notion Work Queue item into Paperclip for active triage.",
+        "",
+        `- Notion page: ${item.url ?? item.id}`,
+        `- System: ${item.system}`,
+        `- Priority: ${item.priority}`,
+        `- Lifecycle Stage: ${item.lifecycleStage || "unknown"}`,
+        `- Work Type: ${item.workType || "unknown"}`,
+      ].join("\n"),
+      projectName: mapQueueSystemToProject(item.system),
+      assignee: opsRouting.opsLead,
+      priority: mapQueuePriority(item.priority),
+      status: "todo",
+      signalUrl: item.url,
+      metadata: {
+        system: item.system,
+        priority: item.priority,
+        lifecycleStage: item.lifecycleStage,
+        workType: item.workType,
+      },
+      comment: "Synced from Notion Work Queue scan.",
+      suppressRefreshComment: true,
+    });
+    synced += 1;
+  }
+
+  await appendRecentEvent(ctx, companyId, {
+    kind: "ops-queue-scan",
+    title: "Ops queue scan completed",
+    detail: `Synced ${synced} Notion work queue items at ${nowIso()}`,
+  });
+
+  return { synced, skipped: false };
 }
 
 async function handleWebhook(ctx: PluginContext, input: PluginWebhookInput) {
@@ -1667,13 +1887,40 @@ async function handleWebhook(ctx: PluginContext, input: PluginWebhookInput) {
     return await handleOperatorIntakeWebhook(ctx, config, company.id, input);
   }
   if (input.endpointKey === WEBHOOK_KEYS.opsFirestore) {
-    return await handleFirestoreWebhook(input, ctx);
+    const parsed = await handleFirestoreWebhook(input, getOpsRoutingConfig(config));
+    if (parsed.workItem) {
+      return await upsertManagedIssue(ctx, {
+        companyId: company.id,
+        ...parsed.workItem,
+        status: "todo",
+        comment: "Created from Firestore ops webhook.",
+      });
+    }
+    return parsed;
   }
   if (input.endpointKey === WEBHOOK_KEYS.opsStripe) {
-    return await handleStripeWebhook(input, ctx);
+    const parsed = await handleStripeWebhook(input, getOpsRoutingConfig(config));
+    if (parsed.workItem) {
+      return await upsertManagedIssue(ctx, {
+        companyId: company.id,
+        ...parsed.workItem,
+        status: "todo",
+        comment: "Created from Stripe ops webhook.",
+      });
+    }
+    return parsed;
   }
   if (input.endpointKey === WEBHOOK_KEYS.opsSupport) {
-    return await handleSupportWebhook(input, ctx);
+    const parsed = await handleSupportWebhook(input, getOpsRoutingConfig(config));
+    if (parsed.workItem) {
+      return await upsertManagedIssue(ctx, {
+        companyId: company.id,
+        ...parsed.workItem,
+        status: "todo",
+        comment: "Created from support webhook.",
+      });
+    }
+    return parsed;
   }
   throw new Error(`Unsupported Blueprint webhook endpoint: ${input.endpointKey}`);
 }
@@ -1690,11 +1937,7 @@ const plugin: PaperclipPlugin = definePlugin({
     ctx.jobs.register(JOB_KEYS.opsQueueScan, async (job) => {
       const config = await getConfig(ctx);
       const company = await findCompany(ctx, config.companyName);
-      await appendRecentEvent(ctx, company.id, {
-        kind: "ops-queue-scan",
-        title: "Ops queue scan completed",
-        detail: `Scanned at ${nowIso()}`,
-      });
+      await runOpsQueueScanJob(ctx, company.id, config);
     });
   },
 

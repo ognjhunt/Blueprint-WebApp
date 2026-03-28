@@ -14,7 +14,7 @@ The automation loop is deliberately grounded in real repo state and truthful pro
 - CI failures come from real webhook or polling signals
 - issue creation, dedupe, blocker follow-up, and resolution happen as actual Paperclip issues
 - executive routines are instructed to manage issue lifecycle explicitly rather than narrate status
-- Codex is now the execution default for implementation, review, and executive loops on this host so automation does not depend on Claude being healthy
+- Codex remains the implementation default while Claude is restored as the executive and review lane on this host
 
 ## Architecture
 
@@ -24,7 +24,8 @@ The automation loop is deliberately grounded in real repo state and truthful pro
 - `cto-cross-repo-triage` is the cross-repo technical orchestration loop.
 - Repo implementation and review loops are instructed to work from actual Paperclip issues, create blocker follow-up issues, and close or reprioritize issues explicitly.
 - `blueprint-executive-ops` is the cross-repo / operator project for executive and blocker work.
-- The historical `*-claude` agent keys are preserved for compatibility with existing tasks, routines, and plugin routing, but they are now backed by `codex_local` adapters on this host.
+- `*-codex` agents stay on `codex_local` for implementation work.
+- `ceo`, `cto`, and the `*-claude` review agents run on `claude_local` so the company keeps a real two-model lane.
 
 ### Blueprint plugin
 
@@ -33,9 +34,13 @@ The plugin key is `blueprint.automation`.
 It provides:
 
 - scheduled repo scans via the `repo-scan` job
+- scheduled Notion Work Queue sync via the `ops-queue-scan` job
 - GitHub workflow and review webhook intake
 - generic CI webhook intake
 - generic operator-intake webhook suitable for Slack workflow or email-forward integrations
+- Firestore ops webhook intake for waitlist, inbound request, and capture-complete events
+- Stripe ops webhook intake for payout, dispute, and account exceptions
+- support inbox webhook intake for routed support tickets
 - deduped issue upsert and resolution
 - linked blocker follow-up issue creation
 - optional outbound notification webhooks for high-priority issue opens, blocker follow-ups, and CI recovery
@@ -85,6 +90,11 @@ The bootstrap, configure, verify, smoke, and LaunchAgent flows all read that fil
 - `BLUEPRINT_PAPERCLIP_CI_SHARED_SECRET`
 - `BLUEPRINT_PAPERCLIP_INTAKE_SHARED_SECRET`
 - `BLUEPRINT_PAPERCLIP_NOTIFICATION_WEBHOOK_URL`
+- `NOTION_API_TOKEN`
+- `SLACK_OPS_WEBHOOK_URL`
+- `SLACK_GROWTH_WEBHOOK_URL`
+- `SEARCH_API_KEY`
+- `SEARCH_API_PROVIDER`
 - `BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE`
 - `BLUEPRINT_PAPERCLIP_AUTO_SETUP_GITHUB_WEBHOOKS`
 
@@ -135,7 +145,7 @@ Verify adapters, routines, plugin readiness, and dashboard reachability:
 /Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/verify-blueprint-paperclip.sh
 ```
 
-`verify-blueprint-paperclip.sh` is Codex-first by default. Set `BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE=1` only if you explicitly want to test Claude adapters too.
+`verify-blueprint-paperclip.sh` now checks both Codex and Claude by default so the dual-lane host configuration stays honest, and it verifies the added Ops and Growth routines rather than only the original engineering loops.
 
 Run the end-to-end automation smoke:
 
@@ -166,6 +176,9 @@ Endpoints:
 - `github`
 - `ci`
 - `intake`
+- `ops-firestore`
+- `ops-stripe`
+- `ops-support`
 
 ### GitHub
 

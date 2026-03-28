@@ -162,7 +162,7 @@ const desiredAgents = {
   "field-ops-agent": {
     adapterType: "claude_local",
     adapterConfig: {
-      cwd: "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      cwd: "/Users/nijelhunt_1/workspace/BlueprintCapture",
       model: "claude-sonnet-4-6",
       timeoutSec: 1800,
       dangerouslySkipPermissions: true,
@@ -233,6 +233,7 @@ for (const [agentKey, desired] of Object.entries(desiredAgents)) {
 }
 
 const canonicalProjects = {
+  "blueprint-executive-ops": pickCanonical(projects, "blueprint-executive-ops"),
   "blueprint-webapp": pickCanonical(projects, "blueprint-webapp"),
   "blueprint-capture-pipeline": pickCanonical(projects, "blueprint-capture-pipeline"),
   "blueprint-capture": pickCanonical(projects, "blueprint-capture"),
@@ -259,49 +260,208 @@ const canonicalAgents = {
 };
 
 const desiredRoutines = [
-  ["CEO Daily Review", canonicalProjects["blueprint-webapp"], canonicalAgents["blueprint-ceo"]],
-  ["CTO Cross-Repo Triage", canonicalProjects["blueprint-webapp"], canonicalAgents["blueprint-cto"]],
-  ["WebApp Autonomy Loop", canonicalProjects["blueprint-webapp"], canonicalAgents["webapp-codex"]],
-  ["WebApp Claude Review Loop", canonicalProjects["blueprint-webapp"], canonicalAgents["webapp-claude"]],
-  ["Pipeline Autonomy Loop", canonicalProjects["blueprint-capture-pipeline"], canonicalAgents["pipeline-codex"]],
-  ["Pipeline Claude Review Loop", canonicalProjects["blueprint-capture-pipeline"], canonicalAgents["pipeline-claude"]],
-  ["Capture Autonomy Loop", canonicalProjects["blueprint-capture"], canonicalAgents["capture-codex"]],
-  ["Capture Claude Review Loop", canonicalProjects["blueprint-capture"], canonicalAgents["capture-claude"]],
-  // Ops Department routines
-  ["Ops Morning Review", canonicalProjects["blueprint-webapp"], canonicalAgents["ops-lead"]],
-  ["Ops Afternoon Review", canonicalProjects["blueprint-webapp"], canonicalAgents["ops-lead"]],
-  ["Ops Queue Monitor", canonicalProjects["blueprint-webapp"], canonicalAgents["ops-lead"]],
-  ["Intake Queue Processor", canonicalProjects["blueprint-webapp"], canonicalAgents["intake-agent"]],
-  ["QA Pipeline Review", canonicalProjects["blueprint-capture-pipeline"], canonicalAgents["capture-qa-agent"]],
-  ["Daily Calendar Review", canonicalProjects["blueprint-webapp"], canonicalAgents["field-ops-agent"]],
-  ["Stripe Ledger Reconciliation", canonicalProjects["blueprint-webapp"], canonicalAgents["finance-support-agent"]],
-  // Growth Department routines
-  ["Growth Strategy Sync", canonicalProjects["blueprint-webapp"], canonicalAgents["growth-lead"]],
-  ["Weekly Growth Report", canonicalProjects["blueprint-webapp"], canonicalAgents["growth-lead"]],
-  ["Conversion Optimization Cycle", canonicalProjects["blueprint-webapp"], canonicalAgents["conversion-agent"]],
-  ["Daily Analytics Pull", canonicalProjects["blueprint-webapp"], canonicalAgents["analytics-agent"]],
-  ["Weekly Analytics Report", canonicalProjects["blueprint-webapp"], canonicalAgents["analytics-agent"]],
-  ["Market Intelligence Scan", canonicalProjects["blueprint-webapp"], canonicalAgents["market-intel-agent"]],
+  {
+    title: "CEO Daily Review",
+    project: canonicalProjects["blueprint-executive-ops"] ?? canonicalProjects["blueprint-webapp"],
+    agent: canonicalAgents["blueprint-ceo"],
+    cronExpression: "0 8 * * 1-5",
+    timezone: "America/New_York",
+  },
+  {
+    title: "CTO Cross-Repo Triage",
+    project: canonicalProjects["blueprint-webapp"],
+    agent: canonicalAgents["blueprint-cto"],
+    cronExpression: "30 8,14 * * 1-5",
+    timezone: "America/New_York",
+  },
+  {
+    title: "WebApp Autonomy Loop",
+    project: canonicalProjects["blueprint-webapp"],
+    agent: canonicalAgents["webapp-codex"],
+    cronExpression: "0 9,15 * * 1-5",
+    timezone: "America/New_York",
+  },
+  {
+    title: "WebApp Claude Review Loop",
+    project: canonicalProjects["blueprint-webapp"],
+    agent: canonicalAgents["webapp-claude"],
+    cronExpression: "30 9,15 * * 1-5",
+    timezone: "America/New_York",
+  },
+  {
+    title: "Pipeline Autonomy Loop",
+    project: canonicalProjects["blueprint-capture-pipeline"],
+    agent: canonicalAgents["pipeline-codex"],
+    cronExpression: "0 10,16 * * 1-5",
+    timezone: "America/New_York",
+  },
+  {
+    title: "Pipeline Claude Review Loop",
+    project: canonicalProjects["blueprint-capture-pipeline"],
+    agent: canonicalAgents["pipeline-claude"],
+    cronExpression: "30 10,16 * * 1-5",
+    timezone: "America/New_York",
+  },
+  {
+    title: "Capture Autonomy Loop",
+    project: canonicalProjects["blueprint-capture"],
+    agent: canonicalAgents["capture-codex"],
+    cronExpression: "0 11,17 * * 1-5",
+    timezone: "America/New_York",
+  },
+  {
+    title: "Capture Claude Review Loop",
+    project: canonicalProjects["blueprint-capture"],
+    agent: canonicalAgents["capture-claude"],
+    cronExpression: "30 11,17 * * 1-5",
+    timezone: "America/New_York",
+  },
+  {
+    title: "Ops Lead Morning",
+    project: canonicalProjects["blueprint-executive-ops"] ?? canonicalProjects["blueprint-webapp"],
+    agent: canonicalAgents["ops-lead"],
+    cronExpression: "30 8 * * 1-5",
+    timezone: "America/New_York",
+  },
+  {
+    title: "Ops Lead Afternoon",
+    project: canonicalProjects["blueprint-executive-ops"] ?? canonicalProjects["blueprint-webapp"],
+    agent: canonicalAgents["ops-lead"],
+    cronExpression: "30 14 * * 1-5",
+    timezone: "America/New_York",
+  },
+  {
+    title: "Intake Agent Hourly",
+    project: canonicalProjects["blueprint-webapp"],
+    agent: canonicalAgents["intake-agent"],
+    cronExpression: "0 * * * 1-5",
+    timezone: "America/New_York",
+  },
+  {
+    title: "Capture QA Daily",
+    project: canonicalProjects["blueprint-capture-pipeline"],
+    agent: canonicalAgents["capture-qa-agent"],
+    cronExpression: "0 9 * * 1-5",
+    timezone: "America/New_York",
+  },
+  {
+    title: "Field Ops Daily",
+    project: canonicalProjects["blueprint-capture"],
+    agent: canonicalAgents["field-ops-agent"],
+    cronExpression: "0 7 * * 1-5",
+    timezone: "America/New_York",
+  },
+  {
+    title: "Finance Support Daily",
+    project: canonicalProjects["blueprint-webapp"],
+    agent: canonicalAgents["finance-support-agent"],
+    cronExpression: "0 10 * * 1-5",
+    timezone: "America/New_York",
+  },
+  {
+    title: "Growth Lead Daily",
+    project: canonicalProjects["blueprint-executive-ops"] ?? canonicalProjects["blueprint-webapp"],
+    agent: canonicalAgents["growth-lead"],
+    cronExpression: "0 9 * * 1-5",
+    timezone: "America/New_York",
+  },
+  {
+    title: "Growth Lead Weekly",
+    project: canonicalProjects["blueprint-executive-ops"] ?? canonicalProjects["blueprint-webapp"],
+    agent: canonicalAgents["growth-lead"],
+    cronExpression: "0 10 * * 1",
+    timezone: "America/New_York",
+  },
+  {
+    title: "Analytics Daily",
+    project: canonicalProjects["blueprint-webapp"],
+    agent: canonicalAgents["analytics-agent"],
+    cronExpression: "0 6 * * *",
+    timezone: "America/New_York",
+  },
+  {
+    title: "Analytics Weekly",
+    project: canonicalProjects["blueprint-webapp"],
+    agent: canonicalAgents["analytics-agent"],
+    cronExpression: "0 23 * * 0",
+    timezone: "America/New_York",
+  },
+  {
+    title: "Conversion Weekly",
+    project: canonicalProjects["blueprint-webapp"],
+    agent: canonicalAgents["conversion-agent"],
+    cronExpression: "0 11 * * 1",
+    timezone: "America/New_York",
+  },
+  {
+    title: "Market Intel Daily",
+    project: canonicalProjects["blueprint-webapp"],
+    agent: canonicalAgents["market-intel-agent"],
+    cronExpression: "0 7 * * 1-5",
+    timezone: "America/New_York",
+  },
+  {
+    title: "Market Intel Weekly",
+    project: canonicalProjects["blueprint-webapp"],
+    agent: canonicalAgents["market-intel-agent"],
+    cronExpression: "0 15 * * 5",
+    timezone: "America/New_York",
+  },
 ];
 
-for (const [title, project, agent] of desiredRoutines) {
+for (const desired of desiredRoutines) {
+  const { title, project, agent, cronExpression, timezone } = desired;
   if (!project || !agent) continue;
   const matching = routines.filter((routine) => routine.title === title);
   const preferred =
     matching.find((routine) => routine.projectId === project.id && routine.assigneeAgentId === agent.id) ??
     matching.find((routine) => !hasSuffix(routine.id)) ??
-    matching[0];
+    matching[0] ??
+    await fetchJson(`/api/companies/${company.id}/routines`, {
+      method: "POST",
+      body: JSON.stringify({
+        projectId: project.id,
+        title,
+        assigneeAgentId: agent.id,
+        priority: "medium",
+        status: "active",
+        concurrencyPolicy: "coalesce_if_active",
+        catchUpPolicy: "skip_missed",
+      }),
+    });
 
-  if (!preferred) continue;
-
-  await fetchJson(`/api/routines/${preferred.id}`, {
+  const updated = await fetchJson(`/api/routines/${preferred.id}`, {
     method: "PATCH",
     body: JSON.stringify({
       projectId: project.id,
       assigneeAgentId: agent.id,
       status: "active",
+      priority: preferred.priority ?? "medium",
+      concurrencyPolicy: preferred.concurrencyPolicy ?? "coalesce_if_active",
+      catchUpPolicy: preferred.catchUpPolicy ?? "skip_missed",
     }),
   });
+
+  const scheduleTrigger = (updated.triggers ?? []).find((trigger) => trigger.kind === "schedule");
+  if (!scheduleTrigger) {
+    await fetchJson(`/api/routines/${preferred.id}/triggers`, {
+      method: "POST",
+      body: JSON.stringify({
+        kind: "schedule",
+        cronExpression,
+        timezone,
+      }),
+    });
+  } else {
+    await fetchJson(`/api/routine-triggers/${scheduleTrigger.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        cronExpression,
+        timezone,
+        enabled: true,
+      }),
+    });
+  }
 
   for (const routine of matching) {
     if (routine.id === preferred.id) continue;

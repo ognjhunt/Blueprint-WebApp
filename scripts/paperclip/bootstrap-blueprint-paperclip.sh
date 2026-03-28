@@ -14,12 +14,16 @@ fi
 PAPERCLIP_DIR="${PAPERCLIP_DIR:-$WORKSPACE_ROOT/paperclip}"
 PAPERCLIP_HOME="${PAPERCLIP_HOME:-$WORKSPACE_ROOT/.paperclip-blueprint}"
 PACKAGE_DIR="${PACKAGE_DIR:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company}"
+CODEX_GSTACK_SCRIPT="${CODEX_GSTACK_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/ensure-codex-gstack.sh}"
+PUBLIC_URL_SCRIPT="${PUBLIC_URL_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/ensure-blueprint-paperclip-public-url.sh}"
 PLUGIN_CONFIGURE_SCRIPT="${PLUGIN_CONFIGURE_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/configure-blueprint-paperclip-plugin.sh}"
 REPAIR_SCRIPT="${REPAIR_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/repair-blueprint-paperclip-company.sh}"
 RECONCILE_SCRIPT="${RECONCILE_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/reconcile-blueprint-paperclip-company.sh}"
 WEBHOOK_SETUP_SCRIPT="${WEBHOOK_SETUP_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/setup-github-webhooks.sh}"
 PAPERCLIP_HOST="${PAPERCLIP_HOST:-127.0.0.1}"
 PAPERCLIP_PORT="${PAPERCLIP_PORT:-3100}"
+PAPERCLIP_LOCAL_URL="${PAPERCLIP_LOCAL_URL:-http://${PAPERCLIP_HOST}:${PAPERCLIP_PORT}}"
+PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-$PAPERCLIP_LOCAL_URL}"
 PAPERCLIP_PUBLIC_URL="${PAPERCLIP_PUBLIC_URL:-http://${PAPERCLIP_HOST}:${PAPERCLIP_PORT}}"
 COMPANY_NAME="${COMPANY_NAME:-Blueprint Autonomous Operations}"
 PAPERCLIP_INSTANCE_ID="${PAPERCLIP_INSTANCE_ID:-default}"
@@ -45,7 +49,11 @@ ensure_prereqs() {
 }
 
 select_runner() {
-  if [ -d "$PAPERCLIP_DIR" ] && [ -f "$PAPERCLIP_DIR/package.json" ] && [ -d "$PAPERCLIP_DIR/node_modules" ] && [ -f "$PAPERCLIP_DIR/cli/node_modules/tsx/dist/cli.mjs" ]; then
+  if [ "${BLUEPRINT_PAPERCLIP_USE_LOCAL_RUNNER:-0}" = "1" ] \
+    && [ -d "$PAPERCLIP_DIR" ] \
+    && [ -f "$PAPERCLIP_DIR/package.json" ] \
+    && [ -d "$PAPERCLIP_DIR/node_modules" ] \
+    && [ -f "$PAPERCLIP_DIR/cli/node_modules/tsx/dist/cli.mjs" ]; then
     PAPERCLIP_RUNNER="local"
     return
   fi
@@ -88,8 +96,8 @@ paperclip_cli() {
   )
 }
 
-paperclip_health() {
-  curl -fsS "${PAPERCLIP_PUBLIC_URL}/api/health" >/dev/null 2>&1
+paperclip_local_health() {
+  curl -fsS "${PAPERCLIP_LOCAL_URL}/api/health" >/dev/null 2>&1
 }
 
 paperclip_public_url_is_remote() {
@@ -101,9 +109,31 @@ paperclip_public_url_is_remote() {
   return 0
 }
 
+spawn_paperclip_background() {
+  local action="$1"
+  local runner_command=""
+
+  if [ "$PAPERCLIP_RUNNER" = "local" ]; then
+    if [ "$action" = "run" ]; then
+      runner_command="cd \"$PAPERCLIP_DIR\" && exec env PAPERCLIP_HOME=\"$PAPERCLIP_HOME\" PAPERCLIP_INSTANCE_ID=\"$PAPERCLIP_INSTANCE_ID\" PAPERCLIP_PUBLIC_URL=\"$PAPERCLIP_PUBLIC_URL\" HOST=\"$PAPERCLIP_HOST\" PORT=\"$PAPERCLIP_PORT\" pnpm paperclipai run --data-dir \"$PAPERCLIP_HOME\""
+    else
+      runner_command="cd \"$PAPERCLIP_DIR\" && exec env PAPERCLIP_HOME=\"$PAPERCLIP_HOME\" PAPERCLIP_INSTANCE_ID=\"$PAPERCLIP_INSTANCE_ID\" PAPERCLIP_PUBLIC_URL=\"$PAPERCLIP_PUBLIC_URL\" HOST=\"$PAPERCLIP_HOST\" PORT=\"$PAPERCLIP_PORT\" pnpm paperclipai onboard --data-dir \"$PAPERCLIP_HOME\" --yes"
+    fi
+  else
+    if [ "$action" = "run" ]; then
+      runner_command="cd \"$WORKSPACE_ROOT\" && exec env PAPERCLIP_HOME=\"$PAPERCLIP_HOME\" PAPERCLIP_INSTANCE_ID=\"$PAPERCLIP_INSTANCE_ID\" PAPERCLIP_PUBLIC_URL=\"$PAPERCLIP_PUBLIC_URL\" HOST=\"$PAPERCLIP_HOST\" PORT=\"$PAPERCLIP_PORT\" npx -y paperclipai run --data-dir \"$PAPERCLIP_HOME\""
+    else
+      runner_command="cd \"$WORKSPACE_ROOT\" && exec env PAPERCLIP_HOME=\"$PAPERCLIP_HOME\" PAPERCLIP_INSTANCE_ID=\"$PAPERCLIP_INSTANCE_ID\" PAPERCLIP_PUBLIC_URL=\"$PAPERCLIP_PUBLIC_URL\" HOST=\"$PAPERCLIP_HOST\" PORT=\"$PAPERCLIP_PORT\" npx -y paperclipai onboard --data-dir \"$PAPERCLIP_HOME\" --yes"
+    fi
+  fi
+
+  nohup bash -lc "$runner_command" >>"$RUNTIME_LOG" 2>&1 &
+  echo $! >"$PID_FILE"
+}
+
 start_paperclip() {
   mkdir -p "$LOG_DIR"
-  if paperclip_health; then
+  if paperclip_local_health; then
     return
   fi
 
@@ -112,66 +142,14 @@ start_paperclip() {
 
   if [ -f "$CONFIG_PATH" ]; then
     echo "Starting Paperclip using ${PAPERCLIP_RUNNER} runner" | tee -a "$RUNTIME_LOG"
-    if [ "$PAPERCLIP_RUNNER" = "local" ]; then
-      (
-        cd "$PAPERCLIP_DIR"
-        nohup env \
-          PAPERCLIP_HOME="$PAPERCLIP_HOME" \
-          PAPERCLIP_INSTANCE_ID="$PAPERCLIP_INSTANCE_ID" \
-          PAPERCLIP_PUBLIC_URL="$PAPERCLIP_PUBLIC_URL" \
-          HOST="$PAPERCLIP_HOST" \
-          PORT="$PAPERCLIP_PORT" \
-          pnpm paperclipai run --data-dir "$PAPERCLIP_HOME" \
-          >>"$RUNTIME_LOG" 2>&1 &
-        echo $! >"$PID_FILE"
-      )
-    else
-      (
-        cd "$WORKSPACE_ROOT"
-        nohup env \
-          PAPERCLIP_HOME="$PAPERCLIP_HOME" \
-          PAPERCLIP_INSTANCE_ID="$PAPERCLIP_INSTANCE_ID" \
-          PAPERCLIP_PUBLIC_URL="$PAPERCLIP_PUBLIC_URL" \
-          HOST="$PAPERCLIP_HOST" \
-          PORT="$PAPERCLIP_PORT" \
-          npx -y paperclipai run --data-dir "$PAPERCLIP_HOME" \
-          >>"$RUNTIME_LOG" 2>&1 &
-        echo $! >"$PID_FILE"
-      )
-    fi
+    spawn_paperclip_background run
   else
     echo "Bootstrapping Paperclip config using ${PAPERCLIP_RUNNER} runner" | tee -a "$RUNTIME_LOG"
-    if [ "$PAPERCLIP_RUNNER" = "local" ]; then
-      (
-        cd "$PAPERCLIP_DIR"
-        nohup env \
-          PAPERCLIP_HOME="$PAPERCLIP_HOME" \
-          PAPERCLIP_INSTANCE_ID="$PAPERCLIP_INSTANCE_ID" \
-          PAPERCLIP_PUBLIC_URL="$PAPERCLIP_PUBLIC_URL" \
-          HOST="$PAPERCLIP_HOST" \
-          PORT="$PAPERCLIP_PORT" \
-          pnpm paperclipai onboard --data-dir "$PAPERCLIP_HOME" --yes \
-          >>"$RUNTIME_LOG" 2>&1 &
-        echo $! >"$PID_FILE"
-      )
-    else
-      (
-        cd "$WORKSPACE_ROOT"
-        nohup env \
-          PAPERCLIP_HOME="$PAPERCLIP_HOME" \
-          PAPERCLIP_INSTANCE_ID="$PAPERCLIP_INSTANCE_ID" \
-          PAPERCLIP_PUBLIC_URL="$PAPERCLIP_PUBLIC_URL" \
-          HOST="$PAPERCLIP_HOST" \
-          PORT="$PAPERCLIP_PORT" \
-          npx -y paperclipai onboard --data-dir "$PAPERCLIP_HOME" --yes \
-          >>"$RUNTIME_LOG" 2>&1 &
-        echo $! >"$PID_FILE"
-      )
-    fi
+    spawn_paperclip_background onboard
   fi
 
   for _ in $(seq 1 90); do
-    if paperclip_health; then
+    if paperclip_local_health; then
       return
     fi
     sleep 2
@@ -181,14 +159,14 @@ start_paperclip() {
 }
 
 find_company_id() {
-  curl -fsS "${PAPERCLIP_PUBLIC_URL}/api/companies" \
+  curl -fsS "${PAPERCLIP_API_URL}/api/companies" \
     | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const match=rows.find((row)=>row.name===process.argv[1]);process.stdout.write(match?match.id:"");});' "$COMPANY_NAME"
 }
 
 company_has_required_refresh_marker() {
   local company_id="$1"
-  curl -fsS "${PAPERCLIP_PUBLIC_URL}/api/companies/${company_id}/routines" \
-    | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const exists=rows.some((row)=>row.title==="CTO Cross-Repo Triage");process.stdout.write(exists?"yes":"no");});'
+  curl -fsS "${PAPERCLIP_API_URL}/api/companies/${company_id}/routines" \
+    | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const required=["CTO Cross-Repo Triage","Ops Lead Morning","Growth Lead Weekly","Market Intel Weekly"];const exists=required.every((title)=>rows.some((row)=>row.title===title));process.stdout.write(exists?"yes":"no");});'
 }
 
 package_fingerprint() {
@@ -241,7 +219,10 @@ import_company() {
 
 main() {
   ensure_prereqs
+  "$CODEX_GSTACK_SCRIPT"
   start_paperclip
+  PAPERCLIP_PUBLIC_URL="$("$PUBLIC_URL_SCRIPT")"
+  export PAPERCLIP_PUBLIC_URL
   import_company
   "$REPAIR_SCRIPT" --apply
   "$RECONCILE_SCRIPT"

@@ -28,6 +28,31 @@ export interface WorkQueueItem {
   substage?: string;
 }
 
+export interface WorkQueueQueryItem {
+  id: string;
+  title: string;
+  priority: string;
+  system: string;
+  lifecycleStage: string;
+  workType: string;
+  url?: string;
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function coerceWorkQueueItem(input: Partial<WorkQueueItem> & Record<string, unknown>): WorkQueueItem {
+  return {
+    title: asString(input.title) ?? "Untitled work item",
+    priority: (asString(input.priority) as WorkQueueItem["priority"] | undefined) ?? "P2",
+    system: (asString(input.system) as WorkQueueItem["system"] | undefined) ?? "Cross-System",
+    lifecycleStage: asString(input.lifecycleStage) ?? asString(input.status) ?? "Open",
+    workType: (asString(input.workType) as WorkQueueItem["workType"] | undefined) ?? "Task",
+    substage: asString(input.substage) ?? asString(input.description),
+  };
+}
+
 export async function createWorkQueueItem(
   client: Client,
   item: WorkQueueItem
@@ -51,7 +76,7 @@ export async function createWorkQueueItem(
 export async function queryWorkQueue(
   client: Client,
   filters: { system?: string; priority?: string; lifecycleStage?: string }
-): Promise<Array<{ id: string; title: string; priority: string; system: string }>> {
+): Promise<WorkQueueQueryItem[]> {
   const filterConditions: Array<Record<string, unknown>> = [];
 
   if (filters.system) {
@@ -90,6 +115,9 @@ export async function queryWorkQueue(
     title: page.properties.Title?.title?.[0]?.text?.content ?? "",
     priority: page.properties.Priority?.select?.name ?? "",
     system: page.properties.System?.select?.name ?? "",
+    lifecycleStage: page.properties["Lifecycle Stage"]?.select?.name ?? "",
+    workType: page.properties["Work Type"]?.select?.name ?? "",
+    url: page.url,
   }));
 }
 
@@ -100,6 +128,19 @@ export interface KnowledgeEntry {
   type: "Concept" | "Reference" | "How-To" | "Decision" | "Architecture" | "Contract";
   system: "Cross-System" | "WebApp" | "Capture" | "Pipeline" | "Validation";
   content: string;
+}
+
+function coerceKnowledgeEntry(input: Partial<KnowledgeEntry> & Record<string, unknown>): KnowledgeEntry {
+  return {
+    title: asString(input.title) ?? "Untitled knowledge entry",
+    type: (asString(input.type) ??
+      asString(input.category) ??
+      "Reference") as KnowledgeEntry["type"],
+    system: (asString(input.system) ??
+      asString(input.source) ??
+      "Cross-System") as KnowledgeEntry["system"],
+    content: asString(input.content) ?? "",
+  };
 }
 
 export async function createKnowledgeEntry(
@@ -137,6 +178,7 @@ export function buildNotionToolHandlers(client: Client) {
     "notion-read-work-queue": async (params: {
       system?: string;
       priority?: string;
+      lifecycleStage?: string;
     }) => {
       const items = await queryWorkQueue(client, params);
       return {
@@ -146,13 +188,13 @@ export function buildNotionToolHandlers(client: Client) {
       };
     },
 
-    "notion-write-work-queue": async (params: WorkQueueItem) => {
-      const id = await createWorkQueueItem(client, params);
+    "notion-write-work-queue": async (params: Partial<WorkQueueItem> & Record<string, unknown>) => {
+      const id = await createWorkQueueItem(client, coerceWorkQueueItem(params));
       return { success: true, pageId: id };
     },
 
-    "notion-write-knowledge": async (params: KnowledgeEntry) => {
-      const id = await createKnowledgeEntry(client, params);
+    "notion-write-knowledge": async (params: Partial<KnowledgeEntry> & Record<string, unknown>) => {
+      const id = await createKnowledgeEntry(client, coerceKnowledgeEntry(params));
       return { success: true, pageId: id };
     },
   };

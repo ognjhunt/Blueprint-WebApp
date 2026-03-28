@@ -119,6 +119,50 @@ const manifest: PaperclipPluginManifestV1 = {
         title: "Enable Outbound Notifications",
         default: false,
       },
+      opsDepartment: {
+        type: "object",
+        title: "Ops Department",
+        properties: {
+          enabled: { type: "boolean", default: true },
+          agents: {
+            type: "object",
+            properties: {
+              opsLead: { type: "string" },
+              intake: { type: "string" },
+              captureQa: { type: "string" },
+              fieldOps: { type: "string" },
+              financeSupport: { type: "string" },
+            },
+          },
+        },
+      },
+      growthDepartment: {
+        type: "object",
+        title: "Growth Department",
+        properties: {
+          enabled: { type: "boolean", default: true },
+          agents: {
+            type: "object",
+            properties: {
+              growthLead: { type: "string" },
+              conversionOptimizer: { type: "string" },
+              analytics: { type: "string" },
+              marketIntel: { type: "string" },
+            },
+          },
+        },
+      },
+      secrets: {
+        type: "object",
+        title: "Automation Secret Refs",
+        properties: {
+          notionApiTokenRef: { type: "string", format: "secret-ref" },
+          slackOpsWebhookUrlRef: { type: "string", format: "secret-ref" },
+          slackGrowthWebhookUrlRef: { type: "string", format: "secret-ref" },
+          searchApiKeyRef: { type: "string", format: "secret-ref" },
+          searchApiProviderRef: { type: "string", format: "secret-ref" },
+        },
+      },
       repoCatalog: {
         type: "array",
         title: "Repo Catalog",
@@ -256,6 +300,7 @@ const manifest: PaperclipPluginManifestV1 = {
         properties: {
           system: { type: "string" },
           priority: { type: "string" },
+          lifecycleStage: { type: "string" },
         },
       },
     },
@@ -269,8 +314,9 @@ const manifest: PaperclipPluginManifestV1 = {
           title: { type: "string" },
           priority: { type: "string" },
           system: { type: "string" },
-          status: { type: "string" },
-          description: { type: "string" },
+          lifecycleStage: { type: "string" },
+          workType: { type: "string" },
+          substage: { type: "string" },
         },
         required: ["title", "priority", "system"],
       },
@@ -283,11 +329,11 @@ const manifest: PaperclipPluginManifestV1 = {
         type: "object",
         properties: {
           title: { type: "string" },
-          category: { type: "string" },
+          type: { type: "string" },
+          system: { type: "string" },
           content: { type: "string" },
-          source: { type: "string" },
         },
-        required: ["title", "category", "content"],
+        required: ["title", "type", "content"],
       },
     },
     {

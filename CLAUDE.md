@@ -24,3 +24,9 @@ npm run build
 npm run test:coverage
 npm run test:e2e
 ```
+
+## gstack
+
+- Use the repo-local gstack install at `.agents/skills/gstack` when you need slash-skill workflows.
+- Prefer `/browse` for web browsing and browser-driven QA instead of older Chrome MCP flows.
+- Core skills expected in this repo: `/plan-eng-review`, `/review`, `/qa`, `/browse`, `/investigate`, `/benchmark`, `/codex`, `/cso`, `/ship`, `/land-and-deploy`.
