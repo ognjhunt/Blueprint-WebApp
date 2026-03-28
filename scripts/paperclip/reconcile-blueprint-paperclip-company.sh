@@ -11,17 +11,17 @@ if [ -f "$PAPERCLIP_ENV_FILE" ]; then
   set +a
 fi
 
-PAPERCLIP_PUBLIC_URL="${PAPERCLIP_PUBLIC_URL:-http://127.0.0.1:3100}"
+PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://127.0.0.1:3100}"
 COMPANY_NAME="${COMPANY_NAME:-Blueprint Autonomous Operations}"
 
-export PAPERCLIP_PUBLIC_URL COMPANY_NAME
+export PAPERCLIP_API_URL COMPANY_NAME
 
 node <<'NODE'
-const paperclipPublicUrl = process.env.PAPERCLIP_PUBLIC_URL;
+const paperclipApiUrl = process.env.PAPERCLIP_API_URL;
 const companyName = process.env.COMPANY_NAME;
 
 async function fetchJson(path, init = {}) {
-  const response = await fetch(`${paperclipPublicUrl}${path}`, {
+  const response = await fetch(`${paperclipApiUrl}${path}`, {
     headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
     ...init,
   });
@@ -59,27 +59,172 @@ const [agents, projects, routines] = await Promise.all([
 ]);
 
 const desiredAgents = {
-  "blueprint-ceo": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
-  "blueprint-cto": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
-  "webapp-claude": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
-  "pipeline-claude": "/Users/nijelhunt_1/workspace/BlueprintCapturePipeline",
-  "capture-claude": "/Users/nijelhunt_1/workspace/BlueprintCapture",
+  "blueprint-ceo": {
+    adapterType: "claude_local",
+    adapterConfig: {
+      cwd: "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      model: "claude-sonnet-4-6",
+      timeoutSec: 1800,
+      dangerouslySkipPermissions: true,
+    },
+  },
+  "blueprint-cto": {
+    adapterType: "claude_local",
+    adapterConfig: {
+      cwd: "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      model: "claude-sonnet-4-6",
+      timeoutSec: 1800,
+      dangerouslySkipPermissions: true,
+    },
+  },
+  "webapp-codex": {
+    adapterType: "codex_local",
+    adapterConfig: {
+      cwd: "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      model: "gpt-5.3-codex",
+      timeoutSec: 1800,
+      dangerouslyBypassApprovalsAndSandbox: true,
+    },
+  },
+  "webapp-claude": {
+    adapterType: "claude_local",
+    adapterConfig: {
+      cwd: "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      model: "claude-sonnet-4-6",
+      timeoutSec: 1800,
+      dangerouslySkipPermissions: true,
+    },
+  },
+  "pipeline-codex": {
+    adapterType: "codex_local",
+    adapterConfig: {
+      cwd: "/Users/nijelhunt_1/workspace/BlueprintCapturePipeline",
+      model: "gpt-5.3-codex",
+      timeoutSec: 1800,
+      dangerouslyBypassApprovalsAndSandbox: true,
+    },
+  },
+  "pipeline-claude": {
+    adapterType: "claude_local",
+    adapterConfig: {
+      cwd: "/Users/nijelhunt_1/workspace/BlueprintCapturePipeline",
+      model: "claude-sonnet-4-6",
+      timeoutSec: 1800,
+      dangerouslySkipPermissions: true,
+    },
+  },
+  "capture-codex": {
+    adapterType: "codex_local",
+    adapterConfig: {
+      cwd: "/Users/nijelhunt_1/workspace/BlueprintCapture",
+      model: "gpt-5.3-codex",
+      timeoutSec: 1800,
+      dangerouslyBypassApprovalsAndSandbox: true,
+    },
+  },
+  "capture-claude": {
+    adapterType: "claude_local",
+    adapterConfig: {
+      cwd: "/Users/nijelhunt_1/workspace/BlueprintCapture",
+      model: "claude-sonnet-4-6",
+      timeoutSec: 1800,
+      dangerouslySkipPermissions: true,
+    },
+  },
+  // ── Ops Department ────────────────────────────────────
+  "ops-lead": {
+    adapterType: "claude_local",
+    adapterConfig: {
+      cwd: "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      model: "claude-sonnet-4-6",
+      timeoutSec: 1800,
+      dangerouslySkipPermissions: true,
+    },
+  },
+  "intake-agent": {
+    adapterType: "claude_local",
+    adapterConfig: {
+      cwd: "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      model: "claude-sonnet-4-6",
+      timeoutSec: 1800,
+      dangerouslySkipPermissions: true,
+    },
+  },
+  "capture-qa-agent": {
+    adapterType: "claude_local",
+    adapterConfig: {
+      cwd: "/Users/nijelhunt_1/workspace/BlueprintCapturePipeline",
+      model: "claude-sonnet-4-6",
+      timeoutSec: 1800,
+      dangerouslySkipPermissions: true,
+    },
+  },
+  "field-ops-agent": {
+    adapterType: "claude_local",
+    adapterConfig: {
+      cwd: "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      model: "claude-sonnet-4-6",
+      timeoutSec: 1800,
+      dangerouslySkipPermissions: true,
+    },
+  },
+  "finance-support-agent": {
+    adapterType: "claude_local",
+    adapterConfig: {
+      cwd: "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      model: "claude-sonnet-4-6",
+      timeoutSec: 1800,
+      dangerouslySkipPermissions: true,
+    },
+  },
+  // ── Growth Department ─────────────────────────────────
+  "growth-lead": {
+    adapterType: "claude_local",
+    adapterConfig: {
+      cwd: "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      model: "claude-sonnet-4-6",
+      timeoutSec: 1800,
+      dangerouslySkipPermissions: true,
+    },
+  },
+  "conversion-agent": {
+    adapterType: "claude_local",
+    adapterConfig: {
+      cwd: "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      model: "claude-sonnet-4-6",
+      timeoutSec: 1800,
+      dangerouslySkipPermissions: true,
+    },
+  },
+  "analytics-agent": {
+    adapterType: "claude_local",
+    adapterConfig: {
+      cwd: "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      model: "claude-sonnet-4-6",
+      timeoutSec: 1800,
+      dangerouslySkipPermissions: true,
+    },
+  },
+  "market-intel-agent": {
+    adapterType: "claude_local",
+    adapterConfig: {
+      cwd: "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+      model: "claude-sonnet-4-6",
+      timeoutSec: 1800,
+      dangerouslySkipPermissions: true,
+    },
+  },
 };
 
-for (const [agentKey, cwd] of Object.entries(desiredAgents)) {
+for (const [agentKey, desired] of Object.entries(desiredAgents)) {
   const agent = pickCanonical(agents, agentKey);
   if (!agent) continue;
   await fetchJson(`/api/agents/${agent.id}`, {
     method: "PATCH",
     body: JSON.stringify({
-      adapterType: "codex_local",
+      adapterType: desired.adapterType,
       replaceAdapterConfig: true,
-      adapterConfig: {
-        cwd,
-        model: "gpt-5.3-codex",
-        timeoutSec: 1800,
-        dangerouslyBypassApprovalsAndSandbox: true,
-      },
+      adapterConfig: desired.adapterConfig,
     }),
   });
   if (agent.status === "paused") {
@@ -102,6 +247,15 @@ const canonicalAgents = {
   "pipeline-claude": pickCanonical(agents, "pipeline-claude"),
   "capture-codex": pickCanonical(agents, "capture-codex"),
   "capture-claude": pickCanonical(agents, "capture-claude"),
+  "ops-lead": pickCanonical(agents, "ops-lead"),
+  "intake-agent": pickCanonical(agents, "intake-agent"),
+  "capture-qa-agent": pickCanonical(agents, "capture-qa-agent"),
+  "field-ops-agent": pickCanonical(agents, "field-ops-agent"),
+  "finance-support-agent": pickCanonical(agents, "finance-support-agent"),
+  "growth-lead": pickCanonical(agents, "growth-lead"),
+  "conversion-agent": pickCanonical(agents, "conversion-agent"),
+  "analytics-agent": pickCanonical(agents, "analytics-agent"),
+  "market-intel-agent": pickCanonical(agents, "market-intel-agent"),
 };
 
 const desiredRoutines = [
@@ -113,6 +267,21 @@ const desiredRoutines = [
   ["Pipeline Claude Review Loop", canonicalProjects["blueprint-capture-pipeline"], canonicalAgents["pipeline-claude"]],
   ["Capture Autonomy Loop", canonicalProjects["blueprint-capture"], canonicalAgents["capture-codex"]],
   ["Capture Claude Review Loop", canonicalProjects["blueprint-capture"], canonicalAgents["capture-claude"]],
+  // Ops Department routines
+  ["Ops Morning Review", canonicalProjects["blueprint-webapp"], canonicalAgents["ops-lead"]],
+  ["Ops Afternoon Review", canonicalProjects["blueprint-webapp"], canonicalAgents["ops-lead"]],
+  ["Ops Queue Monitor", canonicalProjects["blueprint-webapp"], canonicalAgents["ops-lead"]],
+  ["Intake Queue Processor", canonicalProjects["blueprint-webapp"], canonicalAgents["intake-agent"]],
+  ["QA Pipeline Review", canonicalProjects["blueprint-capture-pipeline"], canonicalAgents["capture-qa-agent"]],
+  ["Daily Calendar Review", canonicalProjects["blueprint-webapp"], canonicalAgents["field-ops-agent"]],
+  ["Stripe Ledger Reconciliation", canonicalProjects["blueprint-webapp"], canonicalAgents["finance-support-agent"]],
+  // Growth Department routines
+  ["Growth Strategy Sync", canonicalProjects["blueprint-webapp"], canonicalAgents["growth-lead"]],
+  ["Weekly Growth Report", canonicalProjects["blueprint-webapp"], canonicalAgents["growth-lead"]],
+  ["Conversion Optimization Cycle", canonicalProjects["blueprint-webapp"], canonicalAgents["conversion-agent"]],
+  ["Daily Analytics Pull", canonicalProjects["blueprint-webapp"], canonicalAgents["analytics-agent"]],
+  ["Weekly Analytics Report", canonicalProjects["blueprint-webapp"], canonicalAgents["analytics-agent"]],
+  ["Market Intelligence Scan", canonicalProjects["blueprint-webapp"], canonicalAgents["market-intel-agent"]],
 ];
 
 for (const [title, project, agent] of desiredRoutines) {
