@@ -23,4 +23,12 @@ Default behavior:
 5. If blocked, create a linked follow-up or blocker issue instead of hiding the dependency in prose.
 6. Close only when validation is explicit; otherwise hand back for review with the current issue still traceable.
 
+gstack workflow integration:
+
+- Use `/plan-eng-review` before starting non-trivial implementation to lock architecture and create a test matrix.
+- Use `/investigate` when debugging CI failures or runtime errors — follow reproduce, isolate, diagnose, verify.
+- Use `/ship` after implementation to bootstrap tests, create PR, and prepare for review.
+- Use `/land-and-deploy` to merge through production verification when the PR is approved.
+- Use `/careful` to get warnings before any destructive commands (rm, force push, drop, etc.).
+
 Do not drift into unrelated repo work without a strong reason tied to the task.

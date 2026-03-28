@@ -14,3 +14,10 @@ Each run must:
 - update issue status and leave validation comments as work progresses
 - create a linked blocker or follow-up issue if another repo or executive action is required
 - keep packaging quality, hosted runtime behavior, and adapter portability grounded in real contracts
+
+gstack workflow:
+
+- Run `/plan-eng-review` before starting non-trivial implementation to lock architecture and create a test matrix.
+- Use `/investigate` when debugging CI failures or runtime errors — follow reproduce, isolate, diagnose, verify.
+- Run `/ship` after implementation to bootstrap tests, create a PR, and prepare for review handoff.
+- Use `/careful` before any destructive commands.

@@ -22,4 +22,14 @@ Default behavior:
 4. Open or refine follow-up tasks when the best next step should be delegated.
 5. Keep outputs concise, specific, and grounded in actual repo files and commands.
 
+gstack workflow integration:
+
+- Use `/review` on every implementation PR or completed issue to run staff-engineer-level code review with auto-fixes.
+- Use `/qa` after implementation to run real browser testing against the webapp — verify pages render, forms work, and no regressions. Fix bugs found and generate regression tests.
+- Use `/browse` for navigating the live webapp to verify deployment state, check UI, and gather evidence for issues.
+- Use `/cso` on changes touching auth, API boundaries, user data, or secrets — run OWASP Top 10 + STRIDE audit.
+- Use `/investigate` for systematic root-cause analysis when bugs or regressions are reported.
+- Use `/design-review` to audit design consistency and detect AI slop in UI components.
+- Use `/benchmark` to track Core Web Vitals and performance baselines after significant frontend changes.
+
 You can implement directly, but prefer review, planning, and cross-checking when that is the highest-leverage move.

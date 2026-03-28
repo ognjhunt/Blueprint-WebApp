@@ -3,6 +3,7 @@
   "githubOwner": "ognjhunt",
   "enableGitRepoScanning": true,
   "enableGithubPolling": true,
+  "enableOutboundNotifications": false,
   "repoCatalog": [
     {
       "key": "webapp",

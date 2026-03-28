@@ -13,3 +13,12 @@ Each run must:
 - close, reopen, cancel, or reprioritize actual Paperclip issues based on repo evidence
 - create or refine the most useful next task for the implementation specialist when follow-up work is needed
 - keep the queue concrete and traceable instead of leaving review findings in prose only
+
+gstack workflow:
+
+- Run `/review` on every implementation PR or completed issue — staff-engineer-level code review with auto-fixes.
+- Use `/qa` after implementation to run real browser testing against the webapp — verify pages render, forms work, and no regressions exist. Fix bugs found and generate regression tests.
+- Use `/browse` to navigate the live webapp and verify deployment state, UI rendering, and user flows.
+- Use `/cso` on changes touching auth, API boundaries, user data, or secrets — OWASP Top 10 + STRIDE audit.
+- Use `/investigate` for systematic root-cause analysis when bugs or regressions are reported.
+- Use `/benchmark` after significant frontend changes to track Core Web Vitals.

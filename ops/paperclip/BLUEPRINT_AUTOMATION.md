@@ -14,6 +14,7 @@ The automation loop is deliberately grounded in real repo state and truthful pro
 - CI failures come from real webhook or polling signals
 - issue creation, dedupe, blocker follow-up, and resolution happen as actual Paperclip issues
 - executive routines are instructed to manage issue lifecycle explicitly rather than narrate status
+- Codex is now the execution default for implementation, review, and executive loops on this host so automation does not depend on Claude being healthy
 
 ## Architecture
 
@@ -23,6 +24,7 @@ The automation loop is deliberately grounded in real repo state and truthful pro
 - `cto-cross-repo-triage` is the cross-repo technical orchestration loop.
 - Repo implementation and review loops are instructed to work from actual Paperclip issues, create blocker follow-up issues, and close or reprioritize issues explicitly.
 - `blueprint-executive-ops` is the cross-repo / operator project for executive and blocker work.
+- The historical `*-claude` agent keys are preserved for compatibility with existing tasks, routines, and plugin routing, but they are now backed by `codex_local` adapters on this host.
 
 ### Blueprint plugin
 
@@ -36,6 +38,7 @@ It provides:
 - generic operator-intake webhook suitable for Slack workflow or email-forward integrations
 - deduped issue upsert and resolution
 - linked blocker follow-up issue creation
+- optional outbound notification webhooks for high-priority issue opens, blocker follow-ups, and CI recovery
 - a dashboard page and widget for watch-only operators
 - agent tools for CEO/CTO loops:
   - `blueprint-scan-work`
@@ -81,6 +84,9 @@ The bootstrap, configure, verify, smoke, and LaunchAgent flows all read that fil
 - `BLUEPRINT_PAPERCLIP_GITHUB_WEBHOOK_SECRET`
 - `BLUEPRINT_PAPERCLIP_CI_SHARED_SECRET`
 - `BLUEPRINT_PAPERCLIP_INTAKE_SHARED_SECRET`
+- `BLUEPRINT_PAPERCLIP_NOTIFICATION_WEBHOOK_URL`
+- `BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE`
+- `BLUEPRINT_PAPERCLIP_AUTO_SETUP_GITHUB_WEBHOOKS`
 
 ### How secrets are handled
 
@@ -99,10 +105,28 @@ Bootstrap the whole stack:
 /Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/bootstrap-blueprint-paperclip.sh
 ```
 
+If an older local instance already accumulated duplicate projects, agents, or routines from re-imports, repair it directly:
+
+```bash
+/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/repair-blueprint-paperclip-company.sh --apply
+```
+
+If you need to re-normalize the canonical unsuffixed agents and routines after an import, run:
+
+```bash
+/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/reconcile-blueprint-paperclip-company.sh
+```
+
 Reconfigure only the plugin and secret refs:
 
 ```bash
 /Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/configure-blueprint-paperclip-plugin.sh
+```
+
+Create or refresh GitHub webhooks once `PAPERCLIP_PUBLIC_URL` is publicly reachable:
+
+```bash
+/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/setup-github-webhooks.sh
 ```
 
 Verify adapters, routines, plugin readiness, and dashboard reachability:
@@ -110,6 +134,8 @@ Verify adapters, routines, plugin readiness, and dashboard reachability:
 ```bash
 /Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/verify-blueprint-paperclip.sh
 ```
+
+`verify-blueprint-paperclip.sh` is Codex-first by default. Set `BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE=1` only if you explicitly want to test Claude adapters too.
 
 Run the end-to-end automation smoke:
 
@@ -150,6 +176,8 @@ Use the `github` endpoint for:
 
 If `BLUEPRINT_PAPERCLIP_GITHUB_WEBHOOK_SECRET` is configured, the plugin verifies `X-Hub-Signature-256`.
 
+`setup-github-webhooks.sh` now uses the same env file as bootstrap/configure, creates or updates hooks on the three Blueprint repos, and validates delivery by triggering GitHub ping events and checking the latest delivery status.
+
 ### Generic CI
 
 Use the `ci` endpoint for any CI system that can POST JSON with:
@@ -183,6 +211,16 @@ Payloads can:
 If `BLUEPRINT_PAPERCLIP_INTAKE_SHARED_SECRET` is configured, send it as:
 
 - `Authorization: Bearer <secret>`
+
+## Outbound Notifications
+
+If `BLUEPRINT_PAPERCLIP_NOTIFICATION_WEBHOOK_URL` is configured, the plugin will POST Slack-compatible webhook payloads for:
+
+- new `high` or `critical` automation-created issues
+- blocker follow-up issue creation
+- CI-tracked issue resolution
+
+This uses a Paperclip secret ref rather than storing the webhook URL in plugin config directly.
 
 ## Watch-Only Runbook
 

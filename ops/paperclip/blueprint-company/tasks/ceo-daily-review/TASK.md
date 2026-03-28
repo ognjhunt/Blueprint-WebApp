@@ -17,3 +17,9 @@ Each run must:
 - close or cancel obsolete issues explicitly instead of leaving them to drift
 - create linked follow-up issues when blockers or cross-repo dependencies appear
 - keep work aligned to Blueprint's capture-first, world-model-product-first strategy
+
+gstack workflow:
+
+- Run `/retro` at the end of the review to produce a cross-repo retrospective summarizing wins, blockers, velocity trends, and emerging patterns across all three Blueprint repos. Post retro findings as a comment on this task's issue.
+- Use `/plan-ceo-review` when evaluating whether to expand, reduce, hold, or pivot on a major initiative. Apply the output as issue priority/status changes.
+- Use `/office-hours` when a strategic question surfaces that needs product-level forcing questions before becoming engineering work. Route the output as a new issue assigned to CTO.

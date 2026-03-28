@@ -103,6 +103,7 @@ write_plugin_config() {
   local ci_secret_id="$4"
   local intake_secret_id="$5"
   local plugin_id="$6"
+  local notification_webhook_id="${7:-}"
 
   local payload
   payload="$(
@@ -115,8 +116,10 @@ write_plugin_config() {
       if (process.argv[5]) template.githubWebhookSecretRef = process.argv[5];
       if (process.argv[6]) template.ciSharedSecretRef = process.argv[6];
       if (process.argv[7]) template.intakeSharedSecretRef = process.argv[7];
+      if (process.argv[8]) template.notificationWebhookUrlRef = process.argv[8];
+      template.enableOutboundNotifications = Boolean(process.argv[8]);
       process.stdout.write(JSON.stringify({configJson: template}));
-    ' "$CONFIG_TEMPLATE" "$COMPANY_NAME" "${BLUEPRINT_PAPERCLIP_GITHUB_OWNER:-}" "$github_token_id" "$github_webhook_secret_id" "$ci_secret_id" "$intake_secret_id"
+    ' "$CONFIG_TEMPLATE" "$COMPANY_NAME" "${BLUEPRINT_PAPERCLIP_GITHUB_OWNER:-}" "$github_token_id" "$github_webhook_secret_id" "$ci_secret_id" "$intake_secret_id" "$notification_webhook_id"
   )"
 
   curl -fsS -X POST \
@@ -140,13 +143,15 @@ main() {
   local github_webhook_secret_id
   local ci_secret_id
   local intake_secret_id
+  local notification_webhook_id
 
   github_token_id="$(upsert_secret_from_env "$company" "github-token" "BLUEPRINT_PAPERCLIP_GITHUB_TOKEN")"
   github_webhook_secret_id="$(upsert_secret_from_env "$company" "github-webhook-secret" "BLUEPRINT_PAPERCLIP_GITHUB_WEBHOOK_SECRET")"
   ci_secret_id="$(upsert_secret_from_env "$company" "ci-shared-secret" "BLUEPRINT_PAPERCLIP_CI_SHARED_SECRET")"
   intake_secret_id="$(upsert_secret_from_env "$company" "intake-shared-secret" "BLUEPRINT_PAPERCLIP_INTAKE_SHARED_SECRET")"
+  notification_webhook_id="$(upsert_secret_from_env "$company" "notification-webhook-url" "BLUEPRINT_PAPERCLIP_NOTIFICATION_WEBHOOK_URL")"
 
-  write_plugin_config "$company" "$github_token_id" "$github_webhook_secret_id" "$ci_secret_id" "$intake_secret_id" "$plugin"
+  write_plugin_config "$company" "$github_token_id" "$github_webhook_secret_id" "$ci_secret_id" "$intake_secret_id" "$plugin" "$notification_webhook_id"
 
   curl -fsS "${PAPERCLIP_PUBLIC_URL}/api/plugins/${plugin}/health" >/dev/null
 

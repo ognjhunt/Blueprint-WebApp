@@ -15,6 +15,9 @@ PAPERCLIP_DIR="${PAPERCLIP_DIR:-$WORKSPACE_ROOT/paperclip}"
 PAPERCLIP_HOME="${PAPERCLIP_HOME:-$WORKSPACE_ROOT/.paperclip-blueprint}"
 PACKAGE_DIR="${PACKAGE_DIR:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company}"
 PLUGIN_CONFIGURE_SCRIPT="${PLUGIN_CONFIGURE_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/configure-blueprint-paperclip-plugin.sh}"
+REPAIR_SCRIPT="${REPAIR_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/repair-blueprint-paperclip-company.sh}"
+RECONCILE_SCRIPT="${RECONCILE_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/reconcile-blueprint-paperclip-company.sh}"
+WEBHOOK_SETUP_SCRIPT="${WEBHOOK_SETUP_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/setup-github-webhooks.sh}"
 PAPERCLIP_HOST="${PAPERCLIP_HOST:-127.0.0.1}"
 PAPERCLIP_PORT="${PAPERCLIP_PORT:-3100}"
 PAPERCLIP_PUBLIC_URL="${PAPERCLIP_PUBLIC_URL:-http://${PAPERCLIP_HOST}:${PAPERCLIP_PORT}}"
@@ -26,6 +29,7 @@ LOG_DIR="$PAPERCLIP_HOME/logs"
 RUNTIME_LOG="$LOG_DIR/paperclip-runtime.log"
 IMPORT_LOG="$LOG_DIR/paperclip-import.log"
 PID_FILE="$PAPERCLIP_HOME/paperclip.pid"
+PACKAGE_STAMP="$INSTANCE_ROOT/blueprint-company-package.sha256"
 PAPERCLIP_RUNNER=""
 
 ensure_prereqs() {
@@ -86,6 +90,15 @@ paperclip_cli() {
 
 paperclip_health() {
   curl -fsS "${PAPERCLIP_PUBLIC_URL}/api/health" >/dev/null 2>&1
+}
+
+paperclip_public_url_is_remote() {
+  case "$PAPERCLIP_PUBLIC_URL" in
+    http://127.0.0.1:*|http://localhost:*|https://127.0.0.1:*|https://localhost:*)
+      return 1
+      ;;
+  esac
+  return 0
 }
 
 start_paperclip() {
@@ -178,11 +191,24 @@ company_has_required_refresh_marker() {
     | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const exists=rows.some((row)=>row.title==="CTO Cross-Repo Triage");process.stdout.write(exists?"yes":"no");});'
 }
 
+package_fingerprint() {
+  (
+    cd "$PACKAGE_DIR"
+    find . -type f | sort | while read -r path; do
+      shasum -a 256 "$path"
+    done | shasum -a 256 | awk '{print $1}'
+  )
+}
+
 import_company() {
   local company_id
+  local fingerprint
+  fingerprint="$(package_fingerprint)"
   company_id="$(find_company_id)"
   if [ -n "$company_id" ]; then
-    if [ "$(company_has_required_refresh_marker "$company_id")" = "yes" ]; then
+    if [ "$(company_has_required_refresh_marker "$company_id")" = "yes" ] \
+      && [ -f "$PACKAGE_STAMP" ] \
+      && [ "$(cat "$PACKAGE_STAMP")" = "$fingerprint" ]; then
       echo "Paperclip company already up to date: $company_id"
       return
     fi
@@ -193,6 +219,7 @@ import_company() {
       --yes \
       --json \
       >"$IMPORT_LOG"
+    printf '%s' "$fingerprint" >"$PACKAGE_STAMP"
     echo "Updated Blueprint company: $company_id"
     return
   fi
@@ -203,6 +230,7 @@ import_company() {
     --yes \
     --json \
     >"$IMPORT_LOG"
+  printf '%s' "$fingerprint" >"$PACKAGE_STAMP"
   company_id="$(find_company_id)"
   if [ -z "$company_id" ]; then
     echo "Company import completed but the company could not be found afterwards." >&2
@@ -215,7 +243,14 @@ main() {
   ensure_prereqs
   start_paperclip
   import_company
+  "$REPAIR_SCRIPT" --apply
+  "$RECONCILE_SCRIPT"
   "$PLUGIN_CONFIGURE_SCRIPT"
+  if [ "${BLUEPRINT_PAPERCLIP_AUTO_SETUP_GITHUB_WEBHOOKS:-1}" = "1" ] \
+    && [ -n "${BLUEPRINT_PAPERCLIP_GITHUB_WEBHOOK_SECRET:-}" ] \
+    && paperclip_public_url_is_remote; then
+    "$WEBHOOK_SETUP_SCRIPT"
+  fi
   echo "Paperclip is running at ${PAPERCLIP_PUBLIC_URL}"
 }
 

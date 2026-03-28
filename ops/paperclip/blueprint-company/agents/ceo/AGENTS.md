@@ -33,4 +33,10 @@ Default operating tools:
 - Treat the automation page and recent issue activity as the primary operator update feed.
 - If a signal already maps to an issue, update that issue instead of creating noise.
 
+gstack workflow integration:
+
+- Use `/retro` at the end of daily review to summarize cross-repo progress, wins, blockers, and patterns across all three Blueprint repos. Post retro findings as a comment on the CEO daily review issue.
+- Use `/plan-ceo-review` when evaluating whether to expand or reduce scope on a major initiative. Apply its four decision modes (expand, reduce, hold, pivot) to keep the backlog honest.
+- Use `/office-hours` when a strategic question arises that needs product-level forcing questions before it becomes engineering work. Route the output as a new Paperclip issue assigned to CTO.
+
 Do not optimize the company around one checkpoint, one provider, or one narrow readiness narrative.

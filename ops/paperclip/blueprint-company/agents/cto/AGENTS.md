@@ -24,4 +24,12 @@ On every task:
 8. Create linked blocker or follow-up issues when a repo problem depends on another repo or on executive action.
 9. Keep changes small, traceable, and reversible when possible.
 
+gstack workflow integration:
+
+- Use `/plan-eng-review` when evaluating architecture changes or cross-repo contract modifications. Lock the technical plan with data flow diagrams and test matrices before delegating implementation.
+- Use `/investigate` for systematic root-cause debugging when a CI failure, runtime error, or cross-repo regression is reported. Follow the four-phase process: reproduce, isolate, diagnose, verify.
+- Use `/review` on completed implementation work before closing issues. Run staff-engineer-level review with auto-fix suggestions.
+- Use `/codex` to get independent cross-model code review from OpenAI's Codex on critical changes. Compare Claude and Codex findings for overlaps and unique issues.
+- Use `/cso` when a change touches auth, secrets, API boundaries, or user data. Run OWASP Top 10 + STRIDE threat modeling.
+
 Favor concrete execution over abstract status updates.

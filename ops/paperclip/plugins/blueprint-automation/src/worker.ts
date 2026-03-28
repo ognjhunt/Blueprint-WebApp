@@ -55,8 +55,10 @@ type BlueprintAutomationConfig = {
   githubWebhookSecretRef?: string;
   ciSharedSecretRef?: string;
   intakeSharedSecretRef?: string;
+  notificationWebhookUrlRef?: string;
   enableGitRepoScanning?: boolean;
   enableGithubPolling?: boolean;
+  enableOutboundNotifications?: boolean;
   repoCatalog?: RepoConfig[];
 };
 
@@ -161,8 +163,10 @@ function normalizeConfig(rawConfig: Record<string, unknown>): BlueprintAutomatio
     githubWebhookSecretRef: asString(rawConfig.githubWebhookSecretRef),
     ciSharedSecretRef: asString(rawConfig.ciSharedSecretRef),
     intakeSharedSecretRef: asString(rawConfig.intakeSharedSecretRef),
+    notificationWebhookUrlRef: asString(rawConfig.notificationWebhookUrlRef),
     enableGitRepoScanning: asBoolean(rawConfig.enableGitRepoScanning, true),
     enableGithubPolling: asBoolean(rawConfig.enableGithubPolling, true),
+    enableOutboundNotifications: asBoolean(rawConfig.enableOutboundNotifications, false),
     repoCatalog: Array.isArray(rawConfig.repoCatalog) && rawConfig.repoCatalog.length > 0
       ? rawConfig.repoCatalog.filter((entry): entry is RepoConfig => {
         if (!entry || typeof entry !== "object") return false;
@@ -205,6 +209,61 @@ function normalizedCandidates(entity: Record<string, unknown>): string[] {
     .map((value) => value.trim().toLowerCase());
 }
 
+function hasDuplicateSuffix(value: unknown) {
+  return typeof value === "string" && /(?:-\d+| \d+)$/.test(value.trim());
+}
+
+function scoreProjectMatch(project: Project, target: string) {
+  const record = project as unknown as Record<string, unknown>;
+  const codebase = record.codebase && typeof record.codebase === "object"
+    ? record.codebase as Record<string, unknown>
+    : null;
+  const exactCandidates = [
+    record.id,
+    record.name,
+    record.title,
+    record.slug,
+    record.key,
+    record.urlKey,
+    record.identifier,
+  ]
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.trim().toLowerCase());
+  const repoName = typeof codebase?.repoName === "string" ? codebase.repoName.trim().toLowerCase() : null;
+  const localFolder = typeof codebase?.localFolder === "string" ? codebase.localFolder : null;
+
+  let score = 0;
+  if (exactCandidates.includes(target)) score += 100;
+  if (repoName === target) score += 25;
+  if (localFolder) score += 10;
+  if (!hasDuplicateSuffix(record.urlKey) && !hasDuplicateSuffix(record.name)) score += 5;
+  return score;
+}
+
+function scoreAgentMatch(agent: Agent, target: string) {
+  const record = agent as unknown as Record<string, unknown>;
+  const exactCandidates = [
+    record.id,
+    record.name,
+    record.title,
+    record.slug,
+    record.key,
+    record.urlKey,
+    record.identifier,
+  ]
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.trim().toLowerCase());
+  const cwd = typeof (record.adapterConfig as Record<string, unknown> | undefined)?.cwd === "string"
+    ? (record.adapterConfig as Record<string, unknown>).cwd as string
+    : null;
+
+  let score = 0;
+  if (exactCandidates.includes(target)) score += 100;
+  if (cwd) score += 10;
+  if (!hasDuplicateSuffix(record.urlKey) && !hasDuplicateSuffix(record.name)) score += 5;
+  return score;
+}
+
 async function getConfig(ctx: PluginContext): Promise<BlueprintAutomationConfig> {
   return normalizeConfig(await ctx.config.get());
 }
@@ -233,9 +292,10 @@ async function listAgents(ctx: PluginContext, companyId: string) {
 async function resolveProject(ctx: PluginContext, companyId: string, projectName: string) {
   const projects = await listProjects(ctx, companyId);
   const target = projectName.trim().toLowerCase();
-  const project = projects.find((entry) =>
-    normalizedCandidates(entry as unknown as Record<string, unknown>).includes(target),
-  );
+  const project = [...projects]
+    .map((entry) => ({ entry, score: scoreProjectMatch(entry, target) }))
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score)[0]?.entry;
   if (!project) {
     throw new Error(`Project not found for Blueprint automation: ${projectName}`);
   }
@@ -245,9 +305,10 @@ async function resolveProject(ctx: PluginContext, companyId: string, projectName
 async function resolveAgent(ctx: PluginContext, companyId: string, agentName: string) {
   const agents = await listAgents(ctx, companyId);
   const target = agentName.trim().toLowerCase();
-  const agent = agents.find((entry) =>
-    normalizedCandidates(entry as unknown as Record<string, unknown>).includes(target),
-  );
+  const agent = [...agents]
+    .map((entry) => ({ entry, score: scoreAgentMatch(entry, target) }))
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score)[0]?.entry;
   if (!agent) {
     throw new Error(`Agent not found for Blueprint automation: ${agentName}`);
   }
@@ -394,6 +455,85 @@ function makeUpdateComment(input: UpsertManagedIssueInput, hits: number) {
   return lines.join("\n");
 }
 
+function makeNotificationText(input: {
+  headline: string;
+  issueTitle: string;
+  issueId: string;
+  projectName: string;
+  priority?: string | null;
+  status?: string | null;
+  detail?: string | null;
+}) {
+  const lines = [
+    input.headline,
+    `Issue: ${input.issueTitle} (${input.issueId})`,
+    `Project: ${input.projectName}`,
+  ];
+  if (input.priority) {
+    lines.push(`Priority: ${input.priority}`);
+  }
+  if (input.status) {
+    lines.push(`Status: ${input.status}`);
+  }
+  if (input.detail) {
+    lines.push(`Detail: ${input.detail}`);
+  }
+  return lines.join("\n");
+}
+
+async function sendNotification(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  companyId: string,
+  payload: {
+    headline: string;
+    issueTitle: string;
+    issueId: string;
+    projectName: string;
+    priority?: string | null;
+    status?: string | null;
+    detail?: string | null;
+  },
+) {
+  if (!config.enableOutboundNotifications || !config.notificationWebhookUrlRef) {
+    return;
+  }
+
+  try {
+    const url = await ctx.secrets.resolve(config.notificationWebhookUrlRef);
+    const text = makeNotificationText(payload);
+    const response = await ctx.http.fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        text,
+        blocks: [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: text.replace(/\n/g, "\n"),
+            },
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`HTTP ${response.status}: ${body.slice(0, 200)}`);
+    }
+  } catch (error) {
+    await appendRecentEvent(ctx, companyId, {
+      kind: "notification-error",
+      title: "Blueprint outbound notification failed",
+      detail: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueInput) {
   const fingerprint = makeFingerprint(input.sourceType, input.sourceId);
   const project = await resolveProject(ctx, input.companyId, input.projectName);
@@ -404,6 +544,7 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
   const desiredStatus = normalizeIssueStatus(input.status, "todo");
   const desiredPriority = normalizeIssuePriority(input.priority, "medium");
   let currentIssue = issue;
+  const isNewIssue = !currentIssue;
 
   if (currentIssue) {
     const nextStatus =
@@ -492,6 +633,19 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
     },
   });
 
+  if (isNewIssue && ["critical", "high"].includes(desiredPriority)) {
+    const config = await getConfig(ctx);
+    await sendNotification(ctx, config, input.companyId, {
+      headline: "Blueprint automation opened a high-priority issue.",
+      issueTitle: currentIssue.title,
+      issueId: currentIssue.id,
+      projectName: input.projectName,
+      priority: desiredPriority,
+      status: currentIssue.status,
+      detail: fingerprint,
+    });
+  }
+
   return { fingerprint, issue: currentIssue, hits };
 }
 
@@ -537,6 +691,22 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
     detail: input.comment,
   });
 
+  if (
+    updatedIssue &&
+    (input.sourceType === "github-workflow" || input.sourceType.includes("ci"))
+  ) {
+    const config = await getConfig(ctx);
+    await sendNotification(ctx, config, input.companyId, {
+      headline: "Blueprint automation resolved a CI-tracked issue.",
+      issueTitle: updatedIssue.title,
+      issueId: updatedIssue.id,
+      projectName: existingData.projectName ?? "unknown",
+      priority: updatedIssue.priority,
+      status: updatedIssue.status,
+      detail: fingerprint,
+    });
+  }
+
   return { fingerprint, issue: updatedIssue };
 }
 
@@ -575,6 +745,16 @@ async function createFollowUpIssue(
     kind: "blocker-follow-up",
     title: input.title,
     issueId: followUp.id,
+    detail: `Parent issue ${input.parentIssueId}`,
+  });
+  const config = await getConfig(ctx);
+  await sendNotification(ctx, config, companyId, {
+    headline: "Blueprint automation created a blocker follow-up issue.",
+    issueTitle: followUp.title,
+    issueId: followUp.id,
+    projectName: input.projectName,
+    priority: followUp.priority,
+    status: followUp.status,
     detail: `Parent issue ${input.parentIssueId}`,
   });
   return followUp;

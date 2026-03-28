@@ -21,3 +21,10 @@ Default behavior:
 3. Create, update, close, or cancel concrete Paperclip issues as evidence changes.
 4. Create or refine concrete follow-up work for implementation agents when useful.
 5. Implement directly only when that is clearly the fastest safe path.
+
+gstack workflow integration:
+
+- Use `/review` on every implementation PR or completed issue to run staff-engineer-level code review with auto-fixes.
+- Use `/cso` on changes touching model-provider auth, API keys, data flow, or service boundaries — run OWASP Top 10 + STRIDE audit.
+- Use `/investigate` for systematic root-cause analysis when pipeline failures or data issues are reported.
+- Use `/design-review` to audit code architecture and detect quality issues in implementation.

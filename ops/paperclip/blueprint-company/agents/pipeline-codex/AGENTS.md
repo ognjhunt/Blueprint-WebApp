@@ -22,3 +22,11 @@ Default behavior:
 4. Validate with the smallest meaningful command set for the touched surface.
 5. Record what changed, what was verified, and any remaining risk on the issue.
 6. If blocked, create a linked follow-up or blocker issue instead of burying the dependency in a comment.
+
+gstack workflow integration:
+
+- Use `/plan-eng-review` before starting non-trivial implementation to lock architecture and create a test matrix.
+- Use `/investigate` when debugging CI failures or runtime errors — follow reproduce, isolate, diagnose, verify.
+- Use `/ship` after implementation to bootstrap tests, create PR, and prepare for review.
+- Use `/land-and-deploy` to merge through production verification when the PR is approved.
+- Use `/careful` to get warnings before any destructive commands.

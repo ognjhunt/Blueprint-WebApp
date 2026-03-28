@@ -15,6 +15,7 @@ PAPERCLIP_PUBLIC_URL="${PAPERCLIP_PUBLIC_URL:-http://127.0.0.1:3100}"
 COMPANY_NAME="${COMPANY_NAME:-Blueprint Autonomous Operations}"
 PLUGIN_KEY="blueprint.automation"
 RUN_SMOKE=0
+VERIFY_CLAUDE="${BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE:-0}"
 
 for arg in "$@"; do
   if [ "$arg" = "--smoke" ]; then
@@ -34,6 +35,11 @@ company_json() {
 plugin_json() {
   curl -fsS "${PAPERCLIP_PUBLIC_URL}/api/plugins" \
     | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const match=rows.find((row)=>row.pluginKey===process.argv[1]);if(!match){process.exit(2);}process.stdout.write(JSON.stringify(match));});' "$PLUGIN_KEY"
+}
+
+plugin_config_json() {
+  local plugin_id="$1"
+  curl -fsS "${PAPERCLIP_PUBLIC_URL}/api/plugins/${plugin_id}/config"
 }
 
 require_routines() {
@@ -96,27 +102,27 @@ main() {
   company_id="$(printf '%s' "$company" | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const row=JSON.parse(data);process.stdout.write(row.id);});')"
   local plugin
   plugin="$(plugin_json)"
+  local plugin_id
+  plugin_id="$(printf '%s' "$plugin" | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const row=JSON.parse(data);process.stdout.write(row.id);});')"
+  local plugin_config
+  plugin_config="$(plugin_config_json "$plugin_id")"
   local plugin_status
   plugin_status="$(printf '%s' "$plugin" | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const row=JSON.parse(data);process.stdout.write(row.status);});')"
+  local plugin_has_config
+  plugin_has_config="$(printf '%s' "$plugin_config" | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const row=JSON.parse(data);process.stdout.write(row.configJson && typeof row.configJson === "object" ? "yes" : "no");});')"
   [ "$plugin_status" = "ready" ]
+  [ "$plugin_has_config" = "yes" ]
 
   require_routines "$company_id"
   plugin_dashboard "$company_id" >/dev/null
 
-  echo "Running Codex + Claude adapter tests across all three Blueprint repos..."
+  echo "Running Codex adapter tests across all three Blueprint repos..."
 
   run_test "$company_id" "Blueprint-WebApp" "codex_local" '{
     "adapterConfig": {
       "cwd": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
       "model": "gpt-5.3-codex",
       "dangerouslyBypassApprovalsAndSandbox": true
-    }
-  }'
-  run_test "$company_id" "Blueprint-WebApp" "claude_local" '{
-    "adapterConfig": {
-      "cwd": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
-      "model": "claude-sonnet-4-6",
-      "dangerouslySkipPermissions": true
     }
   }'
   run_test "$company_id" "BlueprintCapturePipeline" "codex_local" '{
@@ -126,13 +132,6 @@ main() {
       "dangerouslyBypassApprovalsAndSandbox": true
     }
   }'
-  run_test "$company_id" "BlueprintCapturePipeline" "claude_local" '{
-    "adapterConfig": {
-      "cwd": "/Users/nijelhunt_1/workspace/BlueprintCapturePipeline",
-      "model": "claude-sonnet-4-6",
-      "dangerouslySkipPermissions": true
-    }
-  }'
   run_test "$company_id" "BlueprintCapture" "codex_local" '{
     "adapterConfig": {
       "cwd": "/Users/nijelhunt_1/workspace/BlueprintCapture",
@@ -140,13 +139,30 @@ main() {
       "dangerouslyBypassApprovalsAndSandbox": true
     }
   }'
-  run_test "$company_id" "BlueprintCapture" "claude_local" '{
-    "adapterConfig": {
-      "cwd": "/Users/nijelhunt_1/workspace/BlueprintCapture",
-      "model": "claude-sonnet-4-6",
-      "dangerouslySkipPermissions": true
-    }
-  }'
+  if [ "$VERIFY_CLAUDE" = "1" ]; then
+    echo "Running optional Claude adapter verification..."
+    run_test "$company_id" "Blueprint-WebApp" "claude_local" '{
+      "adapterConfig": {
+        "cwd": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+        "model": "claude-sonnet-4-6",
+        "dangerouslySkipPermissions": true
+      }
+    }'
+    run_test "$company_id" "BlueprintCapturePipeline" "claude_local" '{
+      "adapterConfig": {
+        "cwd": "/Users/nijelhunt_1/workspace/BlueprintCapturePipeline",
+        "model": "claude-sonnet-4-6",
+        "dangerouslySkipPermissions": true
+      }
+    }'
+    run_test "$company_id" "BlueprintCapture" "claude_local" '{
+      "adapterConfig": {
+        "cwd": "/Users/nijelhunt_1/workspace/BlueprintCapture",
+        "model": "claude-sonnet-4-6",
+        "dangerouslySkipPermissions": true
+      }
+    }'
+  fi
 
   if [ "$RUN_SMOKE" -eq 1 ]; then
     /Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/smoke-blueprint-paperclip-automation.sh

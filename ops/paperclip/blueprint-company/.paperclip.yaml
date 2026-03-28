@@ -7,13 +7,12 @@ agents:
     icon: crown
     capabilities: Strategy, prioritization, delegation, and company-wide governance.
     adapter:
-      type: claude_local
+      type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
-        maxTurnsPerRun: 120
+        model: gpt-5.3-codex
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
+        dangerouslyBypassApprovalsAndSandbox: true
     permissions:
       canCreateAgents: true
     budgetMonthlyCents: 5000
@@ -22,13 +21,12 @@ agents:
     icon: circuit-board
     capabilities: Cross-repo technical planning, delegation, and execution oversight.
     adapter:
-      type: claude_local
+      type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
-        maxTurnsPerRun: 120
+        model: gpt-5.3-codex
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
+        dangerouslyBypassApprovalsAndSandbox: true
     budgetMonthlyCents: 4000
   webapp-codex:
     role: engineer
@@ -47,13 +45,12 @@ agents:
     icon: search
     capabilities: Review and planning specialist for Blueprint-WebApp.
     adapter:
-      type: claude_local
+      type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
-        maxTurnsPerRun: 120
+        model: gpt-5.3-codex
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
+        dangerouslyBypassApprovalsAndSandbox: true
     budgetMonthlyCents: 3000
   pipeline-codex:
     role: engineer
@@ -72,13 +69,12 @@ agents:
     icon: microscope
     capabilities: Review and planning specialist for BlueprintCapturePipeline.
     adapter:
-      type: claude_local
+      type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapturePipeline
-        model: claude-sonnet-4-6
-        maxTurnsPerRun: 120
+        model: gpt-5.3-codex
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
+        dangerouslyBypassApprovalsAndSandbox: true
     budgetMonthlyCents: 3000
   capture-codex:
     role: engineer
@@ -97,13 +93,12 @@ agents:
     icon: eye
     capabilities: Review and planning specialist for BlueprintCapture.
     adapter:
-      type: claude_local
+      type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapture
-        model: claude-sonnet-4-6
-        maxTurnsPerRun: 120
+        model: gpt-5.3-codex
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
+        dangerouslyBypassApprovalsAndSandbox: true
     budgetMonthlyCents: 3000
 projects:
   blueprint-executive-ops:

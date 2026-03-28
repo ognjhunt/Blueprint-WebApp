@@ -99,6 +99,11 @@ const manifest: PaperclipPluginManifestV1 = {
         title: "Operator Intake Secret Ref",
         format: "secret-ref",
       },
+      notificationWebhookUrlRef: {
+        type: "string",
+        title: "Outbound Notification Webhook URL Ref",
+        format: "secret-ref",
+      },
       enableGitRepoScanning: {
         type: "boolean",
         title: "Enable Local Git Repo Scanning",
@@ -108,6 +113,11 @@ const manifest: PaperclipPluginManifestV1 = {
         type: "boolean",
         title: "Enable GitHub Workflow Polling",
         default: true,
+      },
+      enableOutboundNotifications: {
+        type: "boolean",
+        title: "Enable Outbound Notifications",
+        default: false,
       },
       repoCatalog: {
         type: "array",
