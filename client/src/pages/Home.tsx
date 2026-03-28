@@ -274,8 +274,8 @@ export default function Home() {
                 <a href="/governance" className="text-sm font-semibold text-slate-900 transition hover:text-slate-700">
                   Review governance and privacy
                 </a>
-                <a href="/docs" className="text-sm font-semibold text-slate-900 transition hover:text-slate-700">
-                  See compatibility and export notes
+                <a href="/sample-deliverables" className="text-sm font-semibold text-slate-900 transition hover:text-slate-700">
+                  See deliverables and technical reference
                 </a>
               </div>
             </div>

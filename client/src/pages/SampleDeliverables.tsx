@@ -13,7 +13,7 @@ import {
   proofReferenceImageSrc,
   proofReelPosterSrc,
 } from "@/lib/marketingProof";
-import { ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react";
+import { ArrowRight, CheckCircle2, FileCheck, Layers, Monitor, ShieldCheck } from "lucide-react";
 
 const sampleDecision = [
   "A robot team opens one listing before a customer deployment sprint.",
@@ -25,8 +25,8 @@ export default function SampleDeliverables() {
   return (
     <>
       <SEO
-        title="Sample Deliverables | Blueprint"
-        description="See the package contents, hosted outputs, and trust metadata a robot team should expect from a Blueprint listing."
+        title="Deliverables | Blueprint"
+        description="See the package contents, hosted outputs, technical compatibility, and trust metadata a robot team should expect from a Blueprint listing."
         canonical="/sample-deliverables"
       />
 
@@ -34,14 +34,14 @@ export default function SampleDeliverables() {
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
           <header className="max-w-3xl">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Sample deliverables
+              Deliverables
             </p>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
               What a buyer actually gets.
             </h1>
             <p className="mt-4 text-lg leading-8 text-slate-600">
-              This page makes the product concrete. It shows what is in the site package, what
-              comes back from hosted evaluation, and what metadata stays attached to every listing.
+              Package contents, hosted outputs, and the technical contract that stays stable across
+              every listing.
             </p>
           </header>
 
@@ -54,6 +54,7 @@ export default function SampleDeliverables() {
             />
           </div>
 
+          {/* Walkthrough + Runtime visual cards */}
           <section className="mt-10 grid gap-4 lg:grid-cols-2">
             <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
               <img
@@ -85,13 +86,14 @@ export default function SampleDeliverables() {
                 </p>
                 <h2 className="mt-2 text-2xl font-semibold text-slate-900">Runtime reference</h2>
                 <p className="mt-3 text-sm leading-7 text-slate-600">
-                  The hosted side keeps the team on the same site. It is where reruns, checkpoint
-                  comparison, failure review, and exports happen.
+                  The hosted side keeps the team on the same site. Reruns, checkpoint
+                  comparison, failure review, and exports all happen here.
                 </p>
               </div>
             </article>
           </section>
 
+          {/* Site package + Hosted evaluation with diagrams */}
           <section className="mt-10 grid gap-4 lg:grid-cols-2">
             <article className="rounded-2xl border border-slate-200 bg-white p-6">
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
@@ -107,7 +109,7 @@ export default function SampleDeliverables() {
               </p>
               <h2 className="mt-2 text-2xl font-semibold text-slate-900">Site package</h2>
               <p className="mt-3 text-sm leading-7 text-slate-600">
-                Everything your team needs to run its own world model on that facility — walkthrough
+                Everything your team needs to run its own world model on that facility: walkthrough
                 media, geometry, metadata, and rights.
               </p>
               <ul className="mt-5 space-y-3">
@@ -148,40 +150,116 @@ export default function SampleDeliverables() {
             </article>
           </section>
 
-          <section className="mt-10 grid gap-4 lg:grid-cols-2">
-            <article className="rounded-2xl border border-slate-200 bg-white p-6">
+          {/* Technical reference — absorbed from /docs */}
+          <section className="mt-10">
+            <div className="mb-6 max-w-3xl">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Stable contract
+                Technical reference
               </p>
-              <h2 className="mt-3 text-2xl font-semibold text-slate-900">
-                What should stay stable across sites and runtime swaps
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+                What stays stable, what ships per site.
               </h2>
-              <ul className="mt-5 space-y-3 text-sm leading-6 text-slate-700">
-                {stableContractItems.map((item) => (
-                  <li key={item} className="flex items-start gap-3">
-                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </article>
+              <p className="mt-4 text-sm leading-7 text-slate-600">
+                For technical buyers. The stable product contract vs. the details that change per
+                listing, so your team knows what to assume and what to verify on the actual site.
+              </p>
+            </div>
 
-            <article className="rounded-2xl border border-slate-200 bg-slate-950 p-6 text-white">
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                Listing-specific variation
-              </div>
-              <ul className="mt-5 space-y-3">
-                {listingVariationItems.map((item) => (
-                  <li key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-200">
-                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </article>
+            <div className="grid gap-4 lg:grid-cols-2">
+              {/* Stable contract */}
+              <article className="rounded-2xl border border-slate-200 bg-white p-6">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                  <FileCheck className="h-5 w-5" />
+                </div>
+                <h3 className="text-xl font-semibold text-slate-900">Stable contract</h3>
+                <p className="mt-2 text-sm leading-7 text-slate-600">
+                  These parts of the product stay the same regardless of which site or runtime
+                  backend is used.
+                </p>
+                <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
+                  {stableContractItems.map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+
+              {/* Listing-specific variation */}
+              <article className="rounded-2xl border border-slate-950 bg-slate-950 p-6 text-white">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800 text-slate-300">
+                  <Layers className="h-5 w-5" />
+                </div>
+                <h3 className="text-xl font-semibold text-white">What varies by listing</h3>
+                <p className="mt-2 text-sm leading-7 text-slate-300">
+                  Not every site has the same artifacts or export options. Check the listing before
+                  assuming every lane supports the same depth of work.
+                </p>
+                <ul className="mt-4 space-y-3">
+                  {listingVariationItems.map((item) => (
+                    <li key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-200">
+                      <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            </div>
+
+            {/* Site package contents + Hosted outputs (detailed) */}
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <article className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-700 shadow-sm">
+                  <Layers className="h-5 w-5" />
+                </div>
+                <h3 className="text-xl font-semibold text-slate-900">Site package contents</h3>
+                <p className="mt-2 text-sm leading-7 text-slate-600">
+                  The site package gives your team everything it needs to run its own world model
+                  stack on that facility.
+                </p>
+                <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
+                  {[
+                    "Walkthrough video, timestamps, and camera poses tied to one real facility",
+                    "Intrinsics, depth, and geometry artifacts when the source capture supports them",
+                    "Site notes, provenance, privacy, and rights metadata",
+                    "Package manifest and reference material for building your own world model",
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-400" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+
+              <article className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-700 shadow-sm">
+                  <Monitor className="h-5 w-5" />
+                </div>
+                <h3 className="text-xl font-semibold text-slate-900">Hosted evaluation outputs</h3>
+                <p className="mt-2 text-sm leading-7 text-slate-600">
+                  Hosted evaluation is a managed runtime session on one exact site. Your team can
+                  run, review, and export without moving data into your own stack first.
+                </p>
+                <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
+                  {[
+                    "Repeatable runs on the same exact site",
+                    "Rollout video, failure review, and checkpoint comparison",
+                    "Dataset, raw bundle, and export generation tied to the listing",
+                    "A browser-accessible runtime session, no local setup required",
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-400" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            </div>
           </section>
 
+          {/* Sample eval path */}
           <section className="mt-10 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
               Sample eval path
@@ -191,11 +269,11 @@ export default function SampleDeliverables() {
             </h2>
             <div className="mt-6 grid gap-4 md:grid-cols-3">
               {sampleDecision.map((item, index) => (
-                <article key={item} className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    Step {index + 1}
-                  </p>
-                  <p className="mt-3 text-sm leading-7 text-slate-700">{item}</p>
+                <article key={item} className="relative rounded-xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-xs font-bold text-white">
+                    {index + 1}
+                  </div>
+                  <p className="text-sm leading-7 text-slate-700">{item}</p>
                 </article>
               ))}
             </div>

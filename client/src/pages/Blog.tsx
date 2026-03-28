@@ -61,10 +61,10 @@ export default function Blog() {
               Explore world models
             </a>
             <a
-              href="/docs"
+              href="/sample-deliverables"
               className="inline-flex items-center rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
             >
-              Read the docs
+              See deliverables
             </a>
           </div>
         </div>

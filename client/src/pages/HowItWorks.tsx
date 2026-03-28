@@ -1,5 +1,7 @@
 import { SEO } from "@/components/SEO";
 import { ScrollReveal, StaggerGroup } from "@/components/motion";
+import { illustrativeLabel } from "@/data/marketingDefinitions";
+import { caseStudies } from "@/data/content";
 import { ArrowRight, BarChart3, Database, GitBranch, MapPinned } from "lucide-react";
 
 const loopSteps = [
@@ -24,7 +26,7 @@ const loopSteps = [
   {
     title: "Export data back into the stack",
     description:
-      "The useful output is not the walkthrough alone. It is the rollout data, failure cases, and site-grounded evidence you feed back into training and deployment decisions.",
+      "The walkthrough alone is not the useful output. The rollout data, failure cases, and site-grounded evidence are what you feed back into training and deployment decisions.",
     icon: Database,
   },
 ];
@@ -43,7 +45,7 @@ const comparisonRows = [
   {
     title: "Exact site plus controlled variation (Blueprint)",
     bestFor: "Policy fine-tuning, site-specific training data, and release comparison before deployment",
-    weakOn: "Nothing here replaces final on-site safety validation",
+    weakOn: "Still requires final on-site safety validation",
   },
 ];
 
@@ -90,6 +92,59 @@ function DotPattern() {
       </defs>
       <rect width="100%" height="100%" strokeWidth={0} fill="url(#grid-pattern-how)" />
     </svg>
+  );
+}
+
+/** Inline SVG diagram showing the 4-step loop visually */
+function LoopDiagram() {
+  return (
+    <div className="mx-auto mt-10 max-w-3xl">
+      <svg viewBox="0 0 800 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full" aria-label="Four-step loop: Anchor, Branch, Run/Score, Export">
+        {/* Step circles */}
+        {[
+          { cx: 100, label: "Anchor", color: "#0e7490" },
+          { cx: 300, label: "Branch", color: "#0e7490" },
+          { cx: 500, label: "Run / Score", color: "#0e7490" },
+          { cx: 700, label: "Export", color: "#0e7490" },
+        ].map((step, i) => (
+          <g key={step.label}>
+            {/* Connector line */}
+            {i < 3 && (
+              <line
+                x1={step.cx + 36}
+                y1={50}
+                x2={step.cx + 164}
+                y2={50}
+                stroke="#cbd5e1"
+                strokeWidth={2}
+                strokeDasharray="6 4"
+              />
+            )}
+            {/* Circle */}
+            <circle cx={step.cx} cy={50} r={36} fill={step.color} opacity={0.08} />
+            <circle cx={step.cx} cy={50} r={36} stroke={step.color} strokeWidth={2} fill="none" opacity={0.3} />
+            {/* Step number */}
+            <text x={step.cx} y={46} textAnchor="middle" fill={step.color} fontSize={16} fontWeight={700}>
+              {i + 1}
+            </text>
+            {/* Label */}
+            <text x={step.cx} y={106} textAnchor="middle" fill="#334155" fontSize={13} fontWeight={600}>
+              {step.label}
+            </text>
+          </g>
+        ))}
+        {/* Return arrow from Export back to Anchor */}
+        <path
+          d="M 700 18 Q 700 -10 400 -10 Q 100 -10 100 14"
+          stroke="#0e7490"
+          strokeWidth={1.5}
+          fill="none"
+          strokeDasharray="4 3"
+          opacity={0.35}
+        />
+        <polygon points="100,14 96,6 104,6" fill="#0e7490" opacity={0.35} />
+      </svg>
+    </div>
   );
 }
 
@@ -166,7 +221,12 @@ export default function HowItWorks() {
               </div>
             </ScrollReveal>
 
-            <StaggerGroup className="grid gap-4 md:grid-cols-2 xl:grid-cols-4" stagger={0.08}>
+            {/* Visual loop diagram */}
+            <ScrollReveal>
+              <LoopDiagram />
+            </ScrollReveal>
+
+            <StaggerGroup className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4" stagger={0.08}>
               {loopSteps.map((item) => {
                 const Icon = item.icon;
 
@@ -244,8 +304,8 @@ export default function HowItWorks() {
                   What teams train and ship with this
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-slate-600">
-                  These are the practical jobs that matter once a robotics team starts working
-                  against one specific customer site.
+                  Once a team has one specific customer site, these are the jobs they actually
+                  run against it.
                 </p>
               </div>
             </ScrollReveal>
@@ -261,7 +321,71 @@ export default function HowItWorks() {
           </div>
         </section>
 
-        <ScrollReveal as="section" className="mx-auto max-w-6xl px-4 pb-24 pt-10 sm:px-6 lg:px-8">
+        {/* Example workflows — absorbed from /case-studies */}
+        <section className="py-14 sm:py-20">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <ScrollReveal>
+              <div className="max-w-3xl">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Example workflows
+                </p>
+                <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
+                  How this looks across different facility types
+                </h2>
+                <p className="mt-4 text-sm leading-7 text-slate-600">
+                  These examples show how Blueprint packages and hosted evaluation would be framed
+                  for different industries. Named customer references will be added as they become
+                  available.
+                </p>
+              </div>
+            </ScrollReveal>
+
+            <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {caseStudies.map((study) => (
+                <article
+                  key={study.slug}
+                  className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white"
+                >
+                  <div className="aspect-[16/10] overflow-hidden bg-slate-50">
+                    <img
+                      src={study.hero}
+                      alt={study.title}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="flex flex-1 flex-col gap-3 p-5">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        {illustrativeLabel}
+                      </p>
+                      <h3 className="mt-1.5 text-lg font-semibold text-slate-900">
+                        {study.title}
+                      </h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">{study.summary}</p>
+                    </div>
+                    <ul className="space-y-1.5 text-sm text-slate-600">
+                      {study.outcomes.map((outcome) => (
+                        <li key={outcome} className="flex items-start gap-2">
+                          <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          <span>{outcome}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <a
+                      href="/contact?persona=robot-team"
+                      className="mt-auto text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
+                    >
+                      {study.cta}
+                    </a>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <ScrollReveal as="section" className="mx-auto max-w-6xl px-4 pb-24 pt-4 sm:px-6 lg:px-8">
           <div className="rounded-2xl bg-slate-950 p-8 sm:p-10">
             <h2 className="text-2xl font-bold text-white sm:text-3xl">
               Start with one real site and one deployment question.
@@ -281,7 +405,7 @@ export default function HowItWorks() {
                 href="/sample-deliverables"
                 className="inline-flex items-center justify-center rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-900"
               >
-                See sample deliverables
+                See deliverables
               </a>
             </div>
           </div>

@@ -21,7 +21,7 @@ export const hostedEvaluationOutputs = [
   "Repeatable runs on the same exact site",
   "Rollout video, failure review, and checkpoint comparison",
   "Dataset, raw bundle, and export generation tied to the listing",
-  "A browser-accessible runtime session without moving the package into your stack first",
+  "A browser-accessible runtime session, no local setup needed",
 ];
 
 export const stableContractItems = [
