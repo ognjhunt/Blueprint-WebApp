@@ -135,6 +135,12 @@ const manifest: PaperclipPluginManifestV1 = {
         "Scans Blueprint repos for local drift and optionally polls GitHub workflow state to keep Paperclip issues current.",
       schedule: "*/30 * * * *",
     },
+    {
+      jobKey: JOB_KEYS.opsQueueScan,
+      displayName: "Ops Queue Scan",
+      description: "Periodic scan of Notion Work Queue to detect stale or unassigned items.",
+      schedule: "0 */2 * * *",
+    },
   ],
   webhooks: [
     {
@@ -154,6 +160,21 @@ const manifest: PaperclipPluginManifestV1 = {
       displayName: "Operator Intake",
       description:
         "Accepts normalized operator signals, including Slack workflow and email-forward payloads, and turns them into Paperclip issues.",
+    },
+    {
+      endpointKey: WEBHOOK_KEYS.opsFirestore,
+      displayName: "Firestore Ops Events",
+      description: "Receives Firestore triggers for new signups, requests, and capture completions.",
+    },
+    {
+      endpointKey: WEBHOOK_KEYS.opsStripe,
+      displayName: "Stripe Ops Events",
+      description: "Receives forwarded Stripe webhook events for payout and dispute triage.",
+    },
+    {
+      endpointKey: WEBHOOK_KEYS.opsSupport,
+      displayName: "Support Inbox",
+      description: "Receives support tickets from email forward or contact form.",
     },
   ],
   tools: [
@@ -224,6 +245,72 @@ const manifest: PaperclipPluginManifestV1 = {
           comment: { type: "string" },
         },
         required: ["sourceType", "sourceId", "resolutionStatus", "comment"],
+      },
+    },
+    {
+      name: TOOL_NAMES.notionReadWorkQueue,
+      displayName: "Read Notion Work Queue",
+      description: "Query Blueprint Work Queue items by system, priority, or lifecycle stage.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          system: { type: "string" },
+          priority: { type: "string" },
+        },
+      },
+    },
+    {
+      name: TOOL_NAMES.notionWriteWorkQueue,
+      displayName: "Write Notion Work Queue",
+      description: "Create or update items in Blueprint Work Queue.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          priority: { type: "string" },
+          system: { type: "string" },
+          status: { type: "string" },
+          description: { type: "string" },
+        },
+        required: ["title", "priority", "system"],
+      },
+    },
+    {
+      name: TOOL_NAMES.notionWriteKnowledge,
+      displayName: "Write Notion Knowledge",
+      description: "Create entries in Blueprint Knowledge database.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          category: { type: "string" },
+          content: { type: "string" },
+          source: { type: "string" },
+        },
+        required: ["title", "category", "content"],
+      },
+    },
+    {
+      name: TOOL_NAMES.slackPostDigest,
+      displayName: "Post Slack Digest",
+      description: "Post formatted digest message to a Slack channel.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          channel: { type: "string" },
+          title: { type: "string" },
+          sections: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                heading: { type: "string" },
+                items: { type: "array", items: { type: "string" } },
+              },
+            },
+          },
+        },
+        required: ["channel", "title", "sections"],
       },
     },
   ],

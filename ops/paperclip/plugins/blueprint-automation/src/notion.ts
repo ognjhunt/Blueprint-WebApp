@@ -1,9 +1,13 @@
 import { Client } from "@notionhq/client";
 
-// Database IDs from Blueprint Hub
+// Database IDs (page-level) from Blueprint Hub
 const WORK_QUEUE_DB = "f83b6c53-a33a-4790-9ca4-786dddadad46";
 const SKILLS_DB = "4e37bd7a-e448-4f81-aa3e-b8860826e98c";
 const KNOWLEDGE_DB = "7c729783-c377-4342-bf00-5555b88a2ec6";
+
+// Data Source IDs (collection-level) for querying
+const WORK_QUEUE_DS = "51d93d65-8a00-4dd4-a9a2-fd9a6e69120d";
+const KNOWLEDGE_DS = "b9e4ca9c-db43-4a16-9780-f15eb100c8b4";
 
 export interface NotionConfig {
   token: string;
@@ -69,8 +73,8 @@ export async function queryWorkQueue(
     });
   }
 
-  const response = await client.databases.query({
-    database_id: WORK_QUEUE_DB,
+  const response = await client.dataSources.query({
+    data_source_id: WORK_QUEUE_DS,
     filter:
       filterConditions.length > 1
         ? { and: filterConditions as any }

@@ -1,6 +1,7 @@
 import { promisify } from "node:util";
 import { execFile } from "node:child_process";
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { existsSync } from "node:fs";
 import {
   definePlugin,
   runWorker,
@@ -16,6 +17,7 @@ import {
   type ToolResult,
   type ToolRunContext,
   type PluginWebhookInput,
+  type Project,
 } from "@paperclipai/plugin-sdk";
 import {
   ACTION_KEYS,
@@ -28,8 +30,16 @@ import {
   TOOL_NAMES,
   WEBHOOK_KEYS,
 } from "./constants.js";
+import {
+  handleFirestoreWebhook,
+  handleStripeWebhook,
+  handleSupportWebhook,
+} from "./ops-webhooks.js";
+import { createNotionClient, buildNotionToolHandlers } from "./notion.js";
+import { buildSlackToolHandler } from "./slack-notify.js";
 
 const execFileAsync = promisify(execFile);
+const GIT_BIN = process.env.BLUEPRINT_PAPERCLIP_GIT_BIN || "/usr/bin/git";
 const ENTITY_TYPES = {
   sourceMapping: "source-mapping",
 } as const;
@@ -633,7 +643,7 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
     },
   });
 
-  if (isNewIssue && ["critical", "high"].includes(desiredPriority)) {
+  if (isNewIssue && desiredPriority && ["critical", "high"].includes(desiredPriority)) {
     const config = await getConfig(ctx);
     await sendNotification(ctx, config, input.companyId, {
       headline: "Blueprint automation opened a high-priority issue.",
@@ -791,15 +801,59 @@ function parseGitStatus(output: string) {
 }
 
 async function scanRepoWorkspace(workspacePath: string) {
-  const result = await execFileAsync("git", ["status", "--porcelain=v1", "--branch"], {
+  const result = await execFileAsync(GIT_BIN, ["status", "--porcelain=v1", "--branch"], {
     cwd: workspacePath,
   });
   return parseGitStatus(result.stdout);
 }
 
+function agentCwd(agent: Agent) {
+  const record = agent as unknown as Record<string, unknown>;
+  const config = record.adapterConfig && typeof record.adapterConfig === "object"
+    ? record.adapterConfig as Record<string, unknown>
+    : null;
+  return typeof config?.cwd === "string" && config.cwd.length > 0 ? config.cwd : null;
+}
+
+async function resolveRepoWorkspacePath(
+  ctx: PluginContext,
+  companyId: string,
+  repoConfig: RepoConfig,
+  workspace: PluginWorkspace,
+) {
+  if (workspace.path && existsSync(workspace.path)) {
+    return workspace.path;
+  }
+
+  const implementationAgent = await resolveAgent(ctx, companyId, repoConfig.implementationAgent);
+  const implementationCwd = agentCwd(implementationAgent);
+  if (implementationCwd && existsSync(implementationCwd)) {
+    return implementationCwd;
+  }
+
+  const reviewAgent = await resolveAgent(ctx, companyId, repoConfig.reviewAgent);
+  const reviewCwd = agentCwd(reviewAgent);
+  if (reviewCwd && existsSync(reviewCwd)) {
+    return reviewCwd;
+  }
+
+  throw new Error(
+    `No usable repo workspace exists for ${repoConfig.projectName}; checked ${workspace.path || "no primary path"}, implementation agent cwd, and review agent cwd.`,
+  );
+}
+
 async function scanRepoDrift(ctx: PluginContext, companyId: string, repoConfig: RepoConfig) {
   const { workspace } = await getPrimaryWorkspaceForRepo(ctx, companyId, repoConfig);
-  const status = await scanRepoWorkspace(workspace.path);
+  const workspacePath = await resolveRepoWorkspacePath(ctx, companyId, repoConfig, workspace);
+  const status = await scanRepoWorkspace(workspacePath);
+
+  await resolveManagedIssue(ctx, {
+    companyId,
+    sourceType: "repo-scan-error",
+    sourceId: repoConfig.key,
+    resolutionStatus: "done",
+    comment: `Repo scan succeeded again at ${nowIso()}.`,
+  });
 
   if (status.changedFiles > 0) {
     await upsertManagedIssue(ctx, {
@@ -1475,6 +1529,120 @@ async function registerToolHandlers(ctx: PluginContext) {
       };
     },
   );
+
+  // ── Notion Tools ──────────────────────────────────────
+  try {
+    const notionToken = await ctx.secrets.resolve("NOTION_API_TOKEN");
+    if (notionToken) {
+      const notionClient = createNotionClient({ token: notionToken });
+      const notionTools = buildNotionToolHandlers(notionClient);
+
+      ctx.tools.register(
+        TOOL_NAMES.notionReadWorkQueue,
+        {
+          displayName: "Read Notion Work Queue",
+          description: "Query Blueprint Work Queue items by system, priority, or lifecycle stage.",
+          parametersSchema: {
+            type: "object",
+            properties: {
+              system: { type: "string" },
+              priority: { type: "string" },
+            },
+          },
+        },
+        async (params): Promise<ToolResult> => {
+          const result = await notionTools[TOOL_NAMES.notionReadWorkQueue](params as any);
+          return { content: `Found ${result.count} work queue items.`, data: result };
+        },
+      );
+
+      ctx.tools.register(
+        TOOL_NAMES.notionWriteWorkQueue,
+        {
+          displayName: "Write Notion Work Queue",
+          description: "Create or update items in Blueprint Work Queue.",
+          parametersSchema: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              priority: { type: "string" },
+              system: { type: "string" },
+              status: { type: "string" },
+              description: { type: "string" },
+            },
+            required: ["title", "priority", "system"],
+          },
+        },
+        async (params): Promise<ToolResult> => {
+          const result = await notionTools[TOOL_NAMES.notionWriteWorkQueue](params as any);
+          return { content: `Created work queue item ${result.pageId}.`, data: result };
+        },
+      );
+
+      ctx.tools.register(
+        TOOL_NAMES.notionWriteKnowledge,
+        {
+          displayName: "Write Notion Knowledge",
+          description: "Create entries in Blueprint Knowledge database.",
+          parametersSchema: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              category: { type: "string" },
+              content: { type: "string" },
+              source: { type: "string" },
+            },
+            required: ["title", "category", "content"],
+          },
+        },
+        async (params): Promise<ToolResult> => {
+          const result = await notionTools[TOOL_NAMES.notionWriteKnowledge](params as any);
+          return { content: `Created knowledge entry ${result.pageId}.`, data: result };
+        },
+      );
+    }
+  } catch {
+    // Notion token not configured — tools will not be available
+  }
+
+  // ── Slack Tools ───────────────────────────────────────
+  try {
+    const slackWebhookUrl = await ctx.secrets.resolve("SLACK_OPS_WEBHOOK_URL");
+    if (slackWebhookUrl) {
+      const slackTools = buildSlackToolHandler(slackWebhookUrl);
+      ctx.tools.register(
+        TOOL_NAMES.slackPostDigest,
+        {
+          displayName: "Post Slack Digest",
+          description: "Post formatted digest message to a Slack channel.",
+          parametersSchema: {
+            type: "object",
+            properties: {
+              channel: { type: "string" },
+              title: { type: "string" },
+              sections: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    heading: { type: "string" },
+                    items: { type: "array", items: { type: "string" } },
+                  },
+                },
+              },
+            },
+            required: ["channel", "title", "sections"],
+          },
+        },
+        async (params): Promise<ToolResult> => {
+          const result = await slackTools[TOOL_NAMES.slackPostDigest](params as any);
+          return { content: result.success ? "Digest posted." : "Failed to post digest.", data: result };
+        },
+      );
+    }
+  } catch {
+    // Slack webhook not configured — tool will not be available
+  }
 }
 
 async function runRepoScanJob(ctx: PluginContext, _job: PluginJobContext) {
@@ -1498,6 +1666,15 @@ async function handleWebhook(ctx: PluginContext, input: PluginWebhookInput) {
   if (input.endpointKey === WEBHOOK_KEYS.intake) {
     return await handleOperatorIntakeWebhook(ctx, config, company.id, input);
   }
+  if (input.endpointKey === WEBHOOK_KEYS.opsFirestore) {
+    return await handleFirestoreWebhook(input, ctx);
+  }
+  if (input.endpointKey === WEBHOOK_KEYS.opsStripe) {
+    return await handleStripeWebhook(input, ctx);
+  }
+  if (input.endpointKey === WEBHOOK_KEYS.opsSupport) {
+    return await handleSupportWebhook(input, ctx);
+  }
   throw new Error(`Unsupported Blueprint webhook endpoint: ${input.endpointKey}`);
 }
 
@@ -1509,6 +1686,15 @@ const plugin: PaperclipPlugin = definePlugin({
     await registerToolHandlers(ctx);
     ctx.jobs.register(JOB_KEYS.repoScan, async (job) => {
       await runRepoScanJob(ctx, job);
+    });
+    ctx.jobs.register(JOB_KEYS.opsQueueScan, async (job) => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      await appendRecentEvent(ctx, company.id, {
+        kind: "ops-queue-scan",
+        title: "Ops queue scan completed",
+        detail: `Scanned at ${nowIso()}`,
+      });
     });
   },
 

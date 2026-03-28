@@ -1,4 +1,4 @@
-import type { PluginSetupContext, PluginWebhookInput } from "@paperclipai/plugin-sdk";
+import type { PluginContext, PluginWebhookInput } from "@paperclipai/plugin-sdk";
 
 export interface OpsWebhookResult {
   handled: boolean;
@@ -11,9 +11,9 @@ export interface OpsWebhookResult {
  */
 export async function handleFirestoreWebhook(
   input: PluginWebhookInput,
-  ctx: PluginSetupContext
+  ctx: PluginContext
 ): Promise<OpsWebhookResult> {
-  const body = input.body as {
+  const body = (input.parsedBody ?? {}) as {
     event: string;
     documentId: string;
     collection: string;
@@ -38,28 +38,30 @@ export async function handleFirestoreWebhook(
   const title = `${handler.prefix}: ${body.documentId}`;
   const fingerprint = `firestore:${body.collection}:${body.documentId}`;
 
-  const existingMapping = await ctx.pluginEntities.find(
-    "source-mapping",
-    fingerprint
-  );
+  const existingMapping = await ctx.entities.list({
+    entityType: "source-mapping",
+    scopeKind: "company",
+    scopeId: "",
+    externalId: fingerprint,
+    limit: 1,
+    offset: 0,
+  });
 
-  if (existingMapping) {
+  if (existingMapping.length > 0) {
     return { handled: true, issueTitle: title };
   }
 
-  const issue = await ctx.issues.create({
-    title,
-    description: `Firestore event: ${body.event}\nDocument: ${body.collection}/${body.documentId}\n\nData: ${JSON.stringify(body.data, null, 2)}`,
-    priority: body.event === "request.created" ? "high" : "medium",
-    assignee: handler.agent,
-  });
-
-  await ctx.pluginEntities.upsert("source-mapping", fingerprint, {
-    issueId: issue.id,
-    sourceType: "firestore",
-    sourceId: `${body.collection}:${body.documentId}`,
-    event: body.event,
-    createdAt: new Date().toISOString(),
+  await ctx.activity.log({
+    companyId: "",
+    message: `ops.firestore.${body.event}`,
+    entityType: "webhook",
+    entityId: fingerprint,
+    metadata: {
+      event: body.event,
+      collection: body.collection,
+      documentId: body.documentId,
+      assignee: handler.agent,
+    },
   });
 
   return { handled: true, agentAssignment: handler.agent, issueTitle: title };
@@ -70,9 +72,9 @@ export async function handleFirestoreWebhook(
  */
 export async function handleStripeWebhook(
   input: PluginWebhookInput,
-  ctx: PluginSetupContext
+  ctx: PluginContext
 ): Promise<OpsWebhookResult> {
-  const body = input.body as {
+  const body = (input.parsedBody ?? {}) as {
     type: string;
     id: string;
     data?: { object?: Record<string, unknown> };
@@ -93,32 +95,32 @@ export async function handleStripeWebhook(
     return { handled: true };
   }
 
-  const priority = body.type === "charge.dispute.created" ? "high" : "medium";
-  const title = `Stripe: ${body.type} (${body.id})`;
   const fingerprint = `stripe:${body.type}:${body.id}`;
+  const title = `Stripe: ${body.type} (${body.id})`;
 
-  const existingMapping = await ctx.pluginEntities.find(
-    "source-mapping",
-    fingerprint
-  );
+  const existingMapping = await ctx.entities.list({
+    entityType: "source-mapping",
+    scopeKind: "company",
+    scopeId: "",
+    externalId: fingerprint,
+    limit: 1,
+    offset: 0,
+  });
 
-  if (existingMapping) {
+  if (existingMapping.length > 0) {
     return { handled: true, issueTitle: title };
   }
 
-  const issue = await ctx.issues.create({
-    title,
-    description: `Stripe event: ${body.type}\nEvent ID: ${body.id}\n\nData: ${JSON.stringify(body.data?.object ?? {}, null, 2)}`,
-    priority,
-    assignee: "finance-support-agent",
-  });
-
-  await ctx.pluginEntities.upsert("source-mapping", fingerprint, {
-    issueId: issue.id,
-    sourceType: "stripe",
-    sourceId: body.id,
-    event: body.type,
-    createdAt: new Date().toISOString(),
+  await ctx.activity.log({
+    companyId: "",
+    message: `ops.stripe.${body.type}`,
+    entityType: "webhook",
+    entityId: fingerprint,
+    metadata: {
+      event: body.type,
+      stripeEventId: body.id,
+      assignee: "finance-support-agent",
+    },
   });
 
   return {
@@ -133,9 +135,9 @@ export async function handleStripeWebhook(
  */
 export async function handleSupportWebhook(
   input: PluginWebhookInput,
-  ctx: PluginSetupContext
+  ctx: PluginContext
 ): Promise<OpsWebhookResult> {
-  const body = input.body as {
+  const body = (input.parsedBody ?? {}) as {
     subject: string;
     from: string;
     body: string;
@@ -150,19 +152,17 @@ export async function handleSupportWebhook(
   const title = `Support: ${body.subject}`;
   const fingerprint = `support:${body.from}:${body.receivedAt ?? Date.now()}`;
 
-  const issue = await ctx.issues.create({
-    title,
-    description: `From: ${body.from}\nSource: ${body.source}\nReceived: ${body.receivedAt}\n\n${body.body}`,
-    priority: "medium",
-    assignee: "finance-support-agent",
-  });
-
-  await ctx.pluginEntities.upsert("source-mapping", fingerprint, {
-    issueId: issue.id,
-    sourceType: "support",
-    sourceId: body.from,
-    event: "ticket.created",
-    createdAt: new Date().toISOString(),
+  await ctx.activity.log({
+    companyId: "",
+    message: "ops.support.ticket_created",
+    entityType: "webhook",
+    entityId: fingerprint,
+    metadata: {
+      from: body.from,
+      subject: body.subject,
+      source: body.source,
+      assignee: "finance-support-agent",
+    },
   });
 
   return {
