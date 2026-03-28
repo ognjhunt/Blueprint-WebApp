@@ -1,0 +1,288 @@
+schema: paperclip/v1
+company:
+  requireBoardApprovalForNewAgents: true
+agents:
+  ceo:
+    role: ceo
+    icon: crown
+    capabilities: Strategy, prioritization, delegation, and company-wide governance.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: claude-sonnet-4-6
+        maxTurnsPerRun: 120
+        timeoutSec: 1800
+        dangerouslySkipPermissions: true
+    permissions:
+      canCreateAgents: true
+    budgetMonthlyCents: 5000
+  cto:
+    role: cto
+    icon: circuit-board
+    capabilities: Cross-repo technical planning, delegation, and execution oversight.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: claude-sonnet-4-6
+        maxTurnsPerRun: 120
+        timeoutSec: 1800
+        dangerouslySkipPermissions: true
+    budgetMonthlyCents: 4000
+  webapp-codex:
+    role: engineer
+    icon: code
+    capabilities: Implementation specialist for Blueprint-WebApp.
+    adapter:
+      type: codex_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: gpt-5.3-codex
+        timeoutSec: 1800
+        dangerouslyBypassApprovalsAndSandbox: true
+    budgetMonthlyCents: 3000
+  webapp-claude:
+    role: engineer
+    icon: search
+    capabilities: Review and planning specialist for Blueprint-WebApp.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: claude-sonnet-4-6
+        maxTurnsPerRun: 120
+        timeoutSec: 1800
+        dangerouslySkipPermissions: true
+    budgetMonthlyCents: 3000
+  pipeline-codex:
+    role: engineer
+    icon: cpu
+    capabilities: Implementation specialist for BlueprintCapturePipeline.
+    adapter:
+      type: codex_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/BlueprintCapturePipeline
+        model: gpt-5.3-codex
+        timeoutSec: 1800
+        dangerouslyBypassApprovalsAndSandbox: true
+    budgetMonthlyCents: 3000
+  pipeline-claude:
+    role: engineer
+    icon: microscope
+    capabilities: Review and planning specialist for BlueprintCapturePipeline.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/BlueprintCapturePipeline
+        model: claude-sonnet-4-6
+        maxTurnsPerRun: 120
+        timeoutSec: 1800
+        dangerouslySkipPermissions: true
+    budgetMonthlyCents: 3000
+  capture-codex:
+    role: engineer
+    icon: wrench
+    capabilities: Implementation specialist for BlueprintCapture.
+    adapter:
+      type: codex_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/BlueprintCapture
+        model: gpt-5.3-codex
+        timeoutSec: 1800
+        dangerouslyBypassApprovalsAndSandbox: true
+    budgetMonthlyCents: 3000
+  capture-claude:
+    role: engineer
+    icon: eye
+    capabilities: Review and planning specialist for BlueprintCapture.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/BlueprintCapture
+        model: claude-sonnet-4-6
+        maxTurnsPerRun: 120
+        timeoutSec: 1800
+        dangerouslySkipPermissions: true
+    budgetMonthlyCents: 3000
+projects:
+  blueprint-webapp:
+    status: active
+    color: blue
+    executionWorkspacePolicy:
+      enabled: true
+      defaultMode: shared_workspace
+      allowIssueOverride: true
+      defaultProjectWorkspaceKey: blueprint-webapp
+      workspaceStrategy:
+        type: project_primary
+    workspaces:
+      blueprint-webapp:
+        name: Blueprint-WebApp
+        sourceType: git_repo
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        repoUrl: https://github.com/ognjhunt/Blueprint-WebApp.git
+        repoRef: main
+        defaultRef: main
+        visibility: advanced
+        setupCommand: npm install
+        isPrimary: true
+  blueprint-capture-pipeline:
+    status: active
+    color: orange
+    executionWorkspacePolicy:
+      enabled: true
+      defaultMode: shared_workspace
+      allowIssueOverride: true
+      defaultProjectWorkspaceKey: blueprint-capture-pipeline
+      workspaceStrategy:
+        type: project_primary
+    workspaces:
+      blueprint-capture-pipeline:
+        name: BlueprintCapturePipeline
+        sourceType: git_repo
+        cwd: /Users/nijelhunt_1/workspace/BlueprintCapturePipeline
+        repoUrl: https://github.com/ognjhunt/BlueprintCapturePipeline.git
+        repoRef: main
+        defaultRef: main
+        visibility: advanced
+        setupCommand: python -m pip install -e .[dev]
+        isPrimary: true
+  blueprint-capture:
+    status: active
+    color: green
+    executionWorkspacePolicy:
+      enabled: true
+      defaultMode: shared_workspace
+      allowIssueOverride: true
+      defaultProjectWorkspaceKey: blueprint-capture
+      workspaceStrategy:
+        type: project_primary
+    workspaces:
+      blueprint-capture:
+        name: BlueprintCapture
+        sourceType: git_repo
+        cwd: /Users/nijelhunt_1/workspace/BlueprintCapture
+        repoUrl: https://github.com/ognjhunt/BlueprintCapture.git
+        repoRef: main
+        defaultRef: main
+        visibility: advanced
+        isPrimary: true
+tasks:
+  ceo-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
+  cto-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
+  ceo-daily-review:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
+  webapp-codex-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
+  webapp-claude-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
+  pipeline-codex-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-capture-pipeline
+  pipeline-claude-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-capture-pipeline
+  capture-codex-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-capture
+  capture-claude-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-capture
+  webapp-autonomy-loop:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
+  webapp-claude-review-loop:
+    status: active
+    priority: medium
+    projectWorkspaceKey: blueprint-webapp
+  pipeline-autonomy-loop:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-capture-pipeline
+  pipeline-claude-review-loop:
+    status: active
+    priority: medium
+    projectWorkspaceKey: blueprint-capture-pipeline
+  capture-autonomy-loop:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-capture
+  capture-claude-review-loop:
+    status: active
+    priority: medium
+    projectWorkspaceKey: blueprint-capture
+routines:
+  ceo-daily-review:
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: "0 8 * * 1-5"
+        timezone: America/Los_Angeles
+  webapp-autonomy-loop:
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: "0 9,15 * * 1-5"
+        timezone: America/Los_Angeles
+  webapp-claude-review-loop:
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: "30 9,15 * * 1-5"
+        timezone: America/Los_Angeles
+  pipeline-autonomy-loop:
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: "0 10,16 * * 1-5"
+        timezone: America/Los_Angeles
+  pipeline-claude-review-loop:
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: "30 10,16 * * 1-5"
+        timezone: America/Los_Angeles
+  capture-autonomy-loop:
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: "0 11,17 * * 1-5"
+        timezone: America/Los_Angeles
+  capture-claude-review-loop:
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: "30 11,17 * * 1-5"
+        timezone: America/Los_Angeles
