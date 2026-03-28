@@ -7,12 +7,12 @@ agents:
     icon: crown
     capabilities: Strategy, prioritization, delegation, and company-wide governance.
     adapter:
-      type: codex_local
+      type: claude_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.3-codex
+        model: claude-sonnet-4-6
         timeoutSec: 1800
-        dangerouslyBypassApprovalsAndSandbox: true
+        dangerouslySkipPermissions: true
     permissions:
       canCreateAgents: true
     budgetMonthlyCents: 5000
@@ -21,12 +21,12 @@ agents:
     icon: circuit-board
     capabilities: Cross-repo technical planning, delegation, and execution oversight.
     adapter:
-      type: codex_local
+      type: claude_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.3-codex
+        model: claude-sonnet-4-6
         timeoutSec: 1800
-        dangerouslyBypassApprovalsAndSandbox: true
+        dangerouslySkipPermissions: true
     budgetMonthlyCents: 4000
   webapp-codex:
     role: engineer
@@ -45,12 +45,12 @@ agents:
     icon: search
     capabilities: Review and planning specialist for Blueprint-WebApp.
     adapter:
-      type: codex_local
+      type: claude_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.3-codex
+        model: claude-sonnet-4-6
         timeoutSec: 1800
-        dangerouslyBypassApprovalsAndSandbox: true
+        dangerouslySkipPermissions: true
     budgetMonthlyCents: 3000
   pipeline-codex:
     role: engineer
@@ -69,12 +69,12 @@ agents:
     icon: microscope
     capabilities: Review and planning specialist for BlueprintCapturePipeline.
     adapter:
-      type: codex_local
+      type: claude_local
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapturePipeline
-        model: gpt-5.3-codex
+        model: claude-sonnet-4-6
         timeoutSec: 1800
-        dangerouslyBypassApprovalsAndSandbox: true
+        dangerouslySkipPermissions: true
     budgetMonthlyCents: 3000
   capture-codex:
     role: engineer
@@ -93,13 +93,157 @@ agents:
     icon: eye
     capabilities: Review and planning specialist for BlueprintCapture.
     adapter:
-      type: codex_local
+      type: claude_local
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapture
-        model: gpt-5.3-codex
+        model: claude-sonnet-4-6
         timeoutSec: 1800
-        dangerouslyBypassApprovalsAndSandbox: true
+        dangerouslySkipPermissions: true
     budgetMonthlyCents: 3000
+  # ── Ops Department ──────────────────────────────────────
+  ops-lead:
+    role: cto
+    icon: bullseye
+    capabilities: >-
+      Coordinates all Blueprint product operations. Routes work between
+      intake, QA, scheduling, and finance agents. Produces daily ops
+      summary and escalates blockers to CEO. Read skill file at
+      ops/paperclip/skills/ops-lead.md before every routine.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: claude-sonnet-4-6
+        timeoutSec: 1800
+        dangerouslySkipPermissions: true
+    budgetMonthlyCents: 3000
+  intake-agent:
+    role: engineer
+    icon: inbox
+    capabilities: >-
+      Processes capturer waitlist applications and buyer inbound requests.
+      Classifies, scores readiness, detects missing info, drafts responses.
+      Read skill file at ops/paperclip/skills/intake-agent.md before every routine.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: claude-sonnet-4-6
+        timeoutSec: 1200
+        dangerouslySkipPermissions: true
+    budgetMonthlyCents: 2000
+  capture-qa-agent:
+    role: engineer
+    icon: search
+    capabilities: >-
+      Reviews pipeline outputs for quality, completeness, and privacy
+      compliance. Flags recapture needs and drafts payout recommendations.
+      Read skill file at ops/paperclip/skills/capture-qa-agent.md before every routine.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/BlueprintCapturePipeline
+        model: claude-sonnet-4-6
+        timeoutSec: 1200
+        dangerouslySkipPermissions: true
+    budgetMonthlyCents: 2000
+  field-ops-agent:
+    role: engineer
+    icon: calendar
+    capabilities: >-
+      Coordinates capture scheduling, capturer assignment, calendar
+      management, timezone normalization, and reminders.
+      Read skill file at ops/paperclip/skills/field-ops-agent.md before every routine.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/BlueprintCapture
+        model: claude-sonnet-4-6
+        timeoutSec: 1200
+        dangerouslySkipPermissions: true
+    budgetMonthlyCents: 2000
+  finance-support-agent:
+    role: engineer
+    icon: dollar-sign
+    capabilities: >-
+      Monitors Stripe health, triages payout issues, handles support
+      inbox, and drafts responses. Read skill file at
+      ops/paperclip/skills/finance-support-agent.md before every routine.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: claude-sonnet-4-6
+        timeoutSec: 1200
+        dangerouslySkipPermissions: true
+    budgetMonthlyCents: 2000
+  # ── Growth Department ───────────────────────────────────
+  growth-lead:
+    role: cto
+    icon: trending-up
+    capabilities: >-
+      Coordinates acquisition, conversion, and retention. Sets experiment
+      priorities using ICE scoring. Synthesizes analytics and market
+      intelligence into growth strategy. Read skill file at
+      ops/paperclip/skills/growth-lead.md before every routine.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: claude-sonnet-4-6
+        timeoutSec: 1800
+        dangerouslySkipPermissions: true
+    budgetMonthlyCents: 3000
+  conversion-agent:
+    role: engineer
+    icon: flask-conical
+    capabilities: >-
+      Runs autoresearch-style experiment loop on webapp and capture app.
+      Tests CTAs, onboarding flows, signup copy, and pricing layout.
+      Read skill file at ops/paperclip/skills/conversion-agent.md and
+      steering file at ops/paperclip/programs/conversion-agent-program.md
+      before every routine.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: claude-sonnet-4-6
+        timeoutSec: 1800
+        dangerouslySkipPermissions: true
+    budgetMonthlyCents: 3000
+  analytics-agent:
+    role: engineer
+    icon: bar-chart
+    capabilities: >-
+      Pulls, aggregates, and interprets all measurable signals. Detects
+      anomalies, produces daily/weekly reports, answers ad-hoc metric
+      queries. Read skill file at ops/paperclip/skills/analytics-agent.md
+      before every routine.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: claude-sonnet-4-6
+        timeoutSec: 1200
+        dangerouslySkipPermissions: true
+    budgetMonthlyCents: 2000
+  market-intel-agent:
+    role: engineer
+    icon: globe
+    capabilities: >-
+      Autoresearch-pattern agent for business intelligence. Researches
+      competitors, market trends, papers, pricing, and regulations.
+      Read skill file at ops/paperclip/skills/market-intel-agent.md and
+      steering file at ops/paperclip/programs/market-intel-program.md
+      before every routine.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: claude-sonnet-4-6
+        timeoutSec: 1800
+        dangerouslySkipPermissions: true
+    budgetMonthlyCents: 2000
 projects:
   blueprint-executive-ops:
     status: active
@@ -249,6 +393,42 @@ tasks:
     status: active
     priority: medium
     projectWorkspaceKey: blueprint-capture
+  ops-lead-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
+  intake-agent-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
+  capture-qa-agent-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-capture-pipeline
+  field-ops-agent-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-capture
+  finance-support-agent-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
+  growth-lead-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
+  conversion-agent-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
+  analytics-agent-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
+  market-intel-agent-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
 routines:
   ceo-daily-review:
     priority: high
@@ -313,4 +493,123 @@ routines:
     triggers:
       - kind: schedule
         cronExpression: "30 11,17 * * 1-5"
+        timezone: America/New_York
+  # ── Ops Department Routines ─────────────────────────────
+  ops-lead-morning:
+    agent: ops-lead
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: "30 8 * * 1-5"
+        timezone: America/New_York
+  ops-lead-afternoon:
+    agent: ops-lead
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: "30 14 * * 1-5"
+        timezone: America/New_York
+  intake-agent-hourly:
+    agent: intake-agent
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: "0 * * * 1-5"
+        timezone: America/New_York
+  capture-qa-daily:
+    agent: capture-qa-agent
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: "0 9 * * 1-5"
+        timezone: America/New_York
+  field-ops-daily:
+    agent: field-ops-agent
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: "0 7 * * 1-5"
+        timezone: America/New_York
+  finance-support-daily:
+    agent: finance-support-agent
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: "0 10 * * 1-5"
+        timezone: America/New_York
+  # ── Growth Department Routines ──────────────────────────
+  growth-lead-daily:
+    agent: growth-lead
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: "0 9 * * 1-5"
+        timezone: America/New_York
+  growth-lead-weekly:
+    agent: growth-lead
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: "0 10 * * 1"
+        timezone: America/New_York
+  analytics-daily:
+    agent: analytics-agent
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: "0 6 * * *"
+        timezone: America/New_York
+  analytics-weekly:
+    agent: analytics-agent
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: "0 23 * * 0"
+        timezone: America/New_York
+  conversion-weekly:
+    agent: conversion-agent
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: "0 11 * * 1"
+        timezone: America/New_York
+  market-intel-daily:
+    agent: market-intel-agent
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: "0 7 * * 1-5"
+        timezone: America/New_York
+  market-intel-weekly:
+    agent: market-intel-agent
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: "0 15 * * 5"
         timezone: America/New_York
