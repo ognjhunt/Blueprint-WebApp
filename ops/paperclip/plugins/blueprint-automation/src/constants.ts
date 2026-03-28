@@ -4,17 +4,25 @@ export const ORIGIN_KIND = "blueprint_automation";
 export const PAGE_ROUTE = "blueprint-automation";
 export const JOB_KEYS = {
   repoScan: "repo-scan",
+  opsQueueScan: "ops-queue-scan",
 } as const;
 export const WEBHOOK_KEYS = {
   github: "github",
   ci: "ci",
   intake: "intake",
+  opsFirestore: "ops-firestore",
+  opsStripe: "ops-stripe",
+  opsSupport: "ops-support",
 } as const;
 export const TOOL_NAMES = {
   scanWork: "blueprint-scan-work",
   upsertWorkItem: "blueprint-upsert-work-item",
   reportBlocker: "blueprint-report-blocker",
   resolveWorkItem: "blueprint-resolve-work-item",
+  notionReadWorkQueue: "notion-read-work-queue",
+  notionWriteWorkQueue: "notion-write-work-queue",
+  notionWriteKnowledge: "notion-write-knowledge",
+  slackPostDigest: "slack-post-digest",
 } as const;
 export const ACTION_KEYS = {
   scanNow: "scan-now",
