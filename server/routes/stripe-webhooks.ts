@@ -167,6 +167,42 @@ async function handlePayoutEvent(
   return null;
 }
 
+/**
+ * Relay ops-relevant Stripe events to the Paperclip automation plugin.
+ * Fire-and-forget: failures here must not block the primary webhook handler.
+ */
+const PAPERCLIP_OPS_STRIPE_RELAY_URL = (
+  process.env.PAPERCLIP_OPS_STRIPE_WEBHOOK_URL || ""
+).trim();
+
+const OPS_RELEVANT_EVENTS = new Set([
+  "payout.failed",
+  "payout.canceled",
+  "charge.dispute.created",
+  "charge.refunded",
+  "account.updated",
+]);
+
+async function relayToPaperclipOps(event: Stripe.Event) {
+  if (!PAPERCLIP_OPS_STRIPE_RELAY_URL || !OPS_RELEVANT_EVENTS.has(event.type)) {
+    return;
+  }
+  try {
+    await fetch(PAPERCLIP_OPS_STRIPE_RELAY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: event.type,
+        id: event.id,
+        data: { object: event.data.object },
+      }),
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch {
+    // Best-effort relay — don't break the primary handler
+  }
+}
+
 export async function stripeWebhookHandler(req: Request, res: Response) {
   const context = requireStripeWebhookContext(req, res);
   if (!context) {
@@ -194,6 +230,9 @@ export async function stripeWebhookHandler(req: Request, res: Response) {
   if (eventState === "duplicate") {
     return res.status(200).json({ received: true, duplicate: true });
   }
+
+  // Fire-and-forget relay to Paperclip ops
+  relayToPaperclipOps(event);
 
   try {
     let orderId: string | null = null;

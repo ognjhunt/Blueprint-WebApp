@@ -17,6 +17,7 @@ PACKAGE_DIR="${PACKAGE_DIR:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/pa
 CODEX_GSTACK_SCRIPT="${CODEX_GSTACK_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/ensure-codex-gstack.sh}"
 PUBLIC_URL_SCRIPT="${PUBLIC_URL_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/ensure-blueprint-paperclip-public-url.sh}"
 PLUGIN_CONFIGURE_SCRIPT="${PLUGIN_CONFIGURE_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/configure-blueprint-paperclip-plugin.sh}"
+RENDER_SYNC_SCRIPT="${RENDER_SYNC_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/sync-blueprint-render-paperclip-env.sh}"
 REPAIR_SCRIPT="${REPAIR_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/repair-blueprint-paperclip-company.sh}"
 RECONCILE_SCRIPT="${RECONCILE_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/reconcile-blueprint-paperclip-company.sh}"
 WEBHOOK_SETUP_SCRIPT="${WEBHOOK_SETUP_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/setup-github-webhooks.sh}"
@@ -223,6 +224,7 @@ main() {
   start_paperclip
   PAPERCLIP_PUBLIC_URL="$("$PUBLIC_URL_SCRIPT")"
   export PAPERCLIP_PUBLIC_URL
+  "$RENDER_SYNC_SCRIPT"
   import_company
   "$REPAIR_SCRIPT" --apply
   "$RECONCILE_SCRIPT"

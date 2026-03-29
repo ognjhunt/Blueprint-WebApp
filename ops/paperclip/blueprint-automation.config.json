@@ -50,10 +50,10 @@
     }
   },
   "secrets": {
-    "notionApiTokenRef": "",
-    "slackOpsWebhookUrlRef": "",
-    "slackGrowthWebhookUrlRef": "",
-    "searchApiKeyRef": "",
-    "searchApiProviderRef": ""
+    "notionApiTokenRef": "NOTION_API_TOKEN",
+    "slackOpsWebhookUrlRef": "SLACK_OPS_WEBHOOK_URL",
+    "slackGrowthWebhookUrlRef": "SLACK_GROWTH_WEBHOOK_URL",
+    "searchApiKeyRef": "SEARCH_API_KEY",
+    "searchApiProviderRef": "SEARCH_API_PROVIDER"
   }
 }

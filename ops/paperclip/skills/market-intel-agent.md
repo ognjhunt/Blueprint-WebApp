@@ -68,7 +68,7 @@ Only include findings with combined score >= 5.0 in the digest.
 - Note what worked and what didn't for next cycle
 
 ## Inputs
-- Web search API (SerpAPI/Brave/Tavily)
+- Web search API (Brave Search via `web-search` tool)
 - ArXiv API
 - Steering file: `ops/paperclip/programs/market-intel-program.md`
 - Previous digests (Notion Knowledge DB)

@@ -27,6 +27,7 @@ import marketplaceRouter from "./routes/marketplace";
 import internalPipelineRouter from "./routes/internal-pipeline";
 import siteWorldsRouter from "./routes/site-worlds";
 import siteWorldSessionsRouter, { publicSiteWorldSessionsRouter } from "./routes/site-world-sessions";
+import { paperclipOpsFirestoreRelayHandler } from "./routes/paperclip-relay";
 import verifyFirebaseToken from "./middleware/verifyFirebaseToken";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
 import marketplaceEntitlementsRouter from "./routes/marketplace-entitlements";
@@ -40,6 +41,7 @@ export function registerRoutes(app: Express) {
   // Public content summary for external tooling.
   app.use("/api/site-content", siteContentRouter);
   app.use("/api/internal/pipeline", internalPipelineRouter);
+  app.post("/api/paperclip/ops-firestore-relay", paperclipOpsFirestoreRelayHandler);
   app.use("/api/site-worlds", siteWorldsRouter);
   app.use("/api/site-worlds/sessions", publicSiteWorldSessionsRouter);
 

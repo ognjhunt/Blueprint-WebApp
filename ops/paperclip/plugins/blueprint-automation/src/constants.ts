@@ -23,6 +23,7 @@ export const TOOL_NAMES = {
   notionWriteWorkQueue: "notion-write-work-queue",
   notionWriteKnowledge: "notion-write-knowledge",
   slackPostDigest: "slack-post-digest",
+  webSearch: "web-search",
 } as const;
 export const ACTION_KEYS = {
   scanNow: "scan-now",

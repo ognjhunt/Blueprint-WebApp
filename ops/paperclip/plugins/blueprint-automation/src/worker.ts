@@ -37,6 +37,7 @@ import {
 } from "./ops-webhooks.js";
 import { createNotionClient, buildNotionToolHandlers, queryWorkQueue } from "./notion.js";
 import { buildSlackToolHandler } from "./slack-notify.js";
+import { buildWebSearchToolHandler } from "./web-search.js";
 
 const execFileAsync = promisify(execFile);
 const GIT_BIN = process.env.BLUEPRINT_PAPERCLIP_GIT_BIN || "/usr/bin/git";
@@ -1800,6 +1801,51 @@ async function registerToolHandlers(ctx: PluginContext) {
     }
   } catch {
     // Slack webhook not configured — tool will not be available
+  }
+
+  // ── Web Search Tool ─────────────────────────────────────
+  try {
+    const config = await getConfig(ctx);
+    const searchApiKey = await resolveOptionalSecret(
+      ctx,
+      config.secrets?.searchApiKeyRef,
+      "SEARCH_API_KEY",
+    );
+    const searchApiProvider = await resolveOptionalSecret(
+      ctx,
+      config.secrets?.searchApiProviderRef,
+      "SEARCH_API_PROVIDER",
+    ) ?? "perplexity";
+    if (searchApiKey) {
+      const searchTools = buildWebSearchToolHandler({
+        apiKey: searchApiKey,
+        provider: searchApiProvider,
+      });
+      ctx.tools.register(
+        TOOL_NAMES.webSearch,
+        {
+          displayName: "Web Search",
+          description:
+            "Search the web for market intelligence, competitor info, technology trends, and research papers.",
+          parametersSchema: {
+            type: "object",
+            properties: {
+              query: { type: "string", description: "The search query" },
+            },
+            required: ["query"],
+          },
+        },
+        async (params): Promise<ToolResult> => {
+          const result = await searchTools[TOOL_NAMES.webSearch](params as any);
+          return {
+            content: `Search complete: ${result.citations.length} citations found.`,
+            data: result,
+          };
+        },
+      );
+    }
+  } catch {
+    // Search API not configured — tool will not be available
   }
 }
 

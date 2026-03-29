@@ -337,6 +337,19 @@ const manifest: PaperclipPluginManifestV1 = {
       },
     },
     {
+      name: TOOL_NAMES.webSearch,
+      displayName: "Web Search",
+      description:
+        "Search the web for market intelligence, competitor info, technology trends, and research papers using Perplexity.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "The search query" },
+        },
+        required: ["query"],
+      },
+    },
+    {
       name: TOOL_NAMES.slackPostDigest,
       displayName: "Post Slack Digest",
       description: "Post formatted digest message to a Slack channel.",
