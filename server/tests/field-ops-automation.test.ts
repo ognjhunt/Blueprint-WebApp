@@ -9,7 +9,11 @@ const stores: StoreState = {
   capture_jobs: new Map(),
   bookings: new Map(),
   users: new Map(),
+  inboundRequests: new Map(),
+  blueprints: new Map(),
   action_ledger: new Map(),
+  site_access_contacts: new Map(),
+  creatorPayouts: new Map(),
 };
 
 function resetStores() {
@@ -232,6 +236,133 @@ describe("field ops automation", () => {
           name: "Pat Operator",
         },
         ledger_doc_id: "ledger-site-1",
+      },
+    });
+    expect(stores.site_access_contacts.get("job-2__operator_example_com")).toMatchObject({
+      capture_job_id: "job-2",
+      email: "operator@example.com",
+      permission_state: "awaiting_response",
+      verification_status: "unverified",
+    });
+  });
+
+  it("prefers stored site-access contacts when no external operator directory exists", async () => {
+    stores.capture_jobs.set("job-3", {
+      title: "South Campus",
+      address: "1 Blueprint Way",
+      buyer_request_id: "req-1",
+      site_access: {
+        permission_state: "awaiting_response",
+      },
+    });
+    stores.site_access_contacts.set("job-3__lead_example_com", {
+      capture_job_id: "job-3",
+      email: "lead@example.com",
+      name: "Lee Lead",
+      company: "South Campus Ops",
+      role_title: "Facilities",
+      source: "manual_entry",
+      verification_status: "verified_external",
+      permission_state: "awaiting_response",
+      notes: "Called ops desk and confirmed this is the first escalation contact.",
+    });
+    stores.inboundRequests = new Map([[
+      "req-1",
+      {
+        contact: {
+          firstName: "Buyer",
+          lastName: "Team",
+          email: "buyer@example.com",
+          company: "Buyer Co",
+          roleTitle: "Operator",
+        },
+      },
+    ]]);
+
+    const { discoverSiteAccessContacts } = await import("../utils/field-ops-automation");
+    const contacts = await discoverSiteAccessContacts("job-3");
+
+    expect(contacts[0]).toMatchObject({
+      email: "lead@example.com",
+      source: "site_access_contact",
+      verification_status: "verified_external",
+    });
+    expect(contacts.some((contact) => contact.email === "buyer@example.com")).toBe(true);
+  });
+
+  it("stores structured manual finance review metadata without executing money movement", async () => {
+    stores.creatorPayouts.set("payout-1", {
+      status: "review_required",
+    });
+
+    const { updateFinanceReview } = await import("../utils/field-ops-automation");
+    const result = await updateFinanceReview({
+      payoutId: "payout-1",
+      reviewStatus: "investigating",
+      nextAction: "Review Stripe event and capture linkage",
+      ownerEmail: "ops@tryblueprint.io",
+      manualActionType: "investigation",
+      updatedBy: "ops@tryblueprint.io",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(executeAction).not.toHaveBeenCalled();
+    expect(stores.creatorPayouts.get("payout-1")).toMatchObject({
+      finance_review: {
+        review_status: "investigating",
+        owner_email: "ops@tryblueprint.io",
+        manual_action_type: "investigation",
+      },
+    });
+  });
+
+  it("flags overdue site-access reviews without sending outreach or changing permission decisions", async () => {
+    stores.capture_jobs.set("job-4", {
+      title: "West Facility",
+      site_access: {
+        permission_state: "awaiting_response",
+        follow_up_due_at: "2026-03-01T10:00:00.000Z",
+      },
+    });
+
+    const { flagOverdueSiteAccessReviews } = await import("../utils/field-ops-automation");
+    const result = await flagOverdueSiteAccessReviews({ limit: 10 });
+
+    expect(result.processedCount).toBe(1);
+    expect(executeAction).not.toHaveBeenCalled();
+    expect(stores.capture_jobs.get("job-4")).toMatchObject({
+      site_access: {
+        permission_state: "awaiting_response",
+        overdue_review: {
+          active: true,
+          lane: "site_access",
+        },
+      },
+    });
+  });
+
+  it("flags overdue finance reviews without executing payout or dispute actions", async () => {
+    stores.creatorPayouts.set("payout-2", {
+      status: "review_required",
+      finance_review: {
+        review_status: "investigating",
+        sla_due_at: "2026-03-01T10:00:00.000Z",
+        next_action: "Review Stripe evidence",
+      },
+    });
+
+    const { flagOverdueFinanceReviews } = await import("../utils/field-ops-automation");
+    const result = await flagOverdueFinanceReviews({ limit: 10 });
+
+    expect(result.processedCount).toBe(1);
+    expect(executeAction).not.toHaveBeenCalled();
+    expect(stores.creatorPayouts.get("payout-2")).toMatchObject({
+      finance_review: {
+        review_status: "investigating",
+        overdue_review: {
+          active: true,
+          lane: "finance_review",
+        },
       },
     });
   });

@@ -87,16 +87,72 @@ export type CapturerCandidate = {
 };
 
 export type SiteAccessContactSuggestion = {
+  id?: string;
   email: string;
   name: string | null;
   source:
     | "site_access"
     | "inbound_request_contact"
     | "booking_contact"
-    | "blueprint_contact";
+    | "blueprint_contact"
+    | "manual_entry"
+    | "site_access_contact";
   company: string | null;
   roleTitle: string | null;
+  phone_number?: string | null;
+  verification_status?: string | null;
+  permission_state?: string | null;
+  last_outreach_at?: string | null;
+  last_response_at?: string | null;
+  notes?: string | null;
 };
+
+type SiteAccessContactRecord = {
+  capture_job_id: string;
+  site_title: string | null;
+  site_address: string | null;
+  email: string;
+  name: string | null;
+  company: string | null;
+  role_title: string | null;
+  phone_number: string | null;
+  source: string;
+  verification_status: string | null;
+  permission_state: string | null;
+  notes: string | null;
+  last_outreach_at: string | null;
+  last_response_at: string | null;
+};
+
+const DEFAULT_SITE_ACCESS_REQUIRED_EVIDENCE = [
+  "verified operator contact",
+  "allowed capture window",
+  "restricted or excluded zones",
+  "privacy, badge, or escort requirements",
+];
+
+const DEFAULT_FINANCE_REQUIRED_EVIDENCE = [
+  "stripe event details",
+  "capture and payout record linkage",
+  "operator notes or creator communication",
+];
+
+const DEFAULT_FINANCE_HUMAN_ONLY_NOTE =
+  "Funds movement, refunds, and dispute submissions remain human-only. Use this queue for evidence, owner assignment, and next-step planning only.";
+
+const UNRESOLVED_SITE_ACCESS_STATES = [
+  "not_started",
+  "awaiting_response",
+  "conditional",
+  "review_required",
+] as const;
+
+const UNRESOLVED_FINANCE_REVIEW_STATES = [
+  "pending_human_review",
+  "investigating",
+  "ready_for_manual_action",
+  "waiting_on_creator",
+] as const;
 
 function getDb() {
   if (!db) {
@@ -114,6 +170,23 @@ function toIsoString(value: unknown): string | null {
   if (typeof value === "string") return value;
   const maybeTimestamp = value as { toDate?: () => Date };
   return maybeTimestamp.toDate?.()?.toISOString?.() || null;
+}
+
+function normalizeEmail(value: string | null | undefined) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function buildSiteAccessContactId(captureJobId: string, email: string) {
+  return `${captureJobId}__${normalizeEmail(email).replace(/[^a-z0-9]+/g, "_")}`;
+}
+
+function hoursFromNow(hours: number) {
+  return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+}
+
+function isIsoDueAtOrBefore(value: unknown, nowIso: string) {
+  const iso = toIsoString(value);
+  return Boolean(iso && iso <= nowIso);
 }
 
 function buildCaptureWindowStart(job: CaptureJobRecord): string | null {
@@ -227,6 +300,127 @@ function buildJobMarketLabel(job: CaptureJobRecord) {
   const address = normalizeTextToken(typeof job.address === "string" ? job.address : "");
   const region = normalizeTextToken(typeof job.region_id === "string" ? String(job.region_id) : "");
   return [address, region].filter(Boolean).join(" ");
+}
+
+function siteAccessWorkflowStage(permissionState: string) {
+  switch (permissionState) {
+    case "granted":
+      return "permission_confirmed";
+    case "denied":
+      return "human_resolution_required";
+    case "conditional":
+      return "terms_review_required";
+    case "awaiting_response":
+      return "waiting_on_operator";
+    case "review_required":
+      return "human_resolution_required";
+    default:
+      return "contact_acquisition";
+  }
+}
+
+async function listStoredSiteAccessContacts(captureJobId: string) {
+  const snapshot = await getDb()
+    .collection("site_access_contacts")
+    .where("capture_job_id", "==", captureJobId)
+    .limit(50)
+    .get();
+
+  return snapshot.docs.map((doc) => {
+    const data = (doc.data() || {}) as Record<string, unknown>;
+    const record: SiteAccessContactRecord = {
+      capture_job_id: captureJobId,
+      site_title: typeof data.site_title === "string" ? data.site_title : null,
+      site_address: typeof data.site_address === "string" ? data.site_address : null,
+      email: typeof data.email === "string" ? data.email : "",
+      name: typeof data.name === "string" ? data.name : null,
+      company: typeof data.company === "string" ? data.company : null,
+      role_title: typeof data.role_title === "string" ? data.role_title : null,
+      phone_number: typeof data.phone_number === "string" ? data.phone_number : null,
+      source: typeof data.source === "string" ? data.source : "site_access_contact",
+      verification_status:
+        typeof data.verification_status === "string" ? data.verification_status : null,
+      permission_state:
+        typeof data.permission_state === "string" ? data.permission_state : null,
+      notes: typeof data.notes === "string" ? data.notes : null,
+      last_outreach_at: toIsoString(data.last_outreach_at),
+      last_response_at: toIsoString(data.last_response_at),
+    };
+
+    return {
+      id: doc.id,
+      email: record.email,
+      name: record.name,
+      source: "site_access_contact" as const,
+      company: record.company,
+      roleTitle: record.role_title,
+      phone_number: record.phone_number,
+      verification_status: record.verification_status,
+      permission_state: record.permission_state,
+      last_outreach_at: record.last_outreach_at,
+      last_response_at: record.last_response_at,
+      notes: record.notes,
+    };
+  });
+}
+
+async function upsertSiteAccessContact(params: {
+  captureJobId: string;
+  email: string;
+  name?: string | null;
+  company?: string | null;
+  roleTitle?: string | null;
+  phoneNumber?: string | null;
+  source?: string | null;
+  verificationStatus?: string | null;
+  permissionState?: string | null;
+  notes?: string | null;
+  lastOutreachAt?: string | null;
+  lastResponseAt?: string | null;
+}) {
+  const normalized = normalizeEmail(params.email);
+  if (!normalized) {
+    throw new Error("Missing site-access contact email");
+  }
+
+  const captureJobDoc = await getDb().collection("capture_jobs").doc(params.captureJobId).get();
+  const captureJob = (captureJobDoc.data() || {}) as CaptureJobRecord;
+  const ref = getDb()
+    .collection("site_access_contacts")
+    .doc(buildSiteAccessContactId(params.captureJobId, normalized));
+
+  const existing = await ref.get();
+  const payload: Record<string, unknown> = {
+    capture_job_id: params.captureJobId,
+    site_title: typeof captureJob.title === "string" ? captureJob.title : null,
+    site_address: typeof captureJob.address === "string" ? captureJob.address : null,
+    email: normalized,
+    updated_at: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  if (!existing.exists) {
+    payload.created_at = admin.firestore.FieldValue.serverTimestamp();
+  }
+  if (params.name !== undefined) payload.name = params.name;
+  if (params.company !== undefined) payload.company = params.company;
+  if (params.roleTitle !== undefined) payload.role_title = params.roleTitle;
+  if (params.phoneNumber !== undefined) payload.phone_number = params.phoneNumber;
+  if (params.source !== undefined && params.source) payload.source = params.source;
+  if (params.verificationStatus !== undefined) {
+    payload.verification_status = params.verificationStatus;
+  }
+  if (params.permissionState !== undefined) payload.permission_state = params.permissionState;
+  if (params.notes !== undefined) payload.notes = params.notes;
+  if (params.lastOutreachAt !== undefined) {
+    payload.last_outreach_at = params.lastOutreachAt || admin.firestore.FieldValue.serverTimestamp();
+  }
+  if (params.lastResponseAt !== undefined) {
+    payload.last_response_at = params.lastResponseAt || admin.firestore.FieldValue.serverTimestamp();
+  }
+
+  await ref.set(payload, { merge: true });
+
+  return ref.id;
 }
 
 function scoreCapturerCandidate(candidate: CreatorUserRecord, job: CaptureJobRecord): CapturerCandidate {
@@ -580,6 +774,181 @@ export async function runCapturerReminderLoop(params?: { limit?: number }) {
   return { ok: true, processedCount, failedCount };
 }
 
+export async function flagOverdueSiteAccessReviews(params?: { limit?: number }) {
+  const snapshot = await getDb()
+    .collection("capture_jobs")
+    .limit(Math.max(1, Math.min(params?.limit ?? 50, 200)))
+    .get();
+
+  let processedCount = 0;
+  let failedCount = 0;
+  const nowIso = new Date().toISOString();
+
+  for (const doc of snapshot.docs) {
+    try {
+      const data = (doc.data() || {}) as CaptureJobRecord;
+      const siteAccess = asRecord(data.site_access);
+      const overdueReview = asRecord(siteAccess.overdue_review);
+      const permissionState =
+        typeof siteAccess.permission_state === "string" ? siteAccess.permission_state : "not_started";
+      const unresolved = UNRESOLVED_SITE_ACCESS_STATES.includes(
+        permissionState as (typeof UNRESOLVED_SITE_ACCESS_STATES)[number],
+      );
+      const isOverdue =
+        unresolved && isIsoDueAtOrBefore(siteAccess.follow_up_due_at, nowIso);
+      const alreadyActive = overdueReview.active === true;
+
+      if (!isOverdue && !alreadyActive) {
+        continue;
+      }
+
+      if (isOverdue) {
+        await doc.ref.set(
+          {
+            site_access: {
+              ...siteAccess,
+              overdue_review: {
+                active: true,
+                lane: "site_access",
+                reason:
+                  permissionState === "conditional"
+                    ? "Conditional access terms are waiting on human follow-up."
+                    : "Site-access follow-up is past due and needs human review.",
+                next_action:
+                  permissionState === "conditional"
+                    ? "Review site conditions, restrictions, and escalation path with a human operator."
+                    : "Follow up with the operator contact or record why no verified contact exists yet.",
+                flagged_by: "system:site_access_overdue_watchdog",
+                flagged_at: overdueReview.flagged_at || admin.firestore.FieldValue.serverTimestamp(),
+                last_checked_at: admin.firestore.FieldValue.serverTimestamp(),
+              },
+            },
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
+        processedCount += 1;
+        continue;
+      }
+
+      await doc.ref.set(
+        {
+          site_access: {
+            ...siteAccess,
+            overdue_review: {
+              active: false,
+              lane: "site_access",
+              cleared_at: admin.firestore.FieldValue.serverTimestamp(),
+              last_checked_at: admin.firestore.FieldValue.serverTimestamp(),
+            },
+          },
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+      processedCount += 1;
+    } catch {
+      failedCount += 1;
+    }
+  }
+
+  return { ok: true, processedCount, failedCount };
+}
+
+export async function flagOverdueFinanceReviews(params?: { limit?: number }) {
+  const snapshot = await getDb()
+    .collection("creatorPayouts")
+    .limit(Math.max(1, Math.min(params?.limit ?? 50, 200)))
+    .get();
+
+  let processedCount = 0;
+  let failedCount = 0;
+  const nowIso = new Date().toISOString();
+
+  for (const doc of snapshot.docs) {
+    try {
+      const data = (doc.data() || {}) as Record<string, unknown>;
+      const financeReview = asRecord(data.finance_review);
+      const overdueReview = asRecord(financeReview.overdue_review);
+      const reviewStatus =
+        typeof financeReview.review_status === "string"
+          ? financeReview.review_status
+          : "pending_human_review";
+      const unresolved = UNRESOLVED_FINANCE_REVIEW_STATES.includes(
+        reviewStatus as (typeof UNRESOLVED_FINANCE_REVIEW_STATES)[number],
+      );
+      const isOverdue = unresolved && isIsoDueAtOrBefore(financeReview.sla_due_at, nowIso);
+      const alreadyActive = overdueReview.active === true;
+
+      if (!isOverdue && !alreadyActive) {
+        continue;
+      }
+
+      if (isOverdue) {
+        await doc.ref.set(
+          {
+            finance_review: {
+              ...financeReview,
+              overdue_review: {
+                active: true,
+                lane: "finance_review",
+                reason: "Manual finance review is past SLA and still needs human action.",
+                next_action:
+                  typeof financeReview.next_action === "string" && financeReview.next_action.trim()
+                    ? financeReview.next_action
+                    : "Assign an owner and gather evidence before any manual finance action.",
+                flagged_by: "system:finance_review_overdue_watchdog",
+                flagged_at: overdueReview.flagged_at || admin.firestore.FieldValue.serverTimestamp(),
+                last_checked_at: admin.firestore.FieldValue.serverTimestamp(),
+              },
+            },
+            updated_at: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
+        processedCount += 1;
+        continue;
+      }
+
+      await doc.ref.set(
+        {
+          finance_review: {
+            ...financeReview,
+            overdue_review: {
+              active: false,
+              lane: "finance_review",
+              cleared_at: admin.firestore.FieldValue.serverTimestamp(),
+              last_checked_at: admin.firestore.FieldValue.serverTimestamp(),
+            },
+          },
+          updated_at: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+      processedCount += 1;
+    } catch {
+      failedCount += 1;
+    }
+  }
+
+  return { ok: true, processedCount, failedCount };
+}
+
+export async function runManualReviewWatchdogLoop(params?: { limit?: number }) {
+  const [siteAccessResult, financeResult] = await Promise.all([
+    flagOverdueSiteAccessReviews(params),
+    flagOverdueFinanceReviews(params),
+  ]);
+
+  return {
+    ok: true,
+    processedCount: siteAccessResult.processedCount + financeResult.processedCount,
+    failedCount: siteAccessResult.failedCount + financeResult.failedCount,
+    site_access: siteAccessResult,
+    finance_review: financeResult,
+  };
+}
+
 export async function listFieldOpsCaptureJobs(params?: {
   limit?: number;
   status?: string | null;
@@ -698,6 +1067,20 @@ export async function assignCapturerToCaptureJob(params: {
           assigned_by: params.assignedBy || null,
           notes: params.notes || null,
         },
+        dispatch_review: {
+          review_state: "operator_selected_heuristic_candidate",
+          recommendation_source: "heuristic_firestore_profile",
+          manual_confirmation_required: true,
+          calendar_availability_verified: false,
+          travel_time_verified: false,
+          missing_inputs: [
+            "live calendar availability",
+            "travel routing API",
+            "capturer acceptance confirmation",
+          ],
+          last_reviewed_by: params.assignedBy || null,
+          last_reviewed_at: admin.firestore.FieldValue.serverTimestamp(),
+        },
       },
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     },
@@ -727,24 +1110,46 @@ export async function discoverSiteAccessContacts(captureJobId: string) {
   const suggestions: SiteAccessContactSuggestion[] = [];
   const seen = new Set<string>();
 
+  const storedContacts = await listStoredSiteAccessContacts(captureJobId);
+  for (const contact of storedContacts) {
+    const normalized = normalizeEmail(contact.email);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    suggestions.push(contact);
+  }
+
   const siteAccess = asRecord(captureJob.site_access);
   const operatorContact = asRecord(siteAccess.operator_contact);
   if (typeof operatorContact.email === "string" && operatorContact.email.trim()) {
-    seen.add(operatorContact.email.toLowerCase());
-    suggestions.push({
-      email: operatorContact.email,
-      name: typeof operatorContact.name === "string" ? operatorContact.name : null,
-      source: "site_access",
-      company: null,
-      roleTitle: null,
-    });
+    const normalized = normalizeEmail(operatorContact.email);
+    if (!seen.has(normalized)) {
+      seen.add(normalized);
+      suggestions.push({
+        email: operatorContact.email,
+        name: typeof operatorContact.name === "string" ? operatorContact.name : null,
+        source: "site_access",
+        company: typeof operatorContact.company === "string" ? operatorContact.company : null,
+        roleTitle: typeof operatorContact.role_title === "string" ? operatorContact.role_title : null,
+        phone_number:
+          typeof operatorContact.phone_number === "string" ? operatorContact.phone_number : null,
+        verification_status:
+          typeof operatorContact.verification_status === "string"
+            ? operatorContact.verification_status
+            : null,
+        permission_state:
+          typeof siteAccess.permission_state === "string" ? siteAccess.permission_state : null,
+        notes: typeof siteAccess.notes === "string" ? siteAccess.notes : null,
+        last_outreach_at: toIsoString(siteAccess.last_outreach_at),
+        last_response_at: toIsoString(siteAccess.last_response_at),
+      });
+    }
   }
 
   const inboundContact = await loadInboundContact(
     typeof captureJob.buyer_request_id === "string" ? captureJob.buyer_request_id : null,
   );
-  if (inboundContact?.email && !seen.has(inboundContact.email.toLowerCase())) {
-    seen.add(inboundContact.email.toLowerCase());
+  if (inboundContact?.email && !seen.has(normalizeEmail(inboundContact.email))) {
+    seen.add(normalizeEmail(inboundContact.email));
     suggestions.push({
       email: inboundContact.email,
       name: inboundContact.name,
@@ -757,8 +1162,8 @@ export async function discoverSiteAccessContacts(captureJobId: string) {
   const bookings = inboundContact?.email ? await loadBookingsForEmail(inboundContact.email) : [];
   for (const booking of bookings) {
     const email = typeof booking.data.email === "string" ? booking.data.email : null;
-    if (email && !seen.has(email.toLowerCase())) {
-      seen.add(email.toLowerCase());
+    if (email && !seen.has(normalizeEmail(email))) {
+      seen.add(normalizeEmail(email));
       suggestions.push({
         email,
         name: typeof booking.data.contactName === "string" ? booking.data.contactName : null,
@@ -772,8 +1177,8 @@ export async function discoverSiteAccessContacts(captureJobId: string) {
       typeof booking.data.blueprintId === "string" ? booking.data.blueprintId : null,
     );
     const blueprintEmail = typeof blueprint?.email === "string" ? blueprint.email : null;
-    if (blueprintEmail && !seen.has(blueprintEmail.toLowerCase())) {
-      seen.add(blueprintEmail.toLowerCase());
+    if (blueprintEmail && !seen.has(normalizeEmail(blueprintEmail))) {
+      seen.add(normalizeEmail(blueprintEmail));
       suggestions.push({
         email: blueprintEmail,
         name: typeof blueprint?.name === "string" ? blueprint.name : null,
@@ -786,6 +1191,32 @@ export async function discoverSiteAccessContacts(captureJobId: string) {
   }
 
   return suggestions;
+}
+
+export async function saveSiteAccessContact(params: {
+  captureJobId: string;
+  email: string;
+  name?: string | null;
+  company?: string | null;
+  roleTitle?: string | null;
+  phoneNumber?: string | null;
+  source?: string | null;
+  verificationStatus?: string | null;
+  notes?: string | null;
+}) {
+  const contactId = await upsertSiteAccessContact({
+    captureJobId: params.captureJobId,
+    email: params.email,
+    name: params.name || null,
+    company: params.company || null,
+    roleTitle: params.roleTitle || null,
+    phoneNumber: params.phoneNumber || null,
+    source: params.source || "manual_entry",
+    verificationStatus: params.verificationStatus || "unverified",
+    notes: params.notes || null,
+  });
+
+  return { ok: true, contactId };
 }
 
 export async function listRescheduleQueue(params?: { limit?: number }) {
@@ -878,18 +1309,38 @@ export async function updateFinanceReview(params: {
   nextAction: string;
   notes?: string | null;
   responseDraft?: string | null;
+  ownerEmail?: string | null;
+  slaDueAt?: string | null;
+  manualActionType?: string | null;
+  requiredEvidence?: string[] | null;
+  humanOnlyNote?: string | null;
   updatedBy?: string | null;
 }) {
+  const financeReview: Record<string, unknown> = {
+    review_status: params.reviewStatus,
+    next_action: params.nextAction,
+    notes: params.notes || null,
+    response_draft: params.responseDraft || null,
+    owner_email: params.ownerEmail || null,
+    manual_action_type: params.manualActionType || null,
+    human_only_boundary: params.humanOnlyNote || DEFAULT_FINANCE_HUMAN_ONLY_NOTE,
+    updated_by: params.updatedBy || null,
+    updated_at: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  if (params.requiredEvidence) {
+    financeReview.required_evidence = params.requiredEvidence;
+  } else if (params.reviewStatus !== "resolved") {
+    financeReview.required_evidence = DEFAULT_FINANCE_REQUIRED_EVIDENCE;
+  }
+  if (params.slaDueAt) {
+    financeReview.sla_due_at = params.slaDueAt;
+  } else if (params.reviewStatus !== "resolved") {
+    financeReview.sla_due_at = hoursFromNow(24);
+  }
+
   await getDb().collection("creatorPayouts").doc(params.payoutId).set(
     {
-      finance_review: {
-        review_status: params.reviewStatus,
-        next_action: params.nextAction,
-        notes: params.notes || null,
-        response_draft: params.responseDraft || null,
-        updated_by: params.updatedBy || null,
-        updated_at: admin.firestore.FieldValue.serverTimestamp(),
-      },
+      finance_review: financeReview,
       updated_at: admin.firestore.FieldValue.serverTimestamp(),
     },
     { merge: true },
@@ -1018,6 +1469,10 @@ export async function sendSiteAccessOutreach(params: {
   captureJobId: string;
   operatorEmail: string;
   operatorName?: string | null;
+  operatorCompany?: string | null;
+  operatorRoleTitle?: string | null;
+  operatorPhoneNumber?: string | null;
+  source?: string | null;
   notes?: string | null;
   triggeredBy?: string | null;
 }) {
@@ -1050,19 +1505,48 @@ export async function sendSiteAccessOutreach(params: {
     idempotencyKey: `site_access:${params.captureJobId}:${params.operatorEmail}:initial_outreach`,
   });
 
+  const contactId = await upsertSiteAccessContact({
+    captureJobId: params.captureJobId,
+    email: params.operatorEmail,
+    name: params.operatorName || null,
+    company: params.operatorCompany || null,
+    roleTitle: params.operatorRoleTitle || null,
+    phoneNumber: params.operatorPhoneNumber || null,
+    source: params.source || "manual_entry",
+    verificationStatus: "unverified",
+    permissionState: result.state === "sent" ? "awaiting_response" : "review_required",
+    notes: params.notes || null,
+    lastOutreachAt: new Date().toISOString(),
+  });
+
   await captureJobRef.set(
     {
       site_access: {
         permission_state: result.state === "sent" ? "awaiting_response" : result.state,
+        workflow_stage:
+          result.state === "sent" ? "waiting_on_operator" : "human_resolution_required",
         operator_contact: {
           name: params.operatorName || null,
           email: params.operatorEmail,
+          company: params.operatorCompany || null,
+          role_title: params.operatorRoleTitle || null,
+          phone_number: params.operatorPhoneNumber || null,
+          verification_status: "unverified",
+          contact_id: contactId,
         },
         last_action_state: result.state,
         ledger_doc_id: result.ledgerDocId,
         last_outreach_at: admin.firestore.FieldValue.serverTimestamp(),
+        follow_up_due_at: hoursFromNow(48),
         updated_by: params.triggeredBy || null,
         notes: params.notes || null,
+        human_only_boundary:
+          "Initial outreach may be templated. Any conditional terms, denials, privacy restrictions, legal language, or uncertainty stay with a human operator.",
+        review_requirements: {
+          required_evidence: DEFAULT_SITE_ACCESS_REQUIRED_EVIDENCE,
+          missing_external_directory: true,
+          negotiation_required: false,
+        },
       },
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     },
@@ -1078,17 +1562,69 @@ export async function updateSiteAccessStatus(params: {
   notes?: string | null;
   operatorName?: string | null;
   operatorEmail?: string | null;
+  operatorCompany?: string | null;
+  operatorRoleTitle?: string | null;
+  operatorPhoneNumber?: string | null;
+  verificationStatus?: string | null;
+  restrictions?: string[] | null;
+  requiredEvidence?: string[] | null;
+  followUpBy?: string | null;
+  decisionSummary?: string | null;
   updatedBy?: string | null;
 }) {
+  const normalizedEmail = normalizeEmail(params.operatorEmail);
+  const contactId = normalizedEmail
+    ? await upsertSiteAccessContact({
+        captureJobId: params.captureJobId,
+        email: normalizedEmail,
+        name: params.operatorName || null,
+        company: params.operatorCompany || null,
+        roleTitle: params.operatorRoleTitle || null,
+        phoneNumber: params.operatorPhoneNumber || null,
+        source: "manual_entry",
+        verificationStatus:
+          params.verificationStatus
+          || (params.status === "granted" || params.status === "conditional"
+            ? "verified_external"
+            : "unverified"),
+        permissionState: params.status,
+        notes: params.notes || params.decisionSummary || null,
+        lastResponseAt:
+          params.status === "granted" || params.status === "denied" || params.status === "conditional"
+            ? new Date().toISOString()
+            : undefined,
+      })
+    : null;
+
   await getDb().collection("capture_jobs").doc(params.captureJobId).set(
     {
       site_access: {
         permission_state: params.status,
+        workflow_stage: siteAccessWorkflowStage(params.status),
         operator_contact: {
           name: params.operatorName || null,
-          email: params.operatorEmail || null,
+          email: normalizedEmail || null,
+          company: params.operatorCompany || null,
+          role_title: params.operatorRoleTitle || null,
+          phone_number: params.operatorPhoneNumber || null,
+          verification_status:
+            params.verificationStatus
+            || (params.status === "granted" || params.status === "conditional"
+              ? "verified_external"
+              : null),
+          contact_id: contactId,
         },
         notes: params.notes || null,
+        decision_summary: params.decisionSummary || null,
+        restrictions: params.restrictions || [],
+        follow_up_due_at: params.followUpBy || null,
+        human_only_boundary:
+          "Granting, denying, or interpreting site terms remains a human judgment. The system records state and evidence but does not decide permissions for you.",
+        review_requirements: {
+          required_evidence: params.requiredEvidence || DEFAULT_SITE_ACCESS_REQUIRED_EVIDENCE,
+          negotiation_required: params.status === "conditional" || params.status === "review_required",
+          missing_external_directory: true,
+        },
         updated_by: params.updatedBy || null,
         updated_at: admin.firestore.FieldValue.serverTimestamp(),
       },

@@ -641,7 +641,10 @@ describe("AdminLeads scene readiness", () => {
     expect((await screen.findAllByText(/Durham Facility/i)).length).toBeGreaterThan(0);
     expect(await screen.findByRole("button", { name: /Assign \+ confirm/i })).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: /Send outreach/i })).toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: /Mark investigating/i })).toBeInTheDocument();
+    expect(await screen.findByText(/Dispatch remains heuristic-only/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Site access is structured, not autonomous/i)).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Run overdue review scan/i })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Assign to me \+ investigate/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Assign \+ confirm/i }));
     await waitFor(() => {

@@ -10,6 +10,8 @@ import {
   listRescheduleQueue,
   processSimpleReschedule,
   runCapturerReminderLoop,
+  runManualReviewWatchdogLoop,
+  saveSiteAccessContact,
   sendCapturerCommunication,
   sendSiteAccessOutreach,
   updateFinanceReview,
@@ -122,6 +124,42 @@ router.get(
 );
 
 router.post(
+  "/capture-jobs/:captureJobId/site-access/contacts",
+  requireOps,
+  async (req: Request, res: Response) => {
+    try {
+      const captureJobId = req.params.captureJobId?.trim();
+      const email = typeof req.body?.email === "string" ? req.body.email.trim() : "";
+      if (!captureJobId || !email) {
+        return res.status(400).json({ error: "Missing capture job id or email" });
+      }
+
+      const result = await saveSiteAccessContact({
+        captureJobId,
+        email,
+        name: typeof req.body?.name === "string" ? req.body.name.trim() : null,
+        company: typeof req.body?.company === "string" ? req.body.company.trim() : null,
+        roleTitle: typeof req.body?.role_title === "string" ? req.body.role_title.trim() : null,
+        phoneNumber:
+          typeof req.body?.phone_number === "string" ? req.body.phone_number.trim() : null,
+        source: typeof req.body?.source === "string" ? req.body.source.trim() : "manual_entry",
+        verificationStatus:
+          typeof req.body?.verification_status === "string"
+            ? req.body.verification_status.trim()
+            : null,
+        notes: typeof req.body?.notes === "string" ? req.body.notes : null,
+      });
+
+      return res.json(result);
+    } catch (error) {
+      return res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to save site-access contact",
+      });
+    }
+  },
+);
+
+router.post(
   "/capture-jobs/:captureJobId/capturer-comms",
   requireOps,
   async (req: Request, res: Response) => {
@@ -226,6 +264,19 @@ router.post(
         operatorEmail: operatorEmailValue,
         operatorName:
           typeof req.body?.operator_name === "string" ? req.body.operator_name.trim() : null,
+        operatorCompany:
+          typeof req.body?.operator_company === "string"
+            ? req.body.operator_company.trim()
+            : null,
+        operatorRoleTitle:
+          typeof req.body?.operator_role_title === "string"
+            ? req.body.operator_role_title.trim()
+            : null,
+        operatorPhoneNumber:
+          typeof req.body?.operator_phone_number === "string"
+            ? req.body.operator_phone_number.trim()
+            : null,
+        source: typeof req.body?.source === "string" ? req.body.source.trim() : null,
         notes: typeof req.body?.notes === "string" ? req.body.notes : null,
         triggeredBy: await operatorEmail(res),
       });
@@ -271,10 +322,38 @@ router.patch(
         captureJobId,
         status,
         notes: typeof req.body?.notes === "string" ? req.body.notes : null,
+        decisionSummary:
+          typeof req.body?.decision_summary === "string" ? req.body.decision_summary : null,
         operatorName:
           typeof req.body?.operator_name === "string" ? req.body.operator_name.trim() : null,
         operatorEmail:
           typeof req.body?.operator_email === "string" ? req.body.operator_email.trim() : null,
+        operatorCompany:
+          typeof req.body?.operator_company === "string"
+            ? req.body.operator_company.trim()
+            : null,
+        operatorRoleTitle:
+          typeof req.body?.operator_role_title === "string"
+            ? req.body.operator_role_title.trim()
+            : null,
+        operatorPhoneNumber:
+          typeof req.body?.operator_phone_number === "string"
+            ? req.body.operator_phone_number.trim()
+            : null,
+        verificationStatus:
+          typeof req.body?.verification_status === "string"
+            ? req.body.verification_status.trim()
+            : null,
+        restrictions: Array.isArray(req.body?.restrictions)
+          ? req.body.restrictions.filter((value: unknown): value is string => typeof value === "string")
+          : null,
+        requiredEvidence: Array.isArray(req.body?.required_evidence)
+          ? req.body.required_evidence.filter(
+              (value: unknown): value is string => typeof value === "string",
+            )
+          : null,
+        followUpBy:
+          typeof req.body?.follow_up_by === "string" ? req.body.follow_up_by.trim() : null,
         updatedBy: await operatorEmail(res),
       });
 
@@ -300,6 +379,23 @@ router.post("/automation/capturer-reminders/run", requireOps, async (req: Reques
   } catch (error) {
     return res.status(500).json({
       error: error instanceof Error ? error.message : "Failed to run capturer reminders",
+    });
+  }
+});
+
+router.post("/automation/manual-review-watchdogs/run", requireOps, async (req: Request, res: Response) => {
+  try {
+    const result = await runManualReviewWatchdogLoop({
+      limit:
+        typeof req.body?.limit === "number" && Number.isFinite(req.body.limit)
+          ? req.body.limit
+          : undefined,
+    });
+
+    return res.json(result);
+  } catch (error) {
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : "Failed to run overdue review watchdogs",
     });
   }
 });
@@ -355,6 +451,21 @@ router.patch("/finance-queue/:payoutId", requireOps, async (req: Request, res: R
       nextAction,
       notes: typeof req.body?.notes === "string" ? req.body.notes : null,
       responseDraft: typeof req.body?.response_draft === "string" ? req.body.response_draft : null,
+      ownerEmail:
+        typeof req.body?.owner_email === "string" ? req.body.owner_email.trim() : null,
+      slaDueAt:
+        typeof req.body?.sla_due_at === "string" ? req.body.sla_due_at.trim() : null,
+      manualActionType:
+        typeof req.body?.manual_action_type === "string"
+          ? req.body.manual_action_type.trim()
+          : null,
+      requiredEvidence: Array.isArray(req.body?.required_evidence)
+        ? req.body.required_evidence.filter(
+            (value: unknown): value is string => typeof value === "string",
+          )
+        : null,
+      humanOnlyNote:
+        typeof req.body?.human_only_note === "string" ? req.body.human_only_note : null,
       updatedBy: await operatorEmail(res),
     });
 

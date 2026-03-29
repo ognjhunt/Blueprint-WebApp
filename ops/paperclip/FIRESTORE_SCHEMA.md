@@ -114,10 +114,32 @@ Capture-request jobs created from inbound requests by [admin-leads.ts](/Users/ni
 | `rights_status` | string | Rights/commercialization state |
 | `capture_policy_tier` | string | Capture policy tier |
 | `status` | string | Capture job status |
-| `field_ops` | object or null | Capturer assignment, comms history, and reminder scheduling |
-| `site_access` | object or null | Operator contact, permission state, and outreach history |
+| `field_ops` | object or null | Capturer assignment, comms history, reminder scheduling, and dispatch review state |
+| `site_access` | object or null | Operator contact, permission state, outreach history, evidence requirements, overdue flags, and human-only boundary notes |
 | `createdAt` | timestamp | Creation time |
 | `updatedAt` | timestamp | Update time |
+
+**Used by:** Field Ops Agent, Ops Lead
+
+### `site_access_contacts`
+Site-scoped operator contact registry created from Blueprint-owned records or manual operator entry.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `capture_job_id` | string | Related capture job |
+| `site_title` | string or null | Site label |
+| `site_address` | string or null | Site address |
+| `email` | string | Operator contact email |
+| `name` | string or null | Contact name |
+| `company` | string or null | Operator company |
+| `role_title` | string or null | Contact role or team |
+| `phone_number` | string or null | Contact phone |
+| `source` | string | Provenance such as `manual_entry`, `site_access_contact`, or `inbound_request_contact` |
+| `verification_status` | string or null | Verification state for the contact |
+| `permission_state` | string or null | Latest linked site-access state |
+| `notes` | string or null | Operator notes on provenance or authority |
+| `last_outreach_at` | timestamp or null | Most recent outreach time |
+| `last_response_at` | timestamp or null | Most recent response time |
 
 **Used by:** Field Ops Agent, Ops Lead
 
@@ -175,7 +197,7 @@ Payout ledger records read by the payout exception automation loop in [workflows
 | `human_review_required` | boolean or null | Human gate flag |
 | `automation_confidence` | number or null | Model confidence |
 | `ops_automation` | object | Payout exception triage state |
-| `finance_review` | object or null | Operator-owned payout/dispute review state |
+| `finance_review` | object or null | Operator-owned payout/dispute review state including owner, SLA, evidence, overdue flags, and human-only boundary notes |
 
 **Used by:** Finance Support Agent, Capture QA Agent, Ops Lead, Analytics Agent
 
@@ -202,6 +224,10 @@ Durable action-level execution log for Phase 2 autonomous ops.
 
 ## Important Notes
 
+- `site_access_contacts` is intentionally site-scoped. Do not treat it as a universal operator directory or CRM until Blueprint has an external verified data source for that job.
+- Capturer assignment remains heuristic until live calendar/travel integrations exist. `field_ops.dispatch_review` records that limitation explicitly.
+- Overdue-review watchdogs may flag `site_access.overdue_review` and `finance_review.overdue_review`, but they do not send outreach, grant permissions, submit disputes, or move money.
+- Payouts and disputes remain human-gated. `finance_review` is the operator-owned decision surface, not an autonomous execution path.
 - `support_tickets`, `payout_records`, and `stripe_events` are not current top-level Firestore collections in this repo. Support triage currently uses `contactRequests`, and payout triage currently uses `creatorPayouts`.
 - Stripe webhook exceptions are routed into Paperclip issues by the Blueprint automation plugin. They are not persisted here as a repo-owned `stripe_events` collection today.
 - Buyer hosted-session state is stored in `hostedSessions`, but that collection is not part of the current autonomous-org ops queue set.
@@ -218,5 +244,4 @@ Collections that contain direct or indirect personal data:
 - `creatorCaptures`
 - `creatorPayouts`
 - `capture_jobs`
-
-See [DATA_RETENTION_POLICY.md](/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/DATA_RETENTION_POLICY.md) for retention periods and handling rules.
+- `site_access_contacts`

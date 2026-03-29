@@ -143,6 +143,13 @@ These should be enabled for the no-human-in-the-loop alpha configuration:
 - `BLUEPRINT_SUPPORT_TRIAGE_ENABLED=1`
 - `BLUEPRINT_PAYOUT_TRIAGE_ENABLED=1`
 - `BLUEPRINT_PREVIEW_DIAGNOSIS_ENABLED=1`
+
+Optional review-watchdog workers that only flag overdue human queues:
+
+- `BLUEPRINT_SITE_ACCESS_OVERDUE_WATCHDOG_ENABLED=1`
+- `BLUEPRINT_FINANCE_REVIEW_OVERDUE_WATCHDOG_ENABLED=1`
+
+These watchdogs do not send outreach, grant permissions, submit disputes, or move funds. They only mark overdue review state in Firestore so operators can work the queue.
 - Optional field-ops reminder worker:
   `BLUEPRINT_CAPTURER_REMINDER_ENABLED=1`
 

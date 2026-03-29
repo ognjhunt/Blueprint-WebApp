@@ -83,7 +83,7 @@ router.post("/reschedule", async (req: Request, res: Response) => {
     requestSource: "help_reschedule",
     summary:
       `${name} requested a mapping reschedule to ${requestedDate} ${requestedTime}. ` +
-      `Booking matches found: ${matches.length}.`,
+      `Booking matches found: ${matches.length}. Manual operator review is required before any schedule change.`,
     ops_automation: {
       status: "pending",
       queue: "support_triage",
@@ -100,7 +100,8 @@ router.post("/reschedule", async (req: Request, res: Response) => {
   return res.status(HTTP_STATUS.ACCEPTED).json({
     success: true,
     routing: "support_queue",
-    message: "The reschedule request was queued for manual review.",
+    message:
+      "The reschedule request was queued for manual review because Blueprint could not safely apply an exact booking change automatically.",
   });
 });
 

@@ -7,7 +7,11 @@ import {
   runSupportTriageLoop,
   runWaitlistAutomationLoop,
 } from "../agents";
-import { runCapturerReminderLoop } from "./field-ops-automation";
+import {
+  flagOverdueFinanceReviews,
+  flagOverdueSiteAccessReviews,
+  runCapturerReminderLoop,
+} from "./field-ops-automation";
 
 type WorkerDefinition = {
   key: string;
@@ -80,6 +84,28 @@ const workers: WorkerDefinition[] = [
     defaultBatchSize: 10,
     defaultStartupDelayMs: 40 * 1000,
     run: ({ limit }) => runCapturerReminderLoop({ limit }),
+  },
+  {
+    key: "site_access_overdue_watchdog",
+    enabledEnv: "BLUEPRINT_SITE_ACCESS_OVERDUE_WATCHDOG_ENABLED",
+    intervalEnv: "BLUEPRINT_SITE_ACCESS_OVERDUE_WATCHDOG_INTERVAL_MS",
+    batchEnv: "BLUEPRINT_SITE_ACCESS_OVERDUE_WATCHDOG_BATCH_SIZE",
+    startupDelayEnv: "BLUEPRINT_SITE_ACCESS_OVERDUE_WATCHDOG_STARTUP_DELAY_MS",
+    defaultIntervalMs: 15 * 60 * 1000,
+    defaultBatchSize: 50,
+    defaultStartupDelayMs: 45 * 1000,
+    run: ({ limit }) => flagOverdueSiteAccessReviews({ limit }),
+  },
+  {
+    key: "finance_review_overdue_watchdog",
+    enabledEnv: "BLUEPRINT_FINANCE_REVIEW_OVERDUE_WATCHDOG_ENABLED",
+    intervalEnv: "BLUEPRINT_FINANCE_REVIEW_OVERDUE_WATCHDOG_INTERVAL_MS",
+    batchEnv: "BLUEPRINT_FINANCE_REVIEW_OVERDUE_WATCHDOG_BATCH_SIZE",
+    startupDelayEnv: "BLUEPRINT_FINANCE_REVIEW_OVERDUE_WATCHDOG_STARTUP_DELAY_MS",
+    defaultIntervalMs: 15 * 60 * 1000,
+    defaultBatchSize: 50,
+    defaultStartupDelayMs: 50 * 1000,
+    run: ({ limit }) => flagOverdueFinanceReviews({ limit }),
   },
   {
     key: "preview_diagnosis",

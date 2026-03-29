@@ -230,11 +230,18 @@ interface CapturerCandidatesResponse {
 }
 
 interface SiteAccessContact {
+  id?: string;
   email: string;
   name: string | null;
   source: string;
   company: string | null;
   roleTitle: string | null;
+  phone_number?: string | null;
+  verification_status?: string | null;
+  permission_state?: string | null;
+  last_outreach_at?: string | null;
+  last_response_at?: string | null;
+  notes?: string | null;
 }
 
 interface SiteAccessContactsResponse {
@@ -269,6 +276,15 @@ interface FinanceQueueItem {
   ops_automation: Record<string, unknown>;
   finance_review: Record<string, unknown>;
   updated_at: string | null;
+}
+
+interface SiteAccessContactFormState {
+  name: string;
+  email: string;
+  company: string;
+  roleTitle: string;
+  phoneNumber: string;
+  notes: string;
 }
 
 interface FinanceQueueResponse {
@@ -318,6 +334,16 @@ function formatActionPreview(item: ActionQueueItem) {
   return preview(item.approval_reason || item.auto_approve_reason || "No preview available.");
 }
 
+function formatStringList(value: unknown) {
+  if (!Array.isArray(value)) {
+    return "";
+  }
+
+  return value
+    .filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
+    .join(", ");
+}
+
 export default function AdminLeads() {
   const { currentUser, userData, tokenClaims } = useAuth();
   const [, setLocation] = useLocation();
@@ -336,6 +362,16 @@ export default function AdminLeads() {
   const [waitlistQueueFilter, setWaitlistQueueFilter] = useState("");
   const [waitlistSearch, setWaitlistSearch] = useState("");
   const [note, setNote] = useState("");
+  const [siteAccessReviewNotes, setSiteAccessReviewNotes] = useState("");
+  const [siteAccessDecisionSummary, setSiteAccessDecisionSummary] = useState("");
+  const [siteAccessContactForm, setSiteAccessContactForm] = useState<SiteAccessContactFormState>({
+    name: "",
+    email: "",
+    company: "",
+    roleTitle: "",
+    phoneNumber: "",
+    notes: "",
+  });
 
   const isAdmin = hasAnyRole(["admin", "ops"], userData, tokenClaims);
 
@@ -695,10 +731,18 @@ export default function AdminLeads() {
       captureJobId,
       operatorEmail,
       operatorName,
+      operatorCompany,
+      operatorRoleTitle,
+      operatorPhoneNumber,
+      source,
     }: {
       captureJobId: string;
       operatorEmail: string;
       operatorName?: string | null;
+      operatorCompany?: string | null;
+      operatorRoleTitle?: string | null;
+      operatorPhoneNumber?: string | null;
+      source?: string | null;
     }) => {
       const response = await fetch(
         `/api/admin/field-ops/capture-jobs/${captureJobId}/site-access/outreach`,
@@ -708,6 +752,10 @@ export default function AdminLeads() {
           body: JSON.stringify({
             operator_email: operatorEmail,
             operator_name: operatorName,
+            operator_company: operatorCompany,
+            operator_role_title: operatorRoleTitle,
+            operator_phone_number: operatorPhoneNumber,
+            source,
           }),
         },
       );
@@ -724,16 +772,39 @@ export default function AdminLeads() {
     mutationFn: async ({
       captureJobId,
       status,
+      operatorEmail,
+      operatorName,
+      operatorCompany,
+      operatorRoleTitle,
+      operatorPhoneNumber,
+      notes,
+      decisionSummary,
     }: {
       captureJobId: string;
       status: string;
+      operatorEmail?: string | null;
+      operatorName?: string | null;
+      operatorCompany?: string | null;
+      operatorRoleTitle?: string | null;
+      operatorPhoneNumber?: string | null;
+      notes?: string;
+      decisionSummary?: string;
     }) => {
       const response = await fetch(
         `/api/admin/field-ops/capture-jobs/${captureJobId}/site-access/status`,
         {
           method: "PATCH",
           headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-          body: JSON.stringify({ status }),
+          body: JSON.stringify({
+            status,
+            operator_email: operatorEmail,
+            operator_name: operatorName,
+            operator_company: operatorCompany,
+            operator_role_title: operatorRoleTitle,
+            operator_phone_number: operatorPhoneNumber,
+            notes,
+            decision_summary: decisionSummary,
+          }),
         },
       );
       if (!response.ok) throw new Error("Failed to update site-access status");
@@ -741,6 +812,45 @@ export default function AdminLeads() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-field-ops-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-site-access-contacts"] });
+    },
+  });
+
+  const saveSiteAccessContactMutation = useMutation({
+    mutationFn: async ({
+      captureJobId,
+      ...payload
+    }: SiteAccessContactFormState & { captureJobId: string }) => {
+      const response = await fetch(
+        `/api/admin/field-ops/capture-jobs/${captureJobId}/site-access/contacts`,
+        {
+          method: "POST",
+          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            email: payload.email,
+            name: payload.name,
+            company: payload.company,
+            role_title: payload.roleTitle,
+            phone_number: payload.phoneNumber,
+            notes: payload.notes,
+            source: "manual_entry",
+            verification_status: "unverified",
+          }),
+        },
+      );
+      if (!response.ok) throw new Error("Failed to save site-access contact");
+      return response.json();
+    },
+    onSuccess: () => {
+      setSiteAccessContactForm({
+        name: "",
+        email: "",
+        company: "",
+        roleTitle: "",
+        phoneNumber: "",
+        notes: "",
+      });
+      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-site-access-contacts"] });
     },
   });
 
@@ -750,11 +860,15 @@ export default function AdminLeads() {
       reviewStatus,
       nextAction,
       notes,
+      ownerEmail,
+      manualActionType,
     }: {
       payoutId: string;
       reviewStatus: string;
       nextAction: string;
       notes?: string;
+      ownerEmail?: string;
+      manualActionType?: string;
     }) => {
       const response = await fetch(`/api/admin/field-ops/finance-queue/${payoutId}`, {
         method: "PATCH",
@@ -763,6 +877,8 @@ export default function AdminLeads() {
           review_status: reviewStatus,
           next_action: nextAction,
           notes,
+          owner_email: ownerEmail,
+          manual_action_type: manualActionType,
         }),
       });
       if (!response.ok) throw new Error("Failed to update finance review");
@@ -784,6 +900,21 @@ export default function AdminLeads() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-field-ops-jobs"] });
+    },
+  });
+
+  const runOverdueReviewWatchdogMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/admin/field-ops/automation/manual-review-watchdogs/run", {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+      });
+      if (!response.ok) throw new Error("Failed to run overdue review watchdogs");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-finance-queue"] });
     },
   });
 
@@ -872,6 +1003,20 @@ export default function AdminLeads() {
   const siteAccessContacts = siteAccessContactsQuery.data?.contacts ?? [];
   const rescheduleQueueItems = rescheduleQueueQuery.data?.items ?? [];
   const financeQueueItems = financeQueueQuery.data?.items ?? [];
+  const primarySiteAccessContact = siteAccessContacts[0] ?? null;
+  const selectedSiteAccess = selectedCaptureJob?.site_access ?? {};
+  const selectedDispatchReview = selectedCaptureJob?.field_ops?.dispatch_review ?? {};
+  const selectedSiteAccessOverdueReview =
+    (selectedSiteAccess.overdue_review as Record<string, unknown> | undefined) ?? {};
+  const overdueSiteAccessCount = fieldOpsJobs.filter(
+    (job) =>
+      ((job.site_access?.overdue_review as Record<string, unknown> | undefined)?.active) === true,
+  ).length;
+  const overdueFinanceCount = financeQueueItems.filter(
+    (item) =>
+      ((item.finance_review?.overdue_review as Record<string, unknown> | undefined)?.active) ===
+      true,
+  ).length;
 
   useEffect(() => {
     if (activeView === "waitlist" && !selectedWaitlistSubmissionId && filteredWaitlistSubmissions[0]) {
@@ -884,6 +1029,19 @@ export default function AdminLeads() {
       setSelectedCaptureJobId(fieldOpsJobs[0].id);
     }
   }, [activeView, fieldOpsJobs, selectedCaptureJobId]);
+
+  useEffect(() => {
+    setSiteAccessReviewNotes("");
+    setSiteAccessDecisionSummary("");
+    setSiteAccessContactForm({
+      name: "",
+      email: "",
+      company: "",
+      roleTitle: "",
+      phoneNumber: "",
+      notes: "",
+    });
+  }, [selectedCaptureJobId]);
 
   const statCards = useMemo(() => {
     if (activeView === "waitlist") {
@@ -945,8 +1103,10 @@ export default function AdminLeads() {
             (job) => job.site_access?.permission_state === "awaiting_response",
           ).length,
         },
+        { label: "Overdue site access", value: overdueSiteAccessCount },
         { label: "Reschedules", value: rescheduleQueueItems.length },
         { label: "Finance queue", value: financeQueueItems.length },
+        { label: "Overdue finance", value: overdueFinanceCount },
       ];
     }
 
@@ -974,6 +1134,8 @@ export default function AdminLeads() {
     approvalQueueQuery.data?.summary.pending_approval,
     approvalQueueQuery.data?.summary.total,
     filteredWaitlistSubmissions,
+    overdueFinanceCount,
+    overdueSiteAccessCount,
     rescheduleQueueItems.length,
     statsQuery.data,
     waitlistQuery.data?.pagination.total,
@@ -1073,6 +1235,9 @@ export default function AdminLeads() {
                             selectedCaptureJobId
                               ? fieldOpsCandidatesQuery.refetch()
                               : Promise.resolve(undefined),
+                            selectedCaptureJobId
+                              ? siteAccessContactsQuery.refetch()
+                              : Promise.resolve(undefined),
                           ])
                     : queryClient.invalidateQueries({ queryKey: ["admin-agent-sessions"] })
               }
@@ -1092,15 +1257,28 @@ export default function AdminLeads() {
                 {runWaitlistAutomationMutation.isPending ? "Running AI triage..." : "Run AI triage"}
               </button>
             ) : activeView === "field_ops" ? (
-              <button
-                type="button"
-                onClick={() => runReminderLoopMutation.mutate()}
-                className="inline-flex items-center rounded-full bg-zinc-950 px-4 py-2 text-sm text-white"
-                disabled={runReminderLoopMutation.isPending}
-              >
-                <Sparkles className="mr-2 h-4 w-4" />
-                {runReminderLoopMutation.isPending ? "Running reminders..." : "Run reminders"}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => runOverdueReviewWatchdogMutation.mutate()}
+                  className="inline-flex items-center rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700"
+                  disabled={runOverdueReviewWatchdogMutation.isPending}
+                >
+                  <AlertCircle className="mr-2 h-4 w-4" />
+                  {runOverdueReviewWatchdogMutation.isPending
+                    ? "Running overdue scan..."
+                    : "Run overdue review scan"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => runReminderLoopMutation.mutate()}
+                  className="inline-flex items-center rounded-full bg-zinc-950 px-4 py-2 text-sm text-white"
+                  disabled={runReminderLoopMutation.isPending}
+                >
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  {runReminderLoopMutation.isPending ? "Running reminders..." : "Run reminders"}
+                </button>
+              </div>
             ) : null}
           </div>
         </div>
@@ -1293,6 +1471,14 @@ export default function AdminLeads() {
                             : "not_started"}
                         </p>
                       </div>
+                      {job.site_access?.overdue_review?.active === true ? (
+                        <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                          Overdue site-access follow-up:{" "}
+                          {typeof job.site_access?.overdue_review?.reason === "string"
+                            ? job.site_access.overdue_review.reason
+                            : "Needs human follow-up."}
+                        </p>
+                      ) : null}
                     </button>
                   ))
                 )}
@@ -1343,6 +1529,22 @@ export default function AdminLeads() {
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
                         Capturer assignment
                       </p>
+                      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                        <p className="font-medium">Dispatch remains heuristic-only.</p>
+                        <p className="mt-1 text-amber-800">
+                          Ranking uses stored market, equipment, availability, and capture stats. This lane does not have live calendar availability or travel-routing verification, so operators still need to confirm acceptance and logistics.
+                        </p>
+                        <p className="mt-2 text-xs text-amber-700">
+                          Current review state: {typeof selectedDispatchReview.review_state === "string"
+                            ? selectedDispatchReview.review_state
+                            : "not recorded"}
+                        </p>
+                        {Array.isArray(selectedDispatchReview.missing_inputs) ? (
+                          <p className="mt-1 text-xs text-amber-700">
+                            Missing inputs: {formatStringList(selectedDispatchReview.missing_inputs)}
+                          </p>
+                        ) : null}
+                      </div>
                       <div className="mt-4 space-y-3">
                         {capturerCandidates.map((candidate) => (
                           <div
@@ -1368,7 +1570,18 @@ export default function AdminLeads() {
                                 <p className="text-xs text-zinc-500">
                                   Travel {candidate.travel_estimate_minutes ?? "?"} min
                                 </p>
+                                <p className="mt-1 text-[11px] text-zinc-400">
+                                  {candidate.travel_estimate_source === "unknown"
+                                    ? "No routing integration"
+                                    : `Source: ${candidate.travel_estimate_source}`}
+                                </p>
                               </div>
+                            </div>
+                            <div className="mt-3 grid gap-2 text-xs text-zinc-500 md:grid-cols-2">
+                              <p>Market fit: {candidate.score_breakdown.market}</p>
+                              <p>Availability fit: {candidate.score_breakdown.availability}</p>
+                              <p>Equipment fit: {candidate.score_breakdown.equipment}</p>
+                              <p>Reliability fit: {candidate.score_breakdown.reliability}</p>
                             </div>
                             <div className="mt-3 flex flex-wrap gap-2">
                               <button
@@ -1407,6 +1620,12 @@ export default function AdminLeads() {
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
                         Ops actions
                       </p>
+                      <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+                        <p className="font-medium">Site access is structured, not autonomous.</p>
+                        <p className="mt-1 text-blue-800">
+                          Blueprint can draft the first outreach and preserve provenance on who was contacted, but access negotiations, conditional terms, privacy/legal interpretation, and denials stay with a human operator.
+                        </p>
+                      </div>
                       <div className="mt-4 flex flex-wrap gap-2">
                         <button
                           type="button"
@@ -1438,12 +1657,124 @@ export default function AdminLeads() {
                             updateSiteAccessStatusMutation.mutate({
                               captureJobId: selectedCaptureJob.id,
                               status: "granted",
+                              operatorEmail: primarySiteAccessContact?.email || null,
+                              operatorName: primarySiteAccessContact?.name || null,
+                              operatorCompany: primarySiteAccessContact?.company || null,
+                              operatorRoleTitle: primarySiteAccessContact?.roleTitle || null,
+                              operatorPhoneNumber: primarySiteAccessContact?.phone_number || null,
+                              notes: siteAccessReviewNotes,
+                              decisionSummary:
+                                siteAccessDecisionSummary
+                                || "Human operator confirmed that site access is granted.",
                             })
                           }
                           className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
                         >
                           Mark site access granted
                         </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateSiteAccessStatusMutation.mutate({
+                              captureJobId: selectedCaptureJob.id,
+                              status: "conditional",
+                              operatorEmail: primarySiteAccessContact?.email || null,
+                              operatorName: primarySiteAccessContact?.name || null,
+                              operatorCompany: primarySiteAccessContact?.company || null,
+                              operatorRoleTitle: primarySiteAccessContact?.roleTitle || null,
+                              operatorPhoneNumber: primarySiteAccessContact?.phone_number || null,
+                              notes: siteAccessReviewNotes,
+                              decisionSummary:
+                                siteAccessDecisionSummary
+                                || "Conditional access requires human follow-up on terms or restrictions.",
+                            })
+                          }
+                          className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                        >
+                          Mark conditional
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateSiteAccessStatusMutation.mutate({
+                              captureJobId: selectedCaptureJob.id,
+                              status: "review_required",
+                              operatorEmail: primarySiteAccessContact?.email || null,
+                              operatorName: primarySiteAccessContact?.name || null,
+                              operatorCompany: primarySiteAccessContact?.company || null,
+                              operatorRoleTitle: primarySiteAccessContact?.roleTitle || null,
+                              operatorPhoneNumber: primarySiteAccessContact?.phone_number || null,
+                              notes: siteAccessReviewNotes,
+                              decisionSummary:
+                                siteAccessDecisionSummary
+                                || "Operator review is still required before any capture is scheduled.",
+                            })
+                          }
+                          className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                        >
+                          Keep in review
+                        </button>
+                      </div>
+
+                      <div className="mt-6 grid gap-3 md:grid-cols-2">
+                        <label className="space-y-2 text-sm text-zinc-700">
+                          <span className="font-medium text-zinc-900">Operator notes</span>
+                          <textarea
+                            value={siteAccessReviewNotes}
+                            onChange={(event) => setSiteAccessReviewNotes(event.target.value)}
+                            placeholder="Document access restrictions, unanswered questions, or what needs human follow-up."
+                            className="min-h-[96px] w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                          />
+                        </label>
+                        <label className="space-y-2 text-sm text-zinc-700">
+                          <span className="font-medium text-zinc-900">Decision summary</span>
+                          <textarea
+                            value={siteAccessDecisionSummary}
+                            onChange={(event) => setSiteAccessDecisionSummary(event.target.value)}
+                            placeholder="Capture the current human judgment: granted, conditional, denied, or still unresolved."
+                            className="min-h-[96px] w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                          />
+                        </label>
+                      </div>
+
+                      <div className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
+                        <p className="font-medium text-zinc-900">Current site-access review</p>
+                        {selectedSiteAccessOverdueReview.active === true ? (
+                          <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                            Overdue review:{" "}
+                            {typeof selectedSiteAccessOverdueReview.reason === "string"
+                              ? selectedSiteAccessOverdueReview.reason
+                              : "Human follow-up is past due."}
+                          </p>
+                        ) : null}
+                        <div className="mt-3 grid gap-2 md:grid-cols-2">
+                          <p>
+                            Workflow stage:{" "}
+                            {typeof selectedSiteAccess.workflow_stage === "string"
+                              ? selectedSiteAccess.workflow_stage
+                              : "contact_acquisition"}
+                          </p>
+                          <p>
+                            Follow-up due:{" "}
+                            {typeof selectedSiteAccess.follow_up_due_at === "string"
+                              ? formatDate(selectedSiteAccess.follow_up_due_at)
+                              : "not set"}
+                          </p>
+                          <p>
+                            Evidence required:{" "}
+                            {formatStringList(selectedSiteAccess.review_requirements?.required_evidence)
+                              || "verified contact, window, restrictions"}
+                          </p>
+                          <p>
+                            Restrictions:{" "}
+                            {formatStringList(selectedSiteAccess.restrictions) || "not documented"}
+                          </p>
+                        </div>
+                        {typeof selectedSiteAccess.human_only_boundary === "string" ? (
+                          <p className="mt-3 text-xs text-zinc-500">
+                            {selectedSiteAccess.human_only_boundary}
+                          </p>
+                        ) : null}
                       </div>
 
                       <div className="mt-6">
@@ -1467,7 +1798,18 @@ export default function AdminLeads() {
                                   </p>
                                   <p className="text-xs text-zinc-500">
                                     {contact.email} · {contact.source}
+                                    {contact.verification_status
+                                      ? ` · ${contact.verification_status}`
+                                      : ""}
                                   </p>
+                                  {contact.company || contact.roleTitle ? (
+                                    <p className="text-xs text-zinc-500">
+                                      {[contact.company, contact.roleTitle].filter(Boolean).join(" · ")}
+                                    </p>
+                                  ) : null}
+                                  {contact.notes ? (
+                                    <p className="mt-1 text-xs text-zinc-500">{contact.notes}</p>
+                                  ) : null}
                                 </div>
                                 <button
                                   type="button"
@@ -1476,6 +1818,10 @@ export default function AdminLeads() {
                                       captureJobId: selectedCaptureJob.id,
                                       operatorEmail: contact.email,
                                       operatorName: contact.name,
+                                      operatorCompany: contact.company,
+                                      operatorRoleTitle: contact.roleTitle,
+                                      operatorPhoneNumber: contact.phone_number,
+                                      source: contact.source,
                                     })
                                   }
                                   className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
@@ -1485,6 +1831,99 @@ export default function AdminLeads() {
                               </div>
                             ))
                           )}
+                        </div>
+                      </div>
+
+                      <div className="mt-6 rounded-xl border border-zinc-200 p-4">
+                        <p className="text-sm font-medium text-zinc-900">Add operator contact</p>
+                        <p className="mt-1 text-xs text-zinc-500">
+                          Use this when the correct contact comes from a call, email thread, or site visit rather than an existing Blueprint record.
+                        </p>
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                          <input
+                            value={siteAccessContactForm.name}
+                            onChange={(event) =>
+                              setSiteAccessContactForm((current) => ({
+                                ...current,
+                                name: event.target.value,
+                              }))
+                            }
+                            placeholder="Contact name"
+                            className="rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                          />
+                          <input
+                            value={siteAccessContactForm.email}
+                            onChange={(event) =>
+                              setSiteAccessContactForm((current) => ({
+                                ...current,
+                                email: event.target.value,
+                              }))
+                            }
+                            placeholder="contact@site.com"
+                            className="rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                          />
+                          <input
+                            value={siteAccessContactForm.company}
+                            onChange={(event) =>
+                              setSiteAccessContactForm((current) => ({
+                                ...current,
+                                company: event.target.value,
+                              }))
+                            }
+                            placeholder="Operator company"
+                            className="rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                          />
+                          <input
+                            value={siteAccessContactForm.roleTitle}
+                            onChange={(event) =>
+                              setSiteAccessContactForm((current) => ({
+                                ...current,
+                                roleTitle: event.target.value,
+                              }))
+                            }
+                            placeholder="Role / title"
+                            className="rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                          />
+                          <input
+                            value={siteAccessContactForm.phoneNumber}
+                            onChange={(event) =>
+                              setSiteAccessContactForm((current) => ({
+                                ...current,
+                                phoneNumber: event.target.value,
+                              }))
+                            }
+                            placeholder="Phone number"
+                            className="rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                          />
+                          <textarea
+                            value={siteAccessContactForm.notes}
+                            onChange={(event) =>
+                              setSiteAccessContactForm((current) => ({
+                                ...current,
+                                notes: event.target.value,
+                              }))
+                            }
+                            placeholder="How this contact was obtained or what they control"
+                            className="min-h-[84px] rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              saveSiteAccessContactMutation.mutate({
+                                captureJobId: selectedCaptureJob.id,
+                                ...siteAccessContactForm,
+                              })
+                            }
+                            disabled={
+                              saveSiteAccessContactMutation.isPending
+                              || !siteAccessContactForm.email.trim()
+                            }
+                            className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Save contact
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1525,12 +1964,23 @@ export default function AdminLeads() {
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
                   Finance review
                 </p>
+                <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
+                  <p className="font-medium">Execution remains human-only.</p>
+                  <p className="mt-1 text-rose-800">
+                    This queue is for evidence gathering, owner assignment, and next-step planning. Blueprint does not auto-run payouts, refunds, or dispute submissions.
+                  </p>
+                </div>
                 <div className="mt-4 space-y-3">
                   {financeQueueItems.length === 0 ? (
                     <p className="text-sm text-zinc-500">No finance review items are queued.</p>
                   ) : (
-                    financeQueueItems.map((item) => (
-                      <div key={item.id} className="rounded-xl border border-zinc-200 p-4">
+                    financeQueueItems.map((item) => {
+                      const overdueReview =
+                        (item.finance_review?.overdue_review as Record<string, unknown> | undefined)
+                        ?? {};
+
+                      return (
+                        <div key={item.id} className="rounded-xl border border-zinc-200 p-4">
                         <p className="text-sm font-medium text-zinc-950">
                           {item.id} · {item.status}
                         </p>
@@ -1540,6 +1990,44 @@ export default function AdminLeads() {
                               ? item.ops_automation.rationale
                               : "Needs manual review")}
                         </p>
+                        <div className="mt-3 grid gap-2 text-xs text-zinc-500 md:grid-cols-2">
+                          <p>
+                            Owner:{" "}
+                            {typeof item.finance_review?.owner_email === "string"
+                              ? item.finance_review.owner_email
+                              : "unassigned"}
+                          </p>
+                          <p>
+                            SLA:{" "}
+                            {typeof item.finance_review?.sla_due_at === "string"
+                              ? formatDate(item.finance_review.sla_due_at)
+                              : "not set"}
+                          </p>
+                          <p>
+                            Manual action:{" "}
+                            {typeof item.finance_review?.manual_action_type === "string"
+                              ? item.finance_review.manual_action_type
+                              : "not set"}
+                          </p>
+                          <p>
+                            Evidence:{" "}
+                            {formatStringList(item.finance_review?.required_evidence)
+                              || "stripe event details, payout linkage, operator notes"}
+                          </p>
+                        </div>
+                        {overdueReview.active === true ? (
+                          <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                            Overdue finance review:{" "}
+                            {typeof overdueReview.reason === "string"
+                              ? overdueReview.reason
+                              : "Manual review is past SLA."}
+                          </p>
+                        ) : null}
+                        {typeof item.finance_review?.human_only_boundary === "string" ? (
+                          <p className="mt-3 text-xs text-zinc-500">
+                            {item.finance_review.human_only_boundary}
+                          </p>
+                        ) : null}
                         <div className="mt-3 flex flex-wrap gap-2">
                           <button
                             type="button"
@@ -1548,11 +2036,13 @@ export default function AdminLeads() {
                                 payoutId: item.id,
                                 reviewStatus: "investigating",
                                 nextAction: "Investigate payout or dispute details",
+                                ownerEmail: currentUser?.email || undefined,
+                                manualActionType: "investigation",
                               })
                             }
                             className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
                           >
-                            Mark investigating
+                            Assign to me + investigate
                           </button>
                           <button
                             type="button"
@@ -1561,6 +2051,8 @@ export default function AdminLeads() {
                                 payoutId: item.id,
                                 reviewStatus: "ready_for_manual_action",
                                 nextAction: "Manual finance action required",
+                                ownerEmail: currentUser?.email || undefined,
+                                manualActionType: "manual_finance_execution",
                               })
                             }
                             className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
@@ -1568,8 +2060,9 @@ export default function AdminLeads() {
                             Ready for manual action
                           </button>
                         </div>
-                      </div>
-                    ))
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               </div>
