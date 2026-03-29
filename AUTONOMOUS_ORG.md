@@ -193,7 +193,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Claude |
 | **Status** | New |
 
-**Purpose:** Processes capturer applications (waitlist) and buyer inbound requests. Classifies by intent, scores readiness, detects missing info, drafts responses.
+**Purpose:** Processes capturer applications (waitlist) and buyer inbound requests. Classifies by intent, scores readiness, detects missing info, drafts responses, and auto-executes low-risk follow-up where policy allows.
 
 **Triggers:**
 - Webhook: Firestore onCreate on waitlist and inbound_requests collections
@@ -208,13 +208,14 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 **Outputs:**
 - Classification label + priority score on each record
 - Draft invite/reject/follow-up messages
+- Auto-sent low-risk follow-up and invite flows routed through the action ledger
 - Missing-info flags with specific questions
 - Updates to Notion Work Queue
 
 **Human gates:**
-- Phase 1: All outbound messages
-- Phase 2: Invite/reject decisions only
-- Phase 3: Rejections and edge cases only
+- High-risk or low-confidence outbound messages
+- Rejections and edge cases
+- Rights/privacy/commercial commitment cases
 
 **External needs:** Firestore read/write, SendGrid or email API (drafts), Notion API.
 
@@ -222,8 +223,8 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | Phase | Behavior | Criteria to advance |
 |-------|----------|-------------------|
 | 1 | Classify + score only; human sends all messages | 2 weeks, classification accuracy >90% |
-| 2 | Auto-send follow-up questions; human approves invite/reject | 1 month, follow-up quality validated |
-| 3 | Auto-approve low-risk invites (device match + market fit > threshold) | Founder sign-off |
+| 2 | Auto-send low-risk follow-up and invite flows; human reviews rejections and sensitive cases | Shipped in WebApp |
+| 3 | Expand auto-invite authority only if policy and outcomes justify it | Founder sign-off |
 
 **Skill file:** `ops/paperclip/skills/intake-agent.md`
 
@@ -283,7 +284,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Claude |
 | **Status** | New |
 
-**Purpose:** Coordinates capture scheduling — calendar management, timezone normalization, travel estimation, capturer assignment, reminders.
+**Purpose:** Coordinates capture scheduling — capturer assignment, standard communications, reminder sequencing, simple reschedules, and site-access tracking.
 
 **Triggers:**
 - Event: Intake agent qualifies a request needing capture
@@ -291,30 +292,33 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - `0 7 * * 1-5` — Daily calendar review (7am ET)
 
 **Inputs:**
-- Qualified requests needing capture
-- Capturer roster + availability (Firestore)
-- Site metadata (location, access requirements)
+- `capture_jobs`
+- Capturer roster fields from Firestore (`users`)
+- Site metadata (location, rights/access requirements)
+- Bookings and blueprint contacts
 - Google Calendar
 
 **Outputs:**
-- Calendar invite proposals (not sent until approved in Phase 1)
-- Capturer-to-site assignment recommendations
-- Reminder sequences (pre-capture, day-of, post-capture)
+- Capturer-to-site assignment recommendations with score breakdowns
+- Standard confirmation/reminder sends when policy allows
+- Simple same-day reschedule execution
+- Site-access first outreach and permission-state tracking
 - Travel/logistics notes
 
 **Human gates:**
-- All calendar sends and capturer communications (Phase 1)
-- Conflict resolution (Phase 1-2)
-- Access/permission issues (permanent)
+- Complex reschedules and cancellations
+- Custom capturer communications
+- Site-access negotiation, denials, and conditional terms
+- Access/permission issues requiring judgment
 
-**External needs:** Google Calendar API, Google Maps API (travel time), Firestore, Notion API.
+**External needs:** Google Calendar API, Firestore, Notion API. Travel/calendar optimization beyond heuristics still requires stronger external dispatch data.
 
 **Graduation path:**
 | Phase | Behavior | Criteria to advance |
 |-------|----------|-------------------|
 | 1 | Proposes schedule + match; human confirms and sends | 2 weeks, proposals accepted >85% |
-| 2 | Auto-schedules when capturer confirms availability; human reviews conflicts | 1 month, no scheduling errors |
-| 3 | Fully autonomous scheduling; human handles access/permission issues only | Founder sign-off |
+| 2 | Auto-assigns heuristically, auto-sends standard reminders/comms, auto-executes same-day simple reschedules | Shipped in WebApp |
+| 3 | Expand beyond heuristic dispatch only with stronger external availability/travel data | Founder sign-off |
 
 **Skill file:** `ops/paperclip/skills/field-ops-agent.md`
 
@@ -329,7 +333,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Claude |
 | **Status** | New |
 
-**Purpose:** Monitors Stripe health, triages payout issues, handles support inbox, drafts responses.
+**Purpose:** Monitors Stripe health, triages payout issues, handles support inbox, drafts responses, and maintains explicit human review state for finance/dispute work.
 
 **Triggers:**
 - Webhook: Stripe events (payout failures, disputes, account updates)
@@ -344,14 +348,15 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 
 **Outputs:**
 - Payout issue triage + recommended action
-- Support response drafts
+- Support response drafts and low-risk support auto-replies where policy allows
+- `finance_review` state on payout/dispute items
 - Ledger discrepancy reports
 - Stripe health summary → Ops Lead
 
 **Human gates:**
-- All financial actions (permanent for payouts above threshold)
-- All support responses (Phase 1)
-- Disputes, refunds, compliance exceptions (permanent)
+- All financial actions
+- Dispute responses, refunds, and compliance exceptions
+- Any money movement or legal/privacy judgment
 
 **External needs:** Stripe API (read + limited write), email/support platform API, Firestore, Notion API.
 
@@ -359,8 +364,8 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | Phase | Behavior | Criteria to advance |
 |-------|----------|-------------------|
 | 1 | Monitors + drafts only; human approves everything | 2 weeks, draft quality validated |
-| 2 | Auto-sends template support responses for known categories; human approves financial actions | 1 month, response quality >95% |
-| 3 | Auto-retries failed payouts under $ threshold; human approves disputes/refunds/edge cases | Founder sign-off |
+| 2 | Auto-send low-risk support replies; queue/state automation for finance; money actions remain human-only | Shipped in WebApp |
+| 3 | Support mostly autonomous; payouts/disputes/refunds still human-only | Founder sign-off |
 
 **Skill file:** `ops/paperclip/skills/finance-support-agent.md`
 

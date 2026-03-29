@@ -7,6 +7,7 @@ import {
   runSupportTriageLoop,
   runWaitlistAutomationLoop,
 } from "../agents";
+import { runCapturerReminderLoop } from "./field-ops-automation";
 
 type WorkerDefinition = {
   key: string;
@@ -68,6 +69,17 @@ const workers: WorkerDefinition[] = [
     defaultBatchSize: 10,
     defaultStartupDelayMs: 30 * 1000,
     run: ({ limit }) => runPayoutExceptionTriageLoop({ limit }),
+  },
+  {
+    key: "capturer_reminders",
+    enabledEnv: "BLUEPRINT_CAPTURER_REMINDER_ENABLED",
+    intervalEnv: "BLUEPRINT_CAPTURER_REMINDER_INTERVAL_MS",
+    batchEnv: "BLUEPRINT_CAPTURER_REMINDER_BATCH_SIZE",
+    startupDelayEnv: "BLUEPRINT_CAPTURER_REMINDER_STARTUP_DELAY_MS",
+    defaultIntervalMs: 10 * 60 * 1000,
+    defaultBatchSize: 10,
+    defaultStartupDelayMs: 40 * 1000,
+    run: ({ limit }) => runCapturerReminderLoop({ limit }),
   },
   {
     key: "preview_diagnosis",

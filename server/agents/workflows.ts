@@ -3,6 +3,13 @@ import { logger } from "../logger";
 import type { InboundRequest } from "../types/inbound-request";
 import { decryptInboundRequestForAdmin } from "../utils/field-encryption";
 import { runAgentTask } from "./runtime";
+import { type LaneSafetyPolicy, INBOUND_POLICY, SUPPORT_POLICY } from "./action-policies";
+import {
+  createPhase2RoutingPolicy,
+  executePhase2WorkflowActions,
+  makeWorkflowDraftStatePatch,
+  type Phase2WorkflowActionSpec,
+} from "./phase2-workflow";
 import type { InboundQualificationOutput } from "./tasks/inbound-qualification";
 import type { PreviewDiagnosisInput } from "./tasks/preview-diagnosis";
 import type {
@@ -62,6 +69,221 @@ export type WaitlistAutomationRunResult = {
 
 function normalizeAutomationStatus(value: unknown): "completed" | "blocked" {
   return value === "blocked" ? "blocked" : "completed";
+}
+
+function createWaitlistEmailPolicy(): LaneSafetyPolicy {
+  return {
+    lane: "waitlist_email",
+    autoApproveCriteria: (draft) =>
+      draft.recommendation === "invite_now" &&
+      (draft.confidence ?? 0) >= 0.85 &&
+      (draft.scores?.market_fit ?? 0) >= 70 &&
+      !draft.requires_human_review &&
+      draft.automation_status !== "blocked",
+    alwaysHumanReview: (draft) =>
+      draft.recommendation === "decline_for_now" ||
+      (draft.recommendation === "request_follow_up" && (draft.confidence ?? 0) < 0.85) ||
+      draft.requires_human_review === true ||
+      draft.automation_status === "blocked",
+    maxDailyAutoSends: 50,
+    contentChecks: true,
+  };
+}
+
+function createInboundEmailPolicy(): LaneSafetyPolicy {
+  return INBOUND_POLICY;
+}
+
+function createSupportEmailPolicy(): LaneSafetyPolicy {
+  return SUPPORT_POLICY;
+}
+
+function createPayoutRoutingPolicy(): LaneSafetyPolicy {
+  return createPhase2RoutingPolicy("payout");
+}
+
+function getWaitlistNextStatus(
+  recommendation: WaitlistTriageOutput["recommendation"],
+  automationStatus: "completed" | "blocked",
+) {
+  if (automationStatus === "blocked") {
+    return "follow_up_required";
+  }
+
+  switch (recommendation) {
+    case "invite_now":
+      return "invite_ready";
+    case "hold_for_market":
+      return "on_hold";
+    case "request_follow_up":
+      return "follow_up_required";
+    case "decline_for_now":
+      return "deferred";
+  }
+}
+
+function buildWaitlistActionSpecs(
+  submission: WaitlistSubmissionRecord,
+  result: WaitlistTriageOutput,
+) {
+  const nextStatus = getWaitlistNextStatus(
+    result.recommendation,
+    normalizeAutomationStatus(result.automation_status),
+  );
+
+  const specs: Phase2WorkflowActionSpec[] = [
+    {
+      actionKey: "waitlist_status_update",
+      actionType: "update_firestore_status" as const,
+      actionPayload: {
+        type: "update_firestore_status" as const,
+        collection: "waitlistSubmissions",
+        docId: submission.id,
+        updates: {
+          status: nextStatus,
+          queue: result.recommended_queue,
+          human_review_required: result.requires_human_review,
+          automation_confidence: result.confidence,
+        },
+      },
+      policy: createPhase2RoutingPolicy("waitlist"),
+    },
+  ];
+
+  if (
+    submission.email &&
+    result.draft_email &&
+    result.recommendation !== "hold_for_market"
+  ) {
+    specs.push({
+      actionKey: "waitlist_email",
+      actionType: "send_email" as const,
+      actionPayload: {
+        type: "send_email" as const,
+        to: submission.email,
+        subject: result.draft_email.subject,
+        body: result.draft_email.body,
+      },
+      policy: createWaitlistEmailPolicy(),
+    });
+  }
+
+  return {
+    nextStatus,
+    specs,
+  };
+}
+
+function buildInboundActionSpecs(
+  request: InboundRequest,
+  result: InboundQualificationOutput,
+) {
+  const routingStatus =
+    result.qualification_state_recommendation === "qualified_ready" ||
+    result.qualification_state_recommendation === "qualified_risky"
+      ? "in_review"
+      : result.qualification_state_recommendation;
+
+  const specs: Phase2WorkflowActionSpec[] = [
+    {
+      actionKey: "inbound_status_update",
+      actionType: "update_firestore_status" as const,
+      actionPayload: {
+        type: "update_firestore_status" as const,
+        collection: "inboundRequests",
+        docId: request.requestId,
+        updates: {
+          qualification_state: result.qualification_state_recommendation,
+          opportunity_state: result.opportunity_state_recommendation,
+          status: routingStatus,
+          human_review_required: result.requires_human_review,
+          automation_confidence: result.confidence,
+        },
+      },
+      policy: createPhase2RoutingPolicy("inbound"),
+    },
+  ];
+
+  if (
+    request.contact.email &&
+    result.buyer_follow_up &&
+    (result.qualification_state_recommendation === "submitted" ||
+      result.qualification_state_recommendation === "needs_more_evidence")
+  ) {
+    specs.push({
+      actionKey: "inbound_follow_up_email",
+      actionType: "send_email" as const,
+      actionPayload: {
+        type: "send_email" as const,
+        to: request.contact.email,
+        subject: result.buyer_follow_up.subject,
+        body: result.buyer_follow_up.body,
+      },
+      policy: createInboundEmailPolicy(),
+    });
+  }
+
+  return { routingStatus, specs };
+}
+
+function buildSupportActionSpecs(supportInput: SupportTriageInput, result: any) {
+  const specs: Phase2WorkflowActionSpec[] = [
+    {
+      actionKey: "support_status_update",
+      actionType: "update_firestore_status" as const,
+      actionPayload: {
+        type: "update_firestore_status" as const,
+        collection: "contactRequests",
+        docId: supportInput.id || "",
+        updates: {
+          queue: result.queue,
+          priority: result.priority,
+          human_review_required: result.requires_human_review,
+          automation_confidence: result.confidence,
+        },
+      },
+      policy: createPhase2RoutingPolicy("support"),
+    },
+  ];
+
+  if (supportInput.email && result.suggested_response) {
+    specs.push({
+      actionKey: "support_response_email",
+      actionType: "send_email" as const,
+      actionPayload: {
+        type: "send_email" as const,
+        to: supportInput.email,
+        subject: result.suggested_response.subject,
+        body: result.suggested_response.body,
+      },
+      policy: createSupportEmailPolicy(),
+    });
+  }
+
+  return { specs };
+}
+
+function buildPayoutActionSpecs(payoutInput: PayoutExceptionInput, result: any) {
+  return {
+    specs: [
+      {
+        actionKey: "payout_status_update",
+        actionType: "update_firestore_status" as const,
+        actionPayload: {
+          type: "update_firestore_status" as const,
+          collection: "creatorPayouts",
+          docId: payoutInput.id,
+          updates: {
+            status: "review_required",
+            queue: result.queue || "payout_exception_queue",
+            human_review_required: result.requires_human_review,
+            automation_confidence: result.confidence,
+          },
+        },
+        policy: createPayoutRoutingPolicy(),
+      },
+    ],
+  };
 }
 
 function normalizeWaitlistSubmission(
@@ -257,7 +479,18 @@ export async function runWaitlistAutomationLoop(params?: {
       const automationStatus = normalizeAutomationStatus(
         result.output.automation_status,
       );
-      const nextStatus = nextWaitlistStatus(result.output.recommendation, automationStatus);
+      const { nextStatus, specs } = buildWaitlistActionSpecs(submission, result.output);
+      const phase2DraftPatch = makeWorkflowDraftStatePatch({
+        existingOpsAutomation: submission.ops_automation || {},
+        lane: "waitlist",
+        queue: result.output.recommended_queue,
+        nextAction: result.output.next_action,
+        recommendation: result.output.recommendation,
+        confidence: result.output.confidence,
+        requiresHumanReview: result.output.requires_human_review,
+        retryable: result.output.retryable,
+        blockReasonCode: result.output.block_reason_code,
+      });
 
       await doc.ref.set(
         {
@@ -276,28 +509,41 @@ export async function runWaitlistAutomationLoop(params?: {
             tool_mode: result.tool_mode,
             execution_id: `${submission.id}:${Date.now()}`,
             session_key: `waitlist:${submission.id}`,
-            next_action: result.output.next_action,
             recommended_path: result.output.recommended_queue,
             eligible_for_ai_triage: true,
             last_error: null,
             last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
             processed_at: admin.firestore.FieldValue.serverTimestamp(),
-            confidence: result.output.confidence,
             market_fit_score: result.output.market_fit_score,
             device_fit_score: result.output.device_fit_score,
             invite_readiness_score: result.output.invite_readiness_score,
-            recommendation: result.output.recommendation,
             rationale: result.output.rationale,
             market_summary: result.output.market_summary,
-            requires_human_review: result.output.requires_human_review,
-            block_reason_code: result.output.block_reason_code,
-            retryable: result.output.retryable,
             market_context: marketContext,
             draft_email: result.output.draft_email,
+            ...phase2DraftPatch,
           },
         },
         { merge: true },
       );
+
+      const phase2Result = await executePhase2WorkflowActions({
+        docRef: doc.ref,
+        sourceCollection: "waitlistSubmissions",
+        sourceDocId: submission.id,
+        lane: "waitlist",
+        draftOutput: result.output,
+        existingOpsAutomation: {
+          ...(submission.ops_automation || {}),
+          ...phase2DraftPatch,
+          status: automationStatus,
+          recommended_path: result.output.recommended_queue,
+          rationale: result.output.rationale,
+          market_summary: result.output.market_summary,
+          draft_email: result.output.draft_email,
+        },
+        actions: specs,
+      });
 
       results.push({
         submissionId: submission.id,
@@ -307,6 +553,7 @@ export async function runWaitlistAutomationLoop(params?: {
         recommendedQueue: result.output.recommended_queue,
         inviteReadinessScore: result.output.invite_readiness_score,
         requiresHumanReview: result.output.requires_human_review,
+        error: phase2Result.lastState === "failed" ? phase2Result.lastResult?.error : undefined,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown waitlist automation error";
@@ -433,17 +680,28 @@ export async function runInboundQualificationForRequest(
   const automationStatus = normalizeAutomationStatus(
     result.output.automation_status,
   );
+  const { routingStatus, specs } = buildInboundActionSpecs(request, result.output);
+  const phase2DraftPatch = makeWorkflowDraftStatePatch({
+    existingOpsAutomation: (request.ops_automation || {}) as Record<string, unknown>,
+    lane: "inbound",
+    queue: request.ops_automation?.queue || "inbound_request_review",
+    nextAction: result.output.next_action,
+    recommendation: result.output.qualification_state_recommendation,
+    confidence: result.output.confidence,
+    requiresHumanReview: result.output.requires_human_review,
+    retryable: result.output.retryable,
+    blockReasonCode: result.output.block_reason_code,
+  });
 
   await docRef.set(
     {
+      status: routingStatus,
       human_review_required: result.output.requires_human_review,
       automation_confidence: result.output.confidence,
       ops_automation: {
         ...(request.ops_automation || {}),
         status: automationStatus,
-        queue: request.ops_automation?.queue || "inbound_request_review",
         intent: request.ops_automation?.intent || "inbound_qualification",
-        next_action: result.output.next_action,
         recommended_path: result.output.qualification_state_recommendation,
         provider: result.provider,
         runtime: result.runtime,
@@ -451,10 +709,6 @@ export async function runInboundQualificationForRequest(
         tool_mode: result.tool_mode,
         execution_id: `${request.requestId}:${Date.now()}`,
         session_key: `inbound:${request.requestId}`,
-        confidence: result.output.confidence,
-        requires_human_review: result.output.requires_human_review,
-        block_reason_code: result.output.block_reason_code,
-        retryable: result.output.retryable,
         qualification_state_recommendation:
           result.output.qualification_state_recommendation,
         opportunity_state_recommendation:
@@ -466,10 +720,43 @@ export async function runInboundQualificationForRequest(
         last_error: null,
         last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
         processed_at: admin.firestore.FieldValue.serverTimestamp(),
+        ...phase2DraftPatch,
       },
     },
     { merge: true },
   );
+
+  await executePhase2WorkflowActions({
+    docRef,
+    sourceCollection: "inboundRequests",
+    sourceDocId: request.requestId,
+    lane: "inbound",
+    draftOutput: result.output,
+    existingOpsAutomation: {
+      ...(request.ops_automation || {}),
+      ...phase2DraftPatch,
+      status: automationStatus,
+      recommended_path: result.output.qualification_state_recommendation,
+      provider: result.provider,
+      runtime: result.runtime,
+      model: result.model,
+      tool_mode: result.tool_mode,
+      execution_id: `${request.requestId}:${Date.now()}`,
+      session_key: `inbound:${request.requestId}`,
+      qualification_state_recommendation:
+        result.output.qualification_state_recommendation,
+      opportunity_state_recommendation:
+        result.output.opportunity_state_recommendation,
+      missing_information: result.output.missing_information,
+      internal_summary: result.output.internal_summary,
+      buyer_follow_up: result.output.buyer_follow_up,
+      rationale: result.output.rationale,
+      last_error: null,
+      last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
+      processed_at: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    actions: specs,
+  });
 
   return result.output;
 }
@@ -598,6 +885,22 @@ export async function runSupportTriageLoop(params?: { limit?: number }) {
         throw new Error(result.error || "Support triage failed");
       }
 
+      const { specs } = buildSupportActionSpecs(input, result.output);
+      const phase2DraftPatch = makeWorkflowDraftStatePatch({
+        existingOpsAutomation:
+          data.ops_automation && typeof data.ops_automation === "object"
+            ? (data.ops_automation as Record<string, unknown>)
+            : {},
+        lane: "support",
+        queue: result.output.queue,
+        nextAction: result.output.next_action,
+        recommendation: result.output.category,
+        confidence: result.output.confidence,
+        requiresHumanReview: result.output.requires_human_review,
+        retryable: result.output.retryable,
+        blockReasonCode: result.output.block_reason_code,
+      });
+
       await doc.ref.set(
         {
           queue: result.output.queue,
@@ -608,9 +911,7 @@ export async function runSupportTriageLoop(params?: { limit?: number }) {
               ? data.ops_automation
               : {}),
             status: normalizeAutomationStatus(result.output.automation_status),
-            queue: result.output.queue,
             intent: "support_triage",
-            next_action: result.output.next_action,
             recommended_path: result.output.category,
             provider: result.provider,
             runtime: result.runtime,
@@ -618,20 +919,47 @@ export async function runSupportTriageLoop(params?: { limit?: number }) {
             tool_mode: result.tool_mode,
             execution_id: `${doc.id}:${Date.now()}`,
             session_key: `support:${doc.id}`,
-            confidence: result.output.confidence,
-            requires_human_review: result.output.requires_human_review,
-            block_reason_code: result.output.block_reason_code,
-            retryable: result.output.retryable,
             rationale: result.output.rationale,
             internal_summary: result.output.internal_summary,
             suggested_response: result.output.suggested_response,
             last_error: null,
             last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
             processed_at: admin.firestore.FieldValue.serverTimestamp(),
+            ...phase2DraftPatch,
           },
         },
         { merge: true },
       );
+
+      await executePhase2WorkflowActions({
+        docRef: doc.ref,
+        sourceCollection: "contactRequests",
+        sourceDocId: doc.id,
+        lane: "support",
+        draftOutput: result.output,
+        existingOpsAutomation: {
+          ...(data.ops_automation && typeof data.ops_automation === "object"
+            ? (data.ops_automation as Record<string, unknown>)
+            : {}),
+          ...phase2DraftPatch,
+          status: normalizeAutomationStatus(result.output.automation_status),
+          intent: "support_triage",
+          recommended_path: result.output.category,
+          provider: result.provider,
+          runtime: result.runtime,
+          model: result.model,
+          tool_mode: result.tool_mode,
+          execution_id: `${doc.id}:${Date.now()}`,
+          session_key: `support:${doc.id}`,
+          rationale: result.output.rationale,
+          internal_summary: result.output.internal_summary,
+          suggested_response: result.output.suggested_response,
+          last_error: null,
+          last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
+          processed_at: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        actions: specs,
+      });
 
       processedCount += 1;
     } catch (error) {
@@ -706,15 +1034,33 @@ export async function runPayoutExceptionTriageLoop(params?: { limit?: number }) 
         throw new Error(result.error || "Payout exception triage failed");
       }
 
+      const { specs } = buildPayoutActionSpecs(input, result.output);
+      const phase2DraftPatch = makeWorkflowDraftStatePatch({
+        existingOpsAutomation:
+          data.ops_automation && typeof data.ops_automation === "object"
+            ? (data.ops_automation as Record<string, unknown>)
+            : {},
+        lane: "payout",
+        queue: result.output.queue || "payout_exception_queue",
+        nextAction: result.output.next_action,
+        recommendation: result.output.disposition,
+        confidence: result.output.confidence,
+        requiresHumanReview: result.output.requires_human_review,
+        retryable: result.output.retryable,
+        blockReasonCode: result.output.block_reason_code,
+      });
+
       await doc.ref.set(
         {
           human_review_required: result.output.requires_human_review,
           automation_confidence: result.output.confidence,
+          queue: result.output.queue || "payout_exception_queue",
           ops_automation: {
+            ...(data.ops_automation && typeof data.ops_automation === "object"
+              ? (data.ops_automation as Record<string, unknown>)
+              : {}),
             status: normalizeAutomationStatus(result.output.automation_status),
-            queue: result.output.queue || "payout_exception_queue",
             intent: "payout_exception_triage",
-            next_action: result.output.next_action,
             recommended_path: result.output.disposition,
             provider: result.provider,
             runtime: result.runtime,
@@ -722,20 +1068,47 @@ export async function runPayoutExceptionTriageLoop(params?: { limit?: number }) 
             tool_mode: result.tool_mode,
             execution_id: `${doc.id}:${Date.now()}`,
             session_key: `payout:${doc.id}`,
-            confidence: result.output.confidence,
-            requires_human_review: result.output.requires_human_review,
-            block_reason_code: result.output.block_reason_code,
-            retryable: result.output.retryable,
             rationale: result.output.rationale,
             internal_summary: result.output.internal_summary,
             approval_reason: null,
             last_error: result.error || null,
             last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
             processed_at: admin.firestore.FieldValue.serverTimestamp(),
+            ...phase2DraftPatch,
           },
         },
         { merge: true },
       );
+
+      await executePhase2WorkflowActions({
+        docRef: doc.ref,
+        sourceCollection: "creatorPayouts",
+        sourceDocId: doc.id,
+        lane: "payout",
+        draftOutput: result.output,
+        existingOpsAutomation: {
+          ...(data.ops_automation && typeof data.ops_automation === "object"
+            ? (data.ops_automation as Record<string, unknown>)
+            : {}),
+          ...phase2DraftPatch,
+          status: normalizeAutomationStatus(result.output.automation_status),
+          intent: "payout_exception_triage",
+          recommended_path: result.output.disposition,
+          provider: result.provider,
+          runtime: result.runtime,
+          model: result.model,
+          tool_mode: result.tool_mode,
+          execution_id: `${doc.id}:${Date.now()}`,
+          session_key: `payout:${doc.id}`,
+          rationale: result.output.rationale,
+          internal_summary: result.output.internal_summary,
+          approval_reason: null,
+          last_error: result.error || null,
+          last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
+          processed_at: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        actions: specs,
+      });
 
       processedCount += 1;
     } catch (error) {

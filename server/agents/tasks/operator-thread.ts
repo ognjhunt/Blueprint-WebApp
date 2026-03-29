@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { getStructuredAutomationProvider, getTaskModelByProvider } from "../provider-config";
 import type { StructuredTaskDefinition } from "../types";
 
 export const operatorThreadOutputSchema = z.object({
@@ -19,13 +20,8 @@ export const operatorThreadTask: StructuredTaskDefinition<
   z.infer<typeof operatorThreadOutputSchema>
 > = {
   kind: "operator_thread",
-  default_provider: "openai_responses",
-  model_by_provider: {
-    openai_responses:
-      process.env.OPENAI_OPERATOR_THREAD_MODEL ||
-      process.env.OPENAI_DEFAULT_MODEL ||
-      "gpt-5.4",
-  },
+  default_provider: getStructuredAutomationProvider(),
+  model_by_provider: getTaskModelByProvider("operator_thread"),
   output_schema: operatorThreadOutputSchema,
   tool_policy: {
     mode: "mixed",

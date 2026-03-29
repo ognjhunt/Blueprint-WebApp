@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { getStructuredAutomationProvider, getTaskModelByProvider } from "../provider-config";
 import type { StructuredTaskDefinition } from "../types";
 
 export const previewDiagnosisOutputSchema = z.object({
@@ -40,13 +41,8 @@ export const previewDiagnosisTask: StructuredTaskDefinition<
   z.infer<typeof previewDiagnosisOutputSchema>
 > = {
   kind: "preview_diagnosis",
-  default_provider: "openai_responses",
-  model_by_provider: {
-    openai_responses:
-      process.env.OPENAI_PREVIEW_DIAGNOSIS_MODEL ||
-      process.env.OPENAI_DEFAULT_MODEL ||
-      "gpt-5.4",
-  },
+  default_provider: getStructuredAutomationProvider(),
+  model_by_provider: getTaskModelByProvider("preview_diagnosis"),
   output_schema: previewDiagnosisOutputSchema,
   tool_policy: {
     mode: "api",

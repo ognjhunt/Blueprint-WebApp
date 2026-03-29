@@ -157,7 +157,9 @@ export default async function postSignupWorkflowsHandler(
             null,
           confidence: schedulingResult.confidence,
           requiresHumanReview:
-            schedulingResult.requires_human_review || executionResult.status !== "completed",
+            executionResult.requiresHumanReview ||
+            schedulingResult.requires_human_review ||
+            executionResult.status !== "completed",
           automationStatus: schedulingResult.automation_status,
           blockReasonCode: schedulingResult.block_reason_code,
           retryable: schedulingResult.retryable || executionResult.retryable,

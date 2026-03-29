@@ -4,6 +4,7 @@ import type {
   OpportunityState,
   QualificationState,
 } from "../../types/inbound-request";
+import { getStructuredAutomationProvider, getTaskModelByProvider } from "../provider-config";
 import type { StructuredTaskDefinition } from "../types";
 
 const qualificationStateEnum = z.enum([
@@ -77,13 +78,8 @@ export const inboundQualificationTask: StructuredTaskDefinition<
   InboundQualificationOutput
 > = {
   kind: "inbound_qualification",
-  default_provider: "openai_responses",
-  model_by_provider: {
-    openai_responses:
-      process.env.OPENAI_INBOUND_QUALIFICATION_MODEL ||
-      process.env.OPENAI_DEFAULT_MODEL ||
-      "gpt-5.4",
-  },
+  default_provider: getStructuredAutomationProvider(),
+  model_by_provider: getTaskModelByProvider("inbound_qualification"),
   output_schema: inboundQualificationOutputSchema,
   tool_policy: {
     mode: "api",

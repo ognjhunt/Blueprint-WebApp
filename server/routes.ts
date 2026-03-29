@@ -6,6 +6,7 @@ import submitToSheetsHandler from "./routes/api/submit-to-sheets";
 import processWaitlistHandler from "./routes/process-waitlist";
 import uploadToB2Handler from "./routes/api/upload-to-b2";
 import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
+import helpRouter from "./routes/help";
 import geminiRouter from "./routes/gemini";
 import aiStudioRouter from "./routes/ai-studio";
 import qrLinkRouter from "./routes/qr-link";
@@ -20,6 +21,7 @@ import errorsRouter from "./routes/errors";
 import siteContentRouter from "./routes/site-content";
 import inboundRequestRouter from "./routes/inbound-request";
 import adminLeadsRouter from "./routes/admin-leads";
+import adminFieldOpsRouter from "./routes/admin-field-ops";
 import adminAgentRouter from "./routes/admin-agent";
 import adminSiteWorldsRouter from "./routes/admin-site-worlds";
 import requestsRouter from "./routes/requests";
@@ -79,6 +81,7 @@ export function registerRoutes(app: Express) {
   app.post("/api/contact", csrfProtection, contactHandler);
   app.post("/api/waitlist", csrfProtection, waitlistHandler);
   app.post("/api/apply", csrfProtection, applyHandler);
+  app.use("/api/help", csrfProtection, helpRouter);
   // Inbound request (lead pipeline) - public submission endpoint
   app.use("/api/inbound-request", csrfProtection, inboundRequestRouter);
   app.use("/api/requests", csrfProtection, requestsRouter);
@@ -88,6 +91,12 @@ export function registerRoutes(app: Express) {
     csrfProtection,
     verifyFirebaseToken,
     adminLeadsRouter,
+  );
+  app.use(
+    "/api/admin/field-ops",
+    csrfProtection,
+    verifyFirebaseToken,
+    adminFieldOpsRouter,
   );
   app.use(
     "/api/admin/agent",

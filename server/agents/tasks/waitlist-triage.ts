@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { getStructuredAutomationProvider, getTaskModelByProvider } from "../provider-config";
 import type { StructuredTaskDefinition } from "../types";
 
 const draftEmailSchema = z.object({
@@ -69,13 +70,8 @@ export const waitlistTriageTask: StructuredTaskDefinition<
   WaitlistTriageOutput
 > = {
   kind: "waitlist_triage",
-  default_provider: "openai_responses",
-  model_by_provider: {
-    openai_responses:
-      process.env.OPENAI_WAITLIST_AUTOMATION_MODEL ||
-      process.env.OPENAI_DEFAULT_MODEL ||
-      "gpt-5.4",
-  },
+  default_provider: getStructuredAutomationProvider(),
+  model_by_provider: getTaskModelByProvider("waitlist_triage"),
   output_schema: waitlistTriageOutputSchema,
   tool_policy: {
     mode: "api",

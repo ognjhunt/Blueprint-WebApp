@@ -9,6 +9,10 @@
 
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { sendEmail } from "../utils/email";
+import {
+  createGoogleCalendarEvent,
+  updateGoogleCalendarEvent,
+} from "../utils/google-calendar";
 import { sendSlackMessage } from "../utils/slack";
 import { logger } from "../logger";
 
@@ -495,12 +499,76 @@ async function performAction(
       }
       break;
     case "create_calendar_event":
+      await createGoogleCalendarEvent({
+        calendarId:
+          typeof payload.calendarId === "string" ? payload.calendarId : undefined,
+        title:
+          typeof payload.title === "string"
+            ? payload.title
+            : typeof payload.subject === "string"
+              ? payload.subject
+              : "Blueprint calendar event",
+        description:
+          typeof payload.description === "string"
+            ? payload.description
+            : typeof payload.body === "string"
+              ? payload.body
+              : "",
+        address: typeof payload.address === "string" ? payload.address : "",
+        date:
+          typeof payload.date === "string"
+            ? payload.date
+            : typeof payload.mappingDate === "string"
+              ? payload.mappingDate
+              : "",
+        time:
+          typeof payload.time === "string"
+            ? payload.time
+            : typeof payload.mappingTime === "string"
+              ? payload.mappingTime
+              : "",
+        attendeeEmail:
+          typeof payload.contactEmail === "string" ? payload.contactEmail : undefined,
+      });
+      break;
     case "update_calendar_event":
+      if (typeof payload.eventId !== "string" || payload.eventId.trim().length === 0) {
+        throw new Error("Calendar update requires an eventId");
+      }
+
+      await updateGoogleCalendarEvent({
+        calendarId:
+          typeof payload.calendarId === "string" ? payload.calendarId : undefined,
+        eventId: payload.eventId,
+        title: typeof payload.title === "string" ? payload.title : null,
+        description:
+          typeof payload.description === "string"
+            ? payload.description
+            : typeof payload.body === "string"
+              ? payload.body
+              : null,
+        address: typeof payload.address === "string" ? payload.address : null,
+        date:
+          typeof payload.date === "string"
+            ? payload.date
+            : typeof payload.mappingDate === "string"
+              ? payload.mappingDate
+              : "",
+        time:
+          typeof payload.time === "string"
+            ? payload.time
+            : typeof payload.mappingTime === "string"
+              ? payload.mappingTime
+              : "",
+        attendeeEmail:
+          typeof payload.contactEmail === "string" ? payload.contactEmail : undefined,
+      });
+      break;
     case "update_sheet":
-      // These require specific integrations — they will be wired in later
+      // Sheets remain lane-specific today; post-signup wraps these outside the executor.
       // workstreams. For now just log.
       logger.warn(
-        `Action type ${actionType} not yet wired to executor — requires integration workstream`,
+        `Action type ${actionType} not yet wired to executor — requires lane-specific integration`,
       );
       break;
     default:

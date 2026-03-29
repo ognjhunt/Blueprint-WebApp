@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const runAgentTask = vi.hoisted(() => vi.fn());
 const docSet = vi.hoisted(() => vi.fn());
+const executePhase2WorkflowActions = vi.hoisted(() => vi.fn());
 
 const fakeDoc = {
   id: "submission-1",
@@ -72,9 +73,35 @@ vi.mock("../agents/runtime", () => ({
   runAgentTask,
 }));
 
+vi.mock("../agents/phase2-workflow", () => ({
+  createPhase2RoutingPolicy: (lane: string) => ({
+    lane,
+    autoApproveCriteria: () => true,
+    alwaysHumanReview: () => false,
+    maxDailyAutoSends: 1000,
+    contentChecks: false,
+  }),
+  makeWorkflowDraftStatePatch: (params: { lane: string; queue: string; nextAction: string }) => ({
+    phase2_action_state: "draft_ready",
+    phase2_action_type: "draft",
+    phase2_action_tier: null,
+    phase2_action_idempotency_key: null,
+    phase2_action_ledger_ref: null,
+    phase2_action_error: null,
+    phase2_action_auto_approve_reason: null,
+    phase2_action_executed_at: null,
+    phase2_actions: [],
+    phase2_lane: params.lane,
+    queue: params.queue,
+    next_action: params.nextAction,
+  }),
+  executePhase2WorkflowActions,
+}));
+
 afterEach(() => {
   runAgentTask.mockReset();
   docSet.mockReset();
+  executePhase2WorkflowActions.mockReset();
   vi.resetModules();
 });
 
@@ -110,12 +137,24 @@ describe("waitlist automation loop", () => {
     });
 
     const { runWaitlistAutomationLoop } = await import("../utils/waitlistAutomation");
+    executePhase2WorkflowActions.mockResolvedValue({
+      records: [],
+      lastResult: null,
+      lastState: "sent",
+    });
     const result = await runWaitlistAutomationLoop({ submissionId: "submission-1" });
 
     expect(result.ok).toBe(true);
     expect(runAgentTask).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: "waitlist_triage",
+      }),
+    );
+    expect(executePhase2WorkflowActions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lane: "waitlist",
+        sourceCollection: "waitlistSubmissions",
+        sourceDocId: "submission-1",
       }),
     );
     expect(docSet).toHaveBeenCalled();

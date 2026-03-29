@@ -1,28 +1,46 @@
 import { runAgentTask } from "./runtime";
+import {
+  getStructuredAutomationFallbackProvider,
+  getStructuredAutomationProvider,
+  getTaskModelByProvider,
+  isProviderConfigured,
+} from "./provider-config";
 
 function runtimeDefaultModel() {
-  return process.env.OPENAI_DEFAULT_MODEL?.trim()
-    || process.env.OPENAI_OPERATOR_THREAD_MODEL?.trim()
-    || "gpt-5.4";
+  const provider = getStructuredAutomationProvider();
+  return getTaskModelByProvider("operator_thread")[provider] || "gpt-5.4";
 }
 
 export function getAgentRuntimeConnectionMetadata() {
+  const provider = getStructuredAutomationProvider();
+  const fallbackProvider = getStructuredAutomationFallbackProvider();
+  const taskModels = {
+    waitlist_triage: getTaskModelByProvider("waitlist_triage")[provider] || null,
+    inbound_qualification:
+      getTaskModelByProvider("inbound_qualification")[provider] || null,
+    post_signup_scheduling:
+      getTaskModelByProvider("post_signup_scheduling")[provider] || null,
+    operator_thread: getTaskModelByProvider("operator_thread")[provider] || null,
+    support_triage: getTaskModelByProvider("support_triage")[provider] || null,
+    payout_exception_triage:
+      getTaskModelByProvider("payout_exception_triage")[provider] || null,
+    preview_diagnosis: getTaskModelByProvider("preview_diagnosis")[provider] || null,
+  };
+
   return {
-    provider: "openai_responses" as const,
-    configured: Boolean(process.env.OPENAI_API_KEY?.trim()),
-    auth_configured: Boolean(process.env.OPENAI_API_KEY?.trim()),
-    timeout_ms: Number(process.env.OPENAI_TIMEOUT_MS ?? 20_000),
+    provider,
+    fallback_provider: fallbackProvider,
+    configured: isProviderConfigured(provider),
+    auth_configured: isProviderConfigured(provider),
+    timeout_ms: Number(
+      provider === "anthropic_agent_sdk"
+        ? process.env.ANTHROPIC_TIMEOUT_MS ?? 20_000
+        : provider === "openclaw"
+          ? process.env.OPENCLAW_TIMEOUT_MS ?? 20_000
+          : process.env.OPENAI_TIMEOUT_MS ?? 20_000,
+    ),
     default_model: runtimeDefaultModel(),
-    task_models: {
-      waitlist_triage: process.env.OPENAI_WAITLIST_AUTOMATION_MODEL?.trim() || null,
-      inbound_qualification: process.env.OPENAI_INBOUND_QUALIFICATION_MODEL?.trim() || null,
-      post_signup_scheduling: process.env.OPENAI_POST_SIGNUP_MODEL?.trim() || null,
-      operator_thread: process.env.OPENAI_OPERATOR_THREAD_MODEL?.trim() || null,
-      support_triage: process.env.OPENAI_SUPPORT_TRIAGE_MODEL?.trim() || null,
-      payout_exception_triage:
-        process.env.OPENAI_PAYOUT_EXCEPTION_MODEL?.trim() || null,
-      preview_diagnosis: process.env.OPENAI_PREVIEW_DIAGNOSIS_MODEL?.trim() || null,
-    },
+    task_models: taskModels,
   };
 }
 
@@ -33,7 +51,7 @@ export async function runAgentRuntimeSmokeTest(params?: {
   const connectivity = getAgentRuntimeConnectionMetadata();
 
   if (!connectivity.configured) {
-    throw new Error("OPENAI_API_KEY is not configured");
+    throw new Error(`Primary agent runtime provider ${connectivity.provider} is not configured`);
   }
 
   const result = await runAgentTask<
@@ -46,8 +64,8 @@ export async function runAgentRuntimeSmokeTest(params?: {
     }
   >({
     kind: "operator_thread",
-    provider: "openai_responses",
-    runtime: "openai_responses",
+    provider: connectivity.provider,
+    runtime: connectivity.provider,
     model: params?.model?.trim() || runtimeDefaultModel(),
     input: {
       message:

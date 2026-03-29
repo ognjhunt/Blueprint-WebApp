@@ -12,6 +12,11 @@ import {
   OPPORTUNITY_STATES,
   QUALIFICATION_STATES,
 } from "../../client/src/lib/requestTaxonomy";
+import {
+  approveAction,
+  rejectAction,
+  retryFailedAction,
+} from "../agents/action-executor";
 import type {
   DerivedAssetsAttachment,
   DeploymentReadinessSummary,
@@ -166,6 +171,143 @@ const CAPTURE_JOB_MARKETPLACE_STATES = [
   "cancelled",
 ] as const;
 type CaptureJobMarketplaceState = (typeof CAPTURE_JOB_MARKETPLACE_STATES)[number];
+
+type ActionLedgerRecord = Record<string, unknown> & {
+  status?: string;
+  lane?: string;
+  action_type?: string;
+  source_collection?: string;
+  source_doc_id?: string;
+  action_tier?: number;
+  idempotency_key?: string;
+  auto_approve_reason?: string | null;
+  approval_reason?: string | null;
+  approved_by?: string | null;
+  approved_at?: unknown;
+  rejected_by?: string | null;
+  rejected_reason?: string | null;
+  execution_attempts?: number;
+  last_execution_error?: string | null;
+  created_at?: unknown;
+  updated_at?: unknown;
+  sent_at?: unknown;
+  last_execution_at?: unknown;
+  action_payload?: Record<string, unknown>;
+  draft_output?: Record<string, unknown>;
+};
+
+type ActionQueueItem = {
+  id: string;
+  status: string;
+  lane: string;
+  action_type: string;
+  source_collection: string;
+  source_doc_id: string;
+  action_tier: number;
+  idempotency_key: string;
+  auto_approve_reason: string | null;
+  approval_reason: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  rejected_by: string | null;
+  rejected_reason: string | null;
+  execution_attempts: number;
+  last_execution_error: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  sent_at: string | null;
+  last_execution_at: string | null;
+  action_payload: Record<string, unknown>;
+  draft_output: Record<string, unknown>;
+};
+
+function normalizeActionLedgerItem(
+  doc: FirebaseFirestore.QueryDocumentSnapshot | FirebaseFirestore.DocumentSnapshot,
+): ActionQueueItem | null {
+  const data = doc.data() as ActionLedgerRecord | undefined;
+  if (!data) {
+    return null;
+  }
+
+  return {
+    id: doc.id,
+    status: typeof data.status === "string" ? data.status : "unknown",
+    lane: typeof data.lane === "string" ? data.lane : "",
+    action_type: typeof data.action_type === "string" ? data.action_type : "",
+    source_collection:
+      typeof data.source_collection === "string" ? data.source_collection : "",
+    source_doc_id: typeof data.source_doc_id === "string" ? data.source_doc_id : "",
+    action_tier: typeof data.action_tier === "number" ? data.action_tier : 0,
+    idempotency_key: typeof data.idempotency_key === "string" ? data.idempotency_key : "",
+    auto_approve_reason:
+      typeof data.auto_approve_reason === "string" ? data.auto_approve_reason : null,
+    approval_reason: typeof data.approval_reason === "string" ? data.approval_reason : null,
+    approved_by: typeof data.approved_by === "string" ? data.approved_by : null,
+    approved_at: normalizeTimestamp(data.approved_at),
+    rejected_by: typeof data.rejected_by === "string" ? data.rejected_by : null,
+    rejected_reason:
+      typeof data.rejected_reason === "string" ? data.rejected_reason : null,
+    execution_attempts:
+      typeof data.execution_attempts === "number" ? data.execution_attempts : 0,
+    last_execution_error:
+      typeof data.last_execution_error === "string" ? data.last_execution_error : null,
+    created_at: normalizeTimestamp(data.created_at),
+    updated_at: normalizeTimestamp(data.updated_at),
+    sent_at: normalizeTimestamp(data.sent_at),
+    last_execution_at: normalizeTimestamp(data.last_execution_at),
+    action_payload:
+      data.action_payload && typeof data.action_payload === "object"
+        ? data.action_payload
+        : {},
+    draft_output:
+      data.draft_output && typeof data.draft_output === "object"
+        ? data.draft_output
+        : {},
+  };
+}
+
+function sortActionQueueItems(items: ActionQueueItem[]) {
+  return [...items].sort((left, right) => {
+    const leftTime = Date.parse(left.updated_at || left.created_at || "");
+    const rightTime = Date.parse(right.updated_at || right.created_at || "");
+
+    if (Number.isNaN(leftTime) && Number.isNaN(rightTime)) {
+      return 0;
+    }
+    if (Number.isNaN(leftTime)) {
+      return 1;
+    }
+    if (Number.isNaN(rightTime)) {
+      return -1;
+    }
+    return rightTime - leftTime;
+  });
+}
+
+function getOperatorEmail(res: Response) {
+  const firebaseUser = res.locals.firebaseUser as { email?: unknown; uid?: unknown } | undefined;
+  if (typeof firebaseUser?.email === "string" && firebaseUser.email.trim()) {
+    return firebaseUser.email.trim().toLowerCase();
+  }
+  if (typeof firebaseUser?.uid === "string" && firebaseUser.uid.trim()) {
+    return firebaseUser.uid.trim();
+  }
+  return "unknown-operator";
+}
+
+function ledgerMutationStatus(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/not found/i.test(message)) {
+    return 404;
+  }
+  if (/cannot approve/i.test(message) || /cannot reject/i.test(message) || /cannot retry/i.test(message)) {
+    return 409;
+  }
+  if (/max retries exceeded/i.test(message)) {
+    return 409;
+  }
+  return 500;
+}
 
 function legacyStatusToQualificationState(status?: string | null): QualificationState {
   switch (status) {
@@ -687,6 +829,124 @@ router.post(
     } catch (error) {
       logger.error({ error }, "Error running waitlist automation");
       return res.status(500).json({ error: "Failed to run waitlist automation" });
+    }
+  },
+);
+
+router.get("/action-queue", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const firestore = db;
+    if (!firestore) {
+      return res.status(500).json({ error: "Database not available" });
+    }
+
+    const status = typeof req.query.status === "string" ? req.query.status.trim() : "all";
+    const lane = typeof req.query.lane === "string" ? req.query.lane.trim() : "";
+    const limitNum = Math.min(
+      Math.max(parseInt(typeof req.query.limit === "string" ? req.query.limit : "25", 10) || 25, 1),
+      100,
+    );
+
+    const statuses =
+      status === "pending_approval" || status === "failed" ? [status] : ["pending_approval", "failed"];
+
+    const fetchLimit = Math.max(limitNum * 2, 50);
+    const snapshots = await Promise.all(
+      statuses.map(async (queueStatus) => {
+        const snapshot = await firestore
+          .collection("action_ledger")
+          .where("status", "==", queueStatus)
+          .orderBy("updated_at", "desc")
+          .limit(fetchLimit)
+          .get();
+        return snapshot.docs
+          .map((doc) => normalizeActionLedgerItem(doc))
+          .filter((item): item is ActionQueueItem => Boolean(item));
+      }),
+    );
+
+    const items = sortActionQueueItems(snapshots.flat()).filter((item) =>
+      lane ? item.lane === lane : true,
+    );
+    const limitedItems = items.slice(0, limitNum);
+
+    return res.json({
+      items: limitedItems,
+      summary: {
+        total: items.length,
+        pending_approval: items.filter((item) => item.status === "pending_approval").length,
+        failed: items.filter((item) => item.status === "failed").length,
+      },
+    });
+  } catch (error) {
+    logger.error({ error }, "Error fetching action queue");
+    return res.status(500).json({ error: "Failed to fetch action queue" });
+  }
+});
+
+router.post(
+  "/action-queue/:ledgerId/approve",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const ledgerId = req.params.ledgerId?.trim();
+      if (!ledgerId) {
+        return res.status(400).json({ error: "Missing ledger id" });
+      }
+
+      const result = await approveAction(ledgerId, getOperatorEmail(res));
+      return res.json(result);
+    } catch (error) {
+      logger.error({ error }, "Error approving action queue item");
+      return res.status(ledgerMutationStatus(error)).json({
+        error: error instanceof Error ? error.message : "Failed to approve action",
+      });
+    }
+  },
+);
+
+router.post(
+  "/action-queue/:ledgerId/reject",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const ledgerId = req.params.ledgerId?.trim();
+      const reason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+      if (!ledgerId) {
+        return res.status(400).json({ error: "Missing ledger id" });
+      }
+      if (!reason) {
+        return res.status(400).json({ error: "Missing rejection reason" });
+      }
+
+      const result = await rejectAction(ledgerId, getOperatorEmail(res), reason);
+      return res.json(result);
+    } catch (error) {
+      logger.error({ error }, "Error rejecting action queue item");
+      return res.status(ledgerMutationStatus(error)).json({
+        error: error instanceof Error ? error.message : "Failed to reject action",
+      });
+    }
+  },
+);
+
+router.post(
+  "/action-queue/:ledgerId/retry",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const ledgerId = req.params.ledgerId?.trim();
+      if (!ledgerId) {
+        return res.status(400).json({ error: "Missing ledger id" });
+      }
+
+      const result = await retryFailedAction(ledgerId);
+      return res.json(result);
+    } catch (error) {
+      logger.error({ error }, "Error retrying action queue item");
+      return res.status(ledgerMutationStatus(error)).json({
+        error: error instanceof Error ? error.message : "Failed to retry action",
+      });
     }
   },
 );
