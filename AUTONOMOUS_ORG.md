@@ -60,7 +60,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 
 ---
 
-#### CEO (`ceo`)
+#### CEO (`blueprint-ceo`)
 
 | Field | Value |
 |-------|-------|
@@ -86,12 +86,12 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 
 **Graduation:** N/A — executive role, always reports to human.
 
-**Instructions:** `ops/paperclip/blueprint-company/agents/ceo/AGENTS.md`
+**Instructions:** `ops/paperclip/blueprint-company/agents/blueprint-ceo/AGENTS.md`
 **Paperclip config:** `ops/paperclip/blueprint-company/.paperclip.yaml`
 
 ---
 
-#### CTO (`cto`)
+#### CTO (`blueprint-cto`)
 
 | Field | Value |
 |-------|-------|
@@ -118,7 +118,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 
 **Graduation:** N/A — executive role.
 
-**Instructions:** `ops/paperclip/blueprint-company/agents/cto/AGENTS.md`
+**Instructions:** `ops/paperclip/blueprint-company/agents/blueprint-cto/AGENTS.md`
 **Paperclip config:** `ops/paperclip/blueprint-company/.paperclip.yaml`
 
 ---

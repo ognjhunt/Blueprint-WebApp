@@ -1,7 +1,7 @@
 ---
 name: Growth Lead
 title: Blueprint Growth Strategy Lead
-reportsTo: ceo
+reportsTo: blueprint-ceo
 skills:
   - platform-doctrine
   - autonomy-safety

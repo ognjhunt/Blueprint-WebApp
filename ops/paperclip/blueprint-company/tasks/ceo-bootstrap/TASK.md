@@ -1,7 +1,7 @@
 ---
 name: CEO Bootstrap
 project: blueprint-webapp
-assignee: ceo
+assignee: blueprint-ceo
 ---
 
 Read the Blueprint company package, inspect the three repo instruction files, and produce the first concrete operating plan for the company.

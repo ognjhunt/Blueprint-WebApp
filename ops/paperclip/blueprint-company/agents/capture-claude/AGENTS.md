@@ -1,7 +1,7 @@
 ---
 name: Capture Claude
 title: BlueprintCapture Review and Planning Engineer
-reportsTo: cto
+reportsTo: blueprint-cto
 skills:
   - platform-doctrine
   - capture-repo-operations

@@ -1,7 +1,7 @@
 ---
 name: Capture Codex
 title: BlueprintCapture Implementation Engineer
-reportsTo: cto
+reportsTo: blueprint-cto
 skills:
   - platform-doctrine
   - capture-repo-operations

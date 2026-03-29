@@ -1,7 +1,7 @@
 ---
 name: WebApp Claude
 title: Blueprint-WebApp Review and Planning Engineer
-reportsTo: cto
+reportsTo: blueprint-cto
 skills:
   - platform-doctrine
   - webapp-repo-operations

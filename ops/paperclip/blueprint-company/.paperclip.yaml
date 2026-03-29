@@ -2,7 +2,7 @@ schema: paperclip/v1
 company:
   requireBoardApprovalForNewAgents: true
 agents:
-  ceo:
+  blueprint-ceo:
     role: ceo
     icon: crown
     capabilities: Strategy, prioritization, delegation, and company-wide governance.
@@ -24,7 +24,7 @@ agents:
     permissions:
       canCreateAgents: true
     budgetMonthlyCents: 5000
-  cto:
+  blueprint-cto:
     role: cto
     icon: circuit-board
     capabilities: Cross-repo technical planning, delegation, and execution oversight.

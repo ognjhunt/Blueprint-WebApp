@@ -1,7 +1,7 @@
 ---
 name: CTO Bootstrap
 project: blueprint-webapp
-assignee: cto
+assignee: blueprint-cto
 ---
 
 Read the three repo instruction files and establish the first technical execution plan across WebApp, Capture Pipeline, and Capture.

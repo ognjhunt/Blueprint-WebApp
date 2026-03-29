@@ -1,7 +1,7 @@
 ---
 name: Pipeline Codex
 title: BlueprintCapturePipeline Implementation Engineer
-reportsTo: cto
+reportsTo: blueprint-cto
 skills:
   - platform-doctrine
   - pipeline-repo-operations

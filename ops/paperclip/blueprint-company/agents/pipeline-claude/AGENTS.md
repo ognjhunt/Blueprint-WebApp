@@ -1,7 +1,7 @@
 ---
 name: Pipeline Claude
 title: BlueprintCapturePipeline Review and Planning Engineer
-reportsTo: cto
+reportsTo: blueprint-cto
 skills:
   - platform-doctrine
   - pipeline-repo-operations

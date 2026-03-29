@@ -1,7 +1,7 @@
 ---
 name: Blueprint CTO
 title: Chief Technology Officer
-reportsTo: ceo
+reportsTo: blueprint-ceo
 skills:
   - platform-doctrine
   - autonomy-safety

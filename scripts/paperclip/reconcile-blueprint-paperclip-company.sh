@@ -107,7 +107,7 @@ function pickMatching(rows, exactKey) {
 }
 
 function toPaperclipAgentKey(agentKey) {
-  return agentKey === "ceo" || agentKey === "cto" ? `blueprint-${agentKey}` : agentKey;
+  return agentKey;
 }
 
 function titleizeToken(token) {

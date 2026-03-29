@@ -1,7 +1,7 @@
 ---
 name: WebApp Codex
 title: Blueprint-WebApp Implementation Engineer
-reportsTo: cto
+reportsTo: blueprint-cto
 skills:
   - platform-doctrine
   - webapp-repo-operations
