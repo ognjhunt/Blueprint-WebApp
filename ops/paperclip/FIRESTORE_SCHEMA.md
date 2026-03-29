@@ -238,6 +238,7 @@ Durable action-level execution log for Phase 2 autonomous ops.
 
 ## Important Notes
 
+- Low-risk reversible actions route through `action_ledger` before hitting email, calendar, Slack, or internal Firestore updates.
 - `site_access_contacts` is intentionally site-scoped. Do not treat it as a universal operator directory or CRM until Blueprint has an external verified data source for that job.
 - Capturer assignment remains heuristic until live calendar/travel integrations exist. `field_ops.dispatch_review` records that limitation explicitly.
 - Overdue-review watchdogs may flag `site_access.overdue_review` and `finance_review.overdue_review`, but they do not send outreach, grant permissions, submit disputes, or move money.
