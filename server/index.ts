@@ -19,10 +19,35 @@ const env = validateEnv();
 const app = express();
 const isProduction = process.env.NODE_ENV === "production";
 
+function derivePostHogAssetHost(host: string | undefined | null) {
+  const value = String(host || "").trim();
+  if (!value) {
+    return null;
+  }
+
+  return value.replace("://us.i.posthog.com", "://us-assets.i.posthog.com");
+}
+
 const analyticsConnectAllowlist = Array.from(
   new Set(
     [
       process.env.VITE_PUBLIC_POSTHOG_HOST,
+      derivePostHogAssetHost(process.env.VITE_PUBLIC_POSTHOG_HOST),
+    ]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean),
+  ),
+);
+
+const cspScriptAllowlist = Array.from(
+  new Set(
+    [
+      "https://js.stripe.com",
+      "https://cdnjs.cloudflare.com",
+      "https://apis.google.com",
+      "https://accounts.google.com",
+      "https://www.googletagmanager.com",
+      derivePostHogAssetHost(process.env.VITE_PUBLIC_POSTHOG_HOST),
     ]
       .map((value) => String(value || "").trim())
       .filter(Boolean),
@@ -118,7 +143,7 @@ const cspDirectives = [
   "frame-ancestors 'self'",
   `script-src 'self' 'unsafe-inline' ${
     isProduction ? "" : "'unsafe-eval' http://localhost:5173"
-  } https://js.stripe.com https://cdnjs.cloudflare.com https://apis.google.com https://accounts.google.com https://www.googletagmanager.com`,
+  } ${cspScriptAllowlist.join(" ")}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data: blob: https:",
   "font-src 'self' https://fonts.gstatic.com data:",
