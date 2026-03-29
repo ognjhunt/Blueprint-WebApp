@@ -11,17 +11,27 @@ if [ -f "$PAPERCLIP_ENV_FILE" ]; then
   set +a
 fi
 
-PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://127.0.0.1:3100}"
+PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://127.0.0.1:3101}"
 COMPANY_NAME="${COMPANY_NAME:-Blueprint Autonomous Operations}"
 PLUGIN_KEY="blueprint.automation"
 RUN_SMOKE=0
+CLAUDE_LANE_MODE="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE:-auto}"
 VERIFY_CLAUDE="${BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE:-1}"
+FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES:-0}"
 
 for arg in "$@"; do
   if [ "$arg" = "--smoke" ]; then
     RUN_SMOKE=1
   fi
 done
+
+if [[ "$FORCE_CODEX_CLAUDE_LANES" =~ ^(1|true|yes)$ ]] && [ -z "${BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE:-}" ]; then
+  VERIFY_CLAUDE=0
+fi
+
+if [[ "$CLAUDE_LANE_MODE" =~ ^codex$ ]] && [ -z "${BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE:-}" ]; then
+  VERIFY_CLAUDE=0
+fi
 
 paperclip_health() {
   curl -fsS "${PAPERCLIP_API_URL}/api/health" >/dev/null
@@ -101,10 +111,37 @@ run_test() {
     -H "Content-Type: application/json" \
     -d "$payload" \
     "${PAPERCLIP_API_URL}/api/companies/${company_id}/adapters/${adapter_type}/test-environment")"
-  printf '%s\n' "$result" | jq --arg repo "$repo_label" --arg adapter "$adapter_type" '{repo:$repo,adapter:$adapter,status,checks:[.checks[]|{code,level,message}]}'
+  printf '%s\n' "$result" | jq --arg repo "$repo_label" --arg adapter "$adapter_type" '{repo:$repo,adapter:$adapter,status,checks:[.checks[]|{code,level,message,detail,hint}]}'
   local status
   status="$(printf '%s' "$result" | jq -r '.status')"
-  [ "$status" = "pass" ]
+  LAST_TEST_STATUS="$status"
+}
+
+assert_workspace_ready() {
+  local repo_label="$1"
+  local codex_status="$2"
+  local claude_status="$3"
+
+  case "$CLAUDE_LANE_MODE" in
+    codex)
+      [ "$codex_status" = "pass" ] || {
+        echo "Verification failed: ${repo_label} requires Codex in forced codex mode." >&2
+        return 1
+      }
+      ;;
+    claude)
+      [ "$claude_status" = "pass" ] || {
+        echo "Verification failed: ${repo_label} requires Claude in forced claude mode." >&2
+        return 1
+      }
+      ;;
+    *)
+      if [ "$codex_status" != "pass" ] && [ "$claude_status" != "pass" ]; then
+        echo "Verification failed: ${repo_label} has neither a healthy Codex nor Claude adapter." >&2
+        return 1
+      fi
+      ;;
+  esac
 }
 
 main() {
@@ -129,8 +166,10 @@ main() {
   require_routines "$company_id"
   plugin_dashboard "$company_id" >/dev/null
 
-  echo "Running Codex adapter tests across all three Blueprint repos..."
+  echo "Running adapter tests across all three Blueprint repos..."
 
+  local webapp_codex webapp_claude pipeline_codex pipeline_claude capture_codex capture_claude
+  LAST_TEST_STATUS="fail"
   run_test "$company_id" "Blueprint-WebApp" "codex_local" '{
     "adapterConfig": {
       "cwd": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
@@ -138,6 +177,7 @@ main() {
       "dangerouslyBypassApprovalsAndSandbox": true
     }
   }'
+  webapp_codex="$LAST_TEST_STATUS"
   run_test "$company_id" "BlueprintCapturePipeline" "codex_local" '{
     "adapterConfig": {
       "cwd": "/Users/nijelhunt_1/workspace/BlueprintCapturePipeline",
@@ -145,6 +185,7 @@ main() {
       "dangerouslyBypassApprovalsAndSandbox": true
     }
   }'
+  pipeline_codex="$LAST_TEST_STATUS"
   run_test "$company_id" "BlueprintCapture" "codex_local" '{
     "adapterConfig": {
       "cwd": "/Users/nijelhunt_1/workspace/BlueprintCapture",
@@ -152,8 +193,13 @@ main() {
       "dangerouslyBypassApprovalsAndSandbox": true
     }
   }'
-  if [ "$VERIFY_CLAUDE" = "1" ]; then
-    echo "Running optional Claude adapter verification..."
+  capture_codex="$LAST_TEST_STATUS"
+
+  webapp_claude="skipped"
+  pipeline_claude="skipped"
+  capture_claude="skipped"
+  if [ "$VERIFY_CLAUDE" = "1" ] || [ "$CLAUDE_LANE_MODE" = "auto" ] || [ "$CLAUDE_LANE_MODE" = "claude" ]; then
+    echo "Running Claude adapter verification..."
     run_test "$company_id" "Blueprint-WebApp" "claude_local" '{
       "adapterConfig": {
         "cwd": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
@@ -161,6 +207,7 @@ main() {
         "dangerouslySkipPermissions": true
       }
     }'
+    webapp_claude="$LAST_TEST_STATUS"
     run_test "$company_id" "BlueprintCapturePipeline" "claude_local" '{
       "adapterConfig": {
         "cwd": "/Users/nijelhunt_1/workspace/BlueprintCapturePipeline",
@@ -168,6 +215,7 @@ main() {
         "dangerouslySkipPermissions": true
       }
     }'
+    pipeline_claude="$LAST_TEST_STATUS"
     run_test "$company_id" "BlueprintCapture" "claude_local" '{
       "adapterConfig": {
         "cwd": "/Users/nijelhunt_1/workspace/BlueprintCapture",
@@ -175,7 +223,12 @@ main() {
         "dangerouslySkipPermissions": true
       }
     }'
+    capture_claude="$LAST_TEST_STATUS"
   fi
+
+  assert_workspace_ready "Blueprint-WebApp" "$webapp_codex" "$webapp_claude"
+  assert_workspace_ready "BlueprintCapturePipeline" "$pipeline_codex" "$pipeline_claude"
+  assert_workspace_ready "BlueprintCapture" "$capture_codex" "$capture_claude"
 
   if [ "$RUN_SMOKE" -eq 1 ]; then
     /Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/smoke-blueprint-paperclip-automation.sh

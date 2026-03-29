@@ -5,6 +5,7 @@ export const PAGE_ROUTE = "blueprint-automation";
 export const JOB_KEYS = {
   repoScan: "repo-scan",
   opsQueueScan: "ops-queue-scan",
+  routineHealthCheck: "routine-health-check",
 } as const;
 export const WEBHOOK_KEYS = {
   github: "github",
@@ -25,6 +26,10 @@ export const TOOL_NAMES = {
   notionWriteKnowledge: "notion-write-knowledge",
   slackPostDigest: "slack-post-digest",
   webSearch: "web-search",
+  marketIntelReport: "blueprint-generate-market-intel-report",
+  budgetStatus: "blueprint-budget-status",
+  phaseStatus: "blueprint-phase-status",
+  recordOverride: "blueprint-record-override",
 } as const;
 export const ACTION_KEYS = {
   scanNow: "scan-now",
@@ -32,6 +37,7 @@ export const ACTION_KEYS = {
   reportBlocker: "report-blocker",
   resolveWorkItem: "resolve-work-item",
   analyticsReport: "analytics-report",
+  marketIntelReport: "market-intel-report",
 } as const;
 export const DATA_KEYS = {
   dashboard: "dashboard",
@@ -43,6 +49,14 @@ export const SLOT_IDS = {
 export const EXPORT_NAMES = {
   page: "BlueprintAutomationPage",
   dashboardWidget: "BlueprintAutomationDashboardWidget",
+} as const;
+export const STATE_KEYS = {
+  lastScan: "last-scan",
+  recentEvents: "recent-events",
+  health: "health",
+  routineHealth: "routine-health",
+  budgetTracking: "budget-tracking",
+  phaseTracking: "phase-tracking",
 } as const;
 export const DEFAULT_COMPANY_NAME = "Blueprint Autonomous Operations";
 export const DEFAULT_REPO_CATALOG = [

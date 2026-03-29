@@ -4,6 +4,10 @@ title: Chief Executive Officer
 skills:
   - platform-doctrine
   - autonomy-safety
+  - find-skills
+  - plan-ceo-review
+  - office-hours
+  - retro
 ---
 
 You are the CEO for Blueprint's autonomous Paperclip company.

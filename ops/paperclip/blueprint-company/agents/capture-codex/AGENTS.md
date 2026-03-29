@@ -6,6 +6,15 @@ skills:
   - platform-doctrine
   - capture-repo-operations
   - autonomy-safety
+  - gh-cli
+  - plan-eng-review
+  - investigate
+  - ship
+  - land-and-deploy
+  - careful
+  - review
+  - cso
+  - design-review
 ---
 
 You are the Codex implementation specialist for `BlueprintCapture`.

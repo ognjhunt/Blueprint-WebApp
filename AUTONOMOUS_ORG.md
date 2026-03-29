@@ -10,6 +10,8 @@ Blueprint runs as an autonomous organization powered by [Paperclip](https://gith
 
 This guide covers the full org so that any agent or human working in any Blueprint repo understands who does what, how work flows, and where the boundaries are.
 
+On the current trusted host, Paperclip uses local subscription-backed auth only. Claude is the default executive/review lane and Codex is the default implementation lane, but reconcile automatically fails a workspace over to the other local adapter when the default adapter is unhealthy or rate-limited.
+
 **Key principles:**
 - Capture-first, world-model-product-first positioning (see `PLATFORM_CONTEXT.md`)
 - Progressive autonomy — agents start supervised and graduate based on track record
@@ -65,7 +67,7 @@ This guide covers the full org so that any agent or human working in any Bluepri
 | **Department** | Executive |
 | **Reports to** | Human founder (board) |
 | **Model** | Claude |
-| **Status** | Exists — needs expansion |
+| **Status** | Live in Paperclip package |
 
 **Purpose:** Sets company priorities, reviews cross-department status, handles escalations, interfaces with human founder.
 
@@ -84,7 +86,7 @@ This guide covers the full org so that any agent or human working in any Bluepri
 
 **Graduation:** N/A — executive role, always reports to human.
 
-**Skill file:** `ops/paperclip/skills/ceo.md` (to be created)
+**Instructions:** `ops/paperclip/blueprint-company/agents/ceo/AGENTS.md`
 **Paperclip config:** `ops/paperclip/blueprint-company/.paperclip.yaml`
 
 ---
@@ -96,7 +98,7 @@ This guide covers the full org so that any agent or human working in any Bluepri
 | **Department** | Executive |
 | **Reports to** | CEO |
 | **Model** | Claude |
-| **Status** | Exists — needs expansion |
+| **Status** | Live in Paperclip package |
 
 **Purpose:** Technical decisions, cross-repo coordination, architecture review. Routes non-technical ops issues to Ops Lead.
 
@@ -116,7 +118,7 @@ This guide covers the full org so that any agent or human working in any Bluepri
 
 **Graduation:** N/A — executive role.
 
-**Skill file:** `ops/paperclip/skills/cto.md` (to be created)
+**Instructions:** `ops/paperclip/blueprint-company/agents/cto/AGENTS.md`
 **Paperclip config:** `ops/paperclip/blueprint-company/.paperclip.yaml`
 
 ---
@@ -134,7 +136,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | `capture-codex` | Codex | BlueprintCapture | Issue assignment |
 | `capture-claude` | Claude | BlueprintCapture | PR/issue events |
 
-**Change needed:** Engineering agents should accept work items created by Ops and Growth agents (e.g., Conversion Optimizer creating a PR for a CTA change), not just GitHub-originated events.
+**Current state:** Engineering agents are already configured around issue-driven Paperclip loops, so Ops and Growth work can route through Paperclip issues rather than only GitHub-originated events.
 
 ---
 
@@ -609,10 +611,10 @@ All agents run on the local Paperclip instance. They are lightweight — mostly 
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Paperclip Server (localhost:3100) | Exists | Needs agent additions to `.paperclip.yaml` |
-| Cloudflare Tunnel | Exists (scripted) | Verify for webhook intake |
-| LaunchAgent | Exists (scripted) | Keeps Paperclip alive |
-| Blueprint Automation Plugin | Exists | Needs webhook routes for Ops triggers |
+| Paperclip Server (localhost:3100) | Active | Company package, plugin, and dashboard are live on the local trusted host |
+| Cloudflare Tunnel | Active | Public Paperclip URL is live for webhook intake |
+| LaunchAgent | Active | `com.blueprint.paperclip` and maintenance agent are installed |
+| Blueprint Automation Plugin | Ready | CI, intake, Firestore, Stripe, and support webhook routes are live and smoke-tested |
 
 ### Cloud Burst (On-Demand)
 
@@ -625,11 +627,11 @@ All agents run on the local Paperclip instance. They are lightweight — mostly 
 | Service | Agents | Priority | Est. Cost | Status |
 |---------|--------|----------|-----------|--------|
 | Analytics (PostHog/GA4) | Analytics, Conversion, Growth Lead | P0 | Free tier | **Not yet set up** |
-| Web Search API | Market Intel | P1 | ~$50/mo | **Not yet set up** |
-| Slack Incoming Webhook | All leads + CEO | P1 | Free | **Not yet set up** |
+| Web Search API | Market Intel | P1 | ~$50/mo | **Configured** |
+| Slack Incoming Webhook | All leads + CEO | P1 | Free | **Configured** |
 | SendGrid / Email API | Intake, Finance/Support | P1 | Free tier | **Not yet set up** |
-| Notion API Token | All agents (via plugin) | P0 | Free | Partially in place |
-| Cloudflare Tunnel | Plugin webhook intake | P0 | Free | Scripted, needs verify |
+| Notion API Token | All agents (via plugin) | P0 | Free | **Configured** |
+| Cloudflare Tunnel | Plugin webhook intake | P0 | Free | **Verified** |
 
 ### Already In Place
 
@@ -637,8 +639,8 @@ All agents run on the local Paperclip instance. They are lightweight — mostly 
 - Stripe API — payments, payouts, webhooks
 - Google Calendar/Maps/Sheets APIs
 - GitHub API + webhooks
-- Anthropic Claude API
-- OpenAI/Codex API
+- Claude local subscription auth
+- Codex local subscription auth
 - Paperclip server + LaunchAgent + plugin
 
 ---

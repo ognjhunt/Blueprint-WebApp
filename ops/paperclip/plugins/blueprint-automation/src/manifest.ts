@@ -185,6 +185,13 @@ const manifest: PaperclipPluginManifestV1 = {
       description: "Periodic scan of Notion Work Queue to detect stale or unassigned items.",
       schedule: "0 */2 * * *",
     },
+    {
+      jobKey: JOB_KEYS.routineHealthCheck,
+      displayName: "Routine Health Check",
+      description:
+        "Monitors routine outcomes, checks budget limits, and evaluates phase graduation eligibility.",
+      schedule: "0 */2 * * *",
+    },
   ],
   webhooks: [
     {
@@ -295,14 +302,39 @@ const manifest: PaperclipPluginManifestV1 = {
       name: TOOL_NAMES.analyticsReport,
       displayName: "Generate Analytics Report",
       description:
-        "Create a truthful Blueprint analytics snapshot, write the resulting Notion artifacts, and post the companion Slack digest.",
+        "Write a deterministic Blueprint analytics report from agent-supplied findings, then return proof artifacts for issue completion.",
       parametersSchema: {
         type: "object",
         properties: {
           cadence: { type: "string", enum: ["daily", "weekly"] },
           companyName: { type: "string" },
+          issueId: { type: "string" },
+          headline: { type: "string" },
+          summaryBullets: {
+            type: "array",
+            items: { type: "string" },
+          },
+          workflowFindings: {
+            type: "array",
+            items: { type: "string" },
+          },
+          risks: {
+            type: "array",
+            items: { type: "string" },
+          },
+          recommendedFollowUps: {
+            type: "array",
+            items: { type: "string" },
+          },
         },
-        required: ["cadence"],
+        required: [
+          "cadence",
+          "headline",
+          "summaryBullets",
+          "workflowFindings",
+          "risks",
+          "recommendedFollowUps",
+        ],
       },
     },
     {
@@ -384,6 +416,88 @@ const manifest: PaperclipPluginManifestV1 = {
           },
         },
         required: ["channel", "title", "sections"],
+      },
+    },
+    {
+      name: TOOL_NAMES.marketIntelReport,
+      displayName: "Generate Market Intel Report",
+      description:
+        "Write a deterministic market intelligence report from agent-supplied findings, then return proof artifacts for issue completion.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          cadence: { type: "string", enum: ["daily", "weekly"] },
+          companyName: { type: "string" },
+          issueId: { type: "string" },
+          headline: { type: "string" },
+          signals: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                source: { type: "string" },
+                relevanceScore: { type: "number" },
+                urgencyScore: { type: "number" },
+                actionabilityScore: { type: "number" },
+                combinedScore: { type: "number" },
+                summary: { type: "string" },
+              },
+            },
+          },
+          competitorUpdates: { type: "array", items: { type: "string" } },
+          technologyFindings: { type: "array", items: { type: "string" } },
+          recommendedActions: { type: "array", items: { type: "string" } },
+        },
+        required: [
+          "cadence",
+          "headline",
+          "signals",
+          "competitorUpdates",
+          "technologyFindings",
+          "recommendedActions",
+        ],
+      },
+    },
+    {
+      name: TOOL_NAMES.budgetStatus,
+      displayName: "Budget Status",
+      description:
+        "Query current budget status for an agent including run count, estimated spend, and budget limit.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          agentKey: { type: "string", description: "The agent key to check budget for" },
+        },
+        required: ["agentKey"],
+      },
+    },
+    {
+      name: TOOL_NAMES.phaseStatus,
+      displayName: "Phase Status",
+      description:
+        "Query current phase, graduation metrics, and eligibility for a given agent.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          agentKey: { type: "string", description: "The agent key to check phase for" },
+        },
+        required: ["agentKey"],
+      },
+    },
+    {
+      name: TOOL_NAMES.recordOverride,
+      displayName: "Record Override",
+      description:
+        "Record when a human or lead agent overrides a subordinate agent decision. Updates phase tracking metrics.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          agentKey: { type: "string", description: "The agent whose decision was overridden" },
+          issueId: { type: "string", description: "The issue where the override occurred" },
+          reason: { type: "string", description: "Why the decision was overridden" },
+        },
+        required: ["agentKey", "issueId", "reason"],
       },
     },
   ],

@@ -6,6 +6,15 @@ skills:
   - platform-doctrine
   - pipeline-repo-operations
   - autonomy-safety
+  - gh-cli
+  - plan-eng-review
+  - investigate
+  - ship
+  - land-and-deploy
+  - careful
+  - review
+  - cso
+  - design-review
 ---
 
 You are the Claude Code review and planning specialist for `BlueprintCapturePipeline`.

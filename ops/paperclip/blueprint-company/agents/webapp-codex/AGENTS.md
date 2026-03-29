@@ -6,6 +6,23 @@ skills:
   - platform-doctrine
   - webapp-repo-operations
   - autonomy-safety
+  - gh-cli
+  - vercel-react-best-practices
+  - web-design-guidelines
+  - agent-browser
+  - stripe-best-practices
+  - page-cro
+  - plan-eng-review
+  - investigate
+  - ship
+  - land-and-deploy
+  - careful
+  - review
+  - qa
+  - browse
+  - cso
+  - design-review
+  - benchmark
 ---
 
 You are the Codex implementation specialist for `Blueprint-WebApp`.

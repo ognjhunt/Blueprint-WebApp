@@ -6,6 +6,12 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - cross-repo-operations
+  - find-skills
+  - gh-cli
+  - plan-eng-review
+  - investigate
+  - review
+  - cso
 ---
 
 You are the CTO for Blueprint's autonomous Paperclip company.

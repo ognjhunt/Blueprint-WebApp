@@ -13,6 +13,14 @@ agents:
         model: claude-sonnet-4-6
         timeoutSec: 1800
         dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - plan-ceo-review
+            - office-hours
+            - retro
     permissions:
       canCreateAgents: true
     budgetMonthlyCents: 5000
@@ -27,6 +35,17 @@ agents:
         model: claude-sonnet-4-6
         timeoutSec: 1800
         dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - cross-repo-operations
+            - find-skills
+            - gh-cli
+            - plan-eng-review
+            - investigate
+            - review
+            - cso
     budgetMonthlyCents: 4000
   webapp-codex:
     role: engineer
@@ -40,6 +59,28 @@ agents:
         modelReasoningEffort: high
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - webapp-repo-operations
+            - autonomy-safety
+            - gh-cli
+            - vercel-react-best-practices
+            - web-design-guidelines
+            - agent-browser
+            - stripe-best-practices
+            - page-cro
+            - plan-eng-review
+            - investigate
+            - ship
+            - land-and-deploy
+            - careful
+            - review
+            - qa
+            - browse
+            - cso
+            - design-review
+            - benchmark
     budgetMonthlyCents: 3000
   webapp-claude:
     role: engineer
@@ -52,6 +93,28 @@ agents:
         model: claude-sonnet-4-6
         timeoutSec: 1800
         dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - webapp-repo-operations
+            - autonomy-safety
+            - gh-cli
+            - vercel-react-best-practices
+            - web-design-guidelines
+            - agent-browser
+            - stripe-best-practices
+            - page-cro
+            - plan-eng-review
+            - investigate
+            - ship
+            - land-and-deploy
+            - careful
+            - review
+            - qa
+            - browse
+            - cso
+            - design-review
+            - benchmark
     budgetMonthlyCents: 3000
   pipeline-codex:
     role: engineer
@@ -65,6 +128,20 @@ agents:
         modelReasoningEffort: high
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - pipeline-repo-operations
+            - autonomy-safety
+            - gh-cli
+            - plan-eng-review
+            - investigate
+            - ship
+            - land-and-deploy
+            - careful
+            - review
+            - cso
+            - design-review
     budgetMonthlyCents: 3000
   pipeline-claude:
     role: engineer
@@ -77,6 +154,20 @@ agents:
         model: claude-sonnet-4-6
         timeoutSec: 1800
         dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - pipeline-repo-operations
+            - autonomy-safety
+            - gh-cli
+            - plan-eng-review
+            - investigate
+            - ship
+            - land-and-deploy
+            - careful
+            - review
+            - cso
+            - design-review
     budgetMonthlyCents: 3000
   capture-codex:
     role: engineer
@@ -90,6 +181,20 @@ agents:
         modelReasoningEffort: high
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - capture-repo-operations
+            - autonomy-safety
+            - gh-cli
+            - plan-eng-review
+            - investigate
+            - ship
+            - land-and-deploy
+            - careful
+            - review
+            - cso
+            - design-review
     budgetMonthlyCents: 3000
   capture-claude:
     role: engineer
@@ -102,16 +207,28 @@ agents:
         model: claude-sonnet-4-6
         timeoutSec: 1800
         dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - capture-repo-operations
+            - autonomy-safety
+            - gh-cli
+            - plan-eng-review
+            - investigate
+            - ship
+            - land-and-deploy
+            - careful
+            - review
+            - cso
+            - design-review
     budgetMonthlyCents: 3000
-  # ── Ops Department ──────────────────────────────────────
   ops-lead:
     role: cto
     icon: bullseye
     capabilities: >-
-      Coordinates all Blueprint product operations. Routes work between
-      intake, QA, scheduling, and finance agents. Produces daily ops
-      summary and escalates blockers to CEO. Read skill file at
-      ops/paperclip/skills/ops-lead.md before every routine.
+      Coordinates all Blueprint product operations. Routes work between intake, QA, scheduling, and finance agents.
+      Produces daily ops summary and escalates blockers to CEO. Read skill file at ops/paperclip/skills/ops-lead.md
+      before every routine.
     adapter:
       type: claude_local
       config:
@@ -119,14 +236,18 @@ agents:
         model: claude-sonnet-4-6
         timeoutSec: 1800
         dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
     budgetMonthlyCents: 3000
   intake-agent:
     role: engineer
     icon: inbox
     capabilities: >-
-      Processes capturer waitlist applications and buyer inbound requests.
-      Classifies, scores readiness, detects missing info, drafts responses.
-      Read skill file at ops/paperclip/skills/intake-agent.md before every routine.
+      Processes capturer waitlist applications and buyer inbound requests. Classifies, scores readiness, detects missing
+      info, drafts responses. Read skill file at ops/paperclip/skills/intake-agent.md before every routine.
     adapter:
       type: claude_local
       config:
@@ -134,14 +255,18 @@ agents:
         model: claude-sonnet-4-6
         timeoutSec: 1200
         dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - product-marketing-context
     budgetMonthlyCents: 2000
   capture-qa-agent:
     role: engineer
     icon: search
     capabilities: >-
-      Reviews pipeline outputs for quality, completeness, and privacy
-      compliance. Flags recapture needs and drafts payout recommendations.
-      Read skill file at ops/paperclip/skills/capture-qa-agent.md before every routine.
+      Reviews pipeline outputs for quality, completeness, and privacy compliance. Flags recapture needs and drafts
+      payout recommendations. Read skill file at ops/paperclip/skills/capture-qa-agent.md before every routine.
     adapter:
       type: claude_local
       config:
@@ -149,13 +274,17 @@ agents:
         model: claude-sonnet-4-6
         timeoutSec: 1200
         dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - pipeline-repo-operations
     budgetMonthlyCents: 2000
   field-ops-agent:
     role: engineer
     icon: calendar
     capabilities: >-
-      Coordinates capture scheduling, capturer assignment, calendar
-      management, timezone normalization, and reminders.
+      Coordinates capture scheduling, capturer assignment, calendar management, timezone normalization, and reminders.
       Read skill file at ops/paperclip/skills/field-ops-agent.md before every routine.
     adapter:
       type: claude_local
@@ -164,13 +293,17 @@ agents:
         model: claude-sonnet-4-6
         timeoutSec: 1200
         dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - capture-repo-operations
     budgetMonthlyCents: 2000
   finance-support-agent:
     role: engineer
     icon: dollar-sign
     capabilities: >-
-      Monitors Stripe health, triages payout issues, handles support
-      inbox, and drafts responses. Read skill file at
+      Monitors Stripe health, triages payout issues, handles support inbox, and drafts responses. Read skill file at
       ops/paperclip/skills/finance-support-agent.md before every routine.
     adapter:
       type: claude_local
@@ -179,32 +312,19 @@ agents:
         model: claude-sonnet-4-6
         timeoutSec: 1200
         dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - stripe-best-practices
+            - agent-browser
     budgetMonthlyCents: 2000
-  # ── Growth Department ───────────────────────────────────
   growth-lead:
     role: cto
     icon: trending-up
     capabilities: >-
-      Coordinates acquisition, conversion, and retention. Sets experiment
-      priorities using ICE scoring. Synthesizes analytics and market
-      intelligence into growth strategy. Read skill file at
-      ops/paperclip/skills/growth-lead.md before every routine.
-    adapter:
-      type: claude_local
-      config:
-        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
-        timeoutSec: 1800
-        dangerouslySkipPermissions: true
-    budgetMonthlyCents: 3000
-  conversion-agent:
-    role: engineer
-    icon: flask-conical
-    capabilities: >-
-      Runs autoresearch-style experiment loop on webapp and capture app.
-      Tests CTAs, onboarding flows, signup copy, and pricing layout.
-      Read skill file at ops/paperclip/skills/conversion-agent.md and
-      steering file at ops/paperclip/programs/conversion-agent-program.md
+      Coordinates acquisition, conversion, and retention. Sets experiment priorities using ICE scoring. Synthesizes
+      analytics and market intelligence into growth strategy. Read skill file at ops/paperclip/skills/growth-lead.md
       before every routine.
     adapter:
       type: claude_local
@@ -213,17 +333,49 @@ agents:
         model: claude-sonnet-4-6
         timeoutSec: 1800
         dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - analytics-tracking
+            - page-cro
+    budgetMonthlyCents: 3000
+  conversion-agent:
+    role: engineer
+    icon: flask-conical
+    capabilities: >-
+      Runs autoresearch-style experiment loop on webapp and capture app. Tests CTAs, onboarding flows, signup copy, and
+      pricing layout. Read skill file at ops/paperclip/skills/conversion-agent.md and steering file at
+      ops/paperclip/programs/conversion-agent-program.md before every routine.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: claude-sonnet-4-6
+        timeoutSec: 1800
+        dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - gh-cli
+            - vercel-react-best-practices
+            - web-design-guidelines
+            - agent-browser
+            - product-marketing-context
+            - analytics-tracking
+            - page-cro
     budgetMonthlyCents: 3000
   analytics-agent:
     role: engineer
     icon: bar-chart
     capabilities: >-
-      Pulls, aggregates, and interprets all measurable signals. Detects
-      anomalies, produces daily/weekly reports, answers ad-hoc metric
-      queries. Must call blueprint-generate-analytics-report first on
-      routine executions, then close or block the task explicitly. Read
-      skill file at ops/paperclip/skills/analytics-agent.md before every
-      routine.
+      Pulls, aggregates, and interprets all measurable signals. Detects anomalies, produces daily/weekly reports,
+      answers ad-hoc metric queries. Must investigate first, then call the Blueprint analytics-report writer with
+      structured findings, then patch the current issue to done or blocked using the returned proof comment. Read skill
+      file at ops/paperclip/skills/analytics-agent.md before every routine.
     adapter:
       type: claude_local
       config:
@@ -231,16 +383,20 @@ agents:
         model: claude-sonnet-4-6
         timeoutSec: 1200
         dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - product-marketing-context
+            - analytics-tracking
     budgetMonthlyCents: 2000
   market-intel-agent:
     role: engineer
     icon: globe
     capabilities: >-
-      Autoresearch-pattern agent for business intelligence. Researches
-      competitors, market trends, papers, pricing, and regulations.
-      Read skill file at ops/paperclip/skills/market-intel-agent.md and
-      steering file at ops/paperclip/programs/market-intel-program.md
-      before every routine.
+      Autoresearch-pattern agent for business intelligence. Researches competitors, market trends, papers, pricing, and
+      regulations. Read skill file at ops/paperclip/skills/market-intel-agent.md and steering file at
+      ops/paperclip/programs/market-intel-program.md before every routine.
     adapter:
       type: claude_local
       config:
@@ -248,6 +404,12 @@ agents:
         model: claude-sonnet-4-6
         timeoutSec: 1800
         dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
     budgetMonthlyCents: 2000
 projects:
   blueprint-executive-ops:
@@ -441,7 +603,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "0 8 * * 1-5"
+        cronExpression: 0 8 * * 1-5
         timezone: America/New_York
   cto-cross-repo-triage:
     priority: high
@@ -449,7 +611,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "30 8,14 * * 1-5"
+        cronExpression: 30 8,14 * * 1-5
         timezone: America/New_York
   webapp-autonomy-loop:
     priority: high
@@ -457,7 +619,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "0 9,15 * * 1-5"
+        cronExpression: 0 9,15 * * 1-5
         timezone: America/New_York
   webapp-claude-review-loop:
     priority: medium
@@ -465,7 +627,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "30 9,15 * * 1-5"
+        cronExpression: 30 9,15 * * 1-5
         timezone: America/New_York
   pipeline-autonomy-loop:
     priority: high
@@ -473,7 +635,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "0 10,16 * * 1-5"
+        cronExpression: 0 10,16 * * 1-5
         timezone: America/New_York
   pipeline-claude-review-loop:
     priority: medium
@@ -481,7 +643,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "30 10,16 * * 1-5"
+        cronExpression: 30 10,16 * * 1-5
         timezone: America/New_York
   capture-autonomy-loop:
     priority: high
@@ -489,7 +651,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "0 11,17 * * 1-5"
+        cronExpression: 0 11,17 * * 1-5
         timezone: America/New_York
   capture-claude-review-loop:
     priority: medium
@@ -497,9 +659,8 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "30 11,17 * * 1-5"
+        cronExpression: 30 11,17 * * 1-5
         timezone: America/New_York
-  # ── Ops Department Routines ─────────────────────────────
   ops-lead-morning:
     agent: ops-lead
     priority: high
@@ -507,7 +668,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "30 8 * * 1-5"
+        cronExpression: 30 8 * * 1-5
         timezone: America/New_York
   ops-lead-afternoon:
     agent: ops-lead
@@ -516,7 +677,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "30 14 * * 1-5"
+        cronExpression: 30 14 * * 1-5
         timezone: America/New_York
   intake-agent-hourly:
     agent: intake-agent
@@ -525,7 +686,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "0 * * * 1-5"
+        cronExpression: 0 * * * 1-5
         timezone: America/New_York
   capture-qa-daily:
     agent: capture-qa-agent
@@ -534,7 +695,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "0 9 * * 1-5"
+        cronExpression: 0 9 * * 1-5
         timezone: America/New_York
   field-ops-daily:
     agent: field-ops-agent
@@ -543,7 +704,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "0 7 * * 1-5"
+        cronExpression: 0 7 * * 1-5
         timezone: America/New_York
   finance-support-daily:
     agent: finance-support-agent
@@ -552,9 +713,8 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "0 10 * * 1-5"
+        cronExpression: 0 10 * * 1-5
         timezone: America/New_York
-  # ── Growth Department Routines ──────────────────────────
   growth-lead-daily:
     agent: growth-lead
     priority: high
@@ -562,7 +722,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "0 9 * * 1-5"
+        cronExpression: 0 9 * * 1-5
         timezone: America/New_York
   growth-lead-weekly:
     agent: growth-lead
@@ -571,7 +731,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "0 10 * * 1"
+        cronExpression: 0 10 * * 1
         timezone: America/New_York
   analytics-daily:
     agent: analytics-agent
@@ -580,7 +740,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "0 6 * * *"
+        cronExpression: 0 6 * * *
         timezone: America/New_York
   analytics-weekly:
     agent: analytics-agent
@@ -589,7 +749,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "0 23 * * 0"
+        cronExpression: 0 23 * * 0
         timezone: America/New_York
   conversion-weekly:
     agent: conversion-agent
@@ -598,7 +758,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "0 11 * * 1"
+        cronExpression: 0 11 * * 1
         timezone: America/New_York
   market-intel-daily:
     agent: market-intel-agent
@@ -607,7 +767,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "0 7 * * 1-5"
+        cronExpression: 0 7 * * 1-5
         timezone: America/New_York
   market-intel-weekly:
     agent: market-intel-agent
@@ -616,5 +776,5 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "0 15 * * 5"
+        cronExpression: 0 15 * * 5
         timezone: America/New_York

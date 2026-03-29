@@ -48,7 +48,11 @@ You monitor Stripe health, triage payout issues, handle the support inbox, and d
 ## Inputs
 - Stripe events (webhooks)
 - Support tickets (webhook/email forward)
-- Firestore payout records
+- Firestore `creatorPayouts`
+- Firestore `contactRequests`
+- Schema reference: `ops/paperclip/FIRESTORE_SCHEMA.md`
+- Retention policy: `ops/paperclip/DATA_RETENTION_POLICY.md`
+- Handoff protocol: `ops/paperclip/HANDOFF_PROTOCOL.md`
 - Buyer/capturer account data (Firestore)
 - Support response templates (Knowledge DB)
 
