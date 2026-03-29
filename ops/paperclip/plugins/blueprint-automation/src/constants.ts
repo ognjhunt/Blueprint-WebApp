@@ -19,6 +19,7 @@ export const TOOL_NAMES = {
   upsertWorkItem: "blueprint-upsert-work-item",
   reportBlocker: "blueprint-report-blocker",
   resolveWorkItem: "blueprint-resolve-work-item",
+  analyticsReport: "blueprint-generate-analytics-report",
   notionReadWorkQueue: "notion-read-work-queue",
   notionWriteWorkQueue: "notion-write-work-queue",
   notionWriteKnowledge: "notion-write-knowledge",
@@ -30,6 +31,7 @@ export const ACTION_KEYS = {
   simulateSignal: "simulate-signal",
   reportBlocker: "report-blocker",
   resolveWorkItem: "resolve-work-item",
+  analyticsReport: "analytics-report",
 } as const;
 export const DATA_KEYS = {
   dashboard: "dashboard",

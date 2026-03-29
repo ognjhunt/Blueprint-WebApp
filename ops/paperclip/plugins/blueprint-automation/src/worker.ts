@@ -35,8 +35,14 @@ import {
   handleStripeWebhook,
   handleSupportWebhook,
 } from "./ops-webhooks.js";
-import { createNotionClient, buildNotionToolHandlers, queryWorkQueue } from "./notion.js";
-import { buildSlackToolHandler } from "./slack-notify.js";
+import {
+  buildNotionToolHandlers,
+  createKnowledgeEntry,
+  createNotionClient,
+  createWorkQueueItem,
+  queryWorkQueue,
+} from "./notion.js";
+import { buildSlackToolHandler, postSlackDigest } from "./slack-notify.js";
 import { buildWebSearchToolHandler } from "./web-search.js";
 
 const execFileAsync = promisify(execFile);
@@ -162,6 +168,52 @@ type DashboardData = {
     hits: number;
     lastSeenAt: string | null;
   }>;
+};
+
+type AnalyticsReportCadence = "daily" | "weekly";
+
+type AnalyticsWorkflowSnapshot = {
+  repo: string;
+  workflowName: string;
+  branch: string;
+  status: string;
+  conclusion: string;
+  updatedAt?: string;
+  htmlUrl?: string;
+};
+
+type AnalyticsOutputProof = {
+  success: boolean;
+  cadence: AnalyticsReportCadence;
+  generatedAt: string;
+  title: string;
+  summary: string[];
+  workflows: AnalyticsWorkflowSnapshot[];
+  openManagedIssues: {
+    total: number;
+    critical: number;
+    high: number;
+    sample: string[];
+  };
+  dataAvailability: Array<{
+    source: string;
+    status: "available" | "missing";
+    detail: string;
+  }>;
+  notion?: {
+    workQueuePageId?: string;
+    workQueuePageUrl?: string;
+    knowledgePageId?: string;
+    knowledgePageUrl?: string;
+  };
+  slack?: {
+    ok: boolean;
+    routedChannel: string;
+    target: "ops" | "growth" | "default" | "none";
+    statusCode?: number;
+    responseBody?: string;
+  };
+  errors: string[];
 };
 
 type UpsertManagedIssueInput = {
@@ -853,6 +905,284 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
   return { fingerprint, issue: updatedIssue };
 }
 
+function configuredSourceStatus(
+  source: string,
+  configured: boolean,
+  availableDetail: string,
+  missingDetail: string,
+) {
+  return {
+    source,
+    status: configured ? "available" : "missing",
+    detail: configured ? availableDetail : missingDetail,
+  } as const;
+}
+
+function compactIssueLabel(issue: Issue) {
+  const identifier = (issue as unknown as Record<string, unknown>).identifier;
+  const prefix = typeof identifier === "string" ? `${identifier}: ` : "";
+  return `${prefix}${issue.title}`;
+}
+
+async function buildAnalyticsOutputProof(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  companyId: string,
+  cadence: AnalyticsReportCadence,
+): Promise<AnalyticsOutputProof> {
+  const generatedAt = nowIso();
+  const title = `${cadence === "daily" ? "Analytics Daily" : "Analytics Weekly"} Snapshot - ${generatedAt.slice(0, 10)}`;
+  const errors: string[] = [];
+
+  const notionToken = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.notionApiTokenRef,
+    "NOTION_API_TOKEN",
+  );
+  const slackOpsWebhookUrl = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.slackOpsWebhookUrlRef,
+    "SLACK_OPS_WEBHOOK_URL",
+  );
+  const slackGrowthWebhookUrl = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.slackGrowthWebhookUrlRef,
+    "SLACK_GROWTH_WEBHOOK_URL",
+  );
+  const githubToken = config.githubTokenRef
+    ? await resolveOptionalSecret(ctx, config.githubTokenRef)
+    : null;
+
+  const workflows: AnalyticsWorkflowSnapshot[] = [];
+  if (githubToken && config.githubOwner) {
+    for (const repoConfig of config.repoCatalog ?? DEFAULT_REPO_CATALOG) {
+      try {
+        const response = await fetchJson(
+          ctx,
+          `https://api.github.com/repos/${config.githubOwner}/${repoConfig.githubRepo}/actions/runs?per_page=1`,
+          githubToken,
+        );
+        const latest =
+          Array.isArray(response.workflow_runs) && response.workflow_runs.length > 0
+            ? response.workflow_runs[0] as Record<string, unknown>
+            : null;
+        workflows.push({
+          repo: repoConfig.githubRepo,
+          workflowName: asString(latest?.name) ?? "unknown",
+          branch: asString(latest?.head_branch) ?? repoConfig.defaultBranch,
+          status: asString(latest?.status) ?? "unknown",
+          conclusion: asString(latest?.conclusion) ?? "pending",
+          updatedAt: asString(latest?.updated_at),
+          htmlUrl: asString(latest?.html_url),
+        });
+      } catch (error) {
+        errors.push(`GitHub ${repoConfig.githubRepo}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+  }
+
+  const sourceMappings = await ctx.entities.list({
+    entityType: ENTITY_TYPES.sourceMapping,
+    scopeKind: "company",
+    scopeId: companyId,
+    limit: 200,
+    offset: 0,
+  });
+  const managedIssues = (
+    await Promise.all(
+      sourceMappings.map(async (mapping) => {
+        const data = (mapping.data ?? {}) as Partial<SourceMappingData>;
+        return typeof data.issueId === "string"
+          ? await ctx.issues.get(data.issueId, companyId)
+          : null;
+      }),
+    )
+  ).filter((issue): issue is Issue => !!issue && !["done", "cancelled"].includes(issue.status));
+
+  const openManagedIssues = {
+    total: managedIssues.length,
+    critical: managedIssues.filter((issue) => issue.priority === "critical").length,
+    high: managedIssues.filter((issue) => issue.priority === "high").length,
+    sample: managedIssues.slice(0, 5).map(compactIssueLabel),
+  };
+
+  const workflowFailures = workflows
+    .filter((workflow) => ["failure", "cancelled", "timed_out", "action_required", "startup_failure"].includes(workflow.conclusion))
+    .map((workflow) => `${workflow.repo} ${workflow.workflowName} on ${workflow.branch}: ${workflow.conclusion}`);
+
+  const summary = [
+    workflowFailures.length > 0
+      ? `${workflowFailures.length} GitHub workflow feed(s) are currently failing or degraded.`
+      : workflows.length > 0
+        ? `Latest GitHub workflow samples are healthy or still pending across ${workflows.length} repo feed(s).`
+        : "GitHub workflow data is unavailable on this host.",
+    openManagedIssues.total > 0
+      ? `${openManagedIssues.total} managed Paperclip issue(s) remain open, including ${openManagedIssues.critical} critical and ${openManagedIssues.high} high priority item(s).`
+      : "No open managed Paperclip issues are currently tracked by the Blueprint automation plugin.",
+    notionToken
+      ? "Notion reporting is configured on this host."
+      : "Notion reporting is not configured on this host.",
+    slackGrowthWebhookUrl || slackOpsWebhookUrl
+      ? "Slack digest delivery is configured on this host."
+      : "Slack digest delivery is not configured on this host.",
+  ];
+
+  const dataAvailability = [
+    configuredSourceStatus(
+      "GitHub workflow feeds",
+      Boolean(githubToken && config.githubOwner),
+      `GitHub polling is configured for ${(config.repoCatalog ?? DEFAULT_REPO_CATALOG).length} Blueprint repos.`,
+      "Missing GitHub owner or token for workflow polling.",
+    ),
+    configuredSourceStatus(
+      "Notion reporting",
+      Boolean(notionToken),
+      "Notion token is configured for Work Queue and Knowledge writes.",
+      "NOTION_API_TOKEN is not configured for this host.",
+    ),
+    configuredSourceStatus(
+      "Slack digest delivery",
+      Boolean(slackGrowthWebhookUrl || slackOpsWebhookUrl),
+      "Slack webhook target is configured for growth and analytics digests.",
+      "No Slack webhook target is configured for this host.",
+    ),
+    configuredSourceStatus(
+      "GA4 measurement feed",
+      Boolean(process.env.VITE_GA_MEASUREMENT_ID),
+      "GA4 measurement ID is present in the runtime environment.",
+      "GA4 measurement ID is not present in the Paperclip runtime environment.",
+    ),
+    configuredSourceStatus(
+      "Stripe revenue feed",
+      Boolean(process.env.STRIPE_SECRET_KEY),
+      "Stripe secret key is present in the runtime environment.",
+      "Stripe secret key is not present in the Paperclip runtime environment.",
+    ),
+    configuredSourceStatus(
+      "Firestore admin feed",
+      Boolean(
+        process.env.FIREBASE_SERVICE_ACCOUNT_JSON ||
+        process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+        (process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY),
+      ),
+      "Firestore admin credentials are present in the runtime environment.",
+      "Firestore admin credentials are not present in the Paperclip runtime environment.",
+    ),
+  ];
+
+  const reportLines = [
+    `Generated at: ${generatedAt}`,
+    "",
+    "## Summary",
+    ...summary.map((line) => `- ${line}`),
+    "",
+    "## Workflow Health",
+    ...(workflows.length > 0
+      ? workflows.map((workflow) =>
+        `- ${workflow.repo}: ${workflow.workflowName} on ${workflow.branch} is ${workflow.status}/${workflow.conclusion}${workflow.htmlUrl ? ` (${workflow.htmlUrl})` : ""}`,
+      )
+      : ["- No GitHub workflow data was collected during this run."]),
+    "",
+    "## Managed Issue Snapshot",
+    `- Open managed issues: ${openManagedIssues.total}`,
+    `- Critical: ${openManagedIssues.critical}`,
+    `- High: ${openManagedIssues.high}`,
+    ...(openManagedIssues.sample.length > 0
+      ? openManagedIssues.sample.map((line) => `- ${line}`)
+      : ["- No open managed issues sampled."]),
+    "",
+    "## Data Availability",
+    ...dataAvailability.map((entry) => `- ${entry.source}: ${entry.status} — ${entry.detail}`),
+  ];
+  if (errors.length > 0) {
+    reportLines.push("", "## Collection Errors", ...errors.map((line) => `- ${line}`));
+  }
+
+  const result: AnalyticsOutputProof = {
+    success: false,
+    cadence,
+    generatedAt,
+    title,
+    summary,
+    workflows,
+    openManagedIssues,
+    dataAvailability,
+    errors,
+  };
+
+  if (notionToken) {
+    try {
+      const notionClient = createNotionClient({ token: notionToken });
+      const knowledgeEntry = await createKnowledgeEntry(notionClient, {
+        title,
+        type: "Reference",
+        system: "WebApp",
+        content: reportLines.join("\n"),
+      });
+      const workQueueEntry = await createWorkQueueItem(notionClient, {
+        title,
+        priority: cadence === "daily" ? "P2" : "P1",
+        system: "WebApp",
+        lifecycleStage: "Open",
+        workType: "Refresh",
+        substage: [
+          summary[0],
+          knowledgeEntry.pageUrl ? `Knowledge page: ${knowledgeEntry.pageUrl}` : `Knowledge page ID: ${knowledgeEntry.pageId}`,
+        ].join(" "),
+      });
+      result.notion = {
+        workQueuePageId: workQueueEntry.pageId,
+        workQueuePageUrl: workQueueEntry.pageUrl,
+        knowledgePageId: knowledgeEntry.pageId,
+        knowledgePageUrl: knowledgeEntry.pageUrl,
+      };
+    } catch (error) {
+      errors.push(`Notion write failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  if (slackGrowthWebhookUrl || slackOpsWebhookUrl) {
+    try {
+      result.slack = await postSlackDigest(
+        {
+          default: slackOpsWebhookUrl ?? slackGrowthWebhookUrl ?? undefined,
+          ops: slackOpsWebhookUrl ?? undefined,
+          growth: slackGrowthWebhookUrl ?? undefined,
+        },
+        {
+          channel: cadence === "daily" ? "#analytics" : "#growth",
+          title,
+          sections: [
+            { heading: "Summary", items: summary },
+            {
+              heading: "Workflow Health",
+              items: workflows.length > 0
+                ? workflows.map((workflow) => `${workflow.repo}: ${workflow.status}/${workflow.conclusion}`)
+                : ["No GitHub workflow data collected."],
+            },
+            {
+              heading: "Data Availability",
+              items: dataAvailability.map((entry) => `${entry.source}: ${entry.status}`),
+            },
+          ],
+        },
+      );
+      if (!result.slack.ok) {
+        errors.push(`Slack digest failed with HTTP ${result.slack.statusCode ?? "unknown"}: ${result.slack.responseBody ?? "no response body"}`);
+      }
+    } catch (error) {
+      errors.push(`Slack digest failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  result.success = Boolean(
+    result.notion?.workQueuePageId &&
+    result.notion?.knowledgePageId &&
+    result.slack?.ok,
+  );
+  return result;
+}
+
 async function createFollowUpIssue(
   ctx: PluginContext,
   companyId: string,
@@ -1519,6 +1849,13 @@ async function registerActionHandlers(ctx: PluginContext) {
       comment: asString(params.comment) ?? "Resolved by Blueprint automation action.",
     });
   });
+
+  ctx.actions.register(ACTION_KEYS.analyticsReport, async (params) => {
+    const config = await getConfig(ctx);
+    const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
+    const cadence = asString(params.cadence) === "weekly" ? "weekly" : "daily";
+    return await buildAnalyticsOutputProof(ctx, config, company.id, cadence);
+  });
 }
 
 async function registerToolHandlers(ctx: PluginContext) {
@@ -1659,6 +1996,41 @@ async function registerToolHandlers(ctx: PluginContext) {
       return {
         content: result.issue ? `Resolved issue ${result.issue.id}.` : "No matching issue found for that source fingerprint.",
         data: result,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.analyticsReport,
+    {
+      displayName: "Generate Analytics Report",
+      description:
+        "Create a truthful Blueprint analytics snapshot, write the resulting Notion artifacts, and post the companion Slack digest.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          cadence: { type: "string", enum: ["daily", "weekly"] },
+          companyName: { type: "string" },
+        },
+        required: ["cadence"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(
+        ctx,
+        asString((params as Record<string, unknown>).companyName) ?? config.companyName,
+      );
+      const cadence =
+        asString((params as Record<string, unknown>).cadence) === "weekly"
+          ? "weekly"
+          : "daily";
+      const report = await buildAnalyticsOutputProof(ctx, config, company.id, cadence);
+      return {
+        content: report.success
+          ? `Generated ${cadence} analytics report with Notion and Slack outputs.`
+          : `Analytics report generation failed to produce all required outputs: ${report.errors.join("; ") || "unknown error"}.`,
+        data: report,
       };
     },
   );

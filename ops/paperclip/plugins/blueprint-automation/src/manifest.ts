@@ -292,6 +292,20 @@ const manifest: PaperclipPluginManifestV1 = {
       },
     },
     {
+      name: TOOL_NAMES.analyticsReport,
+      displayName: "Generate Analytics Report",
+      description:
+        "Create a truthful Blueprint analytics snapshot, write the resulting Notion artifacts, and post the companion Slack digest.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          cadence: { type: "string", enum: ["daily", "weekly"] },
+          companyName: { type: "string" },
+        },
+        required: ["cadence"],
+      },
+    },
+    {
       name: TOOL_NAMES.notionReadWorkQueue,
       displayName: "Read Notion Work Queue",
       description: "Query Blueprint Work Queue items by system, priority, or lifecycle stage.",

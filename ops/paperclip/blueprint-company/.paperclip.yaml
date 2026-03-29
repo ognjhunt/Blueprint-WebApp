@@ -36,7 +36,8 @@ agents:
       type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.3-codex
+        model: gpt-5.4
+        modelReasoningEffort: high
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
     budgetMonthlyCents: 3000
@@ -60,7 +61,8 @@ agents:
       type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapturePipeline
-        model: gpt-5.3-codex
+        model: gpt-5.4
+        modelReasoningEffort: high
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
     budgetMonthlyCents: 3000
@@ -84,7 +86,8 @@ agents:
       type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapture
-        model: gpt-5.3-codex
+        model: gpt-5.4
+        modelReasoningEffort: high
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
     budgetMonthlyCents: 3000
@@ -217,8 +220,10 @@ agents:
     capabilities: >-
       Pulls, aggregates, and interprets all measurable signals. Detects
       anomalies, produces daily/weekly reports, answers ad-hoc metric
-      queries. Read skill file at ops/paperclip/skills/analytics-agent.md
-      before every routine.
+      queries. Must call blueprint-generate-analytics-report first on
+      routine executions, then close or block the task explicitly. Read
+      skill file at ops/paperclip/skills/analytics-agent.md before every
+      routine.
     adapter:
       type: claude_local
       config:

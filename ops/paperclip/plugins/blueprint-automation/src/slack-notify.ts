@@ -27,7 +27,13 @@ function pickWebhookUrl(targets: SlackWebhookTargets, channel: string): string |
 export async function postSlackDigest(
   targets: SlackWebhookTargets,
   digest: SlackDigest
-): Promise<{ ok: boolean; routedChannel: string; target: "ops" | "growth" | "default" | "none" }> {
+): Promise<{
+  ok: boolean;
+  routedChannel: string;
+  target: "ops" | "growth" | "default" | "none";
+  statusCode?: number;
+  responseBody?: string;
+}> {
   const webhookUrl = pickWebhookUrl(targets, digest.channel);
   if (!webhookUrl) {
     return { ok: false, routedChannel: digest.channel, target: "none" };
@@ -66,7 +72,13 @@ export async function postSlackDigest(
     }),
   });
 
-  return { ok: response.ok, routedChannel: digest.channel, target };
+  return {
+    ok: response.ok,
+    routedChannel: digest.channel,
+    target,
+    statusCode: response.status,
+    responseBody: await response.text(),
+  };
 }
 
 export function buildSlackToolHandler(targets: SlackWebhookTargets) {

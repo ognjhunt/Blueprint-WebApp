@@ -81,7 +81,8 @@ const desiredAgents = {
     adapterType: "codex_local",
     adapterConfig: {
       cwd: "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
-      model: "gpt-5.3-codex",
+      model: "gpt-5.4",
+      modelReasoningEffort: "high",
       timeoutSec: 1800,
       dangerouslyBypassApprovalsAndSandbox: true,
     },
@@ -99,7 +100,8 @@ const desiredAgents = {
     adapterType: "codex_local",
     adapterConfig: {
       cwd: "/Users/nijelhunt_1/workspace/BlueprintCapturePipeline",
-      model: "gpt-5.3-codex",
+      model: "gpt-5.4",
+      modelReasoningEffort: "high",
       timeoutSec: 1800,
       dangerouslyBypassApprovalsAndSandbox: true,
     },
@@ -117,7 +119,8 @@ const desiredAgents = {
     adapterType: "codex_local",
     adapterConfig: {
       cwd: "/Users/nijelhunt_1/workspace/BlueprintCapture",
-      model: "gpt-5.3-codex",
+      model: "gpt-5.4",
+      modelReasoningEffort: "high",
       timeoutSec: 1800,
       dangerouslyBypassApprovalsAndSandbox: true,
     },

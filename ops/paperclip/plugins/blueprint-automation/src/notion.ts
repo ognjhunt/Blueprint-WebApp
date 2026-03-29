@@ -38,6 +38,11 @@ export interface WorkQueueQueryItem {
   url?: string;
 }
 
+export interface NotionWriteResult {
+  pageId: string;
+  pageUrl?: string;
+}
+
 function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
@@ -56,7 +61,7 @@ function coerceWorkQueueItem(input: Partial<WorkQueueItem> & Record<string, unkn
 export async function createWorkQueueItem(
   client: Client,
   item: WorkQueueItem
-): Promise<string> {
+): Promise<NotionWriteResult> {
   const response = await client.pages.create({
     parent: { database_id: WORK_QUEUE_DB },
     properties: {
@@ -70,7 +75,10 @@ export async function createWorkQueueItem(
         : {}),
     },
   });
-  return response.id;
+  return {
+    pageId: response.id,
+    pageUrl: response.url ?? undefined,
+  };
 }
 
 export async function queryWorkQueue(
@@ -146,7 +154,7 @@ function coerceKnowledgeEntry(input: Partial<KnowledgeEntry> & Record<string, un
 export async function createKnowledgeEntry(
   client: Client,
   entry: KnowledgeEntry
-): Promise<string> {
+): Promise<NotionWriteResult> {
   const response = await client.pages.create({
     parent: { database_id: KNOWLEDGE_DB },
     properties: {
@@ -168,7 +176,10 @@ export async function createKnowledgeEntry(
       },
     ],
   });
-  return response.id;
+  return {
+    pageId: response.id,
+    pageUrl: response.url ?? undefined,
+  };
 }
 
 // ── Tool Handler Factories ───────────────────────────────
@@ -189,13 +200,13 @@ export function buildNotionToolHandlers(client: Client) {
     },
 
     "notion-write-work-queue": async (params: Partial<WorkQueueItem> & Record<string, unknown>) => {
-      const id = await createWorkQueueItem(client, coerceWorkQueueItem(params));
-      return { success: true, pageId: id };
+      const result = await createWorkQueueItem(client, coerceWorkQueueItem(params));
+      return { success: true, ...result };
     },
 
     "notion-write-knowledge": async (params: Partial<KnowledgeEntry> & Record<string, unknown>) => {
-      const id = await createKnowledgeEntry(client, coerceKnowledgeEntry(params));
-      return { success: true, pageId: id };
+      const result = await createKnowledgeEntry(client, coerceKnowledgeEntry(params));
+      return { success: true, ...result };
     },
   };
 }
