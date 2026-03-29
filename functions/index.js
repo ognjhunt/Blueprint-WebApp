@@ -14,7 +14,7 @@ const paperclipWebhookUrl = defineString("PAPERCLIP_OPS_FIRESTORE_WEBHOOK_URL", 
     "https://www.tryblueprint.io/api/paperclip/ops-firestore-relay",
 });
 
-const paperclipRelaySecret = defineString("PAPERCLIP_OPS_FIRESTORE_RELAY_SECRET", {
+defineString("PAPERCLIP_OPS_FIRESTORE_RELAY_SECRET", {
   description: "Shared bearer secret for the stable Firestore -> webapp -> Paperclip relay.",
   default: "",
 });
@@ -31,7 +31,7 @@ async function forwardToPaperclip(event, collection) {
   };
 
   try {
-    const relaySecret = paperclipRelaySecret.value();
+    const relaySecret = process.env.PAPERCLIP_OPS_FIRESTORE_RELAY_SECRET || "";
     const res = await fetch(url, {
       method: "POST",
       headers: {
