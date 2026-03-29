@@ -142,6 +142,12 @@ const ROUTINE_TITLE_OVERRIDES = {
   "conversion-weekly": "Conversion Weekly",
   "market-intel-daily": "Market Intel Daily",
   "market-intel-weekly": "Market Intel Weekly",
+  "supply-intel-daily": "Supply Intel Daily",
+  "supply-intel-weekly": "Supply Intel Weekly",
+  "capturer-growth-weekly": "Capturer Growth Weekly",
+  "capturer-growth-refresh": "Capturer Growth Refresh",
+  "city-launch-weekly": "City Launch Weekly",
+  "city-launch-refresh": "City Launch Refresh",
 };
 
 function titleizeRoutineKey(routineKey) {
@@ -187,6 +193,9 @@ const AGENT_DEFAULT_PROJECT_KEYS = {
   "conversion-agent": "blueprint-webapp",
   "analytics-agent": "blueprint-webapp",
   "market-intel-agent": "blueprint-webapp",
+  "supply-intel-agent": "blueprint-executive-ops",
+  "capturer-growth-agent": "blueprint-webapp",
+  "city-launch-agent": "blueprint-executive-ops",
 };
 
 function resolveInstructionSource(agentKey) {

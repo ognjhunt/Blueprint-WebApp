@@ -50,7 +50,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 | **Executive** | CEO | CEO, CTO | Strategy, priorities, cross-dept coordination |
 | **Engineering** | CTO | 6 agents (impl + review per repo) | Code implementation and review |
 | **Ops** | Ops Lead | 5 agents | Product operations lifecycle |
-| **Growth** | Growth Lead | 4 agents | Acquisition, conversion, retention, intelligence |
+| **Growth** | Growth Lead | 7 agents | Acquisition, capturer supply, city launch, conversion, retention, and intelligence |
 
 ---
 
@@ -386,7 +386,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Claude |
 | **Status** | New |
 
-**Purpose:** Coordinates acquisition, conversion, and retention. Sets experiment priorities using ICE scoring. Synthesizes analytics and market intelligence into growth strategy.
+**Purpose:** Coordinates acquisition, conversion, retention, and the capturer supply-growth stack. Sets experiment priorities using ICE scoring. Synthesizes analytics, market intelligence, supply intelligence, generic capturer growth planning, and city launch planning into growth strategy.
 
 **Triggers:**
 - `0 9 * * 1-5` — Daily review of overnight analytics + agent reports
@@ -397,12 +397,18 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Analytics agent daily/weekly reports
 - Conversion Optimizer experiment results
 - Market Intel research digests
+- Supply Intel research digests
+- Capturer Growth playbook updates
+- City Launch city-plan updates
 - Notion Work Queue (Growth-tagged items)
 
 **Outputs:**
 - Weekly growth summary → CEO + Notion
 - Experiment priority queue → Conversion Optimizer
 - Research briefs → Market Intelligence agent
+- Marketplace-supply research priorities → Supply Intelligence agent
+- Generic capturer playbook priorities → Capturer Growth agent
+- City sequencing priorities → City Launch agent
 - Funnel health dashboard updates → Notion
 
 **Human gates:** None (coordination role).
@@ -417,6 +423,108 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | 3 | Fully autonomous growth strategy; human intervenes on budget/brand only | Founder sign-off |
 
 **Skill file:** `ops/paperclip/skills/growth-lead.md`
+
+---
+
+#### Supply Intelligence Agent (`supply-intel-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Growth |
+| **Reports to** | Growth Lead |
+| **Model** | Claude |
+| **Status** | New |
+
+**Purpose:** Researches historical and current marketplace supply playbooks with emphasis on boots-on-the-ground growth, launch sequencing, incentive structures, referral loops, trust systems, and channel economics.
+
+**Triggers:**
+- `15 7 * * 1-5` — Daily supply scan (7:15am ET)
+- `45 7 * * 1` — Weekly marketplace synthesis (Monday 7:45am ET)
+- Event: Growth Lead / CEO ad-hoc request
+
+**Inputs:**
+- Public web research
+- `ops/paperclip/programs/supply-intel-agent-program.md`
+- Existing market-intel and growth context
+
+**Outputs:**
+- Marketplace playbook briefs
+- Competitor teardown docs focused on supply growth
+- Channel and referral recommendations
+- Inputs for Capturer Growth and City Launch planning
+
+**Human gates:** Compensation policy, legal classification, claims about earnings/work volume, and any external outreach.
+
+**Skill file:** `ops/paperclip/skills/supply-intel-agent.md`
+**Steering file:** `ops/paperclip/programs/supply-intel-agent-program.md`
+
+---
+
+#### Capturer Growth Agent (`capturer-growth-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Growth |
+| **Reports to** | Growth Lead |
+| **Model** | Claude |
+| **Status** | New |
+
+**Purpose:** Converts supply-intel research into Blueprint's reusable capturer acquisition playbook. Maintains the generic channel, messaging, referral, and activation system that later city launches should inherit.
+
+**Triggers:**
+- `15 9 * * 1` — Weekly playbook update (Monday 9:15am ET)
+- `15 9 * * 4` — Midweek refresh (Thursday 9:15am ET)
+- Event: Supply Intel or Growth Lead request
+
+**Inputs:**
+- Supply Intelligence briefs
+- `ops/paperclip/programs/capturer-growth-agent-program.md`
+- `ops/paperclip/playbooks/capturer-supply-playbook.md`
+- Analytics and ops feedback
+
+**Outputs:**
+- Generic capturer supply playbook
+- Channel recommendations and internal campaign drafts
+- Execution queue for Conversion, Analytics, Intake, Ops, and City Launch
+
+**Human gates:** Spend, compensation changes, public posting, and claims about earnings/work availability.
+
+**Skill file:** `ops/paperclip/skills/capturer-growth-agent.md`
+**Steering file:** `ops/paperclip/programs/capturer-growth-agent-program.md`
+
+---
+
+#### City Launch Agent (`city-launch-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Growth |
+| **Reports to** | Growth Lead |
+| **Model** | Claude |
+| **Status** | New |
+
+**Purpose:** Adapts Blueprint's generic capturer growth playbook to specific cities. Starts with Austin, TX and San Francisco, CA.
+
+**Triggers:**
+- `30 11 * * 1` — Weekly city planning (Monday 11:30am ET)
+- `30 11 * * 4` — Midweek city refresh (Thursday 11:30am ET)
+- Event: Growth Lead / Ops Lead request
+
+**Inputs:**
+- Supply Intelligence output
+- Capturer Growth playbook updates
+- `ops/paperclip/programs/city-launch-agent-program.md`
+- Austin and San Francisco city playbooks
+
+**Outputs:**
+- City-specific launch plans
+- Weekly city scorecards and readiness status
+- Cross-agent action queues for web, analytics, ops, intake, and field readiness
+
+**Human gates:** Final city launch decision, spend, public posting, compensation claims, and local legal/compliance interpretation.
+
+**Skill file:** `ops/paperclip/skills/city-launch-agent.md`
+**Steering file:** `ops/paperclip/programs/city-launch-agent-program.md`
 
 ---
 

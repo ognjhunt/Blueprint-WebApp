@@ -411,6 +411,76 @@ agents:
             - find-skills
             - product-marketing-context
     budgetMonthlyCents: 2000
+  supply-intel-agent:
+    role: engineer
+    icon: map
+    capabilities: >-
+      Studies historical and current marketplace supply playbooks with focus on channel economics, referrals,
+      incentives, and city-seeding tactics. Feeds Blueprint-specific findings into capturer-growth and city-launch
+      planning. Read skill file at ops/paperclip/skills/supply-intel-agent.md and steering file at
+      ops/paperclip/programs/supply-intel-agent-program.md before every routine.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: claude-sonnet-4-6
+        timeoutSec: 1800
+        dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - supply-marketplace-research
+    budgetMonthlyCents: 2000
+  capturer-growth-agent:
+    role: engineer
+    icon: megaphone
+    capabilities: >-
+      Converts supply-intel findings into Blueprint's reusable capturer acquisition playbook, channel strategy, and
+      internal execution queue. Read skill file at ops/paperclip/skills/capturer-growth-agent.md and steering file at
+      ops/paperclip/programs/capturer-growth-agent-program.md before every routine.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: claude-sonnet-4-6
+        timeoutSec: 1800
+        dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - analytics-tracking
+            - capturer-growth-operations
+    budgetMonthlyCents: 2500
+  city-launch-agent:
+    role: engineer
+    icon: map-pinned
+    capabilities: >-
+      Maintains city-specific launch plans for Blueprint's capturer marketplace using the generic playbook plus
+      supply-intel findings. Starts with Austin and San Francisco. Read skill file at
+      ops/paperclip/skills/city-launch-agent.md and steering file at
+      ops/paperclip/programs/city-launch-agent-program.md before every routine.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: claude-sonnet-4-6
+        timeoutSec: 1800
+        dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - analytics-tracking
+            - city-launch-operations
+    budgetMonthlyCents: 2500
 projects:
   blueprint-executive-ops:
     status: active
@@ -596,6 +666,42 @@ tasks:
     status: todo
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
+  supply-intel-agent-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
+  capturer-growth-agent-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
+  city-launch-agent-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
+  supply-intel-daily:
+    status: active
+    priority: medium
+    projectWorkspaceKey: blueprint-executive-ops
+  supply-intel-weekly:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
+  capturer-growth-weekly:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
+  capturer-growth-refresh:
+    status: active
+    priority: medium
+    projectWorkspaceKey: blueprint-webapp
+  city-launch-weekly:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
+  city-launch-refresh:
+    status: active
+    priority: medium
+    projectWorkspaceKey: blueprint-executive-ops
 routines:
   ceo-daily-review:
     priority: high
@@ -777,4 +883,58 @@ routines:
     triggers:
       - kind: schedule
         cronExpression: 0 15 * * 5
+        timezone: America/New_York
+  supply-intel-daily:
+    agent: supply-intel-agent
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 15 7 * * 1-5
+        timezone: America/New_York
+  supply-intel-weekly:
+    agent: supply-intel-agent
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 45 7 * * 1
+        timezone: America/New_York
+  capturer-growth-weekly:
+    agent: capturer-growth-agent
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 15 9 * * 1
+        timezone: America/New_York
+  capturer-growth-refresh:
+    agent: capturer-growth-agent
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 15 9 * * 4
+        timezone: America/New_York
+  city-launch-weekly:
+    agent: city-launch-agent
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 30 11 * * 1
+        timezone: America/New_York
+  city-launch-refresh:
+    agent: city-launch-agent
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 30 11 * * 4
         timezone: America/New_York
