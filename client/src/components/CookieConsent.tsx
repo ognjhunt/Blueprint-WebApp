@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { X, Cookie } from "lucide-react";
+import { updateAnalyticsConsent } from "@/lib/analytics";
 
 const COOKIE_CONSENT_KEY = "blueprint_cookie_consent";
 
 type ConsentStatus = "accepted" | "rejected" | null;
 
-interface ConsentPreferences {
+export interface ConsentPreferences {
   analytics: boolean;
   marketing: boolean;
   necessary: boolean;
@@ -39,14 +40,7 @@ export function CookieConsent() {
     };
     localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(fullConsent));
     setIsVisible(false);
-
-    // Initialize analytics if accepted
-    if (window.gtag) {
-      window.gtag("consent", "update", {
-        analytics_storage: "granted",
-        ad_storage: "granted",
-      });
-    }
+    updateAnalyticsConsent(fullConsent);
   };
 
   const handleAcceptSelected = () => {
@@ -56,14 +50,7 @@ export function CookieConsent() {
     };
     localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(consent));
     setIsVisible(false);
-
-    // Initialize analytics based on preferences
-    if (window.gtag) {
-      window.gtag("consent", "update", {
-        analytics_storage: preferences.analytics ? "granted" : "denied",
-        ad_storage: preferences.marketing ? "granted" : "denied",
-      });
-    }
+    updateAnalyticsConsent(consent);
   };
 
   const handleRejectAll = () => {
@@ -75,6 +62,7 @@ export function CookieConsent() {
     };
     localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(minimalConsent));
     setIsVisible(false);
+    updateAnalyticsConsent(minimalConsent);
   };
 
   if (!isVisible) return null;

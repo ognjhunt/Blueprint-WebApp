@@ -19,11 +19,22 @@ const env = validateEnv();
 const app = express();
 const isProduction = process.env.NODE_ENV === "production";
 
+const analyticsConnectAllowlist = Array.from(
+  new Set(
+    [
+      process.env.VITE_PUBLIC_POSTHOG_HOST,
+    ]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean),
+  ),
+);
+
 const cspConnectAllowlist = Array.from(
   new Set(
     [
       env.BLUEPRINT_HOSTED_DEMO_RUNTIME_BASE_URL,
       env.BLUEPRINT_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL,
+      ...analyticsConnectAllowlist,
     ]
       .map((value) => String(value || "").trim())
       .filter(Boolean),
