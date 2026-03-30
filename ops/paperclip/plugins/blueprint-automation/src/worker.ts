@@ -59,9 +59,9 @@ const execFileAsync = promisify(execFile);
 const GIT_BIN = process.env.BLUEPRINT_PAPERCLIP_GIT_BIN || "/usr/bin/git";
 const PAPERCLIP_API_URL = process.env.PAPERCLIP_API_URL || "http://127.0.0.1:3101";
 const CODEX_FALLBACK_MODEL =
-  process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL || "gpt-5.4";
+  process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL || "gpt-5.4-mini";
 const CODEX_FALLBACK_REASONING_EFFORT =
-  process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT || "high";
+  process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT || "xhigh";
 const ENTITY_TYPES = {
   sourceMapping: "source-mapping",
 } as const;
@@ -1557,6 +1557,7 @@ function currentBudgetPeriod(): string {
 const MODEL_COST_ESTIMATES: Record<string, number> = {
   "claude-sonnet-4-6": 0.25,
   "gpt-5.4": 0.40,
+  "gpt-5.4-mini": 0.30,
   default: 0.30,
 };
 

@@ -23,13 +23,13 @@ describe("quota fallback helpers", () => {
           dangerouslySkipPermissions: true,
           timeoutSec: 1800,
         },
-        { model: "gpt-5.4", modelReasoningEffort: "high" },
+        { model: "gpt-5.4-mini", modelReasoningEffort: "xhigh" },
       ),
     ).toEqual({
       cwd: "/tmp/project",
       timeoutSec: 1800,
-      model: "gpt-5.4",
-      modelReasoningEffort: "high",
+      model: "gpt-5.4-mini",
+      modelReasoningEffort: "xhigh",
       dangerouslyBypassApprovalsAndSandbox: true,
     });
   });
@@ -38,7 +38,7 @@ describe("quota fallback helpers", () => {
     expect(
       buildClaudeFallbackAdapterConfig({
         cwd: "/tmp/project",
-        model: "gpt-5.4",
+        model: "gpt-5.4-mini",
         modelReasoningEffort: "high",
         dangerouslyBypassApprovalsAndSandbox: true,
         timeoutSec: 1800,

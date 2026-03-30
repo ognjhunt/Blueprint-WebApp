@@ -55,8 +55,8 @@ agents:
       type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4
-        modelReasoningEffort: high
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
@@ -124,8 +124,8 @@ agents:
       type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapturePipeline
-        model: gpt-5.4
-        modelReasoningEffort: high
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
@@ -177,8 +177,8 @@ agents:
       type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapture
-        model: gpt-5.4
-        modelReasoningEffort: high
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
