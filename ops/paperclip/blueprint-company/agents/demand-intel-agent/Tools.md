@@ -10,6 +10,10 @@
 - Paperclip issue lifecycle tools
   Use them when a finding is actionable enough to become real follow-up work.
 
+## Required Workflow Tool
+- the Blueprint deterministic demand-intel writer
+  Use it to publish the research artifact, create the searchable Notion trail, and decide whether the issue ends `done` or `blocked`.
+
 ## Trust Model
 - primary evidence beats summaries
 - repeated technical-buyer pattern beats one flashy anecdote

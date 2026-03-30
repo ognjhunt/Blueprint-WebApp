@@ -213,6 +213,59 @@ type AnalyticsOutputProof = {
   errors: string[];
 };
 
+// ── Demand Intel Types ─────────────────────────────────
+
+type DemandIntelReportCadence = "daily" | "weekly";
+
+type DemandIntelLane =
+  | "robot-team-demand"
+  | "site-operator-lane"
+  | "city-demand"
+  | "cross-lane";
+
+type DemandIntelConfidence = "high" | "medium" | "low";
+
+type DemandIntelStructuredReport = {
+  headline: string;
+  topic: string;
+  lane: DemandIntelLane;
+  companyOrPattern: string;
+  city: string;
+  signals: string[];
+  proofRequirements: string[];
+  channelFindings: string[];
+  partnershipFindings: string[];
+  recommendedActions: string[];
+  confidence: DemandIntelConfidence;
+  openQuestions: string[];
+};
+
+type DemandIntelOutputProof = {
+  success: boolean;
+  outcome: "done" | "blocked";
+  failureReason?: string;
+  cadence: DemandIntelReportCadence;
+  generatedAt: string;
+  title: string;
+  report: DemandIntelStructuredReport;
+  notion?: {
+    workQueuePageId?: string;
+    workQueuePageUrl?: string;
+    knowledgePageId?: string;
+    knowledgePageUrl?: string;
+  };
+  slack?: {
+    ok: boolean;
+    routedChannel: string;
+    target: "ops" | "growth" | "default" | "none";
+    statusCode?: number;
+    responseBody?: string;
+  };
+  proofLinks: string[];
+  issueComment: string;
+  errors: string[];
+};
+
 // ── Monitoring, Budget & Phase Types ───────────────────
 
 type RoutineHealthEntry = {
@@ -417,6 +470,19 @@ function getConfiguredRoutineMetadata(routineKey: string): {
 function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
+
+const DEMAND_INTEL_LANES = [
+  "robot-team-demand",
+  "site-operator-lane",
+  "city-demand",
+  "cross-lane",
+] as const satisfies readonly DemandIntelLane[];
+
+const DEMAND_INTEL_CONFIDENCE_LEVELS = [
+  "high",
+  "medium",
+  "low",
+] as const satisfies readonly DemandIntelConfidence[];
 
 function asBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
@@ -2010,6 +2076,276 @@ async function assertGithubSignature(
   }
 }
 
+// ── Demand Intel Output Proof ──────────────────────────
+
+function normalizeDemandIntelStructuredReport(
+  params: Record<string, unknown>,
+  cadence: DemandIntelReportCadence,
+): { report: DemandIntelStructuredReport; validationErrors: string[] } {
+  const rawLane = asString(params.lane) ?? "";
+  const rawConfidence = asString(params.confidence) ?? "";
+  const report: DemandIntelStructuredReport = {
+    headline: asString(params.headline) ?? "",
+    topic: asString(params.topic) ?? "",
+    lane: (DEMAND_INTEL_LANES.includes(rawLane as DemandIntelLane)
+      ? rawLane
+      : "cross-lane") as DemandIntelLane,
+    companyOrPattern: asString(params.companyOrPattern) ?? "",
+    city: asString(params.city) ?? "",
+    signals: coerceStringArray(params.signals),
+    proofRequirements: coerceStringArray(params.proofRequirements),
+    channelFindings: coerceStringArray(params.channelFindings),
+    partnershipFindings: coerceStringArray(params.partnershipFindings),
+    recommendedActions: coerceStringArray(params.recommendedActions),
+    confidence: (DEMAND_INTEL_CONFIDENCE_LEVELS.includes(rawConfidence as DemandIntelConfidence)
+      ? rawConfidence
+      : "medium") as DemandIntelConfidence,
+    openQuestions: coerceStringArray(params.openQuestions),
+  };
+
+  const validationErrors: string[] = [];
+  if (!report.headline) {
+    validationErrors.push(`Missing headline for ${cadence} demand intel report.`);
+  }
+  if (!report.topic) {
+    validationErrors.push("Missing topic for demand intel report.");
+  }
+  if (!rawLane) {
+    validationErrors.push("Missing lane for demand intel report.");
+  } else if (!DEMAND_INTEL_LANES.includes(rawLane as DemandIntelLane)) {
+    validationErrors.push(`Invalid lane for demand intel report. Expected one of: ${DEMAND_INTEL_LANES.join(", ")}.`);
+  }
+  if (!report.companyOrPattern) {
+    validationErrors.push("Missing companyOrPattern for demand intel report.");
+  }
+  if (report.lane === "city-demand" && !report.city) {
+    validationErrors.push("Missing city for city-demand demand intel report.");
+  }
+  if (report.signals.length === 0) {
+    validationErrors.push("Missing signals for demand intel report.");
+  }
+  if (report.proofRequirements.length === 0) {
+    validationErrors.push("Missing proofRequirements for demand intel report.");
+  }
+  if (report.channelFindings.length === 0) {
+    validationErrors.push("Missing channelFindings for demand intel report.");
+  }
+  if (report.partnershipFindings.length === 0) {
+    validationErrors.push("Missing partnershipFindings for demand intel report.");
+  }
+  if (report.recommendedActions.length === 0) {
+    validationErrors.push("Missing recommendedActions for demand intel report.");
+  }
+  if (!rawConfidence) {
+    validationErrors.push("Missing confidence for demand intel report.");
+  } else if (!DEMAND_INTEL_CONFIDENCE_LEVELS.includes(rawConfidence as DemandIntelConfidence)) {
+    validationErrors.push(
+      `Invalid confidence for demand intel report. Expected one of: ${DEMAND_INTEL_CONFIDENCE_LEVELS.join(", ")}.`,
+    );
+  }
+  if (report.openQuestions.length === 0) {
+    validationErrors.push("Missing openQuestions for demand intel report.");
+  }
+
+  return { report, validationErrors };
+}
+
+function formatDemandIntelIssueComment(result: {
+  outcome: "done" | "blocked";
+  report: DemandIntelStructuredReport;
+  cadence: DemandIntelReportCadence;
+  notion?: DemandIntelOutputProof["notion"];
+  slack?: DemandIntelOutputProof["slack"];
+  failureReason?: string;
+}) {
+  const slackStatus = result.slack?.ok
+    ? `delivered to ${result.slack.routedChannel} (HTTP ${result.slack.statusCode ?? "unknown"})`
+    : `missing or failed${result.slack?.statusCode ? ` (HTTP ${result.slack.statusCode})` : ""}`;
+  const lines = [
+    result.outcome === "done"
+      ? `${result.cadence === "daily" ? "Daily" : "Weekly"} demand intel report delivered.`
+      : `${result.cadence === "daily" ? "Daily" : "Weekly"} demand intel report blocked.`,
+    `- Headline: ${result.report.headline}`,
+    `- Topic: ${result.report.topic}`,
+    `- Lane: ${result.report.lane}`,
+    `- Company or pattern: ${result.report.companyOrPattern}`,
+    `- City: ${result.report.city || "n/a"}`,
+    `- Confidence: ${result.report.confidence}`,
+    `- Signals: ${result.report.signals.length}`,
+    `- Open questions: ${result.report.openQuestions.length}`,
+    ...(result.failureReason ? [`- Failure reason: ${result.failureReason}`] : []),
+    `- Notion Work Queue: ${result.notion?.workQueuePageUrl ?? result.notion?.workQueuePageId ?? "missing"}`,
+    `- Notion Knowledge: ${result.notion?.knowledgePageUrl ?? result.notion?.knowledgePageId ?? "missing"}`,
+    `- Slack digest: ${slackStatus}`,
+  ];
+  return lines.join("\n");
+}
+
+async function buildDemandIntelOutputProof(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  companyId: string,
+  params: Record<string, unknown>,
+): Promise<DemandIntelOutputProof> {
+  const cadence: DemandIntelReportCadence = asString(params.cadence) === "weekly" ? "weekly" : "daily";
+  const generatedAt = nowIso();
+  const { report, validationErrors } = normalizeDemandIntelStructuredReport(params, cadence);
+  const title = `Demand Intel ${cadence === "daily" ? "Daily" : "Weekly"} Digest - ${generatedAt.slice(0, 10)} - ${report.topic || "untitled"}`;
+  const errors: string[] = [];
+
+  const notionToken = await resolveOptionalSecret(ctx, config.secrets?.notionApiTokenRef, "NOTION_API_TOKEN");
+  const slackOpsWebhookUrl = await resolveOptionalSecret(ctx, config.secrets?.slackOpsWebhookUrlRef, "SLACK_OPS_WEBHOOK_URL");
+  const slackGrowthWebhookUrl = await resolveOptionalSecret(ctx, config.secrets?.slackGrowthWebhookUrlRef, "SLACK_GROWTH_WEBHOOK_URL");
+
+  const scopeLines = [
+    `Topic: ${report.topic}`,
+    `Lane: ${report.lane}`,
+    `Company or Pattern: ${report.companyOrPattern}`,
+    `City: ${report.city || "n/a"}`,
+    `Confidence: ${report.confidence}`,
+  ];
+  const reportLines = [
+    `Generated at: ${generatedAt}`,
+    `Cadence: ${cadence}`,
+    "",
+    "## Headline",
+    report.headline,
+    "",
+    "## Scope",
+    ...scopeLines.map((line) => `- ${line}`),
+    "",
+    "## Signals",
+    ...report.signals.map((line) => `- ${line}`),
+    "",
+    "## Proof Requirements",
+    ...report.proofRequirements.map((line) => `- ${line}`),
+    "",
+    "## Channel Findings",
+    ...report.channelFindings.map((line) => `- ${line}`),
+    "",
+    "## Partnership Findings",
+    ...report.partnershipFindings.map((line) => `- ${line}`),
+    "",
+    "## Recommended Actions",
+    ...report.recommendedActions.map((line) => `- ${line}`),
+    "",
+    "## Open Questions",
+    ...report.openQuestions.map((line) => `- ${line}`),
+  ];
+
+  const result: DemandIntelOutputProof = {
+    success: false,
+    outcome: "blocked",
+    cadence,
+    generatedAt,
+    title,
+    report,
+    proofLinks: [],
+    issueComment: "",
+    errors,
+  };
+
+  if (validationErrors.length === 0 && notionToken) {
+    try {
+      const notionClient = createNotionClient({ token: notionToken });
+      const knowledgeEntry = await createKnowledgeEntry(notionClient, {
+        title,
+        type: "Reference",
+        system: "Cross-System",
+        content: reportLines.join("\n"),
+      });
+      const workQueueEntry = await createWorkQueueItem(notionClient, {
+        title,
+        priority: cadence === "daily" ? "P2" : "P1",
+        system: "Cross-System",
+        lifecycleStage: "Open",
+        workType: "Research",
+        substage: [
+          `Lane: ${report.lane}.`,
+          `Topic: ${report.topic}.`,
+          `Company/pattern: ${report.companyOrPattern}.`,
+          `City: ${report.city || "n/a"}.`,
+          `Confidence: ${report.confidence}.`,
+          `Next action: ${report.recommendedActions[0] ?? "Review knowledge entry."}`,
+          knowledgeEntry.pageUrl
+            ? `Knowledge page: ${knowledgeEntry.pageUrl}`
+            : `Knowledge page ID: ${knowledgeEntry.pageId}`,
+        ].join(" "),
+      });
+      result.notion = {
+        workQueuePageId: workQueueEntry.pageId,
+        workQueuePageUrl: workQueueEntry.pageUrl,
+        knowledgePageId: knowledgeEntry.pageId,
+        knowledgePageUrl: knowledgeEntry.pageUrl,
+      };
+    } catch (error) {
+      errors.push(`Notion write failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  if (validationErrors.length === 0 && (slackGrowthWebhookUrl || slackOpsWebhookUrl)) {
+    try {
+      result.slack = await postSlackDigest(
+        {
+          default: slackOpsWebhookUrl ?? slackGrowthWebhookUrl ?? undefined,
+          ops: slackOpsWebhookUrl ?? undefined,
+          growth: slackGrowthWebhookUrl ?? undefined,
+        },
+        {
+          channel: "#research",
+          title,
+          sections: [
+            { heading: "Headline", items: [report.headline] },
+            { heading: "Scope", items: scopeLines },
+            { heading: "Signals", items: report.signals.slice(0, 5) },
+            { heading: "Proof Requirements", items: report.proofRequirements.slice(0, 5) },
+            { heading: "Channel Findings", items: report.channelFindings.slice(0, 5) },
+            { heading: "Partnership Findings", items: report.partnershipFindings.slice(0, 5) },
+            { heading: "Recommended Actions", items: report.recommendedActions.slice(0, 5) },
+            { heading: "Open Questions", items: report.openQuestions.slice(0, 5) },
+          ],
+        },
+      );
+      if (!result.slack.ok) {
+        errors.push(`Slack digest failed with HTTP ${result.slack.statusCode ?? "unknown"}`);
+      }
+    } catch (error) {
+      errors.push(`Slack digest failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  if (validationErrors.length > 0) errors.push(...validationErrors);
+
+  const failureReasons: string[] = [];
+  if (!result.notion?.workQueuePageId) failureReasons.push("Missing Notion Work Queue artifact.");
+  if (!result.notion?.knowledgePageId) failureReasons.push("Missing Notion Knowledge artifact.");
+  if (!result.slack?.ok) {
+    failureReasons.push(result.slack ? `Slack digest failed (HTTP ${result.slack.statusCode ?? "unknown"})` : "Missing Slack digest artifact.");
+  }
+
+  result.proofLinks = [result.notion?.workQueuePageUrl, result.notion?.knowledgePageUrl]
+    .filter((value): value is string => typeof value === "string" && value.length > 0);
+  result.failureReason = [...failureReasons, ...errors].join(" ");
+  result.success = failureReasons.length === 0 && errors.length === 0;
+  result.outcome = result.success ? "done" : "blocked";
+  result.issueComment = formatDemandIntelIssueComment(result);
+
+  await updateRoutineHealth(
+    ctx,
+    companyId,
+    `demand-intel-${cadence}`,
+    `Demand Intel ${cadence.charAt(0).toUpperCase()}${cadence.slice(1)}`,
+    "demand-intel-agent",
+    result.outcome,
+    result.failureReason,
+    asString(params.issueId),
+  );
+  await trackAgentRun(ctx, companyId, "demand-intel-agent");
+  await updatePhaseMetrics(ctx, companyId, "demand-intel-agent", result.outcome);
+
+  return result;
+}
+
 // ── Market Intel Output Proof ──────────────────────────
 
 function normalizeMarketIntelReport(
@@ -2480,6 +2816,12 @@ async function registerActionHandlers(ctx: PluginContext) {
     return await buildAnalyticsOutputProof(ctx, config, company.id, params);
   });
 
+  ctx.actions.register(ACTION_KEYS.demandIntelReport, async (params) => {
+    const config = await getConfig(ctx);
+    const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
+    return await buildDemandIntelOutputProof(ctx, config, company.id, params);
+  });
+
   ctx.actions.register(ACTION_KEYS.marketIntelReport, async (params) => {
     const config = await getConfig(ctx);
     const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
@@ -2677,6 +3019,75 @@ async function registerToolHandlers(ctx: PluginContext) {
         content: report.success
           ? `Generated ${cadence} analytics report with Notion and Slack outputs.`
           : `Analytics report writer blocked: ${report.failureReason || report.errors.join("; ") || "unknown error"}.`,
+        data: report,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.demandIntelReport,
+    {
+      displayName: "Generate Demand Intel Report",
+      description:
+        "Create a deterministic demand intelligence report from Blueprint demand-side research, write Notion artifacts, and post the companion Slack digest.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          cadence: { type: "string", enum: ["daily", "weekly"] },
+          companyName: { type: "string" },
+          issueId: { type: "string" },
+          headline: { type: "string" },
+          topic: { type: "string" },
+          lane: {
+            type: "string",
+            enum: ["robot-team-demand", "site-operator-lane", "city-demand", "cross-lane"],
+          },
+          companyOrPattern: { type: "string" },
+          city: { type: "string" },
+          signals: { type: "array", items: { type: "string" } },
+          proofRequirements: { type: "array", items: { type: "string" } },
+          channelFindings: { type: "array", items: { type: "string" } },
+          partnershipFindings: { type: "array", items: { type: "string" } },
+          recommendedActions: { type: "array", items: { type: "string" } },
+          confidence: { type: "string", enum: ["high", "medium", "low"] },
+          openQuestions: { type: "array", items: { type: "string" } },
+        },
+        required: [
+          "cadence",
+          "headline",
+          "topic",
+          "lane",
+          "companyOrPattern",
+          "signals",
+          "proofRequirements",
+          "channelFindings",
+          "partnershipFindings",
+          "recommendedActions",
+          "confidence",
+          "openQuestions",
+        ],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(
+        ctx,
+        asString((params as Record<string, unknown>).companyName) ?? config.companyName,
+      );
+      const cadence =
+        asString((params as Record<string, unknown>).cadence) === "weekly"
+          ? "weekly"
+          : "daily";
+      const report = await buildDemandIntelOutputProof(
+        ctx,
+        config,
+        company.id,
+        params as Record<string, unknown>,
+      );
+      return {
+        content: report.success
+          ? `Generated ${cadence} demand intel report with Notion and Slack outputs.`
+          : `Demand intel report writer blocked: ${report.failureReason || report.errors.join("; ") || "unknown error"}.`,
         data: report,
       };
     },

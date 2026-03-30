@@ -52,6 +52,10 @@ It provides:
   - `blueprint-upsert-work-item`
   - `blueprint-report-blocker`
   - `blueprint-resolve-work-item`
+- deterministic reporting writers for structured growth lanes:
+  - `analytics-report`
+  - `market-intel-report`
+  - `demand-intel-report`
 
 ### Storage and traceability
 

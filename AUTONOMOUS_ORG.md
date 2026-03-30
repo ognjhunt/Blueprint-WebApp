@@ -559,6 +559,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 
 **Outputs:**
 - Buyer-motion research briefs
+- Deterministic demand-intel reporting trail through a Notion Knowledge entry, a Notion Work Queue item, and a stable Paperclip issue comment with proof links plus confidence/lane metadata
 - Proof-pack and channel recommendations
 - Inputs for Robot Team Growth, Site Operator Partnership, and City Demand planning
 

@@ -21,6 +21,7 @@ export const TOOL_NAMES = {
   reportBlocker: "blueprint-report-blocker",
   resolveWorkItem: "blueprint-resolve-work-item",
   analyticsReport: "blueprint-generate-analytics-report",
+  demandIntelReport: "blueprint-generate-demand-intel-report",
   notionReadWorkQueue: "notion-read-work-queue",
   notionWriteWorkQueue: "notion-write-work-queue",
   notionWriteKnowledge: "notion-write-knowledge",
@@ -37,6 +38,7 @@ export const ACTION_KEYS = {
   reportBlocker: "report-blocker",
   resolveWorkItem: "resolve-work-item",
   analyticsReport: "analytics-report",
+  demandIntelReport: "demand-intel-report",
   marketIntelReport: "market-intel-report",
 } as const;
 export const DATA_KEYS = {
