@@ -50,18 +50,25 @@ import {
   buildClaudeFallbackAdapterConfig,
   buildCodexFallbackAdapterConfig,
   buildQuotaFallbackRetryRecord,
+  getLocalAdapterWorkspaceKey,
+  getWorkspaceAdapterCooldownKey,
   isQuotaOrRateLimitFailure,
+  resolveQuotaCooldownUntil,
+  selectWorkspaceQuotaFallbackTargets,
   type LocalQuotaFallbackAdapterType,
   type QuotaFallbackRetryState,
+  type WorkspaceAdapterCooldownRecord,
+  type WorkspaceAdapterCooldownState,
 } from "./quota-fallback.js";
 
 const execFileAsync = promisify(execFile);
 const GIT_BIN = process.env.BLUEPRINT_PAPERCLIP_GIT_BIN || "/usr/bin/git";
-const PAPERCLIP_API_URL = process.env.PAPERCLIP_API_URL || "http://127.0.0.1:3101";
 const CODEX_FALLBACK_MODEL =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL || "gpt-5.4-mini";
 const CODEX_FALLBACK_REASONING_EFFORT =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT || "xhigh";
+const WORKSPACE_QUOTA_COOLDOWN_MS =
+  Number(process.env.BLUEPRINT_PAPERCLIP_WORKSPACE_QUOTA_COOLDOWN_MS || "") || 6 * 60 * 60 * 1000;
 const ENTITY_TYPES = {
   sourceMapping: "source-mapping",
 } as const;
@@ -328,8 +335,15 @@ type PhaseTrackingState = Record<string, PhaseTrackingEntry>;
 type PaperclipYamlAgentConfig = {
   budgetMonthlyCents?: number;
   adapter?: {
+    type?: string;
     config?: {
+      cwd?: string;
       model?: string;
+      modelReasoningEffort?: string;
+      timeoutSec?: number;
+      dangerouslySkipPermissions?: boolean;
+      dangerouslyBypassApprovalsAndSandbox?: boolean;
+      paperclipSkillSync?: Record<string, unknown>;
     };
   };
 };
@@ -556,23 +570,129 @@ function buildQuotaFallbackDescriptor(
   return null;
 }
 
-async function fetchPaperclipJson<T>(
-  ctx: PluginContext,
-  resourcePath: string,
-  init: RequestInit = {},
-): Promise<T> {
-  const response = await ctx.http.fetch(`${PAPERCLIP_API_URL}${resourcePath}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(init.headers ?? {}),
-    },
-    ...init,
-  });
-  const text = await response.text();
-  if (!response.ok) {
-    throw new Error(`${init.method ?? "GET"} ${resourcePath} failed: ${response.status} ${text}`);
+function buildDesiredAdapterDescriptor(agent: Agent) {
+  const configuredAgent = getConfiguredAgent(agent.urlKey);
+  const configuredAdapterType = configuredAgent?.adapter?.type;
+  const configuredAdapterConfig = asRecord(configuredAgent?.adapter?.config);
+  if (
+    (configuredAdapterType !== "claude_local" && configuredAdapterType !== "codex_local")
+    || !configuredAdapterConfig
+  ) {
+    return null;
   }
-  return (text.length > 0 ? JSON.parse(text) : null) as T;
+
+  return {
+    adapterType: configuredAdapterType,
+    adapterConfig: configuredAdapterConfig,
+  };
+}
+
+function getActiveWorkspaceCooldown(
+  state: WorkspaceAdapterCooldownState,
+  workspaceKey: string | null,
+  adapterType: string,
+  now = Date.now(),
+): WorkspaceAdapterCooldownRecord | null {
+  if (!workspaceKey || (adapterType !== "claude_local" && adapterType !== "codex_local")) {
+    return null;
+  }
+  const record = state[getWorkspaceAdapterCooldownKey(workspaceKey, adapterType)];
+  if (!record) {
+    return null;
+  }
+  return Date.parse(record.cooldownUntil) > now ? record : null;
+}
+
+async function setWorkspaceCooldown(
+  ctx: PluginContext,
+  companyId: string,
+  record: WorkspaceAdapterCooldownRecord,
+) {
+  const state =
+    await readState<WorkspaceAdapterCooldownState>(ctx, companyId, STATE_KEYS.workspaceAdapterCooldowns) ?? {};
+  const nextState = {
+    ...state,
+    [getWorkspaceAdapterCooldownKey(record.workspaceKey, record.unavailableAdapterType)]: record,
+  };
+  await writeState(ctx, companyId, STATE_KEYS.workspaceAdapterCooldowns, nextState);
+}
+
+async function enforceWorkspaceAdapterCooldowns(
+  ctx: PluginContext,
+  companyId: string,
+  agents?: Agent[],
+) {
+  const currentState =
+    await readState<WorkspaceAdapterCooldownState>(ctx, companyId, STATE_KEYS.workspaceAdapterCooldowns) ?? {};
+  const now = Date.now();
+  const nextStateEntries = Object.entries(currentState).filter(([, record]) => {
+    const parsed = Date.parse(record.cooldownUntil);
+    return Number.isFinite(parsed) && parsed > now;
+  });
+
+  if (nextStateEntries.length !== Object.keys(currentState).length) {
+    await writeState(
+      ctx,
+      companyId,
+      STATE_KEYS.workspaceAdapterCooldowns,
+      Object.fromEntries(nextStateEntries),
+    );
+  }
+
+  const activeState = Object.fromEntries(nextStateEntries);
+  const targetAgents = agents ?? await listAgents(ctx, companyId);
+
+  for (const agent of targetAgents) {
+    const desired = buildDesiredAdapterDescriptor(agent);
+    if (!desired) {
+      continue;
+    }
+
+    const workspaceKey = getLocalAdapterWorkspaceKey(
+      asRecord(agent.adapterConfig) ?? desired.adapterConfig,
+    );
+    const cooldown = getActiveWorkspaceCooldown(activeState, workspaceKey, desired.adapterType, now);
+    const targetAdapterType = cooldown?.fallbackAdapterType ?? desired.adapterType;
+
+    if (agent.adapterType === targetAdapterType) {
+      continue;
+    }
+
+    let targetAdapterConfig: Record<string, unknown> | null = null;
+    if (targetAdapterType === desired.adapterType) {
+      targetAdapterConfig = desired.adapterConfig;
+    } else {
+      const currentFallback = buildQuotaFallbackDescriptor(
+        agent.adapterType,
+        asRecord(agent.adapterConfig),
+      );
+      if (currentFallback?.adapterType === targetAdapterType) {
+        targetAdapterConfig = currentFallback.adapterConfig;
+      } else {
+        const desiredFallback = buildQuotaFallbackDescriptor(
+          desired.adapterType,
+          desired.adapterConfig,
+        );
+        if (desiredFallback?.adapterType === targetAdapterType) {
+          targetAdapterConfig = desiredFallback.adapterConfig;
+        }
+      }
+    }
+
+    if (!targetAdapterConfig) {
+      continue;
+    }
+
+    await ctx.agents.update(
+      agent.id,
+      {
+        adapterType: targetAdapterType,
+        adapterConfig: targetAdapterConfig,
+      },
+      companyId,
+    );
+    await ctx.agents.resetRuntimeSession(agent.id, companyId);
+  }
 }
 
 function normalizeConfig(rawConfig: Record<string, unknown>): BlueprintAutomationConfig {
@@ -1116,26 +1236,80 @@ async function handleAgentRunFailureQuotaFallback(
     payload.taskId ??
     payload.issueId ??
     `quota-fallback:${agent.id}:${payload.runId}`;
+  const workspaceKey = getLocalAdapterWorkspaceKey(asRecord(agent.adapterConfig));
+  const cooldownUntil = resolveQuotaCooldownUntil(payload.error, {
+    defaultCooldownMs: WORKSPACE_QUOTA_COOLDOWN_MS,
+  });
 
   try {
-    await fetchPaperclipJson(
-      ctx,
-      `/api/agents/${agent.id}`,
+    const allAgents = await listAgents(ctx, event.companyId).catch(() => []);
+    const workspaceTargets = selectWorkspaceQuotaFallbackTargets(
       {
-        method: "PATCH",
-        body: JSON.stringify({
-          adapterType: fallback.adapterType,
-          replaceAdapterConfig: true,
-          adapterConfig: fallback.adapterConfig,
-        }),
+        id: agent.id,
+        adapterType: agent.adapterType,
+        adapterConfig: asRecord(agent.adapterConfig),
       },
+      allAgents.map((entry) => ({
+        id: entry.id,
+        adapterType: entry.adapterType,
+        adapterConfig: asRecord(entry.adapterConfig),
+      })),
     );
-    await fetchPaperclipJson(ctx, `/api/agents/${agent.id}/runtime-state/reset-session`, {
-      method: "POST",
-      body: JSON.stringify({
-        taskKey: payload.taskKey ?? payload.taskId ?? payload.issueId ?? null,
-      }),
-    });
+    const siblingSwitchErrors: string[] = [];
+
+    for (const target of workspaceTargets) {
+      const targetFallback = buildQuotaFallbackDescriptor(
+        target.adapterType,
+        asRecord(target.adapterConfig),
+      );
+      if (!targetFallback) {
+        continue;
+      }
+
+      try {
+        await ctx.agents.update(
+          target.id,
+          {
+            adapterType: targetFallback.adapterType,
+            adapterConfig: targetFallback.adapterConfig,
+          },
+          event.companyId,
+        );
+        await ctx.agents.resetRuntimeSession(
+          target.id,
+          event.companyId,
+          target.id === agent.id
+            ? {
+              taskKey: payload.taskKey ?? payload.taskId ?? payload.issueId ?? null,
+            }
+            : undefined,
+        );
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (target.id === agent.id) {
+          throw error;
+        }
+        siblingSwitchErrors.push(`${target.id}: ${errorMessage}`);
+      }
+    }
+
+    if (
+      workspaceKey
+      && (agent.adapterType === "claude_local" || agent.adapterType === "codex_local")
+      && fallback.adapterType !== agent.adapterType
+    ) {
+      await setWorkspaceCooldown(ctx, event.companyId, {
+        workspaceKey,
+        unavailableAdapterType: agent.adapterType,
+        fallbackAdapterType: fallback.adapterType,
+        cooldownUntil,
+        recordedAt: nowIso(),
+        reason: fallback.reason,
+        sourceRunId: payload.runId,
+        sourceAgentId: agent.id,
+        note: payload.error,
+      });
+    }
 
     const wakePayload: Record<string, unknown> = {
       retryOfRunId: payload.runId,
@@ -1144,19 +1318,16 @@ async function handleAgentRunFailureQuotaFallback(
     if (payload.issueId) wakePayload.issueId = payload.issueId;
     if (payload.taskId) wakePayload.taskId = payload.taskId;
 
-    const wakeResult = await fetchPaperclipJson<{ id?: string; status?: string }>(
-      ctx,
-      `/api/agents/${agent.id}/wakeup`,
+    const wakeResult = await ctx.agents.wakeup(
+      agent.id,
+      event.companyId,
       {
-        method: "POST",
-        body: JSON.stringify({
-          source: "automation",
-          triggerDetail: "system",
-          reason: fallback.reason,
-          payload: wakePayload,
-          idempotencyKey: `quota-fallback:${payload.runId}`,
-          forceFreshSession: true,
-        }),
+        source: "automation",
+        triggerDetail: "system",
+        reason: fallback.reason,
+        payload: wakePayload,
+        idempotencyKey: `quota-fallback:${payload.runId}`,
+        forceFreshSession: true,
       },
     );
 
@@ -1169,8 +1340,10 @@ async function handleAgentRunFailureQuotaFallback(
         taskKey: retryTaskKey,
         reason: fallback.reason,
         fallbackAdapterType: fallback.adapterType,
-        wakeupRunId: asString(wakeResult?.id) ?? null,
-        note: payload.error,
+        wakeupRunId: asString(wakeResult?.runId) ?? null,
+        note: siblingSwitchErrors.length > 0
+          ? `${payload.error} | sibling_switch_errors=${siblingSwitchErrors.join(" ; ")}`
+          : payload.error,
       }),
     );
 
@@ -1179,14 +1352,14 @@ async function handleAgentRunFailureQuotaFallback(
       title: `Retried ${agent.name} on ${fallback.adapterType === "codex_local" ? "Codex" : "Claude"} after quota failure`,
       issueId: payload.issueId ?? undefined,
       detail: payload.issueId
-        ? `Issue ${payload.issueId} retried from failed run ${payload.runId}.`
-        : `Task ${retryTaskKey} retried from failed run ${payload.runId}.`,
+        ? `Issue ${payload.issueId} retried from failed run ${payload.runId}; switched ${workspaceTargets.length} same-workspace agent(s) to ${fallback.adapterType === "codex_local" ? "Codex" : "Claude"} until ${cooldownUntil}.`
+        : `Task ${retryTaskKey} retried from failed run ${payload.runId}; switched ${workspaceTargets.length} same-workspace agent(s) to ${fallback.adapterType === "codex_local" ? "Codex" : "Claude"} until ${cooldownUntil}.`,
     });
 
     if (payload.issueId) {
       await ctx.issues.createComment(
         payload.issueId,
-        `Detected a ${agent.adapterType === "claude_local" ? "Claude" : "Codex"} quota/rate-limit failure on run ${payload.runId}. Switched ${agent.name} to ${fallback.adapterType === "codex_local" ? "Codex" : "Claude"} and requeued the work once.`,
+        `Detected a ${agent.adapterType === "claude_local" ? "Claude" : "Codex"} quota/rate-limit failure on run ${payload.runId}. Switched ${agent.name} and ${Math.max(workspaceTargets.length - 1, 0)} same-workspace peer(s) to ${fallback.adapterType === "codex_local" ? "Codex" : "Claude"} until ${cooldownUntil}, then requeued the work once.`,
         event.companyId,
       ).catch(() => undefined);
     }
@@ -3787,6 +3960,40 @@ const plugin: PaperclipPlugin = definePlugin({
         });
       }
     });
+    ctx.events.on("agent.updated", async (event) => {
+      try {
+        const agent = await ctx.agents.get(event.entityId, event.companyId);
+        if (agent) {
+          await enforceWorkspaceAdapterCooldowns(ctx, event.companyId, [agent]);
+        }
+      } catch (error) {
+        ctx.logger.warn("agent.updated cooldown enforcement failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            agentId: event.entityId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+    });
+    ctx.events.on("agent.created", async (event) => {
+      try {
+        const agent = await ctx.agents.get(event.entityId, event.companyId);
+        if (agent) {
+          await enforceWorkspaceAdapterCooldowns(ctx, event.companyId, [agent]);
+        }
+      } catch (error) {
+        ctx.logger.warn("agent.created cooldown enforcement failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            agentId: event.entityId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+    });
     ctx.jobs.register(JOB_KEYS.repoScan, async (job) => {
       await runRepoScanJob(ctx, job);
     });
@@ -3800,6 +4007,22 @@ const plugin: PaperclipPlugin = definePlugin({
       const company = await findCompany(ctx, config.companyName);
       await runRoutineHealthCheck(ctx, company.id, config);
     });
+    ctx.jobs.register(JOB_KEYS.quotaCooldownEnforcer, async () => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      await enforceWorkspaceAdapterCooldowns(ctx, company.id);
+    });
+    try {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      await enforceWorkspaceAdapterCooldowns(ctx, company.id);
+    } catch (error) {
+      ctx.logger.warn("startup cooldown enforcement failed", {
+        meta: {
+          stack: error instanceof Error ? error.stack : undefined,
+        },
+      });
+    }
   },
 
   async onHealth(): Promise<PluginHealthDiagnostics> {

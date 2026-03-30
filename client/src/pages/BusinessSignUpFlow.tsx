@@ -865,7 +865,7 @@ export default function BusinessSignUpFlow() {
                       <Textarea
                         id="taskStatement"
                         className="min-h-24 pl-10"
-                        placeholder="What exact workflow should Blueprint qualify?"
+                        placeholder="What exact site and technical question should Blueprint help with?"
                         value={taskStatement}
                         onChange={(event) => setTaskStatement(event.target.value)}
                       />
@@ -966,7 +966,7 @@ export default function BusinessSignUpFlow() {
                     </div>
                     <p className="mt-2">
                       Blueprint routes you into the intake review hub, where you can confirm the
-                      submission and move the site toward qualification.
+                      submission and move the site into the exact-site proof path.
                     </p>
                   </div>
                 </div>

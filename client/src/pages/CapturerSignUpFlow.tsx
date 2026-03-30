@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { SEO } from "@/components/SEO";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -42,10 +43,10 @@ const AVAILABILITY_OPTIONS = [
 ] as const;
 
 const REFERRAL_OPTIONS = [
-  { value: "search", label: "Search" },
+  { value: "invite_or_access_code", label: "Invite or access code" },
   { value: "friend", label: "Referral" },
-  { value: "social", label: "Social" },
   { value: "event", label: "Event" },
+  { value: "search", label: "Search" },
   { value: "other", label: "Other" },
 ] as const;
 
@@ -111,7 +112,7 @@ export default function CapturerSignUpFlow() {
   const [market, setMarket] = useState("");
   const [availability, setAvailability] = useState<AvailabilityValue>("flexible");
   const [equipment, setEquipment] = useState<EquipmentValue[]>(["iphone"]);
-  const [referralSource, setReferralSource] = useState<ReferralValue>("search");
+  const [referralSource, setReferralSource] = useState<ReferralValue | "">("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [successSummary, setSuccessSummary] = useState<{ name: string; market: string } | null>(
     null,
@@ -134,8 +135,9 @@ export default function CapturerSignUpFlow() {
       market.trim().length > 2 &&
       isValidPhone(phoneNumber) &&
       equipment.length > 0 &&
+      referralSource !== "" &&
       agreedToTerms,
-    [agreedToTerms, equipment.length, market, phoneNumber],
+    [agreedToTerms, equipment.length, market, phoneNumber, referralSource],
   );
 
   const toggleEquipment = useCallback((value: EquipmentValue) => {
@@ -261,6 +263,9 @@ export default function CapturerSignUpFlow() {
       } else if (equipment.length === 0) {
         validationError = "missing_equipment";
         setErrorMessage("Select at least one capture device.");
+      } else if (!referralSource) {
+        validationError = "missing_referral_source";
+        setErrorMessage("Tell us how you got access.");
       } else {
         validationError = "missing_terms_acceptance";
         setErrorMessage("You need to accept the terms to apply.");
@@ -428,25 +433,32 @@ export default function CapturerSignUpFlow() {
   }, [captureAppUrl]);
 
   return (
-    <main
-      className="min-h-screen bg-[color:var(--paper)] px-4 py-10 text-[color:var(--ink)]"
-      style={
-        {
-          "--paper": "oklch(0.985 0.012 95)",
-          "--paper-strong": "oklch(0.962 0.024 95)",
-          "--panel": "oklch(0.995 0.008 95)",
-          "--ink": "oklch(0.23 0.03 80)",
-          "--ink-soft": "oklch(0.4 0.024 80)",
-          "--ink-muted": "oklch(0.56 0.018 80)",
-          "--line": "oklch(0.9 0.02 90)",
-          "--line-strong": "oklch(0.83 0.03 88)",
-          "--leaf": "oklch(0.63 0.16 149)",
-          "--leaf-deep": "oklch(0.51 0.12 149)",
-          "--amber": "oklch(0.78 0.13 82)",
-          "--rose": "oklch(0.64 0.19 26)",
-        } as React.CSSProperties
-      }
-    >
+    <>
+      <SEO
+        title="Capturer Access | Blueprint"
+        description="Apply for capturer access and complete the Blueprint mobile capture handoff."
+        canonical="/signup/capturer"
+        noIndex={true}
+      />
+      <main
+        className="min-h-screen bg-[color:var(--paper)] px-4 py-10 text-[color:var(--ink)]"
+        style={
+          {
+            "--paper": "oklch(0.985 0.012 95)",
+            "--paper-strong": "oklch(0.962 0.024 95)",
+            "--panel": "oklch(0.995 0.008 95)",
+            "--ink": "oklch(0.23 0.03 80)",
+            "--ink-soft": "oklch(0.4 0.024 80)",
+            "--ink-muted": "oklch(0.56 0.018 80)",
+            "--line": "oklch(0.9 0.02 90)",
+            "--line-strong": "oklch(0.83 0.03 88)",
+            "--leaf": "oklch(0.63 0.16 149)",
+            "--leaf-deep": "oklch(0.51 0.12 149)",
+            "--amber": "oklch(0.78 0.13 82)",
+            "--rose": "oklch(0.64 0.19 26)",
+          } as React.CSSProperties
+        }
+      >
       <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.92fr_1.08fr]">
         <section className="relative overflow-hidden rounded-[2rem] border border-[color:var(--line)] bg-[color:var(--paper-strong)] p-7 sm:p-8">
           <div className="absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_top_left,_rgba(55,145,86,0.18),_transparent_62%)]" />
@@ -461,8 +473,8 @@ export default function CapturerSignUpFlow() {
                 Apply on web. Capture in the Blueprint app.
               </h1>
               <p className="max-w-lg text-base leading-7 text-[color:var(--ink-soft)]">
-                This page is for account creation and market qualification. Actual capture work
-                should happen in Blueprint Capture, not inside the operator dashboard.
+                This page is for account creation and access routing. Actual capture work should
+                happen in Blueprint Capture, not inside the operator dashboard.
               </p>
             </div>
 
@@ -505,7 +517,7 @@ export default function CapturerSignUpFlow() {
                   <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--leaf)] text-xs font-semibold text-white">
                     2
                   </span>
-                  We qualify your market and device fit before routing work your way.
+                  We confirm your market and device fit before sending approval or access instructions.
                 </li>
                 <li className="flex gap-3">
                   <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--leaf)] text-xs font-semibold text-white">
@@ -727,7 +739,10 @@ export default function CapturerSignUpFlow() {
                       </div>
 
                       <div>
-                        <p className="text-sm font-semibold text-[color:var(--ink)]">How did you hear about Blueprint?</p>
+                        <p className="text-sm font-semibold text-[color:var(--ink)]">How did you get access?</p>
+                        <p className="mt-1 text-sm text-[color:var(--ink-soft)]">
+                          If you were invited or given an access code, select that here so we can route review correctly.
+                        </p>
                         <RadioGroup
                           value={referralSource}
                           onValueChange={(value) => setReferralSource(value as ReferralValue)}
@@ -910,7 +925,7 @@ export default function CapturerSignUpFlow() {
                     <div>
                       <p className="font-semibold text-[color:var(--ink)]">Recommended next steps</p>
                       <ul className="mt-2 space-y-2 text-sm leading-6 text-[color:var(--ink-soft)]">
-                        <li>Watch for market activation or approval instructions.</li>
+                        <li>Watch for approval or access instructions.</li>
                         <li>Complete identity and payout setup in the capture workflow when prompted.</li>
                         <li>Return to the capture overview if you want to review pay, device fit, or process details.</li>
                       </ul>
@@ -924,7 +939,7 @@ export default function CapturerSignUpFlow() {
                     <div>
                       <p className="font-semibold text-[color:var(--ink)]">Need a business account instead?</p>
                       <p className="mt-1 text-sm leading-6 text-[color:var(--ink-soft)]">
-                        Site operators and robot teams should stay on the business route so they get the qualification-first intake, not the worker flow.
+                        Site operators and robot teams should stay on the business route so they get the right intake, not the worker flow.
                       </p>
                     </div>
                   </div>
@@ -952,6 +967,7 @@ export default function CapturerSignUpFlow() {
           )}
         </section>
       </div>
-    </main>
+      </main>
+    </>
   );
 }

@@ -2179,7 +2179,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     <DetailPill label="Scene" value={site.sceneId} />
                     <DetailPill label="Capture" value={site.captureId} />
-                    <DetailPill label="Qualification" value={humanizeValue(site.deploymentReadiness?.qualification_state, "qualified")} />
+                    <DetailPill label="Readiness" value={humanizeValue(site.deploymentReadiness?.qualification_state, "qualified")} />
                     <DetailPill label="Health" value={humanizeValue(sessionRecord?.runtimeHandle?.health_status || site.runtimeManifest?.healthStatus, "unknown")} />
                     <DetailPill
                       label="Native"

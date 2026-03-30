@@ -1,5 +1,5 @@
 /**
- * Client-side types for the qualification-first submission and review system.
+ * Client-side types for the site-specific intake and review system.
  */
 import {
   HELP_WITH_LABELS as SHARED_HELP_WITH_LABELS,

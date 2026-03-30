@@ -6,6 +6,7 @@ export const JOB_KEYS = {
   repoScan: "repo-scan",
   opsQueueScan: "ops-queue-scan",
   routineHealthCheck: "routine-health-check",
+  quotaCooldownEnforcer: "quota-cooldown-enforcer",
 } as const;
 export const WEBHOOK_KEYS = {
   github: "github",
@@ -60,6 +61,7 @@ export const STATE_KEYS = {
   budgetTracking: "budget-tracking",
   phaseTracking: "phase-tracking",
   quotaFallbackRetries: "quota-fallback-retries",
+  workspaceAdapterCooldowns: "workspace-adapter-cooldowns",
 } as const;
 export const DEFAULT_COMPANY_NAME = "Blueprint Autonomous Operations";
 export const DEFAULT_REPO_CATALOG = [

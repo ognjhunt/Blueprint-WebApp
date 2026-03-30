@@ -3,7 +3,11 @@ import {
   buildClaudeFallbackAdapterConfig,
   buildCodexFallbackAdapterConfig,
   buildQuotaFallbackRetryRecord,
+  getWorkspaceAdapterCooldownKey,
   isQuotaOrRateLimitFailure,
+  parseQuotaResetAt,
+  resolveQuotaCooldownUntil,
+  selectWorkspaceQuotaFallbackTargets,
 } from "./quota-fallback.js";
 
 describe("quota fallback helpers", () => {
@@ -70,5 +74,68 @@ describe("quota fallback helpers", () => {
       wakeupRunId: null,
       note: null,
     });
+  });
+
+  it("selects same-workspace agents for quota fallback", () => {
+    expect(
+      selectWorkspaceQuotaFallbackTargets(
+        {
+          id: "intake-agent",
+          adapterType: "claude_local",
+          adapterConfig: { cwd: "/tmp/webapp", model: "claude-sonnet-4-6" },
+        },
+        [
+          {
+            id: "intake-agent",
+            adapterType: "claude_local",
+            adapterConfig: { cwd: "/tmp/webapp", model: "claude-sonnet-4-6" },
+          },
+          {
+            id: "growth-lead",
+            adapterType: "claude_local",
+            adapterConfig: { cwd: "/tmp/webapp", model: "claude-sonnet-4-6" },
+          },
+          {
+            id: "finance-support-agent",
+            adapterType: "claude_local",
+            adapterConfig: { cwd: "/tmp/webapp", model: "claude-sonnet-4-6" },
+          },
+          {
+            id: "webapp-codex",
+            adapterType: "codex_local",
+            adapterConfig: { cwd: "/tmp/webapp", model: "gpt-5.4-mini" },
+          },
+          {
+            id: "pipeline-claude",
+            adapterType: "claude_local",
+            adapterConfig: { cwd: "/tmp/pipeline", model: "claude-sonnet-4-6" },
+          },
+        ],
+      ).map((agent) => agent.id),
+    ).toEqual(["intake-agent", "growth-lead", "finance-support-agent"]);
+  });
+
+  it("parses explicit quota reset timestamps", () => {
+    expect(
+      parseQuotaResetAt(
+        "Claude run failed: You've hit your limit · resets Mar 31, 6pm (UTC)",
+        new Date("2026-03-30T15:00:00.000Z"),
+      ),
+    ).toBe("2026-03-31T18:00:00.000Z");
+  });
+
+  it("falls back to a default cooldown when reset time is absent", () => {
+    expect(
+      resolveQuotaCooldownUntil("429 RESOURCE_EXHAUSTED", {
+        now: new Date("2026-03-30T10:00:00.000Z"),
+        defaultCooldownMs: 2 * 60 * 60 * 1000,
+      }),
+    ).toBe("2026-03-30T12:00:00.000Z");
+  });
+
+  it("builds stable workspace cooldown keys", () => {
+    expect(getWorkspaceAdapterCooldownKey("/tmp/webapp", "claude_local")).toBe(
+      "/tmp/webapp::claude_local",
+    );
   });
 });

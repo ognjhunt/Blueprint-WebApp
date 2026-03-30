@@ -13,6 +13,7 @@ const Home = lazy(() => import("../pages/Home"));
 const Capture = lazy(() => import("../pages/Capture"));
 const CaptureAppPlaceholder = lazy(() => import("../pages/CaptureAppPlaceholder"));
 const BusinessSignUpFlow = lazy(() => import("../pages/BusinessSignUpFlow"));
+const CapturerSignUpFlow = lazy(() => import("../pages/CapturerSignUpFlow"));
 const OnboardingChecklist = lazy(() => import("../pages/OnboardingChecklist"));
 const ForSiteOperators = lazy(() => import("../pages/ForSiteOperators"));
 const ForRobotIntegrators = lazy(() => import("../pages/ForRobotIntegrators"));
@@ -80,10 +81,6 @@ const LegacyQualifiedOpportunitiesRedirect = () => (
 
 const LegacyForRobotIntegratorsRedirect = () => (
   <MarketingRedirect to="/for-robot-teams" />
-);
-
-const LegacyCapturerSignupRedirect = () => (
-  <MarketingRedirect to="/capture-app" />
 );
 
 const LegacyLoginRedirect = () => (
@@ -155,7 +152,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/login", layout: "public", component: LegacyLoginRedirect },
   { path: "/signup", layout: "public", component: BusinessSignUpFlow },
   { path: "/signup/business", layout: "public", component: BusinessSignUpFlow },
-  { path: "/signup/capturer", layout: "public", component: LegacyCapturerSignupRedirect },
+  { path: "/signup/capturer", layout: "public", component: CapturerSignUpFlow },
   { path: "/onboarding", layout: "protected", component: OnboardingChecklist },
   { path: "/forgot-password", layout: "public", component: ForgotPassword },
   { path: "/privacy", layout: "public", component: Privacy },

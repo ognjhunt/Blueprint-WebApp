@@ -158,7 +158,7 @@ export interface UserData {
   credits: number;
   finishedOnboarding: boolean;
 
-  // Qualification-first intake fields
+  // Site-specific intake fields
   buyerType?: "site_operator" | "robot_team";
   requestedLanes?: (
     | "qualification"

@@ -36,7 +36,7 @@ export const OPPORTUNITY_STATES = [
 ] as const;
 
 export const REQUESTED_LANE_LABELS = {
-  qualification: "Qualification",
+  qualification: "Site Review",
   preview_simulation: "Preview Simulation",
   deeper_evaluation: "Evaluation Package",
   managed_tuning: "Managed Tuning",
@@ -45,18 +45,18 @@ export const REQUESTED_LANE_LABELS = {
 
 export const REQUESTED_LANE_DESCRIPTIONS = {
   qualification: "Review the site, task, and blockers first.",
-  preview_simulation: "Prepare a preview asset after qualification when the record supports it.",
-  deeper_evaluation: "Request a deeper technical review package for a qualified site.",
+  preview_simulation: "Prepare a preview asset once the record supports it.",
+  deeper_evaluation: "Request a deeper technical review package for one exact site.",
   managed_tuning: "Flag later scenario generation or managed tuning work.",
-  data_licensing: "Request licensed datasets or derived asset packages after qualification.",
+  data_licensing: "Request licensed datasets or derived asset packages for one exact site.",
 } as const;
 
 export const HELP_WITH_LABELS = {
-  "benchmark-packs": "Qualification",
+  "benchmark-packs": "Site Review",
   "scene-library": "Preview Simulation",
   "dataset-packs": "Data Licensing",
   "custom-capture": "Capture Request",
-  "pilot-exchange-location-brief": "Qualified Opportunity Brief",
+  "pilot-exchange-location-brief": "Site Review Brief",
   "pilot-exchange-policy-submission": "Evaluation Package",
   "pilot-exchange-data-licensing": "Managed Tuning / Licensing",
 } as const;

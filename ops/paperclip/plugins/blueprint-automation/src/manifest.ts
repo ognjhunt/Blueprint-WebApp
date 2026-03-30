@@ -52,6 +52,9 @@ const manifest: PaperclipPluginManifestV1 = {
     "issue.comments.read",
     "issue.comments.create",
     "agents.read",
+    "agents.update",
+    "agents.invoke",
+    "agents.runtime.write",
     "plugin.state.read",
     "plugin.state.write",
     "jobs.schedule",
@@ -192,6 +195,13 @@ const manifest: PaperclipPluginManifestV1 = {
       description:
         "Monitors routine outcomes, checks budget limits, and evaluates phase graduation eligibility.",
       schedule: "0 */2 * * *",
+    },
+    {
+      jobKey: JOB_KEYS.quotaCooldownEnforcer,
+      displayName: "Quota Cooldown Enforcer",
+      description:
+        "Keeps workspace agents on the healthy lane while a Claude or Codex quota cooldown is active, then restores configured defaults after expiry.",
+      schedule: "*/5 * * * *",
     },
   ],
   webhooks: [
