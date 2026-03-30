@@ -7,6 +7,10 @@
 - `ops/paperclip/programs/supply-intel-agent-program.md`
 - `ops/paperclip/programs/capturer-growth-agent-program.md`
 - `ops/paperclip/programs/city-launch-agent-program.md`
+- `ops/paperclip/programs/demand-intel-agent-program.md`
+- `ops/paperclip/programs/robot-team-growth-agent-program.md`
+- `ops/paperclip/programs/site-operator-partnership-agent-program.md`
+- `ops/paperclip/programs/city-demand-agent-program.md`
 - Paperclip issue queue and Notion Work Queue items tagged for Growth
 
 ## Trust Model

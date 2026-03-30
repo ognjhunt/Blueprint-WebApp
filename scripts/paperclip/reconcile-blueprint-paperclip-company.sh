@@ -148,6 +148,14 @@ const ROUTINE_TITLE_OVERRIDES = {
   "capturer-growth-refresh": "Capturer Growth Refresh",
   "city-launch-weekly": "City Launch Weekly",
   "city-launch-refresh": "City Launch Refresh",
+  "demand-intel-daily": "Demand Intel Daily",
+  "demand-intel-weekly": "Demand Intel Weekly",
+  "robot-team-growth-weekly": "Robot Team Growth Weekly",
+  "robot-team-growth-refresh": "Robot Team Growth Refresh",
+  "site-operator-partnership-weekly": "Site Operator Partnership Weekly",
+  "site-operator-partnership-refresh": "Site Operator Partnership Refresh",
+  "city-demand-weekly": "City Demand Weekly",
+  "city-demand-refresh": "City Demand Refresh",
 };
 
 function titleizeRoutineKey(routineKey) {
@@ -196,6 +204,10 @@ const AGENT_DEFAULT_PROJECT_KEYS = {
   "supply-intel-agent": "blueprint-executive-ops",
   "capturer-growth-agent": "blueprint-webapp",
   "city-launch-agent": "blueprint-executive-ops",
+  "demand-intel-agent": "blueprint-executive-ops",
+  "robot-team-growth-agent": "blueprint-webapp",
+  "site-operator-partnership-agent": "blueprint-executive-ops",
+  "city-demand-agent": "blueprint-executive-ops",
 };
 
 function resolveInstructionSource(agentKey) {

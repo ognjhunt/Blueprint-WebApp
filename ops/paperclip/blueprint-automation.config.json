@@ -46,7 +46,11 @@
       "growthLead": "growth-lead",
       "conversionOptimizer": "conversion-agent",
       "analytics": "analytics-agent",
-      "marketIntel": "market-intel-agent"
+      "marketIntel": "market-intel-agent",
+      "demandIntel": "demand-intel-agent",
+      "robotTeamGrowth": "robot-team-growth-agent",
+      "siteOperatorPartnership": "site-operator-partnership-agent",
+      "cityDemand": "city-demand-agent"
     }
   },
   "secrets": {

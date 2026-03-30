@@ -81,6 +81,10 @@ type GrowthDepartmentConfig = {
     conversionOptimizer: string;
     analytics: string;
     marketIntel: string;
+    demandIntel: string;
+    robotTeamGrowth: string;
+    siteOperatorPartnership: string;
+    cityDemand: string;
   };
 };
 
@@ -484,6 +488,10 @@ function normalizeConfig(rawConfig: Record<string, unknown>): BlueprintAutomatio
         conversionOptimizer: asString(growthAgents.conversionOptimizer) ?? "conversion-agent",
         analytics: asString(growthAgents.analytics) ?? "analytics-agent",
         marketIntel: asString(growthAgents.marketIntel) ?? "market-intel-agent",
+        demandIntel: asString(growthAgents.demandIntel) ?? "demand-intel-agent",
+        robotTeamGrowth: asString(growthAgents.robotTeamGrowth) ?? "robot-team-growth-agent",
+        siteOperatorPartnership: asString(growthAgents.siteOperatorPartnership) ?? "site-operator-partnership-agent",
+        cityDemand: asString(growthAgents.cityDemand) ?? "city-demand-agent",
       },
     },
     secrets: {

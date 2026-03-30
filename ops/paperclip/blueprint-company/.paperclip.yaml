@@ -323,9 +323,9 @@ agents:
     role: cto
     icon: trending-up
     capabilities: >-
-      Coordinates acquisition, conversion, and retention. Sets experiment priorities using ICE scoring. Synthesizes
-      analytics and market intelligence into growth strategy. Read skill file at ops/paperclip/skills/growth-lead.md
-      before every routine.
+      Coordinates buyer demand, capturer supply, conversion, and retention. Sets experiment priorities using ICE
+      scoring. Synthesizes analytics plus supply-side and demand-side intelligence into growth strategy. Read skill
+      file at ops/paperclip/skills/growth-lead.md before every routine.
     adapter:
       type: claude_local
       config:
@@ -480,6 +480,100 @@ agents:
             - product-marketing-context
             - analytics-tracking
             - city-launch-operations
+    budgetMonthlyCents: 2500
+  demand-intel-agent:
+    role: engineer
+    icon: radar
+    capabilities: >-
+      Studies how robot teams and adjacent technical buyers generate demand for exact-site world models and hosted
+      access. Feeds Blueprint-specific findings into robot-team-growth, site-operator-partnership, and city-demand
+      planning. Read skill file at ops/paperclip/skills/demand-intel-agent.md and steering file at
+      ops/paperclip/programs/demand-intel-agent-program.md before every routine.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: claude-sonnet-4-6
+        timeoutSec: 1800
+        dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - robot-team-demand-research
+    budgetMonthlyCents: 2000
+  robot-team-growth-agent:
+    role: engineer
+    icon: bot
+    capabilities: >-
+      Converts demand-intel findings into Blueprint's reusable robot-team demand playbook, proof-pack structure,
+      hosted-session demo motion, and internal execution queue. Read skill file at
+      ops/paperclip/skills/robot-team-growth-agent.md and steering file at
+      ops/paperclip/programs/robot-team-growth-agent-program.md before every routine.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: claude-sonnet-4-6
+        timeoutSec: 1800
+        dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - analytics-tracking
+            - robot-team-growth-operations
+    budgetMonthlyCents: 2500
+  site-operator-partnership-agent:
+    role: engineer
+    icon: handshake
+    capabilities: >-
+      Maintains Blueprint's optional site-operator lane for access, rights/privacy boundaries, and commercialization
+      planning without making it universal. Read skill file at
+      ops/paperclip/skills/site-operator-partnership-agent.md and steering file at
+      ops/paperclip/programs/site-operator-partnership-agent-program.md before every routine.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: claude-sonnet-4-6
+        timeoutSec: 1800
+        dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - site-operator-partnership-operations
+    budgetMonthlyCents: 2000
+  city-demand-agent:
+    role: engineer
+    icon: compass
+    capabilities: >-
+      Maintains city-specific buyer demand plans for Blueprint's robot-team motion using the generic playbook plus
+      demand-intel findings. Starts with Austin and San Francisco. Read skill file at
+      ops/paperclip/skills/city-demand-agent.md and steering file at
+      ops/paperclip/programs/city-demand-agent-program.md before every routine.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: claude-sonnet-4-6
+        timeoutSec: 1800
+        dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - analytics-tracking
+            - city-demand-operations
     budgetMonthlyCents: 2500
 projects:
   blueprint-executive-ops:
@@ -678,6 +772,22 @@ tasks:
     status: todo
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
+  demand-intel-agent-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
+  robot-team-growth-agent-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
+  site-operator-partnership-agent-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
+  city-demand-agent-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
   supply-intel-daily:
     status: active
     priority: medium
@@ -699,6 +809,38 @@ tasks:
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   city-launch-refresh:
+    status: active
+    priority: medium
+    projectWorkspaceKey: blueprint-executive-ops
+  demand-intel-daily:
+    status: active
+    priority: medium
+    projectWorkspaceKey: blueprint-executive-ops
+  demand-intel-weekly:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
+  robot-team-growth-weekly:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
+  robot-team-growth-refresh:
+    status: active
+    priority: medium
+    projectWorkspaceKey: blueprint-webapp
+  site-operator-partnership-weekly:
+    status: active
+    priority: medium
+    projectWorkspaceKey: blueprint-executive-ops
+  site-operator-partnership-refresh:
+    status: active
+    priority: medium
+    projectWorkspaceKey: blueprint-executive-ops
+  city-demand-weekly:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
+  city-demand-refresh:
     status: active
     priority: medium
     projectWorkspaceKey: blueprint-executive-ops
@@ -937,4 +1079,76 @@ routines:
     triggers:
       - kind: schedule
         cronExpression: 30 11 * * 4
+        timezone: America/New_York
+  demand-intel-daily:
+    agent: demand-intel-agent
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 30 7 * * 1-5
+        timezone: America/New_York
+  demand-intel-weekly:
+    agent: demand-intel-agent
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 0 8 * * 1
+        timezone: America/New_York
+  robot-team-growth-weekly:
+    agent: robot-team-growth-agent
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 30 9 * * 1
+        timezone: America/New_York
+  robot-team-growth-refresh:
+    agent: robot-team-growth-agent
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 30 9 * * 4
+        timezone: America/New_York
+  site-operator-partnership-weekly:
+    agent: site-operator-partnership-agent
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 15 12 * * 1
+        timezone: America/New_York
+  site-operator-partnership-refresh:
+    agent: site-operator-partnership-agent
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 15 12 * * 4
+        timezone: America/New_York
+  city-demand-weekly:
+    agent: city-demand-agent
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 15 13 * * 1
+        timezone: America/New_York
+  city-demand-refresh:
+    agent: city-demand-agent
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 15 13 * * 4
         timezone: America/New_York

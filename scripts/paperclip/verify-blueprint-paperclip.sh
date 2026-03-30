@@ -82,7 +82,15 @@ require_routines() {
         "Analytics Weekly",
         "Conversion Weekly",
         "Market Intel Daily",
-        "Market Intel Weekly"
+        "Market Intel Weekly",
+        "Demand Intel Daily",
+        "Demand Intel Weekly",
+        "Robot Team Growth Weekly",
+        "Robot Team Growth Refresh",
+        "Site Operator Partnership Weekly",
+        "Site Operator Partnership Refresh",
+        "City Demand Weekly",
+        "City Demand Refresh"
       ];
       const missing=required.filter((title)=>!rows.find((row)=>row.title===title && row.status==="active"));
       if(missing.length>0){

@@ -85,7 +85,7 @@ Each agent can only route to agents within its span of control:
 | **CEO** | CTO, Ops Lead, Growth Lead |
 | **CTO** | webapp-codex, webapp-claude, pipeline-codex, pipeline-claude, capture-codex, capture-claude |
 | **Ops Lead** | intake-agent, capture-qa-agent, field-ops-agent, finance-support-agent |
-| **Growth Lead** | conversion-agent, analytics-agent, market-intel-agent |
+| **Growth Lead** | conversion-agent, analytics-agent, market-intel-agent, supply-intel-agent, capturer-growth-agent, city-launch-agent, demand-intel-agent, robot-team-growth-agent, site-operator-partnership-agent, city-demand-agent |
 
 **Escalation** (upward routing) is always allowed:
 - Any agent → their lead

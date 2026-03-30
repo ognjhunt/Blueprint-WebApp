@@ -50,7 +50,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 | **Executive** | CEO | CEO, CTO | Strategy, priorities, cross-dept coordination |
 | **Engineering** | CTO | 6 agents (impl + review per repo) | Code implementation and review |
 | **Ops** | Ops Lead | 5 agents | Product operations lifecycle |
-| **Growth** | Growth Lead | 7 agents | Acquisition, capturer supply, city launch, conversion, retention, and intelligence |
+| **Growth** | Growth Lead | 11 agents | Buyer demand, capturer supply, city planning, conversion, retention, and intelligence |
 
 ---
 
@@ -386,7 +386,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Claude |
 | **Status** | New |
 
-**Purpose:** Coordinates acquisition, conversion, retention, and the capturer supply-growth stack. Sets experiment priorities using ICE scoring. Synthesizes analytics, market intelligence, supply intelligence, generic capturer growth planning, and city launch planning into growth strategy.
+**Purpose:** Coordinates buyer demand, capturer supply, conversion, retention, and city planning. Sets experiment priorities using ICE scoring. Synthesizes analytics, market intelligence, supply intelligence, capturer growth planning, city launch planning, demand intelligence, robot-team growth planning, site-operator lane planning, and city demand planning into growth strategy.
 
 **Triggers:**
 - `0 9 * * 1-5` — Daily review of overnight analytics + agent reports
@@ -400,6 +400,10 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Supply Intel research digests
 - Capturer Growth playbook updates
 - City Launch city-plan updates
+- Demand Intel research digests
+- Robot Team Growth playbook updates
+- Site Operator Partnership updates
+- City Demand city-plan updates
 - Notion Work Queue (Growth-tagged items)
 
 **Outputs:**
@@ -409,6 +413,10 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Marketplace-supply research priorities → Supply Intelligence agent
 - Generic capturer playbook priorities → Capturer Growth agent
 - City sequencing priorities → City Launch agent
+- Robot-team demand research priorities → Demand Intelligence agent
+- Generic robot-team demand priorities → Robot Team Growth agent
+- Site-operator lane priorities → Site Operator Partnership agent
+- Buyer-city sequencing priorities → City Demand agent
 - Funnel health dashboard updates → Notion
 
 **Human gates:** None (coordination role).
@@ -525,6 +533,142 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 
 **Skill file:** `ops/paperclip/skills/city-launch-agent.md`
 **Steering file:** `ops/paperclip/programs/city-launch-agent-program.md`
+
+---
+
+#### Demand Intelligence Agent (`demand-intel-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Growth |
+| **Reports to** | Growth Lead |
+| **Model** | Claude |
+| **Status** | New |
+
+**Purpose:** Researches how robotics infrastructure, autonomy, simulation/data, and world-model businesses generated buyer demand from robot teams and adjacent technical buyers. Focuses on channels, proof requirements, hosted-demo motions, procurement triggers, and city/vertical demand signals.
+
+**Triggers:**
+- `30 7 * * 1-5` — Daily robot-team demand scan (7:30am ET)
+- `0 8 * * 1` — Weekly demand synthesis (Monday 8am ET)
+- Event: Growth Lead / CEO ad-hoc request
+
+**Inputs:**
+- Public web research
+- `ops/paperclip/programs/demand-intel-agent-program.md`
+- Existing market-intel and growth context
+
+**Outputs:**
+- Buyer-motion research briefs
+- Proof-pack and channel recommendations
+- Inputs for Robot Team Growth, Site Operator Partnership, and City Demand planning
+
+**Human gates:** Pricing or contract decisions, external outreach, public traction claims, and any privacy/rights/procurement judgment.
+
+**Skill file:** `ops/paperclip/skills/demand-intel-agent.md`
+**Steering file:** `ops/paperclip/programs/demand-intel-agent-program.md`
+
+---
+
+#### Robot Team Growth Agent (`robot-team-growth-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Growth |
+| **Reports to** | Growth Lead |
+| **Model** | Claude |
+| **Status** | New |
+
+**Purpose:** Converts demand-intel research into Blueprint's reusable robot-team demand playbook. Maintains the generic ICP, messaging, proof-pack, hosted-session demo motion, and buyer funnel that later city-demand work should inherit.
+
+**Triggers:**
+- `30 9 * * 1` — Weekly playbook update (Monday 9:30am ET)
+- `30 9 * * 4` — Midweek refresh (Thursday 9:30am ET)
+- Event: Demand Intel or Growth Lead request
+
+**Inputs:**
+- Demand Intelligence briefs
+- `ops/paperclip/programs/robot-team-growth-agent-program.md`
+- `ops/paperclip/playbooks/robot-team-demand-playbook.md`
+- Analytics and ops feedback
+
+**Outputs:**
+- Generic robot-team demand playbook
+- Proof-pack and hosted-session guidance
+- Execution queue for Conversion, Analytics, Intake, Ops, Finance Support, and City Demand
+
+**Human gates:** Spend, discounts, pricing, contracts, outreach sends, and claims beyond current product truth.
+
+**Skill file:** `ops/paperclip/skills/robot-team-growth-agent.md`
+**Steering file:** `ops/paperclip/programs/robot-team-growth-agent-program.md`
+
+---
+
+#### Site Operator Partnership Agent (`site-operator-partnership-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Growth |
+| **Reports to** | Growth Lead |
+| **Model** | Claude |
+| **Status** | New |
+
+**Purpose:** Maintains Blueprint's optional third lane for site operators. Defines when site-operator demand matters, what access/privacy/rights/commercialization conversations are legitimate, and how this lane stays separate from the core robot-team buyer motion.
+
+**Triggers:**
+- `15 12 * * 1` — Weekly operator-lane review (Monday 12:15pm ET)
+- `15 12 * * 4` — Midweek refresh (Thursday 12:15pm ET)
+- Event: Growth Lead / Ops Lead / City Demand request
+
+**Inputs:**
+- Demand Intelligence output
+- `ops/paperclip/programs/site-operator-partnership-agent-program.md`
+- `ops/paperclip/playbooks/site-operator-access-and-commercialization-playbook.md`
+- City Demand, Intake, Ops, and Finance feedback
+
+**Outputs:**
+- Optional site-operator playbook
+- Internal conversation frameworks for access and commercialization
+- Execution queue for Ops, Intake, Finance Support, and City Demand
+
+**Human gates:** Permission judgments, legal/privacy/rights interpretation, pricing, contracts, revenue-share commitments, and external outreach.
+
+**Skill file:** `ops/paperclip/skills/site-operator-partnership-agent.md`
+**Steering file:** `ops/paperclip/programs/site-operator-partnership-agent-program.md`
+
+---
+
+#### City Demand Agent (`city-demand-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Growth |
+| **Reports to** | Growth Lead |
+| **Model** | Claude |
+| **Status** | New |
+
+**Purpose:** Adapts Blueprint's generic robot-team demand playbook to specific cities. Starts with Austin, TX and San Francisco, CA. Maps likely buyer clusters, facility-type demand, optional operator-lane opportunities, and city readiness.
+
+**Triggers:**
+- `15 13 * * 1` — Weekly city demand planning (Monday 1:15pm ET)
+- `15 13 * * 4` — Midweek city refresh (Thursday 1:15pm ET)
+- Event: Growth Lead / Ops Lead request
+
+**Inputs:**
+- Demand Intelligence output
+- Robot Team Growth playbook updates
+- Site Operator Partnership updates
+- `ops/paperclip/programs/city-demand-agent-program.md`
+- Austin and San Francisco city-demand playbooks
+
+**Outputs:**
+- City-specific demand plans
+- Weekly city scorecards and readiness status
+- Cross-agent action queues for web, analytics, intake, ops, finance, and site-operator follow-up
+
+**Human gates:** Public posting, outreach, city-live claims, guaranteed demand or partnership claims, pricing or contract commitments, and local legal/privacy/rights/commercialization interpretation.
+
+**Skill file:** `ops/paperclip/skills/city-demand-agent.md`
+**Steering file:** `ops/paperclip/programs/city-demand-agent-program.md`
 
 ---
 
@@ -811,6 +955,7 @@ while True:
 |-------|----------------------|-------------|
 | `conversion-agent` | CTAs, copy, onboarding flows, page layout | Funnel conversion rates (24-72hr windows) |
 | `market-intel-agent` | Research focus areas, source quality | Signal relevance + actionability (human-judged initially) |
+| `demand-intel-agent` | Buyer research focus areas, source quality | Signal relevance + Blueprint buyer-fit actionability |
 
 ### program.md Steering File Format
 
@@ -886,7 +1031,7 @@ BlueprintCapture          BlueprintCapturePipeline       Blueprint-WebApp
 
 | Repo | Agents with access |
 |------|--------------------|
-| Blueprint-WebApp | webapp-codex, webapp-claude, conversion-agent, analytics-agent |
+| Blueprint-WebApp | webapp-codex, webapp-claude, conversion-agent, analytics-agent, demand-intel-agent, robot-team-growth-agent, site-operator-partnership-agent, city-demand-agent |
 | BlueprintCapture | capture-codex, capture-claude, field-ops-agent |
 | BlueprintCapturePipeline | pipeline-codex, pipeline-claude, capture-qa-agent |
 | All repos (read) | CEO, CTO, Ops Lead, Growth Lead |
