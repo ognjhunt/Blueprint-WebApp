@@ -59,6 +59,7 @@ export const STATE_KEYS = {
   routineHealth: "routine-health",
   budgetTracking: "budget-tracking",
   phaseTracking: "phase-tracking",
+  quotaFallbackRetries: "quota-fallback-retries",
 } as const;
 export const DEFAULT_COMPANY_NAME = "Blueprint Autonomous Operations";
 export const DEFAULT_REPO_CATALOG = [

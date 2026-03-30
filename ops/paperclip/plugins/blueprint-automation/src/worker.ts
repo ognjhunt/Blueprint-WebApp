@@ -46,9 +46,20 @@ import {
 } from "./notion.js";
 import { buildSlackToolHandler, postSlackDigest } from "./slack-notify.js";
 import { buildWebSearchToolHandler } from "./web-search.js";
+import {
+  buildCodexFallbackAdapterConfig,
+  buildQuotaFallbackRetryRecord,
+  isQuotaOrRateLimitFailure,
+  type QuotaFallbackRetryState,
+} from "./quota-fallback.js";
 
 const execFileAsync = promisify(execFile);
 const GIT_BIN = process.env.BLUEPRINT_PAPERCLIP_GIT_BIN || "/usr/bin/git";
+const PAPERCLIP_API_URL = process.env.PAPERCLIP_API_URL || "http://127.0.0.1:3101";
+const CODEX_FALLBACK_MODEL =
+  process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL || "gpt-5.4";
+const CODEX_FALLBACK_REASONING_EFFORT =
+  process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT || "high";
 const ENTITY_TYPES = {
   sourceMapping: "source-mapping",
 } as const;
@@ -111,6 +122,14 @@ type BlueprintAutomationConfig = {
   opsDepartment?: OpsDepartmentConfig;
   growthDepartment?: GrowthDepartmentConfig;
   secrets?: SecretRefsConfig;
+};
+
+type AgentRunFailurePayload = {
+  agentId: string | null;
+  runId: string | null;
+  issueId: string | null;
+  taskKey: string | null;
+  error: string | null;
 };
 
 type SourceMappingData = {
@@ -486,6 +505,42 @@ const DEMAND_INTEL_CONFIDENCE_LEVELS = [
 
 function asBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function parseAgentRunFailurePayload(value: unknown): AgentRunFailurePayload {
+  const payload = asRecord(value) ?? {};
+  return {
+    agentId: asString(payload.agentId) ?? null,
+    runId: asString(payload.runId) ?? null,
+    issueId: asString(payload.issueId) ?? null,
+    taskKey: asString(payload.taskKey) ?? null,
+    error: asString(payload.error) ?? null,
+  };
+}
+
+async function fetchPaperclipJson<T>(
+  ctx: PluginContext,
+  resourcePath: string,
+  init: RequestInit = {},
+): Promise<T> {
+  const response = await ctx.http.fetch(`${PAPERCLIP_API_URL}${resourcePath}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(init.headers ?? {}),
+    },
+    ...init,
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`${init.method ?? "GET"} ${resourcePath} failed: ${response.status} ${text}`);
+  }
+  return (text.length > 0 ? JSON.parse(text) : null) as T;
 }
 
 function normalizeConfig(rawConfig: Record<string, unknown>): BlueprintAutomationConfig {
@@ -962,6 +1017,176 @@ async function sendNotification(
       kind: "notification-error",
       title: "Blueprint outbound notification failed",
       detail: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+async function handleAgentRunFailureQuotaFallback(
+  ctx: PluginContext,
+  event: { companyId: string; payload: unknown },
+) {
+  const payload = parseAgentRunFailurePayload(event.payload);
+  if (!payload.agentId || !payload.runId || !payload.error) {
+    return;
+  }
+  if (!isQuotaOrRateLimitFailure(payload.error)) {
+    return;
+  }
+
+  const existingState =
+    await readState<QuotaFallbackRetryState>(ctx, event.companyId, STATE_KEYS.quotaFallbackRetries) ?? {};
+  if (existingState[payload.runId]) {
+    return;
+  }
+
+  const markAttempt = async (record: ReturnType<typeof buildQuotaFallbackRetryRecord>) => {
+    const nextState = {
+      ...existingState,
+      [payload.runId as string]: record,
+    };
+    await writeState(ctx, event.companyId, STATE_KEYS.quotaFallbackRetries, nextState);
+  };
+
+  const agent = await ctx.agents.get(payload.agentId, event.companyId);
+  if (!agent) {
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "skipped",
+        agentId: payload.agentId,
+        issueId: payload.issueId,
+        taskKey: payload.taskKey,
+        reason: "quota_fallback_skipped",
+        note: "Agent not found.",
+      }),
+    );
+    return;
+  }
+
+  if (agent.adapterType !== "claude_local") {
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "skipped",
+        agentId: agent.id,
+        issueId: payload.issueId,
+        taskKey: payload.taskKey,
+        reason: "quota_fallback_skipped",
+        note: `Agent adapter is ${agent.adapterType}, not claude_local.`,
+      }),
+    );
+    return;
+  }
+
+  if (!payload.issueId && !payload.taskKey) {
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "skipped",
+        agentId: agent.id,
+        issueId: payload.issueId,
+        taskKey: payload.taskKey,
+        reason: "quota_fallback_skipped",
+        note: "No issueId or taskKey was present on the failed run payload.",
+      }),
+    );
+    return;
+  }
+
+  const fallbackAdapterConfig = buildCodexFallbackAdapterConfig(
+    asRecord(agent.adapterConfig),
+    {
+      model: CODEX_FALLBACK_MODEL,
+      modelReasoningEffort: CODEX_FALLBACK_REASONING_EFFORT,
+    },
+  );
+
+  try {
+    await fetchPaperclipJson(
+      ctx,
+      `/api/agents/${agent.id}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          adapterType: "codex_local",
+          replaceAdapterConfig: true,
+          adapterConfig: fallbackAdapterConfig,
+        }),
+      },
+    );
+    await fetchPaperclipJson(ctx, `/api/agents/${agent.id}/runtime-state/reset-session`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+
+    const wakePayload: Record<string, unknown> = payload.issueId
+      ? { issueId: payload.issueId, retryOfRunId: payload.runId }
+      : { taskKey: payload.taskKey, retryOfRunId: payload.runId };
+
+    const wakeResult = await fetchPaperclipJson<{ id?: string; status?: string }>(
+      ctx,
+      `/api/agents/${agent.id}/wakeup`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          source: "automation",
+          triggerDetail: "system",
+          reason: "quota_fallback_to_codex",
+          payload: wakePayload,
+          idempotencyKey: `quota-fallback:${payload.runId}`,
+          forceFreshSession: true,
+        }),
+      },
+    );
+
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "retried",
+        agentId: agent.id,
+        issueId: payload.issueId,
+        taskKey: payload.taskKey,
+        reason: "quota_fallback_to_codex",
+        fallbackAdapterType: "codex_local",
+        wakeupRunId: asString(wakeResult?.id) ?? null,
+        note: payload.error,
+      }),
+    );
+
+    await appendRecentEvent(ctx, event.companyId, {
+      kind: "quota-fallback-retry",
+      title: `Retried ${agent.name} on Codex after quota failure`,
+      issueId: payload.issueId ?? undefined,
+      detail: payload.issueId
+        ? `Issue ${payload.issueId} retried from failed run ${payload.runId}.`
+        : `Task ${payload.taskKey ?? "unknown"} retried from failed run ${payload.runId}.`,
+    });
+
+    if (payload.issueId) {
+      await ctx.issues.createComment(
+        payload.issueId,
+        `Detected a Claude quota/rate-limit failure on run ${payload.runId}. Switched ${agent.name} to Codex and requeued the work once.`,
+        event.companyId,
+      ).catch(() => undefined);
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "failed",
+        agentId: agent.id,
+        issueId: payload.issueId,
+        taskKey: payload.taskKey,
+        reason: "quota_fallback_failed",
+        note: errorMessage,
+      }),
+    );
+    await appendRecentEvent(ctx, event.companyId, {
+      kind: "quota-fallback-error",
+      title: `Codex fallback failed for ${agent.name}`,
+      issueId: payload.issueId ?? undefined,
+      detail: errorMessage,
     });
   }
 }
@@ -3526,6 +3751,20 @@ const plugin: PaperclipPlugin = definePlugin({
     await registerDataHandlers(ctx);
     await registerActionHandlers(ctx);
     await registerToolHandlers(ctx);
+    ctx.events.on("agent.run.failed", async (event) => {
+      try {
+        await handleAgentRunFailureQuotaFallback(ctx, event);
+      } catch (error) {
+        ctx.logger.warn("agent.run.failed quota fallback handler failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            runId: asString(asRecord(event.payload)?.runId) ?? null,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+    });
     ctx.jobs.register(JOB_KEYS.repoScan, async (job) => {
       await runRepoScanJob(ctx, job);
     });

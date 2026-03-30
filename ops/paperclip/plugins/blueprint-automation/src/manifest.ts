@@ -43,6 +43,7 @@ const manifest: PaperclipPluginManifestV1 = {
   categories: ["automation", "connector", "ui", "workspace"],
   capabilities: [
     "companies.read",
+    "events.subscribe",
     "projects.read",
     "project.workspaces.read",
     "issues.read",
