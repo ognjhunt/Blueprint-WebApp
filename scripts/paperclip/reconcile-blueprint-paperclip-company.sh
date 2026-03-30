@@ -566,7 +566,34 @@ const canonicalAgents = Object.fromEntries(
 
 async function syncAgentInstructions(agent, sourcePath) {
   if (!agent || !sourcePath) return;
-  const content = await fs.readFile(sourcePath, "utf8");
+  const sourceDir = path.dirname(sourcePath);
+  const sourceBase = path.basename(sourcePath);
+  const bundleFiles = [];
+
+  if (sourceBase === "AGENTS.md") {
+    const entries = await fs.readdir(sourceDir, { withFileTypes: true });
+    const markdownFiles = entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
+      .map((entry) => entry.name)
+      .sort((a, b) => {
+        if (a === "AGENTS.md") return -1;
+        if (b === "AGENTS.md") return 1;
+        return a.localeCompare(b);
+      });
+
+    for (const filename of markdownFiles) {
+      bundleFiles.push({
+        path: filename,
+        content: await fs.readFile(path.join(sourceDir, filename), "utf8"),
+      });
+    }
+  } else {
+    bundleFiles.push({
+      path: "AGENTS.md",
+      content: await fs.readFile(sourcePath, "utf8"),
+    });
+  }
+
   await fetchJson(`/api/agents/${agent.id}/instructions-bundle`, {
     method: "PATCH",
     body: JSON.stringify({
@@ -575,14 +602,17 @@ async function syncAgentInstructions(agent, sourcePath) {
       clearLegacyPromptTemplate: true,
     }),
   });
-  await fetchJson(`/api/agents/${agent.id}/instructions-bundle/file`, {
-    method: "PUT",
-    body: JSON.stringify({
-      path: "AGENTS.md",
-      content,
-      clearLegacyPromptTemplate: true,
-    }),
-  });
+
+  for (const file of bundleFiles) {
+    await fetchJson(`/api/agents/${agent.id}/instructions-bundle/file`, {
+      method: "PUT",
+      body: JSON.stringify({
+        path: file.path,
+        content: file.content,
+        clearLegacyPromptTemplate: true,
+      }),
+    });
+  }
 }
 
 const instructionSourceEntries = await Promise.all(
