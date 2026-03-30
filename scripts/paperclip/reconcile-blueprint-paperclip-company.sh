@@ -32,13 +32,13 @@ node --input-type=module <<'NODE'
 import fs from "node:fs/promises";
 import path from "node:path";
 import { createRequire } from "node:module";
-
-const require = createRequire(import.meta.url);
-const yaml = require("js-yaml");
+import { pathToFileURL } from "node:url";
 
 const paperclipApiUrl = process.env.PAPERCLIP_API_URL;
 const companyName = process.env.COMPANY_NAME;
 const repoRoot = process.env.REPO_ROOT;
+const require = createRequire(pathToFileURL(path.join(repoRoot, "package.json")).href);
+const yaml = require("js-yaml");
 const requestedClaudeLaneMode = normalizeClaudeLaneMode(
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE,
 );

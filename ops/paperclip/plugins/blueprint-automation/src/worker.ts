@@ -47,9 +47,11 @@ import {
 import { buildSlackToolHandler, postSlackDigest } from "./slack-notify.js";
 import { buildWebSearchToolHandler } from "./web-search.js";
 import {
+  buildClaudeFallbackAdapterConfig,
   buildCodexFallbackAdapterConfig,
   buildQuotaFallbackRetryRecord,
   isQuotaOrRateLimitFailure,
+  type LocalQuotaFallbackAdapterType,
   type QuotaFallbackRetryState,
 } from "./quota-fallback.js";
 
@@ -128,6 +130,7 @@ type AgentRunFailurePayload = {
   agentId: string | null;
   runId: string | null;
   issueId: string | null;
+  taskId: string | null;
   taskKey: string | null;
   error: string | null;
 };
@@ -519,9 +522,38 @@ function parseAgentRunFailurePayload(value: unknown): AgentRunFailurePayload {
     agentId: asString(payload.agentId) ?? null,
     runId: asString(payload.runId) ?? null,
     issueId: asString(payload.issueId) ?? null,
+    taskId: asString(payload.taskId) ?? null,
     taskKey: asString(payload.taskKey) ?? null,
     error: asString(payload.error) ?? null,
   };
+}
+
+function buildQuotaFallbackDescriptor(
+  adapterType: string,
+  adapterConfig: Record<string, unknown> | null | undefined,
+) {
+  if (adapterType === "claude_local") {
+    return {
+      adapterType: "codex_local" as LocalQuotaFallbackAdapterType,
+      reason: "quota_fallback_to_codex",
+      adapterConfig: buildCodexFallbackAdapterConfig(asRecord(adapterConfig), {
+        model: CODEX_FALLBACK_MODEL,
+        modelReasoningEffort: CODEX_FALLBACK_REASONING_EFFORT,
+      }),
+    };
+  }
+
+  if (adapterType === "codex_local") {
+    return {
+      adapterType: "claude_local" as LocalQuotaFallbackAdapterType,
+      reason: "quota_fallback_to_claude",
+      adapterConfig: buildClaudeFallbackAdapterConfig(asRecord(adapterConfig), {
+        model: "claude-sonnet-4-6",
+      }),
+    };
+  }
+
+  return null;
 }
 
 async function fetchPaperclipJson<T>(
@@ -1063,43 +1095,27 @@ async function handleAgentRunFailureQuotaFallback(
     return;
   }
 
-  if (agent.adapterType !== "claude_local") {
+  const fallback = buildQuotaFallbackDescriptor(agent.adapterType, asRecord(agent.adapterConfig));
+  if (!fallback) {
     await markAttempt(
       buildQuotaFallbackRetryRecord({
         attemptedAt: nowIso(),
         status: "skipped",
         agentId: agent.id,
         issueId: payload.issueId,
-        taskKey: payload.taskKey,
+        taskKey: payload.taskKey ?? payload.taskId,
         reason: "quota_fallback_skipped",
-        note: `Agent adapter is ${agent.adapterType}, not claude_local.`,
+        note: `Agent adapter is ${agent.adapterType}, which has no configured quota fallback.`,
       }),
     );
     return;
   }
 
-  if (!payload.issueId && !payload.taskKey) {
-    await markAttempt(
-      buildQuotaFallbackRetryRecord({
-        attemptedAt: nowIso(),
-        status: "skipped",
-        agentId: agent.id,
-        issueId: payload.issueId,
-        taskKey: payload.taskKey,
-        reason: "quota_fallback_skipped",
-        note: "No issueId or taskKey was present on the failed run payload.",
-      }),
-    );
-    return;
-  }
-
-  const fallbackAdapterConfig = buildCodexFallbackAdapterConfig(
-    asRecord(agent.adapterConfig),
-    {
-      model: CODEX_FALLBACK_MODEL,
-      modelReasoningEffort: CODEX_FALLBACK_REASONING_EFFORT,
-    },
-  );
+  const retryTaskKey =
+    payload.taskKey ??
+    payload.taskId ??
+    payload.issueId ??
+    `quota-fallback:${agent.id}:${payload.runId}`;
 
   try {
     await fetchPaperclipJson(
@@ -1108,20 +1124,25 @@ async function handleAgentRunFailureQuotaFallback(
       {
         method: "PATCH",
         body: JSON.stringify({
-          adapterType: "codex_local",
+          adapterType: fallback.adapterType,
           replaceAdapterConfig: true,
-          adapterConfig: fallbackAdapterConfig,
+          adapterConfig: fallback.adapterConfig,
         }),
       },
     );
     await fetchPaperclipJson(ctx, `/api/agents/${agent.id}/runtime-state/reset-session`, {
       method: "POST",
-      body: JSON.stringify({}),
+      body: JSON.stringify({
+        taskKey: payload.taskKey ?? payload.taskId ?? payload.issueId ?? null,
+      }),
     });
 
-    const wakePayload: Record<string, unknown> = payload.issueId
-      ? { issueId: payload.issueId, retryOfRunId: payload.runId }
-      : { taskKey: payload.taskKey, retryOfRunId: payload.runId };
+    const wakePayload: Record<string, unknown> = {
+      retryOfRunId: payload.runId,
+      taskKey: retryTaskKey,
+    };
+    if (payload.issueId) wakePayload.issueId = payload.issueId;
+    if (payload.taskId) wakePayload.taskId = payload.taskId;
 
     const wakeResult = await fetchPaperclipJson<{ id?: string; status?: string }>(
       ctx,
@@ -1131,7 +1152,7 @@ async function handleAgentRunFailureQuotaFallback(
         body: JSON.stringify({
           source: "automation",
           triggerDetail: "system",
-          reason: "quota_fallback_to_codex",
+          reason: fallback.reason,
           payload: wakePayload,
           idempotencyKey: `quota-fallback:${payload.runId}`,
           forceFreshSession: true,
@@ -1145,9 +1166,9 @@ async function handleAgentRunFailureQuotaFallback(
         status: "retried",
         agentId: agent.id,
         issueId: payload.issueId,
-        taskKey: payload.taskKey,
-        reason: "quota_fallback_to_codex",
-        fallbackAdapterType: "codex_local",
+        taskKey: retryTaskKey,
+        reason: fallback.reason,
+        fallbackAdapterType: fallback.adapterType,
         wakeupRunId: asString(wakeResult?.id) ?? null,
         note: payload.error,
       }),
@@ -1155,17 +1176,17 @@ async function handleAgentRunFailureQuotaFallback(
 
     await appendRecentEvent(ctx, event.companyId, {
       kind: "quota-fallback-retry",
-      title: `Retried ${agent.name} on Codex after quota failure`,
+      title: `Retried ${agent.name} on ${fallback.adapterType === "codex_local" ? "Codex" : "Claude"} after quota failure`,
       issueId: payload.issueId ?? undefined,
       detail: payload.issueId
         ? `Issue ${payload.issueId} retried from failed run ${payload.runId}.`
-        : `Task ${payload.taskKey ?? "unknown"} retried from failed run ${payload.runId}.`,
+        : `Task ${retryTaskKey} retried from failed run ${payload.runId}.`,
     });
 
     if (payload.issueId) {
       await ctx.issues.createComment(
         payload.issueId,
-        `Detected a Claude quota/rate-limit failure on run ${payload.runId}. Switched ${agent.name} to Codex and requeued the work once.`,
+        `Detected a ${agent.adapterType === "claude_local" ? "Claude" : "Codex"} quota/rate-limit failure on run ${payload.runId}. Switched ${agent.name} to ${fallback.adapterType === "codex_local" ? "Codex" : "Claude"} and requeued the work once.`,
         event.companyId,
       ).catch(() => undefined);
     }
@@ -1177,14 +1198,14 @@ async function handleAgentRunFailureQuotaFallback(
         status: "failed",
         agentId: agent.id,
         issueId: payload.issueId,
-        taskKey: payload.taskKey,
+        taskKey: retryTaskKey,
         reason: "quota_fallback_failed",
         note: errorMessage,
       }),
     );
     await appendRecentEvent(ctx, event.companyId, {
       kind: "quota-fallback-error",
-      title: `Codex fallback failed for ${agent.name}`,
+      title: `${fallback.adapterType === "codex_local" ? "Codex" : "Claude"} fallback failed for ${agent.name}`,
       issueId: payload.issueId ?? undefined,
       detail: errorMessage,
     });

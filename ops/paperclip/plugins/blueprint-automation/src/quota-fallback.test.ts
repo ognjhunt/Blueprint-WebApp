@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildClaudeFallbackAdapterConfig,
   buildCodexFallbackAdapterConfig,
   buildQuotaFallbackRetryRecord,
   isQuotaOrRateLimitFailure,
@@ -30,6 +31,23 @@ describe("quota fallback helpers", () => {
       model: "gpt-5.4",
       modelReasoningEffort: "high",
       dangerouslyBypassApprovalsAndSandbox: true,
+    });
+  });
+
+  it("builds a claude adapter config from a codex config", () => {
+    expect(
+      buildClaudeFallbackAdapterConfig({
+        cwd: "/tmp/project",
+        model: "gpt-5.4",
+        modelReasoningEffort: "high",
+        dangerouslyBypassApprovalsAndSandbox: true,
+        timeoutSec: 1800,
+      }),
+    ).toEqual({
+      cwd: "/tmp/project",
+      timeoutSec: 1800,
+      model: "claude-sonnet-4-6",
+      dangerouslySkipPermissions: true,
     });
   });
 

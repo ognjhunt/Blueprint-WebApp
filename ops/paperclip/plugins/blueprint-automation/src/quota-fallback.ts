@@ -12,6 +12,8 @@ export type QuotaFallbackRetryRecord = {
 
 export type QuotaFallbackRetryState = Record<string, QuotaFallbackRetryRecord>;
 
+export type LocalQuotaFallbackAdapterType = "claude_local" | "codex_local";
+
 const QUOTA_OR_RATE_LIMIT_RE =
   /(?:resource_exhausted|quota|rate[-\s]?limit|too many requests|\b429\b|billing details|you['’]ve hit your limit|hit your limit|limit[^.\n]*reset)/i;
 
@@ -37,6 +39,24 @@ export function buildCodexFallbackAdapterConfig(
     model: options?.model ?? "gpt-5.4",
     modelReasoningEffort: options?.modelReasoningEffort ?? "high",
     dangerouslyBypassApprovalsAndSandbox: true,
+  };
+}
+
+export function buildClaudeFallbackAdapterConfig(
+  adapterConfig: Record<string, unknown> | null | undefined,
+  options?: {
+    model?: string;
+  },
+): Record<string, unknown> {
+  const next = { ...(adapterConfig ?? {}) };
+  delete next.dangerouslyBypassApprovalsAndSandbox;
+  delete next.model;
+  delete next.modelReasoningEffort;
+
+  return {
+    ...next,
+    model: options?.model ?? "claude-sonnet-4-6",
+    dangerouslySkipPermissions: true,
   };
 }
 
