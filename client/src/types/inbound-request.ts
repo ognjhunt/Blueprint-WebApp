@@ -6,6 +6,11 @@ import {
   OPPORTUNITY_STATE_LABELS as SHARED_OPPORTUNITY_STATE_LABELS,
   REQUESTED_LANE_LABELS as SHARED_REQUESTED_LANE_LABELS,
 } from "@/lib/requestTaxonomy";
+import type {
+  BuyerChannelSource,
+  BuyerChannelSourceCaptureMode,
+} from "@/lib/demandAttribution";
+import type { DemandCityKey } from "@/lib/cityDemandMessaging";
 
 // Budget bucket options
 export type BudgetBucket =
@@ -16,6 +21,11 @@ export type BudgetBucket =
   | "Undecided/Unsure";
 
 export type BuyerType = "site_operator" | "robot_team";
+
+export type ProofPathPreference =
+  | "exact_site_required"
+  | "adjacent_site_acceptable"
+  | "need_guidance";
 
 export type RequestedLane =
   | "qualification"
@@ -68,6 +78,10 @@ export interface UTMParams {
 export interface RequestContext {
   sourcePageUrl: string;
   referrer?: string | null;
+  demandCity?: DemandCityKey | null;
+  buyerChannelSource?: BuyerChannelSource | null;
+  buyerChannelSourceCaptureMode?: BuyerChannelSourceCaptureMode | null;
+  buyerChannelSourceRaw?: string | null;
   utm: UTMParams;
   userAgent?: string | null;
   timezoneOffset?: number | null;
@@ -89,6 +103,10 @@ export interface InboundRequestPayload {
   siteName?: string;
   siteLocation?: string;
   taskStatement?: string;
+  targetSiteType?: string;
+  proofPathPreference?: ProofPathPreference;
+  existingStackReviewWorkflow?: string;
+  humanGateTopics?: string;
   workflowContext?: string;
   operatingConstraints?: string;
   privacySecurityConstraints?: string;
@@ -195,6 +213,29 @@ export interface BuyerTrustScore {
   reasons: string[];
 }
 
+export interface ProofPathMilestones {
+  exact_site_requested_at?: string | null;
+  qualified_inbound_at?: string | null;
+  proof_pack_delivered_at?: string | null;
+  proof_pack_reviewed_at?: string | null;
+  hosted_review_ready_at?: string | null;
+  hosted_review_started_at?: string | null;
+  hosted_review_follow_up_at?: string | null;
+  artifact_handoff_delivered_at?: string | null;
+  artifact_handoff_accepted_at?: string | null;
+  human_commercial_handoff_at?: string | null;
+}
+
+export type ProofPathMilestoneKey =
+  | "proof_pack_delivered"
+  | "proof_pack_reviewed"
+  | "hosted_review_ready"
+  | "hosted_review_started"
+  | "hosted_review_follow_up"
+  | "artifact_handoff_delivered"
+  | "artifact_handoff_accepted"
+  | "human_commercial_handoff";
+
 export interface RobotCapabilityEnvelope {
   embodiment_type?: string | null;
   minimum_path_width_m?: number | null;
@@ -266,6 +307,7 @@ export interface OpsSummary {
   quote_status?: RequestQuoteStatus;
   next_step?: string | null;
   last_buyer_ready_at?: string | null;
+  proof_path?: ProofPathMilestones | null;
 }
 
 export interface DeploymentReadinessSummary {
@@ -511,6 +553,10 @@ export interface InboundRequestDetail extends InboundRequestListItem {
   context: {
     sourcePageUrl: string;
     referrer?: string | null;
+    demandCity?: DemandCityKey | null;
+    buyerChannelSource?: BuyerChannelSource | null;
+    buyerChannelSourceCaptureMode?: BuyerChannelSourceCaptureMode | null;
+    buyerChannelSourceRaw?: string | null;
     utm: UTMParams;
   };
   enrichment: {
@@ -530,6 +576,10 @@ export interface InboundRequestDetail extends InboundRequestListItem {
   pipeline?: PipelineAttachment;
   derived_assets?: DerivedAssetsAttachment;
   request: InboundRequestListItem["request"] & {
+    targetSiteType?: string | null;
+    proofPathPreference?: ProofPathPreference | null;
+    existingStackReviewWorkflow?: string | null;
+    humanGateTopics?: string | null;
     workflowContext?: string | null;
     operatingConstraints?: string | null;
     privacySecurityConstraints?: string | null;
@@ -580,6 +630,8 @@ export interface UpdateRequestOpsPayload {
   recapture_reason?: string | null;
   quote_status?: RequestQuoteStatus;
   next_step?: string | null;
+  proof_path_stage?: ProofPathMilestoneKey | null;
+  proof_path_stage_action?: "mark" | "clear";
   note?: string;
 }
 
@@ -601,6 +653,12 @@ export const REQUEST_PRIORITY_LABELS: Record<RequestPriority, string> = {
   low: "Low",
   normal: "Normal",
   high: "High",
+};
+
+export const PROOF_PATH_PREFERENCE_LABELS: Record<ProofPathPreference, string> = {
+  exact_site_required: "Exact-site proof required",
+  adjacent_site_acceptable: "Adjacent-site proof is acceptable",
+  need_guidance: "Need guidance on the proof path",
 };
 
 export const REQUEST_RIGHTS_STATUS_LABELS: Record<RequestRightsStatus, string> = {
@@ -631,6 +689,19 @@ export const REQUEST_QUOTE_STATUS_LABELS: Record<RequestQuoteStatus, string> = {
   buyer_ready: "Buyer Ready",
   quoted: "Quoted",
   paid: "Paid",
+};
+
+export const PROOF_PATH_MILESTONE_LABELS: Record<keyof ProofPathMilestones, string> = {
+  exact_site_requested_at: "Exact-site request",
+  qualified_inbound_at: "Qualified inbound",
+  proof_pack_delivered_at: "Proof pack delivered",
+  proof_pack_reviewed_at: "Proof pack reviewed",
+  hosted_review_ready_at: "Hosted review ready",
+  hosted_review_started_at: "Hosted review started",
+  hosted_review_follow_up_at: "Hosted review follow-up",
+  artifact_handoff_delivered_at: "Artifact handoff delivered",
+  artifact_handoff_accepted_at: "Artifact handoff accepted",
+  human_commercial_handoff_at: "Human commercial handoff",
 };
 
 // Help with labels for UI

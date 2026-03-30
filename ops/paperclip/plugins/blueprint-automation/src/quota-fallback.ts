@@ -36,7 +36,7 @@ export function buildCodexFallbackAdapterConfig(
 
   return {
     ...next,
-    model: options?.model ?? "gpt-5.4",
+    model: options?.model ?? "gpt-5.4-mini",
     modelReasoningEffort: options?.modelReasoningEffort ?? "high",
     dangerouslyBypassApprovalsAndSandbox: true,
   };

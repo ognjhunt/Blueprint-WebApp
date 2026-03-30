@@ -21,6 +21,26 @@ function normalizeTimestamp(value: unknown) {
   return timestamp.toDate?.()?.toISOString?.() || null;
 }
 
+function normalizeProofPathMilestones(value: unknown) {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const milestone = value as Record<string, unknown>;
+  return {
+    exact_site_requested_at: normalizeTimestamp(milestone.exact_site_requested_at),
+    qualified_inbound_at: normalizeTimestamp(milestone.qualified_inbound_at),
+    proof_pack_delivered_at: normalizeTimestamp(milestone.proof_pack_delivered_at),
+    proof_pack_reviewed_at: normalizeTimestamp(milestone.proof_pack_reviewed_at),
+    hosted_review_ready_at: normalizeTimestamp(milestone.hosted_review_ready_at),
+    hosted_review_started_at: normalizeTimestamp(milestone.hosted_review_started_at),
+    hosted_review_follow_up_at: normalizeTimestamp(milestone.hosted_review_follow_up_at),
+    artifact_handoff_delivered_at: normalizeTimestamp(milestone.artifact_handoff_delivered_at),
+    artifact_handoff_accepted_at: normalizeTimestamp(milestone.artifact_handoff_accepted_at),
+    human_commercial_handoff_at: normalizeTimestamp(milestone.human_commercial_handoff_at),
+  };
+}
+
 function currentAccessToken(req: Request) {
   const cookieToken = parseCookies(req.headers.cookie)[getRequestReviewCookieName()];
   const queryToken = typeof req.query.access === "string" ? req.query.access.trim() : "";
@@ -102,6 +122,17 @@ router.get("/:requestId", async (req: Request, res: Response) => {
         quote_status: decrypted.ops?.quote_status || "not_started",
         next_step: decrypted.ops?.next_step || null,
         last_buyer_ready_at: normalizeTimestamp(decrypted.ops?.last_buyer_ready_at),
+        proof_path: normalizeProofPathMilestones(decrypted.ops?.proof_path),
+      },
+      context: {
+        sourcePageUrl: decrypted.context.sourcePageUrl,
+        referrer: decrypted.context.referrer || null,
+        demandCity: decrypted.context.demandCity || null,
+        buyerChannelSource: decrypted.context.buyerChannelSource || null,
+        buyerChannelSourceCaptureMode:
+          decrypted.context.buyerChannelSourceCaptureMode || null,
+        buyerChannelSourceRaw: decrypted.context.buyerChannelSourceRaw || null,
+        utm: decrypted.context.utm,
       },
     });
   } catch {

@@ -22,6 +22,7 @@ import type {
   DeploymentReadinessSummary,
   InboundRequest,
   InboundRequestStored,
+  ProofPathMilestones,
   RequestStatus,
   InboundRequestListItem,
   UpdateRequestStatusPayload,
@@ -33,6 +34,7 @@ import type {
   RequestedLane,
   BuyerType,
   UpdateRequestOpsPayload,
+  ProofPathMilestoneKey,
 } from "../types/inbound-request";
 import { parseGsUri, sceneDashboardSchema } from "../utils/pipeline-dashboard";
 import { hasAnyRole } from "../utils/access-control";
@@ -51,6 +53,42 @@ function normalizeTimestamp(value: unknown) {
     return timestamp;
   }
   return timestamp.toDate?.()?.toISOString?.() || null;
+}
+
+const PROOF_PATH_STAGE_TO_FIELD: Record<ProofPathMilestoneKey, keyof ProofPathMilestones> = {
+  proof_pack_delivered: "proof_pack_delivered_at",
+  proof_pack_reviewed: "proof_pack_reviewed_at",
+  hosted_review_ready: "hosted_review_ready_at",
+  hosted_review_started: "hosted_review_started_at",
+  hosted_review_follow_up: "hosted_review_follow_up_at",
+  artifact_handoff_delivered: "artifact_handoff_delivered_at",
+  artifact_handoff_accepted: "artifact_handoff_accepted_at",
+  human_commercial_handoff: "human_commercial_handoff_at",
+};
+
+const QUALIFIED_ROBOT_TEAM_STATES = new Set<QualificationState>([
+  "qualified_ready",
+  "qualified_risky",
+]);
+
+function normalizeProofPathMilestones(raw: unknown) {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+
+  const value = raw as ProofPathMilestones;
+  return {
+    exact_site_requested_at: normalizeTimestamp(value.exact_site_requested_at),
+    qualified_inbound_at: normalizeTimestamp(value.qualified_inbound_at),
+    proof_pack_delivered_at: normalizeTimestamp(value.proof_pack_delivered_at),
+    proof_pack_reviewed_at: normalizeTimestamp(value.proof_pack_reviewed_at),
+    hosted_review_ready_at: normalizeTimestamp(value.hosted_review_ready_at),
+    hosted_review_started_at: normalizeTimestamp(value.hosted_review_started_at),
+    hosted_review_follow_up_at: normalizeTimestamp(value.hosted_review_follow_up_at),
+    artifact_handoff_delivered_at: normalizeTimestamp(value.artifact_handoff_delivered_at),
+    artifact_handoff_accepted_at: normalizeTimestamp(value.artifact_handoff_accepted_at),
+    human_commercial_handoff_at: normalizeTimestamp(value.human_commercial_handoff_at),
+  };
 }
 
 function normalizeWaitlistSubmission(
@@ -379,6 +417,12 @@ function normalizeDecryptedRequest(decrypted: InboundRequest) {
       taskStatement:
         decrypted.request.taskStatement || "Legacy submission requires manual scoping",
     },
+    ops: decrypted.ops
+      ? {
+          ...decrypted.ops,
+          proof_path: normalizeProofPathMilestones(decrypted.ops.proof_path),
+        }
+      : decrypted.ops,
     pipeline,
     derived_assets: derivedAssets,
     deployment_readiness: deploymentReadiness,
@@ -685,6 +729,7 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
             quote_status: decrypted.ops?.quote_status || "not_started",
             next_step: decrypted.ops?.next_step || null,
             last_buyer_ready_at: normalizeTimestamp(decrypted.ops?.last_buyer_ready_at),
+            proof_path: normalizeProofPathMilestones(decrypted.ops?.proof_path),
           },
           pipeline: decrypted.pipeline,
           derived_assets: decrypted.derived_assets,
@@ -1018,6 +1063,11 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
         siteName: decrypted.request.siteName,
         siteLocation: decrypted.request.siteLocation,
         taskStatement: decrypted.request.taskStatement,
+        targetSiteType: decrypted.request.targetSiteType || null,
+        proofPathPreference: decrypted.request.proofPathPreference || null,
+        existingStackReviewWorkflow:
+          decrypted.request.existingStackReviewWorkflow || null,
+        humanGateTopics: decrypted.request.humanGateTopics || null,
         workflowContext: decrypted.request.workflowContext,
         operatingConstraints: decrypted.request.operatingConstraints,
         privacySecurityConstraints: decrypted.request.privacySecurityConstraints,
@@ -1040,10 +1090,16 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
         quote_status: decrypted.ops?.quote_status || "not_started",
         next_step: decrypted.ops?.next_step || null,
         last_buyer_ready_at: normalizeTimestamp(decrypted.ops?.last_buyer_ready_at),
+        proof_path: normalizeProofPathMilestones(decrypted.ops?.proof_path),
       },
       context: {
         sourcePageUrl: decrypted.context.sourcePageUrl,
         referrer: decrypted.context.referrer,
+        demandCity: decrypted.context.demandCity || null,
+        buyerChannelSource: decrypted.context.buyerChannelSource || null,
+        buyerChannelSourceCaptureMode:
+          decrypted.context.buyerChannelSourceCaptureMode || null,
+        buyerChannelSourceRaw: decrypted.context.buyerChannelSourceRaw || null,
         utm: decrypted.context.utm,
       },
       enrichment: decrypted.enrichment,
@@ -1302,13 +1358,30 @@ router.patch(
         opportunity_state ??
         deriveOpportunityState(qualification_state, previousData.opportunity_state);
 
-      // Update status
-      await docRef.update({
+      const shouldStampQualifiedRobotTeam =
+        previousData.request.buyerType === "robot_team" &&
+        QUALIFIED_ROBOT_TEAM_STATES.has(qualification_state) &&
+        !previousData.ops?.proof_path?.qualified_inbound_at;
+
+      const updatePayload: Record<string, unknown> = {
         status: qualification_state,
         qualification_state,
         opportunity_state: nextOpportunityState,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      };
+
+      if (shouldStampQualifiedRobotTeam) {
+        updatePayload.ops = {
+          ...(previousData.ops || {}),
+          proof_path: {
+            ...(previousData.ops?.proof_path || {}),
+            qualified_inbound_at: admin.firestore.FieldValue.serverTimestamp(),
+          },
+        };
+      }
+
+      // Update status
+      await docRef.update(updatePayload);
 
       if (previousData.status !== qualification_state) {
         await db
@@ -1379,6 +1452,8 @@ router.patch("/:requestId/ops", requireAdmin, async (req: Request, res: Response
       recapture_reason,
       quote_status,
       next_step,
+      proof_path_stage,
+      proof_path_stage_action,
       note,
     } = req.body as UpdateRequestOpsPayload;
     const user = res.locals.firebaseUser!;
@@ -1391,6 +1466,35 @@ router.patch("/:requestId/ops", requireAdmin, async (req: Request, res: Response
 
     const existing = (doc.data() as Record<string, unknown>) || {};
     const ops = (existing.ops as Record<string, unknown> | undefined) || {};
+    const currentProofPath =
+      ops.proof_path && typeof ops.proof_path === "object"
+        ? ({ ...(ops.proof_path as Record<string, unknown>) } as Record<string, unknown>)
+        : {};
+    const nextProofPath = { ...currentProofPath };
+
+    if (proof_path_stage) {
+      const proofPathField = PROOF_PATH_STAGE_TO_FIELD[proof_path_stage];
+      if (!proofPathField) {
+        return res.status(400).json({ error: "Invalid proof_path_stage" });
+      }
+
+      if (proof_path_stage_action === "clear") {
+        nextProofPath[proofPathField] = null;
+      } else {
+        nextProofPath[proofPathField] = admin.firestore.FieldValue.serverTimestamp();
+      }
+    }
+
+    if (
+      quote_status === "buyer_ready" &&
+      existing.request &&
+      typeof existing.request === "object" &&
+      (existing.request as Record<string, unknown>).buyerType === "robot_team" &&
+      !nextProofPath.human_commercial_handoff_at
+    ) {
+      nextProofPath.human_commercial_handoff_at = admin.firestore.FieldValue.serverTimestamp();
+    }
+
     const nextOps = {
       ...ops,
       ...(assigned_region_id !== undefined ? { assigned_region_id } : {}),
@@ -1403,6 +1507,7 @@ router.patch("/:requestId/ops", requireAdmin, async (req: Request, res: Response
       ...(quote_status === "buyer_ready"
         ? { last_buyer_ready_at: admin.firestore.FieldValue.serverTimestamp() }
         : {}),
+      proof_path: nextProofPath,
     };
 
     await docRef.update({
@@ -1439,12 +1544,30 @@ router.post("/:requestId/review-link", requireAdmin, async (req: Request, res: R
       return res.status(404).json({ error: "Request not found" });
     }
 
+    const current = (doc.data() as Record<string, unknown>) || {};
+    const currentOps =
+      current.ops && typeof current.ops === "object"
+        ? (current.ops as Record<string, unknown>)
+        : {};
+    const currentProofPath =
+      currentOps.proof_path && typeof currentOps.proof_path === "object"
+        ? (currentOps.proof_path as Record<string, unknown>)
+        : {};
     const buyer_review_url = buildBuyerReviewUrl(requestId);
     await docRef.update({
       buyer_review_access: {
         buyer_review_url,
         token_issued_at: admin.firestore.FieldValue.serverTimestamp(),
         last_sent_at: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      ops: {
+        ...currentOps,
+        proof_path: {
+          ...currentProofPath,
+          hosted_review_ready_at:
+            currentProofPath.hosted_review_ready_at
+            ?? admin.firestore.FieldValue.serverTimestamp(),
+        },
       },
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });

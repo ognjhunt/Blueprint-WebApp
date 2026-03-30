@@ -63,6 +63,35 @@ function buildPayload(requestId: string, email: string) {
   };
 }
 
+function buildRobotTeamPayload(requestId: string, email: string) {
+  return {
+    requestId,
+    firstName: "Grace",
+    lastName: "Hopper",
+    company: "Compiler Robotics",
+    roleTitle: "Autonomy Lead",
+    email,
+    budgetBucket: "$50K-$300K",
+    requestedLanes: ["qualification"],
+    buyerType: "robot_team",
+    siteName: "",
+    siteLocation: "",
+    taskStatement: "Can Blueprint show a proof path for pallet putaway in a warehouse?",
+    targetSiteType: "Warehouse pallet putaway",
+    proofPathPreference: "adjacent_site_acceptable",
+    existingStackReviewWorkflow: "We review hosted artifacts before simulator ingestion.",
+    humanGateTopics: "Raise rights, delivery scope, and security review early.",
+    context: {
+      sourcePageUrl: "http://localhost:5001/contact?persona=robot-team",
+      referrer: "http://localhost:5001/",
+      utm: {},
+      timezoneOffset: 240,
+      locale: "en-US",
+      userAgent: "vitest",
+    },
+  };
+}
+
 async function startRouterServer(): Promise<{ server: Server; baseUrl: string }> {
   const { default: inboundRequestRouter } = await import("../routes/inbound-request");
   const app = express();
@@ -182,6 +211,39 @@ describe("inbound request route", () => {
       expect(sendEmail).not.toHaveBeenCalled();
       expect(notifySlackInboundRequest).not.toHaveBeenCalled();
       expect(fs.existsSync(devLogPath)).toBe(false);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("accepts robot-team proof-path intake without a named site when site type is provided", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+
+    const { server, baseUrl } = await startRouterServer();
+
+    try {
+      const requestId = `robot-${Date.now()}`;
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(
+          buildRobotTeamPayload(requestId, `grace+${Date.now()}@example.com`)
+        ),
+      });
+
+      expect(response.status).toBe(201);
+
+      const lines = fs.readFileSync(devLogPath, "utf8").trim().split("\n");
+      const savedRequest = lines
+        .map((line) => JSON.parse(line) as { requestId: string; request?: Record<string, unknown> })
+        .find((entry) => entry.requestId === requestId);
+
+      expect(savedRequest?.request?.targetSiteType).toBe("Warehouse pallet putaway");
+      expect(savedRequest?.request?.proofPathPreference).toBe("adjacent_site_acceptable");
+      expect(savedRequest?.request?.siteName).toBe("");
     } finally {
       await stopServer(server);
     }

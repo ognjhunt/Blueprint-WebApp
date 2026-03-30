@@ -6,6 +6,7 @@ import {
 import type {
   BudgetBucket,
   HelpWithOption,
+  ProofPathPreference,
   RequestPriority,
   RequestedLane,
   BuyerType,
@@ -23,6 +24,10 @@ interface SlackNotifyOptions {
   siteName: string;
   siteLocation: string;
   taskStatement: string;
+  targetSiteType?: string | null;
+  proofPathPreference?: ProofPathPreference | null;
+  existingStackReviewWorkflow?: string | null;
+  humanGateTopics?: string | null;
   budgetBucket: BudgetBucket;
   requestedLanes: RequestedLane[];
   helpWith: HelpWithOption[];
@@ -65,6 +70,12 @@ const PRIORITY_EMOJI: Record<RequestPriority, string> = {
   low: ":white_circle:",
 };
 
+const PROOF_PATH_PREFERENCE_LABELS: Record<ProofPathPreference, string> = {
+  exact_site_required: "Exact-site proof required",
+  adjacent_site_acceptable: "Adjacent-site proof is acceptable",
+  need_guidance: "Need guidance on the proof path",
+};
+
 /**
  * Send a Slack notification for a new inbound request
  */
@@ -92,6 +103,10 @@ export async function notifySlackInboundRequest(
     siteName,
     siteLocation,
     taskStatement,
+    targetSiteType,
+    proofPathPreference,
+    existingStackReviewWorkflow,
+    humanGateTopics,
     budgetBucket,
     requestedLanes,
     helpWith,
@@ -197,6 +212,31 @@ export async function notifySlackInboundRequest(
       text: `*Source:* ${sourcePageUrl}`,
     },
   });
+
+  if (targetSiteType || proofPathPreference || existingStackReviewWorkflow || humanGateTopics) {
+    const proofLines = [
+      targetSiteType ? `*Target site type:*\n${targetSiteType}` : null,
+      proofPathPreference
+        ? `*Proof path:*\n${PROOF_PATH_PREFERENCE_LABELS[proofPathPreference]}`
+        : null,
+      existingStackReviewWorkflow
+        ? `*Existing stack / review workflow:*\n${existingStackReviewWorkflow.slice(0, 400)}`
+        : null,
+      humanGateTopics
+        ? `*Human-gated topics:*\n${humanGateTopics.slice(0, 400)}`
+        : null,
+    ].filter(Boolean);
+
+    if (proofLines.length > 0) {
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: proofLines.join("\n\n"),
+        },
+      });
+    }
+  }
 
   // Add action buttons
   blocks.push({

@@ -25,6 +25,7 @@ const CaseStudies = lazy(() => import("../pages/CaseStudies"));
 const SampleDeliverables = lazy(() => import("../pages/SampleDeliverables"));
 const Contact = lazy(() => import("../pages/Contact"));
 const HowItWorks = lazy(() => import("../pages/HowItWorks"));
+const Proof = lazy(() => import("../pages/Proof"));
 const Portal = lazy(() => import("../pages/Portal"));
 const Login = lazy(() => import("../pages/Login"));
 const ForgotPassword = lazy(() => import("../pages/ForgotPassword"));
@@ -67,10 +68,6 @@ const LegacySiteWorldsRedirect = () => (
 
 const LegacyReadinessPackRedirect = () => (
   <MarketingRedirect to="/how-it-works" />
-);
-
-const LegacyProofRedirect = () => (
-  <MarketingRedirect to="/" />
 );
 
 const LegacySolutionsRedirect = () => (
@@ -131,6 +128,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/case-studies", layout: "public", component: LegacyCaseStudiesRedirect },
   { path: "/contact", layout: "public", component: Contact },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
+  { path: "/proof", layout: "public", component: Proof },
   { path: "/faq", layout: "public", component: FAQ },
   { path: "/governance", layout: "public", component: Governance },
   { path: "/about", layout: "public", component: About },
@@ -139,7 +137,6 @@ export const appRoutes: AppRoute[] = [
   { path: "/careers", layout: "public", component: Careers },
 
   // Legacy redirects for removed pages
-  { path: "/proof", layout: "public", component: LegacyProofRedirect },
   { path: "/solutions", layout: "public", component: LegacySolutionsRedirect },
   { path: "/quality-standard", layout: "public", component: LegacyReadinessPackRedirect },
   { path: "/readiness-pack", layout: "public", component: LegacyReadinessPackRedirect },

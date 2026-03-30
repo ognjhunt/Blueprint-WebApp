@@ -92,6 +92,10 @@ const inboundRequest = {
     siteName: "Durham Facility",
     siteLocation: "Durham, NC",
     taskStatement: "Review a picking workflow.",
+    targetSiteType: "Warehouse picking aisle",
+    proofPathPreference: "exact_site_required",
+    existingStackReviewWorkflow: "Hosted review before simulator ingestion.",
+    humanGateTopics: "Rights review and delivery scope.",
     workflowContext: "Backroom handoff.",
     operatingConstraints: "Restricted dock access.",
     privacySecurityConstraints: "No locker-room cameras.",
@@ -160,6 +164,12 @@ describe("inbound qualification worker", () => {
     expect(runAgentTask).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: "inbound_qualification",
+        input: expect.objectContaining({
+          targetSiteType: "Warehouse picking aisle",
+          proofPathPreference: "exact_site_required",
+          existingStackReviewWorkflow: "Hosted review before simulator ingestion.",
+          humanGateTopics: "Rights review and delivery scope.",
+        }),
       }),
     );
     expect(executePhase2WorkflowActions).toHaveBeenCalledWith(

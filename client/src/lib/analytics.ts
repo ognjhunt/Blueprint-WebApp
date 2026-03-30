@@ -1,4 +1,8 @@
 import posthog from "posthog-js";
+import {
+  hasDemandAttribution,
+  type DemandAttribution,
+} from "./demandAttribution";
 
 type AnalyticsConsent = {
   analytics: boolean;
@@ -36,6 +40,33 @@ function normalizeConsent(consent: AnalyticsConsent | null | undefined) {
     analytics: Boolean(consent?.analytics),
     marketing: Boolean(consent?.marketing),
   };
+}
+
+function compactEventParams(
+  parameters: Record<string, string | number | boolean | null | undefined>,
+): Record<string, string | number | boolean> {
+  return Object.fromEntries(
+    Object.entries(parameters).filter(([, value]) => value !== null && value !== undefined),
+  ) as Record<string, string | number | boolean>;
+}
+
+function buildDemandAttributionEventParams(
+  attribution: DemandAttribution | null | undefined,
+): Record<string, string | number | boolean> {
+  if (!hasDemandAttribution(attribution)) {
+    return {};
+  }
+
+  return compactEventParams({
+    demand_city: attribution?.demandCity ?? undefined,
+    buyer_channel_source: attribution?.buyerChannelSource ?? undefined,
+    buyer_channel_source_capture_mode:
+      attribution?.buyerChannelSourceCaptureMode ?? undefined,
+    utm_source: attribution?.utm.source ?? undefined,
+    utm_medium: attribution?.utm.medium ?? undefined,
+    utm_campaign: attribution?.utm.campaign ?? undefined,
+    utm_content: attribution?.utm.content ?? undefined,
+  });
 }
 
 function ensureGaLoaded() {
@@ -157,7 +188,7 @@ export function trackPageView(path: string, title?: string) {
 
 export function trackEvent(
   eventName: string,
-  parameters?: Record<string, string | number | boolean>
+  parameters?: Record<string, string | number | boolean | undefined>
 ) {
   if (window.gtag && hasConfiguredGa()) {
     window.gtag("event", eventName, parameters);
@@ -166,6 +197,24 @@ export function trackEvent(
   if (posthogInitialized && hasConfiguredPostHog()) {
     posthog.capture(eventName, parameters);
   }
+}
+
+function getSafeErrorType(error: unknown) {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof error.code === "string" &&
+    error.code.trim().length > 0
+  ) {
+    return error.code
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+  }
+
+  return "unknown";
 }
 
 export const analyticsEvents = {
@@ -234,4 +283,249 @@ export const analyticsEvents = {
 
   pilotExchangeChartView: (chartId: string) =>
     trackEvent("pilot_exchange_chart_view", { chart_id: chartId }),
+
+  capturerSignupStarted: () =>
+    trackEvent("capturer_signup_started"),
+
+  capturerSignupStepViewed: (stepNumber: number, stepName: string) =>
+    trackEvent("capturer_signup_step_viewed", {
+      step_number: stepNumber,
+      step_name: stepName,
+    }),
+
+  capturerSignupStepCompleted: (
+    stepNumber: number,
+    stepName: string,
+    authMethod: "password" | "google",
+  ) =>
+    trackEvent("capturer_signup_step_completed", {
+      step_number: stepNumber,
+      step_name: stepName,
+      auth_method: authMethod,
+    }),
+
+  capturerSignupSubmitted: (properties: {
+    authMethod: "password" | "google";
+    equipmentCount: number;
+    availability: string;
+    referralSource: string;
+  }) =>
+    trackEvent("capturer_signup_submitted", {
+      auth_method: properties.authMethod,
+      equipment_count: properties.equipmentCount,
+      availability: properties.availability,
+      referral_source: properties.referralSource,
+    }),
+
+  capturerSignupCompleted: (properties: {
+    authMethod: "password" | "google";
+    equipmentCount: number;
+    availability: string;
+    referralSource: string;
+  }) =>
+    trackEvent("capturer_signup_completed", {
+      auth_method: properties.authMethod,
+      equipment_count: properties.equipmentCount,
+      availability: properties.availability,
+      referral_source: properties.referralSource,
+    }),
+
+  capturerSignupFailed: (properties: {
+    stage: string;
+    stepNumber: number;
+    errorType: string;
+  }) =>
+    trackEvent("capturer_signup_failed", {
+      stage: properties.stage,
+      step_number: properties.stepNumber,
+      error_type: properties.errorType,
+    }),
+
+  businessSignupStarted: (properties: {
+    defaultRequestedLane: string;
+    requestedLaneCount: number;
+    demandAttribution?: DemandAttribution;
+  }) =>
+    trackEvent("business_signup_started", {
+      default_requested_lane: properties.defaultRequestedLane,
+      requested_lane_count: properties.requestedLaneCount,
+      ...buildDemandAttributionEventParams(properties.demandAttribution),
+    }),
+
+  businessSignupSubmitted: (properties: {
+    buyerType: string;
+    requestedLaneCount: number;
+    includesQualificationLane: boolean;
+    companySize: string;
+    budgetRange: string;
+    referralSource: string;
+    hasPhoneNumber: boolean;
+    hasWorkflowContext: boolean;
+    hasOperatingConstraints: boolean;
+    hasPrivacySecurityConstraints: boolean;
+    hasKnownBlockers: boolean;
+    hasTargetRobotTeam: boolean;
+    demandAttribution?: DemandAttribution;
+  }) =>
+    trackEvent("business_signup_submitted", {
+      buyer_type: properties.buyerType,
+      requested_lane_count: properties.requestedLaneCount,
+      includes_qualification_lane: properties.includesQualificationLane,
+      company_size: properties.companySize,
+      budget_range: properties.budgetRange,
+      referral_source: properties.referralSource,
+      has_phone_number: properties.hasPhoneNumber,
+      has_workflow_context: properties.hasWorkflowContext,
+      has_operating_constraints: properties.hasOperatingConstraints,
+      has_privacy_security_constraints: properties.hasPrivacySecurityConstraints,
+      has_known_blockers: properties.hasKnownBlockers,
+      has_target_robot_team: properties.hasTargetRobotTeam,
+      ...buildDemandAttributionEventParams(properties.demandAttribution),
+    }),
+
+  businessSignupCompleted: (properties: {
+    buyerType: string;
+    requestedLaneCount: number;
+    includesQualificationLane: boolean;
+    companySize: string;
+    budgetRange: string;
+    referralSource: string;
+    demandAttribution?: DemandAttribution;
+  }) =>
+    trackEvent("business_signup_completed", {
+      buyer_type: properties.buyerType,
+      requested_lane_count: properties.requestedLaneCount,
+      includes_qualification_lane: properties.includesQualificationLane,
+      company_size: properties.companySize,
+      budget_range: properties.budgetRange,
+      referral_source: properties.referralSource,
+      ...buildDemandAttributionEventParams(properties.demandAttribution),
+    }),
+
+  businessSignupFailed: (properties: {
+    stage: string;
+    stepNumber: number;
+    errorType: string;
+    buyerType: string;
+    requestedLaneCount: number;
+    demandAttribution?: DemandAttribution;
+  }) =>
+    trackEvent("business_signup_failed", {
+      stage: properties.stage,
+      step_number: properties.stepNumber,
+      error_type: properties.errorType,
+      buyer_type: properties.buyerType,
+      requested_lane_count: properties.requestedLaneCount,
+      ...buildDemandAttributionEventParams(properties.demandAttribution),
+    }),
+
+  contactRequestStarted: (properties: {
+    persona: string;
+    hostedMode: boolean;
+    requestedLane: string;
+    authenticated: boolean;
+    prefilledSiteContext: boolean;
+    demandAttribution?: DemandAttribution;
+  }) =>
+    trackEvent("contact_request_started", {
+      persona: properties.persona,
+      hosted_mode: properties.hostedMode,
+      requested_lane: properties.requestedLane,
+      authenticated: properties.authenticated,
+      prefilled_site_context: properties.prefilledSiteContext,
+      ...buildDemandAttributionEventParams(properties.demandAttribution),
+    }),
+
+  contactRequestSubmitted: (properties: {
+    persona: string;
+    hostedMode: boolean;
+    requestedLane: string;
+    authenticated: boolean;
+    hasJobTitle: boolean;
+    hasSiteName: boolean;
+    hasSiteLocation: boolean;
+    hasTaskStatement: boolean;
+    hasOperatingConstraints: boolean;
+    hasPrivacySecurityConstraints: boolean;
+    hasNotes: boolean;
+    demandAttribution?: DemandAttribution;
+  }) =>
+    trackEvent("contact_request_submitted", {
+      persona: properties.persona,
+      hosted_mode: properties.hostedMode,
+      requested_lane: properties.requestedLane,
+      authenticated: properties.authenticated,
+      has_job_title: properties.hasJobTitle,
+      has_site_name: properties.hasSiteName,
+      has_site_location: properties.hasSiteLocation,
+      has_task_statement: properties.hasTaskStatement,
+      has_operating_constraints: properties.hasOperatingConstraints,
+      has_privacy_security_constraints: properties.hasPrivacySecurityConstraints,
+      has_notes: properties.hasNotes,
+      ...buildDemandAttributionEventParams(properties.demandAttribution),
+    }),
+
+  contactRequestCompleted: (properties: {
+    persona: string;
+    hostedMode: boolean;
+    requestedLane: string;
+    authenticated: boolean;
+    demandAttribution?: DemandAttribution;
+  }) =>
+    trackEvent("contact_request_completed", {
+      persona: properties.persona,
+      hosted_mode: properties.hostedMode,
+      requested_lane: properties.requestedLane,
+      authenticated: properties.authenticated,
+      ...buildDemandAttributionEventParams(properties.demandAttribution),
+    }),
+
+  contactRequestFailed: (properties: {
+    stage: string;
+    errorType: string;
+    persona: string;
+    hostedMode: boolean;
+    requestedLane: string;
+    demandAttribution?: DemandAttribution;
+  }) =>
+    trackEvent("contact_request_failed", {
+      stage: properties.stage,
+      error_type: properties.errorType,
+      persona: properties.persona,
+      hosted_mode: properties.hostedMode,
+      requested_lane: properties.requestedLane,
+      ...buildDemandAttributionEventParams(properties.demandAttribution),
+    }),
+
+  buyerReviewViewed: (properties: {
+    section: string;
+    buyerType: string;
+    requestedLaneCount: number;
+    demandAttribution?: DemandAttribution;
+  }) =>
+    trackEvent("buyer_review_viewed", {
+      section: properties.section,
+      buyer_type: properties.buyerType,
+      requested_lane_count: properties.requestedLaneCount,
+      ...buildDemandAttributionEventParams(properties.demandAttribution),
+    }),
+
+  proofPathStageUpdated: (properties: {
+    proofPathStage: string;
+    action: "mark" | "clear";
+    eventOrigin: "admin_ops" | "admin_review_link";
+    buyerType: string;
+    requestedLaneCount: number;
+    demandAttribution?: DemandAttribution;
+  }) =>
+    trackEvent("proof_path_stage_updated", {
+      proof_path_stage: properties.proofPathStage,
+      proof_path_stage_action: properties.action,
+      event_origin: properties.eventOrigin,
+      buyer_type: properties.buyerType,
+      requested_lane_count: properties.requestedLaneCount,
+      ...buildDemandAttributionEventParams(properties.demandAttribution),
+    }),
 };
+
+export { getSafeErrorType };

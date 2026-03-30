@@ -44,3 +44,5 @@ It is specifically a study of technical-buyer demand generation for site-specifi
 - Understand how technical robotics buyers prefer to evaluate exact-site products before budget or procurement conversations.
 - Build a reusable library of robot-team demand patterns that can feed Austin and San Francisco planning.
 - Keep site-operator demand explicitly separate unless the evidence says that lane matters for a specific access or commercialization case.
+- Prioritize public evidence about proof-pack expectations, hosted-demo evaluation motions, and what buyers need before a serious exact-site follow-up.
+- Avoid research that assumes qualification is the main product. Focus on how buyers decide to engage with site-specific world-model products.

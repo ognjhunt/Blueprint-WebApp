@@ -52,11 +52,25 @@ Buyer and site-operator inbound requests created by [inbound-request.ts](/Users/
 | `human_review_required` | boolean or null | Human gate flag |
 | `automation_confidence` | number or null | Model confidence |
 | `buyer_review_access` | object | Buyer review URL/token metadata |
-| `ops` | object | Rights, capture, quote, and next-step state |
+| `ops` | object | Rights, capture, quote, proof-path milestone timestamps, and next-step state |
 | `createdAt` | timestamp | Creation time |
 | `updatedAt` | timestamp | Update time when present |
 
 **Used by:** Intake Agent, Field Ops Agent, Ops Lead, Analytics Agent
+
+`ops.proof_path` milestone timestamps now include:
+- `exact_site_requested_at`
+- `qualified_inbound_at`
+- `proof_pack_delivered_at`
+- `proof_pack_reviewed_at`
+- `hosted_review_ready_at`
+- `hosted_review_started_at`
+- `hosted_review_follow_up_at`
+- `artifact_handoff_delivered_at`
+- `artifact_handoff_accepted_at`
+- `human_commercial_handoff_at`
+
+These fields are the authoritative measurement layer for the robot-team 24-hour proof-path funnel. Some are auto-stamped from request lifecycle events, while operator-only milestones are set from the admin lead workflow.
 
 ### `contactRequests`
 Support/contact-form submissions created by [contact.ts](/Users/nijelhunt_1/workspace/Blueprint-WebApp/server/routes/contact.ts) and triaged by the support automation loop.

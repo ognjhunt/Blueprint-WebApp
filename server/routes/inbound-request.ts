@@ -19,6 +19,7 @@ import {
   LANE_TO_LEGACY_HELP_WITH,
   REQUESTED_LANES,
 } from "../../client/src/lib/requestTaxonomy";
+import { getDemandAttributionFromContext } from "../../client/src/lib/demandAttribution";
 import type {
   InboundRequestPayload,
   InboundRequest,
@@ -26,6 +27,7 @@ import type {
   RequestStatus,
   BudgetBucket,
   HelpWithOption,
+  ProofPathPreference,
   RequestedLane,
   BuyerType,
   SubmitInboundRequestResponse,
@@ -64,6 +66,11 @@ const VALID_BUDGET_BUCKETS: BudgetBucket[] = [
 const VALID_HELP_WITH: HelpWithOption[] = [...HELP_WITH_OPTIONS];
 
 const VALID_REQUESTED_LANES: RequestedLane[] = [...REQUESTED_LANES];
+const VALID_PROOF_PATH_PREFERENCES: ProofPathPreference[] = [
+  "exact_site_required",
+  "adjacent_site_acceptable",
+  "need_guidance",
+];
 
 // Known disposable email domains (extend as needed)
 const DISPOSABLE_EMAIL_DOMAINS = [
@@ -264,6 +271,16 @@ function normalizeBuyerType(value?: BuyerType): BuyerType {
   return value === "robot_team" ? "robot_team" : "site_operator";
 }
 
+function normalizeProofPathPreference(
+  value?: ProofPathPreference
+): ProofPathPreference | null {
+  if (!value) {
+    return null;
+  }
+
+  return VALID_PROOF_PATH_PREFERENCES.includes(value) ? value : null;
+}
+
 function isProduction(): boolean {
   return process.env.NODE_ENV === "production";
 }
@@ -428,6 +445,10 @@ router.post("/", async (req: Request, res: Response) => {
     const siteName = payload.siteName?.trim() || "";
     const siteLocation = payload.siteLocation?.trim() || "";
     const taskStatement = payload.taskStatement?.trim() || "";
+    const targetSiteType = payload.targetSiteType?.trim() || "";
+    const proofPathPreference = normalizeProofPathPreference(
+      payload.proofPathPreference
+    );
     const missingFields: string[] = [];
     if (!payload.requestId) missingFields.push("requestId");
     if (!payload.firstName?.trim()) missingFields.push("firstName");
@@ -435,9 +456,16 @@ router.post("/", async (req: Request, res: Response) => {
     if (!payload.company?.trim()) missingFields.push("company");
     if (!payload.email?.trim()) missingFields.push("email");
     if (!payload.budgetBucket) missingFields.push("budgetBucket");
-    if (!siteName) missingFields.push("siteName");
-    if (!siteLocation) missingFields.push("siteLocation");
     if (!taskStatement) missingFields.push("taskStatement");
+    if (buyerType === "site_operator") {
+      if (!siteName) missingFields.push("siteName");
+      if (!siteLocation) missingFields.push("siteLocation");
+    }
+    if (buyerType === "robot_team") {
+      if (!payload.roleTitle?.trim()) missingFields.push("roleTitle");
+      if (!targetSiteType) missingFields.push("targetSiteType");
+      if (!proofPathPreference) missingFields.push("proofPathPreference");
+    }
 
     if (missingFields.length > 0) {
       return res.status(400).json({
@@ -491,6 +519,15 @@ router.post("/", async (req: Request, res: Response) => {
       } satisfies SubmitInboundRequestResponse);
     }
 
+    if (payload.proofPathPreference && !proofPathPreference) {
+      return res.status(400).json({
+        ok: false,
+        requestId: payload.requestId,
+        status: "submitted",
+        message: `Invalid proofPathPreference value: ${payload.proofPathPreference}`,
+      } satisfies SubmitInboundRequestResponse);
+    }
+
     // 5. Check rate limits
     const ipRateLimit = await checkRateLimit(
       `${RATE_LIMIT_PREFIX}ip:${ipHash}`,
@@ -524,6 +561,7 @@ router.post("/", async (req: Request, res: Response) => {
     // 6. Compute priority and owner
     const priority = computePriority(payload.budgetBucket, requestedLanes);
     const owner = computeOwner(requestedLanes);
+    const demandAttribution = getDemandAttributionFromContext(payload.context);
 
     if (!db) {
       if (isProduction()) {
@@ -557,6 +595,11 @@ router.post("/", async (req: Request, res: Response) => {
           siteName,
           siteLocation,
           taskStatement,
+          targetSiteType: payload.targetSiteType?.trim() || null,
+          proofPathPreference,
+          existingStackReviewWorkflow:
+            payload.existingStackReviewWorkflow?.trim() || null,
+          humanGateTopics: payload.humanGateTopics?.trim() || null,
           workflowContext: payload.workflowContext?.trim() || null,
           operatingConstraints: payload.operatingConstraints?.trim() || null,
           privacySecurityConstraints:
@@ -572,11 +615,41 @@ router.post("/", async (req: Request, res: Response) => {
         context: {
           sourcePageUrl: payload.context?.sourcePageUrl || "",
           referrer: payload.context?.referrer || null,
+          demandCity: demandAttribution.demandCity,
+          buyerChannelSource: demandAttribution.buyerChannelSource,
+          buyerChannelSourceCaptureMode:
+            demandAttribution.buyerChannelSourceCaptureMode,
+          buyerChannelSourceRaw: demandAttribution.buyerChannelSourceRaw,
           utm: payload.context?.utm || {},
           userAgent: payload.context?.userAgent || req.get("user-agent") || null,
           timezoneOffset: payload.context?.timezoneOffset ?? null,
           locale: payload.context?.locale || null,
           ipHash,
+        },
+        ops: {
+          assigned_region_id: "managed-alpha",
+          rights_status: "unknown",
+          capture_policy_tier: "review_required",
+          capture_status: "not_requested",
+          recapture_reason: null,
+          quote_status: "not_started",
+          next_step: "Review the site scope and decide whether to request capture.",
+          last_buyer_ready_at: null,
+          proof_path: {
+            exact_site_requested_at:
+              buyerType === "robot_team" && proofPathPreference === "exact_site_required"
+                ? new Date().toISOString()
+                : null,
+            qualified_inbound_at: null,
+            proof_pack_delivered_at: null,
+            proof_pack_reviewed_at: null,
+            hosted_review_ready_at: null,
+            hosted_review_started_at: null,
+            hosted_review_follow_up_at: null,
+            artifact_handoff_delivered_at: null,
+            artifact_handoff_accepted_at: null,
+            human_commercial_handoff_at: null,
+          },
         },
         debug: {
           mode: "dev_fallback",
@@ -648,6 +721,11 @@ router.post("/", async (req: Request, res: Response) => {
         siteName,
         siteLocation,
         taskStatement,
+        targetSiteType: payload.targetSiteType?.trim() || null,
+        proofPathPreference,
+        existingStackReviewWorkflow:
+          payload.existingStackReviewWorkflow?.trim() || null,
+        humanGateTopics: payload.humanGateTopics?.trim() || null,
         workflowContext: payload.workflowContext?.trim() || null,
         operatingConstraints: payload.operatingConstraints?.trim() || null,
         privacySecurityConstraints:
@@ -662,6 +740,11 @@ router.post("/", async (req: Request, res: Response) => {
       context: {
         sourcePageUrl: payload.context?.sourcePageUrl || "",
         referrer: payload.context?.referrer || null,
+        demandCity: demandAttribution.demandCity,
+        buyerChannelSource: demandAttribution.buyerChannelSource,
+        buyerChannelSourceCaptureMode:
+          demandAttribution.buyerChannelSourceCaptureMode,
+        buyerChannelSourceRaw: demandAttribution.buyerChannelSourceRaw,
         utm: {
           source: payload.context?.utm?.source || null,
           medium: payload.context?.utm?.medium || null,
@@ -718,9 +801,24 @@ router.post("/", async (req: Request, res: Response) => {
         quote_status: "not_started",
         next_step: "Review the site scope and decide whether to request capture.",
         last_buyer_ready_at: null,
+        proof_path: {
+          exact_site_requested_at:
+            buyerType === "robot_team" && proofPathPreference === "exact_site_required"
+              ? (now as never)
+              : null,
+          qualified_inbound_at: null,
+          proof_pack_delivered_at: null,
+          proof_pack_reviewed_at: null,
+          hosted_review_ready_at: null,
+          hosted_review_started_at: null,
+          hosted_review_follow_up_at: null,
+          artifact_handoff_delivered_at: null,
+          artifact_handoff_accepted_at: null,
+          human_commercial_handoff_at: null,
+        },
       },
       debug: {
-        schemaVersion: 2,
+        schemaVersion: 3,
       },
     };
 
@@ -776,6 +874,11 @@ router.post("/", async (req: Request, res: Response) => {
             siteName: payload.siteName?.trim() || "",
             siteLocation: payload.siteLocation?.trim() || "",
             taskStatement: payload.taskStatement?.trim() || "",
+            targetSiteType: payload.targetSiteType?.trim() || null,
+            proofPathPreference,
+            existingStackReviewWorkflow:
+              payload.existingStackReviewWorkflow?.trim() || null,
+            humanGateTopics: payload.humanGateTopics?.trim() || null,
             budgetBucket: payload.budgetBucket,
             requestedLanes,
             helpWith: legacyHelpWith,
@@ -877,6 +980,10 @@ Requested lanes: ${requestedLanes.join(", ")}
 Priority: ${priority}
 
 ${payload.workflowContext ? `Workflow context:\n${payload.workflowContext}\n` : ""}
+${payload.targetSiteType ? `Target site type:\n${payload.targetSiteType}\n` : ""}
+${proofPathPreference ? `Proof path preference:\n${proofPathPreference}\n` : ""}
+${payload.existingStackReviewWorkflow ? `Existing stack/review workflow:\n${payload.existingStackReviewWorkflow}\n` : ""}
+${payload.humanGateTopics ? `Human-gated topics:\n${payload.humanGateTopics}\n` : ""}
 ${payload.operatingConstraints ? `Operating constraints:\n${payload.operatingConstraints}\n` : ""}
 ${payload.privacySecurityConstraints ? `Privacy/security constraints:\n${payload.privacySecurityConstraints}\n` : ""}
 ${payload.knownBlockers ? `Known blockers:\n${payload.knownBlockers}\n` : ""}

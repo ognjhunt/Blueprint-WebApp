@@ -13,7 +13,12 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
+import {
+  getDemandAttributionFromContext,
+  hasDemandAttribution,
+} from "@/lib/demandAttribution";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   OPPORTUNITY_STATES,
@@ -24,6 +29,7 @@ import type {
   InboundRequestDetail,
   InboundRequestListItem,
   OpportunityState,
+  ProofPathMilestoneKey,
   QualificationState,
   RequestPriority,
   SceneDashboardSummary,
@@ -31,6 +37,8 @@ import type {
 } from "@/types/inbound-request";
 import {
   BUYER_TYPE_LABELS as buyerTypeLabels,
+  PROOF_PATH_MILESTONE_LABELS as proofPathMilestoneLabels,
+  PROOF_PATH_PREFERENCE_LABELS as proofPathPreferenceLabels,
   REQUEST_CAPTURE_POLICY_LABELS as capturePolicyLabels,
   REQUEST_CAPTURE_STATUS_LABELS as captureStatusLabels,
   OPPORTUNITY_STATE_LABELS as opportunityStateLabels,
@@ -70,6 +78,20 @@ const nextActionColors: Record<SceneDashboardSummary["categories"]["pick"]["task
   redesign: "bg-blue-100 text-blue-700",
   defer: "bg-rose-100 text-rose-700",
 };
+
+const proofPathStageButtons: Array<{
+  stage: ProofPathMilestoneKey;
+  label: string;
+}> = [
+  { stage: "proof_pack_delivered", label: "Mark proof pack delivered" },
+  { stage: "proof_pack_reviewed", label: "Mark proof pack reviewed" },
+  { stage: "hosted_review_ready", label: "Mark hosted review ready" },
+  { stage: "hosted_review_started", label: "Mark hosted review started" },
+  { stage: "hosted_review_follow_up", label: "Mark hosted follow-up" },
+  { stage: "artifact_handoff_delivered", label: "Mark artifact handoff delivered" },
+  { stage: "artifact_handoff_accepted", label: "Mark artifact handoff accepted" },
+  { stage: "human_commercial_handoff", label: "Mark human commercial handoff" },
+];
 
 interface LeadsResponse {
   leads: InboundRequestListItem[];
@@ -507,10 +529,25 @@ export default function AdminLeads() {
       if (!response.ok) throw new Error("Failed to update ops state");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, payload) => {
       queryClient.invalidateQueries({ queryKey: ["admin-submissions"] });
       queryClient.invalidateQueries({ queryKey: ["admin-submission-detail"] });
       setNote("");
+      if (!selectedLead || !payload.proof_path_stage) {
+        return;
+      }
+
+      const demandAttribution = getDemandAttributionFromContext(selectedLead.context);
+      analyticsEvents.proofPathStageUpdated({
+        proofPathStage: payload.proof_path_stage,
+        action: payload.proof_path_stage_action || "mark",
+        eventOrigin: "admin_ops",
+        buyerType: selectedLead.request.buyerType,
+        requestedLaneCount: selectedLead.request.requestedLanes.length,
+        demandAttribution: hasDemandAttribution(demandAttribution)
+          ? demandAttribution
+          : undefined,
+      });
     },
   });
 
@@ -525,6 +562,21 @@ export default function AdminLeads() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-submission-detail"] });
+      if (!selectedLead) {
+        return;
+      }
+
+      const demandAttribution = getDemandAttributionFromContext(selectedLead.context);
+      analyticsEvents.proofPathStageUpdated({
+        proofPathStage: "hosted_review_ready",
+        action: "mark",
+        eventOrigin: "admin_review_link",
+        buyerType: selectedLead.request.buyerType,
+        requestedLaneCount: selectedLead.request.requestedLanes.length,
+        demandAttribution: hasDemandAttribution(demandAttribution)
+          ? demandAttribution
+          : undefined,
+      });
     },
   });
   const runWaitlistAutomationMutation = useMutation({
@@ -2241,11 +2293,33 @@ export default function AdminLeads() {
                 </div>
 
                 <div className="rounded-xl border border-zinc-200 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Task statement</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                    {selectedLead.request.buyerType === "robot_team"
+                      ? "Immediate workflow question"
+                      : "Task statement"}
+                  </p>
                   <p className="mt-2 text-sm text-zinc-800">{selectedLead.request.taskStatement}</p>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-xl border border-zinc-200 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                      Target site type
+                    </p>
+                    <p className="mt-2 text-sm text-zinc-700">
+                      {selectedLead.request.targetSiteType || "No site type supplied."}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-zinc-200 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                      Proof path
+                    </p>
+                    <p className="mt-2 text-sm text-zinc-700">
+                      {selectedLead.request.proofPathPreference
+                        ? proofPathPreferenceLabels[selectedLead.request.proofPathPreference]
+                        : "No proof-path preference supplied."}
+                    </p>
+                  </div>
                   <div className="rounded-xl border border-zinc-200 p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Workflow context</p>
                     <p className="mt-2 text-sm text-zinc-700">
@@ -2273,6 +2347,27 @@ export default function AdminLeads() {
                     <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Known blockers</p>
                     <p className="mt-2 text-sm text-zinc-700">
                       {selectedLead.request.knownBlockers || "No blockers supplied."}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-xl border border-zinc-200 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                      Existing stack / review workflow
+                    </p>
+                    <p className="mt-2 text-sm text-zinc-700">
+                      {selectedLead.request.existingStackReviewWorkflow ||
+                        "No stack or review workflow supplied."}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-zinc-200 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                      Human-gated topics
+                    </p>
+                    <p className="mt-2 text-sm text-zinc-700">
+                      {selectedLead.request.humanGateTopics ||
+                        "No early escalation topics supplied."}
                     </p>
                   </div>
                 </div>
@@ -2423,6 +2518,51 @@ export default function AdminLeads() {
                         }
                       />
                     </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-zinc-200 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                    Proof-path milestones
+                  </p>
+                  <p className="mt-2 text-sm text-zinc-600">
+                    These timestamps back the robot-team proof funnel. Auto-known stages fill from the request lifecycle; operator-only stages should be marked here when they actually happen.
+                  </p>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    {Object.entries(proofPathMilestoneLabels).map(([field, label]) => {
+                      const value =
+                        selectedLead.ops?.proof_path?.[
+                          field as keyof typeof proofPathMilestoneLabels
+                        ] || null;
+
+                      return (
+                        <div key={field} className="rounded-lg bg-zinc-50 p-3">
+                          <p className="text-xs uppercase tracking-[0.14em] text-zinc-400">
+                            {label}
+                          </p>
+                          <p className="mt-1 text-sm text-zinc-800">
+                            {typeof value === "string" ? formatDate(value) : "Not recorded"}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {proofPathStageButtons.map((button) => (
+                      <button
+                        key={button.stage}
+                        type="button"
+                        onClick={() =>
+                          updateOpsMutation.mutate({
+                            requestId: selectedLead.requestId,
+                            proof_path_stage: button.stage,
+                          })
+                        }
+                        className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                      >
+                        {button.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 

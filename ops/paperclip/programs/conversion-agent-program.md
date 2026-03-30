@@ -1,14 +1,16 @@
 # Conversion Optimizer — Current Focus
 
 ## Priority
-Establish baseline funnel metrics before running experiments. PostHog was deployed 2026-03-27 — minimum 7 days of data accumulation needed before meaningful conversion analysis.
+Unblock trustworthy funnel measurement before running experiments, then correct buyer-entry defaults that currently lean too hard on qualification-first framing.
 
 ## Current Cycle: Baseline Measurement (not experimentation)
 The first cycle is a measurement cycle, not an experiment cycle:
-1. Read PostHog data for the capturer signup flow (`/client/src/pages/CapturerSignUpFlow.tsx`)
-2. Establish current completion rate per step
-3. Identify top drop-off steps with actual data
-4. Only then propose the first experiment
+1. Add step-level and outcome-level analytics coverage to the capturer signup flow (`/client/src/pages/CapturerSignUpFlow.tsx`).
+2. Add start, submit, success, and failure events to the buyer signup and contact request flows (`/client/src/pages/BusinessSignUpFlow.tsx`, `/client/src/components/site/ContactForm.tsx`).
+3. Validate PostHog and GA event naming, property shape, and no-PII discipline against the current analytics contract in `/client/src/lib/analytics.ts`.
+4. Establish current completion rate per step and per entry lane only after the above events are live.
+5. Audit whether buyer-entry defaults are pushing a qualification-first story instead of an exact-site world-model story.
+6. Only then propose the first experiment.
 
 ## Hypothesis Queue (deferred until baseline data available)
 1. Simplify signup form — email + device type only, defer other fields to post-signup onboarding
@@ -46,3 +48,5 @@ Focus area: `/client/src/pages/CapturerSignUpFlow.tsx` and related components.
 - Analytics Daily first run completed 2026-03-29 (BLU-38) — operational health focus, not funnel metrics yet
 - PostHog deployed 2026-03-27; funnel data still accumulating
 - Current signup flow is multi-step; friction points unknown until baseline data
+- As of 2026-03-30, the repo analytics layer exists but the capturer signup flow is not emitting the step-level events this program depends on.
+- As of 2026-03-30, buyer entry flows still default to `qualification` lanes in key surfaces, which risks pulling the product story away from capture-first, world-model-product-first positioning.

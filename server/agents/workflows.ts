@@ -601,6 +601,11 @@ function extractInboundQualificationInput(request: InboundRequest) {
     siteName: request.request.siteName,
     siteLocation: request.request.siteLocation,
     taskStatement: request.request.taskStatement,
+    targetSiteType: request.request.targetSiteType || null,
+    proofPathPreference: request.request.proofPathPreference || null,
+    existingStackReviewWorkflow:
+      request.request.existingStackReviewWorkflow || null,
+    humanGateTopics: request.request.humanGateTopics || null,
     workflowContext: request.request.workflowContext || null,
     operatingConstraints: request.request.operatingConstraints || null,
     privacySecurityConstraints:

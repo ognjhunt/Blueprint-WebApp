@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation, useSearch } from "wouter";
 import {
@@ -12,6 +12,11 @@ import {
   Sparkles,
 } from "lucide-react";
 import { withCsrfHeader } from "@/lib/csrf";
+import { analyticsEvents } from "@/lib/analytics";
+import {
+  getDemandAttributionFromContext,
+  hasDemandAttribution,
+} from "@/lib/demandAttribution";
 import type { InboundRequestDetail } from "@/types/inbound-request";
 import {
   BUYER_TYPE_LABELS,
@@ -86,6 +91,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
   const section = activeSection(location);
   const accessToken = searchParams.get("access")?.trim() ?? "";
   const [bootstrapReady, setBootstrapReady] = useState(accessToken.length === 0);
+  const lastTrackedSectionRef = useRef("");
 
   const bootstrapMutation = useMutation({
     mutationFn: async () => {
@@ -170,11 +176,29 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
   }
 
   const request = requestQuery.data;
+  const reviewDemandAttribution = getDemandAttributionFromContext(request.context);
   const readiness = request.deployment_readiness;
   const ops = request.ops;
   const trustScore = readiness?.buyer_trust_score;
   const previewRun = readiness?.provider_run;
   const missingEvidence = readiness?.missing_evidence || [];
+
+  useEffect(() => {
+    const trackingKey = `${request.requestId}:${section}`;
+    if (lastTrackedSectionRef.current === trackingKey) {
+      return;
+    }
+
+    lastTrackedSectionRef.current = trackingKey;
+    analyticsEvents.buyerReviewViewed({
+      section,
+      buyerType: request.request.buyerType,
+      requestedLaneCount: request.request.requestedLanes.length,
+      demandAttribution: hasDemandAttribution(reviewDemandAttribution)
+        ? reviewDemandAttribution
+        : undefined,
+    });
+  }, [request, reviewDemandAttribution, section]);
 
   const sectionTitle =
     section === "evidence"

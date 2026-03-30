@@ -25,6 +25,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { analyticsEvents, getSafeErrorType } from "@/lib/analytics";
 import { getCaptureAppPlaceholderUrl } from "@/lib/client-env";
 
 const EQUIPMENT_OPTIONS = [
@@ -99,6 +100,7 @@ export default function CapturerSignUpFlow() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [authMethod, setAuthMethod] = useState<"password" | "google">("password");
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -141,6 +143,17 @@ export default function CapturerSignUpFlow() {
       current.includes(value) ? current.filter((item) => item !== value) : [...current, value],
     );
   }, []);
+
+  useEffect(() => {
+    analyticsEvents.capturerSignupStarted();
+  }, []);
+
+  useEffect(() => {
+    analyticsEvents.capturerSignupStepViewed(
+      step,
+      step === 1 ? "account_basics" : "market_fit",
+    );
+  }, [step]);
 
   useEffect(() => {
     let active = true;
@@ -191,8 +204,15 @@ export default function CapturerSignUpFlow() {
 
       if (user.displayName) setFullName(user.displayName);
       if (user.email) setEmail(user.email);
+      setAuthMethod("google");
+      analyticsEvents.capturerSignupStepCompleted(1, "account_basics", "google");
       setStep(2);
     } catch (error: any) {
+      analyticsEvents.capturerSignupFailed({
+        stage: "google_continue",
+        stepNumber: 1,
+        errorType: getSafeErrorType(error),
+      });
       setErrorMessage(error.message || "Failed to continue with Google.");
     } finally {
       setIsSubmitting(false);
@@ -203,28 +223,63 @@ export default function CapturerSignUpFlow() {
     setErrorMessage("");
 
     if (!step1Valid) {
-      if (!fullName.trim()) setErrorMessage("Enter your full name.");
-      else if (!isValidEmail(email)) setErrorMessage("Enter a valid email address.");
-      else if (password.length < 8) setErrorMessage("Password must be at least 8 characters.");
-      else setErrorMessage("Passwords do not match.");
+      let validationError = "password_mismatch";
+      if (!fullName.trim()) {
+        validationError = "missing_full_name";
+        setErrorMessage("Enter your full name.");
+      } else if (!isValidEmail(email)) {
+        validationError = "invalid_email";
+        setErrorMessage("Enter a valid email address.");
+      } else if (password.length < 8) {
+        validationError = "weak_password";
+        setErrorMessage("Password must be at least 8 characters.");
+      } else {
+        setErrorMessage("Passwords do not match.");
+      }
+      analyticsEvents.capturerSignupFailed({
+        stage: "step_validation",
+        stepNumber: 1,
+        errorType: validationError,
+      });
       return;
     }
 
+    analyticsEvents.capturerSignupStepCompleted(1, "account_basics", authMethod);
     setStep(2);
-  }, [email, fullName, password, step1Valid]);
+  }, [authMethod, email, fullName, password, step1Valid]);
 
   const handleSubmit = useCallback(async () => {
     setErrorMessage("");
 
     if (!step2Valid) {
-      if (!market.trim()) setErrorMessage("Tell us your home market.");
-      else if (!isValidPhone(phoneNumber)) setErrorMessage("Enter a valid phone number.");
-      else if (equipment.length === 0) setErrorMessage("Select at least one capture device.");
-      else setErrorMessage("You need to accept the terms to apply.");
+      let validationError = "missing_market";
+      if (!market.trim()) {
+        setErrorMessage("Tell us your home market.");
+      } else if (!isValidPhone(phoneNumber)) {
+        validationError = "invalid_phone";
+        setErrorMessage("Enter a valid phone number.");
+      } else if (equipment.length === 0) {
+        validationError = "missing_equipment";
+        setErrorMessage("Select at least one capture device.");
+      } else {
+        validationError = "missing_terms_acceptance";
+        setErrorMessage("You need to accept the terms to apply.");
+      }
+      analyticsEvents.capturerSignupFailed({
+        stage: "step_validation",
+        stepNumber: 2,
+        errorType: validationError,
+      });
       return;
     }
 
     setIsSubmitting(true);
+    analyticsEvents.capturerSignupSubmitted({
+      authMethod,
+      equipmentCount: equipment.length,
+      availability,
+      referralSource,
+    });
 
     try {
       const { db } = await import("@/lib/firebase");
@@ -326,8 +381,19 @@ export default function CapturerSignUpFlow() {
         name: normalizedName.split(" ")[0] || normalizedName,
         market: market.trim(),
       });
+      analyticsEvents.capturerSignupCompleted({
+        authMethod,
+        equipmentCount: equipment.length,
+        availability,
+        referralSource,
+      });
       setIsComplete(true);
     } catch (error: any) {
+      analyticsEvents.capturerSignupFailed({
+        stage: "account_creation",
+        stepNumber: 2,
+        errorType: getSafeErrorType(error),
+      });
       if (error.code === "auth/email-already-in-use") {
         setErrorMessage("An account with this email already exists.");
       } else {
@@ -337,6 +403,7 @@ export default function CapturerSignUpFlow() {
       setIsSubmitting(false);
     }
   }, [
+    authMethod,
     availability,
     email,
     equipment,

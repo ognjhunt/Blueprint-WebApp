@@ -233,6 +233,16 @@ export async function encryptInboundRequestForStorage<
       taskStatement: await encryptFieldValue(
         request.request.taskStatement || "Task statement pending"
       ),
+      targetSiteType: await encryptOptionalField(
+        request.request.targetSiteType ?? null
+      ),
+      proofPathPreference: request.request.proofPathPreference ?? null,
+      existingStackReviewWorkflow: await encryptOptionalField(
+        request.request.existingStackReviewWorkflow ?? null
+      ),
+      humanGateTopics: await encryptOptionalField(
+        request.request.humanGateTopics ?? null
+      ),
       workflowContext: await encryptOptionalField(
         request.request.workflowContext ?? null
       ),
@@ -247,6 +257,18 @@ export async function encryptInboundRequestForStorage<
       ),
       targetRobotTeam: await encryptOptionalField(
         request.request.targetRobotTeam ?? null
+      ),
+      captureRights: await encryptOptionalField(
+        request.request.captureRights ?? null
+      ),
+      derivedScenePermission: await encryptOptionalField(
+        request.request.derivedScenePermission ?? null
+      ),
+      datasetLicensingPermission: await encryptOptionalField(
+        request.request.datasetLicensingPermission ?? null
+      ),
+      payoutEligibility: await encryptOptionalField(
+        request.request.payoutEligibility ?? null
       ),
     },
   };
@@ -287,6 +309,16 @@ export async function decryptInboundRequestForAdmin<
       taskStatement: request.request.taskStatement
         ? await decryptFieldValue(request.request.taskStatement)
         : "Legacy submission requires manual scoping",
+      targetSiteType: await decryptOptionalField(
+        request.request.targetSiteType ?? null
+      ),
+      proofPathPreference: request.request.proofPathPreference ?? null,
+      existingStackReviewWorkflow: await decryptOptionalField(
+        request.request.existingStackReviewWorkflow ?? null
+      ),
+      humanGateTopics: await decryptOptionalField(
+        request.request.humanGateTopics ?? null
+      ),
       workflowContext: await decryptOptionalField(
         request.request.workflowContext ?? null
       ),
@@ -301,6 +333,18 @@ export async function decryptInboundRequestForAdmin<
       ),
       targetRobotTeam: await decryptOptionalField(
         request.request.targetRobotTeam ?? null
+      ),
+      captureRights: await decryptOptionalField(
+        request.request.captureRights ?? null
+      ),
+      derivedScenePermission: await decryptOptionalField(
+        request.request.derivedScenePermission ?? null
+      ),
+      datasetLicensingPermission: await decryptOptionalField(
+        request.request.datasetLicensingPermission ?? null
+      ),
+      payoutEligibility: await decryptOptionalField(
+        request.request.payoutEligibility ?? null
       ),
     },
   };

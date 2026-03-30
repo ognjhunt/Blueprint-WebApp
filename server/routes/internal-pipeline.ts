@@ -232,6 +232,18 @@ function buildPlaceholderInboundRequest(params: {
       next_step:
         "Review the auto-created pipeline-backed request and backfill customer metadata if needed.",
       last_buyer_ready_at: null,
+      proof_path: {
+        exact_site_requested_at: null,
+        qualified_inbound_at: null,
+        proof_pack_delivered_at: null,
+        proof_pack_reviewed_at: null,
+        hosted_review_ready_at: null,
+        hosted_review_started_at: null,
+        hosted_review_follow_up_at: null,
+        artifact_handoff_delivered_at: null,
+        artifact_handoff_accepted_at: null,
+        human_commercial_handoff_at: null,
+      },
     },
     debug: {
       schemaVersion: 2,

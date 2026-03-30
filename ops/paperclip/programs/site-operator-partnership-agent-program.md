@@ -28,6 +28,10 @@ Maintain Blueprint's optional third lane for site operators without making that 
 1. Define the truthful operator-side lane without overstating current commercialization maturity.
 2. Make the human-only gates around permissions, rights, privacy, contracts, and revenue-share explicit.
 3. Clarify when operator engagement is helpful, optional, or not yet justified.
+4. Keep the operator lane from becoming the default buyer framing in shared signup or contact surfaces.
+
+## Recent Context
+- As of 2026-03-30, shared buyer flows in the webapp still skew toward `site_operator` or `qualification` defaults in places where robot-team exact-site demand should remain the primary story.
 
 ## Constraints
 - No permission judgments.

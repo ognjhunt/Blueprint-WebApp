@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
+  decryptInboundRequestForAdmin,
   decryptFieldValue,
   encryptFieldValue,
   encryptInboundRequestForStorage,
@@ -53,11 +54,19 @@ describe("field encryption", () => {
         siteName: "Analytical Engine Co - Durham",
         siteLocation: "Durham, NC",
         taskStatement: "Qualify a picking workflow for a mobile manipulator.",
+        targetSiteType: "Warehouse picking aisle",
+        proofPathPreference: "exact_site_required",
+        existingStackReviewWorkflow: "Hosted review before simulator ingestion.",
+        humanGateTopics: "Raise rights and delivery scope early.",
         workflowContext: "Pick from shelving and place into outbound totes.",
         operatingConstraints: "Overnight only.",
         privacySecurityConstraints: "Blur packaging labels.",
         knownBlockers: "Narrow aisle at station 4.",
         targetRobotTeam: "Optional robot team",
+        captureRights: "Capture permitted after NDA review.",
+        derivedScenePermission: "Derived scenes can be shared with the robot team.",
+        datasetLicensingPermission: "Dataset exports require commercial review.",
+        payoutEligibility: "Commercial terms still need approval.",
       },
       context: {
         sourcePageUrl: "https://example.com",
@@ -91,5 +100,25 @@ describe("field encryption", () => {
     expect(isEncryptedField(encrypted.contact.lastName)).toBe(true);
     expect(isEncryptedField(encrypted.contact.company)).toBe(true);
     expect(isEncryptedField(encrypted.request.details ?? "")).toBe(true);
+
+    const decrypted = await decryptInboundRequestForAdmin(encrypted as any);
+    expect(decrypted.request.targetSiteType).toBe("Warehouse picking aisle");
+    expect(decrypted.request.proofPathPreference).toBe("exact_site_required");
+    expect(decrypted.request.existingStackReviewWorkflow).toBe(
+      "Hosted review before simulator ingestion.",
+    );
+    expect(decrypted.request.humanGateTopics).toBe(
+      "Raise rights and delivery scope early.",
+    );
+    expect(decrypted.request.captureRights).toBe("Capture permitted after NDA review.");
+    expect(decrypted.request.derivedScenePermission).toBe(
+      "Derived scenes can be shared with the robot team.",
+    );
+    expect(decrypted.request.datasetLicensingPermission).toBe(
+      "Dataset exports require commercial review.",
+    );
+    expect(decrypted.request.payoutEligibility).toBe(
+      "Commercial terms still need approval.",
+    );
   });
 });

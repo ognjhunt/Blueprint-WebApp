@@ -4,68 +4,116 @@
 - phase: planning
 - owner: city-demand-agent
 - last-human-demand-decision: not approved
+- latest-refresh: 2026-03-30
+- confidence: medium
 
 ## Why San Francisco
-- dense concentration of robotics, autonomy, simulation, and world-model-adjacent teams
-- strong strategic value for exact-site product positioning and fast technical feedback
-- likely overlap between startup R&D, deployment planning, and infrastructure tooling buyers
+- evidence-backed: BLU-150 found the Bay Area has stronger buyer-matchmaking and commercialization surfaces than Austin through BARA-style closed-door startup, corporate, investor, and supplier interactions.
+- evidence-backed: Bay Area robotics density still makes San Francisco the clearest city for technical feedback on proof-pack and hosted-review quality.
+- inferred: San Francisco remains strategically important because it can expose both buyer appetite and product weaknesses faster than a thinner market.
 
 ## City Demand Thesis
-San Francisco is likely the highest-density market for technically sophisticated robot-team buyers, but demand quality will depend on whether Blueprint can present exact-site proof and hosted access without sounding like another generic AI infrastructure pitch.
+San Francisco remains the highest-density near-term city for technically sophisticated robot-team demand, but the useful motion is still narrow: proof-led commercialization conversations through robotics communities and buyer-matchmaking channels, not broad AI awareness or generic startup hype.
+
+## What Changed This Pass
+- evidence-backed: BARA-style buyer and supplier matchmaking is now a concrete SF-specific channel signal instead of a vague community hypothesis
+- evidence-backed: BLU-150 reinforces that qualified demand clusters around rapid proof review, remote inspection-style hosted review, and stack-adjacent partner channels
+- inherited: San Francisco now explicitly inherits the reusable proof-pack structure, hosted-review standard, artifact handoff checklist, and buyer follow-up expectation from `robot-team-demand-playbook.md`
+- inferred: San Francisco can support a denser commercialization motion than Austin, but only if Blueprint stays exact-site and operationally legible
 
 ## Likely Buyer Clusters
-- robotics startups and autonomy teams needing real-site evaluation assets
-- simulation and data teams that need site-grounded artifacts
-- deployment teams preparing for customer-site rollouts
-- systems integrators and technical operators seeking exact-site proof before field commitments
+- primary: robotics startups and autonomy teams needing real-site evaluation assets before field commitments
+- primary: deployment and commercialization teams preparing for customer-site rollouts and partner conversations
+- secondary: simulation and data teams that need site-grounded artifacts tied to real operations
+- secondary: systems integrators, industrial-data partners, and technical operators evaluating exact-site proof before deeper rollout work
 
 ## Relevant Facility Hypotheses
-- robotics demo, test, and deployment environments
-- logistics, commercial, and mixed-use facilities where layout specificity matters
-- customer sites that require tighter governance or operator coordination
+- robotics demo, test, and deployment environments where buyers need remote proof before on-site work
+- logistics, commercial, and mixed-use facilities where layout specificity matters to rollout risk
+- customer sites with tighter governance or operator coordination requirements, especially when commercialization is sensitive
 
-These are working hypotheses, not confirmed demand.
+These remain working hypotheses, not confirmed demand.
 
-## Channel and Community Hypotheses
-- Bay Area robotics and autonomy communities
-- technical events where exact-site proof can be discussed credibly
+## Evidence-Backed Channel Anchors
+- Bay Area Robotics Association-style closed-door matchmaking and buyer/supplier introductions
+- proof-led technical events similar to Foxglove Actuate where data, debugging, and deployment workflows are central
 - founder and operator introductions into deployment-heavy startups
-- system-integrator and technical partner networks
+- systems-integrator and industrial-data partner networks that shorten rollout and data-integration friction
+
+## City-Specific Channel Inferences
+- San Francisco can likely support more community density and commercialization surface area than Austin
+- generic AI or world-model positioning will likely underperform quickly with this audience unless tied to exact-site proof and current-stack compatibility
 
 ## Optional Site-Operator Opportunity Lane
-- more likely to surface in sensitive or high-value facilities where access and commercialization are tightly controlled
-- should remain a secondary branch unless a specific buyer motion clearly depends on it
+- more likely to surface here in sensitive or high-value facilities where commercialization and access governance are tighter
+- should still remain a secondary branch unless a specific buyer motion forces the issue
+- the stronger near-term leverage from this pass is partner and integrator adjacency, not a direct operator-first lane
 
 ## Proof-Pack Expectations
-- buyers are likely to demand sharper distinctions between what is real now and what is aspirational
-- hosted-session proof should be technically legible and exact-site specific
-- provenance, privacy, and commercialization boundaries should be explicit early
+- San Francisco inherits the shared proof-pack order from `robot-team-demand-playbook.md`: buyer context, site evidence, review-now, artifact handoff, and gap/escalation
+- buyers will demand sharper distinctions between what is real now and what is aspirational
+- hosted review needs to be technically legible, exact-site specific, and easy to inspect remotely, with artifact handoff ready for async review
+- Blueprint should show a fast proof path, ideally same day or within 24 hours, rather than a long bespoke setup
+- provenance, recency, privacy, rights, and commercialization boundaries should be explicit early
+- Blueprint should label what exists now versus what would require extra capture, packaging, integration, or approvals
+- the default follow-up after a serious review should be the shared artifact-led recap within one business day, not a generic sales note
+
+## San Francisco-Specific Proof Deltas
+- partner- and matchmaking-led motions make the artifact-handoff block more important here; buyers need to understand what can be reviewed asynchronously inside their current stack before they agree to deeper follow-up
+- the buyer-context block should call out whether the motion came from BARA-style matchmaking, a proof-led event, a founder intro, or a partner referral because those sources imply different follow-up expectations
+- commercialization-adjacent buyers in SF will scrutinize the gap/escalation block quickly, so operator, privacy, rights, and human-gated questions should be surfaced earlier instead of deferred
+- SF can support a denser proof volume than Austin, but only if hosted review stays standardized enough that sophisticated buyers see a technical evaluation surface rather than a bespoke sales demo
+
+## San Francisco-Specific Proof Gaps
+- no San Francisco-ready proof-pack template currently forces stack-compatibility notes, async artifact review expectations, and explicit human-gated commercialization boundaries into the same packet
+- no ops-owned SF checklist yet exists for turning buyer-matchmaking or partner intros into same-day hosted review plus artifact-led follow-up
+- no SF-specific measurement currently tracks the inherited proof motion by source across `proof_pack_delivered`, `hosted_review_started`, and `hosted_review_follow_up_sent`
+- no explicit growth guidance yet distinguishes which SF buyer clusters can move on adjacent-site proof versus which ones require exact-site proof immediately
 
 ## Provisional Readiness Scorecard
 - likely robot-team density: 5/5
 - exact-site proof fit: 4/5
-- access and commercialization opportunity: 3/5
+- access and commercialization opportunity: 4/5
 - instrumentation readiness: 2/5
 - operational follow-through readiness: 2/5
 - strategic importance: 5/5
 
+## Score Rationale
+- likely robot-team density stays 5/5 because SF remains the densest city for robotics-adjacent buyer concentration in Blueprint's current queue
+- exact-site proof fit stays 4/5 because the audience is strong, but proof requirements are also stricter
+- access and commercialization opportunity moves to 4/5 because BLU-150 added concrete evidence for BARA-style buyer-matchmaking and partner-driven commercialization channels
+- instrumentation and ops remain 2/5 because Blueprint still lacks city-specific funnel measurement and repeatable human commercial handoff infrastructure
+
 ## Risks
 - high buyer density can still produce shallow demand if the product story sounds generic
-- sophisticated buyers may expose packaging and hosted-session gaps faster than Austin buyers
+- sophisticated buyers may expose packaging, hosted-session, and stack-compatibility gaps faster than Austin buyers
+- SF partner density may generate lots of meetings without real buyer pull if Blueprint cannot show a standardized proof artifact
 - operator-side complexity could appear earlier in high-value site conversations
 
 ## Missing Data
 - which Bay Area buyer clusters care most about exact-site assets today
+- which SF communities besides BARA and Actuate reliably put deployment buyers, not just startups and investors, into the same room
 - whether hosted-session proof is enough to move serious follow-up without deeper commercial scaffolding
 - where operator-lane needs show up first across likely facility types
 
 ## Dependencies
-- city-specific buyer copy and proof-pack framing
-- strong instrumentation for proof-review and hosted-session follow-up
-- a clean human handoff for pricing, contracts, procurement, and commercialization questions
-- clearer operator-lane escalation paths for sensitive facility cases
+- city-specific buyer copy that frames SF around exact-site proof, existing-stack compatibility, and commercialization readiness
+- SF-tagged attribution and instrumentation for proof-review, hosted-session, and follow-up by channel
+- intake tags for BARA, proof-led event, founder intro, partner referral, and buyer-matchmaking sources
+- SF-ready proof-pack and hosted-review templates that inherit the reusable robot-team structure while making stack compatibility and async artifact review explicit
+- an ops handoff checklist for same-day hosted review assembly and artifact-led buyer follow-up on buyer-matchmaking and partner-led intros
+- a clean human handoff for pricing, contracts, procurement, commercialization, and sensitive access questions
+- clearer operator-lane escalation paths only for sensitive facility cases that actually surface
 
-## Next Actions
-1. rank San Francisco buyer clusters by exact-site need and technical proof expectations
-2. define which proof assets should lead in Bay Area buyer conversations
-3. create the first SF-specific dependency list for web, analytics, ops, and human commercial handoff
+## Measurement Plan
+- track SF-sourced buyer demand separately from generic inbound
+- measure proof-pack delivery to hosted review start to hosted-session follow-up for SF-tagged channels and events
+- capture source tags for BARA, proof-led events, founder intros, and partner referrals
+- log when requests require operator or commercialization escalation versus standard buyer follow-up
+
+## Immediate Next Actions
+1. give `conversion-agent` an SF-specific messaging task that leads with exact-site proof, stack compatibility, and hosted review instead of generic AI rhetoric
+2. give `analytics-agent` an SF measurement task for city-tagged attribution, proof-review events, and hosted-session follow-up by community or partner source
+3. give `intake-agent` an SF routing task for source tagging and cluster classification across BARA, proof-led events, founder intros, and partner referrals
+4. give `ops-lead` an SF-specific proof-ops task for same-day proof-pack assembly, hosted-review readiness, and artifact-led follow-up on buyer-matchmaking and partner-led intros
+5. keep direct operator-lane work secondary; first test whether partner and buyer-matchmaking channels produce real follow-up

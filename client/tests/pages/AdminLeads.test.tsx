@@ -662,4 +662,153 @@ describe("AdminLeads scene readiness", () => {
       );
     });
   });
+
+  it("renders proof-path milestones and records operator milestone marks", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/leads?")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              leads: [
+                {
+                  requestId: "req-robot",
+                  site_submission_id: "req-robot",
+                  createdAt: "2026-03-11T12:00:00.000Z",
+                  status: "qualified_ready",
+                  qualification_state: "qualified_ready",
+                  opportunity_state: "handoff_ready",
+                  priority: "high",
+                  contact: {
+                    firstName: "Grace",
+                    lastName: "Hopper",
+                    email: "grace@example.com",
+                    company: "Fleet Systems",
+                    roleTitle: "Deployment lead",
+                  },
+                  request: {
+                    budgetBucket: "$300K-$1M",
+                    requestedLanes: ["preview_simulation"],
+                    helpWith: ["scene-library"],
+                    buyerType: "robot_team",
+                    siteName: "Boston Warehouse",
+                    siteLocation: "Boston, MA",
+                    taskStatement: "Review our exact-site picking flow.",
+                  },
+                  owner: {},
+                  ops: {
+                    proof_path: {
+                      exact_site_requested_at: "2026-03-11T12:00:00.000Z",
+                      qualified_inbound_at: "2026-03-11T13:00:00.000Z",
+                    },
+                  },
+                },
+              ],
+            }),
+          ),
+        );
+      }
+      if (url === "/api/admin/leads/stats/summary") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              total: 1,
+              newLast24h: 1,
+              byStatus: { qualified_ready: 1 },
+              byPriority: { high: 1 },
+            }),
+          ),
+        );
+      }
+      if (url === "/api/admin/leads/req-robot") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              requestId: "req-robot",
+              site_submission_id: "req-robot",
+              createdAt: "2026-03-11T12:00:00.000Z",
+              status: "qualified_ready",
+              qualification_state: "qualified_ready",
+              opportunity_state: "handoff_ready",
+              priority: "high",
+              contact: {
+                firstName: "Grace",
+                lastName: "Hopper",
+                email: "grace@example.com",
+                company: "Fleet Systems",
+                roleTitle: "Deployment lead",
+              },
+              request: {
+                budgetBucket: "$300K-$1M",
+                requestedLanes: ["preview_simulation"],
+                helpWith: ["scene-library"],
+                buyerType: "robot_team",
+                siteName: "Boston Warehouse",
+                siteLocation: "Boston, MA",
+                taskStatement: "Review our exact-site picking flow.",
+                proofPathPreference: "exact_site_required",
+              },
+              owner: {},
+              context: { sourcePageUrl: "https://example.com/contact", utm: {} },
+              enrichment: {},
+              events: {},
+              notes: [],
+              ops: {
+                assigned_region_id: "managed-alpha",
+                rights_status: "unknown",
+                capture_policy_tier: "review_required",
+                capture_status: "not_requested",
+                quote_status: "not_started",
+                next_step: "Send proof pack",
+                last_buyer_ready_at: null,
+                proof_path: {
+                  exact_site_requested_at: "2026-03-11T12:00:00.000Z",
+                  qualified_inbound_at: "2026-03-11T13:00:00.000Z",
+                  proof_pack_delivered_at: null,
+                  proof_pack_reviewed_at: null,
+                  hosted_review_ready_at: null,
+                  hosted_review_started_at: null,
+                  hosted_review_follow_up_at: null,
+                  artifact_handoff_delivered_at: null,
+                  artifact_handoff_accepted_at: null,
+                  human_commercial_handoff_at: null,
+                },
+              },
+            }),
+          ),
+        );
+      }
+      if (url === "/api/admin/leads/req-robot/ops") {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true })));
+      }
+      if (typeof init?.method === "string" && init.method === "PATCH") {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true })));
+      }
+      return Promise.resolve(new Response(JSON.stringify({ ok: true })));
+    });
+
+    renderPage();
+
+    const leadButton = await screen.findByRole("button", { name: /Boston Warehouse/i });
+    fireEvent.click(leadButton);
+
+    expect(await screen.findByText(/Proof-path milestones/i)).toBeInTheDocument();
+    expect(screen.getByText(/Exact-site request/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Mark proof pack delivered/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Mark proof pack delivered/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/admin/leads/req-robot/ops",
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({
+            requestId: "req-robot",
+            proof_path_stage: "proof_pack_delivered",
+          }),
+        }),
+      );
+    });
+  });
 });

@@ -30,14 +30,24 @@ This program turns demand-intel findings into Blueprint-specific guidance that c
   - `city-demand-agent`
 
 ## Current Priorities
-1. Build the first truthful generic robot-team demand playbook.
-2. Define Blueprint's reusable proof-pack and hosted-session motion before city-specific customization.
-3. Define what must be measured during buyer demand work:
+1. Keep the generic robot-team playbook aligned with the live proof-path, intake, ops, and finance-routing surfaces that now exist in the repo.
+2. Make sure buyer entry flows and follow-up materials lead with exact-site package value rather than qualification-first framing.
+3. Keep city-specific demand planning inherited from the generic playbook without overstating Austin or San Francisco channel confidence before live tagged demand exists.
+4. Define what must be measured during buyer demand work:
    - qualified robot-team inbound volume
+   - time from qualified inbound to proof-pack delivery
+   - time from qualified inbound to hosted review readiness
    - hosted-session demo to follow-up rate
    - exact-site request rate
    - time to human commercial handoff
    - ops burden created by each buyer lane
+
+## Recent Context
+- As of 2026-03-30, the buyer signup and contact flows still default important paths toward `qualification`, so this program should explicitly specify the buyer-facing motion that ought to replace that default emphasis.
+- As of 2026-03-30, `inboundRequests.ops.proof_path` now carries the authoritative proof-path milestone timestamps, with a mix of auto-stamped and ops-stamped fields.
+- As of 2026-03-30, inbound qualification now captures proof-path preference, buyer role, site type, stack-review context, and early human-gated topics.
+- As of 2026-03-30, Austin and San Francisco city plans inherit the shared proof-pack and hosted-review system, but live queue review still shows no city-tagged buyer-demand evidence for either city.
+- Open downstream execution is already queued in [BLU-170](/BLU/issues/BLU-170), [BLU-175](/BLU/issues/BLU-175), [BLU-176](/BLU/issues/BLU-176), and [BLU-190](/BLU/issues/BLU-190); do not create duplicate issues unless the playbook changes again materially.
 
 ## Constraints
 - Do not approve spend.
