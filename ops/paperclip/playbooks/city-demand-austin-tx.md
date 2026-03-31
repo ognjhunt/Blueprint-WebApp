@@ -18,7 +18,9 @@ Austin is still best treated as a relationship-driven demand market where qualif
 ## What Changed This Pass
 - evidence-backed: the strongest Austin-relevant signal from BLU-150 is channel structure, not direct buyer conversion proof
 - evidence-backed: the weekly demand-intel synthesis points to rapid proof review, standardized hosted artifacts, and provenance clarity as the requirements for serious follow-up
+- evidence-backed: the city-launch work in this repo now uses explicit access-source routing and remains gated, so Austin demand planning should stay narrow and human-gated rather than widening into public city language
 - inherited: Austin now explicitly inherits the reusable proof-pack structure, hosted-review standard, artifact handoff checklist, and buyer follow-up expectation from `robot-team-demand-playbook.md`
+- inferred: the generic robot-team proof-path and funnel work are already represented in [BLU-170](/BLU/issues/BLU-170) and [BLU-190](/BLU/issues/BLU-190), so this city pass should focus on city-specific routing and escalation gaps instead of duplicating the base proof system
 - inferred: Austin should lead with small numbers of high-trust conversations, not a city-wide awareness motion
 
 ## Likely Buyer Clusters
@@ -44,9 +46,13 @@ These remain working hypotheses, not confirmed demand.
 - Austin should not assume a dense buyer-matchmaking environment comparable to Bay Area robotics networks
 
 ## Optional Site-Operator Opportunity Lane
-- likely matters first in private industrial or controlled-access facilities where access governance or recurring updates become material
-- should remain secondary until a real buyer motion hits operator-governed friction
-- no separate Austin operator-lane work should be treated as urgent from this pass alone
+- operator-secondary: private industrial, logistics, or controlled-access facilities where access governance or recurring updates become material
+- operator-relevant but still secondary: sensitive or high-friction facilities where rights, privacy, or commercialization questions appear only after a real buyer motion exists
+- any commercialization language still needs human review before it leaves planning form
+
+## Queue Status
+- Generic robot-team proof-path work is already covered in [BLU-170](/BLU/issues/BLU-170) and [BLU-190](/BLU/issues/BLU-190)
+- Austin-specific demand follow-up should start with intake, ops, finance-support, and optional operator-lane routing rather than duplicating those generic issues
 
 ## Proof-Pack Expectations
 - Austin inherits the shared proof-pack order from `robot-team-demand-playbook.md`: buyer context, site evidence, review-now, artifact handoff, and gap/escalation
@@ -110,8 +116,8 @@ These remain working hypotheses, not confirmed demand.
 - log whether requests are robot-team, integrator, or operator-governed before handoff
 
 ## Immediate Next Actions
-1. give `conversion-agent` an Austin-specific messaging task that leads with exact-site proof, fast hosted review, and provenance clarity instead of generic AI positioning
-2. give `analytics-agent` an Austin measurement task for city-tagged attribution, proof-review events, and hosted-session follow-up
-3. give `intake-agent` an Austin routing task for source tagging and cluster classification across Texas Robotics, founder-intro, university, and industrial channels
-4. give `ops-lead` an Austin-specific proof-ops task for same-day proof-pack assembly, hosted-review readiness, and artifact-led follow-up on relationship-driven intros
-5. keep operator-lane work secondary until a real Austin buyer motion surfaces access or commercialization friction
+1. give `intake-agent` an Austin routing task for source tagging, exact-site versus adjacent-site classification, and cluster classification across Texas Robotics, founder-intro, university, and industrial channels
+2. give `ops-lead` an Austin-specific proof-ops task for same-day proof-pack assembly, hosted-review readiness, and artifact-led follow-up on relationship-driven intros
+3. give `finance-support-agent` an Austin commercial handoff task for pricing, billing, procurement, and contract questions that surface after proof review
+4. give `site-operator-partnership-agent` an Austin operator-lane task for controlled-access industrial sites and commercialization-boundary review
+5. keep `conversion-agent` and `analytics-agent` on the inherited generic robot-team queue in [BLU-170](/BLU/issues/BLU-170) and [BLU-190](/BLU/issues/BLU-190) unless the shared proof system changes materially again

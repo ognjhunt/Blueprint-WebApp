@@ -230,17 +230,12 @@ agents:
       Produces daily ops summary and escalates blockers to CEO. Read skill file at ops/paperclip/skills/ops-lead.md
       before every routine.
     adapter:
-      type: claude_local
+      type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
+        model: gpt-5.4
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/ops-lead/AGENTS.md
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
-        paperclipSkillSync:
-          desiredSkills:
-            - platform-doctrine
-            - autonomy-safety
-            - find-skills
     budgetMonthlyCents: 3000
   intake-agent:
     role: engineer
@@ -327,20 +322,12 @@ agents:
       scoring. Synthesizes analytics plus supply-side and demand-side intelligence into growth strategy. Read skill
       file at ops/paperclip/skills/growth-lead.md before every routine.
     adapter:
-      type: claude_local
+      type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
+        model: gpt-5.4
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/growth-lead/AGENTS.md
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
-        paperclipSkillSync:
-          desiredSkills:
-            - platform-doctrine
-            - autonomy-safety
-            - find-skills
-            - product-marketing-context
-            - analytics-tracking
-            - page-cro
     budgetMonthlyCents: 3000
   conversion-agent:
     role: engineer
@@ -377,18 +364,12 @@ agents:
       structured findings, then patch the current issue to done or blocked using the returned proof comment. Read skill
       file at ops/paperclip/skills/analytics-agent.md before every routine.
     adapter:
-      type: claude_local
+      type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
+        model: gpt-5.4
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/analytics-agent/AGENTS.md
         timeoutSec: 1200
-        dangerouslySkipPermissions: true
-        paperclipSkillSync:
-          desiredSkills:
-            - platform-doctrine
-            - autonomy-safety
-            - product-marketing-context
-            - analytics-tracking
     budgetMonthlyCents: 2000
   market-intel-agent:
     role: engineer
@@ -398,18 +379,12 @@ agents:
       regulations. Read skill file at ops/paperclip/skills/market-intel-agent.md and steering file at
       ops/paperclip/programs/market-intel-program.md before every routine.
     adapter:
-      type: claude_local
+      type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
+        model: gpt-5.4
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/market-intel-agent/AGENTS.md
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
-        paperclipSkillSync:
-          desiredSkills:
-            - platform-doctrine
-            - autonomy-safety
-            - find-skills
-            - product-marketing-context
     budgetMonthlyCents: 2000
   supply-intel-agent:
     role: engineer
@@ -420,19 +395,12 @@ agents:
       planning. Read skill file at ops/paperclip/skills/supply-intel-agent.md and steering file at
       ops/paperclip/programs/supply-intel-agent-program.md before every routine.
     adapter:
-      type: claude_local
+      type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
+        model: gpt-5.4
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/supply-intel-agent/AGENTS.md
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
-        paperclipSkillSync:
-          desiredSkills:
-            - platform-doctrine
-            - autonomy-safety
-            - find-skills
-            - product-marketing-context
-            - supply-marketplace-research
     budgetMonthlyCents: 2000
   capturer-growth-agent:
     role: engineer
@@ -442,20 +410,12 @@ agents:
       internal execution queue. Read skill file at ops/paperclip/skills/capturer-growth-agent.md and steering file at
       ops/paperclip/programs/capturer-growth-agent-program.md before every routine.
     adapter:
-      type: claude_local
+      type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
+        model: gpt-5.4
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/capturer-growth-agent/AGENTS.md
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
-        paperclipSkillSync:
-          desiredSkills:
-            - platform-doctrine
-            - autonomy-safety
-            - find-skills
-            - product-marketing-context
-            - analytics-tracking
-            - capturer-growth-operations
     budgetMonthlyCents: 2500
   city-launch-agent:
     role: engineer
@@ -466,20 +426,12 @@ agents:
       ops/paperclip/skills/city-launch-agent.md and steering file at
       ops/paperclip/programs/city-launch-agent-program.md before every routine.
     adapter:
-      type: claude_local
+      type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
+        model: gpt-5.4
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/city-launch-agent/AGENTS.md
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
-        paperclipSkillSync:
-          desiredSkills:
-            - platform-doctrine
-            - autonomy-safety
-            - find-skills
-            - product-marketing-context
-            - analytics-tracking
-            - city-launch-operations
     budgetMonthlyCents: 2500
   demand-intel-agent:
     role: engineer
@@ -490,19 +442,12 @@ agents:
       planning. Read skill file at ops/paperclip/skills/demand-intel-agent.md and steering file at
       ops/paperclip/programs/demand-intel-agent-program.md before every routine.
     adapter:
-      type: claude_local
+      type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
+        model: gpt-5.4
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/demand-intel-agent/AGENTS.md
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
-        paperclipSkillSync:
-          desiredSkills:
-            - platform-doctrine
-            - autonomy-safety
-            - find-skills
-            - product-marketing-context
-            - robot-team-demand-research
     budgetMonthlyCents: 2000
   robot-team-growth-agent:
     role: engineer
@@ -513,20 +458,12 @@ agents:
       ops/paperclip/skills/robot-team-growth-agent.md and steering file at
       ops/paperclip/programs/robot-team-growth-agent-program.md before every routine.
     adapter:
-      type: claude_local
+      type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
+        model: gpt-5.4
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/robot-team-growth-agent/AGENTS.md
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
-        paperclipSkillSync:
-          desiredSkills:
-            - platform-doctrine
-            - autonomy-safety
-            - find-skills
-            - product-marketing-context
-            - analytics-tracking
-            - robot-team-growth-operations
     budgetMonthlyCents: 2500
   site-operator-partnership-agent:
     role: engineer
@@ -537,19 +474,12 @@ agents:
       ops/paperclip/skills/site-operator-partnership-agent.md and steering file at
       ops/paperclip/programs/site-operator-partnership-agent-program.md before every routine.
     adapter:
-      type: claude_local
+      type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
+        model: gpt-5.4
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/site-operator-partnership-agent/AGENTS.md
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
-        paperclipSkillSync:
-          desiredSkills:
-            - platform-doctrine
-            - autonomy-safety
-            - find-skills
-            - product-marketing-context
-            - site-operator-partnership-operations
     budgetMonthlyCents: 2000
   city-demand-agent:
     role: engineer
@@ -560,20 +490,12 @@ agents:
       ops/paperclip/skills/city-demand-agent.md and steering file at
       ops/paperclip/programs/city-demand-agent-program.md before every routine.
     adapter:
-      type: claude_local
+      type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
+        model: gpt-5.4
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/city-demand-agent/AGENTS.md
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
-        paperclipSkillSync:
-          desiredSkills:
-            - platform-doctrine
-            - autonomy-safety
-            - find-skills
-            - product-marketing-context
-            - analytics-tracking
-            - city-demand-operations
     budgetMonthlyCents: 2500
 projects:
   blueprint-executive-ops:

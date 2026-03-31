@@ -58,6 +58,28 @@ These are hypotheses for planning, not policy.
 - operators show interest in governed access or commercialization conversations
 - city plans identify site clusters where operator-side coordination is likely to matter
 
+## Current City Signals
+- Austin: keep operator-lane work secondary unless a controlled-access industrial, logistics, or similarly governed facility creates real access friction or recurring update work.
+- San Francisco: treat sensitive, high-value, or partner-led commercialization conversations as earlier operator-lane candidates, but still keep the lane secondary to the robot-team buyer motion.
+
+These are planning signals, not policy.
+
+## Operator-Lane Matrix
+| Site type | Likely operator concern | Legitimate Blueprint value prop | Required human gate | Downstream owner |
+| --- | --- | --- | --- | --- |
+| Private industrial and logistics facilities | escorts, access windows, recurring updates, controlled zones | clearer access governance around exact-site products and hosted access | human review for permission, rights, privacy, and any commercialization participation | `ops-lead` |
+| Commercial spaces with controlled access | visitor routing, tenant rules, customer privacy | boundary handling and hosted review that labels what is already captured | human review for privacy, consent, operator permission, and scope limits | `intake-agent` |
+| High-sensitivity facilities | restricted zones, sensitive operations, privacy exposure | explicit boundary labeling, narrow hosted review, and careful handoff packaging | human review for privacy, rights, and exception handling | `ops-lead` |
+| Customer sites with commercialization-adjacent stakeholders | partner expectations, custom packaging pressure, rollout coordination | draft-only commercialization framing after a human sets the terms | human review for pricing, contract, revenue-share, and procurement terms | `finance-support-agent` |
+
+The matrix is a routing aid, not a standing claim that operator involvement is mandatory or commercially available in every case.
+
+## Issue-Ready Actions
+- `ops-lead`: update the hosted-review and artifact-handoff checklist so controlled-access or high-sensitivity facilities always carry site type, access state, operator involvement, and human-only gate fields.
+- `intake-agent`: add routing prompts that split buyer evaluation from operator-governed access or commercialization questions and fail closed when rights, privacy, or contract language appears.
+- `finance-support-agent`: add a draft response pattern for pricing, procurement, and revenue-share questions that may follow proof review, while keeping all commitments human-owned.
+- `city-demand-agent`: mirror the Austin and San Francisco signals into city plans by marking which site clusters are operator-secondary versus operator-relevant, and which ones still need human review before any commercialization language is used.
+
 ## Handoffs
 - `growth-lead`: priority and posture decisions
 - `ops-lead`: operational routing and queue ownership

@@ -17,7 +17,9 @@ PLUGIN_KEY="blueprint.automation"
 RUN_SMOKE=0
 CLAUDE_LANE_MODE="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE:-auto}"
 VERIFY_CLAUDE="${BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE:-1}"
+VERIFY_HERMES="${BLUEPRINT_PAPERCLIP_VERIFY_HERMES:-auto}"
 FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES:-0}"
+HERMES_INSTRUCTIONS_FILE="/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/ops-lead/AGENTS.md"
 
 for arg in "$@"; do
   if [ "$arg" = "--smoke" ]; then
@@ -123,6 +125,7 @@ run_test() {
   local status
   status="$(printf '%s' "$result" | jq -r '.status')"
   LAST_TEST_STATUS="$status"
+  LAST_TEST_RESULT="$result"
 }
 
 assert_workspace_ready() {
@@ -150,6 +153,46 @@ assert_workspace_ready() {
       fi
       ;;
   esac
+}
+
+should_verify_hermes() {
+  case "${VERIFY_HERMES}" in
+    1|true|yes)
+      return 0
+      ;;
+    0|false|no)
+      return 1
+      ;;
+    auto|"")
+      command -v hermes >/dev/null 2>&1
+      ;;
+    *)
+      echo "Unknown BLUEPRINT_PAPERCLIP_VERIFY_HERMES=${VERIFY_HERMES}; expected auto|0|1" >&2
+      return 1
+      ;;
+  esac
+}
+
+hermes_oauth_only_probe_ok() {
+  [ "${LAST_TEST_STATUS}" = "pass" ] && return 0
+  [ "${LAST_TEST_STATUS}" = "warn" ] || return 1
+
+  printf '%s' "${LAST_TEST_RESULT}" | node -e '
+    let data="";
+    process.stdin.on("data",(chunk)=>data+=chunk);
+    process.stdin.on("end",()=>{
+      const payload = JSON.parse(data);
+      const checks = Array.isArray(payload.checks) ? payload.checks : [];
+      const warnCodes = checks
+        .filter((check) => check && check.level === "warn")
+        .map((check) => check.code)
+        .filter(Boolean);
+      const allowedWarns = warnCodes.length === 1 && warnCodes[0] === "hermes_no_api_keys";
+      const hasVersion = checks.some((check) => check && check.code === "hermes_version");
+      const hasModel = checks.some((check) => check && check.code === "hermes_model_configured");
+      process.exit(allowedWarns && hasVersion && hasModel ? 0 : 1);
+    });
+  '
 }
 
 main() {
@@ -237,6 +280,24 @@ main() {
   assert_workspace_ready "Blueprint-WebApp" "$webapp_codex" "$webapp_claude"
   assert_workspace_ready "BlueprintCapturePipeline" "$pipeline_codex" "$pipeline_claude"
   assert_workspace_ready "BlueprintCapture" "$capture_codex" "$capture_claude"
+
+  if should_verify_hermes; then
+    echo "Running Hermes adapter verification for Blueprint-WebApp research/copilot agents..."
+    run_test "$company_id" "Blueprint-WebApp" "hermes_local" "{
+      \"adapterConfig\": {
+        \"cwd\": \"/Users/nijelhunt_1/workspace/Blueprint-WebApp\",
+        \"model\": \"gpt-5.4\",
+        \"instructionsFilePath\": \"${HERMES_INSTRUCTIONS_FILE}\",
+        \"timeoutSec\": 1200
+      }
+    }"
+    hermes_oauth_only_probe_ok || {
+      echo "Verification failed: Hermes-backed Blueprint-WebApp agents require a healthy hermes_local adapter." >&2
+      return 1
+    }
+  else
+    echo "Skipping Hermes adapter verification (set BLUEPRINT_PAPERCLIP_VERIFY_HERMES=1 to require it)."
+  fi
 
   if [ "$RUN_SMOKE" -eq 1 ]; then
     /Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/smoke-blueprint-paperclip-automation.sh

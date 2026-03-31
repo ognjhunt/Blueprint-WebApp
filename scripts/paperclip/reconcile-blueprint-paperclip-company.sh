@@ -340,6 +340,22 @@ function buildCodexProbeConfigs(yamlAgents) {
   });
 }
 
+function buildHermesProbeConfig(adapterConfig) {
+  const probeConfig = {
+    cwd: adapterConfig.cwd,
+  };
+  if (typeof adapterConfig.instructionsFilePath === "string" && adapterConfig.instructionsFilePath.trim().length > 0) {
+    probeConfig.instructionsFilePath = adapterConfig.instructionsFilePath;
+  }
+  if (typeof adapterConfig.model === "string" && adapterConfig.model.trim().length > 0) {
+    probeConfig.model = adapterConfig.model;
+  }
+  if (typeof adapterConfig.timeoutSec === "number") {
+    probeConfig.timeoutSec = adapterConfig.timeoutSec;
+  }
+  return probeConfig;
+}
+
 function summarizeProbeFailure(result, fallbackMessage) {
   return result?.checks?.map?.((check) => check.message).filter(Boolean).join("; ") || fallbackMessage;
 }
@@ -354,10 +370,17 @@ async function probeAdapter(companyId, adapterType, adapterConfig) {
       },
     );
     return {
-      status: result?.status === "pass" ? "pass" : "fail",
+      status:
+        result?.status === "pass"
+          ? "pass"
+          : result?.status === "warn"
+            ? "warn"
+            : "fail",
       reason:
         result?.status === "pass"
           ? `${adapterType} probe passed`
+          : result?.status === "warn"
+            ? summarizeProbeFailure(result, `${adapterType} probe warned`)
           : summarizeProbeFailure(result, `${adapterType} probe failed`),
     };
   } catch (error) {
@@ -396,6 +419,9 @@ function buildWorkspaceProbeMatrix(yamlAgents) {
           adapterConfig.dangerouslyBypassApprovalsAndSandbox !== false,
       };
     }
+    if (adapterType === "hermes_local" && !entry.hermes_local) {
+      entry.hermes_local = buildHermesProbeConfig(adapterConfig);
+    }
   }
   return byCwd;
 }
@@ -417,6 +443,13 @@ async function resolveWorkspaceAvailability(companyId, yamlAgents) {
         companyId,
         "codex_local",
         probeConfigs.codex_local,
+      );
+    }
+    if (probeConfigs.hermes_local) {
+      availability[cwd].hermes_local = await probeAdapter(
+        companyId,
+        "hermes_local",
+        probeConfigs.hermes_local,
       );
     }
   }
@@ -443,6 +476,10 @@ function fallbackAdapterFor(desired) {
     };
   }
 
+  if (desired.adapterType !== "codex_local") {
+    return null;
+  }
+
   const {
     dangerouslyBypassApprovalsAndSandbox: _bypass,
     model: _previousModel,
@@ -460,6 +497,10 @@ function fallbackAdapterFor(desired) {
 }
 
 function chooseAdapterForAgent(desired, requestedMode, workspaceAvailability) {
+  if (desired.adapterType !== "claude_local" && desired.adapterType !== "codex_local") {
+    return desired;
+  }
+
   const fallback = fallbackAdapterFor(desired);
   if (requestedMode === "claude") {
     return desired.adapterType === "claude_local" ? desired : fallback;
@@ -502,8 +543,9 @@ const workspaceAvailability = await resolveWorkspaceAvailability(company.id, yam
 for (const [cwd, adapters] of Object.entries(workspaceAvailability)) {
   const claudeReason = adapters.claude_local?.reason ?? "not configured";
   const codexReason = adapters.codex_local?.reason ?? "not configured";
+  const hermesReason = adapters.hermes_local?.reason ?? "not configured";
   console.log(
-    `[paperclip] ${cwd} -> claude=${adapters.claude_local?.status ?? "n/a"} (${claudeReason}) | codex=${adapters.codex_local?.status ?? "n/a"} (${codexReason})`,
+    `[paperclip] ${cwd} -> claude=${adapters.claude_local?.status ?? "n/a"} (${claudeReason}) | codex=${adapters.codex_local?.status ?? "n/a"} (${codexReason}) | hermes=${adapters.hermes_local?.status ?? "n/a"} (${hermesReason})`,
   );
 }
 

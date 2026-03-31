@@ -18,7 +18,9 @@ San Francisco remains the highest-density near-term city for technically sophist
 ## What Changed This Pass
 - evidence-backed: BARA-style buyer and supplier matchmaking is now a concrete SF-specific channel signal instead of a vague community hypothesis
 - evidence-backed: BLU-150 reinforces that qualified demand clusters around rapid proof review, remote inspection-style hosted review, and stack-adjacent partner channels
+- evidence-backed: the city-launch work in this repo now uses explicit access-source routing and remains gated, so San Francisco demand planning should stay narrow and exact-site grounded rather than drifting into generic public recruiting language
 - inherited: San Francisco now explicitly inherits the reusable proof-pack structure, hosted-review standard, artifact handoff checklist, and buyer follow-up expectation from `robot-team-demand-playbook.md`
+- inferred: the generic robot-team proof-path and funnel work are already represented in [BLU-170](/BLU/issues/BLU-170) and [BLU-190](/BLU/issues/BLU-190), so this city pass should focus on city-specific routing and escalation gaps instead of duplicating the base proof system
 - inferred: San Francisco can support a denser commercialization motion than Austin, but only if Blueprint stays exact-site and operationally legible
 
 ## Likely Buyer Clusters
@@ -45,9 +47,13 @@ These remain working hypotheses, not confirmed demand.
 - generic AI or world-model positioning will likely underperform quickly with this audience unless tied to exact-site proof and current-stack compatibility
 
 ## Optional Site-Operator Opportunity Lane
-- more likely to surface here in sensitive or high-value facilities where commercialization and access governance are tighter
-- should still remain a secondary branch unless a specific buyer motion forces the issue
-- the stronger near-term leverage from this pass is partner and integrator adjacency, not a direct operator-first lane
+- operator-secondary: partner-led, systems-integrator-led, and exact-site buyer motions remain the default
+- operator-relevant but still secondary: sensitive or high-value facilities where commercialization and access governance are tighter and surface earlier
+- human review still owns any commercialization language, pricing, rights, or permission question
+
+## Queue Status
+- Generic robot-team proof-path work is already covered in [BLU-170](/BLU/issues/BLU-170) and [BLU-190](/BLU/issues/BLU-190)
+- San Francisco-specific demand follow-up should start with intake, ops, finance-support, and optional operator-lane routing rather than duplicating those generic issues
 
 ## Proof-Pack Expectations
 - San Francisco inherits the shared proof-pack order from `robot-team-demand-playbook.md`: buyer context, site evidence, review-now, artifact handoff, and gap/escalation
@@ -112,8 +118,8 @@ These remain working hypotheses, not confirmed demand.
 - log when requests require operator or commercialization escalation versus standard buyer follow-up
 
 ## Immediate Next Actions
-1. give `conversion-agent` an SF-specific messaging task that leads with exact-site proof, stack compatibility, and hosted review instead of generic AI rhetoric
-2. give `analytics-agent` an SF measurement task for city-tagged attribution, proof-review events, and hosted-session follow-up by community or partner source
-3. give `intake-agent` an SF routing task for source tagging and cluster classification across BARA, proof-led events, founder intros, and partner referrals
-4. give `ops-lead` an SF-specific proof-ops task for same-day proof-pack assembly, hosted-review readiness, and artifact-led follow-up on buyer-matchmaking and partner-led intros
-5. keep direct operator-lane work secondary; first test whether partner and buyer-matchmaking channels produce real follow-up
+1. give `intake-agent` an SF routing task for source tagging, exact-site versus adjacent-site classification, and cluster classification across BARA, proof-led events, founder intros, and partner referrals
+2. give `ops-lead` an SF-specific proof-ops task for same-day proof-pack assembly, hosted-review readiness, and artifact-led follow-up on buyer-matchmaking and partner-led intros
+3. give `finance-support-agent` an SF commercial handoff task for pricing, procurement, invoice, and partner-terms questions that surface after proof review
+4. give `site-operator-partnership-agent` an SF operator-lane task for sensitive or high-value facilities and commercialization-boundary review
+5. keep `conversion-agent` and `analytics-agent` on the inherited generic robot-team queue in [BLU-170](/BLU/issues/BLU-170) and [BLU-190](/BLU/issues/BLU-190) unless the shared proof system changes materially again

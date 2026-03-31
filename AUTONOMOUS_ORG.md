@@ -150,7 +150,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Ops |
 | **Reports to** | CEO |
-| **Model** | Claude |
+| **Model** | Hermes (Codex OAuth) |
 | **Status** | New |
 
 **Purpose:** Coordinates all product operations. Routes work between intake, QA, scheduling, and finance agents. Produces daily ops summary. Escalates blockers to CEO.
@@ -383,7 +383,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | CEO |
-| **Model** | Claude |
+| **Model** | Hermes (Codex OAuth) |
 | **Status** | New |
 
 **Purpose:** Coordinates buyer demand, capturer supply, conversion, retention, and city planning. Sets experiment priorities using ICE scoring. Synthesizes analytics, market intelligence, supply intelligence, capturer growth planning, city launch planning, demand intelligence, robot-team growth planning, site-operator lane planning, and city demand planning into growth strategy.
@@ -440,7 +440,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Claude |
+| **Model** | Hermes (Codex OAuth) |
 | **Status** | New |
 
 **Purpose:** Researches historical and current marketplace supply playbooks with emphasis on boots-on-the-ground growth, launch sequencing, incentive structures, referral loops, trust systems, and channel economics.
@@ -474,7 +474,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Claude |
+| **Model** | Hermes (Codex OAuth) |
 | **Status** | New |
 
 **Purpose:** Converts supply-intel research into Blueprint's reusable capturer acquisition playbook. Maintains the generic channel, messaging, referral, and activation system that later city launches should inherit.
@@ -508,7 +508,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Claude |
+| **Model** | Hermes (Codex OAuth) |
 | **Status** | New |
 
 **Purpose:** Adapts Blueprint's generic capturer growth playbook to specific cities. Starts with Austin, TX and San Francisco, CA.
@@ -542,7 +542,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Claude |
+| **Model** | Hermes (Codex OAuth) |
 | **Status** | New |
 
 **Purpose:** Researches how robotics infrastructure, autonomy, simulation/data, and world-model businesses generated buyer demand from robot teams and adjacent technical buyers. Focuses on channels, proof requirements, hosted-demo motions, procurement triggers, and city/vertical demand signals.
@@ -576,7 +576,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Claude |
+| **Model** | Hermes (Codex OAuth) |
 | **Status** | New |
 
 **Purpose:** Converts demand-intel research into Blueprint's reusable robot-team demand playbook. Maintains the generic ICP, messaging, proof-pack, hosted-session demo motion, and buyer funnel that later city-demand work should inherit.
@@ -610,7 +610,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Claude |
+| **Model** | Hermes (Codex OAuth) |
 | **Status** | New |
 
 **Purpose:** Maintains Blueprint's optional third lane for site operators. Defines when site-operator demand matters, what access/privacy/rights/commercialization conversations are legitimate, and how this lane stays separate from the core robot-team buyer motion.
@@ -644,7 +644,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Claude |
+| **Model** | Hermes (Codex OAuth) |
 | **Status** | New |
 
 **Purpose:** Adapts Blueprint's generic robot-team demand playbook to specific cities. Starts with Austin, TX and San Francisco, CA. Maps likely buyer clusters, facility-type demand, optional operator-lane opportunities, and city readiness.
@@ -741,7 +741,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Claude |
+| **Model** | Hermes (Codex OAuth) |
 | **Status** | New |
 
 **Purpose:** Pulls, aggregates, and interprets all measurable signals across the platform. Detects anomalies. Produces daily/weekly reports. Answers ad-hoc metric queries from other agents.
@@ -798,7 +798,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Claude |
+| **Model** | Hermes (Codex OAuth) |
 | **Status** | New |
 
 **Purpose:** Autoresearch-pattern agent for business intelligence. Continuously researches competitors, market trends, new papers/techniques, pricing movements, partnership opportunities, and regulatory changes.
@@ -861,6 +861,8 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 ### Local Paperclip Hub (Your Mac)
 
 All agents run on the local Paperclip instance. They are lightweight — mostly LLM API calls + data reads/writes.
+
+Hermes-backed research/copilot agents are configured to use Codex OAuth only on this host. They are not expected to consume Anthropic or OpenAI API keys for their main model path.
 
 | Component | Status | Notes |
 |-----------|--------|-------|
