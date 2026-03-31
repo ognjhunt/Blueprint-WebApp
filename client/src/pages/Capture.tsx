@@ -52,7 +52,8 @@ export default function Capture() {
                 </h1>
                 <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
                   If you are recording a site for Blueprint, start here for the basics, then open
-                  the app. The main website is for robot teams buying access to real sites.
+                  the app. If you still need approval, apply for capturer access first. The main
+                  website is for robot teams buying access to real sites.
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <a
@@ -61,6 +62,12 @@ export default function Capture() {
                   >
                     Open capture app
                     <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
+                  <a
+                    href="/signup/capturer"
+                    className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+                  >
+                    Apply for capturer access
                   </a>
                   <a
                     href="mailto:hello@tryblueprint.io?subject=Blueprint%20Capture%20Support"

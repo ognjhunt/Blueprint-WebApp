@@ -11,17 +11,29 @@ export interface SlackWebhookTargets {
   default?: string;
   ops?: string;
   growth?: string;
+  exec?: string;
+  engineering?: string;
+  manager?: string;
 }
 
 function pickWebhookUrl(targets: SlackWebhookTargets, channel: string): string | null {
   const normalized = channel.trim().toLowerCase();
+  if (normalized.includes("manager")) {
+    return targets.manager ?? targets.exec ?? targets.ops ?? targets.default ?? targets.growth ?? targets.engineering ?? null;
+  }
+  if (normalized.includes("exec")) {
+    return targets.exec ?? targets.manager ?? targets.ops ?? targets.default ?? targets.growth ?? targets.engineering ?? null;
+  }
+  if (normalized.includes("eng")) {
+    return targets.engineering ?? targets.ops ?? targets.default ?? targets.manager ?? targets.exec ?? targets.growth ?? null;
+  }
   if (normalized.includes("growth") || normalized.includes("analytics")) {
-    return targets.growth ?? targets.default ?? targets.ops ?? null;
+    return targets.growth ?? targets.default ?? targets.ops ?? targets.exec ?? targets.engineering ?? targets.manager ?? null;
   }
   if (normalized.includes("ops") || normalized.includes("support")) {
-    return targets.ops ?? targets.default ?? targets.growth ?? null;
+    return targets.ops ?? targets.default ?? targets.manager ?? targets.exec ?? targets.growth ?? targets.engineering ?? null;
   }
-  return targets.default ?? targets.ops ?? targets.growth ?? null;
+  return targets.default ?? targets.manager ?? targets.exec ?? targets.ops ?? targets.growth ?? targets.engineering ?? null;
 }
 
 export async function postSlackDigest(
@@ -30,7 +42,7 @@ export async function postSlackDigest(
 ): Promise<{
   ok: boolean;
   routedChannel: string;
-  target: "ops" | "growth" | "default" | "none";
+  target: "ops" | "growth" | "exec" | "engineering" | "manager" | "default" | "none";
   statusCode?: number;
   responseBody?: string;
 }> {
@@ -41,7 +53,13 @@ export async function postSlackDigest(
 
   const normalized = digest.channel.trim().toLowerCase();
   const target =
-    normalized.includes("growth") || normalized.includes("analytics")
+    normalized.includes("manager")
+      ? "manager"
+      : normalized.includes("exec")
+        ? "exec"
+        : normalized.includes("eng")
+          ? "engineering"
+          : normalized.includes("growth") || normalized.includes("analytics")
       ? "growth"
       : normalized.includes("ops") || normalized.includes("support")
         ? "ops"

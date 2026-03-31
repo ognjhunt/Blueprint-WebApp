@@ -3,6 +3,7 @@ import { SEO } from "@/components/SEO";
 import { ScrollReveal } from "@/components/motion";
 import { motion, useReducedMotion } from "framer-motion";
 import { normalizeInterestToLane } from "@/lib/contactInterest";
+import { getDemandCityMessaging, withDemandCityQuery } from "@/lib/cityDemandMessaging";
 import { Mail, MessageSquare, Sparkles } from "lucide-react";
 import { useMemo } from "react";
 import { useSearch } from "wouter";
@@ -37,6 +38,7 @@ export default function Contact() {
   const interest = searchParams.get("interest")?.trim() ?? "";
   const buyerType = searchParams.get("buyerType")?.trim() ?? "";
   const personaParam = searchParams.get("persona")?.trim() ?? "";
+  const cityMessaging = getDemandCityMessaging(searchParams.get("city"));
   const hostedMode =
     normalizeInterestToLane(interest) === "deeper_evaluation" && buyerType === "robot_team";
   const persona =
@@ -45,57 +47,70 @@ export default function Contact() {
       : personaParam === "site-operator" || buyerType === "site_operator"
         ? "site_operator"
         : "robot_team";
+  const robotTeamCityMessaging = persona === "robot_team" ? cityMessaging : null;
 
   const seoTitle = hostedMode
     ? "Request Hosted Evaluation | Blueprint"
+    : robotTeamCityMessaging
+      ? `For ${robotTeamCityMessaging.shortLabel} Robot Teams | Blueprint`
     : persona === "site_operator"
       ? "For Site Operators | Blueprint"
       : "For Robot Teams | Blueprint";
   const seoDescription = hostedMode
     ? "Request a hosted robot-team evaluation for a site-specific world model."
+    : robotTeamCityMessaging
+      ? `Send Blueprint a short ${robotTeamCityMessaging.shortLabel} buyer brief anchored in exact-site proof, workflow context, and truthful next steps.`
     : persona === "site_operator"
       ? "Talk to Blueprint about facility participation, access rules, and governance."
       : "Send Blueprint a short brief about the site, task, and robot setup you want to evaluate.";
 
   const badgeLabel = hostedMode
     ? "Hosted Evaluation"
+    : robotTeamCityMessaging
+      ? `For Robot Teams • ${robotTeamCityMessaging.shortLabel}`
     : persona === "site_operator"
       ? "For Site Operators"
       : "For Robot Teams";
   const heroTitle = hostedMode
     ? "Request a hosted evaluation for this site."
+    : robotTeamCityMessaging
+      ? robotTeamCityMessaging.requestHeroTitle
     : persona === "site_operator"
       ? "Tell us about the facility and the rules around it."
       : "Tell us the site, task, and robot in a few lines.";
   const heroBody = hostedMode
     ? "Confirm the site, the task, and the robot setup. Blueprint will use that to line up the right hosted evaluation path for your team."
+    : robotTeamCityMessaging
+      ? robotTeamCityMessaging.requestHeroBody
     : persona === "site_operator"
       ? "Use this form if you run the facility and need to talk through capture access, privacy rules, or whether the site should be listed at all."
       : "Use this form if your team needs one exact site for evaluation, site-specific data, release comparison, or package access. A short brief is enough if you are still figuring out fit.";
   const responseTitle = hostedMode ? "Hosted evaluation request" : "What happens after you send this";
   const responseBody = hostedMode
     ? "Fill out the short form and Blueprint will follow up to confirm the site, robot setup, and the next step toward a hosted evaluation."
+    : robotTeamCityMessaging
+      ? robotTeamCityMessaging.requestResponseBody
     : persona === "site_operator"
       ? "Blueprint reviews the facility details, access rules, and privacy notes first so the next reply can narrow the path quickly."
       : "Blueprint reviews the site, task, and robot details first. The reply should point your team toward the package path, hosted evaluation, or a short follow-up question.";
   const learnMoreLinks = hostedMode
     ? [
-        { href: "/world-models", label: "Back to World Models" },
-        { href: "/sample-deliverables", label: "Sample Deliverables" },
-        { href: "/faq", label: "FAQ" },
-      ]
-    : persona === "site_operator"
+          { href: "/world-models", label: "Back to World Models" },
+          { href: "/sample-deliverables", label: "Sample Deliverables" },
+          { href: "/faq", label: "FAQ" },
+        ]
+      : persona === "site_operator"
       ? [
           { href: "/governance", label: "Governance" },
           { href: "/about", label: "About Blueprint" },
           { href: "/capture", label: "Capture basics" },
         ]
       : [
-        { href: "/world-models", label: "Explore world models" },
-        { href: "/how-it-works", label: "How it works" },
-        { href: "/sample-deliverables", label: "Sample deliverables" },
-        { href: "/faq", label: "FAQ" },
-      ];
+          { href: "/world-models", label: "Explore world models" },
+          { href: "/how-it-works", label: "How it works" },
+          { href: "/sample-deliverables", label: "Sample deliverables" },
+          { href: "/faq", label: "FAQ" },
+        ];
 
   return (
     <>
@@ -144,6 +159,40 @@ export default function Contact() {
             </ScrollReveal>
 
             <div className="flex flex-col justify-start space-y-6 lg:pl-8">
+              {robotTeamCityMessaging ? (
+                <ScrollReveal delay={0.12}>
+                  <motion.div
+                    whileHover={shouldReduce ? {} : { y: -2 }}
+                    className="rounded-2xl border border-sky-200 bg-sky-50/80 p-6 transition-shadow hover:shadow-sm"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-sky-700">
+                        <Sparkles className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
+                          {robotTeamCityMessaging.label}
+                        </p>
+                        <h3 className="mt-2 font-semibold text-slate-900">
+                          {robotTeamCityMessaging.requestCardTitle}
+                        </h3>
+                        <p className="mt-2 text-sm text-slate-600">
+                          {robotTeamCityMessaging.requestCardBody}
+                        </p>
+                        <ul className="mt-4 space-y-2 text-sm text-slate-700">
+                          {robotTeamCityMessaging.requestCardPoints.map((point) => (
+                            <li key={point} className="flex items-start gap-2">
+                              <span className="mt-2 h-1.5 w-1.5 rounded-full bg-sky-600" />
+                              <span>{point}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </motion.div>
+                </ScrollReveal>
+              ) : null}
+
               <ScrollReveal delay={0.15}>
                 <motion.div
                   whileHover={shouldReduce ? {} : { y: -2 }}
@@ -196,7 +245,10 @@ export default function Contact() {
                     {learnMoreLinks.map((link) => (
                       <li key={link.href}>
                         <a
-                          href={link.href}
+                          href={withDemandCityQuery(
+                            link.href,
+                            robotTeamCityMessaging?.key ?? null,
+                          )}
                           className="group flex items-center gap-2 text-slate-700 transition hover:text-slate-900"
                         >
                           <span>{link.label}</span>

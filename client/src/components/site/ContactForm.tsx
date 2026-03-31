@@ -1,18 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearch } from "wouter";
 import { ArrowRight, Calendar, CheckCircle2, Clock, Mail } from "lucide-react";
+import { analyticsEvents, getSafeErrorType } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
+import {
+  getDemandAttributionFromSearchParams,
+  hasDemandAttribution,
+} from "@/lib/demandAttribution";
 import { normalizeInterestToLane } from "@/lib/contactInterest";
 import { useAuth } from "@/contexts/AuthContext";
 import type {
   BuyerType,
   InboundRequestPayload,
+  ProofPathPreference,
   RequestedLane,
   SubmitInboundRequestResponse,
-  UTMParams,
 } from "@/types/inbound-request";
 
 type Persona = "robot_team" | "site_operator";
+
+function getDefaultRequestedLane(persona: Persona): RequestedLane {
+  return persona === "site_operator" ? "qualification" : "deeper_evaluation";
+}
 
 function generateRequestId(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -24,18 +33,6 @@ function generateRequestId(): string {
     const resolved = character === "x" ? randomValue : (randomValue & 0x3) | 0x8;
     return resolved.toString(16);
   });
-}
-
-function getUTMParams(): UTMParams {
-  if (typeof window === "undefined") return {};
-  const params = new URLSearchParams(window.location.search);
-  return {
-    source: params.get("utm_source") || null,
-    medium: params.get("utm_medium") || null,
-    campaign: params.get("utm_campaign") || null,
-    term: params.get("utm_term") || null,
-    content: params.get("utm_content") || null,
-  };
 }
 
 function getReferrer(): string | null {
@@ -65,6 +62,13 @@ export function ContactForm() {
   const interestLane = normalizeInterestToLane(interest);
   const hostedMode = interestLane === "deeper_evaluation" && buyerTypeParam === "robot_team";
   const persona = getPersonaFromSearch(personaParam, buyerTypeParam, hostedMode);
+  const searchDemandAttribution = useMemo(
+    () => getDemandAttributionFromSearchParams(searchParams),
+    [searchParams],
+  );
+  const analyticsDemandAttribution = hasDemandAttribution(searchDemandAttribution)
+    ? searchDemandAttribution
+    : undefined;
 
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -77,6 +81,11 @@ export function ContactForm() {
   const [siteName, setSiteName] = useState("");
   const [siteLocation, setSiteLocation] = useState("");
   const [taskStatement, setTaskStatement] = useState("");
+  const [targetSiteType, setTargetSiteType] = useState("");
+  const [proofPathPreference, setProofPathPreference] =
+    useState<ProofPathPreference | "">("");
+  const [existingStackReviewWorkflow, setExistingStackReviewWorkflow] = useState("");
+  const [humanGateTopics, setHumanGateTopics] = useState("");
   const [targetRobotTeam, setTargetRobotTeam] = useState("");
   const [operatingConstraints, setOperatingConstraints] = useState("");
   const [privacySecurityConstraints, setPrivacySecurityConstraints] = useState("");
@@ -144,7 +153,23 @@ export function ContactForm() {
   const buyerType: BuyerType = persona;
   const requestedLanes: RequestedLane[] = hostedMode
     ? ["deeper_evaluation"]
-    : [interestLane || "qualification"];
+    : [interestLane || getDefaultRequestedLane(persona)];
+  const requestedLane = requestedLanes[0] || "qualification";
+
+  useEffect(() => {
+    analyticsEvents.contactRequestStarted({
+      persona,
+      hostedMode,
+      requestedLane,
+      authenticated: Boolean(currentUser?.uid),
+      prefilledSiteContext: Boolean(prefills.siteName || prefills.siteLocation),
+      ...(analyticsDemandAttribution
+        ? { demandAttribution: analyticsDemandAttribution }
+        : {}),
+    });
+    // We only want the baseline start event once per form visit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -164,11 +189,30 @@ export function ContactForm() {
     if (persona === "robot_team" && !taskStatement.trim()) {
       missingFields.push("What you need");
     }
+    if (persona === "robot_team" && !jobTitle.trim()) {
+      missingFields.push("Your role");
+    }
+    if (persona === "robot_team" && !targetSiteType.trim()) {
+      missingFields.push("Target site type");
+    }
+    if (persona === "robot_team" && !proofPathPreference) {
+      missingFields.push("Proof path");
+    }
     if (persona === "site_operator" && !operatingConstraints.trim()) {
       missingFields.push("Access rules");
     }
 
     if (missingFields.length > 0) {
+      analyticsEvents.contactRequestFailed({
+        stage: "validation",
+        errorType: "missing_required_fields",
+        persona,
+        hostedMode,
+        requestedLane,
+        ...(analyticsDemandAttribution
+          ? { demandAttribution: analyticsDemandAttribution }
+          : {}),
+      });
       setStatus("error");
       setMessage(`Please fill in: ${missingFields.join(", ")}`);
       return;
@@ -176,6 +220,16 @@ export function ContactForm() {
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
+      analyticsEvents.contactRequestFailed({
+        stage: "validation",
+        errorType: "invalid_email",
+        persona,
+        hostedMode,
+        requestedLane,
+        ...(analyticsDemandAttribution
+          ? { demandAttribution: analyticsDemandAttribution }
+          : {}),
+      });
       setStatus("error");
       setMessage("Please enter a valid email address.");
       return;
@@ -195,6 +249,14 @@ export function ContactForm() {
       siteName: siteName.trim(),
       siteLocation: siteLocation.trim(),
       taskStatement: persona === "robot_team" ? taskStatement.trim() : "Operator intake",
+      targetSiteType: persona === "robot_team" ? targetSiteType.trim() || undefined : undefined,
+      proofPathPreference: persona === "robot_team" ? proofPathPreference || undefined : undefined,
+      existingStackReviewWorkflow:
+        persona === "robot_team"
+          ? existingStackReviewWorkflow.trim() || undefined
+          : undefined,
+      humanGateTopics:
+        persona === "robot_team" ? humanGateTopics.trim() || undefined : undefined,
       operatingConstraints: operatingConstraints.trim() || undefined,
       privacySecurityConstraints: privacySecurityConstraints.trim() || undefined,
       targetRobotTeam: persona === "robot_team" ? targetRobotTeam.trim() || undefined : undefined,
@@ -202,7 +264,12 @@ export function ContactForm() {
       context: {
         sourcePageUrl: typeof window !== "undefined" ? window.location.href : "",
         referrer: getReferrer() || undefined,
-        utm: getUTMParams(),
+        demandCity: searchDemandAttribution.demandCity,
+        buyerChannelSource: searchDemandAttribution.buyerChannelSource,
+        buyerChannelSourceCaptureMode:
+          searchDemandAttribution.buyerChannelSourceCaptureMode,
+        buyerChannelSourceRaw: searchDemandAttribution.buyerChannelSourceRaw,
+        utm: searchDemandAttribution.utm,
         timezoneOffset: new Date().getTimezoneOffset(),
         locale: typeof navigator !== "undefined" ? navigator.language : undefined,
         userAgent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
@@ -212,6 +279,22 @@ export function ContactForm() {
 
     setStatus("loading");
     setMessage("");
+    analyticsEvents.contactRequestSubmitted({
+      persona,
+      hostedMode,
+      requestedLane,
+      authenticated: Boolean(currentUser?.uid),
+      hasJobTitle: Boolean(jobTitle.trim()),
+      hasSiteName: Boolean(siteName.trim()),
+      hasSiteLocation: Boolean(siteLocation.trim()),
+      hasTaskStatement: Boolean(taskStatement.trim()),
+      hasOperatingConstraints: Boolean(operatingConstraints.trim()),
+      hasPrivacySecurityConstraints: Boolean(privacySecurityConstraints.trim()),
+      hasNotes: Boolean(detailsMessage.trim()),
+      ...(analyticsDemandAttribution
+        ? { demandAttribution: analyticsDemandAttribution }
+        : {}),
+    });
 
     try {
       const response = await fetch("/api/inbound-request", {
@@ -227,7 +310,26 @@ export function ContactForm() {
 
       setSubmittedRequestId(json.siteSubmissionId || json.requestId);
       setStatus("success");
+      analyticsEvents.contactRequestCompleted({
+        persona,
+        hostedMode,
+        requestedLane,
+        authenticated: Boolean(currentUser?.uid),
+        ...(analyticsDemandAttribution
+          ? { demandAttribution: analyticsDemandAttribution }
+          : {}),
+      });
     } catch (error) {
+      analyticsEvents.contactRequestFailed({
+        stage: "submission",
+        errorType: getSafeErrorType(error),
+        persona,
+        hostedMode,
+        requestedLane,
+        ...(analyticsDemandAttribution
+          ? { demandAttribution: analyticsDemandAttribution }
+          : {}),
+      });
       setStatus("error");
       setMessage(
         error instanceof Error ? error.message : "Unable to submit intake. Please try again.",
@@ -348,14 +450,68 @@ export function ContactForm() {
       {persona === "robot_team" ? (
         <>
           <div>
-            <label htmlFor="contact-task" className="mb-1 block text-sm font-medium text-zinc-700">What do you need?</label>
+            <label htmlFor="contact-title" className="mb-1 block text-sm font-medium text-zinc-700">
+              Your role
+            </label>
+            <input
+              id="contact-title"
+              className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+              placeholder="Autonomy lead, deployment engineer, perception lead"
+              value={jobTitle}
+              onChange={(event) => setJobTitle(event.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="contact-task" className="mb-1 block text-sm font-medium text-zinc-700">
+              Immediate workflow question
+            </label>
             <textarea
               id="contact-task"
               className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-              placeholder="Describe the evaluation, package, workflow, or deployment question you need help with.*"
+              placeholder="What exact deployment, review, or package question should Blueprint answer first?*"
               value={taskStatement}
               onChange={(event) => setTaskStatement(event.target.value)}
             />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label
+                htmlFor="contact-site-type"
+                className="mb-1 block text-sm font-medium text-zinc-700"
+              >
+                Target site type
+              </label>
+              <input
+                id="contact-site-type"
+                className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+                placeholder="Warehouse, retail backroom, hospital floor, factory cell*"
+                value={targetSiteType}
+                onChange={(event) => setTargetSiteType(event.target.value)}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="contact-proof-path"
+                className="mb-1 block text-sm font-medium text-zinc-700"
+              >
+                Proof path
+              </label>
+              <select
+                id="contact-proof-path"
+                className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm"
+                value={proofPathPreference}
+                onChange={(event) =>
+                  setProofPathPreference(event.target.value as ProofPathPreference | "")
+                }
+              >
+                <option value="">Select proof path*</option>
+                <option value="exact_site_required">I need exact-site proof</option>
+                <option value="adjacent_site_acceptable">
+                  A clearly labeled adjacent-site proof is acceptable
+                </option>
+                <option value="need_guidance">I need guidance on the right proof path</option>
+              </select>
+            </div>
           </div>
           {!hostedMode ? (
             <div className="grid gap-4 md:grid-cols-2">
@@ -391,6 +547,36 @@ export function ContactForm() {
               placeholder="Optional robot, embodiment, or stack"
               value={targetRobotTeam}
               onChange={(event) => setTargetRobotTeam(event.target.value)}
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="contact-stack-review"
+              className="mb-1 block text-sm font-medium text-zinc-700"
+            >
+              Existing stack or review workflow
+            </label>
+            <textarea
+              id="contact-stack-review"
+              className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+              placeholder="How should Blueprint fit into your current simulator, data-review, or deployment workflow?"
+              value={existingStackReviewWorkflow}
+              onChange={(event) => setExistingStackReviewWorkflow(event.target.value)}
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="contact-human-gates"
+              className="mb-1 block text-sm font-medium text-zinc-700"
+            >
+              Human-gated topics to raise early
+            </label>
+            <textarea
+              id="contact-human-gates"
+              className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+              placeholder="Call out any rights, privacy, delivery scope, security, or commercial topics that should be escalated immediately."
+              value={humanGateTopics}
+              onChange={(event) => setHumanGateTopics(event.target.value)}
             />
           </div>
         </>

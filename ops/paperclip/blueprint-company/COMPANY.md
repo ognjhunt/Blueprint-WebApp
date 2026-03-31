@@ -10,10 +10,6 @@ authors:
   - name: Blueprint
 goals:
   - Strengthen Blueprint's capture-first, world-model-product-first platform across the webapp, capture pipeline, and capture clients.
-requirements:
-  secrets:
-    - OPENAI_API_KEY
-    - ANTHROPIC_API_KEY
 ---
 
 Blueprint Autonomous Operations exists to coordinate Codex and Claude Code agents across the three Blueprint repos without manual session babysitting.

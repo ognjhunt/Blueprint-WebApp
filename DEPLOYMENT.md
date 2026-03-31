@@ -83,8 +83,16 @@ Launch-critical note:
 - Optional: `STRIPE_PUBLIC_BASE_URL`, `STRIPE_ONBOARDING_REFRESH_URL`, `STRIPE_ONBOARDING_RETURN_URL`
 
 ### Agent Runtime (server)
-- `OPENAI_API_KEY`
+- one of:
+  - `OPENAI_API_KEY`
+  - `ANTHROPIC_API_KEY`
+  - `ACP_HARNESS_URL`
+- Optional provider selection:
+  - `BLUEPRINT_STRUCTURED_AUTOMATION_PROVIDER`
+  - `BLUEPRINT_STRUCTURED_AUTOMATION_FALLBACK_PROVIDER`
 - Optional: `OPENAI_DEFAULT_MODEL`
+- Optional: `ANTHROPIC_DEFAULT_MODEL`
+- Optional: `ACP_DEFAULT_HARNESS`
 - Optional per-lane overrides:
   `OPENAI_WAITLIST_AUTOMATION_MODEL`,
   `OPENAI_INBOUND_QUALIFICATION_MODEL`,
@@ -93,6 +101,14 @@ Launch-critical note:
   `OPENAI_PAYOUT_EXCEPTION_MODEL`,
   `OPENAI_PREVIEW_DIAGNOSIS_MODEL`,
   `OPENAI_OPERATOR_THREAD_MODEL`
+- Anthropic per-lane overrides are also supported:
+  `ANTHROPIC_WAITLIST_AUTOMATION_MODEL`,
+  `ANTHROPIC_INBOUND_QUALIFICATION_MODEL`,
+  `ANTHROPIC_POST_SIGNUP_MODEL`,
+  `ANTHROPIC_SUPPORT_TRIAGE_MODEL`,
+  `ANTHROPIC_PAYOUT_EXCEPTION_MODEL`,
+  `ANTHROPIC_PREVIEW_DIAGNOSIS_MODEL`,
+  `ANTHROPIC_OPERATOR_THREAD_MODEL`
 
 ### Internal Marketplace + Pipeline
 - `PIPELINE_SYNC_TOKEN`
@@ -128,6 +144,15 @@ These should be enabled for the no-human-in-the-loop alpha configuration:
 - `BLUEPRINT_PAYOUT_TRIAGE_ENABLED=1`
 - `BLUEPRINT_PREVIEW_DIAGNOSIS_ENABLED=1`
 
+Optional review-watchdog workers that only flag overdue human queues:
+
+- `BLUEPRINT_SITE_ACCESS_OVERDUE_WATCHDOG_ENABLED=1`
+- `BLUEPRINT_FINANCE_REVIEW_OVERDUE_WATCHDOG_ENABLED=1`
+
+These watchdogs do not send outreach, grant permissions, submit disputes, or move funds. They only mark overdue review state in Firestore so operators can work the queue.
+- Optional field-ops reminder worker:
+  `BLUEPRINT_CAPTURER_REMINDER_ENABLED=1`
+
 Post-signup automation also requires:
 
 - one of:
@@ -152,4 +177,4 @@ Post-signup automation also requires:
 - Legacy manual deployment scripts were removed; deployment should always run through project scripts.
 - `client/public/robots.txt` must exist at build time and be served in production.
 - `npm run alpha:preflight` is the launch-environment validator for Render and should pass before promoting the service.
-- `npm run smoke:launch` is the live alpha smoke runner for `/health`, `/health/ready`, the OpenAI agent runtime, inbound qualification, and post-signup workflows.
+- `npm run smoke:launch` is the live alpha smoke runner for `/health`, `/health/ready`, the selected structured automation provider, inbound qualification, and post-signup workflows.

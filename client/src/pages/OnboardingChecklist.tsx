@@ -116,7 +116,7 @@ export default function OnboardingChecklist() {
         id: "submission",
         title: "Confirm the site submission",
         description:
-          "Review the site, location, task, and constraints that Blueprint should use for qualification.",
+          "Review the site, location, task, and constraints that Blueprint should use for intake review.",
         completed: progress.defineSiteSubmission,
         icon: Building2,
         action: {
@@ -129,7 +129,7 @@ export default function OnboardingChecklist() {
         id: "review",
         title: "Route the submission for review",
         description:
-          "Open the intake form and send the site into the qualification queue with the latest details.",
+          "Open the intake form and send the site into the intake review queue with the latest details.",
         completed: progress.completeIntakeReview,
         icon: ClipboardCheck,
         action: {
@@ -208,9 +208,7 @@ export default function OnboardingChecklist() {
     <main className="min-h-screen bg-white px-4 py-12">
       <div className="mx-auto max-w-4xl">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-semibold text-zinc-950">
-            Qualification intake hub
-          </h1>
+          <h1 className="text-3xl font-semibold text-zinc-950">Intake review hub</h1>
           <p className="mt-2 text-zinc-600">
             Confirm the submission, route it into review, and keep capture and world-model delivery at the center of the workflow.
           </p>

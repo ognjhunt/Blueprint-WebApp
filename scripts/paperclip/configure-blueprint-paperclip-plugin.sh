@@ -11,7 +11,7 @@ if [ -f "$PAPERCLIP_ENV_FILE" ]; then
   set +a
 fi
 
-PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://127.0.0.1:3100}"
+PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://127.0.0.1:3101}"
 PAPERCLIP_PUBLIC_URL="${PAPERCLIP_PUBLIC_URL:-$PAPERCLIP_API_URL}"
 COMPANY_NAME="${COMPANY_NAME:-Blueprint Autonomous Operations}"
 PLUGIN_KEY="blueprint.automation"
@@ -111,8 +111,14 @@ write_plugin_config() {
   local notion_token_id="${8:-}"
   local slack_ops_webhook_id="${9:-}"
   local slack_growth_webhook_id="${10:-}"
-  local search_api_key_id="${11:-}"
-  local search_api_provider_id="${12:-}"
+  local slack_exec_webhook_id="${11:-}"
+  local slack_engineering_webhook_id="${12:-}"
+  local slack_manager_webhook_id="${13:-}"
+  local search_api_key_id="${14:-}"
+  local search_api_provider_id="${15:-}"
+  local nitrosend_api_token_id="${16:-}"
+  local firehose_api_token_id="${17:-}"
+  local introw_api_token_id="${18:-}"
 
   local payload
   payload="$(
@@ -130,11 +136,24 @@ write_plugin_config() {
       template.secrets.notionApiTokenRef = process.argv[9] || "";
       template.secrets.slackOpsWebhookUrlRef = process.argv[10] || "";
       template.secrets.slackGrowthWebhookUrlRef = process.argv[11] || "";
-      template.secrets.searchApiKeyRef = process.argv[12] || "";
-      template.secrets.searchApiProviderRef = process.argv[13] || "";
+      template.secrets.slackExecWebhookUrlRef = process.argv[12] || "";
+      template.secrets.slackEngineeringWebhookUrlRef = process.argv[13] || "";
+      template.secrets.slackManagerWebhookUrlRef = process.argv[14] || "";
+      template.secrets.searchApiKeyRef = process.argv[15] || "";
+      template.secrets.searchApiProviderRef = process.argv[16] || "";
+      template.secrets.nitrosendApiTokenRef = process.argv[17] || "";
+      template.secrets.firehoseApiTokenRef = process.argv[18] || "";
+      template.secrets.introwApiTokenRef = process.argv[19] || "";
+      template.marketingCapabilities = template.marketingCapabilities || {};
+      template.marketingCapabilities.nitrosendBaseUrl = process.argv[20] || template.marketingCapabilities.nitrosendBaseUrl || "";
+      template.marketingCapabilities.firehoseBaseUrl = process.argv[21] || template.marketingCapabilities.firehoseBaseUrl || "";
+      template.marketingCapabilities.introwBaseUrl = process.argv[22] || template.marketingCapabilities.introwBaseUrl || "";
+      template.marketingCapabilities.firehoseDefaultTopics = (process.argv[23] || "").split(",").map((value) => value.trim()).filter(Boolean);
+      template.marketingCapabilities.firehoseMaxSignalsPerRead = process.argv[24] ? Number(process.argv[24]) : template.marketingCapabilities.firehoseMaxSignalsPerRead || 20;
+      template.marketingCapabilities.introwDefaultWorkspace = process.argv[25] || template.marketingCapabilities.introwDefaultWorkspace || "";
       template.enableOutboundNotifications = Boolean(process.argv[8]);
       process.stdout.write(JSON.stringify({configJson: template}));
-    ' "$CONFIG_TEMPLATE" "$COMPANY_NAME" "${BLUEPRINT_PAPERCLIP_GITHUB_OWNER:-}" "$github_token_id" "$github_webhook_secret_id" "$ci_secret_id" "$intake_secret_id" "$notification_webhook_id" "$notion_token_id" "$slack_ops_webhook_id" "$slack_growth_webhook_id" "$search_api_key_id" "$search_api_provider_id"
+    ' "$CONFIG_TEMPLATE" "$COMPANY_NAME" "${BLUEPRINT_PAPERCLIP_GITHUB_OWNER:-}" "$github_token_id" "$github_webhook_secret_id" "$ci_secret_id" "$intake_secret_id" "$notification_webhook_id" "$notion_token_id" "$slack_ops_webhook_id" "$slack_growth_webhook_id" "$slack_exec_webhook_id" "$slack_engineering_webhook_id" "$slack_manager_webhook_id" "$search_api_key_id" "$search_api_provider_id" "$nitrosend_api_token_id" "$firehose_api_token_id" "$introw_api_token_id" "${BLUEPRINT_PAPERCLIP_NITROSEND_BASE_URL:-}" "${BLUEPRINT_PAPERCLIP_FIREHOSE_BASE_URL:-}" "${BLUEPRINT_PAPERCLIP_INTROW_BASE_URL:-}" "${BLUEPRINT_PAPERCLIP_FIREHOSE_DEFAULT_TOPICS:-}" "${BLUEPRINT_PAPERCLIP_FIREHOSE_MAX_SIGNALS_PER_READ:-}" "${BLUEPRINT_PAPERCLIP_INTROW_DEFAULT_WORKSPACE:-}"
   )"
 
   curl -fsS -X POST \
@@ -162,8 +181,14 @@ main() {
   local notion_token_id
   local slack_ops_webhook_id
   local slack_growth_webhook_id
+  local slack_exec_webhook_id
+  local slack_engineering_webhook_id
+  local slack_manager_webhook_id
   local search_api_key_id
   local search_api_provider_id
+  local nitrosend_api_token_id
+  local firehose_api_token_id
+  local introw_api_token_id
 
   github_token_id="$(upsert_secret_from_env "$company" "github-token" "BLUEPRINT_PAPERCLIP_GITHUB_TOKEN")"
   github_webhook_secret_id="$(upsert_secret_from_env "$company" "github-webhook-secret" "BLUEPRINT_PAPERCLIP_GITHUB_WEBHOOK_SECRET")"
@@ -173,8 +198,14 @@ main() {
   notion_token_id="$(upsert_secret_from_env "$company" "notion-api-token" "NOTION_API_TOKEN")"
   slack_ops_webhook_id="$(upsert_secret_from_env "$company" "slack-ops-webhook-url" "SLACK_OPS_WEBHOOK_URL")"
   slack_growth_webhook_id="$(upsert_secret_from_env "$company" "slack-growth-webhook-url" "SLACK_GROWTH_WEBHOOK_URL")"
+  slack_exec_webhook_id="$(upsert_secret_from_env "$company" "slack-exec-webhook-url" "SLACK_EXEC_WEBHOOK_URL")"
+  slack_engineering_webhook_id="$(upsert_secret_from_env "$company" "slack-engineering-webhook-url" "SLACK_ENGINEERING_WEBHOOK_URL")"
+  slack_manager_webhook_id="$(upsert_secret_from_env "$company" "slack-manager-webhook-url" "SLACK_MANAGER_WEBHOOK_URL")"
   search_api_key_id="$(upsert_secret_from_env "$company" "search-api-key" "SEARCH_API_KEY")"
   search_api_provider_id="$(upsert_secret_from_env "$company" "search-api-provider" "SEARCH_API_PROVIDER")"
+  nitrosend_api_token_id="$(upsert_secret_from_env "$company" "nitrosend-api-token" "NITROSEND_API_TOKEN")"
+  firehose_api_token_id="$(upsert_secret_from_env "$company" "firehose-api-token" "FIREHOSE_API_TOKEN")"
+  introw_api_token_id="$(upsert_secret_from_env "$company" "introw-api-token" "INTROW_API_TOKEN")"
 
   write_plugin_config \
     "$company" \
@@ -187,8 +218,14 @@ main() {
     "$notion_token_id" \
     "$slack_ops_webhook_id" \
     "$slack_growth_webhook_id" \
+    "$slack_exec_webhook_id" \
+    "$slack_engineering_webhook_id" \
+    "$slack_manager_webhook_id" \
     "$search_api_key_id" \
-    "$search_api_provider_id"
+    "$search_api_provider_id" \
+    "$nitrosend_api_token_id" \
+    "$firehose_api_token_id" \
+    "$introw_api_token_id"
 
   curl -fsS "${PAPERCLIP_API_URL}/api/plugins/${plugin}/health" >/dev/null
 

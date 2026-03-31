@@ -6,6 +6,9 @@ const runInboundQualificationLoop = vi.hoisted(() => vi.fn());
 const runSupportTriageLoop = vi.hoisted(() => vi.fn());
 const runPayoutExceptionTriageLoop = vi.hoisted(() => vi.fn());
 const runPreviewDiagnosisLoop = vi.hoisted(() => vi.fn());
+const runCapturerReminderLoop = vi.hoisted(() => vi.fn());
+const flagOverdueSiteAccessReviews = vi.hoisted(() => vi.fn());
+const flagOverdueFinanceReviews = vi.hoisted(() => vi.fn());
 
 vi.mock("../agents", () => ({
   runWaitlistAutomationLoop,
@@ -15,6 +18,12 @@ vi.mock("../agents", () => ({
   runPreviewDiagnosisLoop,
 }));
 
+vi.mock("../utils/field-ops-automation", () => ({
+  runCapturerReminderLoop,
+  flagOverdueSiteAccessReviews,
+  flagOverdueFinanceReviews,
+}));
+
 beforeEach(() => {
   vi.useFakeTimers();
   runWaitlistAutomationLoop.mockResolvedValue({ processedCount: 1, failedCount: 0 });
@@ -22,6 +31,9 @@ beforeEach(() => {
   runSupportTriageLoop.mockResolvedValue({ processedCount: 3, failedCount: 0 });
   runPayoutExceptionTriageLoop.mockResolvedValue({ processedCount: 1, failedCount: 0 });
   runPreviewDiagnosisLoop.mockResolvedValue({ processedCount: 1, failedCount: 0 });
+  runCapturerReminderLoop.mockResolvedValue({ processedCount: 1, failedCount: 0 });
+  flagOverdueSiteAccessReviews.mockResolvedValue({ processedCount: 1, failedCount: 0 });
+  flagOverdueFinanceReviews.mockResolvedValue({ processedCount: 1, failedCount: 0 });
 });
 
 afterEach(() => {
@@ -35,15 +47,19 @@ describe("ops automation scheduler", () => {
     vi.stubEnv("BLUEPRINT_WAITLIST_AUTOMATION_ENABLED", "1");
     vi.stubEnv("BLUEPRINT_INBOUND_AUTOMATION_ENABLED", "1");
     vi.stubEnv("BLUEPRINT_SUPPORT_TRIAGE_ENABLED", "1");
+    vi.stubEnv("BLUEPRINT_SITE_ACCESS_OVERDUE_WATCHDOG_ENABLED", "1");
+    vi.stubEnv("BLUEPRINT_FINANCE_REVIEW_OVERDUE_WATCHDOG_ENABLED", "1");
 
     const { startOpsAutomationScheduler } = await import("../utils/opsAutomationScheduler");
     const stop = startOpsAutomationScheduler();
 
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(60_000);
 
     expect(runWaitlistAutomationLoop).toHaveBeenCalled();
     expect(runInboundQualificationLoop).toHaveBeenCalled();
     expect(runSupportTriageLoop).toHaveBeenCalled();
+    expect(flagOverdueSiteAccessReviews).toHaveBeenCalled();
+    expect(flagOverdueFinanceReviews).toHaveBeenCalled();
     expect(runPayoutExceptionTriageLoop).not.toHaveBeenCalled();
 
     stop();

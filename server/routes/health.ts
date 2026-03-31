@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { authAdmin, dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import { getAgentRuntimeConnectionMetadata } from "../agents/runtime-connectivity";
 import { getHostedSessionLiveStoreStatus } from "../utils/hosted-session-live-store";
 import { getEmailTransportStatus } from "../utils/email";
 import { stripeClient } from "../constants/stripe";
@@ -54,6 +55,7 @@ router.get("/health/ready", async (_req: Request, res: Response) => {
   try {
     const liveSessionStore = getHostedSessionLiveStoreStatus();
     const emailTransport = getEmailTransportStatus();
+    const agentRuntime = getAgentRuntimeConnectionMetadata();
     const automationFlags = {
       waitlist: isTruthyEnvValue(process.env.BLUEPRINT_WAITLIST_AUTOMATION_ENABLED),
       inbound: isTruthyEnvValue(process.env.BLUEPRINT_INBOUND_AUTOMATION_ENABLED),
@@ -84,8 +86,7 @@ router.get("/health/ready", async (_req: Request, res: Response) => {
     const emailReady = !emailRequired || emailTransport.configured;
     const pipelineSyncReady =
       !pipelineSyncEnabled || Boolean(process.env.PIPELINE_SYNC_TOKEN?.trim());
-    const agentRuntimeReady =
-      !anyAutomationEnabled || Boolean(process.env.OPENAI_API_KEY?.trim());
+    const agentRuntimeReady = !anyAutomationEnabled || agentRuntime.configured;
 
     const checks = {
       server: true,
@@ -146,8 +147,8 @@ router.get("/health/ready", async (_req: Request, res: Response) => {
         ready: agentRuntimeReady,
         detail: anyAutomationEnabled
           ? agentRuntimeReady
-            ? "OpenAI Responses runtime is configured for enabled automation lanes."
-            : "Automation lanes are enabled but OPENAI_API_KEY is missing."
+            ? `${agentRuntime.provider} is configured for enabled automation lanes.`
+            : `Automation lanes are enabled but the selected provider (${agentRuntime.provider}) is not configured.`
           : "Agent runtime is not required because automation lanes are disabled.",
       },
       postSignupDirect: {
@@ -178,6 +179,7 @@ router.get("/health/ready", async (_req: Request, res: Response) => {
         dependencies: {
           liveSessionStore,
           emailTransport,
+          agentRuntime,
           stripeEnabled,
           pipelineSyncEnabled,
           redisRequired,
@@ -192,6 +194,7 @@ router.get("/health/ready", async (_req: Request, res: Response) => {
         dependencies: {
           liveSessionStore,
           emailTransport,
+          agentRuntime,
           stripeEnabled,
           pipelineSyncEnabled,
           redisRequired,

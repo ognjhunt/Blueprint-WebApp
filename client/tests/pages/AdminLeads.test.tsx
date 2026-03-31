@@ -232,7 +232,7 @@ describe("AdminLeads scene readiness", () => {
     expect(screen.getByText(/Pick up part_1/i)).toBeInTheDocument();
     expect(screen.getByText(/Open hatch_2/i)).toBeInTheDocument();
     expect(screen.getByText(/Navigate to aisle_3/i)).toBeInTheDocument();
-  });
+  }, 15_000);
 
   it("shows a fallback when the request has no scene dashboard attachment", async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input) => {
@@ -335,6 +335,480 @@ describe("AdminLeads scene readiness", () => {
       expect(
         screen.getByText(/no scene dashboard has been emitted for this request yet/i)
       ).toBeInTheDocument();
+    });
+  });
+
+  it("renders the approvals queue and triggers operator actions", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/leads?")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              leads: [
+                {
+                  requestId: "req-1",
+                  site_submission_id: "req-1",
+                  createdAt: "2026-03-11T12:00:00.000Z",
+                  status: "qualified_ready",
+                  qualification_state: "qualified_ready",
+                  opportunity_state: "handoff_ready",
+                  priority: "normal",
+                  contact: {
+                    firstName: "Ada",
+                    lastName: "Lovelace",
+                    email: "ada@example.com",
+                    company: "Analytical Engines",
+                    roleTitle: "Ops",
+                  },
+                  request: {
+                    budgetBucket: "$50K-$300K",
+                    requestedLanes: ["qualification"],
+                    helpWith: ["benchmark-packs"],
+                    buyerType: "site_operator",
+                    siteName: "Durham Facility",
+                    siteLocation: "Durham, NC",
+                    taskStatement: "Review a picking workflow.",
+                  },
+                  owner: {},
+                  pipeline: {
+                    scene_id: "scene-1",
+                    capture_id: "cap-1",
+                    pipeline_prefix: "scenes/scene-1/captures/cap-1/pipeline",
+                    artifacts: {},
+                  },
+                },
+              ],
+            })
+          )
+        );
+      }
+      if (url === "/api/admin/leads/stats/summary") {
+        return Promise.resolve(new Response(JSON.stringify({ total: 1, newLast24h: 1, byStatus: {}, byPriority: {} })));
+      }
+      if (url.startsWith("/api/admin/leads/action-queue")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              items: [
+                {
+                  id: "ledger-1",
+                  status: "pending_approval",
+                  lane: "waitlist",
+                  action_type: "send_email",
+                  source_collection: "waitlistSubmissions",
+                  source_doc_id: "submission-1",
+                  action_tier: 3,
+                  idempotency_key: "waitlist:submission-1",
+                  auto_approve_reason: null,
+                  approval_reason: "requires_human_review",
+                  approved_by: null,
+                  approved_at: null,
+                  rejected_by: null,
+                  rejected_reason: null,
+                  execution_attempts: 0,
+                  last_execution_error: null,
+                  created_at: "2026-03-29T12:00:00.000Z",
+                  updated_at: "2026-03-29T12:05:00.000Z",
+                  sent_at: null,
+                  last_execution_at: null,
+                  action_payload: {
+                    to: "ada@example.com",
+                    subject: "Invite now",
+                    body: "Please join the capturer beta.",
+                  },
+                  draft_output: {
+                    recommendation: "invite_now",
+                    confidence: 0.91,
+                  },
+                },
+                {
+                  id: "ledger-2",
+                  status: "failed",
+                  lane: "support",
+                  action_type: "send_email",
+                  source_collection: "contactRequests",
+                  source_doc_id: "contact-1",
+                  action_tier: 1,
+                  idempotency_key: "support:contact-1",
+                  auto_approve_reason: "policy_auto_approved",
+                  approval_reason: null,
+                  approved_by: "ops@tryblueprint.io",
+                  approved_at: "2026-03-29T12:03:00.000Z",
+                  rejected_by: null,
+                  rejected_reason: null,
+                  execution_attempts: 2,
+                  last_execution_error: "SMTP timeout",
+                  created_at: "2026-03-29T11:50:00.000Z",
+                  updated_at: "2026-03-29T12:06:00.000Z",
+                  sent_at: null,
+                  last_execution_at: "2026-03-29T12:06:00.000Z",
+                  action_payload: {
+                    to: "support@example.com",
+                    subject: "Support reply",
+                    body: "We can help with that.",
+                  },
+                  draft_output: {
+                    category: "general_support",
+                    confidence: 0.87,
+                  },
+                },
+              ],
+              summary: {
+                total: 2,
+                pending_approval: 1,
+                failed: 1,
+              },
+            })
+          ),
+        );
+      }
+      if (url.includes("/action-queue/") && url.endsWith("/reject")) {
+        return Promise.resolve(new Response(JSON.stringify({ state: "rejected" })));
+      }
+      if (url.includes("/action-queue/") && url.endsWith("/retry")) {
+        return Promise.resolve(new Response(JSON.stringify({ state: "sent" })));
+      }
+      return Promise.resolve(new Response(JSON.stringify({ ok: true })));
+    });
+
+    const promptSpy = vi.spyOn(window, "prompt").mockReturnValue("Needs manual review");
+
+    renderPage();
+
+    const approvalsTab = await screen.findByRole("tab", { name: /approvals/i });
+    fireEvent.mouseDown(approvalsTab);
+    fireEvent.click(approvalsTab);
+
+    expect(await screen.findByRole("button", { name: /Approve/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Reject/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Retry/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Reject/i }));
+    await waitFor(() => {
+      expect(promptSpy).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/admin/leads/action-queue/ledger-1/reject"),
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Retry/i }));
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/admin/leads/action-queue/ledger-2/retry"),
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+
+    promptSpy.mockRestore();
+  });
+
+  it("renders the field ops workspace and triggers assignment/outreach actions", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/leads?")) {
+        return Promise.resolve(new Response(JSON.stringify({ leads: [] })));
+      }
+      if (url === "/api/admin/leads/stats/summary") {
+        return Promise.resolve(new Response(JSON.stringify({ total: 0, newLast24h: 0, byStatus: {}, byPriority: {} })));
+      }
+      if (url.startsWith("/api/admin/field-ops/capture-jobs?")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              jobs: [
+                {
+                  id: "job-1",
+                  title: "Durham Facility",
+                  address: "123 Main St",
+                  status: "scheduled",
+                  buyer_request_id: "req-1",
+                  marketplace_state: "claimable",
+                  rights_status: "review_required",
+                  capture_policy_tier: "review_required",
+                  field_ops: {},
+                  site_access: {},
+                  updated_at: "2026-03-29T12:00:00.000Z",
+                },
+              ],
+            }),
+          ),
+        );
+      }
+      if (url.endsWith("/candidates")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  uid: "creator-1",
+                  name: "Casey Capturer",
+                  email: "capturer@example.com",
+                  phone_number: "555-000-1111",
+                  market: "Durham",
+                  availability: "flexible",
+                  equipment: ["iPhone 15 Pro"],
+                  totalCaptures: 9,
+                  approvedCaptures: 8,
+                  avgQuality: 21,
+                  score: 94,
+                  score_breakdown: {
+                    market: 30,
+                    availability: 20,
+                    equipment: 25,
+                    quality: 9,
+                    reliability: 10,
+                  },
+                  travel_estimate_minutes: 15,
+                  travel_estimate_source: "heuristic_market",
+                },
+              ],
+            }),
+          ),
+        );
+      }
+      if (url.endsWith("/site-access/contacts")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              contacts: [
+                {
+                  email: "operator@example.com",
+                  name: "Pat Operator",
+                  source: "inbound_request_contact",
+                  company: "Durham Facility",
+                  roleTitle: "Site lead",
+                },
+              ],
+            }),
+          ),
+        );
+      }
+      if (url === "/api/admin/field-ops/reschedule-queue") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              items: [
+                {
+                  id: "booking-1",
+                  businessName: "Durham Facility",
+                  email: "buyer@example.com",
+                  current_date: "2026-04-01",
+                  current_time: "10:00 AM",
+                  requested_date: "2026-04-01",
+                  requested_time: "3:00 PM",
+                  requested_by: "buyer",
+                  status: "pending_approval",
+                  reason: "schedule_conflict",
+                },
+              ],
+            }),
+          ),
+        );
+      }
+      if (url === "/api/admin/field-ops/finance-queue") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              items: [
+                {
+                  id: "payout-1",
+                  status: "review_required",
+                  creator_id: "creator-1",
+                  capture_id: "cap-1",
+                  stripe_payout_id: "po_1",
+                  failure_reason: "Bank account needs review",
+                  queue: "payout_exception_queue",
+                  ops_automation: {},
+                  finance_review: {},
+                  updated_at: "2026-03-29T12:00:00.000Z",
+                },
+              ],
+            }),
+          ),
+        );
+      }
+      return Promise.resolve(new Response(JSON.stringify({ ok: true })));
+    });
+
+    renderPage();
+
+    const fieldOpsTab = await screen.findByRole("tab", { name: /field ops/i });
+    fireEvent.mouseDown(fieldOpsTab);
+    fireEvent.click(fieldOpsTab);
+
+    expect((await screen.findAllByText(/Durham Facility/i)).length).toBeGreaterThan(0);
+    expect(await screen.findByRole("button", { name: /Assign \+ confirm/i })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Send outreach/i })).toBeInTheDocument();
+    expect(await screen.findByText(/Dispatch remains heuristic-only/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Site access is structured, not autonomous/i)).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Run overdue review scan/i })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Assign to me \+ investigate/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Assign \+ confirm/i }));
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/admin/field-ops/capture-jobs/job-1/assign-capturer"),
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Send outreach/i }));
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/admin/field-ops/capture-jobs/job-1/site-access/outreach"),
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+  });
+
+  it("renders proof-path milestones and records operator milestone marks", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.startsWith("/api/admin/leads?")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              leads: [
+                {
+                  requestId: "req-robot",
+                  site_submission_id: "req-robot",
+                  createdAt: "2026-03-11T12:00:00.000Z",
+                  status: "qualified_ready",
+                  qualification_state: "qualified_ready",
+                  opportunity_state: "handoff_ready",
+                  priority: "high",
+                  contact: {
+                    firstName: "Grace",
+                    lastName: "Hopper",
+                    email: "grace@example.com",
+                    company: "Fleet Systems",
+                    roleTitle: "Deployment lead",
+                  },
+                  request: {
+                    budgetBucket: "$300K-$1M",
+                    requestedLanes: ["preview_simulation"],
+                    helpWith: ["scene-library"],
+                    buyerType: "robot_team",
+                    siteName: "Boston Warehouse",
+                    siteLocation: "Boston, MA",
+                    taskStatement: "Review our exact-site picking flow.",
+                  },
+                  owner: {},
+                  ops: {
+                    proof_path: {
+                      exact_site_requested_at: "2026-03-11T12:00:00.000Z",
+                      qualified_inbound_at: "2026-03-11T13:00:00.000Z",
+                    },
+                  },
+                },
+              ],
+            }),
+          ),
+        );
+      }
+      if (url === "/api/admin/leads/stats/summary") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              total: 1,
+              newLast24h: 1,
+              byStatus: { qualified_ready: 1 },
+              byPriority: { high: 1 },
+            }),
+          ),
+        );
+      }
+      if (url === "/api/admin/leads/req-robot") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              requestId: "req-robot",
+              site_submission_id: "req-robot",
+              createdAt: "2026-03-11T12:00:00.000Z",
+              status: "qualified_ready",
+              qualification_state: "qualified_ready",
+              opportunity_state: "handoff_ready",
+              priority: "high",
+              contact: {
+                firstName: "Grace",
+                lastName: "Hopper",
+                email: "grace@example.com",
+                company: "Fleet Systems",
+                roleTitle: "Deployment lead",
+              },
+              request: {
+                budgetBucket: "$300K-$1M",
+                requestedLanes: ["preview_simulation"],
+                helpWith: ["scene-library"],
+                buyerType: "robot_team",
+                siteName: "Boston Warehouse",
+                siteLocation: "Boston, MA",
+                taskStatement: "Review our exact-site picking flow.",
+                proofPathPreference: "exact_site_required",
+              },
+              owner: {},
+              context: { sourcePageUrl: "https://example.com/contact", utm: {} },
+              enrichment: {},
+              events: {},
+              notes: [],
+              ops: {
+                assigned_region_id: "managed-alpha",
+                rights_status: "unknown",
+                capture_policy_tier: "review_required",
+                capture_status: "not_requested",
+                quote_status: "not_started",
+                next_step: "Send proof pack",
+                last_buyer_ready_at: null,
+                proof_path: {
+                  exact_site_requested_at: "2026-03-11T12:00:00.000Z",
+                  qualified_inbound_at: "2026-03-11T13:00:00.000Z",
+                  proof_pack_delivered_at: null,
+                  proof_pack_reviewed_at: null,
+                  hosted_review_ready_at: null,
+                  hosted_review_started_at: null,
+                  hosted_review_follow_up_at: null,
+                  artifact_handoff_delivered_at: null,
+                  artifact_handoff_accepted_at: null,
+                  human_commercial_handoff_at: null,
+                },
+              },
+            }),
+          ),
+        );
+      }
+      if (url === "/api/admin/leads/req-robot/ops") {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true })));
+      }
+      if (typeof init?.method === "string" && init.method === "PATCH") {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true })));
+      }
+      return Promise.resolve(new Response(JSON.stringify({ ok: true })));
+    });
+
+    renderPage();
+
+    const leadButton = await screen.findByRole("button", { name: /Boston Warehouse/i });
+    fireEvent.click(leadButton);
+
+    expect(await screen.findByText(/Proof-path milestones/i)).toBeInTheDocument();
+    expect(screen.getByText(/Exact-site request/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Mark proof pack delivered/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Mark proof pack delivered/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/admin/leads/req-robot/ops",
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({
+            requestId: "req-robot",
+            proof_path_stage: "proof_pack_delivered",
+          }),
+        }),
+      );
     });
   });
 });

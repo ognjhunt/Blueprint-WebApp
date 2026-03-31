@@ -62,6 +62,7 @@ import {
   X,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { withCsrfHeader } from "@/lib/csrf";
 import { cn } from "@/lib/utils";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -71,6 +72,15 @@ import * as z from "zod";
 
 // Define form schemas
 const rescheduleFormSchema = z.object({
+  name: z.string().min(2, {
+    message: "Please enter your name.",
+  }),
+  email: z.string().email({
+    message: "Please enter a valid email address.",
+  }),
+  businessName: z.string().min(2, {
+    message: "Please enter your business or site name.",
+  }),
   reason: z.string().min(2, {
     message: "Please provide a reason for rescheduling.",
   }),
@@ -158,6 +168,9 @@ export default function Help() {
   const rescheduleForm = useForm({
     resolver: zodResolver(rescheduleFormSchema),
     defaultValues: {
+      name: "",
+      email: "",
+      businessName: "",
       reason: "",
       date: undefined,
       time: "",
@@ -193,14 +206,50 @@ export default function Help() {
   }, [activeTab]);
 
   // Form submission handlers
-  const onRescheduleSubmit = (data: any) => {
-    console.log(data);
-    // Here you would normally send this data to your backend
-    toast({
-      title: "Rescheduling request received",
-      description: `Requested: ${format(data.date, "PPP")} at ${data.time}. We’ll confirm by email shortly. ${SUPPORT.reschedulePolicy}`,
-    });
-    rescheduleForm.reset();
+  const onRescheduleSubmit = async (data: any) => {
+    try {
+      const response = await fetch("/api/help/reschedule", {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          businessName: data.businessName,
+          requested_date: format(data.date, "yyyy-MM-dd"),
+          requested_time: data.time,
+          reason: data.reason,
+          notes: data.notes || "",
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          typeof payload?.error === "string"
+            ? payload.error
+            : "Failed to submit reschedule request",
+        );
+      }
+
+      toast({
+        title:
+          payload?.routing === "booking"
+            ? "Reschedule request received"
+            : "Reschedule request queued",
+        description:
+          payload?.routing === "booking"
+            ? `Requested: ${format(data.date, "PPP")} at ${data.time}. We’ll confirm by email shortly. ${SUPPORT.reschedulePolicy}`
+            : "We could not match your booking automatically, so support will review this request manually.",
+      });
+      rescheduleForm.reset();
+    } catch (error) {
+      toast({
+        title: "Unable to submit reschedule request",
+        description:
+          error instanceof Error ? error.message : "Unknown reschedule error",
+        variant: "destructive",
+      });
+    }
   };
 
   const onContactSubmit = (data: any) => {
@@ -461,6 +510,70 @@ export default function Help() {
                     >
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-6">
+                          <FormField
+                            control={rescheduleForm.control}
+                            name="name"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-slate-200 font-medium">
+                                  Your name
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="Alex Johnson"
+                                    className="bg-slate-900/60 border-slate-700 text-slate-100"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={rescheduleForm.control}
+                            name="email"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-slate-200 font-medium">
+                                  Booking email
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="email"
+                                    placeholder="you@company.com"
+                                    className="bg-slate-900/60 border-slate-700 text-slate-100"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormDescription className="text-slate-400">
+                                  Use the email attached to the original mapping booking.
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={rescheduleForm.control}
+                            name="businessName"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-slate-200 font-medium">
+                                  Business or site name
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="Durham Facility"
+                                    className="bg-slate-900/60 border-slate-700 text-slate-100"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
                           <FormField
                             control={rescheduleForm.control}
                             name="reason"

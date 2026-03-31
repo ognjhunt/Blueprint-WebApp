@@ -1,18 +1,42 @@
 # Conversion Optimizer — Current Focus
 
 ## Priority
-Improve capturer signup completion rate. Current baseline: measure in first Analytics Agent report.
+Unblock trustworthy funnel measurement before running experiments, then correct buyer-entry defaults that currently lean too hard on qualification-first framing.
+
+## Current Cycle: Baseline Measurement (not experimentation)
+The first cycle is a measurement cycle, not an experiment cycle:
+1. Add step-level and outcome-level analytics coverage to the capturer signup flow (`/client/src/pages/CapturerSignUpFlow.tsx`).
+2. Add start, submit, success, and failure events to the buyer signup and contact request flows (`/client/src/pages/BusinessSignUpFlow.tsx`, `/client/src/components/site/ContactForm.tsx`).
+3. Validate PostHog and GA event naming, property shape, and no-PII discipline against the current analytics contract in `/client/src/lib/analytics.ts`.
+4. Establish current completion rate per step and per entry lane only after the above events are live.
+5. Audit whether buyer-entry defaults are pushing a qualification-first story instead of an exact-site world-model story.
+6. Only then propose the first experiment.
+
+## Hypothesis Queue (deferred until baseline data available)
+1. Simplify signup form — email + device type only, defer other fields to post-signup onboarding
+2. Add progress indicator to multi-step flow
+3. Reduce required fields per step
 
 Focus area: `/client/src/pages/CapturerSignUpFlow.tsx` and related components.
-
-Hypothesis to test first: simplify the signup form by reducing required fields to email + device type only (defer other fields to post-signup onboarding).
 
 ## Constraints
 - Do NOT touch checkout or payment flows
 - Do NOT modify rights/privacy/consent UI
 - Do NOT change brand voice or core messaging (see WORLD_MODEL_STRATEGY_CONTEXT.md)
 - Keep changes small — one variable per experiment
-- Measurement period: minimum 48hrs per experiment
+- Measurement period: minimum 48hrs per experiment, minimum 100 sessions per variant
+
+## Statistical Requirements
+- **Minimum sample size:** 100 sessions per variant (control + treatment) before evaluation
+- **Significance threshold:** Two-proportion z-test, p < 0.05 (95% confidence)
+- **Effect size minimum:** Relative improvement >= 10% in primary metric to implement
+- **Maximum measurement period:** 7 days — if not significant after 7 days, declare inconclusive and revert
+- **Guard rail metrics:** Buyer signup rate (must not decrease >5%), inbound request rate (must not decrease >5%), page load time (must not increase >500ms)
+- **Evaluation protocol:**
+  1. Wait for minimum sample size (100 sessions per variant)
+  2. Run two-proportion z-test on primary metric
+  3. Check guard rail metrics
+  4. Decision: KEEP (significant + no guard rail violations), REVERT (guard rail violated OR significant degradation), EXTEND (not yet significant, <7 days), INCONCLUSIVE (not significant after 7 days → revert)
 
 ## Success Metrics
 - Primary: capturer signup completion rate (started → completed)
@@ -21,5 +45,8 @@ Hypothesis to test first: simplify the signup form by reducing required fields t
 
 ## Recent Context
 - First cycle — no prior experiments
-- Analytics Agent will provide baseline metrics after first daily run
-- Current signup flow is multi-step; potential friction points unknown until baseline data
+- Analytics Daily first run completed 2026-03-29 (BLU-38) — operational health focus, not funnel metrics yet
+- PostHog deployed 2026-03-27; funnel data still accumulating
+- Current signup flow is multi-step; friction points unknown until baseline data
+- As of 2026-03-30, the repo analytics layer exists but the capturer signup flow is not emitting the step-level events this program depends on.
+- As of 2026-03-30, buyer entry flows still default to `qualification` lanes in key surfaces, which risks pulling the product story away from capture-first, world-model-product-first positioning.

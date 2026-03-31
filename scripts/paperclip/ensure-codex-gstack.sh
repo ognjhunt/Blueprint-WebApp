@@ -10,6 +10,16 @@ REPOS=(
   "/Users/nijelhunt_1/workspace/BlueprintCapture"
 )
 
+all_symlinks_ready() {
+  [ -d "$CODEX_GSTACK_DIR" ] || return 1
+  for repo in "${REPOS[@]}"; do
+    local link_path="$repo/.agents/skills/gstack"
+    [ -L "$link_path" ] || return 1
+    [ "$(readlink "$link_path")" = "$CODEX_GSTACK_DIR" ] || return 1
+  done
+  return 0
+}
+
 [ -d "$GSTACK_SOURCE_DIR" ] || {
   echo "Missing gstack source at $GSTACK_SOURCE_DIR" >&2
   exit 1
@@ -21,6 +31,11 @@ command -v node >/dev/null 2>&1 || {
 }
 
 mkdir -p "$HOME/.codex/skills"
+
+if all_symlinks_ready; then
+  echo "Installed gstack for Codex at $CODEX_GSTACK_DIR"
+  exit 0
+fi
 
 (
   cd "$GSTACK_SOURCE_DIR"

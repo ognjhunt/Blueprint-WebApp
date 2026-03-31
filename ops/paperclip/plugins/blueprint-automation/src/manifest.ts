@@ -43,6 +43,7 @@ const manifest: PaperclipPluginManifestV1 = {
   categories: ["automation", "connector", "ui", "workspace"],
   capabilities: [
     "companies.read",
+    "events.subscribe",
     "projects.read",
     "project.workspaces.read",
     "issues.read",
@@ -51,6 +52,9 @@ const manifest: PaperclipPluginManifestV1 = {
     "issue.comments.read",
     "issue.comments.create",
     "agents.read",
+    "agents.update",
+    "agents.invoke",
+    "agents.runtime.write",
     "plugin.state.read",
     "plugin.state.write",
     "jobs.schedule",
@@ -148,8 +152,19 @@ const manifest: PaperclipPluginManifestV1 = {
               conversionOptimizer: { type: "string" },
               analytics: { type: "string" },
               marketIntel: { type: "string" },
+              demandIntel: { type: "string" },
+              robotTeamGrowth: { type: "string" },
+              siteOperatorPartnership: { type: "string" },
+              cityDemand: { type: "string" },
             },
           },
+        },
+      },
+      management: {
+        type: "object",
+        title: "Management",
+        properties: {
+          chiefOfStaffAgent: { type: "string", default: "blueprint-chief-of-staff" },
         },
       },
       secrets: {
@@ -159,8 +174,37 @@ const manifest: PaperclipPluginManifestV1 = {
           notionApiTokenRef: { type: "string", format: "secret-ref" },
           slackOpsWebhookUrlRef: { type: "string", format: "secret-ref" },
           slackGrowthWebhookUrlRef: { type: "string", format: "secret-ref" },
+          slackExecWebhookUrlRef: { type: "string", format: "secret-ref" },
+          slackEngineeringWebhookUrlRef: { type: "string", format: "secret-ref" },
+          slackManagerWebhookUrlRef: { type: "string", format: "secret-ref" },
           searchApiKeyRef: { type: "string", format: "secret-ref" },
           searchApiProviderRef: { type: "string", format: "secret-ref" },
+          nitrosendApiTokenRef: { type: "string", format: "secret-ref" },
+          firehoseApiTokenRef: { type: "string", format: "secret-ref" },
+          introwApiTokenRef: { type: "string", format: "secret-ref" },
+        },
+      },
+      marketingCapabilities: {
+        type: "object",
+        title: "Marketing Capability Integrations",
+        properties: {
+          nitrosendBaseUrl: { type: "string", title: "Nitrosend Adapter Base URL" },
+          firehoseBaseUrl: { type: "string", title: "Firehose Adapter Base URL" },
+          introwBaseUrl: { type: "string", title: "Introw Adapter Base URL" },
+          firehoseDefaultTopics: {
+            type: "array",
+            title: "Firehose Default Topics",
+            items: { type: "string" },
+          },
+          firehoseMaxSignalsPerRead: {
+            type: "number",
+            title: "Firehose Max Signals Per Read",
+            default: 20,
+          },
+          introwDefaultWorkspace: {
+            type: "string",
+            title: "Introw Default Workspace",
+          },
         },
       },
       repoCatalog: {
@@ -184,6 +228,27 @@ const manifest: PaperclipPluginManifestV1 = {
       displayName: "Ops Queue Scan",
       description: "Periodic scan of Notion Work Queue to detect stale or unassigned items.",
       schedule: "0 */2 * * *",
+    },
+    {
+      jobKey: JOB_KEYS.routineHealthCheck,
+      displayName: "Routine Health Check",
+      description:
+        "Monitors routine outcomes, checks budget limits, and evaluates phase graduation eligibility.",
+      schedule: "0 */2 * * *",
+    },
+    {
+      jobKey: JOB_KEYS.handoffMonitor,
+      displayName: "Handoff Monitor",
+      description:
+        "Scans structured handoff issues, tracks collaboration metrics, and escalates stuck handoffs into Slack and Paperclip.",
+      schedule: "*/5 * * * *",
+    },
+    {
+      jobKey: JOB_KEYS.quotaCooldownEnforcer,
+      displayName: "Quota Cooldown Enforcer",
+      description:
+        "Keeps workspace agents on the healthy lane while a Claude or Codex quota cooldown is active, then restores configured defaults after expiry.",
+      schedule: "*/5 * * * *",
     },
   ],
   webhooks: [
@@ -232,6 +297,18 @@ const manifest: PaperclipPluginManifestV1 = {
         properties: {
           companyName: { type: "string" },
           applyChanges: { type: "boolean" },
+        },
+      },
+    },
+    {
+      name: TOOL_NAMES.managerState,
+      displayName: "Blueprint Manager State",
+      description:
+        "Read the chief-of-staff operating snapshot across issue state, routine health, active agents, and recent automation events.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          companyName: { type: "string" },
         },
       },
     },
@@ -295,14 +372,39 @@ const manifest: PaperclipPluginManifestV1 = {
       name: TOOL_NAMES.analyticsReport,
       displayName: "Generate Analytics Report",
       description:
-        "Create a truthful Blueprint analytics snapshot, write the resulting Notion artifacts, and post the companion Slack digest.",
+        "Write a deterministic Blueprint analytics report from agent-supplied findings, then return proof artifacts for issue completion.",
       parametersSchema: {
         type: "object",
         properties: {
           cadence: { type: "string", enum: ["daily", "weekly"] },
           companyName: { type: "string" },
+          issueId: { type: "string" },
+          headline: { type: "string" },
+          summaryBullets: {
+            type: "array",
+            items: { type: "string" },
+          },
+          workflowFindings: {
+            type: "array",
+            items: { type: "string" },
+          },
+          risks: {
+            type: "array",
+            items: { type: "string" },
+          },
+          recommendedFollowUps: {
+            type: "array",
+            items: { type: "string" },
+          },
         },
-        required: ["cadence"],
+        required: [
+          "cadence",
+          "headline",
+          "summaryBullets",
+          "workflowFindings",
+          "risks",
+          "recommendedFollowUps",
+        ],
       },
     },
     {
@@ -384,6 +486,88 @@ const manifest: PaperclipPluginManifestV1 = {
           },
         },
         required: ["channel", "title", "sections"],
+      },
+    },
+    {
+      name: TOOL_NAMES.marketIntelReport,
+      displayName: "Generate Market Intel Report",
+      description:
+        "Write a deterministic market intelligence report from agent-supplied findings, then return proof artifacts for issue completion.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          cadence: { type: "string", enum: ["daily", "weekly"] },
+          companyName: { type: "string" },
+          issueId: { type: "string" },
+          headline: { type: "string" },
+          signals: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                source: { type: "string" },
+                relevanceScore: { type: "number" },
+                urgencyScore: { type: "number" },
+                actionabilityScore: { type: "number" },
+                combinedScore: { type: "number" },
+                summary: { type: "string" },
+              },
+            },
+          },
+          competitorUpdates: { type: "array", items: { type: "string" } },
+          technologyFindings: { type: "array", items: { type: "string" } },
+          recommendedActions: { type: "array", items: { type: "string" } },
+        },
+        required: [
+          "cadence",
+          "headline",
+          "signals",
+          "competitorUpdates",
+          "technologyFindings",
+          "recommendedActions",
+        ],
+      },
+    },
+    {
+      name: TOOL_NAMES.budgetStatus,
+      displayName: "Budget Status",
+      description:
+        "Query current budget status for an agent including run count, estimated spend, and budget limit.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          agentKey: { type: "string", description: "The agent key to check budget for" },
+        },
+        required: ["agentKey"],
+      },
+    },
+    {
+      name: TOOL_NAMES.phaseStatus,
+      displayName: "Phase Status",
+      description:
+        "Query current phase, graduation metrics, and eligibility for a given agent.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          agentKey: { type: "string", description: "The agent key to check phase for" },
+        },
+        required: ["agentKey"],
+      },
+    },
+    {
+      name: TOOL_NAMES.recordOverride,
+      displayName: "Record Override",
+      description:
+        "Record when a human or lead agent overrides a subordinate agent decision. Updates phase tracking metrics.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          agentKey: { type: "string", description: "The agent whose decision was overridden" },
+          issueId: { type: "string", description: "The issue where the override occurred" },
+          reason: { type: "string", description: "Why the decision was overridden" },
+        },
+        required: ["agentKey", "issueId", "reason"],
       },
     },
   ],

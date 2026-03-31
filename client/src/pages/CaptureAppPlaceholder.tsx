@@ -42,7 +42,8 @@ export default function CaptureAppPlaceholder() {
             </h1>
             <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
               This is the public handoff for people recording indoor spaces for Blueprint. If
-              you are here to buy world models, go to the catalog instead.
+              you are here to buy world models, go to the catalog instead. If you still need
+              approval, apply for capturer access first.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -63,6 +64,12 @@ export default function CaptureAppPlaceholder() {
                   <Mail className="ml-2 h-4 w-4" />
                 </a>
               )}
+              <a
+                href="/signup/capturer"
+                className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+              >
+                Apply for capturer access
+              </a>
               <a
                 href="/capture"
                 className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"

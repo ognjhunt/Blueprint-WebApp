@@ -3,6 +3,12 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import Contact from "@/pages/Contact";
 
 let mockSearch = "";
+const analyticsEventsMock = vi.hoisted(() => ({
+  contactRequestStarted: vi.fn(),
+  contactRequestSubmitted: vi.fn(),
+  contactRequestCompleted: vi.fn(),
+  contactRequestFailed: vi.fn(),
+}));
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({
@@ -18,6 +24,11 @@ vi.mock("wouter", async () => {
     useSearch: () => mockSearch,
   };
 });
+
+vi.mock("@/lib/analytics", () => ({
+  analyticsEvents: analyticsEventsMock,
+  getSafeErrorType: vi.fn(() => "unknown"),
+}));
 
 beforeEach(() => {
   mockSearch = "";
@@ -62,7 +73,16 @@ describe("Contact page", () => {
     expect(screen.getByRole("link", { name: /Sample deliverables/i })).toHaveAttribute("href", "/sample-deliverables");
     expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
-    expect(screen.getByLabelText(/What do you need\?/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: /Immediate workflow question/i }),
+    ).toBeInTheDocument();
+    expect(analyticsEventsMock.contactRequestStarted).toHaveBeenCalledWith({
+      persona: "robot_team",
+      hostedMode: false,
+      requestedLane: "deeper_evaluation",
+      authenticated: false,
+      prefilledSiteContext: false,
+    });
   });
 
   it("renders a compact hosted-session mode with prefilled robot-team data", () => {
@@ -84,6 +104,45 @@ describe("Contact page", () => {
     expect(screen.queryByText(/Privacy and security notes/i)).not.toBeInTheDocument();
   });
 
+  it("renders Austin-specific buyer guidance when the city param is present", () => {
+    mockSearch = "?persona=robot-team&city=austin";
+
+    render(<Contact />);
+
+    expect(
+      screen.getByRole("heading", {
+        name: /Give the Austin buyer enough exact-site proof to move quickly\./i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Austin request lens/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Texas Robotics, a founder intro, a university contact, or an industrial partner/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Explore world models/i })).toHaveAttribute(
+      "href",
+      "/world-models?city=austin",
+    );
+  });
+
+  it("renders San Francisco-specific buyer guidance when the city param is present", () => {
+    mockSearch = "?persona=robot-team&city=san-francisco";
+
+    render(<Contact />);
+
+    expect(
+      screen.getByRole("heading", {
+        name: /Frame the San Francisco request for a technical buyer fast\./i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/San Francisco request lens/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/exact-site requirement versus an adjacent-site proof path/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/async artifact review matters to the buyer/i),
+    ).toBeInTheDocument();
+  });
+
   it("submits the default robot-team request when required fields are filled", async () => {
     render(<Contact />);
 
@@ -99,12 +158,18 @@ describe("Contact page", () => {
     fireEvent.change(screen.getByPlaceholderText("Work email*"), {
       target: { value: "ada@example.com" },
     });
-    fireEvent.change(
-      screen.getByPlaceholderText("Describe the evaluation, package, workflow, or deployment question you need help with.*"),
-      {
-        target: { value: "Qualify a tote picking workflow." },
-      },
-    );
+    fireEvent.change(screen.getByRole("textbox", { name: /Your role/i }), {
+      target: { value: "Autonomy lead" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Immediate workflow question/i }), {
+      target: { value: "Qualify a tote picking workflow." },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Target site type/i }), {
+      target: { value: "Warehouse" },
+    });
+    fireEvent.change(screen.getByRole("combobox", { name: /Proof path/i }), {
+      target: { value: "exact_site_required" },
+    });
 
     fireEvent.click(screen.getByRole("button", { name: /Send a short brief/i }));
 
@@ -116,6 +181,25 @@ describe("Contact page", () => {
     });
 
     expect(screen.getByText(/Brief received/i)).toBeInTheDocument();
+    expect(analyticsEventsMock.contactRequestSubmitted).toHaveBeenCalledWith({
+      persona: "robot_team",
+      hostedMode: false,
+      requestedLane: "deeper_evaluation",
+      authenticated: false,
+      hasJobTitle: true,
+      hasSiteName: false,
+      hasSiteLocation: false,
+      hasTaskStatement: true,
+      hasOperatingConstraints: false,
+      hasPrivacySecurityConstraints: false,
+      hasNotes: false,
+    });
+    expect(analyticsEventsMock.contactRequestCompleted).toHaveBeenCalledWith({
+      persona: "robot_team",
+      hostedMode: false,
+      requestedLane: "deeper_evaluation",
+      authenticated: false,
+    });
   });
 
   it("submits hosted-session mode with robot-team defaults", async () => {
@@ -123,6 +207,8 @@ describe("Contact page", () => {
       "?interest=evaluation-package&buyerType=robot_team&source=site-worlds&siteName=Harborview+Grocery+Distribution+Annex&siteLocation=1847+W+Fulton+St%2C+Chicago%2C+IL+60612&taskStatement=Walk+to+shelf+staging+and+pick+the+blue+tote&targetRobotTeam=Unitree+G1+with+head+cam+and+wrist+cam";
 
     render(<Contact />);
+
+    await screen.findByDisplayValue("Walk to shelf staging and pick the blue tote");
 
     fireEvent.change(screen.getByPlaceholderText("First name*"), {
       target: { value: "Ada" },
@@ -135,6 +221,15 @@ describe("Contact page", () => {
     });
     fireEvent.change(screen.getByPlaceholderText("Work email*"), {
       target: { value: "ada@example.com" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Your role/i }), {
+      target: { value: "Autonomy lead" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /Target site type/i }), {
+      target: { value: "Warehouse" },
+    });
+    fireEvent.change(screen.getByRole("combobox", { name: /Proof path/i }), {
+      target: { value: "exact_site_required" },
     });
     fireEvent.click(screen.getByRole("button", { name: /Request hosted evaluation/i }));
 
@@ -153,6 +248,33 @@ describe("Contact page", () => {
     expect(body.requestedLanes).toEqual(["deeper_evaluation"]);
     expect(body.budgetBucket).toBe("Undecided/Unsure");
     expect(body.siteName).toBe("Harborview Grocery Distribution Annex");
+    expect(body.context).toMatchObject({
+      demandCity: null,
+      buyerChannelSource: "site_worlds",
+      buyerChannelSourceCaptureMode: "explicit_query",
+      buyerChannelSourceRaw: "site-worlds",
+      utm: {
+        source: null,
+        medium: null,
+        campaign: null,
+        term: null,
+        content: null,
+      },
+    });
     expect(screen.getByText(/Hosted evaluation request received/i)).toBeInTheDocument();
+  });
+
+  it("tracks a validation failure when required contact fields are missing", async () => {
+    render(<Contact />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Send a short brief/i }));
+
+    expect(analyticsEventsMock.contactRequestFailed).toHaveBeenCalledWith({
+      stage: "validation",
+      errorType: "missing_required_fields",
+      persona: "robot_team",
+      hostedMode: false,
+      requestedLane: "deeper_evaluation",
+    });
   });
 });

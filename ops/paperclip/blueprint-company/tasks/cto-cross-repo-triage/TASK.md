@@ -1,7 +1,7 @@
 ---
 name: CTO Cross-Repo Triage
 project: blueprint-webapp
-assignee: cto
+assignee: blueprint-cto
 recurring: true
 ---
 

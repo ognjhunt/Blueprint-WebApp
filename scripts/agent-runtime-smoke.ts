@@ -1,8 +1,12 @@
-import { runAgentRuntimeSmokeTest } from "../server/agents/runtime-connectivity";
+import {
+  getAgentRuntimeConnectionMetadata,
+  runAgentRuntimeSmokeTest,
+} from "../server/agents/runtime-connectivity";
 
 async function main() {
+  const connectivity = getAgentRuntimeConnectionMetadata();
   const result = await runAgentRuntimeSmokeTest({
-    model: process.env.OPENAI_OPERATOR_THREAD_MODEL || process.env.OPENAI_DEFAULT_MODEL,
+    model: connectivity.task_models.operator_thread || connectivity.default_model,
   });
 
   if (!result.ok) {

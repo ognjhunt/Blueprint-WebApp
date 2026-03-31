@@ -25,6 +25,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
+import { analyticsEvents, getSafeErrorType } from "@/lib/analytics";
+import {
+  getDemandAttributionFromSearchParams,
+  hasDemandAttribution,
+  overlaySelfReportedBuyerChannelSource,
+} from "@/lib/demandAttribution";
 import type { UserData } from "@/lib/firebase";
 import {
   REQUESTED_LANE_DESCRIPTIONS,
@@ -38,22 +44,34 @@ const REQUESTED_LANES: Array<{
   value: RequestedLane;
   label: string;
   description: string;
-}> = SHARED_REQUESTED_LANES.map((value) => ({
-  value,
-  label: REQUESTED_LANE_LABELS[value],
-  description: REQUESTED_LANE_DESCRIPTIONS[value],
-}));
+}> = [...SHARED_REQUESTED_LANES]
+  .sort((left, right) => {
+    const priority: Record<RequestedLane, number> = {
+      deeper_evaluation: 0,
+      preview_simulation: 1,
+      data_licensing: 2,
+      managed_tuning: 3,
+      qualification: 4,
+    };
+
+    return priority[left] - priority[right];
+  })
+  .map((value) => ({
+    value,
+    label: REQUESTED_LANE_LABELS[value],
+    description: REQUESTED_LANE_DESCRIPTIONS[value],
+  }));
 
 const BUYER_TYPES = [
   {
-    value: "site_operator",
-    label: "Site operator",
-    description: "I own the site, workflow, or deployment decision.",
-  },
-  {
     value: "robot_team",
     label: "Robot team",
-    description: "I already have a target site and need a cleaner qualification read.",
+    description: "I need an exact-site package, hosted evaluation, or delivery path for a real facility.",
+  },
+  {
+    value: "site_operator",
+    label: "Site operator",
+    description: "I manage the facility, permissions, or governance around a site.",
   },
 ] as const;
 
@@ -69,6 +87,13 @@ const REFERRAL_SOURCE_OPTIONS = [
   { value: "google", label: "Search" },
   { value: "linkedin", label: "LinkedIn" },
   { value: "twitter", label: "Twitter/X" },
+  { value: "texas_robotics", label: "Texas Robotics" },
+  { value: "founder_intro", label: "Founder intro" },
+  { value: "university", label: "University contact" },
+  { value: "industrial_partner", label: "Industrial partner" },
+  { value: "bara_matchmaking", label: "BARA / buyer matchmaking" },
+  { value: "proof_led_event", label: "Proof-led event" },
+  { value: "partner_referral", label: "Partner referral" },
   { value: "referral", label: "Referral" },
   { value: "event", label: "Event" },
   { value: "other", label: "Other" },
@@ -84,6 +109,9 @@ type LegacyPrimaryNeed =
   | "dataset-packs"
   | "custom-capture"
   | "other";
+
+const DEFAULT_BUYER_TYPE: BuyerType = "robot_team";
+const DEFAULT_REQUESTED_LANE: RequestedLane = "deeper_evaluation";
 
 const LEGACY_PRIMARY_NEED_BY_LANE: Record<RequestedLane, LegacyPrimaryNeed> = {
   qualification: "benchmark-packs",
@@ -155,8 +183,10 @@ export default function BusinessSignUpFlow() {
   const [contactName, setContactName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [buyerType, setBuyerType] = useState<BuyerType>("site_operator");
-  const [requestedLanes, setRequestedLanes] = useState<RequestedLane[]>(["qualification"]);
+  const [buyerType, setBuyerType] = useState<BuyerType>(DEFAULT_BUYER_TYPE);
+  const [requestedLanes, setRequestedLanes] = useState<RequestedLane[]>([
+    DEFAULT_REQUESTED_LANE,
+  ]);
   const [companySize, setCompanySize] = useState<CompanySize | "">("");
 
   const [siteName, setSiteName] = useState("");
@@ -169,6 +199,41 @@ export default function BusinessSignUpFlow() {
   const [targetRobotTeam, setTargetRobotTeam] = useState("");
   const [budgetRange, setBudgetRange] = useState<BudgetRange | "">("");
   const [referralSource, setReferralSource] = useState<ReferralSource | "">("");
+  const searchDemandAttribution = useMemo(() => {
+    if (typeof window === "undefined") {
+      return getDemandAttributionFromSearchParams(new URLSearchParams());
+    }
+
+    return getDemandAttributionFromSearchParams(
+      new URLSearchParams(window.location.search),
+    );
+  }, []);
+  const signupDemandAttribution = useMemo(
+    () =>
+      overlaySelfReportedBuyerChannelSource(
+        searchDemandAttribution,
+        referralSource || null,
+      ),
+    [referralSource, searchDemandAttribution],
+  );
+  const searchAnalyticsAttribution = hasDemandAttribution(searchDemandAttribution)
+    ? searchDemandAttribution
+    : undefined;
+  const signupAnalyticsAttribution = hasDemandAttribution(signupDemandAttribution)
+    ? signupDemandAttribution
+    : undefined;
+
+  useEffect(() => {
+    analyticsEvents.businessSignupStarted({
+      defaultRequestedLane: requestedLanes[0] || "none",
+      requestedLaneCount: requestedLanes.length,
+      ...(searchAnalyticsAttribution
+        ? { demandAttribution: searchAnalyticsAttribution }
+        : {}),
+    });
+    // We only want the baseline start event once per page visit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -211,23 +276,73 @@ export default function BusinessSignUpFlow() {
     setErrorMessage("");
 
     if (step === 1 && !step1Valid) {
-      if (!organizationName.trim()) setErrorMessage("Please enter your organization name.");
-      else if (!isValidEmail(email)) setErrorMessage("Please enter a valid work email.");
-      else if (password.length < 8) setErrorMessage("Password must be at least 8 characters.");
-      else setErrorMessage("Passwords do not match.");
+      let validationError = "password_mismatch";
+      if (!organizationName.trim()) {
+        validationError = "missing_organization_name";
+        setErrorMessage("Please enter your organization name.");
+      } else if (!isValidEmail(email)) {
+        validationError = "invalid_email";
+        setErrorMessage("Please enter a valid work email.");
+      } else if (password.length < 8) {
+        validationError = "weak_password";
+        setErrorMessage("Password must be at least 8 characters.");
+      } else {
+        setErrorMessage("Passwords do not match.");
+      }
+      analyticsEvents.businessSignupFailed({
+        stage: "step_validation",
+        stepNumber: 1,
+        errorType: validationError,
+        buyerType,
+        requestedLaneCount: requestedLanes.length,
+        ...(searchAnalyticsAttribution
+          ? { demandAttribution: searchAnalyticsAttribution }
+          : {}),
+      });
       return;
     }
 
     if (step === 2 && !step2Valid) {
-      if (!contactName.trim()) setErrorMessage("Please enter your name.");
-      else if (!isValidPhone(phoneNumber)) setErrorMessage("Please enter a valid phone number.");
-      else if (requestedLanes.length === 0) setErrorMessage("Select at least one requested lane.");
-      else setErrorMessage("Please select your company size.");
+      let validationError = "missing_contact_name";
+      if (!contactName.trim()) {
+        setErrorMessage("Please enter your name.");
+      } else if (!isValidPhone(phoneNumber)) {
+        validationError = "invalid_phone";
+        setErrorMessage("Please enter a valid phone number.");
+      } else if (requestedLanes.length === 0) {
+        validationError = "missing_requested_lane";
+        setErrorMessage("Select at least one requested lane.");
+      } else {
+        validationError = "missing_company_size";
+        setErrorMessage("Please select your company size.");
+      }
+      analyticsEvents.businessSignupFailed({
+        stage: "step_validation",
+        stepNumber: 2,
+        errorType: validationError,
+        buyerType,
+        requestedLaneCount: requestedLanes.length,
+        ...(searchAnalyticsAttribution
+          ? { demandAttribution: searchAnalyticsAttribution }
+          : {}),
+      });
       return;
     }
 
     setStep((current) => Math.min(current + 1, 3));
-  }, [step, step1Valid, step2Valid, organizationName, email, password, contactName, phoneNumber, requestedLanes]);
+  }, [
+    step,
+    step1Valid,
+    step2Valid,
+    organizationName,
+    email,
+    password,
+    contactName,
+    phoneNumber,
+    requestedLanes,
+    buyerType,
+    searchAnalyticsAttribution,
+  ]);
 
   const handleBack = useCallback(() => {
     setErrorMessage("");
@@ -263,11 +378,21 @@ export default function BusinessSignUpFlow() {
 
       setStep(2);
     } catch (error: any) {
+      analyticsEvents.businessSignupFailed({
+        stage: "google_continue",
+        stepNumber: 1,
+        errorType: getSafeErrorType(error),
+        buyerType,
+        requestedLaneCount: requestedLanes.length,
+        ...(searchAnalyticsAttribution
+          ? { demandAttribution: searchAnalyticsAttribution }
+          : {}),
+      });
       setErrorMessage(error.message || "Failed to sign up with Google.");
     } finally {
       setIsSubmitting(false);
     }
-  }, []);
+  }, [buyerType, requestedLanes, searchAnalyticsAttribution]);
 
   const handleSubmit = useCallback(async () => {
     if (!step3Valid) {
@@ -276,11 +401,47 @@ export default function BusinessSignUpFlow() {
       else if (!taskStatement.trim()) setErrorMessage("Please enter the task statement.");
       else if (!budgetRange) setErrorMessage("Please select a budget range.");
       else setErrorMessage("Please tell us how you heard about Blueprint.");
+      analyticsEvents.businessSignupFailed({
+        stage: "step_validation",
+        stepNumber: 3,
+        errorType:
+          !siteName.trim()
+            ? "missing_site_name"
+            : !siteLocation.trim()
+              ? "missing_site_location"
+              : !taskStatement.trim()
+                ? "missing_task_statement"
+                : !budgetRange
+                  ? "missing_budget_range"
+                  : "missing_referral_source",
+        buyerType,
+        requestedLaneCount: requestedLanes.length,
+        ...(signupAnalyticsAttribution
+          ? { demandAttribution: signupAnalyticsAttribution }
+          : {}),
+      });
       return;
     }
 
     setIsSubmitting(true);
     setErrorMessage("");
+    analyticsEvents.businessSignupSubmitted({
+      buyerType,
+      requestedLaneCount: requestedLanes.length,
+      includesQualificationLane: requestedLanes.includes("qualification"),
+      companySize,
+      budgetRange,
+      referralSource,
+      hasPhoneNumber: Boolean(phoneNumber.trim()),
+      hasWorkflowContext: Boolean(workflowContext.trim()),
+      hasOperatingConstraints: Boolean(operatingConstraints.trim()),
+      hasPrivacySecurityConstraints: Boolean(privacySecurityConstraints.trim()),
+      hasKnownBlockers: Boolean(knownBlockers.trim()),
+      hasTargetRobotTeam: Boolean(targetRobotTeam.trim()),
+      ...(signupAnalyticsAttribution
+        ? { demandAttribution: signupAnalyticsAttribution }
+        : {}),
+    });
 
     try {
       const auth = getAuth();
@@ -334,6 +495,7 @@ export default function BusinessSignUpFlow() {
         projectDescription: workflowContext || undefined,
         budgetRange: budgetRange as BudgetRange,
         referralSource: referralSource as ReferralSource,
+        demandAttribution: signupAnalyticsAttribution || null,
         createdDate: timestamp,
         lastLoginAt: timestamp,
         lastSessionDate: timestamp,
@@ -391,8 +553,29 @@ export default function BusinessSignUpFlow() {
       };
 
       await setDoc(doc(db, "users", uid), newUserData);
+      analyticsEvents.businessSignupCompleted({
+        buyerType,
+        requestedLaneCount: requestedLanes.length,
+        includesQualificationLane: requestedLanes.includes("qualification"),
+        companySize,
+        budgetRange,
+        referralSource,
+        ...(signupAnalyticsAttribution
+          ? { demandAttribution: signupAnalyticsAttribution }
+          : {}),
+      });
       setLocation("/onboarding");
     } catch (error: any) {
+      analyticsEvents.businessSignupFailed({
+        stage: "account_creation",
+        stepNumber: 3,
+        errorType: getSafeErrorType(error),
+        buyerType,
+        requestedLaneCount: requestedLanes.length,
+        ...(signupAnalyticsAttribution
+          ? { demandAttribution: signupAnalyticsAttribution }
+          : {}),
+      });
       if (error.code === "auth/email-already-in-use") {
         setErrorMessage("An account with this email already exists.");
       } else {
@@ -423,6 +606,8 @@ export default function BusinessSignUpFlow() {
     targetRobotTeam,
     taskStatement,
     workflowContext,
+    searchAnalyticsAttribution,
+    signupAnalyticsAttribution,
   ]);
 
   const slideVariants = {
@@ -680,7 +865,7 @@ export default function BusinessSignUpFlow() {
                       <Textarea
                         id="taskStatement"
                         className="min-h-24 pl-10"
-                        placeholder="What exact workflow should Blueprint qualify?"
+                        placeholder="What exact site and technical question should Blueprint help with?"
                         value={taskStatement}
                         onChange={(event) => setTaskStatement(event.target.value)}
                       />
@@ -781,7 +966,7 @@ export default function BusinessSignUpFlow() {
                     </div>
                     <p className="mt-2">
                       Blueprint routes you into the intake review hub, where you can confirm the
-                      submission and move the site toward qualification.
+                      submission and move the site into the exact-site proof path.
                     </p>
                   </div>
                 </div>

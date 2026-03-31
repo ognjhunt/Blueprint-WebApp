@@ -6,6 +6,8 @@ This directory contains the local Paperclip package and bootstrap scripts used t
 - `/Users/nijelhunt_1/workspace/BlueprintCapturePipeline`
 - `/Users/nijelhunt_1/workspace/BlueprintCapture`
 
+The current baseline includes a Hermes-backed `blueprint-chief-of-staff` loop that runs every 5 minutes, wakes on issue/routine/failure signals, and mirrors major task/delegation movement into Slack when webhook targets are configured.
+
 Main entrypoints:
 
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company`: portable Paperclip company package
@@ -17,7 +19,7 @@ Main entrypoints:
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/ensure-blueprint-paperclip-public-url.sh`: keep a healthy public Paperclip URL via `cloudflared` when the env file only points at localhost
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/configure-blueprint-paperclip-plugin.sh`: install/build/configure the Blueprint plugin and its secret refs
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/repair-blueprint-paperclip-company.sh`: clean duplicate agents, projects, and stale work left behind by older re-imports
-- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/reconcile-blueprint-paperclip-company.sh`: reconcile the surviving canonical agents and routines back onto the intended dual-lane Codex/Claude host configuration
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/reconcile-blueprint-paperclip-company.sh`: reconcile the surviving canonical agents and routines back onto the intended Codex/Claude/Hermes host configuration
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/setup-github-webhooks.sh`: wire GitHub repo hooks to the active public Paperclip URL and validate with ping deliveries
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/verify-blueprint-paperclip.sh`: run environment checks against the imported local adapters
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/smoke-blueprint-paperclip-automation.sh`: end-to-end smoke for issue creation, dedupe, blocker follow-up, and resolution
@@ -31,3 +33,8 @@ Runtime state is intentionally kept outside the git repo at:
 Paperclip source is cloned at:
 
 - `/Users/nijelhunt_1/workspace/paperclip`
+
+Hermes-backed Blueprint agents are expected to use Codex OAuth only on this host. Install and configure Hermes locally before running reconcile or verify:
+
+- `hermes model` → choose the Codex provider
+- pin auxiliary/compression paths to Codex in `~/.hermes/config.yaml` if you want strict no-OpenRouter behavior

@@ -22,9 +22,11 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { SEO } from "@/components/SEO";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { analyticsEvents, getSafeErrorType } from "@/lib/analytics";
 import { getCaptureAppPlaceholderUrl } from "@/lib/client-env";
 
 const EQUIPMENT_OPTIONS = [
@@ -41,10 +43,10 @@ const AVAILABILITY_OPTIONS = [
 ] as const;
 
 const REFERRAL_OPTIONS = [
-  { value: "search", label: "Search" },
+  { value: "invite_or_access_code", label: "Invite or access code" },
   { value: "friend", label: "Referral" },
-  { value: "social", label: "Social" },
   { value: "event", label: "Event" },
+  { value: "search", label: "Search" },
   { value: "other", label: "Other" },
 ] as const;
 
@@ -99,6 +101,7 @@ export default function CapturerSignUpFlow() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [authMethod, setAuthMethod] = useState<"password" | "google">("password");
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -109,7 +112,7 @@ export default function CapturerSignUpFlow() {
   const [market, setMarket] = useState("");
   const [availability, setAvailability] = useState<AvailabilityValue>("flexible");
   const [equipment, setEquipment] = useState<EquipmentValue[]>(["iphone"]);
-  const [referralSource, setReferralSource] = useState<ReferralValue>("search");
+  const [referralSource, setReferralSource] = useState<ReferralValue | "">("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [successSummary, setSuccessSummary] = useState<{ name: string; market: string } | null>(
     null,
@@ -132,8 +135,9 @@ export default function CapturerSignUpFlow() {
       market.trim().length > 2 &&
       isValidPhone(phoneNumber) &&
       equipment.length > 0 &&
+      referralSource !== "" &&
       agreedToTerms,
-    [agreedToTerms, equipment.length, market, phoneNumber],
+    [agreedToTerms, equipment.length, market, phoneNumber, referralSource],
   );
 
   const toggleEquipment = useCallback((value: EquipmentValue) => {
@@ -141,6 +145,17 @@ export default function CapturerSignUpFlow() {
       current.includes(value) ? current.filter((item) => item !== value) : [...current, value],
     );
   }, []);
+
+  useEffect(() => {
+    analyticsEvents.capturerSignupStarted();
+  }, []);
+
+  useEffect(() => {
+    analyticsEvents.capturerSignupStepViewed(
+      step,
+      step === 1 ? "account_basics" : "market_fit",
+    );
+  }, [step]);
 
   useEffect(() => {
     let active = true;
@@ -191,8 +206,15 @@ export default function CapturerSignUpFlow() {
 
       if (user.displayName) setFullName(user.displayName);
       if (user.email) setEmail(user.email);
+      setAuthMethod("google");
+      analyticsEvents.capturerSignupStepCompleted(1, "account_basics", "google");
       setStep(2);
     } catch (error: any) {
+      analyticsEvents.capturerSignupFailed({
+        stage: "google_continue",
+        stepNumber: 1,
+        errorType: getSafeErrorType(error),
+      });
       setErrorMessage(error.message || "Failed to continue with Google.");
     } finally {
       setIsSubmitting(false);
@@ -203,28 +225,66 @@ export default function CapturerSignUpFlow() {
     setErrorMessage("");
 
     if (!step1Valid) {
-      if (!fullName.trim()) setErrorMessage("Enter your full name.");
-      else if (!isValidEmail(email)) setErrorMessage("Enter a valid email address.");
-      else if (password.length < 8) setErrorMessage("Password must be at least 8 characters.");
-      else setErrorMessage("Passwords do not match.");
+      let validationError = "password_mismatch";
+      if (!fullName.trim()) {
+        validationError = "missing_full_name";
+        setErrorMessage("Enter your full name.");
+      } else if (!isValidEmail(email)) {
+        validationError = "invalid_email";
+        setErrorMessage("Enter a valid email address.");
+      } else if (password.length < 8) {
+        validationError = "weak_password";
+        setErrorMessage("Password must be at least 8 characters.");
+      } else {
+        setErrorMessage("Passwords do not match.");
+      }
+      analyticsEvents.capturerSignupFailed({
+        stage: "step_validation",
+        stepNumber: 1,
+        errorType: validationError,
+      });
       return;
     }
 
+    analyticsEvents.capturerSignupStepCompleted(1, "account_basics", authMethod);
     setStep(2);
-  }, [email, fullName, password, step1Valid]);
+  }, [authMethod, email, fullName, password, step1Valid]);
 
   const handleSubmit = useCallback(async () => {
     setErrorMessage("");
 
     if (!step2Valid) {
-      if (!market.trim()) setErrorMessage("Tell us your home market.");
-      else if (!isValidPhone(phoneNumber)) setErrorMessage("Enter a valid phone number.");
-      else if (equipment.length === 0) setErrorMessage("Select at least one capture device.");
-      else setErrorMessage("You need to accept the terms to apply.");
+      let validationError = "missing_market";
+      if (!market.trim()) {
+        setErrorMessage("Tell us your home market.");
+      } else if (!isValidPhone(phoneNumber)) {
+        validationError = "invalid_phone";
+        setErrorMessage("Enter a valid phone number.");
+      } else if (equipment.length === 0) {
+        validationError = "missing_equipment";
+        setErrorMessage("Select at least one capture device.");
+      } else if (!referralSource) {
+        validationError = "missing_referral_source";
+        setErrorMessage("Tell us how you got access.");
+      } else {
+        validationError = "missing_terms_acceptance";
+        setErrorMessage("You need to accept the terms to apply.");
+      }
+      analyticsEvents.capturerSignupFailed({
+        stage: "step_validation",
+        stepNumber: 2,
+        errorType: validationError,
+      });
       return;
     }
 
     setIsSubmitting(true);
+    analyticsEvents.capturerSignupSubmitted({
+      authMethod,
+      equipmentCount: equipment.length,
+      availability,
+      referralSource,
+    });
 
     try {
       const { db } = await import("@/lib/firebase");
@@ -326,8 +386,19 @@ export default function CapturerSignUpFlow() {
         name: normalizedName.split(" ")[0] || normalizedName,
         market: market.trim(),
       });
+      analyticsEvents.capturerSignupCompleted({
+        authMethod,
+        equipmentCount: equipment.length,
+        availability,
+        referralSource,
+      });
       setIsComplete(true);
     } catch (error: any) {
+      analyticsEvents.capturerSignupFailed({
+        stage: "account_creation",
+        stepNumber: 2,
+        errorType: getSafeErrorType(error),
+      });
       if (error.code === "auth/email-already-in-use") {
         setErrorMessage("An account with this email already exists.");
       } else {
@@ -337,6 +408,7 @@ export default function CapturerSignUpFlow() {
       setIsSubmitting(false);
     }
   }, [
+    authMethod,
     availability,
     email,
     equipment,
@@ -361,25 +433,32 @@ export default function CapturerSignUpFlow() {
   }, [captureAppUrl]);
 
   return (
-    <main
-      className="min-h-screen bg-[color:var(--paper)] px-4 py-10 text-[color:var(--ink)]"
-      style={
-        {
-          "--paper": "oklch(0.985 0.012 95)",
-          "--paper-strong": "oklch(0.962 0.024 95)",
-          "--panel": "oklch(0.995 0.008 95)",
-          "--ink": "oklch(0.23 0.03 80)",
-          "--ink-soft": "oklch(0.4 0.024 80)",
-          "--ink-muted": "oklch(0.56 0.018 80)",
-          "--line": "oklch(0.9 0.02 90)",
-          "--line-strong": "oklch(0.83 0.03 88)",
-          "--leaf": "oklch(0.63 0.16 149)",
-          "--leaf-deep": "oklch(0.51 0.12 149)",
-          "--amber": "oklch(0.78 0.13 82)",
-          "--rose": "oklch(0.64 0.19 26)",
-        } as React.CSSProperties
-      }
-    >
+    <>
+      <SEO
+        title="Capturer Access | Blueprint"
+        description="Apply for capturer access and complete the Blueprint mobile capture handoff."
+        canonical="/signup/capturer"
+        noIndex={true}
+      />
+      <main
+        className="min-h-screen bg-[color:var(--paper)] px-4 py-10 text-[color:var(--ink)]"
+        style={
+          {
+            "--paper": "oklch(0.985 0.012 95)",
+            "--paper-strong": "oklch(0.962 0.024 95)",
+            "--panel": "oklch(0.995 0.008 95)",
+            "--ink": "oklch(0.23 0.03 80)",
+            "--ink-soft": "oklch(0.4 0.024 80)",
+            "--ink-muted": "oklch(0.56 0.018 80)",
+            "--line": "oklch(0.9 0.02 90)",
+            "--line-strong": "oklch(0.83 0.03 88)",
+            "--leaf": "oklch(0.63 0.16 149)",
+            "--leaf-deep": "oklch(0.51 0.12 149)",
+            "--amber": "oklch(0.78 0.13 82)",
+            "--rose": "oklch(0.64 0.19 26)",
+          } as React.CSSProperties
+        }
+      >
       <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.92fr_1.08fr]">
         <section className="relative overflow-hidden rounded-[2rem] border border-[color:var(--line)] bg-[color:var(--paper-strong)] p-7 sm:p-8">
           <div className="absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_top_left,_rgba(55,145,86,0.18),_transparent_62%)]" />
@@ -394,8 +473,8 @@ export default function CapturerSignUpFlow() {
                 Apply on web. Capture in the Blueprint app.
               </h1>
               <p className="max-w-lg text-base leading-7 text-[color:var(--ink-soft)]">
-                This page is for account creation and market qualification. Actual capture work
-                should happen in Blueprint Capture, not inside the operator dashboard.
+                This page is for account creation and access routing. Actual capture work should
+                happen in Blueprint Capture, not inside the operator dashboard.
               </p>
             </div>
 
@@ -438,7 +517,7 @@ export default function CapturerSignUpFlow() {
                   <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--leaf)] text-xs font-semibold text-white">
                     2
                   </span>
-                  We qualify your market and device fit before routing work your way.
+                  We confirm your market and device fit before sending approval or access instructions.
                 </li>
                 <li className="flex gap-3">
                   <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--leaf)] text-xs font-semibold text-white">
@@ -660,7 +739,10 @@ export default function CapturerSignUpFlow() {
                       </div>
 
                       <div>
-                        <p className="text-sm font-semibold text-[color:var(--ink)]">How did you hear about Blueprint?</p>
+                        <p className="text-sm font-semibold text-[color:var(--ink)]">How did you get access?</p>
+                        <p className="mt-1 text-sm text-[color:var(--ink-soft)]">
+                          If you were invited or given an access code, select that here so we can route review correctly.
+                        </p>
                         <RadioGroup
                           value={referralSource}
                           onValueChange={(value) => setReferralSource(value as ReferralValue)}
@@ -843,7 +925,7 @@ export default function CapturerSignUpFlow() {
                     <div>
                       <p className="font-semibold text-[color:var(--ink)]">Recommended next steps</p>
                       <ul className="mt-2 space-y-2 text-sm leading-6 text-[color:var(--ink-soft)]">
-                        <li>Watch for market activation or approval instructions.</li>
+                        <li>Watch for approval or access instructions.</li>
                         <li>Complete identity and payout setup in the capture workflow when prompted.</li>
                         <li>Return to the capture overview if you want to review pay, device fit, or process details.</li>
                       </ul>
@@ -857,7 +939,7 @@ export default function CapturerSignUpFlow() {
                     <div>
                       <p className="font-semibold text-[color:var(--ink)]">Need a business account instead?</p>
                       <p className="mt-1 text-sm leading-6 text-[color:var(--ink-soft)]">
-                        Site operators and robot teams should stay on the business route so they get the qualification-first intake, not the worker flow.
+                        Site operators and robot teams should stay on the business route so they get the right intake, not the worker flow.
                       </p>
                     </div>
                   </div>
@@ -885,6 +967,7 @@ export default function CapturerSignUpFlow() {
           )}
         </section>
       </div>
-    </main>
+      </main>
+    </>
   );
 }

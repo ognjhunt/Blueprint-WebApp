@@ -10,6 +10,8 @@ Blueprint runs as an autonomous organization powered by [Paperclip](https://gith
 
 This guide covers the full org so that any agent or human working in any Blueprint repo understands who does what, how work flows, and where the boundaries are.
 
+On the current trusted host, Paperclip uses local subscription-backed auth only. Claude is the default executive/review lane and Codex is the default implementation lane, but reconcile automatically fails a workspace over to the other local adapter when the default adapter is unhealthy or rate-limited.
+
 **Key principles:**
 - Capture-first, world-model-product-first positioning (see `PLATFORM_CONTEXT.md`)
 - Progressive autonomy — agents start supervised and graduate based on track record
@@ -26,11 +28,16 @@ This guide covers the full org so that any agent or human working in any Bluepri
                            │   (Claude)   │
                            └──────┬───────┘
                                   │
-                 ┌────────────────┼────────────────┐
-                 │                │                 │
+                         ┌────────┴────────┐
+                         │ Chief of Staff  │
+                         │   (Hermes)      │
+                         └──────┬───────┬──┘
+                                │       │
+                 ┌──────────────┘       └──────────────┐
+                 │                                     │
           ┌──────┴──────┐  ┌─────┴──────┐  ┌──────┴───────┐
           │  CTO Agent  │  │  Ops Lead  │  │ Growth Lead  │
-          │  (Claude)   │  │  (Claude)  │  │   (Claude)   │
+          │  (Claude)   │  │  (Hermes)  │  │   (Hermes)   │
           └──────┬──────┘  └─────┬──────┘  └──────┬───────┘
                  │               │                 │
        ┌─────┬──┴──┐      ┌─────┼─────┐     ┌─────┼─────┐
@@ -45,10 +52,10 @@ This guide covers the full org so that any agent or human working in any Bluepri
 
 | Department | Lead | Agents | Focus |
 |-----------|------|--------|-------|
-| **Executive** | CEO | CEO, CTO | Strategy, priorities, cross-dept coordination |
+| **Executive** | CEO | CEO, Chief of Staff, CTO, Investor Relations | Strategy, priorities, continuous cross-dept coordination |
 | **Engineering** | CTO | 6 agents (impl + review per repo) | Code implementation and review |
 | **Ops** | Ops Lead | 5 agents | Product operations lifecycle |
-| **Growth** | Growth Lead | 4 agents | Acquisition, conversion, retention, intelligence |
+| **Growth** | Growth Lead | 12 agents | Buyer demand, capturer supply, city planning, conversion, retention, intelligence, and community publishing |
 
 ---
 
@@ -58,14 +65,14 @@ This guide covers the full org so that any agent or human working in any Bluepri
 
 ---
 
-#### CEO (`ceo`)
+#### CEO (`blueprint-ceo`)
 
 | Field | Value |
 |-------|-------|
 | **Department** | Executive |
 | **Reports to** | Human founder (board) |
 | **Model** | Claude |
-| **Status** | Exists — needs expansion |
+| **Status** | Live in Paperclip package |
 
 **Purpose:** Sets company priorities, reviews cross-department status, handles escalations, interfaces with human founder.
 
@@ -84,19 +91,49 @@ This guide covers the full org so that any agent or human working in any Bluepri
 
 **Graduation:** N/A — executive role, always reports to human.
 
-**Skill file:** `ops/paperclip/skills/ceo.md` (to be created)
+**Instructions:** `ops/paperclip/blueprint-company/agents/blueprint-ceo/AGENTS.md`
 **Paperclip config:** `ops/paperclip/blueprint-company/.paperclip.yaml`
 
 ---
 
-#### CTO (`cto`)
+#### Chief of Staff (`blueprint-chief-of-staff`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Executive |
+| **Reports to** | CEO |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | Live in Paperclip package |
+
+**Purpose:** Runs the continuous 24/7 managerial loop. Watches issue state, routine health, queue changes, and agent activity; decides what finished, what stalled, and what needs a next action; and routes or closes work in Paperclip.
+
+**Triggers:**
+- `*/5 * * * *` — Continuous manager loop
+- Event wakeups from issue create/update, routine activity, queue intake, and agent failures via the Blueprint automation plugin
+
+**Inputs:** `blueprint-manager-state`, Blueprint automation recent events, active issues, routine health, queue sync state, and repo/plugin evidence.
+
+**Outputs:**
+- Concrete Paperclip issue creation/update/closure
+- Delegations and blocker follow-up issues
+- Cross-agent follow-through decisions
+- Slack-visible manager wakeups and task-routing activity
+
+**Human gates:** Strategy, budget, rights/privacy, commercialization commitments, legal, policy, and other irreversible high-risk decisions.
+
+**Instructions:** `ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md`
+**Paperclip config:** `ops/paperclip/blueprint-company/.paperclip.yaml`
+
+---
+
+#### CTO (`blueprint-cto`)
 
 | Field | Value |
 |-------|-------|
 | **Department** | Executive |
 | **Reports to** | CEO |
 | **Model** | Claude |
-| **Status** | Exists — needs expansion |
+| **Status** | Live in Paperclip package |
 
 **Purpose:** Technical decisions, cross-repo coordination, architecture review. Routes non-technical ops issues to Ops Lead.
 
@@ -116,8 +153,41 @@ This guide covers the full org so that any agent or human working in any Bluepri
 
 **Graduation:** N/A — executive role.
 
-**Skill file:** `ops/paperclip/skills/cto.md` (to be created)
+**Instructions:** `ops/paperclip/blueprint-company/agents/blueprint-cto/AGENTS.md`
 **Paperclip config:** `ops/paperclip/blueprint-company/.paperclip.yaml`
+
+---
+
+#### Investor Relations Agent (`investor-relations-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Executive |
+| **Reports to** | Chief of Staff |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | New |
+
+**Purpose:** Produces the monthly investor update from real month-over-month metrics, shipped work, operating risks, and concrete asks. Drafts investor-facing blog/email artifacts but never sends them live.
+
+**Triggers:**
+- `0 8 1 * *` — Monthly investor draft run (8am ET on the first calendar day)
+- Event: CEO or Chief of Staff requests an ad-hoc investor-ready draft
+
+**Inputs:**
+- Stripe, Firestore, GA4/PostHog, Paperclip issue completions, and Firehose signals
+- `ops/paperclip/programs/investor-relations-agent-program.md`
+- The [$humanizer](/Users/nijelhunt_1/.agents/skills/humanizer/SKILL.md) skill for final copy cleanup
+
+**Outputs:**
+- Investor update draft → Notion Knowledge DB
+- Review artifact → Notion Work Queue
+- Draft investor campaign → Nitrosend (when configured)
+- Internal review note → Slack `#exec` (when configured)
+
+**Human gates:** Any live send/publish, fundraising language, projections, runway claims, or board-sensitive disclosures.
+
+**Instructions:** `ops/paperclip/blueprint-company/agents/investor-relations-agent/AGENTS.md`
+**Program:** `ops/paperclip/programs/investor-relations-agent-program.md`
 
 ---
 
@@ -134,7 +204,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | `capture-codex` | Codex | BlueprintCapture | Issue assignment |
 | `capture-claude` | Claude | BlueprintCapture | PR/issue events |
 
-**Change needed:** Engineering agents should accept work items created by Ops and Growth agents (e.g., Conversion Optimizer creating a PR for a CTA change), not just GitHub-originated events.
+**Current state:** Engineering agents are already configured around issue-driven Paperclip loops, so Ops and Growth work can route through Paperclip issues rather than only GitHub-originated events.
 
 ---
 
@@ -147,8 +217,8 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | Field | Value |
 |-------|-------|
 | **Department** | Ops |
-| **Reports to** | CEO |
-| **Model** | Claude |
+| **Reports to** | Chief of Staff |
+| **Model** | Hermes (Codex OAuth) |
 | **Status** | New |
 
 **Purpose:** Coordinates all product operations. Routes work between intake, QA, scheduling, and finance agents. Produces daily ops summary. Escalates blockers to CEO.
@@ -193,7 +263,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Claude |
 | **Status** | New |
 
-**Purpose:** Processes capturer applications (waitlist) and buyer inbound requests. Classifies by intent, scores readiness, detects missing info, drafts responses.
+**Purpose:** Processes capturer applications (waitlist) and buyer inbound requests. Classifies by intent, scores readiness, detects missing info, drafts responses, and auto-executes low-risk follow-up where policy allows.
 
 **Triggers:**
 - Webhook: Firestore onCreate on waitlist and inbound_requests collections
@@ -208,13 +278,14 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 **Outputs:**
 - Classification label + priority score on each record
 - Draft invite/reject/follow-up messages
+- Auto-sent low-risk follow-up and invite flows routed through the action ledger
 - Missing-info flags with specific questions
 - Updates to Notion Work Queue
 
 **Human gates:**
-- Phase 1: All outbound messages
-- Phase 2: Invite/reject decisions only
-- Phase 3: Rejections and edge cases only
+- High-risk or low-confidence outbound messages
+- Rejections and edge cases
+- Rights/privacy/commercial commitment cases
 
 **External needs:** Firestore read/write, SendGrid or email API (drafts), Notion API.
 
@@ -222,8 +293,8 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | Phase | Behavior | Criteria to advance |
 |-------|----------|-------------------|
 | 1 | Classify + score only; human sends all messages | 2 weeks, classification accuracy >90% |
-| 2 | Auto-send follow-up questions; human approves invite/reject | 1 month, follow-up quality validated |
-| 3 | Auto-approve low-risk invites (device match + market fit > threshold) | Founder sign-off |
+| 2 | Auto-send low-risk follow-up and invite flows; human reviews rejections and sensitive cases | Shipped in WebApp |
+| 3 | Expand auto-invite authority only if policy and outcomes justify it | Founder sign-off |
 
 **Skill file:** `ops/paperclip/skills/intake-agent.md`
 
@@ -283,7 +354,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Claude |
 | **Status** | New |
 
-**Purpose:** Coordinates capture scheduling — calendar management, timezone normalization, travel estimation, capturer assignment, reminders.
+**Purpose:** Coordinates capture scheduling — capturer assignment, standard communications, reminder sequencing, simple reschedules, and site-access tracking.
 
 **Triggers:**
 - Event: Intake agent qualifies a request needing capture
@@ -291,30 +362,33 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - `0 7 * * 1-5` — Daily calendar review (7am ET)
 
 **Inputs:**
-- Qualified requests needing capture
-- Capturer roster + availability (Firestore)
-- Site metadata (location, access requirements)
+- `capture_jobs`
+- Capturer roster fields from Firestore (`users`)
+- Site metadata (location, rights/access requirements)
+- Bookings and blueprint contacts
 - Google Calendar
 
 **Outputs:**
-- Calendar invite proposals (not sent until approved in Phase 1)
-- Capturer-to-site assignment recommendations
-- Reminder sequences (pre-capture, day-of, post-capture)
+- Capturer-to-site assignment recommendations with score breakdowns
+- Standard confirmation/reminder sends when policy allows
+- Simple same-day reschedule execution
+- Site-access first outreach and permission-state tracking
 - Travel/logistics notes
 
 **Human gates:**
-- All calendar sends and capturer communications (Phase 1)
-- Conflict resolution (Phase 1-2)
-- Access/permission issues (permanent)
+- Complex reschedules and cancellations
+- Custom capturer communications
+- Site-access negotiation, denials, and conditional terms
+- Access/permission issues requiring judgment
 
-**External needs:** Google Calendar API, Google Maps API (travel time), Firestore, Notion API.
+**External needs:** Google Calendar API, Firestore, Notion API. Travel/calendar optimization beyond heuristics still requires stronger external dispatch data.
 
 **Graduation path:**
 | Phase | Behavior | Criteria to advance |
 |-------|----------|-------------------|
 | 1 | Proposes schedule + match; human confirms and sends | 2 weeks, proposals accepted >85% |
-| 2 | Auto-schedules when capturer confirms availability; human reviews conflicts | 1 month, no scheduling errors |
-| 3 | Fully autonomous scheduling; human handles access/permission issues only | Founder sign-off |
+| 2 | Auto-assigns heuristically, auto-sends standard reminders/comms, auto-executes same-day simple reschedules | Shipped in WebApp |
+| 3 | Expand beyond heuristic dispatch only with stronger external availability/travel data | Founder sign-off |
 
 **Skill file:** `ops/paperclip/skills/field-ops-agent.md`
 
@@ -329,7 +403,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Claude |
 | **Status** | New |
 
-**Purpose:** Monitors Stripe health, triages payout issues, handles support inbox, drafts responses.
+**Purpose:** Monitors Stripe health, triages payout issues, handles support inbox, drafts responses, and maintains explicit human review state for finance/dispute work.
 
 **Triggers:**
 - Webhook: Stripe events (payout failures, disputes, account updates)
@@ -344,14 +418,15 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 
 **Outputs:**
 - Payout issue triage + recommended action
-- Support response drafts
+- Support response drafts and low-risk support auto-replies where policy allows
+- `finance_review` state on payout/dispute items
 - Ledger discrepancy reports
 - Stripe health summary → Ops Lead
 
 **Human gates:**
-- All financial actions (permanent for payouts above threshold)
-- All support responses (Phase 1)
-- Disputes, refunds, compliance exceptions (permanent)
+- All financial actions
+- Dispute responses, refunds, and compliance exceptions
+- Any money movement or legal/privacy judgment
 
 **External needs:** Stripe API (read + limited write), email/support platform API, Firestore, Notion API.
 
@@ -359,8 +434,8 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | Phase | Behavior | Criteria to advance |
 |-------|----------|-------------------|
 | 1 | Monitors + drafts only; human approves everything | 2 weeks, draft quality validated |
-| 2 | Auto-sends template support responses for known categories; human approves financial actions | 1 month, response quality >95% |
-| 3 | Auto-retries failed payouts under $ threshold; human approves disputes/refunds/edge cases | Founder sign-off |
+| 2 | Auto-send low-risk support replies; queue/state automation for finance; money actions remain human-only | Shipped in WebApp |
+| 3 | Support mostly autonomous; payouts/disputes/refunds still human-only | Founder sign-off |
 
 **Skill file:** `ops/paperclip/skills/finance-support-agent.md`
 
@@ -375,11 +450,11 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | Field | Value |
 |-------|-------|
 | **Department** | Growth |
-| **Reports to** | CEO |
-| **Model** | Claude |
+| **Reports to** | Chief of Staff |
+| **Model** | Hermes (Codex OAuth) |
 | **Status** | New |
 
-**Purpose:** Coordinates acquisition, conversion, and retention. Sets experiment priorities using ICE scoring. Synthesizes analytics and market intelligence into growth strategy.
+**Purpose:** Coordinates buyer demand, capturer supply, conversion, retention, and city planning. Sets experiment priorities using ICE scoring. Synthesizes analytics, market intelligence, supply intelligence, capturer growth planning, city launch planning, demand intelligence, robot-team growth planning, site-operator lane planning, and city demand planning into growth strategy.
 
 **Triggers:**
 - `0 9 * * 1-5` — Daily review of overnight analytics + agent reports
@@ -390,12 +465,26 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Analytics agent daily/weekly reports
 - Conversion Optimizer experiment results
 - Market Intel research digests
+- Supply Intel research digests
+- Capturer Growth playbook updates
+- City Launch city-plan updates
+- Demand Intel research digests
+- Robot Team Growth playbook updates
+- Site Operator Partnership updates
+- City Demand city-plan updates
 - Notion Work Queue (Growth-tagged items)
 
 **Outputs:**
 - Weekly growth summary → CEO + Notion
 - Experiment priority queue → Conversion Optimizer
 - Research briefs → Market Intelligence agent
+- Marketplace-supply research priorities → Supply Intelligence agent
+- Generic capturer playbook priorities → Capturer Growth agent
+- City sequencing priorities → City Launch agent
+- Robot-team demand research priorities → Demand Intelligence agent
+- Generic robot-team demand priorities → Robot Team Growth agent
+- Site-operator lane priorities → Site Operator Partnership agent
+- Buyer-city sequencing priorities → City Demand agent
 - Funnel health dashboard updates → Notion
 
 **Human gates:** None (coordination role).
@@ -410,6 +499,245 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | 3 | Fully autonomous growth strategy; human intervenes on budget/brand only | Founder sign-off |
 
 **Skill file:** `ops/paperclip/skills/growth-lead.md`
+
+---
+
+#### Supply Intelligence Agent (`supply-intel-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Growth |
+| **Reports to** | Growth Lead |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | New |
+
+**Purpose:** Researches historical and current marketplace supply playbooks with emphasis on boots-on-the-ground growth, launch sequencing, incentive structures, referral loops, trust systems, and channel economics.
+
+**Triggers:**
+- `15 7 * * 1-5` — Daily supply scan (7:15am ET)
+- `45 7 * * 1` — Weekly marketplace synthesis (Monday 7:45am ET)
+- Event: Growth Lead / CEO ad-hoc request
+
+**Inputs:**
+- Public web research
+- `ops/paperclip/programs/supply-intel-agent-program.md`
+- Existing market-intel and growth context
+
+**Outputs:**
+- Marketplace playbook briefs
+- Competitor teardown docs focused on supply growth
+- Channel and referral recommendations
+- Inputs for Capturer Growth and City Launch planning
+
+**Human gates:** Compensation policy, legal classification, claims about earnings/work volume, and any external outreach.
+
+**Skill file:** `ops/paperclip/skills/supply-intel-agent.md`
+**Steering file:** `ops/paperclip/programs/supply-intel-agent-program.md`
+
+---
+
+#### Capturer Growth Agent (`capturer-growth-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Growth |
+| **Reports to** | Growth Lead |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | New |
+
+**Purpose:** Converts supply-intel research into Blueprint's reusable capturer acquisition playbook. Maintains the generic channel, messaging, referral, and activation system that later city launches should inherit.
+
+**Triggers:**
+- `15 9 * * 1` — Weekly playbook update (Monday 9:15am ET)
+- `15 9 * * 4` — Midweek refresh (Thursday 9:15am ET)
+- Event: Supply Intel or Growth Lead request
+
+**Inputs:**
+- Supply Intelligence briefs
+- `ops/paperclip/programs/capturer-growth-agent-program.md`
+- `ops/paperclip/playbooks/capturer-supply-playbook.md`
+- Analytics and ops feedback
+
+**Outputs:**
+- Generic capturer supply playbook
+- Channel recommendations and internal campaign drafts
+- Execution queue for Conversion, Analytics, Intake, Ops, and City Launch
+
+**Human gates:** Spend, compensation changes, public posting, and claims about earnings/work availability.
+
+**Skill file:** `ops/paperclip/skills/capturer-growth-agent.md`
+**Steering file:** `ops/paperclip/programs/capturer-growth-agent-program.md`
+
+---
+
+#### City Launch Agent (`city-launch-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Growth |
+| **Reports to** | Growth Lead |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | New |
+
+**Purpose:** Adapts Blueprint's generic capturer growth playbook to specific cities. Starts with Austin, TX and San Francisco, CA.
+
+**Triggers:**
+- `30 11 * * 1` — Weekly city planning (Monday 11:30am ET)
+- `30 11 * * 4` — Midweek city refresh (Thursday 11:30am ET)
+- Event: Growth Lead / Ops Lead request
+
+**Inputs:**
+- Supply Intelligence output
+- Capturer Growth playbook updates
+- `ops/paperclip/programs/city-launch-agent-program.md`
+- Austin and San Francisco city playbooks
+
+**Outputs:**
+- City-specific launch plans
+- Weekly city scorecards and readiness status
+- Cross-agent action queues for web, analytics, ops, intake, and field readiness
+
+**Human gates:** Final city launch decision, spend, public posting, compensation claims, and local legal/compliance interpretation.
+
+**Skill file:** `ops/paperclip/skills/city-launch-agent.md`
+**Steering file:** `ops/paperclip/programs/city-launch-agent-program.md`
+
+---
+
+#### Demand Intelligence Agent (`demand-intel-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Growth |
+| **Reports to** | Growth Lead |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | New |
+
+**Purpose:** Researches how robotics infrastructure, autonomy, simulation/data, and world-model businesses generated buyer demand from robot teams and adjacent technical buyers. Focuses on channels, proof requirements, hosted-demo motions, procurement triggers, and city/vertical demand signals.
+
+**Triggers:**
+- `30 7 * * 1-5` — Daily robot-team demand scan (7:30am ET)
+- `0 8 * * 1` — Weekly demand synthesis (Monday 8am ET)
+- Event: Growth Lead / CEO ad-hoc request
+
+**Inputs:**
+- Public web research
+- `ops/paperclip/programs/demand-intel-agent-program.md`
+- Existing market-intel and growth context
+
+**Outputs:**
+- Buyer-motion research briefs
+- Deterministic demand-intel reporting trail through a Notion Knowledge entry, a Notion Work Queue item, and a stable Paperclip issue comment with proof links plus confidence/lane metadata
+- Proof-pack and channel recommendations
+- Inputs for Robot Team Growth, Site Operator Partnership, and City Demand planning
+
+**Human gates:** Pricing or contract decisions, external outreach, public traction claims, and any privacy/rights/procurement judgment.
+
+**Skill file:** `ops/paperclip/skills/demand-intel-agent.md`
+**Steering file:** `ops/paperclip/programs/demand-intel-agent-program.md`
+
+---
+
+#### Robot Team Growth Agent (`robot-team-growth-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Growth |
+| **Reports to** | Growth Lead |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | New |
+
+**Purpose:** Converts demand-intel research into Blueprint's reusable robot-team demand playbook. Maintains the generic ICP, messaging, proof-pack, hosted-session demo motion, and buyer funnel that later city-demand work should inherit.
+
+**Triggers:**
+- `30 9 * * 1` — Weekly playbook update (Monday 9:30am ET)
+- `30 9 * * 4` — Midweek refresh (Thursday 9:30am ET)
+- Event: Demand Intel or Growth Lead request
+
+**Inputs:**
+- Demand Intelligence briefs
+- `ops/paperclip/programs/robot-team-growth-agent-program.md`
+- `ops/paperclip/playbooks/robot-team-demand-playbook.md`
+- Analytics and ops feedback
+
+**Outputs:**
+- Generic robot-team demand playbook
+- Proof-pack and hosted-session guidance
+- Execution queue for Conversion, Analytics, Intake, Ops, Finance Support, and City Demand
+
+**Human gates:** Spend, discounts, pricing, contracts, outreach sends, and claims beyond current product truth.
+
+**Skill file:** `ops/paperclip/skills/robot-team-growth-agent.md`
+**Steering file:** `ops/paperclip/programs/robot-team-growth-agent-program.md`
+
+---
+
+#### Site Operator Partnership Agent (`site-operator-partnership-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Growth |
+| **Reports to** | Growth Lead |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | New |
+
+**Purpose:** Maintains Blueprint's optional third lane for site operators. Defines when site-operator demand matters, what access/privacy/rights/commercialization conversations are legitimate, and how this lane stays separate from the core robot-team buyer motion.
+
+**Triggers:**
+- `15 12 * * 1` — Weekly operator-lane review (Monday 12:15pm ET)
+- `15 12 * * 4` — Midweek refresh (Thursday 12:15pm ET)
+- Event: Growth Lead / Ops Lead / City Demand request
+
+**Inputs:**
+- Demand Intelligence output
+- `ops/paperclip/programs/site-operator-partnership-agent-program.md`
+- `ops/paperclip/playbooks/site-operator-access-and-commercialization-playbook.md`
+- City Demand, Intake, Ops, and Finance feedback
+
+**Outputs:**
+- Optional site-operator playbook
+- Internal conversation frameworks for access and commercialization
+- Execution queue for Ops, Intake, Finance Support, and City Demand
+
+**Human gates:** Permission judgments, legal/privacy/rights interpretation, pricing, contracts, revenue-share commitments, and external outreach.
+
+**Skill file:** `ops/paperclip/skills/site-operator-partnership-agent.md`
+**Steering file:** `ops/paperclip/programs/site-operator-partnership-agent-program.md`
+
+---
+
+#### City Demand Agent (`city-demand-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Growth |
+| **Reports to** | Growth Lead |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | New |
+
+**Purpose:** Adapts Blueprint's generic robot-team demand playbook to specific cities. Starts with Austin, TX and San Francisco, CA. Maps likely buyer clusters, facility-type demand, optional operator-lane opportunities, and city readiness.
+
+**Triggers:**
+- `15 13 * * 1` — Weekly city demand planning (Monday 1:15pm ET)
+- `15 13 * * 4` — Midweek city refresh (Thursday 1:15pm ET)
+- Event: Growth Lead / Ops Lead request
+
+**Inputs:**
+- Demand Intelligence output
+- Robot Team Growth playbook updates
+- Site Operator Partnership updates
+- `ops/paperclip/programs/city-demand-agent-program.md`
+- Austin and San Francisco city-demand playbooks
+
+**Outputs:**
+- City-specific demand plans
+- Weekly city scorecards and readiness status
+- Cross-agent action queues for web, analytics, intake, ops, finance, and site-operator follow-up
+
+**Human gates:** Public posting, outreach, city-live claims, guaranteed demand or partnership claims, pricing or contract commitments, and local legal/privacy/rights/commercialization interpretation.
+
+**Skill file:** `ops/paperclip/skills/city-demand-agent.md`
+**Steering file:** `ops/paperclip/programs/city-demand-agent-program.md`
 
 ---
 
@@ -481,7 +809,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Claude |
+| **Model** | Hermes (Codex OAuth) |
 | **Status** | New |
 
 **Purpose:** Pulls, aggregates, and interprets all measurable signals across the platform. Detects anomalies. Produces daily/weekly reports. Answers ad-hoc metric queries from other agents.
@@ -532,13 +860,46 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 
 ---
 
+#### Community Updates Agent (`community-updates-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Growth |
+| **Reports to** | Growth Lead |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | New |
+
+**Purpose:** Produces the weekly Blueprint community update for users, capturers, robot teams, partners, and interested operators. Turns real shipped work and community-relevant signals into a concise blog-plus-email draft.
+
+**Triggers:**
+- `0 9 * * 5` — Weekly Friday draft run (9am ET)
+- Event: Growth Lead requests a special update tied to a launch, capture milestone, or community moment
+
+**Inputs:**
+- Closed Paperclip issues, weekly shipped work, Firestore/analytics deltas, Firehose/community signals
+- `ops/paperclip/programs/community-updates-agent-program.md`
+- The [$humanizer](/Users/nijelhunt_1/.agents/skills/humanizer/SKILL.md) skill for final copy cleanup
+
+**Outputs:**
+- Weekly update draft → Notion Knowledge DB
+- Review artifact → Notion Work Queue
+- Draft community campaign → Nitrosend (when configured)
+- Internal review note → Slack `#growth` (when configured)
+
+**Human gates:** Any live send/publish, unsupported traction claims, or sensitive rights/commercial disclosures.
+
+**Instructions:** `ops/paperclip/blueprint-company/agents/community-updates-agent/AGENTS.md`
+**Program:** `ops/paperclip/programs/community-updates-agent-program.md`
+
+---
+
 #### Market Intelligence Agent (`market-intel-agent`)
 
 | Field | Value |
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Claude |
+| **Model** | Hermes (Codex OAuth) |
 | **Status** | New |
 
 **Purpose:** Autoresearch-pattern agent for business intelligence. Continuously researches competitors, market trends, new papers/techniques, pricing movements, partnership opportunities, and regulatory changes.
@@ -602,12 +963,14 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 
 All agents run on the local Paperclip instance. They are lightweight — mostly LLM API calls + data reads/writes.
 
+Hermes-backed research/copilot agents are configured to use Codex OAuth only on this host. They are not expected to consume Anthropic or OpenAI API keys for their main model path.
+
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Paperclip Server (localhost:3100) | Exists | Needs agent additions to `.paperclip.yaml` |
-| Cloudflare Tunnel | Exists (scripted) | Verify for webhook intake |
-| LaunchAgent | Exists (scripted) | Keeps Paperclip alive |
-| Blueprint Automation Plugin | Exists | Needs webhook routes for Ops triggers |
+| Paperclip Server (localhost:3100) | Active | Company package, plugin, and dashboard are live on the local trusted host |
+| Cloudflare Tunnel | Active | Public Paperclip URL is live for webhook intake |
+| LaunchAgent | Active | `com.blueprint.paperclip` and maintenance agent are installed |
+| Blueprint Automation Plugin | Ready | CI, intake, Firestore, Stripe, and support webhook routes are live and smoke-tested |
 
 ### Cloud Burst (On-Demand)
 
@@ -620,11 +983,11 @@ All agents run on the local Paperclip instance. They are lightweight — mostly 
 | Service | Agents | Priority | Est. Cost | Status |
 |---------|--------|----------|-----------|--------|
 | Analytics (PostHog/GA4) | Analytics, Conversion, Growth Lead | P0 | Free tier | **Not yet set up** |
-| Web Search API | Market Intel | P1 | ~$50/mo | **Not yet set up** |
-| Slack Incoming Webhook | All leads + CEO | P1 | Free | **Not yet set up** |
+| Web Search API | Market Intel | P1 | ~$50/mo | **Configured** |
+| Slack Incoming Webhook | All leads + CEO | P1 | Free | **Configured** |
 | SendGrid / Email API | Intake, Finance/Support | P1 | Free tier | **Not yet set up** |
-| Notion API Token | All agents (via plugin) | P0 | Free | Partially in place |
-| Cloudflare Tunnel | Plugin webhook intake | P0 | Free | Scripted, needs verify |
+| Notion API Token | All agents (via plugin) | P0 | Free | **Configured** |
+| Cloudflare Tunnel | Plugin webhook intake | P0 | Free | **Verified** |
 
 ### Already In Place
 
@@ -632,8 +995,8 @@ All agents run on the local Paperclip instance. They are lightweight — mostly 
 - Stripe API — payments, payouts, webhooks
 - Google Calendar/Maps/Sheets APIs
 - GitHub API + webhooks
-- Anthropic Claude API
-- OpenAI/Codex API
+- Claude local subscription auth
+- Codex local subscription auth
 - Paperclip server + LaunchAgent + plugin
 
 ---
@@ -696,6 +1059,7 @@ while True:
 |-------|----------------------|-------------|
 | `conversion-agent` | CTAs, copy, onboarding flows, page layout | Funnel conversion rates (24-72hr windows) |
 | `market-intel-agent` | Research focus areas, source quality | Signal relevance + actionability (human-judged initially) |
+| `demand-intel-agent` | Buyer research focus areas, source quality | Signal relevance + Blueprint buyer-fit actionability |
 
 ### program.md Steering File Format
 
@@ -771,7 +1135,7 @@ BlueprintCapture          BlueprintCapturePipeline       Blueprint-WebApp
 
 | Repo | Agents with access |
 |------|--------------------|
-| Blueprint-WebApp | webapp-codex, webapp-claude, conversion-agent, analytics-agent |
+| Blueprint-WebApp | webapp-codex, webapp-claude, conversion-agent, analytics-agent, demand-intel-agent, robot-team-growth-agent, site-operator-partnership-agent, city-demand-agent |
 | BlueprintCapture | capture-codex, capture-claude, field-ops-agent |
 | BlueprintCapturePipeline | pipeline-codex, pipeline-claude, capture-qa-agent |
 | All repos (read) | CEO, CTO, Ops Lead, Growth Lead |

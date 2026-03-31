@@ -12,11 +12,17 @@ import {
   OPPORTUNITY_STATES,
   QUALIFICATION_STATES,
 } from "../../client/src/lib/requestTaxonomy";
+import {
+  approveAction,
+  rejectAction,
+  retryFailedAction,
+} from "../agents/action-executor";
 import type {
   DerivedAssetsAttachment,
   DeploymentReadinessSummary,
   InboundRequest,
   InboundRequestStored,
+  ProofPathMilestones,
   RequestStatus,
   InboundRequestListItem,
   UpdateRequestStatusPayload,
@@ -28,6 +34,7 @@ import type {
   RequestedLane,
   BuyerType,
   UpdateRequestOpsPayload,
+  ProofPathMilestoneKey,
 } from "../types/inbound-request";
 import { parseGsUri, sceneDashboardSchema } from "../utils/pipeline-dashboard";
 import { hasAnyRole } from "../utils/access-control";
@@ -46,6 +53,42 @@ function normalizeTimestamp(value: unknown) {
     return timestamp;
   }
   return timestamp.toDate?.()?.toISOString?.() || null;
+}
+
+const PROOF_PATH_STAGE_TO_FIELD: Record<ProofPathMilestoneKey, keyof ProofPathMilestones> = {
+  proof_pack_delivered: "proof_pack_delivered_at",
+  proof_pack_reviewed: "proof_pack_reviewed_at",
+  hosted_review_ready: "hosted_review_ready_at",
+  hosted_review_started: "hosted_review_started_at",
+  hosted_review_follow_up: "hosted_review_follow_up_at",
+  artifact_handoff_delivered: "artifact_handoff_delivered_at",
+  artifact_handoff_accepted: "artifact_handoff_accepted_at",
+  human_commercial_handoff: "human_commercial_handoff_at",
+};
+
+const QUALIFIED_ROBOT_TEAM_STATES = new Set<QualificationState>([
+  "qualified_ready",
+  "qualified_risky",
+]);
+
+function normalizeProofPathMilestones(raw: unknown) {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+
+  const value = raw as ProofPathMilestones;
+  return {
+    exact_site_requested_at: normalizeTimestamp(value.exact_site_requested_at),
+    qualified_inbound_at: normalizeTimestamp(value.qualified_inbound_at),
+    proof_pack_delivered_at: normalizeTimestamp(value.proof_pack_delivered_at),
+    proof_pack_reviewed_at: normalizeTimestamp(value.proof_pack_reviewed_at),
+    hosted_review_ready_at: normalizeTimestamp(value.hosted_review_ready_at),
+    hosted_review_started_at: normalizeTimestamp(value.hosted_review_started_at),
+    hosted_review_follow_up_at: normalizeTimestamp(value.hosted_review_follow_up_at),
+    artifact_handoff_delivered_at: normalizeTimestamp(value.artifact_handoff_delivered_at),
+    artifact_handoff_accepted_at: normalizeTimestamp(value.artifact_handoff_accepted_at),
+    human_commercial_handoff_at: normalizeTimestamp(value.human_commercial_handoff_at),
+  };
 }
 
 function normalizeWaitlistSubmission(
@@ -167,6 +210,143 @@ const CAPTURE_JOB_MARKETPLACE_STATES = [
 ] as const;
 type CaptureJobMarketplaceState = (typeof CAPTURE_JOB_MARKETPLACE_STATES)[number];
 
+type ActionLedgerRecord = Record<string, unknown> & {
+  status?: string;
+  lane?: string;
+  action_type?: string;
+  source_collection?: string;
+  source_doc_id?: string;
+  action_tier?: number;
+  idempotency_key?: string;
+  auto_approve_reason?: string | null;
+  approval_reason?: string | null;
+  approved_by?: string | null;
+  approved_at?: unknown;
+  rejected_by?: string | null;
+  rejected_reason?: string | null;
+  execution_attempts?: number;
+  last_execution_error?: string | null;
+  created_at?: unknown;
+  updated_at?: unknown;
+  sent_at?: unknown;
+  last_execution_at?: unknown;
+  action_payload?: Record<string, unknown>;
+  draft_output?: Record<string, unknown>;
+};
+
+type ActionQueueItem = {
+  id: string;
+  status: string;
+  lane: string;
+  action_type: string;
+  source_collection: string;
+  source_doc_id: string;
+  action_tier: number;
+  idempotency_key: string;
+  auto_approve_reason: string | null;
+  approval_reason: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  rejected_by: string | null;
+  rejected_reason: string | null;
+  execution_attempts: number;
+  last_execution_error: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  sent_at: string | null;
+  last_execution_at: string | null;
+  action_payload: Record<string, unknown>;
+  draft_output: Record<string, unknown>;
+};
+
+function normalizeActionLedgerItem(
+  doc: FirebaseFirestore.QueryDocumentSnapshot | FirebaseFirestore.DocumentSnapshot,
+): ActionQueueItem | null {
+  const data = doc.data() as ActionLedgerRecord | undefined;
+  if (!data) {
+    return null;
+  }
+
+  return {
+    id: doc.id,
+    status: typeof data.status === "string" ? data.status : "unknown",
+    lane: typeof data.lane === "string" ? data.lane : "",
+    action_type: typeof data.action_type === "string" ? data.action_type : "",
+    source_collection:
+      typeof data.source_collection === "string" ? data.source_collection : "",
+    source_doc_id: typeof data.source_doc_id === "string" ? data.source_doc_id : "",
+    action_tier: typeof data.action_tier === "number" ? data.action_tier : 0,
+    idempotency_key: typeof data.idempotency_key === "string" ? data.idempotency_key : "",
+    auto_approve_reason:
+      typeof data.auto_approve_reason === "string" ? data.auto_approve_reason : null,
+    approval_reason: typeof data.approval_reason === "string" ? data.approval_reason : null,
+    approved_by: typeof data.approved_by === "string" ? data.approved_by : null,
+    approved_at: normalizeTimestamp(data.approved_at),
+    rejected_by: typeof data.rejected_by === "string" ? data.rejected_by : null,
+    rejected_reason:
+      typeof data.rejected_reason === "string" ? data.rejected_reason : null,
+    execution_attempts:
+      typeof data.execution_attempts === "number" ? data.execution_attempts : 0,
+    last_execution_error:
+      typeof data.last_execution_error === "string" ? data.last_execution_error : null,
+    created_at: normalizeTimestamp(data.created_at),
+    updated_at: normalizeTimestamp(data.updated_at),
+    sent_at: normalizeTimestamp(data.sent_at),
+    last_execution_at: normalizeTimestamp(data.last_execution_at),
+    action_payload:
+      data.action_payload && typeof data.action_payload === "object"
+        ? data.action_payload
+        : {},
+    draft_output:
+      data.draft_output && typeof data.draft_output === "object"
+        ? data.draft_output
+        : {},
+  };
+}
+
+function sortActionQueueItems(items: ActionQueueItem[]) {
+  return [...items].sort((left, right) => {
+    const leftTime = Date.parse(left.updated_at || left.created_at || "");
+    const rightTime = Date.parse(right.updated_at || right.created_at || "");
+
+    if (Number.isNaN(leftTime) && Number.isNaN(rightTime)) {
+      return 0;
+    }
+    if (Number.isNaN(leftTime)) {
+      return 1;
+    }
+    if (Number.isNaN(rightTime)) {
+      return -1;
+    }
+    return rightTime - leftTime;
+  });
+}
+
+function getOperatorEmail(res: Response) {
+  const firebaseUser = res.locals.firebaseUser as { email?: unknown; uid?: unknown } | undefined;
+  if (typeof firebaseUser?.email === "string" && firebaseUser.email.trim()) {
+    return firebaseUser.email.trim().toLowerCase();
+  }
+  if (typeof firebaseUser?.uid === "string" && firebaseUser.uid.trim()) {
+    return firebaseUser.uid.trim();
+  }
+  return "unknown-operator";
+}
+
+function ledgerMutationStatus(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/not found/i.test(message)) {
+    return 404;
+  }
+  if (/cannot approve/i.test(message) || /cannot reject/i.test(message) || /cannot retry/i.test(message)) {
+    return 409;
+  }
+  if (/max retries exceeded/i.test(message)) {
+    return 409;
+  }
+  return 500;
+}
+
 function legacyStatusToQualificationState(status?: string | null): QualificationState {
   switch (status) {
     case "triaging":
@@ -237,6 +417,12 @@ function normalizeDecryptedRequest(decrypted: InboundRequest) {
       taskStatement:
         decrypted.request.taskStatement || "Legacy submission requires manual scoping",
     },
+    ops: decrypted.ops
+      ? {
+          ...decrypted.ops,
+          proof_path: normalizeProofPathMilestones(decrypted.ops.proof_path),
+        }
+      : decrypted.ops,
     pipeline,
     derived_assets: derivedAssets,
     deployment_readiness: deploymentReadiness,
@@ -543,6 +729,7 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
             quote_status: decrypted.ops?.quote_status || "not_started",
             next_step: decrypted.ops?.next_step || null,
             last_buyer_ready_at: normalizeTimestamp(decrypted.ops?.last_buyer_ready_at),
+            proof_path: normalizeProofPathMilestones(decrypted.ops?.proof_path),
           },
           pipeline: decrypted.pipeline,
           derived_assets: decrypted.derived_assets,
@@ -691,6 +878,124 @@ router.post(
   },
 );
 
+router.get("/action-queue", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const firestore = db;
+    if (!firestore) {
+      return res.status(500).json({ error: "Database not available" });
+    }
+
+    const status = typeof req.query.status === "string" ? req.query.status.trim() : "all";
+    const lane = typeof req.query.lane === "string" ? req.query.lane.trim() : "";
+    const limitNum = Math.min(
+      Math.max(parseInt(typeof req.query.limit === "string" ? req.query.limit : "25", 10) || 25, 1),
+      100,
+    );
+
+    const statuses =
+      status === "pending_approval" || status === "failed" ? [status] : ["pending_approval", "failed"];
+
+    const fetchLimit = Math.max(limitNum * 2, 50);
+    const snapshots = await Promise.all(
+      statuses.map(async (queueStatus) => {
+        const snapshot = await firestore
+          .collection("action_ledger")
+          .where("status", "==", queueStatus)
+          .orderBy("updated_at", "desc")
+          .limit(fetchLimit)
+          .get();
+        return snapshot.docs
+          .map((doc) => normalizeActionLedgerItem(doc))
+          .filter((item): item is ActionQueueItem => Boolean(item));
+      }),
+    );
+
+    const items = sortActionQueueItems(snapshots.flat()).filter((item) =>
+      lane ? item.lane === lane : true,
+    );
+    const limitedItems = items.slice(0, limitNum);
+
+    return res.json({
+      items: limitedItems,
+      summary: {
+        total: items.length,
+        pending_approval: items.filter((item) => item.status === "pending_approval").length,
+        failed: items.filter((item) => item.status === "failed").length,
+      },
+    });
+  } catch (error) {
+    logger.error({ error }, "Error fetching action queue");
+    return res.status(500).json({ error: "Failed to fetch action queue" });
+  }
+});
+
+router.post(
+  "/action-queue/:ledgerId/approve",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const ledgerId = req.params.ledgerId?.trim();
+      if (!ledgerId) {
+        return res.status(400).json({ error: "Missing ledger id" });
+      }
+
+      const result = await approveAction(ledgerId, getOperatorEmail(res));
+      return res.json(result);
+    } catch (error) {
+      logger.error({ error }, "Error approving action queue item");
+      return res.status(ledgerMutationStatus(error)).json({
+        error: error instanceof Error ? error.message : "Failed to approve action",
+      });
+    }
+  },
+);
+
+router.post(
+  "/action-queue/:ledgerId/reject",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const ledgerId = req.params.ledgerId?.trim();
+      const reason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+      if (!ledgerId) {
+        return res.status(400).json({ error: "Missing ledger id" });
+      }
+      if (!reason) {
+        return res.status(400).json({ error: "Missing rejection reason" });
+      }
+
+      const result = await rejectAction(ledgerId, getOperatorEmail(res), reason);
+      return res.json(result);
+    } catch (error) {
+      logger.error({ error }, "Error rejecting action queue item");
+      return res.status(ledgerMutationStatus(error)).json({
+        error: error instanceof Error ? error.message : "Failed to reject action",
+      });
+    }
+  },
+);
+
+router.post(
+  "/action-queue/:ledgerId/retry",
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const ledgerId = req.params.ledgerId?.trim();
+      if (!ledgerId) {
+        return res.status(400).json({ error: "Missing ledger id" });
+      }
+
+      const result = await retryFailedAction(ledgerId);
+      return res.json(result);
+    } catch (error) {
+      logger.error({ error }, "Error retrying action queue item");
+      return res.status(ledgerMutationStatus(error)).json({
+        error: error instanceof Error ? error.message : "Failed to retry action",
+      });
+    }
+  },
+);
+
 /**
  * GET /api/admin/leads/:requestId
  * Get full details for a specific request
@@ -758,6 +1063,11 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
         siteName: decrypted.request.siteName,
         siteLocation: decrypted.request.siteLocation,
         taskStatement: decrypted.request.taskStatement,
+        targetSiteType: decrypted.request.targetSiteType || null,
+        proofPathPreference: decrypted.request.proofPathPreference || null,
+        existingStackReviewWorkflow:
+          decrypted.request.existingStackReviewWorkflow || null,
+        humanGateTopics: decrypted.request.humanGateTopics || null,
         workflowContext: decrypted.request.workflowContext,
         operatingConstraints: decrypted.request.operatingConstraints,
         privacySecurityConstraints: decrypted.request.privacySecurityConstraints,
@@ -780,10 +1090,16 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
         quote_status: decrypted.ops?.quote_status || "not_started",
         next_step: decrypted.ops?.next_step || null,
         last_buyer_ready_at: normalizeTimestamp(decrypted.ops?.last_buyer_ready_at),
+        proof_path: normalizeProofPathMilestones(decrypted.ops?.proof_path),
       },
       context: {
         sourcePageUrl: decrypted.context.sourcePageUrl,
         referrer: decrypted.context.referrer,
+        demandCity: decrypted.context.demandCity || null,
+        buyerChannelSource: decrypted.context.buyerChannelSource || null,
+        buyerChannelSourceCaptureMode:
+          decrypted.context.buyerChannelSourceCaptureMode || null,
+        buyerChannelSourceRaw: decrypted.context.buyerChannelSourceRaw || null,
         utm: decrypted.context.utm,
       },
       enrichment: decrypted.enrichment,
@@ -1042,13 +1358,30 @@ router.patch(
         opportunity_state ??
         deriveOpportunityState(qualification_state, previousData.opportunity_state);
 
-      // Update status
-      await docRef.update({
+      const shouldStampQualifiedRobotTeam =
+        previousData.request.buyerType === "robot_team" &&
+        QUALIFIED_ROBOT_TEAM_STATES.has(qualification_state) &&
+        !previousData.ops?.proof_path?.qualified_inbound_at;
+
+      const updatePayload: Record<string, unknown> = {
         status: qualification_state,
         qualification_state,
         opportunity_state: nextOpportunityState,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      };
+
+      if (shouldStampQualifiedRobotTeam) {
+        updatePayload.ops = {
+          ...(previousData.ops || {}),
+          proof_path: {
+            ...(previousData.ops?.proof_path || {}),
+            qualified_inbound_at: admin.firestore.FieldValue.serverTimestamp(),
+          },
+        };
+      }
+
+      // Update status
+      await docRef.update(updatePayload);
 
       if (previousData.status !== qualification_state) {
         await db
@@ -1119,6 +1452,8 @@ router.patch("/:requestId/ops", requireAdmin, async (req: Request, res: Response
       recapture_reason,
       quote_status,
       next_step,
+      proof_path_stage,
+      proof_path_stage_action,
       note,
     } = req.body as UpdateRequestOpsPayload;
     const user = res.locals.firebaseUser!;
@@ -1131,6 +1466,35 @@ router.patch("/:requestId/ops", requireAdmin, async (req: Request, res: Response
 
     const existing = (doc.data() as Record<string, unknown>) || {};
     const ops = (existing.ops as Record<string, unknown> | undefined) || {};
+    const currentProofPath =
+      ops.proof_path && typeof ops.proof_path === "object"
+        ? ({ ...(ops.proof_path as Record<string, unknown>) } as Record<string, unknown>)
+        : {};
+    const nextProofPath = { ...currentProofPath };
+
+    if (proof_path_stage) {
+      const proofPathField = PROOF_PATH_STAGE_TO_FIELD[proof_path_stage];
+      if (!proofPathField) {
+        return res.status(400).json({ error: "Invalid proof_path_stage" });
+      }
+
+      if (proof_path_stage_action === "clear") {
+        nextProofPath[proofPathField] = null;
+      } else {
+        nextProofPath[proofPathField] = admin.firestore.FieldValue.serverTimestamp();
+      }
+    }
+
+    if (
+      quote_status === "buyer_ready" &&
+      existing.request &&
+      typeof existing.request === "object" &&
+      (existing.request as Record<string, unknown>).buyerType === "robot_team" &&
+      !nextProofPath.human_commercial_handoff_at
+    ) {
+      nextProofPath.human_commercial_handoff_at = admin.firestore.FieldValue.serverTimestamp();
+    }
+
     const nextOps = {
       ...ops,
       ...(assigned_region_id !== undefined ? { assigned_region_id } : {}),
@@ -1143,6 +1507,7 @@ router.patch("/:requestId/ops", requireAdmin, async (req: Request, res: Response
       ...(quote_status === "buyer_ready"
         ? { last_buyer_ready_at: admin.firestore.FieldValue.serverTimestamp() }
         : {}),
+      proof_path: nextProofPath,
     };
 
     await docRef.update({
@@ -1179,12 +1544,30 @@ router.post("/:requestId/review-link", requireAdmin, async (req: Request, res: R
       return res.status(404).json({ error: "Request not found" });
     }
 
+    const current = (doc.data() as Record<string, unknown>) || {};
+    const currentOps =
+      current.ops && typeof current.ops === "object"
+        ? (current.ops as Record<string, unknown>)
+        : {};
+    const currentProofPath =
+      currentOps.proof_path && typeof currentOps.proof_path === "object"
+        ? (currentOps.proof_path as Record<string, unknown>)
+        : {};
     const buyer_review_url = buildBuyerReviewUrl(requestId);
     await docRef.update({
       buyer_review_access: {
         buyer_review_url,
         token_issued_at: admin.firestore.FieldValue.serverTimestamp(),
         last_sent_at: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      ops: {
+        ...currentOps,
+        proof_path: {
+          ...currentProofPath,
+          hosted_review_ready_at:
+            currentProofPath.hosted_review_ready_at
+            ?? admin.firestore.FieldValue.serverTimestamp(),
+        },
       },
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });

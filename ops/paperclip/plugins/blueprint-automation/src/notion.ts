@@ -43,8 +43,43 @@ export interface NotionWriteResult {
   pageUrl?: string;
 }
 
+const NOTION_TEXT_CONTENT_LIMIT = 1800;
+
 function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function splitNotionTextContent(content: string): string[] {
+  const normalized = content.replace(/\r\n/g, "\n");
+  const chunks: string[] = [];
+  let cursor = 0;
+
+  while (cursor < normalized.length) {
+    const remaining = normalized.length - cursor;
+    if (remaining <= NOTION_TEXT_CONTENT_LIMIT) {
+      chunks.push(normalized.slice(cursor));
+      break;
+    }
+
+    const window = normalized.slice(cursor, cursor + NOTION_TEXT_CONTENT_LIMIT);
+    const splitAt = Math.max(window.lastIndexOf("\n"), window.lastIndexOf(" "));
+    const safeSplitAt = splitAt > 0 ? splitAt : NOTION_TEXT_CONTENT_LIMIT;
+    chunks.push(normalized.slice(cursor, cursor + safeSplitAt));
+    cursor += safeSplitAt;
+
+    while (normalized[cursor] === "\n" || normalized[cursor] === " ") {
+      cursor += 1;
+    }
+  }
+
+  return chunks.filter((chunk) => chunk.length > 0);
+}
+
+function buildParagraphRichText(content: string) {
+  return splitNotionTextContent(content).map((chunk) => ({
+    type: "text" as const,
+    text: { content: chunk },
+  }));
 }
 
 function coerceWorkQueueItem(input: Partial<WorkQueueItem> & Record<string, unknown>): WorkQueueItem {
@@ -75,9 +110,11 @@ export async function createWorkQueueItem(
         : {}),
     },
   });
+  const responseUrl =
+    "url" in response && typeof response.url === "string" ? response.url : undefined;
   return {
     pageId: response.id,
-    pageUrl: response.url ?? undefined,
+    pageUrl: responseUrl,
   };
 }
 
@@ -171,14 +208,16 @@ export async function createKnowledgeEntry(
         object: "block",
         type: "paragraph",
         paragraph: {
-          rich_text: [{ type: "text", text: { content: entry.content } }],
+          rich_text: buildParagraphRichText(entry.content),
         },
       },
     ],
   });
+  const responseUrl =
+    "url" in response && typeof response.url === "string" ? response.url : undefined;
   return {
     pageId: response.id,
-    pageUrl: response.url ?? undefined,
+    pageUrl: responseUrl,
   };
 }
 

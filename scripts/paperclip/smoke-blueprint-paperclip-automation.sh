@@ -11,7 +11,7 @@ if [ -f "$PAPERCLIP_ENV_FILE" ]; then
   set +a
 fi
 
-PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://127.0.0.1:3100}"
+PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://127.0.0.1:3101}"
 PAPERCLIP_PUBLIC_URL="${PAPERCLIP_PUBLIC_URL:-$PAPERCLIP_API_URL}"
 PAPERCLIP_SMOKE_URL="${PAPERCLIP_SMOKE_URL:-$PAPERCLIP_API_URL}"
 COMPANY_NAME="${COMPANY_NAME:-Blueprint Autonomous Operations}"
@@ -37,6 +37,31 @@ dashboard_json() {
     -H "Content-Type: application/json" \
     -d "$(node -e 'process.stdout.write(JSON.stringify({companyId:process.argv[1],params:{companyId:process.argv[1]}}));' "$company_id")" \
     "${PAPERCLIP_SMOKE_URL}/api/plugins/${PLUGIN_KEY}/data/dashboard"
+}
+
+manager_state_json() {
+  local company_id="$1"
+  curl -fsS -X POST \
+    -H "Content-Type: application/json" \
+    -d "$(node -e 'process.stdout.write(JSON.stringify({companyId:process.argv[1],params:{companyId:process.argv[1]}}));' "$company_id")" \
+    "${PAPERCLIP_SMOKE_URL}/api/plugins/${PLUGIN_KEY}/actions/manager-state"
+}
+
+wait_for_manager_wakeup() {
+  local company_id="$1"
+  local issue_id="$2"
+  local attempts="${3:-20}"
+  local sleep_seconds="${4:-1}"
+
+  for _ in $(seq 1 "$attempts"); do
+    if dashboard_json "$company_id" \
+      | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const body=JSON.parse(data).data;const issueId=process.argv[1];const match=(body.recentEvents||[]).find((row)=>row.kind==="chief-of-staff-wakeup" && ((row.issueId||"")===issueId || String(row.detail||"").includes(issueId)));process.exit(match ? 0 : 1);});' "$issue_id"; then
+      return 0
+    fi
+    sleep "$sleep_seconds"
+  done
+
+  return 1
 }
 
 mapping_issue_id() {
@@ -95,6 +120,11 @@ main() {
   local issue_id
   issue_id="$(mapping_issue_id "$company")"
 
+  if ! wait_for_manager_wakeup "$company" "$issue_id"; then
+    echo "Smoke failed: chief-of-staff wakeup was not recorded for ${issue_id}" >&2
+    exit 1
+  fi
+
   send_ci_webhook "Repeat smoke failure for dedupe validation"
   local issue_id_after
   issue_id_after="$(mapping_issue_id "$company")"
@@ -147,6 +177,27 @@ main() {
     echo "Smoke failed: expected ${issue_id} to be done, got ${final_status}" >&2
     exit 1
   fi
+
+  local manager_state
+  manager_state="$(manager_state_json "$company")"
+  printf '%s' "$manager_state" | node -e '
+    let data="";
+    process.stdin.on("data",(chunk)=>data+=chunk);
+    process.stdin.on("end",()=>{
+      const body=JSON.parse(data).data;
+      const issueId=process.argv[1];
+      const completed=(body.recentlyCompletedIssues||[]).find((row)=>row.id===issueId);
+      const hints=Array.isArray(body.nextActionHints) ? body.nextActionHints.length : 0;
+      if(!completed){
+        console.error(`completed issue ${issueId} missing from chief-of-staff snapshot`);
+        process.exit(1);
+      }
+      if(hints < 1){
+        console.error("chief-of-staff snapshot returned no nextActionHints");
+        process.exit(1);
+      }
+    });
+  ' "$issue_id"
 
   echo "Smoke passed"
   echo "company id: ${company}"

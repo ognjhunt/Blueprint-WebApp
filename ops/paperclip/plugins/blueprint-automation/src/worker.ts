@@ -1,7 +1,7 @@
 import { promisify } from "node:util";
 import { execFile } from "node:child_process";
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import {
   definePlugin,
   runWorker,
@@ -19,6 +19,7 @@ import {
   type PluginWebhookInput,
   type Project,
 } from "@paperclipai/plugin-sdk";
+import yaml from "js-yaml";
 import {
   ACTION_KEYS,
   DATA_KEYS,
@@ -27,6 +28,7 @@ import {
   JOB_KEYS,
   ORIGIN_KIND,
   PLUGIN_ID,
+  STATE_KEYS,
   TOOL_NAMES,
   WEBHOOK_KEYS,
 } from "./constants.js";
@@ -44,17 +46,75 @@ import {
 } from "./notion.js";
 import { buildSlackToolHandler, postSlackDigest } from "./slack-notify.js";
 import { buildWebSearchToolHandler } from "./web-search.js";
+import {
+  buildFirehoseBrief,
+  createIntrowPartnerDraft,
+  createNitrosendCampaignDraft,
+  createNitrosendSequenceDraft,
+  dedupeFirehoseSignals,
+  fetchFirehoseSignals,
+  listNitrosendAudiences,
+  readIntrowAccount,
+  runCustomerResearchSearch,
+  searchIntrowPartners,
+  synthesizeCustomerResearch,
+  type CustomerResearchEvidenceItem,
+  type CustomerResearchJTBDItem,
+  type CustomerResearchPersona,
+  type FirehoseBrief,
+  type FirehoseConfig,
+  type FirehoseSignal,
+  type IntrowConfig,
+  type NitrosendConfig,
+  type ResearchConfidence,
+  upsertNitrosendAudience,
+  updateIntrowPartnerDraft,
+} from "./marketing-integrations.js";
+import {
+  buildClaudeFallbackAdapterConfig,
+  buildCodexFallbackAdapterConfig,
+  buildQuotaFallbackRetryRecord,
+  getLocalAdapterWorkspaceKey,
+  getWorkspaceAdapterCooldownKey,
+  isQuotaOrRateLimitFailure,
+  resolveQuotaCooldownUntil,
+  selectWorkspaceQuotaFallbackTargets,
+  type LocalQuotaFallbackAdapterType,
+  type QuotaFallbackRetryState,
+  type WorkspaceAdapterCooldownRecord,
+  type WorkspaceAdapterCooldownState,
+} from "./quota-fallback.js";
+import {
+  buildManagerStateSnapshot,
+  collectRoutineHealthAlerts,
+  shouldWakeChiefOfStaffForIssueEvent,
+  type ManagerRoutineHealthEntry,
+} from "./manager-loop.js";
+import {
+  buildHandoffAnalytics,
+  type HandoffAnalytics,
+  type HandoffSnapshot,
+} from "./handoffs.js";
+import {
+  buildManagedIssueSlackCopy,
+  cleanIssueTitle,
+  formatAgentName,
+  formatIssuePriority,
+  formatIssueStatus,
+} from "./slack-copy.js";
 
 const execFileAsync = promisify(execFile);
 const GIT_BIN = process.env.BLUEPRINT_PAPERCLIP_GIT_BIN || "/usr/bin/git";
+const CODEX_FALLBACK_MODEL =
+  process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL || "gpt-5.4-mini";
+const CODEX_FALLBACK_REASONING_EFFORT =
+  process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT || "xhigh";
+const WORKSPACE_QUOTA_COOLDOWN_MS =
+  Number(process.env.BLUEPRINT_PAPERCLIP_WORKSPACE_QUOTA_COOLDOWN_MS || "") || 6 * 60 * 60 * 1000;
 const ENTITY_TYPES = {
   sourceMapping: "source-mapping",
 } as const;
-const STATE_KEYS = {
-  lastScan: "last-scan",
-  recentEvents: "recent-events",
-  health: "health",
-} as const;
+// STATE_KEYS imported from ./constants.js
 
 type RepoConfig = {
   key: string;
@@ -83,6 +143,10 @@ type GrowthDepartmentConfig = {
     conversionOptimizer: string;
     analytics: string;
     marketIntel: string;
+    demandIntel: string;
+    robotTeamGrowth: string;
+    siteOperatorPartnership: string;
+    cityDemand: string;
   };
 };
 
@@ -90,8 +154,27 @@ type SecretRefsConfig = {
   notionApiTokenRef?: string;
   slackOpsWebhookUrlRef?: string;
   slackGrowthWebhookUrlRef?: string;
+  slackExecWebhookUrlRef?: string;
+  slackEngineeringWebhookUrlRef?: string;
+  slackManagerWebhookUrlRef?: string;
   searchApiKeyRef?: string;
   searchApiProviderRef?: string;
+  nitrosendApiTokenRef?: string;
+  firehoseApiTokenRef?: string;
+  introwApiTokenRef?: string;
+};
+
+type ManagementConfig = {
+  chiefOfStaffAgent: string;
+};
+
+type MarketingCapabilitiesConfig = {
+  nitrosendBaseUrl?: string;
+  firehoseBaseUrl?: string;
+  introwBaseUrl?: string;
+  firehoseDefaultTopics?: string[];
+  firehoseMaxSignalsPerRead?: number;
+  introwDefaultWorkspace?: string;
 };
 
 type BlueprintAutomationConfig = {
@@ -108,7 +191,18 @@ type BlueprintAutomationConfig = {
   repoCatalog?: RepoConfig[];
   opsDepartment?: OpsDepartmentConfig;
   growthDepartment?: GrowthDepartmentConfig;
+  management?: ManagementConfig;
   secrets?: SecretRefsConfig;
+  marketingCapabilities?: MarketingCapabilitiesConfig;
+};
+
+type AgentRunFailurePayload = {
+  agentId: string | null;
+  runId: string | null;
+  issueId: string | null;
+  taskId: string | null;
+  taskKey: string | null;
+  error: string | null;
 };
 
 type SourceMappingData = {
@@ -152,6 +246,7 @@ type DashboardData = {
   pluginId: string;
   lastScan: Record<string, unknown> | null;
   recentEvents: RecentEvent[];
+  handoffAnalytics: HandoffAnalytics;
   openManagedIssues: Array<{
     id: string;
     title: string;
@@ -170,31 +265,33 @@ type DashboardData = {
   }>;
 };
 
+type SlackDeliveryTarget =
+  | "ops"
+  | "growth"
+  | "exec"
+  | "engineering"
+  | "manager"
+  | "default"
+  | "none";
+
 type AnalyticsReportCadence = "daily" | "weekly";
 
-type AnalyticsWorkflowSnapshot = {
-  repo: string;
-  workflowName: string;
-  branch: string;
-  status: string;
-  conclusion: string;
-  updatedAt?: string;
-  htmlUrl?: string;
+type AnalyticsStructuredReport = {
+  headline: string;
+  summaryBullets: string[];
+  workflowFindings: string[];
+  risks: string[];
+  recommendedFollowUps: string[];
 };
 
 type AnalyticsOutputProof = {
   success: boolean;
+  outcome: "done" | "blocked";
+  failureReason?: string;
   cadence: AnalyticsReportCadence;
   generatedAt: string;
   title: string;
-  summary: string[];
-  workflows: AnalyticsWorkflowSnapshot[];
-  openManagedIssues: {
-    total: number;
-    critical: number;
-    high: number;
-    sample: string[];
-  };
+  report: AnalyticsStructuredReport;
   dataAvailability: Array<{
     source: string;
     status: "available" | "missing";
@@ -209,10 +306,225 @@ type AnalyticsOutputProof = {
   slack?: {
     ok: boolean;
     routedChannel: string;
-    target: "ops" | "growth" | "default" | "none";
+    target: SlackDeliveryTarget;
     statusCode?: number;
     responseBody?: string;
   };
+  proofLinks: string[];
+  issueComment: string;
+  errors: string[];
+};
+
+// ── Demand Intel Types ─────────────────────────────────
+
+type DemandIntelReportCadence = "daily" | "weekly";
+
+type DemandIntelLane =
+  | "robot-team-demand"
+  | "site-operator-lane"
+  | "city-demand"
+  | "cross-lane";
+
+type DemandIntelConfidence = "high" | "medium" | "low";
+
+type DemandIntelStructuredReport = {
+  headline: string;
+  topic: string;
+  lane: DemandIntelLane;
+  companyOrPattern: string;
+  city: string;
+  signals: string[];
+  proofRequirements: string[];
+  channelFindings: string[];
+  partnershipFindings: string[];
+  recommendedActions: string[];
+  confidence: DemandIntelConfidence;
+  openQuestions: string[];
+};
+
+type DemandIntelOutputProof = {
+  success: boolean;
+  outcome: "done" | "blocked";
+  failureReason?: string;
+  cadence: DemandIntelReportCadence;
+  generatedAt: string;
+  title: string;
+  report: DemandIntelStructuredReport;
+  notion?: {
+    workQueuePageId?: string;
+    workQueuePageUrl?: string;
+    knowledgePageId?: string;
+    knowledgePageUrl?: string;
+  };
+  slack?: {
+    ok: boolean;
+    routedChannel: string;
+    target: SlackDeliveryTarget;
+    statusCode?: number;
+    responseBody?: string;
+  };
+  proofLinks: string[];
+  issueComment: string;
+  errors: string[];
+};
+
+// ── Customer Research Types ───────────────────────────
+
+type CustomerResearchCadence = "daily" | "weekly" | "ad_hoc";
+
+type CustomerResearchOutputProof = {
+  success: boolean;
+  outcome: "done" | "blocked";
+  failureReason?: string;
+  cadence: CustomerResearchCadence;
+  generatedAt: string;
+  title: string;
+  topic: string;
+  lane: string;
+  headline: string;
+  synthesis: {
+    evidence: CustomerResearchEvidenceItem[];
+    jtbd: CustomerResearchJTBDItem[];
+    personas: CustomerResearchPersona[];
+    objections: string[];
+    openQuestions: string[];
+    confidence: ResearchConfidence;
+    sourceCoverage: string[];
+    recommendedActions: string[];
+  };
+  notion?: {
+    workQueuePageId?: string;
+    workQueuePageUrl?: string;
+    knowledgePageId?: string;
+    knowledgePageUrl?: string;
+  };
+  slack?: {
+    ok: boolean;
+    routedChannel: string;
+    target: SlackDeliveryTarget;
+    statusCode?: number;
+    responseBody?: string;
+  };
+  proofLinks: string[];
+  issueComment: string;
+  errors: string[];
+};
+
+type FirehoseSignalCacheState = {
+  updatedAt: string;
+  signals: FirehoseSignal[];
+};
+
+type HandoffMonitorEntry = {
+  requestCommentId: string | null;
+  responseCommentId: string | null;
+  escalatedAt: string | null;
+  escalatedIssueId: string | null;
+  resolvedAt: string | null;
+};
+
+type HandoffMonitorState = Record<string, HandoffMonitorEntry>;
+
+// ── Monitoring, Budget & Phase Types ───────────────────
+
+type RoutineHealthState = Record<string, ManagerRoutineHealthEntry>;
+
+type BudgetTrackingState = {
+  period: string;
+  agents: Record<string, { runs: number; estimatedCostUsd: number }>;
+};
+
+type PhaseTrackingEntry = {
+  currentPhase: number;
+  phaseStartDate: string;
+  metrics: {
+    totalRuns: number;
+    successfulRuns: number;
+    overrideCount: number;
+    overrideRate: number;
+    consecutiveSuccesses: number;
+    lastRunAt: string | null;
+  };
+};
+
+type PhaseTrackingState = Record<string, PhaseTrackingEntry>;
+
+type PaperclipYamlAgentConfig = {
+  budgetMonthlyCents?: number;
+  adapter?: {
+    type?: string;
+    config?: {
+      cwd?: string;
+      model?: string;
+      modelReasoningEffort?: string;
+      timeoutSec?: number;
+      dangerouslySkipPermissions?: boolean;
+      dangerouslyBypassApprovalsAndSandbox?: boolean;
+      paperclipSkillSync?: Record<string, unknown>;
+    };
+  };
+};
+
+type PaperclipYamlRoutineTrigger = {
+  kind?: string;
+  cronExpression?: string;
+};
+
+type PaperclipYamlRoutineConfig = {
+  agent?: string;
+  triggers?: PaperclipYamlRoutineTrigger[];
+};
+
+type PaperclipYamlConfig = {
+  agents?: Record<string, PaperclipYamlAgentConfig>;
+  routines?: Record<string, PaperclipYamlRoutineConfig>;
+};
+
+// ── Market Intel Types ─────────────────────────────────
+
+type MarketIntelReportCadence = "daily" | "weekly";
+
+type MarketIntelSignal = {
+  title: string;
+  source: string;
+  relevanceScore: number;
+  urgencyScore: number;
+  actionabilityScore: number;
+  combinedScore: number;
+  summary: string;
+};
+
+type MarketIntelStructuredReport = {
+  headline: string;
+  signals: MarketIntelSignal[];
+  competitorUpdates: string[];
+  technologyFindings: string[];
+  recommendedActions: string[];
+};
+
+type MarketIntelOutputProof = {
+  success: boolean;
+  outcome: "done" | "blocked";
+  failureReason?: string;
+  cadence: MarketIntelReportCadence;
+  generatedAt: string;
+  title: string;
+  report: MarketIntelStructuredReport;
+  notion?: {
+    workQueuePageId?: string;
+    workQueuePageUrl?: string;
+    knowledgePageId?: string;
+    knowledgePageUrl?: string;
+  };
+  slack?: {
+    ok: boolean;
+    routedChannel: string;
+    target: SlackDeliveryTarget;
+    statusCode?: number;
+    responseBody?: string;
+  };
+  proofLinks: string[];
+  issueComment: string;
   errors: string[];
 };
 
@@ -242,13 +554,274 @@ type ResolveManagedIssueInput = {
 };
 
 let currentContext: PluginContext | null = null;
+const PAPERCLIP_COMPANY_CONFIG_PATH = new URL("../../../blueprint-company/.paperclip.yaml", import.meta.url);
+let cachedPaperclipYamlConfig: PaperclipYamlConfig | null | undefined;
+
+function loadPaperclipYamlConfig(): PaperclipYamlConfig | null {
+  if (cachedPaperclipYamlConfig !== undefined) {
+    return cachedPaperclipYamlConfig;
+  }
+
+  try {
+    const raw = readFileSync(PAPERCLIP_COMPANY_CONFIG_PATH, "utf8");
+    cachedPaperclipYamlConfig = (yaml.load(raw) as PaperclipYamlConfig | undefined) ?? null;
+  } catch {
+    cachedPaperclipYamlConfig = null;
+  }
+
+  return cachedPaperclipYamlConfig;
+}
+
+function resolveYamlAgentKey(agentKey: string): string {
+  return agentKey.replace(/^blueprint-/, "");
+}
+
+function getConfiguredAgent(agentKey: string): PaperclipYamlAgentConfig | undefined {
+  const config = loadPaperclipYamlConfig();
+  if (!config?.agents) {
+    return undefined;
+  }
+  return config.agents[agentKey] ?? config.agents[resolveYamlAgentKey(agentKey)];
+}
+
+function estimateRoutineIntervalHours(cronExpression: string): number | null {
+  const parts = cronExpression.trim().split(/\s+/);
+  if (parts.length !== 5) {
+    return null;
+  }
+
+  const [, hour, dayOfMonth, month, dayOfWeek] = parts;
+  if (hour === "*" && dayOfMonth === "*" && month === "*" && dayOfWeek === "1-5") {
+    return 1;
+  }
+  if (/^\d+$/.test(hour) && dayOfMonth === "*" && month === "*" && dayOfWeek === "*") {
+    return 24;
+  }
+  if (/^\d+$/.test(hour) && dayOfMonth === "*" && month === "*" && /^[0-7]$/.test(dayOfWeek)) {
+    return 24 * 7;
+  }
+  if (/^\d+$/.test(hour) && dayOfMonth === "*" && month === "*" && dayOfWeek === "1-5") {
+    return 24;
+  }
+
+  return null;
+}
+
+function getConfiguredRoutineMetadata(routineKey: string): {
+  expectedIntervalHours: number | null;
+} {
+  const config = loadPaperclipYamlConfig();
+  const routine = config?.routines?.[routineKey];
+  const scheduleTrigger = routine?.triggers?.find((trigger) => trigger.kind === "schedule");
+  return {
+    expectedIntervalHours: scheduleTrigger?.cronExpression
+      ? estimateRoutineIntervalHours(scheduleTrigger.cronExpression)
+      : null,
+  };
+}
 
 function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
+const DEMAND_INTEL_LANES = [
+  "robot-team-demand",
+  "site-operator-lane",
+  "city-demand",
+  "cross-lane",
+] as const satisfies readonly DemandIntelLane[];
+
+const DEMAND_INTEL_CONFIDENCE_LEVELS = [
+  "high",
+  "medium",
+  "low",
+] as const satisfies readonly DemandIntelConfidence[];
+
 function asBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : typeof value === "string" && value.trim().length > 0 && Number.isFinite(Number(value))
+      ? Number(value)
+      : undefined;
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function parseAgentRunFailurePayload(value: unknown): AgentRunFailurePayload {
+  const payload = asRecord(value) ?? {};
+  return {
+    agentId: asString(payload.agentId) ?? null,
+    runId: asString(payload.runId) ?? null,
+    issueId: asString(payload.issueId) ?? null,
+    taskId: asString(payload.taskId) ?? null,
+    taskKey: asString(payload.taskKey) ?? null,
+    error: asString(payload.error) ?? null,
+  };
+}
+
+function buildQuotaFallbackDescriptor(
+  adapterType: string,
+  adapterConfig: Record<string, unknown> | null | undefined,
+) {
+  if (adapterType === "claude_local") {
+    return {
+      adapterType: "codex_local" as LocalQuotaFallbackAdapterType,
+      reason: "quota_fallback_to_codex",
+      adapterConfig: buildCodexFallbackAdapterConfig(asRecord(adapterConfig), {
+        model: CODEX_FALLBACK_MODEL,
+        modelReasoningEffort: CODEX_FALLBACK_REASONING_EFFORT,
+      }),
+    };
+  }
+
+  if (adapterType === "codex_local") {
+    return {
+      adapterType: "claude_local" as LocalQuotaFallbackAdapterType,
+      reason: "quota_fallback_to_claude",
+      adapterConfig: buildClaudeFallbackAdapterConfig(asRecord(adapterConfig), {
+        model: "claude-sonnet-4-6",
+      }),
+    };
+  }
+
+  return null;
+}
+
+function buildDesiredAdapterDescriptor(agent: Agent) {
+  const configuredAgent = getConfiguredAgent(agent.urlKey);
+  const configuredAdapterType = configuredAgent?.adapter?.type;
+  const configuredAdapterConfig = asRecord(configuredAgent?.adapter?.config);
+  if (
+    (configuredAdapterType !== "claude_local" && configuredAdapterType !== "codex_local")
+    || !configuredAdapterConfig
+  ) {
+    return null;
+  }
+
+  return {
+    adapterType: configuredAdapterType,
+    adapterConfig: configuredAdapterConfig,
+  };
+}
+
+function getActiveWorkspaceCooldown(
+  state: WorkspaceAdapterCooldownState,
+  workspaceKey: string | null,
+  adapterType: string,
+  now = Date.now(),
+): WorkspaceAdapterCooldownRecord | null {
+  if (!workspaceKey || (adapterType !== "claude_local" && adapterType !== "codex_local")) {
+    return null;
+  }
+  const record = state[getWorkspaceAdapterCooldownKey(workspaceKey, adapterType)];
+  if (!record) {
+    return null;
+  }
+  return Date.parse(record.cooldownUntil) > now ? record : null;
+}
+
+async function setWorkspaceCooldown(
+  ctx: PluginContext,
+  companyId: string,
+  record: WorkspaceAdapterCooldownRecord,
+) {
+  const state =
+    await readState<WorkspaceAdapterCooldownState>(ctx, companyId, STATE_KEYS.workspaceAdapterCooldowns) ?? {};
+  const nextState = {
+    ...state,
+    [getWorkspaceAdapterCooldownKey(record.workspaceKey, record.unavailableAdapterType)]: record,
+  };
+  await writeState(ctx, companyId, STATE_KEYS.workspaceAdapterCooldowns, nextState);
+}
+
+async function enforceWorkspaceAdapterCooldowns(
+  ctx: PluginContext,
+  companyId: string,
+  agents?: Agent[],
+) {
+  const currentState =
+    await readState<WorkspaceAdapterCooldownState>(ctx, companyId, STATE_KEYS.workspaceAdapterCooldowns) ?? {};
+  const now = Date.now();
+  const nextStateEntries = Object.entries(currentState).filter(([, record]) => {
+    const parsed = Date.parse(record.cooldownUntil);
+    return Number.isFinite(parsed) && parsed > now;
+  });
+
+  if (nextStateEntries.length !== Object.keys(currentState).length) {
+    await writeState(
+      ctx,
+      companyId,
+      STATE_KEYS.workspaceAdapterCooldowns,
+      Object.fromEntries(nextStateEntries),
+    );
+  }
+
+  const activeState = Object.fromEntries(nextStateEntries);
+  const targetAgents = agents ?? await listAgents(ctx, companyId);
+
+  for (const agent of targetAgents) {
+    const desired = buildDesiredAdapterDescriptor(agent);
+    if (!desired) {
+      continue;
+    }
+
+    const workspaceKey = getLocalAdapterWorkspaceKey(
+      asRecord(agent.adapterConfig) ?? desired.adapterConfig,
+    );
+    const cooldown = getActiveWorkspaceCooldown(activeState, workspaceKey, desired.adapterType, now);
+    const targetAdapterType = cooldown?.fallbackAdapterType ?? desired.adapterType;
+
+    if (agent.adapterType === targetAdapterType) {
+      continue;
+    }
+
+    let targetAdapterConfig: Record<string, unknown> | null = null;
+    if (targetAdapterType === desired.adapterType) {
+      targetAdapterConfig = desired.adapterConfig;
+    } else {
+      const currentFallback = buildQuotaFallbackDescriptor(
+        agent.adapterType,
+        asRecord(agent.adapterConfig),
+      );
+      if (currentFallback?.adapterType === targetAdapterType) {
+        targetAdapterConfig = currentFallback.adapterConfig;
+      } else {
+        const desiredFallback = buildQuotaFallbackDescriptor(
+          desired.adapterType,
+          desired.adapterConfig,
+        );
+        if (desiredFallback?.adapterType === targetAdapterType) {
+          targetAdapterConfig = desiredFallback.adapterConfig;
+        }
+      }
+    }
+
+    if (!targetAdapterConfig) {
+      continue;
+    }
+
+    await ctx.agents.update(
+      agent.id,
+      {
+        adapterType: targetAdapterType,
+        adapterConfig: targetAdapterConfig,
+      },
+      companyId,
+    );
+    await ctx.agents.resetRuntimeSession(agent.id, companyId);
+  }
 }
 
 function normalizeConfig(rawConfig: Record<string, unknown>): BlueprintAutomationConfig {
@@ -264,8 +837,14 @@ function normalizeConfig(rawConfig: Record<string, unknown>): BlueprintAutomatio
   const growthAgents = growthDepartment.agents && typeof growthDepartment.agents === "object"
     ? growthDepartment.agents as Record<string, unknown>
     : {};
+  const management = rawConfig.management && typeof rawConfig.management === "object"
+    ? rawConfig.management as Record<string, unknown>
+    : {};
   const secrets = rawConfig.secrets && typeof rawConfig.secrets === "object"
     ? rawConfig.secrets as Record<string, unknown>
+    : {};
+  const marketingCapabilities = rawConfig.marketingCapabilities && typeof rawConfig.marketingCapabilities === "object"
+    ? rawConfig.marketingCapabilities as Record<string, unknown>
     : {};
 
   return {
@@ -317,14 +896,38 @@ function normalizeConfig(rawConfig: Record<string, unknown>): BlueprintAutomatio
         conversionOptimizer: asString(growthAgents.conversionOptimizer) ?? "conversion-agent",
         analytics: asString(growthAgents.analytics) ?? "analytics-agent",
         marketIntel: asString(growthAgents.marketIntel) ?? "market-intel-agent",
+        demandIntel: asString(growthAgents.demandIntel) ?? "demand-intel-agent",
+        robotTeamGrowth: asString(growthAgents.robotTeamGrowth) ?? "robot-team-growth-agent",
+        siteOperatorPartnership: asString(growthAgents.siteOperatorPartnership) ?? "site-operator-partnership-agent",
+        cityDemand: asString(growthAgents.cityDemand) ?? "city-demand-agent",
       },
+    },
+    management: {
+      chiefOfStaffAgent: asString(management.chiefOfStaffAgent) ?? "blueprint-chief-of-staff",
     },
     secrets: {
       notionApiTokenRef: asString(secrets.notionApiTokenRef) ?? asString(secrets.notionApiToken),
       slackOpsWebhookUrlRef: asString(secrets.slackOpsWebhookUrlRef) ?? asString(secrets.slackOpsWebhookUrl),
       slackGrowthWebhookUrlRef: asString(secrets.slackGrowthWebhookUrlRef) ?? asString(secrets.slackGrowthWebhookUrl),
+      slackExecWebhookUrlRef: asString(secrets.slackExecWebhookUrlRef) ?? asString(secrets.slackExecWebhookUrl),
+      slackEngineeringWebhookUrlRef: asString(secrets.slackEngineeringWebhookUrlRef) ?? asString(secrets.slackEngineeringWebhookUrl),
+      slackManagerWebhookUrlRef: asString(secrets.slackManagerWebhookUrlRef) ?? asString(secrets.slackManagerWebhookUrl),
       searchApiKeyRef: asString(secrets.searchApiKeyRef) ?? asString(secrets.searchApiKey),
       searchApiProviderRef: asString(secrets.searchApiProviderRef) ?? asString(secrets.searchApiProvider),
+      nitrosendApiTokenRef: asString(secrets.nitrosendApiTokenRef) ?? asString(secrets.nitrosendApiToken),
+      firehoseApiTokenRef: asString(secrets.firehoseApiTokenRef) ?? asString(secrets.firehoseApiToken),
+      introwApiTokenRef: asString(secrets.introwApiTokenRef) ?? asString(secrets.introwApiToken),
+    },
+    marketingCapabilities: {
+      nitrosendBaseUrl: asString(marketingCapabilities.nitrosendBaseUrl),
+      firehoseBaseUrl: asString(marketingCapabilities.firehoseBaseUrl),
+      introwBaseUrl: asString(marketingCapabilities.introwBaseUrl),
+      firehoseDefaultTopics: asArray(marketingCapabilities.firehoseDefaultTopics)
+        .filter((entry): entry is string => typeof entry === "string")
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0),
+      firehoseMaxSignalsPerRead: asNumber(marketingCapabilities.firehoseMaxSignalsPerRead),
+      introwDefaultWorkspace: asString(marketingCapabilities.introwDefaultWorkspace),
     },
   };
 }
@@ -422,6 +1025,114 @@ async function resolveOptionalSecret(
   return null;
 }
 
+async function resolveSlackTargets(ctx: PluginContext, config: BlueprintAutomationConfig) {
+  const ops = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.slackOpsWebhookUrlRef,
+    "SLACK_OPS_WEBHOOK_URL",
+  );
+  const growth = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.slackGrowthWebhookUrlRef,
+    "SLACK_GROWTH_WEBHOOK_URL",
+  );
+  const exec = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.slackExecWebhookUrlRef,
+    "SLACK_EXEC_WEBHOOK_URL",
+  );
+  const engineering = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.slackEngineeringWebhookUrlRef,
+    "SLACK_ENGINEERING_WEBHOOK_URL",
+  );
+  const manager = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.slackManagerWebhookUrlRef,
+    "SLACK_MANAGER_WEBHOOK_URL",
+  );
+
+  return {
+    default: exec ?? manager ?? ops ?? growth ?? engineering ?? undefined,
+    ops: ops ?? undefined,
+    growth: growth ?? undefined,
+    exec: exec ?? undefined,
+    engineering: engineering ?? undefined,
+    manager: manager ?? undefined,
+  };
+}
+
+async function resolveNitrosendConfig(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+): Promise<NitrosendConfig | null> {
+  const apiToken = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.nitrosendApiTokenRef,
+    "NITROSEND_API_TOKEN",
+  );
+  const baseUrl = config.marketingCapabilities?.nitrosendBaseUrl;
+  return apiToken && baseUrl ? { apiToken, baseUrl } : null;
+}
+
+async function resolveFirehoseConfig(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+): Promise<FirehoseConfig | null> {
+  const apiToken = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.firehoseApiTokenRef,
+    "FIREHOSE_API_TOKEN",
+  );
+  const baseUrl = config.marketingCapabilities?.firehoseBaseUrl;
+  return apiToken && baseUrl ? {
+    apiToken,
+    baseUrl,
+    defaultTopics: config.marketingCapabilities?.firehoseDefaultTopics,
+    maxSignalsPerRead: config.marketingCapabilities?.firehoseMaxSignalsPerRead,
+  } : null;
+}
+
+async function resolveIntrowConfig(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+): Promise<IntrowConfig | null> {
+  const apiToken = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.introwApiTokenRef,
+    "INTROW_API_TOKEN",
+  );
+  const baseUrl = config.marketingCapabilities?.introwBaseUrl;
+  return apiToken && baseUrl ? {
+    apiToken,
+    baseUrl,
+    defaultWorkspace: config.marketingCapabilities?.introwDefaultWorkspace,
+  } : null;
+}
+
+function normalizeCustomerResearchCadence(value: unknown): CustomerResearchCadence {
+  const next = asString(value)?.toLowerCase();
+  if (next === "daily" || next === "weekly" || next === "ad_hoc") {
+    return next;
+  }
+  return "ad_hoc";
+}
+
+function mergeFirehoseSignalCache(
+  existing: FirehoseSignalCacheState | null,
+  incoming: FirehoseSignal[],
+  maxSignals: number,
+): FirehoseSignalCacheState {
+  const merged = dedupeFirehoseSignals([
+    ...(existing?.signals ?? []),
+    ...incoming,
+  ]).slice(0, maxSignals);
+  return {
+    updatedAt: nowIso(),
+    signals: merged,
+  };
+}
+
 function getOpsRoutingConfig(config: BlueprintAutomationConfig) {
   const agents = config.opsDepartment?.agents;
   return {
@@ -431,6 +1142,10 @@ function getOpsRoutingConfig(config: BlueprintAutomationConfig) {
     fieldOpsAgent: agents?.fieldOps ?? "field-ops-agent",
     financeSupportAgent: agents?.financeSupport ?? "finance-support-agent",
   };
+}
+
+function getChiefOfStaffAgentKey(config: BlueprintAutomationConfig) {
+  return config.management?.chiefOfStaffAgent ?? "blueprint-chief-of-staff";
 }
 
 function mapQueueSystemToProject(system: string) {
@@ -478,6 +1193,259 @@ async function listProjects(ctx: PluginContext, companyId: string) {
 
 async function listAgents(ctx: PluginContext, companyId: string) {
   return await ctx.agents.list({ companyId, limit: 200, offset: 0 });
+}
+
+async function listAllIssues(ctx: PluginContext, companyId: string) {
+  const pageSize = 200;
+  const rows: Issue[] = [];
+  for (let offset = 0; offset < 2000; offset += pageSize) {
+    const page = await ctx.issues.list({ companyId, limit: pageSize, offset });
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return rows;
+}
+
+async function listCommentsForIssue(ctx: PluginContext, companyId: string, issueId: string) {
+  return await ctx.issues.listComments(issueId, companyId);
+}
+
+async function buildHandoffState(
+  ctx: PluginContext,
+  companyId: string,
+  issues: Array<Issue & { projectName?: string | null }>,
+  agents?: Agent[],
+) {
+  const agentRows = agents ?? await listAgents(ctx, companyId);
+  const handoffIssues = issues.filter((issue) => issue.title.trim().toLowerCase().startsWith("[handoff]"));
+  const commentsEntries = await Promise.all(
+    handoffIssues.map(async (issue) => [issue.id, await listCommentsForIssue(ctx, companyId, issue.id)] as const),
+  );
+  const commentsByIssueId = new Map(commentsEntries);
+  const agentKeyById = new Map(
+    agentRows.map((agent) => {
+      const firstCandidate = normalizedCandidates(agent as unknown as Record<string, unknown>)[0] ?? agent.id;
+      return [agent.id, firstCandidate] as const;
+    }),
+  );
+
+  return buildHandoffAnalytics({
+    issues,
+    commentsByIssueId,
+    agentKeyById,
+    generatedAt: nowIso(),
+  });
+}
+
+async function buildChiefOfStaffState(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+) {
+  const [issues, agents, projects, recentEvents, routineHealth, sourceMappings] = await Promise.all([
+    listAllIssues(ctx, companyId),
+    listAgents(ctx, companyId),
+    listProjects(ctx, companyId),
+    readState<RecentEvent[]>(ctx, companyId, STATE_KEYS.recentEvents),
+    readState<RoutineHealthState>(ctx, companyId, STATE_KEYS.routineHealth),
+    ctx.entities.list({
+      entityType: ENTITY_TYPES.sourceMapping,
+      scopeKind: "company",
+      scopeId: companyId,
+      limit: 200,
+      offset: 0,
+    }),
+  ]);
+
+  const chiefOfStaffKey = getChiefOfStaffAgentKey(config);
+  const chiefOfStaffAgent = agents.find((agent) => normalizedCandidates(agent as unknown as Record<string, unknown>).includes(chiefOfStaffKey));
+  const projectNameById = new Map(projects.map((project) => [project.id, project.name]));
+  const issuesWithProjectName = issues.map((issue) => ({
+    ...issue,
+    projectName: issue.projectId ? (projectNameById.get(issue.projectId) ?? null) : null,
+  }));
+  const managedIssueIds = new Set(
+    sourceMappings
+      .map((mapping) => {
+        const data = (mapping.data ?? {}) as Partial<SourceMappingData>;
+        return typeof data.issueId === "string" ? data.issueId : null;
+      })
+      .filter((issueId): issueId is string => Boolean(issueId)),
+  );
+  const handoffAnalytics = await buildHandoffState(ctx, companyId, issuesWithProjectName, agents);
+
+  return buildManagerStateSnapshot({
+    generatedAt: nowIso(),
+    chiefOfStaffAgentKey: chiefOfStaffKey,
+    chiefOfStaffAgentId: chiefOfStaffAgent?.id ?? null,
+    issues: issuesWithProjectName,
+    agents,
+    routineHealth: routineHealth ?? {},
+    recentEvents: recentEvents ?? [],
+    managedIssueIds,
+    handoffAnalytics,
+  });
+}
+
+async function wakeChiefOfStaff(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+  input: {
+    reason: string;
+    idempotencyKey: string;
+    payload: Record<string, unknown>;
+    title: string;
+    detail: string;
+    slackChannel?: string;
+    slackTitle?: string;
+    slackSummary?: string[];
+  },
+) {
+  const chiefOfStaffKey = getChiefOfStaffAgentKey(config);
+  const agent = await resolveAgent(ctx, companyId, chiefOfStaffKey).catch(() => null);
+  if (!agent) {
+    await appendRecentEvent(ctx, companyId, {
+      kind: "chief-of-staff-wakeup-skipped",
+      title: `Skipped chief-of-staff wakeup: ${input.title}`,
+      detail: `Agent ${chiefOfStaffKey} is not available.`,
+    });
+    return null;
+  }
+
+  const wakeResult = await ctx.agents.wakeup(agent.id, companyId, {
+    source: "automation",
+    triggerDetail: "system",
+    reason: input.reason,
+    payload: input.payload,
+    idempotencyKey: input.idempotencyKey,
+  });
+
+  await appendRecentEvent(ctx, companyId, {
+    kind: "chief-of-staff-wakeup",
+    title: input.title,
+    issueId: typeof input.payload.issueId === "string" ? input.payload.issueId : undefined,
+    detail: input.detail,
+  });
+
+  const slackChannel = input.slackChannel ?? "#paperclip-manager";
+  await postSlackActivity(ctx, config, {
+    channel: slackChannel,
+    title: input.slackTitle ?? input.title,
+    summary: (input.slackSummary ?? [input.detail]).filter((line) => line.trim().length > 0),
+  }).catch(() => undefined);
+
+  return wakeResult;
+}
+
+async function handleChiefOfStaffIssueSignal(
+  ctx: PluginContext,
+  event: { eventId: string; companyId: string; entityId: string; type: "issue.created" | "issue.updated" },
+) {
+  const config = await getConfig(ctx);
+  const [issue, chiefOfStaffAgent] = await Promise.all([
+    ctx.issues.get(event.entityId, event.companyId),
+    resolveAgent(ctx, event.companyId, getChiefOfStaffAgentKey(config)).catch(() => null),
+  ]);
+  if (!issue) return;
+
+  const shouldWake = shouldWakeChiefOfStaffForIssueEvent({
+    eventType: event.type,
+    issue,
+    chiefOfStaffAgentId: chiefOfStaffAgent?.id ?? null,
+  });
+  if (!shouldWake) return;
+
+  await wakeChiefOfStaff(ctx, event.companyId, config, {
+    reason: event.type,
+    idempotencyKey: `chief-of-staff:${event.type}:${event.eventId}`,
+    payload: {
+      signalType: event.type,
+      issueId: issue.id,
+      status: issue.status,
+      priority: issue.priority,
+      assigneeAgentId: issue.assigneeAgentId ?? null,
+    },
+    title: `Chief of Staff wakeup from ${event.type}`,
+    detail: `${issue.title} (${issue.id}) is now ${issue.status}${issue.assigneeAgentId ? ` and assigned to ${issue.assigneeAgentId}` : " and unassigned"}.`,
+    slackChannel: "#paperclip-manager",
+    slackTitle: event.type === "issue.created" ? "Manager update: new issue" : "Manager update: issue changed",
+    slackSummary: [
+      `What happened: ${event.type === "issue.created" ? "A new Paperclip issue was created." : "A Paperclip issue changed."}`,
+      `Task: ${cleanIssueTitle(issue.title)}`,
+      `Status: ${formatIssueStatus(issue.status) ?? issue.status}`,
+      `Owner: ${formatAgentName(issue.assigneeAgentId)}`,
+    ],
+  }).catch(() => undefined);
+}
+
+async function handleChiefOfStaffRunFailureSignal(
+  ctx: PluginContext,
+  event: { eventId: string; companyId: string; payload: unknown },
+) {
+  const config = await getConfig(ctx);
+  const payload = asRecord(event.payload);
+  const failedAgentId = asString(payload?.agentId);
+  const chiefOfStaffKey = getChiefOfStaffAgentKey(config);
+  const chiefOfStaffAgent = await resolveAgent(ctx, event.companyId, chiefOfStaffKey).catch(() => null);
+  if (!failedAgentId || failedAgentId === chiefOfStaffAgent?.id) {
+    return;
+  }
+
+  await wakeChiefOfStaff(ctx, event.companyId, config, {
+    reason: "agent.run.failed",
+    idempotencyKey: `chief-of-staff:agent-run-failed:${event.eventId}`,
+    payload: {
+      signalType: "agent.run.failed",
+      failedAgentId,
+      runId: asString(payload?.runId) ?? null,
+      issueId: asString(payload?.issueId) ?? null,
+      error: asString(payload?.error) ?? null,
+    },
+    title: "Chief of Staff wakeup from agent failure",
+    detail: `${failedAgentId} failed on run ${asString(payload?.runId) ?? "unknown"}${asString(payload?.issueId) ? ` for issue ${asString(payload?.issueId)}` : ""}.`,
+    slackChannel: "#paperclip-manager",
+    slackTitle: "Manager update: agent run failed",
+    slackSummary: [
+      `What happened: ${formatAgentName(failedAgentId)} hit a run failure${asString(payload?.issueId) ? " while working an issue" : ""}.`,
+      ...(asString(payload?.issueId) ? [`Issue: ${asString(payload?.issueId)}`] : []),
+      ...(asString(payload?.error) ? [`Error: ${asString(payload?.error)}`] : []),
+    ],
+  }).catch(() => undefined);
+}
+
+async function handleChiefOfStaffActivitySignal(
+  ctx: PluginContext,
+  event: { eventId: string; companyId: string; payload: unknown },
+) {
+  const payload = asRecord(event.payload);
+  const action = asString(payload?.action);
+  if (action !== "routine.run_triggered") {
+    return;
+  }
+
+  const details = asRecord(payload?.details);
+  const config = await getConfig(ctx);
+  await wakeChiefOfStaff(ctx, event.companyId, config, {
+    reason: "routine.run_triggered",
+    idempotencyKey: `chief-of-staff:routine-run-triggered:${event.eventId}`,
+    payload: {
+      signalType: "routine.run_triggered",
+      routineId: asString(details?.routineId) ?? null,
+      runStatus: asString(details?.status) ?? null,
+      source: asString(details?.source) ?? null,
+    },
+    title: "Chief of Staff routine trigger wakeup",
+    detail: `Routine ${asString(details?.routineId) ?? "unknown"} triggered via ${asString(details?.source) ?? "unknown"} with status ${asString(details?.status) ?? "unknown"}.`,
+    slackChannel: "#paperclip-manager",
+    slackTitle: "Manager update: routine triggered",
+    slackSummary: [
+      `What happened: A scheduled routine started running.`,
+      `Routine: ${asString(details?.routineId) ?? "unknown"}`,
+      `Source: ${asString(details?.source) ?? "unknown"}`,
+      `Status: ${asString(details?.status) ?? "unknown"}`,
+    ],
+  }).catch(() => undefined);
 }
 
 async function resolveProject(ctx: PluginContext, companyId: string, projectName: string) {
@@ -672,6 +1640,128 @@ function makeNotificationText(input: {
   return lines.join("\n");
 }
 
+function slackChannelForAgent(agentKey: string | null | undefined): string {
+  const normalized = (agentKey ?? "").trim().toLowerCase();
+  if (!normalized) return "#paperclip-manager";
+  if (normalized === "blueprint-chief-of-staff") return "#paperclip-manager";
+  if (normalized === "blueprint-ceo" || normalized === "blueprint-cto") return "#paperclip-exec";
+  if (
+    normalized.startsWith("webapp-")
+    || normalized.startsWith("pipeline-")
+    || normalized.startsWith("capture-")
+  ) {
+    return "#paperclip-eng";
+  }
+  if (
+    normalized === "ops-lead"
+    || normalized === "intake-agent"
+    || normalized === "capture-qa-agent"
+    || normalized === "field-ops-agent"
+    || normalized === "finance-support-agent"
+  ) {
+    return "#paperclip-ops";
+  }
+  if (
+    normalized === "growth-lead"
+    || normalized === "conversion-agent"
+    || normalized === "analytics-agent"
+    || normalized === "market-intel-agent"
+    || normalized === "supply-intel-agent"
+    || normalized === "capturer-growth-agent"
+    || normalized === "city-launch-agent"
+    || normalized === "demand-intel-agent"
+    || normalized === "robot-team-growth-agent"
+    || normalized === "site-operator-partnership-agent"
+    || normalized === "city-demand-agent"
+  ) {
+    return "#paperclip-growth";
+  }
+  return "#paperclip-manager";
+}
+
+async function postSlackActivity(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  input: {
+    channel: string;
+    title: string;
+    summary: string[];
+  },
+) {
+  const targets = await resolveSlackTargets(ctx, config);
+  if (
+    !targets.default
+    && !targets.ops
+    && !targets.growth
+    && !targets.exec
+    && !targets.engineering
+    && !targets.manager
+  ) {
+    return;
+  }
+
+  await postSlackDigest(targets, {
+    channel: input.channel,
+    title: input.title,
+    sections: [{ heading: "Update", items: input.summary }],
+  });
+}
+
+async function postSlackActivityFanout(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  input: {
+    channels: Array<string | null | undefined>;
+    title: string;
+    summary: string[];
+  },
+) {
+  const uniqueChannels = [...new Set(
+    input.channels
+      .map((channel) => channel?.trim())
+      .filter((channel): channel is string => Boolean(channel)),
+  )];
+
+  for (const channel of uniqueChannels) {
+    await postSlackActivity(ctx, config, {
+      channel,
+      title: input.title,
+      summary: input.summary,
+    }).catch(() => undefined);
+  }
+}
+
+async function postHandoffSlackActivity(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  input: {
+    title: string;
+    handoff: HandoffSnapshot;
+    extraLines?: string[];
+    includeManager?: boolean;
+  },
+) {
+  const channels = [
+    slackChannelForAgent(input.handoff.from),
+    slackChannelForAgent(input.handoff.to),
+    input.includeManager === false ? null : "#paperclip-manager",
+  ];
+  await postSlackActivityFanout(ctx, config, {
+    channels,
+    title: input.title,
+    summary: [
+      `What happened: ${formatAgentName(input.handoff.from)} handed work to ${formatAgentName(input.handoff.to)}.`,
+      `Task: ${cleanIssueTitle(input.handoff.title)}`,
+      `Status: ${formatIssueStatus(input.handoff.status) ?? input.handoff.status}`,
+      `Priority: ${formatIssuePriority(input.handoff.priority) ?? input.handoff.priority}`,
+      ...(input.handoff.projectName ? [`Project: ${input.handoff.projectName}`] : []),
+      ...(input.handoff.stuckReason ? [`Why it is stuck: ${input.handoff.stuckReason}`] : []),
+      ...(input.handoff.latencyHours !== null ? [`Open for: ${input.handoff.latencyHours.toFixed(1)}h`] : []),
+      ...(input.extraLines ?? []),
+    ],
+  });
+}
+
 async function sendNotification(
   ctx: PluginContext,
   config: BlueprintAutomationConfig,
@@ -725,6 +1815,218 @@ async function sendNotification(
   }
 }
 
+async function handleAgentRunFailureQuotaFallback(
+  ctx: PluginContext,
+  event: { companyId: string; payload: unknown },
+) {
+  const payload = parseAgentRunFailurePayload(event.payload);
+  if (!payload.agentId || !payload.runId || !payload.error) {
+    return;
+  }
+  if (!isQuotaOrRateLimitFailure(payload.error)) {
+    return;
+  }
+
+  const existingState =
+    await readState<QuotaFallbackRetryState>(ctx, event.companyId, STATE_KEYS.quotaFallbackRetries) ?? {};
+  if (existingState[payload.runId]) {
+    return;
+  }
+
+  const markAttempt = async (record: ReturnType<typeof buildQuotaFallbackRetryRecord>) => {
+    const nextState = {
+      ...existingState,
+      [payload.runId as string]: record,
+    };
+    await writeState(ctx, event.companyId, STATE_KEYS.quotaFallbackRetries, nextState);
+  };
+
+  const agent = await ctx.agents.get(payload.agentId, event.companyId);
+  if (!agent) {
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "skipped",
+        agentId: payload.agentId,
+        issueId: payload.issueId,
+        taskKey: payload.taskKey,
+        reason: "quota_fallback_skipped",
+        note: "Agent not found.",
+      }),
+    );
+    return;
+  }
+
+  const fallback = buildQuotaFallbackDescriptor(agent.adapterType, asRecord(agent.adapterConfig));
+  if (!fallback) {
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "skipped",
+        agentId: agent.id,
+        issueId: payload.issueId,
+        taskKey: payload.taskKey ?? payload.taskId,
+        reason: "quota_fallback_skipped",
+        note: `Agent adapter is ${agent.adapterType}, which has no configured quota fallback.`,
+      }),
+    );
+    return;
+  }
+
+  const retryTaskKey =
+    payload.taskKey ??
+    payload.taskId ??
+    payload.issueId ??
+    `quota-fallback:${agent.id}:${payload.runId}`;
+  const workspaceKey = getLocalAdapterWorkspaceKey(asRecord(agent.adapterConfig));
+  const cooldownUntil = resolveQuotaCooldownUntil(payload.error, {
+    defaultCooldownMs: WORKSPACE_QUOTA_COOLDOWN_MS,
+  });
+
+  try {
+    const allAgents = await listAgents(ctx, event.companyId).catch(() => []);
+    const workspaceTargets = selectWorkspaceQuotaFallbackTargets(
+      {
+        id: agent.id,
+        adapterType: agent.adapterType,
+        adapterConfig: asRecord(agent.adapterConfig),
+      },
+      allAgents.map((entry) => ({
+        id: entry.id,
+        adapterType: entry.adapterType,
+        adapterConfig: asRecord(entry.adapterConfig),
+      })),
+    );
+    const siblingSwitchErrors: string[] = [];
+
+    for (const target of workspaceTargets) {
+      const targetFallback = buildQuotaFallbackDescriptor(
+        target.adapterType,
+        asRecord(target.adapterConfig),
+      );
+      if (!targetFallback) {
+        continue;
+      }
+
+      try {
+        await ctx.agents.update(
+          target.id,
+          {
+            adapterType: targetFallback.adapterType,
+            adapterConfig: targetFallback.adapterConfig,
+          },
+          event.companyId,
+        );
+        await ctx.agents.resetRuntimeSession(
+          target.id,
+          event.companyId,
+          target.id === agent.id
+            ? {
+              taskKey: payload.taskKey ?? payload.taskId ?? payload.issueId ?? null,
+            }
+            : undefined,
+        );
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (target.id === agent.id) {
+          throw error;
+        }
+        siblingSwitchErrors.push(`${target.id}: ${errorMessage}`);
+      }
+    }
+
+    if (
+      workspaceKey
+      && (agent.adapterType === "claude_local" || agent.adapterType === "codex_local")
+      && fallback.adapterType !== agent.adapterType
+    ) {
+      await setWorkspaceCooldown(ctx, event.companyId, {
+        workspaceKey,
+        unavailableAdapterType: agent.adapterType,
+        fallbackAdapterType: fallback.adapterType,
+        cooldownUntil,
+        recordedAt: nowIso(),
+        reason: fallback.reason,
+        sourceRunId: payload.runId,
+        sourceAgentId: agent.id,
+        note: payload.error,
+      });
+    }
+
+    const wakePayload: Record<string, unknown> = {
+      retryOfRunId: payload.runId,
+      taskKey: retryTaskKey,
+    };
+    if (payload.issueId) wakePayload.issueId = payload.issueId;
+    if (payload.taskId) wakePayload.taskId = payload.taskId;
+
+    const wakeResult = await ctx.agents.wakeup(
+      agent.id,
+      event.companyId,
+      {
+        source: "automation",
+        triggerDetail: "system",
+        reason: fallback.reason,
+        payload: wakePayload,
+        idempotencyKey: `quota-fallback:${payload.runId}`,
+        forceFreshSession: true,
+      },
+    );
+
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "retried",
+        agentId: agent.id,
+        issueId: payload.issueId,
+        taskKey: retryTaskKey,
+        reason: fallback.reason,
+        fallbackAdapterType: fallback.adapterType,
+        wakeupRunId: asString(wakeResult?.runId) ?? null,
+        note: siblingSwitchErrors.length > 0
+          ? `${payload.error} | sibling_switch_errors=${siblingSwitchErrors.join(" ; ")}`
+          : payload.error,
+      }),
+    );
+
+    await appendRecentEvent(ctx, event.companyId, {
+      kind: "quota-fallback-retry",
+      title: `Retried ${agent.name} on ${fallback.adapterType === "codex_local" ? "Codex" : "Claude"} after quota failure`,
+      issueId: payload.issueId ?? undefined,
+      detail: payload.issueId
+        ? `Issue ${payload.issueId} retried from failed run ${payload.runId}; switched ${workspaceTargets.length} same-workspace agent(s) to ${fallback.adapterType === "codex_local" ? "Codex" : "Claude"} until ${cooldownUntil}.`
+        : `Task ${retryTaskKey} retried from failed run ${payload.runId}; switched ${workspaceTargets.length} same-workspace agent(s) to ${fallback.adapterType === "codex_local" ? "Codex" : "Claude"} until ${cooldownUntil}.`,
+    });
+
+    if (payload.issueId) {
+      await ctx.issues.createComment(
+        payload.issueId,
+        `Detected a ${agent.adapterType === "claude_local" ? "Claude" : "Codex"} quota/rate-limit failure on run ${payload.runId}. Switched ${agent.name} and ${Math.max(workspaceTargets.length - 1, 0)} same-workspace peer(s) to ${fallback.adapterType === "codex_local" ? "Codex" : "Claude"} until ${cooldownUntil}, then requeued the work once.`,
+        event.companyId,
+      ).catch(() => undefined);
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "failed",
+        agentId: agent.id,
+        issueId: payload.issueId,
+        taskKey: retryTaskKey,
+        reason: "quota_fallback_failed",
+        note: errorMessage,
+      }),
+    );
+    await appendRecentEvent(ctx, event.companyId, {
+      kind: "quota-fallback-error",
+      title: `${fallback.adapterType === "codex_local" ? "Codex" : "Claude"} fallback failed for ${agent.name}`,
+      issueId: payload.issueId ?? undefined,
+      detail: errorMessage,
+    });
+  }
+}
+
 async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueInput) {
   const fingerprint = makeFingerprint(input.sourceType, input.sourceId);
   const project = await resolveProject(ctx, input.companyId, input.projectName);
@@ -736,6 +2038,13 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
   const desiredPriority = normalizeIssuePriority(input.priority, "medium");
   let currentIssue = issue;
   const isNewIssue = !currentIssue;
+  const previousIssueSnapshot = currentIssue
+    ? {
+      status: currentIssue.status,
+      priority: currentIssue.priority,
+      assigneeAgentId: currentIssue.assigneeAgentId ?? null,
+    }
+    : null;
 
   if (currentIssue) {
     const nextStatus =
@@ -841,6 +2150,50 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
     });
   }
 
+  const meaningfulUpdate =
+    isNewIssue
+    || !previousIssueSnapshot
+    || previousIssueSnapshot.status !== currentIssue.status
+    || previousIssueSnapshot.priority !== currentIssue.priority
+    || previousIssueSnapshot.assigneeAgentId !== (currentIssue.assigneeAgentId ?? null);
+  if (meaningfulUpdate) {
+    const config = await getConfig(ctx);
+    const slackCopy = buildManagedIssueSlackCopy({
+      event: isNewIssue ? "opened" : "updated",
+      sourceType: input.sourceType,
+      issueTitle: currentIssue.title,
+      projectName: input.projectName,
+      assignee: input.assignee,
+      priority: currentIssue.priority,
+      status: currentIssue.status,
+      signalUrl: input.signalUrl,
+    });
+    await postSlackActivity(ctx, config, {
+      channel: slackChannelForAgent(input.assignee),
+      title: slackCopy.title,
+      summary: slackCopy.summary,
+    }).catch(() => undefined);
+    await wakeChiefOfStaff(ctx, input.companyId, config, {
+      reason: isNewIssue ? "managed_issue_created" : "managed_issue_updated",
+      idempotencyKey: `chief-of-staff:managed-issue:${fingerprint}:${currentIssue.status}:${currentIssue.assigneeAgentId ?? "unassigned"}`,
+      payload: {
+        signalType: isNewIssue ? "managed_issue_created" : "managed_issue_updated",
+        issueId: currentIssue.id,
+        fingerprint,
+        status: currentIssue.status,
+        assigneeAgentId: currentIssue.assigneeAgentId ?? null,
+        projectName: input.projectName,
+      },
+      title: isNewIssue
+        ? "Chief of Staff wakeup from managed issue creation"
+        : "Chief of Staff wakeup from managed issue update",
+      detail: `${currentIssue.title} (${currentIssue.id}) is ${currentIssue.status} in ${input.projectName}.`,
+      slackChannel: "#paperclip-manager",
+      slackTitle: `Manager update: ${slackCopy.title}`,
+      slackSummary: slackCopy.summary,
+    }).catch(() => undefined);
+  }
+
   return { fingerprint, issue: currentIssue, hits };
 }
 
@@ -849,6 +2202,28 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
   const { mapping, issue } = await getManagedIssue(ctx, input.companyId, fingerprint);
   if (!mapping || !issue) {
     return { fingerprint, issue: null };
+  }
+
+  const existingData = (mapping.data ?? {}) as Partial<SourceMappingData>;
+  const alreadyResolved =
+    issue.status === input.resolutionStatus
+    && existingData.resolutionStatus === input.resolutionStatus;
+  if (alreadyResolved) {
+    await upsertMapping(ctx, input.companyId, fingerprint, mapping.title ?? issue.title, input.resolutionStatus, {
+      fingerprint,
+      issueId: issue.id,
+      sourceType: existingData.sourceType ?? input.sourceType,
+      sourceId: existingData.sourceId ?? input.sourceId,
+      projectName: existingData.projectName ?? "unknown",
+      assignee: existingData.assignee ?? "unknown",
+      signalUrl: existingData.signalUrl,
+      hits: existingData.hits ?? 1,
+      firstSeenAt: existingData.firstSeenAt ?? nowIso(),
+      lastSeenAt: nowIso(),
+      resolutionStatus: input.resolutionStatus,
+      metadata: existingData.metadata,
+    });
+    return { fingerprint, issue };
   }
 
   const updatedIssue =
@@ -862,7 +2237,6 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
 
   await ctx.issues.createComment(updatedIssue.id, input.comment, input.companyId);
 
-  const existingData = (mapping.data ?? {}) as Partial<SourceMappingData>;
   await upsertMapping(ctx, input.companyId, fingerprint, mapping.title ?? updatedIssue.title, input.resolutionStatus, {
     fingerprint,
     issueId: updatedIssue.id,
@@ -902,7 +2276,186 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
     });
   }
 
+  const config = await getConfig(ctx);
+  const slackCopy = buildManagedIssueSlackCopy({
+    event: "resolved",
+    sourceType: input.sourceType,
+    issueTitle: updatedIssue.title,
+    projectName: existingData.projectName ?? "unknown",
+    assignee: existingData.assignee ?? "unknown",
+    priority: updatedIssue.priority,
+    status: updatedIssue.status,
+    signalUrl: existingData.signalUrl,
+  });
+  await postSlackActivity(ctx, config, {
+    channel: slackChannelForAgent(existingData.assignee ?? getChiefOfStaffAgentKey(config)),
+    title: slackCopy.title,
+    summary: slackCopy.summary,
+  }).catch(() => undefined);
+  await wakeChiefOfStaff(ctx, input.companyId, config, {
+    reason: "managed_issue_resolved",
+    idempotencyKey: `chief-of-staff:managed-issue-resolved:${fingerprint}:${input.resolutionStatus}`,
+    payload: {
+      signalType: "managed_issue_resolved",
+      issueId: updatedIssue.id,
+      fingerprint,
+      status: input.resolutionStatus,
+    },
+    title: "Chief of Staff wakeup from managed issue resolution",
+    detail: `${updatedIssue.title} (${updatedIssue.id}) moved to ${input.resolutionStatus}.`,
+    slackChannel: "#paperclip-manager",
+    slackTitle: `Manager update: ${slackCopy.title}`,
+    slackSummary: slackCopy.summary,
+  }).catch(() => undefined);
+
   return { fingerprint, issue: updatedIssue };
+}
+
+async function syncHandoffCollaboration(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+  handoffAnalytics: HandoffAnalytics,
+) {
+  const previousState = await readState<HandoffMonitorState>(ctx, companyId, STATE_KEYS.handoffMonitor) ?? {};
+  const nextState: HandoffMonitorState = { ...previousState };
+  const currentSnapshots = [
+    ...handoffAnalytics.openHandoffs,
+    ...handoffAnalytics.recentResolvedHandoffs,
+  ];
+  const seenIds = new Set<string>();
+
+  for (const handoff of currentSnapshots) {
+    seenIds.add(handoff.id);
+    const previous = previousState[handoff.id] ?? {
+      requestCommentId: null,
+      responseCommentId: null,
+      escalatedAt: null,
+      escalatedIssueId: null,
+      resolvedAt: null,
+    };
+    const entry: HandoffMonitorEntry = { ...previous };
+
+    if (handoff.requestCommentId && handoff.requestCommentId !== previous.requestCommentId) {
+      await appendRecentEvent(ctx, companyId, {
+        kind: "handoff-opened",
+        title: handoff.title,
+        issueId: handoff.id,
+        detail: `${handoff.from} delegated ${handoff.type} to ${handoff.to}.`,
+      });
+      await postHandoffSlackActivity(ctx, config, {
+        title: `New handoff for ${formatAgentName(handoff.to)}`,
+        handoff,
+        extraLines: [`Handoff type: ${handoff.type}`],
+      });
+      entry.requestCommentId = handoff.requestCommentId;
+    }
+
+    if (handoff.responseCommentId && handoff.responseCommentId !== previous.responseCommentId) {
+      await appendRecentEvent(ctx, companyId, {
+        kind: "handoff-responded",
+        title: handoff.title,
+        issueId: handoff.id,
+        detail: `${handoff.responseFrom ?? handoff.to} responded with ${handoff.outcome ?? handoff.status}.`,
+      });
+      await postHandoffSlackActivity(ctx, config, {
+        title: handoff.outcome === "blocked"
+          ? `Handoff is blocked with ${formatAgentName(handoff.to)}`
+          : `Handoff updated by ${formatAgentName(handoff.to)}`,
+        handoff,
+        extraLines: [
+          `Outcome: ${handoff.outcome ?? handoff.status}`,
+          ...(handoff.followUpReason ? [`Next step: ${handoff.followUpReason}`] : []),
+          `Proof shared: ${handoff.proofLinkCount} link${handoff.proofLinkCount === 1 ? "" : "s"}`,
+        ],
+      });
+      entry.responseCommentId = handoff.responseCommentId;
+    }
+
+    if (handoff.isStuck && !previous.escalatedAt) {
+      const escalation = await upsertManagedIssue(ctx, {
+        companyId,
+        sourceType: "handoff-escalation",
+        sourceId: handoff.id,
+        title: `Handoff escalation: ${handoff.title}`,
+        description: [
+          "Blueprint automation escalated a stuck structured handoff.",
+          "",
+          `- Handoff issue: ${handoff.id}`,
+          `- Route: ${handoff.from} -> ${handoff.to}`,
+          `- Status: ${handoff.status}`,
+          `- Priority: ${handoff.priority}`,
+          `- Reason: ${handoff.stuckReason ?? "stalled"}`,
+          `- Blocked depth: ${handoff.blockedDepth}`,
+        ].join("\n"),
+        projectName: handoff.projectName ?? "blueprint-executive-ops",
+        assignee: getChiefOfStaffAgentKey(config),
+        priority: handoff.priority,
+        status: "todo",
+        metadata: {
+          handoffIssueId: handoff.id,
+          from: handoff.from,
+          to: handoff.to,
+          blockedDepth: handoff.blockedDepth,
+          bounce: handoff.isBounced,
+        },
+        comment: "Stuck handoff escalated by Blueprint automation.",
+        suppressRefreshComment: true,
+      });
+      entry.escalatedAt = nowIso();
+      entry.escalatedIssueId = escalation.issue.id;
+      await appendRecentEvent(ctx, companyId, {
+        kind: "handoff-escalated",
+        title: handoff.title,
+        issueId: handoff.id,
+        detail: handoff.stuckReason ?? "Structured handoff stalled.",
+      });
+      await postHandoffSlackActivity(ctx, config, {
+        title: `Stuck handoff escalated to ${getChiefOfStaffAgentKey(config)}`,
+        handoff,
+        extraLines: [
+          `Escalation issue: ${escalation.issue.id}`,
+          `Blocked depth: ${handoff.blockedDepth}`,
+          `Bounce: ${handoff.isBounced ? "yes" : "no"}`,
+        ],
+      });
+    }
+
+    if (!handoff.isStuck && previous.escalatedAt && !previous.resolvedAt) {
+      await resolveManagedIssue(ctx, {
+        companyId,
+        sourceType: "handoff-escalation",
+        sourceId: handoff.id,
+        resolutionStatus: "done",
+        comment: `Handoff no longer looks stuck. Current status: ${handoff.status}.`,
+      }).catch(() => undefined);
+      entry.resolvedAt = nowIso();
+      await appendRecentEvent(ctx, companyId, {
+        kind: "handoff-escalation-resolved",
+        title: handoff.title,
+        issueId: handoff.id,
+        detail: `Recovered to ${handoff.status}.`,
+      });
+      await postHandoffSlackActivity(ctx, config, {
+        title: `Handoff recovered: ${handoff.to}`,
+        handoff,
+        extraLines: [`Recovery status: ${handoff.status}`],
+      });
+    }
+
+    if (!entry.resolvedAt && (handoff.status === "done" || handoff.status === "cancelled")) {
+      entry.resolvedAt = nowIso();
+    }
+
+    nextState[handoff.id] = entry;
+  }
+
+  for (const [handoffId, entry] of Object.entries(previousState)) {
+    if (seenIds.has(handoffId)) continue;
+    nextState[handoffId] = entry;
+  }
+
+  await writeState(ctx, companyId, STATE_KEYS.handoffMonitor, nextState);
 }
 
 function configuredSourceStatus(
@@ -918,20 +2471,328 @@ function configuredSourceStatus(
   } as const;
 }
 
-function compactIssueLabel(issue: Issue) {
-  const identifier = (issue as unknown as Record<string, unknown>).identifier;
-  const prefix = typeof identifier === "string" ? `${identifier}: ` : "";
-  return `${prefix}${issue.title}`;
+function coerceStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .filter((entry): entry is string => typeof entry === "string")
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+  }
+  const singleValue = asString(value);
+  return singleValue ? [singleValue] : [];
 }
+
+function normalizeAnalyticsStructuredReport(
+  params: Record<string, unknown>,
+  cadence: AnalyticsReportCadence,
+): { report: AnalyticsStructuredReport; validationErrors: string[] } {
+  const report: AnalyticsStructuredReport = {
+    headline: asString(params.headline) ?? "",
+    summaryBullets: coerceStringArray(params.summaryBullets),
+    workflowFindings: coerceStringArray(params.workflowFindings),
+    risks: coerceStringArray(params.risks),
+    recommendedFollowUps: coerceStringArray(params.recommendedFollowUps),
+  };
+
+  const validationErrors: string[] = [];
+  if (!report.headline) {
+    validationErrors.push(`Missing headline for ${cadence} analytics report.`);
+  }
+  if (report.summaryBullets.length === 0) {
+    validationErrors.push("Missing summaryBullets for analytics report.");
+  }
+  if (report.workflowFindings.length === 0) {
+    validationErrors.push("Missing workflowFindings for analytics report.");
+  }
+  if (report.risks.length === 0) {
+    validationErrors.push("Missing risks for analytics report.");
+  }
+  if (report.recommendedFollowUps.length === 0) {
+    validationErrors.push("Missing recommendedFollowUps for analytics report.");
+  }
+
+  return { report, validationErrors };
+}
+
+function formatAnalyticsIssueComment(result: {
+  outcome: "done" | "blocked";
+  report: AnalyticsStructuredReport;
+  cadence: AnalyticsReportCadence;
+  notion?: AnalyticsOutputProof["notion"];
+  slack?: AnalyticsOutputProof["slack"];
+  failureReason?: string;
+}) {
+  const slackStatus = result.slack?.ok
+    ? `delivered to ${result.slack.routedChannel} (HTTP ${result.slack.statusCode ?? "unknown"}${result.slack.responseBody ? `, body: ${result.slack.responseBody}` : ""})`
+    : `missing or failed${result.slack?.statusCode ? ` (HTTP ${result.slack.statusCode})` : ""}${result.slack?.responseBody ? `: ${result.slack.responseBody}` : ""}`;
+
+  const lines = [
+    result.outcome === "done"
+      ? `${result.cadence === "daily" ? "Daily" : "Weekly"} analytics report delivered.`
+      : `${result.cadence === "daily" ? "Daily" : "Weekly"} analytics report blocked.`,
+    `- Headline: ${result.report.headline}`,
+    ...(result.failureReason ? [`- Failure reason: ${result.failureReason}`] : []),
+    `- Notion Work Queue: ${result.notion?.workQueuePageUrl ?? result.notion?.workQueuePageId ?? "missing"}`,
+    `- Notion Knowledge: ${result.notion?.knowledgePageUrl ?? result.notion?.knowledgePageId ?? "missing"}`,
+    `- Slack digest: ${slackStatus}`,
+  ];
+  return lines.join("\n");
+}
+
+// ── Routine Health Tracking ────────────────────────────
+
+async function updateRoutineHealth(
+  ctx: PluginContext,
+  companyId: string,
+  routineKey: string,
+  routineTitle: string,
+  agentKey: string,
+  outcome: "done" | "blocked",
+  failureReason?: string,
+  issueId?: string,
+) {
+  const state = await readState<RoutineHealthState>(ctx, companyId, STATE_KEYS.routineHealth) ?? {};
+  const key = routineKey;
+  const existing = state[key];
+  const now = nowIso();
+  const { expectedIntervalHours } = getConfiguredRoutineMetadata(routineKey);
+  state[key] = {
+    routineKey,
+    routineTitle,
+    agentKey,
+    lastOutcome: outcome,
+    lastRunAt: now,
+    lastSuccessAt: outcome === "done" ? now : (existing?.lastSuccessAt ?? null),
+    lastFailureReason: outcome === "blocked" ? (failureReason ?? "unknown") : null,
+    consecutiveFailures: outcome === "blocked" ? ((existing?.consecutiveFailures ?? 0) + 1) : 0,
+    expectedIntervalHours,
+    lastIssueId: issueId ?? existing?.lastIssueId ?? null,
+  };
+  await writeState(ctx, companyId, STATE_KEYS.routineHealth, state);
+}
+
+async function runRoutineHealthCheck(ctx: PluginContext, companyId: string, config: BlueprintAutomationConfig) {
+  const healthState = await readState<RoutineHealthState>(ctx, companyId, STATE_KEYS.routineHealth) ?? {};
+  const routineAlerts = collectRoutineHealthAlerts(healthState, nowIso());
+  const alerts = routineAlerts.map((entry) =>
+    entry.kind === "blocked"
+      ? `:warning: *Routine Alert: ${entry.routineTitle}*\nStatus: blocked\nLast failure: ${entry.detail}\nConsecutive failures: ${entry.consecutiveFailures}\nAgent: ${entry.agentKey}\nIssue: ${entry.lastIssueId ?? "unknown"}`
+      : `:warning: *Routine Alert: ${entry.routineTitle}*\nStatus: stale\nLast success: ${entry.lastSuccessAt ?? "never"}\nExpected interval: ${entry.expectedIntervalHours ?? "unknown"}h\nAgent: ${entry.agentKey}\nIssue: ${entry.lastIssueId ?? "unknown"}`,
+  );
+
+  if (alerts.length > 0) {
+    const slackTargets = await resolveSlackTargets(ctx, config);
+    if (slackTargets.default || slackTargets.ops || slackTargets.growth || slackTargets.exec || slackTargets.engineering || slackTargets.manager) {
+      await postSlackDigest(
+        slackTargets,
+        {
+          channel: "#paperclip-manager",
+          title: `Routine Health Alert \u2014 ${alerts.length} issue(s)`,
+          sections: [{ heading: "Alerts", items: alerts }],
+        },
+      );
+    }
+
+    await wakeChiefOfStaff(ctx, companyId, config, {
+      reason: "routine_health_alert",
+      idempotencyKey: `chief-of-staff:routine-health:${alerts.join("|")}`,
+      payload: {
+        signalType: "routine-health-alert",
+        routineAlerts,
+      },
+      title: "Chief of Staff routine health wakeup",
+      detail: `${routineAlerts.length} routine alert(s) need follow-through.`,
+      slackChannel: "#paperclip-manager",
+    }).catch(() => undefined);
+  }
+
+  await runBudgetCheck(ctx, companyId, config);
+  await runPhaseGraduationCheck(ctx, companyId, config);
+}
+
+// ── Budget Tracking ────────────────────────────────────
+
+function currentBudgetPeriod(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+const MODEL_COST_ESTIMATES: Record<string, number> = {
+  "claude-sonnet-4-6": 0.25,
+  "gpt-5.4": 0.40,
+  "gpt-5.4-mini": 0.30,
+  default: 0.30,
+};
+
+async function trackAgentRun(ctx: PluginContext, companyId: string, agentKey: string, model?: string) {
+  const period = currentBudgetPeriod();
+  const state = await readState<BudgetTrackingState>(ctx, companyId, STATE_KEYS.budgetTracking) ?? { period, agents: {} };
+
+  if (state.period !== period) {
+    state.period = period;
+    state.agents = {};
+  }
+
+  const configuredModel = model ?? getConfiguredAgent(agentKey)?.adapter?.config?.model;
+  const costPerRun = MODEL_COST_ESTIMATES[configuredModel ?? "default"] ?? MODEL_COST_ESTIMATES.default;
+  const entry = state.agents[agentKey] ?? { runs: 0, estimatedCostUsd: 0 };
+  entry.runs += 1;
+  entry.estimatedCostUsd = Math.round((entry.estimatedCostUsd + costPerRun) * 100) / 100;
+  state.agents[agentKey] = entry;
+
+  await writeState(ctx, companyId, STATE_KEYS.budgetTracking, state);
+}
+
+function getBudgetLimit(agentKey: string): number {
+  return getConfiguredAgent(agentKey)?.budgetMonthlyCents ?? 3000;
+}
+
+async function runBudgetCheck(ctx: PluginContext, companyId: string, config: BlueprintAutomationConfig) {
+  const state = await readState<BudgetTrackingState>(ctx, companyId, STATE_KEYS.budgetTracking);
+  if (!state) return;
+
+  const alerts: string[] = [];
+  for (const [agentKey, entry] of Object.entries(state.agents)) {
+    const limit = getBudgetLimit(agentKey);
+    const pct = (entry.estimatedCostUsd / limit) * 100;
+    if (pct >= 100) {
+      alerts.push(`:rotating_light: *${agentKey}* exceeded monthly budget ($${entry.estimatedCostUsd.toFixed(2)} / $${limit} \u2014 ${pct.toFixed(0)}%, ${entry.runs} runs)`);
+    } else if (pct >= 80) {
+      alerts.push(`:warning: *${agentKey}* at ${pct.toFixed(0)}% of monthly budget ($${entry.estimatedCostUsd.toFixed(2)} / $${limit}, ${entry.runs} runs)`);
+    }
+  }
+
+  if (alerts.length > 0) {
+    const slackOpsUrl = await resolveOptionalSecret(ctx, config.secrets?.slackOpsWebhookUrlRef, "SLACK_OPS_WEBHOOK_URL");
+    const slackGrowthUrl = await resolveOptionalSecret(ctx, config.secrets?.slackGrowthWebhookUrlRef, "SLACK_GROWTH_WEBHOOK_URL");
+    if (slackOpsUrl || slackGrowthUrl) {
+      await postSlackDigest(
+        { default: slackOpsUrl ?? slackGrowthUrl ?? undefined, ops: slackOpsUrl ?? undefined, growth: slackGrowthUrl ?? undefined },
+        {
+          channel: "#ops",
+          title: `Budget Alert \u2014 ${state.period}`,
+          sections: [{ heading: "Agents", items: alerts }],
+        },
+      );
+    }
+  }
+}
+
+// ── Phase Tracking ─────────────────────────────────────
+
+async function updatePhaseMetrics(
+  ctx: PluginContext,
+  companyId: string,
+  agentKey: string,
+  outcome: "done" | "blocked",
+) {
+  const state = await readState<PhaseTrackingState>(ctx, companyId, STATE_KEYS.phaseTracking) ?? {};
+  const entry = state[agentKey] ?? {
+    currentPhase: 1,
+    phaseStartDate: nowIso().slice(0, 10),
+    metrics: { totalRuns: 0, successfulRuns: 0, overrideCount: 0, overrideRate: 0, consecutiveSuccesses: 0, lastRunAt: null },
+  };
+
+  entry.metrics.totalRuns += 1;
+  entry.metrics.lastRunAt = nowIso();
+  if (outcome === "done") {
+    entry.metrics.successfulRuns += 1;
+    entry.metrics.consecutiveSuccesses += 1;
+  } else {
+    entry.metrics.consecutiveSuccesses = 0;
+  }
+  entry.metrics.overrideRate = entry.metrics.totalRuns > 0
+    ? Math.round((entry.metrics.overrideCount / entry.metrics.totalRuns) * 1000) / 1000
+    : 0;
+
+  state[agentKey] = entry;
+  await writeState(ctx, companyId, STATE_KEYS.phaseTracking, state);
+}
+
+async function recordAgentOverride(ctx: PluginContext, companyId: string, agentKey: string) {
+  const state = await readState<PhaseTrackingState>(ctx, companyId, STATE_KEYS.phaseTracking) ?? {};
+  const entry = state[agentKey];
+  if (!entry) return;
+
+  entry.metrics.overrideCount += 1;
+  entry.metrics.overrideRate = entry.metrics.totalRuns > 0
+    ? Math.round((entry.metrics.overrideCount / entry.metrics.totalRuns) * 1000) / 1000
+    : 0;
+
+  state[agentKey] = entry;
+  await writeState(ctx, companyId, STATE_KEYS.phaseTracking, state);
+}
+
+async function runPhaseGraduationCheck(ctx: PluginContext, companyId: string, config: BlueprintAutomationConfig) {
+  const state = await readState<PhaseTrackingState>(ctx, companyId, STATE_KEYS.phaseTracking) ?? {};
+  const alerts: string[] = [];
+  const now = new Date();
+  const rules: Record<string, { minimumDays: number; minimumRuns: number; minimumSuccessRate?: number; maximumOverrideRate?: number }> = {
+    "analytics-agent": {
+      minimumDays: 14,
+      minimumRuns: 10,
+      minimumSuccessRate: 0.95,
+    },
+    "ops-lead": {
+      minimumDays: 14,
+      minimumRuns: 10,
+      maximumOverrideRate: 0.1,
+    },
+    "intake-agent": {
+      minimumDays: 14,
+      minimumRuns: 10,
+      maximumOverrideRate: 0.1,
+    },
+  };
+
+  for (const [agentKey, entry] of Object.entries(state)) {
+    if (entry.currentPhase >= 3) continue;
+    const rule = rules[agentKey];
+    if (!rule) continue;
+    const phaseStart = new Date(entry.phaseStartDate);
+    const daysInPhase = Math.floor((now.getTime() - phaseStart.getTime()) / (1000 * 60 * 60 * 24));
+    const successRate = entry.metrics.totalRuns > 0 ? entry.metrics.successfulRuns / entry.metrics.totalRuns : 0;
+
+    const meetsMinimumDays = daysInPhase >= rule.minimumDays;
+    const meetsMinimumRuns = entry.metrics.totalRuns >= rule.minimumRuns;
+    const meetsSuccessRate = rule.minimumSuccessRate === undefined || successRate >= rule.minimumSuccessRate;
+    const meetsOverrideRate = rule.maximumOverrideRate === undefined || entry.metrics.overrideRate < rule.maximumOverrideRate;
+
+    if (meetsMinimumDays && meetsMinimumRuns && meetsSuccessRate && meetsOverrideRate) {
+      alerts.push(
+        `:star: *${agentKey}* eligible for Phase ${entry.currentPhase + 1} graduation \u2014 ${daysInPhase} days in Phase ${entry.currentPhase}, ${(successRate * 100).toFixed(0)}% success rate, ${(entry.metrics.overrideRate * 100).toFixed(1)}% override rate, ${entry.metrics.totalRuns} runs. *Founder approval required.*`,
+      );
+    }
+  }
+
+  if (alerts.length > 0) {
+    const slackOpsUrl = await resolveOptionalSecret(ctx, config.secrets?.slackOpsWebhookUrlRef, "SLACK_OPS_WEBHOOK_URL");
+    const slackGrowthUrl = await resolveOptionalSecret(ctx, config.secrets?.slackGrowthWebhookUrlRef, "SLACK_GROWTH_WEBHOOK_URL");
+    if (slackOpsUrl || slackGrowthUrl) {
+      await postSlackDigest(
+        { default: slackOpsUrl ?? slackGrowthUrl ?? undefined, ops: slackOpsUrl ?? undefined, growth: slackGrowthUrl ?? undefined },
+        {
+          channel: "#ops",
+          title: "Phase Graduation Eligibility",
+          sections: [{ heading: "Eligible Agents", items: alerts }],
+        },
+      );
+    }
+  }
+}
+
+// ── Analytics Output Proof ─────────────────────────────
 
 async function buildAnalyticsOutputProof(
   ctx: PluginContext,
   config: BlueprintAutomationConfig,
   companyId: string,
-  cadence: AnalyticsReportCadence,
+  params: Record<string, unknown>,
 ): Promise<AnalyticsOutputProof> {
+  const cadence = asString(params.cadence) === "weekly" ? "weekly" : "daily";
   const generatedAt = nowIso();
   const title = `${cadence === "daily" ? "Analytics Daily" : "Analytics Weekly"} Snapshot - ${generatedAt.slice(0, 10)}`;
+  const { report, validationErrors } = normalizeAnalyticsStructuredReport(params, cadence);
   const errors: string[] = [];
 
   const notionToken = await resolveOptionalSecret(
@@ -949,91 +2810,8 @@ async function buildAnalyticsOutputProof(
     config.secrets?.slackGrowthWebhookUrlRef,
     "SLACK_GROWTH_WEBHOOK_URL",
   );
-  const githubToken = config.githubTokenRef
-    ? await resolveOptionalSecret(ctx, config.githubTokenRef)
-    : null;
-
-  const workflows: AnalyticsWorkflowSnapshot[] = [];
-  if (githubToken && config.githubOwner) {
-    for (const repoConfig of config.repoCatalog ?? DEFAULT_REPO_CATALOG) {
-      try {
-        const response = await fetchJson(
-          ctx,
-          `https://api.github.com/repos/${config.githubOwner}/${repoConfig.githubRepo}/actions/runs?per_page=1`,
-          githubToken,
-        );
-        const latest =
-          Array.isArray(response.workflow_runs) && response.workflow_runs.length > 0
-            ? response.workflow_runs[0] as Record<string, unknown>
-            : null;
-        workflows.push({
-          repo: repoConfig.githubRepo,
-          workflowName: asString(latest?.name) ?? "unknown",
-          branch: asString(latest?.head_branch) ?? repoConfig.defaultBranch,
-          status: asString(latest?.status) ?? "unknown",
-          conclusion: asString(latest?.conclusion) ?? "pending",
-          updatedAt: asString(latest?.updated_at),
-          htmlUrl: asString(latest?.html_url),
-        });
-      } catch (error) {
-        errors.push(`GitHub ${repoConfig.githubRepo}: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    }
-  }
-
-  const sourceMappings = await ctx.entities.list({
-    entityType: ENTITY_TYPES.sourceMapping,
-    scopeKind: "company",
-    scopeId: companyId,
-    limit: 200,
-    offset: 0,
-  });
-  const managedIssues = (
-    await Promise.all(
-      sourceMappings.map(async (mapping) => {
-        const data = (mapping.data ?? {}) as Partial<SourceMappingData>;
-        return typeof data.issueId === "string"
-          ? await ctx.issues.get(data.issueId, companyId)
-          : null;
-      }),
-    )
-  ).filter((issue): issue is Issue => !!issue && !["done", "cancelled"].includes(issue.status));
-
-  const openManagedIssues = {
-    total: managedIssues.length,
-    critical: managedIssues.filter((issue) => issue.priority === "critical").length,
-    high: managedIssues.filter((issue) => issue.priority === "high").length,
-    sample: managedIssues.slice(0, 5).map(compactIssueLabel),
-  };
-
-  const workflowFailures = workflows
-    .filter((workflow) => ["failure", "cancelled", "timed_out", "action_required", "startup_failure"].includes(workflow.conclusion))
-    .map((workflow) => `${workflow.repo} ${workflow.workflowName} on ${workflow.branch}: ${workflow.conclusion}`);
-
-  const summary = [
-    workflowFailures.length > 0
-      ? `${workflowFailures.length} GitHub workflow feed(s) are currently failing or degraded.`
-      : workflows.length > 0
-        ? `Latest GitHub workflow samples are healthy or still pending across ${workflows.length} repo feed(s).`
-        : "GitHub workflow data is unavailable on this host.",
-    openManagedIssues.total > 0
-      ? `${openManagedIssues.total} managed Paperclip issue(s) remain open, including ${openManagedIssues.critical} critical and ${openManagedIssues.high} high priority item(s).`
-      : "No open managed Paperclip issues are currently tracked by the Blueprint automation plugin.",
-    notionToken
-      ? "Notion reporting is configured on this host."
-      : "Notion reporting is not configured on this host.",
-    slackGrowthWebhookUrl || slackOpsWebhookUrl
-      ? "Slack digest delivery is configured on this host."
-      : "Slack digest delivery is not configured on this host.",
-  ];
 
   const dataAvailability = [
-    configuredSourceStatus(
-      "GitHub workflow feeds",
-      Boolean(githubToken && config.githubOwner),
-      `GitHub polling is configured for ${(config.repoCatalog ?? DEFAULT_REPO_CATALOG).length} Blueprint repos.`,
-      "Missing GitHub owner or token for workflow polling.",
-    ),
     configuredSourceStatus(
       "Notion reporting",
       Boolean(notionToken),
@@ -1072,45 +2850,47 @@ async function buildAnalyticsOutputProof(
 
   const reportLines = [
     `Generated at: ${generatedAt}`,
+    `Cadence: ${cadence}`,
     "",
-    "## Summary",
-    ...summary.map((line) => `- ${line}`),
+    "## Headline",
+    report.headline,
     "",
-    "## Workflow Health",
-    ...(workflows.length > 0
-      ? workflows.map((workflow) =>
-        `- ${workflow.repo}: ${workflow.workflowName} on ${workflow.branch} is ${workflow.status}/${workflow.conclusion}${workflow.htmlUrl ? ` (${workflow.htmlUrl})` : ""}`,
-      )
-      : ["- No GitHub workflow data was collected during this run."]),
+    "## Summary Bullets",
+    ...report.summaryBullets.map((line) => `- ${line}`),
     "",
-    "## Managed Issue Snapshot",
-    `- Open managed issues: ${openManagedIssues.total}`,
-    `- Critical: ${openManagedIssues.critical}`,
-    `- High: ${openManagedIssues.high}`,
-    ...(openManagedIssues.sample.length > 0
-      ? openManagedIssues.sample.map((line) => `- ${line}`)
-      : ["- No open managed issues sampled."]),
+    "## Workflow Findings",
+    ...report.workflowFindings.map((line) => `- ${line}`),
+    "",
+    "## Risks",
+    ...report.risks.map((line) => `- ${line}`),
+    "",
+    "## Recommended Follow-Ups",
+    ...report.recommendedFollowUps.map((line) => `- ${line}`),
     "",
     "## Data Availability",
     ...dataAvailability.map((entry) => `- ${entry.source}: ${entry.status} — ${entry.detail}`),
   ];
+  if (validationErrors.length > 0) {
+    reportLines.push("", "## Validation Errors", ...validationErrors.map((line) => `- ${line}`));
+  }
   if (errors.length > 0) {
     reportLines.push("", "## Collection Errors", ...errors.map((line) => `- ${line}`));
   }
 
   const result: AnalyticsOutputProof = {
     success: false,
+    outcome: "blocked",
     cadence,
     generatedAt,
     title,
-    summary,
-    workflows,
-    openManagedIssues,
+    report,
     dataAvailability,
+    proofLinks: [],
+    issueComment: "",
     errors,
   };
 
-  if (notionToken) {
+  if (validationErrors.length === 0 && notionToken) {
     try {
       const notionClient = createNotionClient({ token: notionToken });
       const knowledgeEntry = await createKnowledgeEntry(notionClient, {
@@ -1126,7 +2906,7 @@ async function buildAnalyticsOutputProof(
         lifecycleStage: "Open",
         workType: "Refresh",
         substage: [
-          summary[0],
+          report.headline,
           knowledgeEntry.pageUrl ? `Knowledge page: ${knowledgeEntry.pageUrl}` : `Knowledge page ID: ${knowledgeEntry.pageId}`,
         ].join(" "),
       });
@@ -1141,9 +2921,9 @@ async function buildAnalyticsOutputProof(
     }
   }
 
-  if (slackGrowthWebhookUrl || slackOpsWebhookUrl) {
+  if (validationErrors.length === 0 && (slackGrowthWebhookUrl || slackOpsWebhookUrl)) {
     try {
-      result.slack = await postSlackDigest(
+      const slackResult = await postSlackDigest(
         {
           default: slackOpsWebhookUrl ?? slackGrowthWebhookUrl ?? undefined,
           ops: slackOpsWebhookUrl ?? undefined,
@@ -1153,33 +2933,67 @@ async function buildAnalyticsOutputProof(
           channel: cadence === "daily" ? "#analytics" : "#growth",
           title,
           sections: [
-            { heading: "Summary", items: summary },
-            {
-              heading: "Workflow Health",
-              items: workflows.length > 0
-                ? workflows.map((workflow) => `${workflow.repo}: ${workflow.status}/${workflow.conclusion}`)
-                : ["No GitHub workflow data collected."],
-            },
-            {
-              heading: "Data Availability",
-              items: dataAvailability.map((entry) => `${entry.source}: ${entry.status}`),
-            },
+            { heading: "Headline", items: [report.headline] },
+            { heading: "Summary", items: report.summaryBullets },
+            { heading: "Workflow Findings", items: report.workflowFindings },
+            { heading: "Risks", items: report.risks },
+            { heading: "Recommended Follow-Ups", items: report.recommendedFollowUps },
           ],
         },
       );
-      if (!result.slack.ok) {
-        errors.push(`Slack digest failed with HTTP ${result.slack.statusCode ?? "unknown"}: ${result.slack.responseBody ?? "no response body"}`);
+      result.slack = slackResult;
+      if (!slackResult.ok) {
+        errors.push(`Slack digest failed with HTTP ${slackResult.statusCode ?? "unknown"}: ${slackResult.responseBody ?? "no response body"}`);
       }
     } catch (error) {
       errors.push(`Slack digest failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
-  result.success = Boolean(
-    result.notion?.workQueuePageId &&
-    result.notion?.knowledgePageId &&
-    result.slack?.ok,
+  if (validationErrors.length > 0) {
+    errors.push(...validationErrors);
+  }
+
+  const failureReasons: string[] = [];
+  if (!result.notion?.workQueuePageId) {
+    failureReasons.push("Missing Notion Work Queue artifact.");
+  }
+  if (!result.notion?.knowledgePageId) {
+    failureReasons.push("Missing Notion Knowledge artifact.");
+  }
+  if (!result.slack?.ok) {
+    if (result.slack) {
+      failureReasons.push(
+        `Slack digest failed for ${result.slack.routedChannel} with HTTP ${result.slack.statusCode ?? "unknown"}${result.slack.responseBody ? `: ${result.slack.responseBody}` : ""}.`,
+      );
+    } else {
+      failureReasons.push("Missing Slack digest artifact.");
+    }
+  }
+
+  result.proofLinks = [
+    result.notion?.workQueuePageUrl,
+    result.notion?.knowledgePageUrl,
+  ].filter((value): value is string => typeof value === "string" && value.length > 0);
+  result.failureReason = [...failureReasons, ...errors].join(" ");
+  result.success = failureReasons.length === 0 && errors.length === 0;
+  result.outcome = result.success ? "done" : "blocked";
+  result.issueComment = formatAnalyticsIssueComment(result);
+
+  // Track routine health, budget, and phase metrics
+  await updateRoutineHealth(
+    ctx,
+    companyId,
+    `analytics-${cadence}`,
+    `Analytics ${cadence.charAt(0).toUpperCase()}${cadence.slice(1)}`,
+    "analytics-agent",
+    result.outcome,
+    result.failureReason,
+    asString(params.issueId),
   );
+  await trackAgentRun(ctx, companyId, "analytics-agent");
+  await updatePhaseMetrics(ctx, companyId, "analytics-agent", result.outcome);
+
   return result;
 }
 
@@ -1230,6 +3044,37 @@ async function createFollowUpIssue(
     status: followUp.status,
     detail: `Parent issue ${input.parentIssueId}`,
   });
+  await postSlackActivity(ctx, config, {
+    channel: slackChannelForAgent(input.assignee),
+    title: `Blocked work handed to ${formatAgentName(input.assignee)}`,
+    summary: [
+      `What happened: A blocked task was handed to ${formatAgentName(input.assignee)} for follow-through.`,
+      `Task: ${followUp.title}`,
+      `Parent issue: ${input.parentIssueId}`,
+      `Project: ${input.projectName}`,
+      `Priority: ${formatIssuePriority(followUp.priority) ?? followUp.priority}`,
+    ],
+  }).catch(() => undefined);
+  await wakeChiefOfStaff(ctx, companyId, config, {
+    reason: "blocker_follow_up_created",
+    idempotencyKey: `chief-of-staff:blocker-follow-up:${followUp.id}`,
+    payload: {
+      signalType: "blocker_follow_up_created",
+      issueId: followUp.id,
+      parentIssueId: input.parentIssueId,
+      assignee: input.assignee,
+      projectName: input.projectName,
+    },
+    title: "Chief of Staff wakeup from blocker follow-up",
+    detail: `${followUp.title} (${followUp.id}) was delegated to ${input.assignee}.`,
+    slackChannel: "#paperclip-manager",
+    slackTitle: "Manager update: blocked work was delegated",
+    slackSummary: [
+      `What happened: A blocked task was handed to ${formatAgentName(input.assignee)} for follow-through.`,
+      `Task: ${followUp.title}`,
+      `Project: ${input.projectName}`,
+    ],
+  }).catch(() => undefined);
   return followUp;
 }
 
@@ -1573,6 +3418,657 @@ async function assertGithubSignature(
   }
 }
 
+// ── Demand Intel Output Proof ──────────────────────────
+
+function normalizeDemandIntelStructuredReport(
+  params: Record<string, unknown>,
+  cadence: DemandIntelReportCadence,
+): { report: DemandIntelStructuredReport; validationErrors: string[] } {
+  const rawLane = asString(params.lane) ?? "";
+  const rawConfidence = asString(params.confidence) ?? "";
+  const report: DemandIntelStructuredReport = {
+    headline: asString(params.headline) ?? "",
+    topic: asString(params.topic) ?? "",
+    lane: (DEMAND_INTEL_LANES.includes(rawLane as DemandIntelLane)
+      ? rawLane
+      : "cross-lane") as DemandIntelLane,
+    companyOrPattern: asString(params.companyOrPattern) ?? "",
+    city: asString(params.city) ?? "",
+    signals: coerceStringArray(params.signals),
+    proofRequirements: coerceStringArray(params.proofRequirements),
+    channelFindings: coerceStringArray(params.channelFindings),
+    partnershipFindings: coerceStringArray(params.partnershipFindings),
+    recommendedActions: coerceStringArray(params.recommendedActions),
+    confidence: (DEMAND_INTEL_CONFIDENCE_LEVELS.includes(rawConfidence as DemandIntelConfidence)
+      ? rawConfidence
+      : "medium") as DemandIntelConfidence,
+    openQuestions: coerceStringArray(params.openQuestions),
+  };
+
+  const validationErrors: string[] = [];
+  if (!report.headline) {
+    validationErrors.push(`Missing headline for ${cadence} demand intel report.`);
+  }
+  if (!report.topic) {
+    validationErrors.push("Missing topic for demand intel report.");
+  }
+  if (!rawLane) {
+    validationErrors.push("Missing lane for demand intel report.");
+  } else if (!DEMAND_INTEL_LANES.includes(rawLane as DemandIntelLane)) {
+    validationErrors.push(`Invalid lane for demand intel report. Expected one of: ${DEMAND_INTEL_LANES.join(", ")}.`);
+  }
+  if (!report.companyOrPattern) {
+    validationErrors.push("Missing companyOrPattern for demand intel report.");
+  }
+  if (report.lane === "city-demand" && !report.city) {
+    validationErrors.push("Missing city for city-demand demand intel report.");
+  }
+  if (report.signals.length === 0) {
+    validationErrors.push("Missing signals for demand intel report.");
+  }
+  if (report.proofRequirements.length === 0) {
+    validationErrors.push("Missing proofRequirements for demand intel report.");
+  }
+  if (report.channelFindings.length === 0) {
+    validationErrors.push("Missing channelFindings for demand intel report.");
+  }
+  if (report.partnershipFindings.length === 0) {
+    validationErrors.push("Missing partnershipFindings for demand intel report.");
+  }
+  if (report.recommendedActions.length === 0) {
+    validationErrors.push("Missing recommendedActions for demand intel report.");
+  }
+  if (!rawConfidence) {
+    validationErrors.push("Missing confidence for demand intel report.");
+  } else if (!DEMAND_INTEL_CONFIDENCE_LEVELS.includes(rawConfidence as DemandIntelConfidence)) {
+    validationErrors.push(
+      `Invalid confidence for demand intel report. Expected one of: ${DEMAND_INTEL_CONFIDENCE_LEVELS.join(", ")}.`,
+    );
+  }
+  if (report.openQuestions.length === 0) {
+    validationErrors.push("Missing openQuestions for demand intel report.");
+  }
+
+  return { report, validationErrors };
+}
+
+function formatDemandIntelIssueComment(result: {
+  outcome: "done" | "blocked";
+  report: DemandIntelStructuredReport;
+  cadence: DemandIntelReportCadence;
+  notion?: DemandIntelOutputProof["notion"];
+  slack?: DemandIntelOutputProof["slack"];
+  failureReason?: string;
+}) {
+  const slackStatus = result.slack?.ok
+    ? `delivered to ${result.slack.routedChannel} (HTTP ${result.slack.statusCode ?? "unknown"})`
+    : `missing or failed${result.slack?.statusCode ? ` (HTTP ${result.slack.statusCode})` : ""}`;
+  const lines = [
+    result.outcome === "done"
+      ? `${result.cadence === "daily" ? "Daily" : "Weekly"} demand intel report delivered.`
+      : `${result.cadence === "daily" ? "Daily" : "Weekly"} demand intel report blocked.`,
+    `- Headline: ${result.report.headline}`,
+    `- Topic: ${result.report.topic}`,
+    `- Lane: ${result.report.lane}`,
+    `- Company or pattern: ${result.report.companyOrPattern}`,
+    `- City: ${result.report.city || "n/a"}`,
+    `- Confidence: ${result.report.confidence}`,
+    `- Signals: ${result.report.signals.length}`,
+    `- Open questions: ${result.report.openQuestions.length}`,
+    ...(result.failureReason ? [`- Failure reason: ${result.failureReason}`] : []),
+    `- Notion Work Queue: ${result.notion?.workQueuePageUrl ?? result.notion?.workQueuePageId ?? "missing"}`,
+    `- Notion Knowledge: ${result.notion?.knowledgePageUrl ?? result.notion?.knowledgePageId ?? "missing"}`,
+    `- Slack digest: ${slackStatus}`,
+  ];
+  return lines.join("\n");
+}
+
+async function buildDemandIntelOutputProof(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  companyId: string,
+  params: Record<string, unknown>,
+): Promise<DemandIntelOutputProof> {
+  const cadence: DemandIntelReportCadence = asString(params.cadence) === "weekly" ? "weekly" : "daily";
+  const generatedAt = nowIso();
+  const { report, validationErrors } = normalizeDemandIntelStructuredReport(params, cadence);
+  const title = `Demand Intel ${cadence === "daily" ? "Daily" : "Weekly"} Digest - ${generatedAt.slice(0, 10)} - ${report.topic || "untitled"}`;
+  const errors: string[] = [];
+
+  const notionToken = await resolveOptionalSecret(ctx, config.secrets?.notionApiTokenRef, "NOTION_API_TOKEN");
+  const slackOpsWebhookUrl = await resolveOptionalSecret(ctx, config.secrets?.slackOpsWebhookUrlRef, "SLACK_OPS_WEBHOOK_URL");
+  const slackGrowthWebhookUrl = await resolveOptionalSecret(ctx, config.secrets?.slackGrowthWebhookUrlRef, "SLACK_GROWTH_WEBHOOK_URL");
+
+  const scopeLines = [
+    `Topic: ${report.topic}`,
+    `Lane: ${report.lane}`,
+    `Company or Pattern: ${report.companyOrPattern}`,
+    `City: ${report.city || "n/a"}`,
+    `Confidence: ${report.confidence}`,
+  ];
+  const reportLines = [
+    `Generated at: ${generatedAt}`,
+    `Cadence: ${cadence}`,
+    "",
+    "## Headline",
+    report.headline,
+    "",
+    "## Scope",
+    ...scopeLines.map((line) => `- ${line}`),
+    "",
+    "## Signals",
+    ...report.signals.map((line) => `- ${line}`),
+    "",
+    "## Proof Requirements",
+    ...report.proofRequirements.map((line) => `- ${line}`),
+    "",
+    "## Channel Findings",
+    ...report.channelFindings.map((line) => `- ${line}`),
+    "",
+    "## Partnership Findings",
+    ...report.partnershipFindings.map((line) => `- ${line}`),
+    "",
+    "## Recommended Actions",
+    ...report.recommendedActions.map((line) => `- ${line}`),
+    "",
+    "## Open Questions",
+    ...report.openQuestions.map((line) => `- ${line}`),
+  ];
+
+  const result: DemandIntelOutputProof = {
+    success: false,
+    outcome: "blocked",
+    cadence,
+    generatedAt,
+    title,
+    report,
+    proofLinks: [],
+    issueComment: "",
+    errors,
+  };
+
+  if (validationErrors.length === 0 && notionToken) {
+    try {
+      const notionClient = createNotionClient({ token: notionToken });
+      const knowledgeEntry = await createKnowledgeEntry(notionClient, {
+        title,
+        type: "Reference",
+        system: "Cross-System",
+        content: reportLines.join("\n"),
+      });
+      const workQueueEntry = await createWorkQueueItem(notionClient, {
+        title,
+        priority: cadence === "daily" ? "P2" : "P1",
+        system: "Cross-System",
+        lifecycleStage: "Open",
+        workType: "Research",
+        substage: [
+          `Lane: ${report.lane}.`,
+          `Topic: ${report.topic}.`,
+          `Company/pattern: ${report.companyOrPattern}.`,
+          `City: ${report.city || "n/a"}.`,
+          `Confidence: ${report.confidence}.`,
+          `Next action: ${report.recommendedActions[0] ?? "Review knowledge entry."}`,
+          knowledgeEntry.pageUrl
+            ? `Knowledge page: ${knowledgeEntry.pageUrl}`
+            : `Knowledge page ID: ${knowledgeEntry.pageId}`,
+        ].join(" "),
+      });
+      result.notion = {
+        workQueuePageId: workQueueEntry.pageId,
+        workQueuePageUrl: workQueueEntry.pageUrl,
+        knowledgePageId: knowledgeEntry.pageId,
+        knowledgePageUrl: knowledgeEntry.pageUrl,
+      };
+    } catch (error) {
+      errors.push(`Notion write failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  if (validationErrors.length === 0 && (slackGrowthWebhookUrl || slackOpsWebhookUrl)) {
+    try {
+      const slackResult = await postSlackDigest(
+        {
+          default: slackOpsWebhookUrl ?? slackGrowthWebhookUrl ?? undefined,
+          ops: slackOpsWebhookUrl ?? undefined,
+          growth: slackGrowthWebhookUrl ?? undefined,
+        },
+        {
+          channel: "#research",
+          title,
+          sections: [
+            { heading: "Headline", items: [report.headline] },
+            { heading: "Scope", items: scopeLines },
+            { heading: "Signals", items: report.signals.slice(0, 5) },
+            { heading: "Proof Requirements", items: report.proofRequirements.slice(0, 5) },
+            { heading: "Channel Findings", items: report.channelFindings.slice(0, 5) },
+            { heading: "Partnership Findings", items: report.partnershipFindings.slice(0, 5) },
+            { heading: "Recommended Actions", items: report.recommendedActions.slice(0, 5) },
+            { heading: "Open Questions", items: report.openQuestions.slice(0, 5) },
+          ],
+        },
+      );
+      result.slack = slackResult;
+      if (!slackResult.ok) {
+        errors.push(`Slack digest failed with HTTP ${slackResult.statusCode ?? "unknown"}`);
+      }
+    } catch (error) {
+      errors.push(`Slack digest failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  if (validationErrors.length > 0) errors.push(...validationErrors);
+
+  const failureReasons: string[] = [];
+  if (!result.notion?.workQueuePageId) failureReasons.push("Missing Notion Work Queue artifact.");
+  if (!result.notion?.knowledgePageId) failureReasons.push("Missing Notion Knowledge artifact.");
+  if (!result.slack?.ok) {
+    failureReasons.push(result.slack ? `Slack digest failed (HTTP ${result.slack.statusCode ?? "unknown"})` : "Missing Slack digest artifact.");
+  }
+
+  result.proofLinks = [result.notion?.workQueuePageUrl, result.notion?.knowledgePageUrl]
+    .filter((value): value is string => typeof value === "string" && value.length > 0);
+  result.failureReason = [...failureReasons, ...errors].join(" ");
+  result.success = failureReasons.length === 0 && errors.length === 0;
+  result.outcome = result.success ? "done" : "blocked";
+  result.issueComment = formatDemandIntelIssueComment(result);
+
+  await updateRoutineHealth(
+    ctx,
+    companyId,
+    `demand-intel-${cadence}`,
+    `Demand Intel ${cadence.charAt(0).toUpperCase()}${cadence.slice(1)}`,
+    "demand-intel-agent",
+    result.outcome,
+    result.failureReason,
+    asString(params.issueId),
+  );
+  await trackAgentRun(ctx, companyId, "demand-intel-agent");
+  await updatePhaseMetrics(ctx, companyId, "demand-intel-agent", result.outcome);
+
+  return result;
+}
+
+function formatCustomerResearchIssueComment(result: CustomerResearchOutputProof) {
+  const slackStatus = result.slack?.ok
+    ? `delivered to ${result.slack.routedChannel} (HTTP ${result.slack.statusCode ?? "unknown"})`
+    : `missing or failed${result.slack?.statusCode ? ` (HTTP ${result.slack.statusCode})` : ""}`;
+  return [
+    result.outcome === "done"
+      ? "Customer research report delivered."
+      : "Customer research report blocked.",
+    `- Topic: ${result.topic}`,
+    `- Lane: ${result.lane}`,
+    `- Headline: ${result.headline}`,
+    `- Evidence items: ${result.synthesis.evidence.length}`,
+    `- JTBD items: ${result.synthesis.jtbd.length}`,
+    `- Personas: ${result.synthesis.personas.length}`,
+    `- Confidence: ${result.synthesis.confidence}`,
+    ...(result.failureReason ? [`- Failure reason: ${result.failureReason}`] : []),
+    `- Notion Work Queue: ${result.notion?.workQueuePageUrl ?? result.notion?.workQueuePageId ?? "missing"}`,
+    `- Notion Knowledge: ${result.notion?.knowledgePageUrl ?? result.notion?.knowledgePageId ?? "missing"}`,
+    `- Slack digest: ${slackStatus}`,
+  ].join("\n");
+}
+
+async function buildCustomerResearchOutputProof(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  companyId: string,
+  params: Record<string, unknown>,
+): Promise<CustomerResearchOutputProof> {
+  const cadence = normalizeCustomerResearchCadence(params.cadence);
+  const generatedAt = nowIso();
+  const topic = asString(params.topic) ?? asString(params.researchGoal) ?? "Customer research";
+  const lane = asString(params.lane) ?? "cross-lane";
+  const headline = asString(params.headline) ?? "";
+  const synthesis = synthesizeCustomerResearch(params.evidence);
+  const recommendedActions = coerceStringArray(params.recommendedActions);
+  const title = `Customer Research ${generatedAt.slice(0, 10)} - ${topic}`;
+  const errors: string[] = [];
+
+  if (!headline) errors.push("Missing headline for customer research report.");
+  if (synthesis.evidence.length === 0) errors.push("Missing evidence for customer research report.");
+  if (synthesis.jtbd.length === 0) errors.push("Missing JTBD findings for customer research report.");
+  if (synthesis.personas.length === 0) errors.push("Missing personas for customer research report.");
+  if (recommendedActions.length === 0) errors.push("Missing recommendedActions for customer research report.");
+
+  const notionToken = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.notionApiTokenRef,
+    "NOTION_API_TOKEN",
+  );
+  const slackGrowthWebhookUrl = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.slackGrowthWebhookUrlRef,
+    "SLACK_GROWTH_WEBHOOK_URL",
+  );
+
+  const reportLines = [
+    `Generated at: ${generatedAt}`,
+    `Cadence: ${cadence}`,
+    "",
+    "## Headline",
+    headline,
+    "",
+    "## Scope",
+    `- Topic: ${topic}`,
+    `- Lane: ${lane}`,
+    `- Confidence: ${synthesis.confidence}`,
+    `- Source coverage: ${synthesis.sourceCoverage.join(", ") || "none"}`,
+    "",
+    "## Evidence",
+    ...synthesis.evidence.map((entry) =>
+      `- [${entry.label}] ${entry.source}: ${entry.summary}${entry.url ? ` (${entry.url})` : ""}`,
+    ),
+    "",
+    "## JTBD",
+    ...synthesis.jtbd.map((entry) =>
+      `- ${entry.job} | Pain: ${entry.pain} | Desired outcome: ${entry.desiredOutcome} | Evidence count: ${entry.evidenceCount}`,
+    ),
+    "",
+    "## Personas",
+    ...synthesis.personas.map((entry) =>
+      `- ${entry.role} | Goals: ${entry.goals.join("; ") || "n/a"} | Pains: ${entry.pains.join("; ") || "n/a"} | Objections: ${entry.objections.join("; ") || "n/a"} | Evidence count: ${entry.evidenceCount}`,
+    ),
+    "",
+    "## Objections",
+    ...synthesis.objections.map((entry) => `- ${entry}`),
+    "",
+    "## Open Questions",
+    ...synthesis.openQuestions.map((entry) => `- ${entry}`),
+    "",
+    "## Recommended Actions",
+    ...recommendedActions.map((entry) => `- ${entry}`),
+  ];
+
+  const result: CustomerResearchOutputProof = {
+    success: false,
+    outcome: "blocked",
+    cadence,
+    generatedAt,
+    title,
+    topic,
+    lane,
+    headline,
+    synthesis: {
+      ...synthesis,
+      recommendedActions,
+    },
+    proofLinks: [],
+    issueComment: "",
+    errors,
+  };
+
+  if (errors.length === 0 && notionToken) {
+    try {
+      const notionClient = createNotionClient({ token: notionToken });
+      const knowledgeEntry = await createKnowledgeEntry(notionClient, {
+        title,
+        type: "Reference",
+        system: "Cross-System",
+        content: reportLines.join("\n"),
+      });
+      const workQueueEntry = await createWorkQueueItem(notionClient, {
+        title,
+        priority: cadence === "weekly" ? "P1" : "P2",
+        system: "Cross-System",
+        lifecycleStage: "Open",
+        workType: "Research",
+        substage: [
+          `Lane: ${lane}.`,
+          `Confidence: ${synthesis.confidence}.`,
+          `JTBD: ${synthesis.jtbd.length}.`,
+          `Personas: ${synthesis.personas.length}.`,
+          `Evidence items: ${synthesis.evidence.length}.`,
+          knowledgeEntry.pageUrl
+            ? `Knowledge page: ${knowledgeEntry.pageUrl}`
+            : `Knowledge page ID: ${knowledgeEntry.pageId}`,
+        ].join(" "),
+      });
+      result.notion = {
+        workQueuePageId: workQueueEntry.pageId,
+        workQueuePageUrl: workQueueEntry.pageUrl,
+        knowledgePageId: knowledgeEntry.pageId,
+        knowledgePageUrl: knowledgeEntry.pageUrl,
+      };
+    } catch (error) {
+      result.errors.push(`Notion write failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  if (errors.length === 0 && slackGrowthWebhookUrl) {
+    try {
+      const slackResult = await postSlackDigest(
+        {
+          default: slackGrowthWebhookUrl,
+          growth: slackGrowthWebhookUrl,
+        },
+        {
+          channel: "#research",
+          title,
+          sections: [
+            { heading: "Headline", items: [headline] },
+            { heading: "JTBD", items: synthesis.jtbd.slice(0, 5).map((entry) => `${entry.job} -> ${entry.desiredOutcome}`) },
+            { heading: "Personas", items: synthesis.personas.slice(0, 5).map((entry) => `${entry.role}: ${entry.goals[0] ?? "goal unknown"}`) },
+            { heading: "Recommended Actions", items: recommendedActions.slice(0, 5) },
+          ],
+        },
+      );
+      result.slack = slackResult;
+      if (!slackResult.ok) {
+        result.errors.push(`Slack digest failed with HTTP ${slackResult.statusCode ?? "unknown"}`);
+      }
+    } catch (error) {
+      result.errors.push(`Slack digest failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  const failureReasons: string[] = [];
+  if (!result.notion?.workQueuePageId) failureReasons.push("Missing Notion Work Queue artifact.");
+  if (!result.notion?.knowledgePageId) failureReasons.push("Missing Notion Knowledge artifact.");
+  if (!result.slack?.ok) {
+    failureReasons.push(result.slack ? `Slack digest failed (HTTP ${result.slack.statusCode ?? "unknown"})` : "Missing Slack digest artifact.");
+  }
+
+  result.proofLinks = [result.notion?.workQueuePageUrl, result.notion?.knowledgePageUrl]
+    .filter((value): value is string => typeof value === "string" && value.length > 0);
+  result.failureReason = [...failureReasons, ...result.errors].join(" ");
+  result.success = failureReasons.length === 0 && result.errors.length === 0;
+  result.outcome = result.success ? "done" : "blocked";
+  result.issueComment = formatCustomerResearchIssueComment(result);
+
+  return result;
+}
+
+// ── Market Intel Output Proof ──────────────────────────
+
+function normalizeMarketIntelReport(
+  params: Record<string, unknown>,
+): { report: MarketIntelStructuredReport; validationErrors: string[] } {
+  const report: MarketIntelStructuredReport = {
+    headline: asString(params.headline) ?? "",
+    signals: Array.isArray(params.signals) ? (params.signals as MarketIntelSignal[]) : [],
+    competitorUpdates: coerceStringArray(params.competitorUpdates),
+    technologyFindings: coerceStringArray(params.technologyFindings),
+    recommendedActions: coerceStringArray(params.recommendedActions),
+  };
+  const validationErrors: string[] = [];
+  if (!report.headline) validationErrors.push("Missing headline for market intel report.");
+  if (report.signals.length === 0) validationErrors.push("Missing signals for market intel report.");
+  if (report.recommendedActions.length === 0) validationErrors.push("Missing recommendedActions for market intel report.");
+  return { report, validationErrors };
+}
+
+function formatMarketIntelIssueComment(result: {
+  outcome: "done" | "blocked";
+  report: MarketIntelStructuredReport;
+  cadence: MarketIntelReportCadence;
+  notion?: MarketIntelOutputProof["notion"];
+  slack?: MarketIntelOutputProof["slack"];
+  failureReason?: string;
+}) {
+  const slackStatus = result.slack?.ok
+    ? `delivered to ${result.slack.routedChannel} (HTTP ${result.slack.statusCode ?? "unknown"})`
+    : `missing or failed${result.slack?.statusCode ? ` (HTTP ${result.slack.statusCode})` : ""}`;
+  const lines = [
+    result.outcome === "done"
+      ? `${result.cadence === "daily" ? "Daily" : "Weekly"} market intel report delivered.`
+      : `${result.cadence === "daily" ? "Daily" : "Weekly"} market intel report blocked.`,
+    `- Headline: ${result.report.headline}`,
+    `- Signals: ${result.report.signals.length}`,
+    ...(result.failureReason ? [`- Failure reason: ${result.failureReason}`] : []),
+    `- Notion Work Queue: ${result.notion?.workQueuePageUrl ?? result.notion?.workQueuePageId ?? "missing"}`,
+    `- Notion Knowledge: ${result.notion?.knowledgePageUrl ?? result.notion?.knowledgePageId ?? "missing"}`,
+    `- Slack digest: ${slackStatus}`,
+  ];
+  return lines.join("\n");
+}
+
+async function buildMarketIntelOutputProof(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  companyId: string,
+  params: Record<string, unknown>,
+): Promise<MarketIntelOutputProof> {
+  const cadence: MarketIntelReportCadence = asString(params.cadence) === "weekly" ? "weekly" : "daily";
+  const generatedAt = nowIso();
+  const title = `Market Intel ${cadence === "daily" ? "Daily" : "Weekly"} Digest - ${generatedAt.slice(0, 10)}`;
+  const { report, validationErrors } = normalizeMarketIntelReport(params);
+  const errors: string[] = [];
+
+  const notionToken = await resolveOptionalSecret(ctx, config.secrets?.notionApiTokenRef, "NOTION_API_TOKEN");
+  const slackOpsWebhookUrl = await resolveOptionalSecret(ctx, config.secrets?.slackOpsWebhookUrlRef, "SLACK_OPS_WEBHOOK_URL");
+  const slackGrowthWebhookUrl = await resolveOptionalSecret(ctx, config.secrets?.slackGrowthWebhookUrlRef, "SLACK_GROWTH_WEBHOOK_URL");
+
+  const signalLines = report.signals.map(
+    (s) => `- [${s.combinedScore.toFixed(1)}] ${s.title} (${s.source}): ${s.summary}`,
+  );
+  const reportLines = [
+    `Generated at: ${generatedAt}`,
+    `Cadence: ${cadence}`,
+    "",
+    "## Headline",
+    report.headline,
+    "",
+    "## Signals",
+    ...signalLines,
+    "",
+    "## Competitor Updates",
+    ...report.competitorUpdates.map((line) => `- ${line}`),
+    "",
+    "## Technology Findings",
+    ...report.technologyFindings.map((line) => `- ${line}`),
+    "",
+    "## Recommended Actions",
+    ...report.recommendedActions.map((line) => `- ${line}`),
+  ];
+
+  const result: MarketIntelOutputProof = {
+    success: false,
+    outcome: "blocked",
+    cadence,
+    generatedAt,
+    title,
+    report,
+    proofLinks: [],
+    issueComment: "",
+    errors,
+  };
+
+  if (validationErrors.length === 0 && notionToken) {
+    try {
+      const notionClient = createNotionClient({ token: notionToken });
+      const knowledgeEntry = await createKnowledgeEntry(notionClient, {
+        title,
+        type: "Reference",
+        system: "Cross-System",
+        content: reportLines.join("\n"),
+      });
+      const workQueueEntry = await createWorkQueueItem(notionClient, {
+        title,
+        priority: cadence === "daily" ? "P2" : "P1",
+        system: "Cross-System",
+        lifecycleStage: "Open",
+        workType: "Refresh",
+        substage: [
+          report.headline,
+          knowledgeEntry.pageUrl ? `Knowledge page: ${knowledgeEntry.pageUrl}` : `Knowledge page ID: ${knowledgeEntry.pageId}`,
+        ].join(" "),
+      });
+      result.notion = {
+        workQueuePageId: workQueueEntry.pageId,
+        workQueuePageUrl: workQueueEntry.pageUrl,
+        knowledgePageId: knowledgeEntry.pageId,
+        knowledgePageUrl: knowledgeEntry.pageUrl,
+      };
+    } catch (error) {
+      errors.push(`Notion write failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  if (validationErrors.length === 0 && (slackGrowthWebhookUrl || slackOpsWebhookUrl)) {
+    try {
+      const slackResult = await postSlackDigest(
+        {
+          default: slackOpsWebhookUrl ?? slackGrowthWebhookUrl ?? undefined,
+          ops: slackOpsWebhookUrl ?? undefined,
+          growth: slackGrowthWebhookUrl ?? undefined,
+        },
+        {
+          channel: "#research",
+          title,
+          sections: [
+            { heading: "Headline", items: [report.headline] },
+            { heading: `Signals (${report.signals.length})`, items: signalLines.slice(0, 5) },
+            { heading: "Competitor Updates", items: report.competitorUpdates },
+            { heading: "Technology Findings", items: report.technologyFindings },
+            { heading: "Recommended Actions", items: report.recommendedActions },
+          ],
+        },
+      );
+      result.slack = slackResult;
+      if (!slackResult.ok) {
+        errors.push(`Slack digest failed with HTTP ${slackResult.statusCode ?? "unknown"}`);
+      }
+    } catch (error) {
+      errors.push(`Slack digest failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  if (validationErrors.length > 0) errors.push(...validationErrors);
+
+  const failureReasons: string[] = [];
+  if (!result.notion?.workQueuePageId) failureReasons.push("Missing Notion Work Queue artifact.");
+  if (!result.notion?.knowledgePageId) failureReasons.push("Missing Notion Knowledge artifact.");
+  if (!result.slack?.ok) {
+    failureReasons.push(result.slack ? `Slack digest failed (HTTP ${result.slack.statusCode ?? "unknown"})` : "Missing Slack digest artifact.");
+  }
+
+  result.proofLinks = [result.notion?.workQueuePageUrl, result.notion?.knowledgePageUrl]
+    .filter((v): v is string => typeof v === "string" && v.length > 0);
+  result.failureReason = [...failureReasons, ...errors].join(" ");
+  result.success = failureReasons.length === 0 && errors.length === 0;
+  result.outcome = result.success ? "done" : "blocked";
+  result.issueComment = formatMarketIntelIssueComment(result);
+
+  // Track routine health, budget, and phase metrics
+  await updateRoutineHealth(
+    ctx,
+    companyId,
+    `market-intel-${cadence}`,
+    `Market Intel ${cadence.charAt(0).toUpperCase()}${cadence.slice(1)}`,
+    "market-intel-agent",
+    result.outcome,
+    result.failureReason,
+    asString(params.issueId),
+  );
+  await trackAgentRun(ctx, companyId, "market-intel-agent");
+  await updatePhaseMetrics(ctx, companyId, "market-intel-agent", result.outcome);
+
+  return result;
+}
+
 async function handleGithubWebhook(
   ctx: PluginContext,
   config: BlueprintAutomationConfig,
@@ -1742,6 +4238,16 @@ async function getDashboardData(ctx: PluginContext, companyId: string): Promise<
   if (!company) {
     throw new Error(`Company not found: ${companyId}`);
   }
+  const [allIssues, agents, projects] = await Promise.all([
+    listAllIssues(ctx, companyId),
+    listAgents(ctx, companyId),
+    listProjects(ctx, companyId),
+  ]);
+  const projectNameById = new Map(projects.map((project) => [project.id, project.name]));
+  const issuesWithProjectName = allIssues.map((issue) => ({
+    ...issue,
+    projectName: issue.projectId ? (projectNameById.get(issue.projectId) ?? null) : null,
+  }));
   const recentEvents = await readState<RecentEvent[]>(ctx, companyId, STATE_KEYS.recentEvents) ?? [];
   const lastScan = await readState<Record<string, unknown>>(ctx, companyId, STATE_KEYS.lastScan);
   const sourceMappings = await ctx.entities.list({
@@ -1761,6 +4267,7 @@ async function getDashboardData(ctx: PluginContext, companyId: string): Promise<
       }),
     )
   ).filter((issue): issue is Issue => !!issue);
+  const handoffAnalytics = await buildHandoffState(ctx, companyId, issuesWithProjectName, agents);
 
   return {
     companyId,
@@ -1768,6 +4275,7 @@ async function getDashboardData(ctx: PluginContext, companyId: string): Promise<
     pluginId: PLUGIN_ID,
     lastScan,
     recentEvents,
+    handoffAnalytics,
     openManagedIssues: openManagedIssues.map((issue) => ({
       id: issue.id,
       title: issue.title,
@@ -1805,6 +4313,12 @@ async function registerActionHandlers(ctx: PluginContext) {
     const config = await getConfig(ctx);
     const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
     return await runFullRepoScan(ctx, company.id, config, "manual-action");
+  });
+
+  ctx.actions.register(ACTION_KEYS.managerState, async (params) => {
+    const config = await getConfig(ctx);
+    const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
+    return await buildChiefOfStaffState(ctx, company.id, config);
   });
 
   ctx.actions.register(ACTION_KEYS.simulateSignal, async (params) => {
@@ -1853,8 +4367,25 @@ async function registerActionHandlers(ctx: PluginContext) {
   ctx.actions.register(ACTION_KEYS.analyticsReport, async (params) => {
     const config = await getConfig(ctx);
     const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
-    const cadence = asString(params.cadence) === "weekly" ? "weekly" : "daily";
-    return await buildAnalyticsOutputProof(ctx, config, company.id, cadence);
+    return await buildAnalyticsOutputProof(ctx, config, company.id, params);
+  });
+
+  ctx.actions.register(ACTION_KEYS.customerResearchReport, async (params) => {
+    const config = await getConfig(ctx);
+    const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
+    return await buildCustomerResearchOutputProof(ctx, config, company.id, params);
+  });
+
+  ctx.actions.register(ACTION_KEYS.demandIntelReport, async (params) => {
+    const config = await getConfig(ctx);
+    const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
+    return await buildDemandIntelOutputProof(ctx, config, company.id, params);
+  });
+
+  ctx.actions.register(ACTION_KEYS.marketIntelReport, async (params) => {
+    const config = await getConfig(ctx);
+    const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
+    return await buildMarketIntelOutputProof(ctx, config, company.id, params);
   });
 }
 
@@ -1879,6 +4410,36 @@ async function registerToolHandlers(ctx: PluginContext) {
       return {
         content: `Scanned ${summary.repoSummaries.length} Blueprint repos and polled ${summary.githubSummary.polled} GitHub workflow feeds.`,
         data: summary,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.managerState,
+    {
+      displayName: "Blueprint Manager State",
+      description:
+        "Read the current chief-of-staff operating snapshot across issue state, recent completions, stale work, routine health, and active agent status.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          companyName: { type: "string" },
+        },
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(
+        ctx,
+        asString((params as Record<string, unknown>).companyName) ?? config.companyName,
+      );
+      const snapshot = await buildChiefOfStaffState(ctx, company.id, config);
+      return {
+        content: [
+          `Chief of staff state: ${snapshot.summary.openIssueCount} open issues, ${snapshot.summary.blockedIssueCount} blocked, ${snapshot.summary.staleIssueCount} stale, ${snapshot.summary.recentlyCompletedCount} recently completed, ${snapshot.summary.routineAlertCount} routine alerts.`,
+          ...snapshot.nextActionHints.slice(0, 5).map((hint) => `- ${hint}`),
+        ].join("\n"),
+        data: snapshot,
       };
     },
   );
@@ -2011,8 +4572,21 @@ async function registerToolHandlers(ctx: PluginContext) {
         properties: {
           cadence: { type: "string", enum: ["daily", "weekly"] },
           companyName: { type: "string" },
+          issueId: { type: "string" },
+          headline: { type: "string" },
+          summaryBullets: { type: "array", items: { type: "string" } },
+          workflowFindings: { type: "array", items: { type: "string" } },
+          risks: { type: "array", items: { type: "string" } },
+          recommendedFollowUps: { type: "array", items: { type: "string" } },
         },
-        required: ["cadence"],
+        required: [
+          "cadence",
+          "headline",
+          "summaryBullets",
+          "workflowFindings",
+          "risks",
+          "recommendedFollowUps",
+        ],
       },
     },
     async (params): Promise<ToolResult> => {
@@ -2025,12 +4599,674 @@ async function registerToolHandlers(ctx: PluginContext) {
         asString((params as Record<string, unknown>).cadence) === "weekly"
           ? "weekly"
           : "daily";
-      const report = await buildAnalyticsOutputProof(ctx, config, company.id, cadence);
+      const report = await buildAnalyticsOutputProof(
+        ctx,
+        config,
+        company.id,
+        params as Record<string, unknown>,
+      );
       return {
         content: report.success
           ? `Generated ${cadence} analytics report with Notion and Slack outputs.`
-          : `Analytics report generation failed to produce all required outputs: ${report.errors.join("; ") || "unknown error"}.`,
+          : `Analytics report writer blocked: ${report.failureReason || report.errors.join("; ") || "unknown error"}.`,
         data: report,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.customerResearchSearch,
+    {
+      displayName: "Customer Research Search",
+      description:
+        "Run source-targeted customer research search queries for transcripts, reviews, forums, and community evidence.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string" },
+          sources: { type: "array", items: { type: "string" } },
+        },
+        required: ["query"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const searchApiKey = await resolveOptionalSecret(
+        ctx,
+        config.secrets?.searchApiKeyRef,
+        "SEARCH_API_KEY",
+      );
+      const searchApiProvider = await resolveOptionalSecret(
+        ctx,
+        config.secrets?.searchApiProviderRef,
+        "SEARCH_API_PROVIDER",
+      ) ?? "perplexity";
+      if (!searchApiKey) {
+        throw new Error("Customer research search requires SEARCH_API_KEY to be configured.");
+      }
+      const searchTools = buildWebSearchToolHandler({
+        apiKey: searchApiKey,
+        provider: searchApiProvider,
+      });
+      const result = await runCustomerResearchSearch(
+        asString((params as Record<string, unknown>).query) ?? "",
+        Array.isArray((params as Record<string, unknown>).sources)
+          ? ((params as Record<string, unknown>).sources as string[])
+          : undefined,
+        async (query) => await searchTools[TOOL_NAMES.webSearch]({ query }),
+      );
+      return {
+        content: `Customer research search completed across ${result.results.length} source-specific queries.`,
+        data: result,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.customerResearchSynthesize,
+    {
+      displayName: "Customer Research Synthesize",
+      description:
+        "Normalize customer research evidence into JTBD, personas, objections, and confidence without writing artifacts.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          evidence: { type: "array", items: { type: "object" } },
+        },
+        required: ["evidence"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const synthesis = synthesizeCustomerResearch(
+        (params as Record<string, unknown>).evidence,
+      );
+      return {
+        content: `Synthesized ${synthesis.evidence.length} evidence items into ${synthesis.jtbd.length} JTBD items and ${synthesis.personas.length} personas.`,
+        data: synthesis,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.customerResearchReport,
+    {
+      displayName: "Generate Customer Research Report",
+      description:
+        "Write a customer research artifact to Notion, post the Slack digest, and return the proof/comment payload for issue completion.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          cadence: { type: "string", enum: ["daily", "weekly", "ad_hoc"] },
+          companyName: { type: "string" },
+          issueId: { type: "string" },
+          topic: { type: "string" },
+          lane: { type: "string" },
+          headline: { type: "string" },
+          evidence: { type: "array", items: { type: "object" } },
+          recommendedActions: { type: "array", items: { type: "string" } },
+        },
+        required: ["topic", "headline", "evidence", "recommendedActions"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(
+        ctx,
+        asString((params as Record<string, unknown>).companyName) ?? config.companyName,
+      );
+      const report = await buildCustomerResearchOutputProof(
+        ctx,
+        config,
+        company.id,
+        params as Record<string, unknown>,
+      );
+      return {
+        content: report.success
+          ? "Generated customer research report with Notion and Slack outputs."
+          : `Customer research report blocked: ${report.failureReason || report.errors.join("; ") || "unknown error"}.`,
+        data: report,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.demandIntelReport,
+    {
+      displayName: "Generate Demand Intel Report",
+      description:
+        "Create a deterministic demand intelligence report from Blueprint demand-side research, write Notion artifacts, and post the companion Slack digest.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          cadence: { type: "string", enum: ["daily", "weekly"] },
+          companyName: { type: "string" },
+          issueId: { type: "string" },
+          headline: { type: "string" },
+          topic: { type: "string" },
+          lane: {
+            type: "string",
+            enum: ["robot-team-demand", "site-operator-lane", "city-demand", "cross-lane"],
+          },
+          companyOrPattern: { type: "string" },
+          city: { type: "string" },
+          signals: { type: "array", items: { type: "string" } },
+          proofRequirements: { type: "array", items: { type: "string" } },
+          channelFindings: { type: "array", items: { type: "string" } },
+          partnershipFindings: { type: "array", items: { type: "string" } },
+          recommendedActions: { type: "array", items: { type: "string" } },
+          confidence: { type: "string", enum: ["high", "medium", "low"] },
+          openQuestions: { type: "array", items: { type: "string" } },
+        },
+        required: [
+          "cadence",
+          "headline",
+          "topic",
+          "lane",
+          "companyOrPattern",
+          "signals",
+          "proofRequirements",
+          "channelFindings",
+          "partnershipFindings",
+          "recommendedActions",
+          "confidence",
+          "openQuestions",
+        ],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(
+        ctx,
+        asString((params as Record<string, unknown>).companyName) ?? config.companyName,
+      );
+      const cadence =
+        asString((params as Record<string, unknown>).cadence) === "weekly"
+          ? "weekly"
+          : "daily";
+      const report = await buildDemandIntelOutputProof(
+        ctx,
+        config,
+        company.id,
+        params as Record<string, unknown>,
+      );
+      return {
+        content: report.success
+          ? `Generated ${cadence} demand intel report with Notion and Slack outputs.`
+          : `Demand intel report writer blocked: ${report.failureReason || report.errors.join("; ") || "unknown error"}.`,
+        data: report,
+      };
+    },
+  );
+
+  // ── Market Intel Report Tool ──────────────────────────
+  ctx.tools.register(
+    TOOL_NAMES.marketIntelReport,
+    {
+      displayName: "Generate Market Intel Report",
+      description:
+        "Create a deterministic market intelligence report from agent-supplied findings, write Notion artifacts, and post Slack digest.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          cadence: { type: "string", enum: ["daily", "weekly"] },
+          companyName: { type: "string" },
+          issueId: { type: "string" },
+          headline: { type: "string" },
+          signals: { type: "array", items: { type: "object" } },
+          competitorUpdates: { type: "array", items: { type: "string" } },
+          technologyFindings: { type: "array", items: { type: "string" } },
+          recommendedActions: { type: "array", items: { type: "string" } },
+        },
+        required: ["cadence", "headline", "signals", "competitorUpdates", "technologyFindings", "recommendedActions"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, asString((params as Record<string, unknown>).companyName) ?? config.companyName);
+      const cadence = asString((params as Record<string, unknown>).cadence) === "weekly" ? "weekly" : "daily";
+      const report = await buildMarketIntelOutputProof(ctx, config, company.id, params as Record<string, unknown>);
+      return {
+        content: report.success
+          ? `Generated ${cadence} market intel report with Notion and Slack outputs.`
+          : `Market intel report writer blocked: ${report.failureReason || report.errors.join("; ") || "unknown error"}.`,
+        data: report,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.nitrosendListAudiences,
+    {
+      displayName: "Nitrosend List Audiences",
+      description: "List normalized Nitrosend audiences through the Blueprint-owned adapter.",
+      parametersSchema: {
+        type: "object",
+        properties: {},
+      },
+    },
+    async (): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const nitrosendConfig = await resolveNitrosendConfig(ctx, config);
+      if (!nitrosendConfig) {
+        throw new Error("Nitrosend adapter is not configured. Set nitrosendBaseUrl and nitrosendApiTokenRef.");
+      }
+      const result = await listNitrosendAudiences(nitrosendConfig);
+      return {
+        content: `Loaded ${result.count} Nitrosend audiences.`,
+        data: result,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.nitrosendUpsertAudience,
+    {
+      displayName: "Nitrosend Upsert Audience",
+      description: "Create or update a Nitrosend audience in draft state only.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          description: { type: "string" },
+          filters: { type: "object" },
+        },
+        required: ["name"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const nitrosendConfig = await resolveNitrosendConfig(ctx, config);
+      if (!nitrosendConfig) {
+        throw new Error("Nitrosend adapter is not configured. Set nitrosendBaseUrl and nitrosendApiTokenRef.");
+      }
+      const audience = await upsertNitrosendAudience(
+        nitrosendConfig,
+        params as Record<string, unknown>,
+      );
+      return {
+        content: `Upserted Nitrosend draft audience ${audience.name} (${audience.id}).`,
+        data: audience,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.nitrosendDraftSequence,
+    {
+      displayName: "Nitrosend Draft Sequence",
+      description: "Create a Nitrosend email sequence draft. Live sends are blocked centrally.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          audienceId: { type: "string" },
+          steps: { type: "array", items: { type: "object" } },
+        },
+        required: ["name"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const nitrosendConfig = await resolveNitrosendConfig(ctx, config);
+      if (!nitrosendConfig) {
+        throw new Error("Nitrosend adapter is not configured. Set nitrosendBaseUrl and nitrosendApiTokenRef.");
+      }
+      const sequence = await createNitrosendSequenceDraft(
+        nitrosendConfig,
+        params as Record<string, unknown>,
+      );
+      return {
+        content: `Created Nitrosend draft sequence ${sequence.name} (${sequence.id}).`,
+        data: sequence,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.nitrosendCreateCampaignDraft,
+    {
+      displayName: "Nitrosend Create Campaign Draft",
+      description: "Create a Nitrosend campaign draft. Publish/send actions remain human-gated.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          audienceId: { type: "string" },
+          sequenceId: { type: "string" },
+          content: { type: "object" },
+        },
+        required: ["name"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const nitrosendConfig = await resolveNitrosendConfig(ctx, config);
+      if (!nitrosendConfig) {
+        throw new Error("Nitrosend adapter is not configured. Set nitrosendBaseUrl and nitrosendApiTokenRef.");
+      }
+      const campaign = await createNitrosendCampaignDraft(
+        nitrosendConfig,
+        params as Record<string, unknown>,
+      );
+      return {
+        content: `Created Nitrosend campaign draft ${campaign.name} (${campaign.id}).`,
+        data: campaign,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.firehoseReadSignals,
+    {
+      displayName: "Firehose Read Signals",
+      description: "Read, normalize, dedupe, and cache Firehose signals through the Blueprint ingest bridge.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string" },
+          topics: { type: "array", items: { type: "string" } },
+          limit: { type: "number" },
+          since: { type: "string" },
+        },
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      const firehoseConfig = await resolveFirehoseConfig(ctx, config);
+      if (!firehoseConfig) {
+        throw new Error("Firehose adapter is not configured. Set firehoseBaseUrl and firehoseApiTokenRef.");
+      }
+      const result = await fetchFirehoseSignals(firehoseConfig, {
+        query: asString((params as Record<string, unknown>).query),
+        topics: Array.isArray((params as Record<string, unknown>).topics)
+          ? ((params as Record<string, unknown>).topics as string[])
+          : undefined,
+        limit: asNumber((params as Record<string, unknown>).limit),
+        since: asString((params as Record<string, unknown>).since),
+      });
+      const existing = await readState<FirehoseSignalCacheState>(
+        ctx,
+        company.id,
+        STATE_KEYS.firehoseSignalCache,
+      );
+      const cache = mergeFirehoseSignalCache(
+        existing,
+        result.signals,
+        firehoseConfig.maxSignalsPerRead ?? 100,
+      );
+      await writeState(ctx, company.id, STATE_KEYS.firehoseSignalCache, cache);
+      return {
+        content: `Loaded ${result.count} Firehose signals and updated the Blueprint cache.`,
+        data: { ...result, cacheUpdatedAt: cache.updatedAt },
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.firehoseReadBrief,
+    {
+      displayName: "Firehose Read Brief",
+      description: "Read a summarized brief from cached or freshly fetched Firehose signals.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string" },
+          topics: { type: "array", items: { type: "string" } },
+          limit: { type: "number" },
+          since: { type: "string" },
+          refresh: { type: "boolean" },
+        },
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      const firehoseConfig = await resolveFirehoseConfig(ctx, config);
+      if (!firehoseConfig) {
+        throw new Error("Firehose adapter is not configured. Set firehoseBaseUrl and firehoseApiTokenRef.");
+      }
+      const query = asString((params as Record<string, unknown>).query);
+      const shouldRefresh = (params as Record<string, unknown>).refresh === true;
+      const existing = await readState<FirehoseSignalCacheState>(
+        ctx,
+        company.id,
+        STATE_KEYS.firehoseSignalCache,
+      );
+      let signals = existing?.signals ?? [];
+      if (shouldRefresh || signals.length === 0) {
+        const refreshed = await fetchFirehoseSignals(firehoseConfig, {
+          query,
+          topics: Array.isArray((params as Record<string, unknown>).topics)
+            ? ((params as Record<string, unknown>).topics as string[])
+            : undefined,
+          limit: asNumber((params as Record<string, unknown>).limit),
+          since: asString((params as Record<string, unknown>).since),
+        });
+        const cache = mergeFirehoseSignalCache(
+          existing,
+          refreshed.signals,
+          firehoseConfig.maxSignalsPerRead ?? 100,
+        );
+        await writeState(ctx, company.id, STATE_KEYS.firehoseSignalCache, cache);
+        signals = cache.signals;
+      }
+      const brief = buildFirehoseBrief(signals, query);
+      return {
+        content: brief.headline,
+        data: brief,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.introwSearchPartners,
+    {
+      displayName: "Introw Search Partners",
+      description: "Search Introw partners through the Blueprint-owned adapter.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string" },
+          workspace: { type: "string" },
+        },
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const introwConfig = await resolveIntrowConfig(ctx, config);
+      if (!introwConfig) {
+        throw new Error("Introw adapter is not configured. Set introwBaseUrl and introwApiTokenRef.");
+      }
+      const result = await searchIntrowPartners(
+        introwConfig,
+        params as Record<string, unknown>,
+      );
+      return {
+        content: `Loaded ${result.count} Introw partner matches.`,
+        data: result,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.introwReadAccount,
+    {
+      displayName: "Introw Read Account",
+      description: "Read an Introw account through the Blueprint-owned adapter.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          accountId: { type: "string" },
+        },
+        required: ["accountId"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const introwConfig = await resolveIntrowConfig(ctx, config);
+      if (!introwConfig) {
+        throw new Error("Introw adapter is not configured. Set introwBaseUrl and introwApiTokenRef.");
+      }
+      const account = await readIntrowAccount(
+        introwConfig,
+        asString((params as Record<string, unknown>).accountId) ?? "",
+      );
+      return {
+        content: `Loaded Introw account ${account.name} (${account.id}).`,
+        data: account,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.introwCreatePartnerDraft,
+    {
+      displayName: "Introw Create Partner Draft",
+      description: "Create a draft partner record in Introw. Live partner activation is blocked centrally.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          workspace: { type: "string" },
+          notes: { type: "string" },
+          accountId: { type: "string" },
+          status: { type: "string" },
+        },
+        required: ["name"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const introwConfig = await resolveIntrowConfig(ctx, config);
+      if (!introwConfig) {
+        throw new Error("Introw adapter is not configured. Set introwBaseUrl and introwApiTokenRef.");
+      }
+      const partner = await createIntrowPartnerDraft(
+        introwConfig,
+        params as Record<string, unknown>,
+      );
+      return {
+        content: `Created Introw partner draft ${partner.name} (${partner.id}).`,
+        data: partner,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.introwUpdatePartnerDraft,
+    {
+      displayName: "Introw Update Partner Draft",
+      description: "Update a draft partner record in Introw. Live partner activation is blocked centrally.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          partnerId: { type: "string" },
+          workspace: { type: "string" },
+          notes: { type: "string" },
+          accountId: { type: "string" },
+          status: { type: "string" },
+        },
+        required: ["partnerId"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const introwConfig = await resolveIntrowConfig(ctx, config);
+      if (!introwConfig) {
+        throw new Error("Introw adapter is not configured. Set introwBaseUrl and introwApiTokenRef.");
+      }
+      const partner = await updateIntrowPartnerDraft(
+        introwConfig,
+        asString((params as Record<string, unknown>).partnerId) ?? "",
+        params as Record<string, unknown>,
+      );
+      return {
+        content: `Updated Introw partner draft ${partner.name} (${partner.id}).`,
+        data: partner,
+      };
+    },
+  );
+
+  // ── Budget, Phase & Override Tools ──────────────────
+  ctx.tools.register(
+    TOOL_NAMES.budgetStatus,
+    {
+      displayName: "Budget Status",
+      description: "Query current budget status for an agent.",
+      parametersSchema: {
+        type: "object",
+        properties: { agentKey: { type: "string" } },
+        required: ["agentKey"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      const state = await readState<BudgetTrackingState>(ctx, company.id, STATE_KEYS.budgetTracking);
+      const agentKey = asString((params as Record<string, unknown>).agentKey) ?? "";
+      const agentBudget = state?.agents[agentKey];
+      const limit = getBudgetLimit(agentKey);
+      return {
+        content: agentBudget
+          ? `${agentKey}: ${agentBudget.runs} runs, $${agentBudget.estimatedCostUsd.toFixed(2)} / $${limit} (${((agentBudget.estimatedCostUsd / limit) * 100).toFixed(0)}%)`
+          : `No budget data for ${agentKey} in period ${state?.period ?? "unknown"}.`,
+        data: { period: state?.period, agentKey, ...agentBudget, limit },
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.phaseStatus,
+    {
+      displayName: "Phase Status",
+      description: "Query current phase and graduation metrics for an agent.",
+      parametersSchema: {
+        type: "object",
+        properties: { agentKey: { type: "string" } },
+        required: ["agentKey"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      const state = await readState<PhaseTrackingState>(ctx, company.id, STATE_KEYS.phaseTracking);
+      const agentKey = asString((params as Record<string, unknown>).agentKey) ?? "";
+      const entry = state?.[agentKey];
+      if (!entry) {
+        return { content: `No phase data for ${agentKey}.`, data: { agentKey } };
+      }
+      const successRate = entry.metrics.totalRuns > 0 ? entry.metrics.successfulRuns / entry.metrics.totalRuns : 0;
+      return {
+        content: `${agentKey}: Phase ${entry.currentPhase}, ${entry.metrics.totalRuns} runs, ${(successRate * 100).toFixed(0)}% success, ${(entry.metrics.overrideRate * 100).toFixed(1)}% override rate`,
+        data: { agentKey, ...entry },
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.recordOverride,
+    {
+      displayName: "Record Override",
+      description: "Record when a human or lead overrides an agent decision.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          agentKey: { type: "string" },
+          issueId: { type: "string" },
+          reason: { type: "string" },
+        },
+        required: ["agentKey", "issueId", "reason"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      const agentKey = asString((params as Record<string, unknown>).agentKey) ?? "";
+      await recordAgentOverride(ctx, company.id, agentKey);
+      return {
+        content: `Override recorded for ${agentKey}.`,
+        data: { agentKey, issueId: asString((params as Record<string, unknown>).issueId), reason: asString((params as Record<string, unknown>).reason) },
       };
     },
   );
@@ -2120,22 +5356,16 @@ async function registerToolHandlers(ctx: PluginContext) {
   // ── Slack Tools ───────────────────────────────────────
   try {
     const config = await getConfig(ctx);
-    const slackOpsWebhookUrl = await resolveOptionalSecret(
-      ctx,
-      config.secrets?.slackOpsWebhookUrlRef,
-      "SLACK_OPS_WEBHOOK_URL",
-    );
-    const slackGrowthWebhookUrl = await resolveOptionalSecret(
-      ctx,
-      config.secrets?.slackGrowthWebhookUrlRef,
-      "SLACK_GROWTH_WEBHOOK_URL",
-    );
-    if (slackOpsWebhookUrl || slackGrowthWebhookUrl) {
-      const slackTools = buildSlackToolHandler({
-        default: slackOpsWebhookUrl ?? slackGrowthWebhookUrl ?? undefined,
-        ops: slackOpsWebhookUrl ?? undefined,
-        growth: slackGrowthWebhookUrl ?? undefined,
-      });
+    const slackTargets = await resolveSlackTargets(ctx, config);
+    if (
+      slackTargets.default
+      || slackTargets.ops
+      || slackTargets.growth
+      || slackTargets.exec
+      || slackTargets.engineering
+      || slackTargets.manager
+    ) {
+      const slackTools = buildSlackToolHandler(slackTargets);
       ctx.tools.register(
         TOOL_NAMES.slackPostDigest,
         {
@@ -2289,6 +5519,17 @@ async function runOpsQueueScanJob(ctx: PluginContext, companyId: string, config:
   return { synced, skipped: false };
 }
 
+async function runHandoffMonitorJob(ctx: PluginContext, companyId: string, config: BlueprintAutomationConfig) {
+  const [issues, agents] = await Promise.all([
+    listAllIssues(ctx, companyId),
+    listAgents(ctx, companyId),
+  ]);
+  const handoffAnalytics = await buildHandoffState(ctx, companyId, issues, agents);
+  await syncHandoffCollaboration(ctx, companyId, config, handoffAnalytics);
+
+  return handoffAnalytics.summary;
+}
+
 async function handleWebhook(ctx: PluginContext, input: PluginWebhookInput) {
   const config = await getConfig(ctx);
   const payload = (input.parsedBody ?? {}) as Record<string, unknown>;
@@ -2349,6 +5590,120 @@ const plugin: PaperclipPlugin = definePlugin({
     await registerDataHandlers(ctx);
     await registerActionHandlers(ctx);
     await registerToolHandlers(ctx);
+    ctx.events.on("agent.run.failed", async (event) => {
+      try {
+        await handleAgentRunFailureQuotaFallback(ctx, event);
+      } catch (error) {
+        ctx.logger.warn("agent.run.failed quota fallback handler failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            runId: asString(asRecord(event.payload)?.runId) ?? null,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+      try {
+        await handleChiefOfStaffRunFailureSignal(ctx, event);
+      } catch (error) {
+        ctx.logger.warn("agent.run.failed chief-of-staff wakeup failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+    });
+    ctx.events.on("issue.created", async (event) => {
+      if (!event.entityId) return;
+      try {
+        await handleChiefOfStaffIssueSignal(ctx, {
+          eventId: event.eventId,
+          companyId: event.companyId,
+          entityId: event.entityId,
+          type: "issue.created",
+        });
+      } catch (error) {
+        ctx.logger.warn("issue.created chief-of-staff wakeup failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            issueId: event.entityId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+    });
+    ctx.events.on("issue.updated", async (event) => {
+      if (!event.entityId) return;
+      try {
+        await handleChiefOfStaffIssueSignal(ctx, {
+          eventId: event.eventId,
+          companyId: event.companyId,
+          entityId: event.entityId,
+          type: "issue.updated",
+        });
+      } catch (error) {
+        ctx.logger.warn("issue.updated chief-of-staff wakeup failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            issueId: event.entityId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+    });
+    ctx.events.on("activity.logged", async (event) => {
+      try {
+        await handleChiefOfStaffActivitySignal(ctx, event);
+      } catch (error) {
+        ctx.logger.warn("activity.logged chief-of-staff wakeup failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+    });
+    ctx.events.on("agent.updated", async (event) => {
+      if (!event.entityId) return;
+      try {
+        const agent = await ctx.agents.get(event.entityId, event.companyId);
+        if (agent) {
+          await enforceWorkspaceAdapterCooldowns(ctx, event.companyId, [agent]);
+        }
+      } catch (error) {
+        ctx.logger.warn("agent.updated cooldown enforcement failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            agentId: event.entityId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+    });
+    ctx.events.on("agent.created", async (event) => {
+      if (!event.entityId) return;
+      try {
+        const agent = await ctx.agents.get(event.entityId, event.companyId);
+        if (agent) {
+          await enforceWorkspaceAdapterCooldowns(ctx, event.companyId, [agent]);
+        }
+      } catch (error) {
+        ctx.logger.warn("agent.created cooldown enforcement failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            agentId: event.entityId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+    });
     ctx.jobs.register(JOB_KEYS.repoScan, async (job) => {
       await runRepoScanJob(ctx, job);
     });
@@ -2357,6 +5712,33 @@ const plugin: PaperclipPlugin = definePlugin({
       const company = await findCompany(ctx, config.companyName);
       await runOpsQueueScanJob(ctx, company.id, config);
     });
+    ctx.jobs.register(JOB_KEYS.routineHealthCheck, async () => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      await runRoutineHealthCheck(ctx, company.id, config);
+    });
+    ctx.jobs.register(JOB_KEYS.handoffMonitor, async () => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      await runHandoffMonitorJob(ctx, company.id, config);
+    });
+    ctx.jobs.register(JOB_KEYS.quotaCooldownEnforcer, async () => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      await enforceWorkspaceAdapterCooldowns(ctx, company.id);
+    });
+    try {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      await enforceWorkspaceAdapterCooldowns(ctx, company.id);
+      await runHandoffMonitorJob(ctx, company.id, config);
+    } catch (error) {
+      ctx.logger.warn("startup automation maintenance failed", {
+        meta: {
+          stack: error instanceof Error ? error.stack : undefined,
+        },
+      });
+    }
   },
 
   async onHealth(): Promise<PluginHealthDiagnostics> {

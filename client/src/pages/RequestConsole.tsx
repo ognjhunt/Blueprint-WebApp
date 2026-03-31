@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation, useSearch } from "wouter";
 import {
@@ -12,6 +12,11 @@ import {
   Sparkles,
 } from "lucide-react";
 import { withCsrfHeader } from "@/lib/csrf";
+import { analyticsEvents } from "@/lib/analytics";
+import {
+  getDemandAttributionFromContext,
+  hasDemandAttribution,
+} from "@/lib/demandAttribution";
 import type { InboundRequestDetail } from "@/types/inbound-request";
 import {
   BUYER_TYPE_LABELS,
@@ -86,6 +91,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
   const section = activeSection(location);
   const accessToken = searchParams.get("access")?.trim() ?? "";
   const [bootstrapReady, setBootstrapReady] = useState(accessToken.length === 0);
+  const lastTrackedSectionRef = useRef("");
 
   const bootstrapMutation = useMutation({
     mutationFn: async () => {
@@ -127,7 +133,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
     () => [
       { id: "overview", label: "Overview", href: `/requests/${params.requestId}` },
       { id: "evidence", label: "Evidence", href: `/requests/${params.requestId}/evidence` },
-      { id: "qualification", label: "Qualification", href: `/requests/${params.requestId}/qualification` },
+      { id: "qualification", label: "Review", href: `/requests/${params.requestId}/qualification` },
       { id: "preview", label: "Preview", href: `/requests/${params.requestId}/preview` },
     ],
     [params.requestId]
@@ -170,17 +176,35 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
   }
 
   const request = requestQuery.data;
+  const reviewDemandAttribution = getDemandAttributionFromContext(request.context);
   const readiness = request.deployment_readiness;
   const ops = request.ops;
   const trustScore = readiness?.buyer_trust_score;
   const previewRun = readiness?.provider_run;
   const missingEvidence = readiness?.missing_evidence || [];
 
+  useEffect(() => {
+    const trackingKey = `${request.requestId}:${section}`;
+    if (lastTrackedSectionRef.current === trackingKey) {
+      return;
+    }
+
+    lastTrackedSectionRef.current = trackingKey;
+    analyticsEvents.buyerReviewViewed({
+      section,
+      buyerType: request.request.buyerType,
+      requestedLaneCount: request.request.requestedLanes.length,
+      demandAttribution: hasDemandAttribution(reviewDemandAttribution)
+        ? reviewDemandAttribution
+        : undefined,
+    });
+  }, [request, reviewDemandAttribution, section]);
+
   const sectionTitle =
     section === "evidence"
       ? "Evidence bundle"
       : section === "qualification"
-      ? "Qualification review"
+      ? "Readiness review"
       : section === "preview"
       ? "Preview and provenance"
       : "Request overview";
@@ -202,7 +226,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
             </div>
             <div className="grid min-w-[260px] gap-3 sm:grid-cols-2 lg:grid-cols-1">
               <div className={`rounded-2xl border px-4 py-3 text-sm ${toneClasses(statusTone(request.qualification_state))}`}>
-                Qualification: {REQUEST_STATUS_LABELS[request.qualification_state]}
+                Readiness: {REQUEST_STATUS_LABELS[request.qualification_state]}
               </div>
               <div className={`rounded-2xl border px-4 py-3 text-sm ${toneClasses(statusTone(ops?.capture_status))}`}>
                 Capture: {REQUEST_CAPTURE_STATUS_LABELS[ops?.capture_status || "not_requested"]}
@@ -295,7 +319,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                       </div>
                     </div>
                     <p className="mt-2 text-sm text-zinc-600">
-                      {trustScore ? `${trustScore.band} confidence` : "The qualification summary is still being finalized."}
+                      {trustScore ? `${trustScore.band} confidence` : "The readiness summary is still being finalized."}
                     </p>
                     {trustScore?.reasons?.length ? (
                       <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-zinc-700">
@@ -362,7 +386,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
               </div>
               <div className="mt-5 space-y-3">
                 <div className={`rounded-2xl border px-4 py-3 text-sm ${toneClasses(statusTone(request.qualification_state))}`}>
-                  Qualification: {REQUEST_STATUS_LABELS[request.qualification_state]}
+                  Readiness: {REQUEST_STATUS_LABELS[request.qualification_state]}
                 </div>
                 <div className={`rounded-2xl border px-4 py-3 text-sm ${toneClasses(statusTone(request.opportunity_state))}`}>
                   Opportunity: {OPPORTUNITY_STATE_LABELS[request.opportunity_state]}
@@ -391,10 +415,10 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                 <h2 className="text-lg font-semibold text-zinc-950">Next Lane</h2>
               </div>
               <p className="mt-4 text-sm leading-6 text-zinc-700">
-                {ops?.next_step || "Blueprint will route the next lane once the qualification record is stable."}
+                {ops?.next_step || "Blueprint will route the next lane once the readiness record is stable."}
               </p>
               <div className="mt-4 rounded-2xl bg-zinc-50 p-4 text-sm text-zinc-600">
-                Preview generation and world-model delivery remain downstream of the qualification record and do not replace it as source of truth.
+                Preview generation and world-model delivery remain downstream of the readiness record and do not replace it as source of truth.
               </div>
             </section>
 

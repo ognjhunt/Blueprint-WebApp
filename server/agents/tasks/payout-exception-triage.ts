@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { getStructuredAutomationProvider, getTaskModelByProvider } from "../provider-config";
 import type { StructuredTaskDefinition } from "../types";
 
 export const payoutExceptionOutputSchema = z.object({
@@ -38,13 +39,8 @@ export const payoutExceptionTriageTask: StructuredTaskDefinition<
   z.infer<typeof payoutExceptionOutputSchema>
 > = {
   kind: "payout_exception_triage",
-  default_provider: "openai_responses",
-  model_by_provider: {
-    openai_responses:
-      process.env.OPENAI_PAYOUT_EXCEPTION_MODEL ||
-      process.env.OPENAI_DEFAULT_MODEL ||
-      "gpt-5.4",
-  },
+  default_provider: getStructuredAutomationProvider(),
+  model_by_provider: getTaskModelByProvider("payout_exception_triage"),
   output_schema: payoutExceptionOutputSchema,
   tool_policy: {
     mode: "api",

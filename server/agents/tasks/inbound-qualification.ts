@@ -4,6 +4,7 @@ import type {
   OpportunityState,
   QualificationState,
 } from "../../types/inbound-request";
+import { getStructuredAutomationProvider, getTaskModelByProvider } from "../provider-config";
 import type { StructuredTaskDefinition } from "../types";
 
 const qualificationStateEnum = z.enum([
@@ -29,6 +30,12 @@ const buyerFollowUpSchema = z.object({
   subject: z.string().min(1).max(200),
   body: z.string().min(1).max(4000),
 });
+
+const proofPathPreferenceEnum = z.enum([
+  "exact_site_required",
+  "adjacent_site_acceptable",
+  "need_guidance",
+]);
 
 export const inboundQualificationOutputSchema = z.object({
   automation_status: z.enum(["completed", "blocked"]),
@@ -60,6 +67,10 @@ export type InboundQualificationTaskInput = {
   siteName: string;
   siteLocation: string;
   taskStatement: string;
+  targetSiteType?: string | null;
+  proofPathPreference?: z.infer<typeof proofPathPreferenceEnum> | null;
+  existingStackReviewWorkflow?: string | null;
+  humanGateTopics?: string | null;
   workflowContext?: string | null;
   operatingConstraints?: string | null;
   privacySecurityConstraints?: string | null;
@@ -77,13 +88,8 @@ export const inboundQualificationTask: StructuredTaskDefinition<
   InboundQualificationOutput
 > = {
   kind: "inbound_qualification",
-  default_provider: "openai_responses",
-  model_by_provider: {
-    openai_responses:
-      process.env.OPENAI_INBOUND_QUALIFICATION_MODEL ||
-      process.env.OPENAI_DEFAULT_MODEL ||
-      "gpt-5.4",
-  },
+  default_provider: getStructuredAutomationProvider(),
+  model_by_provider: getTaskModelByProvider("inbound_qualification"),
   output_schema: inboundQualificationOutputSchema,
   tool_policy: {
     mode: "api",
@@ -100,7 +106,12 @@ Rules:
 - Do not make binding commercial or legal decisions.
 - Set requires_human_review=true when automation_status="blocked".
 - Set requires_human_review=true when recommending "qualified_ready" or "qualified_risky" because those recommendations can change buyer-facing commitments.
-- If the request has rights, licensing, privacy, payout, or unclear evidence concerns, use automation_status="blocked".
+- Treat roleTitle as the buyer role when it is present.
+- Confirm the buyer role, targetSiteType, immediate workflow question, and proofPathPreference before recommending a fast proof path.
+- If proofPathPreference="exact_site_required" and the request does not yet identify usable exact-site evidence, do not recommend "qualified_ready".
+- If targetSiteType or proofPathPreference is missing for a robot-team request, list that in missing_information.
+- Existing stack or review workflow constraints should shape the buyer follow-up so the next reply fits the buyer's current tooling.
+- If the request has rights, licensing, privacy, payout, delivery-scope, commercial, or unclear evidence concerns, use automation_status="blocked".
 - When automation_status="blocked", set block_reason_code to a short snake_case reason and retryable=true only when new buyer evidence could unblock the request.
 - Only recommend "qualified_ready" when the request is unusually clear, low-risk, and already has enough detail to move confidently.
 - Prefer "in_review" or "needs_more_evidence" when information is incomplete.

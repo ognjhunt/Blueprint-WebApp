@@ -1,4 +1,9 @@
 import type { EncryptableString } from "./field-encryption";
+import type {
+  BuyerChannelSource,
+  BuyerChannelSourceCaptureMode,
+} from "../../client/src/lib/demandAttribution";
+import type { DemandCityKey } from "../../client/src/lib/cityDemandMessaging";
 
 /**
  * Types for the qualification-first submission and review system.
@@ -13,6 +18,11 @@ export type BudgetBucket =
   | "Undecided/Unsure";
 
 export type BuyerType = "site_operator" | "robot_team";
+
+export type ProofPathPreference =
+  | "exact_site_required"
+  | "adjacent_site_acceptable"
+  | "need_guidance";
 
 export type RequestedLane =
   | "qualification"
@@ -67,6 +77,10 @@ export interface UTMParams {
 export interface RequestContext {
   sourcePageUrl: string;
   referrer?: string | null;
+  demandCity?: DemandCityKey | null;
+  buyerChannelSource?: BuyerChannelSource | null;
+  buyerChannelSourceCaptureMode?: BuyerChannelSourceCaptureMode | null;
+  buyerChannelSourceRaw?: string | null;
   utm: UTMParams;
   userAgent?: string | null;
   timezoneOffset?: number | null;
@@ -93,6 +107,10 @@ export interface RequestDetails {
   siteName: string;
   siteLocation: string;
   taskStatement: string;
+  targetSiteType?: string | null;
+  proofPathPreference?: ProofPathPreference | null;
+  existingStackReviewWorkflow?: string | null;
+  humanGateTopics?: string | null;
   workflowContext?: string | null;
   operatingConstraints?: string | null;
   privacySecurityConstraints?: string | null;
@@ -292,6 +310,29 @@ export interface BuyerReviewAccess {
   last_sent_at?: FirebaseFirestore.Timestamp | string | null;
 }
 
+export interface ProofPathMilestones {
+  exact_site_requested_at?: FirebaseFirestore.Timestamp | string | null;
+  qualified_inbound_at?: FirebaseFirestore.Timestamp | string | null;
+  proof_pack_delivered_at?: FirebaseFirestore.Timestamp | string | null;
+  proof_pack_reviewed_at?: FirebaseFirestore.Timestamp | string | null;
+  hosted_review_ready_at?: FirebaseFirestore.Timestamp | string | null;
+  hosted_review_started_at?: FirebaseFirestore.Timestamp | string | null;
+  hosted_review_follow_up_at?: FirebaseFirestore.Timestamp | string | null;
+  artifact_handoff_delivered_at?: FirebaseFirestore.Timestamp | string | null;
+  artifact_handoff_accepted_at?: FirebaseFirestore.Timestamp | string | null;
+  human_commercial_handoff_at?: FirebaseFirestore.Timestamp | string | null;
+}
+
+export type ProofPathMilestoneKey =
+  | "proof_pack_delivered"
+  | "proof_pack_reviewed"
+  | "hosted_review_ready"
+  | "hosted_review_started"
+  | "hosted_review_follow_up"
+  | "artifact_handoff_delivered"
+  | "artifact_handoff_accepted"
+  | "human_commercial_handoff";
+
 export interface OpsSummary {
   assigned_region_id?: string | null;
   rights_status?: RequestRightsStatus;
@@ -301,6 +342,7 @@ export interface OpsSummary {
   quote_status?: RequestQuoteStatus;
   next_step?: string | null;
   last_buyer_ready_at?: FirebaseFirestore.Timestamp | string | null;
+  proof_path?: ProofPathMilestones | null;
 }
 
 export interface PrivacyProcessingSummary {
@@ -427,6 +469,10 @@ export interface RequestDetailsStored {
   siteName: EncryptableString;
   siteLocation: EncryptableString;
   taskStatement: EncryptableString;
+  targetSiteType?: EncryptableString | null;
+  proofPathPreference?: ProofPathPreference | null;
+  existingStackReviewWorkflow?: EncryptableString | null;
+  humanGateTopics?: EncryptableString | null;
   workflowContext?: EncryptableString | null;
   operatingConstraints?: EncryptableString | null;
   privacySecurityConstraints?: EncryptableString | null;
@@ -459,6 +505,10 @@ export interface InboundRequestPayload {
   siteName?: string;
   siteLocation?: string;
   taskStatement?: string;
+  targetSiteType?: string;
+  proofPathPreference?: ProofPathPreference;
+  existingStackReviewWorkflow?: string;
+  humanGateTopics?: string;
   workflowContext?: string;
   operatingConstraints?: string;
   privacySecurityConstraints?: string;
@@ -472,6 +522,10 @@ export interface InboundRequestPayload {
   context: {
     sourcePageUrl: string;
     referrer?: string;
+    demandCity?: DemandCityKey | null;
+    buyerChannelSource?: BuyerChannelSource | null;
+    buyerChannelSourceCaptureMode?: BuyerChannelSourceCaptureMode | null;
+    buyerChannelSourceRaw?: string | null;
     utm: UTMParams;
     timezoneOffset?: number;
     locale?: string;
@@ -617,5 +671,7 @@ export interface UpdateRequestOpsPayload {
   recapture_reason?: string | null;
   quote_status?: RequestQuoteStatus;
   next_step?: string | null;
+  proof_path_stage?: ProofPathMilestoneKey | null;
+  proof_path_stage_action?: "mark" | "clear";
   note?: string;
 }

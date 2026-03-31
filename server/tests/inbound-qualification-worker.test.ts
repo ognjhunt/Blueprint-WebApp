@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const runAgentTask = vi.hoisted(() => vi.fn());
 const inboundSet = vi.hoisted(() => vi.fn());
+const executePhase2WorkflowActions = vi.hoisted(() => vi.fn());
 
 const fakeDb = {
   collection: vi.fn((name: string) => {
@@ -35,9 +36,35 @@ vi.mock("../agents/runtime", () => ({
   runAgentTask,
 }));
 
+vi.mock("../agents/phase2-workflow", () => ({
+  createPhase2RoutingPolicy: (lane: string) => ({
+    lane,
+    autoApproveCriteria: () => true,
+    alwaysHumanReview: () => false,
+    maxDailyAutoSends: 1000,
+    contentChecks: false,
+  }),
+  makeWorkflowDraftStatePatch: (params: { lane: string; queue: string; nextAction: string }) => ({
+    phase2_action_state: "draft_ready",
+    phase2_action_type: "draft",
+    phase2_action_tier: null,
+    phase2_action_idempotency_key: null,
+    phase2_action_ledger_ref: null,
+    phase2_action_error: null,
+    phase2_action_auto_approve_reason: null,
+    phase2_action_executed_at: null,
+    phase2_actions: [],
+    phase2_lane: params.lane,
+    queue: params.queue,
+    next_action: params.nextAction,
+  }),
+  executePhase2WorkflowActions,
+}));
+
 afterEach(() => {
   runAgentTask.mockReset();
   inboundSet.mockReset();
+  executePhase2WorkflowActions.mockReset();
   vi.resetModules();
 });
 
@@ -65,6 +92,10 @@ const inboundRequest = {
     siteName: "Durham Facility",
     siteLocation: "Durham, NC",
     taskStatement: "Review a picking workflow.",
+    targetSiteType: "Warehouse picking aisle",
+    proofPathPreference: "exact_site_required",
+    existingStackReviewWorkflow: "Hosted review before simulator ingestion.",
+    humanGateTopics: "Rights review and delivery scope.",
     workflowContext: "Backroom handoff.",
     operatingConstraints: "Restricted dock access.",
     privacySecurityConstraints: "No locker-room cameras.",
@@ -122,19 +153,40 @@ describe("inbound qualification worker", () => {
     });
 
     const { runInboundQualificationForRequest } = await import("../agents/workflows");
+    executePhase2WorkflowActions.mockResolvedValue({
+      records: [],
+      lastResult: null,
+      lastState: "sent",
+    });
     const result = await runInboundQualificationForRequest(inboundRequest);
 
     expect(result.qualification_state_recommendation).toBe("needs_more_evidence");
     expect(runAgentTask).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: "inbound_qualification",
+        input: expect.objectContaining({
+          targetSiteType: "Warehouse picking aisle",
+          proofPathPreference: "exact_site_required",
+          existingStackReviewWorkflow: "Hosted review before simulator ingestion.",
+          humanGateTopics: "Rights review and delivery scope.",
+        }),
+      }),
+    );
+    expect(executePhase2WorkflowActions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lane: "inbound",
+        sourceCollection: "inboundRequests",
+        sourceDocId: "request-1",
       }),
     );
     expect(inboundSet).toHaveBeenCalledWith(
       expect.objectContaining({
         human_review_required: true,
+        automation_confidence: 0.83,
+        status: "needs_more_evidence",
         ops_automation: expect.objectContaining({
-          requires_human_review: true,
+          phase2_lane: "inbound",
+          phase2_action_state: "draft_ready",
         }),
       }),
       { merge: true },

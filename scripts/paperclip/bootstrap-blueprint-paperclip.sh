@@ -167,7 +167,7 @@ find_company_id() {
 company_has_required_refresh_marker() {
   local company_id="$1"
   curl -fsS "${PAPERCLIP_API_URL}/api/companies/${company_id}/routines" \
-    | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const required=["CTO Cross-Repo Triage","Ops Lead Morning","Growth Lead Weekly","Market Intel Weekly"];const exists=required.every((title)=>rows.some((row)=>row.title===title));process.stdout.write(exists?"yes":"no");});'
+    | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const required=["CTO Cross-Repo Triage","Ops Lead Morning","Growth Lead Weekly","Market Intel Weekly","Demand Intel Weekly","Robot Team Growth Weekly","City Demand Weekly"];const exists=required.every((title)=>rows.some((row)=>row.title===title));process.stdout.write(exists?"yes":"no");});'
 }
 
 package_fingerprint() {

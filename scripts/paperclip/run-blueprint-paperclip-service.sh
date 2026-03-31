@@ -13,6 +13,7 @@ fi
 
 export PATH="$HOME/.bun/bin:/opt/homebrew/bin:$PATH"
 
+PAPERCLIP_DIR="${PAPERCLIP_DIR:-$WORKSPACE_ROOT/paperclip}"
 PAPERCLIP_HOME="${PAPERCLIP_HOME:-$WORKSPACE_ROOT/.paperclip-blueprint}"
 PAPERCLIP_INSTANCE_ID="${PAPERCLIP_INSTANCE_ID:-default}"
 PAPERCLIP_HOST="${PAPERCLIP_HOST:-127.0.0.1}"
@@ -20,17 +21,49 @@ PAPERCLIP_PORT="${PAPERCLIP_PORT:-3100}"
 PAPERCLIP_PUBLIC_URL="${PAPERCLIP_PUBLIC_URL:-http://${PAPERCLIP_HOST}:${PAPERCLIP_PORT}}"
 INSTANCE_ROOT="$PAPERCLIP_HOME/instances/$PAPERCLIP_INSTANCE_ID"
 CONFIG_PATH="$INSTANCE_ROOT/config.json"
+PAPERCLIP_RUNNER="npx"
+
+if [ "${BLUEPRINT_PAPERCLIP_USE_LOCAL_RUNNER:-0}" = "1" ] \
+  && [ -d "$PAPERCLIP_DIR" ] \
+  && [ -f "$PAPERCLIP_DIR/package.json" ] \
+  && [ -d "$PAPERCLIP_DIR/node_modules" ] \
+  && [ -f "$PAPERCLIP_DIR/cli/node_modules/tsx/dist/cli.mjs" ]; then
+  PAPERCLIP_RUNNER="local"
+fi
 
 mkdir -p "$PAPERCLIP_HOME"
 
 if [ ! -f "$CONFIG_PATH" ]; then
-  env \
+  if [ "$PAPERCLIP_RUNNER" = "local" ]; then
+    (
+      cd "$PAPERCLIP_DIR"
+      env \
+        PAPERCLIP_HOME="$PAPERCLIP_HOME" \
+        PAPERCLIP_INSTANCE_ID="$PAPERCLIP_INSTANCE_ID" \
+        PAPERCLIP_PUBLIC_URL="$PAPERCLIP_PUBLIC_URL" \
+        HOST="$PAPERCLIP_HOST" \
+        PORT="$PAPERCLIP_PORT" \
+        pnpm paperclipai onboard --data-dir "$PAPERCLIP_HOME" --yes >/dev/null
+    )
+  else
+    env \
+      PAPERCLIP_HOME="$PAPERCLIP_HOME" \
+      PAPERCLIP_INSTANCE_ID="$PAPERCLIP_INSTANCE_ID" \
+      PAPERCLIP_PUBLIC_URL="$PAPERCLIP_PUBLIC_URL" \
+      HOST="$PAPERCLIP_HOST" \
+      PORT="$PAPERCLIP_PORT" \
+      npx -y paperclipai onboard --data-dir "$PAPERCLIP_HOME" --yes >/dev/null
+  fi
+fi
+
+if [ "$PAPERCLIP_RUNNER" = "local" ]; then
+  exec env \
     PAPERCLIP_HOME="$PAPERCLIP_HOME" \
     PAPERCLIP_INSTANCE_ID="$PAPERCLIP_INSTANCE_ID" \
     PAPERCLIP_PUBLIC_URL="$PAPERCLIP_PUBLIC_URL" \
     HOST="$PAPERCLIP_HOST" \
     PORT="$PAPERCLIP_PORT" \
-    npx -y paperclipai onboard --data-dir "$PAPERCLIP_HOME" --yes >/dev/null
+    bash -lc "cd \"$PAPERCLIP_DIR\" && exec pnpm paperclipai run --data-dir \"$PAPERCLIP_HOME\""
 fi
 
 exec env \

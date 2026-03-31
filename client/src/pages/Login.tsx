@@ -153,8 +153,15 @@ export default function Login() {
             and track payouts.
           </p>
           <a
-            href="/capture-app"
+            href="/signup/capturer"
             className="mt-3 inline-flex min-h-11 items-center font-semibold text-indigo-600 hover:text-indigo-500"
+          >
+            Apply for capturer access
+            <ArrowRight className="ml-1 h-4 w-4" />
+          </a>
+          <a
+            href="/capture-app"
+            className="mt-2 inline-flex min-h-11 items-center font-semibold text-indigo-600 hover:text-indigo-500"
           >
             Open the capture app page
             <ArrowRight className="ml-1 h-4 w-4" />

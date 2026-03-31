@@ -1,11 +1,14 @@
 import { SEO } from "@/components/SEO";
 import { ProofModule } from "@/components/site/ProofModule";
+import { getDemandCityMessaging, withDemandCityQuery } from "@/lib/cityDemandMessaging";
 import {
   proofReferenceImageSrc,
   proofReelPosterSrc,
   publicDemoHref,
 } from "@/lib/marketingProof";
 import { ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react";
+import { useMemo } from "react";
+import { useSearch } from "wouter";
 
 const proofRoutes = [
   {
@@ -52,6 +55,10 @@ const trustSignals = [
 ];
 
 export default function Proof() {
+  const search = useSearch();
+  const searchParams = useMemo(() => new URLSearchParams(search), [search]);
+  const cityMessaging = getDemandCityMessaging(searchParams.get("city"));
+
   return (
     <>
       <SEO
@@ -74,6 +81,32 @@ export default function Proof() {
               gets, and how others have used it for evaluation and deployment prep.
             </p>
           </header>
+
+          {cityMessaging ? (
+            <section className="mt-8 rounded-2xl border border-sky-200 bg-sky-50/80 p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
+                {cityMessaging.label}
+              </p>
+              <div className="mt-3 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+                <div>
+                  <h2 className="text-2xl font-semibold text-slate-950">
+                    {cityMessaging.proofHeading}
+                  </h2>
+                  <p className="mt-3 text-sm leading-7 text-slate-700">
+                    {cityMessaging.proofBody}
+                  </p>
+                </div>
+                <ul className="space-y-3 text-sm leading-6 text-slate-700">
+                  {cityMessaging.proofPoints.map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <span className="mt-2 h-1.5 w-1.5 rounded-full bg-sky-700" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </section>
+          ) : null}
 
           <div className="mt-10">
             <ProofModule
@@ -188,7 +221,7 @@ export default function Proof() {
               Explore world models
             </a>
             <a
-              href="/contact?persona=robot-team"
+              href={withDemandCityQuery("/contact?persona=robot-team", cityMessaging?.key ?? null)}
               className="inline-flex items-center justify-center rounded-full border border-transparent px-3 py-3 text-sm font-semibold text-slate-700 transition hover:text-slate-950"
             >
               Contact Blueprint

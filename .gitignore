@@ -31,3 +31,6 @@ coverage/
 .tmp/
 test-results/
 playwright-report/
+
+# Git worktrees
+.worktrees/

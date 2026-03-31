@@ -1,7 +1,7 @@
 ---
 name: CEO Daily Review
 project: blueprint-webapp
-assignee: ceo
+assignee: blueprint-ceo
 recurring: true
 ---
 

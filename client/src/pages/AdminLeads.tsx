@@ -13,7 +13,12 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
+import {
+  getDemandAttributionFromContext,
+  hasDemandAttribution,
+} from "@/lib/demandAttribution";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   OPPORTUNITY_STATES,
@@ -24,6 +29,7 @@ import type {
   InboundRequestDetail,
   InboundRequestListItem,
   OpportunityState,
+  ProofPathMilestoneKey,
   QualificationState,
   RequestPriority,
   SceneDashboardSummary,
@@ -31,6 +37,8 @@ import type {
 } from "@/types/inbound-request";
 import {
   BUYER_TYPE_LABELS as buyerTypeLabels,
+  PROOF_PATH_MILESTONE_LABELS as proofPathMilestoneLabels,
+  PROOF_PATH_PREFERENCE_LABELS as proofPathPreferenceLabels,
   REQUEST_CAPTURE_POLICY_LABELS as capturePolicyLabels,
   REQUEST_CAPTURE_STATUS_LABELS as captureStatusLabels,
   OPPORTUNITY_STATE_LABELS as opportunityStateLabels,
@@ -70,6 +78,20 @@ const nextActionColors: Record<SceneDashboardSummary["categories"]["pick"]["task
   redesign: "bg-blue-100 text-blue-700",
   defer: "bg-rose-100 text-rose-700",
 };
+
+const proofPathStageButtons: Array<{
+  stage: ProofPathMilestoneKey;
+  label: string;
+}> = [
+  { stage: "proof_pack_delivered", label: "Mark proof pack delivered" },
+  { stage: "proof_pack_reviewed", label: "Mark proof pack reviewed" },
+  { stage: "hosted_review_ready", label: "Mark hosted review ready" },
+  { stage: "hosted_review_started", label: "Mark hosted review started" },
+  { stage: "hosted_review_follow_up", label: "Mark hosted follow-up" },
+  { stage: "artifact_handoff_delivered", label: "Mark artifact handoff delivered" },
+  { stage: "artifact_handoff_accepted", label: "Mark artifact handoff accepted" },
+  { stage: "human_commercial_handoff", label: "Mark human commercial handoff" },
+];
 
 interface LeadsResponse {
   leads: InboundRequestListItem[];
@@ -150,6 +172,147 @@ interface WaitlistAutomationRunResponse {
   }>;
 }
 
+interface ActionQueueItem {
+  id: string;
+  status: "pending_approval" | "failed" | string;
+  lane: string;
+  action_type: string;
+  source_collection: string;
+  source_doc_id: string;
+  action_tier: number;
+  idempotency_key: string;
+  auto_approve_reason: string | null;
+  approval_reason: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  rejected_by: string | null;
+  rejected_reason: string | null;
+  execution_attempts: number;
+  last_execution_error: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  sent_at: string | null;
+  last_execution_at: string | null;
+  action_payload: Record<string, unknown>;
+  draft_output: Record<string, unknown>;
+}
+
+interface ActionQueueResponse {
+  items: ActionQueueItem[];
+  summary: {
+    total: number;
+    pending_approval: number;
+    failed: number;
+  };
+}
+
+interface FieldOpsJob {
+  id: string;
+  title: string;
+  address: string;
+  status: string;
+  buyer_request_id: string | null;
+  marketplace_state: string | null;
+  rights_status: string | null;
+  capture_policy_tier: string | null;
+  field_ops: Record<string, any>;
+  site_access: Record<string, any>;
+  updated_at: string | null;
+}
+
+interface FieldOpsJobsResponse {
+  jobs: FieldOpsJob[];
+}
+
+interface CapturerCandidate {
+  uid: string;
+  name: string | null;
+  email: string | null;
+  phone_number: string | null;
+  market: string | null;
+  availability: string | null;
+  equipment: string[];
+  totalCaptures: number;
+  approvedCaptures: number;
+  avgQuality: number;
+  score: number;
+  score_breakdown: {
+    market: number;
+    availability: number;
+    equipment: number;
+    quality: number;
+    reliability: number;
+  };
+  travel_estimate_minutes: number | null;
+  travel_estimate_source: string;
+}
+
+interface CapturerCandidatesResponse {
+  candidates: CapturerCandidate[];
+}
+
+interface SiteAccessContact {
+  id?: string;
+  email: string;
+  name: string | null;
+  source: string;
+  company: string | null;
+  roleTitle: string | null;
+  phone_number?: string | null;
+  verification_status?: string | null;
+  permission_state?: string | null;
+  last_outreach_at?: string | null;
+  last_response_at?: string | null;
+  notes?: string | null;
+}
+
+interface SiteAccessContactsResponse {
+  contacts: SiteAccessContact[];
+}
+
+interface RescheduleQueueItem {
+  id: string;
+  businessName: string;
+  email: string;
+  current_date: string | null;
+  current_time: string | null;
+  requested_date: string | null;
+  requested_time: string | null;
+  requested_by: string | null;
+  status: string;
+  reason: string | null;
+}
+
+interface RescheduleQueueResponse {
+  items: RescheduleQueueItem[];
+}
+
+interface FinanceQueueItem {
+  id: string;
+  status: string;
+  creator_id: string | null;
+  capture_id: string | null;
+  stripe_payout_id: string | null;
+  failure_reason: string | null;
+  queue: string | null;
+  ops_automation: Record<string, unknown>;
+  finance_review: Record<string, unknown>;
+  updated_at: string | null;
+}
+
+interface SiteAccessContactFormState {
+  name: string;
+  email: string;
+  company: string;
+  roleTitle: string;
+  phoneNumber: string;
+  notes: string;
+}
+
+interface FinanceQueueResponse {
+  items: FinanceQueueItem[];
+}
+
 function formatDate(dateString: string) {
   const date = new Date(dateString);
   return date.toLocaleString("en-US", {
@@ -160,21 +323,77 @@ function formatDate(dateString: string) {
   });
 }
 
+function formatActionPreview(item: ActionQueueItem) {
+  const payload = item.action_payload || {};
+  const subject =
+    typeof payload.subject === "string" && payload.subject.trim()
+      ? payload.subject.trim()
+      : "";
+  const body =
+    typeof payload.body === "string" && payload.body.trim()
+      ? payload.body.trim()
+      : "";
+  const message =
+    typeof payload.message === "string" && payload.message.trim()
+      ? payload.message.trim()
+      : "";
+
+  const preview = (value: string) =>
+    value.length > 240 ? `${value.slice(0, 240)}…` : value;
+
+  if (subject || body) {
+    return preview(`${subject || "Draft"}${body ? ` · ${body}` : ""}`);
+  }
+
+  if (message) {
+    return preview(message);
+  }
+
+  if (typeof payload.queue === "string" && payload.queue.trim()) {
+    return preview(`Route to ${payload.queue.trim()}`);
+  }
+
+  return preview(item.approval_reason || item.auto_approve_reason || "No preview available.");
+}
+
+function formatStringList(value: unknown) {
+  if (!Array.isArray(value)) {
+    return "";
+  }
+
+  return value
+    .filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
+    .join(", ");
+}
+
 export default function AdminLeads() {
   const { currentUser, userData, tokenClaims } = useAuth();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
-  const [activeView, setActiveView] = useState<"submissions" | "waitlist" | "agent">("submissions");
+  const [activeView, setActiveView] = useState<
+    "submissions" | "waitlist" | "approvals" | "field_ops" | "agent"
+  >("submissions");
   const [qualificationFilter, setQualificationFilter] = useState<QualificationState | "">("");
   const [priorityFilter, setPriorityFilter] = useState<RequestPriority | "">("");
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [selectedWaitlistSubmissionId, setSelectedWaitlistSubmissionId] = useState<string | null>(null);
+  const [selectedCaptureJobId, setSelectedCaptureJobId] = useState<string | null>(null);
   const [waitlistRoleFilter, setWaitlistRoleFilter] = useState("");
   const [waitlistDeviceFilter, setWaitlistDeviceFilter] = useState("");
   const [waitlistStatusFilter, setWaitlistStatusFilter] = useState("");
   const [waitlistQueueFilter, setWaitlistQueueFilter] = useState("");
   const [waitlistSearch, setWaitlistSearch] = useState("");
   const [note, setNote] = useState("");
+  const [siteAccessReviewNotes, setSiteAccessReviewNotes] = useState("");
+  const [siteAccessDecisionSummary, setSiteAccessDecisionSummary] = useState("");
+  const [siteAccessContactForm, setSiteAccessContactForm] = useState<SiteAccessContactFormState>({
+    name: "",
+    email: "",
+    company: "",
+    roleTitle: "",
+    phoneNumber: "",
+    notes: "",
+  });
 
   const isAdmin = hasAnyRole(["admin", "ops"], userData, tokenClaims);
 
@@ -310,10 +529,25 @@ export default function AdminLeads() {
       if (!response.ok) throw new Error("Failed to update ops state");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, payload) => {
       queryClient.invalidateQueries({ queryKey: ["admin-submissions"] });
       queryClient.invalidateQueries({ queryKey: ["admin-submission-detail"] });
       setNote("");
+      if (!selectedLead || !payload.proof_path_stage) {
+        return;
+      }
+
+      const demandAttribution = getDemandAttributionFromContext(selectedLead.context);
+      analyticsEvents.proofPathStageUpdated({
+        proofPathStage: payload.proof_path_stage,
+        action: payload.proof_path_stage_action || "mark",
+        eventOrigin: "admin_ops",
+        buyerType: selectedLead.request.buyerType,
+        requestedLaneCount: selectedLead.request.requestedLanes.length,
+        demandAttribution: hasDemandAttribution(demandAttribution)
+          ? demandAttribution
+          : undefined,
+      });
     },
   });
 
@@ -328,6 +562,21 @@ export default function AdminLeads() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-submission-detail"] });
+      if (!selectedLead) {
+        return;
+      }
+
+      const demandAttribution = getDemandAttributionFromContext(selectedLead.context);
+      analyticsEvents.proofPathStageUpdated({
+        proofPathStage: "hosted_review_ready",
+        action: "mark",
+        eventOrigin: "admin_review_link",
+        buyerType: selectedLead.request.buyerType,
+        requestedLaneCount: selectedLead.request.requestedLanes.length,
+        demandAttribution: hasDemandAttribution(demandAttribution)
+          ? demandAttribution
+          : undefined,
+      });
     },
   });
   const runWaitlistAutomationMutation = useMutation({
@@ -351,6 +600,373 @@ export default function AdminLeads() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-waitlist-submissions"] });
+    },
+  });
+
+  const approvalQueueQuery = useQuery<ActionQueueResponse>({
+    queryKey: ["admin-action-queue"],
+    enabled: isAdmin && activeView === "approvals",
+    queryFn: async () => {
+      const response = await fetch("/api/admin/leads/action-queue?limit=100", {
+        headers: await withCsrfHeader({}),
+      });
+      if (!response.ok) throw new Error("Failed to fetch action queue");
+      return response.json();
+    },
+  });
+
+  const approveActionMutation = useMutation({
+    mutationFn: async (ledgerId: string) => {
+      const response = await fetch(`/api/admin/leads/action-queue/${ledgerId}/approve`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+      });
+      if (!response.ok) throw new Error("Failed to approve action");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-action-queue"] });
+    },
+  });
+
+  const rejectActionMutation = useMutation({
+    mutationFn: async ({ ledgerId, reason }: { ledgerId: string; reason: string }) => {
+      const response = await fetch(`/api/admin/leads/action-queue/${ledgerId}/reject`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ reason }),
+      });
+      if (!response.ok) throw new Error("Failed to reject action");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-action-queue"] });
+    },
+  });
+
+  const retryActionMutation = useMutation({
+    mutationFn: async (ledgerId: string) => {
+      const response = await fetch(`/api/admin/leads/action-queue/${ledgerId}/retry`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+      });
+      if (!response.ok) throw new Error("Failed to retry action");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-action-queue"] });
+    },
+  });
+
+  const fieldOpsJobsQuery = useQuery<FieldOpsJobsResponse>({
+    queryKey: ["admin-field-ops-jobs"],
+    enabled: isAdmin && activeView === "field_ops",
+    queryFn: async () => {
+      const response = await fetch("/api/admin/field-ops/capture-jobs?limit=50", {
+        headers: await withCsrfHeader({}),
+      });
+      if (!response.ok) throw new Error("Failed to fetch field ops jobs");
+      return response.json();
+    },
+  });
+
+  const fieldOpsCandidatesQuery = useQuery<CapturerCandidatesResponse>({
+    queryKey: ["admin-field-ops-candidates", selectedCaptureJobId],
+    enabled: isAdmin && activeView === "field_ops" && !!selectedCaptureJobId,
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/admin/field-ops/capture-jobs/${selectedCaptureJobId}/candidates`,
+        {
+          headers: await withCsrfHeader({}),
+        },
+      );
+      if (!response.ok) throw new Error("Failed to fetch capturer candidates");
+      return response.json();
+    },
+  });
+
+  const siteAccessContactsQuery = useQuery<SiteAccessContactsResponse>({
+    queryKey: ["admin-field-ops-site-access-contacts", selectedCaptureJobId],
+    enabled: isAdmin && activeView === "field_ops" && !!selectedCaptureJobId,
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/admin/field-ops/capture-jobs/${selectedCaptureJobId}/site-access/contacts`,
+        {
+          headers: await withCsrfHeader({}),
+        },
+      );
+      if (!response.ok) throw new Error("Failed to fetch site-access contacts");
+      return response.json();
+    },
+  });
+
+  const rescheduleQueueQuery = useQuery<RescheduleQueueResponse>({
+    queryKey: ["admin-field-ops-reschedule-queue"],
+    enabled: isAdmin && activeView === "field_ops",
+    queryFn: async () => {
+      const response = await fetch("/api/admin/field-ops/reschedule-queue", {
+        headers: await withCsrfHeader({}),
+      });
+      if (!response.ok) throw new Error("Failed to fetch reschedule queue");
+      return response.json();
+    },
+  });
+
+  const financeQueueQuery = useQuery<FinanceQueueResponse>({
+    queryKey: ["admin-field-ops-finance-queue"],
+    enabled: isAdmin && activeView === "field_ops",
+    queryFn: async () => {
+      const response = await fetch("/api/admin/field-ops/finance-queue", {
+        headers: await withCsrfHeader({}),
+      });
+      if (!response.ok) throw new Error("Failed to fetch finance queue");
+      return response.json();
+    },
+  });
+
+  const assignCapturerMutation = useMutation({
+    mutationFn: async ({
+      captureJobId,
+      creatorId,
+      sendConfirmation,
+    }: {
+      captureJobId: string;
+      creatorId: string;
+      sendConfirmation: boolean;
+    }) => {
+      const response = await fetch(
+        `/api/admin/field-ops/capture-jobs/${captureJobId}/assign-capturer`,
+        {
+          method: "POST",
+          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            creator_id: creatorId,
+            send_confirmation: sendConfirmation,
+          }),
+        },
+      );
+      if (!response.ok) throw new Error("Failed to assign capturer");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-candidates"] });
+    },
+  });
+
+  const sendCapturerCommMutation = useMutation({
+    mutationFn: async ({
+      captureJobId,
+      communicationType,
+    }: {
+      captureJobId: string;
+      communicationType: string;
+    }) => {
+      const response = await fetch(
+        `/api/admin/field-ops/capture-jobs/${captureJobId}/capturer-comms`,
+        {
+          method: "POST",
+          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ communication_type: communicationType }),
+        },
+      );
+      if (!response.ok) throw new Error("Failed to send capturer communication");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-jobs"] });
+    },
+  });
+
+  const sendSiteAccessOutreachMutation = useMutation({
+    mutationFn: async ({
+      captureJobId,
+      operatorEmail,
+      operatorName,
+      operatorCompany,
+      operatorRoleTitle,
+      operatorPhoneNumber,
+      source,
+    }: {
+      captureJobId: string;
+      operatorEmail: string;
+      operatorName?: string | null;
+      operatorCompany?: string | null;
+      operatorRoleTitle?: string | null;
+      operatorPhoneNumber?: string | null;
+      source?: string | null;
+    }) => {
+      const response = await fetch(
+        `/api/admin/field-ops/capture-jobs/${captureJobId}/site-access/outreach`,
+        {
+          method: "POST",
+          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            operator_email: operatorEmail,
+            operator_name: operatorName,
+            operator_company: operatorCompany,
+            operator_role_title: operatorRoleTitle,
+            operator_phone_number: operatorPhoneNumber,
+            source,
+          }),
+        },
+      );
+      if (!response.ok) throw new Error("Failed to send site-access outreach");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-site-access-contacts"] });
+    },
+  });
+
+  const updateSiteAccessStatusMutation = useMutation({
+    mutationFn: async ({
+      captureJobId,
+      status,
+      operatorEmail,
+      operatorName,
+      operatorCompany,
+      operatorRoleTitle,
+      operatorPhoneNumber,
+      notes,
+      decisionSummary,
+    }: {
+      captureJobId: string;
+      status: string;
+      operatorEmail?: string | null;
+      operatorName?: string | null;
+      operatorCompany?: string | null;
+      operatorRoleTitle?: string | null;
+      operatorPhoneNumber?: string | null;
+      notes?: string;
+      decisionSummary?: string;
+    }) => {
+      const response = await fetch(
+        `/api/admin/field-ops/capture-jobs/${captureJobId}/site-access/status`,
+        {
+          method: "PATCH",
+          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            status,
+            operator_email: operatorEmail,
+            operator_name: operatorName,
+            operator_company: operatorCompany,
+            operator_role_title: operatorRoleTitle,
+            operator_phone_number: operatorPhoneNumber,
+            notes,
+            decision_summary: decisionSummary,
+          }),
+        },
+      );
+      if (!response.ok) throw new Error("Failed to update site-access status");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-site-access-contacts"] });
+    },
+  });
+
+  const saveSiteAccessContactMutation = useMutation({
+    mutationFn: async ({
+      captureJobId,
+      ...payload
+    }: SiteAccessContactFormState & { captureJobId: string }) => {
+      const response = await fetch(
+        `/api/admin/field-ops/capture-jobs/${captureJobId}/site-access/contacts`,
+        {
+          method: "POST",
+          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            email: payload.email,
+            name: payload.name,
+            company: payload.company,
+            role_title: payload.roleTitle,
+            phone_number: payload.phoneNumber,
+            notes: payload.notes,
+            source: "manual_entry",
+            verification_status: "unverified",
+          }),
+        },
+      );
+      if (!response.ok) throw new Error("Failed to save site-access contact");
+      return response.json();
+    },
+    onSuccess: () => {
+      setSiteAccessContactForm({
+        name: "",
+        email: "",
+        company: "",
+        roleTitle: "",
+        phoneNumber: "",
+        notes: "",
+      });
+      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-site-access-contacts"] });
+    },
+  });
+
+  const updateFinanceReviewMutation = useMutation({
+    mutationFn: async ({
+      payoutId,
+      reviewStatus,
+      nextAction,
+      notes,
+      ownerEmail,
+      manualActionType,
+    }: {
+      payoutId: string;
+      reviewStatus: string;
+      nextAction: string;
+      notes?: string;
+      ownerEmail?: string;
+      manualActionType?: string;
+    }) => {
+      const response = await fetch(`/api/admin/field-ops/finance-queue/${payoutId}`, {
+        method: "PATCH",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          review_status: reviewStatus,
+          next_action: nextAction,
+          notes,
+          owner_email: ownerEmail,
+          manual_action_type: manualActionType,
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to update finance review");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-finance-queue"] });
+    },
+  });
+
+  const runReminderLoopMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/admin/field-ops/automation/capturer-reminders/run", {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+      });
+      if (!response.ok) throw new Error("Failed to run reminder loop");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-jobs"] });
+    },
+  });
+
+  const runOverdueReviewWatchdogMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/admin/field-ops/automation/manual-review-watchdogs/run", {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+      });
+      if (!response.ok) throw new Error("Failed to run overdue review watchdogs");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-field-ops-finance-queue"] });
     },
   });
 
@@ -429,12 +1045,55 @@ export default function AdminLeads() {
     waitlistSubmissions.find((submission) => submission.id === selectedWaitlistSubmissionId) ??
     filteredWaitlistSubmissions[0] ??
     null;
+  const approvalQueueItems = approvalQueueQuery.data?.items ?? [];
+  const fieldOpsJobs = fieldOpsJobsQuery.data?.jobs ?? [];
+  const selectedCaptureJob =
+    fieldOpsJobs.find((job) => job.id === selectedCaptureJobId)
+    ?? fieldOpsJobs[0]
+    ?? null;
+  const capturerCandidates = fieldOpsCandidatesQuery.data?.candidates ?? [];
+  const siteAccessContacts = siteAccessContactsQuery.data?.contacts ?? [];
+  const rescheduleQueueItems = rescheduleQueueQuery.data?.items ?? [];
+  const financeQueueItems = financeQueueQuery.data?.items ?? [];
+  const primarySiteAccessContact = siteAccessContacts[0] ?? null;
+  const selectedSiteAccess = selectedCaptureJob?.site_access ?? {};
+  const selectedDispatchReview = selectedCaptureJob?.field_ops?.dispatch_review ?? {};
+  const selectedSiteAccessOverdueReview =
+    (selectedSiteAccess.overdue_review as Record<string, unknown> | undefined) ?? {};
+  const overdueSiteAccessCount = fieldOpsJobs.filter(
+    (job) =>
+      ((job.site_access?.overdue_review as Record<string, unknown> | undefined)?.active) === true,
+  ).length;
+  const overdueFinanceCount = financeQueueItems.filter(
+    (item) =>
+      ((item.finance_review?.overdue_review as Record<string, unknown> | undefined)?.active) ===
+      true,
+  ).length;
 
   useEffect(() => {
     if (activeView === "waitlist" && !selectedWaitlistSubmissionId && filteredWaitlistSubmissions[0]) {
       setSelectedWaitlistSubmissionId(filteredWaitlistSubmissions[0].id);
     }
   }, [activeView, filteredWaitlistSubmissions, selectedWaitlistSubmissionId]);
+
+  useEffect(() => {
+    if (activeView === "field_ops" && !selectedCaptureJobId && fieldOpsJobs[0]) {
+      setSelectedCaptureJobId(fieldOpsJobs[0].id);
+    }
+  }, [activeView, fieldOpsJobs, selectedCaptureJobId]);
+
+  useEffect(() => {
+    setSiteAccessReviewNotes("");
+    setSiteAccessDecisionSummary("");
+    setSiteAccessContactForm({
+      name: "",
+      email: "",
+      company: "",
+      roleTitle: "",
+      phoneNumber: "",
+      notes: "",
+    });
+  }, [selectedCaptureJobId]);
 
   const statCards = useMemo(() => {
     if (activeView === "waitlist") {
@@ -466,6 +1125,43 @@ export default function AdminLeads() {
       ];
     }
 
+    if (activeView === "approvals") {
+      return [
+        {
+          label: "Queued items",
+          value: approvalQueueQuery.data?.summary.total ?? approvalQueueItems.length,
+        },
+        {
+          label: "Pending approval",
+          value: approvalQueueQuery.data?.summary.pending_approval ?? 0,
+        },
+        {
+          label: "Failed",
+          value: approvalQueueQuery.data?.summary.failed ?? 0,
+        },
+        {
+          label: "Tier 3 items",
+          value: approvalQueueItems.filter((item) => item.action_tier === 3).length,
+        },
+      ];
+    }
+
+    if (activeView === "field_ops") {
+      return [
+        { label: "Capture jobs", value: fieldOpsJobs.length },
+        {
+          label: "Pending site access",
+          value: fieldOpsJobs.filter(
+            (job) => job.site_access?.permission_state === "awaiting_response",
+          ).length,
+        },
+        { label: "Overdue site access", value: overdueSiteAccessCount },
+        { label: "Reschedules", value: rescheduleQueueItems.length },
+        { label: "Finance queue", value: financeQueueItems.length },
+        { label: "Overdue finance", value: overdueFinanceCount },
+      ];
+    }
+
     if (activeView === "agent") {
       return [];
     }
@@ -481,7 +1177,21 @@ export default function AdminLeads() {
       },
       { label: "Needs evidence", value: statsQuery.data?.byStatus?.needs_more_evidence ?? 0 },
     ];
-  }, [activeView, filteredWaitlistSubmissions, statsQuery.data, waitlistQuery.data?.pagination.total]);
+  }, [
+    activeView,
+    approvalQueueItems,
+    fieldOpsJobs,
+    financeQueueItems.length,
+    approvalQueueQuery.data?.summary.failed,
+    approvalQueueQuery.data?.summary.pending_approval,
+    approvalQueueQuery.data?.summary.total,
+    filteredWaitlistSubmissions,
+    overdueFinanceCount,
+    overdueSiteAccessCount,
+    rescheduleQueueItems.length,
+    statsQuery.data,
+    waitlistQuery.data?.pagination.total,
+  ]);
 
   if (!isAdmin) {
     return (
@@ -504,6 +1214,10 @@ export default function AdminLeads() {
                 ? "Admin Review Queue"
                 : activeView === "waitlist"
                   ? "Ops Intake Queue"
+                  : activeView === "approvals"
+                    ? "Action Ledger"
+                    : activeView === "field_ops"
+                      ? "Field Ops"
                   : "Ops Agent Console"}
             </p>
             <h1 className="mt-2 text-3xl font-semibold text-zinc-950">
@@ -511,6 +1225,10 @@ export default function AdminLeads() {
                 ? "Qualification submissions"
                 : activeView === "waitlist"
                   ? "Waitlist and beta requests"
+                  : activeView === "approvals"
+                    ? "Phase 2 approvals"
+                    : activeView === "field_ops"
+                      ? "Field ops control room"
                   : "Startup operations agent"}
             </h1>
             <p className="mt-2 text-zinc-600">
@@ -518,13 +1236,21 @@ export default function AdminLeads() {
                 ? "Move submissions through qualification state and only activate opportunity state once a site clears review."
                 : activeView === "waitlist"
                   ? "Review structured waitlist and private beta intake without dropping into Firestore."
+                  : activeView === "approvals"
+                    ? "Review the Phase 2 action ledger, then approve, reject, or retry low-risk operator actions."
+                    : activeView === "field_ops"
+                      ? "Assign capturers, send comms, work the reschedule queue, and track site-access plus finance review from one place."
                   : "Create agent threads, attach startup context, route work into Codex or Claude Code, and approve sensitive runs in one place."}
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <Tabs
-      value={activeView}
-      onValueChange={(value) => setActiveView(value as "submissions" | "waitlist" | "agent")}
+              value={activeView}
+              onValueChange={(value) =>
+                setActiveView(
+                  value as "submissions" | "waitlist" | "approvals" | "field_ops" | "agent",
+                )
+              }
             >
               <TabsList className="rounded-full border border-zinc-200 bg-white p-1">
                 <TabsTrigger value="submissions" className="rounded-full px-4">
@@ -532,6 +1258,12 @@ export default function AdminLeads() {
                 </TabsTrigger>
                 <TabsTrigger value="waitlist" className="rounded-full px-4">
                   Waitlist / Beta
+                </TabsTrigger>
+                <TabsTrigger value="approvals" className="rounded-full px-4">
+                  Approvals
+                </TabsTrigger>
+                <TabsTrigger value="field_ops" className="rounded-full px-4">
+                  Field Ops
                 </TabsTrigger>
                 <TabsTrigger value="agent" className="rounded-full px-4">
                   Agent
@@ -545,6 +1277,20 @@ export default function AdminLeads() {
                   ? leadsQuery.refetch()
                   : activeView === "waitlist"
                     ? waitlistQuery.refetch()
+                    : activeView === "approvals"
+                      ? approvalQueueQuery.refetch()
+                      : activeView === "field_ops"
+                        ? Promise.all([
+                            fieldOpsJobsQuery.refetch(),
+                            rescheduleQueueQuery.refetch(),
+                            financeQueueQuery.refetch(),
+                            selectedCaptureJobId
+                              ? fieldOpsCandidatesQuery.refetch()
+                              : Promise.resolve(undefined),
+                            selectedCaptureJobId
+                              ? siteAccessContactsQuery.refetch()
+                              : Promise.resolve(undefined),
+                          ])
                     : queryClient.invalidateQueries({ queryKey: ["admin-agent-sessions"] })
               }
               className="inline-flex items-center rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700"
@@ -562,6 +1308,29 @@ export default function AdminLeads() {
                 <Sparkles className="mr-2 h-4 w-4" />
                 {runWaitlistAutomationMutation.isPending ? "Running AI triage..." : "Run AI triage"}
               </button>
+            ) : activeView === "field_ops" ? (
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => runOverdueReviewWatchdogMutation.mutate()}
+                  className="inline-flex items-center rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700"
+                  disabled={runOverdueReviewWatchdogMutation.isPending}
+                >
+                  <AlertCircle className="mr-2 h-4 w-4" />
+                  {runOverdueReviewWatchdogMutation.isPending
+                    ? "Running overdue scan..."
+                    : "Run overdue review scan"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => runReminderLoopMutation.mutate()}
+                  className="inline-flex items-center rounded-full bg-zinc-950 px-4 py-2 text-sm text-white"
+                  disabled={runReminderLoopMutation.isPending}
+                >
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  {runReminderLoopMutation.isPending ? "Running reminders..." : "Run reminders"}
+                </button>
+              </div>
             ) : null}
           </div>
         </div>
@@ -579,6 +1348,778 @@ export default function AdminLeads() {
 
         {activeView === "agent" ? (
           <AdminAgentConsole />
+        ) : activeView === "approvals" ? (
+          <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+            <div className="space-y-3">
+              {approvalQueueQuery.isLoading ? (
+                <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+                  Loading action queue...
+                </div>
+              ) : approvalQueueItems.length === 0 ? (
+                <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+                  No pending approvals or failed actions right now.
+                </div>
+              ) : (
+                approvalQueueItems.map((item) => (
+                  <div key={item.id} className="rounded-2xl border border-zinc-200 bg-white p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                          {item.lane}
+                        </p>
+                        <p className="mt-1 text-lg font-medium text-zinc-950">{item.action_type}</p>
+                        <p className="mt-1 text-sm text-zinc-600">
+                          {item.source_collection} / {item.source_doc_id}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-medium ${
+                            item.status === "failed"
+                              ? "bg-rose-100 text-rose-700"
+                              : "bg-amber-100 text-amber-800"
+                          }`}
+                        >
+                          {item.status.replace(/_/g, " ")}
+                        </span>
+                        <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-700">
+                          Tier {item.action_tier}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="mt-3 text-sm text-zinc-700">{formatActionPreview(item)}</p>
+                    <div className="mt-4 grid gap-2 text-xs text-zinc-500 md:grid-cols-2">
+                      <p>Attempts: {item.execution_attempts}</p>
+                      <p>Updated: {item.updated_at ? formatDate(item.updated_at) : "unknown"}</p>
+                      <p>
+                        Confidence:{" "}
+                        {typeof item.draft_output.confidence === "number"
+                          ? Math.round(item.draft_output.confidence * 100) / 100
+                          : "n/a"}
+                      </p>
+                      <p>
+                        Recommendation:{" "}
+                        {typeof item.draft_output.recommendation === "string"
+                          ? item.draft_output.recommendation
+                          : "n/a"}
+                      </p>
+                    </div>
+
+                    {item.last_execution_error ? (
+                      <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                        {item.last_execution_error}
+                      </p>
+                    ) : null}
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {item.status === "pending_approval" ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => approveActionMutation.mutate(item.id)}
+                            className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-medium text-white"
+                            disabled={approveActionMutation.isPending}
+                          >
+                            Approve
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const reason = window.prompt(
+                                "Why is this action being rejected?",
+                                "Operator review required",
+                              );
+                              if (!reason?.trim()) {
+                                return;
+                              }
+                              rejectActionMutation.mutate({
+                                ledgerId: item.id,
+                                reason: reason.trim(),
+                              });
+                            }}
+                            className="rounded-full border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700"
+                            disabled={rejectActionMutation.isPending}
+                          >
+                            Reject
+                          </button>
+                        </>
+                      ) : null}
+                      {item.status === "failed" ? (
+                        <button
+                          type="button"
+                          onClick={() => retryActionMutation.mutate(item.id)}
+                          className="rounded-full border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700"
+                          disabled={retryActionMutation.isPending}
+                        >
+                          Retry
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                Control model
+              </p>
+              <div className="mt-4 space-y-3 text-sm text-zinc-700">
+                <p>Low-risk reversible actions can auto-send when the lane policy allows it.</p>
+                <p>Pending approval items stay parked until an operator approves or rejects them.</p>
+                <p>Failed actions can be retried if the executor marks them as safe to replay.</p>
+                <p>Money movement, disputes, rights, privacy, and unusual cases remain human-gated.</p>
+              </div>
+            </div>
+          </div>
+        ) : activeView === "field_ops" ? (
+          <div className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+              <div className="space-y-3">
+                {fieldOpsJobsQuery.isLoading ? (
+                  <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+                    Loading capture jobs...
+                  </div>
+                ) : fieldOpsJobs.length === 0 ? (
+                  <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+                    No capture jobs are available right now.
+                  </div>
+                ) : (
+                  fieldOpsJobs.map((job) => (
+                    <button
+                      key={job.id}
+                      type="button"
+                      onClick={() => setSelectedCaptureJobId(job.id)}
+                      className={`w-full rounded-2xl border p-5 text-left ${
+                        selectedCaptureJob?.id === job.id
+                          ? "border-zinc-900 bg-white"
+                          : "border-zinc-200 bg-white"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                            {job.marketplace_state || "capture job"}
+                          </p>
+                          <p className="mt-1 text-lg font-medium text-zinc-950">{job.title}</p>
+                          <p className="mt-1 text-sm text-zinc-600">{job.address}</p>
+                        </div>
+                        <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-700">
+                          {job.status || "untracked"}
+                        </span>
+                      </div>
+                      <div className="mt-3 grid gap-2 text-xs text-zinc-500 md:grid-cols-2">
+                        <p>
+                          Assigned:{" "}
+                          {typeof job.field_ops?.capturer_assignment?.name === "string"
+                            ? job.field_ops.capturer_assignment.name
+                            : "unassigned"}
+                        </p>
+                        <p>
+                          Site access:{" "}
+                          {typeof job.site_access?.permission_state === "string"
+                            ? job.site_access.permission_state
+                            : "not_started"}
+                        </p>
+                      </div>
+                      {job.site_access?.overdue_review?.active === true ? (
+                        <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                          Overdue site-access follow-up:{" "}
+                          {typeof job.site_access?.overdue_review?.reason === "string"
+                            ? job.site_access.overdue_review.reason
+                            : "Needs human follow-up."}
+                        </p>
+                      ) : null}
+                    </button>
+                  ))
+                )}
+              </div>
+
+              <div className="space-y-6">
+                {selectedCaptureJob ? (
+                  <>
+                    <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
+                            Selected capture job
+                          </p>
+                          <h2 className="mt-2 text-2xl font-semibold text-zinc-950">
+                            {selectedCaptureJob.title}
+                          </h2>
+                          <p className="mt-2 text-sm text-zinc-600">
+                            {selectedCaptureJob.address}
+                          </p>
+                        </div>
+                        <a
+                          href={selectedCaptureJob.buyer_request_id
+                            ? `#request-${selectedCaptureJob.buyer_request_id}`
+                            : "#"}
+                          className="inline-flex items-center text-sm text-zinc-600"
+                        >
+                          Request link
+                          <ArrowUpRight className="ml-2 h-4 w-4" />
+                        </a>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 text-sm text-zinc-700 md:grid-cols-2">
+                        <p>Rights: {selectedCaptureJob.rights_status || "unknown"}</p>
+                        <p>Policy: {selectedCaptureJob.capture_policy_tier || "review_required"}</p>
+                        <p>
+                          Assigned capturer:{" "}
+                          {selectedCaptureJob.field_ops?.capturer_assignment?.name || "unassigned"}
+                        </p>
+                        <p>
+                          Site access:{" "}
+                          {selectedCaptureJob.site_access?.permission_state || "not_started"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                        Capturer assignment
+                      </p>
+                      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                        <p className="font-medium">Dispatch remains heuristic-only.</p>
+                        <p className="mt-1 text-amber-800">
+                          Ranking uses stored market, equipment, availability, and capture stats. This lane does not have live calendar availability or travel-routing verification, so operators still need to confirm acceptance and logistics.
+                        </p>
+                        <p className="mt-2 text-xs text-amber-700">
+                          Current review state: {typeof selectedDispatchReview.review_state === "string"
+                            ? selectedDispatchReview.review_state
+                            : "not recorded"}
+                        </p>
+                        {Array.isArray(selectedDispatchReview.missing_inputs) ? (
+                          <p className="mt-1 text-xs text-amber-700">
+                            Missing inputs: {formatStringList(selectedDispatchReview.missing_inputs)}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="mt-4 space-y-3">
+                        {capturerCandidates.map((candidate) => (
+                          <div
+                            key={candidate.uid}
+                            className="rounded-xl border border-zinc-200 p-4"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-medium text-zinc-950">
+                                  {candidate.name || candidate.email || candidate.uid}
+                                </p>
+                                <p className="mt-1 text-xs text-zinc-500">
+                                  {candidate.market || "Unknown market"} · {candidate.availability || "Unknown availability"}
+                                </p>
+                                <p className="mt-1 text-xs text-zinc-500">
+                                  Equipment: {candidate.equipment.join(", ") || "unknown"}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-medium text-zinc-950">
+                                  Score {candidate.score}
+                                </p>
+                                <p className="text-xs text-zinc-500">
+                                  Travel {candidate.travel_estimate_minutes ?? "?"} min
+                                </p>
+                                <p className="mt-1 text-[11px] text-zinc-400">
+                                  {candidate.travel_estimate_source === "unknown"
+                                    ? "No routing integration"
+                                    : `Source: ${candidate.travel_estimate_source}`}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="mt-3 grid gap-2 text-xs text-zinc-500 md:grid-cols-2">
+                              <p>Market fit: {candidate.score_breakdown.market}</p>
+                              <p>Availability fit: {candidate.score_breakdown.availability}</p>
+                              <p>Equipment fit: {candidate.score_breakdown.equipment}</p>
+                              <p>Reliability fit: {candidate.score_breakdown.reliability}</p>
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  assignCapturerMutation.mutate({
+                                    captureJobId: selectedCaptureJob.id,
+                                    creatorId: candidate.uid,
+                                    sendConfirmation: false,
+                                  })
+                                }
+                                className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                              >
+                                Assign
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  assignCapturerMutation.mutate({
+                                    captureJobId: selectedCaptureJob.id,
+                                    creatorId: candidate.uid,
+                                    sendConfirmation: true,
+                                  })
+                                }
+                                className="rounded-full bg-zinc-950 px-3 py-2 text-sm text-white"
+                              >
+                                Assign + confirm
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                        Ops actions
+                      </p>
+                      <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+                        <p className="font-medium">Site access is structured, not autonomous.</p>
+                        <p className="mt-1 text-blue-800">
+                          Blueprint can draft the first outreach and preserve provenance on who was contacted, but access negotiations, conditional terms, privacy/legal interpretation, and denials stay with a human operator.
+                        </p>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            sendCapturerCommMutation.mutate({
+                              captureJobId: selectedCaptureJob.id,
+                              communicationType: "reminder_48h",
+                            })
+                          }
+                          className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                        >
+                          Send 48h reminder
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            sendCapturerCommMutation.mutate({
+                              captureJobId: selectedCaptureJob.id,
+                              communicationType: "reminder_24h",
+                            })
+                          }
+                          className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                        >
+                          Send 24h reminder
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateSiteAccessStatusMutation.mutate({
+                              captureJobId: selectedCaptureJob.id,
+                              status: "granted",
+                              operatorEmail: primarySiteAccessContact?.email || null,
+                              operatorName: primarySiteAccessContact?.name || null,
+                              operatorCompany: primarySiteAccessContact?.company || null,
+                              operatorRoleTitle: primarySiteAccessContact?.roleTitle || null,
+                              operatorPhoneNumber: primarySiteAccessContact?.phone_number || null,
+                              notes: siteAccessReviewNotes,
+                              decisionSummary:
+                                siteAccessDecisionSummary
+                                || "Human operator confirmed that site access is granted.",
+                            })
+                          }
+                          className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                        >
+                          Mark site access granted
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateSiteAccessStatusMutation.mutate({
+                              captureJobId: selectedCaptureJob.id,
+                              status: "conditional",
+                              operatorEmail: primarySiteAccessContact?.email || null,
+                              operatorName: primarySiteAccessContact?.name || null,
+                              operatorCompany: primarySiteAccessContact?.company || null,
+                              operatorRoleTitle: primarySiteAccessContact?.roleTitle || null,
+                              operatorPhoneNumber: primarySiteAccessContact?.phone_number || null,
+                              notes: siteAccessReviewNotes,
+                              decisionSummary:
+                                siteAccessDecisionSummary
+                                || "Conditional access requires human follow-up on terms or restrictions.",
+                            })
+                          }
+                          className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                        >
+                          Mark conditional
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateSiteAccessStatusMutation.mutate({
+                              captureJobId: selectedCaptureJob.id,
+                              status: "review_required",
+                              operatorEmail: primarySiteAccessContact?.email || null,
+                              operatorName: primarySiteAccessContact?.name || null,
+                              operatorCompany: primarySiteAccessContact?.company || null,
+                              operatorRoleTitle: primarySiteAccessContact?.roleTitle || null,
+                              operatorPhoneNumber: primarySiteAccessContact?.phone_number || null,
+                              notes: siteAccessReviewNotes,
+                              decisionSummary:
+                                siteAccessDecisionSummary
+                                || "Operator review is still required before any capture is scheduled.",
+                            })
+                          }
+                          className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                        >
+                          Keep in review
+                        </button>
+                      </div>
+
+                      <div className="mt-6 grid gap-3 md:grid-cols-2">
+                        <label className="space-y-2 text-sm text-zinc-700">
+                          <span className="font-medium text-zinc-900">Operator notes</span>
+                          <textarea
+                            value={siteAccessReviewNotes}
+                            onChange={(event) => setSiteAccessReviewNotes(event.target.value)}
+                            placeholder="Document access restrictions, unanswered questions, or what needs human follow-up."
+                            className="min-h-[96px] w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                          />
+                        </label>
+                        <label className="space-y-2 text-sm text-zinc-700">
+                          <span className="font-medium text-zinc-900">Decision summary</span>
+                          <textarea
+                            value={siteAccessDecisionSummary}
+                            onChange={(event) => setSiteAccessDecisionSummary(event.target.value)}
+                            placeholder="Capture the current human judgment: granted, conditional, denied, or still unresolved."
+                            className="min-h-[96px] w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                          />
+                        </label>
+                      </div>
+
+                      <div className="mt-6 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
+                        <p className="font-medium text-zinc-900">Current site-access review</p>
+                        {selectedSiteAccessOverdueReview.active === true ? (
+                          <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                            Overdue review:{" "}
+                            {typeof selectedSiteAccessOverdueReview.reason === "string"
+                              ? selectedSiteAccessOverdueReview.reason
+                              : "Human follow-up is past due."}
+                          </p>
+                        ) : null}
+                        <div className="mt-3 grid gap-2 md:grid-cols-2">
+                          <p>
+                            Workflow stage:{" "}
+                            {typeof selectedSiteAccess.workflow_stage === "string"
+                              ? selectedSiteAccess.workflow_stage
+                              : "contact_acquisition"}
+                          </p>
+                          <p>
+                            Follow-up due:{" "}
+                            {typeof selectedSiteAccess.follow_up_due_at === "string"
+                              ? formatDate(selectedSiteAccess.follow_up_due_at)
+                              : "not set"}
+                          </p>
+                          <p>
+                            Evidence required:{" "}
+                            {formatStringList(selectedSiteAccess.review_requirements?.required_evidence)
+                              || "verified contact, window, restrictions"}
+                          </p>
+                          <p>
+                            Restrictions:{" "}
+                            {formatStringList(selectedSiteAccess.restrictions) || "not documented"}
+                          </p>
+                        </div>
+                        {typeof selectedSiteAccess.human_only_boundary === "string" ? (
+                          <p className="mt-3 text-xs text-zinc-500">
+                            {selectedSiteAccess.human_only_boundary}
+                          </p>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-6">
+                        <p className="text-sm font-medium text-zinc-900">
+                          Site-access contacts
+                        </p>
+                        <div className="mt-3 space-y-2">
+                          {siteAccessContacts.length === 0 ? (
+                            <p className="text-sm text-zinc-500">
+                              No discovered contacts yet.
+                            </p>
+                          ) : (
+                            siteAccessContacts.map((contact) => (
+                              <div
+                                key={`${contact.source}-${contact.email}`}
+                                className="flex items-center justify-between rounded-xl border border-zinc-200 p-3"
+                              >
+                                <div>
+                                  <p className="text-sm font-medium text-zinc-950">
+                                    {contact.name || contact.email}
+                                  </p>
+                                  <p className="text-xs text-zinc-500">
+                                    {contact.email} · {contact.source}
+                                    {contact.verification_status
+                                      ? ` · ${contact.verification_status}`
+                                      : ""}
+                                  </p>
+                                  {contact.company || contact.roleTitle ? (
+                                    <p className="text-xs text-zinc-500">
+                                      {[contact.company, contact.roleTitle].filter(Boolean).join(" · ")}
+                                    </p>
+                                  ) : null}
+                                  {contact.notes ? (
+                                    <p className="mt-1 text-xs text-zinc-500">{contact.notes}</p>
+                                  ) : null}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    sendSiteAccessOutreachMutation.mutate({
+                                      captureJobId: selectedCaptureJob.id,
+                                      operatorEmail: contact.email,
+                                      operatorName: contact.name,
+                                      operatorCompany: contact.company,
+                                      operatorRoleTitle: contact.roleTitle,
+                                      operatorPhoneNumber: contact.phone_number,
+                                      source: contact.source,
+                                    })
+                                  }
+                                  className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                                >
+                                  Send outreach
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-6 rounded-xl border border-zinc-200 p-4">
+                        <p className="text-sm font-medium text-zinc-900">Add operator contact</p>
+                        <p className="mt-1 text-xs text-zinc-500">
+                          Use this when the correct contact comes from a call, email thread, or site visit rather than an existing Blueprint record.
+                        </p>
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                          <input
+                            value={siteAccessContactForm.name}
+                            onChange={(event) =>
+                              setSiteAccessContactForm((current) => ({
+                                ...current,
+                                name: event.target.value,
+                              }))
+                            }
+                            placeholder="Contact name"
+                            className="rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                          />
+                          <input
+                            value={siteAccessContactForm.email}
+                            onChange={(event) =>
+                              setSiteAccessContactForm((current) => ({
+                                ...current,
+                                email: event.target.value,
+                              }))
+                            }
+                            placeholder="contact@site.com"
+                            className="rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                          />
+                          <input
+                            value={siteAccessContactForm.company}
+                            onChange={(event) =>
+                              setSiteAccessContactForm((current) => ({
+                                ...current,
+                                company: event.target.value,
+                              }))
+                            }
+                            placeholder="Operator company"
+                            className="rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                          />
+                          <input
+                            value={siteAccessContactForm.roleTitle}
+                            onChange={(event) =>
+                              setSiteAccessContactForm((current) => ({
+                                ...current,
+                                roleTitle: event.target.value,
+                              }))
+                            }
+                            placeholder="Role / title"
+                            className="rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                          />
+                          <input
+                            value={siteAccessContactForm.phoneNumber}
+                            onChange={(event) =>
+                              setSiteAccessContactForm((current) => ({
+                                ...current,
+                                phoneNumber: event.target.value,
+                              }))
+                            }
+                            placeholder="Phone number"
+                            className="rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                          />
+                          <textarea
+                            value={siteAccessContactForm.notes}
+                            onChange={(event) =>
+                              setSiteAccessContactForm((current) => ({
+                                ...current,
+                                notes: event.target.value,
+                              }))
+                            }
+                            placeholder="How this contact was obtained or what they control"
+                            className="min-h-[84px] rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              saveSiteAccessContactMutation.mutate({
+                                captureJobId: selectedCaptureJob.id,
+                                ...siteAccessContactForm,
+                              })
+                            }
+                            disabled={
+                              saveSiteAccessContactMutation.isPending
+                              || !siteAccessContactForm.email.trim()
+                            }
+                            className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Save contact
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-zinc-600">
+                    Select a capture job to view field-ops details.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  Reschedule queue
+                </p>
+                <div className="mt-4 space-y-3">
+                  {rescheduleQueueItems.length === 0 ? (
+                    <p className="text-sm text-zinc-500">No reschedule requests are queued.</p>
+                  ) : (
+                    rescheduleQueueItems.map((item) => (
+                      <div key={item.id} className="rounded-xl border border-zinc-200 p-4">
+                        <p className="text-sm font-medium text-zinc-950">{item.businessName}</p>
+                        <p className="mt-1 text-xs text-zinc-500">
+                          {item.current_date} {item.current_time} → {item.requested_date} {item.requested_time}
+                        </p>
+                        <p className="mt-1 text-xs text-zinc-500">
+                          {item.status} · {item.requested_by || "buyer"}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  Finance review
+                </p>
+                <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
+                  <p className="font-medium">Execution remains human-only.</p>
+                  <p className="mt-1 text-rose-800">
+                    This queue is for evidence gathering, owner assignment, and next-step planning. Blueprint does not auto-run payouts, refunds, or dispute submissions.
+                  </p>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {financeQueueItems.length === 0 ? (
+                    <p className="text-sm text-zinc-500">No finance review items are queued.</p>
+                  ) : (
+                    financeQueueItems.map((item) => {
+                      const overdueReview =
+                        (item.finance_review?.overdue_review as Record<string, unknown> | undefined)
+                        ?? {};
+
+                      return (
+                        <div key={item.id} className="rounded-xl border border-zinc-200 p-4">
+                        <p className="text-sm font-medium text-zinc-950">
+                          {item.id} · {item.status}
+                        </p>
+                        <p className="mt-1 text-xs text-zinc-500">
+                          {item.failure_reason
+                            || (typeof item.ops_automation?.rationale === "string"
+                              ? item.ops_automation.rationale
+                              : "Needs manual review")}
+                        </p>
+                        <div className="mt-3 grid gap-2 text-xs text-zinc-500 md:grid-cols-2">
+                          <p>
+                            Owner:{" "}
+                            {typeof item.finance_review?.owner_email === "string"
+                              ? item.finance_review.owner_email
+                              : "unassigned"}
+                          </p>
+                          <p>
+                            SLA:{" "}
+                            {typeof item.finance_review?.sla_due_at === "string"
+                              ? formatDate(item.finance_review.sla_due_at)
+                              : "not set"}
+                          </p>
+                          <p>
+                            Manual action:{" "}
+                            {typeof item.finance_review?.manual_action_type === "string"
+                              ? item.finance_review.manual_action_type
+                              : "not set"}
+                          </p>
+                          <p>
+                            Evidence:{" "}
+                            {formatStringList(item.finance_review?.required_evidence)
+                              || "stripe event details, payout linkage, operator notes"}
+                          </p>
+                        </div>
+                        {overdueReview.active === true ? (
+                          <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                            Overdue finance review:{" "}
+                            {typeof overdueReview.reason === "string"
+                              ? overdueReview.reason
+                              : "Manual review is past SLA."}
+                          </p>
+                        ) : null}
+                        {typeof item.finance_review?.human_only_boundary === "string" ? (
+                          <p className="mt-3 text-xs text-zinc-500">
+                            {item.finance_review.human_only_boundary}
+                          </p>
+                        ) : null}
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateFinanceReviewMutation.mutate({
+                                payoutId: item.id,
+                                reviewStatus: "investigating",
+                                nextAction: "Investigate payout or dispute details",
+                                ownerEmail: currentUser?.email || undefined,
+                                manualActionType: "investigation",
+                              })
+                            }
+                            className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                          >
+                            Assign to me + investigate
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateFinanceReviewMutation.mutate({
+                                payoutId: item.id,
+                                reviewStatus: "ready_for_manual_action",
+                                nextAction: "Manual finance action required",
+                                ownerEmail: currentUser?.email || undefined,
+                                manualActionType: "manual_finance_execution",
+                              })
+                            }
+                            className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                          >
+                            Ready for manual action
+                          </button>
+                        </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         ) : activeView === "submissions" ? (
           <>
             <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 md:flex-row">
@@ -752,11 +2293,33 @@ export default function AdminLeads() {
                 </div>
 
                 <div className="rounded-xl border border-zinc-200 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Task statement</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                    {selectedLead.request.buyerType === "robot_team"
+                      ? "Immediate workflow question"
+                      : "Task statement"}
+                  </p>
                   <p className="mt-2 text-sm text-zinc-800">{selectedLead.request.taskStatement}</p>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-xl border border-zinc-200 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                      Target site type
+                    </p>
+                    <p className="mt-2 text-sm text-zinc-700">
+                      {selectedLead.request.targetSiteType || "No site type supplied."}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-zinc-200 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                      Proof path
+                    </p>
+                    <p className="mt-2 text-sm text-zinc-700">
+                      {selectedLead.request.proofPathPreference
+                        ? proofPathPreferenceLabels[selectedLead.request.proofPathPreference]
+                        : "No proof-path preference supplied."}
+                    </p>
+                  </div>
                   <div className="rounded-xl border border-zinc-200 p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Workflow context</p>
                     <p className="mt-2 text-sm text-zinc-700">
@@ -784,6 +2347,27 @@ export default function AdminLeads() {
                     <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Known blockers</p>
                     <p className="mt-2 text-sm text-zinc-700">
                       {selectedLead.request.knownBlockers || "No blockers supplied."}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-xl border border-zinc-200 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                      Existing stack / review workflow
+                    </p>
+                    <p className="mt-2 text-sm text-zinc-700">
+                      {selectedLead.request.existingStackReviewWorkflow ||
+                        "No stack or review workflow supplied."}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-zinc-200 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                      Human-gated topics
+                    </p>
+                    <p className="mt-2 text-sm text-zinc-700">
+                      {selectedLead.request.humanGateTopics ||
+                        "No early escalation topics supplied."}
                     </p>
                   </div>
                 </div>
@@ -934,6 +2518,51 @@ export default function AdminLeads() {
                         }
                       />
                     </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-zinc-200 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                    Proof-path milestones
+                  </p>
+                  <p className="mt-2 text-sm text-zinc-600">
+                    These timestamps back the robot-team proof funnel. Auto-known stages fill from the request lifecycle; operator-only stages should be marked here when they actually happen.
+                  </p>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    {Object.entries(proofPathMilestoneLabels).map(([field, label]) => {
+                      const value =
+                        selectedLead.ops?.proof_path?.[
+                          field as keyof typeof proofPathMilestoneLabels
+                        ] || null;
+
+                      return (
+                        <div key={field} className="rounded-lg bg-zinc-50 p-3">
+                          <p className="text-xs uppercase tracking-[0.14em] text-zinc-400">
+                            {label}
+                          </p>
+                          <p className="mt-1 text-sm text-zinc-800">
+                            {typeof value === "string" ? formatDate(value) : "Not recorded"}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {proofPathStageButtons.map((button) => (
+                      <button
+                        key={button.stage}
+                        type="button"
+                        onClick={() =>
+                          updateOpsMutation.mutate({
+                            requestId: selectedLead.requestId,
+                            proof_path_stage: button.stage,
+                          })
+                        }
+                        className="rounded-full border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                      >
+                        {button.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
