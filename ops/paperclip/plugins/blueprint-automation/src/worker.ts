@@ -95,6 +95,13 @@ import {
   type HandoffAnalytics,
   type HandoffSnapshot,
 } from "./handoffs.js";
+import {
+  buildManagedIssueSlackCopy,
+  cleanIssueTitle,
+  formatAgentName,
+  formatIssuePriority,
+  formatIssueStatus,
+} from "./slack-copy.js";
 
 const execFileAsync = promisify(execFile);
 const GIT_BIN = process.env.BLUEPRINT_PAPERCLIP_GIT_BIN || "/usr/bin/git";
@@ -1291,6 +1298,8 @@ async function wakeChiefOfStaff(
     title: string;
     detail: string;
     slackChannel?: string;
+    slackTitle?: string;
+    slackSummary?: string[];
   },
 ) {
   const chiefOfStaffKey = getChiefOfStaffAgentKey(config);
@@ -1322,12 +1331,8 @@ async function wakeChiefOfStaff(
   const slackChannel = input.slackChannel ?? "#paperclip-manager";
   await postSlackActivity(ctx, config, {
     channel: slackChannel,
-    title: input.title,
-    summary: [
-      `Reason: ${input.reason}`,
-      input.detail,
-      `Wake run: ${wakeResult.runId}`,
-    ],
+    title: input.slackTitle ?? input.title,
+    summary: (input.slackSummary ?? [input.detail]).filter((line) => line.trim().length > 0),
   }).catch(() => undefined);
 
   return wakeResult;
@@ -1364,6 +1369,13 @@ async function handleChiefOfStaffIssueSignal(
     title: `Chief of Staff wakeup from ${event.type}`,
     detail: `${issue.title} (${issue.id}) is now ${issue.status}${issue.assigneeAgentId ? ` and assigned to ${issue.assigneeAgentId}` : " and unassigned"}.`,
     slackChannel: "#paperclip-manager",
+    slackTitle: event.type === "issue.created" ? "Manager update: new issue" : "Manager update: issue changed",
+    slackSummary: [
+      `What happened: ${event.type === "issue.created" ? "A new Paperclip issue was created." : "A Paperclip issue changed."}`,
+      `Task: ${cleanIssueTitle(issue.title)}`,
+      `Status: ${formatIssueStatus(issue.status) ?? issue.status}`,
+      `Owner: ${formatAgentName(issue.assigneeAgentId)}`,
+    ],
   }).catch(() => undefined);
 }
 
@@ -1393,6 +1405,12 @@ async function handleChiefOfStaffRunFailureSignal(
     title: "Chief of Staff wakeup from agent failure",
     detail: `${failedAgentId} failed on run ${asString(payload?.runId) ?? "unknown"}${asString(payload?.issueId) ? ` for issue ${asString(payload?.issueId)}` : ""}.`,
     slackChannel: "#paperclip-manager",
+    slackTitle: "Manager update: agent run failed",
+    slackSummary: [
+      `What happened: ${formatAgentName(failedAgentId)} hit a run failure${asString(payload?.issueId) ? " while working an issue" : ""}.`,
+      ...(asString(payload?.issueId) ? [`Issue: ${asString(payload?.issueId)}`] : []),
+      ...(asString(payload?.error) ? [`Error: ${asString(payload?.error)}`] : []),
+    ],
   }).catch(() => undefined);
 }
 
@@ -1420,6 +1438,13 @@ async function handleChiefOfStaffActivitySignal(
     title: "Chief of Staff routine trigger wakeup",
     detail: `Routine ${asString(details?.routineId) ?? "unknown"} triggered via ${asString(details?.source) ?? "unknown"} with status ${asString(details?.status) ?? "unknown"}.`,
     slackChannel: "#paperclip-manager",
+    slackTitle: "Manager update: routine triggered",
+    slackSummary: [
+      `What happened: A scheduled routine started running.`,
+      `Routine: ${asString(details?.routineId) ?? "unknown"}`,
+      `Source: ${asString(details?.source) ?? "unknown"}`,
+      `Status: ${asString(details?.status) ?? "unknown"}`,
+    ],
   }).catch(() => undefined);
 }
 
@@ -1678,7 +1703,7 @@ async function postSlackActivity(
   await postSlackDigest(targets, {
     channel: input.channel,
     title: input.title,
-    sections: [{ heading: "Details", items: input.summary }],
+    sections: [{ heading: "Update", items: input.summary }],
   });
 }
 
@@ -1725,12 +1750,13 @@ async function postHandoffSlackActivity(
     channels,
     title: input.title,
     summary: [
-      `Issue: ${input.handoff.title} (${input.handoff.id})`,
-      `Route: ${input.handoff.from} -> ${input.handoff.to}`,
-      `Status: ${input.handoff.status} · ${input.handoff.priority}`,
+      `What happened: ${formatAgentName(input.handoff.from)} handed work to ${formatAgentName(input.handoff.to)}.`,
+      `Task: ${cleanIssueTitle(input.handoff.title)}`,
+      `Status: ${formatIssueStatus(input.handoff.status) ?? input.handoff.status}`,
+      `Priority: ${formatIssuePriority(input.handoff.priority) ?? input.handoff.priority}`,
       ...(input.handoff.projectName ? [`Project: ${input.handoff.projectName}`] : []),
-      ...(input.handoff.stuckReason ? [`Reason: ${input.handoff.stuckReason}`] : []),
-      ...(input.handoff.latencyHours !== null ? [`Latency: ${input.handoff.latencyHours.toFixed(1)}h`] : []),
+      ...(input.handoff.stuckReason ? [`Why it is stuck: ${input.handoff.stuckReason}`] : []),
+      ...(input.handoff.latencyHours !== null ? [`Open for: ${input.handoff.latencyHours.toFixed(1)}h`] : []),
       ...(input.extraLines ?? []),
     ],
   });
@@ -2132,18 +2158,20 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
     || previousIssueSnapshot.assigneeAgentId !== (currentIssue.assigneeAgentId ?? null);
   if (meaningfulUpdate) {
     const config = await getConfig(ctx);
+    const slackCopy = buildManagedIssueSlackCopy({
+      event: isNewIssue ? "opened" : "updated",
+      sourceType: input.sourceType,
+      issueTitle: currentIssue.title,
+      projectName: input.projectName,
+      assignee: input.assignee,
+      priority: currentIssue.priority,
+      status: currentIssue.status,
+      signalUrl: input.signalUrl,
+    });
     await postSlackActivity(ctx, config, {
       channel: slackChannelForAgent(input.assignee),
-      title: isNewIssue
-        ? `Task opened for ${input.assignee}`
-        : `Task updated for ${input.assignee}`,
-      summary: [
-        `Issue: ${currentIssue.title} (${currentIssue.id})`,
-        `Project: ${input.projectName}`,
-        `Priority: ${currentIssue.priority}`,
-        `Status: ${currentIssue.status}`,
-        `Fingerprint: ${fingerprint}`,
-      ],
+      title: slackCopy.title,
+      summary: slackCopy.summary,
     }).catch(() => undefined);
     await wakeChiefOfStaff(ctx, input.companyId, config, {
       reason: isNewIssue ? "managed_issue_created" : "managed_issue_updated",
@@ -2161,6 +2189,8 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
         : "Chief of Staff wakeup from managed issue update",
       detail: `${currentIssue.title} (${currentIssue.id}) is ${currentIssue.status} in ${input.projectName}.`,
       slackChannel: "#paperclip-manager",
+      slackTitle: `Manager update: ${slackCopy.title}`,
+      slackSummary: slackCopy.summary,
     }).catch(() => undefined);
   }
 
@@ -2174,6 +2204,28 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
     return { fingerprint, issue: null };
   }
 
+  const existingData = (mapping.data ?? {}) as Partial<SourceMappingData>;
+  const alreadyResolved =
+    issue.status === input.resolutionStatus
+    && existingData.resolutionStatus === input.resolutionStatus;
+  if (alreadyResolved) {
+    await upsertMapping(ctx, input.companyId, fingerprint, mapping.title ?? issue.title, input.resolutionStatus, {
+      fingerprint,
+      issueId: issue.id,
+      sourceType: existingData.sourceType ?? input.sourceType,
+      sourceId: existingData.sourceId ?? input.sourceId,
+      projectName: existingData.projectName ?? "unknown",
+      assignee: existingData.assignee ?? "unknown",
+      signalUrl: existingData.signalUrl,
+      hits: existingData.hits ?? 1,
+      firstSeenAt: existingData.firstSeenAt ?? nowIso(),
+      lastSeenAt: nowIso(),
+      resolutionStatus: input.resolutionStatus,
+      metadata: existingData.metadata,
+    });
+    return { fingerprint, issue };
+  }
+
   const updatedIssue =
     issue.status === input.resolutionStatus
       ? issue
@@ -2185,7 +2237,6 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
 
   await ctx.issues.createComment(updatedIssue.id, input.comment, input.companyId);
 
-  const existingData = (mapping.data ?? {}) as Partial<SourceMappingData>;
   await upsertMapping(ctx, input.companyId, fingerprint, mapping.title ?? updatedIssue.title, input.resolutionStatus, {
     fingerprint,
     issueId: updatedIssue.id,
@@ -2226,15 +2277,20 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
   }
 
   const config = await getConfig(ctx);
+  const slackCopy = buildManagedIssueSlackCopy({
+    event: "resolved",
+    sourceType: input.sourceType,
+    issueTitle: updatedIssue.title,
+    projectName: existingData.projectName ?? "unknown",
+    assignee: existingData.assignee ?? "unknown",
+    priority: updatedIssue.priority,
+    status: updatedIssue.status,
+    signalUrl: existingData.signalUrl,
+  });
   await postSlackActivity(ctx, config, {
     channel: slackChannelForAgent(existingData.assignee ?? getChiefOfStaffAgentKey(config)),
-    title: `Task resolved for ${existingData.assignee ?? "automation"}`,
-    summary: [
-      `Issue: ${updatedIssue.title} (${updatedIssue.id})`,
-      `Resolution: ${input.resolutionStatus}`,
-      `Fingerprint: ${fingerprint}`,
-      `Comment: ${input.comment}`,
-    ],
+    title: slackCopy.title,
+    summary: slackCopy.summary,
   }).catch(() => undefined);
   await wakeChiefOfStaff(ctx, input.companyId, config, {
     reason: "managed_issue_resolved",
@@ -2248,6 +2304,8 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
     title: "Chief of Staff wakeup from managed issue resolution",
     detail: `${updatedIssue.title} (${updatedIssue.id}) moved to ${input.resolutionStatus}.`,
     slackChannel: "#paperclip-manager",
+    slackTitle: `Manager update: ${slackCopy.title}`,
+    slackSummary: slackCopy.summary,
   }).catch(() => undefined);
 
   return { fingerprint, issue: updatedIssue };
@@ -2286,9 +2344,9 @@ async function syncHandoffCollaboration(
         detail: `${handoff.from} delegated ${handoff.type} to ${handoff.to}.`,
       });
       await postHandoffSlackActivity(ctx, config, {
-        title: `Handoff opened for ${handoff.to}`,
+        title: `New handoff for ${formatAgentName(handoff.to)}`,
         handoff,
-        extraLines: [`Type: ${handoff.type}`],
+        extraLines: [`Handoff type: ${handoff.type}`],
       });
       entry.requestCommentId = handoff.requestCommentId;
     }
@@ -2301,12 +2359,14 @@ async function syncHandoffCollaboration(
         detail: `${handoff.responseFrom ?? handoff.to} responded with ${handoff.outcome ?? handoff.status}.`,
       });
       await postHandoffSlackActivity(ctx, config, {
-        title: handoff.outcome === "blocked" ? `Handoff blocked by ${handoff.to}` : `Handoff updated by ${handoff.to}`,
+        title: handoff.outcome === "blocked"
+          ? `Handoff is blocked with ${formatAgentName(handoff.to)}`
+          : `Handoff updated by ${formatAgentName(handoff.to)}`,
         handoff,
         extraLines: [
           `Outcome: ${handoff.outcome ?? handoff.status}`,
-          ...(handoff.followUpReason ? [`Follow-up: ${handoff.followUpReason}`] : []),
-          `Proof links: ${handoff.proofLinkCount}`,
+          ...(handoff.followUpReason ? [`Next step: ${handoff.followUpReason}`] : []),
+          `Proof shared: ${handoff.proofLinkCount} link${handoff.proofLinkCount === 1 ? "" : "s"}`,
         ],
       });
       entry.responseCommentId = handoff.responseCommentId;
@@ -2986,12 +3046,13 @@ async function createFollowUpIssue(
   });
   await postSlackActivity(ctx, config, {
     channel: slackChannelForAgent(input.assignee),
-    title: `Delegated blocker follow-up to ${input.assignee}`,
+    title: `Blocked work handed to ${formatAgentName(input.assignee)}`,
     summary: [
-      `Issue: ${followUp.title} (${followUp.id})`,
+      `What happened: A blocked task was handed to ${formatAgentName(input.assignee)} for follow-through.`,
+      `Task: ${followUp.title}`,
       `Parent issue: ${input.parentIssueId}`,
       `Project: ${input.projectName}`,
-      `Priority: ${followUp.priority}`,
+      `Priority: ${formatIssuePriority(followUp.priority) ?? followUp.priority}`,
     ],
   }).catch(() => undefined);
   await wakeChiefOfStaff(ctx, companyId, config, {
@@ -3007,6 +3068,12 @@ async function createFollowUpIssue(
     title: "Chief of Staff wakeup from blocker follow-up",
     detail: `${followUp.title} (${followUp.id}) was delegated to ${input.assignee}.`,
     slackChannel: "#paperclip-manager",
+    slackTitle: "Manager update: blocked work was delegated",
+    slackSummary: [
+      `What happened: A blocked task was handed to ${formatAgentName(input.assignee)} for follow-through.`,
+      `Task: ${followUp.title}`,
+      `Project: ${input.projectName}`,
+    ],
   }).catch(() => undefined);
   return followUp;
 }
