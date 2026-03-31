@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SEO } from "@/components/SEO";
 import { analyticsEvents } from "@/components/Analytics";
 import { withCsrfHeader } from "@/lib/csrf";
@@ -274,10 +274,22 @@ export default function PilotExchange() {
 
   const [policyStatus, setPolicyStatus] = useState<SubmissionStatus>("idle");
   const [policyMessage, setPolicyMessage] = useState("");
+  const policyDialogCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearPolicyDialogCloseTimer = useCallback(() => {
+    if (policyDialogCloseTimerRef.current === null) {
+      return;
+    }
+
+    clearTimeout(policyDialogCloseTimerRef.current);
+    policyDialogCloseTimerRef.current = null;
+  }, []);
 
   useEffect(() => {
     analyticsEvents.pilotExchangeView();
   }, []);
+
+  useEffect(() => clearPolicyDialogCloseTimer, [clearPolicyDialogCloseTimer]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -326,6 +338,7 @@ export default function PilotExchange() {
   const openEvalDialog = useCallback(
     (briefId?: string) => {
       analyticsEvents.pilotExchangeOpenPolicyForm();
+      clearPolicyDialogCloseTimer();
       setPolicyStatus("idle");
       setPolicyMessage("");
 
@@ -345,7 +358,7 @@ export default function PilotExchange() {
       });
       setIsPolicyDialogOpen(true);
     },
-    [policyLibrary]
+    [clearPolicyDialogCloseTimer, policyLibrary]
   );
 
   const emitFilterEvent = useCallback((type: string, value: string) => {
@@ -407,6 +420,7 @@ export default function PilotExchange() {
 
   const handleEvalRunSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    clearPolicyDialogCloseTimer();
     if (!selectedEvalBrief) return setPolicyStatus("error"), setPolicyMessage("Select a qualified site.");
     if (!evalRunForm.interfaceContract.trim()) return setPolicyStatus("error"), setPolicyMessage("Document the interface contract.");
     if (!evalRunForm.fallbackStrategy.trim()) return setPolicyStatus("error"), setPolicyMessage("Define your fallback strategy.");
@@ -474,7 +488,12 @@ export default function PilotExchange() {
         contactCompany: resolvedCompany,
       }));
 
-      setTimeout(() => { setIsPolicyDialogOpen(false); setPolicyStatus("idle"); setPolicyMessage(""); }, 1500);
+      policyDialogCloseTimerRef.current = setTimeout(() => {
+        setIsPolicyDialogOpen(false);
+        setPolicyStatus("idle");
+        setPolicyMessage("");
+        policyDialogCloseTimerRef.current = null;
+      }, 1500);
     } catch (error) {
       analyticsEvents.pilotExchangeSubmitPolicy("error");
       setPolicyStatus("error");

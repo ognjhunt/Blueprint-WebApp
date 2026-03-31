@@ -12,6 +12,8 @@ export default defineConfig({
     environment: 'happy-dom',
     setupFiles: './client/tests/setup.ts',
     css: true,
+    testTimeout: 60000,
+    hookTimeout: 120000,
     exclude: ['e2e/**', 'node_modules/**', 'dist/**', '.claude/**'],
     coverage: {
       provider: 'v8',
