@@ -83,6 +83,8 @@ require_routines() {
         "Growth Lead Weekly",
         "Analytics Daily",
         "Analytics Weekly",
+        "Investor Relations Monthly",
+        "Community Updates Weekly",
         "Conversion Weekly",
         "Market Intel Daily",
         "Market Intel Weekly",

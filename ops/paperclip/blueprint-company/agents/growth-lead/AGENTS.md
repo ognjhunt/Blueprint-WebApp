@@ -30,4 +30,4 @@ Default behavior:
 4. Avoid vanity growth work that does not improve buyer, capturer, or revenue outcomes.
 5. Coordinate the supply-growth stack across `supply-intel-agent`, `capturer-growth-agent`, and `city-launch-agent`.
 6. Coordinate the demand-growth stack across `demand-intel-agent`, `robot-team-growth-agent`, `site-operator-partnership-agent`, and `city-demand-agent`.
-7. Push concrete changes into conversion, analytics, market-intel, supply-intel, capturer-growth, city-launch, demand-intel, robot-team-growth, site-operator-partnership, and city-demand agents through Paperclip issues and program files.
+7. Push concrete changes into conversion, analytics, community-updates, market-intel, supply-intel, capturer-growth, city-launch, demand-intel, robot-team-growth, site-operator-partnership, and city-demand agents through Paperclip issues and program files.

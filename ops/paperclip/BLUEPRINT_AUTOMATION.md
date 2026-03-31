@@ -28,7 +28,7 @@ The automation loop is deliberately grounded in real repo state and truthful pro
 - Repo implementation and review loops are instructed to work from actual Paperclip issues, create blocker follow-up issues, and close or reprioritize issues explicitly.
 - `blueprint-executive-ops` is the cross-repo / operator project for executive and blocker work.
 - `*-codex` agents stay on `codex_local` for implementation work.
-- `blueprint-chief-of-staff`, `ops-lead`, `growth-lead`, `analytics-agent`, `market-intel-agent`, `supply-intel-agent`, `capturer-growth-agent`, `city-launch-agent`, `demand-intel-agent`, `robot-team-growth-agent`, `site-operator-partnership-agent`, and `city-demand-agent` run on `hermes_local`.
+- `blueprint-chief-of-staff`, `ops-lead`, `growth-lead`, `analytics-agent`, `investor-relations-agent`, `community-updates-agent`, `market-intel-agent`, `supply-intel-agent`, `capturer-growth-agent`, `city-launch-agent`, `demand-intel-agent`, `robot-team-growth-agent`, `site-operator-partnership-agent`, and `city-demand-agent` run on `hermes_local`.
 - Hermes-backed agents are configured for Codex OAuth only. Do not assume Anthropic/OpenAI API-key routing for them on this host.
 - `blueprint-ceo`, `blueprint-cto`, and the `*-claude` review agents are now controlled by `BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE`, which supports `claude`, `codex`, and `auto`.
 - In `auto`, reconcile probes the Claude adapter and flips only the executive/review lane to `codex_local` when Claude is unavailable, then flips back on a later maintenance pass when Claude is healthy again.
@@ -61,6 +61,13 @@ It provides:
   - `analytics-report`
   - `market-intel-report`
   - `demand-intel-report`
+- editorial/publishing primitives that the new writing agents use:
+  - `web-search`
+  - `notion-write-knowledge`
+  - `notion-write-work-queue`
+  - `nitrosend-upsert-audience`
+  - `nitrosend-create-campaign-draft`
+  - `slack-post-digest`
 - manager-state visibility for the chief-of-staff loop:
   - `blueprint-manager-state`
 - Slack activity mirroring for task opens, delegations, closures, and chief-of-staff wakeups:

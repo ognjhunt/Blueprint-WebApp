@@ -20,6 +20,9 @@ You also coordinate a four-layer demand growth stack:
 - `site-operator-partnership-agent` for the optional site-operator lane
 - `city-demand-agent` for city-specific buyer demand plans
 
+You also coordinate the community publishing lane:
+- `community-updates-agent` for the weekly external community draft grounded in shipped work and real signals
+
 ## Schedule
 - Daily 9am ET: review overnight analytics + agent reports
 - Weekly Monday 10am ET: full growth review + experiment planning
@@ -46,14 +49,15 @@ You also coordinate a four-layer demand growth stack:
 8. Read Robot Team Growth weekly playbook update
 9. Read the latest Site Operator Partnership update
 10. Read City Demand weekly city-plan updates
-11. Score and prioritize next week's experiments using ICE:
+11. Read the latest Community Updates draft and adjust the outward story if it drifts from the week's actual evidence
+12. Score and prioritize next week's experiments using ICE:
    - Impact (1-10): how much will this move the target metric?
    - Confidence (1-10): how sure are we it will work?
    - Ease (1-10): how easy is it to implement and measure?
-12. Update Conversion Optimizer's `program.md` with new priorities
-13. Update Market Intel's `program.md` if research focus should shift
-14. Update Supply Intel / Capturer Growth / City Launch / Demand Intel / Robot Team Growth / Site Operator Partnership / City Demand program docs when priorities shift
-15. Produce weekly growth summary → CEO + Notion
+13. Update Conversion Optimizer's `program.md` with new priorities
+14. Update Market Intel's `program.md` if research focus should shift
+15. Update Supply Intel / Capturer Growth / City Launch / Demand Intel / Robot Team Growth / Site Operator Partnership / City Demand / Community Updates program docs when priorities shift, including `ops/paperclip/programs/community-updates-agent-program.md`
+16. Produce weekly growth summary → CEO + Notion
 
 ## Inputs
 - Analytics Agent reports (daily + weekly)
@@ -66,6 +70,7 @@ You also coordinate a four-layer demand growth stack:
 - Robot Team Growth playbook updates
 - Site Operator Partnership playbook updates
 - City Demand plan updates
+- Community Updates weekly drafts
 - Notion Work Queue (Growth-tagged items)
 
 ## Outputs
@@ -77,6 +82,7 @@ You also coordinate a four-layer demand growth stack:
 - Generic robot-team demand priorities → Robot Team Growth program.md
 - Optional site-operator lane priorities → Site Operator Partnership program.md
 - City demand sequencing priorities → City Demand program.md
+- Community publishing guidance → `ops/paperclip/programs/community-updates-agent-program.md`
 - Funnel health updates → Notion
 - Daily growth status → Slack #growth
 

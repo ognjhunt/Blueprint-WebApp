@@ -389,6 +389,39 @@ agents:
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/analytics-agent/AGENTS.md
         timeoutSec: 1200
     budgetMonthlyCents: 2000
+  investor-relations-agent:
+    role: engineer
+    icon: file-text
+    capabilities: >-
+      Produces Blueprint's monthly investor update from real month-over-month metrics, shipped work, risks, asks, and
+      operating context. Drafts investor-relations blog and investor email artifacts without live publishing. Read the
+      investor program file and humanizer skill before every substantial run.
+    adapter:
+      type: hermes_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/investor-relations-agent/AGENTS.md
+        timeoutSec: 1800
+    budgetMonthlyCents: 2000
+  community-updates-agent:
+    role: engineer
+    icon: newspaper
+    capabilities: >-
+      Produces Blueprint's weekly community update for users, capturers, robot teams, and partners. Turns real shipped
+      work, capture progress, partner activity, and open asks into a concise blog-plus-email draft without making live
+      claims or publishing automatically. Read the community program file and humanizer skill before every substantial
+      run.
+    adapter:
+      type: hermes_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/community-updates-agent/AGENTS.md
+        timeoutSec: 1800
+    budgetMonthlyCents: 2000
   market-intel-agent:
     role: engineer
     icon: globe
@@ -712,6 +745,14 @@ tasks:
     status: todo
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
+  investor-relations-agent-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
+  community-updates-agent-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
   market-intel-agent-bootstrap:
     status: todo
     priority: high
@@ -744,6 +785,14 @@ tasks:
     status: todo
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
+  investor-relations-monthly:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
+  community-updates-weekly:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
   supply-intel-daily:
     status: active
     priority: medium
@@ -963,6 +1012,24 @@ routines:
     triggers:
       - kind: schedule
         cronExpression: 0 23 * * 0
+        timezone: America/New_York
+  investor-relations-monthly:
+    agent: investor-relations-agent
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 0 8 1 * *
+        timezone: America/New_York
+  community-updates-weekly:
+    agent: community-updates-agent
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 0 9 * * 5
         timezone: America/New_York
   conversion-weekly:
     agent: conversion-agent

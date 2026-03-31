@@ -140,6 +140,8 @@ const ROUTINE_TITLE_OVERRIDES = {
   "growth-lead-weekly": "Growth Lead Weekly",
   "analytics-daily": "Analytics Daily",
   "analytics-weekly": "Analytics Weekly",
+  "investor-relations-monthly": "Investor Relations Monthly",
+  "community-updates-weekly": "Community Updates Weekly",
   "conversion-weekly": "Conversion Weekly",
   "market-intel-daily": "Market Intel Daily",
   "market-intel-weekly": "Market Intel Weekly",
@@ -202,6 +204,8 @@ const AGENT_DEFAULT_PROJECT_KEYS = {
   "growth-lead": "blueprint-executive-ops",
   "conversion-agent": "blueprint-webapp",
   "analytics-agent": "blueprint-webapp",
+  "investor-relations-agent": "blueprint-executive-ops",
+  "community-updates-agent": "blueprint-webapp",
   "market-intel-agent": "blueprint-webapp",
   "supply-intel-agent": "blueprint-executive-ops",
   "capturer-growth-agent": "blueprint-webapp",
@@ -286,9 +290,33 @@ function buildMarketIntelRoutineDescription(cadence) {
   ].join(" ");
 }
 
+function buildInvestorRelationsRoutineDescription() {
+  return [
+    "Read ops/paperclip/programs/investor-relations-agent-program.md and the humanizer skill before drafting.",
+    "Ground on the current issue and gather real month-over-month metrics from Stripe, Firestore, analytics, Paperclip, and Firehose where relevant.",
+    "Draft the full investor update with notion-write-knowledge and create the tracking artifact with notion-write-work-queue.",
+    "When Nitrosend is configured, maintain a draft-only Blueprint Investors audience and create the monthly draft campaign. Do not live send or publish.",
+    "When Slack is configured, post an internal #exec digest announcing the draft is ready for review.",
+    "PATCH the current issue to done only when the metrics are sourced, the draft artifacts exist, and the copy has passed the humanizer anti-AI pass. Otherwise PATCH it to blocked with the exact missing artifact or source-of-truth failure.",
+  ].join(" ");
+}
+
+function buildCommunityUpdatesRoutineDescription() {
+  return [
+    "Read ops/paperclip/programs/community-updates-agent-program.md and the humanizer skill before drafting.",
+    "Ground on the current issue and gather the week's real shipped changes, community signals, and truthful supporting metrics from Paperclip, analytics, Firestore, and Firehose.",
+    "Draft the weekly update with notion-write-knowledge and create the review artifact with notion-write-work-queue.",
+    "When Nitrosend is configured, maintain a draft-only Blueprint Community audience and create the weekly campaign draft. Do not live send or publish.",
+    "When Slack is configured, post an internal #growth digest announcing the draft is ready for review.",
+    "PATCH the current issue to done only when the proof artifacts exist and every claim maps back to a real source. Otherwise PATCH it to blocked with the exact missing proof or metric gap.",
+  ].join(" ");
+}
+
 function buildRoutineDescription(routineKey) {
   if (routineKey === "analytics-daily") return buildAnalyticsRoutineDescription("daily");
   if (routineKey === "analytics-weekly") return buildAnalyticsRoutineDescription("weekly");
+  if (routineKey === "investor-relations-monthly") return buildInvestorRelationsRoutineDescription();
+  if (routineKey === "community-updates-weekly") return buildCommunityUpdatesRoutineDescription();
   if (routineKey === "market-intel-daily") return buildMarketIntelRoutineDescription("daily");
   if (routineKey === "market-intel-weekly") return buildMarketIntelRoutineDescription("weekly");
   return undefined;

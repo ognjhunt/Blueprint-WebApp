@@ -52,10 +52,10 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 
 | Department | Lead | Agents | Focus |
 |-----------|------|--------|-------|
-| **Executive** | CEO | CEO, Chief of Staff, CTO | Strategy, priorities, continuous cross-dept coordination |
+| **Executive** | CEO | CEO, Chief of Staff, CTO, Investor Relations | Strategy, priorities, continuous cross-dept coordination |
 | **Engineering** | CTO | 6 agents (impl + review per repo) | Code implementation and review |
 | **Ops** | Ops Lead | 5 agents | Product operations lifecycle |
-| **Growth** | Growth Lead | 11 agents | Buyer demand, capturer supply, city planning, conversion, retention, and intelligence |
+| **Growth** | Growth Lead | 12 agents | Buyer demand, capturer supply, city planning, conversion, retention, intelligence, and community publishing |
 
 ---
 
@@ -155,6 +155,39 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 
 **Instructions:** `ops/paperclip/blueprint-company/agents/blueprint-cto/AGENTS.md`
 **Paperclip config:** `ops/paperclip/blueprint-company/.paperclip.yaml`
+
+---
+
+#### Investor Relations Agent (`investor-relations-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Executive |
+| **Reports to** | Chief of Staff |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | New |
+
+**Purpose:** Produces the monthly investor update from real month-over-month metrics, shipped work, operating risks, and concrete asks. Drafts investor-facing blog/email artifacts but never sends them live.
+
+**Triggers:**
+- `0 8 1 * *` — Monthly investor draft run (8am ET on the first calendar day)
+- Event: CEO or Chief of Staff requests an ad-hoc investor-ready draft
+
+**Inputs:**
+- Stripe, Firestore, GA4/PostHog, Paperclip issue completions, and Firehose signals
+- `ops/paperclip/programs/investor-relations-agent-program.md`
+- The [$humanizer](/Users/nijelhunt_1/.agents/skills/humanizer/SKILL.md) skill for final copy cleanup
+
+**Outputs:**
+- Investor update draft → Notion Knowledge DB
+- Review artifact → Notion Work Queue
+- Draft investor campaign → Nitrosend (when configured)
+- Internal review note → Slack `#exec` (when configured)
+
+**Human gates:** Any live send/publish, fundraising language, projections, runway claims, or board-sensitive disclosures.
+
+**Instructions:** `ops/paperclip/blueprint-company/agents/investor-relations-agent/AGENTS.md`
+**Program:** `ops/paperclip/programs/investor-relations-agent-program.md`
 
 ---
 
@@ -824,6 +857,39 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | 3 | Fully autonomous; other agents query directly as a service | Founder sign-off |
 
 **Skill file:** `ops/paperclip/skills/analytics-agent.md`
+
+---
+
+#### Community Updates Agent (`community-updates-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Growth |
+| **Reports to** | Growth Lead |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | New |
+
+**Purpose:** Produces the weekly Blueprint community update for users, capturers, robot teams, partners, and interested operators. Turns real shipped work and community-relevant signals into a concise blog-plus-email draft.
+
+**Triggers:**
+- `0 9 * * 5` — Weekly Friday draft run (9am ET)
+- Event: Growth Lead requests a special update tied to a launch, capture milestone, or community moment
+
+**Inputs:**
+- Closed Paperclip issues, weekly shipped work, Firestore/analytics deltas, Firehose/community signals
+- `ops/paperclip/programs/community-updates-agent-program.md`
+- The [$humanizer](/Users/nijelhunt_1/.agents/skills/humanizer/SKILL.md) skill for final copy cleanup
+
+**Outputs:**
+- Weekly update draft → Notion Knowledge DB
+- Review artifact → Notion Work Queue
+- Draft community campaign → Nitrosend (when configured)
+- Internal review note → Slack `#growth` (when configured)
+
+**Human gates:** Any live send/publish, unsupported traction claims, or sensitive rights/commercial disclosures.
+
+**Instructions:** `ops/paperclip/blueprint-company/agents/community-updates-agent/AGENTS.md`
+**Program:** `ops/paperclip/programs/community-updates-agent-program.md`
 
 ---
 
