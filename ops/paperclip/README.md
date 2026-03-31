@@ -6,6 +6,8 @@ This directory contains the local Paperclip package and bootstrap scripts used t
 - `/Users/nijelhunt_1/workspace/BlueprintCapturePipeline`
 - `/Users/nijelhunt_1/workspace/BlueprintCapture`
 
+The current baseline includes a Hermes-backed `blueprint-chief-of-staff` loop that runs every 5 minutes, wakes on issue/routine/failure signals, and mirrors major task/delegation movement into Slack when webhook targets are configured.
+
 Main entrypoints:
 
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company`: portable Paperclip company package

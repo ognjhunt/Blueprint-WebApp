@@ -37,8 +37,9 @@ This is not generic competitor research. It is specifically about:
    - how did they build trust and repeat participation?
    - what channels produced high-intent supply?
    - what bottlenecks appeared after early traction?
-4. Write findings as evidence-backed patterns, not vibes.
-5. Route the most actionable findings to:
+4. Use `customer-research-search` and `customer-research-synthesize` when forum, review, or transcript evidence materially improves the answer.
+5. Write findings as evidence-backed patterns, not vibes.
+6. Route the most actionable findings to:
    - `capturer-growth-agent` for generic playbook updates
    - `growth-lead` for prioritization
    - `city-launch-agent` when a city-specific implication is clear
@@ -60,6 +61,9 @@ This is not generic competitor research. It is specifically about:
 ## Inputs
 - `ops/paperclip/programs/supply-intel-agent-program.md`
 - public web research
+- `customer-research-search`
+- `customer-research-synthesize`
+- `customer-research-report` when the issue explicitly calls for JTBD or persona artifacts
 - current Blueprint growth / ops context
 - existing city-launch and capturer-growth docs
 

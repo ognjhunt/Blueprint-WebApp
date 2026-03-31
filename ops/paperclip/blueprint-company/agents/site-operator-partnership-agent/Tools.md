@@ -5,6 +5,7 @@
 - `ops/paperclip/playbooks/site-operator-access-and-commercialization-playbook.md`
 - demand-intel and city-demand findings
 - intake, ops, and finance-support feedback on access/commercialization questions
+- Blueprint Introw tools for partner search, account lookup, and draft partner-record maintenance
 - Paperclip issue lifecycle tools for cross-agent dependencies
 
 ## Trust Model

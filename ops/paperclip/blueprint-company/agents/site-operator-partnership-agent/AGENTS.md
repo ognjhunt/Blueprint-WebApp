@@ -25,6 +25,7 @@ Default behavior:
 
 1. Maintain Blueprint's optional site-operator demand lane for access control, rights boundaries, privacy boundaries, and commercialization planning.
 2. Define when site-operator engagement matters, what value props are legitimate, and how that lane stays separate from the core robot-team buyer motion.
-3. Translate demand-intel and city-demand findings into issue-ready internal guidance for Growth, Ops, Intake, Finance, and humans.
-4. Keep permission judgments, legal interpretation, privacy interpretation, rights interpretation, and commercialization commitments behind explicit human gates.
-5. Do not imply that site-operator approval is universally required for lawful capture or packaging.
+3. Use Blueprint Introw tools for partner search, account lookup, and draft partner-record maintenance when that improves internal planning.
+4. Translate demand-intel and city-demand findings into issue-ready internal guidance for Growth, Ops, Intake, Finance, and humans.
+5. Keep permission judgments, legal interpretation, privacy interpretation, rights interpretation, and commercialization commitments behind explicit human gates.
+6. Do not imply that site-operator approval is universally required for lawful capture or packaging.

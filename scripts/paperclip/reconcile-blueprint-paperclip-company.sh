@@ -122,6 +122,7 @@ function titleizeToken(token) {
 
 const ROUTINE_TITLE_OVERRIDES = {
   "ceo-daily-review": "CEO Daily Review",
+  "chief-of-staff-continuous-loop": "Chief of Staff Continuous Loop",
   "cto-cross-repo-triage": "CTO Cross-Repo Triage",
   "webapp-autonomy-loop": "WebApp Autonomy Loop",
   "webapp-claude-review-loop": "WebApp Claude Review Loop",
@@ -185,6 +186,7 @@ function inferRoutineAgentKey(routineKey, routineConfig) {
 
 const AGENT_DEFAULT_PROJECT_KEYS = {
   "blueprint-ceo": "blueprint-executive-ops",
+  "blueprint-chief-of-staff": "blueprint-executive-ops",
   "blueprint-cto": "blueprint-webapp",
   "webapp-codex": "blueprint-webapp",
   "webapp-claude": "blueprint-webapp",

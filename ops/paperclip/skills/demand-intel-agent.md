@@ -37,6 +37,7 @@ This is not generic B2B demand gen work. It is specifically about:
    - site-operator lane signals when access/commercialization evidence is real
    - city-specific demand planning where the evidence is city-bound
    - hosted-session, proof-pack, provenance, and procurement requirements that technical buyers actually repeat
+   - customer-research evidence when transcripts, reviews, forums, or community sources materially change the answer
 5. Label findings honestly as evidence, inference, or open question in your working notes before writing the final payload.
 6. Synthesize the result into this required structured payload:
    - `cadence`
@@ -169,9 +170,17 @@ curl -fsS "$PAPERCLIP_API_URL/api/issues/$PAPERCLIP_TASK_ID" \
    - recurring proof requirements
 4. Create or update downstream Paperclip issues only after the report artifact exists.
 
+## Customer Research Add-On
+- Use `customer-research-search` for source-targeted buyer research when direct VOC evidence matters.
+- Use `customer-research-synthesize` to normalize evidence into JTBD, personas, objections, and open questions.
+- If the issue explicitly needs structured customer-research output, write it through `customer-research-report` and reference the resulting proof artifact in downstream issues.
+
 ## Inputs
 - `ops/paperclip/programs/demand-intel-agent-program.md`
 - public web research
+- `customer-research-search`
+- `customer-research-synthesize`
+- `customer-research-report`
 - current Blueprint growth / ops context
 - existing robot-team, site-operator, and city-demand docs
 

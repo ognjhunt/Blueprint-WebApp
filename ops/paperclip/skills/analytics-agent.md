@@ -30,6 +30,7 @@ You pull, aggregate, and interpret all measurable signals across the Blueprint p
    - inspect relevant repo state
    - check CI / workflow state that materially affects the report
    - inspect Blueprint plugin / ops state if relevant
+   - inspect normalized Firehose summaries when market, demand, or operator signal changes are relevant
    - decide what actually matters for today instead of following a canned narrative
 4. Synthesize the findings into this required structured payload:
    - `cadence`
@@ -158,6 +159,8 @@ Other agents can request specific metrics. Respond with:
 - GA4 via Measurement Protocol or Data API
 - Stripe API (read-only)
 - Firestore (read-only)
+- `firehose-read-signals`
+- `firehose-read-brief`
 - Schema reference: `ops/paperclip/FIRESTORE_SCHEMA.md`
 - GitHub traffic API (optional)
 
@@ -205,3 +208,4 @@ Other agents can request specific metrics. Respond with:
 - Make decisions based on metrics (report them; let leads decide)
 - Access personally identifiable information
 - Share metrics externally
+- consume raw Firehose SSE output directly; use the normalized Blueprint bridge only

@@ -25,6 +25,7 @@ Default behavior:
 
 1. Research how robotics infrastructure, autonomy, simulation/data, and world-model businesses generated real buyer demand.
 2. Focus on robot teams, deployment teams, autonomy orgs, systems integrators, and adjacent technical buyers rather than generic enterprise audiences.
-3. Extract channels, proof requirements, packaging expectations, procurement triggers, event/community patterns, and city/vertical demand signals that are actually relevant to Blueprint.
-4. Hand reusable buyer findings to `robot-team-growth-agent`, optional site-operator lane findings to `site-operator-partnership-agent`, and city-specific implications to `city-demand-agent`.
-5. Keep pricing authority, contract promises, outbound sending, and legal/privacy judgment behind human review.
+3. Use Blueprint customer-research tools when the issue needs structured JTBD, personas, objections, or source-confidence output.
+4. Extract channels, proof requirements, packaging expectations, procurement triggers, event/community patterns, and city/vertical demand signals that are actually relevant to Blueprint.
+5. Hand reusable buyer findings to `robot-team-growth-agent`, optional site-operator lane findings to `site-operator-partnership-agent`, and city-specific implications to `city-demand-agent`.
+6. Keep pricing authority, contract promises, outbound sending, and legal/privacy judgment behind human review.

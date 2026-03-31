@@ -5,8 +5,9 @@
 Blueprint now has three layers working together inside Paperclip:
 
 1. A stronger company package with explicit executive and repo-specialist issue-management behavior.
-2. A Blueprint-specific plugin at `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/plugins/blueprint-automation`.
-3. Bootstrap, configure, verify, and smoke scripts that provision the plugin, secret refs, and automation checks on a persistent trusted host.
+2. A Hermes-backed `blueprint-chief-of-staff` loop that runs every 5 minutes and also wakes on issue, routine, queue, and failure signals.
+3. A Blueprint-specific plugin at `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/plugins/blueprint-automation`.
+4. Bootstrap, configure, verify, and smoke scripts that provision the plugin, secret refs, and automation checks on a persistent trusted host.
 
 The automation loop is deliberately grounded in real repo state and truthful product doctrine:
 
@@ -14,6 +15,7 @@ The automation loop is deliberately grounded in real repo state and truthful pro
 - CI failures come from real webhook or polling signals
 - issue creation, dedupe, blocker follow-up, and resolution happen as actual Paperclip issues
 - executive routines are instructed to manage issue lifecycle explicitly rather than narrate status
+- chief-of-staff wakeups and major task/delegation changes are mirrored into Slack when webhook targets exist
 - Codex remains the implementation default while Claude stays the executive/review lane and Hermes powers selected research/copilot/summary agents on this host
 
 ## Architecture
@@ -21,11 +23,12 @@ The automation loop is deliberately grounded in real repo state and truthful pro
 ### Company package
 
 - `ceo-daily-review` is the executive prioritization loop.
+- `chief-of-staff-continuous-loop` is the 24/7 managerial loop.
 - `cto-cross-repo-triage` is the cross-repo technical orchestration loop.
 - Repo implementation and review loops are instructed to work from actual Paperclip issues, create blocker follow-up issues, and close or reprioritize issues explicitly.
 - `blueprint-executive-ops` is the cross-repo / operator project for executive and blocker work.
 - `*-codex` agents stay on `codex_local` for implementation work.
-- `ops-lead`, `growth-lead`, `analytics-agent`, `market-intel-agent`, `supply-intel-agent`, `capturer-growth-agent`, `city-launch-agent`, `demand-intel-agent`, `robot-team-growth-agent`, `site-operator-partnership-agent`, and `city-demand-agent` run on `hermes_local`.
+- `blueprint-chief-of-staff`, `ops-lead`, `growth-lead`, `analytics-agent`, `market-intel-agent`, `supply-intel-agent`, `capturer-growth-agent`, `city-launch-agent`, `demand-intel-agent`, `robot-team-growth-agent`, `site-operator-partnership-agent`, and `city-demand-agent` run on `hermes_local`.
 - Hermes-backed agents are configured for Codex OAuth only. Do not assume Anthropic/OpenAI API-key routing for them on this host.
 - `blueprint-ceo`, `blueprint-cto`, and the `*-claude` review agents are now controlled by `BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE`, which supports `claude`, `codex`, and `auto`.
 - In `auto`, reconcile probes the Claude adapter and flips only the executive/review lane to `codex_local` when Claude is unavailable, then flips back on a later maintenance pass when Claude is healthy again.
@@ -58,6 +61,11 @@ It provides:
   - `analytics-report`
   - `market-intel-report`
   - `demand-intel-report`
+- manager-state visibility for the chief-of-staff loop:
+  - `blueprint-manager-state`
+- Slack activity mirroring for task opens, delegations, closures, and chief-of-staff wakeups:
+  - routes to ops/growth by default
+  - can use dedicated exec/engineering/manager webhooks when configured
 
 ### Storage and traceability
 
@@ -101,6 +109,10 @@ The bootstrap, configure, verify, smoke, and LaunchAgent flows all read that fil
 - `NOTION_API_TOKEN`
 - `SLACK_OPS_WEBHOOK_URL`
 - `SLACK_GROWTH_WEBHOOK_URL`
+- optional dedicated channels:
+  - `SLACK_EXEC_WEBHOOK_URL`
+  - `SLACK_ENGINEERING_WEBHOOK_URL`
+  - `SLACK_MANAGER_WEBHOOK_URL`
 - `SEARCH_API_KEY`
 - `SEARCH_API_PROVIDER`
 - `BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE`
@@ -129,7 +141,7 @@ In practice that means:
 
 - executive and review agents stay on Claude when Claude is healthy, then fail over to Codex when Claude is rate-limited or otherwise unavailable
 - implementation agents stay on Codex when Codex is healthy, then fail over to Claude when Codex is unavailable
-- Hermes-backed research/copilot/summary agents stay on Hermes when the local `hermes` CLI is healthy
+- Hermes-backed chief-of-staff, ops, growth, and research/copilot/summary agents stay on Hermes when the local `hermes` CLI is healthy
 
 No Anthropic or OpenAI API-key wiring is required for the Codex/Claude host policy, and Hermes is expected to use Codex OAuth rather than provider API keys on this host.
 
@@ -183,7 +195,7 @@ Verify adapters, routines, plugin readiness, and dashboard reachability:
 /Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/verify-blueprint-paperclip.sh
 ```
 
-`verify-blueprint-paperclip.sh` now checks both Codex and Claude by default so the dual-lane host configuration stays honest, and it verifies the added Ops and Growth routines rather than only the original engineering loops.
+`verify-blueprint-paperclip.sh` now checks both Codex and Claude by default so the dual-lane host configuration stays honest, and it verifies the chief-of-staff loop plus the added Ops and Growth routines rather than only the original engineering loops.
 
 Run the end-to-end automation smoke:
 

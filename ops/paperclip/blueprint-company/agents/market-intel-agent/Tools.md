@@ -11,6 +11,8 @@
 ## Required Workflow Tool
 - the Blueprint deterministic market-intel writer
   Use it to publish the report artifact and to decide whether the issue ends `done` or `blocked`.
+- the Blueprint customer-research tools
+  Use these when the issue needs structured JTBD, persona, objection, or source-confidence output.
 
 ## Trust Model
 - primary sources beat recaps

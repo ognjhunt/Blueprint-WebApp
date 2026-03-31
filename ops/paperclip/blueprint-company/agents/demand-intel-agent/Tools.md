@@ -13,6 +13,8 @@
 ## Required Workflow Tool
 - the Blueprint deterministic demand-intel writer
   Use it to publish the research artifact, create the searchable Notion trail, and decide whether the issue ends `done` or `blocked`.
+- the Blueprint customer-research tools
+  Use them when the issue needs structured JTBD, persona, objection, or source-confidence output from direct VOC-style evidence.
 
 ## Trust Model
 - primary evidence beats summaries

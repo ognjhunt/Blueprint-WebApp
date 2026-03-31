@@ -24,6 +24,21 @@ agents:
     permissions:
       canCreateAgents: true
     budgetMonthlyCents: 5000
+  blueprint-chief-of-staff:
+    role: cto
+    icon: target
+    capabilities: >-
+      Continuous managerial runtime for Blueprint. Tracks what finished, what stalled, and what needs follow-through
+      across executive, ops, growth, and repo lanes. Uses Paperclip as the source of truth and Hermes for continuity.
+    adapter:
+      type: hermes_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md
+        timeoutSec: 1800
+    budgetMonthlyCents: 4000
   blueprint-cto:
     role: cto
     icon: circuit-board
@@ -233,7 +248,8 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/ops-lead/AGENTS.md
         timeoutSec: 1800
     budgetMonthlyCents: 3000
@@ -325,7 +341,8 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/growth-lead/AGENTS.md
         timeoutSec: 1800
     budgetMonthlyCents: 3000
@@ -367,7 +384,8 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/analytics-agent/AGENTS.md
         timeoutSec: 1200
     budgetMonthlyCents: 2000
@@ -382,7 +400,8 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/market-intel-agent/AGENTS.md
         timeoutSec: 1800
     budgetMonthlyCents: 2000
@@ -398,7 +417,8 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/supply-intel-agent/AGENTS.md
         timeoutSec: 1800
     budgetMonthlyCents: 2000
@@ -413,7 +433,8 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/capturer-growth-agent/AGENTS.md
         timeoutSec: 1800
     budgetMonthlyCents: 2500
@@ -429,7 +450,8 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/city-launch-agent/AGENTS.md
         timeoutSec: 1800
     budgetMonthlyCents: 2500
@@ -445,7 +467,8 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/demand-intel-agent/AGENTS.md
         timeoutSec: 1800
     budgetMonthlyCents: 2000
@@ -461,7 +484,8 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/robot-team-growth-agent/AGENTS.md
         timeoutSec: 1800
     budgetMonthlyCents: 2500
@@ -477,7 +501,8 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/site-operator-partnership-agent/AGENTS.md
         timeoutSec: 1800
     budgetMonthlyCents: 2000
@@ -493,7 +518,8 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/city-demand-agent/AGENTS.md
         timeoutSec: 1800
     budgetMonthlyCents: 2500
@@ -586,11 +612,19 @@ tasks:
     status: todo
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
+  chief-of-staff-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
   cto-bootstrap:
     status: todo
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   ceo-daily-review:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
+  chief-of-staff-continuous-loop:
     status: active
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
@@ -774,6 +808,15 @@ routines:
     triggers:
       - kind: schedule
         cronExpression: 0 8 * * 1-5
+        timezone: America/New_York
+  chief-of-staff-continuous-loop:
+    agent: blueprint-chief-of-staff
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: '*/5 * * * *'
         timezone: America/New_York
   cto-cross-repo-triage:
     priority: high

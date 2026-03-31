@@ -152,8 +152,19 @@ const manifest: PaperclipPluginManifestV1 = {
               conversionOptimizer: { type: "string" },
               analytics: { type: "string" },
               marketIntel: { type: "string" },
+              demandIntel: { type: "string" },
+              robotTeamGrowth: { type: "string" },
+              siteOperatorPartnership: { type: "string" },
+              cityDemand: { type: "string" },
             },
           },
+        },
+      },
+      management: {
+        type: "object",
+        title: "Management",
+        properties: {
+          chiefOfStaffAgent: { type: "string", default: "blueprint-chief-of-staff" },
         },
       },
       secrets: {
@@ -163,8 +174,37 @@ const manifest: PaperclipPluginManifestV1 = {
           notionApiTokenRef: { type: "string", format: "secret-ref" },
           slackOpsWebhookUrlRef: { type: "string", format: "secret-ref" },
           slackGrowthWebhookUrlRef: { type: "string", format: "secret-ref" },
+          slackExecWebhookUrlRef: { type: "string", format: "secret-ref" },
+          slackEngineeringWebhookUrlRef: { type: "string", format: "secret-ref" },
+          slackManagerWebhookUrlRef: { type: "string", format: "secret-ref" },
           searchApiKeyRef: { type: "string", format: "secret-ref" },
           searchApiProviderRef: { type: "string", format: "secret-ref" },
+          nitrosendApiTokenRef: { type: "string", format: "secret-ref" },
+          firehoseApiTokenRef: { type: "string", format: "secret-ref" },
+          introwApiTokenRef: { type: "string", format: "secret-ref" },
+        },
+      },
+      marketingCapabilities: {
+        type: "object",
+        title: "Marketing Capability Integrations",
+        properties: {
+          nitrosendBaseUrl: { type: "string", title: "Nitrosend Adapter Base URL" },
+          firehoseBaseUrl: { type: "string", title: "Firehose Adapter Base URL" },
+          introwBaseUrl: { type: "string", title: "Introw Adapter Base URL" },
+          firehoseDefaultTopics: {
+            type: "array",
+            title: "Firehose Default Topics",
+            items: { type: "string" },
+          },
+          firehoseMaxSignalsPerRead: {
+            type: "number",
+            title: "Firehose Max Signals Per Read",
+            default: 20,
+          },
+          introwDefaultWorkspace: {
+            type: "string",
+            title: "Introw Default Workspace",
+          },
         },
       },
       repoCatalog: {
@@ -250,6 +290,18 @@ const manifest: PaperclipPluginManifestV1 = {
         properties: {
           companyName: { type: "string" },
           applyChanges: { type: "boolean" },
+        },
+      },
+    },
+    {
+      name: TOOL_NAMES.managerState,
+      displayName: "Blueprint Manager State",
+      description:
+        "Read the chief-of-staff operating snapshot across issue state, routine health, active agents, and recent automation events.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          companyName: { type: "string" },
         },
       },
     },

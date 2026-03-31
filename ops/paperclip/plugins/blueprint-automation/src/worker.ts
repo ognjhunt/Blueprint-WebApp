@@ -47,6 +47,30 @@ import {
 import { buildSlackToolHandler, postSlackDigest } from "./slack-notify.js";
 import { buildWebSearchToolHandler } from "./web-search.js";
 import {
+  buildFirehoseBrief,
+  createIntrowPartnerDraft,
+  createNitrosendCampaignDraft,
+  createNitrosendSequenceDraft,
+  dedupeFirehoseSignals,
+  fetchFirehoseSignals,
+  listNitrosendAudiences,
+  readIntrowAccount,
+  runCustomerResearchSearch,
+  searchIntrowPartners,
+  synthesizeCustomerResearch,
+  type CustomerResearchEvidenceItem,
+  type CustomerResearchJTBDItem,
+  type CustomerResearchPersona,
+  type FirehoseBrief,
+  type FirehoseConfig,
+  type FirehoseSignal,
+  type IntrowConfig,
+  type NitrosendConfig,
+  type ResearchConfidence,
+  upsertNitrosendAudience,
+  updateIntrowPartnerDraft,
+} from "./marketing-integrations.js";
+import {
   buildClaudeFallbackAdapterConfig,
   buildCodexFallbackAdapterConfig,
   buildQuotaFallbackRetryRecord,
@@ -60,6 +84,12 @@ import {
   type WorkspaceAdapterCooldownRecord,
   type WorkspaceAdapterCooldownState,
 } from "./quota-fallback.js";
+import {
+  buildManagerStateSnapshot,
+  collectRoutineHealthAlerts,
+  shouldWakeChiefOfStaffForIssueEvent,
+  type ManagerRoutineHealthEntry,
+} from "./manager-loop.js";
 
 const execFileAsync = promisify(execFile);
 const GIT_BIN = process.env.BLUEPRINT_PAPERCLIP_GIT_BIN || "/usr/bin/git";
@@ -112,8 +142,27 @@ type SecretRefsConfig = {
   notionApiTokenRef?: string;
   slackOpsWebhookUrlRef?: string;
   slackGrowthWebhookUrlRef?: string;
+  slackExecWebhookUrlRef?: string;
+  slackEngineeringWebhookUrlRef?: string;
+  slackManagerWebhookUrlRef?: string;
   searchApiKeyRef?: string;
   searchApiProviderRef?: string;
+  nitrosendApiTokenRef?: string;
+  firehoseApiTokenRef?: string;
+  introwApiTokenRef?: string;
+};
+
+type ManagementConfig = {
+  chiefOfStaffAgent: string;
+};
+
+type MarketingCapabilitiesConfig = {
+  nitrosendBaseUrl?: string;
+  firehoseBaseUrl?: string;
+  introwBaseUrl?: string;
+  firehoseDefaultTopics?: string[];
+  firehoseMaxSignalsPerRead?: number;
+  introwDefaultWorkspace?: string;
 };
 
 type BlueprintAutomationConfig = {
@@ -130,7 +179,9 @@ type BlueprintAutomationConfig = {
   repoCatalog?: RepoConfig[];
   opsDepartment?: OpsDepartmentConfig;
   growthDepartment?: GrowthDepartmentConfig;
+  management?: ManagementConfig;
   secrets?: SecretRefsConfig;
+  marketingCapabilities?: MarketingCapabilitiesConfig;
 };
 
 type AgentRunFailurePayload = {
@@ -201,6 +252,15 @@ type DashboardData = {
   }>;
 };
 
+type SlackDeliveryTarget =
+  | "ops"
+  | "growth"
+  | "exec"
+  | "engineering"
+  | "manager"
+  | "default"
+  | "none";
+
 type AnalyticsReportCadence = "daily" | "weekly";
 
 type AnalyticsStructuredReport = {
@@ -233,7 +293,7 @@ type AnalyticsOutputProof = {
   slack?: {
     ok: boolean;
     routedChannel: string;
-    target: "ops" | "growth" | "default" | "none";
+    target: SlackDeliveryTarget;
     statusCode?: number;
     responseBody?: string;
   };
@@ -286,7 +346,7 @@ type DemandIntelOutputProof = {
   slack?: {
     ok: boolean;
     routedChannel: string;
-    target: "ops" | "growth" | "default" | "none";
+    target: SlackDeliveryTarget;
     statusCode?: number;
     responseBody?: string;
   };
@@ -295,22 +355,56 @@ type DemandIntelOutputProof = {
   errors: string[];
 };
 
-// ── Monitoring, Budget & Phase Types ───────────────────
+// ── Customer Research Types ───────────────────────────
 
-type RoutineHealthEntry = {
-  routineKey: string;
-  routineTitle: string;
-  agentKey: string;
-  lastOutcome: "done" | "blocked" | "unknown";
-  lastRunAt: string;
-  lastSuccessAt: string | null;
-  lastFailureReason: string | null;
-  consecutiveFailures: number;
-  expectedIntervalHours: number | null;
-  lastIssueId: string | null;
+type CustomerResearchCadence = "daily" | "weekly" | "ad_hoc";
+
+type CustomerResearchOutputProof = {
+  success: boolean;
+  outcome: "done" | "blocked";
+  failureReason?: string;
+  cadence: CustomerResearchCadence;
+  generatedAt: string;
+  title: string;
+  topic: string;
+  lane: string;
+  headline: string;
+  synthesis: {
+    evidence: CustomerResearchEvidenceItem[];
+    jtbd: CustomerResearchJTBDItem[];
+    personas: CustomerResearchPersona[];
+    objections: string[];
+    openQuestions: string[];
+    confidence: ResearchConfidence;
+    sourceCoverage: string[];
+    recommendedActions: string[];
+  };
+  notion?: {
+    workQueuePageId?: string;
+    workQueuePageUrl?: string;
+    knowledgePageId?: string;
+    knowledgePageUrl?: string;
+  };
+  slack?: {
+    ok: boolean;
+    routedChannel: string;
+    target: SlackDeliveryTarget;
+    statusCode?: number;
+    responseBody?: string;
+  };
+  proofLinks: string[];
+  issueComment: string;
+  errors: string[];
 };
 
-type RoutineHealthState = Record<string, RoutineHealthEntry>;
+type FirehoseSignalCacheState = {
+  updatedAt: string;
+  signals: FirehoseSignal[];
+};
+
+// ── Monitoring, Budget & Phase Types ───────────────────
+
+type RoutineHealthState = Record<string, ManagerRoutineHealthEntry>;
 
 type BudgetTrackingState = {
   period: string;
@@ -402,7 +496,7 @@ type MarketIntelOutputProof = {
   slack?: {
     ok: boolean;
     routedChannel: string;
-    target: "ops" | "growth" | "default" | "none";
+    target: SlackDeliveryTarget;
     statusCode?: number;
     responseBody?: string;
   };
@@ -522,6 +616,18 @@ const DEMAND_INTEL_CONFIDENCE_LEVELS = [
 
 function asBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : typeof value === "string" && value.trim().length > 0 && Number.isFinite(Number(value))
+      ? Number(value)
+      : undefined;
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -708,8 +814,14 @@ function normalizeConfig(rawConfig: Record<string, unknown>): BlueprintAutomatio
   const growthAgents = growthDepartment.agents && typeof growthDepartment.agents === "object"
     ? growthDepartment.agents as Record<string, unknown>
     : {};
+  const management = rawConfig.management && typeof rawConfig.management === "object"
+    ? rawConfig.management as Record<string, unknown>
+    : {};
   const secrets = rawConfig.secrets && typeof rawConfig.secrets === "object"
     ? rawConfig.secrets as Record<string, unknown>
+    : {};
+  const marketingCapabilities = rawConfig.marketingCapabilities && typeof rawConfig.marketingCapabilities === "object"
+    ? rawConfig.marketingCapabilities as Record<string, unknown>
     : {};
 
   return {
@@ -767,12 +879,32 @@ function normalizeConfig(rawConfig: Record<string, unknown>): BlueprintAutomatio
         cityDemand: asString(growthAgents.cityDemand) ?? "city-demand-agent",
       },
     },
+    management: {
+      chiefOfStaffAgent: asString(management.chiefOfStaffAgent) ?? "blueprint-chief-of-staff",
+    },
     secrets: {
       notionApiTokenRef: asString(secrets.notionApiTokenRef) ?? asString(secrets.notionApiToken),
       slackOpsWebhookUrlRef: asString(secrets.slackOpsWebhookUrlRef) ?? asString(secrets.slackOpsWebhookUrl),
       slackGrowthWebhookUrlRef: asString(secrets.slackGrowthWebhookUrlRef) ?? asString(secrets.slackGrowthWebhookUrl),
+      slackExecWebhookUrlRef: asString(secrets.slackExecWebhookUrlRef) ?? asString(secrets.slackExecWebhookUrl),
+      slackEngineeringWebhookUrlRef: asString(secrets.slackEngineeringWebhookUrlRef) ?? asString(secrets.slackEngineeringWebhookUrl),
+      slackManagerWebhookUrlRef: asString(secrets.slackManagerWebhookUrlRef) ?? asString(secrets.slackManagerWebhookUrl),
       searchApiKeyRef: asString(secrets.searchApiKeyRef) ?? asString(secrets.searchApiKey),
       searchApiProviderRef: asString(secrets.searchApiProviderRef) ?? asString(secrets.searchApiProvider),
+      nitrosendApiTokenRef: asString(secrets.nitrosendApiTokenRef) ?? asString(secrets.nitrosendApiToken),
+      firehoseApiTokenRef: asString(secrets.firehoseApiTokenRef) ?? asString(secrets.firehoseApiToken),
+      introwApiTokenRef: asString(secrets.introwApiTokenRef) ?? asString(secrets.introwApiToken),
+    },
+    marketingCapabilities: {
+      nitrosendBaseUrl: asString(marketingCapabilities.nitrosendBaseUrl),
+      firehoseBaseUrl: asString(marketingCapabilities.firehoseBaseUrl),
+      introwBaseUrl: asString(marketingCapabilities.introwBaseUrl),
+      firehoseDefaultTopics: asArray(marketingCapabilities.firehoseDefaultTopics)
+        .filter((entry): entry is string => typeof entry === "string")
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0),
+      firehoseMaxSignalsPerRead: asNumber(marketingCapabilities.firehoseMaxSignalsPerRead),
+      introwDefaultWorkspace: asString(marketingCapabilities.introwDefaultWorkspace),
     },
   };
 }
@@ -870,6 +1002,114 @@ async function resolveOptionalSecret(
   return null;
 }
 
+async function resolveSlackTargets(ctx: PluginContext, config: BlueprintAutomationConfig) {
+  const ops = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.slackOpsWebhookUrlRef,
+    "SLACK_OPS_WEBHOOK_URL",
+  );
+  const growth = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.slackGrowthWebhookUrlRef,
+    "SLACK_GROWTH_WEBHOOK_URL",
+  );
+  const exec = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.slackExecWebhookUrlRef,
+    "SLACK_EXEC_WEBHOOK_URL",
+  );
+  const engineering = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.slackEngineeringWebhookUrlRef,
+    "SLACK_ENGINEERING_WEBHOOK_URL",
+  );
+  const manager = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.slackManagerWebhookUrlRef,
+    "SLACK_MANAGER_WEBHOOK_URL",
+  );
+
+  return {
+    default: exec ?? manager ?? ops ?? growth ?? engineering ?? undefined,
+    ops: ops ?? undefined,
+    growth: growth ?? undefined,
+    exec: exec ?? undefined,
+    engineering: engineering ?? undefined,
+    manager: manager ?? undefined,
+  };
+}
+
+async function resolveNitrosendConfig(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+): Promise<NitrosendConfig | null> {
+  const apiToken = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.nitrosendApiTokenRef,
+    "NITROSEND_API_TOKEN",
+  );
+  const baseUrl = config.marketingCapabilities?.nitrosendBaseUrl;
+  return apiToken && baseUrl ? { apiToken, baseUrl } : null;
+}
+
+async function resolveFirehoseConfig(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+): Promise<FirehoseConfig | null> {
+  const apiToken = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.firehoseApiTokenRef,
+    "FIREHOSE_API_TOKEN",
+  );
+  const baseUrl = config.marketingCapabilities?.firehoseBaseUrl;
+  return apiToken && baseUrl ? {
+    apiToken,
+    baseUrl,
+    defaultTopics: config.marketingCapabilities?.firehoseDefaultTopics,
+    maxSignalsPerRead: config.marketingCapabilities?.firehoseMaxSignalsPerRead,
+  } : null;
+}
+
+async function resolveIntrowConfig(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+): Promise<IntrowConfig | null> {
+  const apiToken = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.introwApiTokenRef,
+    "INTROW_API_TOKEN",
+  );
+  const baseUrl = config.marketingCapabilities?.introwBaseUrl;
+  return apiToken && baseUrl ? {
+    apiToken,
+    baseUrl,
+    defaultWorkspace: config.marketingCapabilities?.introwDefaultWorkspace,
+  } : null;
+}
+
+function normalizeCustomerResearchCadence(value: unknown): CustomerResearchCadence {
+  const next = asString(value)?.toLowerCase();
+  if (next === "daily" || next === "weekly" || next === "ad_hoc") {
+    return next;
+  }
+  return "ad_hoc";
+}
+
+function mergeFirehoseSignalCache(
+  existing: FirehoseSignalCacheState | null,
+  incoming: FirehoseSignal[],
+  maxSignals: number,
+): FirehoseSignalCacheState {
+  const merged = dedupeFirehoseSignals([
+    ...(existing?.signals ?? []),
+    ...incoming,
+  ]).slice(0, maxSignals);
+  return {
+    updatedAt: nowIso(),
+    signals: merged,
+  };
+}
+
 function getOpsRoutingConfig(config: BlueprintAutomationConfig) {
   const agents = config.opsDepartment?.agents;
   return {
@@ -879,6 +1119,10 @@ function getOpsRoutingConfig(config: BlueprintAutomationConfig) {
     fieldOpsAgent: agents?.fieldOps ?? "field-ops-agent",
     financeSupportAgent: agents?.financeSupport ?? "finance-support-agent",
   };
+}
+
+function getChiefOfStaffAgentKey(config: BlueprintAutomationConfig) {
+  return config.management?.chiefOfStaffAgent ?? "blueprint-chief-of-staff";
 }
 
 function mapQueueSystemToProject(system: string) {
@@ -926,6 +1170,207 @@ async function listProjects(ctx: PluginContext, companyId: string) {
 
 async function listAgents(ctx: PluginContext, companyId: string) {
   return await ctx.agents.list({ companyId, limit: 200, offset: 0 });
+}
+
+async function listAllIssues(ctx: PluginContext, companyId: string) {
+  const pageSize = 200;
+  const rows: Issue[] = [];
+  for (let offset = 0; offset < 2000; offset += pageSize) {
+    const page = await ctx.issues.list({ companyId, limit: pageSize, offset });
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return rows;
+}
+
+async function buildChiefOfStaffState(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+) {
+  const [issues, agents, projects, recentEvents, routineHealth, sourceMappings] = await Promise.all([
+    listAllIssues(ctx, companyId),
+    listAgents(ctx, companyId),
+    listProjects(ctx, companyId),
+    readState<RecentEvent[]>(ctx, companyId, STATE_KEYS.recentEvents),
+    readState<RoutineHealthState>(ctx, companyId, STATE_KEYS.routineHealth),
+    ctx.entities.list({
+      entityType: ENTITY_TYPES.sourceMapping,
+      scopeKind: "company",
+      scopeId: companyId,
+      limit: 200,
+      offset: 0,
+    }),
+  ]);
+
+  const chiefOfStaffKey = getChiefOfStaffAgentKey(config);
+  const chiefOfStaffAgent = agents.find((agent) => normalizedCandidates(agent as unknown as Record<string, unknown>).includes(chiefOfStaffKey));
+  const projectNameById = new Map(projects.map((project) => [project.id, project.name]));
+  const managedIssueIds = new Set(
+    sourceMappings
+      .map((mapping) => {
+        const data = (mapping.data ?? {}) as Partial<SourceMappingData>;
+        return typeof data.issueId === "string" ? data.issueId : null;
+      })
+      .filter((issueId): issueId is string => Boolean(issueId)),
+  );
+
+  return buildManagerStateSnapshot({
+    generatedAt: nowIso(),
+    chiefOfStaffAgentKey: chiefOfStaffKey,
+    chiefOfStaffAgentId: chiefOfStaffAgent?.id ?? null,
+    issues: issues.map((issue) => ({
+      ...issue,
+      projectName: issue.projectId ? (projectNameById.get(issue.projectId) ?? null) : null,
+    })),
+    agents,
+    routineHealth: routineHealth ?? {},
+    recentEvents: recentEvents ?? [],
+    managedIssueIds,
+  });
+}
+
+async function wakeChiefOfStaff(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+  input: {
+    reason: string;
+    idempotencyKey: string;
+    payload: Record<string, unknown>;
+    title: string;
+    detail: string;
+    slackChannel?: string;
+  },
+) {
+  const chiefOfStaffKey = getChiefOfStaffAgentKey(config);
+  const agent = await resolveAgent(ctx, companyId, chiefOfStaffKey).catch(() => null);
+  if (!agent) {
+    await appendRecentEvent(ctx, companyId, {
+      kind: "chief-of-staff-wakeup-skipped",
+      title: `Skipped chief-of-staff wakeup: ${input.title}`,
+      detail: `Agent ${chiefOfStaffKey} is not available.`,
+    });
+    return null;
+  }
+
+  const wakeResult = await ctx.agents.wakeup(agent.id, companyId, {
+    source: "automation",
+    triggerDetail: "system",
+    reason: input.reason,
+    payload: input.payload,
+    idempotencyKey: input.idempotencyKey,
+  });
+
+  await appendRecentEvent(ctx, companyId, {
+    kind: "chief-of-staff-wakeup",
+    title: input.title,
+    issueId: typeof input.payload.issueId === "string" ? input.payload.issueId : undefined,
+    detail: input.detail,
+  });
+
+  const slackChannel = input.slackChannel ?? "#paperclip-manager";
+  await postSlackActivity(ctx, config, {
+    channel: slackChannel,
+    title: input.title,
+    summary: [
+      `Reason: ${input.reason}`,
+      input.detail,
+      `Wake run: ${wakeResult.runId}`,
+    ],
+  }).catch(() => undefined);
+
+  return wakeResult;
+}
+
+async function handleChiefOfStaffIssueSignal(
+  ctx: PluginContext,
+  event: { eventId: string; companyId: string; entityId: string; type: "issue.created" | "issue.updated" },
+) {
+  const config = await getConfig(ctx);
+  const [issue, chiefOfStaffAgent] = await Promise.all([
+    ctx.issues.get(event.entityId, event.companyId),
+    resolveAgent(ctx, event.companyId, getChiefOfStaffAgentKey(config)).catch(() => null),
+  ]);
+  if (!issue) return;
+
+  const shouldWake = shouldWakeChiefOfStaffForIssueEvent({
+    eventType: event.type,
+    issue,
+    chiefOfStaffAgentId: chiefOfStaffAgent?.id ?? null,
+  });
+  if (!shouldWake) return;
+
+  await wakeChiefOfStaff(ctx, event.companyId, config, {
+    reason: event.type,
+    idempotencyKey: `chief-of-staff:${event.type}:${event.eventId}`,
+    payload: {
+      signalType: event.type,
+      issueId: issue.id,
+      status: issue.status,
+      priority: issue.priority,
+      assigneeAgentId: issue.assigneeAgentId ?? null,
+    },
+    title: `Chief of Staff wakeup from ${event.type}`,
+    detail: `${issue.title} (${issue.id}) is now ${issue.status}${issue.assigneeAgentId ? ` and assigned to ${issue.assigneeAgentId}` : " and unassigned"}.`,
+    slackChannel: "#paperclip-manager",
+  }).catch(() => undefined);
+}
+
+async function handleChiefOfStaffRunFailureSignal(
+  ctx: PluginContext,
+  event: { eventId: string; companyId: string; payload: unknown },
+) {
+  const config = await getConfig(ctx);
+  const payload = asRecord(event.payload);
+  const failedAgentId = asString(payload?.agentId);
+  const chiefOfStaffKey = getChiefOfStaffAgentKey(config);
+  const chiefOfStaffAgent = await resolveAgent(ctx, event.companyId, chiefOfStaffKey).catch(() => null);
+  if (!failedAgentId || failedAgentId === chiefOfStaffAgent?.id) {
+    return;
+  }
+
+  await wakeChiefOfStaff(ctx, event.companyId, config, {
+    reason: "agent.run.failed",
+    idempotencyKey: `chief-of-staff:agent-run-failed:${event.eventId}`,
+    payload: {
+      signalType: "agent.run.failed",
+      failedAgentId,
+      runId: asString(payload?.runId) ?? null,
+      issueId: asString(payload?.issueId) ?? null,
+      error: asString(payload?.error) ?? null,
+    },
+    title: "Chief of Staff wakeup from agent failure",
+    detail: `${failedAgentId} failed on run ${asString(payload?.runId) ?? "unknown"}${asString(payload?.issueId) ? ` for issue ${asString(payload?.issueId)}` : ""}.`,
+    slackChannel: "#paperclip-manager",
+  }).catch(() => undefined);
+}
+
+async function handleChiefOfStaffActivitySignal(
+  ctx: PluginContext,
+  event: { eventId: string; companyId: string; payload: unknown },
+) {
+  const payload = asRecord(event.payload);
+  const action = asString(payload?.action);
+  if (action !== "routine.run_triggered") {
+    return;
+  }
+
+  const details = asRecord(payload?.details);
+  const config = await getConfig(ctx);
+  await wakeChiefOfStaff(ctx, event.companyId, config, {
+    reason: "routine.run_triggered",
+    idempotencyKey: `chief-of-staff:routine-run-triggered:${event.eventId}`,
+    payload: {
+      signalType: "routine.run_triggered",
+      routineId: asString(details?.routineId) ?? null,
+      runStatus: asString(details?.status) ?? null,
+      source: asString(details?.source) ?? null,
+    },
+    title: "Chief of Staff routine trigger wakeup",
+    detail: `Routine ${asString(details?.routineId) ?? "unknown"} triggered via ${asString(details?.source) ?? "unknown"} with status ${asString(details?.status) ?? "unknown"}.`,
+    slackChannel: "#paperclip-manager",
+  }).catch(() => undefined);
 }
 
 async function resolveProject(ctx: PluginContext, companyId: string, projectName: string) {
@@ -1118,6 +1563,73 @@ function makeNotificationText(input: {
     lines.push(`Detail: ${input.detail}`);
   }
   return lines.join("\n");
+}
+
+function slackChannelForAgent(agentKey: string | null | undefined): string {
+  const normalized = (agentKey ?? "").trim().toLowerCase();
+  if (!normalized) return "#paperclip-manager";
+  if (normalized === "blueprint-chief-of-staff") return "#paperclip-manager";
+  if (normalized === "blueprint-ceo" || normalized === "blueprint-cto") return "#paperclip-exec";
+  if (
+    normalized.startsWith("webapp-")
+    || normalized.startsWith("pipeline-")
+    || normalized.startsWith("capture-")
+  ) {
+    return "#paperclip-eng";
+  }
+  if (
+    normalized === "ops-lead"
+    || normalized === "intake-agent"
+    || normalized === "capture-qa-agent"
+    || normalized === "field-ops-agent"
+    || normalized === "finance-support-agent"
+  ) {
+    return "#paperclip-ops";
+  }
+  if (
+    normalized === "growth-lead"
+    || normalized === "conversion-agent"
+    || normalized === "analytics-agent"
+    || normalized === "market-intel-agent"
+    || normalized === "supply-intel-agent"
+    || normalized === "capturer-growth-agent"
+    || normalized === "city-launch-agent"
+    || normalized === "demand-intel-agent"
+    || normalized === "robot-team-growth-agent"
+    || normalized === "site-operator-partnership-agent"
+    || normalized === "city-demand-agent"
+  ) {
+    return "#paperclip-growth";
+  }
+  return "#paperclip-manager";
+}
+
+async function postSlackActivity(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  input: {
+    channel: string;
+    title: string;
+    summary: string[];
+  },
+) {
+  const targets = await resolveSlackTargets(ctx, config);
+  if (
+    !targets.default
+    && !targets.ops
+    && !targets.growth
+    && !targets.exec
+    && !targets.engineering
+    && !targets.manager
+  ) {
+    return;
+  }
+
+  await postSlackDigest(targets, {
+    channel: input.channel,
+    title: input.title,
+    sections: [{ heading: "Details", items: input.summary }],
+  });
 }
 
 async function sendNotification(
@@ -1396,6 +1908,13 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
   const desiredPriority = normalizeIssuePriority(input.priority, "medium");
   let currentIssue = issue;
   const isNewIssue = !currentIssue;
+  const previousIssueSnapshot = currentIssue
+    ? {
+      status: currentIssue.status,
+      priority: currentIssue.priority,
+      assigneeAgentId: currentIssue.assigneeAgentId ?? null,
+    }
+    : null;
 
   if (currentIssue) {
     const nextStatus =
@@ -1501,6 +2020,46 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
     });
   }
 
+  const meaningfulUpdate =
+    isNewIssue
+    || !previousIssueSnapshot
+    || previousIssueSnapshot.status !== currentIssue.status
+    || previousIssueSnapshot.priority !== currentIssue.priority
+    || previousIssueSnapshot.assigneeAgentId !== (currentIssue.assigneeAgentId ?? null);
+  if (meaningfulUpdate) {
+    const config = await getConfig(ctx);
+    await postSlackActivity(ctx, config, {
+      channel: slackChannelForAgent(input.assignee),
+      title: isNewIssue
+        ? `Task opened for ${input.assignee}`
+        : `Task updated for ${input.assignee}`,
+      summary: [
+        `Issue: ${currentIssue.title} (${currentIssue.id})`,
+        `Project: ${input.projectName}`,
+        `Priority: ${currentIssue.priority}`,
+        `Status: ${currentIssue.status}`,
+        `Fingerprint: ${fingerprint}`,
+      ],
+    }).catch(() => undefined);
+    await wakeChiefOfStaff(ctx, input.companyId, config, {
+      reason: isNewIssue ? "managed_issue_created" : "managed_issue_updated",
+      idempotencyKey: `chief-of-staff:managed-issue:${fingerprint}:${currentIssue.status}:${currentIssue.assigneeAgentId ?? "unassigned"}`,
+      payload: {
+        signalType: isNewIssue ? "managed_issue_created" : "managed_issue_updated",
+        issueId: currentIssue.id,
+        fingerprint,
+        status: currentIssue.status,
+        assigneeAgentId: currentIssue.assigneeAgentId ?? null,
+        projectName: input.projectName,
+      },
+      title: isNewIssue
+        ? "Chief of Staff wakeup from managed issue creation"
+        : "Chief of Staff wakeup from managed issue update",
+      detail: `${currentIssue.title} (${currentIssue.id}) is ${currentIssue.status} in ${input.projectName}.`,
+      slackChannel: "#paperclip-manager",
+    }).catch(() => undefined);
+  }
+
   return { fingerprint, issue: currentIssue, hits };
 }
 
@@ -1561,6 +2120,31 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
       detail: fingerprint,
     });
   }
+
+  const config = await getConfig(ctx);
+  await postSlackActivity(ctx, config, {
+    channel: slackChannelForAgent(existingData.assignee ?? getChiefOfStaffAgentKey(config)),
+    title: `Task resolved for ${existingData.assignee ?? "automation"}`,
+    summary: [
+      `Issue: ${updatedIssue.title} (${updatedIssue.id})`,
+      `Resolution: ${input.resolutionStatus}`,
+      `Fingerprint: ${fingerprint}`,
+      `Comment: ${input.comment}`,
+    ],
+  }).catch(() => undefined);
+  await wakeChiefOfStaff(ctx, input.companyId, config, {
+    reason: "managed_issue_resolved",
+    idempotencyKey: `chief-of-staff:managed-issue-resolved:${fingerprint}:${input.resolutionStatus}`,
+    payload: {
+      signalType: "managed_issue_resolved",
+      issueId: updatedIssue.id,
+      fingerprint,
+      status: input.resolutionStatus,
+    },
+    title: "Chief of Staff wakeup from managed issue resolution",
+    detail: `${updatedIssue.title} (${updatedIssue.id}) moved to ${input.resolutionStatus}.`,
+    slackChannel: "#paperclip-manager",
+  }).catch(() => undefined);
 
   return { fingerprint, issue: updatedIssue };
 }
@@ -1680,40 +2264,37 @@ async function updateRoutineHealth(
 
 async function runRoutineHealthCheck(ctx: PluginContext, companyId: string, config: BlueprintAutomationConfig) {
   const healthState = await readState<RoutineHealthState>(ctx, companyId, STATE_KEYS.routineHealth) ?? {};
-  const alerts: string[] = [];
-  const now = Date.now();
-
-  for (const [, entry] of Object.entries(healthState)) {
-    if (entry.consecutiveFailures >= 2) {
-      alerts.push(
-        `:warning: *Routine Alert: ${entry.routineTitle}*\nStatus: blocked\nLast failure: ${entry.lastFailureReason ?? "unknown"}\nConsecutive failures: ${entry.consecutiveFailures}\nAgent: ${entry.agentKey}\nIssue: ${entry.lastIssueId ?? "unknown"}`,
-      );
-    }
-
-    if (entry.expectedIntervalHours && entry.expectedIntervalHours > 0) {
-      const staleAnchor = entry.lastSuccessAt ?? entry.lastRunAt;
-      const ageHours = (now - new Date(staleAnchor).getTime()) / (1000 * 60 * 60);
-      if (ageHours >= entry.expectedIntervalHours * 2) {
-        alerts.push(
-          `:warning: *Routine Alert: ${entry.routineTitle}*\nStatus: stale\nLast success: ${entry.lastSuccessAt ?? "never"}\nExpected interval: ${entry.expectedIntervalHours}h\nAgent: ${entry.agentKey}\nIssue: ${entry.lastIssueId ?? "unknown"}`,
-        );
-      }
-    }
-  }
+  const routineAlerts = collectRoutineHealthAlerts(healthState, nowIso());
+  const alerts = routineAlerts.map((entry) =>
+    entry.kind === "blocked"
+      ? `:warning: *Routine Alert: ${entry.routineTitle}*\nStatus: blocked\nLast failure: ${entry.detail}\nConsecutive failures: ${entry.consecutiveFailures}\nAgent: ${entry.agentKey}\nIssue: ${entry.lastIssueId ?? "unknown"}`
+      : `:warning: *Routine Alert: ${entry.routineTitle}*\nStatus: stale\nLast success: ${entry.lastSuccessAt ?? "never"}\nExpected interval: ${entry.expectedIntervalHours ?? "unknown"}h\nAgent: ${entry.agentKey}\nIssue: ${entry.lastIssueId ?? "unknown"}`,
+  );
 
   if (alerts.length > 0) {
-    const slackOpsUrl = await resolveOptionalSecret(ctx, config.secrets?.slackOpsWebhookUrlRef, "SLACK_OPS_WEBHOOK_URL");
-    const slackGrowthUrl = await resolveOptionalSecret(ctx, config.secrets?.slackGrowthWebhookUrlRef, "SLACK_GROWTH_WEBHOOK_URL");
-    if (slackOpsUrl || slackGrowthUrl) {
+    const slackTargets = await resolveSlackTargets(ctx, config);
+    if (slackTargets.default || slackTargets.ops || slackTargets.growth || slackTargets.exec || slackTargets.engineering || slackTargets.manager) {
       await postSlackDigest(
-        { default: slackOpsUrl ?? slackGrowthUrl ?? undefined, ops: slackOpsUrl ?? undefined, growth: slackGrowthUrl ?? undefined },
+        slackTargets,
         {
-          channel: "#ops",
+          channel: "#paperclip-manager",
           title: `Routine Health Alert \u2014 ${alerts.length} issue(s)`,
           sections: [{ heading: "Alerts", items: alerts }],
         },
       );
     }
+
+    await wakeChiefOfStaff(ctx, companyId, config, {
+      reason: "routine_health_alert",
+      idempotencyKey: `chief-of-staff:routine-health:${alerts.join("|")}`,
+      payload: {
+        signalType: "routine-health-alert",
+        routineAlerts,
+      },
+      title: "Chief of Staff routine health wakeup",
+      detail: `${routineAlerts.length} routine alert(s) need follow-through.`,
+      slackChannel: "#paperclip-manager",
+    }).catch(() => undefined);
   }
 
   await runBudgetCheck(ctx, companyId, config);
@@ -2033,7 +2614,7 @@ async function buildAnalyticsOutputProof(
 
   if (validationErrors.length === 0 && (slackGrowthWebhookUrl || slackOpsWebhookUrl)) {
     try {
-      result.slack = await postSlackDigest(
+      const slackResult = await postSlackDigest(
         {
           default: slackOpsWebhookUrl ?? slackGrowthWebhookUrl ?? undefined,
           ops: slackOpsWebhookUrl ?? undefined,
@@ -2051,8 +2632,9 @@ async function buildAnalyticsOutputProof(
           ],
         },
       );
-      if (!result.slack.ok) {
-        errors.push(`Slack digest failed with HTTP ${result.slack.statusCode ?? "unknown"}: ${result.slack.responseBody ?? "no response body"}`);
+      result.slack = slackResult;
+      if (!slackResult.ok) {
+        errors.push(`Slack digest failed with HTTP ${slackResult.statusCode ?? "unknown"}: ${slackResult.responseBody ?? "no response body"}`);
       }
     } catch (error) {
       errors.push(`Slack digest failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -2153,6 +2735,30 @@ async function createFollowUpIssue(
     status: followUp.status,
     detail: `Parent issue ${input.parentIssueId}`,
   });
+  await postSlackActivity(ctx, config, {
+    channel: slackChannelForAgent(input.assignee),
+    title: `Delegated blocker follow-up to ${input.assignee}`,
+    summary: [
+      `Issue: ${followUp.title} (${followUp.id})`,
+      `Parent issue: ${input.parentIssueId}`,
+      `Project: ${input.projectName}`,
+      `Priority: ${followUp.priority}`,
+    ],
+  }).catch(() => undefined);
+  await wakeChiefOfStaff(ctx, companyId, config, {
+    reason: "blocker_follow_up_created",
+    idempotencyKey: `chief-of-staff:blocker-follow-up:${followUp.id}`,
+    payload: {
+      signalType: "blocker_follow_up_created",
+      issueId: followUp.id,
+      parentIssueId: input.parentIssueId,
+      assignee: input.assignee,
+      projectName: input.projectName,
+    },
+    title: "Chief of Staff wakeup from blocker follow-up",
+    detail: `${followUp.title} (${followUp.id}) was delegated to ${input.assignee}.`,
+    slackChannel: "#paperclip-manager",
+  }).catch(() => undefined);
   return followUp;
 }
 
@@ -2705,7 +3311,7 @@ async function buildDemandIntelOutputProof(
 
   if (validationErrors.length === 0 && (slackGrowthWebhookUrl || slackOpsWebhookUrl)) {
     try {
-      result.slack = await postSlackDigest(
+      const slackResult = await postSlackDigest(
         {
           default: slackOpsWebhookUrl ?? slackGrowthWebhookUrl ?? undefined,
           ops: slackOpsWebhookUrl ?? undefined,
@@ -2726,8 +3332,9 @@ async function buildDemandIntelOutputProof(
           ],
         },
       );
-      if (!result.slack.ok) {
-        errors.push(`Slack digest failed with HTTP ${result.slack.statusCode ?? "unknown"}`);
+      result.slack = slackResult;
+      if (!slackResult.ok) {
+        errors.push(`Slack digest failed with HTTP ${slackResult.statusCode ?? "unknown"}`);
       }
     } catch (error) {
       errors.push(`Slack digest failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -2762,6 +3369,198 @@ async function buildDemandIntelOutputProof(
   );
   await trackAgentRun(ctx, companyId, "demand-intel-agent");
   await updatePhaseMetrics(ctx, companyId, "demand-intel-agent", result.outcome);
+
+  return result;
+}
+
+function formatCustomerResearchIssueComment(result: CustomerResearchOutputProof) {
+  const slackStatus = result.slack?.ok
+    ? `delivered to ${result.slack.routedChannel} (HTTP ${result.slack.statusCode ?? "unknown"})`
+    : `missing or failed${result.slack?.statusCode ? ` (HTTP ${result.slack.statusCode})` : ""}`;
+  return [
+    result.outcome === "done"
+      ? "Customer research report delivered."
+      : "Customer research report blocked.",
+    `- Topic: ${result.topic}`,
+    `- Lane: ${result.lane}`,
+    `- Headline: ${result.headline}`,
+    `- Evidence items: ${result.synthesis.evidence.length}`,
+    `- JTBD items: ${result.synthesis.jtbd.length}`,
+    `- Personas: ${result.synthesis.personas.length}`,
+    `- Confidence: ${result.synthesis.confidence}`,
+    ...(result.failureReason ? [`- Failure reason: ${result.failureReason}`] : []),
+    `- Notion Work Queue: ${result.notion?.workQueuePageUrl ?? result.notion?.workQueuePageId ?? "missing"}`,
+    `- Notion Knowledge: ${result.notion?.knowledgePageUrl ?? result.notion?.knowledgePageId ?? "missing"}`,
+    `- Slack digest: ${slackStatus}`,
+  ].join("\n");
+}
+
+async function buildCustomerResearchOutputProof(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  companyId: string,
+  params: Record<string, unknown>,
+): Promise<CustomerResearchOutputProof> {
+  const cadence = normalizeCustomerResearchCadence(params.cadence);
+  const generatedAt = nowIso();
+  const topic = asString(params.topic) ?? asString(params.researchGoal) ?? "Customer research";
+  const lane = asString(params.lane) ?? "cross-lane";
+  const headline = asString(params.headline) ?? "";
+  const synthesis = synthesizeCustomerResearch(params.evidence);
+  const recommendedActions = coerceStringArray(params.recommendedActions);
+  const title = `Customer Research ${generatedAt.slice(0, 10)} - ${topic}`;
+  const errors: string[] = [];
+
+  if (!headline) errors.push("Missing headline for customer research report.");
+  if (synthesis.evidence.length === 0) errors.push("Missing evidence for customer research report.");
+  if (synthesis.jtbd.length === 0) errors.push("Missing JTBD findings for customer research report.");
+  if (synthesis.personas.length === 0) errors.push("Missing personas for customer research report.");
+  if (recommendedActions.length === 0) errors.push("Missing recommendedActions for customer research report.");
+
+  const notionToken = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.notionApiTokenRef,
+    "NOTION_API_TOKEN",
+  );
+  const slackGrowthWebhookUrl = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.slackGrowthWebhookUrlRef,
+    "SLACK_GROWTH_WEBHOOK_URL",
+  );
+
+  const reportLines = [
+    `Generated at: ${generatedAt}`,
+    `Cadence: ${cadence}`,
+    "",
+    "## Headline",
+    headline,
+    "",
+    "## Scope",
+    `- Topic: ${topic}`,
+    `- Lane: ${lane}`,
+    `- Confidence: ${synthesis.confidence}`,
+    `- Source coverage: ${synthesis.sourceCoverage.join(", ") || "none"}`,
+    "",
+    "## Evidence",
+    ...synthesis.evidence.map((entry) =>
+      `- [${entry.label}] ${entry.source}: ${entry.summary}${entry.url ? ` (${entry.url})` : ""}`,
+    ),
+    "",
+    "## JTBD",
+    ...synthesis.jtbd.map((entry) =>
+      `- ${entry.job} | Pain: ${entry.pain} | Desired outcome: ${entry.desiredOutcome} | Evidence count: ${entry.evidenceCount}`,
+    ),
+    "",
+    "## Personas",
+    ...synthesis.personas.map((entry) =>
+      `- ${entry.role} | Goals: ${entry.goals.join("; ") || "n/a"} | Pains: ${entry.pains.join("; ") || "n/a"} | Objections: ${entry.objections.join("; ") || "n/a"} | Evidence count: ${entry.evidenceCount}`,
+    ),
+    "",
+    "## Objections",
+    ...synthesis.objections.map((entry) => `- ${entry}`),
+    "",
+    "## Open Questions",
+    ...synthesis.openQuestions.map((entry) => `- ${entry}`),
+    "",
+    "## Recommended Actions",
+    ...recommendedActions.map((entry) => `- ${entry}`),
+  ];
+
+  const result: CustomerResearchOutputProof = {
+    success: false,
+    outcome: "blocked",
+    cadence,
+    generatedAt,
+    title,
+    topic,
+    lane,
+    headline,
+    synthesis: {
+      ...synthesis,
+      recommendedActions,
+    },
+    proofLinks: [],
+    issueComment: "",
+    errors,
+  };
+
+  if (errors.length === 0 && notionToken) {
+    try {
+      const notionClient = createNotionClient({ token: notionToken });
+      const knowledgeEntry = await createKnowledgeEntry(notionClient, {
+        title,
+        type: "Reference",
+        system: "Cross-System",
+        content: reportLines.join("\n"),
+      });
+      const workQueueEntry = await createWorkQueueItem(notionClient, {
+        title,
+        priority: cadence === "weekly" ? "P1" : "P2",
+        system: "Cross-System",
+        lifecycleStage: "Open",
+        workType: "Research",
+        substage: [
+          `Lane: ${lane}.`,
+          `Confidence: ${synthesis.confidence}.`,
+          `JTBD: ${synthesis.jtbd.length}.`,
+          `Personas: ${synthesis.personas.length}.`,
+          `Evidence items: ${synthesis.evidence.length}.`,
+          knowledgeEntry.pageUrl
+            ? `Knowledge page: ${knowledgeEntry.pageUrl}`
+            : `Knowledge page ID: ${knowledgeEntry.pageId}`,
+        ].join(" "),
+      });
+      result.notion = {
+        workQueuePageId: workQueueEntry.pageId,
+        workQueuePageUrl: workQueueEntry.pageUrl,
+        knowledgePageId: knowledgeEntry.pageId,
+        knowledgePageUrl: knowledgeEntry.pageUrl,
+      };
+    } catch (error) {
+      result.errors.push(`Notion write failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  if (errors.length === 0 && slackGrowthWebhookUrl) {
+    try {
+      const slackResult = await postSlackDigest(
+        {
+          default: slackGrowthWebhookUrl,
+          growth: slackGrowthWebhookUrl,
+        },
+        {
+          channel: "#research",
+          title,
+          sections: [
+            { heading: "Headline", items: [headline] },
+            { heading: "JTBD", items: synthesis.jtbd.slice(0, 5).map((entry) => `${entry.job} -> ${entry.desiredOutcome}`) },
+            { heading: "Personas", items: synthesis.personas.slice(0, 5).map((entry) => `${entry.role}: ${entry.goals[0] ?? "goal unknown"}`) },
+            { heading: "Recommended Actions", items: recommendedActions.slice(0, 5) },
+          ],
+        },
+      );
+      result.slack = slackResult;
+      if (!slackResult.ok) {
+        result.errors.push(`Slack digest failed with HTTP ${slackResult.statusCode ?? "unknown"}`);
+      }
+    } catch (error) {
+      result.errors.push(`Slack digest failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  const failureReasons: string[] = [];
+  if (!result.notion?.workQueuePageId) failureReasons.push("Missing Notion Work Queue artifact.");
+  if (!result.notion?.knowledgePageId) failureReasons.push("Missing Notion Knowledge artifact.");
+  if (!result.slack?.ok) {
+    failureReasons.push(result.slack ? `Slack digest failed (HTTP ${result.slack.statusCode ?? "unknown"})` : "Missing Slack digest artifact.");
+  }
+
+  result.proofLinks = [result.notion?.workQueuePageUrl, result.notion?.knowledgePageUrl]
+    .filter((value): value is string => typeof value === "string" && value.length > 0);
+  result.failureReason = [...failureReasons, ...result.errors].join(" ");
+  result.success = failureReasons.length === 0 && result.errors.length === 0;
+  result.outcome = result.success ? "done" : "blocked";
+  result.issueComment = formatCustomerResearchIssueComment(result);
 
   return result;
 }
@@ -2894,7 +3693,7 @@ async function buildMarketIntelOutputProof(
 
   if (validationErrors.length === 0 && (slackGrowthWebhookUrl || slackOpsWebhookUrl)) {
     try {
-      result.slack = await postSlackDigest(
+      const slackResult = await postSlackDigest(
         {
           default: slackOpsWebhookUrl ?? slackGrowthWebhookUrl ?? undefined,
           ops: slackOpsWebhookUrl ?? undefined,
@@ -2912,8 +3711,9 @@ async function buildMarketIntelOutputProof(
           ],
         },
       );
-      if (!result.slack.ok) {
-        errors.push(`Slack digest failed with HTTP ${result.slack.statusCode ?? "unknown"}`);
+      result.slack = slackResult;
+      if (!slackResult.ok) {
+        errors.push(`Slack digest failed with HTTP ${slackResult.statusCode ?? "unknown"}`);
       }
     } catch (error) {
       errors.push(`Slack digest failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -3187,6 +3987,12 @@ async function registerActionHandlers(ctx: PluginContext) {
     return await runFullRepoScan(ctx, company.id, config, "manual-action");
   });
 
+  ctx.actions.register(ACTION_KEYS.managerState, async (params) => {
+    const config = await getConfig(ctx);
+    const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
+    return await buildChiefOfStaffState(ctx, company.id, config);
+  });
+
   ctx.actions.register(ACTION_KEYS.simulateSignal, async (params) => {
     const config = await getConfig(ctx);
     const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
@@ -3236,6 +4042,12 @@ async function registerActionHandlers(ctx: PluginContext) {
     return await buildAnalyticsOutputProof(ctx, config, company.id, params);
   });
 
+  ctx.actions.register(ACTION_KEYS.customerResearchReport, async (params) => {
+    const config = await getConfig(ctx);
+    const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
+    return await buildCustomerResearchOutputProof(ctx, config, company.id, params);
+  });
+
   ctx.actions.register(ACTION_KEYS.demandIntelReport, async (params) => {
     const config = await getConfig(ctx);
     const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
@@ -3270,6 +4082,36 @@ async function registerToolHandlers(ctx: PluginContext) {
       return {
         content: `Scanned ${summary.repoSummaries.length} Blueprint repos and polled ${summary.githubSummary.polled} GitHub workflow feeds.`,
         data: summary,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.managerState,
+    {
+      displayName: "Blueprint Manager State",
+      description:
+        "Read the current chief-of-staff operating snapshot across issue state, recent completions, stale work, routine health, and active agent status.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          companyName: { type: "string" },
+        },
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(
+        ctx,
+        asString((params as Record<string, unknown>).companyName) ?? config.companyName,
+      );
+      const snapshot = await buildChiefOfStaffState(ctx, company.id, config);
+      return {
+        content: [
+          `Chief of staff state: ${snapshot.summary.openIssueCount} open issues, ${snapshot.summary.blockedIssueCount} blocked, ${snapshot.summary.staleIssueCount} stale, ${snapshot.summary.recentlyCompletedCount} recently completed, ${snapshot.summary.routineAlertCount} routine alerts.`,
+          ...snapshot.nextActionHints.slice(0, 5).map((hint) => `- ${hint}`),
+        ].join("\n"),
+        data: snapshot,
       };
     },
   );
@@ -3445,6 +4287,121 @@ async function registerToolHandlers(ctx: PluginContext) {
   );
 
   ctx.tools.register(
+    TOOL_NAMES.customerResearchSearch,
+    {
+      displayName: "Customer Research Search",
+      description:
+        "Run source-targeted customer research search queries for transcripts, reviews, forums, and community evidence.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string" },
+          sources: { type: "array", items: { type: "string" } },
+        },
+        required: ["query"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const searchApiKey = await resolveOptionalSecret(
+        ctx,
+        config.secrets?.searchApiKeyRef,
+        "SEARCH_API_KEY",
+      );
+      const searchApiProvider = await resolveOptionalSecret(
+        ctx,
+        config.secrets?.searchApiProviderRef,
+        "SEARCH_API_PROVIDER",
+      ) ?? "perplexity";
+      if (!searchApiKey) {
+        throw new Error("Customer research search requires SEARCH_API_KEY to be configured.");
+      }
+      const searchTools = buildWebSearchToolHandler({
+        apiKey: searchApiKey,
+        provider: searchApiProvider,
+      });
+      const result = await runCustomerResearchSearch(
+        asString((params as Record<string, unknown>).query) ?? "",
+        Array.isArray((params as Record<string, unknown>).sources)
+          ? ((params as Record<string, unknown>).sources as string[])
+          : undefined,
+        async (query) => await searchTools[TOOL_NAMES.webSearch]({ query }),
+      );
+      return {
+        content: `Customer research search completed across ${result.results.length} source-specific queries.`,
+        data: result,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.customerResearchSynthesize,
+    {
+      displayName: "Customer Research Synthesize",
+      description:
+        "Normalize customer research evidence into JTBD, personas, objections, and confidence without writing artifacts.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          evidence: { type: "array", items: { type: "object" } },
+        },
+        required: ["evidence"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const synthesis = synthesizeCustomerResearch(
+        (params as Record<string, unknown>).evidence,
+      );
+      return {
+        content: `Synthesized ${synthesis.evidence.length} evidence items into ${synthesis.jtbd.length} JTBD items and ${synthesis.personas.length} personas.`,
+        data: synthesis,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.customerResearchReport,
+    {
+      displayName: "Generate Customer Research Report",
+      description:
+        "Write a customer research artifact to Notion, post the Slack digest, and return the proof/comment payload for issue completion.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          cadence: { type: "string", enum: ["daily", "weekly", "ad_hoc"] },
+          companyName: { type: "string" },
+          issueId: { type: "string" },
+          topic: { type: "string" },
+          lane: { type: "string" },
+          headline: { type: "string" },
+          evidence: { type: "array", items: { type: "object" } },
+          recommendedActions: { type: "array", items: { type: "string" } },
+        },
+        required: ["topic", "headline", "evidence", "recommendedActions"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(
+        ctx,
+        asString((params as Record<string, unknown>).companyName) ?? config.companyName,
+      );
+      const report = await buildCustomerResearchOutputProof(
+        ctx,
+        config,
+        company.id,
+        params as Record<string, unknown>,
+      );
+      return {
+        content: report.success
+          ? "Generated customer research report with Notion and Slack outputs."
+          : `Customer research report blocked: ${report.failureReason || report.errors.join("; ") || "unknown error"}.`,
+        data: report,
+      };
+    },
+  );
+
+  ctx.tools.register(
     TOOL_NAMES.demandIntelReport,
     {
       displayName: "Generate Demand Intel Report",
@@ -3545,6 +4502,360 @@ async function registerToolHandlers(ctx: PluginContext) {
           ? `Generated ${cadence} market intel report with Notion and Slack outputs.`
           : `Market intel report writer blocked: ${report.failureReason || report.errors.join("; ") || "unknown error"}.`,
         data: report,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.nitrosendListAudiences,
+    {
+      displayName: "Nitrosend List Audiences",
+      description: "List normalized Nitrosend audiences through the Blueprint-owned adapter.",
+      parametersSchema: {
+        type: "object",
+        properties: {},
+      },
+    },
+    async (): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const nitrosendConfig = await resolveNitrosendConfig(ctx, config);
+      if (!nitrosendConfig) {
+        throw new Error("Nitrosend adapter is not configured. Set nitrosendBaseUrl and nitrosendApiTokenRef.");
+      }
+      const result = await listNitrosendAudiences(nitrosendConfig);
+      return {
+        content: `Loaded ${result.count} Nitrosend audiences.`,
+        data: result,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.nitrosendUpsertAudience,
+    {
+      displayName: "Nitrosend Upsert Audience",
+      description: "Create or update a Nitrosend audience in draft state only.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          description: { type: "string" },
+          filters: { type: "object" },
+        },
+        required: ["name"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const nitrosendConfig = await resolveNitrosendConfig(ctx, config);
+      if (!nitrosendConfig) {
+        throw new Error("Nitrosend adapter is not configured. Set nitrosendBaseUrl and nitrosendApiTokenRef.");
+      }
+      const audience = await upsertNitrosendAudience(
+        nitrosendConfig,
+        params as Record<string, unknown>,
+      );
+      return {
+        content: `Upserted Nitrosend draft audience ${audience.name} (${audience.id}).`,
+        data: audience,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.nitrosendDraftSequence,
+    {
+      displayName: "Nitrosend Draft Sequence",
+      description: "Create a Nitrosend email sequence draft. Live sends are blocked centrally.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          audienceId: { type: "string" },
+          steps: { type: "array", items: { type: "object" } },
+        },
+        required: ["name"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const nitrosendConfig = await resolveNitrosendConfig(ctx, config);
+      if (!nitrosendConfig) {
+        throw new Error("Nitrosend adapter is not configured. Set nitrosendBaseUrl and nitrosendApiTokenRef.");
+      }
+      const sequence = await createNitrosendSequenceDraft(
+        nitrosendConfig,
+        params as Record<string, unknown>,
+      );
+      return {
+        content: `Created Nitrosend draft sequence ${sequence.name} (${sequence.id}).`,
+        data: sequence,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.nitrosendCreateCampaignDraft,
+    {
+      displayName: "Nitrosend Create Campaign Draft",
+      description: "Create a Nitrosend campaign draft. Publish/send actions remain human-gated.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          audienceId: { type: "string" },
+          sequenceId: { type: "string" },
+          content: { type: "object" },
+        },
+        required: ["name"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const nitrosendConfig = await resolveNitrosendConfig(ctx, config);
+      if (!nitrosendConfig) {
+        throw new Error("Nitrosend adapter is not configured. Set nitrosendBaseUrl and nitrosendApiTokenRef.");
+      }
+      const campaign = await createNitrosendCampaignDraft(
+        nitrosendConfig,
+        params as Record<string, unknown>,
+      );
+      return {
+        content: `Created Nitrosend campaign draft ${campaign.name} (${campaign.id}).`,
+        data: campaign,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.firehoseReadSignals,
+    {
+      displayName: "Firehose Read Signals",
+      description: "Read, normalize, dedupe, and cache Firehose signals through the Blueprint ingest bridge.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string" },
+          topics: { type: "array", items: { type: "string" } },
+          limit: { type: "number" },
+          since: { type: "string" },
+        },
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      const firehoseConfig = await resolveFirehoseConfig(ctx, config);
+      if (!firehoseConfig) {
+        throw new Error("Firehose adapter is not configured. Set firehoseBaseUrl and firehoseApiTokenRef.");
+      }
+      const result = await fetchFirehoseSignals(firehoseConfig, {
+        query: asString((params as Record<string, unknown>).query),
+        topics: Array.isArray((params as Record<string, unknown>).topics)
+          ? ((params as Record<string, unknown>).topics as string[])
+          : undefined,
+        limit: asNumber((params as Record<string, unknown>).limit),
+        since: asString((params as Record<string, unknown>).since),
+      });
+      const existing = await readState<FirehoseSignalCacheState>(
+        ctx,
+        company.id,
+        STATE_KEYS.firehoseSignalCache,
+      );
+      const cache = mergeFirehoseSignalCache(
+        existing,
+        result.signals,
+        firehoseConfig.maxSignalsPerRead ?? 100,
+      );
+      await writeState(ctx, company.id, STATE_KEYS.firehoseSignalCache, cache);
+      return {
+        content: `Loaded ${result.count} Firehose signals and updated the Blueprint cache.`,
+        data: { ...result, cacheUpdatedAt: cache.updatedAt },
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.firehoseReadBrief,
+    {
+      displayName: "Firehose Read Brief",
+      description: "Read a summarized brief from cached or freshly fetched Firehose signals.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string" },
+          topics: { type: "array", items: { type: "string" } },
+          limit: { type: "number" },
+          since: { type: "string" },
+          refresh: { type: "boolean" },
+        },
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      const firehoseConfig = await resolveFirehoseConfig(ctx, config);
+      if (!firehoseConfig) {
+        throw new Error("Firehose adapter is not configured. Set firehoseBaseUrl and firehoseApiTokenRef.");
+      }
+      const query = asString((params as Record<string, unknown>).query);
+      const shouldRefresh = (params as Record<string, unknown>).refresh === true;
+      const existing = await readState<FirehoseSignalCacheState>(
+        ctx,
+        company.id,
+        STATE_KEYS.firehoseSignalCache,
+      );
+      let signals = existing?.signals ?? [];
+      if (shouldRefresh || signals.length === 0) {
+        const refreshed = await fetchFirehoseSignals(firehoseConfig, {
+          query,
+          topics: Array.isArray((params as Record<string, unknown>).topics)
+            ? ((params as Record<string, unknown>).topics as string[])
+            : undefined,
+          limit: asNumber((params as Record<string, unknown>).limit),
+          since: asString((params as Record<string, unknown>).since),
+        });
+        const cache = mergeFirehoseSignalCache(
+          existing,
+          refreshed.signals,
+          firehoseConfig.maxSignalsPerRead ?? 100,
+        );
+        await writeState(ctx, company.id, STATE_KEYS.firehoseSignalCache, cache);
+        signals = cache.signals;
+      }
+      const brief = buildFirehoseBrief(signals, query);
+      return {
+        content: brief.headline,
+        data: brief,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.introwSearchPartners,
+    {
+      displayName: "Introw Search Partners",
+      description: "Search Introw partners through the Blueprint-owned adapter.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string" },
+          workspace: { type: "string" },
+        },
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const introwConfig = await resolveIntrowConfig(ctx, config);
+      if (!introwConfig) {
+        throw new Error("Introw adapter is not configured. Set introwBaseUrl and introwApiTokenRef.");
+      }
+      const result = await searchIntrowPartners(
+        introwConfig,
+        params as Record<string, unknown>,
+      );
+      return {
+        content: `Loaded ${result.count} Introw partner matches.`,
+        data: result,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.introwReadAccount,
+    {
+      displayName: "Introw Read Account",
+      description: "Read an Introw account through the Blueprint-owned adapter.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          accountId: { type: "string" },
+        },
+        required: ["accountId"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const introwConfig = await resolveIntrowConfig(ctx, config);
+      if (!introwConfig) {
+        throw new Error("Introw adapter is not configured. Set introwBaseUrl and introwApiTokenRef.");
+      }
+      const account = await readIntrowAccount(
+        introwConfig,
+        asString((params as Record<string, unknown>).accountId) ?? "",
+      );
+      return {
+        content: `Loaded Introw account ${account.name} (${account.id}).`,
+        data: account,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.introwCreatePartnerDraft,
+    {
+      displayName: "Introw Create Partner Draft",
+      description: "Create a draft partner record in Introw. Live partner activation is blocked centrally.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          workspace: { type: "string" },
+          notes: { type: "string" },
+          accountId: { type: "string" },
+          status: { type: "string" },
+        },
+        required: ["name"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const introwConfig = await resolveIntrowConfig(ctx, config);
+      if (!introwConfig) {
+        throw new Error("Introw adapter is not configured. Set introwBaseUrl and introwApiTokenRef.");
+      }
+      const partner = await createIntrowPartnerDraft(
+        introwConfig,
+        params as Record<string, unknown>,
+      );
+      return {
+        content: `Created Introw partner draft ${partner.name} (${partner.id}).`,
+        data: partner,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.introwUpdatePartnerDraft,
+    {
+      displayName: "Introw Update Partner Draft",
+      description: "Update a draft partner record in Introw. Live partner activation is blocked centrally.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          partnerId: { type: "string" },
+          workspace: { type: "string" },
+          notes: { type: "string" },
+          accountId: { type: "string" },
+          status: { type: "string" },
+        },
+        required: ["partnerId"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const introwConfig = await resolveIntrowConfig(ctx, config);
+      if (!introwConfig) {
+        throw new Error("Introw adapter is not configured. Set introwBaseUrl and introwApiTokenRef.");
+      }
+      const partner = await updateIntrowPartnerDraft(
+        introwConfig,
+        asString((params as Record<string, unknown>).partnerId) ?? "",
+        params as Record<string, unknown>,
+      );
+      return {
+        content: `Updated Introw partner draft ${partner.name} (${partner.id}).`,
+        data: partner,
       };
     },
   );
@@ -3717,22 +5028,16 @@ async function registerToolHandlers(ctx: PluginContext) {
   // ── Slack Tools ───────────────────────────────────────
   try {
     const config = await getConfig(ctx);
-    const slackOpsWebhookUrl = await resolveOptionalSecret(
-      ctx,
-      config.secrets?.slackOpsWebhookUrlRef,
-      "SLACK_OPS_WEBHOOK_URL",
-    );
-    const slackGrowthWebhookUrl = await resolveOptionalSecret(
-      ctx,
-      config.secrets?.slackGrowthWebhookUrlRef,
-      "SLACK_GROWTH_WEBHOOK_URL",
-    );
-    if (slackOpsWebhookUrl || slackGrowthWebhookUrl) {
-      const slackTools = buildSlackToolHandler({
-        default: slackOpsWebhookUrl ?? slackGrowthWebhookUrl ?? undefined,
-        ops: slackOpsWebhookUrl ?? undefined,
-        growth: slackGrowthWebhookUrl ?? undefined,
-      });
+    const slackTargets = await resolveSlackTargets(ctx, config);
+    if (
+      slackTargets.default
+      || slackTargets.ops
+      || slackTargets.growth
+      || slackTargets.exec
+      || slackTargets.engineering
+      || slackTargets.manager
+    ) {
+      const slackTools = buildSlackToolHandler(slackTargets);
       ctx.tools.register(
         TOOL_NAMES.slackPostDigest,
         {
@@ -3959,8 +5264,73 @@ const plugin: PaperclipPlugin = definePlugin({
           },
         });
       }
+      try {
+        await handleChiefOfStaffRunFailureSignal(ctx, event);
+      } catch (error) {
+        ctx.logger.warn("agent.run.failed chief-of-staff wakeup failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+    });
+    ctx.events.on("issue.created", async (event) => {
+      if (!event.entityId) return;
+      try {
+        await handleChiefOfStaffIssueSignal(ctx, {
+          eventId: event.eventId,
+          companyId: event.companyId,
+          entityId: event.entityId,
+          type: "issue.created",
+        });
+      } catch (error) {
+        ctx.logger.warn("issue.created chief-of-staff wakeup failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            issueId: event.entityId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+    });
+    ctx.events.on("issue.updated", async (event) => {
+      if (!event.entityId) return;
+      try {
+        await handleChiefOfStaffIssueSignal(ctx, {
+          eventId: event.eventId,
+          companyId: event.companyId,
+          entityId: event.entityId,
+          type: "issue.updated",
+        });
+      } catch (error) {
+        ctx.logger.warn("issue.updated chief-of-staff wakeup failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            issueId: event.entityId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+    });
+    ctx.events.on("activity.logged", async (event) => {
+      try {
+        await handleChiefOfStaffActivitySignal(ctx, event);
+      } catch (error) {
+        ctx.logger.warn("activity.logged chief-of-staff wakeup failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
     });
     ctx.events.on("agent.updated", async (event) => {
+      if (!event.entityId) return;
       try {
         const agent = await ctx.agents.get(event.entityId, event.companyId);
         if (agent) {
@@ -3978,6 +5348,7 @@ const plugin: PaperclipPlugin = definePlugin({
       }
     });
     ctx.events.on("agent.created", async (event) => {
+      if (!event.entityId) return;
       try {
         const agent = await ctx.agents.get(event.entityId, event.companyId);
         if (agent) {

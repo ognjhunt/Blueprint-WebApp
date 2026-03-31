@@ -19,7 +19,7 @@ CLAUDE_LANE_MODE="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE:-auto}"
 VERIFY_CLAUDE="${BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE:-1}"
 VERIFY_HERMES="${BLUEPRINT_PAPERCLIP_VERIFY_HERMES:-auto}"
 FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES:-0}"
-HERMES_INSTRUCTIONS_FILE="/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/ops-lead/AGENTS.md"
+HERMES_INSTRUCTIONS_FILE="/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md"
 
 for arg in "$@"; do
   if [ "$arg" = "--smoke" ]; then
@@ -65,6 +65,7 @@ require_routines() {
       const rows=JSON.parse(data);
       const required=[
         "CEO Daily Review",
+        "Chief of Staff Continuous Loop",
         "CTO Cross-Repo Triage",
         "WebApp Autonomy Loop",
         "WebApp Claude Review Loop",
@@ -286,7 +287,8 @@ main() {
     run_test "$company_id" "Blueprint-WebApp" "hermes_local" "{
       \"adapterConfig\": {
         \"cwd\": \"/Users/nijelhunt_1/workspace/Blueprint-WebApp\",
-        \"model\": \"gpt-5.4\",
+        \"model\": \"gpt-5.4-mini\",
+        \"modelReasoningEffort\": \"xhigh\",
         \"instructionsFilePath\": \"${HERMES_INSTRUCTIONS_FILE}\",
         \"timeoutSec\": 1200
       }

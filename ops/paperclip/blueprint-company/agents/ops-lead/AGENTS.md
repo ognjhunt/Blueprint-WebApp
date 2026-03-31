@@ -1,7 +1,7 @@
 ---
 name: Ops Lead
 title: Blueprint Product Operations Lead
-reportsTo: blueprint-ceo
+reportsTo: blueprint-chief-of-staff
 skills:
   - platform-doctrine
   - autonomy-safety

@@ -28,11 +28,16 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
                            │   (Claude)   │
                            └──────┬───────┘
                                   │
-                 ┌────────────────┼────────────────┐
-                 │                │                 │
+                         ┌────────┴────────┐
+                         │ Chief of Staff  │
+                         │   (Hermes)      │
+                         └──────┬───────┬──┘
+                                │       │
+                 ┌──────────────┘       └──────────────┐
+                 │                                     │
           ┌──────┴──────┐  ┌─────┴──────┐  ┌──────┴───────┐
           │  CTO Agent  │  │  Ops Lead  │  │ Growth Lead  │
-          │  (Claude)   │  │  (Claude)  │  │   (Claude)   │
+          │  (Claude)   │  │  (Hermes)  │  │   (Hermes)   │
           └──────┬──────┘  └─────┬──────┘  └──────┬───────┘
                  │               │                 │
        ┌─────┬──┴──┐      ┌─────┼─────┐     ┌─────┼─────┐
@@ -47,7 +52,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 
 | Department | Lead | Agents | Focus |
 |-----------|------|--------|-------|
-| **Executive** | CEO | CEO, CTO | Strategy, priorities, cross-dept coordination |
+| **Executive** | CEO | CEO, Chief of Staff, CTO | Strategy, priorities, continuous cross-dept coordination |
 | **Engineering** | CTO | 6 agents (impl + review per repo) | Code implementation and review |
 | **Ops** | Ops Lead | 5 agents | Product operations lifecycle |
 | **Growth** | Growth Lead | 11 agents | Buyer demand, capturer supply, city planning, conversion, retention, and intelligence |
@@ -87,6 +92,36 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 **Graduation:** N/A — executive role, always reports to human.
 
 **Instructions:** `ops/paperclip/blueprint-company/agents/blueprint-ceo/AGENTS.md`
+**Paperclip config:** `ops/paperclip/blueprint-company/.paperclip.yaml`
+
+---
+
+#### Chief of Staff (`blueprint-chief-of-staff`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Executive |
+| **Reports to** | CEO |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | Live in Paperclip package |
+
+**Purpose:** Runs the continuous 24/7 managerial loop. Watches issue state, routine health, queue changes, and agent activity; decides what finished, what stalled, and what needs a next action; and routes or closes work in Paperclip.
+
+**Triggers:**
+- `*/5 * * * *` — Continuous manager loop
+- Event wakeups from issue create/update, routine activity, queue intake, and agent failures via the Blueprint automation plugin
+
+**Inputs:** `blueprint-manager-state`, Blueprint automation recent events, active issues, routine health, queue sync state, and repo/plugin evidence.
+
+**Outputs:**
+- Concrete Paperclip issue creation/update/closure
+- Delegations and blocker follow-up issues
+- Cross-agent follow-through decisions
+- Slack-visible manager wakeups and task-routing activity
+
+**Human gates:** Strategy, budget, rights/privacy, commercialization commitments, legal, policy, and other irreversible high-risk decisions.
+
+**Instructions:** `ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md`
 **Paperclip config:** `ops/paperclip/blueprint-company/.paperclip.yaml`
 
 ---
@@ -149,7 +184,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | Field | Value |
 |-------|-------|
 | **Department** | Ops |
-| **Reports to** | CEO |
+| **Reports to** | Chief of Staff |
 | **Model** | Hermes (Codex OAuth) |
 | **Status** | New |
 
@@ -382,7 +417,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | Field | Value |
 |-------|-------|
 | **Department** | Growth |
-| **Reports to** | CEO |
+| **Reports to** | Chief of Staff |
 | **Model** | Hermes (Codex OAuth) |
 | **Status** | New |
 

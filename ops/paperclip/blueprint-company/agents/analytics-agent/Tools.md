@@ -7,6 +7,8 @@
   Use for revenue, purchases, payouts, and money-state truth.
 - Firestore
   Use for signup, request, queue, and operational state.
+- the Blueprint Firehose bridge
+  Use for normalized market, demand, and operator signals when external signal changes matter to the report.
 - Paperclip issue context and Blueprint automation outputs
   Use to decide what operational changes belong in the report.
 
