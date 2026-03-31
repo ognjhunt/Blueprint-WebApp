@@ -5,12 +5,12 @@ const router = Router();
 router.get("/", (_req: Request, res: Response) => {
   res.status(200).json({
     summary:
-      "Blueprint qualifies real sites for robot deployment, routes the right opportunities, and prepares downstream evaluation assets when needed.",
+      "Blueprint captures real sites, packages them into site-specific world models, and provides hosted access for robot teams to evaluate and deploy.",
     pages: [
       {
         path: "/",
         title: "Home",
-        description: "Overview of Blueprint's qualification-first workflow for deployment readiness.",
+        description: "Overview of Blueprint's capture-first workflow for site-specific world models and hosted access.",
       },
       {
         path: "/readiness-pack",

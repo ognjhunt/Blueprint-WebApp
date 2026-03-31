@@ -183,9 +183,9 @@ function buildPlaceholderInboundRequest(params: {
     contact: AUTO_CREATED_CONTACT,
     request: {
       budgetBucket: "Undecided/Unsure",
-      requestedLanes: ["qualification"],
+      requestedLanes: ["deeper_evaluation"],
       helpWith: [],
-      buyerType: "site_operator",
+      buyerType: "robot_team",
       siteName: `Pipeline site ${siteLabel}`,
       siteLocation: locationDetail,
       taskStatement: taskDetail,

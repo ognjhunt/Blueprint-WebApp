@@ -42,10 +42,15 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
                  │               │                 │
        ┌─────┬──┴──┐      ┌─────┼─────┐     ┌─────┼─────┐
        │     │     │       │     │     │     │     │     │
-     Impl  Impl  Impl   Intk  QA   Fld   Conv  Anly  Mkt
-     (x3)  Revw  (x3)   Agnt  Agnt Ops   Opt   Agnt  Intel
-     Codex (x3)  Codex  Cld   Cld  Agnt  Cld   Cld   Cld
-           Claude              Cld
+     Impl  Impl  Beta   Intk  QA   Fld   Conv  Anly  Mkt
+     (x3)  Revw  Lnch   Agnt  Agnt Ops   Opt   Agnt  Intel
+     Codex (x3)  Cmdr   Cld   Cld  Agnt  Cld   Cld   Cld
+           Claude Cld          Cld
+                         ┌─────┼─────┐
+                         │     │     │
+                        Buyr  Rghts  Capt
+                        Soln  Prov   Succ
+                        Herm  Cld    Herm
 ```
 
 ### Departments
@@ -53,9 +58,9 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 | Department | Lead | Agents | Focus |
 |-----------|------|--------|-------|
 | **Executive** | CEO | CEO, Chief of Staff, CTO, Investor Relations | Strategy, priorities, continuous cross-dept coordination |
-| **Engineering** | CTO | 6 agents (impl + review per repo) | Code implementation and review |
-| **Ops** | Ops Lead | 5 agents | Product operations lifecycle |
-| **Growth** | Growth Lead | 12 agents | Buyer demand, capturer supply, city planning, conversion, retention, intelligence, and community publishing |
+| **Engineering** | CTO | 6 agents (impl + review per repo) + Beta Launch Commander + Docs Agent | Code implementation, review, release orchestration, and documentation |
+| **Ops** | Ops Lead | 10 agents | Product operations lifecycle, buyer solutions, rights/trust, capturer success, catalog, buyer success |
+| **Growth** | Growth Lead | 13 agents | Buyer demand, capturer supply, city planning, outbound sales, conversion, retention, intelligence, and community publishing |
 
 ---
 
@@ -438,6 +443,204 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | 3 | Support mostly autonomous; payouts/disputes/refunds still human-only | Founder sign-off |
 
 **Skill file:** `ops/paperclip/skills/finance-support-agent.md`
+
+---
+
+#### Beta Launch Commander (`beta-launch-commander`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Engineering (reports to CTO) |
+| **Reports to** | CTO |
+| **Model** | Claude |
+| **Status** | New |
+
+**Purpose:** Cross-repo release orchestrator. Runs preflight checks across all three repos, produces go/no-go recommendations with evidence, and coordinates freeze/rollback/incident response during beta releases.
+
+**Why this is an agent (not just scripts):** Launch involves conflicting signals across tests, deploy health, smoke results, and incidents. Software runs the checks; this agent reads the results, decides go/no-go, and escalates when evidence is ambiguous.
+
+**What stays as code:** Preflight scripts, smoke tests, health checks, rollback commands, release gates, CI pipelines.
+
+**Triggers:**
+- Release candidate tagged in any repo
+- CI failure on main in any repo
+- Smoke test failure post-deploy
+- `0 9 * * 1-5` — Morning release health check (weekdays 9am ET)
+
+**Inputs:**
+- CI/test results across all three repos
+- `alpha_readiness.sh` (BlueprintCapture)
+- `run_external_alpha_launch_gate.py` (BlueprintCapturePipeline)
+- `npm run check && npm run build` (Blueprint-WebApp)
+- Open blocker issues in Paperclip
+
+**Outputs:**
+- GO / CONDITIONAL GO / HOLD recommendation with evidence
+- Blocker issues routed to engineering agents
+- Post-deploy monitoring reports
+- Rollback documentation when needed
+
+**Human gates:**
+- Release freeze directives
+- Risk acceptance on compliance flags
+- Go/no-go when evidence is genuinely ambiguous
+
+**Graduation path:**
+| Phase | Behavior | Criteria to advance |
+|-------|----------|-------------------|
+| 1 | Runs preflight, produces recommendations; human approves all releases | 3 successful release cycles |
+| 2 | Auto-approves GO when all checks pass cleanly; human reviews CONDITIONAL GO and HOLD | 5 clean releases in a row |
+| 3 | Manages routine releases autonomously; human reviews only HOLD and rollback decisions | Founder sign-off |
+
+---
+
+#### Buyer Solutions Agent (`buyer-solutions-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Ops |
+| **Reports to** | Ops Lead |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | New |
+
+**Purpose:** Owns the buyer journey from qualified inbound to proof-ready. Interprets messy buyer requests, translates them into concrete package requirements, tracks through capture matching and packaging, and delivers proof for buyer evaluation.
+
+**Why this is an agent (not just CRM automation):** Buyer requests are natural language from diverse robot teams with unclear site details, proof expectations, and timelines. Someone has to interpret, prioritize, and route — that is judgment work, not form processing.
+
+**What stays as code:** Form validation, CRM/inbound storage, status transitions, proof-pack generation, hosted-review setup, Firestore state management.
+
+**Triggers:**
+- Intake agent routes a qualified buyer request
+- Pipeline attachment sync produces artifacts for an active buyer
+- Buyer responds to outreach
+- `0 10 * * 1-5` — Morning buyer pipeline review
+- `0 15 * * 1-5` — Afternoon follow-up
+
+**Inputs:**
+- Firestore inbound requests
+- Pipeline qualification state, opportunity state, derived assets
+- WebApp admin leads view
+- Buyer communications (email, form, Slack)
+
+**Outputs:**
+- Buyer journey issues in Paperclip (one per qualified request)
+- Parsed requirements and feasibility assessments
+- Capture job requests (handed to ops-lead when no match exists)
+- Buyer-facing proof summaries
+- Journey stage transitions and outcome documentation
+
+**Human gates:**
+- Pricing, terms, contract negotiation
+- Promises about capabilities Blueprint does not yet have
+- Any external buyer-facing communication beyond status updates
+
+**Graduation path:**
+| Phase | Behavior | Criteria to advance |
+|-------|----------|-------------------|
+| 1 | Tracks and recommends; human handles all buyer communication | 5 buyer journeys tracked end-to-end |
+| 2 | Sends routine status updates autonomously; human approves proof delivery and commercial conversations | 3 successful proof deliveries |
+| 3 | Manages routine buyer journeys autonomously; human reviews only commercial and capability-gap conversations | Founder sign-off |
+
+---
+
+#### Rights & Provenance Agent (`rights-provenance-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Ops |
+| **Reports to** | Ops Lead |
+| **Model** | Claude |
+| **Status** | New |
+
+**Purpose:** Trust and compliance gatekeeper. Reviews consent, rights, privacy processing, provenance chain, and commercialization scope before any capture or package is released to buyers. Default posture: fail-closed.
+
+**Why this is an agent (not just boolean checks):** Consent scope, commercialization rights, and privacy sensitivity have ambiguous edge cases. A boolean check catches 80%; this agent handles the 20% that needs interpretation — high-sensitivity sites, cross-jurisdiction issues, scope expansion requests.
+
+**What stays as code:** Required metadata fields, fail-closed permission defaults, redaction pipelines, release blockers, audit logs, privacy processing (SAM3, VIP, DeepPrivacy2, Depth Anything).
+
+**Triggers:**
+- Buyer-solutions-agent or capture-qa-agent requests rights clearance
+- Pipeline produces `rights_and_compliance_summary.json`
+- Buyer requests expanded commercialization scope
+- `0 11 * * 1-5` — Morning rights review
+
+**Inputs:**
+- Pipeline: `rights_and_compliance_summary.json`, `provenance_summary.json`
+- Privacy processing output artifacts
+- Capture context: `capture_context.json`, consent metadata
+- Firestore: rights_status, capture_policy_tier
+
+**Outputs:**
+- CLEARED / BLOCKED / NEEDS-REVIEW decisions with evidence citations
+- Specific unblock actions for BLOCKED items
+- Founder escalation summaries for NEEDS-REVIEW cases
+- Rights clearance attached to Paperclip issues
+
+**Human gates:**
+- Novel consent situations without precedent
+- Regulatory gray areas
+- Expanding commercialization scope beyond original grant
+- Any case where the right answer is genuinely unclear
+- ALL rights decisions are permanently human-gated (never fully autonomous)
+
+**Graduation path:**
+| Phase | Behavior | Criteria to advance |
+|-------|----------|-------------------|
+| 1 | Reviews and recommends; human approves all clearance decisions | 10 reviews with consistent quality |
+| 2 | Auto-clears routine cases matching established patterns; human reviews edge cases and high-sensitivity sites | 20 reviews, zero false clearances |
+| 3 | Semi-autonomous for routine clearance; all novel, high-sensitivity, and scope-expansion cases remain human-gated permanently | Founder sign-off |
+
+---
+
+#### Capturer Success Agent (`capturer-success-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Ops |
+| **Reports to** | Ops Lead |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | New |
+
+**Purpose:** Owns capturer activation and retention. Guides approved capturers through first capture success, translates QA feedback into actionable recapture instructions, monitors activity patterns, and identifies systemic platform issues from individual capturer struggles.
+
+**Why this is an agent (not just onboarding automation):** Capturers fail in diverse ways — device issues, technique gaps, site access confusion, motivation drops. Pattern recognition across failure modes + personalized next steps = judgment work. And supply-side churn kills the entire business.
+
+**What stays as code:** Onboarding reminders, upload diagnostics, capture quality scoring, activation metrics, capturer level/achievement tracking, push notifications.
+
+**Triggers:**
+- Intake agent approves a capturer application
+- First capture uploaded (monitor QA closely)
+- Capture QA result (FAIL/BORDERLINE) for any capturer
+- Capturer inactive >7 days
+- `0 9 * * 1-5` — Morning capturer health check
+- `0 14 * * 1-5` — Afternoon follow-up
+
+**Inputs:**
+- Firestore: capture_submissions, capturer profiles, upload history
+- Pipeline QA: qualification_summary, recapture_requirements, payout_recommendation
+- App analytics (install, first launch, first capture attempt)
+- Paperclip capturer lifecycle issues
+
+**Outputs:**
+- Capturer lifecycle issues in Paperclip
+- Device-specific onboarding guidance
+- Recapture instructions translated from QA feedback
+- Activity pattern reports and intervention recommendations
+- Systemic issue escalations (when multiple capturers hit the same wall)
+
+**Human gates:**
+- Capturer deactivation
+- Payout adjustments
+- Platform-level UX/process changes based on pattern analysis
+
+**Graduation path:**
+| Phase | Behavior | Criteria to advance |
+|-------|----------|-------------------|
+| 1 | Tracks lifecycle and drafts guidance; human sends all communications | 10 capturers tracked through activation |
+| 2 | Sends routine onboarding and recapture guidance autonomously; human handles deactivation and escalations | First capture success rate >60% for tracked cohort |
+| 3 | Manages capturer lifecycle autonomously; human reviews deactivation, payouts, and systemic platform issues | Founder sign-off |
+
+**Skill file:** `ops/paperclip/skills/capturer-success-agent.md`
 
 ---
 
@@ -957,6 +1160,196 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 
 ---
 
+#### Site Catalog Agent (`site-catalog-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Ops |
+| **Reports to** | Ops Lead |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | New |
+
+**Purpose:** Product listing manager for Blueprint's site-world catalog. Creates and maintains accurate, discoverable listings for every package that clears QA and rights review. Ensures descriptions match reality — no embellishment, no underselling.
+
+**Why this is an agent (not just automation):** Package metadata alone is not enough to make a good listing. The agent must interpret capture context, write a specific description ("45,000 sq ft distribution center, 3 aisles, ARKit depth"), choose the right category, and judge whether the listing is actually ready to publish. That is judgment over messy inputs.
+
+**Triggers:**
+- rights-provenance-agent clears a package for release
+- Pipeline produces updated derived assets for an existing package
+- Buyer-solutions-agent reports a catalog gap
+- `0 11 * * 1,4` — Catalog freshness audit (Mon/Thu)
+
+**Inputs:**
+- Pipeline artifacts: qualification_summary, derived_assets, deployment_readiness, site_world_spec
+- Firestore: site_worlds collection
+- Rights clearance status from rights-provenance-agent
+- Buyer demand signals from buyer-solutions-agent
+
+**Outputs:**
+- New or updated catalog listings in Firestore / WebApp
+- Catalog gap reports to growth-lead
+- Stale listing flags for review
+
+**Human gates:** Listing a new site type or removing a major category requires founder sign-off.
+
+**Graduation path:**
+| Phase | Behavior | Criteria to advance |
+|-------|----------|-------------------|
+| 1 | Drafts listings for human review and publish approval | 10 listings, quality validated |
+| 2 | Publishes routine listings autonomously; human reviews novel site types | 20 accurate listings |
+| 3 | Fully autonomous listing management; founder reviews only catalog-level structural changes | Founder sign-off |
+
+---
+
+#### Outbound Sales Agent (`outbound-sales-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Growth |
+| **Reports to** | Growth Lead |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | New |
+
+**Purpose:** Blueprint's business development representative for robot team outreach. Monitors market and demand intel for strong signals, researches prospects, drafts personalized outreach, tracks conversations, and hands off qualified leads to buyer-solutions-agent.
+
+**Why this is an agent (not just a CRM workflow):** Effective B2B outreach requires judgment — identifying the right signal, researching the specific prospect, crafting a message specific to their work, reading the response, and knowing when to advance or stop. That is not a templated sequence.
+
+**Triggers:**
+- demand-intel-agent publishes new robot team findings
+- market-intel-agent flags a funding announcement or company news signal
+- `0 10 * * 1-5` — Morning prospecting session
+- `0 15 * * 1,3,5` — Follow-up session
+
+**Inputs:**
+- demand-intel and market-intel agent findings
+- Site catalog (what is available to offer prospects)
+- Prospect pipeline issues in Paperclip
+- Web search for prospect research
+
+**Outputs:**
+- Personalized outreach drafts (human-approved in Phase 1)
+- Prospect pipeline issues with stage and status
+- Qualified handoffs to buyer-solutions-agent
+- Outreach pattern reports to growth-lead
+
+**Human gates:**
+- All outreach in Phase 1 (founder approves before sending)
+- Any pricing or capability commitments — always founder
+- Companies with existing relationships — coordinate through buyer-solutions-agent first
+
+**Outreach rules (non-negotiable):**
+- Max 2 touches per prospect without a response — then park
+- Lead with their problem, not Blueprint's product
+- Reference something specific to their work
+- Never misrepresent capabilities or current availability
+
+**Graduation path:**
+| Phase | Behavior | Criteria to advance |
+|-------|----------|-------------------|
+| 1 | Researches and drafts; founder approves all sends | 20 drafts, quality and accuracy validated |
+| 2 | Sends first touch autonomously; founder approves follow-ups and handoffs | >20% response rate over 30 outreaches |
+| 3 | Manages outreach pipeline autonomously; founder reviews handoffs and escalations | Founder sign-off |
+
+---
+
+#### Buyer Success Agent (`buyer-success-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Ops |
+| **Reports to** | Ops Lead |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | New |
+
+**Purpose:** Customer success manager for Blueprint's robot team buyers post-delivery. Monitors hosted session usage, runs structured onboarding check-ins, collects and routes feedback, identifies expansion opportunities, and detects churn risk before it becomes churn.
+
+**Why this is an agent (not just analytics dashboards):** Usage dashboards tell you what happened. This agent interprets what it means — a buyer who stops logging in needs a follow-up, not a report. A buyer who asks about a second site needs a handoff to buyer-solutions, not a FAQ link. Pattern recognition plus relationship continuity is judgment work.
+
+**Triggers:**
+- buyer-solutions-agent marks a buyer as "delivered" / closes-won
+- Hosted session error or degraded performance affecting active buyers
+- Buyer submits support request or feedback
+- Usage anomaly detected (significant drop or spike)
+- `0 10 * * 1,3,5` — Buyer health check
+- `0 14 * * 2,4` — Feedback synthesis
+
+**Inputs:**
+- Firestore: site-world sessions, buyer accounts, access entitlements, usage events
+- WebApp: hosted session logs, buyer dashboard activity
+- Pipeline: deployment_readiness, site_world_health
+- Support requests from buyers
+
+**Outputs:**
+- Buyer health status and lifecycle stage in Paperclip
+- Onboarding check-in communications (human-approved Phase 1)
+- Support issue tracking and resolution
+- Product feedback routed to appropriate teams
+- Expansion handoffs to buyer-solutions-agent
+- Churn reason reports and patterns to growth-lead
+
+**Human gates:**
+- All buyer communication in Phase 1 (founder approves before sending)
+- Contract or pricing discussions — always founder
+- Rights/privacy concerns from buyers — always escalate to rights-provenance-agent + founder
+
+**Graduation path:**
+| Phase | Behavior | Criteria to advance |
+|-------|----------|-------------------|
+| 1 | Monitors and drafts; founder approves all communication | 5 buyers tracked through 30-day cycle |
+| 2 | Sends routine check-ins and support acknowledgments autonomously; founder reviews feedback routing and escalations | Buyer satisfaction signals positive |
+| 3 | Manages buyer relationships autonomously; founder reviews expansion handoffs, churn cases, and rights escalations | Founder sign-off |
+
+---
+
+#### Documentation Agent (`docs-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Engineering |
+| **Reports to** | CTO |
+| **Model** | Claude |
+| **Status** | New |
+
+**Purpose:** Cross-repo documentation owner. Monitors code changes across all three repos and keeps capture guides, API docs, onboarding materials, PLATFORM_CONTEXT, AUTONOMOUS_ORG, and internal architecture docs in sync with reality. Every update is minimal and accuracy-focused.
+
+**Why this is an agent (not just a PR checklist):** Docs drift silently. When capture-claude ships a new upload flow, docs-agent reads the diff, identifies which guides are affected, and makes the minimal accurate change. That requires understanding what changed, which audiences it affects, and what docs describe that behavior. Cross-repo reasoning over messy inputs.
+
+**Doc priority tiers:**
+- **Tier 1 (within 24h):** Capture guides, API docs, onboarding materials
+- **Tier 2 (within 1 week):** PLATFORM_CONTEXT, AUTONOMOUS_ORG, pipeline contract docs
+- **Tier 3 (sweeps):** READMEs, FAQ, architecture docs
+
+**Triggers:**
+- Engineering agent merges a PR that changes user-facing behavior
+- New agent created or agent definition changed
+- Pipeline contract version change (Tier 1 urgency)
+- capturer-success-agent or buyer-success-agent reports recurring user confusion
+- `0 10 * * 2,5` — Documentation sweep (Tue/Fri)
+
+**Inputs:**
+- Git log across all 3 repos (recent merges)
+- All existing documentation files
+- Capture bridge contract, raw contract docs
+- Confusion reports from capturer-success-agent, buyer-success-agent
+- Paperclip: open doc-gap issues
+
+**Outputs:**
+- Minimal, accurate documentation updates (edits to existing files, not rewrites)
+- New documents when a shipped feature has zero documentation
+- Doc freshness tracking (last-verified date per major doc)
+- Doc gap reports to CTO when gaps are too large to address without engineering input
+
+**Human gates:** New documentation created from scratch requires CTO review before publishing.
+
+**Graduation path:**
+| Phase | Behavior | Criteria to advance |
+|-------|----------|-------------------|
+| 1 | Proposes doc changes; human reviews and applies | 20 proposals, accuracy validated |
+| 2 | Applies Tier 2/3 doc updates autonomously; human reviews Tier 1 | Zero accuracy regressions over 1 month |
+| 3 | Manages all doc updates autonomously; CTO reviews new-doc creation only | Founder sign-off |
+
+---
+
 ## Infrastructure
 
 ### Local Paperclip Hub (Your Mac)
@@ -1135,7 +1528,7 @@ BlueprintCapture          BlueprintCapturePipeline       Blueprint-WebApp
 
 | Repo | Agents with access |
 |------|--------------------|
-| Blueprint-WebApp | webapp-codex, webapp-claude, conversion-agent, analytics-agent, demand-intel-agent, robot-team-growth-agent, site-operator-partnership-agent, city-demand-agent |
-| BlueprintCapture | capture-codex, capture-claude, field-ops-agent |
-| BlueprintCapturePipeline | pipeline-codex, pipeline-claude, capture-qa-agent |
-| All repos (read) | CEO, CTO, Ops Lead, Growth Lead |
+| Blueprint-WebApp | webapp-codex, webapp-claude, conversion-agent, analytics-agent, demand-intel-agent, robot-team-growth-agent, site-operator-partnership-agent, city-demand-agent, buyer-solutions-agent, buyer-success-agent, site-catalog-agent, outbound-sales-agent |
+| BlueprintCapture | capture-codex, capture-claude, field-ops-agent, capturer-success-agent |
+| BlueprintCapturePipeline | pipeline-codex, pipeline-claude, capture-qa-agent, rights-provenance-agent |
+| All repos (read) | CEO, CTO, Ops Lead, Growth Lead, beta-launch-commander, docs-agent |

@@ -411,7 +411,7 @@ function generateConfirmationEmailHtml(firstName: string): string {
 
 /**
  * POST /api/inbound-request
- * Submit a new qualification-first site submission
+ * Submit a new site submission for capture and world-model packaging
  */
 router.post("/", async (req: Request, res: Response) => {
   const startTime = Date.now();

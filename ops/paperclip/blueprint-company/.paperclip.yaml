@@ -539,6 +539,76 @@ agents:
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/site-operator-partnership-agent/AGENTS.md
         timeoutSec: 1800
     budgetMonthlyCents: 2000
+  beta-launch-commander:
+    role: engineer
+    icon: rocket
+    capabilities: >-
+      Cross-repo release orchestrator for Blueprint beta. Runs preflight checks across Capture, Pipeline, and WebApp.
+      Produces go/no-go recommendations with evidence. Coordinates freeze, rollback, and incident response during releases.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: claude-sonnet-4-6
+        timeoutSec: 1800
+        dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - cross-repo-operations
+            - gh-cli
+    budgetMonthlyCents: 2000
+  buyer-solutions-agent:
+    role: engineer
+    icon: briefcase
+    capabilities: >-
+      Owns the buyer journey from qualified inbound to proof-ready. Interprets messy buyer requests, tracks through
+      capture matching, packaging, and proof delivery. Acts as the buyer's dedicated account manager backed by evidence.
+    adapter:
+      type: hermes_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/buyer-solutions-agent/AGENTS.md
+        timeoutSec: 1800
+    budgetMonthlyCents: 3000
+  rights-provenance-agent:
+    role: engineer
+    icon: shield
+    capabilities: >-
+      Trust and compliance gatekeeper. Reviews consent, rights, privacy processing, provenance chain, and
+      commercialization scope before any capture or package is released to buyers. Fail-closed by default.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/BlueprintCapturePipeline
+        model: claude-sonnet-4-6
+        timeoutSec: 1200
+        dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - pipeline-repo-operations
+    budgetMonthlyCents: 2000
+  capturer-success-agent:
+    role: engineer
+    icon: heart
+    capabilities: >-
+      Owns capturer activation and retention. Guides approved capturers through first capture, translates QA feedback
+      into actionable recapture instructions, monitors activity patterns, and identifies systemic platform issues
+      from individual capturer struggles.
+    adapter:
+      type: hermes_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/BlueprintCapture
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/capturer-success-agent/AGENTS.md
+        timeoutSec: 1800
+    budgetMonthlyCents: 2500
   city-demand-agent:
     role: engineer
     icon: compass
@@ -556,6 +626,73 @@ agents:
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/city-demand-agent/AGENTS.md
         timeoutSec: 1800
     budgetMonthlyCents: 2500
+  site-catalog-agent:
+    role: engineer
+    icon: package
+    capabilities: >-
+      Product listing manager for Blueprint's site-world catalog. Creates and maintains accurate, discoverable listings
+      when packages clear QA and rights. Ensures descriptions match reality, categories are useful, and the catalog
+      has no stale or fabricated entries.
+    adapter:
+      type: hermes_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/site-catalog-agent/AGENTS.md
+        timeoutSec: 1200
+    budgetMonthlyCents: 2000
+  outbound-sales-agent:
+    role: engineer
+    icon: phone
+    capabilities: >-
+      Business development representative for robot team outreach. Consumes demand-intel and market-intel signals,
+      researches prospects, drafts personalized outreach, tracks conversations, and hands off qualified leads to
+      buyer-solutions-agent. Quality over volume.
+    adapter:
+      type: hermes_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/outbound-sales-agent/AGENTS.md
+        timeoutSec: 1800
+    budgetMonthlyCents: 3000
+  buyer-success-agent:
+    role: engineer
+    icon: star
+    capabilities: >-
+      Customer success manager for post-delivery buyer relationships. Monitors hosted session usage, runs onboarding
+      check-ins, collects feedback, identifies expansion opportunities, and detects churn risk. Ensures buyers get
+      enough value that leaving does not make sense.
+    adapter:
+      type: hermes_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/buyer-success-agent/AGENTS.md
+        timeoutSec: 1800
+    budgetMonthlyCents: 2500
+  docs-agent:
+    role: engineer
+    icon: book-open
+    capabilities: >-
+      Cross-repo documentation owner. Monitors code changes across all 3 repos and keeps capture guides, API docs,
+      onboarding materials, and internal platform docs in sync with reality. Each update is minimal and accuracy-focused.
+    adapter:
+      type: claude_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: claude-sonnet-4-6
+        timeoutSec: 1200
+        dangerouslySkipPermissions: true
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - cross-repo-operations
+    budgetMonthlyCents: 2000
 projects:
   blueprint-executive-ops:
     status: active

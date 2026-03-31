@@ -6,7 +6,7 @@ import type {
 import type { DemandCityKey } from "../../client/src/lib/cityDemandMessaging";
 
 /**
- * Types for the qualification-first submission and review system.
+ * Types for the site-specific capture and world-model intake and review system.
  */
 
 // Budget bucket options
