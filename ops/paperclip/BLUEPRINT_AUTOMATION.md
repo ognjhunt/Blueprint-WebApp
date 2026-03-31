@@ -66,6 +66,11 @@ It provides:
 - Slack activity mirroring for task opens, delegations, closures, and chief-of-staff wakeups:
   - routes to ops/growth by default
   - can use dedicated exec/engineering/manager webhooks when configured
+- structured handoff monitoring:
+  - validates `[Handoff]` issue request comments at creation time in Paperclip
+  - tracks handoff latency, blocked depth, bounce rate, and stuck handoffs
+  - mirrors new handoffs, responses, and stuck escalations into Slack
+  - opens and resolves managed escalation issues for handoffs that stall
 
 ### Storage and traceability
 

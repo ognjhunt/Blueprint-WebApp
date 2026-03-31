@@ -115,6 +115,8 @@ Every handoff issue must have:
 - If a handoff is blocked, the `handoff_response.result` must contain the exact reason and what is needed to unblock
 - Do not chain more than 3 handoffs deep without escalating to a lead
 - Handoffs must be completed within the receiving agent's next scheduled run, or escalated
+- If the issue title starts with `[Handoff]`, the first comment is validated against the request schema before Paperclip accepts it
+- Structured handoff responses are also validated when they are posted as JSON or fenced `json` blocks
 
 ## Future: External A2A Compliance
 

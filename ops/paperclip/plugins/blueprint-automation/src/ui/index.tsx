@@ -36,6 +36,58 @@ type DashboardData = {
     priority: string;
     updatedAt: string;
   }>;
+  handoffAnalytics: {
+    summary: {
+      openCount: number;
+      stuckCount: number;
+      resolvedCount: number;
+      avgLatencyHours: number | null;
+      bounceRate: number;
+      maxBlockedDepth: number;
+    };
+    openHandoffs: Array<{
+      id: string;
+      title: string;
+      projectName: string | null;
+      status: string;
+      priority: string;
+      from: string;
+      to: string;
+      latencyHours: number | null;
+      blockedDepth: number;
+      isBounced: boolean;
+      stuckReason: string | null;
+      updatedAt: string;
+    }>;
+    stuckHandoffs: Array<{
+      id: string;
+      title: string;
+      projectName: string | null;
+      status: string;
+      priority: string;
+      from: string;
+      to: string;
+      latencyHours: number | null;
+      blockedDepth: number;
+      isBounced: boolean;
+      stuckReason: string | null;
+      updatedAt: string;
+    }>;
+    recentResolvedHandoffs: Array<{
+      id: string;
+      title: string;
+      projectName: string | null;
+      status: string;
+      priority: string;
+      from: string;
+      to: string;
+      latencyHours: number | null;
+      blockedDepth: number;
+      isBounced: boolean;
+      stuckReason: string | null;
+      updatedAt: string;
+    }>;
+  };
   sourceMappings: Array<{
     externalId: string | null;
     title: string | null;
@@ -106,6 +158,40 @@ function DashboardInner() {
               : "Most recent repo and workflow reconciliation timestamp."}
           </div>
         </Surface>
+        <Surface>
+          <strong>Open handoffs</strong>
+          <div style={{ fontSize: 28, marginTop: 8 }}>{data.handoffAnalytics.summary.openCount}</div>
+          <div style={{ color: "#475569", marginTop: 4 }}>
+            Structured cross-agent delegations currently in flight.
+          </div>
+        </Surface>
+        <Surface>
+          <strong>Stuck handoffs</strong>
+          <div style={{ fontSize: 28, marginTop: 8 }}>{data.handoffAnalytics.summary.stuckCount}</div>
+          <div style={{ color: "#475569", marginTop: 4 }}>
+            Automatically escalated when they stall or miss deadlines.
+          </div>
+        </Surface>
+        <Surface>
+          <strong>Handoff latency</strong>
+          <div style={{ fontSize: 28, marginTop: 8 }}>
+            {data.handoffAnalytics.summary.avgLatencyHours === null
+              ? "n/a"
+              : `${data.handoffAnalytics.summary.avgLatencyHours.toFixed(1)}h`}
+          </div>
+          <div style={{ color: "#475569", marginTop: 4 }}>
+            Average time from structured request to structured response.
+          </div>
+        </Surface>
+        <Surface>
+          <strong>Bounce rate</strong>
+          <div style={{ fontSize: 28, marginTop: 8 }}>
+            {(data.handoffAnalytics.summary.bounceRate * 100).toFixed(0)}%
+          </div>
+          <div style={{ color: "#475569", marginTop: 4 }}>
+            Share of handoffs that moved beyond the originally intended owner.
+          </div>
+        </Surface>
       </div>
 
       <Surface>
@@ -136,6 +222,39 @@ function DashboardInner() {
         </div>
       </Surface>
 
+      <Surface>
+        <strong>Handoff board</strong>
+        <div style={{ color: "#475569", marginTop: 4 }}>
+          First-class collaboration view for structured agent-to-agent work.
+        </div>
+        <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+          {data.handoffAnalytics.openHandoffs.slice(0, 10).map((handoff) => (
+            <div
+              key={handoff.id}
+              style={{
+                padding: 12,
+                borderRadius: 10,
+                background: handoff.stuckReason ? "#fff7ed" : "#f8fafc",
+                border: handoff.stuckReason ? "1px solid rgba(249, 115, 22, 0.22)" : "1px solid rgba(15, 23, 42, 0.08)",
+              }}
+            >
+              <div style={{ fontWeight: 600 }}>{handoff.title}</div>
+              <div style={{ color: "#475569", marginTop: 4 }}>
+                {handoff.from} → {handoff.to} · {handoff.status} · {handoff.priority}
+              </div>
+              <div style={{ color: "#64748b", marginTop: 4 }}>
+                {handoff.projectName ?? "no project"} · blocked depth {handoff.blockedDepth} · bounce {handoff.isBounced ? "yes" : "no"}
+              </div>
+              {handoff.latencyHours !== null ? (
+                <div style={{ color: "#64748b", marginTop: 4 }}>Latency: {handoff.latencyHours.toFixed(1)}h</div>
+              ) : null}
+              {handoff.stuckReason ? <div style={{ marginTop: 6 }}>{handoff.stuckReason}</div> : null}
+              <div style={{ color: "#64748b", marginTop: 4 }}>{handoff.updatedAt}</div>
+            </div>
+          ))}
+        </div>
+      </Surface>
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
         <Surface>
           <strong>Recent ingress</strong>
@@ -161,6 +280,23 @@ function DashboardInner() {
                   {issue.status} · {issue.priority}
                 </div>
                 <div style={{ color: "#64748b", marginTop: 4 }}>{issue.updatedAt}</div>
+              </div>
+            ))}
+          </div>
+        </Surface>
+
+        <Surface>
+          <strong>Resolved handoffs</strong>
+          <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+            {data.handoffAnalytics.recentResolvedHandoffs.slice(0, 8).map((handoff) => (
+              <div key={handoff.id} style={{ paddingBottom: 10, borderBottom: "1px solid rgba(15, 23, 42, 0.08)" }}>
+                <div style={{ fontWeight: 600 }}>{handoff.title}</div>
+                <div style={{ color: "#475569" }}>
+                  {handoff.from} → {handoff.to} · {handoff.status}
+                </div>
+                <div style={{ color: "#64748b", marginTop: 4 }}>
+                  {handoff.latencyHours !== null ? `Latency ${handoff.latencyHours.toFixed(1)}h` : "No structured response latency"}
+                </div>
               </div>
             ))}
           </div>

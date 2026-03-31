@@ -237,6 +237,13 @@ const manifest: PaperclipPluginManifestV1 = {
       schedule: "0 */2 * * *",
     },
     {
+      jobKey: JOB_KEYS.handoffMonitor,
+      displayName: "Handoff Monitor",
+      description:
+        "Scans structured handoff issues, tracks collaboration metrics, and escalates stuck handoffs into Slack and Paperclip.",
+      schedule: "*/5 * * * *",
+    },
+    {
       jobKey: JOB_KEYS.quotaCooldownEnforcer,
       displayName: "Quota Cooldown Enforcer",
       description:

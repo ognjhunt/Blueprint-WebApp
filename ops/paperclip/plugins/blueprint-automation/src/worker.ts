@@ -90,6 +90,11 @@ import {
   shouldWakeChiefOfStaffForIssueEvent,
   type ManagerRoutineHealthEntry,
 } from "./manager-loop.js";
+import {
+  buildHandoffAnalytics,
+  type HandoffAnalytics,
+  type HandoffSnapshot,
+} from "./handoffs.js";
 
 const execFileAsync = promisify(execFile);
 const GIT_BIN = process.env.BLUEPRINT_PAPERCLIP_GIT_BIN || "/usr/bin/git";
@@ -234,6 +239,7 @@ type DashboardData = {
   pluginId: string;
   lastScan: Record<string, unknown> | null;
   recentEvents: RecentEvent[];
+  handoffAnalytics: HandoffAnalytics;
   openManagedIssues: Array<{
     id: string;
     title: string;
@@ -401,6 +407,16 @@ type FirehoseSignalCacheState = {
   updatedAt: string;
   signals: FirehoseSignal[];
 };
+
+type HandoffMonitorEntry = {
+  requestCommentId: string | null;
+  responseCommentId: string | null;
+  escalatedAt: string | null;
+  escalatedIssueId: string | null;
+  resolvedAt: string | null;
+};
+
+type HandoffMonitorState = Record<string, HandoffMonitorEntry>;
 
 // ── Monitoring, Budget & Phase Types ───────────────────
 
@@ -1183,6 +1199,37 @@ async function listAllIssues(ctx: PluginContext, companyId: string) {
   return rows;
 }
 
+async function listCommentsForIssue(ctx: PluginContext, companyId: string, issueId: string) {
+  return await ctx.issues.listComments(issueId, companyId);
+}
+
+async function buildHandoffState(
+  ctx: PluginContext,
+  companyId: string,
+  issues: Array<Issue & { projectName?: string | null }>,
+  agents?: Agent[],
+) {
+  const agentRows = agents ?? await listAgents(ctx, companyId);
+  const handoffIssues = issues.filter((issue) => issue.title.trim().toLowerCase().startsWith("[handoff]"));
+  const commentsEntries = await Promise.all(
+    handoffIssues.map(async (issue) => [issue.id, await listCommentsForIssue(ctx, companyId, issue.id)] as const),
+  );
+  const commentsByIssueId = new Map(commentsEntries);
+  const agentKeyById = new Map(
+    agentRows.map((agent) => {
+      const firstCandidate = normalizedCandidates(agent as unknown as Record<string, unknown>)[0] ?? agent.id;
+      return [agent.id, firstCandidate] as const;
+    }),
+  );
+
+  return buildHandoffAnalytics({
+    issues,
+    commentsByIssueId,
+    agentKeyById,
+    generatedAt: nowIso(),
+  });
+}
+
 async function buildChiefOfStaffState(
   ctx: PluginContext,
   companyId: string,
@@ -1206,6 +1253,10 @@ async function buildChiefOfStaffState(
   const chiefOfStaffKey = getChiefOfStaffAgentKey(config);
   const chiefOfStaffAgent = agents.find((agent) => normalizedCandidates(agent as unknown as Record<string, unknown>).includes(chiefOfStaffKey));
   const projectNameById = new Map(projects.map((project) => [project.id, project.name]));
+  const issuesWithProjectName = issues.map((issue) => ({
+    ...issue,
+    projectName: issue.projectId ? (projectNameById.get(issue.projectId) ?? null) : null,
+  }));
   const managedIssueIds = new Set(
     sourceMappings
       .map((mapping) => {
@@ -1214,19 +1265,18 @@ async function buildChiefOfStaffState(
       })
       .filter((issueId): issueId is string => Boolean(issueId)),
   );
+  const handoffAnalytics = await buildHandoffState(ctx, companyId, issuesWithProjectName, agents);
 
   return buildManagerStateSnapshot({
     generatedAt: nowIso(),
     chiefOfStaffAgentKey: chiefOfStaffKey,
     chiefOfStaffAgentId: chiefOfStaffAgent?.id ?? null,
-    issues: issues.map((issue) => ({
-      ...issue,
-      projectName: issue.projectId ? (projectNameById.get(issue.projectId) ?? null) : null,
-    })),
+    issues: issuesWithProjectName,
     agents,
     routineHealth: routineHealth ?? {},
     recentEvents: recentEvents ?? [],
     managedIssueIds,
+    handoffAnalytics,
   });
 }
 
@@ -1629,6 +1679,60 @@ async function postSlackActivity(
     channel: input.channel,
     title: input.title,
     sections: [{ heading: "Details", items: input.summary }],
+  });
+}
+
+async function postSlackActivityFanout(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  input: {
+    channels: Array<string | null | undefined>;
+    title: string;
+    summary: string[];
+  },
+) {
+  const uniqueChannels = [...new Set(
+    input.channels
+      .map((channel) => channel?.trim())
+      .filter((channel): channel is string => Boolean(channel)),
+  )];
+
+  for (const channel of uniqueChannels) {
+    await postSlackActivity(ctx, config, {
+      channel,
+      title: input.title,
+      summary: input.summary,
+    }).catch(() => undefined);
+  }
+}
+
+async function postHandoffSlackActivity(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  input: {
+    title: string;
+    handoff: HandoffSnapshot;
+    extraLines?: string[];
+    includeManager?: boolean;
+  },
+) {
+  const channels = [
+    slackChannelForAgent(input.handoff.from),
+    slackChannelForAgent(input.handoff.to),
+    input.includeManager === false ? null : "#paperclip-manager",
+  ];
+  await postSlackActivityFanout(ctx, config, {
+    channels,
+    title: input.title,
+    summary: [
+      `Issue: ${input.handoff.title} (${input.handoff.id})`,
+      `Route: ${input.handoff.from} -> ${input.handoff.to}`,
+      `Status: ${input.handoff.status} · ${input.handoff.priority}`,
+      ...(input.handoff.projectName ? [`Project: ${input.handoff.projectName}`] : []),
+      ...(input.handoff.stuckReason ? [`Reason: ${input.handoff.stuckReason}`] : []),
+      ...(input.handoff.latencyHours !== null ? [`Latency: ${input.handoff.latencyHours.toFixed(1)}h`] : []),
+      ...(input.extraLines ?? []),
+    ],
   });
 }
 
@@ -2147,6 +2251,151 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
   }).catch(() => undefined);
 
   return { fingerprint, issue: updatedIssue };
+}
+
+async function syncHandoffCollaboration(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+  handoffAnalytics: HandoffAnalytics,
+) {
+  const previousState = await readState<HandoffMonitorState>(ctx, companyId, STATE_KEYS.handoffMonitor) ?? {};
+  const nextState: HandoffMonitorState = { ...previousState };
+  const currentSnapshots = [
+    ...handoffAnalytics.openHandoffs,
+    ...handoffAnalytics.recentResolvedHandoffs,
+  ];
+  const seenIds = new Set<string>();
+
+  for (const handoff of currentSnapshots) {
+    seenIds.add(handoff.id);
+    const previous = previousState[handoff.id] ?? {
+      requestCommentId: null,
+      responseCommentId: null,
+      escalatedAt: null,
+      escalatedIssueId: null,
+      resolvedAt: null,
+    };
+    const entry: HandoffMonitorEntry = { ...previous };
+
+    if (handoff.requestCommentId && handoff.requestCommentId !== previous.requestCommentId) {
+      await appendRecentEvent(ctx, companyId, {
+        kind: "handoff-opened",
+        title: handoff.title,
+        issueId: handoff.id,
+        detail: `${handoff.from} delegated ${handoff.type} to ${handoff.to}.`,
+      });
+      await postHandoffSlackActivity(ctx, config, {
+        title: `Handoff opened for ${handoff.to}`,
+        handoff,
+        extraLines: [`Type: ${handoff.type}`],
+      });
+      entry.requestCommentId = handoff.requestCommentId;
+    }
+
+    if (handoff.responseCommentId && handoff.responseCommentId !== previous.responseCommentId) {
+      await appendRecentEvent(ctx, companyId, {
+        kind: "handoff-responded",
+        title: handoff.title,
+        issueId: handoff.id,
+        detail: `${handoff.responseFrom ?? handoff.to} responded with ${handoff.outcome ?? handoff.status}.`,
+      });
+      await postHandoffSlackActivity(ctx, config, {
+        title: handoff.outcome === "blocked" ? `Handoff blocked by ${handoff.to}` : `Handoff updated by ${handoff.to}`,
+        handoff,
+        extraLines: [
+          `Outcome: ${handoff.outcome ?? handoff.status}`,
+          ...(handoff.followUpReason ? [`Follow-up: ${handoff.followUpReason}`] : []),
+          `Proof links: ${handoff.proofLinkCount}`,
+        ],
+      });
+      entry.responseCommentId = handoff.responseCommentId;
+    }
+
+    if (handoff.isStuck && !previous.escalatedAt) {
+      const escalation = await upsertManagedIssue(ctx, {
+        companyId,
+        sourceType: "handoff-escalation",
+        sourceId: handoff.id,
+        title: `Handoff escalation: ${handoff.title}`,
+        description: [
+          "Blueprint automation escalated a stuck structured handoff.",
+          "",
+          `- Handoff issue: ${handoff.id}`,
+          `- Route: ${handoff.from} -> ${handoff.to}`,
+          `- Status: ${handoff.status}`,
+          `- Priority: ${handoff.priority}`,
+          `- Reason: ${handoff.stuckReason ?? "stalled"}`,
+          `- Blocked depth: ${handoff.blockedDepth}`,
+        ].join("\n"),
+        projectName: handoff.projectName ?? "blueprint-executive-ops",
+        assignee: getChiefOfStaffAgentKey(config),
+        priority: handoff.priority,
+        status: "todo",
+        metadata: {
+          handoffIssueId: handoff.id,
+          from: handoff.from,
+          to: handoff.to,
+          blockedDepth: handoff.blockedDepth,
+          bounce: handoff.isBounced,
+        },
+        comment: "Stuck handoff escalated by Blueprint automation.",
+        suppressRefreshComment: true,
+      });
+      entry.escalatedAt = nowIso();
+      entry.escalatedIssueId = escalation.issue.id;
+      await appendRecentEvent(ctx, companyId, {
+        kind: "handoff-escalated",
+        title: handoff.title,
+        issueId: handoff.id,
+        detail: handoff.stuckReason ?? "Structured handoff stalled.",
+      });
+      await postHandoffSlackActivity(ctx, config, {
+        title: `Stuck handoff escalated to ${getChiefOfStaffAgentKey(config)}`,
+        handoff,
+        extraLines: [
+          `Escalation issue: ${escalation.issue.id}`,
+          `Blocked depth: ${handoff.blockedDepth}`,
+          `Bounce: ${handoff.isBounced ? "yes" : "no"}`,
+        ],
+      });
+    }
+
+    if (!handoff.isStuck && previous.escalatedAt && !previous.resolvedAt) {
+      await resolveManagedIssue(ctx, {
+        companyId,
+        sourceType: "handoff-escalation",
+        sourceId: handoff.id,
+        resolutionStatus: "done",
+        comment: `Handoff no longer looks stuck. Current status: ${handoff.status}.`,
+      }).catch(() => undefined);
+      entry.resolvedAt = nowIso();
+      await appendRecentEvent(ctx, companyId, {
+        kind: "handoff-escalation-resolved",
+        title: handoff.title,
+        issueId: handoff.id,
+        detail: `Recovered to ${handoff.status}.`,
+      });
+      await postHandoffSlackActivity(ctx, config, {
+        title: `Handoff recovered: ${handoff.to}`,
+        handoff,
+        extraLines: [`Recovery status: ${handoff.status}`],
+      });
+    }
+
+    if (!entry.resolvedAt && (handoff.status === "done" || handoff.status === "cancelled")) {
+      entry.resolvedAt = nowIso();
+    }
+
+    nextState[handoff.id] = entry;
+  }
+
+  for (const [handoffId, entry] of Object.entries(previousState)) {
+    if (seenIds.has(handoffId)) continue;
+    nextState[handoffId] = entry;
+  }
+
+  await writeState(ctx, companyId, STATE_KEYS.handoffMonitor, nextState);
 }
 
 function configuredSourceStatus(
@@ -3922,6 +4171,16 @@ async function getDashboardData(ctx: PluginContext, companyId: string): Promise<
   if (!company) {
     throw new Error(`Company not found: ${companyId}`);
   }
+  const [allIssues, agents, projects] = await Promise.all([
+    listAllIssues(ctx, companyId),
+    listAgents(ctx, companyId),
+    listProjects(ctx, companyId),
+  ]);
+  const projectNameById = new Map(projects.map((project) => [project.id, project.name]));
+  const issuesWithProjectName = allIssues.map((issue) => ({
+    ...issue,
+    projectName: issue.projectId ? (projectNameById.get(issue.projectId) ?? null) : null,
+  }));
   const recentEvents = await readState<RecentEvent[]>(ctx, companyId, STATE_KEYS.recentEvents) ?? [];
   const lastScan = await readState<Record<string, unknown>>(ctx, companyId, STATE_KEYS.lastScan);
   const sourceMappings = await ctx.entities.list({
@@ -3941,6 +4200,7 @@ async function getDashboardData(ctx: PluginContext, companyId: string): Promise<
       }),
     )
   ).filter((issue): issue is Issue => !!issue);
+  const handoffAnalytics = await buildHandoffState(ctx, companyId, issuesWithProjectName, agents);
 
   return {
     companyId,
@@ -3948,6 +4208,7 @@ async function getDashboardData(ctx: PluginContext, companyId: string): Promise<
     pluginId: PLUGIN_ID,
     lastScan,
     recentEvents,
+    handoffAnalytics,
     openManagedIssues: openManagedIssues.map((issue) => ({
       id: issue.id,
       title: issue.title,
@@ -5191,6 +5452,17 @@ async function runOpsQueueScanJob(ctx: PluginContext, companyId: string, config:
   return { synced, skipped: false };
 }
 
+async function runHandoffMonitorJob(ctx: PluginContext, companyId: string, config: BlueprintAutomationConfig) {
+  const [issues, agents] = await Promise.all([
+    listAllIssues(ctx, companyId),
+    listAgents(ctx, companyId),
+  ]);
+  const handoffAnalytics = await buildHandoffState(ctx, companyId, issues, agents);
+  await syncHandoffCollaboration(ctx, companyId, config, handoffAnalytics);
+
+  return handoffAnalytics.summary;
+}
+
 async function handleWebhook(ctx: PluginContext, input: PluginWebhookInput) {
   const config = await getConfig(ctx);
   const payload = (input.parsedBody ?? {}) as Record<string, unknown>;
@@ -5378,6 +5650,11 @@ const plugin: PaperclipPlugin = definePlugin({
       const company = await findCompany(ctx, config.companyName);
       await runRoutineHealthCheck(ctx, company.id, config);
     });
+    ctx.jobs.register(JOB_KEYS.handoffMonitor, async () => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      await runHandoffMonitorJob(ctx, company.id, config);
+    });
     ctx.jobs.register(JOB_KEYS.quotaCooldownEnforcer, async () => {
       const config = await getConfig(ctx);
       const company = await findCompany(ctx, config.companyName);
@@ -5387,8 +5664,9 @@ const plugin: PaperclipPlugin = definePlugin({
       const config = await getConfig(ctx);
       const company = await findCompany(ctx, config.companyName);
       await enforceWorkspaceAdapterCooldowns(ctx, company.id);
+      await runHandoffMonitorJob(ctx, company.id, config);
     } catch (error) {
-      ctx.logger.warn("startup cooldown enforcement failed", {
+      ctx.logger.warn("startup automation maintenance failed", {
         meta: {
           stack: error instanceof Error ? error.stack : undefined,
         },

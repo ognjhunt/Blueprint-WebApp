@@ -1,4 +1,5 @@
 import type { Agent, Issue } from "@paperclipai/plugin-sdk";
+import type { HandoffAnalytics, HandoffSnapshot } from "./handoffs.js";
 
 export type ManagerRoutineHealthEntry = {
   routineKey: string;
@@ -54,6 +55,9 @@ export type ManagerAgentStatusSnapshot = {
   status: string | null;
 };
 
+export type ManagerHandoffSummary = HandoffAnalytics["summary"];
+export type ManagerHandoffSnapshot = HandoffSnapshot;
+
 export type ManagerStateSnapshot = {
   generatedAt: string;
   chiefOfStaffAgentKey: string;
@@ -66,11 +70,16 @@ export type ManagerStateSnapshot = {
     routineAlertCount: number;
     managedOpenIssueCount: number;
     activeAgentCount: number;
+    openHandoffCount: number;
+    stuckHandoffCount: number;
   };
+  handoffSummary: ManagerHandoffSummary;
   blockedIssues: ManagerIssueSnapshot[];
   staleIssues: ManagerIssueSnapshot[];
   recentlyCompletedIssues: ManagerIssueSnapshot[];
   unassignedIssues: ManagerIssueSnapshot[];
+  stuckHandoffs: ManagerHandoffSnapshot[];
+  recentResolvedHandoffs: ManagerHandoffSnapshot[];
   routineAlerts: ManagerRoutineAlert[];
   managedOpenIssues: ManagerIssueSnapshot[];
   activeAgentStatuses: ManagerAgentStatusSnapshot[];
@@ -87,6 +96,7 @@ type BuildManagerStateInput = {
   routineHealth: Record<string, ManagerRoutineHealthEntry>;
   recentEvents: ManagerRecentEvent[];
   managedIssueIds: Set<string>;
+  handoffAnalytics?: HandoffAnalytics;
 };
 
 const RESOLVED_STATUSES = new Set<Issue["status"]>(["done", "cancelled"]);
@@ -194,6 +204,7 @@ function buildNextActionHints(input: {
   unassignedIssues: ManagerIssueSnapshot[];
   staleIssues: ManagerIssueSnapshot[];
   recentlyCompletedIssues: ManagerIssueSnapshot[];
+  stuckHandoffs: ManagerHandoffSnapshot[];
 }): string[] {
   const hints: string[] = [];
 
@@ -223,6 +234,12 @@ function buildNextActionHints(input: {
     );
   }
 
+  for (const handoff of input.stuckHandoffs.slice(0, 4)) {
+    hints.push(
+      `Unstick handoff ${handoff.title}; ${handoff.stuckReason ?? "it needs escalation"} between ${handoff.from} and ${handoff.to}.`,
+    );
+  }
+
   for (const issue of input.recentlyCompletedIssues.slice(0, 3)) {
     hints.push(
       `Check whether completed issue ${issue.title} needs closure proof, a linked follow-on issue, or a parent issue update.`,
@@ -234,6 +251,19 @@ function buildNextActionHints(input: {
 
 export function buildManagerStateSnapshot(input: BuildManagerStateInput): ManagerStateSnapshot {
   const nowMs = new Date(input.generatedAt).getTime();
+  const handoffAnalytics = input.handoffAnalytics ?? {
+    summary: {
+      openCount: 0,
+      stuckCount: 0,
+      resolvedCount: 0,
+      avgLatencyHours: null,
+      bounceRate: 0,
+      maxBlockedDepth: 0,
+    },
+    openHandoffs: [],
+    stuckHandoffs: [],
+    recentResolvedHandoffs: [],
+  };
   const relevantIssues = input.issues.filter((issue) => !isChiefOfStaffInternalIssue(issue, input.chiefOfStaffAgentId));
   const openIssues = relevantIssues
     .filter((issue) => OPEN_STATUSES.has(issue.status))
@@ -266,6 +296,7 @@ export function buildManagerStateSnapshot(input: BuildManagerStateInput): Manage
     unassignedIssues,
     staleIssues,
     recentlyCompletedIssues,
+    stuckHandoffs: handoffAnalytics.stuckHandoffs,
   });
 
   return {
@@ -280,11 +311,16 @@ export function buildManagerStateSnapshot(input: BuildManagerStateInput): Manage
       routineAlertCount: routineAlerts.length,
       managedOpenIssueCount: managedOpenIssues.length,
       activeAgentCount: activeAgentStatuses.length,
+      openHandoffCount: handoffAnalytics.summary.openCount,
+      stuckHandoffCount: handoffAnalytics.summary.stuckCount,
     },
+    handoffSummary: handoffAnalytics.summary,
     blockedIssues: blockedIssues.slice(0, 20),
     staleIssues: staleIssues.slice(0, 20),
     recentlyCompletedIssues,
     unassignedIssues: unassignedIssues.slice(0, 20),
+    stuckHandoffs: handoffAnalytics.stuckHandoffs.slice(0, 20),
+    recentResolvedHandoffs: handoffAnalytics.recentResolvedHandoffs.slice(0, 10),
     routineAlerts: routineAlerts.slice(0, 20),
     managedOpenIssues: managedOpenIssues.slice(0, 20),
     activeAgentStatuses,

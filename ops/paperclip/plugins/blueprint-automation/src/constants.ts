@@ -6,6 +6,7 @@ export const JOB_KEYS = {
   repoScan: "repo-scan",
   opsQueueScan: "ops-queue-scan",
   routineHealthCheck: "routine-health-check",
+  handoffMonitor: "handoff-monitor",
   quotaCooldownEnforcer: "quota-cooldown-enforcer",
 } as const;
 export const WEBHOOK_KEYS = {
@@ -76,6 +77,7 @@ export const STATE_KEYS = {
   routineHealth: "routine-health",
   budgetTracking: "budget-tracking",
   phaseTracking: "phase-tracking",
+  handoffMonitor: "handoff-monitor",
   quotaFallbackRetries: "quota-fallback-retries",
   workspaceAdapterCooldowns: "workspace-adapter-cooldowns",
   firehoseSignalCache: "firehose-signal-cache",
