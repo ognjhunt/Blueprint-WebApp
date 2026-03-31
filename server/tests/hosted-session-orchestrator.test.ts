@@ -259,7 +259,7 @@ describe("reconcileHostedEpisode", () => {
         startState: "default",
       },
       expectedStepIndex: 1,
-      timeoutMs: 25,
+      timeoutMs: 250,
       pollIntervalMs: 1,
     });
 

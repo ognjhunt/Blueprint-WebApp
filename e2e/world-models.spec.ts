@@ -30,7 +30,7 @@ test('direct navigation to a world-model detail page stays on the detail page', 
     }),
   ).toBeVisible();
   await expect(
-    page.getByText(/Use this listing to ground one deployment question on the real site, compare the package with the hosted path/i),
+    page.getByText(/Use it to answer a deployment question on the real site, compare the package with hosted evaluation/i),
   ).toBeVisible();
   await expect(page.getByText(/session-hour is one hour of self-serve hosted runtime/i)).toBeVisible();
 });

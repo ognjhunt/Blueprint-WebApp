@@ -2,7 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-describe("build output", () => {
+const distPublicPath = path.resolve(process.cwd(), "dist/public");
+const describeBuildOutput = fs.existsSync(distPublicPath) ? describe : describe.skip;
+
+describeBuildOutput("build output", () => {
   it("ships prerendered world-model slug pages", () => {
     expect(
       fs.existsSync(
@@ -78,7 +81,7 @@ describe("build output", () => {
     );
 
     expect(examplesHtml).not.toContain("images.unsplash.com");
-    expect(examplesHtml).toContain("Illustrative examples of the buyer surface.");
+    expect(examplesHtml).toContain("Example workflows by industry.");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
   });
 

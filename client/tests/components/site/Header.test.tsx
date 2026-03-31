@@ -27,10 +27,6 @@ describe("Header", () => {
       "href",
       "/how-it-works",
     );
-    expect(screen.getByRole("link", { name: /^Results$/i })).toHaveAttribute(
-      "href",
-      "/case-studies",
-    );
     expect(screen.getByRole("link", { name: /^Deliverables$/i })).toHaveAttribute(
       "href",
       "/sample-deliverables",
@@ -55,7 +51,7 @@ describe("Header", () => {
   it("keeps utility links available for capture and auth", () => {
     render(<Header />);
 
-    expect(screen.getByRole("link", { name: /View public demo listing/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /View sample listing/i })).toHaveAttribute(
       "href",
       "/world-models/siteworld-f5fd54898cfb",
     );

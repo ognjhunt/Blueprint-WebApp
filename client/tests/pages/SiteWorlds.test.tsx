@@ -13,7 +13,7 @@ describe("SiteWorlds", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /site-specific digital environment built from real capture of one facility and one workflow lane/i,
+        /Each world model is built from real capture of one indoor facility and one workflow lane\./i,
       ),
     ).toBeInTheDocument();
     expect(

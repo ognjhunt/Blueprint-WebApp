@@ -90,7 +90,9 @@ describe('ContactForm', () => {
       expect(
         screen.queryByText('Company name is required'),
       ).not.toBeInTheDocument();
-      expect(screen.queryByText(/Request received/i)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText(/Request received/i)).toBeInTheDocument();
+      });
     });
 
     it('should show error for empty name', async () => {

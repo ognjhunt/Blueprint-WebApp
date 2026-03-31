@@ -91,3 +91,6 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Verify build output artifacts
+        run: npm run test:build-output
