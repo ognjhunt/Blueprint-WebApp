@@ -865,7 +865,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: '*/5 * * * *'
+        cronExpression: "*/5 * * * *"
         timezone: America/New_York
   cto-cross-repo-triage:
     priority: high
