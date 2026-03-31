@@ -13,7 +13,6 @@ const Home = lazy(() => import("../pages/Home"));
 const Capture = lazy(() => import("../pages/Capture"));
 const CaptureAppPlaceholder = lazy(() => import("../pages/CaptureAppPlaceholder"));
 const BusinessSignUpFlow = lazy(() => import("../pages/BusinessSignUpFlow"));
-const CapturerSignUpFlow = lazy(() => import("../pages/CapturerSignUpFlow"));
 const OnboardingChecklist = lazy(() => import("../pages/OnboardingChecklist"));
 const ForSiteOperators = lazy(() => import("../pages/ForSiteOperators"));
 const ForRobotIntegrators = lazy(() => import("../pages/ForRobotIntegrators"));
@@ -26,7 +25,6 @@ const CaseStudies = lazy(() => import("../pages/CaseStudies"));
 const SampleDeliverables = lazy(() => import("../pages/SampleDeliverables"));
 const Contact = lazy(() => import("../pages/Contact"));
 const HowItWorks = lazy(() => import("../pages/HowItWorks"));
-const Proof = lazy(() => import("../pages/Proof"));
 const Portal = lazy(() => import("../pages/Portal"));
 const Login = lazy(() => import("../pages/Login"));
 const ForgotPassword = lazy(() => import("../pages/ForgotPassword"));
@@ -71,6 +69,10 @@ const LegacyReadinessPackRedirect = () => (
   <MarketingRedirect to="/how-it-works" />
 );
 
+const LegacyProofRedirect = () => (
+  <MarketingRedirect to="/" />
+);
+
 const LegacySolutionsRedirect = () => (
   <MarketingRedirect to="/for-robot-teams" />
 );
@@ -81,6 +83,10 @@ const LegacyQualifiedOpportunitiesRedirect = () => (
 
 const LegacyForRobotIntegratorsRedirect = () => (
   <MarketingRedirect to="/for-robot-teams" />
+);
+
+const LegacyCapturerSignupRedirect = () => (
+  <MarketingRedirect to="/capture-app" />
 );
 
 const LegacyLoginRedirect = () => (
@@ -125,7 +131,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/case-studies", layout: "public", component: LegacyCaseStudiesRedirect },
   { path: "/contact", layout: "public", component: Contact },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
-  { path: "/proof", layout: "public", component: Proof },
+  { path: "/proof", layout: "public", component: LegacyProofRedirect },
   { path: "/faq", layout: "public", component: FAQ },
   { path: "/governance", layout: "public", component: Governance },
   { path: "/about", layout: "public", component: About },
@@ -152,7 +158,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/login", layout: "public", component: LegacyLoginRedirect },
   { path: "/signup", layout: "public", component: BusinessSignUpFlow },
   { path: "/signup/business", layout: "public", component: BusinessSignUpFlow },
-  { path: "/signup/capturer", layout: "public", component: CapturerSignUpFlow },
+  { path: "/signup/capturer", layout: "public", component: LegacyCapturerSignupRedirect },
   { path: "/onboarding", layout: "protected", component: OnboardingChecklist },
   { path: "/forgot-password", layout: "public", component: ForgotPassword },
   { path: "/privacy", layout: "public", component: Privacy },
