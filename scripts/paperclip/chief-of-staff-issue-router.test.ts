@@ -1,0 +1,35 @@
+import { describe, expect, it } from "vitest";
+import { inferChiefOfStaffRoute } from "./chief-of-staff-issue-router.ts";
+
+describe("chief of staff issue router", () => {
+  it("routes notion drift issues to notion-manager-agent", () => {
+    const route = inferChiefOfStaffRoute({
+      title: "Notion drift: duplicate pages for Founder EoD Brief | 2026-04-01 | Blueprint",
+      status: "todo",
+      project: { name: "Blueprint Executive Ops" },
+    });
+
+    expect(route?.assigneeKey).toBe("notion-manager-agent");
+  });
+
+  it("routes city launch issues to city-launch-agent", () => {
+    const route = inferChiefOfStaffRoute({
+      title: "City Launch Refresh",
+      status: "backlog",
+      project: { name: "Blueprint Executive Ops" },
+    });
+
+    expect(route?.assigneeKey).toBe("city-launch-agent");
+    expect(route?.status).toBe("todo");
+  });
+
+  it("routes repo drift issues to the matching repo implementation agent", () => {
+    const route = inferChiefOfStaffRoute({
+      title: "blueprint-webapp CI failure: CI",
+      status: "todo",
+      project: { name: "blueprint-webapp" },
+    });
+
+    expect(route?.assigneeKey).toBe("webapp-codex");
+  });
+});

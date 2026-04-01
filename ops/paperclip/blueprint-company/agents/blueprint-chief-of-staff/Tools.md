@@ -13,6 +13,8 @@
   Use this for founder-facing recurring artifacts such as the weekday brief, Friday recap, and weekly gaps report.
 - `tsx scripts/paperclip/chief-of-staff-founder-report.ts --issue-id <current-issue-id>`
   Hermes-safe fallback for founder report routines when direct Notion or Slack tool access is not available. It infers the routine kind from the issue title and can publish the Notion artifact plus the founder Slack digest when a direct exec webhook is configured.
+- `tsx scripts/paperclip/chief-of-staff-issue-router.ts --issue-id <current-issue-id> --apply`
+  Hermes-safe deterministic fallback for non-founder routing when the next owner is obvious from issue title and project context.
 - `slack-post-digest`
   Use this for the founder-facing exec digest after the underlying state is real.
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md`

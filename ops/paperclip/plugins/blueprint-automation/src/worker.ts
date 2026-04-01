@@ -45,6 +45,7 @@ import {
   queryDatabase,
   queryWorkQueue,
 } from "./notion.js";
+import { assessNotionDrift, type NotionDriftAssessment } from "./notion-drift.js";
 import { collectFounderQueueAlerts, type FounderQueueAlert } from "./firestore.js";
 import { buildSlackToolHandler, postSlackDigest } from "./slack-notify.js";
 import { buildWebSearchToolHandler } from "./web-search.js";
@@ -125,6 +126,8 @@ const WORKSPACE_QUOTA_COOLDOWN_MS =
 const ENTITY_TYPES = {
   sourceMapping: "source-mapping",
 } as const;
+const EXECUTIVE_OPS_PROJECT = "blueprint-executive-ops";
+const NOTION_MANAGER_AGENT = "notion-manager-agent";
 // STATE_KEYS imported from ./constants.js
 
 type RepoConfig = {
@@ -2893,6 +2896,44 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
   }).catch(() => undefined);
 
   return { fingerprint, issue: updatedIssue };
+}
+
+async function syncNotionDriftAssessment(
+  ctx: PluginContext,
+  companyId: string,
+  assessment: NotionDriftAssessment,
+) {
+  for (const signal of assessment.open) {
+    await upsertManagedIssue(ctx, {
+      companyId,
+      sourceType: "notion-drift",
+      sourceId: signal.sourceId,
+      title: signal.title,
+      description: signal.description,
+      projectName: EXECUTIVE_OPS_PROJECT,
+      assignee: NOTION_MANAGER_AGENT,
+      priority: signal.priority,
+      status: "todo",
+      signalUrl: signal.pageUrl,
+      metadata: {
+        pageId: signal.pageId,
+        database: signal.database,
+        driftKind: signal.driftKind,
+        ...(signal.metadata ?? {}),
+      },
+      suppressRefreshComment: true,
+    });
+  }
+
+  for (const resolution of assessment.resolve) {
+    await resolveManagedIssue(ctx, {
+      companyId,
+      sourceType: "notion-drift",
+      sourceId: resolution.sourceId,
+      resolutionStatus: "done",
+      comment: resolution.comment,
+    });
+  }
 }
 
 async function syncHandoffCollaboration(
@@ -5927,6 +5968,7 @@ async function registerToolHandlers(ctx: PluginContext) {
   // ── Notion Tools ──────────────────────────────────────
   try {
     const config = await getConfig(ctx);
+    const company = await findCompany(ctx, config.companyName);
     const notionToken = await resolveOptionalSecret(
       ctx,
       config.secrets?.notionApiTokenRef,
@@ -5982,6 +6024,11 @@ async function registerToolHandlers(ctx: PluginContext) {
         },
         async (params): Promise<ToolResult> => {
           const result = await notionTools[TOOL_NAMES.notionWriteWorkQueue](params as any);
+          await syncNotionDriftAssessment(
+            ctx,
+            company.id,
+            assessNotionDrift(TOOL_NAMES.notionWriteWorkQueue, params as Record<string, unknown>, result as Record<string, unknown>),
+          );
           return { content: `Created work queue item ${result.pageId}.`, data: result };
         },
       );
@@ -6007,6 +6054,11 @@ async function registerToolHandlers(ctx: PluginContext) {
         },
         async (params): Promise<ToolResult> => {
           const result = await notionTools[TOOL_NAMES.notionWriteKnowledge](params as any);
+          await syncNotionDriftAssessment(
+            ctx,
+            company.id,
+            assessNotionDrift(TOOL_NAMES.notionWriteKnowledge, params as Record<string, unknown>, result as Record<string, unknown>),
+          );
           return { content: `Created knowledge entry ${result.pageId}.`, data: result };
         },
       );
@@ -6085,6 +6137,11 @@ async function registerToolHandlers(ctx: PluginContext) {
         },
         async (params): Promise<ToolResult> => {
           const result = await notionTools[TOOL_NAMES.notionUpsertKnowledge](params as any);
+          await syncNotionDriftAssessment(
+            ctx,
+            company.id,
+            assessNotionDrift(TOOL_NAMES.notionUpsertKnowledge, params as Record<string, unknown>, result as Record<string, unknown>),
+          );
           return {
             content: `${result.status === "created" ? "Created" : "Updated"} knowledge entry ${result.pageId}.`,
             data: result,
@@ -6127,6 +6184,11 @@ async function registerToolHandlers(ctx: PluginContext) {
         },
         async (params): Promise<ToolResult> => {
           const result = await notionTools[TOOL_NAMES.notionUpsertWorkQueue](params as any);
+          await syncNotionDriftAssessment(
+            ctx,
+            company.id,
+            assessNotionDrift(TOOL_NAMES.notionUpsertWorkQueue, params as Record<string, unknown>, result as Record<string, unknown>),
+          );
           return {
             content: `${result.status === "created" ? "Created" : "Updated"} work queue item ${result.pageId}.`,
             data: result,
@@ -6173,6 +6235,11 @@ async function registerToolHandlers(ctx: PluginContext) {
         },
         async (params): Promise<ToolResult> => {
           const result = await notionTools[TOOL_NAMES.notionUpdatePageMetadata](params as any);
+          await syncNotionDriftAssessment(
+            ctx,
+            company.id,
+            assessNotionDrift(TOOL_NAMES.notionUpdatePageMetadata, params as Record<string, unknown>, result as Record<string, unknown>),
+          );
           return { content: `Updated metadata for Notion page ${result.pageId}.`, data: result };
         },
       );
@@ -6271,6 +6338,11 @@ async function registerToolHandlers(ctx: PluginContext) {
         },
         async (params): Promise<ToolResult> => {
           const result = await notionTools[TOOL_NAMES.notionReconcileRelations](params as any);
+          await syncNotionDriftAssessment(
+            ctx,
+            company.id,
+            assessNotionDrift(TOOL_NAMES.notionReconcileRelations, params as Record<string, unknown>, result as Record<string, unknown>),
+          );
           return { content: `Reconciled relations for Notion page ${result.pageId}.`, data: result };
         },
       );

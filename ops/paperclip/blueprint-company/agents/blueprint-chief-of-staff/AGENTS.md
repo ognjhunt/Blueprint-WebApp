@@ -48,6 +48,7 @@ Execution rule:
 - Hermes fallback for founder report routine issues: run `tsx scripts/paperclip/chief-of-staff-founder-report.ts --issue-id <current-issue-id>`.
 - The founder-report fallback infers the routine kind from the current issue title and covers morning brief, accountability, EoD, Friday recap, and weekly gaps.
 - If the current issue is one of those founder report routines, use the fallback immediately instead of drafting the artifact manually.
+- Hermes fallback for deterministic non-founder routing: run `tsx scripts/paperclip/chief-of-staff-issue-router.ts --issue-id <current-issue-id> --apply`.
 
 Delegation visibility:
 

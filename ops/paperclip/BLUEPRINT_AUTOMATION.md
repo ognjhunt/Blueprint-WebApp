@@ -84,6 +84,11 @@ It provides:
   - infers the founder routine type from the current Paperclip issue title
   - publishes the Notion artifact directly
   - posts the founder Slack digest directly when an exec webhook is present
+- deterministic non-founder routing fallback at `scripts/paperclip/chief-of-staff-issue-router.ts`
+  - routes obvious Notion, city-launch, finance/support, security/procurement, and repo-drift issues without relying on Hermes narration quality
+- event-driven Notion drift issue creation through the existing Notion tool wrappers
+  - producer writes now create or resolve `notion-drift` Paperclip issues for unresolved duplicate-page drift and stale metadata drift
+  - this is the intended replacement path while the old Notion sweep routines remain paused
 - Slack activity mirroring for task opens, delegations, closures, and chief-of-staff wakeups:
   - routes to ops/growth by default
   - can use dedicated exec/engineering/manager webhooks when configured
