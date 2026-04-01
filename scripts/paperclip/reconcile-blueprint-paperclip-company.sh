@@ -20,6 +20,7 @@ BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_CLAUDE_LAN
 BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT:-xhigh}"
 BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL:-opencode/minimax-m2.5-free}"
 BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL:-opencode/minimax-m2.5-free}"
+BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-openrouter/qwen/qwen3.6-plus-preview:free}"
 OPENCODE_NO_TTY="${OPENCODE_NO_TTY:-1}"
 
 export \
@@ -31,6 +32,7 @@ export \
   BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL \
   BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL \
   BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL \
+  BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL \
   OPENCODE_NO_TTY
   BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT
 
@@ -59,6 +61,8 @@ const opencodeModel =
   process.env.BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL ?? "minimax-m2.5-free";
 const opencodeFallbackModel =
   process.env.BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL ?? "opencode/minimax-m2.5-free";
+const hermesFallbackModel =
+  process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL ?? "openrouter/qwen/qwen3.6-plus-preview:free";
 const paperclipConfigPath = path.join(
   repoRoot,
   "ops/paperclip/blueprint-company/.paperclip.yaml",
@@ -422,6 +426,20 @@ function tertiaryOpencodeFallbackFor(desired) {
   };
 }
 
+function hermesFreeFallbackFor(desired) {
+  const adapterConfig = desired.adapterConfig ?? {};
+  const cwd = typeof adapterConfig.cwd === "string" ? adapterConfig.cwd : "";
+  if (!cwd) return null;
+  return {
+    adapterType: "hermes_local",
+    adapterConfig: {
+      cwd,
+      model: hermesFallbackModel,
+      timeoutSec: typeof adapterConfig.timeoutSec === "number" ? adapterConfig.timeoutSec : 1800,
+    },
+  };
+}
+
 function summarizeProbeFailure(result, fallbackMessage) {
   return result?.checks?.map?.((check) => check.message).filter(Boolean).join("; ") || fallbackMessage;
 }
@@ -487,6 +505,10 @@ function buildWorkspaceProbeMatrix(yamlAgents) {
     }
     if (adapterType === "hermes_local" && !entry.hermes_local) {
       entry.hermes_local = buildHermesProbeConfig(adapterConfig);
+    }
+    // Probe hermes_local for every cwd — it is the secondary-free fallback for claude/codex agents
+    if (!entry.hermes_local) {
+      entry.hermes_local = { cwd };
     }
     // Probe opencode_local for every cwd that has any adapter — it is the tertiary fallback for all
     if (!entry.opencode_local) {
@@ -616,7 +638,11 @@ function chooseAdapterForAgent(desired, requestedMode, workspaceAvailability) {
     if (fallbackStatus === "pass") return fallback;
   }
 
-  // Tier 3: opencode_local (free, auto-activates when both primary and secondary fail)
+  // Tier 3: hermes_local with free OpenRouter model (before terminal opencode fallback)
+  const hermesFree = hermesFreeFallbackFor(desired);
+  if (hermesFree && workspaceAvailability?.hermes_local?.status === "pass") return hermesFree;
+
+  // Tier 4: opencode_local (free, auto-activates when all other tiers fail)
   const opencode = tertiaryOpencodeFallbackFor(desired);
   if (opencode && workspaceAvailability?.opencode_local?.status === "pass") return opencode;
 

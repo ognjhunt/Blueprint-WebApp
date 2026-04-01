@@ -133,7 +133,7 @@ export function buildHermesFallbackAdapterConfig(
 
   return {
     ...next,
-    model: options?.model ?? "gpt-5.4-mini",
+    model: options?.model ?? process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL ?? "openrouter/qwen/qwen3.6-plus-preview:free",
     modelReasoningEffort: next.modelReasoningEffort ?? "xhigh",
     cwd: options?.cwd ?? next.cwd ?? "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
     timeoutSec: next.timeoutSec ?? 1800,
