@@ -34,7 +34,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md
         timeoutSec: 1800
@@ -50,7 +49,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/notion-manager-agent/AGENTS.md
         timeoutSec: 1800
@@ -264,7 +262,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/ops-lead/AGENTS.md
         timeoutSec: 1800
@@ -357,7 +354,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/growth-lead/AGENTS.md
         timeoutSec: 1800
@@ -400,7 +396,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/analytics-agent/AGENTS.md
         timeoutSec: 1200
@@ -416,7 +411,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/investor-relations-agent/AGENTS.md
         timeoutSec: 1800
@@ -433,7 +427,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/community-updates-agent/AGENTS.md
         timeoutSec: 1800
@@ -449,7 +442,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/market-intel-agent/AGENTS.md
         timeoutSec: 1800
@@ -466,7 +458,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/supply-intel-agent/AGENTS.md
         timeoutSec: 1800
@@ -482,7 +473,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/capturer-growth-agent/AGENTS.md
         timeoutSec: 1800
@@ -499,7 +489,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/city-launch-agent/AGENTS.md
         timeoutSec: 1800
@@ -516,7 +505,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/demand-intel-agent/AGENTS.md
         timeoutSec: 1800
@@ -533,7 +521,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/robot-team-growth-agent/AGENTS.md
         timeoutSec: 1800
@@ -550,7 +537,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/site-operator-partnership-agent/AGENTS.md
         timeoutSec: 1800
@@ -585,7 +571,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/buyer-solutions-agent/AGENTS.md
         timeoutSec: 1800
@@ -603,7 +588,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/solutions-engineering-agent/AGENTS.md
         timeoutSec: 1800
@@ -639,7 +623,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/security-procurement-agent/AGENTS.md
         timeoutSec: 1800
@@ -655,7 +638,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapture
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/capturer-success-agent/AGENTS.md
         timeoutSec: 1800
@@ -672,7 +654,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/city-demand-agent/AGENTS.md
         timeoutSec: 1800
@@ -688,7 +669,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/site-catalog-agent/AGENTS.md
         timeoutSec: 1200
@@ -704,7 +684,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/outbound-sales-agent/AGENTS.md
         timeoutSec: 1800
@@ -720,7 +699,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/buyer-success-agent/AGENTS.md
         timeoutSec: 1800
@@ -738,7 +716,6 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: gpt-5.4-mini
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/revenue-ops-pricing-agent/AGENTS.md
         timeoutSec: 1800
@@ -1023,6 +1000,18 @@ tasks:
     status: todo
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
+  notion-manager-reconcile-sweep:
+    status: paused
+    priority: medium
+    projectWorkspaceKey: blueprint-executive-ops
+  notion-manager-stale-audit:
+    status: paused
+    priority: medium
+    projectWorkspaceKey: blueprint-executive-ops
+  notion-manager-weekly-structure-sweep:
+    status: paused
+    priority: medium
+    projectWorkspaceKey: blueprint-executive-ops
   investor-relations-monthly:
     status: active
     priority: high
@@ -1032,7 +1021,7 @@ tasks:
     priority: high
     projectWorkspaceKey: blueprint-webapp
   supply-intel-daily:
-    status: active
+    status: paused
     priority: medium
     projectWorkspaceKey: blueprint-executive-ops
   supply-intel-weekly:
@@ -1044,7 +1033,7 @@ tasks:
     priority: high
     projectWorkspaceKey: blueprint-webapp
   capturer-growth-refresh:
-    status: active
+    status: paused
     priority: medium
     projectWorkspaceKey: blueprint-webapp
   city-launch-weekly:
@@ -1056,7 +1045,7 @@ tasks:
     priority: medium
     projectWorkspaceKey: blueprint-executive-ops
   demand-intel-daily:
-    status: active
+    status: paused
     priority: medium
     projectWorkspaceKey: blueprint-executive-ops
   demand-intel-weekly:
@@ -1068,7 +1057,7 @@ tasks:
     priority: high
     projectWorkspaceKey: blueprint-webapp
   robot-team-growth-refresh:
-    status: active
+    status: paused
     priority: medium
     projectWorkspaceKey: blueprint-webapp
   site-operator-partnership-weekly:
@@ -1076,7 +1065,7 @@ tasks:
     priority: medium
     projectWorkspaceKey: blueprint-executive-ops
   site-operator-partnership-refresh:
-    status: active
+    status: paused
     priority: medium
     projectWorkspaceKey: blueprint-executive-ops
   city-demand-weekly:
@@ -1084,7 +1073,7 @@ tasks:
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   city-demand-refresh:
-    status: active
+    status: paused
     priority: medium
     projectWorkspaceKey: blueprint-executive-ops
   solutions-engineering-active-delivery-review:
@@ -1115,7 +1104,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "*/5 * * * *"
+        cronExpression: "0 8,10,12,14,16,18 * * 1-5"
         timezone: America/New_York
   cto-cross-repo-triage:
     priority: high
@@ -1198,7 +1187,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 0 * * * 1-5
+        cronExpression: 0 9,13,17 * * 1-5
         timezone: America/New_York
   capture-qa-daily:
     agent: capture-qa-agent
@@ -1252,7 +1241,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 0 6 * * *
+        cronExpression: 0 6 * * 1-5
         timezone: America/New_York
   analytics-weekly:
     agent: analytics-agent
@@ -1308,6 +1297,36 @@ routines:
       - kind: schedule
         cronExpression: 30 16 * * 5
         timezone: America/New_York
+  notion-manager-reconcile-sweep:
+    agent: notion-manager-agent
+    status: paused
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 0 10,14 * * 1-5
+        timezone: America/New_York
+  notion-manager-stale-audit:
+    agent: notion-manager-agent
+    status: paused
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 30 10 * * 1-5
+        timezone: America/New_York
+  notion-manager-weekly-structure-sweep:
+    agent: notion-manager-agent
+    status: paused
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 0 15 * * 5
+        timezone: America/New_York
   investor-relations-monthly:
     agent: investor-relations-agent
     priority: high
@@ -1355,6 +1374,7 @@ routines:
         timezone: America/New_York
   supply-intel-daily:
     agent: supply-intel-agent
+    status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -1382,6 +1402,7 @@ routines:
         timezone: America/New_York
   capturer-growth-refresh:
     agent: capturer-growth-agent
+    status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -1400,6 +1421,7 @@ routines:
         timezone: America/New_York
   city-launch-refresh:
     agent: city-launch-agent
+    status: active
     priority: medium
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -1409,6 +1431,7 @@ routines:
         timezone: America/New_York
   demand-intel-daily:
     agent: demand-intel-agent
+    status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -1436,6 +1459,7 @@ routines:
         timezone: America/New_York
   robot-team-growth-refresh:
     agent: robot-team-growth-agent
+    status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -1454,6 +1478,7 @@ routines:
         timezone: America/New_York
   site-operator-partnership-refresh:
     agent: site-operator-partnership-agent
+    status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -1472,6 +1497,7 @@ routines:
         timezone: America/New_York
   city-demand-refresh:
     agent: city-demand-agent
+    status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: skip_missed
@@ -1486,7 +1512,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 30 11 * * 1-5
+        cronExpression: 30 11 * * 1,4
         timezone: America/New_York
   security-procurement-active-reviews:
     agent: security-procurement-agent
@@ -1495,7 +1521,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 30 12 * * 1-5
+        cronExpression: 30 12 * * 1,4
         timezone: America/New_York
   revenue-ops-pricing-weekly:
     agent: revenue-ops-pricing-agent

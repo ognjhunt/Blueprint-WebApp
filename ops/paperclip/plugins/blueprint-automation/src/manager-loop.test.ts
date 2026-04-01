@@ -101,6 +101,8 @@ describe("manager loop helpers", () => {
       managedIssueIds: new Set(["iss-blocked", "iss-stale"]),
     });
 
+    expect(snapshot.runClassification).toBe("actionable");
+    expect(snapshot.hasActionableWork).toBe(true);
     expect(snapshot.summary.openIssueCount).toBe(3);
     expect(snapshot.summary.blockedIssueCount).toBe(1);
     expect(snapshot.summary.staleIssueCount).toBe(1);

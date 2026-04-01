@@ -3,12 +3,16 @@
 ## Primary Sources
 - `blueprint-manager-state`
   Start here every run. It gives the current chief-of-staff snapshot across issues, routine health, active agents, and recent automation events.
+- `tsx scripts/paperclip/chief-of-staff-snapshot.ts`
+  Hermes-safe fallback when tool surfaces are unavailable or unreliable.
 - `blueprint-scan-work`
-  Use this when repo or automation inputs may have changed and the current queue is stale.
+  Use this only when the run is actionable or the queue is stale enough that a scan will change ownership, proof, or closure state.
 - `blueprint-upsert-work-item`, `blueprint-report-blocker`, `blueprint-resolve-work-item`
   Use these to keep work state accurate without creating duplicate automation records.
 - `notion-upsert-knowledge`
   Use this for founder-facing recurring artifacts such as the weekday brief, Friday recap, and weekly gaps report.
+- `tsx scripts/paperclip/chief-of-staff-founder-report.ts --issue-id <current-issue-id>`
+  Hermes-safe fallback for founder report routines when direct Notion or Slack tool access is not available. It infers the routine kind from the issue title and can publish the Notion artifact plus the founder Slack digest when a direct exec webhook is configured.
 - `slack-post-digest`
   Use this for the founder-facing exec digest after the underlying state is real.
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md`
@@ -21,6 +25,7 @@
 - routine alerts and recent events are signals, not conclusions
 - Slack is for visibility; Paperclip is the work record
 - founder-facing digests summarize state; they do not replace it
+- raw shell access is a fallback, not the primary interface for Paperclip state
 
 ## Use Carefully
 - new issue creation

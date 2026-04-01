@@ -9,7 +9,7 @@ Run the midweek city launch refresh.
 
 Each run must:
 
-- incorporate new supply-intel and capturer-growth findings
-- refresh the Austin and San Francisco city scorecards
-- update or create the next set of city-specific execution issues
+- refresh the current week's city launch guide only when new evidence materially changes posture, blockers, or sequencing
+- incorporate new supply-intel, market-intel, city-demand, and capturer-growth findings
+- update or create the next set of city-specific execution issues only when a real dependency changed
 - make missing human approvals explicit

@@ -2,14 +2,16 @@
 
 ## Primary Sources
 - `ops/paperclip/programs/city-launch-agent-program.md`
+- `ops/paperclip/playbooks/city-launch-template.md`
 - `ops/paperclip/playbooks/city-launch-austin-tx.md`
 - `ops/paperclip/playbooks/city-launch-san-francisco-ca.md`
 - `ops/paperclip/playbooks/capturer-supply-playbook.md`
-- supply-intel, capturer-growth, analytics, intake, and ops feedback
+- supply-intel, capturer-growth, market-intel, city-demand, analytics, intake, and ops feedback
 - Paperclip issue lifecycle tools for cross-agent dependencies
 
 ## Actions You Own
 - maintain city-specific launch playbooks and readiness scorecards
+- select one city per weekly cycle and publish a bounded launch guide for that city
 - turn cross-agent evidence into ranked city launch recommendations and issue-ready next steps
 - adapt generic capturer-supply guidance to each city without assuming cities are interchangeable
 - route downstream dependencies when launch posture depends on ops, measurement, or supply work

@@ -4,6 +4,7 @@ set -euo pipefail
 WORKSPACE_ROOT="/Users/nijelhunt_1/workspace"
 PAPERCLIP_ENV_FILE="${PAPERCLIP_ENV_FILE:-$WORKSPACE_ROOT/.paperclip-blueprint.env}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # shellcheck source=./paperclip-api.sh
 source "$SCRIPT_DIR/paperclip-api.sh"
@@ -72,57 +73,140 @@ require_routines() {
   local company_id="$1"
   local routines_json
   routines_json="$(fetch_api_json "/api/companies/${company_id}/routines")"
-  printf '%s' "$routines_json" | node -e '
-    let data="";
-    process.stdin.on("data",(chunk)=>data+=chunk);
-    process.stdin.on("end",()=>{
-      const rows=JSON.parse(data);
-      const required=[
-        "CEO Daily Review",
-        "Chief of Staff Continuous Loop",
-        "CTO Cross-Repo Triage",
-        "WebApp Autonomy Loop",
-        "WebApp Claude Review Loop",
-        "Pipeline Autonomy Loop",
-        "Pipeline Claude Review Loop",
-        "Capture Autonomy Loop",
-        "Capture Claude Review Loop",
-        "Ops Lead Morning",
-        "Ops Lead Afternoon",
-        "Intake Agent Hourly",
-        "Capture QA Daily",
-        "Field Ops Daily",
-        "Finance Support Daily",
-        "Growth Lead Daily",
-        "Growth Lead Weekly",
-        "Analytics Daily",
-        "Analytics Weekly",
-        "Founder Morning Brief",
-        "Founder Daily Accountability Report",
-        "Founder EoD Brief",
-        "Founder Friday Operating Recap",
-        "Founder Weekly Gaps Report",
-        "Investor Relations Monthly",
-        "Community Updates Weekly",
-        "Conversion Weekly",
-        "Market Intel Daily",
-        "Market Intel Weekly",
-        "Demand Intel Daily",
-        "Demand Intel Weekly",
-        "Robot Team Growth Weekly",
-        "Robot Team Growth Refresh",
-        "Site Operator Partnership Weekly",
-        "Site Operator Partnership Refresh",
-        "City Demand Weekly",
-        "City Demand Refresh"
-      ];
-      const missing=required.filter((title)=>!rows.find((row)=>row.title===title && row.status==="active"));
-      if(missing.length>0){
-        console.error(`Missing active routines: ${missing.join(", ")}`);
+  printf '%s' "$routines_json" | node --input-type=module - "$REPO_ROOT/ops/paperclip/blueprint-company/.paperclip.yaml" <<'NODE'
+    import fs from "node:fs";
+    import { createRequire } from "node:module";
+    import { pathToFileURL } from "node:url";
+
+    const configPath = process.argv[2];
+    const require = createRequire(pathToFileURL(configPath).href);
+    const yaml = require("js-yaml");
+
+    const ROUTINE_TITLE_OVERRIDES = {
+      "ceo-daily-review": "CEO Daily Review",
+      "chief-of-staff-continuous-loop": "Chief of Staff Continuous Loop",
+      "cto-cross-repo-triage": "CTO Cross-Repo Triage",
+      "webapp-autonomy-loop": "WebApp Autonomy Loop",
+      "webapp-claude-review-loop": "WebApp Claude Review Loop",
+      "pipeline-autonomy-loop": "Pipeline Autonomy Loop",
+      "pipeline-claude-review-loop": "Pipeline Claude Review Loop",
+      "capture-autonomy-loop": "Capture Autonomy Loop",
+      "capture-claude-review-loop": "Capture Claude Review Loop",
+      "ops-lead-morning": "Ops Lead Morning",
+      "ops-lead-afternoon": "Ops Lead Afternoon",
+      "intake-agent-hourly": "Intake Agent Hourly",
+      "capture-qa-daily": "Capture QA Daily",
+      "field-ops-daily": "Field Ops Daily",
+      "finance-support-daily": "Finance Support Daily",
+      "growth-lead-daily": "Growth Lead Daily",
+      "growth-lead-weekly": "Growth Lead Weekly",
+      "analytics-daily": "Analytics Daily",
+      "analytics-weekly": "Analytics Weekly",
+      "founder-morning-brief": "Founder Morning Brief",
+      "founder-daily-accountability-report": "Founder Daily Accountability Report",
+      "founder-eod-brief": "Founder EoD Brief",
+      "founder-friday-operating-recap": "Founder Friday Operating Recap",
+      "founder-weekly-gaps-report": "Founder Weekly Gaps Report",
+      "notion-manager-reconcile-sweep": "Notion Manager Reconcile Sweep",
+      "notion-manager-stale-audit": "Notion Manager Stale Audit",
+      "notion-manager-weekly-structure-sweep": "Notion Manager Weekly Structure Sweep",
+      "investor-relations-monthly": "Investor Relations Monthly",
+      "community-updates-weekly": "Community Updates Weekly",
+      "conversion-weekly": "Conversion Weekly",
+      "market-intel-daily": "Market Intel Daily",
+      "market-intel-weekly": "Market Intel Weekly",
+      "supply-intel-daily": "Supply Intel Daily",
+      "supply-intel-weekly": "Supply Intel Weekly",
+      "capturer-growth-weekly": "Capturer Growth Weekly",
+      "capturer-growth-refresh": "Capturer Growth Refresh",
+      "city-launch-weekly": "City Launch Weekly",
+      "city-launch-refresh": "City Launch Refresh",
+      "demand-intel-daily": "Demand Intel Daily",
+      "demand-intel-weekly": "Demand Intel Weekly",
+      "robot-team-growth-weekly": "Robot Team Growth Weekly",
+      "robot-team-growth-refresh": "Robot Team Growth Refresh",
+      "site-operator-partnership-weekly": "Site Operator Partnership Weekly",
+      "site-operator-partnership-refresh": "Site Operator Partnership Refresh",
+      "city-demand-weekly": "City Demand Weekly",
+      "city-demand-refresh": "City Demand Refresh",
+      "solutions-engineering-active-delivery-review": "Solutions Engineering Active Delivery Review",
+      "security-procurement-active-reviews": "Security Procurement Active Reviews",
+      "revenue-ops-pricing-weekly": "Revenue Ops Pricing Weekly",
+    };
+
+    function titleizeToken(token) {
+      const overrides = { ceo: "CEO", cto: "CTO", qa: "QA", webapp: "WebApp" };
+      return overrides[token] ?? `${token.charAt(0).toUpperCase()}${token.slice(1)}`;
+    }
+
+    function titleizeRoutineKey(routineKey) {
+      return ROUTINE_TITLE_OVERRIDES[routineKey]
+        ?? routineKey.split("-").map(titleizeToken).join(" ");
+    }
+
+    let data = "";
+    process.stdin.on("data", (chunk) => (data += chunk));
+    process.stdin.on("end", () => {
+      const liveRows = JSON.parse(data);
+      const config = yaml.load(fs.readFileSync(configPath, "utf8"));
+      const expectedRoutines = Object.entries(config.routines ?? {}).flatMap(([routineKey, routineConfig]) => {
+        const scheduleTrigger = Array.isArray(routineConfig?.triggers)
+          ? routineConfig.triggers.find((trigger) => trigger.kind === "schedule" && typeof trigger.cronExpression === "string")
+          : null;
+        if (!scheduleTrigger) return [];
+        return [{
+          title: titleizeRoutineKey(routineKey),
+          expectedStatus: routineConfig?.status === "paused" ? "paused" : "active",
+          cronExpression: scheduleTrigger.cronExpression,
+          timezone: scheduleTrigger.timezone ?? "America/New_York",
+        }];
+      });
+
+      const failures = [];
+
+      for (const expected of expectedRoutines) {
+        const matches = liveRows.filter((row) => row.title === expected.title);
+        if (matches.length === 0) {
+          failures.push(`Missing routine: ${expected.title}`);
+          continue;
+        }
+
+        const activeMatches = matches.filter((row) => row.status === "active");
+        const enabledScheduleTriggers = matches.flatMap((row) =>
+          (row.triggers ?? []).filter((trigger) => trigger.kind === "schedule" && trigger.enabled !== false)
+            .map((trigger) => ({ row, trigger })),
+        );
+
+        if (expected.expectedStatus === "active") {
+          if (activeMatches.length !== 1) {
+            failures.push(`${expected.title} should have exactly one active routine, found ${activeMatches.length}`);
+          }
+          if (enabledScheduleTriggers.length !== 1) {
+            failures.push(`${expected.title} should have exactly one enabled schedule trigger, found ${enabledScheduleTriggers.length}`);
+          } else {
+            const [{ trigger }] = enabledScheduleTriggers;
+            if (trigger.cronExpression !== expected.cronExpression || trigger.timezone !== expected.timezone) {
+              failures.push(
+                `${expected.title} trigger drifted: expected ${expected.cronExpression} ${expected.timezone}, got ${trigger.cronExpression ?? "null"} ${trigger.timezone ?? "null"}`,
+              );
+            }
+          }
+        } else {
+          if (activeMatches.length !== 0) {
+            failures.push(`${expected.title} should be paused, found ${activeMatches.length} active routine(s)`);
+          }
+          if (enabledScheduleTriggers.length !== 0) {
+            failures.push(`${expected.title} should have zero enabled schedule triggers while paused, found ${enabledScheduleTriggers.length}`);
+          }
+        }
+      }
+
+      if (failures.length > 0) {
+        console.error(failures.join("\n"));
         process.exit(1);
       }
     });
-  '
+NODE
 }
 
 plugin_dashboard() {

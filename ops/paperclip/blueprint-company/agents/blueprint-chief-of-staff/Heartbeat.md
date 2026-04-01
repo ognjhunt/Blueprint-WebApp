@@ -2,8 +2,10 @@
 
 ## Every Cycle
 - start with `blueprint-manager-state`
+- obey the `RUN CLASSIFICATION` line before doing anything expensive
 - identify what changed, what matters now, and what still lacks a concrete next action
 - route first, summarize second
+- no-op cycles should close cheaply, not spawn more manager work
 
 ## Continuous Loop
 - check blocked, stale, unassigned, and recently completed issues

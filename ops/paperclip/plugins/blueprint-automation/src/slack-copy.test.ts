@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   buildAgentConversationSlackCopy,
+  buildManagerIssueSlackCopy,
   buildManagedIssueSlackCopy,
   cleanIssueTitle,
   formatAgentName,
   formatIssuePriority,
   formatIssueStatus,
+  shouldPostManagerIssueEventToSlack,
 } from "./slack-copy.js";
 
 describe("slack alert copy", () => {
@@ -87,5 +89,50 @@ describe("slack alert copy", () => {
     expect(copy.title).toBe("Handoff: blueprint chief of staff -> ops lead");
     expect(copy.summary).toContain("Requested outcome: Assign owners and close anything already done.");
     expect(copy.summary).toContain("Priority: High");
+  });
+
+  it("keeps manager issue alerts exception-only", () => {
+    expect(
+      shouldPostManagerIssueEventToSlack({
+        eventType: "issue.created",
+        status: "todo",
+        priority: "high",
+        assigneeAgentId: "webapp-codex",
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldPostManagerIssueEventToSlack({
+        eventType: "issue.created",
+        status: "todo",
+        priority: "low",
+        assigneeAgentId: null,
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldPostManagerIssueEventToSlack({
+        eventType: "issue.updated",
+        status: "blocked",
+        priority: "medium",
+        assigneeAgentId: "webapp-codex",
+      }),
+    ).toBe(true);
+  });
+
+  it("formats manager issue alerts around ownership and next move", () => {
+    const copy = buildManagerIssueSlackCopy({
+      eventType: "issue.updated",
+      issueTitle: "WebApp Codex Bootstrap",
+      status: "blocked",
+      priority: "high",
+      owner: "webapp codex",
+    });
+
+    expect(copy.title).toBe("Manager update: issue is blocked");
+    expect(copy.summary).toContain("What happened: An active Paperclip issue is now blocked.");
+    expect(copy.summary).toContain("Task: WebApp Codex Bootstrap");
+    expect(copy.summary).toContain("Owner: webapp codex");
+    expect(copy.summary).toContain("Next move: Create the unblock path or delegate the blocker explicitly.");
   });
 });

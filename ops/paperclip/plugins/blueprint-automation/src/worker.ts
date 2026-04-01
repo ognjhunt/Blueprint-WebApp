@@ -105,11 +105,13 @@ import {
 } from "./handoffs.js";
 import {
   buildAgentConversationSlackCopy,
+  buildManagerIssueSlackCopy,
   buildManagedIssueSlackCopy,
   cleanIssueTitle,
   formatAgentName,
   formatIssuePriority,
   formatIssueStatus,
+  shouldPostManagerIssueEventToSlack,
 } from "./slack-copy.js";
 
 const execFileAsync = promisify(execFile);
@@ -1687,6 +1689,9 @@ function buildFounderIssueExceptionDigest(
   return null;
 }
 
+const CHIEF_OF_STAFF_WAKEUP_COOLDOWN_MS = 5 * 60 * 1000;
+const chiefOfStaffLastWakeupByCompany = new Map<string, number>();
+
 async function wakeChiefOfStaff(
   ctx: PluginContext,
   companyId: string,
@@ -1700,8 +1705,22 @@ async function wakeChiefOfStaff(
     slackChannel?: string;
     slackTitle?: string;
     slackSummary?: string[];
+    postToSlack?: boolean;
+    bypassCooldown?: boolean;
   },
 ) {
+  if (!input.bypassCooldown) {
+    const lastWakeup = chiefOfStaffLastWakeupByCompany.get(companyId) ?? 0;
+    const elapsed = Date.now() - lastWakeup;
+    if (elapsed < CHIEF_OF_STAFF_WAKEUP_COOLDOWN_MS) {
+      ctx.logger.info("chief-of-staff wakeup suppressed by cooldown", {
+        reason: input.reason,
+        remainingMs: CHIEF_OF_STAFF_WAKEUP_COOLDOWN_MS - elapsed,
+      });
+      return null;
+    }
+  }
+
   const chiefOfStaffKey = getChiefOfStaffAgentKey(config);
   const agent = await resolveAgent(ctx, companyId, chiefOfStaffKey).catch(() => null);
   if (!agent) {
@@ -1721,6 +1740,8 @@ async function wakeChiefOfStaff(
     idempotencyKey: input.idempotencyKey,
   });
 
+  chiefOfStaffLastWakeupByCompany.set(companyId, Date.now());
+
   await appendRecentEvent(ctx, companyId, {
     kind: "chief-of-staff-wakeup",
     title: input.title,
@@ -1728,12 +1749,14 @@ async function wakeChiefOfStaff(
     detail: input.detail,
   });
 
-  const slackChannel = input.slackChannel ?? "#paperclip-manager";
-  await postSlackActivity(ctx, config, {
-    channel: slackChannel,
-    title: input.slackTitle ?? input.title,
-    summary: (input.slackSummary ?? [input.detail]).filter((line) => line.trim().length > 0),
-  }).catch(() => undefined);
+  if (input.postToSlack !== false) {
+    const slackChannel = input.slackChannel ?? "#paperclip-manager";
+    await postSlackActivity(ctx, config, {
+      channel: slackChannel,
+      title: input.slackTitle ?? input.title,
+      summary: (input.slackSummary ?? [input.detail]).filter((line) => line.trim().length > 0),
+    }).catch(() => undefined);
+  }
 
   return wakeResult;
 }
@@ -1757,6 +1780,24 @@ async function handleChiefOfStaffIssueSignal(
   });
   if (!shouldWake) return;
 
+  const agentNameById = new Map(agents.map((agent) => [agent.id, agent.name] as const));
+  const owner = issue.assigneeAgentId
+    ? (agentNameById.get(issue.assigneeAgentId) ?? formatAgentName(issue.assigneeAgentId))
+    : "Unassigned";
+  const shouldPostSlack = shouldPostManagerIssueEventToSlack({
+    eventType: event.type,
+    status: issue.status,
+    priority: issue.priority,
+    assigneeAgentId: issue.assigneeAgentId ?? null,
+  });
+  const managerSlackCopy = buildManagerIssueSlackCopy({
+    eventType: event.type,
+    issueTitle: issue.title,
+    status: issue.status,
+    priority: issue.priority,
+    owner,
+  });
+
   await wakeChiefOfStaff(ctx, event.companyId, config, {
     reason: event.type,
     idempotencyKey: `chief-of-staff:${event.type}:${event.eventId}`,
@@ -1770,22 +1811,14 @@ async function handleChiefOfStaffIssueSignal(
     title: `Chief of Staff wakeup from ${event.type}`,
     detail: `${issue.title} (${issue.id}) is now ${issue.status}${issue.assigneeAgentId ? ` and assigned to ${issue.assigneeAgentId}` : " and unassigned"}.`,
     slackChannel: "#paperclip-manager",
-    slackTitle: event.type === "issue.created" ? "Manager update: new issue" : "Manager update: issue changed",
-    slackSummary: [
-      `What happened: ${event.type === "issue.created" ? "A new Paperclip issue was created." : "A Paperclip issue changed."}`,
-      `Task: ${cleanIssueTitle(issue.title)}`,
-      `Status: ${formatIssueStatus(issue.status) ?? issue.status}`,
-      `Owner: ${formatAgentName(issue.assigneeAgentId)}`,
-    ],
+    slackTitle: managerSlackCopy.title,
+    slackSummary: managerSlackCopy.summary,
+    postToSlack: shouldPostSlack,
   }).catch(() => undefined);
 
   const agentKeyById = new Map(
     agents.map((agent) => [agent.id, normalizedCandidates(agent as unknown as Record<string, unknown>)[0] ?? agent.id] as const),
   );
-  const agentNameById = new Map(agents.map((agent) => [agent.id, agent.name] as const));
-  const owner = issue.assigneeAgentId
-    ? (agentNameById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId)
-    : "Unassigned";
   const lane = classifyFounderLane(issue.assigneeAgentId ? (agentKeyById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId) : null, issue.title);
   const founderDigest = buildFounderIssueExceptionDigest(issue, owner, lane);
   if (founderDigest) {
@@ -5046,8 +5079,14 @@ async function registerToolHandlers(ctx: PluginContext) {
         asString((params as Record<string, unknown>).companyName) ?? config.companyName,
       );
       const snapshot = await buildChiefOfStaffState(ctx, company.id, config);
+      const classificationLine = snapshot.runClassification === "no_op"
+        ? "RUN CLASSIFICATION: NO-OP. No actionable work found. End this run without heavyweight processing."
+        : snapshot.runClassification === "low_value"
+          ? "RUN CLASSIFICATION: LOW-VALUE. Only maintenance items present. Keep processing lightweight."
+          : "RUN CLASSIFICATION: ACTIONABLE. Real work available — proceed with full processing.";
       return {
         content: [
+          classificationLine,
           `Chief of staff state: ${snapshot.summary.openIssueCount} open issues, ${snapshot.summary.blockedIssueCount} blocked, ${snapshot.summary.staleIssueCount} stale, ${snapshot.summary.recentlyCompletedCount} recently completed, ${snapshot.summary.routineAlertCount} routine alerts.`,
           `Daily accountability: ${snapshot.dailyAccountability.materiallyActiveAgentCount} materially active agent(s), ${snapshot.dailyAccountability.lowValueAgentCount} low/no-value agent(s), ${snapshot.dailyAccountability.agentsRan.length} agent(s) with issue/comment evidence in the last 24h.`,
           `Founder visibility: ${snapshot.founderVisibility.needsFounderItems.length} waiting on founder, ${snapshot.founderVisibility.blockedOver24h.length} blocked >24h, ${snapshot.founderVisibility.queueAlerts.length} queue alert(s), ${snapshot.founderVisibility.experimentOutcomes.length} recent experiment outcome(s).`,

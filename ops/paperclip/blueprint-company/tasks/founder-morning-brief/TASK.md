@@ -14,7 +14,7 @@ Each run must:
 - incorporate the freshest available analytics, ops queue, buyer-risk, and capturer-risk signals
 - create or update one Knowledge artifact tagged for `Founder OS`
 - post exactly one Slack digest to `#paperclip-exec`
-- use the exact title format `Founder Brief | YYYY-MM-DD | Blueprint`
+- use the exact title format `Founder Morning Brief | YYYY-MM-DD | Blueprint`
 - use these sections in this exact order:
   - `Done Yesterday`
   - `In Motion Today`
@@ -32,7 +32,7 @@ Each run must:
 
 Artifact requirements:
 
-- Knowledge title: `Founder Brief | YYYY-MM-DD | Blueprint`
+- Knowledge title: `Founder Morning Brief | YYYY-MM-DD | Blueprint`
 - Knowledge `Artifact Type`: `Morning Founder Brief`
 - Knowledge `Agent Surface` must include `Founder OS`
 - create or update a Work Queue follow-up only if the brief is blocked on missing evidence or failed delivery

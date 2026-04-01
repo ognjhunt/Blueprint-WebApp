@@ -67,6 +67,7 @@ const opencodeFallbackModel =
   process.env.BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL ?? "opencode/minimax-m2.5-free";
 const hermesFallbackModel =
   process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL ?? "qwen/qwen3.6-plus-preview:free";
+const legacyHermesModel = "gpt-5.4-mini";
 const paperclipConfigPath = path.join(
   repoRoot,
   "ops/paperclip/blueprint-company/.paperclip.yaml",
@@ -186,6 +187,9 @@ const ROUTINE_TITLE_OVERRIDES = {
   "founder-eod-brief": "Founder EoD Brief",
   "founder-friday-operating-recap": "Founder Friday Operating Recap",
   "founder-weekly-gaps-report": "Founder Weekly Gaps Report",
+  "notion-manager-reconcile-sweep": "Notion Manager Reconcile Sweep",
+  "notion-manager-stale-audit": "Notion Manager Stale Audit",
+  "notion-manager-weekly-structure-sweep": "Notion Manager Weekly Structure Sweep",
   "investor-relations-monthly": "Investor Relations Monthly",
   "community-updates-weekly": "Community Updates Weekly",
   "conversion-weekly": "Conversion Weekly",
@@ -210,6 +214,31 @@ const ROUTINE_TITLE_OVERRIDES = {
 function titleizeRoutineKey(routineKey) {
   return ROUTINE_TITLE_OVERRIDES[routineKey]
     ?? routineKey.split("-").map(titleizeToken).join(" ");
+}
+
+function countEnabledScheduleTriggers(routine) {
+  return (routine.triggers ?? []).filter(
+    (trigger) => trigger.kind === "schedule" && trigger.enabled !== false,
+  ).length;
+}
+
+function pickPreferredRoutine(matching, projectId, agentId) {
+  if (!matching.length) return null;
+  return [...matching].sort((left, right) => {
+    const leftProjectAgent = left.projectId === projectId && left.assigneeAgentId === agentId ? 1 : 0;
+    const rightProjectAgent = right.projectId === projectId && right.assigneeAgentId === agentId ? 1 : 0;
+    if (leftProjectAgent !== rightProjectAgent) return rightProjectAgent - leftProjectAgent;
+
+    const leftActive = left.status === "active" ? 1 : 0;
+    const rightActive = right.status === "active" ? 1 : 0;
+    if (leftActive !== rightActive) return rightActive - leftActive;
+
+    const leftEnabledSchedules = countEnabledScheduleTriggers(left);
+    const rightEnabledSchedules = countEnabledScheduleTriggers(right);
+    if (leftEnabledSchedules !== rightEnabledSchedules) return leftEnabledSchedules - rightEnabledSchedules;
+
+    return new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
+  })[0] ?? null;
 }
 
 function inferRoutineAgentKey(routineKey, routineConfig) {
@@ -427,19 +456,18 @@ function buildCodexProbeConfigs(yamlAgents) {
 }
 
 function buildHermesProbeConfig(adapterConfig) {
-  const probeConfig = {
-    cwd: adapterConfig.cwd,
+  const normalized = buildHermesAdapterConfig(adapterConfig);
+  return {
+    cwd: normalized.cwd,
+    ...(typeof normalized.instructionsFilePath === "string"
+      && normalized.instructionsFilePath.trim().length > 0
+      ? { instructionsFilePath: normalized.instructionsFilePath }
+      : {}),
+    ...(typeof normalized.model === "string" && normalized.model.trim().length > 0
+      ? { model: normalized.model }
+      : {}),
+    ...(typeof normalized.timeoutSec === "number" ? { timeoutSec: normalized.timeoutSec } : {}),
   };
-  if (typeof adapterConfig.instructionsFilePath === "string" && adapterConfig.instructionsFilePath.trim().length > 0) {
-    probeConfig.instructionsFilePath = adapterConfig.instructionsFilePath;
-  }
-  if (typeof adapterConfig.model === "string" && adapterConfig.model.trim().length > 0) {
-    probeConfig.model = adapterConfig.model;
-  }
-  if (typeof adapterConfig.timeoutSec === "number") {
-    probeConfig.timeoutSec = adapterConfig.timeoutSec;
-  }
-  return probeConfig;
 }
 
 function buildOpencodeProbeConfig(cwd) {
@@ -478,6 +506,28 @@ function buildCodexAdapterConfig(adapterConfig) {
         : fallbackCodexReasoningEffort,
     dangerouslyBypassApprovalsAndSandbox:
       adapterConfig?.dangerouslyBypassApprovalsAndSandbox !== false,
+  };
+}
+
+function buildHermesAdapterConfig(adapterConfig) {
+  const next = { ...(adapterConfig ?? {}) };
+  const configuredModel =
+    typeof adapterConfig?.model === "string" && adapterConfig.model.trim().length > 0
+      ? adapterConfig.model.trim()
+      : "";
+  const model =
+    configuredModel.length > 0 && configuredModel !== legacyHermesModel
+      ? configuredModel
+      : hermesFallbackModel;
+
+  return {
+    ...next,
+    model,
+    modelReasoningEffort:
+      typeof adapterConfig?.modelReasoningEffort === "string" && adapterConfig.modelReasoningEffort.trim().length > 0
+        ? adapterConfig.modelReasoningEffort
+        : "xhigh",
+    timeoutSec: typeof adapterConfig?.timeoutSec === "number" ? adapterConfig.timeoutSec : 1800,
   };
 }
 
@@ -674,10 +724,13 @@ function buildExecutionPolicyForAgent(agentConfig) {
       model: fallbackCodexModel,
       modelReasoningEffort: fallbackCodexReasoningEffort,
     }),
-    hermes_local: hermesFreeFallbackFor(
-      { adapterType: authoredAdapterType, adapterConfig: authoredAdapterConfig },
-      authoredAdapterConfig,
-    )?.adapterConfig ?? undefined,
+    hermes_local:
+      authoredAdapterType === "hermes_local"
+        ? buildHermesAdapterConfig(authoredAdapterConfig)
+        : hermesFreeFallbackFor(
+          { adapterType: authoredAdapterType, adapterConfig: authoredAdapterConfig },
+          authoredAdapterConfig,
+        )?.adapterConfig ?? undefined,
     opencode_local: tertiaryOpencodeFallbackFor(
       { adapterType: authoredAdapterType, adapterConfig: authoredAdapterConfig },
       authoredAdapterConfig,
@@ -813,7 +866,11 @@ const desiredAgents = Object.fromEntries(
   Object.entries(yamlAgents).flatMap(([yamlAgentKey, agentConfig]) => {
     const paperclipAgentKey = toPaperclipAgentKey(yamlAgentKey);
     const adapterType = agentConfig?.adapter?.type;
-    const adapterConfig = agentConfig?.adapter?.config;
+    const authoredAdapterConfig = agentConfig?.adapter?.config;
+    const adapterConfig =
+      adapterType === "hermes_local"
+        ? buildHermesAdapterConfig(authoredAdapterConfig)
+        : authoredAdapterConfig;
     if (!adapterType || !adapterConfig) {
       console.warn(`Skipping ${paperclipAgentKey}: missing adapter config in .paperclip.yaml`);
       return [];
@@ -945,6 +1002,7 @@ const desiredRoutines = Object.entries(yamlRoutines).flatMap(([routineKey, routi
   }
 
   return [{
+    routineKey,
     title: titleizeRoutineKey(routineKey),
     project: canonicalProjects[projectKey] ?? null,
     agent: canonicalAgents[agentKey] ?? null,
@@ -952,11 +1010,22 @@ const desiredRoutines = Object.entries(yamlRoutines).flatMap(([routineKey, routi
     timezone: scheduleTrigger.timezone ?? "America/New_York",
     description: buildRoutineDescription(routineKey),
     priority: routineConfig.priority ?? "medium",
+    desiredStatus: routineConfig.status === "paused" ? "paused" : "active",
   }];
 });
 
 for (const desired of desiredRoutines) {
-  const { title, project, agent, cronExpression, timezone, description, priority } = desired;
+  const {
+    routineKey,
+    title,
+    project,
+    agent,
+    cronExpression,
+    timezone,
+    description,
+    priority,
+    desiredStatus,
+  } = desired;
   if (!project || !agent) {
     console.warn(`Skipping routine ${title}: missing canonical project or agent`);
     continue;
@@ -964,9 +1033,7 @@ for (const desired of desiredRoutines) {
 
   const matching = routines.filter((routine) => routine.title === title);
   const preferred =
-    matching.find((routine) => routine.projectId === project.id && routine.assigneeAgentId === agent.id) ??
-    matching.find((routine) => !hasSuffix(routine.id)) ??
-    matching[0] ??
+    pickPreferredRoutine(matching, project.id, agent.id) ??
     await fetchJson(`/api/companies/${company.id}/routines`, {
       method: "POST",
       body: JSON.stringify({
@@ -975,7 +1042,7 @@ for (const desired of desiredRoutines) {
         description,
         assigneeAgentId: agent.id,
         priority,
-        status: "active",
+        status: desiredStatus,
         concurrencyPolicy: "coalesce_if_active",
         catchUpPolicy: "skip_missed",
       }),
@@ -987,14 +1054,15 @@ for (const desired of desiredRoutines) {
       projectId: project.id,
       assigneeAgentId: agent.id,
       description,
-      status: "active",
+      status: desiredStatus,
       priority,
       concurrencyPolicy: preferred.concurrencyPolicy ?? "coalesce_if_active",
       catchUpPolicy: preferred.catchUpPolicy ?? "skip_missed",
     }),
   });
 
-  const scheduleTrigger = (updated.triggers ?? []).find((trigger) => trigger.kind === "schedule");
+  const allScheduleTriggers = (updated.triggers ?? []).filter((trigger) => trigger.kind === "schedule");
+  const scheduleTrigger = allScheduleTriggers[0] ?? null;
   if (!scheduleTrigger) {
     await fetchJson(`/api/routines/${preferred.id}/triggers`, {
       method: "POST",
@@ -1002,6 +1070,7 @@ for (const desired of desiredRoutines) {
         kind: "schedule",
         cronExpression,
         timezone,
+        enabled: desiredStatus === "active",
       }),
     });
   } else {
@@ -1010,9 +1079,36 @@ for (const desired of desiredRoutines) {
       body: JSON.stringify({
         cronExpression,
         timezone,
-        enabled: true,
+        enabled: desiredStatus === "active",
       }),
     });
+  }
+
+  const preferredDetail = await fetchJson(`/api/routines/${preferred.id}`);
+  const preferredScheduleTriggers = (preferredDetail.triggers ?? []).filter(
+    (trigger) => trigger.kind === "schedule",
+  );
+  const canonicalTrigger = preferredScheduleTriggers[0] ?? null;
+  if (!canonicalTrigger) {
+    throw new Error(`Routine ${title} is missing a schedule trigger after reconcile`);
+  }
+  const shouldEnable = desiredStatus === "active";
+  if (
+    canonicalTrigger.cronExpression !== cronExpression
+    || canonicalTrigger.timezone !== timezone
+    || canonicalTrigger.enabled !== shouldEnable
+  ) {
+    await fetchJson(`/api/routine-triggers/${canonicalTrigger.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        cronExpression,
+        timezone,
+        enabled: shouldEnable,
+      }),
+    });
+  }
+  for (const duplicateTrigger of preferredScheduleTriggers.slice(1)) {
+    await fetchJson(`/api/routine-triggers/${duplicateTrigger.id}`, { method: "DELETE" }).catch(() => undefined);
   }
 
   for (const routine of matching) {
@@ -1021,7 +1117,22 @@ for (const desired of desiredRoutines) {
       method: "PATCH",
       body: JSON.stringify({ status: "paused" }),
     });
+    const duplicateDetail = await fetchJson(`/api/routines/${routine.id}`);
+    for (const trigger of duplicateDetail.triggers ?? []) {
+      if (trigger.kind === "schedule") {
+        await fetchJson(`/api/routine-triggers/${trigger.id}`, { method: "DELETE" }).catch(() => undefined);
+      } else if (trigger.enabled !== false) {
+        await fetchJson(`/api/routine-triggers/${trigger.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ enabled: false }),
+        }).catch(() => undefined);
+      }
+    }
   }
+
+  console.log(
+    `Reconciled routine ${routineKey} -> ${title} (${preferred.id}) [${desiredStatus}] ${cronExpression} ${timezone}`,
+  );
 }
 
 for (const [agentKey, sourcePath] of Object.entries(instructionSources)) {

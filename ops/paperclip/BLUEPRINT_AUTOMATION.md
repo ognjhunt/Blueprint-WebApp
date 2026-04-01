@@ -5,7 +5,7 @@
 Blueprint now has three layers working together inside Paperclip:
 
 1. A stronger company package with explicit executive and repo-specialist issue-management behavior.
-2. A Hermes-backed `blueprint-chief-of-staff` loop that runs every 5 minutes and also wakes on issue, routine, queue, and failure signals.
+2. A Hermes-backed `blueprint-chief-of-staff` loop that starts from manager-state tooling, uses lightweight no-op exits, and now has explicit shell-safe fallback scripts for manager state and founder report publication.
 3. A Blueprint-specific plugin at `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/plugins/blueprint-automation`.
 4. Bootstrap, configure, verify, and smoke scripts that provision the plugin, secret refs, and automation checks on a persistent trusted host.
 
@@ -16,7 +16,7 @@ The automation loop is deliberately grounded in real repo state and truthful pro
 - issue creation, dedupe, blocker follow-up, and resolution happen as actual Paperclip issues
 - executive routines are instructed to manage issue lifecycle explicitly rather than narrate status
 - chief-of-staff wakeups and major task/delegation changes are mirrored into Slack when webhook targets exist
-- Codex remains the implementation default while Claude stays the executive/review lane and Hermes powers selected research/copilot/summary agents on this host
+- Codex remains the implementation default while Claude stays the executive/review lane and Hermes remains the default low-cost lane for the chief-of-staff plus selected research/copilot/summary agents on this host
 
 ## Architecture
 
@@ -80,6 +80,10 @@ It provides:
   - `slack-post-digest`
 - manager-state visibility for the chief-of-staff loop:
   - `blueprint-manager-state`
+- deterministic founder-report fallback at `scripts/paperclip/chief-of-staff-founder-report.ts`
+  - infers the founder routine type from the current Paperclip issue title
+  - publishes the Notion artifact directly
+  - posts the founder Slack digest directly when an exec webhook is present
 - Slack activity mirroring for task opens, delegations, closures, and chief-of-staff wakeups:
   - routes to ops/growth by default
   - can use dedicated exec/engineering/manager webhooks when configured

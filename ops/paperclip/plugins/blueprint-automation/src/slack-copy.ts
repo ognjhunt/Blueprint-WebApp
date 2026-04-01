@@ -46,6 +46,14 @@ type ManagedIssueSlackCopyInput = {
   signalUrl?: string | null;
 };
 
+type ManagerIssueSlackCopyInput = {
+  eventType: "issue.created" | "issue.updated";
+  issueTitle: string;
+  status: string;
+  priority?: string | null;
+  owner?: string | null;
+};
+
 const STATUS_LABELS: Record<string, string> = {
   backlog: "Backlog",
   todo: "To do",
@@ -243,5 +251,97 @@ export function buildManagedIssueSlackCopy(input: ManagedIssueSlackCopyInput): S
   return {
     title: buildManagedIssueTitle(input),
     summary,
+  };
+}
+
+export function shouldPostManagerIssueEventToSlack(input: {
+  eventType: "issue.created" | "issue.updated";
+  status: string;
+  priority?: string | null;
+  assigneeAgentId?: string | null;
+}): boolean {
+  const unassigned = !input.assigneeAgentId;
+
+  if (input.eventType === "issue.created") {
+    return input.status === "blocked" || unassigned;
+  }
+
+  return input.status === "blocked" || unassigned;
+}
+
+export function buildManagerIssueSlackCopy(input: ManagerIssueSlackCopyInput): SlackAlertCopy {
+  const status = formatIssueStatus(input.status) ?? input.status;
+  const priority = formatIssuePriority(input.priority);
+  const owner = input.owner?.trim() || "Unassigned";
+  const unassigned = owner === "Unassigned";
+  const task = cleanIssueTitle(input.issueTitle);
+
+  if (input.eventType === "issue.created") {
+    if (input.status === "blocked") {
+      return {
+        title: "Manager update: blocked issue opened",
+        summary: [
+          "What happened: A new issue entered Paperclip already blocked.",
+          `Task: ${task}`,
+          `Status: ${status}`,
+          `Owner: ${owner}`,
+          "Next move: Decide whether to reroute, unblock, or escalate immediately.",
+        ],
+      };
+    }
+
+    if (unassigned) {
+      return {
+        title: "Manager update: new issue needs an owner",
+        summary: [
+          "What happened: A new Paperclip issue was created without a real owner.",
+          `Task: ${task}`,
+          `Status: ${status}`,
+          "Owner: Unassigned",
+          "Next move: Assign the next accountable agent before the thread cools off.",
+        ],
+      };
+    }
+
+  }
+
+  if (input.status === "blocked") {
+    return {
+      title: "Manager update: issue is blocked",
+      summary: [
+        "What happened: An active Paperclip issue is now blocked.",
+        `Task: ${task}`,
+        `Status: ${status}`,
+        `Owner: ${owner}`,
+        ...(priority ? [`Priority: ${priority}`] : []),
+        "Next move: Create the unblock path or delegate the blocker explicitly.",
+      ],
+    };
+  }
+
+  if (unassigned) {
+    return {
+      title: "Manager update: issue lost its owner",
+      summary: [
+        "What happened: An active Paperclip issue no longer has an assigned owner.",
+        `Task: ${task}`,
+        `Status: ${status}`,
+        "Owner: Unassigned",
+        ...(priority ? [`Priority: ${priority}`] : []),
+        "Next move: Reassign the issue or close it if the work is no longer real.",
+      ],
+    };
+  }
+
+  return {
+    title: "Manager update: issue needs an owner",
+    summary: [
+      "What happened: An active Paperclip issue no longer has a clear owner.",
+      `Task: ${task}`,
+      `Status: ${status}`,
+      "Owner: Unassigned",
+      ...(priority ? [`Priority: ${priority}`] : []),
+      "Next move: Reassign the issue or close it if the work is no longer real.",
+    ],
   };
 }

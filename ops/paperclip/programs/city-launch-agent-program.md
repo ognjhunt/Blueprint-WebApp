@@ -1,14 +1,25 @@
 # City Launch Planning — Current Focus
 
 ## Objective
-Use the generic capturer-growth playbook plus supply-intel research to maintain concrete launch plans for Blueprint's first target cities.
+Use the generic capturer-growth playbook plus Blueprint's existing supply, demand, and operations research to publish one concrete city launch guide per week.
 
-## Active Cities
+## Current Queue
 1. Austin, TX
 2. San Francisco, CA
+3. Chicago, IL
+4. Los Angeles, CA
+5. New York, NY
+6. Boston, MA
+7. Seattle, WA
+8. Atlanta, GA
 
-## Required City Plan Structure
-For every active city, maintain:
+Selection rule:
+- pick the next city whose guide is missing or stale
+- prefer cities already supported by current Blueprint research
+- do not rotate just for novelty; choose the next city where a guide would improve real planning clarity
+
+## Required City Guide Structure
+For every city guide, maintain:
 - launch thesis
 - why this city now
 - target capturer profile
@@ -30,9 +41,10 @@ Score each city 1-5 on:
 6. strategic importance
 
 ## Required Outputs
-- update `ops/paperclip/playbooks/city-launch-austin-tx.md`
-- update `ops/paperclip/playbooks/city-launch-san-francisco-ca.md`
-- create issue-ready actions for other agents
+- update exactly one `ops/paperclip/playbooks/city-launch-<slug>.md` file per weekly run when repo writes are available
+- otherwise attach one city-launch guide document to the current Paperclip issue
+- use `ops/paperclip/playbooks/city-launch-template.md` as the default shape for new cities
+- create issue-ready actions for other agents only when they represent real next work
 - keep a clear list of what is blocked by missing human decisions
 
 ## Constraints
@@ -42,4 +54,4 @@ Score each city 1-5 on:
 - No promises on city-level demand or earnings
 
 ## Operating Rule
-The city-launch agent does not invent a launch. It translates reusable strategy into city-specific plans and makes dependencies explicit.
+The city-launch agent does not invent a launch. It translates reusable strategy into city-specific plans and makes dependencies explicit, one city at a time.

@@ -88,9 +88,13 @@ export type ManagerDailyAccountabilitySnapshot = {
 export type ManagerHandoffSummary = HandoffAnalytics["summary"];
 export type ManagerHandoffSnapshot = HandoffSnapshot;
 
+export type RunClassification = "actionable" | "low_value" | "no_op";
+
 export type ManagerStateSnapshot = {
   generatedAt: string;
   chiefOfStaffAgentKey: string;
+  runClassification: RunClassification;
+  hasActionableWork: boolean;
   summary: {
     openIssueCount: number;
     blockedIssueCount: number;
@@ -529,9 +533,26 @@ export function buildManagerStateSnapshot(input: BuildManagerStateInput): Manage
     stuckHandoffs: handoffAnalytics.stuckHandoffs,
   });
 
+  const hasActionableWork =
+    blockedIssues.length > 0
+    || staleIssues.length > 0
+    || unassignedIssues.length > 0
+    || routineAlerts.length > 0
+    || handoffAnalytics.stuckHandoffs.length > 0
+    || nextActionHints.length > 0;
+
+  const runClassification: RunClassification =
+    hasActionableWork
+      ? "actionable"
+      : recentlyCompletedIssues.length > 0 || managedOpenIssues.length > 0
+        ? "low_value"
+        : "no_op";
+
   return {
     generatedAt: input.generatedAt,
     chiefOfStaffAgentKey: input.chiefOfStaffAgentKey,
+    runClassification,
+    hasActionableWork,
     summary: {
       openIssueCount: openIssues.length,
       blockedIssueCount: blockedIssues.length,
