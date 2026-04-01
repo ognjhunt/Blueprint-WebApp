@@ -85,6 +85,7 @@ import {
   type WorkspaceAdapterCooldownState,
   buildOpenCodeFallbackAdapterConfig,
   buildHermesFallbackAdapterConfig,
+  isModelNotFoundFailure,
 } from "./quota-fallback.js";
 import {
   buildManagerStateSnapshot,
@@ -677,28 +678,7 @@ function buildQuotaFallbackDescriptor(
   adapterType: string,
   adapterConfig: Record<string, unknown> | null | undefined,
 ) {
-  if (adapterType === "claude_local") {
-    return {
-      adapterType: "codex_local" as LocalQuotaFallbackAdapterType,
-      reason: "quota_fallback_to_codex",
-      adapterConfig: buildCodexFallbackAdapterConfig(asRecord(adapterConfig), {
-        model: CODEX_FALLBACK_MODEL,
-        modelReasoningEffort: CODEX_FALLBACK_REASONING_EFFORT,
-      }),
-    };
-  }
-
-  if (adapterType === "codex_local") {
-    return {
-      adapterType: "hermes_local" as LocalQuotaFallbackAdapterType,
-      reason: "quota_fallback_to_hermes",
-      adapterConfig: buildHermesFallbackAdapterConfig(asRecord(adapterConfig), {
-        model: "gpt-5.4-mini",
-      }),
-    };
-  }
-
-  if (adapterType === "hermes_local") {
+  if (adapterType === "claude_local" || adapterType === "codex_local" || adapterType === "hermes_local") {
     return {
       adapterType: "opencode_local" as LocalQuotaFallbackAdapterType,
       reason: "quota_fallback_to_opencode",
@@ -1843,7 +1823,7 @@ async function handleAgentRunFailureQuotaFallback(
   if (!payload.agentId || !payload.runId || !payload.error) {
     return;
   }
-  if (!isQuotaOrRateLimitFailure(payload.error)) {
+  if (!isQuotaOrRateLimitFailure(payload.error) && !isModelNotFoundFailure(payload.error)) {
     return;
   }
 
@@ -2013,7 +1993,7 @@ async function handleAgentRunFailureQuotaFallback(
 
     await appendRecentEvent(ctx, event.companyId, {
       kind: "quota-fallback-retry",
-      title: `Retried ${agent.name} on ${fallback.adapterType === "codex_local" ? "Codex" : fallback.adapterType === "hermes_local" ? "Hermes" : "OpenCode"} after quota failure`,
+      title: `Retried ${agent.name} on OpenCode (free model) after quota failure`,
       issueId: payload.issueId ?? undefined,
       detail: payload.issueId
         ? `Issue ${payload.issueId} retried from failed run ${payload.runId}; switched ${workspaceTargets.length} same-workspace agent(s) to ${fallback.adapterType} until ${cooldownUntil}.`
@@ -2023,7 +2003,7 @@ async function handleAgentRunFailureQuotaFallback(
     if (payload.issueId) {
       await ctx.issues.createComment(
         payload.issueId,
-        `Detected a ${agent.adapterType === "claude_local" ? "Claude" : agent.adapterType === "codex_local" ? "Codex" : agent.adapterType === "hermes_local" ? "Hermes" : "OpenCode"} quota/rate-limit failure on run ${payload.runId}. Switched ${agent.name} and ${Math.max(workspaceTargets.length - 1, 0)} same-workspace peer(s) to ${fallback.adapterType} until ${cooldownUntil}, then requeued the work once.`,
+        `Detected a ${agent.adapterType === "claude_local" ? "Claude" : "OpenAI"} quota/rate-limit failure on run ${payload.runId}. Switched ${agent.name} and ${Math.max(workspaceTargets.length - 1, 0)} same-workspace peer(s) to opencode_local (free model) until ${cooldownUntil}, then requeued the work once.`,
         event.companyId,
       ).catch(() => undefined);
     }

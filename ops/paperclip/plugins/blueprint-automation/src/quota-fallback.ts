@@ -36,6 +36,7 @@ export type WorkspaceAdapterCooldownState = Record<string, WorkspaceAdapterCoold
 
 const QUOTA_OR_RATE_LIMIT_RE =
   /(?:resource_exhausted|quota|rate[-\s]?limit|too many requests|\b429\b|billing details|you['’]ve hit your limit|hit your limit|limit[^.\n]*reset)/i;
+const MODEL_NOT_FOUND_RE = /model.*not.*found|model.*404|invalid.*model|unknown.*model|gpt-5-4-mini|http.*404|not_found_error/i;
 const MONTH_INDEX: Record<string, number> = {
   jan: 0,
   feb: 1,
@@ -54,6 +55,11 @@ const MONTH_INDEX: Record<string, number> = {
 export function isQuotaOrRateLimitFailure(message: string | null | undefined): boolean {
   if (!message) return false;
   return QUOTA_OR_RATE_LIMIT_RE.test(message);
+}
+
+export function isModelNotFoundFailure(message: string | null | undefined): boolean {
+  if (!message) return false;
+  return MODEL_NOT_FOUND_RE.test(message);
 }
 
 export function buildCodexFallbackAdapterConfig(
