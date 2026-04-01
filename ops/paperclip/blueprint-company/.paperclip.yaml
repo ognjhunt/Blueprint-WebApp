@@ -29,12 +29,13 @@ agents:
     icon: target
     capabilities: >-
       Continuous managerial runtime for Blueprint. Tracks what finished, what stalled, and what needs follow-through
-      across executive, ops, growth, and repo lanes. Uses Paperclip as the source of truth and OpenCode for continuity.
+      across executive, ops, growth, and repo lanes. Uses Paperclip as the source of truth and Hermes for continuity.
     adapter:
-      type: opencode_local
+      type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: opencode/minimax-m2.5-free
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md
         timeoutSec: 1800
     budgetMonthlyCents: 4000
