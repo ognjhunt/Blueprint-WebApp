@@ -606,6 +606,15 @@ function chooseAdapterForAgent(desired, requestedMode, workspaceAvailability) {
     return tertiaryOpencodeFallbackFor(desired) ?? desired;
   }
 
+  // hermes mode: force all agents to hermes_local (skip claude/codex), fall to opencode if hermes fails
+  if (requestedMode === "hermes") {
+    const hermesFree = hermesFreeFallbackFor(desired);
+    if (hermesFree && workspaceAvailability?.hermes_local?.status === "pass") return hermesFree;
+    const opencode = tertiaryOpencodeFallbackFor(desired);
+    if (opencode && workspaceAvailability?.opencode_local?.status === "pass") return opencode;
+    return hermesFree ?? desired;
+  }
+
   // hermes_local: no tier-2 equivalent — probe hermes, fall to opencode on failure
   if (desired.adapterType === "hermes_local") {
     const hermesStatus = workspaceAvailability?.hermes_local?.status;
