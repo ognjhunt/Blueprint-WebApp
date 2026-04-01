@@ -678,7 +678,14 @@ function buildQuotaFallbackDescriptor(
   adapterType: string,
   adapterConfig: Record<string, unknown> | null | undefined,
 ) {
-  if (adapterType === "claude_local" || adapterType === "codex_local" || adapterType === "hermes_local") {
+  if (adapterType === "claude_local" || adapterType === "codex_local") {
+    return {
+      adapterType: "hermes_local" as LocalQuotaFallbackAdapterType,
+      reason: "quota_fallback_to_hermes_free",
+      adapterConfig: buildHermesFallbackAdapterConfig(asRecord(adapterConfig)),
+    };
+  }
+  if (adapterType === "hermes_local") {
     return {
       adapterType: "opencode_local" as LocalQuotaFallbackAdapterType,
       reason: "quota_fallback_to_opencode",
