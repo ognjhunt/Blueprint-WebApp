@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildDailyAccountabilitySnapshot,
   buildManagerStateSnapshot,
   collectRoutineHealthAlerts,
   shouldWakeChiefOfStaffForIssueEvent,
@@ -111,6 +112,7 @@ describe("manager loop helpers", () => {
     expect(snapshot.summary.openHandoffCount).toBe(0);
     expect(snapshot.summary.stuckHandoffCount).toBe(0);
     expect(snapshot.handoffSummary.avgLatencyHours).toBeNull();
+    expect(snapshot.dailyAccountability.agentsRan).toEqual([]);
     expect(snapshot.blockedIssues.map((issue) => issue.id)).toContain("iss-blocked");
     expect(snapshot.staleIssues.map((issue) => issue.id)).toContain("iss-stale");
     expect(snapshot.unassignedIssues.map((issue) => issue.id)).toContain("iss-unassigned");
@@ -151,6 +153,63 @@ describe("manager loop helpers", () => {
 
     expect(alerts).toHaveLength(2);
     expect(alerts.map((alert) => alert.kind).sort()).toEqual(["blocked", "stale"]);
+  });
+
+  it("builds a sparse daily accountability view from issue state and comment evidence", () => {
+    const snapshot = buildDailyAccountabilitySnapshot({
+      generatedAt: "2026-04-01T22:00:00.000Z",
+      issues: [
+        {
+          id: "iss-1",
+          title: "Founder EoD brief shipped",
+          projectName: "blueprint-executive-ops",
+          status: "done",
+          priority: "high",
+          assigneeAgentId: "chief-1",
+          updatedAt: "2026-04-01T21:30:00.000Z",
+        },
+        {
+          id: "iss-2",
+          title: "Buyer proof pack follow-up",
+          projectName: "blueprint-webapp",
+          status: "todo",
+          priority: "high",
+          assigneeAgentId: "buyer-1",
+          updatedAt: "2026-04-01T20:45:00.000Z",
+        },
+      ] as any,
+      agents: [
+        { id: "chief-1", name: "Blueprint Chief Of Staff", role: "cto", status: "idle" },
+        { id: "buyer-1", name: "Buyer Success Agent", role: "engineer", status: "running" },
+      ] as any,
+      issueCommentsById: {
+        "iss-1": [
+          {
+            id: "comment-1",
+            issueId: "iss-1",
+            authorAgentId: "chief-1",
+            body: "Published https://www.notion.so/founder-eod artifact and queued the next founder checkpoint.",
+            createdAt: "2026-04-01T21:20:00.000Z",
+          },
+        ],
+        "iss-2": [
+          {
+            id: "comment-2",
+            issueId: "iss-2",
+            authorAgentId: "buyer-1",
+            body: "Checked in with the buyer and waiting for a reply.",
+            createdAt: "2026-04-01T20:30:00.000Z",
+          },
+        ],
+      } as any,
+      routineHealth: {},
+    });
+
+    expect(snapshot.materiallyActiveAgentCount).toBe(1);
+    expect(snapshot.lowValueAgentCount).toBe(1);
+    expect(snapshot.agentsRan[0]?.agentId).toBe("chief-1");
+    expect(snapshot.agentsRan[0]?.proofSignals[0]).toContain("Founder EoD brief shipped");
+    expect(snapshot.agentsRan[1]?.assessment).toBe("low_value");
   });
 
   it("wakes the chief of staff on meaningful issue changes but ignores its own issues", () => {

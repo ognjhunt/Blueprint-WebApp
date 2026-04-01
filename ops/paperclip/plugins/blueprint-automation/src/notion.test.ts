@@ -108,16 +108,16 @@ describe("notion helpers", () => {
   it("normalizes founder-facing knowledge artifacts", () => {
     const entry = normalizeKnowledgeEntry(
       {
-        title: "Founder Brief | 2026-04-01 | Blueprint",
+        title: "Founder EoD Brief | 2026-04-01 | Blueprint",
         type: "Decision",
         content: "Summary",
-        artifactType: "Morning Founder Brief",
+        artifactType: "EoD Founder Brief",
         agentSurfaces: ["Founder OS"],
       },
       true,
     );
 
-    expect(entry.artifactType).toBe("Morning Founder Brief");
+    expect(entry.artifactType).toBe("EoD Founder Brief");
     expect(entry.agentSurfaces).toEqual(["Founder OS"]);
   });
 });

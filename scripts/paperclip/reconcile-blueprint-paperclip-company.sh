@@ -181,6 +181,11 @@ const ROUTINE_TITLE_OVERRIDES = {
   "growth-lead-weekly": "Growth Lead Weekly",
   "analytics-daily": "Analytics Daily",
   "analytics-weekly": "Analytics Weekly",
+  "founder-morning-brief": "Founder Morning Brief",
+  "founder-daily-accountability-report": "Founder Daily Accountability Report",
+  "founder-eod-brief": "Founder EoD Brief",
+  "founder-friday-operating-recap": "Founder Friday Operating Recap",
+  "founder-weekly-gaps-report": "Founder Weekly Gaps Report",
   "investor-relations-monthly": "Investor Relations Monthly",
   "community-updates-weekly": "Community Updates Weekly",
   "conversion-weekly": "Conversion Weekly",
@@ -347,7 +352,7 @@ function buildInvestorRelationsRoutineDescription() {
     "Ground on the current issue and gather real month-over-month metrics from Stripe, Firestore, analytics, Paperclip, and Firehose where relevant.",
     "Draft the full investor update with notion-write-knowledge and create the tracking artifact with notion-write-work-queue.",
     "When Nitrosend is configured, maintain a draft-only Blueprint Investors audience and create the monthly draft campaign. Do not live send or publish.",
-    "When Slack is configured, post an internal #exec digest announcing the draft is ready for review.",
+    "When Slack is configured, post an internal #paperclip-exec digest announcing the draft is ready for review.",
     "PATCH the current issue to done only when the metrics are sourced, the draft artifacts exist, and the copy has passed the humanizer anti-AI pass. Otherwise PATCH it to blocked with the exact missing artifact or source-of-truth failure.",
   ].join(" ");
 }

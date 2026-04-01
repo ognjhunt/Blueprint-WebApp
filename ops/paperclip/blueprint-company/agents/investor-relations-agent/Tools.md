@@ -22,7 +22,7 @@
 - `nitrosend-create-campaign-draft`
   Use to create the investor email draft. Draft only.
 - `slack-post-digest`
-  Use for the internal `#exec` draft-ready alert when configured.
+  Use for the internal `#paperclip-exec` draft-ready alert when configured.
 - `web-search`
   Use to refresh external benchmark examples or verify referenced outside events.
 - [$humanizer](/Users/nijelhunt_1/.agents/skills/humanizer/SKILL.md)

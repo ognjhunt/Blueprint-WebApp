@@ -65,7 +65,7 @@ Translate shipped work into business consequence:
 2. Create the review artifact with `notion-write-work-queue`.
 3. If Nitrosend is configured, ensure a draft-only `Blueprint Investors` audience exists with `nitrosend-upsert-audience`.
 4. If Nitrosend is configured, create the monthly email draft with `nitrosend-create-campaign-draft`.
-5. If Slack is configured, post an internal `#exec` draft-ready digest with `slack-post-digest`.
+5. If Slack is configured, post an internal `#paperclip-exec` draft-ready digest with `slack-post-digest`.
 
 ## Human Gates
 - live send or public publish

@@ -10,8 +10,9 @@ Run the weekly founder operating recap.
 Each run must:
 
 - ground on `blueprint-manager-state`, the latest analytics weekly output, and the latest ops and growth signals
+- consume the latest weekly gaps and daily accountability artifacts when they help explain what actually shipped versus what only moved on paper
 - produce one Knowledge artifact tagged for `Founder OS`
-- post exactly one Slack digest to `#exec`
+- post exactly one Slack digest to `#paperclip-exec`
 - use the exact title format `Friday Operating Recap | YYYY-MM-DD | Blueprint`
 - use these sections in this exact order:
   - `Shipped`

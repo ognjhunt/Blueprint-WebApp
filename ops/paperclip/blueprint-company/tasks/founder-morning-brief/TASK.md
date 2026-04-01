@@ -10,9 +10,10 @@ Run the weekday founder awareness brief.
 Each run must:
 
 - start with `blueprint-manager-state`
+- use the freshest available prior `Founder EoD Brief | YYYY-MM-DD | Blueprint` and `Daily Accountability | YYYY-MM-DD | Blueprint` artifacts when they exist
 - incorporate the freshest available analytics, ops queue, buyer-risk, and capturer-risk signals
 - create or update one Knowledge artifact tagged for `Founder OS`
-- post exactly one Slack digest to `#exec`
+- post exactly one Slack digest to `#paperclip-exec`
 - use the exact title format `Founder Brief | YYYY-MM-DD | Blueprint`
 - use these sections in this exact order:
   - `Done Yesterday`

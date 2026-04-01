@@ -90,9 +90,11 @@ import {
   isModelNotFoundFailure,
 } from "./quota-fallback.js";
 import {
+  buildDailyAccountabilitySnapshot,
   buildManagerStateSnapshot,
   collectRoutineHealthAlerts,
   shouldWakeChiefOfStaffForIssueEvent,
+  type ManagerStateSnapshot,
   type ManagerRoutineHealthEntry,
 } from "./manager-loop.js";
 import {
@@ -1310,6 +1312,7 @@ async function buildChiefOfStaffState(
   companyId: string,
   config: BlueprintAutomationConfig,
 ) {
+  const generatedAt = nowIso();
   const [issues, agents, projects, recentEvents, routineHealth, sourceMappings] = await Promise.all([
     listAllIssues(ctx, companyId),
     listAgents(ctx, companyId),
@@ -1341,9 +1344,20 @@ async function buildChiefOfStaffState(
       .filter((issueId): issueId is string => Boolean(issueId)),
   );
   const handoffAnalytics = await buildHandoffState(ctx, companyId, issuesWithProjectName, agents);
+  const accountabilityIssues = issuesWithProjectName.filter((issue) => hoursSinceTimestamp(issue.updatedAt, Date.parse(generatedAt)) <= 24);
+  const accountabilityCommentsEntries = await Promise.all(
+    accountabilityIssues.map(async (issue) => [issue.id, await listCommentsForIssue(ctx, companyId, issue.id)] as const),
+  );
+  const dailyAccountability = buildDailyAccountabilitySnapshot({
+    generatedAt,
+    issues: issuesWithProjectName,
+    agents,
+    issueCommentsById: Object.fromEntries(accountabilityCommentsEntries),
+    routineHealth: routineHealth ?? {},
+  });
 
   const snapshot = buildManagerStateSnapshot({
-    generatedAt: nowIso(),
+    generatedAt,
     chiefOfStaffAgentKey: chiefOfStaffKey,
     chiefOfStaffAgentId: chiefOfStaffAgent?.id ?? null,
     issues: issuesWithProjectName,
@@ -1352,6 +1366,7 @@ async function buildChiefOfStaffState(
     recentEvents: recentEvents ?? [],
     managedIssueIds,
     handoffAnalytics,
+    dailyAccountability,
   });
   const founderVisibility = await buildFounderVisibility(
     ctx,
@@ -1508,13 +1523,15 @@ async function queryNeedsFounderWorkQueue(
       title: item.title,
       lane: (asString(item.businessLane) as FounderBusinessLane | undefined) ?? "Executive",
       owner: item.ownerIds.length > 0 ? item.ownerIds.join(", ") : "Unassigned",
-      priority: item.priority === "P0"
-        ? "critical"
-        : item.priority === "P1"
-          ? "high"
-          : item.priority === "P2"
-            ? "medium"
-            : "low",
+      priority: (
+        item.priority === "P0"
+          ? "critical"
+          : item.priority === "P1"
+            ? "high"
+            : item.priority === "P2"
+              ? "medium"
+              : "low"
+      ) as FounderVisibilityIssue["priority"],
       status: "todo" as Issue["status"],
       hoursSinceUpdate: hoursSinceTimestamp(item.lastStatusChange, Date.now()),
     }))
@@ -1621,7 +1638,7 @@ async function maybePostFounderException(
   }
 
   await postSlackDigest(slackTargets, {
-    channel: "#exec",
+    channel: "#paperclip-exec",
     title: digest.title,
     sections: digest.sections,
   });
@@ -5032,6 +5049,7 @@ async function registerToolHandlers(ctx: PluginContext) {
       return {
         content: [
           `Chief of staff state: ${snapshot.summary.openIssueCount} open issues, ${snapshot.summary.blockedIssueCount} blocked, ${snapshot.summary.staleIssueCount} stale, ${snapshot.summary.recentlyCompletedCount} recently completed, ${snapshot.summary.routineAlertCount} routine alerts.`,
+          `Daily accountability: ${snapshot.dailyAccountability.materiallyActiveAgentCount} materially active agent(s), ${snapshot.dailyAccountability.lowValueAgentCount} low/no-value agent(s), ${snapshot.dailyAccountability.agentsRan.length} agent(s) with issue/comment evidence in the last 24h.`,
           `Founder visibility: ${snapshot.founderVisibility.needsFounderItems.length} waiting on founder, ${snapshot.founderVisibility.blockedOver24h.length} blocked >24h, ${snapshot.founderVisibility.queueAlerts.length} queue alert(s), ${snapshot.founderVisibility.experimentOutcomes.length} recent experiment outcome(s).`,
           ...snapshot.nextActionHints.slice(0, 5).map((hint) => `- ${hint}`),
         ].join("\n"),

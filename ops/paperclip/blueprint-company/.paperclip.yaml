@@ -871,6 +871,14 @@ tasks:
     status: active
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
+  founder-daily-accountability-report:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
+  founder-eod-brief:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
   founder-friday-operating-recap:
     status: active
     priority: high
@@ -1263,6 +1271,24 @@ routines:
     triggers:
       - kind: schedule
         cronExpression: 20 9 * * 1-5
+        timezone: America/New_York
+  founder-daily-accountability-report:
+    agent: blueprint-chief-of-staff
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 5 17 * * 1-5
+        timezone: America/New_York
+  founder-eod-brief:
+    agent: blueprint-chief-of-staff
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 30 17 * * 1-5
         timezone: America/New_York
   founder-friday-operating-recap:
     agent: blueprint-chief-of-staff

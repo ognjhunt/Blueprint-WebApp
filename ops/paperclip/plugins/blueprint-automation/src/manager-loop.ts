@@ -1,4 +1,4 @@
-import type { Agent, Issue } from "@paperclipai/plugin-sdk";
+import type { Agent, Issue, IssueComment } from "@paperclipai/plugin-sdk";
 import type { HandoffAnalytics, HandoffSnapshot } from "./handoffs.js";
 
 export type ManagerRoutineHealthEntry = {
@@ -55,6 +55,36 @@ export type ManagerAgentStatusSnapshot = {
   status: string | null;
 };
 
+export type ManagerAgentAccountabilityEntry = {
+  agentId: string;
+  agentKey: string;
+  agentName: string;
+  role: string | null;
+  status: string | null;
+  runEvidenceCount: number;
+  completedCount: number;
+  movedCount: number;
+  blockedCount: number;
+  proofCount: number;
+  narrationOnlyCount: number;
+  lastActiveAt: string | null;
+  completed: string[];
+  moved: string[];
+  blocked: string[];
+  proofSignals: string[];
+  narrationOnlySignals: string[];
+  assessment: "material" | "low_value";
+};
+
+export type ManagerDailyAccountabilitySnapshot = {
+  windowStart: string;
+  windowEnd: string;
+  evidenceBasis: "issue_state_and_comments";
+  materiallyActiveAgentCount: number;
+  lowValueAgentCount: number;
+  agentsRan: ManagerAgentAccountabilityEntry[];
+};
+
 export type ManagerHandoffSummary = HandoffAnalytics["summary"];
 export type ManagerHandoffSnapshot = HandoffSnapshot;
 
@@ -83,6 +113,7 @@ export type ManagerStateSnapshot = {
   routineAlerts: ManagerRoutineAlert[];
   managedOpenIssues: ManagerIssueSnapshot[];
   activeAgentStatuses: ManagerAgentStatusSnapshot[];
+  dailyAccountability: ManagerDailyAccountabilitySnapshot;
   recentEvents: ManagerRecentEvent[];
   nextActionHints: string[];
 };
@@ -97,11 +128,14 @@ type BuildManagerStateInput = {
   recentEvents: ManagerRecentEvent[];
   managedIssueIds: Set<string>;
   handoffAnalytics?: HandoffAnalytics;
+  dailyAccountability?: ManagerDailyAccountabilitySnapshot;
 };
 
 const RESOLVED_STATUSES = new Set<Issue["status"]>(["done", "cancelled"]);
 const OPEN_STATUSES = new Set<Issue["status"]>(["backlog", "todo", "in_progress", "in_review", "blocked"]);
 const RECENT_COMPLETION_WINDOW_HOURS = 12;
+const DAILY_ACCOUNTABILITY_WINDOW_HOURS = 24;
+const MAX_ACCOUNTABILITY_ITEMS = 4;
 
 function toIsoString(value: unknown): string {
   if (value instanceof Date) return value.toISOString();
@@ -114,6 +148,51 @@ function hoursSince(value: unknown, nowMs: number): number {
   if (Number.isNaN(timestamp)) return Number.POSITIVE_INFINITY;
   return Math.max(0, Math.round((((nowMs - timestamp) / (1000 * 60 * 60)) + Number.EPSILON) * 10) / 10);
 }
+
+function compactSummary(value: string | null | undefined, maxLength = 140) {
+  const normalized = (value ?? "").replace(/\s+/g, " ").trim();
+  if (!normalized) return "";
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 1).trimEnd()}…`;
+}
+
+function hasProofSignal(body: string) {
+  return /https?:\/\/|www\.|notion\.so|github\.com|collection:\/\/|view:\/\//i.test(body);
+}
+
+function pushUnique(target: string[], value: string, limit = MAX_ACCOUNTABILITY_ITEMS) {
+  const normalized = compactSummary(value);
+  if (!normalized || target.includes(normalized)) return;
+  if (target.length < limit) target.push(normalized);
+}
+
+function latestIso(current: string | null, candidate: unknown) {
+  const candidateIso = toIsoString(candidate);
+  if (!candidateIso || candidateIso === new Date(0).toISOString()) return current;
+  if (!current) return candidateIso;
+  return new Date(candidateIso).getTime() > new Date(current).getTime() ? candidateIso : current;
+}
+
+function emptyDailyAccountability(generatedAt: string): ManagerDailyAccountabilitySnapshot {
+  const end = new Date(generatedAt);
+  const start = new Date(end.getTime() - DAILY_ACCOUNTABILITY_WINDOW_HOURS * 60 * 60 * 1000);
+  return {
+    windowStart: start.toISOString(),
+    windowEnd: end.toISOString(),
+    evidenceBasis: "issue_state_and_comments",
+    materiallyActiveAgentCount: 0,
+    lowValueAgentCount: 0,
+    agentsRan: [],
+  };
+}
+
+type BuildDailyAccountabilityInput = {
+  generatedAt: string;
+  issues: Array<Issue & { projectName?: string | null }>;
+  agents: Agent[];
+  issueCommentsById: Record<string, IssueComment[]>;
+  routineHealth?: Record<string, ManagerRoutineHealthEntry>;
+};
 
 function staleThresholdHours(priority: Issue["priority"]): number {
   switch (priority) {
@@ -196,6 +275,157 @@ export function collectRoutineHealthAlerts(
   }
 
   return alerts;
+}
+
+export function buildDailyAccountabilitySnapshot(
+  input: BuildDailyAccountabilityInput,
+): ManagerDailyAccountabilitySnapshot {
+  const nowMs = new Date(input.generatedAt).getTime();
+  const windowStartMs = nowMs - DAILY_ACCOUNTABILITY_WINDOW_HOURS * 60 * 60 * 1000;
+  const agentById = new Map(input.agents.map((agent) => [agent.id, agent] as const));
+  const agentKeyById = new Map(
+    input.agents.map((agent) => {
+      const fallbackKey = agent.name.trim().toLowerCase().replace(/\s+/g, "-");
+      return [agent.id, fallbackKey || agent.id] as const;
+    }),
+  );
+  const entries = new Map<string, ManagerAgentAccountabilityEntry>();
+
+  const ensureEntry = (agentId: string) => {
+    const agent = agentById.get(agentId);
+    if (!agent) return null;
+    if (!entries.has(agentId)) {
+      entries.set(agentId, {
+        agentId,
+        agentKey: agentKeyById.get(agentId) ?? agentId,
+        agentName: agent.name,
+        role: agent.role ?? null,
+        status: agent.status ?? null,
+        runEvidenceCount: 0,
+        completedCount: 0,
+        movedCount: 0,
+        blockedCount: 0,
+        proofCount: 0,
+        narrationOnlyCount: 0,
+        lastActiveAt: null,
+        completed: [],
+        moved: [],
+        blocked: [],
+        proofSignals: [],
+        narrationOnlySignals: [],
+        assessment: "material",
+      });
+    }
+    return entries.get(agentId) ?? null;
+  };
+
+  for (const issue of input.issues) {
+    const issueUpdatedAt = new Date(toIsoString(issue.updatedAt)).getTime();
+    if (!Number.isFinite(issueUpdatedAt) || issueUpdatedAt < windowStartMs) continue;
+
+    const recentComments = (input.issueCommentsById[issue.id] ?? []).filter((comment) => {
+      const createdAt = new Date(toIsoString(comment.createdAt)).getTime();
+      return Number.isFinite(createdAt) && createdAt >= windowStartMs;
+    });
+    const recentCommentAuthors = new Set(
+      recentComments
+        .map((comment) => comment.authorAgentId)
+        .filter((agentId): agentId is string => typeof agentId === "string" && agentId.length > 0),
+    );
+
+    const relevantAgents = new Set<string>();
+    if (typeof issue.assigneeAgentId === "string" && issue.assigneeAgentId.length > 0) {
+      relevantAgents.add(issue.assigneeAgentId);
+    }
+    for (const authorId of recentCommentAuthors) relevantAgents.add(authorId);
+
+    const issueLabel = issue.projectName ? `${issue.title} (${issue.projectName})` : issue.title;
+    const isCompleted = RESOLVED_STATUSES.has(issue.status);
+    const isBlocked = issue.status === "blocked";
+    const isMoved = OPEN_STATUSES.has(issue.status) && !isBlocked;
+
+    for (const agentId of relevantAgents) {
+      const entry = ensureEntry(agentId);
+      if (!entry) continue;
+      entry.runEvidenceCount += 1;
+      entry.lastActiveAt = latestIso(entry.lastActiveAt, issue.updatedAt);
+
+      if (isCompleted) {
+        entry.completedCount += 1;
+        pushUnique(entry.completed, issueLabel);
+      } else if (isBlocked) {
+        entry.blockedCount += 1;
+        pushUnique(entry.blocked, issueLabel);
+      } else if (isMoved) {
+        entry.movedCount += 1;
+        pushUnique(entry.moved, issueLabel);
+      }
+    }
+
+    for (const comment of recentComments) {
+      if (!comment.authorAgentId) continue;
+      const entry = ensureEntry(comment.authorAgentId);
+      if (!entry) continue;
+      entry.lastActiveAt = latestIso(entry.lastActiveAt, comment.createdAt);
+      const summary = compactSummary(comment.body);
+      if (!summary) continue;
+      if (hasProofSignal(comment.body)) {
+        entry.proofCount += 1;
+        pushUnique(entry.proofSignals, `${issue.title}: ${summary}`);
+      } else {
+        entry.narrationOnlyCount += 1;
+        pushUnique(entry.narrationOnlySignals, `${issue.title}: ${summary}`);
+      }
+    }
+  }
+
+  for (const health of Object.values(input.routineHealth ?? {})) {
+    const lastRunMs = new Date(toIsoString(health.lastRunAt)).getTime();
+    if (!Number.isFinite(lastRunMs) || lastRunMs < windowStartMs || health.lastOutcome !== "blocked") continue;
+    const agent = input.agents.find((candidate) => {
+      const normalizedName = candidate.name.trim().toLowerCase().replace(/\s+/g, "-");
+      return normalizedName === health.agentKey || candidate.id === health.agentKey;
+    });
+    if (!agent) continue;
+    const entry = ensureEntry(agent.id);
+    if (!entry) continue;
+    entry.runEvidenceCount += 1;
+    entry.blockedCount += 1;
+    entry.lastActiveAt = latestIso(entry.lastActiveAt, health.lastRunAt);
+    pushUnique(
+      entry.blocked,
+      `${health.routineTitle}: ${health.lastFailureReason ?? "routine blocked"}`,
+    );
+  }
+
+  const agentsRan = [...entries.values()]
+    .map((entry) => ({
+      ...entry,
+      assessment: (
+        entry.completedCount === 0
+        && entry.proofCount === 0
+        && entry.blockedCount === 0
+        && entry.movedCount <= 1
+        && entry.narrationOnlyCount > 0
+          ? "low_value"
+          : "material"
+      ) as ManagerAgentAccountabilityEntry["assessment"],
+    }))
+    .sort((left, right) => {
+      const leftScore = (left.completedCount * 4) + (left.proofCount * 3) + (left.movedCount * 2) + left.blockedCount;
+      const rightScore = (right.completedCount * 4) + (right.proofCount * 3) + (right.movedCount * 2) + right.blockedCount;
+      if (rightScore !== leftScore) return rightScore - leftScore;
+      return (right.lastActiveAt ?? "").localeCompare(left.lastActiveAt ?? "");
+    });
+
+  return {
+    windowStart: new Date(windowStartMs).toISOString(),
+    windowEnd: input.generatedAt,
+    evidenceBasis: "issue_state_and_comments",
+    materiallyActiveAgentCount: agentsRan.filter((entry) => entry.assessment === "material").length,
+    lowValueAgentCount: agentsRan.filter((entry) => entry.assessment === "low_value").length,
+    agentsRan,
+  };
 }
 
 function buildNextActionHints(input: {
@@ -324,6 +554,7 @@ export function buildManagerStateSnapshot(input: BuildManagerStateInput): Manage
     routineAlerts: routineAlerts.slice(0, 20),
     managedOpenIssues: managedOpenIssues.slice(0, 20),
     activeAgentStatuses,
+    dailyAccountability: input.dailyAccountability ?? emptyDailyAccountability(input.generatedAt),
     recentEvents: input.recentEvents.slice(0, 20),
     nextActionHints,
   };

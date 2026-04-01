@@ -96,7 +96,14 @@ export interface KnowledgeEntry {
   type: "Concept" | "Reference" | "How-To" | "Decision" | "Architecture" | "Contract";
   system: "Cross-System" | "WebApp" | "Capture" | "Pipeline" | "Validation";
   content: string;
-  artifactType?: "Morning Founder Brief" | "Friday Operating Recap" | "Weekly Gaps Report" | "Exception Summary" | "Experiment Outcome";
+  artifactType?:
+    | "Morning Founder Brief"
+    | "EoD Founder Brief"
+    | "Daily Accountability Report"
+    | "Friday Operating Recap"
+    | "Weekly Gaps Report"
+    | "Exception Summary"
+    | "Experiment Outcome";
   agentSurfaces?: string[];
   sourceOfTruth?: "Notion" | "Repo";
   canonicalSource?: string;

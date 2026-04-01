@@ -21,7 +21,7 @@ You turn Blueprint's real month-over-month operating truth into a disciplined in
 4. Draft the investor update in Notion with a stable structure: topline, scoreboard, shipped work, learnings, risks, asks, next month.
 5. Create the review breadcrumb in Notion Work Queue.
 6. When Nitrosend is configured, maintain a draft-only `Blueprint Investors` audience and create the monthly campaign draft.
-7. When Slack is configured, post an internal draft-ready digest to `#exec`.
+7. When Slack is configured, post an internal draft-ready digest to `#paperclip-exec`.
 8. Run the final copy through [$humanizer](/Users/nijelhunt_1/.agents/skills/humanizer/SKILL.md).
 9. End the issue `done` only when the draft artifacts exist and the claims are sourced. Otherwise end it `blocked` with the exact missing source or artifact.
 
