@@ -42,8 +42,10 @@ import {
   createKnowledgeEntry,
   createNotionClient,
   createWorkQueueItem,
+  queryDatabase,
   queryWorkQueue,
 } from "./notion.js";
+import { collectFounderQueueAlerts, type FounderQueueAlert } from "./firestore.js";
 import { buildSlackToolHandler, postSlackDigest } from "./slack-notify.js";
 import { buildWebSearchToolHandler } from "./web-search.js";
 import {
@@ -418,6 +420,57 @@ type CustomerResearchOutputProof = {
 type FirehoseSignalCacheState = {
   updatedAt: string;
   signals: FirehoseSignal[];
+};
+
+type FounderBusinessLane =
+  | "Executive"
+  | "Ops"
+  | "Growth"
+  | "Buyer"
+  | "Capturer"
+  | "Experiment"
+  | "Risk";
+
+type FounderVisibilityIssue = {
+  id: string;
+  title: string;
+  lane: FounderBusinessLane;
+  owner: string;
+  priority: Issue["priority"];
+  status: Issue["status"];
+  hoursSinceUpdate: number;
+};
+
+type FounderExperimentOutcome = {
+  title: string;
+  lifecycleStage: string;
+  url?: string;
+  lastReviewed?: string;
+};
+
+type FounderVisibilitySnapshot = {
+  needsFounderItems: FounderVisibilityIssue[];
+  blockedOver24h: FounderVisibilityIssue[];
+  recentlyShipped: FounderVisibilityIssue[];
+  queueAlerts: FounderQueueAlert[];
+  routineMisses: Array<{
+    routineTitle: string;
+    kind: "blocked" | "stale";
+    detail: string;
+  }>;
+  buyerRisks: FounderVisibilityIssue[];
+  capturerRisks: FounderVisibilityIssue[];
+  experimentOutcomes: FounderExperimentOutcome[];
+};
+
+type FounderVisibilityState = {
+  alerts: Record<
+    string,
+    {
+      sentAt: string;
+      payloadHash: string;
+    }
+  >;
 };
 
 type HandoffMonitorEntry = {
@@ -959,6 +1012,12 @@ function normalizedCandidates(entity: Record<string, unknown>): string[] {
     .map((value) => value.trim().toLowerCase());
 }
 
+function hoursSinceTimestamp(value: unknown, nowMs: number): number {
+  const timestamp = typeof value === "string" ? Date.parse(value) : value instanceof Date ? value.getTime() : Number.NaN;
+  if (Number.isNaN(timestamp)) return Number.POSITIVE_INFINITY;
+  return Math.max(0, Math.round((((nowMs - timestamp) / (1000 * 60 * 60)) + Number.EPSILON) * 10) / 10);
+}
+
 function hasDuplicateSuffix(value: unknown) {
   return typeof value === "string" && /(?:-\d+| \d+)$/.test(value.trim());
 }
@@ -1283,7 +1342,7 @@ async function buildChiefOfStaffState(
   );
   const handoffAnalytics = await buildHandoffState(ctx, companyId, issuesWithProjectName, agents);
 
-  return buildManagerStateSnapshot({
+  const snapshot = buildManagerStateSnapshot({
     generatedAt: nowIso(),
     chiefOfStaffAgentKey: chiefOfStaffKey,
     chiefOfStaffAgentId: chiefOfStaffAgent?.id ?? null,
@@ -1294,6 +1353,321 @@ async function buildChiefOfStaffState(
     managedIssueIds,
     handoffAnalytics,
   });
+  const founderVisibility = await buildFounderVisibility(
+    ctx,
+    companyId,
+    config,
+    snapshot,
+    issuesWithProjectName,
+    agents,
+  );
+
+  return {
+    ...snapshot,
+    founderVisibility,
+  };
+}
+
+function classifyFounderLane(agentKey: string | null | undefined, title: string): FounderBusinessLane {
+  const normalizedAgent = (agentKey ?? "").trim().toLowerCase();
+  const normalizedTitle = title.trim().toLowerCase();
+
+  if (
+    normalizedAgent.includes("revenue-ops")
+    || normalizedAgent.includes("investor")
+    || normalizedAgent.includes("chief-of-staff")
+    || normalizedAgent.includes("ceo")
+    || normalizedAgent.includes("cto")
+    || normalizedTitle.includes("founder")
+    || normalizedTitle.includes("executive")
+  ) {
+    return "Executive";
+  }
+  if (
+    normalizedAgent.includes("rights")
+    || normalizedAgent.includes("security")
+    || normalizedAgent.includes("finance-support")
+    || normalizedTitle.includes("rights")
+    || normalizedTitle.includes("privacy")
+    || normalizedTitle.includes("provenance")
+    || normalizedTitle.includes("security")
+    || normalizedTitle.includes("payout")
+  ) {
+    return "Risk";
+  }
+  if (
+    normalizedAgent.includes("buyer-solutions")
+    || normalizedAgent.includes("buyer-success")
+    || normalizedAgent.includes("solutions-engineering")
+    || normalizedTitle.includes("buyer")
+    || normalizedTitle.includes("proof")
+    || normalizedTitle.includes("quote")
+    || normalizedTitle.includes("deal")
+  ) {
+    return "Buyer";
+  }
+  if (
+    normalizedAgent.includes("capturer")
+    || normalizedAgent.includes("capture-qa")
+    || normalizedTitle.includes("capturer")
+    || normalizedTitle.includes("waitlist")
+  ) {
+    return "Capturer";
+  }
+  if (
+    normalizedAgent.includes("conversion")
+    || normalizedAgent.includes("analytics")
+    || normalizedTitle.includes("experiment")
+  ) {
+    return "Experiment";
+  }
+  if (
+    normalizedAgent.includes("growth")
+    || normalizedAgent.includes("market-intel")
+    || normalizedAgent.includes("demand-intel")
+    || normalizedAgent.includes("outbound")
+    || normalizedAgent.includes("community")
+    || normalizedTitle.includes("growth")
+    || normalizedTitle.includes("community")
+  ) {
+    return "Growth";
+  }
+  return "Ops";
+}
+
+function buildFounderIssueVisibility(
+  issue: Issue & { projectName?: string | null },
+  nowMs: number,
+  agentKeyById: Map<string, string>,
+  agentNameById: Map<string, string>,
+): FounderVisibilityIssue {
+  const ownerId = issue.assigneeAgentId ?? "";
+  const ownerKey = issue.assigneeAgentId ? (agentKeyById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId) : null;
+  const owner = issue.assigneeAgentId
+    ? (agentNameById.get(issue.assigneeAgentId) ?? ownerKey ?? issue.assigneeAgentId)
+    : "Unassigned";
+  return {
+    id: issue.id,
+    title: issue.title,
+    lane: classifyFounderLane(ownerKey, issue.title),
+    owner,
+    priority: issue.priority,
+    status: issue.status,
+    hoursSinceUpdate: hoursSinceTimestamp(issue.updatedAt, nowMs),
+  };
+}
+
+async function queryFounderExperimentOutcomes(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+): Promise<FounderExperimentOutcome[]> {
+  const notionToken = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.notionApiTokenRef,
+    "NOTION_API_TOKEN",
+  );
+  if (!notionToken) return [];
+
+  const notionClient = createNotionClient({ token: notionToken });
+  const pages = await queryDatabase(notionClient, "knowledge", 100);
+  return pages
+    .filter((page: any) => page?.properties?.["Artifact Type"]?.select?.name === "Experiment Outcome")
+    .filter((page: any) => {
+      const lifecycleStage = asString(page?.properties?.["Lifecycle Stage"]?.select?.name)?.toLowerCase();
+      return lifecycleStage === "keep" || lifecycleStage === "revert" || lifecycleStage === "inconclusive";
+    })
+    .map((page: any) => ({
+      title: typeof page?.properties?.Title?.title?.[0]?.plain_text === "string"
+        ? page.properties.Title.title[0].plain_text
+        : "",
+      lifecycleStage: asString(page?.properties?.["Lifecycle Stage"]?.select?.name) ?? "",
+      url: asString(page?.url),
+      lastReviewed: asString(page?.properties?.["Last Reviewed"]?.date?.start),
+    }))
+    .filter((entry) => entry.title.length > 0)
+    .slice(0, 10);
+}
+
+async function queryNeedsFounderWorkQueue(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+): Promise<FounderVisibilityIssue[]> {
+  const notionToken = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.notionApiTokenRef,
+    "NOTION_API_TOKEN",
+  );
+  if (!notionToken) return [];
+
+  const notionClient = createNotionClient({ token: notionToken });
+  const items = await queryWorkQueue(notionClient, { needsFounder: true });
+  return items
+    .filter((item) => item.lifecycleStage.toLowerCase() !== "done")
+    .map((item) => ({
+      id: item.id,
+      title: item.title,
+      lane: (asString(item.businessLane) as FounderBusinessLane | undefined) ?? "Executive",
+      owner: item.ownerIds.length > 0 ? item.ownerIds.join(", ") : "Unassigned",
+      priority: item.priority === "P0"
+        ? "critical"
+        : item.priority === "P1"
+          ? "high"
+          : item.priority === "P2"
+            ? "medium"
+            : "low",
+      status: "todo" as Issue["status"],
+      hoursSinceUpdate: hoursSinceTimestamp(item.lastStatusChange, Date.now()),
+    }))
+    .slice(0, 20);
+}
+
+async function buildFounderVisibility(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+  managerSnapshot: ManagerStateSnapshot,
+  issues: Array<Issue & { projectName?: string | null }>,
+  agents: Agent[],
+): Promise<FounderVisibilitySnapshot> {
+  const nowMs = new Date(managerSnapshot.generatedAt).getTime();
+  const openStatuses = new Set<Issue["status"]>(["backlog", "todo", "in_progress", "in_review", "blocked"]);
+  const agentKeyById = new Map(
+    agents.map((agent) => [agent.id, normalizedCandidates(agent as unknown as Record<string, unknown>)[0] ?? agent.id] as const),
+  );
+  const agentNameById = new Map(agents.map((agent) => [agent.id, agent.name] as const));
+  const openIssues = issues.filter((issue) => openStatuses.has(issue.status));
+  const founderIssues = openIssues.map((issue) => buildFounderIssueVisibility(issue, nowMs, agentKeyById, agentNameById));
+  const [queueAlerts, experimentOutcomes, needsFounderItems] = await Promise.all([
+    collectFounderQueueAlerts(managerSnapshot.generatedAt),
+    queryFounderExperimentOutcomes(ctx, config),
+    queryNeedsFounderWorkQueue(ctx, config),
+  ]);
+
+  const blockedOver24h = founderIssues
+    .filter((issue) => issue.status === "blocked" && issue.hoursSinceUpdate >= 24)
+    .sort((left, right) => right.hoursSinceUpdate - left.hoursSinceUpdate)
+    .slice(0, 20);
+
+  const recentlyShipped = managerSnapshot.recentlyCompletedIssues
+    .map((issue) => ({
+      ...issue,
+      lane: classifyFounderLane(issue.assigneeAgentId ? (agentKeyById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId) : null, issue.title),
+      owner: issue.assigneeAgentId ? (agentNameById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId) : "Unassigned",
+    }))
+    .slice(0, 10);
+
+  const buyerRisks = founderIssues
+    .filter((issue) => issue.lane === "Buyer" && (issue.status === "blocked" || (issue.priority !== "low" && issue.hoursSinceUpdate >= 48)))
+    .sort((left, right) => right.hoursSinceUpdate - left.hoursSinceUpdate)
+    .slice(0, 10);
+
+  const capturerRisks = founderIssues
+    .filter((issue) => issue.lane === "Capturer" && (issue.status === "blocked" || (issue.priority !== "low" && issue.hoursSinceUpdate >= 72)))
+    .sort((left, right) => right.hoursSinceUpdate - left.hoursSinceUpdate)
+    .slice(0, 10);
+
+  const routineMisses = managerSnapshot.routineAlerts.map((alert) => ({
+    routineTitle: alert.routineTitle,
+    kind: alert.kind,
+    detail: alert.detail,
+  }));
+
+  return {
+    needsFounderItems,
+    blockedOver24h,
+    recentlyShipped,
+    queueAlerts,
+    routineMisses,
+    buyerRisks,
+    capturerRisks,
+    experimentOutcomes,
+  };
+}
+
+type FounderExceptionDigest = {
+  fingerprint: string;
+  category: string;
+  lane: FounderBusinessLane;
+  title: string;
+  sections: Array<{ heading: string; items: string[] }>;
+};
+
+function digestPayloadHash(sections: FounderExceptionDigest["sections"]) {
+  return JSON.stringify(sections);
+}
+
+async function maybePostFounderException(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+  digest: FounderExceptionDigest,
+) {
+  const state = await readState<FounderVisibilityState>(ctx, companyId, STATE_KEYS.founderVisibility) ?? { alerts: {} };
+  const existing = state.alerts[digest.fingerprint];
+  const now = new Date();
+  const payloadHash = digestPayloadHash(digest.sections);
+  const cooldownMs = 6 * 60 * 60 * 1000;
+
+  if (existing) {
+    const sentAt = new Date(existing.sentAt).getTime();
+    if (Number.isFinite(sentAt) && now.getTime() - sentAt < cooldownMs && existing.payloadHash === payloadHash) {
+      return false;
+    }
+  }
+
+  const slackTargets = await resolveSlackTargets(ctx, config);
+  if (!(slackTargets.exec || slackTargets.manager || slackTargets.default)) {
+    return false;
+  }
+
+  await postSlackDigest(slackTargets, {
+    channel: "#exec",
+    title: digest.title,
+    sections: digest.sections,
+  });
+
+  state.alerts[digest.fingerprint] = {
+    sentAt: now.toISOString(),
+    payloadHash,
+  };
+  await writeState(ctx, companyId, STATE_KEYS.founderVisibility, state);
+  return true;
+}
+
+function buildFounderIssueExceptionDigest(
+  issue: Issue,
+  owner: string,
+  lane: FounderBusinessLane,
+): FounderExceptionDigest | null {
+  const priority = issue.priority;
+  const highPriority = priority === "critical" || priority === "high";
+  const normalizedTitle = issue.title.toLowerCase();
+
+  if (issue.status === "blocked" && highPriority) {
+    const rightsLike = normalizedTitle.includes("rights")
+      || normalizedTitle.includes("privacy")
+      || normalizedTitle.includes("provenance");
+    const buyerLike = lane === "Buyer";
+    const category = rightsLike
+      ? "Rights / Privacy / Provenance"
+      : buyerLike
+        ? "Buyer Deal Risk"
+        : "P1 Blocker";
+    return {
+      fingerprint: `founder-exception:issue:${category}:${issue.id}`,
+      category,
+      lane: rightsLike ? "Risk" : lane,
+      title: `Founder Exception | ${category} | ${rightsLike ? "Risk" : lane}`,
+      sections: [
+        { heading: "What Changed", items: [`A ${priority} issue moved into blocked state: ${cleanIssueTitle(issue.title)}.`] },
+        { heading: "Why It Matters Now", items: [buyerLike ? "An active buyer-facing thread is at risk of slipping." : rightsLike ? "A rights, privacy, or provenance gate is blocking forward motion." : "A high-priority lane is blocked and needs active follow-through."] },
+        { heading: "Owner + Next Checkpoint", items: [`${owner} owns the next move. Checkpoint is the next meaningful unblock step on this issue.`] },
+        { heading: "Founder Decision Needed", items: [rightsLike ? "Be ready to decide whether to pause, narrow scope, or accept the restriction if the owner cannot clear it quickly." : buyerLike ? "Step in only if the owner cannot recover the buyer path by the next checkpoint." : "Reprioritize or step in only if the blocker remains unresolved after the next checkpoint."] },
+      ],
+    };
+  }
+
+  return null;
 }
 
 async function wakeChiefOfStaff(
@@ -1352,9 +1726,10 @@ async function handleChiefOfStaffIssueSignal(
   event: { eventId: string; companyId: string; entityId: string; type: "issue.created" | "issue.updated" },
 ) {
   const config = await getConfig(ctx);
-  const [issue, chiefOfStaffAgent] = await Promise.all([
+  const [issue, chiefOfStaffAgent, agents] = await Promise.all([
     ctx.issues.get(event.entityId, event.companyId),
     resolveAgent(ctx, event.companyId, getChiefOfStaffAgentKey(config)).catch(() => null),
+    listAgents(ctx, event.companyId).catch(() => [] as Agent[]),
   ]);
   if (!issue) return;
 
@@ -1386,6 +1761,19 @@ async function handleChiefOfStaffIssueSignal(
       `Owner: ${formatAgentName(issue.assigneeAgentId)}`,
     ],
   }).catch(() => undefined);
+
+  const agentKeyById = new Map(
+    agents.map((agent) => [agent.id, normalizedCandidates(agent as unknown as Record<string, unknown>)[0] ?? agent.id] as const),
+  );
+  const agentNameById = new Map(agents.map((agent) => [agent.id, agent.name] as const));
+  const owner = issue.assigneeAgentId
+    ? (agentNameById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId)
+    : "Unassigned";
+  const lane = classifyFounderLane(issue.assigneeAgentId ? (agentKeyById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId) : null, issue.title);
+  const founderDigest = buildFounderIssueExceptionDigest(issue, owner, lane);
+  if (founderDigest) {
+    await maybePostFounderException(ctx, event.companyId, config, founderDigest).catch(() => undefined);
+  }
 }
 
 async function handleChiefOfStaffRunFailureSignal(
@@ -2749,6 +3137,67 @@ async function runRoutineHealthCheck(ctx: PluginContext, companyId: string, conf
       title: "Chief of Staff routine health wakeup",
       detail: `${routineAlerts.length} routine alert(s) need follow-through.`,
       slackChannel: "#paperclip-manager",
+    }).catch(() => undefined);
+  }
+
+  const founderSnapshot = await buildChiefOfStaffState(ctx, companyId, config);
+  for (const alert of founderSnapshot.founderVisibility.queueAlerts) {
+    await maybePostFounderException(ctx, companyId, config, {
+      fingerprint: `founder-exception:queue:${alert.queue}`,
+      category: "Queue Threshold",
+      lane: alert.lane,
+      title: `Founder Exception | Queue Threshold | ${alert.lane}`,
+      sections: [
+        { heading: "What Changed", items: [`${alert.queue} crossed a configured founder visibility threshold.`] },
+        { heading: "Why It Matters Now", items: [alert.detail] },
+        { heading: "Owner + Next Checkpoint", items: [`ops-lead owns the queue response and should confirm the next routing checkpoint.`] },
+        { heading: "Founder Decision Needed", items: [`None yet unless the queue cannot be stabilized through normal routing and human review capacity.`] },
+      ],
+    }).catch(() => undefined);
+  }
+
+  for (const alert of founderSnapshot.founderVisibility.routineMisses) {
+    await maybePostFounderException(ctx, companyId, config, {
+      fingerprint: `founder-exception:routine:${alert.routineTitle}:${alert.kind}`,
+      category: "Routine Silent Failure",
+      lane: "Executive",
+      title: `Founder Exception | Routine Silent Failure | Executive`,
+      sections: [
+        { heading: "What Changed", items: [`${alert.routineTitle} is ${alert.kind}.`] },
+        { heading: "Why It Matters Now", items: [alert.detail] },
+        { heading: "Owner + Next Checkpoint", items: [`blueprint-chief-of-staff owns the follow-through and should either reroute or close the stale lane.`] },
+        { heading: "Founder Decision Needed", items: [`None yet unless repeated misses point to a staffing, priority, or policy change.`] },
+      ],
+    }).catch(() => undefined);
+  }
+
+  for (const risk of founderSnapshot.founderVisibility.buyerRisks.filter((entry) => entry.priority === "critical" || entry.priority === "high")) {
+    await maybePostFounderException(ctx, companyId, config, {
+      fingerprint: `founder-exception:buyer-risk:${risk.id}`,
+      category: "Buyer Deal Risk",
+      lane: "Buyer",
+      title: `Founder Exception | Buyer Deal Risk | Buyer`,
+      sections: [
+        { heading: "What Changed", items: [`Buyer-facing work is at risk: ${cleanIssueTitle(risk.title)}.`] },
+        { heading: "Why It Matters Now", items: [`This thread has been blocked or idle for ${risk.hoursSinceUpdate.toFixed(1)}h and could slip buyer confidence.`] },
+        { heading: "Owner + Next Checkpoint", items: [`${risk.owner} owns the next checkpoint on this buyer path.`] },
+        { heading: "Founder Decision Needed", items: [`Step in only if the owner cannot recover the buyer path by the next checkpoint.`] },
+      ],
+    }).catch(() => undefined);
+  }
+
+  for (const outcome of founderSnapshot.founderVisibility.experimentOutcomes.filter((entry) => entry.lifecycleStage.toLowerCase() === "revert")) {
+    await maybePostFounderException(ctx, companyId, config, {
+      fingerprint: `founder-exception:experiment:${outcome.title}:revert`,
+      category: "Experiment Regression",
+      lane: "Experiment",
+      title: `Founder Exception | Experiment Regression | Experiment`,
+      sections: [
+        { heading: "What Changed", items: [`An experiment outcome landed as REVERT: ${outcome.title}.`] },
+        { heading: "Why It Matters Now", items: [`A guardrail or primary metric failed, so the change should not remain the operating default.`] },
+        { heading: "Owner + Next Checkpoint", items: [`growth-lead and conversion-agent own the next checkpoint and should document the lesson cleanly.`] },
+        { heading: "Founder Decision Needed", items: [`None yet unless repeated reversions point to a strategy or instrumentation gap.`] },
+      ],
     }).catch(() => undefined);
   }
 
@@ -4583,6 +5032,7 @@ async function registerToolHandlers(ctx: PluginContext) {
       return {
         content: [
           `Chief of staff state: ${snapshot.summary.openIssueCount} open issues, ${snapshot.summary.blockedIssueCount} blocked, ${snapshot.summary.staleIssueCount} stale, ${snapshot.summary.recentlyCompletedCount} recently completed, ${snapshot.summary.routineAlertCount} routine alerts.`,
+          `Founder visibility: ${snapshot.founderVisibility.needsFounderItems.length} waiting on founder, ${snapshot.founderVisibility.blockedOver24h.length} blocked >24h, ${snapshot.founderVisibility.queueAlerts.length} queue alert(s), ${snapshot.founderVisibility.experimentOutcomes.length} recent experiment outcome(s).`,
           ...snapshot.nextActionHints.slice(0, 5).map((hint) => `- ${hint}`),
         ].join("\n"),
         data: snapshot,
@@ -5440,6 +5890,8 @@ async function registerToolHandlers(ctx: PluginContext) {
               system: { type: "string" },
               priority: { type: "string" },
               lifecycleStage: { type: "string" },
+              businessLane: { type: "string" },
+              needsFounder: { type: "boolean" },
             },
           },
         },
@@ -5460,9 +5912,13 @@ async function registerToolHandlers(ctx: PluginContext) {
               title: { type: "string" },
               priority: { type: "string" },
               system: { type: "string" },
+              businessLane: { type: "string" },
               lifecycleStage: { type: "string" },
               workType: { type: "string" },
               substage: { type: "string" },
+              needsFounder: { type: "boolean" },
+              lastStatusChange: { type: "string" },
+              escalateAfter: { type: "string" },
             },
             required: ["title", "priority", "system"],
           },
@@ -5485,6 +5941,9 @@ async function registerToolHandlers(ctx: PluginContext) {
               type: { type: "string" },
               system: { type: "string" },
               content: { type: "string" },
+              artifactType: { type: "string" },
+              lifecycleStage: { type: "string" },
+              agentSurfaces: { type: "array", items: { type: "string" } },
             },
             required: ["title", "type", "content"],
           },
@@ -5547,6 +6006,7 @@ async function registerToolHandlers(ctx: PluginContext) {
               title: { type: "string" },
               type: { type: "string" },
               system: { type: "string" },
+              artifactType: { type: "string" },
               content: { type: "string" },
               canonicalSource: { type: "string" },
               lastReviewed: { type: "string" },
@@ -5586,12 +6046,16 @@ async function registerToolHandlers(ctx: PluginContext) {
               title: { type: "string" },
               priority: { type: "string" },
               system: { type: "string" },
+              businessLane: { type: "string" },
               lifecycleStage: { type: "string" },
               workType: { type: "string" },
               substage: { type: "string" },
               outputLocation: { type: "string" },
               executionSurface: { type: "string" },
               dueDate: { type: "string" },
+              needsFounder: { type: "boolean" },
+              lastStatusChange: { type: "string" },
+              escalateAfter: { type: "string" },
               naturalKey: { type: "string" },
               archiveDuplicates: { type: "boolean" },
               ownerIds: { type: "array", items: { type: "string" } },
@@ -5623,6 +6087,29 @@ async function registerToolHandlers(ctx: PluginContext) {
             properties: {
               pageId: { type: "string" },
               database: { type: "string", enum: ["work_queue", "knowledge", "skills"] },
+              businessLane: { type: "string" },
+              needsFounder: { type: "boolean" },
+              lastStatusChange: { type: "string" },
+              escalateAfter: { type: "string" },
+              artifactType: { type: "string" },
+              agentSurfaces: { type: "array", items: { type: "string" } },
+              lifecycleStage: { type: "string" },
+              substage: { type: "string" },
+              outputLocation: { type: "string" },
+              executionSurface: { type: "string" },
+              dueDate: { type: "string" },
+              ownerIds: { type: "array", items: { type: "string" } },
+              requestedByIds: { type: "array", items: { type: "string" } },
+              relatedDocPageIds: { type: "array", items: { type: "string" } },
+              relatedDocPageUrls: { type: "array", items: { type: "string" } },
+              relatedSkillPageIds: { type: "array", items: { type: "string" } },
+              relatedSkillPageUrls: { type: "array", items: { type: "string" } },
+              relatedWorkPageIds: { type: "array", items: { type: "string" } },
+              relatedWorkPageUrls: { type: "array", items: { type: "string" } },
+              reviewCadence: { type: "string" },
+              lastReviewed: { type: "string" },
+              canonicalSource: { type: "string" },
+              sourceOfTruth: { type: "string" },
             },
             required: ["pageId", "database"],
           },

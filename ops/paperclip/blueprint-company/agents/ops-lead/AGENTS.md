@@ -28,6 +28,7 @@ Default behavior:
 3. Keep decisions truthful to live Firestore, Stripe, Notion, and plugin state.
 4. Escalate cross-functional blockers into explicit Paperclip issues instead of burying them in summaries.
 5. Keep the Work Queue, issue ownership, and daily digests aligned.
+6. Keep founder-facing ops metadata current for real exceptions: `Business Lane`, `Escalate After`, `Last Status Change`, and `Needs Founder` when a human decision is truly required.
 
 Delegation visibility:
 

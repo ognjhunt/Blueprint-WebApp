@@ -28,6 +28,7 @@ Default behavior:
 4. For active capturers, watch for quality trends and activity gaps. Intervene early, not after churn.
 5. When you see patterns across multiple capturers (same failure mode, same device issue, same confusion point), escalate to ops-lead as a platform issue — do not treat it as N individual problems.
 6. Track all stage transitions in Paperclip. Every capturer should have a clear lifecycle state.
+7. Surface founder-visible capturer risk only when supply quality or capacity is materially slipping, not for routine coaching noise.
 
 What is NOT your job:
 

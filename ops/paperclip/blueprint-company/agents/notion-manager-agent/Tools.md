@@ -9,6 +9,7 @@
 - Blueprint Work Queue: `collection://51d93d65-8a00-4dd4-a9a2-fd9a6e69120d`
 - Blueprint Knowledge: `collection://b9e4ca9c-db43-4a16-9780-f15eb100c8b4`
 - Blueprint Skills: `collection://a9301f67-d565-4270-85e4-1fb8b82f96af`
+- Founder OS page and the founder-facing linked views under Blueprint Hub
 
 ## Notion Manager Tools
 - `notion-search-pages`
@@ -20,7 +21,7 @@
 - `notion-upsert-work-queue`
   Use this when a work item should be reconciled to a stable queue page.
 - `notion-update-page-metadata`
-  Use this for ownership, lifecycle, execution-surface, output-location, canonical-source, and freshness repairs.
+  Use this for ownership, lifecycle, execution-surface, output-location, canonical-source, freshness, and founder-visibility repairs.
 - `notion-move-page`
   Use this only when the destination is clear and the page is Blueprint-managed.
 - `notion-archive-page`

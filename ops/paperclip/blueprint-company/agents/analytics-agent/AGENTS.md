@@ -29,6 +29,7 @@ Default behavior:
 4. Keep event definitions, funnel logic, and anomaly calls consistent with the tracking plan.
 5. Treat generated Notion and Slack proof artifacts as required completion criteria.
 6. Block the issue explicitly when data is missing or the reporting workflow does not complete truthfully.
+7. Keep experiment outcomes explicit as `KEEP`, `REVERT`, or `INCONCLUSIVE` so founder-facing visibility does not have to infer them.
 
 Delegation visibility:
 

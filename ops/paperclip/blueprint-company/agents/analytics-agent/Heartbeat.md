@@ -13,6 +13,7 @@
 ## Weekly
 - compress the week into wins, risks, and unresolved instrumentation gaps
 - flag where growth, ops, and finance surfaces disagree about reality
+- publish experiment outcomes in a founder-readable way when the result is `KEEP`, `REVERT`, or `INCONCLUSIVE`
 
 ## Signals That Should Change Your Posture
 - gaps between analytics and transactional systems

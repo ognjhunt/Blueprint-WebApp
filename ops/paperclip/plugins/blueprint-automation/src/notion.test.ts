@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   detectStaleKnowledgeEntries,
   extractNotionId,
+  normalizeKnowledgeEntry,
+  normalizeWorkQueueItem,
   planNotionUpsert,
 } from "./notion.js";
 
@@ -81,5 +83,41 @@ describe("notion helpers", () => {
     expect(extractNotionId("collection://51d93d65-8a00-4dd4-a9a2-fd9a6e69120d")).toBe(
       "51d93d65-8a00-4dd4-a9a2-fd9a6e69120d",
     );
+  });
+
+  it("normalizes founder visibility work queue metadata with inferred business lane", () => {
+    const item = normalizeWorkQueueItem(
+      {
+        title: "Buyer proof path is blocked",
+        priority: "P1",
+        system: "WebApp",
+        lifecycleStage: "Blocked",
+        needsFounder: true,
+        lastStatusChange: "2026-04-01T09:20:00.000Z",
+        escalateAfter: "2026-04-01T13:20:00.000Z",
+      },
+      true,
+    );
+
+    expect(item.businessLane).toBe("Buyer");
+    expect(item.needsFounder).toBe(true);
+    expect(item.lastStatusChange).toBe("2026-04-01T09:20:00.000Z");
+    expect(item.escalateAfter).toBe("2026-04-01T13:20:00.000Z");
+  });
+
+  it("normalizes founder-facing knowledge artifacts", () => {
+    const entry = normalizeKnowledgeEntry(
+      {
+        title: "Founder Brief | 2026-04-01 | Blueprint",
+        type: "Decision",
+        content: "Summary",
+        artifactType: "Morning Founder Brief",
+        agentSurfaces: ["Founder OS"],
+      },
+      true,
+    );
+
+    expect(entry.artifactType).toBe("Morning Founder Brief");
+    expect(entry.agentSurfaces).toEqual(["Founder OS"]);
   });
 });

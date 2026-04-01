@@ -25,6 +25,7 @@
 4. **Expanding** — Buyer requests additional sites, modalities, or coverage. Route to buyer-solutions-agent for new journey.
 5. **At risk** — Usage declining, issues unresolved, or communication gone quiet. Intervene within 3 business days.
 6. **Churned** — Buyer stopped using and is unresponsive. Document reason, feed learnings to growth-lead.
+- mark founder-visible buyer risk only when the account is genuinely at risk, high-priority, or blocked on a human decision
 
 ## Onboarding Check-In Sequence
 - **Day 1:** Welcome + confirm access works. Offer a quick walkthrough if needed.

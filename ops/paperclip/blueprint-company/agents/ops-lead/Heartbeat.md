@@ -9,6 +9,7 @@
 - scan `waitlistSubmissions`, `inboundRequests`, `contactRequests`, `capture_jobs`, and `creatorPayouts`
 - look for overnight payout, dispute, support, or capture exceptions
 - assign the smallest useful next action to the correct specialist
+- stamp founder-facing queue metadata when an ops item is aging, blocked, or truly waiting on a founder decision
 
 ## Afternoon
 - check whether morning assignments moved

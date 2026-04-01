@@ -90,6 +90,7 @@ export const STATE_KEYS = {
   quotaFallbackRetries: "quota-fallback-retries",
   workspaceAdapterCooldowns: "workspace-adapter-cooldowns",
   firehoseSignalCache: "firehose-signal-cache",
+  founderVisibility: "founder-visibility",
 } as const;
 export const DEFAULT_COMPANY_NAME = "Blueprint Autonomous Operations";
 export const DEFAULT_REPO_CATALOG = [

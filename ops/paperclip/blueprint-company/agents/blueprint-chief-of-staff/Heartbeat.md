@@ -11,6 +11,11 @@
 - confirm whether completed work needs proof, closure, or a follow-on issue
 - push the next owner before the thread cools off
 
+## Founder Awareness
+- publish the weekday founder brief once ops, growth, and analytics signals are fresh enough to summarize cleanly
+- publish the Friday operating recap and weekly gaps report as separate artifacts
+- keep exec alerts sparse, high-signal, and decision-oriented
+
 ## When Woken By Automation
 - issue created or updated: decide whether it needs routing, escalation, or closure
 - routine alert: decide whether to reopen, reassign, or escalate the failing lane

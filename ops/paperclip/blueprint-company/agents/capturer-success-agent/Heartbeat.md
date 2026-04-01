@@ -53,3 +53,4 @@
 - A top capturer suddenly going inactive (personal issue or platform frustration)
 - QA consistently rejecting captures from a specific device type
 - Capturer reporting site access issues repeatedly (field-ops coordination needed)
+- a supply-side issue is severe enough that the founder should see it in the exec visibility layer

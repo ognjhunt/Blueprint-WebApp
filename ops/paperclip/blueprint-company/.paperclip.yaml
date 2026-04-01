@@ -867,6 +867,18 @@ tasks:
     status: active
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
+  founder-morning-brief:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
+  founder-friday-operating-recap:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
+  founder-weekly-gaps-report:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
   cto-cross-repo-triage:
     status: active
     priority: high
@@ -1242,6 +1254,33 @@ routines:
     triggers:
       - kind: schedule
         cronExpression: 0 23 * * 0
+        timezone: America/New_York
+  founder-morning-brief:
+    agent: blueprint-chief-of-staff
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 20 9 * * 1-5
+        timezone: America/New_York
+  founder-friday-operating-recap:
+    agent: blueprint-chief-of-staff
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 0 16 * * 5
+        timezone: America/New_York
+  founder-weekly-gaps-report:
+    agent: blueprint-chief-of-staff
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 30 16 * * 5
         timezone: America/New_York
   investor-relations-monthly:
     agent: investor-relations-agent

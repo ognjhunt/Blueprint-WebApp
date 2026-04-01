@@ -47,12 +47,16 @@ export interface WorkQueueItem {
   title: string;
   priority: "P0" | "P1" | "P2" | "P3";
   system: "Cross-System" | "WebApp" | "Capture" | "Pipeline" | "Validation";
+  businessLane?: "Executive" | "Ops" | "Growth" | "Buyer" | "Capturer" | "Experiment" | "Risk";
   lifecycleStage: string;
   workType: "Task" | "Research" | "Refresh" | "SOP" | "Improvement";
   substage?: string;
   outputLocation?: "Notion" | "Repo" | "External";
   executionSurface?: "Notion" | "Repo" | "Browser";
   dueDate?: string;
+  needsFounder?: boolean;
+  lastStatusChange?: string;
+  escalateAfter?: string;
   ownerIds?: string[];
   requestedByIds?: string[];
   relatedDocPageIds?: string[];
@@ -66,6 +70,8 @@ export interface WorkQueueQuery {
   system?: string;
   priority?: string;
   lifecycleStage?: string;
+  businessLane?: string;
+  needsFounder?: boolean;
 }
 
 export interface WorkQueueQueryItem {
@@ -73,9 +79,15 @@ export interface WorkQueueQueryItem {
   title: string;
   priority: string;
   system: string;
+  businessLane: string;
   lifecycleStage: string;
   workType: string;
   url?: string;
+  needsFounder: boolean;
+  ownerIds: string[];
+  dueDate?: string;
+  lastStatusChange?: string;
+  escalateAfter?: string;
   naturalKey: string;
 }
 
@@ -84,6 +96,7 @@ export interface KnowledgeEntry {
   type: "Concept" | "Reference" | "How-To" | "Decision" | "Architecture" | "Contract";
   system: "Cross-System" | "WebApp" | "Capture" | "Pipeline" | "Validation";
   content: string;
+  artifactType?: "Morning Founder Brief" | "Friday Operating Recap" | "Weekly Gaps Report" | "Exception Summary" | "Experiment Outcome";
   agentSurfaces?: string[];
   sourceOfTruth?: "Notion" | "Repo";
   canonicalSource?: string;
@@ -179,6 +192,15 @@ function toIsoDate(value: string | undefined): string | undefined {
   return parsed.toISOString().slice(0, 10);
 }
 
+function toIsoDateOrDateTime(value: string | undefined): string | undefined {
+  const trimmed = asString(value);
+  if (!trimmed) return undefined;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return parsed.toISOString();
+}
+
 export function extractNotionId(value: string | undefined): string | null {
   const trimmed = asString(value);
   if (!trimmed) return null;
@@ -269,8 +291,12 @@ function buildRelationProperty(ids?: string[], urls?: string[]) {
 }
 
 function buildDateProperty(value: string | undefined) {
-  const start = toIsoDate(value);
+  const start = toIsoDateOrDateTime(value);
   return start ? { date: { start } } : undefined;
+}
+
+function buildCheckboxProperty(value: boolean | undefined) {
+  return typeof value === "boolean" ? { checkbox: value } : undefined;
 }
 
 function maybeSet(target: Record<string, unknown>, key: string, value: unknown) {
@@ -359,17 +385,38 @@ function skillsNaturalKey(entry: SkillMetadata): string {
   return unique([entry.naturalKey, entry.title, entry.system, entry.skillType]).join("::");
 }
 
-function normalizeWorkQueueItem(input: Partial<WorkQueueItem> & Record<string, unknown>, includeDefaults: boolean): WorkQueueItem {
+function inferBusinessLane(input: Partial<WorkQueueItem> & Record<string, unknown>, includeDefaults: boolean): WorkQueueItem["businessLane"] {
+  const explicit = asString(input.businessLane) as WorkQueueItem["businessLane"] | undefined;
+  if (explicit) return explicit;
+
+  const title = `${asString(input.title) ?? ""} ${asString(input.substage) ?? ""}`.toLowerCase();
+  const system = asString(input.system);
+
+  if (title.includes("experiment")) return "Experiment";
+  if (title.includes("buyer") || title.includes("proof") || title.includes("quote") || title.includes("deal")) return "Buyer";
+  if (title.includes("capturer") || title.includes("waitlist") || title.includes("capture")) return "Capturer";
+  if (title.includes("rights") || title.includes("privacy") || title.includes("provenance") || title.includes("security")) return "Risk";
+  if (title.includes("growth") || title.includes("market intel") || title.includes("demand intel") || title.includes("community")) return "Growth";
+  if (system === "Cross-System") return includeDefaults ? "Executive" : undefined;
+  if (system === "WebApp" || system === "Capture" || system === "Pipeline") return includeDefaults ? "Ops" : undefined;
+  return includeDefaults ? "Ops" : undefined;
+}
+
+export function normalizeWorkQueueItem(input: Partial<WorkQueueItem> & Record<string, unknown>, includeDefaults: boolean): WorkQueueItem {
   return {
     title: asString(input.title) ?? "Untitled work item",
     priority: (asString(input.priority) as WorkQueueItem["priority"] | undefined) ?? (includeDefaults ? "P2" : undefined as never),
     system: (asString(input.system) as WorkQueueItem["system"] | undefined) ?? (includeDefaults ? "Cross-System" : undefined as never),
+    businessLane: inferBusinessLane(input, includeDefaults),
     lifecycleStage: asString(input.lifecycleStage) ?? asString(input.status) ?? (includeDefaults ? "Open" : ""),
     workType: (asString(input.workType) as WorkQueueItem["workType"] | undefined) ?? (includeDefaults ? "Task" : undefined as never),
     substage: asString(input.substage) ?? asString(input.description),
     outputLocation: asString(input.outputLocation) as WorkQueueItem["outputLocation"] | undefined,
     executionSurface: asString(input.executionSurface) as WorkQueueItem["executionSurface"] | undefined,
     dueDate: asString(input.dueDate),
+    needsFounder: typeof input.needsFounder === "boolean" ? input.needsFounder : undefined,
+    lastStatusChange: asString(input.lastStatusChange),
+    escalateAfter: asString(input.escalateAfter),
     ownerIds: asStringArray(input.ownerIds),
     requestedByIds: asStringArray(input.requestedByIds),
     relatedDocPageIds: asStringArray(input.relatedDocPageIds),
@@ -380,12 +427,13 @@ function normalizeWorkQueueItem(input: Partial<WorkQueueItem> & Record<string, u
   };
 }
 
-function normalizeKnowledgeEntry(input: Partial<KnowledgeEntry> & Record<string, unknown>, includeDefaults: boolean): KnowledgeEntry {
+export function normalizeKnowledgeEntry(input: Partial<KnowledgeEntry> & Record<string, unknown>, includeDefaults: boolean): KnowledgeEntry {
   return {
     title: asString(input.title) ?? "Untitled knowledge entry",
     type: (asString(input.type) ?? asString(input.category) ?? (includeDefaults ? "Reference" : undefined)) as KnowledgeEntry["type"],
     system: (asString(input.system) ?? asString(input.source) ?? (includeDefaults ? "Cross-System" : undefined)) as KnowledgeEntry["system"],
     content: asString(input.content) ?? "",
+    artifactType: asString(input.artifactType) as KnowledgeEntry["artifactType"] | undefined,
     agentSurfaces: asStringArray(input.agentSurfaces),
     sourceOfTruth: (asString(input.sourceOfTruth) as KnowledgeEntry["sourceOfTruth"] | undefined) ?? (includeDefaults ? "Notion" : undefined),
     canonicalSource: asString(input.canonicalSource),
@@ -423,12 +471,16 @@ function buildWorkQueueProperties(item: WorkQueueItem, includeDefaults = true) {
   maybeSet(properties, "Title", buildTitleProperty(normalized.title));
   maybeSet(properties, "Priority", buildSelectProperty(normalized.priority));
   maybeSet(properties, "System", buildSelectProperty(normalized.system));
+  maybeSet(properties, "Business Lane", buildSelectProperty(normalized.businessLane));
   maybeSet(properties, "Lifecycle Stage", buildSelectProperty(normalized.lifecycleStage));
   maybeSet(properties, "Work Type", buildSelectProperty(normalized.workType));
   maybeSet(properties, "Substage", buildRichTextProperty(normalized.substage));
   maybeSet(properties, "Output Location", buildSelectProperty(normalized.outputLocation ?? (includeDefaults ? "Notion" : undefined)));
   maybeSet(properties, "Execution Surface", buildSelectProperty(normalized.executionSurface ?? (includeDefaults ? "Notion" : undefined)));
   maybeSet(properties, "Due Date", buildDateProperty(normalized.dueDate));
+  maybeSet(properties, "Needs Founder", buildCheckboxProperty(normalized.needsFounder ?? (includeDefaults ? false : undefined)));
+  maybeSet(properties, "Last Status Change", buildDateProperty(normalized.lastStatusChange));
+  maybeSet(properties, "Escalate After", buildDateProperty(normalized.escalateAfter));
   maybeSet(properties, "Owner", buildPeopleProperty(normalized.ownerIds));
   maybeSet(properties, "Requested By", buildPeopleProperty(normalized.requestedByIds));
   maybeSet(properties, "Linked Docs", buildRelationProperty(normalized.relatedDocPageIds, normalized.relatedDocPageUrls));
@@ -442,6 +494,7 @@ function buildKnowledgeProperties(entry: KnowledgeEntry, includeDefaults = true)
   maybeSet(properties, "Title", buildTitleProperty(normalized.title));
   maybeSet(properties, "Type", buildSelectProperty(normalized.type));
   maybeSet(properties, "System", buildSelectProperty(normalized.system));
+  maybeSet(properties, "Artifact Type", buildSelectProperty(normalized.artifactType));
   maybeSet(properties, "Agent Surface", buildMultiSelectProperty(normalized.agentSurfaces?.length ? normalized.agentSurfaces : includeDefaults ? ["Shared"] : undefined));
   maybeSet(properties, "Source of Truth", buildSelectProperty(normalized.sourceOfTruth));
   maybeSet(properties, "Canonical Source", buildRichTextProperty(normalized.canonicalSource));
@@ -482,7 +535,7 @@ async function queryDatabaseByTitle(client: Client, database: NotionDatabaseKey,
   return (response.results ?? []) as any[];
 }
 
-async function queryDatabase(client: Client, database: NotionDatabaseKey, pageSize = 50): Promise<any[]> {
+export async function queryDatabase(client: Client, database: NotionDatabaseKey, pageSize = 50): Promise<any[]> {
   const notion = notionClient(client);
   const response = await notion.dataSources.query({
     data_source_id: DATABASE_CONFIG[database].dataSourceId,
@@ -580,6 +633,12 @@ export async function queryWorkQueue(client: Client, filters: WorkQueueQuery): P
   if (filters.lifecycleStage) {
     filterConditions.push({ property: "Lifecycle Stage", select: { equals: filters.lifecycleStage } });
   }
+  if (filters.businessLane) {
+    filterConditions.push({ property: "Business Lane", select: { equals: filters.businessLane } });
+  }
+  if (typeof filters.needsFounder === "boolean") {
+    filterConditions.push({ property: "Needs Founder", checkbox: { equals: filters.needsFounder } });
+  }
 
   const notion = notionClient(client);
   const response = await notion.dataSources.query({
@@ -598,9 +657,20 @@ export async function queryWorkQueue(client: Client, filters: WorkQueueQuery): P
     title: getTitleFromPage(page),
     priority: page?.properties?.Priority?.select?.name ?? "",
     system: page?.properties?.System?.select?.name ?? "",
+    businessLane: page?.properties?.["Business Lane"]?.select?.name ?? "",
     lifecycleStage: page?.properties?.["Lifecycle Stage"]?.select?.name ?? "",
     workType: page?.properties?.["Work Type"]?.select?.name ?? "",
     url: asString(page.url),
+    needsFounder: page?.properties?.["Needs Founder"]?.checkbox === true,
+    ownerIds:
+      Array.isArray(page?.properties?.Owner?.people)
+        ? page.properties.Owner.people
+            .map((entry: any) => asString(entry?.id))
+            .filter((value: string | undefined): value is string => Boolean(value))
+        : [],
+    dueDate: asString(page?.properties?.["Due Date"]?.date?.start),
+    lastStatusChange: asString(page?.properties?.["Last Status Change"]?.date?.start),
+    escalateAfter: asString(page?.properties?.["Escalate After"]?.date?.start),
     naturalKey: unique([
       getTitleFromPage(page),
       page?.properties?.System?.select?.name,

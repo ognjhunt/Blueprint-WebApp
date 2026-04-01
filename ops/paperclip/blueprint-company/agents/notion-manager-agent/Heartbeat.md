@@ -9,8 +9,9 @@
 ## Frequent Reconcile Sweep
 - inspect newly created or recently changed Work Queue, Knowledge, and Skills pages
 - dedupe safe duplicates using stable natural keys
-- repair owner, related-work, related-doc, related-skill, execution-surface, output-location, canonical-source, and freshness fields
+- repair owner, related-work, related-doc, related-skill, execution-surface, output-location, canonical-source, freshness, and founder-visibility fields
 - confirm producer artifacts land in the correct Hub surface
+- keep `Founder OS` views readable and aligned with the latest founder-facing artifacts
 
 ## Daily Stale Audit
 - search for overdue knowledge pages based on review cadence and last-reviewed state
