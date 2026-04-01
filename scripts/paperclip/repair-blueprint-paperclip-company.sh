@@ -164,7 +164,7 @@ const summary = {
   keepAgents: agents.filter((agent) => keepAgentIds.has(agent.id)).map((agent) => agent.name),
   staleAgents: agents
     .filter((agent) => staleAgentIds.has(agent.id))
-    .filter((agent) => agent.status !== "paused")
+    .filter((agent) => agent.status !== "terminated")
     .map((agent) => agent.name),
   staleRoutineIds,
   staleIssueIds,
@@ -195,7 +195,7 @@ for (const issue of issues.filter((row) => staleIssueIds.includes(row.id))) {
 }
 
 for (const agentId of staleAgentIds) {
-  await fetchJson(`/api/agents/${agentId}/pause`, { method: "POST" });
+  await fetchJson(`/api/agents/${agentId}/terminate`, { method: "POST" });
 }
 
 for (const projectId of staleProjectIds) {
