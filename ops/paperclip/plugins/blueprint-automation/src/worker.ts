@@ -83,6 +83,8 @@ import {
   type QuotaFallbackRetryState,
   type WorkspaceAdapterCooldownRecord,
   type WorkspaceAdapterCooldownState,
+  buildOpenCodeFallbackAdapterConfig,
+  buildHermesFallbackAdapterConfig,
 } from "./quota-fallback.js";
 import {
   buildManagerStateSnapshot,
@@ -688,10 +690,20 @@ function buildQuotaFallbackDescriptor(
 
   if (adapterType === "codex_local") {
     return {
-      adapterType: "claude_local" as LocalQuotaFallbackAdapterType,
-      reason: "quota_fallback_to_claude",
-      adapterConfig: buildClaudeFallbackAdapterConfig(asRecord(adapterConfig), {
-        model: "claude-sonnet-4-6",
+      adapterType: "hermes_local" as LocalQuotaFallbackAdapterType,
+      reason: "quota_fallback_to_hermes",
+      adapterConfig: buildHermesFallbackAdapterConfig(asRecord(adapterConfig), {
+        model: "gpt-5.4-mini",
+      }),
+    };
+  }
+
+  if (adapterType === "hermes_local") {
+    return {
+      adapterType: "opencode_local" as LocalQuotaFallbackAdapterType,
+      reason: "quota_fallback_to_opencode",
+      adapterConfig: buildOpenCodeFallbackAdapterConfig(asRecord(adapterConfig), {
+        model: "opencode/minimax-m2.5-free",
       }),
     };
   }
@@ -704,8 +716,11 @@ function buildDesiredAdapterDescriptor(agent: Agent) {
   const configuredAdapterType = configuredAgent?.adapter?.type;
   const configuredAdapterConfig = asRecord(configuredAgent?.adapter?.config);
   if (
-    (configuredAdapterType !== "claude_local" && configuredAdapterType !== "codex_local")
-    || !configuredAdapterConfig
+    (configuredAdapterType !== "claude_local" &&
+      configuredAdapterType !== "codex_local" &&
+      configuredAdapterType !== "opencode_local" &&
+      configuredAdapterType !== "hermes_local") ||
+    !configuredAdapterConfig
   ) {
     return null;
   }
@@ -722,7 +737,12 @@ function getActiveWorkspaceCooldown(
   adapterType: string,
   now = Date.now(),
 ): WorkspaceAdapterCooldownRecord | null {
-  if (!workspaceKey || (adapterType !== "claude_local" && adapterType !== "codex_local")) {
+  if (
+    !workspaceKey ||
+    (adapterType !== "claude_local" &&
+      adapterType !== "codex_local" &&
+      adapterType !== "hermes_local")
+  ) {
     return null;
   }
   const record = state[getWorkspaceAdapterCooldownKey(workspaceKey, adapterType)];
@@ -1937,7 +1957,9 @@ async function handleAgentRunFailureQuotaFallback(
 
     if (
       workspaceKey
-      && (agent.adapterType === "claude_local" || agent.adapterType === "codex_local")
+      && (agent.adapterType === "claude_local" ||
+        agent.adapterType === "codex_local" ||
+        agent.adapterType === "hermes_local")
       && fallback.adapterType !== agent.adapterType
     ) {
       await setWorkspaceCooldown(ctx, event.companyId, {
@@ -1991,17 +2013,17 @@ async function handleAgentRunFailureQuotaFallback(
 
     await appendRecentEvent(ctx, event.companyId, {
       kind: "quota-fallback-retry",
-      title: `Retried ${agent.name} on ${fallback.adapterType === "codex_local" ? "Codex" : "Claude"} after quota failure`,
+      title: `Retried ${agent.name} on ${fallback.adapterType === "codex_local" ? "Codex" : fallback.adapterType === "hermes_local" ? "Hermes" : "OpenCode"} after quota failure`,
       issueId: payload.issueId ?? undefined,
       detail: payload.issueId
-        ? `Issue ${payload.issueId} retried from failed run ${payload.runId}; switched ${workspaceTargets.length} same-workspace agent(s) to ${fallback.adapterType === "codex_local" ? "Codex" : "Claude"} until ${cooldownUntil}.`
-        : `Task ${retryTaskKey} retried from failed run ${payload.runId}; switched ${workspaceTargets.length} same-workspace agent(s) to ${fallback.adapterType === "codex_local" ? "Codex" : "Claude"} until ${cooldownUntil}.`,
+        ? `Issue ${payload.issueId} retried from failed run ${payload.runId}; switched ${workspaceTargets.length} same-workspace agent(s) to ${fallback.adapterType} until ${cooldownUntil}.`
+        : `Task ${retryTaskKey} retried from failed run ${payload.runId}; switched ${workspaceTargets.length} same-workspace agent(s) to ${fallback.adapterType} until ${cooldownUntil}.`,
     });
 
     if (payload.issueId) {
       await ctx.issues.createComment(
         payload.issueId,
-        `Detected a ${agent.adapterType === "claude_local" ? "Claude" : "Codex"} quota/rate-limit failure on run ${payload.runId}. Switched ${agent.name} and ${Math.max(workspaceTargets.length - 1, 0)} same-workspace peer(s) to ${fallback.adapterType === "codex_local" ? "Codex" : "Claude"} until ${cooldownUntil}, then requeued the work once.`,
+        `Detected a ${agent.adapterType === "claude_local" ? "Claude" : agent.adapterType === "codex_local" ? "Codex" : agent.adapterType === "hermes_local" ? "Hermes" : "OpenCode"} quota/rate-limit failure on run ${payload.runId}. Switched ${agent.name} and ${Math.max(workspaceTargets.length - 1, 0)} same-workspace peer(s) to ${fallback.adapterType} until ${cooldownUntil}, then requeued the work once.`,
         event.companyId,
       ).catch(() => undefined);
     }

@@ -12,7 +12,7 @@ export type QuotaFallbackRetryRecord = {
 
 export type QuotaFallbackRetryState = Record<string, QuotaFallbackRetryRecord>;
 
-export type LocalQuotaFallbackAdapterType = "claude_local" | "codex_local";
+export type LocalQuotaFallbackAdapterType = "claude_local" | "codex_local" | "opencode_local" | "hermes_local";
 
 export type LocalAdapterSnapshot = {
   id: string;
@@ -91,6 +91,46 @@ export function buildClaudeFallbackAdapterConfig(
     ...next,
     model: options?.model ?? "claude-sonnet-4-6",
     dangerouslySkipPermissions: true,
+  };
+}
+
+export function buildOpenCodeFallbackAdapterConfig(
+  adapterConfig: Record<string, unknown> | null | undefined,
+  options?: {
+    model?: string;
+    cwd?: string;
+  },
+): Record<string, unknown> {
+  const next = { ...(adapterConfig ?? {}) };
+  delete next.dangerouslySkipPermissions;
+  delete next.dangerouslyBypassApprovalsAndSandbox;
+  delete next.modelReasoningEffort;
+
+  return {
+    ...next,
+    model: options?.model ?? "opencode/minimax-m2.5-free",
+    cwd: options?.cwd ?? next.cwd ?? "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+    timeoutSec: next.timeoutSec ?? 1800,
+  };
+}
+
+export function buildHermesFallbackAdapterConfig(
+  adapterConfig: Record<string, unknown> | null | undefined,
+  options?: {
+    model?: string;
+    cwd?: string;
+  },
+): Record<string, unknown> {
+  const next = { ...(adapterConfig ?? {}) };
+  delete next.dangerouslySkipPermissions;
+  delete next.dangerouslyBypassApprovalsAndSandbox;
+
+  return {
+    ...next,
+    model: options?.model ?? "gpt-5.4-mini",
+    modelReasoningEffort: next.modelReasoningEffort ?? "xhigh",
+    cwd: options?.cwd ?? next.cwd ?? "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
+    timeoutSec: next.timeoutSec ?? 1800,
   };
 }
 
