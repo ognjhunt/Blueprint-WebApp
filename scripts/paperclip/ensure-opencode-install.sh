@@ -153,6 +153,7 @@ setup_openrouter_config() {
   export OPENCODE_CONFIG_PATH="$config_file"
   export OPENCODE_PRIMARY_MODEL="$primary_model"
   export OPENCODE_FALLBACK_MODEL="$fallback_model"
+  export OPENCODE_NO_TTY=1
 
   node --input-type=module <<'NODE'
 import fs from "node:fs";
