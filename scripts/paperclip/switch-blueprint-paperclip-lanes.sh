@@ -16,13 +16,13 @@ RECONCILE_SCRIPT="${RECONCILE_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-Web
 BOOTSTRAP_SCRIPT="${BOOTSTRAP_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/bootstrap-blueprint-paperclip.sh}"
 
 usage() {
-  echo "Usage: $0 <auto|claude|codex>" >&2
+  echo "Usage: $0 <auto|claude|codex|openrouter>" >&2
   exit 1
 }
 
 normalize_mode() {
   case "${1:-}" in
-    auto|claude|codex)
+    auto|claude|codex|openrouter)
       printf '%s\n' "$1"
       ;;
     *)
@@ -64,6 +64,10 @@ main() {
       ;;
     auto)
       write_env_value "BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE" "auto"
+      write_env_value "BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES" "0"
+      ;;
+    openrouter)
+      write_env_value "BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE" "openrouter"
       write_env_value "BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES" "0"
       ;;
   esac

@@ -18,6 +18,8 @@ BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE:-au
 BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES:-0}"
 BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL:-gpt-5.4-mini}"
 BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT:-xhigh}"
+BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL:-opencode/minimax-m2.5-free}"
+BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL:-openrouter/qwen/qwen3-coder}"
 
 export \
   PAPERCLIP_API_URL \
@@ -26,7 +28,9 @@ export \
   BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE \
   BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES \
   BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL \
-  BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT
+  BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT \
+  BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL \
+  BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL
 
 node --input-type=module <<'NODE'
 import fs from "node:fs/promises";
@@ -49,6 +53,10 @@ const fallbackCodexModel =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL ?? "gpt-5.4-mini";
 const fallbackCodexReasoningEffort =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT ?? "xhigh";
+const opencodeModel =
+  process.env.BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL ?? "minimax-m2.5-free";
+const opencodeFallbackModel =
+  process.env.BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL ?? "openrouter/qwen/qwen3-coder-480b:free";
 const paperclipConfigPath = path.join(
   repoRoot,
   "ops/paperclip/blueprint-company/.paperclip.yaml",
@@ -62,6 +70,8 @@ function normalizeClaudeLaneMode(value) {
     case "codex":
     case "fallback":
       return "codex";
+    case "openrouter":
+      return "openrouter";
     case "auto":
     case "":
       return "auto";
@@ -386,6 +396,30 @@ function buildHermesProbeConfig(adapterConfig) {
   return probeConfig;
 }
 
+function buildOpencodeProbeConfig(cwd) {
+  return {
+    cwd,
+    model: opencodeModel,
+    dangerouslySkipPermissions: true,
+  };
+}
+
+function tertiaryOpencodeFallbackFor(desired) {
+  const adapterConfig = desired.adapterConfig ?? {};
+  const cwd = typeof adapterConfig.cwd === "string" ? adapterConfig.cwd : "";
+  if (!cwd) return null;
+  return {
+    adapterType: "opencode_local",
+    adapterConfig: {
+      cwd,
+      model: opencodeModel,
+      fallbackModel: opencodeFallbackModel,
+      dangerouslySkipPermissions: true,
+      timeoutSec: typeof adapterConfig.timeoutSec === "number" ? adapterConfig.timeoutSec : 1800,
+    },
+  };
+}
+
 function summarizeProbeFailure(result, fallbackMessage) {
   return result?.checks?.map?.((check) => check.message).filter(Boolean).join("; ") || fallbackMessage;
 }
@@ -452,6 +486,10 @@ function buildWorkspaceProbeMatrix(yamlAgents) {
     if (adapterType === "hermes_local" && !entry.hermes_local) {
       entry.hermes_local = buildHermesProbeConfig(adapterConfig);
     }
+    // Probe opencode_local for every cwd that has any adapter — it is the tertiary fallback for all
+    if (!entry.opencode_local) {
+      entry.opencode_local = buildOpencodeProbeConfig(cwd);
+    }
   }
   return byCwd;
 }
@@ -482,6 +520,13 @@ async function resolveWorkspaceAvailability(companyId, yamlAgents) {
         probeConfigs.hermes_local,
       );
     }
+    if (probeConfigs.opencode_local) {
+      availability[cwd].opencode_local = await probeAdapter(
+        companyId,
+        "opencode_local",
+        probeConfigs.opencode_local,
+      );
+    }
   }
   return availability;
 }
@@ -506,6 +551,11 @@ function fallbackAdapterFor(desired) {
     };
   }
 
+  if (desired.adapterType === "hermes_local") {
+    // hermes has no tier-2 equivalent; direct tertiary fallback is handled in chooseAdapterForAgent
+    return null;
+  }
+
   if (desired.adapterType !== "codex_local") {
     return null;
   }
@@ -527,27 +577,46 @@ function fallbackAdapterFor(desired) {
 }
 
 function chooseAdapterForAgent(desired, requestedMode, workspaceAvailability) {
+  // openrouter mode: force all agents immediately to opencode_local (no probing)
+  if (requestedMode === "openrouter") {
+    return tertiaryOpencodeFallbackFor(desired) ?? desired;
+  }
+
+  // hermes_local: no tier-2 equivalent — probe hermes, fall to opencode on failure
+  if (desired.adapterType === "hermes_local") {
+    const hermesStatus = workspaceAvailability?.hermes_local?.status;
+    if (hermesStatus === "pass") return desired;
+    const opencode = tertiaryOpencodeFallbackFor(desired);
+    if (opencode && workspaceAvailability?.opencode_local?.status === "pass") return opencode;
+    return desired;
+  }
+
+  // claude_local and codex_local only from here
   if (desired.adapterType !== "claude_local" && desired.adapterType !== "codex_local") {
     return desired;
   }
 
   const fallback = fallbackAdapterFor(desired);
+
   if (requestedMode === "claude") {
-    return desired.adapterType === "claude_local" ? desired : fallback;
+    return desired.adapterType === "claude_local" ? desired : (fallback ?? desired);
   }
   if (requestedMode === "codex") {
-    return desired.adapterType === "codex_local" ? desired : fallback;
+    return desired.adapterType === "codex_local" ? desired : (fallback ?? desired);
   }
 
+  // auto mode: 3-tier probe chain
   const desiredStatus = workspaceAvailability?.[desired.adapterType]?.status;
-  if (desiredStatus === "pass") {
-    return desired;
+  if (desiredStatus === "pass") return desired;
+
+  if (fallback) {
+    const fallbackStatus = workspaceAvailability?.[fallback.adapterType]?.status;
+    if (fallbackStatus === "pass") return fallback;
   }
 
-  const fallbackStatus = workspaceAvailability?.[fallback.adapterType]?.status;
-  if (fallbackStatus === "pass") {
-    return fallback;
-  }
+  // Tier 3: opencode_local (free, auto-activates when both primary and secondary fail)
+  const opencode = tertiaryOpencodeFallbackFor(desired);
+  if (opencode && workspaceAvailability?.opencode_local?.status === "pass") return opencode;
 
   return desired;
 }
@@ -574,8 +643,9 @@ for (const [cwd, adapters] of Object.entries(workspaceAvailability)) {
   const claudeReason = adapters.claude_local?.reason ?? "not configured";
   const codexReason = adapters.codex_local?.reason ?? "not configured";
   const hermesReason = adapters.hermes_local?.reason ?? "not configured";
+  const opencodeReason = adapters.opencode_local?.reason ?? "not configured";
   console.log(
-    `[paperclip] ${cwd} -> claude=${adapters.claude_local?.status ?? "n/a"} (${claudeReason}) | codex=${adapters.codex_local?.status ?? "n/a"} (${codexReason}) | hermes=${adapters.hermes_local?.status ?? "n/a"} (${hermesReason})`,
+    `[paperclip] ${cwd} -> claude=${adapters.claude_local?.status ?? "n/a"} (${claudeReason}) | codex=${adapters.codex_local?.status ?? "n/a"} (${codexReason}) | hermes=${adapters.hermes_local?.status ?? "n/a"} (${hermesReason}) | opencode=${adapters.opencode_local?.status ?? "n/a"} (${opencodeReason})`,
   );
 }
 
