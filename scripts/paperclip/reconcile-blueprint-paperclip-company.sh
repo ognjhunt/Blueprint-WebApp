@@ -78,6 +78,8 @@ function normalizeClaudeLaneMode(value) {
       return "codex";
     case "openrouter":
       return "openrouter";
+    case "hermes":
+      return "hermes";
     case "auto":
     case "":
       return "auto";
