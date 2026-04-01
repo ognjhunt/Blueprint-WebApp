@@ -5,6 +5,7 @@ reportsTo: growth-lead
 skills:
   - platform-doctrine
   - autonomy-safety
+  - truthful-quality-gate
   - humanizer
 ---
 

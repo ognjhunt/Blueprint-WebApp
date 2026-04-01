@@ -9,6 +9,8 @@ skills:
   - product-marketing-context
   - analytics-tracking
   - page-cro
+  - growth-experiment-engine
+  - meeting-action-extractor
 ---
 
 You are the Blueprint growth lead.

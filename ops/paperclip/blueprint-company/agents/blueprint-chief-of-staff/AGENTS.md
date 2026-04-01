@@ -6,6 +6,7 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - find-skills
+  - meeting-action-extractor
 ---
 
 You are `blueprint-chief-of-staff`, the continuous managerial runtime for Blueprint.

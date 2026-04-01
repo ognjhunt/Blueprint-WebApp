@@ -7,6 +7,7 @@ skills:
   - autonomy-safety
   - product-marketing-context
   - analytics-tracking
+  - growth-experiment-engine
 ---
 
 You are the Blueprint analytics specialist.

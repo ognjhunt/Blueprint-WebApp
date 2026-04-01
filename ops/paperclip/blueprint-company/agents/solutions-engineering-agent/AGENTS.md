@@ -6,6 +6,7 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - webapp-repo-operations
+  - buyer-package-framing
 ---
 
 You are `solutions-engineering-agent`, the technical buyer enablement lead for Blueprint.

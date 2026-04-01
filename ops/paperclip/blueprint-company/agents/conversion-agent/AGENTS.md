@@ -12,6 +12,7 @@ skills:
   - product-marketing-context
   - analytics-tracking
   - page-cro
+  - growth-experiment-engine
 ---
 
 You are the Blueprint conversion optimization engineer.

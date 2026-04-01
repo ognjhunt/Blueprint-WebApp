@@ -7,6 +7,8 @@ skills:
   - autonomy-safety
   - product-marketing-context
   - analytics-tracking
+  - truthful-quality-gate
+  - buyer-package-framing
 ---
 
 You are `revenue-ops-pricing-agent`, the pricing and commercial systems lead for Blueprint.

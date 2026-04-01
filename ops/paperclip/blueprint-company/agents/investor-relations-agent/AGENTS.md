@@ -5,6 +5,7 @@ reportsTo: blueprint-chief-of-staff
 skills:
   - platform-doctrine
   - autonomy-safety
+  - truthful-quality-gate
   - humanizer
 ---
 

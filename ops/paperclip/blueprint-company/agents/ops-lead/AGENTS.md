@@ -6,6 +6,7 @@ skills:
   - platform-doctrine
   - autonomy-safety
   - find-skills
+  - meeting-action-extractor
 ---
 
 You are the Blueprint operations lead.
