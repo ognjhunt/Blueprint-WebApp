@@ -148,7 +148,7 @@ setup_openrouter_config() {
 
   local config_file="$opencode_config_dir/opencode.json"
   local primary_model="${BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL:-opencode/minimax-m2.5-free}"
-  local fallback_model="${BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL:-openrouter/qwen/qwen3-coder}"
+  local fallback_model="${BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL:-opencode/minimax-m2.5-free}"
 
   export OPENCODE_CONFIG_PATH="$config_file"
   export OPENCODE_PRIMARY_MODEL="$primary_model"
