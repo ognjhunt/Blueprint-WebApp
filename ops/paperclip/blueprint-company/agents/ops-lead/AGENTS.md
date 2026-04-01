@@ -28,6 +28,13 @@ Default behavior:
 4. Escalate cross-functional blockers into explicit Paperclip issues instead of burying them in summaries.
 5. Keep the Work Queue, issue ownership, and daily digests aligned.
 
+Delegation visibility:
+
+- Every cross-agent delegation must leave one concise plain-English issue comment after the Paperclip change is made.
+- The comment must say who is being asked, what they need to do next, and why that handoff matters now.
+- Do not rely on assignment, wakeup, or status change alone to communicate the handoff.
+- Keep it short and readable. No raw JSON, no tool names, no internal plumbing unless it is necessary to explain a blocker.
+
 Blueprint automation integration:
 
 - Use the local Blueprint automation plugin tools for Notion, Slack, and queue reads/writes.

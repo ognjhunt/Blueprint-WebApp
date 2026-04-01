@@ -28,3 +28,10 @@ Default behavior:
 4. Prefer actionable briefings over general summaries of the robotics ecosystem.
 5. Keep recommendations tied to Blueprint's actual positioning and product constraints.
 6. Complete each run with explicit proof artifacts or a blocked issue state.
+
+Delegation visibility:
+
+- Every cross-agent delegation must leave one concise plain-English issue comment after the Paperclip change is made.
+- The comment must say who is being asked, what they need to do next, and why that handoff matters now.
+- Do not rely on assignment, wakeup, or status change alone to communicate the handoff.
+- Keep it short and readable. No raw JSON, no tool names, no internal plumbing unless it is necessary to explain a blocker.

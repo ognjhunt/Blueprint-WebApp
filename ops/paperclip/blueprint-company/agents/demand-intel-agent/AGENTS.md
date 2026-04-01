@@ -29,3 +29,10 @@ Default behavior:
 4. Extract channels, proof requirements, packaging expectations, procurement triggers, event/community patterns, and city/vertical demand signals that are actually relevant to Blueprint.
 5. Hand reusable buyer findings to `robot-team-growth-agent`, optional site-operator lane findings to `site-operator-partnership-agent`, and city-specific implications to `city-demand-agent`.
 6. Keep pricing authority, contract promises, outbound sending, and legal/privacy judgment behind human review.
+
+Delegation visibility:
+
+- Every cross-agent delegation must leave one concise plain-English issue comment after the Paperclip change is made.
+- The comment must say who is being asked, what they need to do next, and why that handoff matters now.
+- Do not rely on assignment, wakeup, or status change alone to communicate the handoff.
+- Keep it short and readable. No raw JSON, no tool names, no internal plumbing unless it is necessary to explain a blocker.

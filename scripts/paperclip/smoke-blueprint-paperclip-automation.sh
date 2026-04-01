@@ -3,6 +3,10 @@ set -euo pipefail
 
 WORKSPACE_ROOT="/Users/nijelhunt_1/workspace"
 PAPERCLIP_ENV_FILE="${PAPERCLIP_ENV_FILE:-$WORKSPACE_ROOT/.paperclip-blueprint.env}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=./paperclip-api.sh
+source "$SCRIPT_DIR/paperclip-api.sh"
 
 if [ -f "$PAPERCLIP_ENV_FILE" ]; then
   set -a
@@ -11,7 +15,9 @@ if [ -f "$PAPERCLIP_ENV_FILE" ]; then
   set +a
 fi
 
-PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://127.0.0.1:3101}"
+PAPERCLIP_HOST="${PAPERCLIP_HOST:-127.0.0.1}"
+PAPERCLIP_PORT="${PAPERCLIP_PORT:-3100}"
+PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://${PAPERCLIP_HOST}:${PAPERCLIP_PORT}}"
 PAPERCLIP_PUBLIC_URL="${PAPERCLIP_PUBLIC_URL:-$PAPERCLIP_API_URL}"
 PAPERCLIP_SMOKE_URL="${PAPERCLIP_SMOKE_URL:-$PAPERCLIP_API_URL}"
 COMPANY_NAME="${COMPANY_NAME:-Blueprint Autonomous Operations}"
@@ -26,8 +32,17 @@ OPS_STRIPE_FINGERPRINT="ops-stripe:${OPS_STRIPE_ID}"
 OPS_SUPPORT_ID="support-${SOURCE_ID}"
 OPS_SUPPORT_FINGERPRINT="ops-support:${OPS_SUPPORT_ID}"
 
+fetch_smoke_json() {
+  local path="$1"
+  paperclip_api_fetch_json "$PAPERCLIP_SMOKE_URL" "$path" "Blueprint Paperclip smoke API"
+}
+
+paperclip_health() {
+  paperclip_api_health "$PAPERCLIP_SMOKE_URL"
+}
+
 company_id() {
-  curl -fsS "${PAPERCLIP_SMOKE_URL}/api/companies" \
+  fetch_smoke_json "/api/companies" \
     | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const match=rows.find((row)=>row.name===process.argv[1]);if(!match){process.exit(2);}process.stdout.write(match.id);});' "$COMPANY_NAME"
 }
 
@@ -113,6 +128,7 @@ send_support_webhook() {
 }
 
 main() {
+  paperclip_health
   local company
   company="$(company_id)"
 

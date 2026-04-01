@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildAgentConversationSlackCopy,
   buildManagedIssueSlackCopy,
   cleanIssueTitle,
   formatAgentName,
@@ -50,5 +51,41 @@ describe("slack alert copy", () => {
     expect(formatAgentName("pipeline-claude")).toBe("pipeline claude");
     expect(formatIssuePriority("high")).toBe("High");
     expect(formatIssueStatus("in_review")).toBe("In review");
+  });
+
+  it("formats agent coordination comments in plain English", () => {
+    const copy = buildAgentConversationSlackCopy({
+      kind: "comment",
+      actor: "growth-lead",
+      target: "conversion-agent",
+      issueIdentifier: "BLU-585",
+      issueTitle: "Chief of Staff Continuous Loop",
+      bodySnippet: "Please turn this into a concrete experiment plan for next week",
+    });
+
+    expect(copy.title).toBe("growth lead commented on BLU-585");
+    expect(copy.summary).toContain(
+      "What happened: growth lead left a coordination note for conversion agent.",
+    );
+    expect(copy.summary).toContain(
+      "Comment: Please turn this into a concrete experiment plan for next week.",
+    );
+  });
+
+  it("formats structured handoff requests without raw JSON", () => {
+    const copy = buildAgentConversationSlackCopy({
+      kind: "handoff_request",
+      actor: "blueprint-chief-of-staff",
+      target: "ops-lead",
+      issueIdentifier: "BLU-585",
+      issueTitle: "[Handoff] Route stale work",
+      summary: "The queue has blocked items with no owner.",
+      expectedOutcome: "Assign owners and close anything already done",
+      priority: "high",
+    });
+
+    expect(copy.title).toBe("Handoff: blueprint chief of staff -> ops lead");
+    expect(copy.summary).toContain("Requested outcome: Assign owners and close anything already done.");
+    expect(copy.summary).toContain("Priority: High");
   });
 });

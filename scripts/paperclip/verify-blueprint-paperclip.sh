@@ -3,6 +3,10 @@ set -euo pipefail
 
 WORKSPACE_ROOT="/Users/nijelhunt_1/workspace"
 PAPERCLIP_ENV_FILE="${PAPERCLIP_ENV_FILE:-$WORKSPACE_ROOT/.paperclip-blueprint.env}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=./paperclip-api.sh
+source "$SCRIPT_DIR/paperclip-api.sh"
 
 if [ -f "$PAPERCLIP_ENV_FILE" ]; then
   set -a
@@ -11,7 +15,9 @@ if [ -f "$PAPERCLIP_ENV_FILE" ]; then
   set +a
 fi
 
-PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://127.0.0.1:3101}"
+PAPERCLIP_HOST="${PAPERCLIP_HOST:-127.0.0.1}"
+PAPERCLIP_PORT="${PAPERCLIP_PORT:-3100}"
+PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://${PAPERCLIP_HOST}:${PAPERCLIP_PORT}}"
 COMPANY_NAME="${COMPANY_NAME:-Blueprint Autonomous Operations}"
 PLUGIN_KEY="blueprint.automation"
 RUN_SMOKE=0
@@ -19,7 +25,7 @@ CLAUDE_LANE_MODE="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE:-auto}"
 VERIFY_CLAUDE="${BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE:-1}"
 VERIFY_HERMES="${BLUEPRINT_PAPERCLIP_VERIFY_HERMES:-auto}"
 VERIFY_OPENCODE="${BLUEPRINT_PAPERCLIP_VERIFY_OPENCODE:-auto}"
-OPENCODE_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL:-minimax-m2.5-free}"
+OPENCODE_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL:-opencode/minimax-m2.5-free}"
 FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES:-0}"
 HERMES_INSTRUCTIONS_FILE="/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md"
 
@@ -38,28 +44,33 @@ if [[ "$CLAUDE_LANE_MODE" =~ ^codex$ ]] && [ -z "${BLUEPRINT_PAPERCLIP_VERIFY_CL
 fi
 
 paperclip_health() {
-  curl -fsS "${PAPERCLIP_API_URL}/api/health" >/dev/null
+  paperclip_api_health "$PAPERCLIP_API_URL"
+}
+
+fetch_api_json() {
+  local path="$1"
+  paperclip_api_fetch_json "$PAPERCLIP_API_URL" "$path" "Blueprint Paperclip API"
 }
 
 company_json() {
-  curl -fsS "${PAPERCLIP_API_URL}/api/companies" \
+  fetch_api_json "/api/companies" \
     | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const match=rows.find((row)=>row.name===process.argv[1]);if(!match){process.exit(2);}process.stdout.write(JSON.stringify(match));});' "$COMPANY_NAME"
 }
 
 plugin_json() {
-  curl -fsS "${PAPERCLIP_API_URL}/api/plugins" \
+  fetch_api_json "/api/plugins" \
     | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const match=rows.find((row)=>row.pluginKey===process.argv[1]);if(!match){process.exit(2);}process.stdout.write(JSON.stringify(match));});' "$PLUGIN_KEY"
 }
 
 plugin_config_json() {
   local plugin_id="$1"
-  curl -fsS "${PAPERCLIP_API_URL}/api/plugins/${plugin_id}/config"
+  fetch_api_json "/api/plugins/${plugin_id}/config"
 }
 
 require_routines() {
   local company_id="$1"
   local routines_json
-  routines_json="$(curl -fsS "${PAPERCLIP_API_URL}/api/companies/${company_id}/routines")"
+  routines_json="$(fetch_api_json "/api/companies/${company_id}/routines")"
   printf '%s' "$routines_json" | node -e '
     let data="";
     process.stdin.on("data",(chunk)=>data+=chunk);

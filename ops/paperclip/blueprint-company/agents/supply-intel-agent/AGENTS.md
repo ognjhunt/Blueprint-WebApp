@@ -28,3 +28,10 @@ Default behavior:
 3. Convert findings into evidence-backed implications for Blueprint, not startup folklore.
 4. Hand reusable findings to `capturer-growth-agent` and city-specific implications to `city-launch-agent`.
 5. Keep legal, compensation, and external-outreach decisions behind human review.
+
+Delegation visibility:
+
+- Every cross-agent delegation must leave one concise plain-English issue comment after the Paperclip change is made.
+- The comment must say who is being asked, what they need to do next, and why that handoff matters now.
+- Do not rely on assignment, wakeup, or status change alone to communicate the handoff.
+- Keep it short and readable. No raw JSON, no tool names, no internal plumbing unless it is necessary to explain a blocker.

@@ -3,6 +3,10 @@ set -euo pipefail
 
 WORKSPACE_ROOT="/Users/nijelhunt_1/workspace"
 PAPERCLIP_ENV_FILE="${PAPERCLIP_ENV_FILE:-$WORKSPACE_ROOT/.paperclip-blueprint.env}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=./paperclip-api.sh
+source "$SCRIPT_DIR/paperclip-api.sh"
 
 if [ -f "$PAPERCLIP_ENV_FILE" ]; then
   set -a
@@ -32,6 +36,7 @@ if [ "${BLUEPRINT_PAPERCLIP_USE_LOCAL_RUNNER:-0}" = "1" ] \
 fi
 
 mkdir -p "$PAPERCLIP_HOME"
+paperclip_require_external_postgres
 
 if [ ! -f "$CONFIG_PATH" ]; then
   if [ "$PAPERCLIP_RUNNER" = "local" ]; then

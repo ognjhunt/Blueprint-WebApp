@@ -3,6 +3,36 @@ export type SlackAlertCopy = {
   summary: string[];
 };
 
+type AgentConversationSlackCopyInput =
+  | {
+    kind: "comment";
+    actor: string;
+    target?: string | null;
+    issueIdentifier?: string | null;
+    issueTitle: string;
+    bodySnippet: string;
+  }
+  | {
+    kind: "handoff_request";
+    actor: string;
+    target: string;
+    issueIdentifier?: string | null;
+    issueTitle: string;
+    summary: string;
+    expectedOutcome: string;
+    priority?: string | null;
+  }
+  | {
+    kind: "handoff_response";
+    actor: string;
+    target: string;
+    issueIdentifier?: string | null;
+    issueTitle: string;
+    outcome: "done" | "blocked";
+    followUpReason?: string | null;
+    proofLinkCount?: number;
+  };
+
 type ManagedIssueSlackEvent = "opened" | "updated" | "resolved";
 
 type ManagedIssueSlackCopyInput = {
@@ -56,6 +86,58 @@ export function formatIssuePriority(value: string | null | undefined) {
 export function formatAgentName(value: string | null | undefined) {
   if (!value) return "Unassigned";
   return value.replace(/-/g, " ");
+}
+
+function describeIssue(input: { issueIdentifier?: string | null; issueTitle: string }) {
+  return input.issueIdentifier?.trim() || cleanIssueTitle(input.issueTitle);
+}
+
+export function buildAgentConversationSlackCopy(input: AgentConversationSlackCopyInput): SlackAlertCopy {
+  const issueLabel = describeIssue(input);
+
+  if (input.kind === "handoff_request") {
+    const summary = [
+      `What happened: ${formatAgentName(input.actor)} asked ${formatAgentName(input.target)} to take the next step.`,
+      `Task: ${issueLabel}`,
+      `Requested outcome: ${sentence(input.expectedOutcome)}`,
+      `Context: ${sentence(input.summary)}`,
+    ];
+    const priority = formatIssuePriority(input.priority);
+    if (priority) summary.push(`Priority: ${priority}`);
+
+    return {
+      title: `Handoff: ${formatAgentName(input.actor)} -> ${formatAgentName(input.target)}`,
+      summary,
+    };
+  }
+
+  if (input.kind === "handoff_response") {
+    const summary = [
+      `What happened: ${formatAgentName(input.actor)} replied to ${formatAgentName(input.target)} on an active handoff.`,
+      `Task: ${issueLabel}`,
+      `Outcome: ${input.outcome === "done" ? "Done" : "Blocked"}`,
+    ];
+    if (typeof input.proofLinkCount === "number") {
+      summary.push(`Proof links: ${input.proofLinkCount}`);
+    }
+    if (input.followUpReason) {
+      summary.push(`Next step: ${sentence(input.followUpReason)}`);
+    }
+
+    return {
+      title: `Handoff response from ${formatAgentName(input.actor)}`,
+      summary,
+    };
+  }
+
+  return {
+    title: `${formatAgentName(input.actor)} commented on ${issueLabel}`,
+    summary: [
+      `What happened: ${formatAgentName(input.actor)} left a coordination note${input.target ? ` for ${formatAgentName(input.target)}` : ""}.`,
+      `Task: ${issueLabel}`,
+      `Comment: ${sentence(input.bodySnippet)}`,
+    ],
+  };
 }
 
 function buildManagedIssueTitle(input: ManagedIssueSlackCopyInput) {

@@ -30,3 +30,10 @@ Default behavior:
 4. Push downstream execution work to `conversion-agent`, `analytics-agent`, `intake-agent`, `ops-lead`, `finance-support-agent`, and `city-demand-agent`.
 5. Treat every recommendation as an internal operating proposal until a human approves public-facing execution or commercial commitments.
 6. Keep the playbook current as buyer feedback, packaged-site reality, and hosted-session learnings change.
+
+Delegation visibility:
+
+- Every cross-agent delegation must leave one concise plain-English issue comment after the Paperclip change is made.
+- The comment must say who is being asked, what they need to do next, and why that handoff matters now.
+- Do not rely on assignment, wakeup, or status change alone to communicate the handoff.
+- Keep it short and readable. No raw JSON, no tool names, no internal plumbing unless it is necessary to explain a blocker.

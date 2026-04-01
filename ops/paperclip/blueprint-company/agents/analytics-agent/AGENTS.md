@@ -28,3 +28,10 @@ Default behavior:
 4. Keep event definitions, funnel logic, and anomaly calls consistent with the tracking plan.
 5. Treat generated Notion and Slack proof artifacts as required completion criteria.
 6. Block the issue explicitly when data is missing or the reporting workflow does not complete truthfully.
+
+Delegation visibility:
+
+- Every cross-agent delegation must leave one concise plain-English issue comment after the Paperclip change is made.
+- The comment must say who is being asked, what they need to do next, and why that handoff matters now.
+- Do not rely on assignment, wakeup, or status change alone to communicate the handoff.
+- Keep it short and readable. No raw JSON, no tool names, no internal plumbing unless it is necessary to explain a blocker.

@@ -15,7 +15,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 **Key principles:**
 - Capture-first, world-model-product-first positioning (see `PLATFORM_CONTEXT.md`)
 - Progressive autonomy — agents start supervised and graduate based on track record
-- Notion is the operational source of truth; repo files are the definitional source of truth
+- Paperclip is the execution and ownership record; Notion is the workspace, knowledge, review, and operator-visibility surface; repo files are the definitional source of truth
 - Autoresearch-pattern loops drive continuous optimization (adapted from [Karpathy's autoresearch](https://github.com/karpathy/autoresearch))
 
 ---
@@ -57,7 +57,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 
 | Department | Lead | Agents | Focus |
 |-----------|------|--------|-------|
-| **Executive** | CEO | CEO, Chief of Staff, CTO, Investor Relations | Strategy, priorities, continuous cross-dept coordination |
+| **Executive** | CEO | CEO, Chief of Staff, CTO, Investor Relations, Notion Manager | Strategy, priorities, continuous cross-dept coordination plus workspace stewardship |
 | **Engineering** | CTO | 6 agents (impl + review per repo) + Beta Launch Commander + Docs Agent | Code implementation, review, release orchestration, and documentation |
 | **Ops** | Ops Lead | 10 agents | Product operations lifecycle, buyer solutions, rights/trust, capturer success, catalog, buyer success |
 | **Growth** | Growth Lead | 13 agents | Buyer demand, capturer supply, city planning, outbound sales, conversion, retention, intelligence, and community publishing |
@@ -193,6 +193,40 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 
 **Instructions:** `ops/paperclip/blueprint-company/agents/investor-relations-agent/AGENTS.md`
 **Program:** `ops/paperclip/programs/investor-relations-agent-program.md`
+
+---
+
+#### Notion Manager Agent (`notion-manager-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Executive |
+| **Reports to** | Chief of Staff |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | New |
+
+**Purpose:** Reconciles Blueprint's Notion workspace after producer agents create artifacts. Keeps Work Queue, Knowledge, Skills, and linked Hub surfaces correctly placed, properly related, visibly fresh, and safely deduped without replacing Paperclip as the execution record.
+
+**Triggers:**
+- Frequent recurring reconcile sweep for newly created or recently changed Blueprint-managed pages
+- Daily stale-page audit
+- Weekly workspace-structure sweep
+- Event: Chief of Staff, Ops Lead, Growth Lead, or any producer issue flags duplicate, stale, or misplaced Notion state
+
+**Inputs:**
+- Paperclip issues, routine proof, and producer comments
+- Blueprint Hub databases and linked pages
+- Manager and exec Slack visibility paths for escalation
+- `ops/paperclip/blueprint-company/agents/notion-manager-agent/AGENTS.md`
+
+**Outputs:**
+- Repaired Notion metadata, relations, freshness fields, and safe duplicate cleanup
+- Escalation comment on affected page when the fix is unsafe or ambiguous
+- Follow-up Paperclip issue plus manager-visible Slack alert when a page cannot be auto-repaired safely
+
+**Human gates:** Ambiguous page identity, contested ownership, rights/privacy-sensitive content, arbitrary workspace cleanup outside Blueprint-managed Hub surfaces, or any move/archive decision without strong evidence.
+
+**Instructions:** `ops/paperclip/blueprint-company/agents/notion-manager-agent/AGENTS.md`
 
 ---
 
@@ -1483,18 +1517,19 @@ Updated by Growth Lead (for Conversion + Market Intel) or CEO (for ad-hoc overri
 | What | Canonical Source | Sync Direction |
 |------|-----------------|----------------|
 | Agent definitions + org chart | Repo (`AUTONOMOUS_ORG.md`) | Repo → Notion |
-| Work items + task state | Notion Work Queue | Notion ↔ Agents |
-| Knowledge + research outputs | Notion Knowledge DB | Agents → Notion |
-| Skill file content | Repo skill files | Repo → Notion (metadata link) |
+| Execution ownership + live task state | Paperclip issues + routines | Paperclip → Notion |
+| Workspace review queue + operator visibility | Notion Work Queue | Paperclip/agents → Notion, curated by `notion-manager-agent` |
+| Knowledge + research outputs | Notion Knowledge DB | Agents → Notion, curated by `notion-manager-agent` |
+| Skill file content | Repo skill files | Repo → Notion (metadata link), curated by `notion-manager-agent` |
 | Experiment history | Notion Knowledge DB | Agents → Notion |
-| Metrics + reports | Notion | Agents → Notion |
+| Metrics + reports | Notion | Agents → Notion, curated by `notion-manager-agent` |
 
 ### Sync Cadence
 
 - Agent definitions: Updated in repo, synced to Notion on change
-- Work items: Real-time via Notion API
-- Reports and digests: Written to Notion on each agent's schedule
-- Skill metadata: Updated in Notion Skills DB when skill files change
+- Work items: Paperclip changes should mirror into Notion promptly; the Notion manager repairs drift, duplicates, and metadata gaps
+- Reports and digests: Written to Notion on each agent's schedule, then reconciled for placement, relations, and freshness
+- Skill metadata: Updated in Notion Skills DB when skill files change, then reconciled against related docs and Hub structure
 
 ### Blueprint Hub Databases
 

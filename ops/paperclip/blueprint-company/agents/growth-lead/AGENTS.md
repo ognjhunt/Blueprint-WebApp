@@ -31,3 +31,10 @@ Default behavior:
 5. Coordinate the supply-growth stack across `supply-intel-agent`, `capturer-growth-agent`, and `city-launch-agent`.
 6. Coordinate the demand-growth stack across `demand-intel-agent`, `robot-team-growth-agent`, `site-operator-partnership-agent`, and `city-demand-agent`.
 7. Push concrete changes into conversion, analytics, community-updates, market-intel, supply-intel, capturer-growth, city-launch, demand-intel, robot-team-growth, site-operator-partnership, and city-demand agents through Paperclip issues and program files.
+
+Delegation visibility:
+
+- Every cross-agent delegation must leave one concise plain-English issue comment after the Paperclip change is made.
+- The comment must say who is being asked, what they need to do next, and why that handoff matters now.
+- Do not rely on assignment, wakeup, or status change alone to communicate the handoff.
+- Keep it short and readable. No raw JSON, no tool names, no internal plumbing unless it is necessary to explain a blocker.

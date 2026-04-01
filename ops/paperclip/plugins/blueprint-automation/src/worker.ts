@@ -95,10 +95,12 @@ import {
 } from "./manager-loop.js";
 import {
   buildHandoffAnalytics,
+  parseHandoffComment,
   type HandoffAnalytics,
   type HandoffSnapshot,
 } from "./handoffs.js";
 import {
+  buildAgentConversationSlackCopy,
   buildManagedIssueSlackCopy,
   cleanIssueTitle,
   formatAgentName,
@@ -1452,6 +1454,141 @@ async function handleChiefOfStaffActivitySignal(
       `Source: ${asString(details?.source) ?? "unknown"}`,
       `Status: ${asString(details?.status) ?? "unknown"}`,
     ],
+  }).catch(() => undefined);
+}
+
+function preferredAgentChannelKey(agent: Agent | null | undefined): string | null {
+  if (!agent) return null;
+  const record = agent as unknown as Record<string, unknown>;
+  return (
+    asString(record.urlKey) ??
+    asString(record.slug) ??
+    asString(record.key) ??
+    asString(record.name) ??
+    asString(record.title) ??
+    asString(record.id)
+  ) ?? null;
+}
+
+function isAutomationCommentNoise(bodySnippet: string) {
+  const normalized = bodySnippet.trim().toLowerCase();
+  return normalized.startsWith("automation refresh")
+    || normalized.startsWith("## automation trace")
+    || normalized.startsWith("detected a claude quota/rate-limit failure")
+    || normalized.startsWith("detected a codex quota/rate-limit failure")
+    || normalized.startsWith("detected a hermes quota/rate-limit failure")
+    || normalized.startsWith("stuck handoff escalated by blueprint automation");
+}
+
+async function handleAgentConversationActivitySignal(
+  ctx: PluginContext,
+  event: { companyId: string; payload: unknown },
+) {
+  const payload = asRecord(event.payload);
+  const action = asString(payload?.action);
+  const actorType = asString(payload?.actorType);
+  if (action !== "issue.comment_added" || actorType !== "agent") {
+    return;
+  }
+
+  const actorId = asString(payload?.actorId);
+  const issueId = asString(payload?.entityId);
+  const details = asRecord(payload?.details);
+  const commentId = asString(details?.commentId);
+  const bodySnippet = asString(details?.bodySnippet);
+  const issueTitle = asString(details?.issueTitle);
+  const issueIdentifier = asString(details?.identifier);
+
+  if (!actorId || !issueId || !bodySnippet || isAutomationCommentNoise(bodySnippet)) {
+    return;
+  }
+
+  const [config, issue, actorAgent] = await Promise.all([
+    getConfig(ctx),
+    ctx.issues.get(issueId, event.companyId),
+    ctx.agents.get(actorId, event.companyId).catch(() => null),
+  ]);
+
+  if (!issue || !actorAgent) {
+    return;
+  }
+
+  const assigneeAgent = issue.assigneeAgentId
+    ? await ctx.agents.get(issue.assigneeAgentId, event.companyId).catch(() => null)
+    : null;
+
+  const actorKey = preferredAgentChannelKey(actorAgent) ?? actorId;
+  const assigneeKey = preferredAgentChannelKey(assigneeAgent);
+  const fallbackIssueTitle = issueTitle ?? issue.title;
+
+  let slackCopy = buildAgentConversationSlackCopy({
+    kind: "comment",
+    actor: actorKey,
+    target: assigneeKey,
+    issueIdentifier,
+    issueTitle: fallbackIssueTitle,
+    bodySnippet,
+  });
+  let channels = [
+    slackChannelForAgent(actorKey),
+    assigneeKey ? slackChannelForAgent(assigneeKey) : null,
+    "#paperclip-manager",
+  ];
+  let recentEventKind = "agent-comment";
+
+  if (commentId) {
+    const comments = await listCommentsForIssue(ctx, event.companyId, issueId).catch(() => []);
+    const comment = comments.find((entry) => entry.id === commentId);
+    const parsed = comment ? parseHandoffComment(comment.body) : null;
+
+    if (parsed?.kind === "request") {
+      slackCopy = buildAgentConversationSlackCopy({
+        kind: "handoff_request",
+        actor: parsed.data.from,
+        target: parsed.data.to,
+        issueIdentifier,
+        issueTitle: fallbackIssueTitle,
+        summary: parsed.data.context.summary,
+        expectedOutcome: parsed.data.expectedOutcome,
+        priority: parsed.data.priority,
+      });
+      channels = [
+        slackChannelForAgent(parsed.data.from),
+        slackChannelForAgent(parsed.data.to),
+        "#paperclip-manager",
+      ];
+      recentEventKind = "handoff-comment";
+    } else if (parsed?.kind === "response") {
+      slackCopy = buildAgentConversationSlackCopy({
+        kind: "handoff_response",
+        actor: parsed.data.from,
+        target: parsed.data.to,
+        issueIdentifier,
+        issueTitle: fallbackIssueTitle,
+        outcome: parsed.data.outcome,
+        followUpReason: parsed.data.followUpReason,
+        proofLinkCount: parsed.data.proofLinks?.length ?? 0,
+      });
+      channels = [
+        slackChannelForAgent(parsed.data.from),
+        slackChannelForAgent(parsed.data.to),
+        "#paperclip-manager",
+      ];
+      recentEventKind = "handoff-response";
+    }
+  }
+
+  await appendRecentEvent(ctx, event.companyId, {
+    kind: recentEventKind,
+    title: slackCopy.title,
+    issueId,
+    detail: slackCopy.summary.join(" "),
+  });
+
+  await postSlackActivityFanout(ctx, config, {
+    channels,
+    title: slackCopy.title,
+    summary: slackCopy.summary,
   }).catch(() => undefined);
 }
 
@@ -5357,6 +5494,242 @@ async function registerToolHandlers(ctx: PluginContext) {
           return { content: `Created knowledge entry ${result.pageId}.`, data: result };
         },
       );
+
+      ctx.tools.register(
+        TOOL_NAMES.notionSearchPages,
+        {
+          displayName: "Search Notion Pages",
+          description: "Search Blueprint-managed Notion pages, optionally within a Hub database or for stale knowledge entries.",
+          parametersSchema: {
+            type: "object",
+            properties: {
+              database: { type: "string", enum: ["work_queue", "knowledge", "skills"] },
+              query: { type: "string" },
+              title: { type: "string" },
+              limit: { type: "number" },
+              staleOnly: { type: "boolean" },
+            },
+          },
+        },
+        async (params): Promise<ToolResult> => {
+          const result = await notionTools[TOOL_NAMES.notionSearchPages](params as any);
+          return { content: `Found ${result.count} matching Notion pages.`, data: result };
+        },
+      );
+
+      ctx.tools.register(
+        TOOL_NAMES.notionFetchPage,
+        {
+          displayName: "Fetch Notion Page",
+          description: "Fetch a Blueprint-managed Notion page with metadata and a short block preview.",
+          parametersSchema: {
+            type: "object",
+            properties: {
+              pageId: { type: "string" },
+            },
+            required: ["pageId"],
+          },
+        },
+        async (params): Promise<ToolResult> => {
+          const result = await notionTools[TOOL_NAMES.notionFetchPage](params as any);
+          return { content: `Fetched Notion page ${(result as any).page.id}.`, data: result };
+        },
+      );
+
+      ctx.tools.register(
+        TOOL_NAMES.notionUpsertKnowledge,
+        {
+          displayName: "Upsert Notion Knowledge",
+          description: "Create or update a Blueprint Knowledge page using a stable natural key and optional duplicate archival.",
+          parametersSchema: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              type: { type: "string" },
+              system: { type: "string" },
+              content: { type: "string" },
+              canonicalSource: { type: "string" },
+              lastReviewed: { type: "string" },
+              reviewCadence: { type: "string" },
+              lifecycleStage: { type: "string" },
+              substage: { type: "string" },
+              sourceOfTruth: { type: "string" },
+              naturalKey: { type: "string" },
+              archiveDuplicates: { type: "boolean" },
+              ownerIds: { type: "array", items: { type: "string" } },
+              relatedWorkPageIds: { type: "array", items: { type: "string" } },
+              relatedWorkPageUrls: { type: "array", items: { type: "string" } },
+              relatedSkillPageIds: { type: "array", items: { type: "string" } },
+              relatedSkillPageUrls: { type: "array", items: { type: "string" } },
+              agentSurfaces: { type: "array", items: { type: "string" } },
+            },
+            required: ["title", "type", "content"],
+          },
+        },
+        async (params): Promise<ToolResult> => {
+          const result = await notionTools[TOOL_NAMES.notionUpsertKnowledge](params as any);
+          return {
+            content: `${result.status === "created" ? "Created" : "Updated"} knowledge entry ${result.pageId}.`,
+            data: result,
+          };
+        },
+      );
+
+      ctx.tools.register(
+        TOOL_NAMES.notionUpsertWorkQueue,
+        {
+          displayName: "Upsert Notion Work Queue",
+          description: "Create or update a Blueprint Work Queue page using a stable natural key and optional duplicate archival.",
+          parametersSchema: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              priority: { type: "string" },
+              system: { type: "string" },
+              lifecycleStage: { type: "string" },
+              workType: { type: "string" },
+              substage: { type: "string" },
+              outputLocation: { type: "string" },
+              executionSurface: { type: "string" },
+              dueDate: { type: "string" },
+              naturalKey: { type: "string" },
+              archiveDuplicates: { type: "boolean" },
+              ownerIds: { type: "array", items: { type: "string" } },
+              requestedByIds: { type: "array", items: { type: "string" } },
+              relatedDocPageIds: { type: "array", items: { type: "string" } },
+              relatedDocPageUrls: { type: "array", items: { type: "string" } },
+              relatedSkillPageIds: { type: "array", items: { type: "string" } },
+              relatedSkillPageUrls: { type: "array", items: { type: "string" } },
+            },
+            required: ["title", "priority", "system"],
+          },
+        },
+        async (params): Promise<ToolResult> => {
+          const result = await notionTools[TOOL_NAMES.notionUpsertWorkQueue](params as any);
+          return {
+            content: `${result.status === "created" ? "Created" : "Updated"} work queue item ${result.pageId}.`,
+            data: result,
+          };
+        },
+      );
+
+      ctx.tools.register(
+        TOOL_NAMES.notionUpdatePageMetadata,
+        {
+          displayName: "Update Notion Page Metadata",
+          description: "Repair metadata, ownership, freshness fields, and relations on a Blueprint-managed Notion page.",
+          parametersSchema: {
+            type: "object",
+            properties: {
+              pageId: { type: "string" },
+              database: { type: "string", enum: ["work_queue", "knowledge", "skills"] },
+            },
+            required: ["pageId", "database"],
+          },
+        },
+        async (params): Promise<ToolResult> => {
+          const result = await notionTools[TOOL_NAMES.notionUpdatePageMetadata](params as any);
+          return { content: `Updated metadata for Notion page ${result.pageId}.`, data: result };
+        },
+      );
+
+      ctx.tools.register(
+        TOOL_NAMES.notionMovePage,
+        {
+          displayName: "Move Notion Page",
+          description: "Move a Blueprint-managed page into the correct Hub database by recreating it there and optionally archiving the source page.",
+          parametersSchema: {
+            type: "object",
+            properties: {
+              pageId: { type: "string" },
+              targetDatabase: { type: "string", enum: ["work_queue", "knowledge", "skills"] },
+              archiveOriginal: { type: "boolean" },
+              preserveContent: { type: "boolean" },
+              metadata: { type: "object" },
+            },
+            required: ["pageId", "targetDatabase"],
+          },
+        },
+        async (params): Promise<ToolResult> => {
+          const result = await notionTools[TOOL_NAMES.notionMovePage](params as any);
+          return { content: `Moved Notion page to ${result.targetPageId}.`, data: result };
+        },
+      );
+
+      ctx.tools.register(
+        TOOL_NAMES.notionArchivePage,
+        {
+          displayName: "Archive Notion Page",
+          description: "Archive a Blueprint-managed Notion page when a duplicate or obsolete page is safe to retire.",
+          parametersSchema: {
+            type: "object",
+            properties: {
+              pageId: { type: "string" },
+            },
+            required: ["pageId"],
+          },
+        },
+        async (params): Promise<ToolResult> => {
+          const result = await notionTools[TOOL_NAMES.notionArchivePage](params as any);
+          return { content: `Archived Notion page ${result.pageId}.`, data: result };
+        },
+      );
+
+      ctx.tools.register(
+        TOOL_NAMES.notionCommentPage,
+        {
+          displayName: "Comment On Notion Page",
+          description: "Leave a reconciliation or escalation comment on a Blueprint-managed Notion page.",
+          parametersSchema: {
+            type: "object",
+            properties: {
+              pageId: { type: "string" },
+              comment: { type: "string" },
+            },
+            required: ["pageId", "comment"],
+          },
+        },
+        async (params): Promise<ToolResult> => {
+          const result = await notionTools[TOOL_NAMES.notionCommentPage](params as any);
+          return { content: `Commented on Notion page ${(params as any).pageId}.`, data: result };
+        },
+      );
+
+      ctx.tools.register(
+        TOOL_NAMES.notionReconcileRelations,
+        {
+          displayName: "Reconcile Notion Relations",
+          description: "Repair related work, related docs, related skills, ownership, and freshness metadata on a Blueprint-managed Notion page.",
+          parametersSchema: {
+            type: "object",
+            properties: {
+              pageId: { type: "string" },
+              database: { type: "string", enum: ["work_queue", "knowledge", "skills"] },
+              ownerIds: { type: "array", items: { type: "string" } },
+              requestedByIds: { type: "array", items: { type: "string" } },
+              relatedWorkPageIds: { type: "array", items: { type: "string" } },
+              relatedWorkPageUrls: { type: "array", items: { type: "string" } },
+              relatedDocPageIds: { type: "array", items: { type: "string" } },
+              relatedDocPageUrls: { type: "array", items: { type: "string" } },
+              relatedSkillPageIds: { type: "array", items: { type: "string" } },
+              relatedSkillPageUrls: { type: "array", items: { type: "string" } },
+              reviewCadence: { type: "string" },
+              lastReviewed: { type: "string" },
+              canonicalSource: { type: "string" },
+              sourceOfTruth: { type: "string" },
+              lifecycleStage: { type: "string" },
+              outputLocation: { type: "string" },
+              executionSurface: { type: "string" },
+              substage: { type: "string" },
+            },
+            required: ["pageId", "database"],
+          },
+        },
+        async (params): Promise<ToolResult> => {
+          const result = await notionTools[TOOL_NAMES.notionReconcileRelations](params as any);
+          return { content: `Reconciled relations for Notion page ${result.pageId}.`, data: result };
+        },
+      );
     }
   } catch {
     // Notion token not configured — tools will not be available
@@ -5665,6 +6038,17 @@ const plugin: PaperclipPlugin = definePlugin({
       }
     });
     ctx.events.on("activity.logged", async (event) => {
+      try {
+        await handleAgentConversationActivitySignal(ctx, event);
+      } catch (error) {
+        ctx.logger.warn("activity.logged comment mirror failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
       try {
         await handleChiefOfStaffActivitySignal(ctx, event);
       } catch (error) {

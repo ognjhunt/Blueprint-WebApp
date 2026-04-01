@@ -12,7 +12,9 @@ if [ -f "$PAPERCLIP_ENV_FILE" ]; then
   set +a
 fi
 
-PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://127.0.0.1:3101}"
+PAPERCLIP_HOST="${PAPERCLIP_HOST:-127.0.0.1}"
+PAPERCLIP_PORT="${PAPERCLIP_PORT:-3100}"
+PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://${PAPERCLIP_HOST}:${PAPERCLIP_PORT}}"
 COMPANY_NAME="${COMPANY_NAME:-Blueprint Autonomous Operations}"
 BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE:-auto}"
 BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES:-0}"
@@ -25,6 +27,8 @@ OPENCODE_NO_TTY="${OPENCODE_NO_TTY:-1}"
 
 export \
   PAPERCLIP_API_URL \
+  PAPERCLIP_HOST \
+  PAPERCLIP_PORT \
   COMPANY_NAME \
   REPO_ROOT \
   BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE \
@@ -58,7 +62,7 @@ const fallbackCodexModel =
 const fallbackCodexReasoningEffort =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT ?? "xhigh";
 const opencodeModel =
-  process.env.BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL ?? "minimax-m2.5-free";
+  process.env.BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL ?? "opencode/minimax-m2.5-free";
 const opencodeFallbackModel =
   process.env.BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL ?? "opencode/minimax-m2.5-free";
 const hermesFallbackModel =
@@ -92,16 +96,35 @@ function normalizeClaudeLaneMode(value) {
 }
 
 async function fetchJson(resourcePath, init = {}) {
-  const response = await fetch(`${paperclipApiUrl}${resourcePath}`, {
-    headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
-    ...init,
-  });
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`${init.method ?? "GET"} ${resourcePath} failed: ${response.status} ${text}`);
+  const attempts = Number(process.env.PAPERCLIP_FETCH_ATTEMPTS || "3");
+  const delayMs = Number(process.env.PAPERCLIP_FETCH_DELAY_MS || "500");
+  let lastError = `Empty response for ${resourcePath}`;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const response = await fetch(`${paperclipApiUrl}${resourcePath}`, {
+        headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
+        ...init,
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`${init.method ?? "GET"} ${resourcePath} failed: ${response.status} ${text}`);
+      }
+      const text = await response.text();
+      if (text.length > 0) {
+        return JSON.parse(text);
+      }
+      lastError = `Empty response for ${resourcePath}`;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+
+    if (attempt < attempts) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
   }
-  const text = await response.text();
-  return text.length > 0 ? JSON.parse(text) : null;
+
+  throw new Error(`Blueprint Paperclip API unavailable at ${paperclipApiUrl}${resourcePath}: ${lastError}`);
 }
 
 function hasSuffix(value) {
@@ -207,6 +230,7 @@ function inferRoutineAgentKey(routineKey, routineConfig) {
 const AGENT_DEFAULT_PROJECT_KEYS = {
   "blueprint-ceo": "blueprint-executive-ops",
   "blueprint-chief-of-staff": "blueprint-executive-ops",
+  "notion-manager-agent": "blueprint-executive-ops",
   "blueprint-cto": "blueprint-webapp",
   "webapp-codex": "blueprint-webapp",
   "webapp-claude": "blueprint-webapp",
@@ -408,12 +432,43 @@ function buildOpencodeProbeConfig(cwd) {
   return {
     cwd,
     model: opencodeModel,
-    dangerouslySkipPermissions: true,
   };
 }
 
-function tertiaryOpencodeFallbackFor(desired) {
-  const adapterConfig = desired.adapterConfig ?? {};
+function buildClaudeAdapterConfig(adapterConfig) {
+  const next = { ...(adapterConfig ?? {}) };
+  delete next.dangerouslyBypassApprovalsAndSandbox;
+  delete next.modelReasoningEffort;
+  return {
+    ...next,
+    model:
+      typeof adapterConfig?.model === "string" && adapterConfig.model.trim().length > 0
+        ? adapterConfig.model
+        : "claude-sonnet-4-6",
+    dangerouslySkipPermissions: adapterConfig?.dangerouslySkipPermissions !== false,
+  };
+}
+
+function buildCodexAdapterConfig(adapterConfig) {
+  const next = { ...(adapterConfig ?? {}) };
+  delete next.dangerouslySkipPermissions;
+  return {
+    ...next,
+    model:
+      typeof adapterConfig?.model === "string" && adapterConfig.model.trim().length > 0
+        ? adapterConfig.model
+        : fallbackCodexModel,
+    modelReasoningEffort:
+      typeof adapterConfig?.modelReasoningEffort === "string" && adapterConfig.modelReasoningEffort.trim().length > 0
+        ? adapterConfig.modelReasoningEffort
+        : fallbackCodexReasoningEffort,
+    dangerouslyBypassApprovalsAndSandbox:
+      adapterConfig?.dangerouslyBypassApprovalsAndSandbox !== false,
+  };
+}
+
+function tertiaryOpencodeFallbackFor(desired, baseAdapterConfig = desired.adapterConfig ?? {}) {
+  const adapterConfig = baseAdapterConfig ?? {};
   const cwd = typeof adapterConfig.cwd === "string" ? adapterConfig.cwd : "";
   if (!cwd) return null;
   return {
@@ -422,14 +477,15 @@ function tertiaryOpencodeFallbackFor(desired) {
       cwd,
       model: opencodeModel,
       fallbackModel: opencodeFallbackModel,
-      dangerouslySkipPermissions: true,
       timeoutSec: typeof adapterConfig.timeoutSec === "number" ? adapterConfig.timeoutSec : 1800,
+      instructionsFilePath:
+        typeof adapterConfig.instructionsFilePath === "string" ? adapterConfig.instructionsFilePath : undefined,
     },
   };
 }
 
-function hermesFreeFallbackFor(desired) {
-  const adapterConfig = desired.adapterConfig ?? {};
+function hermesFreeFallbackFor(desired, baseAdapterConfig = desired.adapterConfig ?? {}) {
+  const adapterConfig = baseAdapterConfig ?? {};
   const cwd = typeof adapterConfig.cwd === "string" ? adapterConfig.cwd : "";
   if (!cwd) return null;
   return {
@@ -438,6 +494,8 @@ function hermesFreeFallbackFor(desired) {
       cwd,
       model: hermesFallbackModel,
       timeoutSec: typeof adapterConfig.timeoutSec === "number" ? adapterConfig.timeoutSec : 1800,
+      instructionsFilePath:
+        typeof adapterConfig.instructionsFilePath === "string" ? adapterConfig.instructionsFilePath : undefined,
     },
   };
 }
@@ -560,20 +618,13 @@ async function resolveWorkspaceAvailability(companyId, yamlAgents) {
 function fallbackAdapterFor(desired) {
   const adapterConfig = desired.adapterConfig ?? {};
   if (desired.adapterType === "claude_local") {
-    const {
-      dangerouslySkipPermissions: _skipPermissions,
-      model: _previousModel,
-      modelReasoningEffort: _previousReasoningEffort,
-      ...rest
-    } = adapterConfig;
     return {
       adapterType: "codex_local",
-      adapterConfig: {
-        ...rest,
+      adapterConfig: buildCodexAdapterConfig({
+        ...adapterConfig,
         model: fallbackCodexModel,
         modelReasoningEffort: fallbackCodexReasoningEffort,
-        dangerouslyBypassApprovalsAndSandbox: true,
-      },
+      }),
     };
   }
 
@@ -586,20 +637,76 @@ function fallbackAdapterFor(desired) {
     return null;
   }
 
-  const {
-    dangerouslyBypassApprovalsAndSandbox: _bypass,
-    model: _previousModel,
-    modelReasoningEffort: _previousReasoningEffort,
-    ...rest
-  } = adapterConfig;
   return {
     adapterType: "claude_local",
-    adapterConfig: {
-      ...rest,
+    adapterConfig: buildClaudeAdapterConfig({
+      ...adapterConfig,
       model: "claude-sonnet-4-6",
-      dangerouslySkipPermissions: true,
-    },
+    }),
   };
+}
+
+function buildExecutionPolicyForAgent(agentConfig) {
+  const authoredAdapterType = agentConfig?.adapter?.type;
+  const authoredAdapterConfig = agentConfig?.adapter?.config ?? {};
+  if (!authoredAdapterType || !authoredAdapterConfig) {
+    return {};
+  }
+
+  const perAdapterConfig = {
+    claude_local: buildClaudeAdapterConfig(authoredAdapterConfig),
+    codex_local: buildCodexAdapterConfig({
+      ...authoredAdapterConfig,
+      model: fallbackCodexModel,
+      modelReasoningEffort: fallbackCodexReasoningEffort,
+    }),
+    hermes_local: hermesFreeFallbackFor(
+      { adapterType: authoredAdapterType, adapterConfig: authoredAdapterConfig },
+      authoredAdapterConfig,
+    )?.adapterConfig ?? undefined,
+    opencode_local: tertiaryOpencodeFallbackFor(
+      { adapterType: authoredAdapterType, adapterConfig: authoredAdapterConfig },
+      authoredAdapterConfig,
+    )?.adapterConfig ?? undefined,
+  };
+
+  if (authoredAdapterType === "claude_local") {
+    return {
+      mode: "prefer_available",
+      compatibleAdapterTypes: ["claude_local", "hermes_local", "opencode_local", "codex_local"],
+      preferredAdapterTypes: ["claude_local", "hermes_local", "opencode_local", "codex_local"],
+      perAdapterConfig,
+    };
+  }
+
+  if (authoredAdapterType === "codex_local") {
+    return {
+      mode: "prefer_available",
+      compatibleAdapterTypes: ["codex_local", "claude_local", "hermes_local", "opencode_local"],
+      preferredAdapterTypes: ["codex_local", "claude_local", "hermes_local", "opencode_local"],
+      perAdapterConfig,
+    };
+  }
+
+  if (authoredAdapterType === "hermes_local") {
+    return {
+      mode: "prefer_available",
+      compatibleAdapterTypes: ["hermes_local", "opencode_local", "claude_local", "codex_local"],
+      preferredAdapterTypes: ["hermes_local", "opencode_local", "claude_local", "codex_local"],
+      perAdapterConfig,
+    };
+  }
+
+  if (authoredAdapterType === "opencode_local") {
+    return {
+      mode: "prefer_available",
+      compatibleAdapterTypes: ["opencode_local", "hermes_local"],
+      preferredAdapterTypes: ["opencode_local", "hermes_local"],
+      perAdapterConfig,
+    };
+  }
+
+  return {};
 }
 
 function chooseAdapterForAgent(desired, requestedMode, workspaceAvailability) {
@@ -710,16 +817,25 @@ const desiredAgents = Object.fromEntries(
 
 for (const [agentKey, desired] of Object.entries(desiredAgents)) {
   const agent = pickCanonical(agents, agentKey);
+  const yamlAgentConfig = yamlAgents[agentKey];
   if (!agent) {
     console.warn(`Agent not found in Paperclip: ${agentKey}`);
     continue;
   }
+  const existingRuntimeConfig =
+    agent.runtimeConfig && typeof agent.runtimeConfig === "object" ? agent.runtimeConfig : {};
+  const nextRuntimeConfig = {
+    ...existingRuntimeConfig,
+    executionPolicy: buildExecutionPolicyForAgent(yamlAgentConfig),
+  };
+  delete nextRuntimeConfig.executionProfile;
   await fetchJson(`/api/agents/${agent.id}`, {
     method: "PATCH",
     body: JSON.stringify({
       adapterType: desired.adapterType,
       replaceAdapterConfig: true,
       adapterConfig: desired.adapterConfig,
+      runtimeConfig: nextRuntimeConfig,
     }),
   });
   if (agent.adapterType !== desired.adapterType) {

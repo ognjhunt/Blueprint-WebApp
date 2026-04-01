@@ -39,6 +39,22 @@ agents:
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md
         timeoutSec: 1800
     budgetMonthlyCents: 4000
+  notion-manager-agent:
+    role: engineer
+    icon: book-open
+    capabilities: >-
+      Reconciles Blueprint's Notion workspace after producer agents create artifacts. Verifies placement, repairs
+      metadata and relations, dedupes safe duplicates, flags stale pages, and escalates ambiguous Notion drift through
+      Paperclip plus manager-visible Slack. Only auto-mutates Blueprint-managed pages and known Hub surfaces.
+    adapter:
+      type: hermes_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/notion-manager-agent/AGENTS.md
+        timeoutSec: 1800
+    budgetMonthlyCents: 2200
   blueprint-cto:
     role: cto
     icon: circuit-board

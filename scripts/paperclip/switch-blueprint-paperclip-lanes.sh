@@ -3,6 +3,10 @@ set -euo pipefail
 
 WORKSPACE_ROOT="/Users/nijelhunt_1/workspace"
 PAPERCLIP_ENV_FILE="${PAPERCLIP_ENV_FILE:-$WORKSPACE_ROOT/.paperclip-blueprint.env}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=./paperclip-api.sh
+source "$SCRIPT_DIR/paperclip-api.sh"
 
 if [ -f "$PAPERCLIP_ENV_FILE" ]; then
   set -a
@@ -11,7 +15,9 @@ if [ -f "$PAPERCLIP_ENV_FILE" ]; then
   set +a
 fi
 
-PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://127.0.0.1:3101}"
+PAPERCLIP_HOST="${PAPERCLIP_HOST:-127.0.0.1}"
+PAPERCLIP_PORT="${PAPERCLIP_PORT:-3100}"
+PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://${PAPERCLIP_HOST}:${PAPERCLIP_PORT}}"
 RECONCILE_SCRIPT="${RECONCILE_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/reconcile-blueprint-paperclip-company.sh}"
 BOOTSTRAP_SCRIPT="${BOOTSTRAP_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/bootstrap-blueprint-paperclip.sh}"
 
@@ -46,7 +52,7 @@ write_env_value() {
 }
 
 paperclip_health() {
-  curl -fsS "${PAPERCLIP_API_URL}/api/health" >/dev/null 2>&1
+  paperclip_api_health "$PAPERCLIP_API_URL"
 }
 
 main() {

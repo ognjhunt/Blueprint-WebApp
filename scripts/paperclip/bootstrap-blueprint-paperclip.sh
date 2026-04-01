@@ -3,6 +3,10 @@ set -euo pipefail
 
 WORKSPACE_ROOT="/Users/nijelhunt_1/workspace"
 PAPERCLIP_ENV_FILE="${PAPERCLIP_ENV_FILE:-$WORKSPACE_ROOT/.paperclip-blueprint.env}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=./paperclip-api.sh
+source "$SCRIPT_DIR/paperclip-api.sh"
 
 if [ -f "$PAPERCLIP_ENV_FILE" ]; then
   set -a
@@ -43,6 +47,7 @@ ensure_prereqs() {
   command -v corepack >/dev/null 2>&1 || { echo "corepack is required" >&2; exit 1; }
   command -v curl >/dev/null 2>&1 || { echo "curl is required" >&2; exit 1; }
   corepack enable >/dev/null 2>&1
+  paperclip_require_external_postgres
   if ! command -v pnpm >/dev/null 2>&1 && [ ! -d "$PAPERCLIP_DIR/node_modules" ]; then
     echo "pnpm could not be enabled" >&2
     exit 1
@@ -99,7 +104,12 @@ paperclip_cli() {
 }
 
 paperclip_local_health() {
-  curl -fsS "${PAPERCLIP_LOCAL_URL}/api/health" >/dev/null 2>&1
+  paperclip_api_health "$PAPERCLIP_LOCAL_URL"
+}
+
+fetch_api_json() {
+  local path="$1"
+  paperclip_api_fetch_json "$PAPERCLIP_API_URL" "$path" "Blueprint Paperclip API"
 }
 
 paperclip_public_url_is_remote() {
@@ -161,13 +171,13 @@ start_paperclip() {
 }
 
 find_company_id() {
-  curl -fsS "${PAPERCLIP_API_URL}/api/companies" \
+  fetch_api_json "/api/companies" \
     | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const match=rows.find((row)=>row.name===process.argv[1]);process.stdout.write(match?match.id:"");});' "$COMPANY_NAME"
 }
 
 company_has_required_refresh_marker() {
   local company_id="$1"
-  curl -fsS "${PAPERCLIP_API_URL}/api/companies/${company_id}/routines" \
+  fetch_api_json "/api/companies/${company_id}/routines" \
     | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const required=["CTO Cross-Repo Triage","Ops Lead Morning","Growth Lead Weekly","Market Intel Weekly","Demand Intel Weekly","Robot Team Growth Weekly","City Demand Weekly"];const exists=required.every((title)=>rows.some((row)=>row.title===title));process.stdout.write(exists?"yes":"no");});'
 }
 

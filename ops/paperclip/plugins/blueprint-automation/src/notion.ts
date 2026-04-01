@@ -1,23 +1,47 @@
 import { Client } from "@notionhq/client";
 
-// Database IDs (page-level) from Blueprint Hub
-const WORK_QUEUE_DB = "f83b6c53-a33a-4790-9ca4-786dddadad46";
-const SKILLS_DB = "4e37bd7a-e448-4f81-aa3e-b8860826e98c";
-const KNOWLEDGE_DB = "7c729783-c377-4342-bf00-5555b88a2ec6";
+export type NotionDatabaseKey = "work_queue" | "knowledge" | "skills";
 
-// Data Source IDs (collection-level) for querying
+const HUB_PAGE_ID = "16d80154-161d-80db-869b-cfba4fe70be3";
+const WORK_QUEUE_DB = "f83b6c53-a33a-4790-9ca4-786dddadad46";
 const WORK_QUEUE_DS = "51d93d65-8a00-4dd4-a9a2-fd9a6e69120d";
+const KNOWLEDGE_DB = "7c729783-c377-4342-bf00-5555b88a2ec6";
 const KNOWLEDGE_DS = "b9e4ca9c-db43-4a16-9780-f15eb100c8b4";
+const SKILLS_DB = "4e37bd7a-e448-4f81-aa3e-b8860826e98c";
+const SKILLS_DS = "a9301f67-d565-4270-85e4-1fb8b82f96af";
+const NOTION_TEXT_CONTENT_LIMIT = 1800;
+
+const DATABASE_CONFIG: Record<
+  NotionDatabaseKey,
+  { databaseId: string; dataSourceId: string; titleProperty: string }
+> = {
+  work_queue: { databaseId: WORK_QUEUE_DB, dataSourceId: WORK_QUEUE_DS, titleProperty: "Title" },
+  knowledge: { databaseId: KNOWLEDGE_DB, dataSourceId: KNOWLEDGE_DS, titleProperty: "Title" },
+  skills: { databaseId: SKILLS_DB, dataSourceId: SKILLS_DS, titleProperty: "Title" },
+};
+
+const KNOWLEDGE_REVIEW_WINDOWS_DAYS: Record<string, number> = {
+  Weekly: 8,
+  Monthly: 35,
+  Quarterly: 100,
+};
+
+type NotionClientAny = Client & any;
+type NotionHandler = (params: Record<string, unknown>) => Promise<Record<string, unknown>>;
 
 export interface NotionConfig {
   token: string;
 }
 
-export function createNotionClient(config: NotionConfig): Client {
-  return new Client({ auth: config.token });
+export interface NotionWriteResult {
+  pageId: string;
+  pageUrl?: string;
 }
 
-// ── Work Queue Operations ────────────────────────────────
+export interface NotionUpsertResult extends NotionWriteResult {
+  status: "created" | "updated";
+  duplicatePageIds: string[];
+}
 
 export interface WorkQueueItem {
   title: string;
@@ -26,6 +50,22 @@ export interface WorkQueueItem {
   lifecycleStage: string;
   workType: "Task" | "Research" | "Refresh" | "SOP" | "Improvement";
   substage?: string;
+  outputLocation?: "Notion" | "Repo" | "External";
+  executionSurface?: "Notion" | "Repo" | "Browser";
+  dueDate?: string;
+  ownerIds?: string[];
+  requestedByIds?: string[];
+  relatedDocPageIds?: string[];
+  relatedDocPageUrls?: string[];
+  relatedSkillPageIds?: string[];
+  relatedSkillPageUrls?: string[];
+  naturalKey?: string;
+}
+
+export interface WorkQueueQuery {
+  system?: string;
+  priority?: string;
+  lifecycleStage?: string;
 }
 
 export interface WorkQueueQueryItem {
@@ -36,17 +76,125 @@ export interface WorkQueueQueryItem {
   lifecycleStage: string;
   workType: string;
   url?: string;
+  naturalKey: string;
 }
 
-export interface NotionWriteResult {
-  pageId: string;
-  pageUrl?: string;
+export interface KnowledgeEntry {
+  title: string;
+  type: "Concept" | "Reference" | "How-To" | "Decision" | "Architecture" | "Contract";
+  system: "Cross-System" | "WebApp" | "Capture" | "Pipeline" | "Validation";
+  content: string;
+  agentSurfaces?: string[];
+  sourceOfTruth?: "Notion" | "Repo";
+  canonicalSource?: string;
+  lastReviewed?: string;
+  reviewCadence?: "Weekly" | "Monthly" | "Quarterly" | "Ad Hoc";
+  lifecycleStage?: string;
+  substage?: string;
+  ownerIds?: string[];
+  relatedWorkPageIds?: string[];
+  relatedWorkPageUrls?: string[];
+  relatedSkillPageIds?: string[];
+  relatedSkillPageUrls?: string[];
+  naturalKey?: string;
 }
 
-const NOTION_TEXT_CONTENT_LIMIT = 1800;
+export interface SkillMetadata {
+  title: string;
+  skillType?: "System" | "Knowledge" | "Workflow";
+  system?: "Cross-System" | "WebApp" | "Capture" | "Pipeline" | "Validation";
+  canonicalSkillFile?: string;
+  lifecycleStage?: string;
+  ownerIds?: string[];
+  agentSurfaces?: string[];
+  relatedDocPageIds?: string[];
+  relatedDocPageUrls?: string[];
+  naturalKey?: string;
+}
+
+export interface NotionPageSummary {
+  id: string;
+  url?: string;
+  title: string;
+  database: NotionDatabaseKey | "unknown";
+  createdTime?: string;
+  lastEditedTime?: string;
+  archived: boolean;
+  stale: boolean;
+  properties?: Record<string, unknown>;
+}
+
+interface PageLike {
+  id: string;
+  archived?: boolean;
+  created_time?: string;
+  last_edited_time?: string;
+}
+
+export interface UpsertPlan<T extends PageLike> {
+  action: "create" | "update";
+  canonical: T | null;
+  duplicates: T[];
+}
+
+export interface KnowledgeFreshnessCandidate {
+  id: string;
+  reviewCadence?: string | null;
+  lastReviewed?: string | null;
+  lastEditedTime?: string | null;
+}
+
+export function createNotionClient(config: NotionConfig): Client {
+  return new Client({ auth: config.token });
+}
+
+function notionClient(client: Client): NotionClientAny {
+  return client as NotionClientAny;
+}
 
 function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function asStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .filter((entry): entry is string => typeof entry === "string")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  }
+  const single = asString(value);
+  return single ? [single] : [];
+}
+
+function unique(values: Array<string | undefined | null>): string[] {
+  return [...new Set(values.filter((value): value is string => Boolean(value && value.trim())))];
+}
+
+function toIsoDate(value: string | undefined): string | undefined {
+  const trimmed = asString(value);
+  if (!trimmed) return undefined;
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return parsed.toISOString().slice(0, 10);
+}
+
+export function extractNotionId(value: string | undefined): string | null {
+  const trimmed = asString(value);
+  if (!trimmed) return null;
+  const cleaned = trimmed.replace(/[^a-fA-F0-9]/g, "");
+  if (cleaned.length === 32) {
+    return [
+      cleaned.slice(0, 8),
+      cleaned.slice(8, 12),
+      cleaned.slice(12, 16),
+      cleaned.slice(16, 20),
+      cleaned.slice(20, 32),
+    ].join("-").toLowerCase();
+  }
+  const matches = trimmed.match(/[a-fA-F0-9]{32}|[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}/g);
+  if (!matches || matches.length === 0) return null;
+  return extractNotionId(matches[matches.length - 1]);
 }
 
 function splitNotionTextContent(content: string): string[] {
@@ -82,170 +230,835 @@ function buildParagraphRichText(content: string) {
   }));
 }
 
-function coerceWorkQueueItem(input: Partial<WorkQueueItem> & Record<string, unknown>): WorkQueueItem {
+function buildTitleProperty(title: string) {
+  return { title: [{ text: { content: title } }] };
+}
+
+function buildRichTextProperty(value: string | undefined) {
+  const content = asString(value);
+  return content ? { rich_text: [{ text: { content } }] } : undefined;
+}
+
+function buildSelectProperty(value: string | undefined) {
+  const content = asString(value);
+  return content ? { select: { name: content } } : undefined;
+}
+
+function buildMultiSelectProperty(values: string[] | undefined) {
+  const normalized = unique(values ?? []);
+  return normalized.length > 0
+    ? { multi_select: normalized.map((name) => ({ name })) }
+    : undefined;
+}
+
+function buildPeopleProperty(ids: string[] | undefined) {
+  const normalized = unique((ids ?? []).map((value) => extractNotionId(value) ?? undefined));
+  return normalized.length > 0
+    ? { people: normalized.map((id) => ({ id })) }
+    : undefined;
+}
+
+function buildRelationProperty(ids?: string[], urls?: string[]) {
+  const normalized = unique([
+    ...(ids ?? []).map((value) => extractNotionId(value) ?? undefined),
+    ...(urls ?? []).map((value) => extractNotionId(value) ?? undefined),
+  ]);
+  return normalized.length > 0
+    ? { relation: normalized.map((id) => ({ id })) }
+    : undefined;
+}
+
+function buildDateProperty(value: string | undefined) {
+  const start = toIsoDate(value);
+  return start ? { date: { start } } : undefined;
+}
+
+function maybeSet(target: Record<string, unknown>, key: string, value: unknown) {
+  if (value !== undefined) target[key] = value;
+}
+
+function getTitleFromPage(page: any): string {
+  const title = page?.properties?.Title?.title;
+  if (Array.isArray(title) && title[0]?.plain_text) return title[0].plain_text;
+  if (Array.isArray(title) && title[0]?.text?.content) return title[0].text.content;
+  return "";
+}
+
+function detectDatabaseKey(page: any): NotionDatabaseKey | "unknown" {
+  const databaseId = extractNotionId(page?.parent?.database_id);
+  if (!databaseId) return "unknown";
+  const match = Object.entries(DATABASE_CONFIG).find(([, config]) => config.databaseId === databaseId);
+  return (match?.[0] as NotionDatabaseKey | undefined) ?? "unknown";
+}
+
+function summarizePage(page: any, staleIds = new Set<string>()): NotionPageSummary {
+  return {
+    id: page.id,
+    url: asString(page.url),
+    title: getTitleFromPage(page),
+    database: detectDatabaseKey(page),
+    createdTime: asString(page.created_time),
+    lastEditedTime: asString(page.last_edited_time),
+    archived: Boolean(page.archived ?? page.in_trash),
+    stale: staleIds.has(page.id),
+    properties: page.properties ?? {},
+  };
+}
+
+export function planNotionUpsert<T extends PageLike>(matches: T[]): UpsertPlan<T> {
+  if (matches.length === 0) {
+    return { action: "create", canonical: null, duplicates: [] };
+  }
+
+  const sorted = [...matches].sort((left, right) => {
+    const leftArchived = left.archived ? 1 : 0;
+    const rightArchived = right.archived ? 1 : 0;
+    if (leftArchived !== rightArchived) return leftArchived - rightArchived;
+    const leftTime = new Date(left.last_edited_time ?? left.created_time ?? 0).getTime();
+    const rightTime = new Date(right.last_edited_time ?? right.created_time ?? 0).getTime();
+    return rightTime - leftTime;
+  });
+
+  return {
+    action: "update",
+    canonical: sorted[0] ?? null,
+    duplicates: sorted.slice(1),
+  };
+}
+
+export function detectStaleKnowledgeEntries(
+  entries: KnowledgeFreshnessCandidate[],
+  nowIso: string,
+): string[] {
+  const now = new Date(nowIso).getTime();
+  return entries
+    .filter((entry) => {
+      const cadence = asString(entry.reviewCadence);
+      if (!cadence || cadence === "Ad Hoc") return false;
+      const threshold = KNOWLEDGE_REVIEW_WINDOWS_DAYS[cadence];
+      if (!threshold) return false;
+      const anchor = asString(entry.lastReviewed) ?? asString(entry.lastEditedTime);
+      if (!anchor) return true;
+      const anchorTime = new Date(anchor).getTime();
+      if (Number.isNaN(anchorTime)) return true;
+      const ageDays = (now - anchorTime) / (1000 * 60 * 60 * 24);
+      return ageDays > threshold;
+    })
+    .map((entry) => entry.id);
+}
+
+function workQueueNaturalKey(item: WorkQueueItem): string {
+  return unique([item.naturalKey, item.title, item.system, item.workType]).join("::");
+}
+
+function knowledgeNaturalKey(entry: KnowledgeEntry): string {
+  return unique([entry.naturalKey, entry.title, entry.system, entry.type]).join("::");
+}
+
+function skillsNaturalKey(entry: SkillMetadata): string {
+  return unique([entry.naturalKey, entry.title, entry.system, entry.skillType]).join("::");
+}
+
+function normalizeWorkQueueItem(input: Partial<WorkQueueItem> & Record<string, unknown>, includeDefaults: boolean): WorkQueueItem {
   return {
     title: asString(input.title) ?? "Untitled work item",
-    priority: (asString(input.priority) as WorkQueueItem["priority"] | undefined) ?? "P2",
-    system: (asString(input.system) as WorkQueueItem["system"] | undefined) ?? "Cross-System",
-    lifecycleStage: asString(input.lifecycleStage) ?? asString(input.status) ?? "Open",
-    workType: (asString(input.workType) as WorkQueueItem["workType"] | undefined) ?? "Task",
+    priority: (asString(input.priority) as WorkQueueItem["priority"] | undefined) ?? (includeDefaults ? "P2" : undefined as never),
+    system: (asString(input.system) as WorkQueueItem["system"] | undefined) ?? (includeDefaults ? "Cross-System" : undefined as never),
+    lifecycleStage: asString(input.lifecycleStage) ?? asString(input.status) ?? (includeDefaults ? "Open" : ""),
+    workType: (asString(input.workType) as WorkQueueItem["workType"] | undefined) ?? (includeDefaults ? "Task" : undefined as never),
     substage: asString(input.substage) ?? asString(input.description),
+    outputLocation: asString(input.outputLocation) as WorkQueueItem["outputLocation"] | undefined,
+    executionSurface: asString(input.executionSurface) as WorkQueueItem["executionSurface"] | undefined,
+    dueDate: asString(input.dueDate),
+    ownerIds: asStringArray(input.ownerIds),
+    requestedByIds: asStringArray(input.requestedByIds),
+    relatedDocPageIds: asStringArray(input.relatedDocPageIds),
+    relatedDocPageUrls: asStringArray(input.relatedDocPageUrls),
+    relatedSkillPageIds: asStringArray(input.relatedSkillPageIds),
+    relatedSkillPageUrls: asStringArray(input.relatedSkillPageUrls),
+    naturalKey: asString(input.naturalKey),
   };
 }
 
-export async function createWorkQueueItem(
-  client: Client,
-  item: WorkQueueItem
-): Promise<NotionWriteResult> {
-  const response = await client.pages.create({
-    parent: { database_id: WORK_QUEUE_DB },
-    properties: {
-      Title: { title: [{ text: { content: item.title } }] },
-      Priority: { select: { name: item.priority } },
-      System: { select: { name: item.system } },
-      "Lifecycle Stage": { select: { name: item.lifecycleStage } },
-      "Work Type": { select: { name: item.workType } },
-      ...(item.substage
-        ? { Substage: { rich_text: [{ text: { content: item.substage } }] } }
-        : {}),
+function normalizeKnowledgeEntry(input: Partial<KnowledgeEntry> & Record<string, unknown>, includeDefaults: boolean): KnowledgeEntry {
+  return {
+    title: asString(input.title) ?? "Untitled knowledge entry",
+    type: (asString(input.type) ?? asString(input.category) ?? (includeDefaults ? "Reference" : undefined)) as KnowledgeEntry["type"],
+    system: (asString(input.system) ?? asString(input.source) ?? (includeDefaults ? "Cross-System" : undefined)) as KnowledgeEntry["system"],
+    content: asString(input.content) ?? "",
+    agentSurfaces: asStringArray(input.agentSurfaces),
+    sourceOfTruth: (asString(input.sourceOfTruth) as KnowledgeEntry["sourceOfTruth"] | undefined) ?? (includeDefaults ? "Notion" : undefined),
+    canonicalSource: asString(input.canonicalSource),
+    lastReviewed: asString(input.lastReviewed),
+    reviewCadence: (asString(input.reviewCadence) as KnowledgeEntry["reviewCadence"] | undefined) ?? (includeDefaults ? "Ad Hoc" : undefined),
+    lifecycleStage: asString(input.lifecycleStage),
+    substage: asString(input.substage),
+    ownerIds: asStringArray(input.ownerIds),
+    relatedWorkPageIds: asStringArray(input.relatedWorkPageIds),
+    relatedWorkPageUrls: asStringArray(input.relatedWorkPageUrls),
+    relatedSkillPageIds: asStringArray(input.relatedSkillPageIds),
+    relatedSkillPageUrls: asStringArray(input.relatedSkillPageUrls),
+    naturalKey: asString(input.naturalKey),
+  };
+}
+
+function normalizeSkillMetadata(input: Partial<SkillMetadata> & Record<string, unknown>, includeDefaults: boolean): SkillMetadata {
+  return {
+    title: asString(input.title) ?? "Untitled skill",
+    skillType: (asString(input.skillType) as SkillMetadata["skillType"] | undefined) ?? (includeDefaults ? "Workflow" : undefined),
+    system: (asString(input.system) as SkillMetadata["system"] | undefined) ?? (includeDefaults ? "Cross-System" : undefined),
+    canonicalSkillFile: asString(input.canonicalSkillFile),
+    lifecycleStage: asString(input.lifecycleStage),
+    ownerIds: asStringArray(input.ownerIds),
+    agentSurfaces: asStringArray(input.agentSurfaces),
+    relatedDocPageIds: asStringArray(input.relatedDocPageIds),
+    relatedDocPageUrls: asStringArray(input.relatedDocPageUrls),
+    naturalKey: asString(input.naturalKey),
+  };
+}
+
+function buildWorkQueueProperties(item: WorkQueueItem, includeDefaults = true) {
+  const normalized = includeDefaults ? normalizeWorkQueueItem(item as unknown as Record<string, unknown>, true) : item;
+  const properties: Record<string, unknown> = {};
+  maybeSet(properties, "Title", buildTitleProperty(normalized.title));
+  maybeSet(properties, "Priority", buildSelectProperty(normalized.priority));
+  maybeSet(properties, "System", buildSelectProperty(normalized.system));
+  maybeSet(properties, "Lifecycle Stage", buildSelectProperty(normalized.lifecycleStage));
+  maybeSet(properties, "Work Type", buildSelectProperty(normalized.workType));
+  maybeSet(properties, "Substage", buildRichTextProperty(normalized.substage));
+  maybeSet(properties, "Output Location", buildSelectProperty(normalized.outputLocation ?? (includeDefaults ? "Notion" : undefined)));
+  maybeSet(properties, "Execution Surface", buildSelectProperty(normalized.executionSurface ?? (includeDefaults ? "Notion" : undefined)));
+  maybeSet(properties, "Due Date", buildDateProperty(normalized.dueDate));
+  maybeSet(properties, "Owner", buildPeopleProperty(normalized.ownerIds));
+  maybeSet(properties, "Requested By", buildPeopleProperty(normalized.requestedByIds));
+  maybeSet(properties, "Linked Docs", buildRelationProperty(normalized.relatedDocPageIds, normalized.relatedDocPageUrls));
+  maybeSet(properties, "Linked Skill", buildRelationProperty(normalized.relatedSkillPageIds, normalized.relatedSkillPageUrls));
+  return properties;
+}
+
+function buildKnowledgeProperties(entry: KnowledgeEntry, includeDefaults = true) {
+  const normalized = includeDefaults ? normalizeKnowledgeEntry(entry as unknown as Record<string, unknown>, true) : entry;
+  const properties: Record<string, unknown> = {};
+  maybeSet(properties, "Title", buildTitleProperty(normalized.title));
+  maybeSet(properties, "Type", buildSelectProperty(normalized.type));
+  maybeSet(properties, "System", buildSelectProperty(normalized.system));
+  maybeSet(properties, "Agent Surface", buildMultiSelectProperty(normalized.agentSurfaces?.length ? normalized.agentSurfaces : includeDefaults ? ["Shared"] : undefined));
+  maybeSet(properties, "Source of Truth", buildSelectProperty(normalized.sourceOfTruth));
+  maybeSet(properties, "Canonical Source", buildRichTextProperty(normalized.canonicalSource));
+  maybeSet(properties, "Last Reviewed", buildDateProperty(normalized.lastReviewed ?? (includeDefaults ? new Date().toISOString() : undefined)));
+  maybeSet(properties, "Review Cadence", buildSelectProperty(normalized.reviewCadence));
+  maybeSet(properties, "Lifecycle Stage", buildSelectProperty(normalized.lifecycleStage));
+  maybeSet(properties, "Substage", buildRichTextProperty(normalized.substage));
+  maybeSet(properties, "Owner", buildPeopleProperty(normalized.ownerIds));
+  maybeSet(properties, "Related Work", buildRelationProperty(normalized.relatedWorkPageIds, normalized.relatedWorkPageUrls));
+  maybeSet(properties, "Related Skill", buildRelationProperty(normalized.relatedSkillPageIds, normalized.relatedSkillPageUrls));
+  return properties;
+}
+
+function buildSkillProperties(entry: SkillMetadata, includeDefaults = true) {
+  const normalized = includeDefaults ? normalizeSkillMetadata(entry as unknown as Record<string, unknown>, true) : entry;
+  const properties: Record<string, unknown> = {};
+  maybeSet(properties, "Title", buildTitleProperty(normalized.title));
+  maybeSet(properties, "Skill Type", buildSelectProperty(normalized.skillType));
+  maybeSet(properties, "System", buildSelectProperty(normalized.system));
+  maybeSet(properties, "Canonical Skill File", buildRichTextProperty(normalized.canonicalSkillFile));
+  maybeSet(properties, "Lifecycle Stage", buildSelectProperty(normalized.lifecycleStage));
+  maybeSet(properties, "Owner", buildPeopleProperty(normalized.ownerIds));
+  maybeSet(properties, "Agent Surface", buildMultiSelectProperty(normalized.agentSurfaces));
+  maybeSet(properties, "Related Docs", buildRelationProperty(normalized.relatedDocPageIds, normalized.relatedDocPageUrls));
+  return properties;
+}
+
+async function queryDatabaseByTitle(client: Client, database: NotionDatabaseKey, title: string): Promise<any[]> {
+  const notion = notionClient(client);
+  const response = await notion.dataSources.query({
+    data_source_id: DATABASE_CONFIG[database].dataSourceId,
+    filter: {
+      property: DATABASE_CONFIG[database].titleProperty,
+      title: { equals: title },
     },
+    page_size: 25,
   });
-  const responseUrl =
-    "url" in response && typeof response.url === "string" ? response.url : undefined;
+  return (response.results ?? []) as any[];
+}
+
+async function queryDatabase(client: Client, database: NotionDatabaseKey, pageSize = 50): Promise<any[]> {
+  const notion = notionClient(client);
+  const response = await notion.dataSources.query({
+    data_source_id: DATABASE_CONFIG[database].dataSourceId,
+    page_size: pageSize,
+  });
+  return (response.results ?? []) as any[];
+}
+
+function filterWorkQueueMatches(pages: any[], item: WorkQueueItem): any[] {
+  const key = workQueueNaturalKey(item);
+  return pages.filter((page) => {
+    const pageKey = unique([
+      getTitleFromPage(page),
+      page?.properties?.System?.select?.name,
+      page?.properties?.["Work Type"]?.select?.name,
+    ]).join("::");
+    return getTitleFromPage(page) === item.title && pageKey === key;
+  });
+}
+
+function filterKnowledgeMatches(pages: any[], entry: KnowledgeEntry): any[] {
+  const key = knowledgeNaturalKey(entry);
+  return pages.filter((page) => {
+    const pageKey = unique([
+      getTitleFromPage(page),
+      page?.properties?.System?.select?.name,
+      page?.properties?.Type?.select?.name,
+    ]).join("::");
+    return getTitleFromPage(page) === entry.title && pageKey === key;
+  });
+}
+
+function filterSkillMatches(pages: any[], entry: SkillMetadata): any[] {
+  const key = skillsNaturalKey(entry);
+  return pages.filter((page) => {
+    const pageKey = unique([
+      getTitleFromPage(page),
+      page?.properties?.System?.select?.name,
+      page?.properties?.["Skill Type"]?.select?.name,
+    ]).join("::");
+    return getTitleFromPage(page) === entry.title && pageKey === key;
+  });
+}
+
+async function archiveDuplicatePages(client: Client, duplicates: any[]) {
+  const notion = notionClient(client);
+  for (const duplicate of duplicates) {
+    await notion.pages.update({
+      page_id: duplicate.id,
+      archived: true,
+    });
+  }
+}
+
+export async function createWorkQueueItem(client: Client, item: WorkQueueItem): Promise<NotionWriteResult> {
+  const notion = notionClient(client);
+  const response = await notion.pages.create({
+    parent: { database_id: WORK_QUEUE_DB },
+    properties: buildWorkQueueProperties(item, true) as any,
+  });
+  return { pageId: response.id, pageUrl: asString(response.url) };
+}
+
+export async function upsertWorkQueueItem(
+  client: Client,
+  item: WorkQueueItem,
+  options?: { archiveDuplicates?: boolean },
+): Promise<NotionUpsertResult> {
+  const notion = notionClient(client);
+  const matches = filterWorkQueueMatches(await queryDatabaseByTitle(client, "work_queue", item.title), item);
+  const plan = planNotionUpsert(matches);
+  if (plan.action === "create" || !plan.canonical) {
+    const created = await createWorkQueueItem(client, item);
+    return { ...created, status: "created", duplicatePageIds: [] };
+  }
+  const response = await notion.pages.update({
+    page_id: plan.canonical.id,
+    properties: buildWorkQueueProperties(item, true) as any,
+  });
+  if (options?.archiveDuplicates && plan.duplicates.length > 0) {
+    await archiveDuplicatePages(client, plan.duplicates);
+  }
   return {
     pageId: response.id,
-    pageUrl: responseUrl,
+    pageUrl: asString(response.url),
+    status: "updated",
+    duplicatePageIds: plan.duplicates.map((page) => page.id),
   };
 }
 
-export async function queryWorkQueue(
-  client: Client,
-  filters: { system?: string; priority?: string; lifecycleStage?: string }
-): Promise<WorkQueueQueryItem[]> {
-  const filterConditions: Array<Record<string, unknown>> = [];
-
-  if (filters.system) {
-    filterConditions.push({
-      property: "System",
-      select: { equals: filters.system },
-    });
-  }
-  if (filters.priority) {
-    filterConditions.push({
-      property: "Priority",
-      select: { equals: filters.priority },
-    });
-  }
+export async function queryWorkQueue(client: Client, filters: WorkQueueQuery): Promise<WorkQueueQueryItem[]> {
+  const filterConditions: Record<string, unknown>[] = [];
+  if (filters.system) filterConditions.push({ property: "System", select: { equals: filters.system } });
+  if (filters.priority) filterConditions.push({ property: "Priority", select: { equals: filters.priority } });
   if (filters.lifecycleStage) {
-    filterConditions.push({
-      property: "Lifecycle Stage",
-      select: { equals: filters.lifecycleStage },
-    });
+    filterConditions.push({ property: "Lifecycle Stage", select: { equals: filters.lifecycleStage } });
   }
 
-  const response = await client.dataSources.query({
+  const notion = notionClient(client);
+  const response = await notion.dataSources.query({
     data_source_id: WORK_QUEUE_DS,
     filter:
       filterConditions.length > 1
-        ? { and: filterConditions as any }
+        ? { and: filterConditions }
         : filterConditions.length === 1
-          ? (filterConditions[0] as any)
+          ? filterConditions[0]
           : undefined,
-    sorts: [{ property: "Priority", direction: "ascending" }],
     page_size: 50,
   });
 
-  return response.results.map((page: any) => ({
+  return (response.results ?? []).map((page: any) => ({
     id: page.id,
-    title: page.properties.Title?.title?.[0]?.text?.content ?? "",
-    priority: page.properties.Priority?.select?.name ?? "",
-    system: page.properties.System?.select?.name ?? "",
-    lifecycleStage: page.properties["Lifecycle Stage"]?.select?.name ?? "",
-    workType: page.properties["Work Type"]?.select?.name ?? "",
-    url: page.url,
+    title: getTitleFromPage(page),
+    priority: page?.properties?.Priority?.select?.name ?? "",
+    system: page?.properties?.System?.select?.name ?? "",
+    lifecycleStage: page?.properties?.["Lifecycle Stage"]?.select?.name ?? "",
+    workType: page?.properties?.["Work Type"]?.select?.name ?? "",
+    url: asString(page.url),
+    naturalKey: unique([
+      getTitleFromPage(page),
+      page?.properties?.System?.select?.name,
+      page?.properties?.["Work Type"]?.select?.name,
+    ]).join("::"),
   }));
 }
 
-// ── Knowledge DB Operations ──────────────────────────────
-
-export interface KnowledgeEntry {
-  title: string;
-  type: "Concept" | "Reference" | "How-To" | "Decision" | "Architecture" | "Contract";
-  system: "Cross-System" | "WebApp" | "Capture" | "Pipeline" | "Validation";
-  content: string;
-}
-
-function coerceKnowledgeEntry(input: Partial<KnowledgeEntry> & Record<string, unknown>): KnowledgeEntry {
-  return {
-    title: asString(input.title) ?? "Untitled knowledge entry",
-    type: (asString(input.type) ??
-      asString(input.category) ??
-      "Reference") as KnowledgeEntry["type"],
-    system: (asString(input.system) ??
-      asString(input.source) ??
-      "Cross-System") as KnowledgeEntry["system"],
-    content: asString(input.content) ?? "",
-  };
-}
-
-export async function createKnowledgeEntry(
-  client: Client,
-  entry: KnowledgeEntry
-): Promise<NotionWriteResult> {
-  const response = await client.pages.create({
+export async function createKnowledgeEntry(client: Client, entry: KnowledgeEntry): Promise<NotionWriteResult> {
+  const notion = notionClient(client);
+  const response = await notion.pages.create({
     parent: { database_id: KNOWLEDGE_DB },
-    properties: {
-      Title: { title: [{ text: { content: entry.title } }] },
-      Type: { select: { name: entry.type } },
-      System: { select: { name: entry.system } },
-      "Agent Surface": {
-        multi_select: [{ name: "Shared" }, { name: "Claude" }],
-      },
-      "Source of Truth": { select: { name: "Notion" } },
-    },
+    properties: buildKnowledgeProperties(entry, true) as any,
+    children: entry.content
+      ? [
+          {
+            object: "block",
+            type: "paragraph",
+            paragraph: {
+              rich_text: buildParagraphRichText(entry.content),
+            },
+          },
+        ]
+      : undefined,
+  });
+  return { pageId: response.id, pageUrl: asString(response.url) };
+}
+
+async function listBlockChildren(client: Client, blockId: string, limit = 50): Promise<any[]> {
+  const notion = notionClient(client);
+  const results: any[] = [];
+  let cursor: string | undefined;
+
+  while (results.length < limit) {
+    const response = await notion.blocks.children.list({
+      block_id: blockId,
+      page_size: Math.min(100, limit - results.length),
+      start_cursor: cursor,
+    });
+    results.push(...(response.results ?? []));
+    if (!response.has_more || !response.next_cursor) break;
+    cursor = response.next_cursor;
+  }
+
+  return results;
+}
+
+function extractBlockPlainText(block: any): string {
+  const richText = block?.[block?.type]?.rich_text;
+  if (Array.isArray(richText)) {
+    return richText.map((entry: any) => entry.plain_text ?? entry.text?.content ?? "").join("");
+  }
+  return block?.type === "divider" ? "---" : "";
+}
+
+async function replacePageContent(client: Client, pageId: string, content: string) {
+  const notion = notionClient(client);
+  const existingBlocks = await listBlockChildren(client, pageId, 100);
+  for (const block of existingBlocks) {
+    if (block.id) {
+      await notion.blocks.delete({ block_id: block.id });
+    }
+  }
+  if (!content.trim()) return;
+  await notion.blocks.children.append({
+    block_id: pageId,
     children: [
       {
         object: "block",
         type: "paragraph",
         paragraph: {
-          rich_text: buildParagraphRichText(entry.content),
+          rich_text: buildParagraphRichText(content),
         },
       },
     ],
   });
-  const responseUrl =
-    "url" in response && typeof response.url === "string" ? response.url : undefined;
+}
+
+export async function upsertKnowledgeEntry(
+  client: Client,
+  entry: KnowledgeEntry,
+  options?: { archiveDuplicates?: boolean },
+): Promise<NotionUpsertResult> {
+  const notion = notionClient(client);
+  const matches = filterKnowledgeMatches(await queryDatabaseByTitle(client, "knowledge", entry.title), entry);
+  const plan = planNotionUpsert(matches);
+  if (plan.action === "create" || !plan.canonical) {
+    const created = await createKnowledgeEntry(client, entry);
+    return { ...created, status: "created", duplicatePageIds: [] };
+  }
+  const response = await notion.pages.update({
+    page_id: plan.canonical.id,
+    properties: buildKnowledgeProperties(entry, true) as any,
+  });
+  if (entry.content) {
+    await replacePageContent(client, plan.canonical.id, entry.content);
+  }
+  if (options?.archiveDuplicates && plan.duplicates.length > 0) {
+    await archiveDuplicatePages(client, plan.duplicates);
+  }
   return {
     pageId: response.id,
-    pageUrl: responseUrl,
+    pageUrl: asString(response.url),
+    status: "updated",
+    duplicatePageIds: plan.duplicates.map((page) => page.id),
   };
 }
 
-// ── Tool Handler Factories ───────────────────────────────
-
-export function buildNotionToolHandlers(client: Client) {
+async function upsertSkillMetadata(
+  client: Client,
+  entry: SkillMetadata,
+  options?: { archiveDuplicates?: boolean },
+): Promise<NotionUpsertResult> {
+  const notion = notionClient(client);
+  const matches = filterSkillMatches(await queryDatabaseByTitle(client, "skills", entry.title), entry);
+  const plan = planNotionUpsert(matches);
+  if (plan.action === "create" || !plan.canonical) {
+    const response = await notion.pages.create({
+      parent: { database_id: SKILLS_DB },
+      properties: buildSkillProperties(entry, true) as any,
+    });
+    return { pageId: response.id, pageUrl: asString(response.url), status: "created", duplicatePageIds: [] };
+  }
+  const response = await notion.pages.update({
+    page_id: plan.canonical.id,
+    properties: buildSkillProperties(entry, true) as any,
+  });
+  if (options?.archiveDuplicates && plan.duplicates.length > 0) {
+    await archiveDuplicatePages(client, plan.duplicates);
+  }
   return {
-    "notion-read-work-queue": async (params: {
-      system?: string;
-      priority?: string;
-      lifecycleStage?: string;
-    }) => {
-      const items = await queryWorkQueue(client, params);
+    pageId: response.id,
+    pageUrl: asString(response.url),
+    status: "updated",
+    duplicatePageIds: plan.duplicates.map((page) => page.id),
+  };
+}
+
+export async function fetchPage(client: Client, pageId: string) {
+  const notion = notionClient(client);
+  const page = await notion.pages.retrieve({ page_id: pageId });
+  const blocks = await listBlockChildren(client, pageId, 10);
+  return {
+    page: summarizePage(page),
+    blocks: blocks.map((block) => ({
+      id: block.id,
+      type: block.type,
+      text: extractBlockPlainText(block),
+      hasChildren: Boolean(block.has_children),
+    })),
+  };
+}
+
+export async function updatePageMetadata(
+  client: Client,
+  pageId: string,
+  database: NotionDatabaseKey,
+  metadata: Record<string, unknown>,
+): Promise<NotionWriteResult> {
+  const notion = notionClient(client);
+  const properties =
+    database === "work_queue"
+      ? buildWorkQueueProperties(normalizeWorkQueueItem(metadata, false), false)
+      : database === "knowledge"
+        ? buildKnowledgeProperties(normalizeKnowledgeEntry(metadata, false), false)
+        : buildSkillProperties(normalizeSkillMetadata(metadata, false), false);
+  const response = await notion.pages.update({
+    page_id: pageId,
+    properties: properties as any,
+  });
+  return { pageId: response.id, pageUrl: asString(response.url) };
+}
+
+function sanitizeBlockForAppend(block: any): Record<string, unknown> | null {
+  const type = asString(block?.type);
+  if (!type) return null;
+  if (type === "divider") return { object: "block", type: "divider", divider: {} };
+  if (!["paragraph", "heading_1", "heading_2", "heading_3", "quote", "callout", "bulleted_list_item", "numbered_list_item", "to_do", "code"].includes(type)) {
+    return null;
+  }
+  const payload = block[type];
+  if (!payload) return null;
+  return {
+    object: "block",
+    type,
+    [type]: payload,
+  };
+}
+
+async function appendSanitizedBlocks(client: Client, sourcePageId: string, targetPageId: string) {
+  const notion = notionClient(client);
+  const blocks = (await listBlockChildren(client, sourcePageId, 50))
+    .map((block) => sanitizeBlockForAppend(block))
+    .filter((block): block is Record<string, unknown> => Boolean(block));
+  if (blocks.length === 0) return;
+  await notion.blocks.children.append({
+    block_id: targetPageId,
+    children: blocks,
+  });
+}
+
+export async function movePage(
+  client: Client,
+  input: {
+    pageId: string;
+    targetDatabase: NotionDatabaseKey;
+    archiveOriginal?: boolean;
+    preserveContent?: boolean;
+    metadata?: Record<string, unknown>;
+  },
+) {
+  const notion = notionClient(client);
+  const sourcePage = await notion.pages.retrieve({ page_id: input.pageId });
+  const title = asString(input.metadata?.title) ?? getTitleFromPage(sourcePage) ?? "Moved page";
+  let created: NotionWriteResult;
+  if (input.targetDatabase === "work_queue") {
+    created = await createWorkQueueItem(client, normalizeWorkQueueItem({ title, ...(input.metadata ?? {}) }, true));
+  } else if (input.targetDatabase === "knowledge") {
+    created = await createKnowledgeEntry(client, normalizeKnowledgeEntry({ title, ...(input.metadata ?? {}) }, true));
+  } else {
+    const upserted = await upsertSkillMetadata(client, normalizeSkillMetadata({ title, ...(input.metadata ?? {}) }, true));
+    created = { pageId: upserted.pageId, pageUrl: upserted.pageUrl };
+  }
+  if (input.preserveContent !== false) {
+    await appendSanitizedBlocks(client, input.pageId, created.pageId);
+  }
+  if (input.archiveOriginal !== false) {
+    await notion.pages.update({
+      page_id: input.pageId,
+      archived: true,
+    });
+  }
+  return {
+    sourcePageId: input.pageId,
+    targetPageId: created.pageId,
+    targetPageUrl: created.pageUrl,
+  };
+}
+
+export async function archivePage(client: Client, pageId: string): Promise<NotionWriteResult> {
+  const notion = notionClient(client);
+  const response = await notion.pages.update({
+    page_id: pageId,
+    archived: true,
+  });
+  return { pageId: response.id, pageUrl: asString(response.url) };
+}
+
+export async function commentPage(client: Client, pageId: string, comment: string) {
+  const notion = notionClient(client);
+  const response = await notion.comments.create({
+    parent: { page_id: pageId },
+    rich_text: buildParagraphRichText(comment),
+  });
+  return { success: true, commentId: response.id };
+}
+
+async function searchPages(
+  client: Client,
+  params: {
+    database?: NotionDatabaseKey;
+    query?: string;
+    title?: string;
+    limit?: number;
+    staleOnly?: boolean;
+  },
+): Promise<NotionPageSummary[]> {
+  const limit = Math.max(1, Math.min(Number(params.limit ?? 10), 50));
+  let pages: any[] = [];
+
+  if (params.database && params.title) {
+    pages = await queryDatabaseByTitle(client, params.database, params.title);
+  } else if (params.database && !params.query) {
+    pages = await queryDatabase(client, params.database, limit);
+  } else {
+    const notion = notionClient(client);
+    const response = await notion.search({
+      query: params.query ?? params.title ?? "",
+      page_size: limit,
+      filter: { property: "object", value: "page" },
+    });
+    pages = (response.results ?? []).filter((page: any) => {
+      if (!params.database) return true;
+      return extractNotionId(page?.parent?.database_id) === DATABASE_CONFIG[params.database].databaseId;
+    });
+  }
+
+  const staleIds = new Set<string>();
+  if (params.staleOnly && (!params.database || params.database === "knowledge")) {
+    const candidates: KnowledgeFreshnessCandidate[] = pages.map((page) => ({
+      id: page.id,
+      reviewCadence: page?.properties?.["Review Cadence"]?.select?.name ?? null,
+      lastReviewed: page?.properties?.["Last Reviewed"]?.date?.start ?? null,
+      lastEditedTime: page?.last_edited_time ?? null,
+    }));
+    for (const id of detectStaleKnowledgeEntries(candidates, new Date().toISOString())) {
+      staleIds.add(id);
+    }
+    pages = pages.filter((page) => staleIds.has(page.id));
+  }
+
+  return pages.slice(0, limit).map((page) => summarizePage(page, staleIds));
+}
+
+async function reconcileRelations(
+  client: Client,
+  params: {
+    pageId: string;
+    database: NotionDatabaseKey;
+    ownerIds?: string[];
+    requestedByIds?: string[];
+    relatedWorkPageIds?: string[];
+    relatedWorkPageUrls?: string[];
+    relatedDocPageIds?: string[];
+    relatedDocPageUrls?: string[];
+    relatedSkillPageIds?: string[];
+    relatedSkillPageUrls?: string[];
+    reviewCadence?: string;
+    lastReviewed?: string;
+    canonicalSource?: string;
+    sourceOfTruth?: string;
+    lifecycleStage?: string;
+    outputLocation?: string;
+    executionSurface?: string;
+    substage?: string;
+  },
+) {
+  const metadata = { ...params };
+  delete (metadata as Record<string, unknown>).pageId;
+  delete (metadata as Record<string, unknown>).database;
+  const updated = await updatePageMetadata(client, params.pageId, params.database, metadata);
+  const stale = params.database === "knowledge"
+    ? detectStaleKnowledgeEntries(
+        [
+          {
+            id: params.pageId,
+            reviewCadence: params.reviewCadence ?? null,
+            lastReviewed: params.lastReviewed ?? null,
+            lastEditedTime: null,
+          },
+        ],
+        new Date().toISOString(),
+      ).includes(params.pageId)
+    : false;
+  return { ...updated, stale };
+}
+
+export function buildNotionToolHandlers(client: Client): Record<string, NotionHandler> {
+  return {
+    "notion-read-work-queue": async (params) => {
+      const items = await queryWorkQueue(client, params as WorkQueueQuery);
+      return { success: true, items, count: items.length };
+    },
+    "notion-write-work-queue": async (params) => {
+      return { success: true, ...(await createWorkQueueItem(client, normalizeWorkQueueItem(params, true))) };
+    },
+    "notion-write-knowledge": async (params) => {
+      return { success: true, ...(await createKnowledgeEntry(client, normalizeKnowledgeEntry(params, true))) };
+    },
+    "notion-search-pages": async (params) => {
+      const pages = await searchPages(client, params as {
+        database?: NotionDatabaseKey;
+        query?: string;
+        title?: string;
+        limit?: number;
+        staleOnly?: boolean;
+      });
+      return { success: true, pages, count: pages.length };
+    },
+    "notion-fetch-page": async (params) => {
+      const pageId = extractNotionId(asString(params.pageId));
+      if (!pageId) throw new Error("A valid Notion page ID or URL is required.");
+      return { success: true, ...(await fetchPage(client, pageId)) };
+    },
+    "notion-upsert-knowledge": async (params) => {
       return {
         success: true,
-        items,
-        count: items.length,
+        ...(await upsertKnowledgeEntry(client, normalizeKnowledgeEntry(params, true), {
+          archiveDuplicates: params.archiveDuplicates === true,
+        })),
       };
     },
-
-    "notion-write-work-queue": async (params: Partial<WorkQueueItem> & Record<string, unknown>) => {
-      const result = await createWorkQueueItem(client, coerceWorkQueueItem(params));
-      return { success: true, ...result };
+    "notion-upsert-work-queue": async (params) => {
+      return {
+        success: true,
+        ...(await upsertWorkQueueItem(client, normalizeWorkQueueItem(params, true), {
+          archiveDuplicates: params.archiveDuplicates === true,
+        })),
+      };
     },
-
-    "notion-write-knowledge": async (params: Partial<KnowledgeEntry> & Record<string, unknown>) => {
-      const result = await createKnowledgeEntry(client, coerceKnowledgeEntry(params));
-      return { success: true, ...result };
+    "notion-update-page-metadata": async (params) => {
+      const pageId = extractNotionId(asString(params.pageId));
+      if (!pageId) throw new Error("A valid Notion page ID or URL is required.");
+      return {
+        success: true,
+        ...(await updatePageMetadata(client, pageId, params.database as NotionDatabaseKey, params)),
+      };
+    },
+    "notion-move-page": async (params) => {
+      const pageId = extractNotionId(asString(params.pageId));
+      if (!pageId) throw new Error("A valid Notion page ID or URL is required.");
+      return {
+        success: true,
+        ...(await movePage(client, {
+          pageId,
+          targetDatabase: params.targetDatabase as NotionDatabaseKey,
+          archiveOriginal: params.archiveOriginal === true,
+          preserveContent: params.preserveContent !== false,
+          metadata: (params.metadata as Record<string, unknown> | undefined) ?? {},
+        })),
+      };
+    },
+    "notion-archive-page": async (params) => {
+      const pageId = extractNotionId(asString(params.pageId));
+      if (!pageId) throw new Error("A valid Notion page ID or URL is required.");
+      return { success: true, ...(await archivePage(client, pageId)) };
+    },
+    "notion-comment-page": async (params) => {
+      const pageId = extractNotionId(asString(params.pageId));
+      if (!pageId) throw new Error("A valid Notion page ID or URL is required.");
+      return await commentPage(client, pageId, asString(params.comment) ?? "");
+    },
+    "notion-reconcile-relations": async (params) => {
+      const pageId = extractNotionId(asString(params.pageId));
+      if (!pageId) throw new Error("A valid Notion page ID or URL is required.");
+      return {
+        success: true,
+        ...(await reconcileRelations(client, {
+          pageId,
+          database: params.database as NotionDatabaseKey,
+          ownerIds: asStringArray(params.ownerIds),
+          requestedByIds: asStringArray(params.requestedByIds),
+          relatedWorkPageIds: asStringArray(params.relatedWorkPageIds),
+          relatedWorkPageUrls: asStringArray(params.relatedWorkPageUrls),
+          relatedDocPageIds: asStringArray(params.relatedDocPageIds),
+          relatedDocPageUrls: asStringArray(params.relatedDocPageUrls),
+          relatedSkillPageIds: asStringArray(params.relatedSkillPageIds),
+          relatedSkillPageUrls: asStringArray(params.relatedSkillPageUrls),
+          reviewCadence: asString(params.reviewCadence),
+          lastReviewed: asString(params.lastReviewed),
+          canonicalSource: asString(params.canonicalSource),
+          sourceOfTruth: asString(params.sourceOfTruth),
+          lifecycleStage: asString(params.lifecycleStage),
+          outputLocation: asString(params.outputLocation),
+          executionSurface: asString(params.executionSurface),
+          substage: asString(params.substage),
+        })),
+      };
     },
   };
 }
+
+export const NOTION_MANAGER_CONSTANTS = {
+  hubPageId: HUB_PAGE_ID,
+  workQueueDbId: WORK_QUEUE_DB,
+  workQueueDsId: WORK_QUEUE_DS,
+  knowledgeDbId: KNOWLEDGE_DB,
+  knowledgeDsId: KNOWLEDGE_DS,
+  skillsDbId: SKILLS_DB,
+  skillsDsId: SKILLS_DS,
+};

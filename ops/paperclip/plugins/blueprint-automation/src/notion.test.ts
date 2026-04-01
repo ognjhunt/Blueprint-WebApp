@@ -1,0 +1,85 @@
+import { describe, expect, it } from "vitest";
+import {
+  detectStaleKnowledgeEntries,
+  extractNotionId,
+  planNotionUpsert,
+} from "./notion.js";
+
+describe("notion helpers", () => {
+  it("plans a create when no matching pages exist", () => {
+    const plan = planNotionUpsert([]);
+
+    expect(plan.action).toBe("create");
+    expect(plan.canonical).toBeNull();
+    expect(plan.duplicates).toHaveLength(0);
+  });
+
+  it("prefers the newest non-archived page and flags older matches as duplicates", () => {
+    const plan = planNotionUpsert([
+      {
+        id: "archived-old",
+        archived: true,
+        created_time: "2026-03-01T00:00:00.000Z",
+        last_edited_time: "2026-03-15T00:00:00.000Z",
+      },
+      {
+        id: "active-old",
+        archived: false,
+        created_time: "2026-03-10T00:00:00.000Z",
+        last_edited_time: "2026-03-20T00:00:00.000Z",
+      },
+      {
+        id: "active-new",
+        archived: false,
+        created_time: "2026-03-11T00:00:00.000Z",
+        last_edited_time: "2026-03-22T00:00:00.000Z",
+      },
+    ]);
+
+    expect(plan.action).toBe("update");
+    expect(plan.canonical?.id).toBe("active-new");
+    expect(plan.duplicates.map((page) => page.id)).toEqual(["active-old", "archived-old"]);
+  });
+
+  it("detects stale knowledge pages from review cadence and last reviewed date", () => {
+    const stale = detectStaleKnowledgeEntries(
+      [
+        {
+          id: "weekly-stale",
+          reviewCadence: "Weekly",
+          lastReviewed: "2026-03-20",
+        },
+        {
+          id: "monthly-fresh",
+          reviewCadence: "Monthly",
+          lastReviewed: "2026-03-10",
+        },
+        {
+          id: "missing-review-date",
+          reviewCadence: "Quarterly",
+          lastReviewed: null,
+        },
+        {
+          id: "adhoc",
+          reviewCadence: "Ad Hoc",
+          lastReviewed: "2025-01-01",
+        },
+      ],
+      "2026-04-01T12:00:00.000Z",
+    );
+
+    expect(stale).toEqual(["weekly-stale", "missing-review-date"]);
+  });
+
+  it("normalizes Notion ids from raw ids, URLs, and collection URIs", () => {
+    expect(extractNotionId("16d80154161d80db869bcfba4fe70be3")).toBe(
+      "16d80154-161d-80db-869b-cfba4fe70be3",
+    );
+    expect(extractNotionId("https://www.notion.so/16d80154161d80db869bcfba4fe70be3")).toBe(
+      "16d80154-161d-80db-869b-cfba4fe70be3",
+    );
+    expect(extractNotionId("collection://51d93d65-8a00-4dd4-a9a2-fd9a6e69120d")).toBe(
+      "51d93d65-8a00-4dd4-a9a2-fd9a6e69120d",
+    );
+  });
+});

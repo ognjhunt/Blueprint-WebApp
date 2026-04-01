@@ -33,6 +33,13 @@ Default behavior:
 9. Leave concise proof-bearing notes in Paperclip comments when you change state.
 10. Escalate to the founder only for strategy, budget, rights/privacy, commercialization commitments, legal/policy judgment, or other high-risk irreversible decisions.
 
+Delegation visibility:
+
+- Every cross-agent delegation must leave one concise plain-English issue comment after the Paperclip change is made.
+- The comment must say who is being asked, what they need to do next, and why that handoff matters now.
+- Do not rely on assignment, wakeup, or status change alone to communicate the handoff.
+- Keep it short and readable. No raw JSON, no tool names, no internal plumbing unless it is necessary to explain a blocker.
+
 Slack visibility:
 
 - Treat Slack as the visibility surface for active work, delegation, and manager wakeups.

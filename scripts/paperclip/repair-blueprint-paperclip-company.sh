@@ -11,7 +11,9 @@ if [ -f "$PAPERCLIP_ENV_FILE" ]; then
   set +a
 fi
 
-PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://127.0.0.1:3101}"
+PAPERCLIP_HOST="${PAPERCLIP_HOST:-127.0.0.1}"
+PAPERCLIP_PORT="${PAPERCLIP_PORT:-3100}"
+PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://${PAPERCLIP_HOST}:${PAPERCLIP_PORT}}"
 COMPANY_NAME="${COMPANY_NAME:-Blueprint Autonomous Operations}"
 APPLY=0
 
@@ -29,16 +31,35 @@ const companyName = process.env.COMPANY_NAME;
 const apply = process.env.APPLY === "1";
 
 async function fetchJson(path, init = {}) {
-  const response = await fetch(`${paperclipApiUrl}${path}`, {
-    headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
-    ...init,
-  });
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`${init.method ?? "GET"} ${path} failed: ${response.status} ${text}`);
+  const attempts = Number(process.env.PAPERCLIP_FETCH_ATTEMPTS || "3");
+  const delayMs = Number(process.env.PAPERCLIP_FETCH_DELAY_MS || "500");
+  let lastError = `Empty response for ${path}`;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const response = await fetch(`${paperclipApiUrl}${path}`, {
+        headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
+        ...init,
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`${init.method ?? "GET"} ${path} failed: ${response.status} ${text}`);
+      }
+      const text = await response.text();
+      if (text.length > 0) {
+        return JSON.parse(text);
+      }
+      lastError = `Empty response for ${path}`;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+
+    if (attempt < attempts) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
   }
-  const text = await response.text();
-  return text.length > 0 ? JSON.parse(text) : null;
+
+  throw new Error(`Blueprint Paperclip API unavailable at ${paperclipApiUrl}${path}: ${lastError}`);
 }
 
 function hasNumericSuffix(value) {

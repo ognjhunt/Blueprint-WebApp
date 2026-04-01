@@ -3,6 +3,10 @@ set -euo pipefail
 
 WORKSPACE_ROOT="/Users/nijelhunt_1/workspace"
 PAPERCLIP_ENV_FILE="${PAPERCLIP_ENV_FILE:-$WORKSPACE_ROOT/.paperclip-blueprint.env}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=./paperclip-api.sh
+source "$SCRIPT_DIR/paperclip-api.sh"
 
 if [ -f "$PAPERCLIP_ENV_FILE" ]; then
   set -a
@@ -11,7 +15,9 @@ if [ -f "$PAPERCLIP_ENV_FILE" ]; then
   set +a
 fi
 
-PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://127.0.0.1:3101}"
+PAPERCLIP_HOST="${PAPERCLIP_HOST:-127.0.0.1}"
+PAPERCLIP_PORT="${PAPERCLIP_PORT:-3100}"
+PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://${PAPERCLIP_HOST}:${PAPERCLIP_PORT}}"
 PAPERCLIP_PUBLIC_URL="${PAPERCLIP_PUBLIC_URL:-$PAPERCLIP_API_URL}"
 COMPANY_NAME="${COMPANY_NAME:-Blueprint Autonomous Operations}"
 PLUGIN_KEY="blueprint.automation"
@@ -19,16 +25,16 @@ PLUGIN_DIR="/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/plugins/
 CONFIG_TEMPLATE="/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-automation.config.json"
 
 require_health() {
-  curl -fsS "${PAPERCLIP_API_URL}/api/health" >/dev/null
+  paperclip_api_health "$PAPERCLIP_API_URL"
 }
 
 company_id() {
-  curl -fsS "${PAPERCLIP_API_URL}/api/companies" \
+  paperclip_api_fetch_json "$PAPERCLIP_API_URL" "/api/companies" "Blueprint Paperclip API" \
     | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const match=rows.find((row)=>row.name===process.argv[1]);if(!match){process.exit(2);}process.stdout.write(match.id);});' "$COMPANY_NAME"
 }
 
 plugin_json() {
-  curl -fsS "${PAPERCLIP_API_URL}/api/plugins" \
+  paperclip_api_fetch_json "$PAPERCLIP_API_URL" "/api/plugins" "Blueprint Paperclip API" \
     | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const match=rows.find((row)=>row.pluginKey===process.argv[1]);if(!match){process.exit(2);}process.stdout.write(JSON.stringify(match));});' "$PLUGIN_KEY"
 }
 
@@ -39,7 +45,7 @@ plugin_id() {
 secret_id_by_name() {
   local company_id="$1"
   local secret_name="$2"
-  curl -fsS "${PAPERCLIP_API_URL}/api/companies/${company_id}/secrets" \
+  paperclip_api_fetch_json "$PAPERCLIP_API_URL" "/api/companies/${company_id}/secrets" "Blueprint Paperclip API" \
     | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const match=rows.find((row)=>row.name===process.argv[1]);process.stdout.write(match?match.id:"");});' "$secret_name"
 }
 
