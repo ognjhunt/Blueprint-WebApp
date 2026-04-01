@@ -21,6 +21,8 @@ Main entrypoints:
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/repair-blueprint-paperclip-company.sh`: clean duplicate agents, projects, and stale work left behind by older re-imports
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/reconcile-blueprint-paperclip-company.sh`: reconcile the surviving canonical agents and routines back onto the intended Codex/Claude/Hermes host configuration
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/setup-github-webhooks.sh`: wire GitHub repo hooks to the active public Paperclip URL and validate with ping deliveries
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/README.md`: canonical employee-kit contract for all Blueprint agents
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/validate-agent-kits.sh`: repo-side validator for the mandatory four-file agent kit
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/verify-blueprint-paperclip.sh`: run environment checks against the imported local adapters
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/smoke-blueprint-paperclip-automation.sh`: end-to-end smoke for issue creation, dedupe, blocker follow-up, and resolution
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/install-blueprint-paperclip-launchagent.sh`: install a macOS LaunchAgent that re-runs the bootstrap script every 5 minutes and at login

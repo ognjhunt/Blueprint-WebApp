@@ -9,7 +9,7 @@ It is specifically a study of technical-buyer demand generation for site-specifi
 ## Priority Questions
 1. How do robot teams and deployment teams discover and evaluate exact-site world-model products?
 2. Which channels produce qualified technical conversations versus broad curiosity?
-3. What proof packs, hosted-demo motions, or packaging expectations are required before a serious follow-up?
+3. What proof packs, exact-site hosted review motions, or packaging expectations are required before a serious follow-up?
 4. Which events, communities, partnerships, or outbound patterns reached real buyers?
 5. What procurement or deployment triggers create legitimate urgency?
 6. How do demand signals differ by city, facility type, or buyer segment?
@@ -21,7 +21,7 @@ It is specifically a study of technical-buyer demand generation for site-specifi
 - Log what seemed to work, fail, or create truth/commercialization risk.
 - Be especially attentive to:
   - robot-team buyer roles
-  - hosted-demo and proof-pack structure
+  - exact-site hosted review and proof-pack structure
   - packaging expectations
   - procurement blockers
   - community and partnership quality
@@ -44,5 +44,5 @@ It is specifically a study of technical-buyer demand generation for site-specifi
 - Understand how technical robotics buyers prefer to evaluate exact-site products before budget or procurement conversations.
 - Build a reusable library of robot-team demand patterns that can feed Austin and San Francisco planning.
 - Keep site-operator demand explicitly separate unless the evidence says that lane matters for a specific access or commercialization case.
-- Prioritize public evidence about proof-pack expectations, hosted-demo evaluation motions, and what buyers need before a serious exact-site follow-up.
+- Prioritize public evidence about proof-pack expectations, exact-site hosted review evaluation motions, and what buyers need before a serious exact-site follow-up.
 - Avoid research that assumes qualification is the main product. Focus on how buyers decide to engage with site-specific world-model products.

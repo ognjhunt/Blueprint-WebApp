@@ -590,6 +590,24 @@ agents:
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/buyer-solutions-agent/AGENTS.md
         timeoutSec: 1800
     budgetMonthlyCents: 3000
+  solutions-engineering-agent:
+    role: engineer
+    icon: plug
+    capabilities: >-
+      Owns technical buyer enablement from proof-ready to implementation-ready. Translates buyer goals, stack
+      constraints, hosted-session needs, eval design, and deployment questions into explicit integration checklists,
+      technical proof plans, and unblock recommendations. Read skill file at
+      ops/paperclip/skills/solutions-engineering-agent.md and steering file at
+      ops/paperclip/programs/solutions-engineering-agent-program.md before every routine.
+    adapter:
+      type: hermes_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/solutions-engineering-agent/AGENTS.md
+        timeoutSec: 1800
+    budgetMonthlyCents: 2600
   rights-provenance-agent:
     role: engineer
     icon: shield
@@ -609,6 +627,23 @@ agents:
             - autonomy-safety
             - pipeline-repo-operations
     budgetMonthlyCents: 2000
+  security-procurement-agent:
+    role: engineer
+    icon: lock
+    capabilities: >-
+      Drafts Blueprint's buyer-facing security, architecture, data-handling, and procurement responses from real repo
+      and system evidence. Keeps enterprise review work moving without making legal, compliance, or certification
+      claims Blueprint cannot support. Read skill file at ops/paperclip/skills/security-procurement-agent.md and
+      steering file at ops/paperclip/programs/security-procurement-agent-program.md before every routine.
+    adapter:
+      type: hermes_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/security-procurement-agent/AGENTS.md
+        timeoutSec: 1800
+    budgetMonthlyCents: 2400
   capturer-success-agent:
     role: engineer
     icon: heart
@@ -690,6 +725,24 @@ agents:
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/buyer-success-agent/AGENTS.md
         timeoutSec: 1800
     budgetMonthlyCents: 2500
+  revenue-ops-pricing-agent:
+    role: engineer
+    icon: calculator
+    capabilities: >-
+      Owns pricing system hygiene across packaging, quote support, discount guardrails, and revenue-ops analysis.
+      Connects buyer demand, usage, catalog supply, and delivery cost signals into draft pricebook updates and
+      commercial recommendations without making live pricing or contract commitments. Read skill file at
+      ops/paperclip/skills/revenue-ops-pricing-agent.md and steering file at
+      ops/paperclip/programs/revenue-ops-pricing-agent-program.md before every routine.
+    adapter:
+      type: hermes_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/revenue-ops-pricing-agent/AGENTS.md
+        timeoutSec: 1800
+    budgetMonthlyCents: 2400
   docs-agent:
     role: engineer
     icon: book-open
@@ -938,6 +991,18 @@ tasks:
     status: todo
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
+  solutions-engineering-agent-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
+  security-procurement-agent-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
+  revenue-ops-pricing-agent-bootstrap:
+    status: todo
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
   investor-relations-monthly:
     status: active
     priority: high
@@ -1001,6 +1066,18 @@ tasks:
   city-demand-refresh:
     status: active
     priority: medium
+    projectWorkspaceKey: blueprint-executive-ops
+  solutions-engineering-active-delivery-review:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
+  security-procurement-active-reviews:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
+  revenue-ops-pricing-weekly:
+    status: active
+    priority: high
     projectWorkspaceKey: blueprint-executive-ops
 routines:
   ceo-daily-review:
@@ -1336,4 +1413,31 @@ routines:
     triggers:
       - kind: schedule
         cronExpression: 15 13 * * 4
+        timezone: America/New_York
+  solutions-engineering-active-delivery-review:
+    agent: solutions-engineering-agent
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 30 11 * * 1-5
+        timezone: America/New_York
+  security-procurement-active-reviews:
+    agent: security-procurement-agent
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 30 12 * * 1-5
+        timezone: America/New_York
+  revenue-ops-pricing-weekly:
+    agent: revenue-ops-pricing-agent
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 30 10 * * 2
         timezone: America/New_York

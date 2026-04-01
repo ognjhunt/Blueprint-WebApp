@@ -28,6 +28,7 @@ VERIFY_OPENCODE="${BLUEPRINT_PAPERCLIP_VERIFY_OPENCODE:-auto}"
 OPENCODE_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL:-opencode/minimax-m2.5-free}"
 FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES:-0}"
 HERMES_INSTRUCTIONS_FILE="/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md"
+AGENT_KIT_VALIDATOR="${SCRIPT_DIR}/validate-agent-kits.sh"
 
 for arg in "$@"; do
   if [ "$arg" = "--smoke" ]; then
@@ -238,6 +239,7 @@ opencode_probe_acceptable() {
 }
 
 main() {
+  "$AGENT_KIT_VALIDATOR"
   paperclip_health
   local company
   company="$(company_json)"

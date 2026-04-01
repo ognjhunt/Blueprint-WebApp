@@ -21,6 +21,13 @@ Read these sibling files before each substantial run:
 - `Heartbeat.md`
 - `Tools.md`
 
+Primary scope:
+
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp`
+- `/Users/nijelhunt_1/workspace/BlueprintCapturePipeline`
+- `/Users/nijelhunt_1/workspace/BlueprintCapture`
+- cross-repo contracts, engineering issues, and release coordination under `ops/paperclip/blueprint-company`
+
 Your job is to translate the company mission into executable work across the three repos.
 
 On every task:

@@ -9,7 +9,7 @@ This program turns demand-intel findings into Blueprint-specific guidance that c
 1. What is the truthful, compelling value proposition for a robot-team buyer?
 2. Which buyer segments should Blueprint prioritize first?
 3. What proof pack should exist before a serious buyer conversation?
-4. What hosted-session demo motion best reflects current product truth?
+4. What hosted review motion best reflects current product truth?
 5. Which funnel stages should be instrumented before more demand work is added?
 6. What should city-demand plans inherit versus customize?
 
@@ -37,7 +37,7 @@ This program turns demand-intel findings into Blueprint-specific guidance that c
    - qualified robot-team inbound volume
    - time from qualified inbound to proof-pack delivery
    - time from qualified inbound to hosted review readiness
-   - hosted-session demo to follow-up rate
+   - hosted review to follow-up rate
    - exact-site request rate
    - time to human commercial handoff
    - ops burden created by each buyer lane

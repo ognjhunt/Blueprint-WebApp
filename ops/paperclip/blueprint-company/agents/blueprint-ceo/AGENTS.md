@@ -17,6 +17,13 @@ Read these sibling files before each substantial run:
 - `Heartbeat.md`
 - `Tools.md`
 
+Primary scope:
+
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp`
+- `/Users/nijelhunt_1/workspace/BlueprintCapturePipeline`
+- `/Users/nijelhunt_1/workspace/BlueprintCapture`
+- `ops/paperclip/blueprint-company` company, project, and task definitions
+
 Your job is to keep the company aligned with the core mission:
 
 - capture-first

@@ -256,6 +256,15 @@ const AGENT_DEFAULT_PROJECT_KEYS = {
   "robot-team-growth-agent": "blueprint-webapp",
   "site-operator-partnership-agent": "blueprint-executive-ops",
   "city-demand-agent": "blueprint-executive-ops",
+  "buyer-solutions-agent": "blueprint-webapp",
+  "solutions-engineering-agent": "blueprint-webapp",
+  "rights-provenance-agent": "blueprint-capture-pipeline",
+  "security-procurement-agent": "blueprint-executive-ops",
+  "capturer-success-agent": "blueprint-capture",
+  "site-catalog-agent": "blueprint-webapp",
+  "outbound-sales-agent": "blueprint-webapp",
+  "buyer-success-agent": "blueprint-webapp",
+  "revenue-ops-pricing-agent": "blueprint-executive-ops",
 };
 
 function resolveInstructionSource(agentKey) {

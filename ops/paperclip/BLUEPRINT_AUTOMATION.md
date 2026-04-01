@@ -28,7 +28,7 @@ The automation loop is deliberately grounded in real repo state and truthful pro
 - Repo implementation and review loops are instructed to work from actual Paperclip issues, create blocker follow-up issues, and close or reprioritize issues explicitly.
 - `blueprint-executive-ops` is the cross-repo / operator project for executive and blocker work.
 - `*-codex` agents stay on `codex_local` for implementation work.
-- `blueprint-chief-of-staff`, `notion-manager-agent`, `ops-lead`, `growth-lead`, `analytics-agent`, `investor-relations-agent`, `community-updates-agent`, `market-intel-agent`, `supply-intel-agent`, `capturer-growth-agent`, `city-launch-agent`, `demand-intel-agent`, `robot-team-growth-agent`, `site-operator-partnership-agent`, and `city-demand-agent` run on `hermes_local`.
+- `blueprint-chief-of-staff`, `notion-manager-agent`, `revenue-ops-pricing-agent`, `ops-lead`, `growth-lead`, `analytics-agent`, `investor-relations-agent`, `community-updates-agent`, `market-intel-agent`, `supply-intel-agent`, `capturer-growth-agent`, `city-launch-agent`, `demand-intel-agent`, `robot-team-growth-agent`, `site-operator-partnership-agent`, `city-demand-agent`, `buyer-solutions-agent`, `solutions-engineering-agent`, `security-procurement-agent`, `capturer-success-agent`, `site-catalog-agent`, `outbound-sales-agent`, and `buyer-success-agent` run on `hermes_local`.
 - Hermes-backed agents are configured for Codex OAuth only. Do not assume Anthropic/OpenAI API-key routing for them on this host.
 - `blueprint-ceo`, `blueprint-cto`, and the `*-claude` review agents are now controlled by `BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE`, which supports `claude`, `codex`, and `auto`.
 - In `auto`, reconcile probes the Claude adapter and flips only the executive/review lane to `codex_local` when Claude is unavailable, then flips back on a later maintenance pass when Claude is healthy again.
@@ -217,7 +217,7 @@ Verify adapters, routines, plugin readiness, and dashboard reachability:
 /Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/verify-blueprint-paperclip.sh
 ```
 
-`verify-blueprint-paperclip.sh` now checks both Codex and Claude by default so the dual-lane host configuration stays honest, and it verifies the chief-of-staff loop plus the added Ops and Growth routines rather than only the original engineering loops.
+`verify-blueprint-paperclip.sh` now validates the repo-side agent employee kit before it checks adapters, checks both Codex and Claude by default so the dual-lane host configuration stays honest, and verifies the chief-of-staff loop plus the added Ops and Growth routines rather than only the original engineering loops.
 
 Run the end-to-end automation smoke:
 

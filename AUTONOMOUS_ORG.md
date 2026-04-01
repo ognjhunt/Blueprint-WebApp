@@ -57,9 +57,9 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 
 | Department | Lead | Agents | Focus |
 |-----------|------|--------|-------|
-| **Executive** | CEO | CEO, Chief of Staff, CTO, Investor Relations, Notion Manager | Strategy, priorities, continuous cross-dept coordination plus workspace stewardship |
+| **Executive** | CEO | CEO, Chief of Staff, CTO, Investor Relations, Notion Manager, Revenue Ops & Pricing | Strategy, priorities, continuous cross-dept coordination, workspace stewardship, and commercial system discipline |
 | **Engineering** | CTO | 6 agents (impl + review per repo) + Beta Launch Commander + Docs Agent | Code implementation, review, release orchestration, and documentation |
-| **Ops** | Ops Lead | 10 agents | Product operations lifecycle, buyer solutions, rights/trust, capturer success, catalog, buyer success |
+| **Ops** | Ops Lead | 12 agents | Product operations lifecycle, buyer solutions, technical enablement, rights/trust, enterprise review, capturer success, catalog, and buyer success |
 | **Growth** | Growth Lead | 13 agents | Buyer demand, capturer supply, city planning, outbound sales, conversion, retention, intelligence, and community publishing |
 
 ---
@@ -227,6 +227,40 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 **Human gates:** Ambiguous page identity, contested ownership, rights/privacy-sensitive content, arbitrary workspace cleanup outside Blueprint-managed Hub surfaces, or any move/archive decision without strong evidence.
 
 **Instructions:** `ops/paperclip/blueprint-company/agents/notion-manager-agent/AGENTS.md`
+
+---
+
+#### Revenue Ops & Pricing Agent (`revenue-ops-pricing-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Executive |
+| **Reports to** | Chief of Staff |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | New |
+
+**Purpose:** Maintains Blueprint's pricing and commercial system discipline. Connects buyer demand, site-catalog supply, usage, and delivery-cost signals into draft pricebook updates, package guidance, quote support, and discount guardrails without making live commercial commitments.
+
+**Triggers:**
+- `30 10 * * 2` — Weekly pricing review (Tuesday 10:30am ET)
+- Event: founder, chief-of-staff, buyer-solutions-agent, or growth-lead requests quote or package guidance
+
+**Inputs:**
+- Stripe revenue and checkout state
+- buyer journey issues, buyer-success feedback, analytics, and conversion findings
+- site catalog and current pricing surfaces
+- `ops/paperclip/programs/revenue-ops-pricing-agent-program.md`
+
+**Outputs:**
+- Draft pricebook and package updates
+- Quote support summaries and discount guardrail recommendations
+- Commercial contradiction reports when pricing, catalog, and delivery truth diverge
+- Follow-up work for product, ops, growth, or finance when pricing questions expose deeper gaps
+
+**Human gates:** Live pricing changes, discounts, terms, contract commitments, revenue-share logic, and any non-standard commercial offer.
+
+**Instructions:** `ops/paperclip/blueprint-company/agents/revenue-ops-pricing-agent/AGENTS.md`
+**Program:** `ops/paperclip/programs/revenue-ops-pricing-agent-program.md`
 
 ---
 
@@ -577,6 +611,46 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 
 ---
 
+#### Solutions Engineering Agent (`solutions-engineering-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Ops |
+| **Reports to** | Ops Lead |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | New |
+
+**Purpose:** Owns technical buyer enablement from proof-ready to implementation-ready. Converts buyer stack questions, hosted-session requirements, export expectations, and deployment readiness into explicit evaluation plans and integration checklists grounded in the product and artifacts that already exist.
+
+**Why this is an agent (not just product docs):** Technical buyers do not only need a proof pack. They need someone to connect a real site package and hosted review path to their stack, eval workflow, and implementation plan. That requires judgment across buyer context, current product behavior, and artifact reality.
+
+**What stays as code:** Hosted-session product surfaces, package manifests, export paths, admin views, entitlement logic, runtime contracts, and deployment-readiness artifacts.
+
+**Triggers:**
+- buyer-solutions-agent hands off an active buyer needing technical evaluation or implementation guidance
+- Buyer asks integration, deployment, export, or hosted-session architecture questions
+- `30 11 * * 1-5` — Weekday active delivery review
+
+**Inputs:**
+- Buyer journey issues
+- WebApp hosted-session and site-world surfaces
+- Pipeline package and deployment-readiness artifacts
+- Buyer stack constraints and workflow questions
+- `ops/paperclip/programs/solutions-engineering-agent-program.md`
+
+**Outputs:**
+- Technical evaluation plans and integration checklists
+- Implementation-readiness summaries
+- Product-gap or artifact-gap escalations to engineering or ops
+- Clean technical handoffs into buyer-success-agent when delivery is ready
+
+**Human gates:** Capability guarantees, deployment guarantees, custom engineering promises, pricing implications, and any external technical commitment beyond current product truth.
+
+**Instructions:** `ops/paperclip/blueprint-company/agents/solutions-engineering-agent/AGENTS.md`
+**Program:** `ops/paperclip/programs/solutions-engineering-agent-program.md`
+
+---
+
 #### Rights & Provenance Agent (`rights-provenance-agent`)
 
 | Field | Value |
@@ -623,6 +697,46 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | 1 | Reviews and recommends; human approves all clearance decisions | 10 reviews with consistent quality |
 | 2 | Auto-clears routine cases matching established patterns; human reviews edge cases and high-sensitivity sites | 20 reviews, zero false clearances |
 | 3 | Semi-autonomous for routine clearance; all novel, high-sensitivity, and scope-expansion cases remain human-gated permanently | Founder sign-off |
+
+---
+
+#### Security & Procurement Agent (`security-procurement-agent`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Ops |
+| **Reports to** | Ops Lead |
+| **Model** | Hermes (Codex OAuth) |
+| **Status** | New |
+
+**Purpose:** Drafts Blueprint's buyer-facing security, architecture, data-handling, and procurement responses from real system evidence. Keeps enterprise security review and procurement work moving without overstating legal, compliance, or certification posture.
+
+**Why this is an agent (not just a FAQ page):** Enterprise buyers ask detailed questions about hosted-session isolation, access control, data retention, encryption, provenance, and operational ownership. Those questions require evidence collection and careful translation, not generic marketing copy.
+
+**What stays as code:** Runtime auth, access control, field encryption, data retention behavior, deployment configuration, and rights/provenance evidence generation.
+
+**Triggers:**
+- buyer-solutions-agent or solutions-engineering-agent flags a security or procurement review
+- Buyer sends a DDQ, architecture review request, or procurement checklist
+- `30 12 * * 1-5` — Active security/procurement review sweep
+
+**Inputs:**
+- Deployment and runtime docs
+- Hosted-session auth and access-control behavior
+- Data retention and field-encryption posture
+- Rights/provenance and privacy-processing evidence when relevant
+- `ops/paperclip/programs/security-procurement-agent-program.md`
+
+**Outputs:**
+- DDQ and security packet drafts
+- Procurement blocker summaries
+- Missing-evidence escalations to engineering, ops, or rights owners
+- Explicit "not currently supported" answers where evidence does not exist
+
+**Human gates:** Legal language, certification or pentest claims, privacy/risk interpretation, contract commitments, and any answer that outruns existing evidence.
+
+**Instructions:** `ops/paperclip/blueprint-company/agents/security-procurement-agent/AGENTS.md`
+**Program:** `ops/paperclip/programs/security-procurement-agent-program.md`
 
 ---
 
@@ -1563,7 +1677,7 @@ BlueprintCapture          BlueprintCapturePipeline       Blueprint-WebApp
 
 | Repo | Agents with access |
 |------|--------------------|
-| Blueprint-WebApp | webapp-codex, webapp-claude, conversion-agent, analytics-agent, demand-intel-agent, robot-team-growth-agent, site-operator-partnership-agent, city-demand-agent, buyer-solutions-agent, buyer-success-agent, site-catalog-agent, outbound-sales-agent |
+| Blueprint-WebApp | webapp-codex, webapp-claude, conversion-agent, analytics-agent, demand-intel-agent, robot-team-growth-agent, site-operator-partnership-agent, city-demand-agent, buyer-solutions-agent, solutions-engineering-agent, buyer-success-agent, site-catalog-agent, outbound-sales-agent |
 | BlueprintCapture | capture-codex, capture-claude, field-ops-agent, capturer-success-agent |
 | BlueprintCapturePipeline | pipeline-codex, pipeline-claude, capture-qa-agent, rights-provenance-agent |
-| All repos (read) | CEO, CTO, Ops Lead, Growth Lead, beta-launch-commander, docs-agent |
+| All repos (read) | CEO, CTO, Ops Lead, Growth Lead, beta-launch-commander, docs-agent, notion-manager-agent, revenue-ops-pricing-agent, security-procurement-agent |
