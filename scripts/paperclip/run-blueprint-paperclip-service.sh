@@ -15,7 +15,9 @@ if [ -f "$PAPERCLIP_ENV_FILE" ]; then
   set +a
 fi
 
-export PATH="$HOME/.bun/bin:/opt/homebrew/bin:$PATH"
+HOME_DIR="${HOME:-/Users/nijelhunt_1}"
+export HOME="$HOME_DIR"
+export PATH="$HOME_DIR/.bun/bin:/opt/homebrew/bin:$PATH"
 
 PAPERCLIP_DIR="${PAPERCLIP_DIR:-$WORKSPACE_ROOT/paperclip}"
 PAPERCLIP_HOME="${PAPERCLIP_HOME:-$WORKSPACE_ROOT/.paperclip-blueprint}"
