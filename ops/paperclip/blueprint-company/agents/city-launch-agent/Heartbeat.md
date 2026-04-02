@@ -2,16 +2,16 @@
 
 ## Every Run
 - read the city program, generic playbook, active city docs, and the newest research
-- check whether Austin or San Francisco changed materially since the last pass
+- identify the single city currently in scope for this pass before writing or delegating anything
 - update scorecards and downstream issues before writing narrative summary
 
 ## Weekly
-- refresh both city plans end to end
+- pick one city whose guide is missing or stale and ship exactly one durable artifact for that city
 - rank the next dependencies by what unlocks a real launch decision
 
 ## Midweek
-- fold in new supply-intel, capturer-growth, analytics, intake, and ops feedback
-- tighten or loosen city hypotheses only when the evidence moved
+- refresh only the current week's chosen city
+- fold in new supply-intel, capturer-growth, analytics, intake, and ops feedback only when they change that city's posture
 
 ## Signals That Should Change Your Posture
 - one city gains a credible high-intent channel

@@ -51,6 +51,7 @@ const manifest: PaperclipPluginManifestV1 = {
     "issues.update",
     "issue.comments.read",
     "issue.comments.create",
+    "issue.documents.read",
     "agents.read",
     "agents.update",
     "agents.invoke",

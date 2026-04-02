@@ -31,6 +31,7 @@ Default behavior:
 5. Produce issue-ready work items and readiness scorecards instead of vague "launch soon" narratives.
 6. Leave a durable artifact every run: update a city playbook file when repo writes are available, otherwise attach a city-launch guide document to the Paperclip issue.
 7. Keep final launch, spend, public posting, and legal-sensitive decisions with humans.
+8. Before marking a city-launch routine issue done, leave a plain-text proof comment naming the selected city, the exact artifact, whether anything changed, and `Other cities touched: none`.
 
 Delegation visibility:
 

@@ -2,6 +2,7 @@ import { promisify } from "node:util";
 import { execFile } from "node:child_process";
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
 import {
   definePlugin,
   runWorker,
@@ -104,6 +105,12 @@ import {
   type HandoffAnalytics,
   type HandoffSnapshot,
 } from "./handoffs.js";
+import {
+  assessCityLaunchCompletion,
+  findLatestCityLaunchCloseout,
+  type CityLaunchRoutineType,
+  type CityLaunchStoredSelection,
+} from "./city-launch-proof.js";
 import {
   buildAgentConversationSlackCopy,
   buildManagerIssueSlackCopy,
@@ -493,6 +500,7 @@ type HandoffMonitorState = Record<string, HandoffMonitorEntry>;
 // ── Monitoring, Budget & Phase Types ───────────────────
 
 type RoutineHealthState = Record<string, ManagerRoutineHealthEntry>;
+type CityLaunchSelectionState = CityLaunchStoredSelection | null;
 
 type BudgetTrackingState = {
   period: string;
@@ -3197,6 +3205,8 @@ async function updateRoutineHealth(
 }
 
 async function runRoutineHealthCheck(ctx: PluginContext, companyId: string, config: BlueprintAutomationConfig) {
+  await revalidateCityLaunchDoneIssues(ctx, companyId, config);
+
   const healthState = await readState<RoutineHealthState>(ctx, companyId, STATE_KEYS.routineHealth) ?? {};
   const routineAlerts = collectRoutineHealthAlerts(healthState, nowIso());
   const alerts = routineAlerts.map((entry) =>
@@ -3834,6 +3844,132 @@ async function resolveRepoWorkspacePath(
   throw new Error(
     `No usable repo workspace exists for ${repoConfig.projectName}; checked ${workspace.path || "no primary path"}, implementation agent cwd, and review agent cwd.`,
   );
+}
+
+function getCityLaunchRoutineType(issue: Pick<Issue, "title" | "originKind">): CityLaunchRoutineType | null {
+  if (issue.originKind !== "routine_execution") return null;
+  const normalized = issue.title.trim().toLowerCase();
+  if (normalized === "city launch weekly") return "weekly";
+  if (normalized === "city launch refresh") return "refresh";
+  return null;
+}
+
+function normalizeArtifactPath(artifactRef: string) {
+  return artifactRef.trim().replace(/^`|`$/g, "").replace(/^\/+/, "");
+}
+
+function formatCityLaunchCompletionRejection(errors: string[]) {
+  return [
+    "City launch completion rejected.",
+    "",
+    "This routine cannot count as done yet because:",
+    ...errors.map((error) => `- ${error}`),
+    "",
+    "Required closeout format:",
+    "- Selected city: <City, ST>",
+    "- Artifact: <repo path or issue-document:key>",
+    "- Evidence: <why this city now> for weekly runs",
+    "- Outcome: updated | no_change for refresh runs",
+    "- Evidence delta: <what changed or none> for refresh runs",
+    "- Other cities touched: none",
+  ].join("\n");
+}
+
+async function resolveCityLaunchArtifactExists(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+  artifactRef: string,
+) {
+  const normalizedArtifact = normalizeArtifactPath(artifactRef);
+  if (!normalizedArtifact.startsWith("ops/paperclip/playbooks/city-launch-")) {
+    return false;
+  }
+
+  const repoConfig = (config.repoCatalog ?? DEFAULT_REPO_CATALOG).find((entry) =>
+    entry.key === "webapp" || entry.githubRepo === "Blueprint-WebApp" || entry.projectName === "blueprint-webapp",
+  );
+  if (!repoConfig) return false;
+
+  try {
+    const { workspace } = await getPrimaryWorkspaceForRepo(ctx, companyId, repoConfig);
+    const workspacePath = await resolveRepoWorkspacePath(ctx, companyId, repoConfig, workspace);
+    const candidatePath = path.resolve(workspacePath, normalizedArtifact);
+    const normalizedWorkspacePath = path.resolve(workspacePath);
+    if (!candidatePath.startsWith(`${normalizedWorkspacePath}${path.sep}`) && candidatePath !== normalizedWorkspacePath) {
+      return false;
+    }
+    return existsSync(candidatePath);
+  } catch {
+    return false;
+  }
+}
+
+async function validateCityLaunchIssueCompletion(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+  issueId: string,
+) {
+  const issue = await ctx.issues.get(issueId, companyId);
+  if (!issue || issue.status !== "done") return;
+
+  const routineType = getCityLaunchRoutineType(issue);
+  if (!routineType) return;
+
+  const comments = await ctx.issues.listComments(issue.id, companyId);
+  const closeout = findLatestCityLaunchCloseout(comments);
+  const documentSummaries = await ctx.issues.documents.list(issue.id, companyId);
+  const currentSelection = await readState<CityLaunchSelectionState>(ctx, companyId, STATE_KEYS.cityLaunchSelection) ?? null;
+  const artifactExists = closeout
+    ? await resolveCityLaunchArtifactExists(ctx, companyId, config, closeout.artifactRef)
+    : false;
+
+  const assessment = assessCityLaunchCompletion({
+    routineType,
+    comments,
+    documentKeys: documentSummaries.map((entry) => entry.key),
+    artifactExists,
+    currentSelection,
+    issueId: issue.id,
+    nowIso: nowIso(),
+  });
+
+  if (!assessment.ok) {
+    await ctx.issues.update(issue.id, { status: "blocked" }, companyId);
+    await ctx.issues.createComment(
+      issue.id,
+      formatCityLaunchCompletionRejection(assessment.errors),
+      companyId,
+    );
+    return;
+  }
+
+  if (assessment.nextSelection) {
+    await writeState(ctx, companyId, STATE_KEYS.cityLaunchSelection, assessment.nextSelection);
+  }
+}
+
+async function revalidateCityLaunchDoneIssues(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+) {
+  const cityLaunchAgent = await resolveAgent(ctx, companyId, "city-launch-agent").catch(() => null);
+  if (!cityLaunchAgent) return;
+
+  const issues = await ctx.issues.list({
+    companyId,
+    assigneeAgentId: cityLaunchAgent.id,
+    status: "done",
+    limit: 100,
+  });
+
+  for (const issue of issues) {
+    if (getCityLaunchRoutineType(issue)) {
+      await validateCityLaunchIssueCompletion(ctx, companyId, config, issue.id);
+    }
+  }
 }
 
 async function scanRepoDrift(ctx: PluginContext, companyId: string, repoConfig: RepoConfig) {
@@ -6636,6 +6772,19 @@ const plugin: PaperclipPlugin = definePlugin({
     ctx.events.on("issue.updated", async (event) => {
       if (!event.entityId) return;
       try {
+        const config = await getConfig(ctx);
+        await validateCityLaunchIssueCompletion(ctx, event.companyId, config, event.entityId);
+      } catch (error) {
+        ctx.logger.warn("issue.updated city-launch completion validation failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            issueId: event.entityId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+      try {
         await handleChiefOfStaffIssueSignal(ctx, {
           eventId: event.eventId,
           companyId: event.companyId,
@@ -6740,6 +6889,7 @@ const plugin: PaperclipPlugin = definePlugin({
       const config = await getConfig(ctx);
       const company = await findCompany(ctx, config.companyName);
       await enforceWorkspaceAdapterCooldowns(ctx, company.id);
+      await revalidateCityLaunchDoneIssues(ctx, company.id, config);
       await runHandoffMonitorJob(ctx, company.id, config);
     } catch (error) {
       ctx.logger.warn("startup automation maintenance failed", {
