@@ -4,6 +4,8 @@ set -euo pipefail
 WORKSPACE_ROOT="/Users/nijelhunt_1/workspace"
 PAPERCLIP_ENV_FILE="${PAPERCLIP_ENV_FILE:-$WORKSPACE_ROOT/.paperclip-blueprint.env}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+CONNECTOR_RUNBOOK_PATH="$REPO_ROOT/docs/paperclip-connector-recovery-runbook.md"
 
 # shellcheck source=./paperclip-api.sh
 source "$SCRIPT_DIR/paperclip-api.sh"
@@ -223,6 +225,7 @@ main() {
   echo "firestore issue: ${firestore_issue}"
   echo "stripe issue: ${stripe_issue}"
   echo "support issue: ${support_issue}"
+  echo "Connector auth note: runtime GitHub/Google Calendar connector re-auth is a separate operator step. See ${CONNECTOR_RUNBOOK_PATH}"
 }
 
 main "$@"

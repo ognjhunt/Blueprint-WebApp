@@ -53,6 +53,8 @@ It is specifically a study of marketplace supply playbooks.
 - Weekly marketplace-playbook synthesis
 - competitor teardown notes focused on supply growth
 - ranked tactical recommendations for Blueprint
+- Notion Knowledge entry for each durable brief or synthesis
+- Notion Work Queue breadcrumb when review or follow-up is required
 - clear handoff items for `capturer-growth-agent`
 
 ## Constraints

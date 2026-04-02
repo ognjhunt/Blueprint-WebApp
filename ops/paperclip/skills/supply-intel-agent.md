@@ -39,7 +39,9 @@ This is not generic competitor research. It is specifically about:
    - what bottlenecks appeared after early traction?
 4. Use `customer-research-search` and `customer-research-synthesize` when forum, review, or transcript evidence materially improves the answer.
 5. Write findings as evidence-backed patterns, not vibes.
-6. Route the most actionable findings to:
+6. Publish the durable daily or weekly synthesis to Notion Knowledge so humans can inspect the evidence trail without opening Paperclip.
+7. Create or update a Notion Work Queue breadcrumb whenever the findings require review, prioritization, or downstream execution.
+8. Route the most actionable findings to:
    - `capturer-growth-agent` for generic playbook updates
    - `growth-lead` for prioritization
    - `city-launch-agent` when a city-specific implication is clear
@@ -69,6 +71,8 @@ This is not generic competitor research. It is specifically about:
 
 ## Outputs
 - Ranked city-launch research briefs
+- Notion Knowledge entry for each durable research brief or synthesis
+- Notion Work Queue breadcrumb for reviewed or actionable findings
 - Competitor teardown docs
 - Channel and referral recommendations
 - Incentive and trust-mechanism recommendations
@@ -86,3 +90,4 @@ This is not generic competitor research. It is specifically about:
 - contact competitors, workers, or partners directly
 - turn research into public-facing promises
 - rewrite Blueprint's capture-first doctrine into a generic gig-economy story
+- leave durable research outputs only in Paperclip

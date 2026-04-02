@@ -35,7 +35,7 @@ paperclip_api_fetch_json() {
 }
 
 paperclip_require_external_postgres() {
-  local requirement="${BLUEPRINT_PAPERCLIP_REQUIRE_EXTERNAL_POSTGRES:-0}"
+  local requirement="${BLUEPRINT_PAPERCLIP_REQUIRE_EXTERNAL_POSTGRES:-1}"
   if [[ ! "$requirement" =~ ^(1|true|yes)$ ]]; then
     return 0
   fi

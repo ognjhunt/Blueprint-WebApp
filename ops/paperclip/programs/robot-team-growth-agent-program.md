@@ -15,6 +15,8 @@ This program turns demand-intel findings into Blueprint-specific guidance that c
 
 ## Required Outputs
 - update `ops/paperclip/playbooks/robot-team-demand-playbook.md`
+- create or update a Notion Knowledge artifact that summarizes the current reusable robot-team growth guidance
+- create or update a Notion Work Queue breadcrumb whenever human review or downstream action is required
 - maintain a segment and channel matrix with:
   - buyer role
   - site / workflow need

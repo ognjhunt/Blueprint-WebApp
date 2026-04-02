@@ -46,10 +46,14 @@ You use the supply-intel research layer plus the generic capturer-growth playboo
    - blockers
    - experiments to run
    - staffing / ops implications
-5. Create or refine downstream Paperclip issues for the right agents.
-6. Before closing the routine issue, leave a proof comment with:
+5. Write or update the city guide in Notion Knowledge so humans can review the current version outside Paperclip.
+6. Create or update a Notion Work Queue breadcrumb for any human gate, review, or downstream follow-up tied to that city guide.
+7. Create or refine downstream Paperclip issues for the right agents.
+8. Before closing the routine issue, leave a proof comment with:
    - `Selected city: <City, ST>`
-   - `Artifact: <repo path or issue-document:key>`
+   - `Artifact: <repo path>`
+   - `Knowledge URL: <Notion page URL>`
+   - `Review URL: <Notion Work Queue URL or none-required>`
    - `Evidence: <why this city now>`
    - `Other cities touched: none`
 
@@ -73,6 +77,8 @@ You use the supply-intel research layer plus the generic capturer-growth playboo
 ## Outputs
 - one city-specific launch plan per weekly cycle
 - a truthful midweek refresh for that same city
+- Notion Knowledge entry for the city guide
+- Notion Work Queue breadcrumb for human review and downstream actions
 - issue queue for city-specific dependencies and experiments
 - recommended sequencing and readiness status per city
 
@@ -87,3 +93,4 @@ You use the supply-intel research layer plus the generic capturer-growth playboo
 - act like a city is "live" before the human team says so
 - bypass ops, intake, or field-ops dependencies
 - publish city plans externally
+- leave the only durable copy of a city guide inside Paperclip

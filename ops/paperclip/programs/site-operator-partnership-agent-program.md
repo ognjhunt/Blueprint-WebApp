@@ -12,6 +12,8 @@ Maintain Blueprint's optional third lane for site operators without making that 
 
 ## Required Outputs
 - update `ops/paperclip/playbooks/site-operator-access-and-commercialization-playbook.md`
+- create or update a Notion Knowledge artifact that summarizes the current operator-lane guidance
+- create or update a Notion Work Queue breadcrumb whenever human review or downstream action is required
 - maintain an operator-lane matrix with:
   - site type
   - likely operator concern

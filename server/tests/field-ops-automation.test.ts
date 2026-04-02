@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const executeAction = vi.hoisted(() => vi.fn());
 
@@ -131,7 +131,13 @@ vi.mock("../agents/action-executor", () => ({
 afterEach(() => {
   executeAction.mockReset();
   resetStores();
+  vi.useRealTimers();
   vi.resetModules();
+});
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-03-31T12:00:00.000Z"));
 });
 
 describe("field ops automation", () => {
@@ -175,6 +181,113 @@ describe("field ops automation", () => {
         reminders: {
           status: "pending",
           next_type: "reminder_48h",
+        },
+      },
+    });
+  }, 15_000);
+
+  it("schedules the 24h reminder immediately when the 48h window has already passed", async () => {
+    stores.capture_jobs.set("job-24h", {
+      title: "Durham Facility",
+      address: "123 Main St",
+      availabilityStartsAt: "2026-04-01T18:00:00.000Z",
+    });
+    stores.users.set("creator-1", {
+      email: "capturer@example.com",
+      name: "Casey Capturer",
+    });
+    executeAction.mockResolvedValue({
+      state: "sent",
+      tier: 1,
+      ledgerDocId: "ledger-24h",
+    });
+
+    const { sendCapturerCommunication } = await import("../utils/field-ops-automation");
+    await sendCapturerCommunication({
+      captureJobId: "job-24h",
+      communicationType: "confirmation",
+      creatorId: "creator-1",
+      triggeredBy: "ops@tryblueprint.io",
+    });
+
+    expect(stores.capture_jobs.get("job-24h")).toMatchObject({
+      field_ops: {
+        reminders: {
+          status: "pending",
+          next_type: "reminder_24h",
+        },
+      },
+    });
+  }, 15_000);
+
+  it("marks reminders complete when the capture is within 24 hours", async () => {
+    stores.capture_jobs.set("job-complete", {
+      title: "Durham Facility",
+      address: "123 Main St",
+      availabilityStartsAt: "2026-04-01T08:00:00.000Z",
+    });
+    stores.users.set("creator-1", {
+      email: "capturer@example.com",
+      name: "Casey Capturer",
+    });
+    executeAction.mockResolvedValue({
+      state: "sent",
+      tier: 1,
+      ledgerDocId: "ledger-complete",
+    });
+
+    const { sendCapturerCommunication } = await import("../utils/field-ops-automation");
+    await sendCapturerCommunication({
+      captureJobId: "job-complete",
+      communicationType: "confirmation",
+      creatorId: "creator-1",
+      triggeredBy: "ops@tryblueprint.io",
+    });
+
+    expect(stores.capture_jobs.get("job-complete")).toMatchObject({
+      field_ops: {
+        reminders: {
+          status: "complete",
+          next_type: null,
+        },
+      },
+    });
+  }, 15_000);
+
+  it("moves from the 48h reminder to the 24h reminder after a send", async () => {
+    stores.capture_jobs.set("job-transition", {
+      title: "Durham Facility",
+      address: "123 Main St",
+      availabilityStartsAt: "2026-04-03T15:00:00.000Z",
+      field_ops: {
+        capturer_assignment: {
+          creator_id: "creator-1",
+          email: "capturer@example.com",
+        },
+      },
+    });
+    stores.users.set("creator-1", {
+      email: "capturer@example.com",
+      name: "Casey Capturer",
+    });
+    executeAction.mockResolvedValue({
+      state: "sent",
+      tier: 1,
+      ledgerDocId: "ledger-transition",
+    });
+
+    const { sendCapturerCommunication } = await import("../utils/field-ops-automation");
+    await sendCapturerCommunication({
+      captureJobId: "job-transition",
+      communicationType: "reminder_48h",
+      triggeredBy: "system:auto",
+    });
+
+    expect(stores.capture_jobs.get("job-transition")).toMatchObject({
+      field_ops: {
+        reminders: {
+          status: "pending",
+          next_type: "reminder_24h",
         },
       },
     });

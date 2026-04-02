@@ -5,6 +5,7 @@ WORKSPACE_ROOT="/Users/nijelhunt_1/workspace"
 PAPERCLIP_ENV_FILE="${PAPERCLIP_ENV_FILE:-$WORKSPACE_ROOT/.paperclip-blueprint.env}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+CONNECTOR_RUNBOOK_PATH="$REPO_ROOT/docs/paperclip-connector-recovery-runbook.md"
 
 # shellcheck source=./paperclip-api.sh
 source "$SCRIPT_DIR/paperclip-api.sh"
@@ -217,6 +218,41 @@ plugin_dashboard() {
     "${PAPERCLIP_API_URL}/api/plugins/${PLUGIN_KEY}/data/dashboard"
 }
 
+print_connector_runbook_hint() {
+  echo "See ${CONNECTOR_RUNBOOK_PATH} for the connector recovery runbook." >&2
+}
+
+assert_connector_prereqs() {
+  local missing_github=()
+  [ -n "${BLUEPRINT_PAPERCLIP_GITHUB_OWNER:-}" ] || missing_github+=("BLUEPRINT_PAPERCLIP_GITHUB_OWNER")
+  [ -n "${BLUEPRINT_PAPERCLIP_GITHUB_TOKEN:-}" ] || missing_github+=("BLUEPRINT_PAPERCLIP_GITHUB_TOKEN")
+  [ -n "${BLUEPRINT_PAPERCLIP_GITHUB_WEBHOOK_SECRET:-}" ] || missing_github+=("BLUEPRINT_PAPERCLIP_GITHUB_WEBHOOK_SECRET")
+
+  if [ "${#missing_github[@]}" -gt 0 ]; then
+    echo "Verification failed: GitHub connector prerequisites are missing (${missing_github[*]})." >&2
+    echo "This is a connector/auth configuration problem, not generic Paperclip runtime instability." >&2
+    print_connector_runbook_hint
+    return 1
+  fi
+
+  local has_calendar_creds=0
+  if [ -n "${FIREBASE_SERVICE_ACCOUNT_JSON:-}" ] || [ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]; then
+    has_calendar_creds=1
+  fi
+  if [ -n "${GOOGLE_CLIENT_EMAIL:-}" ] && [ -n "${GOOGLE_PRIVATE_KEY:-}" ]; then
+    has_calendar_creds=1
+  fi
+
+  if [ "$has_calendar_creds" -ne 1 ] || [ -z "${GOOGLE_CALENDAR_ID:-}" ]; then
+    echo "WARNING: Calendar-backed field-ops prerequisites are incomplete." >&2
+    echo "Set GOOGLE_CALENDAR_ID plus Google service-account credentials before treating field-ops verification failures as runtime instability." >&2
+    print_connector_runbook_hint
+  fi
+
+  echo "Connector prerequisite check passed for GitHub secrets." >&2
+  echo "Manual runtime step still required: re-auth the Claude GitHub connector and claude.ai Google Calendar connector, then run the targeted checks in the runbook." >&2
+}
+
 run_test() {
   local company_id="$1"
   local repo_label="$2"
@@ -346,6 +382,7 @@ main() {
   plugin_has_config="$(printf '%s' "$plugin_config" | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const row=JSON.parse(data);process.stdout.write(row.configJson && typeof row.configJson === "object" ? "yes" : "no");});')"
   [ "$plugin_status" = "ready" ]
   [ "$plugin_has_config" = "yes" ]
+  assert_connector_prereqs
 
   require_routines "$company_id"
   plugin_dashboard "$company_id" >/dev/null

@@ -42,10 +42,12 @@ Score each city 1-5 on:
 
 ## Required Outputs
 - update exactly one `ops/paperclip/playbooks/city-launch-<slug>.md` file per weekly run when repo writes are available
-- otherwise attach one city-launch guide document to the current Paperclip issue
+- create or update one Notion Knowledge page for that city's current guide every run
+- create or update one Notion Work Queue breadcrumb whenever human review, approval, or downstream follow-up is required
 - use `ops/paperclip/playbooks/city-launch-template.md` as the default shape for new cities
 - create issue-ready actions for other agents only when they represent real next work
 - keep a clear list of what is blocked by missing human decisions
+- do not leave the city guide only as a Paperclip attachment or comment
 
 ## Constraints
 - No public launch claims

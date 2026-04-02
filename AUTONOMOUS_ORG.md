@@ -1644,6 +1644,7 @@ Updated by Growth Lead (for Conversion + Market Intel) or CEO (for ad-hoc overri
 - Work items: Paperclip changes should mirror into Notion promptly; the Notion manager repairs drift, duplicates, and metadata gaps
 - Reports and digests: Written to Notion on each agent's schedule, then reconciled for placement, relations, and freshness
 - Skill metadata: Updated in Notion Skills DB when skill files change, then reconciled against related docs and Hub structure
+- Producer artifact rule: research, planning, scorecard, digest, and playbook-producing agents must not end a run with the artifact living only in Paperclip comments. The durable artifact must be written to Notion Knowledge, and when a human review, decision, or follow-up is needed, the run must also create or update a Notion Work Queue breadcrumb linked to that artifact.
 
 ### Blueprint Hub Databases
 

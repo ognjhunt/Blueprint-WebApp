@@ -33,6 +33,8 @@ Score each city 1-5 on:
 ## Required Outputs
 - update `ops/paperclip/playbooks/city-demand-austin-tx.md`
 - update `ops/paperclip/playbooks/city-demand-san-francisco-ca.md`
+- create or update Notion Knowledge pages for each active city-demand plan that changed in the run
+- create or update Notion Work Queue breadcrumbs whenever a human review, approval, or downstream action is required
 - create issue-ready actions for other agents
 - keep a clear list of what is blocked by missing evidence or human decisions
 

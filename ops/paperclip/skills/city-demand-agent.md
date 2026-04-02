@@ -41,7 +41,9 @@ You use the demand-intel research layer, the generic robot-team playbook, and th
    - blockers
    - experiments to run
    - site-operator lane implications
-4. Create or refine downstream Paperclip issues for the right agents.
+4. Write or update the city-demand plan in Notion Knowledge so humans can review the current city posture outside Paperclip.
+5. Create or update a Notion Work Queue breadcrumb for any human gate, review, or downstream follow-up tied to the city-demand plan.
+6. Create or refine downstream Paperclip issues for the right agents.
 
 ### How You Work With Other Agents
 - `demand-intel-agent`: provides buyer and channel evidence
@@ -64,6 +66,8 @@ You use the demand-intel research layer, the generic robot-team playbook, and th
 ## Outputs
 - Austin demand plan
 - San Francisco demand plan
+- Notion Knowledge entries for current city-demand plans
+- Notion Work Queue breadcrumbs for human review and downstream actions
 - weekly city demand scorecards
 - issue queue for city-specific dependencies and experiments
 - recommended sequencing and readiness status per city
@@ -79,3 +83,4 @@ You use the demand-intel research layer, the generic robot-team playbook, and th
 - act like a city already has validated demand before the evidence exists
 - bypass ops, intake, finance, or site-operator dependencies
 - publish city plans externally
+- leave the only durable city-demand artifact inside Paperclip

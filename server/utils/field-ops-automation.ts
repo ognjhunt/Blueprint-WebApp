@@ -600,7 +600,11 @@ function buildSiteAccessEmail(params: {
   };
 }
 
-function nextReminderState(communicationType: string, captureAt: string | null) {
+function nextReminderState(
+  communicationType: string,
+  captureAt: string | null,
+  nowIso: string = new Date().toISOString(),
+) {
   if (!captureAt) {
     return {
       status: "unscheduled",
@@ -612,14 +616,14 @@ function nextReminderState(communicationType: string, captureAt: string | null) 
   if (communicationType === "confirmation") {
     const due48h = addHours(captureAt, -48);
     const due24h = addHours(captureAt, -24);
-    if (due48h && due48h > new Date().toISOString()) {
+    if (due48h && due48h > nowIso) {
       return {
         status: "pending",
         next_type: "reminder_48h",
         next_due_at: due48h,
       };
     }
-    if (due24h && due24h > new Date().toISOString()) {
+    if (due24h && due24h > nowIso) {
       return {
         status: "pending",
         next_type: "reminder_24h",
@@ -708,7 +712,11 @@ export async function sendCapturerCommunication(params: {
         error: "Missing capturer email",
       };
 
-  const reminderState = nextReminderState(params.communicationType, scheduledFor);
+  const reminderState = nextReminderState(
+    params.communicationType,
+    scheduledFor,
+    new Date().toISOString(),
+  );
 
   await captureJobRef.set(
     {
@@ -755,7 +763,8 @@ export async function runCapturerReminderLoop(params?: { limit?: number }) {
     const nextDueAt =
       typeof reminders.next_due_at === "string" ? reminders.next_due_at : null;
 
-    if (!nextType || !nextDueAt || nextDueAt > new Date().toISOString()) {
+    const nowIso = new Date().toISOString();
+    if (!nextType || !nextDueAt || nextDueAt > nowIso) {
       continue;
     }
 

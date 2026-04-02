@@ -272,6 +272,8 @@ If `BLUEPRINT_PAPERCLIP_GITHUB_WEBHOOK_SECRET` is configured, the plugin verifie
 
 `setup-github-webhooks.sh` now uses the same env file as bootstrap/configure, creates or updates hooks on the three Blueprint repos, and validates delivery by triggering GitHub ping events and checking the latest delivery status.
 
+If GitHub or Google Calendar runtime connectors drift out of auth, follow the recovery steps in [paperclip-connector-recovery-runbook.md](/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/paperclip-connector-recovery-runbook.md).
+
 ### Generic CI
 
 Use the `ci` endpoint for any CI system that can POST JSON with:
