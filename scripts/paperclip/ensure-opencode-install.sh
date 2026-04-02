@@ -174,8 +174,6 @@ const updated = {
   provider: {
     ...(existing.provider ?? {}),
     openrouter: {
-      apiKey: openrouterKey,
-      baseURL: "https://openrouter.ai/api/v1",
       models: {
         [fallbackModel.replace(/^openrouter\//, "")]: {},
       },
