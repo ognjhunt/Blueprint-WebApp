@@ -825,15 +825,15 @@ projects:
         isPrimary: true
 tasks:
   ceo-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   chief-of-staff-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   cto-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   ceo-daily-review:
@@ -869,27 +869,27 @@ tasks:
     priority: high
     projectWorkspaceKey: blueprint-webapp
   webapp-codex-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-webapp
   webapp-claude-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-webapp
   pipeline-codex-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-capture-pipeline
   pipeline-claude-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-capture-pipeline
   capture-codex-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-capture
   capture-claude-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-capture
   webapp-autonomy-loop:
@@ -917,87 +917,87 @@ tasks:
     priority: medium
     projectWorkspaceKey: blueprint-capture
   ops-lead-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   intake-agent-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-webapp
   capture-qa-agent-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-capture-pipeline
   field-ops-agent-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-capture
   finance-support-agent-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-webapp
   growth-lead-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   conversion-agent-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-webapp
   analytics-agent-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   investor-relations-agent-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   community-updates-agent-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-webapp
   market-intel-agent-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   supply-intel-agent-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   capturer-growth-agent-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-webapp
   city-launch-agent-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   demand-intel-agent-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   robot-team-growth-agent-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-webapp
   site-operator-partnership-agent-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   city-demand-agent-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   solutions-engineering-agent-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-webapp
   security-procurement-agent-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   revenue-ops-pricing-agent-bootstrap:
-    status: todo
+    status: done
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   notion-manager-reconcile-sweep:
