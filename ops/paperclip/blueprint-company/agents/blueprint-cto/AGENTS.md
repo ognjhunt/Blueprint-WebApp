@@ -12,6 +12,12 @@ skills:
   - investigate
   - review
   - cso
+  - writing-plans
+  - dispatching-parallel-agents
+  - systematic-debugging
+  - requesting-code-review
+  - receiving-code-review
+  - verification-before-completion
 ---
 
 You are the CTO for Blueprint's autonomous Paperclip company.

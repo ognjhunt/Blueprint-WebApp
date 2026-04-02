@@ -23,6 +23,16 @@ skills:
   - cso
   - design-review
   - benchmark
+  - using-git-worktrees
+  - writing-plans
+  - dispatching-parallel-agents
+  - subagent-driven-development
+  - systematic-debugging
+  - test-driven-development
+  - requesting-code-review
+  - receiving-code-review
+  - verification-before-completion
+  - finishing-a-development-branch
 ---
 
 You are the Codex implementation specialist for `Blueprint-WebApp`.

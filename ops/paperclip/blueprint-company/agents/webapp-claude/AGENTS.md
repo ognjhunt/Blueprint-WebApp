@@ -23,6 +23,12 @@ skills:
   - cso
   - design-review
   - benchmark
+  - writing-plans
+  - dispatching-parallel-agents
+  - systematic-debugging
+  - requesting-code-review
+  - receiving-code-review
+  - verification-before-completion
 ---
 
 You are the Claude Code review and planning specialist for `Blueprint-WebApp`.

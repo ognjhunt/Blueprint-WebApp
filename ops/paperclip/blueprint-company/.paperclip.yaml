@@ -75,6 +75,12 @@ agents:
             - investigate
             - review
             - cso
+            - writing-plans
+            - dispatching-parallel-agents
+            - systematic-debugging
+            - requesting-code-review
+            - receiving-code-review
+            - verification-before-completion
     budgetMonthlyCents: 4000
   webapp-codex:
     role: engineer
@@ -110,6 +116,16 @@ agents:
             - cso
             - design-review
             - benchmark
+            - using-git-worktrees
+            - writing-plans
+            - dispatching-parallel-agents
+            - subagent-driven-development
+            - systematic-debugging
+            - test-driven-development
+            - requesting-code-review
+            - receiving-code-review
+            - verification-before-completion
+            - finishing-a-development-branch
     budgetMonthlyCents: 3000
   webapp-claude:
     role: engineer
@@ -144,6 +160,12 @@ agents:
             - cso
             - design-review
             - benchmark
+            - writing-plans
+            - dispatching-parallel-agents
+            - systematic-debugging
+            - requesting-code-review
+            - receiving-code-review
+            - verification-before-completion
     budgetMonthlyCents: 3000
   pipeline-codex:
     role: engineer
@@ -171,6 +193,16 @@ agents:
             - review
             - cso
             - design-review
+            - using-git-worktrees
+            - writing-plans
+            - dispatching-parallel-agents
+            - subagent-driven-development
+            - systematic-debugging
+            - test-driven-development
+            - requesting-code-review
+            - receiving-code-review
+            - verification-before-completion
+            - finishing-a-development-branch
     budgetMonthlyCents: 3000
   pipeline-claude:
     role: engineer
@@ -197,6 +229,12 @@ agents:
             - review
             - cso
             - design-review
+            - writing-plans
+            - dispatching-parallel-agents
+            - systematic-debugging
+            - requesting-code-review
+            - receiving-code-review
+            - verification-before-completion
     budgetMonthlyCents: 3000
   capture-codex:
     role: engineer
@@ -224,6 +262,16 @@ agents:
             - review
             - cso
             - design-review
+            - using-git-worktrees
+            - writing-plans
+            - dispatching-parallel-agents
+            - subagent-driven-development
+            - systematic-debugging
+            - test-driven-development
+            - requesting-code-review
+            - receiving-code-review
+            - verification-before-completion
+            - finishing-a-development-branch
     budgetMonthlyCents: 3000
   capture-claude:
     role: engineer
@@ -250,6 +298,12 @@ agents:
             - review
             - cso
             - design-review
+            - writing-plans
+            - dispatching-parallel-agents
+            - systematic-debugging
+            - requesting-code-review
+            - receiving-code-review
+            - verification-before-completion
     budgetMonthlyCents: 3000
   ops-lead:
     role: cto
@@ -383,6 +437,10 @@ agents:
             - product-marketing-context
             - analytics-tracking
             - page-cro
+            - writing-plans
+            - systematic-debugging
+            - requesting-code-review
+            - verification-before-completion
     budgetMonthlyCents: 3000
   analytics-agent:
     role: engineer
@@ -560,6 +618,10 @@ agents:
             - autonomy-safety
             - cross-repo-operations
             - gh-cli
+            - writing-plans
+            - dispatching-parallel-agents
+            - systematic-debugging
+            - verification-before-completion
     budgetMonthlyCents: 2000
   buyer-solutions-agent:
     role: engineer
@@ -1095,7 +1157,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 0 8 * * 1-5
+        cronExpression: 35 8 * * 1-5
         timezone: America/New_York
   chief-of-staff-continuous-loop:
     agent: blueprint-chief-of-staff
@@ -1104,7 +1166,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: "0 8,10,12,14,16,18 * * 1-5"
+        cronExpression: "25 9,16 * * 1-5"
         timezone: America/New_York
   cto-cross-repo-triage:
     priority: high
@@ -1112,7 +1174,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 30 8,14 * * 1-5
+        cronExpression: 15 15 * * 1-5
         timezone: America/New_York
   webapp-autonomy-loop:
     priority: high
@@ -1120,7 +1182,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 0 9,15 * * 1-5
+        cronExpression: 15 11 * * 1-5
         timezone: America/New_York
   webapp-claude-review-loop:
     priority: medium
@@ -1128,7 +1190,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 30 9,15 * * 1-5
+        cronExpression: 45 11 * * 1-5
         timezone: America/New_York
   pipeline-autonomy-loop:
     priority: high
@@ -1136,7 +1198,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 0 10,16 * * 1-5
+        cronExpression: 15 12 * * 1-5
         timezone: America/New_York
   pipeline-claude-review-loop:
     priority: medium
@@ -1144,7 +1206,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 30 10,16 * * 1-5
+        cronExpression: 45 12 * * 1-5
         timezone: America/New_York
   capture-autonomy-loop:
     priority: high
@@ -1152,7 +1214,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 0 11,17 * * 1-5
+        cronExpression: 15 13 * * 1-5
         timezone: America/New_York
   capture-claude-review-loop:
     priority: medium
@@ -1160,7 +1222,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 30 11,17 * * 1-5
+        cronExpression: 45 13 * * 1-5
         timezone: America/New_York
   ops-lead-morning:
     agent: ops-lead
@@ -1169,7 +1231,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 30 8 * * 1-5
+        cronExpression: 0 9 * * 1-5
         timezone: America/New_York
   ops-lead-afternoon:
     agent: ops-lead
@@ -1178,7 +1240,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 30 14 * * 1-5
+        cronExpression: 45 14 * * 1-5
         timezone: America/New_York
   intake-agent-hourly:
     agent: intake-agent
@@ -1187,7 +1249,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 0 9,13,17 * * 1-5
+        cronExpression: "45 10,15 * * 1-5"
         timezone: America/New_York
   capture-qa-daily:
     agent: capture-qa-agent
@@ -1196,7 +1258,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 0 9 * * 1-5
+        cronExpression: 20 10 * * 1-5
         timezone: America/New_York
   field-ops-daily:
     agent: field-ops-agent
@@ -1205,7 +1267,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 0 7 * * 1-5
+        cronExpression: 20 7 * * 1-5
         timezone: America/New_York
   finance-support-daily:
     agent: finance-support-agent
@@ -1214,7 +1276,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 0 10 * * 1-5
+        cronExpression: 15 14 * * 1-5
         timezone: America/New_York
   growth-lead-daily:
     agent: growth-lead
@@ -1223,7 +1285,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 0 9 * * 1-5
+        cronExpression: 0 10 * * 1-5
         timezone: America/New_York
   growth-lead-weekly:
     agent: growth-lead
@@ -1232,7 +1294,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 0 10 * * 1
+        cronExpression: 0 9 * * 1
         timezone: America/New_York
   analytics-daily:
     agent: analytics-agent
@@ -1250,7 +1312,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 0 23 * * 0
+        cronExpression: 30 7 * * 1
         timezone: America/New_York
   founder-morning-brief:
     agent: blueprint-chief-of-staff
@@ -1259,7 +1321,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 20 9 * * 1-5
+        cronExpression: 10 8 * * 1-5
         timezone: America/New_York
   founder-daily-accountability-report:
     agent: blueprint-chief-of-staff
@@ -1334,7 +1396,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 0 8 1 * *
+        cronExpression: 30 9 1 * *
         timezone: America/New_York
   community-updates-weekly:
     agent: community-updates-agent
@@ -1361,7 +1423,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 0 7 * * 1-5
+        cronExpression: 40 7 * * 1-5
         timezone: America/New_York
   market-intel-weekly:
     agent: market-intel-agent
@@ -1398,7 +1460,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 15 9 * * 1
+        cronExpression: 0 10 * * 1
         timezone: America/New_York
   capturer-growth-refresh:
     agent: capturer-growth-agent
@@ -1417,7 +1479,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 30 11 * * 1
+        cronExpression: 0 13 * * 1
         timezone: America/New_York
   city-launch-refresh:
     agent: city-launch-agent
@@ -1427,7 +1489,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 30 11 * * 4
+        cronExpression: 0 13 * * 4
         timezone: America/New_York
   demand-intel-daily:
     agent: demand-intel-agent
@@ -1446,7 +1508,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 0 8 * * 1
+        cronExpression: 20 8 * * 1
         timezone: America/New_York
   robot-team-growth-weekly:
     agent: robot-team-growth-agent
@@ -1455,7 +1517,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 30 9 * * 1
+        cronExpression: 30 10 * * 1
         timezone: America/New_York
   robot-team-growth-refresh:
     agent: robot-team-growth-agent
@@ -1474,7 +1536,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 15 12 * * 1
+        cronExpression: 45 13 * * 1
         timezone: America/New_York
   site-operator-partnership-refresh:
     agent: site-operator-partnership-agent
@@ -1493,7 +1555,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 15 13 * * 1
+        cronExpression: 30 14 * * 1
         timezone: America/New_York
   city-demand-refresh:
     agent: city-demand-agent
@@ -1512,7 +1574,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 30 11 * * 1,4
+        cronExpression: 45 13 * * 1,4
         timezone: America/New_York
   security-procurement-active-reviews:
     agent: security-procurement-agent
@@ -1521,7 +1583,7 @@ routines:
     catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 30 12 * * 1,4
+        cronExpression: 30 14 * * 1,4
         timezone: America/New_York
   revenue-ops-pricing-weekly:
     agent: revenue-ops-pricing-agent
