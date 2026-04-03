@@ -97,8 +97,18 @@ function isUuid(value) {
   return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
+function normalizeSqlLiteralValue(value) {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (typeof value === "object" && value && typeof value.toISOString === "function") {
+    return value.toISOString();
+  }
+  return String(value);
+}
+
 function quoteLiteral(value) {
-  return `'${String(value).replaceAll("'", "''")}'`;
+  return `'${normalizeSqlLiteralValue(value).replaceAll("'", "''")}'`;
 }
 
 function uuidArraySql(values) {
