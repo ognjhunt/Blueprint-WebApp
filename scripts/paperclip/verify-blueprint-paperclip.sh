@@ -72,14 +72,17 @@ plugin_config_json() {
 
 require_routines() {
   local company_id="$1"
-  local routines_json
-  routines_json="$(fetch_api_json "/api/companies/${company_id}/routines")"
-  printf '%s' "$routines_json" | node --input-type=module - "$REPO_ROOT/ops/paperclip/blueprint-company/.paperclip.yaml" <<'NODE'
+  local routines_file
+  routines_file="$(mktemp)"
+  fetch_api_json "/api/companies/${company_id}/routines" >"$routines_file"
+  local node_status=0
+  if ! node --input-type=module - "$REPO_ROOT/ops/paperclip/blueprint-company/.paperclip.yaml" "$routines_file" <<'NODE'
     import fs from "node:fs";
     import { createRequire } from "node:module";
     import { pathToFileURL } from "node:url";
 
     const configPath = process.argv[2];
+    const routinesPath = process.argv[3];
     const require = createRequire(pathToFileURL(configPath).href);
     const yaml = require("js-yaml");
 
@@ -145,69 +148,70 @@ require_routines() {
         ?? routineKey.split("-").map(titleizeToken).join(" ");
     }
 
-    let data = "";
-    process.stdin.on("data", (chunk) => (data += chunk));
-    process.stdin.on("end", () => {
-      const liveRows = JSON.parse(data);
-      const config = yaml.load(fs.readFileSync(configPath, "utf8"));
-      const expectedRoutines = Object.entries(config.routines ?? {}).flatMap(([routineKey, routineConfig]) => {
-        const scheduleTrigger = Array.isArray(routineConfig?.triggers)
-          ? routineConfig.triggers.find((trigger) => trigger.kind === "schedule" && typeof trigger.cronExpression === "string")
-          : null;
-        if (!scheduleTrigger) return [];
-        return [{
-          title: titleizeRoutineKey(routineKey),
-          expectedStatus: routineConfig?.status === "paused" ? "paused" : "active",
-          cronExpression: scheduleTrigger.cronExpression,
-          timezone: scheduleTrigger.timezone ?? "America/New_York",
-        }];
-      });
-
-      const failures = [];
-
-      for (const expected of expectedRoutines) {
-        const matches = liveRows.filter((row) => row.title === expected.title);
-        if (matches.length === 0) {
-          failures.push(`Missing routine: ${expected.title}`);
-          continue;
-        }
-
-        const activeMatches = matches.filter((row) => row.status === "active");
-        const enabledScheduleTriggers = matches.flatMap((row) =>
-          (row.triggers ?? []).filter((trigger) => trigger.kind === "schedule" && trigger.enabled !== false)
-            .map((trigger) => ({ row, trigger })),
-        );
-
-        if (expected.expectedStatus === "active") {
-          if (activeMatches.length !== 1) {
-            failures.push(`${expected.title} should have exactly one active routine, found ${activeMatches.length}`);
-          }
-          if (enabledScheduleTriggers.length !== 1) {
-            failures.push(`${expected.title} should have exactly one enabled schedule trigger, found ${enabledScheduleTriggers.length}`);
-          } else {
-            const [{ trigger }] = enabledScheduleTriggers;
-            if (trigger.cronExpression !== expected.cronExpression || trigger.timezone !== expected.timezone) {
-              failures.push(
-                `${expected.title} trigger drifted: expected ${expected.cronExpression} ${expected.timezone}, got ${trigger.cronExpression ?? "null"} ${trigger.timezone ?? "null"}`,
-              );
-            }
-          }
-        } else {
-          if (activeMatches.length !== 0) {
-            failures.push(`${expected.title} should be paused, found ${activeMatches.length} active routine(s)`);
-          }
-          if (enabledScheduleTriggers.length !== 0) {
-            failures.push(`${expected.title} should have zero enabled schedule triggers while paused, found ${enabledScheduleTriggers.length}`);
-          }
-        }
-      }
-
-      if (failures.length > 0) {
-        console.error(failures.join("\n"));
-        process.exit(1);
-      }
+    const liveRows = JSON.parse(fs.readFileSync(routinesPath, "utf8"));
+    const config = yaml.load(fs.readFileSync(configPath, "utf8"));
+    const expectedRoutines = Object.entries(config.routines ?? {}).flatMap(([routineKey, routineConfig]) => {
+      const scheduleTrigger = Array.isArray(routineConfig?.triggers)
+        ? routineConfig.triggers.find((trigger) => trigger.kind === "schedule" && typeof trigger.cronExpression === "string")
+        : null;
+      if (!scheduleTrigger) return [];
+      return [{
+        title: titleizeRoutineKey(routineKey),
+        expectedStatus: routineConfig?.status === "paused" ? "paused" : "active",
+        cronExpression: scheduleTrigger.cronExpression,
+        timezone: scheduleTrigger.timezone ?? "America/New_York",
+      }];
     });
+
+    const failures = [];
+
+    for (const expected of expectedRoutines) {
+      const matches = liveRows.filter((row) => row.title === expected.title);
+      if (matches.length === 0) {
+        failures.push(`Missing routine: ${expected.title}`);
+        continue;
+      }
+
+      const activeMatches = matches.filter((row) => row.status === "active");
+      const enabledScheduleTriggers = matches.flatMap((row) =>
+        (row.triggers ?? []).filter((trigger) => trigger.kind === "schedule" && trigger.enabled !== false)
+          .map((trigger) => ({ row, trigger })),
+      );
+
+      if (expected.expectedStatus === "active") {
+        if (activeMatches.length !== 1) {
+          failures.push(`${expected.title} should have exactly one active routine, found ${activeMatches.length}`);
+        }
+        if (enabledScheduleTriggers.length !== 1) {
+          failures.push(`${expected.title} should have exactly one enabled schedule trigger, found ${enabledScheduleTriggers.length}`);
+        } else {
+          const [{ trigger }] = enabledScheduleTriggers;
+          if (trigger.cronExpression !== expected.cronExpression || trigger.timezone !== expected.timezone) {
+            failures.push(
+              `${expected.title} trigger drifted: expected ${expected.cronExpression} ${expected.timezone}, got ${trigger.cronExpression ?? "null"} ${trigger.timezone ?? "null"}`,
+            );
+          }
+        }
+      } else {
+        if (activeMatches.length !== 0) {
+          failures.push(`${expected.title} should be paused, found ${activeMatches.length} active routine(s)`);
+        }
+        if (enabledScheduleTriggers.length !== 0) {
+          failures.push(`${expected.title} should have zero enabled schedule triggers while paused, found ${enabledScheduleTriggers.length}`);
+        }
+      }
+    }
+
+    if (failures.length > 0) {
+      console.error(failures.join("\n"));
+      process.exit(1);
+    }
 NODE
+  then
+    node_status=$?
+  fi
+  rm -f "$routines_file"
+  return "$node_status"
 }
 
 plugin_dashboard() {
