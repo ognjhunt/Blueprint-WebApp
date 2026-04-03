@@ -2825,9 +2825,6 @@ async function handleChiefOfStaffIssueSignal(
     postToSlack: shouldPostSlack,
   }).catch(() => undefined);
 
-  const agentKeyById = new Map(
-    agents.map((agent) => [agent.id, normalizedCandidates(agent as unknown as Record<string, unknown>)[0] ?? agent.id] as const),
-  );
   const lane = classifyFounderLane(issue.assigneeAgentId ? (agentKeyById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId) : null, issue.title);
   const founderDigest = buildFounderIssueExceptionDigest(issue, owner, lane);
   if (founderDigest) {
