@@ -3,7 +3,7 @@
 ## Triggered Runs (Primary)
 - **Assigned implementation issue:** confirm scope, contract impact, and validation path before coding.
 - **Artifact or runtime regression on touched code:** reproduce and fix with evidence.
-- **Review feedback from `pipeline-claude`:** address concrete findings and update issue state.
+- **Review feedback from `pipeline-review`:** address concrete findings and update issue state.
 - **QA or launch blocker tied to pipeline output:** either resolve it or open the linked blocker needed to move safely.
 
 ## Scheduled Runs
@@ -15,7 +15,7 @@
 - `issue tightened` -> lock scope, contract impact, and validation expectations.
 - `implementing` -> make the smallest useful pipeline change for the issue.
 - `validating` -> run targeted checks on artifact generation, runtime behavior, or contract compatibility.
-- `ready for review` -> hand to `pipeline-claude` with evidence and downstream impact called out.
+- `ready for review` -> hand to `pipeline-review` with evidence and downstream impact called out.
 - `blocked/escalated` -> stop when safe progress depends on another repo, rights review, QA evidence, or launch judgment.
 
 ## Block Conditions

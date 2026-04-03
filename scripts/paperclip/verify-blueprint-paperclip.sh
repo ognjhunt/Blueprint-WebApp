@@ -6,6 +6,7 @@ PAPERCLIP_ENV_FILE="${PAPERCLIP_ENV_FILE:-$WORKSPACE_ROOT/.paperclip-blueprint.e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 CONNECTOR_RUNBOOK_PATH="$REPO_ROOT/docs/paperclip-connector-recovery-runbook.md"
+PAPERCLIP_COMPANY_CONFIG_PATH="$REPO_ROOT/ops/paperclip/blueprint-company/.paperclip.yaml"
 
 # shellcheck source=./paperclip-api.sh
 source "$SCRIPT_DIR/paperclip-api.sh"
@@ -27,7 +28,7 @@ CLAUDE_LANE_MODE="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE:-auto}"
 VERIFY_CLAUDE="${BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE:-1}"
 VERIFY_HERMES="${BLUEPRINT_PAPERCLIP_VERIFY_HERMES:-auto}"
 VERIFY_OPENCODE="${BLUEPRINT_PAPERCLIP_VERIFY_OPENCODE:-auto}"
-OPENCODE_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL:-opencode/minimax-m2.5-free}"
+OPENCODE_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL:-google/gemini-2.5-flash}"
 FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES:-0}"
 HERMES_INSTRUCTIONS_FILE="/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md"
 AGENT_KIT_VALIDATOR="${SCRIPT_DIR}/validate-agent-kits.sh"
@@ -43,6 +44,12 @@ if [[ "$FORCE_CODEX_CLAUDE_LANES" =~ ^(1|true|yes)$ ]] && [ -z "${BLUEPRINT_PAPE
 fi
 
 if [[ "$CLAUDE_LANE_MODE" =~ ^codex$ ]] && [ -z "${BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE:-}" ]; then
+  VERIFY_CLAUDE=0
+fi
+
+if [ -z "${BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE:-}" ] \
+  && [ -f "$PAPERCLIP_COMPANY_CONFIG_PATH" ] \
+  && ! rg -q 'type: claude_local' "$PAPERCLIP_COMPANY_CONFIG_PATH"; then
   VERIFY_CLAUDE=0
 fi
 
@@ -76,13 +83,14 @@ require_routines() {
   routines_file="$(mktemp)"
   fetch_api_json "/api/companies/${company_id}/routines" >"$routines_file"
   local node_status=0
-  if ! node --input-type=module - "$REPO_ROOT/ops/paperclip/blueprint-company/.paperclip.yaml" "$routines_file" <<'NODE'
+  if ! node --input-type=module - "$REPO_ROOT/ops/paperclip/blueprint-company/.paperclip.yaml" "$routines_file" "$PAPERCLIP_API_URL" <<'NODE'
     import fs from "node:fs";
     import { createRequire } from "node:module";
     import { pathToFileURL } from "node:url";
 
     const configPath = process.argv[2];
     const routinesPath = process.argv[3];
+    const apiBaseUrl = process.argv[4];
     const require = createRequire(pathToFileURL(configPath).href);
     const yaml = require("js-yaml");
 
@@ -91,11 +99,11 @@ require_routines() {
       "chief-of-staff-continuous-loop": "Chief of Staff Continuous Loop",
       "cto-cross-repo-triage": "CTO Cross-Repo Triage",
       "webapp-autonomy-loop": "WebApp Autonomy Loop",
-      "webapp-claude-review-loop": "WebApp Claude Review Loop",
+      "webapp-review-loop": "WebApp Review Loop",
       "pipeline-autonomy-loop": "Pipeline Autonomy Loop",
-      "pipeline-claude-review-loop": "Pipeline Claude Review Loop",
+      "pipeline-review-loop": "Pipeline Review Loop",
       "capture-autonomy-loop": "Capture Autonomy Loop",
-      "capture-claude-review-loop": "Capture Claude Review Loop",
+      "capture-review-loop": "Capture Review Loop",
       "ops-lead-morning": "Ops Lead Morning",
       "ops-lead-afternoon": "Ops Lead Afternoon",
       "intake-agent-hourly": "Intake Agent Hourly",
@@ -164,6 +172,22 @@ require_routines() {
     });
 
     const failures = [];
+    const routineDetailCache = new Map();
+
+    async function fetchRoutineDetail(routineId) {
+      if (!routineDetailCache.has(routineId)) {
+        const request = fetch(`${apiBaseUrl}/api/routines/${routineId}`)
+          .then(async (response) => {
+            if (!response.ok) {
+              const text = await response.text();
+              throw new Error(`GET /api/routines/${routineId} failed: ${response.status} ${text}`);
+            }
+            return response.json();
+          });
+        routineDetailCache.set(routineId, request);
+      }
+      return routineDetailCache.get(routineId);
+    }
 
     for (const expected of expectedRoutines) {
       const matches = liveRows.filter((row) => row.title === expected.title);
@@ -173,8 +197,12 @@ require_routines() {
       }
 
       const activeMatches = matches.filter((row) => row.status === "active");
-      const enabledScheduleTriggers = matches.flatMap((row) =>
-        (row.triggers ?? []).filter((trigger) => trigger.kind === "schedule" && trigger.enabled !== false)
+      const detailMatches = await Promise.all(matches.map(async (row) => ({
+        row,
+        detail: await fetchRoutineDetail(row.id),
+      })));
+      const enabledScheduleTriggers = detailMatches.flatMap(({ row, detail }) =>
+        (detail?.triggers ?? []).filter((trigger) => trigger.kind === "schedule" && trigger.enabled !== false)
           .map((trigger) => ({ row, trigger })),
       );
 
@@ -515,7 +543,7 @@ main() {
   fi
 
   if should_verify_opencode; then
-    echo "Running OpenCode adapter verification (Tier 3 fallback — MiniMax M2.5 Free + OpenRouter)..."
+    echo "Running OpenCode adapter verification (Tier 3 fallback — Google Gemini 2.5 Flash + OpenRouter)..."
     run_test "$company_id" "Blueprint-WebApp" "opencode_local" "{
       \"adapterConfig\": {
         \"cwd\": \"/Users/nijelhunt_1/workspace/Blueprint-WebApp\",

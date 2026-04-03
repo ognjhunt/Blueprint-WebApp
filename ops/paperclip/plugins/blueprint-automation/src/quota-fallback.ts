@@ -46,6 +46,12 @@ export const DEFAULT_HERMES_FALLBACK_MODELS = [
 ] as const;
 export const HERMES_MODEL_LADDER_CONFIG_KEY = "blueprintHermesModelLadder";
 export const FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY = "blueprintFallbackOriginAdapterType";
+const LOCAL_EXECUTION_POLICY_ADAPTERS: LocalQuotaFallbackAdapterType[] = [
+  "claude_local",
+  "codex_local",
+  "hermes_local",
+  "opencode_local",
+];
 
 export type LocalQuotaFallbackDescriptor = {
   adapterType: LocalQuotaFallbackAdapterType;
@@ -96,6 +102,35 @@ function normalizeModelList(values: Iterable<string>): string[] {
     seen.add(trimmed);
     normalized.push(trimmed);
   }
+  return normalized;
+}
+
+function normalizeExecutionPolicyAdapterList(
+  values: unknown,
+  targetAdapterType: LocalQuotaFallbackAdapterType,
+): LocalQuotaFallbackAdapterType[] {
+  const source = Array.isArray(values) && values.length > 0
+    ? values
+    : LOCAL_EXECUTION_POLICY_ADAPTERS;
+  const normalized: LocalQuotaFallbackAdapterType[] = [];
+  const seen = new Set<LocalQuotaFallbackAdapterType>();
+
+  for (const candidate of [targetAdapterType, ...source, ...LOCAL_EXECUTION_POLICY_ADAPTERS]) {
+    if (
+      candidate !== "claude_local" &&
+      candidate !== "codex_local" &&
+      candidate !== "hermes_local" &&
+      candidate !== "opencode_local"
+    ) {
+      continue;
+    }
+    if (seen.has(candidate)) {
+      continue;
+    }
+    seen.add(candidate);
+    normalized.push(candidate);
+  }
+
   return normalized;
 }
 
@@ -236,6 +271,35 @@ export function buildNextHermesFallbackAdapterConfig(
     model: nextModel,
     cwd: asTrimmedString(adapterConfig?.cwd) ?? undefined,
   });
+}
+
+export function syncExecutionPolicyToAdapter(
+  runtimeConfig: Record<string, unknown> | null | undefined,
+  targetAdapterType: LocalQuotaFallbackAdapterType,
+): Record<string, unknown> {
+  const nextRuntimeConfig = { ...(runtimeConfig ?? {}) };
+  const currentExecutionPolicy =
+    nextRuntimeConfig.executionPolicy && typeof nextRuntimeConfig.executionPolicy === "object"
+      ? nextRuntimeConfig.executionPolicy as Record<string, unknown>
+      : {};
+
+  nextRuntimeConfig.executionPolicy = {
+    ...currentExecutionPolicy,
+    mode:
+      currentExecutionPolicy.mode === "fixed" || currentExecutionPolicy.mode === "prefer_available"
+        ? currentExecutionPolicy.mode
+        : "prefer_available",
+    compatibleAdapterTypes: normalizeExecutionPolicyAdapterList(
+      currentExecutionPolicy.compatibleAdapterTypes,
+      targetAdapterType,
+    ),
+    preferredAdapterTypes: normalizeExecutionPolicyAdapterList(
+      currentExecutionPolicy.preferredAdapterTypes,
+      targetAdapterType,
+    ),
+  };
+
+  return nextRuntimeConfig;
 }
 
 function withFallbackOrigin(

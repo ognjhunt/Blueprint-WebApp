@@ -3,7 +3,7 @@
 ## Triggered Runs (Primary)
 - **Assigned implementation issue:** confirm scope, compatibility impact, and validation path before coding.
 - **Build, runtime, or bundle regression on touched code:** reproduce and fix with evidence.
-- **Review feedback from `capture-claude`:** address concrete findings and update issue state.
+- **Review feedback from `capture-review`:** address concrete findings and update issue state.
 - **Field or support signal tied to a capture bug:** either fix it or route the operational dependency explicitly.
 
 ## Scheduled Runs
@@ -15,7 +15,7 @@
 - `issue tightened` -> lock the expected behavior, compatibility impact, and validation path.
 - `implementing` -> make the smallest useful code change for the issue.
 - `validating` -> run targeted checks on build, runtime, device behavior, or bundle compatibility.
-- `ready for review` -> hand to `capture-claude` with evidence, risks, and rollout notes attached.
+- `ready for review` -> hand to `capture-review` with evidence, risks, and rollout notes attached.
 - `blocked/escalated` -> stop when safe progress depends on rollout policy, field ops, support context, or another repo.
 
 ## Block Conditions

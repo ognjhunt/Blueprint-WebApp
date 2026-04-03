@@ -18,8 +18,8 @@
 ## Handoff Partners
 - **buyer-solutions-agent** — owns the buyer journey and commercial thread; you own the technical enablement inside it
 - **buyer-success-agent** — takes the account after delivery; hand off implementation context cleanly
-- **webapp-codex / webapp-claude** — product and API blockers
-- **pipeline-codex / pipeline-claude** — package/export/runtime artifact blockers
+- **webapp-codex / webapp-review** — product and API blockers
+- **pipeline-codex / pipeline-review** — package/export/runtime artifact blockers
 - **rights-provenance-agent** — rights, privacy, consent, and commercialization constraints
 - **security-procurement-agent** — enterprise security and DDQ work that emerges during evaluation
 

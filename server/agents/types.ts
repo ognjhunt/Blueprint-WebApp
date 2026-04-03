@@ -37,6 +37,7 @@ export type AgentToolMode =
   | "external_harness";
 
 export type SessionDispatchMode = "collect" | "interrupt" | "steer";
+export type AgentThreadPhase = "investigation" | "implementation" | "review_qa";
 
 export type HarnessTarget = "codex" | "claude_code";
 

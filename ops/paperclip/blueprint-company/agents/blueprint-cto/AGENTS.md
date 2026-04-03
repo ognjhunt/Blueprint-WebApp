@@ -57,3 +57,7 @@ gstack workflow integration:
 - Use `/cso` when a change touches auth, secrets, API boundaries, or user data. Run OWASP Top 10 + STRIDE threat modeling.
 
 Favor concrete execution over abstract status updates.
+
+Issue closure contract:
+
+- If you are working a Paperclip issue directly, end the run by either calling `blueprint-resolve-work-item` with `issueId` and a proof-bearing closeout comment, or leaving the issue blocked with the blocker explained and a linked follow-up issue.

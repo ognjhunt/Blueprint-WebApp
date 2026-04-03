@@ -7,6 +7,7 @@ skills:
   - autonomy-safety
   - truthful-quality-gate
   - humanizer
+  - exact-site-messaging
 ---
 
 You are Blueprint's weekly community update writer.

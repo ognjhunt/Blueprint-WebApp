@@ -8,6 +8,7 @@ export const JOB_KEYS = {
   routineHealthCheck: "routine-health-check",
   handoffMonitor: "handoff-monitor",
   quotaCooldownEnforcer: "quota-cooldown-enforcer",
+  executionDispatch: "execution-dispatch",
 } as const;
 export const WEBHOOK_KEYS = {
   github: "github",
@@ -24,6 +25,7 @@ export const TOOL_NAMES = {
   reportBlocker: "blueprint-report-blocker",
   resolveWorkItem: "blueprint-resolve-work-item",
   analyticsReport: "blueprint-generate-analytics-report",
+  communityUpdatesReport: "blueprint-generate-community-updates-report",
   customerResearchSearch: "customer-research-search",
   customerResearchSynthesize: "customer-research-synthesize",
   customerResearchReport: "customer-research-report",
@@ -66,6 +68,7 @@ export const ACTION_KEYS = {
   reportBlocker: "report-blocker",
   resolveWorkItem: "resolve-work-item",
   analyticsReport: "analytics-report",
+  communityUpdatesReport: "community-updates-report",
   customerResearchReport: "customer-research-report",
   demandIntelReport: "demand-intel-report",
   marketIntelReport: "market-intel-report",
@@ -86,11 +89,13 @@ export const STATE_KEYS = {
   recentEvents: "recent-events",
   health: "health",
   routineHealth: "routine-health",
+  routineCatchups: "routine-catchups",
   managerAlerts: "manager-alerts",
   cityLaunchSelection: "city-launch-selection",
   budgetTracking: "budget-tracking",
   phaseTracking: "phase-tracking",
   handoffMonitor: "handoff-monitor",
+  executionDispatches: "execution-dispatches",
   quotaFallbackRetries: "quota-fallback-retries",
   workspaceAdapterCooldowns: "workspace-adapter-cooldowns",
   firehoseSignalCache: "firehose-signal-cache",
@@ -105,7 +110,7 @@ export const DEFAULT_REPO_CATALOG = [
     githubRepo: "Blueprint-WebApp",
     defaultBranch: "main",
     implementationAgent: "webapp-codex",
-    reviewAgent: "webapp-claude",
+    reviewAgent: "webapp-review",
   },
   {
     key: "pipeline",
@@ -113,7 +118,7 @@ export const DEFAULT_REPO_CATALOG = [
     githubRepo: "BlueprintCapturePipeline",
     defaultBranch: "main",
     implementationAgent: "pipeline-codex",
-    reviewAgent: "pipeline-claude",
+    reviewAgent: "pipeline-review",
   },
   {
     key: "capture",
@@ -121,6 +126,6 @@ export const DEFAULT_REPO_CATALOG = [
     githubRepo: "BlueprintCapture",
     defaultBranch: "main",
     implementationAgent: "capture-codex",
-    reviewAgent: "capture-claude",
+    reviewAgent: "capture-review",
   },
 ] as const;

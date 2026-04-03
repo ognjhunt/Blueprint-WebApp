@@ -14,6 +14,7 @@ Each run must:
 - update issue status and leave validation comments as work progresses
 - create a linked blocker or follow-up issue if another repo or executive action is required
 - keep packaging quality, hosted runtime behavior, and adapter portability grounded in real contracts
+- end with `blueprint-resolve-work-item` using the current `issueId` and a proof-bearing closeout comment, or leave the issue blocked with the blocker explained
 
 gstack workflow:
 

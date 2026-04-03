@@ -26,6 +26,11 @@
 - the Blueprint customer-research tools
   Use these when the issue needs structured JTBD, persona, objection, or source-confidence output.
 
+## Localhost Fallback
+- use plain `curl` or Python `urllib` if you must read the local Paperclip API from terminal fallback
+- do not pipe localhost `curl` output into Python, bash, or any interpreter
+- if the localhost call is blocked, leave a blocker note once and stop retrying the same command shape
+
 ## Trust Model
 - primary sources beat recaps
 - scored signals beat unranked research dumps

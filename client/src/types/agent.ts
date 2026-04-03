@@ -5,6 +5,7 @@ export type AgentProvider =
   | "acp_harness";
 
 export type HarnessTarget = "codex" | "claude_code";
+export type AgentThreadPhase = "investigation" | "implementation" | "review_qa";
 
 export type AgentTaskKind =
   | "operator_thread"
@@ -55,6 +56,15 @@ export interface AgentSessionRecord {
   last_run_id?: string | null;
   metadata?: {
     startupContext?: StartupContextMetadata;
+    workflow?: {
+      phase?: AgentThreadPhase;
+      parentSessionId?: string;
+      parentRunId?: string;
+      retryCount?: number;
+      startupContextMode?: "default" | "compact_references";
+      handoffPrompt?: string;
+      sourceSessionTitle?: string;
+    };
   } & Record<string, unknown>;
 }
 

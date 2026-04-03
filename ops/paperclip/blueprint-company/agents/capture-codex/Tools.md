@@ -16,7 +16,7 @@
 - open blocker or follow-up issues when work depends on rollout, field operations, or downstream repos
 
 ## Handoff Partners
-- **capture-claude** — primary review, planning, and regression partner for capture work
+- **capture-review** — primary review, planning, and regression partner for capture work
 - **field-ops-agent** — field access, scheduling, and on-site operational constraints
 - **capturer-success-agent** — capturer-facing support, workflow friction, and repeated usability pain
 

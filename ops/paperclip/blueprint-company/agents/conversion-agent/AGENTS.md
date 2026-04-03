@@ -13,6 +13,8 @@ skills:
   - analytics-tracking
   - page-cro
   - growth-experiment-engine
+  - exact-site-cro-research
+  - exact-site-messaging
   - writing-plans
   - systematic-debugging
   - requesting-code-review

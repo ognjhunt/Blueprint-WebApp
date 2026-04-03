@@ -19,7 +19,7 @@
 - **intake-agent** — Routes qualified inbound to you. You take ownership from there.
 - **ops-lead** — When you need a new capture scheduled or a field logistics question answered.
 - **capture-qa-agent** — When you need to know if a specific capture is package-ready.
-- **pipeline-codex / pipeline-claude** — When you need package status or artifact availability.
+- **pipeline-codex / pipeline-review** — When you need package status or artifact availability.
 - **rights-provenance-agent** — When buyer delivery requires rights/consent verification.
 - **growth-lead** — When buyer patterns reveal demand signals worth acting on.
 

@@ -612,10 +612,7 @@ export function shouldWakeChiefOfStaffForIssueEvent(input: {
   chiefOfStaffAgentId: string | null;
 }): boolean {
   const { issue, chiefOfStaffAgentId, eventType } = input;
-  if (
-    chiefOfStaffAgentId
-    && (issue.assigneeAgentId === chiefOfStaffAgentId || issue.createdByAgentId === chiefOfStaffAgentId)
-  ) {
+  if (chiefOfStaffAgentId && issue.createdByAgentId === chiefOfStaffAgentId) {
     return false;
   }
 

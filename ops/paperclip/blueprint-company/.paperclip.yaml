@@ -7,12 +7,11 @@ agents:
     icon: crown
     capabilities: Strategy, prioritization, delegation, and company-wide governance.
     adapter:
-      type: claude_local
+      type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
+        modelReasoningEffort: xhigh
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
@@ -83,12 +82,13 @@ agents:
     icon: circuit-board
     capabilities: Cross-repo technical planning, delegation, and execution oversight.
     adapter:
-      type: claude_local
+      type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
+        dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
@@ -152,17 +152,18 @@ agents:
             - verification-before-completion
             - finishing-a-development-branch
     budgetMonthlyCents: 3000
-  webapp-claude:
+  webapp-review:
     role: engineer
     icon: search
     capabilities: Review and planning specialist for Blueprint-WebApp.
     adapter:
-      type: claude_local
+      type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
+        dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
@@ -229,17 +230,18 @@ agents:
             - verification-before-completion
             - finishing-a-development-branch
     budgetMonthlyCents: 3000
-  pipeline-claude:
+  pipeline-review:
     role: engineer
     icon: microscope
     capabilities: Review and planning specialist for BlueprintCapturePipeline.
     adapter:
-      type: claude_local
+      type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapturePipeline
-        model: claude-sonnet-4-6
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
+        dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
@@ -298,17 +300,18 @@ agents:
             - verification-before-completion
             - finishing-a-development-branch
     budgetMonthlyCents: 3000
-  capture-claude:
+  capture-review:
     role: engineer
     icon: eye
     capabilities: Review and planning specialist for BlueprintCapture.
     adapter:
-      type: claude_local
+      type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapture
-        model: claude-sonnet-4-6
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
+        dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
@@ -359,12 +362,11 @@ agents:
       Processes capturer waitlist applications and buyer inbound requests. Classifies, scores readiness, detects missing
       info, drafts responses. Read skill file at ops/paperclip/skills/intake-agent.md before every routine.
     adapter:
-      type: claude_local
+      type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
+        modelReasoningEffort: xhigh
         timeoutSec: 1200
-        dangerouslySkipPermissions: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
@@ -378,12 +380,11 @@ agents:
       Reviews pipeline outputs for quality, completeness, and privacy compliance. Flags recapture needs and drafts
       payout recommendations. Read skill file at ops/paperclip/skills/capture-qa-agent.md before every routine.
     adapter:
-      type: claude_local
+      type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapturePipeline
-        model: claude-sonnet-4-6
+        modelReasoningEffort: xhigh
         timeoutSec: 1200
-        dangerouslySkipPermissions: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
@@ -397,12 +398,11 @@ agents:
       Coordinates capture scheduling, capturer assignment, calendar management, timezone normalization, and reminders.
       Read skill file at ops/paperclip/skills/field-ops-agent.md before every routine.
     adapter:
-      type: claude_local
+      type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapture
-        model: claude-sonnet-4-6
+        modelReasoningEffort: xhigh
         timeoutSec: 1200
-        dangerouslySkipPermissions: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
@@ -416,12 +416,11 @@ agents:
       Monitors Stripe health, triages payout issues, handles support inbox, and drafts responses. Read skill file at
       ops/paperclip/skills/finance-support-agent.md before every routine.
     adapter:
-      type: claude_local
+      type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
+        modelReasoningEffort: xhigh
         timeoutSec: 1200
-        dangerouslySkipPermissions: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
@@ -451,6 +450,10 @@ agents:
             - product-marketing-context
             - analytics-tracking
             - page-cro
+            - growth-experiment-engine
+            - exact-site-positioning
+            - exact-site-messaging
+            - exact-site-cro-research
             - writing-plans
     budgetMonthlyCents: 3000
   conversion-agent:
@@ -461,12 +464,13 @@ agents:
       pricing layout. Read skill file at ops/paperclip/skills/conversion-agent.md and steering file at
       ops/paperclip/programs/conversion-agent-program.md before every routine.
     adapter:
-      type: claude_local
+      type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
+        dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
@@ -478,6 +482,9 @@ agents:
             - product-marketing-context
             - analytics-tracking
             - page-cro
+            - growth-experiment-engine
+            - exact-site-cro-research
+            - exact-site-messaging
             - writing-plans
             - systematic-debugging
             - requesting-code-review
@@ -527,6 +534,7 @@ agents:
             - autonomy-safety
             - find-skills
             - product-marketing-context
+            - exact-site-messaging
             - writing-plans
             - retro
     budgetMonthlyCents: 2000
@@ -551,6 +559,7 @@ agents:
             - autonomy-safety
             - find-skills
             - product-marketing-context
+            - exact-site-messaging
             - retro
     budgetMonthlyCents: 2000
   market-intel-agent:
@@ -573,6 +582,8 @@ agents:
             - autonomy-safety
             - find-skills
             - product-marketing-context
+            - exact-site-jtbd-research
+            - exact-site-positioning
             - writing-plans
     budgetMonthlyCents: 2000
   supply-intel-agent:
@@ -596,6 +607,8 @@ agents:
             - autonomy-safety
             - find-skills
             - product-marketing-context
+            - exact-site-jtbd-research
+            - exact-site-positioning
             - writing-plans
     budgetMonthlyCents: 2000
   capturer-growth-agent:
@@ -665,6 +678,8 @@ agents:
             - autonomy-safety
             - find-skills
             - product-marketing-context
+            - exact-site-jtbd-research
+            - exact-site-positioning
             - writing-plans
     budgetMonthlyCents: 2000
   robot-team-growth-agent:
@@ -690,6 +705,11 @@ agents:
             - product-marketing-context
             - analytics-tracking
             - page-cro
+            - robot-team-growth-operations
+            - exact-site-positioning
+            - exact-site-messaging
+            - exact-site-offer-architecture
+            - robot-team-outbound-operations
     budgetMonthlyCents: 2500
   site-operator-partnership-agent:
     role: engineer
@@ -721,12 +741,13 @@ agents:
       Cross-repo release orchestrator for Blueprint beta. Runs preflight checks across Capture, Pipeline, and WebApp.
       Produces go/no-go recommendations with evidence. Coordinates freeze, rollback, and incident response during releases.
     adapter:
-      type: claude_local
+      type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         timeoutSec: 1800
-        dangerouslySkipPermissions: true
+        dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
@@ -796,12 +817,11 @@ agents:
       Trust and compliance gatekeeper. Reviews consent, rights, privacy processing, provenance chain, and
       commercialization scope before any capture or package is released to buyers. Fail-closed by default.
     adapter:
-      type: claude_local
+      type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapturePipeline
-        model: claude-sonnet-4-6
+        modelReasoningEffort: xhigh
         timeoutSec: 1200
-        dangerouslySkipPermissions: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
@@ -921,6 +941,11 @@ agents:
             - find-skills
             - product-marketing-context
             - analytics-tracking
+            - truthful-quality-gate
+            - exact-site-positioning
+            - exact-site-messaging
+            - exact-site-offer-architecture
+            - robot-team-outbound-operations
             - writing-plans
     budgetMonthlyCents: 3000
   buyer-success-agent:
@@ -978,12 +1003,13 @@ agents:
       Cross-repo documentation owner. Monitors code changes across all 3 repos and keeps capture guides, API docs,
       onboarding materials, and internal platform docs in sync with reality. Each update is minimal and accuracy-focused.
     adapter:
-      type: claude_local
+      type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        model: claude-sonnet-4-6
+        model: gpt-5.4-mini
+        modelReasoningEffort: xhigh
         timeoutSec: 1200
-        dangerouslySkipPermissions: true
+        dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
@@ -1123,7 +1149,7 @@ tasks:
     status: done
     priority: high
     projectWorkspaceKey: blueprint-webapp
-  webapp-claude-bootstrap:
+  webapp-review-bootstrap:
     status: done
     priority: high
     projectWorkspaceKey: blueprint-webapp
@@ -1131,7 +1157,7 @@ tasks:
     status: done
     priority: high
     projectWorkspaceKey: blueprint-capture-pipeline
-  pipeline-claude-bootstrap:
+  pipeline-review-bootstrap:
     status: done
     priority: high
     projectWorkspaceKey: blueprint-capture-pipeline
@@ -1139,7 +1165,7 @@ tasks:
     status: done
     priority: high
     projectWorkspaceKey: blueprint-capture
-  capture-claude-bootstrap:
+  capture-review-bootstrap:
     status: done
     priority: high
     projectWorkspaceKey: blueprint-capture
@@ -1147,7 +1173,7 @@ tasks:
     status: active
     priority: high
     projectWorkspaceKey: blueprint-webapp
-  webapp-claude-review-loop:
+  webapp-review-loop:
     status: active
     priority: medium
     projectWorkspaceKey: blueprint-webapp
@@ -1155,7 +1181,7 @@ tasks:
     status: active
     priority: high
     projectWorkspaceKey: blueprint-capture-pipeline
-  pipeline-claude-review-loop:
+  pipeline-review-loop:
     status: active
     priority: medium
     projectWorkspaceKey: blueprint-capture-pipeline
@@ -1163,7 +1189,7 @@ tasks:
     status: active
     priority: high
     projectWorkspaceKey: blueprint-capture
-  capture-claude-review-loop:
+  capture-review-loop:
     status: active
     priority: medium
     projectWorkspaceKey: blueprint-capture
@@ -1346,8 +1372,8 @@ tasks:
 routines:
   ceo-daily-review:
     priority: high
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 35 8 * * 1-5
@@ -1355,64 +1381,64 @@ routines:
   chief-of-staff-continuous-loop:
     agent: blueprint-chief-of-staff
     priority: high
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: "25 9,16 * * 1-5"
         timezone: America/New_York
   cto-cross-repo-triage:
     priority: high
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 15 15 * * 1-5
         timezone: America/New_York
   webapp-autonomy-loop:
     priority: high
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 15 11 * * 1-5
         timezone: America/New_York
-  webapp-claude-review-loop:
+  webapp-review-loop:
     priority: medium
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 45 11 * * 1-5
         timezone: America/New_York
   pipeline-autonomy-loop:
     priority: high
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 15 12 * * 1-5
         timezone: America/New_York
-  pipeline-claude-review-loop:
+  pipeline-review-loop:
     priority: medium
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 45 12 * * 1-5
         timezone: America/New_York
   capture-autonomy-loop:
     priority: high
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 15 13 * * 1-5
         timezone: America/New_York
-  capture-claude-review-loop:
+  capture-review-loop:
     priority: medium
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 45 13 * * 1-5
@@ -1420,8 +1446,8 @@ routines:
   ops-lead-morning:
     agent: ops-lead
     priority: high
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 0 9 * * 1-5
@@ -1429,8 +1455,8 @@ routines:
   ops-lead-afternoon:
     agent: ops-lead
     priority: medium
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 45 14 * * 1-5
@@ -1438,8 +1464,8 @@ routines:
   intake-agent-hourly:
     agent: intake-agent
     priority: medium
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: "45 10,15 * * 1-5"
@@ -1448,7 +1474,7 @@ routines:
     agent: capture-qa-agent
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 20 10 * * 1-5
@@ -1457,7 +1483,7 @@ routines:
     agent: field-ops-agent
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 20 7 * * 1-5
@@ -1465,8 +1491,8 @@ routines:
   finance-support-daily:
     agent: finance-support-agent
     priority: medium
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 15 14 * * 1-5
@@ -1474,8 +1500,8 @@ routines:
   growth-lead-daily:
     agent: growth-lead
     priority: high
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 0 10 * * 1-5
@@ -1483,8 +1509,8 @@ routines:
   growth-lead-weekly:
     agent: growth-lead
     priority: high
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 0 9 * * 1
@@ -1492,8 +1518,8 @@ routines:
   analytics-daily:
     agent: analytics-agent
     priority: high
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 0 6 * * 1-5
@@ -1501,8 +1527,8 @@ routines:
   analytics-weekly:
     agent: analytics-agent
     priority: medium
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 30 7 * * 1
@@ -1510,8 +1536,8 @@ routines:
   founder-morning-brief:
     agent: blueprint-chief-of-staff
     priority: high
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 10 8 * * 1-5
@@ -1519,8 +1545,8 @@ routines:
   founder-daily-accountability-report:
     agent: blueprint-chief-of-staff
     priority: high
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 5 17 * * 1-5
@@ -1528,8 +1554,8 @@ routines:
   founder-eod-brief:
     agent: blueprint-chief-of-staff
     priority: high
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 30 17 * * 1-5
@@ -1537,8 +1563,8 @@ routines:
   founder-friday-operating-recap:
     agent: blueprint-chief-of-staff
     priority: high
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 0 16 * * 5
@@ -1546,8 +1572,8 @@ routines:
   founder-weekly-gaps-report:
     agent: blueprint-chief-of-staff
     priority: high
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 30 16 * * 5
@@ -1557,7 +1583,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 0 10,14 * * 1-5
@@ -1567,7 +1593,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 30 10 * * 1-5
@@ -1577,7 +1603,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 0 15 * * 5
@@ -1586,7 +1612,7 @@ routines:
     agent: investor-relations-agent
     priority: high
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 30 9 1 * *
@@ -1595,7 +1621,7 @@ routines:
     agent: community-updates-agent
     priority: high
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 0 9 * * 5
@@ -1603,8 +1629,8 @@ routines:
   conversion-weekly:
     agent: conversion-agent
     priority: medium
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 0 11 * * 1
@@ -1612,8 +1638,8 @@ routines:
   market-intel-daily:
     agent: market-intel-agent
     priority: medium
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 40 7 * * 1-5
@@ -1621,8 +1647,8 @@ routines:
   market-intel-weekly:
     agent: market-intel-agent
     priority: medium
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 0 15 * * 5
@@ -1632,7 +1658,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 15 7 * * 1-5
@@ -1640,8 +1666,8 @@ routines:
   supply-intel-weekly:
     agent: supply-intel-agent
     priority: high
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 45 7 * * 1
@@ -1649,8 +1675,8 @@ routines:
   capturer-growth-weekly:
     agent: capturer-growth-agent
     priority: high
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 0 10 * * 1
@@ -1660,7 +1686,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 15 9 * * 4
@@ -1668,8 +1694,8 @@ routines:
   city-launch-weekly:
     agent: city-launch-agent
     priority: high
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 0 13 * * 1
@@ -1678,8 +1704,8 @@ routines:
     agent: city-launch-agent
     status: active
     priority: medium
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 0 13 * * 4
@@ -1689,7 +1715,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 30 7 * * 1-5
@@ -1697,8 +1723,8 @@ routines:
   demand-intel-weekly:
     agent: demand-intel-agent
     priority: high
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 20 8 * * 1
@@ -1706,8 +1732,8 @@ routines:
   robot-team-growth-weekly:
     agent: robot-team-growth-agent
     priority: high
-    concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    concurrencyPolicy: always_enqueue
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 30 10 * * 1
@@ -1717,7 +1743,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 30 9 * * 4
@@ -1726,7 +1752,7 @@ routines:
     agent: site-operator-partnership-agent
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 45 13 * * 1
@@ -1736,7 +1762,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 15 12 * * 4
@@ -1745,7 +1771,7 @@ routines:
     agent: city-demand-agent
     priority: high
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 30 14 * * 1
@@ -1755,7 +1781,7 @@ routines:
     status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 15 13 * * 4
@@ -1764,7 +1790,7 @@ routines:
     agent: solutions-engineering-agent
     priority: high
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 45 13 * * 1,4
@@ -1773,7 +1799,7 @@ routines:
     agent: security-procurement-agent
     priority: high
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 30 14 * * 1,4
@@ -1782,7 +1808,7 @@ routines:
     agent: revenue-ops-pricing-agent
     priority: high
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 30 10 * * 2
@@ -1791,7 +1817,7 @@ routines:
     agent: docs-agent
     priority: medium
     concurrencyPolicy: coalesce_if_active
-    catchUpPolicy: skip_missed
+    catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
         cronExpression: 0 10 * * 2,5

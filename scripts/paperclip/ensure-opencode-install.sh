@@ -147,8 +147,8 @@ setup_openrouter_config() {
   mkdir -p "$opencode_config_dir"
 
   local config_file="$opencode_config_dir/opencode.json"
-  local primary_model="${BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL:-opencode/minimax-m2.5-free}"
-  local fallback_model="${BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL:-opencode/minimax-m2.5-free}"
+  local primary_model="${BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL:-google/gemini-2.5-flash}"
+  local fallback_model="${BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL:-openrouter/qwen/qwen3-coder-480b:free}"
 
   export OPENCODE_CONFIG_PATH="$config_file"
   export OPENCODE_PRIMARY_MODEL="$primary_model"

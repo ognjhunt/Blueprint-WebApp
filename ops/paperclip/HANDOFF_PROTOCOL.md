@@ -83,7 +83,7 @@ Each agent can only route to agents within its span of control:
 | Agent | Can Route To |
 |-------|-------------|
 | **CEO** | CTO, Ops Lead, Growth Lead |
-| **CTO** | webapp-codex, webapp-claude, pipeline-codex, pipeline-claude, capture-codex, capture-claude |
+| **CTO** | webapp-codex, webapp-review, pipeline-codex, pipeline-review, capture-codex, capture-review |
 | **Ops Lead** | intake-agent, capture-qa-agent, field-ops-agent, finance-support-agent |
 | **Growth Lead** | conversion-agent, analytics-agent, market-intel-agent, supply-intel-agent, capturer-growth-agent, city-launch-agent, demand-intel-agent, robot-team-growth-agent, site-operator-partnership-agent, city-demand-agent |
 

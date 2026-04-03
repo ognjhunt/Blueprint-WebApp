@@ -20,6 +20,7 @@ import type {
   OpsDocumentRecord,
   AgentRunRecord,
   AgentSessionRecord,
+  AgentThreadPhase,
   AgentTaskKind,
   StartupPackRecord,
 } from "@/types/agent";
@@ -118,6 +119,36 @@ function formatLatency(latencyMs?: number | null) {
   if (latencyMs < 1000) return `${latencyMs} ms`;
   return `${(latencyMs / 1000).toFixed(1)} s`;
 }
+
+function phaseLabel(phase: AgentThreadPhase) {
+  switch (phase) {
+    case "implementation":
+      return "Implementation";
+    case "review_qa":
+      return "Review/QA";
+    default:
+      return "Investigation";
+  }
+}
+
+function isContextWindowFailure(error?: string | null) {
+  return Boolean(
+    error &&
+      /(context window|out of room|too much (earlier )?history|prompt (is )?too long|maximum context|token limit|max[_ ]output[_ ]tokens|incomplete response returned|stream disconnected before completion)/i.test(
+        error,
+      ),
+  );
+}
+
+type ForkSessionResponse = {
+  ok: boolean;
+  session: AgentSessionRecord;
+  handoffPrompt: string;
+  dispatch: {
+    queued: boolean;
+    runId: string;
+  };
+};
 
 type OpenClawConnectivityResponse = {
   ok: boolean;
@@ -452,6 +483,35 @@ export default function AdminAgentConsole() {
     },
   });
 
+  const forkSessionMutation = useMutation({
+    mutationFn: async (phase: AgentThreadPhase) => {
+      if (!activeSessionId) {
+        throw new Error("No session selected");
+      }
+
+      const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/fork`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          phase,
+          source_run_id: runs[0]?.id,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to create fresh handoff thread");
+      }
+      return response.json() as Promise<ForkSessionResponse>;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-runs", activeSessionId] });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-agent-action-logs", activeSessionId],
+      });
+      setSelectedSessionId(data.session.id);
+    },
+  });
+
   const availableRepoDocs = contextOptionsQuery.data?.repoDocs || [];
   const availableBlueprints = contextOptionsQuery.data?.blueprints || [];
   const availableOpsDocuments = contextOptionsQuery.data?.opsDocuments || [];
@@ -499,6 +559,11 @@ export default function AdminAgentConsole() {
       ),
     [availableOpsDocuments],
   );
+  const latestRun = runs[0] || null;
+  const latestRunNeedsFreshThread = isContextWindowFailure(latestRun?.error);
+  const workflowPhase = selectedSession?.metadata?.workflow?.phase;
+  const workflowRetryCount = selectedSession?.metadata?.workflow?.retryCount ?? 0;
+  const workflowHandoffPrompt = selectedSession?.metadata?.workflow?.handoffPrompt;
 
   return (
     <div className="space-y-6">
@@ -1007,10 +1072,55 @@ export default function AdminAgentConsole() {
                   <p className="mt-1 text-sm text-zinc-600">
                     {selectedSession.task_kind} · {selectedSession.provider}
                   </p>
+                  {workflowPhase ? (
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Phase: {phaseLabel(workflowPhase)}
+                      {workflowRetryCount > 0 ? ` · Retry ${workflowRetryCount + 1}` : ""}
+                    </p>
+                  ) : null}
                   <p className="mt-2 text-xs text-zinc-500">
                     Last updated {formatTimestamp(selectedSession.updated_at)}
                   </p>
                 </div>
+
+                <div className="rounded-xl border border-zinc-200 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                    Fresh thread actions
+                  </p>
+                  <p className="mt-2 text-sm text-zinc-600">
+                    Create bounded follow-up sessions with a compressed handoff instead of carrying the full history forward.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {(["investigation", "implementation", "review_qa"] as AgentThreadPhase[]).map((phase) => (
+                      <button
+                        key={phase}
+                        type="button"
+                        onClick={() => forkSessionMutation.mutate(phase)}
+                        className="inline-flex items-center rounded-full border border-zinc-300 px-3 py-1 text-xs text-zinc-800"
+                        disabled={forkSessionMutation.isPending}
+                      >
+                        {forkSessionMutation.isPending ? (
+                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        ) : (
+                          <PlayCircle className="mr-1 h-3 w-3" />
+                        )}
+                        Start {phaseLabel(phase)} thread
+                      </button>
+                    ))}
+                  </div>
+                  {forkSessionMutation.isError && forkSessionMutation.error instanceof Error ? (
+                    <p className="mt-3 text-sm text-rose-700">{forkSessionMutation.error.message}</p>
+                  ) : null}
+                </div>
+
+                {latestRunNeedsFreshThread ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                    <p className="font-medium">Latest run hit a context-window failure.</p>
+                    <p className="mt-2">
+                      Start a fresh thread with a compressed handoff, retry once there, then split or reroute the work if it fails again.
+                    </p>
+                  </div>
+                ) : null}
 
                 <div className="rounded-xl border border-zinc-200 p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
@@ -1069,6 +1179,17 @@ export default function AdminAgentConsole() {
                     ) : null}
                   </div>
                 </div>
+
+                {workflowHandoffPrompt ? (
+                  <div className="rounded-xl border border-zinc-200 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                      Generated handoff
+                    </p>
+                    <pre className="mt-3 overflow-x-auto rounded-lg bg-zinc-950 p-3 text-xs text-zinc-100">
+                      {workflowHandoffPrompt}
+                    </pre>
+                  </div>
+                ) : null}
 
                 <textarea
                   className="min-h-[120px] w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"

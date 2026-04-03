@@ -22,6 +22,7 @@ import type {
   AgentRunStatus,
   AgentTask,
   AgentTaskKind,
+  AgentThreadPhase,
   NormalizedAgentTask,
   OpsActionRiskLevel,
   PersistedAgentRun,
@@ -31,6 +32,206 @@ import type {
 
 function nowTimestamp() {
   return admin.firestore.FieldValue.serverTimestamp();
+}
+
+const CONTEXT_WINDOW_FAILURE_PATTERN =
+  /(context window|out of room|too much (earlier )?history|prompt (is )?too long|maximum context|token limit|max[_ ]output[_ ]tokens|incomplete response returned|stream disconnected before completion)/i;
+
+function isContextWindowFailure(error?: string | null) {
+  return Boolean(error && CONTEXT_WINDOW_FAILURE_PATTERN.test(error));
+}
+
+function phaseLabel(phase: AgentThreadPhase) {
+  switch (phase) {
+    case "implementation":
+      return "Implementation";
+    case "review_qa":
+      return "Review/QA";
+    default:
+      return "Investigation";
+  }
+}
+
+function sanitizeInlineText(value: unknown, maxLength = 280) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const collapsed = value.replace(/\s+/g, " ").trim();
+  if (!collapsed) {
+    return "";
+  }
+
+  return collapsed.length > maxLength ? `${collapsed.slice(0, maxLength - 1)}…` : collapsed;
+}
+
+function normalizeStringList(values: unknown, maxItems: number) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return values
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .slice(0, maxItems);
+}
+
+function inferGoalFromRun(run: PersistedAgentRun | null, session: PersistedAgentSession) {
+  const input =
+    run?.input && typeof run.input === "object" ? (run.input as Record<string, unknown>) : null;
+  const runInput =
+    input?.input && typeof input.input === "object"
+      ? (input.input as Record<string, unknown>)
+      : input;
+  const message = sanitizeInlineText(runInput?.message, 220);
+  return message || sanitizeInlineText(session.title, 220) || "Continue the bounded task.";
+}
+
+function inferStateFromRun(run: PersistedAgentRun | null) {
+  if (!run) {
+    return "No prior run output is attached yet.";
+  }
+
+  const output =
+    run.output && typeof run.output === "object"
+      ? (run.output as Record<string, unknown>)
+      : null;
+  const summary = sanitizeInlineText(output?.summary, 320);
+  const reply = sanitizeInlineText(output?.reply, 320);
+  const error = sanitizeInlineText(run.error, 320);
+
+  if (summary) {
+    return summary;
+  }
+  if (reply) {
+    return reply;
+  }
+  if (error) {
+    return error;
+  }
+
+  return `Latest run status: ${run.status}.`;
+}
+
+function buildContextReferenceLines(session: PersistedAgentSession) {
+  const metadata =
+    session.metadata && typeof session.metadata === "object"
+      ? (session.metadata as Record<string, unknown>)
+      : {};
+  const startupContext =
+    metadata.startupContext && typeof metadata.startupContext === "object"
+      ? (metadata.startupContext as Record<string, unknown>)
+      : {};
+
+  const lines: string[] = [];
+  const repoDocs = normalizeStringList(startupContext.repoDocPaths, 6);
+  const blueprintIds = normalizeStringList(startupContext.blueprintIds, 6);
+  const documentIds = normalizeStringList(startupContext.documentIds, 6);
+  const startupPackIds = normalizeStringList(startupContext.startupPackIds, 6);
+  const creativeContextIds = Array.isArray(startupContext.creativeContexts)
+    ? (startupContext.creativeContexts as Array<Record<string, unknown>>)
+        .map((context) =>
+          typeof context.id === "string"
+            ? context.id.trim()
+            : typeof context.storage_uri === "string"
+              ? context.storage_uri.trim()
+              : "",
+        )
+        .filter(Boolean)
+        .slice(0, 4)
+    : [];
+  const notes = sanitizeInlineText(startupContext.operatorNotes, 320);
+
+  if (startupPackIds.length > 0) {
+    lines.push(`- startup packs: ${startupPackIds.join(", ")}`);
+  }
+  if (repoDocs.length > 0) {
+    lines.push(`- repo docs: ${repoDocs.join(", ")}`);
+  }
+  if (blueprintIds.length > 0) {
+    lines.push(`- blueprints: ${blueprintIds.join(", ")}`);
+  }
+  if (documentIds.length > 0) {
+    lines.push(`- ops docs: ${documentIds.join(", ")}`);
+  }
+  if (creativeContextIds.length > 0) {
+    lines.push(`- creative contexts: ${creativeContextIds.join(", ")}`);
+  }
+  if (notes) {
+    lines.push(`- operator notes: ${notes}`);
+  }
+
+  return lines;
+}
+
+function buildNextMoveLine(params: {
+  phase: AgentThreadPhase;
+  retryCount: number;
+  contextWindowFailure: boolean;
+}) {
+  const phaseStep =
+    params.phase === "implementation"
+      ? "Inspect the minimal set of files needed for the code change, implement it, and keep this thread scoped to implementation."
+      : params.phase === "review_qa"
+        ? "Review the changed behavior, run the narrowest useful checks, and keep this thread scoped to review and QA."
+        : "Investigate only the blocker, summarize findings, and stop once the cause is clear.";
+
+  if (params.retryCount >= 1) {
+    return `${phaseStep} If this thread fails again, split the work or reroute it instead of retrying in place.`;
+  }
+
+  if (params.contextWindowFailure) {
+    return `${phaseStep} Retry once in this fresh thread. If it fails again, split the task or reroute it.`;
+  }
+
+  return phaseStep;
+}
+
+function buildCompressedHandoff(params: {
+  sourceSession: PersistedAgentSession;
+  sourceRun: PersistedAgentRun | null;
+  phase: AgentThreadPhase;
+  retryCount: number;
+}) {
+  const { sourceSession, sourceRun, phase, retryCount } = params;
+  const goal = inferGoalFromRun(sourceRun, sourceSession);
+  const currentState = inferStateFromRun(sourceRun);
+  const contextWindowFailure = isContextWindowFailure(sourceRun?.error || null);
+  const references = buildContextReferenceLines(sourceSession);
+  const lines = [
+    `Task: continue "${sanitizeInlineText(sourceSession.title, 180) || sourceSession.id}"`,
+    `Phase: ${phaseLabel(phase)}`,
+    `Source session: ${sourceSession.id}`,
+    `Source run: ${sourceRun?.id || "none"}`,
+    `Goal: ${goal}`,
+    `Current state: ${currentState}`,
+  ];
+
+  if (references.length > 0) {
+    lines.push("Reference context:");
+    lines.push(...references);
+  }
+
+  if (sourceRun?.error) {
+    lines.push(`Last blocker: ${sanitizeInlineText(sourceRun.error, 320)}`);
+  }
+
+  lines.push(
+    "Working rules:",
+    "- keep this thread bounded to one phase",
+    "- summarize, do not paste long logs or documents",
+    "- reference file paths and document ids before dropping large excerpts",
+    `Next step: ${buildNextMoveLine({ phase, retryCount, contextWindowFailure })}`,
+  );
+
+  return lines.join("\n");
+}
+
+function buildForkedSessionTitle(sourceTitle: string, phase: AgentThreadPhase, retryCount: number) {
+  const suffix =
+    retryCount > 0 ? `${phaseLabel(phase)} Retry ${retryCount + 1}` : phaseLabel(phase);
+  return `${sourceTitle} · ${suffix}`;
 }
 
 function normalizeAgentProvider(provider?: AgentProvider): AgentProvider {
@@ -613,7 +814,33 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
       started_at: nowTimestamp(),
     });
   } else if (db && options?.runId) {
-    await markRunStatus(options.runId, "running");
+    const existingRun = await getRun(options.runId);
+    if (existingRun) {
+      await markRunStatus(options.runId, "running");
+    } else {
+      await saveRun({
+        id: runId,
+        session_id: options?.sessionId || normalizedTask.session_id || null,
+        session_key: normalizedTask.session_key || null,
+        task_kind: normalizedTask.kind,
+        provider: normalizedTask.provider,
+        runtime: normalizedTask.runtime,
+        model: normalizedTask.model,
+        status: "running",
+        dispatch_mode: normalizedTask.session_policy.dispatch_mode,
+        input: task,
+        requires_human_review: shouldRequireHumanReview(normalizedTaskForLogs, {
+          status: "running",
+        }),
+        tool_policy: normalizedTask.tool_policy,
+        approval_policy: normalizedTask.approval_policy,
+        metadata: normalizedTask.metadata,
+        resume_from_run_id: normalizedTask.resume_from_run_id || null,
+        created_at: nowTimestamp(),
+        updated_at: nowTimestamp(),
+        started_at: nowTimestamp(),
+      });
+    }
   }
 
   await logRunEvent(normalizedTaskForLogs, {
@@ -809,6 +1036,21 @@ export async function sendAgentSessionMessage(params: {
     throw new Error("Agent session not found");
   }
 
+  const taskMetadata =
+    params.task.metadata && typeof params.task.metadata === "object"
+      ? (params.task.metadata as Record<string, unknown>)
+      : {};
+  const workflowMetadata =
+    session.metadata &&
+    typeof session.metadata === "object" &&
+    (session.metadata as Record<string, unknown>).workflow &&
+    typeof (session.metadata as Record<string, unknown>).workflow === "object"
+      ? ((session.metadata as Record<string, unknown>).workflow as Record<string, unknown>)
+      : {};
+  const compactStartupContext =
+    taskMetadata.compact_startup_context === true
+    || workflowMetadata.startupContextMode === "compact_references";
+
   const startupContext =
     params.task.kind === "operator_thread" ||
     params.task.kind === "external_harness_thread"
@@ -817,6 +1059,9 @@ export async function sendAgentSessionMessage(params: {
           typeof (params.task.input as Record<string, unknown> | undefined)?.message === "string"
             ? String((params.task.input as Record<string, unknown>).message)
             : "",
+          {
+            compact: compactStartupContext,
+          },
         )
       : null;
 
@@ -882,10 +1127,10 @@ export async function sendAgentSessionMessage(params: {
     metadata:
       resolvedStartupContextSummary
         ? {
-            ...((params.task.metadata || {}) as Record<string, unknown>),
+            ...taskMetadata,
             resolved_startup_context: resolvedStartupContextSummary,
           }
-        : params.task.metadata,
+        : taskMetadata,
     input:
       startupContext && params.task.input && typeof params.task.input === "object"
         ? {
@@ -988,6 +1233,126 @@ export async function sendAgentSessionMessage(params: {
     queued: false,
     runId,
     result,
+  };
+}
+
+export async function forkAgentSessionWithHandoff(params: {
+  sessionId: string;
+  phase: AgentThreadPhase;
+  sourceRunId?: string;
+}) {
+  const sourceSession = await getSession(params.sessionId);
+  if (!sourceSession) {
+    throw new Error("Agent session not found");
+  }
+
+  const sourceRun =
+    params.sourceRunId
+      ? await getRun(params.sourceRunId)
+      : (await listRunsForSession(params.sessionId, 1))[0] || null;
+
+  if (sourceRun && sourceRun.session_id && sourceRun.session_id !== params.sessionId) {
+    throw new Error("Run does not belong to the requested session");
+  }
+
+  const sourceMetadata =
+    sourceSession.metadata && typeof sourceSession.metadata === "object"
+      ? (sourceSession.metadata as Record<string, unknown>)
+      : {};
+  const sourceWorkflow =
+    sourceMetadata.workflow && typeof sourceMetadata.workflow === "object"
+      ? (sourceMetadata.workflow as Record<string, unknown>)
+      : {};
+  const sourcePhase =
+    sourceWorkflow.phase === "implementation" || sourceWorkflow.phase === "review_qa"
+      ? (sourceWorkflow.phase as AgentThreadPhase)
+      : "investigation";
+  const sourceRetryCount =
+    typeof sourceWorkflow.retryCount === "number" && Number.isFinite(sourceWorkflow.retryCount)
+      ? sourceWorkflow.retryCount
+      : 0;
+  const retryCount =
+    sourcePhase === params.phase && isContextWindowFailure(sourceRun?.error || null)
+      ? sourceRetryCount + 1
+      : 0;
+  const handoffPrompt = buildCompressedHandoff({
+    sourceSession,
+    sourceRun,
+    phase: params.phase,
+    retryCount,
+  });
+  const sourceTaskRecord =
+    sourceRun?.input && typeof sourceRun.input === "object"
+      ? (sourceRun.input as Record<string, unknown>)
+      : {};
+  const sourceTaskInput =
+    sourceTaskRecord.input && typeof sourceTaskRecord.input === "object"
+      ? (sourceTaskRecord.input as Record<string, unknown>)
+      : sourceTaskRecord;
+  const startupContext =
+    sourceMetadata.startupContext && typeof sourceMetadata.startupContext === "object"
+      ? (sourceMetadata.startupContext as Record<string, unknown>)
+      : {};
+  const forkInput =
+    sourceSession.task_kind === "support_triage"
+      ? {
+          ...sourceTaskInput,
+          summary: sanitizeInlineText(
+            `${String(sourceTaskInput.summary || sourceTaskInput.message || "")}\n${handoffPrompt}`,
+            1400,
+          ),
+        }
+      : sourceSession.task_kind === "external_harness_thread"
+        ? {
+            ...sourceTaskInput,
+            message: handoffPrompt,
+            harness:
+              typeof sourceTaskInput.harness === "string"
+                ? sourceTaskInput.harness
+                : "codex",
+          }
+        : {
+            message: handoffPrompt,
+          };
+
+  const forkedSession = await createAgentSession({
+    title: buildForkedSessionTitle(sourceSession.title, params.phase, retryCount),
+    task_kind: sourceSession.task_kind,
+    provider: sourceSession.provider,
+    runtime: sourceSession.runtime,
+    metadata: {
+      startupContext,
+      workflow: {
+        phase: params.phase,
+        parentSessionId: sourceSession.id,
+        parentRunId: sourceRun?.id || null,
+        retryCount,
+        startupContextMode: "compact_references",
+        handoffPrompt,
+        sourceSessionTitle: sourceSession.title,
+      },
+    },
+  });
+
+  const dispatch = await sendAgentSessionMessage({
+    sessionId: forkedSession.id,
+    task: {
+      kind: sourceSession.task_kind,
+      input: forkInput,
+      metadata: {
+        compact_startup_context: true,
+        handoff_source_session_id: sourceSession.id,
+        handoff_source_run_id: sourceRun?.id || null,
+        workflow_phase: params.phase,
+        retry_count: retryCount,
+      },
+    },
+  });
+
+  return {
+    session: (await getSession(forkedSession.id)) || forkedSession,
+    handoffPrompt,
+    dispatch,
   };
 }
 

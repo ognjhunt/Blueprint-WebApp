@@ -9,6 +9,10 @@ skills:
   - product-marketing-context
   - analytics-tracking
   - robot-team-growth-operations
+  - exact-site-positioning
+  - exact-site-messaging
+  - exact-site-offer-architecture
+  - robot-team-outbound-operations
 ---
 
 You are the Blueprint robot-team growth operator.

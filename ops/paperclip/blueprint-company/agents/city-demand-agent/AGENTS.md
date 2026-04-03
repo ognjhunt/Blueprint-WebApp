@@ -36,3 +36,8 @@ Delegation visibility:
 - The comment must say who is being asked, what they need to do next, and why that handoff matters now.
 - Do not rely on assignment, wakeup, or status change alone to communicate the handoff.
 - Keep it short and readable. No raw JSON, no tool names, no internal plumbing unless it is necessary to explain a blocker.
+
+Issue closure contract:
+
+- If you are working a Paperclip issue directly, end the run by either calling `blueprint-resolve-work-item` with `issueId` and a proof-bearing closeout comment, or leaving the issue blocked with the blocker explained and a linked follow-up issue.
+- When city-demand work creates downstream asks, put those asks into explicit Paperclip follow-up issues before you close the current issue.

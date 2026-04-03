@@ -51,7 +51,6 @@ const manifest: PaperclipPluginManifestV1 = {
     "issues.update",
     "issue.comments.read",
     "issue.comments.create",
-    "issue.documents.read",
     "agents.read",
     "agents.update",
     "agents.invoke",
@@ -251,6 +250,13 @@ const manifest: PaperclipPluginManifestV1 = {
         "Keeps workspace agents on the healthy lane while a Claude or Codex quota cooldown is active, then restores configured defaults after expiry.",
       schedule: "*/5 * * * *",
     },
+    {
+      jobKey: JOB_KEYS.executionDispatch,
+      displayName: "Execution Dispatch",
+      description:
+        "Wakes assigned agents for stale actionable issues so work is executed instead of remaining passive queue state.",
+      schedule: "*/15 * * * *",
+    },
   ],
   webhooks: [
     {
@@ -405,6 +411,44 @@ const manifest: PaperclipPluginManifestV1 = {
           "workflowFindings",
           "risks",
           "recommendedFollowUps",
+        ],
+      },
+    },
+    {
+      name: TOOL_NAMES.communityUpdatesReport,
+      displayName: "Generate Community Updates Report",
+      description:
+        "Write a deterministic Blueprint community update draft from agent-supplied findings, then return proof artifacts for issue completion.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          cadence: { type: "string", enum: ["weekly", "ad_hoc"] },
+          companyName: { type: "string" },
+          issueId: { type: "string" },
+          headline: { type: "string" },
+          shippedThisWeek: {
+            type: "array",
+            items: { type: "string" },
+          },
+          byTheNumbers: {
+            type: "array",
+            items: { type: "string" },
+          },
+          whatWeLearned: {
+            type: "array",
+            items: { type: "string" },
+          },
+          whatIsNext: {
+            type: "array",
+            items: { type: "string" },
+          },
+        },
+        required: [
+          "cadence",
+          "headline",
+          "shippedThisWeek",
+          "whatWeLearned",
+          "whatIsNext",
         ],
       },
     },

@@ -14,6 +14,7 @@ Each run must:
 - convert findings into Blueprint-relevant implications instead of broad market commentary
 - create or update Paperclip issues for `robot-team-growth-agent`, `site-operator-partnership-agent`, `city-demand-agent`, or `growth-lead` when action is justified
 - leave explicit notes about what is evidence-backed, what is inferred, and what is still missing
+- when publishing the final artifact, pass the current `issueId` into `blueprint-generate-demand-intel-report` so the plugin attaches proof and closes or blocks the issue automatically
 
 Human-only boundaries:
 

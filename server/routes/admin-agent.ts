@@ -8,6 +8,7 @@ import {
   createAgentSession,
   createStartupPack,
   extractOpsDocument,
+  forkAgentSessionWithHandoff,
   getAgentSession,
   getOpsDocument,
   getStartupPack,
@@ -206,6 +207,11 @@ const sessionMessageSchema = z.object({
   session_policy: z.record(z.unknown()).optional(),
   resume_from_run_id: z.string().optional(),
   metadata: z.record(z.unknown()).optional(),
+});
+
+const forkSessionSchema = z.object({
+  phase: z.enum(["investigation", "implementation", "review_qa"]),
+  source_run_id: z.string().optional(),
 });
 
 const startupPackSourceSchema = z.object({
@@ -622,6 +628,31 @@ router.post(
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to send agent message";
+      return res.status(400).json({ ok: false, error: message });
+    }
+  },
+);
+
+router.post(
+  "/sessions/:id/fork",
+  requireAdminRole,
+  async (req: Request, res: Response) => {
+    try {
+      const payload = forkSessionSchema.parse(req.body ?? {});
+      const result = await forkAgentSessionWithHandoff({
+        sessionId: req.params.id,
+        phase: payload.phase,
+        sourceRunId: payload.source_run_id,
+      });
+
+      return res.status(result.dispatch.queued ? 202 : 200).json({
+        ok: true,
+        session: normalizeSession(result.session),
+        handoffPrompt: result.handoffPrompt,
+        dispatch: result.dispatch,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to fork agent session";
       return res.status(400).json({ ok: false, error: message });
     }
   },

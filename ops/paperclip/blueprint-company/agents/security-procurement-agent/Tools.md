@@ -20,8 +20,8 @@
 - **solutions-engineering-agent** — technical deployment and product behavior answers
 - **rights-provenance-agent** — rights, privacy, consent, and commercialization boundaries
 - **buyer-solutions-agent** — commercial thread and buyer communications
-- **webapp-codex / webapp-claude** — auth, hosted-session, and access-control gaps
-- **pipeline-codex / pipeline-claude** — package provenance and data-processing gaps
+- **webapp-codex / webapp-review** — auth, hosted-session, and access-control gaps
+- **pipeline-codex / pipeline-review** — package provenance and data-processing gaps
 - **founder** — legal, certification, contract, and policy commitments
 
 ## Trust Model

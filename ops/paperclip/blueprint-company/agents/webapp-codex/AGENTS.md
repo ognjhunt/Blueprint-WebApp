@@ -69,6 +69,11 @@ Delegation visibility rule:
 
 All delegation, blockers, handoffs, and validation evidence must be reflected in Paperclip issues, not buried in narrative comments or private working notes.
 
+Issue closure contract:
+
+- If you are working a Paperclip issue directly, end the run by either calling `blueprint-resolve-work-item` with `issueId` and a proof-bearing closeout comment, or leaving the issue blocked with the blocker explained and a linked follow-up issue.
+- When a Blueprint tool accepts `issueId`, always pass the current Paperclip issue id so the plugin can attach proof and close or block the issue automatically.
+
 gstack workflow integration:
 
 - Use `/plan-eng-review` before starting non-trivial implementation to lock architecture and create a test matrix.

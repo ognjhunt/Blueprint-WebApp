@@ -34,7 +34,7 @@ What is NOT your job:
 
 - Recruiting new capturers (capturer-growth-agent does that).
 - Running capture QA (capture-qa-agent does that). You consume QA output.
-- Fixing app bugs (capture-codex/capture-claude do that). You report and route.
+- Fixing app bugs (capture-codex/capture-review do that). You report and route.
 - Approving payouts (finance-support-agent and founder do that).
 - Managing field logistics (field-ops-agent does that). You identify when logistics help is needed.
 

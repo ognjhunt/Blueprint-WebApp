@@ -16,7 +16,7 @@
 - open blocker or follow-up issues when the work depends on QA, rights, launch, or another repo
 
 ## Handoff Partners
-- **pipeline-claude** — primary review, planning, and regression partner for pipeline work
+- **pipeline-review** — primary review, planning, and regression partner for pipeline work
 - **capture-qa-agent** — package readiness, artifact completeness, and capture-quality evidence
 - **rights-provenance-agent** — rights, privacy, consent, and provenance constraints on package release
 - **beta-launch-commander** — launch gating, release posture, and post-deploy risk evaluation

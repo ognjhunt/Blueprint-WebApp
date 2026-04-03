@@ -274,7 +274,7 @@ describe("manager loop helpers", () => {
     expect(snapshot.agentsRan[1]?.assessment).toBe("low_value");
   });
 
-  it("wakes the chief of staff on meaningful issue changes but ignores its own issues", () => {
+  it("wakes the chief of staff on meaningful issue changes, including issues assigned to chief of staff by others", () => {
     expect(
       shouldWakeChiefOfStaffForIssueEvent({
         eventType: "issue.created",
@@ -283,6 +283,19 @@ describe("manager loop helpers", () => {
           status: "todo",
           priority: "medium",
           assigneeAgentId: "ops-lead",
+          createdByAgentId: "ops-lead",
+        } as any,
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldWakeChiefOfStaffForIssueEvent({
+        eventType: "issue.created",
+        chiefOfStaffAgentId: "chief-1",
+        issue: {
+          status: "todo",
+          priority: "high",
+          assigneeAgentId: "chief-1",
           createdByAgentId: "ops-lead",
         } as any,
       }),

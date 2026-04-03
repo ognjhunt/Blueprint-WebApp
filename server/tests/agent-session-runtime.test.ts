@@ -1,6 +1,33 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const runOpenAIResponsesTask = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({
+    status: "completed",
+    provider: "openai_responses",
+    runtime: "openai_responses",
+    model: "gpt-5.4",
+    tool_mode: "mixed",
+    output: {
+      reply: "Fresh thread started.",
+      summary: "Compressed handoff accepted.",
+      suggested_actions: ["Implement the fix"],
+      requires_human_review: false,
+    },
+    raw_output_text:
+      '{"reply":"Fresh thread started.","summary":"Compressed handoff accepted.","suggested_actions":["Implement the fix"],"requires_human_review":false}',
+    artifacts: {
+      openai_response_id: "resp_123",
+    },
+    requires_human_review: false,
+    requires_approval: false,
+  }),
+);
+
+vi.mock("../agents/adapters/openai-responses", () => ({
+  runOpenAIResponsesTask,
+}));
+
 type QueryFilter = {
   field: string;
   op: string;
@@ -12,6 +39,8 @@ function createFakeDb() {
     agentSessions: new Map<string, Record<string, unknown>>(),
     agentRuns: new Map<string, Record<string, unknown>>(),
     opsActionLogs: new Map<string, Record<string, unknown>>(),
+    opsDocuments: new Map<string, Record<string, unknown>>(),
+    startupPacks: new Map<string, Record<string, unknown>>(),
   };
 
   const applyFilters = (docs: Array<{ id: string; data: Record<string, unknown> }>, filters: QueryFilter[]) =>
@@ -107,9 +136,12 @@ beforeEach(() => {
   fake.store.agentSessions.clear();
   fake.store.agentRuns.clear();
   fake.store.opsActionLogs.clear();
+  fake.store.opsDocuments.clear();
+  fake.store.startupPacks.clear();
 });
 
 afterEach(() => {
+  runOpenAIResponsesTask.mockClear();
   vi.resetModules();
 });
 
@@ -153,4 +185,62 @@ describe("agent session runtime", () => {
     },
     15_000,
   );
+
+  it("forks a session into a fresh implementation thread with a compressed handoff", async () => {
+    const { createAgentSession, forkAgentSessionWithHandoff, listAgentRunsForSession } =
+      await import("../agents/runtime");
+
+    const session = await createAgentSession({
+      title: "Ops thread",
+      task_kind: "operator_thread",
+      provider: "openai_responses",
+      session_key: "session:source",
+      metadata: {
+        startupContext: {
+          repoDocPaths: ["docs/runbook.md"],
+          documentIds: ["doc-1"],
+          operatorNotes: "Keep this scoped to one fix.",
+        },
+      },
+    });
+
+    fake.store.agentRuns.set("run-failed", {
+      id: "run-failed",
+      session_id: session.id,
+      session_key: "session:source",
+      task_kind: "operator_thread",
+      provider: "openai_responses",
+      runtime: "openai_responses",
+      model: "gpt-5.4",
+      status: "failed",
+      input: {
+        kind: "operator_thread",
+        input: {
+          message: "Investigate the failing issue and summarize the fix path.",
+        },
+      },
+      error:
+        "stream disconnected before completion: Incomplete response returned, reason: max_output_tokens",
+      created_at: "timestamp",
+      updated_at: "timestamp",
+    });
+
+    const result = await forkAgentSessionWithHandoff({
+      sessionId: session.id,
+      phase: "implementation",
+      sourceRunId: "run-failed",
+    });
+
+    expect(result.session?.title).toContain("Implementation");
+    expect(result.handoffPrompt).toContain("Phase: Implementation");
+    expect(result.handoffPrompt).toContain("docs/runbook.md");
+    expect(result.handoffPrompt).toContain("Retry once in this fresh thread");
+
+    const forkRuns = await listAgentRunsForSession(result.session!.id);
+    expect(forkRuns[0]?.metadata).toMatchObject({
+      compact_startup_context: true,
+      workflow_phase: "implementation",
+    });
+    expect(runOpenAIResponsesTask).toHaveBeenCalled();
+  });
 });

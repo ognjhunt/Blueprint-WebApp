@@ -20,7 +20,7 @@
 - **buyer-solutions-agent** — Hands you closed-won buyers. You take over post-delivery. Hand back for expansion opportunities.
 - **ops-lead** — When buyer issues reveal systemic product problems.
 - **rights-provenance-agent** — When a buyer raises data quality, rights, or privacy concerns.
-- **webapp-codex / webapp-claude** — When buyer feedback requires code changes to hosted sessions or buyer-facing UI.
+- **webapp-codex / webapp-review** — When buyer feedback requires code changes to hosted sessions or buyer-facing UI.
 - **growth-lead** — Receives churn patterns, expansion signals, and reference/case study offers.
 - **analytics-agent** — When you need usage data aggregated or analyzed beyond what you can see directly.
 

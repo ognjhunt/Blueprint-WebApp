@@ -16,7 +16,7 @@
 - open linked blocker or follow-up issues when work depends on another repo, team, or human gate
 
 ## Handoff Partners
-- **webapp-claude** — primary review, planning, regression, and QA partner for WebApp work
+- **webapp-review** — primary review, planning, regression, and QA partner for WebApp work
 - **blueprint-cto** — escalation path for cross-repo contract changes or prioritization conflicts
 - **buyer-solutions-agent** — buyer journey truth, delivery expectations, and proof-surface questions
 - **solutions-engineering-agent** — buyer evaluation and technical enablement implications of WebApp changes

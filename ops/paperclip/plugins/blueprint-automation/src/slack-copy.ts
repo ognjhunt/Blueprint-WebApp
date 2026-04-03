@@ -54,6 +54,12 @@ type ManagerIssueSlackCopyInput = {
   owner?: string | null;
 };
 
+type AgentRunFailureSlackCopyInput = {
+  failedAgentId: string;
+  issueId?: string | null;
+  error?: string | null;
+};
+
 const STATUS_LABELS: Record<string, string> = {
   backlog: "Backlog",
   todo: "To do",
@@ -91,9 +97,51 @@ export function formatIssuePriority(value: string | null | undefined) {
   return PRIORITY_LABELS[value] ?? value;
 }
 
+const UUID_LIKE_PATTERN =
+  /^[0-9a-f]{8}(?:[- ]?[0-9a-f]{4}){3}[- ]?[0-9a-f]{12}$/i;
+
+const AGENT_NAME_ALIASES: Record<string, string> = {
+  "webapp-codex": "WebApp Codex",
+  "webapp codex": "WebApp Codex",
+  "webapp-review": "WebApp Review",
+  "webapp review": "WebApp Review",
+  "pipeline-codex": "Pipeline Codex",
+  "pipeline codex": "Pipeline Codex",
+  "pipeline-review": "Pipeline Review",
+  "pipeline review": "Pipeline Review",
+  "capture-codex": "Capture Codex",
+  "capture codex": "Capture Codex",
+  "capture-review": "Capture Review",
+  "capture review": "Capture Review",
+};
+
+function formatAgentToken(value: string) {
+  return AGENT_NAME_ALIASES[value.toLowerCase()] ?? value.replace(/-/g, " ");
+}
+
 export function formatAgentName(value: string | null | undefined) {
   if (!value) return "Unassigned";
-  return value.replace(/-/g, " ");
+  const trimmed = value.trim();
+  if (!trimmed) return "Unassigned";
+  return formatAgentToken(trimmed);
+}
+
+export function formatOwnerLabel(value: string | null | undefined) {
+  if (!value) return "Unassigned";
+
+  const parts = value
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+  if (parts.length === 0) return "Unassigned";
+
+  const formatted = [...new Set(parts.map((part) => (
+    UUID_LIKE_PATTERN.test(part)
+      ? "Assigned owner"
+      : formatAgentToken(part)
+  )))];
+
+  return formatted.join(", ");
 }
 
 function describeIssue(input: { issueIdentifier?: string | null; issueTitle: string }) {
@@ -234,7 +282,7 @@ export function buildManagedIssueSlackCopy(input: ManagedIssueSlackCopyInput): S
   } else {
     summary.push(`Action needed: Yes`);
 
-    const owner = formatAgentName(input.assignee);
+    const owner = formatOwnerLabel(input.assignee);
     if (owner) summary.push(`Owner: ${owner}`);
 
     const priority = formatIssuePriority(input.priority);
@@ -251,6 +299,38 @@ export function buildManagedIssueSlackCopy(input: ManagedIssueSlackCopyInput): S
   return {
     title: buildManagedIssueTitle(input),
     summary,
+  };
+}
+
+function inferAgentRunFailureNextMove(error: string | null | undefined) {
+  const normalized = error?.trim().toLowerCase() ?? "";
+  if (
+    normalized.includes("context window")
+    || normalized.includes("ran out of room")
+    || normalized.includes("clear earlier history")
+    || normalized.includes("start a new thread")
+    || normalized.includes("max_output_tokens")
+    || normalized.includes("max output tokens")
+    || normalized.includes("incomplete response returned")
+    || normalized.includes("stream disconnected before completion")
+  ) {
+    return "Start a fresh thread with a compressed handoff, retry once there, then split or reroute the work if it fails again.";
+  }
+
+  return "Decide whether to retry, reroute, or surface a blocker issue before the work stalls.";
+}
+
+export function buildAgentRunFailureSlackCopy(
+  input: AgentRunFailureSlackCopyInput,
+): SlackAlertCopy {
+  return {
+    title: "Manager update: agent run failed",
+    summary: [
+      `What happened: ${formatAgentName(input.failedAgentId)} hit a run failure${input.issueId ? " while working an issue" : ""}.`,
+      ...(input.issueId ? [`Issue: ${input.issueId}`] : []),
+      ...(input.error ? [`Error: ${input.error}`] : []),
+      `Next move: ${inferAgentRunFailureNextMove(input.error)}`,
+    ],
   };
 }
 
@@ -272,7 +352,7 @@ export function shouldPostManagerIssueEventToSlack(input: {
 export function buildManagerIssueSlackCopy(input: ManagerIssueSlackCopyInput): SlackAlertCopy {
   const status = formatIssueStatus(input.status) ?? input.status;
   const priority = formatIssuePriority(input.priority);
-  const owner = input.owner?.trim() || "Unassigned";
+  const owner = input.owner?.trim() ? formatOwnerLabel(input.owner) : "Unassigned";
   const unassigned = owner === "Unassigned";
   const task = cleanIssueTitle(input.issueTitle);
 

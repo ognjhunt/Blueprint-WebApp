@@ -94,6 +94,7 @@ import {
   buildOpenCodeFallbackAdapterConfig,
   buildHermesFallbackAdapterConfig,
   isModelNotFoundFailure,
+  syncExecutionPolicyToAdapter,
 } from "./quota-fallback.js";
 import {
   buildRoutineHealthAlertSignature,
@@ -117,16 +118,29 @@ import {
   type CityLaunchStoredSelection,
 } from "./city-launch-proof.js";
 import {
+  buildAgentRunFailureSlackCopy,
   buildAgentConversationSlackCopy,
   buildManagerIssueSlackCopy,
   buildManagedIssueSlackCopy,
   cleanIssueTitle,
   formatAgentName,
+  formatOwnerLabel,
   formatIssuePriority,
   formatIssueStatus,
   shouldPostManagerIssueEventToSlack,
 } from "./slack-copy.js";
+import {
+  isInboundEngineeringQueueTask,
+  preferredQueueRepoAgent,
+} from "./queue-routing.js";
 import { inferChiefOfStaffRoute } from "../../../chief-of-staff-routing.js";
+import {
+  buildRoutineCatchUpWindowKey,
+  isStaleRoutineExecutionIssue,
+  recommendedRoutineExecutionPolicy,
+  selectHealthyAgentKey,
+  shouldTriggerRoutineCatchUp,
+} from "./execution-governor.js";
 
 const execFileAsync = promisify(execFile);
 const GIT_BIN = process.env.BLUEPRINT_PAPERCLIP_GIT_BIN || "/usr/bin/git";
@@ -143,6 +157,7 @@ const EXECUTIVE_OPS_PROJECT = "blueprint-executive-ops";
 const NOTION_MANAGER_AGENT = "notion-manager-agent";
 const BUYER_RISK_OWNER_RESPONSE_GRACE_HOURS = 12;
 const MEANINGFUL_PROGRESS_GRACE_MS = 5 * 60 * 1000;
+const EXECUTION_DISPATCH_COOLDOWN_MS = 15 * 60 * 1000;
 // STATE_KEYS imported from ./constants.js
 
 type RepoConfig = {
@@ -344,6 +359,52 @@ type AnalyticsOutputProof = {
   errors: string[];
 };
 
+// ── Community Updates Types ───────────────────────────
+
+type CommunityUpdatesCadence = "weekly" | "ad_hoc";
+
+type CommunityUpdatesStructuredReport = {
+  headline: string;
+  shippedThisWeek: string[];
+  byTheNumbers: string[];
+  whatWeLearned: string[];
+  whatIsNext: string[];
+};
+
+type CommunityUpdatesOutputProof = {
+  success: boolean;
+  outcome: "done" | "blocked";
+  failureReason?: string;
+  cadence: CommunityUpdatesCadence;
+  generatedAt: string;
+  title: string;
+  report: CommunityUpdatesStructuredReport;
+  notion?: {
+    workQueuePageId?: string;
+    workQueuePageUrl?: string;
+    knowledgePageId?: string;
+    knowledgePageUrl?: string;
+  };
+  nitrosend?: {
+    configured: boolean;
+    audienceId?: string;
+    audienceName?: string;
+    campaignId?: string;
+    campaignName?: string;
+  };
+  slack?: {
+    configured: boolean;
+    ok?: boolean;
+    routedChannel?: string;
+    target?: SlackDeliveryTarget;
+    statusCode?: number;
+    responseBody?: string;
+  };
+  proofLinks: string[];
+  issueComment: string;
+  errors: string[];
+};
+
 // ── Demand Intel Types ─────────────────────────────────
 
 type DemandIntelReportCadence = "daily" | "weekly";
@@ -525,6 +586,16 @@ type HandoffMonitorEntry = {
 };
 
 type HandoffMonitorState = Record<string, HandoffMonitorEntry>;
+type ExecutionDispatchState = Record<string, {
+  signature: string;
+  assignee: string;
+  dispatchedAt: string;
+  wakeupRunId: string | null;
+}>;
+type RoutineCatchupState = Record<string, {
+  triggerUpdatedAt: string;
+  lastManualRunAt: string;
+}>;
 
 // ── Monitoring, Budget & Phase Types ───────────────────
 
@@ -575,6 +646,8 @@ type PaperclipYamlRoutineTrigger = {
 type PaperclipYamlRoutineConfig = {
   agent?: string;
   status?: string;
+  concurrencyPolicy?: string;
+  catchUpPolicy?: string;
   triggers?: PaperclipYamlRoutineTrigger[];
 };
 
@@ -716,18 +789,32 @@ function estimateRoutineIntervalHours(cronExpression: string): number | null {
   return null;
 }
 
-function getConfiguredRoutineMetadata(routineKey: string): {
+function normalizeRoutineKey(title: string) {
+  return title.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+function getConfiguredRoutineMetadata(routineKeyOrTitle: string): {
+  agentKey: string | null;
   expectedIntervalHours: number | null;
   routineStatus: string | null;
+  concurrencyPolicy: string | null;
+  catchUpPolicy: string | null;
 } {
   const config = loadPaperclipYamlConfig();
-  const routine = config?.routines?.[routineKey];
+  const normalizedKey = normalizeRoutineKey(routineKeyOrTitle);
+  const routine =
+    config?.routines?.[routineKeyOrTitle]
+    ?? config?.routines?.[normalizedKey];
+  const recommendedPolicy = recommendedRoutineExecutionPolicy();
   const scheduleTrigger = routine?.triggers?.find((trigger) => trigger.kind === "schedule");
   return {
+    agentKey: asString(routine?.agent) ?? null,
     expectedIntervalHours: scheduleTrigger?.cronExpression
       ? estimateRoutineIntervalHours(scheduleTrigger.cronExpression)
       : null,
     routineStatus: asString(routine?.status) ?? "active",
+    concurrencyPolicy: asString(routine?.concurrencyPolicy) ?? recommendedPolicy.concurrencyPolicy,
+    catchUpPolicy: asString(routine?.catchUpPolicy) ?? recommendedPolicy.catchUpPolicy,
   };
 }
 
@@ -798,7 +885,10 @@ function buildQuotaFallbackDescriptor(
   });
 }
 
-function buildDesiredAdapterDescriptor(agent: Agent) {
+function buildDesiredAdapterDescriptor(agent: Agent): {
+  adapterType: LocalQuotaFallbackAdapterType;
+  adapterConfig: Record<string, unknown>;
+} | null {
   const configuredAgent = getConfiguredAgent(agent.urlKey);
   const configuredAdapterType = configuredAgent?.adapter?.type;
   const configuredAdapterConfig = asRecord(configuredAgent?.adapter?.config);
@@ -889,8 +979,16 @@ async function enforceWorkspaceAdapterCooldowns(
     );
     const cooldown = getActiveWorkspaceCooldown(activeState, workspaceKey, desired.adapterType, now);
     const targetAdapterType = cooldown?.fallbackAdapterType ?? desired.adapterType;
+    const runtimeConfigRecord = asRecord(agent.runtimeConfig);
+    const targetRuntimeConfig = syncExecutionPolicyToAdapter(
+      runtimeConfigRecord,
+      targetAdapterType,
+    );
+    const currentExecutionPolicyJson = JSON.stringify(asRecord(runtimeConfigRecord?.executionPolicy));
+    const targetExecutionPolicyJson = JSON.stringify(asRecord(targetRuntimeConfig.executionPolicy));
+    const executionPolicyDrifted = currentExecutionPolicyJson !== targetExecutionPolicyJson;
 
-    if (agent.adapterType === targetAdapterType) {
+    if (agent.adapterType === targetAdapterType && !executionPolicyDrifted) {
       continue;
     }
 
@@ -924,6 +1022,7 @@ async function enforceWorkspaceAdapterCooldowns(
       {
         adapterType: targetAdapterType,
         adapterConfig: targetAdapterConfig,
+        runtimeConfig: targetRuntimeConfig,
       },
       companyId,
     );
@@ -1055,6 +1154,28 @@ function normalizedCandidates(entity: Record<string, unknown>): string[] {
   ]
     .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
     .map((value) => value.trim().toLowerCase());
+}
+
+function preferredAgentDisplayName(
+  agent: Agent | null | undefined,
+  fallback: string | null | undefined,
+) {
+  if (agent) {
+    const record = agent as unknown as Record<string, unknown>;
+    const displayCandidate = [
+      record.name,
+      record.title,
+      record.urlKey,
+      record.key,
+      record.slug,
+      record.identifier,
+    ].find((value): value is string => typeof value === "string" && value.trim().length > 0);
+    if (displayCandidate) {
+      return displayCandidate.trim();
+    }
+  }
+
+  return fallback?.trim() || null;
 }
 
 function hoursSinceTimestamp(value: unknown, nowMs: number): number {
@@ -1295,6 +1416,329 @@ function mapQueuePriority(priority: string): UpsertManagedIssueInput["priority"]
   }
 }
 
+function issueNeedsExecution(status: Issue["status"]) {
+  return ["backlog", "todo", "in_progress", "in_review"].includes(status);
+}
+
+function issueDispatchSignature(issue: Issue) {
+  return [
+    issue.id,
+    issue.status,
+    issue.priority,
+    issue.assigneeAgentId ?? "unassigned",
+    issue.updatedAt,
+  ].join("|");
+}
+
+function desiredAdapterTypeForAgent(agentKey: string) {
+  return asString(getConfiguredAgent(agentKey)?.adapter?.type) ?? null;
+}
+
+function preferredRepoAgentForIssue(
+  issue: Pick<Issue, "title" | "status" | "projectId">,
+  projectName: string | null | undefined,
+  config: BlueprintAutomationConfig,
+) {
+  const repoConfig = (config.repoCatalog ?? DEFAULT_REPO_CATALOG).find(
+    (entry) => entry.projectName === projectName,
+  );
+  if (!repoConfig) {
+    return null;
+  }
+
+  const normalizedTitle = issue.title.trim().toLowerCase();
+  const preferReview =
+    issue.status === "in_review"
+    || normalizedTitle.includes("review")
+    || normalizedTitle.includes("qa")
+    || normalizedTitle.includes("audit")
+    || normalizedTitle.includes("benchmark")
+    || normalizedTitle.includes("changes requested");
+
+  return preferReview ? repoConfig.reviewAgent : repoConfig.implementationAgent;
+}
+
+function routeWorkQueueAssignee(
+  item: {
+    title: string;
+    system: string;
+    workType?: string | null;
+    lifecycleStage?: string | null;
+  },
+  config: BlueprintAutomationConfig,
+) {
+  const normalizedTitle = item.title.trim().toLowerCase();
+  const normalizedWorkType = (item.workType ?? "").trim().toLowerCase();
+  const opsRouting = getOpsRoutingConfig(config);
+  const growthRouting = getGrowthRoutingConfig(config);
+  const repoCatalog = config.repoCatalog ?? DEFAULT_REPO_CATALOG;
+  const repoAgent = preferredQueueRepoAgent(item.system, item.title, repoCatalog);
+
+  if (repoAgent && isInboundEngineeringQueueTask(item.system, item.title, repoCatalog)) {
+    return repoAgent;
+  }
+
+  if (normalizedTitle.includes("market intel")) return "market-intel-agent";
+  if (normalizedTitle.includes("demand intel")) return "demand-intel-agent";
+  if (normalizedTitle.includes("analytics")) return "analytics-agent";
+  if (normalizedTitle.includes("community update")) return "community-updates-agent";
+  if (normalizedTitle.includes("investor")) return "investor-relations-agent";
+  if (normalizedTitle.includes("pricing")) return "revenue-ops-pricing-agent";
+  if (normalizedTitle.includes("security") || normalizedTitle.includes("procurement")) return "security-procurement-agent";
+  if (normalizedTitle.includes("city launch")) return "city-launch-agent";
+  if (normalizedTitle.includes("city demand")) return "city-demand-agent";
+  if (normalizedTitle.includes("capturer growth")) return "capturer-growth-agent";
+  if (normalizedTitle.includes("robot team")) return "robot-team-growth-agent";
+  if (normalizedTitle.includes("site operator")) return "site-operator-partnership-agent";
+  if (normalizedTitle.includes("support") || normalizedTitle.includes("finance")) return opsRouting.financeSupportAgent;
+  if (normalizedTitle.includes("intake") || normalizedTitle.includes("waitlist") || normalizedTitle.includes("inbound")) return opsRouting.intakeAgent;
+  if (normalizedTitle.includes("schedule") || normalizedTitle.includes("field ops")) return opsRouting.fieldOpsAgent;
+  if (normalizedTitle.includes("qa") || normalizedTitle.includes("quality")) return opsRouting.captureQaAgent;
+  if (normalizedTitle.includes("conversion") || normalizedTitle.includes("cro") || normalizedTitle.includes("experiment")) return growthRouting.conversionOptimizer;
+
+  if (repoAgent) {
+    return repoAgent;
+  }
+
+  if (normalizedWorkType === "refresh" && item.system.trim().toLowerCase() === "cross-system") {
+    return opsRouting.opsLead;
+  }
+
+  if ((item.lifecycleStage ?? "").trim().toLowerCase() === "open") {
+    return opsRouting.opsLead;
+  }
+
+  return opsRouting.opsLead;
+}
+
+function isAgentUnavailable(agent: Agent | null | undefined) {
+  return !agent || agent.status === "error" || agent.status === "paused";
+}
+
+function agentHasDesiredAdapter(agent: Agent, agentKey: string) {
+  const desired = desiredAdapterTypeForAgent(agentKey);
+  if (!desired) return true;
+  return agent.adapterType === desired;
+}
+
+function pickFallbackAgentKey(
+  config: BlueprintAutomationConfig,
+  primaryAgentKey: string,
+  issue: Pick<Issue, "title" | "status">,
+) {
+  const opsRouting = getOpsRoutingConfig(config);
+  const growthRouting = getGrowthRoutingConfig(config);
+  const chiefOfStaff = getChiefOfStaffAgentKey(config);
+
+  if (primaryAgentKey === chiefOfStaff) {
+    return "blueprint-cto";
+  }
+  if (primaryAgentKey === opsRouting.opsLead || primaryAgentKey === growthRouting.growthLead) {
+    return chiefOfStaff;
+  }
+
+  const repoConfig = (config.repoCatalog ?? DEFAULT_REPO_CATALOG).find((entry) =>
+    entry.implementationAgent === primaryAgentKey || entry.reviewAgent === primaryAgentKey,
+  );
+  if (repoConfig) {
+    return repoConfig.implementationAgent === primaryAgentKey
+      ? repoConfig.reviewAgent
+      : "blueprint-cto";
+  }
+
+  if (
+    primaryAgentKey === opsRouting.intakeAgent
+    || primaryAgentKey === opsRouting.captureQaAgent
+    || primaryAgentKey === opsRouting.fieldOpsAgent
+    || primaryAgentKey === opsRouting.financeSupportAgent
+  ) {
+    return opsRouting.opsLead;
+  }
+
+  if (
+    primaryAgentKey === "analytics-agent"
+    || primaryAgentKey === "market-intel-agent"
+    || primaryAgentKey === "demand-intel-agent"
+    || primaryAgentKey === "community-updates-agent"
+    || primaryAgentKey === "investor-relations-agent"
+    || primaryAgentKey === "capturer-growth-agent"
+    || primaryAgentKey === "city-launch-agent"
+    || primaryAgentKey === "city-demand-agent"
+    || primaryAgentKey === "robot-team-growth-agent"
+    || primaryAgentKey === "site-operator-partnership-agent"
+    || primaryAgentKey === "revenue-ops-pricing-agent"
+    || primaryAgentKey === "security-procurement-agent"
+    || primaryAgentKey === growthRouting.conversionOptimizer
+  ) {
+    return growthRouting.growthLead;
+  }
+
+  const route = inferChiefOfStaffRoute({
+    title: issue.title,
+    status: issue.status,
+    project: { name: EXECUTIVE_OPS_PROJECT },
+  });
+  return route?.assigneeKey ?? chiefOfStaff;
+}
+
+function buildManagementRouting(config: BlueprintAutomationConfig) {
+  return {
+    chiefOfStaffKey: getChiefOfStaffAgentKey(config),
+    ctoKey: "blueprint-cto",
+    ceoKey: "blueprint-ceo",
+  };
+}
+
+function buildAgentStatusMap(agents: Agent[]) {
+  return Object.fromEntries(
+    agents.flatMap((agent) =>
+      normalizedCandidates(agent as unknown as Record<string, unknown>).map((key) => [key, agent.status ?? null] as const),
+    ),
+  );
+}
+
+async function resolveAssignableAgent(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+  preferredAgentKey: string,
+) {
+  const agents = await listAgents(ctx, companyId);
+  const target = preferredAgentKey.trim().toLowerCase();
+  const preferredAgent = [...agents]
+    .map((entry) => ({ entry, score: scoreAgentMatch(entry, target) }))
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score)[0]?.entry;
+
+  if (!preferredAgent) {
+    throw new Error(`Agent not found for Blueprint automation: ${preferredAgentKey}`);
+  }
+
+  const preferredKey = normalizedCandidates(preferredAgent as unknown as Record<string, unknown>)[0] ?? target;
+  const selected = selectHealthyAgentKey(
+    preferredKey,
+    buildAgentStatusMap(agents),
+    buildManagementRouting(config),
+  );
+  const selectedAgent = agents.find((agent) =>
+    normalizedCandidates(agent as unknown as Record<string, unknown>).includes(selected.assigneeKey),
+  ) ?? preferredAgent;
+
+  return {
+    agent: selectedAgent,
+    preferredKey,
+    selectedKey: selected.assigneeKey,
+    rerouted: selected.rerouted && selected.assigneeKey !== preferredKey,
+    attempted: selected.attempted,
+  };
+}
+
+function parseCronField(field: string, min: number, max: number) {
+  if (field === "*") {
+    return Array.from({ length: max - min + 1 }, (_, index) => min + index);
+  }
+
+  const values = new Set<number>();
+  for (const part of field.split(",")) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    if (trimmed.includes("-")) {
+      const [startRaw, endRaw] = trimmed.split("-", 2);
+      const start = Number(startRaw);
+      const end = Number(endRaw);
+      if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+      for (let value = start; value <= end; value += 1) {
+        if (value >= min && value <= max) values.add(value);
+      }
+      continue;
+    }
+    const value = Number(trimmed);
+    if (Number.isFinite(value) && value >= min && value <= max) {
+      values.add(value);
+    }
+  }
+  return [...values].sort((left, right) => left - right);
+}
+
+function getTimezoneParts(date: Date, timeZone: string) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    weekday: "short",
+  });
+  const parts = formatter.formatToParts(date);
+  const value = (type: string) => parts.find((entry) => entry.type === type)?.value ?? "";
+  const weekdayMap: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+  return {
+    year: Number(value("year")),
+    month: Number(value("month")),
+    day: Number(value("day")),
+    hour: Number(value("hour")),
+    minute: Number(value("minute")),
+    weekday: weekdayMap[value("weekday")] ?? 0,
+  };
+}
+
+function scheduleWindowPassedToday(
+  cronExpression: string,
+  timeZone: string,
+  now = new Date(),
+) {
+  const fields = cronExpression.trim().split(/\s+/);
+  if (fields.length !== 5) return false;
+  const [minuteField, hourField, dayOfMonthField, monthField, dayOfWeekField] = fields;
+  if (monthField !== "*") {
+    return false;
+  }
+  const parts = getTimezoneParts(now, timeZone);
+  const minutes = parseCronField(minuteField, 0, 59);
+  const hours = parseCronField(hourField, 0, 23);
+  const daysOfMonth = dayOfMonthField === "*" ? null : parseCronField(dayOfMonthField, 1, 31);
+  const daysOfWeek = dayOfWeekField === "*" ? null : parseCronField(dayOfWeekField, 0, 7).map((value) => value === 7 ? 0 : value);
+
+  if (daysOfMonth && !daysOfMonth.includes(parts.day)) return false;
+  if (daysOfWeek && !daysOfWeek.includes(parts.weekday)) return false;
+
+  return hours.some((hour) =>
+    hour < parts.hour || (hour === parts.hour && minutes.some((minute) => minute <= parts.minute)),
+  );
+}
+
+function routineCatchupKey(routineId: string, triggerUpdatedAt: string) {
+  return `${routineId}:${triggerUpdatedAt}`;
+}
+
+function paperclipApiBaseUrl() {
+  return process.env.PAPERCLIP_API_URL || "http://127.0.0.1:3100";
+}
+
+async function fetchPaperclipApiJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${paperclipApiBaseUrl()}${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Paperclip API ${response.status} for ${path}: ${(await response.text()).slice(0, 200)}`);
+  }
+  return await response.json() as T;
+}
+
 async function findCompany(ctx: PluginContext, companyName?: string): Promise<Company> {
   const companies = await ctx.companies.list({ limit: 100, offset: 0 });
   const target = (companyName ?? DEFAULT_COMPANY_NAME).trim().toLowerCase();
@@ -1510,7 +1954,7 @@ function buildFounderIssueVisibility(
   const ownerId = issue.assigneeAgentId ?? "";
   const ownerKey = issue.assigneeAgentId ? (agentKeyById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId) : null;
   const owner = issue.assigneeAgentId
-    ? (agentNameById.get(issue.assigneeAgentId) ?? ownerKey ?? issue.assigneeAgentId)
+    ? formatAgentName(agentNameById.get(issue.assigneeAgentId) ?? ownerKey ?? issue.assigneeAgentId)
     : "Unassigned";
   return {
     id: issue.id,
@@ -1622,7 +2066,9 @@ async function buildFounderVisibility(
     .map((issue) => ({
       ...issue,
       lane: classifyFounderLane(issue.assigneeAgentId ? (agentKeyById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId) : null, issue.title),
-      owner: issue.assigneeAgentId ? (agentNameById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId) : "Unassigned",
+      owner: issue.assigneeAgentId
+        ? formatAgentName(agentNameById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId)
+        : "Unassigned",
       projectName: issue.projectName ?? null,
     }))
     .slice(0, 10);
@@ -1828,6 +2274,493 @@ async function wakeChiefOfStaff(
   return wakeResult;
 }
 
+async function wakeAssignedAgent(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+  input: {
+    issue: Issue;
+    assigneeKey: string;
+    reason: string;
+    detail: string;
+  },
+) {
+  const issue = input.issue;
+  if (!issueNeedsExecution(issue.status)) {
+    return null;
+  }
+
+  const dispatchState =
+    await readState<ExecutionDispatchState>(ctx, companyId, STATE_KEYS.executionDispatches) ?? {};
+  const signature = issueDispatchSignature(issue);
+  const existing = dispatchState[issue.id];
+  const lastDispatchedAt = existing?.dispatchedAt ? Date.parse(existing.dispatchedAt) : Number.NaN;
+  if (
+    existing?.signature === signature
+    && existing.assignee === input.assigneeKey
+    && Number.isFinite(lastDispatchedAt)
+    && Date.now() - lastDispatchedAt < EXECUTION_DISPATCH_COOLDOWN_MS
+  ) {
+    return null;
+  }
+
+  let resolution = await resolveAssignableAgent(ctx, companyId, config, input.assigneeKey).catch(() => null);
+  let agent = resolution?.agent ?? null;
+  if (!agent || !resolution) {
+    return null;
+  }
+  if (isAgentUnavailable(agent) || !agentHasDesiredAdapter(agent, resolution.selectedKey)) {
+    await healAgentExecutionTopology(ctx, companyId).catch(() => undefined);
+    if (agent.status === "error") {
+      await ctx.agents.resetRuntimeSession(agent.id, companyId, { taskKey: issue.id }).catch(() => undefined);
+    }
+    agent = await ctx.agents.get(agent.id, companyId).catch(() => agent);
+    resolution = await resolveAssignableAgent(ctx, companyId, config, resolution.selectedKey).catch(() => resolution);
+  }
+  if (!agent || !resolution || isAgentUnavailable(agent) || !agentHasDesiredAdapter(agent, resolution.selectedKey)) {
+    return null;
+  }
+  if (resolution.rerouted && issue.assigneeAgentId !== agent.id) {
+    await ctx.issues.update(issue.id, { assigneeAgentId: agent.id }, companyId).catch(() => undefined);
+    await ctx.issues.createComment(
+      issue.id,
+      [
+        "Automation rerouted this execution issue because the preferred owner is currently unavailable.",
+        `- Preferred owner: ${formatAgentName(resolution.preferredKey)}`,
+        `- Current owner: ${formatAgentName(resolution.selectedKey)}`,
+      ].join("\n"),
+      companyId,
+    ).catch(() => undefined);
+  }
+
+  const wakeResult = await ctx.agents.wakeup(agent.id, companyId, {
+    source: "automation",
+    triggerDetail: "system",
+    reason: input.reason,
+    payload: {
+      issueId: issue.id,
+      issueIdentifier: issue.identifier,
+      issueTitle: issue.title,
+      dispatchReason: input.reason,
+    },
+    idempotencyKey: `managed-issue-dispatch:${issue.id}:${signature}`,
+    forceFreshSession: issue.status === "todo" || issue.status === "backlog" || agent.status === "error",
+  });
+
+  const nextState: ExecutionDispatchState = {
+    ...dispatchState,
+    [issue.id]: {
+      signature,
+      assignee: resolution.selectedKey,
+      dispatchedAt: nowIso(),
+      wakeupRunId: asString(wakeResult?.runId) ?? null,
+    },
+  };
+  await writeState(ctx, companyId, STATE_KEYS.executionDispatches, nextState);
+  await appendRecentEvent(ctx, companyId, {
+    kind: "issue-dispatched",
+    title: issue.title,
+    issueId: issue.id,
+    detail: input.detail,
+  });
+  return wakeResult;
+}
+
+async function healAgentExecutionTopology(
+  ctx: PluginContext,
+  companyId: string,
+) {
+  const agents = await listAgents(ctx, companyId);
+  const cooldownState =
+    await readState<WorkspaceAdapterCooldownState>(ctx, companyId, STATE_KEYS.workspaceAdapterCooldowns) ?? {};
+  const repaired: string[] = [];
+
+  for (const agent of agents) {
+    const desired = buildDesiredAdapterDescriptor(agent);
+    if (!desired) {
+      continue;
+    }
+    const workspaceKey = getLocalAdapterWorkspaceKey(desired.adapterConfig);
+    const activeCooldown = getActiveWorkspaceCooldown(
+      cooldownState,
+      workspaceKey,
+      desired.adapterType,
+      Date.now(),
+    );
+    if (activeCooldown && activeCooldown.fallbackAdapterType !== desired.adapterType) {
+      continue;
+    }
+
+    const runtimeConfigRecord = asRecord(agent.runtimeConfig);
+    const targetRuntimeConfig = syncExecutionPolicyToAdapter(
+      runtimeConfigRecord,
+      desired.adapterType,
+    );
+    const currentExecutionPolicyJson = JSON.stringify(asRecord(runtimeConfigRecord?.executionPolicy));
+    const targetExecutionPolicyJson = JSON.stringify(asRecord(targetRuntimeConfig.executionPolicy));
+    const adapterDrifted = agent.adapterType !== desired.adapterType;
+    const executionPolicyDrifted = currentExecutionPolicyJson !== targetExecutionPolicyJson;
+    const runtimeNeedsRecovery = agent.status === "error";
+
+    if (!adapterDrifted && !executionPolicyDrifted && !runtimeNeedsRecovery) {
+      continue;
+    }
+
+    if (adapterDrifted || executionPolicyDrifted) {
+      await ctx.agents.update(
+        agent.id,
+        {
+          adapterType: desired.adapterType,
+          adapterConfig: desired.adapterConfig,
+          runtimeConfig: targetRuntimeConfig,
+        },
+        companyId,
+      );
+    }
+    await ctx.agents.resetRuntimeSession(agent.id, companyId);
+    repaired.push(
+      `${agent.urlKey}:${agent.adapterType}->${desired.adapterType}${runtimeNeedsRecovery ? `:recovered-${agent.status}` : ""}`,
+    );
+  }
+
+  if (repaired.length > 0) {
+    await appendRecentEvent(ctx, companyId, {
+      kind: "agent-topology-repaired",
+      title: "Reconciled live agent adapter drift",
+      detail: repaired.join(", "),
+    });
+  }
+
+  return repaired;
+}
+
+async function rerouteUnavailableIssueOwners(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+) {
+  const [issues, agents, projects] = await Promise.all([
+    listAllIssues(ctx, companyId),
+    listAgents(ctx, companyId),
+    listProjects(ctx, companyId),
+  ]);
+  const agentById = new Map(agents.map((agent) => [agent.id, agent] as const));
+  const agentByKey = new Map(agents.map((agent) => [agent.urlKey, agent] as const));
+  const projectNameById = new Map(projects.map((project) => [project.id, project.name] as const));
+  const rerouted: string[] = [];
+
+  for (const issue of issues) {
+    if (!issue.assigneeAgentId || !issueNeedsExecution(issue.status)) {
+      continue;
+    }
+    const assignee = agentById.get(issue.assigneeAgentId) ?? null;
+    if (!assignee) {
+      const fallbackCandidates = [
+        preferredRepoAgentForIssue(
+          issue,
+          issue.projectId ? (projectNameById.get(issue.projectId) ?? null) : null,
+          config,
+        ),
+        getChiefOfStaffAgentKey(config),
+        "blueprint-cto",
+      ].filter((value, index, all) => value && all.indexOf(value) === index);
+
+      const fallback = fallbackCandidates
+        .map((key) => agentByKey.get(key) ?? null)
+        .find((candidate) => candidate && !isAgentUnavailable(candidate) && agentHasDesiredAdapter(candidate, candidate.urlKey));
+
+      if (!fallback) {
+        continue;
+      }
+
+      await ctx.issues.update(
+        issue.id,
+        { assigneeAgentId: fallback.id },
+        companyId,
+      );
+      await ctx.issues.createComment(
+        issue.id,
+        [
+          "Automation reassigned this issue because its previous owner record is no longer available.",
+          `- New owner: ${formatAgentName(fallback.urlKey)}`,
+        ].join("\n"),
+        companyId,
+      );
+      rerouted.push(`${issue.identifier}:missing-owner->${fallback.urlKey}`);
+      continue;
+    }
+    if (!isAgentUnavailable(assignee) && agentHasDesiredAdapter(assignee, assignee.urlKey)) {
+      continue;
+    }
+
+    const fallbackCandidates = [
+      pickFallbackAgentKey(config, assignee.urlKey, issue),
+      getChiefOfStaffAgentKey(config),
+      "blueprint-cto",
+    ].filter((value, index, all) => value && all.indexOf(value) === index);
+
+    const fallback = fallbackCandidates
+      .map((key) => agentByKey.get(key) ?? null)
+      .find((candidate) => candidate && !isAgentUnavailable(candidate) && agentHasDesiredAdapter(candidate, candidate.urlKey));
+
+    if (!fallback || fallback.id === assignee.id) {
+      continue;
+    }
+
+    await ctx.issues.update(
+      issue.id,
+      { assigneeAgentId: fallback.id },
+      companyId,
+    );
+    await ctx.issues.createComment(
+      issue.id,
+      [
+        "Automation rerouted this issue because the current owner is unavailable for execution.",
+        `- Previous owner: ${formatAgentName(assignee.urlKey)}`,
+        `- New owner: ${formatAgentName(fallback.urlKey)}`,
+        `- Reason: agent status=${assignee.status}${agentHasDesiredAdapter(assignee, assignee.urlKey) ? "" : ` and adapter drifted from configured ${desiredAdapterTypeForAgent(assignee.urlKey)}`}`,
+      ].join("\n"),
+      companyId,
+    );
+    rerouted.push(`${issue.identifier}:${assignee.urlKey}->${fallback.urlKey}`);
+  }
+
+  if (rerouted.length > 0) {
+    await appendRecentEvent(ctx, companyId, {
+      kind: "issue-owner-rerouted",
+      title: "Rerouted issues away from unavailable agents",
+      detail: rerouted.join(", "),
+    });
+  }
+
+  return rerouted;
+}
+
+async function runExecutionDispatchJob(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+) {
+  const issues = await listAllIssues(ctx, companyId);
+  const dispatched: string[] = [];
+
+  for (const issue of issues) {
+    if (!issue.assigneeAgentId || !issueNeedsExecution(issue.status)) {
+      continue;
+    }
+    if (hoursSinceTimestamp(issue.updatedAt, Date.now()) * 60 * 60 * 1000 < MEANINGFUL_PROGRESS_GRACE_MS) {
+      continue;
+    }
+
+    const assignee = await ctx.agents.get(issue.assigneeAgentId, companyId).catch(() => null);
+    if (!assignee || assignee.urlKey === getChiefOfStaffAgentKey(config)) {
+      continue;
+    }
+
+    const wakeResult = await wakeAssignedAgent(ctx, companyId, config, {
+      issue,
+      assigneeKey: assignee.urlKey,
+      reason: "execution_dispatch",
+      detail: `${issue.title} re-dispatched to ${assignee.urlKey} for execution.`,
+    }).catch(() => null);
+    if (wakeResult) {
+      dispatched.push(`${issue.identifier}:${assignee.urlKey}`);
+    }
+    if (dispatched.length >= 12) {
+      break;
+    }
+  }
+
+  if (dispatched.length > 0) {
+    await appendRecentEvent(ctx, companyId, {
+      kind: "execution-dispatch",
+      title: "Execution dispatch completed",
+      detail: dispatched.join(", "),
+    });
+  }
+
+  return { dispatched: dispatched.length };
+}
+
+async function maybeCatchUpMissedRoutines(
+  ctx: PluginContext,
+  companyId: string,
+) {
+  type RoutineTrigger = {
+    id: string;
+    kind: string;
+    enabled?: boolean | null;
+    cronExpression?: string | null;
+    timezone?: string | null;
+    nextRunAt?: string | null;
+    lastFiredAt?: string | null;
+    updatedAt?: string | null;
+    createdAt?: string | null;
+  };
+  type RoutineDetail = {
+    id: string;
+    title: string;
+    status: string;
+    assigneeAgentId?: string | null;
+    concurrencyPolicy?: string | null;
+    catchUpPolicy?: string | null;
+    triggers?: RoutineTrigger[] | null;
+    activeIssue?: { id: string; identifier?: string | null; status?: string | null; updatedAt?: string | null } | null;
+  };
+
+  const routines = await fetchPaperclipApiJson<RoutineDetail[]>(`/api/companies/${companyId}/routines`);
+  const catchupState =
+    await readState<RoutineCatchupState>(ctx, companyId, STATE_KEYS.routineCatchups) ?? {};
+  const nextState: RoutineCatchupState = { ...catchupState };
+  const caughtUp: string[] = [];
+  const config = await getConfig(ctx);
+
+  for (const routine of routines) {
+    if (routine.status !== "active") {
+      continue;
+    }
+    const detail = await fetchPaperclipApiJson<RoutineDetail>(`/api/routines/${routine.id}`);
+    const configuredRoutine = getConfiguredRoutineMetadata(detail.title);
+    const preferredAssigneeKey =
+      configuredRoutine.agentKey
+      ?? (
+        detail.assigneeAgentId
+          ? (await ctx.agents.get(detail.assigneeAgentId, companyId).catch(() => null))?.urlKey ?? null
+          : null
+      );
+    if (preferredAssigneeKey) {
+      const assigneeResolution = await resolveAssignableAgent(ctx, companyId, config, preferredAssigneeKey).catch(() => null);
+      if (assigneeResolution && detail.assigneeAgentId !== assigneeResolution.agent.id) {
+        await fetchPaperclipApiJson(`/api/routines/${routine.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ assigneeAgentId: assigneeResolution.agent.id }),
+        });
+      }
+    }
+    const desiredConcurrencyPolicy = configuredRoutine.concurrencyPolicy ?? recommendedRoutineExecutionPolicy().concurrencyPolicy;
+    const desiredCatchUpPolicy = configuredRoutine.catchUpPolicy ?? recommendedRoutineExecutionPolicy().catchUpPolicy;
+    if (
+      detail.concurrencyPolicy !== desiredConcurrencyPolicy
+      || detail.catchUpPolicy !== desiredCatchUpPolicy
+    ) {
+      await fetchPaperclipApiJson(`/api/routines/${routine.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          concurrencyPolicy: desiredConcurrencyPolicy,
+          catchUpPolicy: desiredCatchUpPolicy,
+        }),
+      });
+    }
+    const scheduleTrigger = (detail.triggers ?? routine.triggers ?? []).find((trigger) =>
+      trigger.kind === "schedule" && trigger.enabled !== false && asString(trigger.cronExpression),
+    );
+    const triggerUpdatedAt = asString(scheduleTrigger?.updatedAt) ?? asString(scheduleTrigger?.createdAt);
+    const catchupWindowKey = buildRoutineCatchUpWindowKey(scheduleTrigger ?? {});
+    if (!scheduleTrigger || !triggerUpdatedAt || !catchupWindowKey) {
+      continue;
+    }
+    const catchupKey = `${routine.id}:${catchupWindowKey}`;
+    if (nextState[catchupKey]) {
+      continue;
+    }
+    const expectedIntervalHours = configuredRoutine.expectedIntervalHours;
+    const fullActiveIssue = detail.activeIssue?.id
+      ? await ctx.issues.get(detail.activeIssue.id, companyId).catch(() => null)
+      : null;
+    const shouldRecoverStaleExecution = Boolean(
+      fullActiveIssue && isStaleRoutineExecutionIssue(
+        {
+          originKind: fullActiveIssue.originKind ?? null,
+          executionRunId: fullActiveIssue.executionRunId ?? null,
+          status: fullActiveIssue.status,
+          updatedAt: toIsoTimestamp(fullActiveIssue.updatedAt),
+        },
+        expectedIntervalHours,
+        Date.now(),
+      ),
+    );
+    if (shouldRecoverStaleExecution && fullActiveIssue) {
+      await ctx.issues.update(
+        fullActiveIssue.id,
+        { status: "cancelled" },
+        companyId,
+      );
+      await ctx.issues.createComment(
+        fullActiveIssue.id,
+        [
+          "Automation recovery cancelled this stale routine-execution issue.",
+          `- Routine: ${detail.title}`,
+          "- Reason: repeated coalescing into an old execution issue with no active execution run.",
+          "- A fresh manual routine run will be triggered so execution can resume on a new issue.",
+        ].join("\n"),
+        companyId,
+      );
+    }
+    if (asString(scheduleTrigger.lastFiredAt) && !shouldRecoverStaleExecution) {
+      continue;
+    }
+    if (!shouldTriggerRoutineCatchUp(scheduleTrigger)) {
+      continue;
+    }
+    const timezone = asString(scheduleTrigger.timezone) ?? "America/New_York";
+    const updatedParts = getTimezoneParts(new Date(triggerUpdatedAt), timezone);
+    const nowParts = getTimezoneParts(new Date(), timezone);
+    if (
+      updatedParts.year !== nowParts.year
+      || updatedParts.month !== nowParts.month
+      || updatedParts.day !== nowParts.day
+    ) {
+      continue;
+    }
+
+    await fetchPaperclipApiJson(`/api/routines/${routine.id}/run`, {
+      method: "POST",
+      body: JSON.stringify({
+        source: "manual",
+        payload: {
+          reason: "blueprint-automation-routine-catchup",
+          triggerUpdatedAt,
+        },
+        idempotencyKey: `blueprint-routine-catchup:${catchupKey}`,
+      }),
+    });
+    nextState[catchupKey] = {
+      triggerUpdatedAt,
+      lastManualRunAt: nowIso(),
+    };
+    caughtUp.push(routine.title);
+  }
+
+  if (caughtUp.length > 0) {
+    await writeState(ctx, companyId, STATE_KEYS.routineCatchups, nextState);
+    await appendRecentEvent(ctx, companyId, {
+      kind: "routine-catchup",
+      title: "Manually caught up missed routine windows",
+      detail: caughtUp.join(", "),
+    });
+  }
+
+  return caughtUp;
+}
+
+async function finalizeIssueWithProof(
+  ctx: PluginContext,
+  companyId: string,
+  input: {
+    issueId?: string | null;
+    issueComment: string;
+    outcome: "done" | "blocked";
+  },
+) {
+  const issueId = asString(input.issueId);
+  if (!issueId) {
+    return;
+  }
+
+  await ctx.issues.createComment(issueId, input.issueComment, companyId);
+  await ctx.issues.update(issueId, { status: input.outcome }, companyId);
+}
+
 async function handleChiefOfStaffIssueSignal(
   ctx: PluginContext,
   event: { eventId: string; companyId: string; entityId: string; type: "issue.created" | "issue.updated" },
@@ -1847,9 +2780,18 @@ async function handleChiefOfStaffIssueSignal(
   });
   if (!shouldWake) return;
 
+  const agentById = new Map(agents.map((agent) => [agent.id, agent] as const));
   const agentNameById = new Map(agents.map((agent) => [agent.id, agent.name] as const));
+  const agentKeyById = new Map(
+    agents.map((agent) => [agent.id, normalizedCandidates(agent as unknown as Record<string, unknown>)[0] ?? agent.id] as const),
+  );
   const owner = issue.assigneeAgentId
-    ? (agentNameById.get(issue.assigneeAgentId) ?? formatAgentName(issue.assigneeAgentId))
+    ? formatOwnerLabel(
+      preferredAgentDisplayName(
+        agentById.get(issue.assigneeAgentId),
+        agentNameById.get(issue.assigneeAgentId) ?? agentKeyById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId,
+      ),
+    )
     : "Unassigned";
   const shouldPostSlack = shouldPostManagerIssueEventToSlack({
     eventType: event.type,
@@ -1906,6 +2848,14 @@ async function handleChiefOfStaffRunFailureSignal(
     return;
   }
 
+  const error = asString(payload?.error) ?? null;
+  const issueId = asString(payload?.issueId) ?? null;
+  const slackCopy = buildAgentRunFailureSlackCopy({
+    failedAgentId,
+    issueId,
+    error,
+  });
+
   await wakeChiefOfStaff(ctx, event.companyId, config, {
     reason: "agent.run.failed",
     idempotencyKey: `chief-of-staff:agent-run-failed:${event.eventId}`,
@@ -1913,18 +2863,14 @@ async function handleChiefOfStaffRunFailureSignal(
       signalType: "agent.run.failed",
       failedAgentId,
       runId: asString(payload?.runId) ?? null,
-      issueId: asString(payload?.issueId) ?? null,
-      error: asString(payload?.error) ?? null,
+      issueId,
+      error,
     },
     title: "Chief of Staff wakeup from agent failure",
-    detail: `${failedAgentId} failed on run ${asString(payload?.runId) ?? "unknown"}${asString(payload?.issueId) ? ` for issue ${asString(payload?.issueId)}` : ""}.`,
+    detail: `${failedAgentId} failed on run ${asString(payload?.runId) ?? "unknown"}${issueId ? ` for issue ${issueId}` : ""}.`,
     slackChannel: "#paperclip-manager",
-    slackTitle: "Manager update: agent run failed",
-    slackSummary: [
-      `What happened: ${formatAgentName(failedAgentId)} hit a run failure${asString(payload?.issueId) ? " while working an issue" : ""}.`,
-      ...(asString(payload?.issueId) ? [`Issue: ${asString(payload?.issueId)}`] : []),
-      ...(asString(payload?.error) ? [`Error: ${asString(payload?.error)}`] : []),
-    ],
+    slackTitle: slackCopy.title,
+    slackSummary: slackCopy.summary,
   }).catch(() => undefined);
 }
 
@@ -1960,6 +2906,85 @@ async function handleChiefOfStaffActivitySignal(
       `Status: ${asString(details?.status) ?? "unknown"}`,
     ],
   }).catch(() => undefined);
+}
+
+async function handleRoutineExecutionSignal(
+  ctx: PluginContext,
+  event: { eventId: string; companyId: string; payload: unknown },
+) {
+  const payload = asRecord(event.payload);
+  if (asString(payload?.action) !== "routine.run_triggered") {
+    return;
+  }
+
+  const details = asRecord(payload?.details);
+  const routineId = asString(details?.routineId);
+  if (!routineId) {
+    return;
+  }
+
+  type RoutineExecutionDetail = {
+    id: string;
+    title: string;
+    status: string;
+    assigneeAgentId?: string | null;
+    activeIssue?: Issue | null;
+  };
+
+  const routine = await fetchPaperclipApiJson<RoutineExecutionDetail>(`/api/routines/${routineId}`);
+  if (routine.status !== "active" || !routine.assigneeAgentId) {
+    return;
+  }
+
+  const config = await getConfig(ctx);
+  const currentAssignee = await ctx.agents.get(routine.assigneeAgentId, event.companyId).catch(() => null);
+  const preferredAssigneeKey =
+    currentAssignee?.urlKey
+    ?? getConfiguredRoutineMetadata(routine.title).agentKey
+    ?? null;
+  if (!preferredAssigneeKey) {
+    return;
+  }
+  const assigneeResolution = await resolveAssignableAgent(
+    ctx,
+    event.companyId,
+    config,
+    preferredAssigneeKey,
+  ).catch(() => null);
+  const assignee = assigneeResolution?.agent ?? null;
+  if (!assignee || isAgentUnavailable(assignee)) {
+    return;
+  }
+  if (routine.assigneeAgentId !== assignee.id) {
+    await fetchPaperclipApiJson(`/api/routines/${routine.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ assigneeAgentId: assignee.id }),
+    }).catch(() => undefined);
+    if (routine.activeIssue?.id) {
+      await ctx.issues.update(routine.activeIssue.id, { assigneeAgentId: assignee.id }, event.companyId).catch(() => undefined);
+    }
+  }
+
+  await ctx.agents.wakeup(assignee.id, event.companyId, {
+    source: "automation",
+    triggerDetail: "system",
+    reason: "routine.run_triggered",
+    payload: {
+      routineId: routine.id,
+      routineTitle: routine.title,
+      issueId: routine.activeIssue?.id ?? null,
+      issueIdentifier: routine.activeIssue?.identifier ?? null,
+    },
+    idempotencyKey: `routine-run-dispatch:${event.eventId}`,
+    forceFreshSession: true,
+  });
+
+  await appendRecentEvent(ctx, event.companyId, {
+    kind: "routine-dispatched",
+    title: routine.title,
+    issueId: routine.activeIssue?.id,
+    detail: `${routine.title} triggered execution for ${assignee.urlKey}.`,
+  });
 }
 
 function preferredAgentChannelKey(agent: Agent | null | undefined): string | null {
@@ -2699,7 +3724,9 @@ async function handleAgentRunFailureQuotaFallback(
 async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueInput) {
   const fingerprint = makeFingerprint(input.sourceType, input.sourceId);
   const project = await resolveProject(ctx, input.companyId, input.projectName);
-  const assignee = await resolveAgent(ctx, input.companyId, input.assignee);
+  const config = await getConfig(ctx);
+  const assigneeResolution = await resolveAssignableAgent(ctx, input.companyId, config, input.assignee);
+  const assignee = assigneeResolution.agent;
   const { mapping, issue } = await getManagedIssue(ctx, input.companyId, fingerprint);
   const existingData = (mapping?.data ?? {}) as Partial<SourceMappingData>;
   const hits = (existingData.hits ?? 0) + 1;
@@ -2774,7 +3801,7 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
     sourceType: input.sourceType,
     sourceId: input.sourceId,
     projectName: input.projectName,
-    assignee: input.assignee,
+    assignee: assigneeResolution.selectedKey,
     signalUrl: input.signalUrl,
     hits,
     firstSeenAt: existingData.firstSeenAt ?? nowIso(),
@@ -2801,13 +3828,13 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
       sourceType: input.sourceType,
       sourceId: input.sourceId,
       projectName: input.projectName,
-      assignee: input.assignee,
+      assignee: assigneeResolution.selectedKey,
+      preferredAssignee: input.assignee,
       hits,
     },
   });
 
   if (isNewIssue && desiredPriority && ["critical", "high"].includes(desiredPriority)) {
-    const config = await getConfig(ctx);
     await sendNotification(ctx, config, input.companyId, {
       headline: "Blueprint automation opened a high-priority issue.",
       issueTitle: currentIssue.title,
@@ -2826,19 +3853,20 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
     || previousIssueSnapshot.priority !== currentIssue.priority
     || previousIssueSnapshot.assigneeAgentId !== (currentIssue.assigneeAgentId ?? null);
   if (meaningfulUpdate) {
-    const config = await getConfig(ctx);
+    const assigneeLabel = preferredAgentDisplayName(assignee, assigneeResolution.selectedKey);
+    const directChiefOfStaffWake = input.assignee === getChiefOfStaffAgentKey(config);
     const slackCopy = buildManagedIssueSlackCopy({
       event: isNewIssue ? "opened" : "updated",
       sourceType: input.sourceType,
       issueTitle: currentIssue.title,
       projectName: input.projectName,
-      assignee: input.assignee,
+      assignee: assigneeLabel,
       priority: currentIssue.priority,
       status: currentIssue.status,
       signalUrl: input.signalUrl,
     });
     await postSlackActivity(ctx, config, {
-      channel: slackChannelForAgent(input.assignee),
+      channel: slackChannelForAgent(assigneeResolution.selectedKey),
       title: slackCopy.title,
       summary: slackCopy.summary,
     }).catch(() => undefined);
@@ -2860,7 +3888,31 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
       slackChannel: "#paperclip-manager",
       slackTitle: `Manager update: ${slackCopy.title}`,
       slackSummary: slackCopy.summary,
+      // Concrete manager-owned follow-through should not be swallowed by the generic wakeup cooldown.
+      bypassCooldown: directChiefOfStaffWake,
     }).catch(() => undefined);
+    await wakeAssignedAgent(ctx, input.companyId, config, {
+      issue: currentIssue,
+      assigneeKey: assigneeResolution.selectedKey,
+      reason: isNewIssue ? "managed_issue_created" : "managed_issue_updated",
+      detail: `${currentIssue.title} dispatched to ${assigneeResolution.selectedKey} for execution.`,
+    }).catch(() => undefined);
+  }
+
+  if (
+    assigneeResolution.rerouted
+    && (!previousIssueSnapshot || previousIssueSnapshot.assigneeAgentId !== (currentIssue.assigneeAgentId ?? null))
+  ) {
+    await ctx.issues.createComment(
+      currentIssue.id,
+      [
+        "Automation rerouted this issue because the preferred owner is currently unavailable.",
+        `- Preferred owner: ${formatAgentName(assigneeResolution.preferredKey)}`,
+        `- Current owner: ${formatAgentName(assigneeResolution.selectedKey)}`,
+        `- Attempted failover chain: ${assigneeResolution.attempted.join(" -> ")}`,
+      ].join("\n"),
+      input.companyId,
+    ).catch(() => undefined);
   }
 
   return { fingerprint, issue: currentIssue, hits };
@@ -3161,7 +4213,7 @@ async function ensureBuyerRiskRemediation(
   }
 
   const comments = await listCommentsForIssue(ctx, companyId, issue.id).catch(() => []);
-  let existing = state[remediationKey];
+  let existing: FounderRemediationEntry | undefined = state[remediationKey];
   const escalationFingerprint = makeFingerprint("founder-buyer-risk", issue.id);
   const escalationManagedIssue = existing?.stage === "managed_escalation"
     ? await getManagedIssue(ctx, companyId, escalationFingerprint)
@@ -3616,6 +4668,34 @@ function coerceStringArray(value: unknown): string[] {
   return singleValue ? [singleValue] : [];
 }
 
+function normalizeCommunityUpdatesStructuredReport(
+  params: Record<string, unknown>,
+): { report: CommunityUpdatesStructuredReport; validationErrors: string[] } {
+  const report: CommunityUpdatesStructuredReport = {
+    headline: asString(params.headline) ?? "",
+    shippedThisWeek: coerceStringArray(params.shippedThisWeek),
+    byTheNumbers: coerceStringArray(params.byTheNumbers),
+    whatWeLearned: coerceStringArray(params.whatWeLearned),
+    whatIsNext: coerceStringArray(params.whatIsNext),
+  };
+
+  const validationErrors: string[] = [];
+  if (!report.headline) {
+    validationErrors.push("Missing headline for community updates report.");
+  }
+  if (report.shippedThisWeek.length === 0) {
+    validationErrors.push("Missing shippedThisWeek items for community updates report.");
+  }
+  if (report.whatWeLearned.length === 0) {
+    validationErrors.push("Missing whatWeLearned items for community updates report.");
+  }
+  if (report.whatIsNext.length === 0) {
+    validationErrors.push("Missing whatIsNext items for community updates report.");
+  }
+
+  return { report, validationErrors };
+}
+
 function normalizeAnalyticsStructuredReport(
   params: Record<string, unknown>,
   cadence: AnalyticsReportCadence,
@@ -3673,6 +4753,254 @@ function formatAnalyticsIssueComment(result: {
   return lines.join("\n");
 }
 
+function formatCommunityUpdatesIssueComment(result: CommunityUpdatesOutputProof) {
+  const cadenceLabel = result.cadence === "weekly" ? "Weekly" : "Ad hoc";
+  const nitrosendStatus = !result.nitrosend?.configured
+    ? "not configured"
+    : result.nitrosend.campaignId
+      ? `audience ${result.nitrosend.audienceName ?? result.nitrosend.audienceId ?? "unknown"} (${result.nitrosend.audienceId ?? "unknown"}), campaign ${result.nitrosend.campaignName ?? result.nitrosend.campaignId} (${result.nitrosend.campaignId})`
+      : `configured but incomplete${result.nitrosend.audienceId ? ` (audience ${result.nitrosend.audienceId})` : ""}`;
+  const slackStatus = !result.slack?.configured
+    ? "not configured"
+    : result.slack.ok
+      ? `delivered to ${result.slack.routedChannel ?? "unknown"} (HTTP ${result.slack.statusCode ?? "unknown"}${result.slack.responseBody ? `, body: ${result.slack.responseBody}` : ""})`
+      : `missing or failed${result.slack?.statusCode ? ` (HTTP ${result.slack.statusCode})` : ""}${result.slack?.responseBody ? `: ${result.slack.responseBody}` : ""}`;
+
+  const lines = [
+    result.outcome === "done"
+      ? `${cadenceLabel} community update draft delivered.`
+      : `${cadenceLabel} community update draft blocked.`,
+    `- Headline: ${result.report.headline}`,
+    ...(result.failureReason ? [`- Failure reason: ${result.failureReason}`] : []),
+    `- Notion Work Queue: ${result.notion?.workQueuePageUrl ?? result.notion?.workQueuePageId ?? "missing"}`,
+    `- Notion Knowledge: ${result.notion?.knowledgePageUrl ?? result.notion?.knowledgePageId ?? "missing"}`,
+    `- Nitrosend: ${nitrosendStatus}`,
+    `- Slack digest: ${slackStatus}`,
+  ];
+  return lines.join("\n");
+}
+
+async function buildCommunityUpdatesOutputProof(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  companyId: string,
+  params: Record<string, unknown>,
+): Promise<CommunityUpdatesOutputProof> {
+  const cadence: CommunityUpdatesCadence = asString(params.cadence) === "ad_hoc" ? "ad_hoc" : "weekly";
+  const generatedAt = nowIso();
+  const { report, validationErrors } = normalizeCommunityUpdatesStructuredReport(params);
+  const title = `Community Update ${cadence === "weekly" ? "Weekly" : "Ad Hoc"} Draft - ${generatedAt.slice(0, 10)}`;
+  const errors: string[] = [];
+
+  const notionToken = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.notionApiTokenRef,
+    "NOTION_API_TOKEN",
+  );
+  const nitrosendConfig = await resolveNitrosendConfig(ctx, config);
+  const slackTargets = await resolveSlackTargets(ctx, config);
+  const slackConfigured = Boolean(slackTargets.default || slackTargets.growth || slackTargets.ops);
+
+  const reportLines = [
+    `Generated at: ${generatedAt}`,
+    `Cadence: ${cadence}`,
+    "",
+    "## Headline",
+    report.headline,
+    "",
+    "## Shipped This Week",
+    ...report.shippedThisWeek.map((line) => `- ${line}`),
+  ];
+  if (report.byTheNumbers.length > 0) {
+    reportLines.push("", "## By The Numbers", ...report.byTheNumbers.map((line) => `- ${line}`));
+  }
+  reportLines.push(
+    "",
+    "## What We Learned",
+    ...report.whatWeLearned.map((line) => `- ${line}`),
+    "",
+    "## What Is Next",
+    ...report.whatIsNext.map((line) => `- ${line}`),
+  );
+  if (validationErrors.length > 0) {
+    reportLines.push("", "## Validation Errors", ...validationErrors.map((line) => `- ${line}`));
+  }
+
+  const result: CommunityUpdatesOutputProof = {
+    success: false,
+    outcome: "blocked",
+    cadence,
+    generatedAt,
+    title,
+    report,
+    nitrosend: {
+      configured: Boolean(nitrosendConfig),
+    },
+    slack: {
+      configured: slackConfigured,
+    },
+    proofLinks: [],
+    issueComment: "",
+    errors,
+  };
+
+  if (validationErrors.length === 0 && notionToken) {
+    try {
+      const notionClient = createNotionClient({ token: notionToken });
+      const knowledgeEntry = await createKnowledgeEntry(notionClient, {
+        title,
+        type: "Reference",
+        system: "WebApp",
+        content: reportLines.join("\n"),
+      });
+      const workQueueEntry = await createWorkQueueItem(notionClient, {
+        title,
+        priority: "P1",
+        system: "WebApp",
+        lifecycleStage: "Open",
+        workType: "Refresh",
+        substage: [
+          report.headline,
+          knowledgeEntry.pageUrl ? `Knowledge page: ${knowledgeEntry.pageUrl}` : `Knowledge page ID: ${knowledgeEntry.pageId}`,
+        ].join(" "),
+      });
+      result.notion = {
+        workQueuePageId: workQueueEntry.pageId,
+        workQueuePageUrl: workQueueEntry.pageUrl,
+        knowledgePageId: knowledgeEntry.pageId,
+        knowledgePageUrl: knowledgeEntry.pageUrl,
+      };
+    } catch (error) {
+      errors.push(`Notion write failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  if (validationErrors.length === 0 && nitrosendConfig) {
+    try {
+      const audience = await upsertNitrosendAudience(nitrosendConfig, {
+        name: "Blueprint Community",
+        description: "Draft-only Blueprint community update audience for internal review and packaging.",
+        filters: {
+          segment: "community",
+          draftOnly: true,
+        },
+      });
+      result.nitrosend = {
+        ...result.nitrosend,
+        configured: true,
+        audienceId: audience.id,
+        audienceName: audience.name,
+      };
+
+      const campaign = await createNitrosendCampaignDraft(nitrosendConfig, {
+        name: title,
+        audienceId: audience.id,
+        content: {
+          subject: report.headline,
+          body: reportLines.slice(4).join("\n"),
+        },
+      });
+      result.nitrosend = {
+        ...result.nitrosend,
+        configured: true,
+        audienceId: audience.id,
+        audienceName: audience.name,
+        campaignId: campaign.id,
+        campaignName: campaign.name,
+      };
+    } catch (error) {
+      errors.push(`Nitrosend draft failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  if (validationErrors.length === 0 && slackConfigured) {
+    try {
+      const slackResult = await postSlackDigest(
+        {
+          default: slackTargets.default,
+          growth: slackTargets.growth,
+          ops: slackTargets.ops,
+        },
+        {
+          channel: "#growth",
+          title,
+          sections: [
+            { heading: "Headline", items: [report.headline] },
+            { heading: "Shipped This Week", items: report.shippedThisWeek },
+            ...(report.byTheNumbers.length > 0 ? [{ heading: "By The Numbers", items: report.byTheNumbers }] : []),
+            { heading: "What We Learned", items: report.whatWeLearned },
+            { heading: "What Is Next", items: report.whatIsNext },
+          ],
+        },
+      );
+      result.slack = {
+        configured: true,
+        ok: slackResult.ok,
+        routedChannel: slackResult.routedChannel,
+        target: slackResult.target,
+        statusCode: slackResult.statusCode,
+        responseBody: slackResult.responseBody,
+      };
+      if (!slackResult.ok) {
+        errors.push(`Slack digest failed with HTTP ${slackResult.statusCode ?? "unknown"}: ${slackResult.responseBody ?? "no response body"}`);
+      }
+    } catch (error) {
+      errors.push(`Slack digest failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  if (validationErrors.length > 0) {
+    errors.push(...validationErrors);
+  }
+
+  const failureReasons: string[] = [];
+  if (!result.notion?.workQueuePageId) {
+    failureReasons.push("Missing Notion Work Queue artifact.");
+  }
+  if (!result.notion?.knowledgePageId) {
+    failureReasons.push("Missing Notion Knowledge artifact.");
+  }
+  if (result.nitrosend?.configured) {
+    if (!result.nitrosend.audienceId) {
+      failureReasons.push("Missing Nitrosend draft audience artifact.");
+    }
+    if (!result.nitrosend.campaignId) {
+      failureReasons.push("Missing Nitrosend campaign draft artifact.");
+    }
+  }
+  if (result.slack?.configured && !result.slack.ok) {
+    failureReasons.push(
+      result.slack.statusCode
+        ? `Slack digest failed (HTTP ${result.slack.statusCode})`
+        : "Missing Slack digest artifact.",
+    );
+  }
+
+  result.proofLinks = [
+    result.notion?.workQueuePageUrl,
+    result.notion?.knowledgePageUrl,
+  ].filter((value): value is string => typeof value === "string" && value.length > 0);
+  result.failureReason = [...failureReasons, ...errors].join(" ");
+  result.success = failureReasons.length === 0 && errors.length === 0;
+  result.outcome = result.success ? "done" : "blocked";
+  result.issueComment = formatCommunityUpdatesIssueComment(result);
+
+  await updateRoutineHealth(
+    ctx,
+    companyId,
+    cadence === "weekly" ? "community-updates-weekly" : "community-updates-ad-hoc",
+    cadence === "weekly" ? "Community Updates Weekly" : "Community Updates Ad Hoc",
+    "community-updates-agent",
+    result.outcome,
+    result.failureReason,
+    asString(params.issueId),
+  );
+  await trackAgentRun(ctx, companyId, "community-updates-agent");
+  await updatePhaseMetrics(ctx, companyId, "community-updates-agent", result.outcome);
+
+  return result;
+}
+
 // ── Routine Health Tracking ────────────────────────────
 
 async function updateRoutineHealth(
@@ -3707,6 +5035,9 @@ async function updateRoutineHealth(
 }
 
 async function runRoutineHealthCheck(ctx: PluginContext, companyId: string, config: BlueprintAutomationConfig) {
+  await healAgentExecutionTopology(ctx, companyId);
+  await rerouteUnavailableIssueOwners(ctx, companyId, config);
+  await maybeCatchUpMissedRoutines(ctx, companyId).catch(() => undefined);
   await revalidateCityLaunchDoneIssues(ctx, companyId, config);
 
   const storedHealthState = await readState<RoutineHealthState>(ctx, companyId, STATE_KEYS.routineHealth) ?? {};
@@ -4257,7 +5588,9 @@ async function createFollowUpIssue(
   },
 ) {
   const project = await resolveProject(ctx, companyId, input.projectName);
-  const assignee = await resolveAgent(ctx, companyId, input.assignee);
+  const config = await getConfig(ctx);
+  const assigneeResolution = await resolveAssignableAgent(ctx, companyId, config, input.assignee);
+  const assignee = assigneeResolution.agent;
   const followUp = await (ctx.issues.create as any)({
     companyId,
     projectId: project.id,
@@ -4281,7 +5614,6 @@ async function createFollowUpIssue(
     issueId: followUp.id,
     detail: `Parent issue ${input.parentIssueId}`,
   });
-  const config = await getConfig(ctx);
   await sendNotification(ctx, config, companyId, {
     headline: "Blueprint automation created a blocker follow-up issue.",
     issueTitle: followUp.title,
@@ -4292,10 +5624,10 @@ async function createFollowUpIssue(
     detail: `Parent issue ${input.parentIssueId}`,
   });
   await postSlackActivity(ctx, config, {
-    channel: slackChannelForAgent(input.assignee),
-    title: `Blocked work handed to ${formatAgentName(input.assignee)}`,
+    channel: slackChannelForAgent(assigneeResolution.selectedKey),
+    title: `Blocked work handed to ${formatAgentName(assigneeResolution.selectedKey)}`,
     summary: [
-      `What happened: A blocked task was handed to ${formatAgentName(input.assignee)} for follow-through.`,
+      `What happened: A blocked task was handed to ${formatAgentName(assigneeResolution.selectedKey)} for follow-through.`,
       `Task: ${followUp.title}`,
       `Parent issue: ${input.parentIssueId}`,
       `Project: ${input.projectName}`,
@@ -4309,19 +5641,30 @@ async function createFollowUpIssue(
       signalType: "blocker_follow_up_created",
       issueId: followUp.id,
       parentIssueId: input.parentIssueId,
-      assignee: input.assignee,
+      assignee: assigneeResolution.selectedKey,
       projectName: input.projectName,
     },
     title: "Chief of Staff wakeup from blocker follow-up",
-    detail: `${followUp.title} (${followUp.id}) was delegated to ${input.assignee}.`,
+    detail: `${followUp.title} (${followUp.id}) was delegated to ${assigneeResolution.selectedKey}.`,
     slackChannel: "#paperclip-manager",
     slackTitle: "Manager update: blocked work was delegated",
     slackSummary: [
-      `What happened: A blocked task was handed to ${formatAgentName(input.assignee)} for follow-through.`,
+      `What happened: A blocked task was handed to ${formatAgentName(assigneeResolution.selectedKey)} for follow-through.`,
       `Task: ${followUp.title}`,
       `Project: ${input.projectName}`,
     ],
   }).catch(() => undefined);
+  if (assigneeResolution.rerouted) {
+    await ctx.issues.createComment(
+      followUp.id,
+      [
+        "Automation rerouted this blocker follow-up because the preferred owner is currently unavailable.",
+        `- Preferred owner: ${formatAgentName(assigneeResolution.preferredKey)}`,
+        `- Current owner: ${formatAgentName(assigneeResolution.selectedKey)}`,
+      ].join("\n"),
+      companyId,
+    ).catch(() => undefined);
+  }
   return followUp;
 }
 
@@ -4470,7 +5813,6 @@ async function validateCityLaunchIssueCompletion(
 
   const comments = await ctx.issues.listComments(issue.id, companyId);
   const closeout = findLatestCityLaunchCloseout(comments);
-  const documentSummaries = await ctx.issues.documents.list(issue.id, companyId);
   const currentSelection = await readState<CityLaunchSelectionState>(ctx, companyId, STATE_KEYS.cityLaunchSelection) ?? null;
   const artifactExists = closeout
     ? await resolveCityLaunchArtifactExists(ctx, companyId, config, closeout.artifactRef)
@@ -4479,7 +5821,7 @@ async function validateCityLaunchIssueCompletion(
   const assessment = assessCityLaunchCompletion({
     routineType,
     comments,
-    documentKeys: documentSummaries.map((entry) => entry.key),
+    documentKeys: [],
     artifactExists,
     currentSelection,
     issueId: issue.id,
@@ -4544,11 +5886,11 @@ async function scanRepoDrift(ctx: PluginContext, companyId: string, repoConfig: 
       title: `${repoConfig.projectName} local worktree drift`,
       description:
         `The shared ${repoConfig.projectName} workspace currently has ${status.changedFiles} local changes (${status.untrackedFiles} untracked). ` +
-        `This needs triage so repo specialists are not working off ambiguous local state.`,
+        `Treat this as managed execution risk: route new work into clean execution sessions where possible, and triage the drift without freezing the entire lane.`,
       projectName: repoConfig.projectName,
       assignee: repoConfig.implementationAgent,
       priority: "medium",
-      status: "todo",
+      status: "backlog",
       metadata: status,
     });
   } else {
@@ -4570,11 +5912,11 @@ async function scanRepoDrift(ctx: PluginContext, companyId: string, repoConfig: 
       title: `${repoConfig.projectName} branch drift`,
       description:
         `The primary workspace for ${repoConfig.projectName} is on branch ${status.branch} with ahead=${status.ahead} and behind=${status.behind}. ` +
-        `This needs review before autonomous execution can be trusted on this host.`,
+        `Treat this as managed execution risk: review and normalize the branch, but do not collapse unrelated execution if a clean workspace or reroute path exists.`,
       projectName: repoConfig.projectName,
       assignee: repoConfig.reviewAgent,
       priority: "high",
-      status: "todo",
+      status: "backlog",
       metadata: status,
     });
   } else {
@@ -4668,19 +6010,30 @@ async function pollGithubWorkflows(
   config: BlueprintAutomationConfig,
   companyId: string,
 ) {
-  if (!config.enableGithubPolling || !config.githubTokenRef || !config.githubOwner) {
+  if (!config.enableGithubPolling || !config.githubOwner) {
     return { polled: 0 };
   }
 
-  const token = await ctx.secrets.resolve(config.githubTokenRef);
+  const token = config.githubTokenRef
+    ? await ctx.secrets.resolve(config.githubTokenRef).catch(() => null)
+    : null;
   let polled = 0;
+  const errors: string[] = [];
 
   for (const repoConfig of config.repoCatalog ?? DEFAULT_REPO_CATALOG) {
-    const response = await fetchJson(
-      ctx,
-      `https://api.github.com/repos/${config.githubOwner}/${repoConfig.githubRepo}/actions/runs?per_page=3`,
-      token,
-    );
+    const url = `https://api.github.com/repos/${config.githubOwner}/${repoConfig.githubRepo}/actions/runs?per_page=3`;
+    let response: Record<string, unknown>;
+    try {
+      response = await fetchJson(ctx, url, token ?? undefined);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (token && /HTTP 401|HTTP 403/i.test(message)) {
+        response = await fetchJson(ctx, url);
+        errors.push(`${repoConfig.projectName}: retried GitHub workflow polling without token after auth failure.`);
+      } else {
+        throw error;
+      }
+    }
     const workflowRuns = Array.isArray(response.workflow_runs)
       ? response.workflow_runs.filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === "object")
       : [];
@@ -4690,7 +6043,7 @@ async function pollGithubWorkflows(
     }
   }
 
-  return { polled };
+  return { polled, errors };
 }
 
 async function runFullRepoScan(
@@ -4726,6 +6079,9 @@ async function runFullRepoScan(
   }
 
   const githubSummary = await pollGithubWorkflows(ctx, config, companyId);
+  if (Array.isArray((githubSummary as { errors?: string[] }).errors)) {
+    errors.push(...((githubSummary as { errors?: string[] }).errors ?? []));
+  }
   const summary = {
     reason,
     scannedAt: nowIso(),
@@ -5743,6 +7099,12 @@ async function registerActionHandlers(ctx: PluginContext) {
     return await buildAnalyticsOutputProof(ctx, config, company.id, params);
   });
 
+  ctx.actions.register(ACTION_KEYS.communityUpdatesReport, async (params) => {
+    const config = await getConfig(ctx);
+    const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
+    return await buildCommunityUpdatesOutputProof(ctx, config, company.id, params);
+  });
+
   ctx.actions.register(ACTION_KEYS.customerResearchReport, async (params) => {
     const config = await getConfig(ctx);
     const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
@@ -5914,17 +7276,46 @@ async function registerToolHandlers(ctx: PluginContext) {
       parametersSchema: {
         type: "object",
         properties: {
+          issueId: { type: "string" },
           sourceType: { type: "string" },
           sourceId: { type: "string" },
           resolutionStatus: { type: "string" },
           comment: { type: "string" },
         },
-        required: ["sourceType", "sourceId", "resolutionStatus", "comment"],
+        required: ["resolutionStatus", "comment"],
       },
     },
     async (params): Promise<ToolResult> => {
       const config = await getConfig(ctx);
       const company = await findCompany(ctx, config.companyName);
+      const issueId = asString((params as Record<string, unknown>).issueId);
+      if (issueId) {
+        const resolutionStatus =
+          asString((params as Record<string, unknown>).resolutionStatus) === "cancelled"
+            ? "cancelled"
+            : asString((params as Record<string, unknown>).resolutionStatus) === "blocked"
+              ? "blocked"
+              : "done";
+        const issue = await ctx.issues.get(issueId, company.id);
+        if (!issue) {
+          return {
+            content: `No issue found for ${issueId}.`,
+            data: { issueId, resolved: false },
+          };
+        }
+        await ctx.issues.createComment(
+          issue.id,
+          asString((params as Record<string, unknown>).comment) ?? "Resolved by Blueprint automation tool.",
+          company.id,
+        );
+        if (issue.status !== resolutionStatus) {
+          await ctx.issues.update(issue.id, { status: resolutionStatus }, company.id);
+        }
+        return {
+          content: `Resolved issue ${issue.id} by direct issue reference.`,
+          data: { issueId: issue.id, resolved: true, resolutionStatus },
+        };
+      }
       const result = await resolveManagedIssue(ctx, {
         companyId: company.id,
         sourceType: asString((params as Record<string, unknown>).sourceType) ?? "manual-signal",
@@ -5986,10 +7377,94 @@ async function registerToolHandlers(ctx: PluginContext) {
         company.id,
         params as Record<string, unknown>,
       );
+      const issueId = asString((params as Record<string, unknown>).issueId);
+      if (issueId) {
+        try {
+          await finalizeIssueWithProof(ctx, company.id, {
+            issueId,
+            issueComment: report.issueComment,
+            outcome: report.outcome,
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          report.errors.push(`Issue finalization failed: ${message}`);
+          report.success = false;
+          report.outcome = "blocked";
+          report.failureReason = [report.failureReason, message].filter(Boolean).join(" ");
+        }
+      }
       return {
         content: report.success
           ? `Generated ${cadence} analytics report with Notion and Slack outputs.`
           : `Analytics report writer blocked: ${report.failureReason || report.errors.join("; ") || "unknown error"}.`,
+        data: report,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.communityUpdatesReport,
+    {
+      displayName: "Generate Community Updates Report",
+      description:
+        "Create a deterministic Blueprint community update draft, write required proof artifacts, and return the issue closeout payload.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          cadence: { type: "string", enum: ["weekly", "ad_hoc"] },
+          companyName: { type: "string" },
+          issueId: { type: "string" },
+          headline: { type: "string" },
+          shippedThisWeek: { type: "array", items: { type: "string" } },
+          byTheNumbers: { type: "array", items: { type: "string" } },
+          whatWeLearned: { type: "array", items: { type: "string" } },
+          whatIsNext: { type: "array", items: { type: "string" } },
+        },
+        required: [
+          "cadence",
+          "headline",
+          "shippedThisWeek",
+          "whatWeLearned",
+          "whatIsNext",
+        ],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(
+        ctx,
+        asString((params as Record<string, unknown>).companyName) ?? config.companyName,
+      );
+      const cadence =
+        asString((params as Record<string, unknown>).cadence) === "ad_hoc"
+          ? "ad_hoc"
+          : "weekly";
+      const report = await buildCommunityUpdatesOutputProof(
+        ctx,
+        config,
+        company.id,
+        params as Record<string, unknown>,
+      );
+      const issueId = asString((params as Record<string, unknown>).issueId);
+      if (issueId) {
+        try {
+          await finalizeIssueWithProof(ctx, company.id, {
+            issueId,
+            issueComment: report.issueComment,
+            outcome: report.outcome,
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          report.errors.push(`Issue finalization failed: ${message}`);
+          report.success = false;
+          report.outcome = "blocked";
+          report.failureReason = [report.failureReason, message].filter(Boolean).join(" ");
+        }
+      }
+      return {
+        content: report.success
+          ? `Generated ${cadence === "weekly" ? "weekly" : "ad hoc"} community update draft with proof artifacts.`
+          : `Community update writer blocked: ${report.failureReason || report.errors.join("; ") || "unknown error"}.`,
         data: report,
       };
     },
@@ -6101,6 +7576,22 @@ async function registerToolHandlers(ctx: PluginContext) {
         company.id,
         params as Record<string, unknown>,
       );
+      const issueId = asString((params as Record<string, unknown>).issueId);
+      if (issueId) {
+        try {
+          await finalizeIssueWithProof(ctx, company.id, {
+            issueId,
+            issueComment: report.issueComment,
+            outcome: report.outcome,
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          report.errors.push(`Issue finalization failed: ${message}`);
+          report.success = false;
+          report.outcome = "blocked";
+          report.failureReason = [report.failureReason, message].filter(Boolean).join(" ");
+        }
+      }
       return {
         content: report.success
           ? "Generated customer research report with Notion and Slack outputs."
@@ -6170,6 +7661,22 @@ async function registerToolHandlers(ctx: PluginContext) {
         company.id,
         params as Record<string, unknown>,
       );
+      const issueId = asString((params as Record<string, unknown>).issueId);
+      if (issueId) {
+        try {
+          await finalizeIssueWithProof(ctx, company.id, {
+            issueId,
+            issueComment: report.issueComment,
+            outcome: report.outcome,
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          report.errors.push(`Issue finalization failed: ${message}`);
+          report.success = false;
+          report.outcome = "blocked";
+          report.failureReason = [report.failureReason, message].filter(Boolean).join(" ");
+        }
+      }
       return {
         content: report.success
           ? `Generated ${cadence} demand intel report with Notion and Slack outputs.`
@@ -6206,6 +7713,22 @@ async function registerToolHandlers(ctx: PluginContext) {
       const company = await findCompany(ctx, asString((params as Record<string, unknown>).companyName) ?? config.companyName);
       const cadence = asString((params as Record<string, unknown>).cadence) === "weekly" ? "weekly" : "daily";
       const report = await buildMarketIntelOutputProof(ctx, config, company.id, params as Record<string, unknown>);
+      const issueId = asString((params as Record<string, unknown>).issueId);
+      if (issueId) {
+        try {
+          await finalizeIssueWithProof(ctx, company.id, {
+            issueId,
+            issueComment: report.issueComment,
+            outcome: report.outcome,
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          report.errors.push(`Issue finalization failed: ${message}`);
+          report.success = false;
+          report.outcome = "blocked";
+          report.failureReason = [report.failureReason, message].filter(Boolean).join(" ");
+        }
+      }
       return {
         content: report.success
           ? `Generated ${cadence} market intel report with Notion and Slack outputs.`
@@ -7234,10 +8757,10 @@ async function runOpsQueueScanJob(ctx: PluginContext, companyId: string, config:
 
   const notionClient = createNotionClient({ token: notionToken });
   const workQueueItems = await queryWorkQueue(notionClient, {});
-  const opsRouting = getOpsRoutingConfig(config);
   let synced = 0;
 
   for (const item of workQueueItems) {
+    const assignee = routeWorkQueueAssignee(item, config);
     await upsertManagedIssue(ctx, {
       companyId,
       sourceType: "notion-work-queue",
@@ -7253,7 +8776,7 @@ async function runOpsQueueScanJob(ctx: PluginContext, companyId: string, config:
         `- Work Type: ${item.workType || "unknown"}`,
       ].join("\n"),
       projectName: mapQueueSystemToProject(item.system),
-      assignee: opsRouting.opsLead,
+      assignee,
       priority: mapQueuePriority(item.priority),
       status: "todo",
       signalUrl: item.url,
@@ -7263,7 +8786,7 @@ async function runOpsQueueScanJob(ctx: PluginContext, companyId: string, config:
         lifecycleStage: item.lifecycleStage,
         workType: item.workType,
       },
-      comment: "Synced from Notion Work Queue scan.",
+      comment: `Synced from Notion Work Queue scan and routed to ${assignee}.`,
       suppressRefreshComment: true,
     });
     synced += 1;
@@ -7279,6 +8802,9 @@ async function runOpsQueueScanJob(ctx: PluginContext, companyId: string, config:
 }
 
 async function runHandoffMonitorJob(ctx: PluginContext, companyId: string, config: BlueprintAutomationConfig) {
+  await healAgentExecutionTopology(ctx, companyId);
+  await rerouteUnavailableIssueOwners(ctx, companyId, config);
+  await maybeCatchUpMissedRoutines(ctx, companyId).catch(() => undefined);
   const [issues, agents] = await Promise.all([
     listAllIssues(ctx, companyId),
     listAgents(ctx, companyId),
@@ -7440,6 +8966,17 @@ const plugin: PaperclipPlugin = definePlugin({
         });
       }
       try {
+        await handleRoutineExecutionSignal(ctx, event);
+      } catch (error) {
+        ctx.logger.warn("activity.logged routine execution dispatch failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+      try {
         await handleChiefOfStaffActivitySignal(ctx, event);
       } catch (error) {
         ctx.logger.warn("activity.logged chief-of-staff wakeup failed", {
@@ -7510,12 +9047,16 @@ const plugin: PaperclipPlugin = definePlugin({
       const company = await findCompany(ctx, config.companyName);
       await enforceWorkspaceAdapterCooldowns(ctx, company.id);
     });
+    ctx.jobs.register(JOB_KEYS.executionDispatch, async () => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      await runExecutionDispatchJob(ctx, company.id, config);
+    });
     try {
       const config = await getConfig(ctx);
       const company = await findCompany(ctx, config.companyName);
       await enforceWorkspaceAdapterCooldowns(ctx, company.id);
-      await revalidateCityLaunchDoneIssues(ctx, company.id, config);
-      await runHandoffMonitorJob(ctx, company.id, config);
+      await healAgentExecutionTopology(ctx, company.id);
     } catch (error) {
       ctx.logger.warn("startup automation maintenance failed", {
         meta: {

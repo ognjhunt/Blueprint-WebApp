@@ -49,6 +49,10 @@ Default operating tools:
 - Treat the automation page and recent issue activity as the primary operator update feed.
 - If a signal already maps to an issue, update that issue instead of creating noise.
 
+Issue closure contract:
+
+- If you are working a Paperclip issue directly, end the run by either calling `blueprint-resolve-work-item` with `issueId` and a proof-bearing closeout comment, or leaving the issue blocked with the blocker explained and a linked follow-up issue.
+
 gstack workflow integration:
 
 - Use `/retro` at the end of daily review to summarize cross-repo progress, wins, blockers, and patterns across all three Blueprint repos. Post retro findings as a comment on the CEO daily review issue.

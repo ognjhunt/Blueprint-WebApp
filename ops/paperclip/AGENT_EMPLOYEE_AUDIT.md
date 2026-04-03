@@ -52,11 +52,11 @@ The main gap is not product-doctrine drift. The main gap is structural inconsist
 These agents currently have only `AGENTS.md`:
 
 - `webapp-codex`
-- `webapp-claude`
+- `webapp-review`
 - `pipeline-codex`
-- `pipeline-claude`
+- `pipeline-review`
 - `capture-codex`
-- `capture-claude`
+- `capture-review`
 
 They already have good repo-specific scopes and skills, but they are missing the full employee structure:
 
@@ -133,27 +133,27 @@ That should become mandatory for any new role-hire agent.
 
 - `webapp-codex`: Partial fit.
   Why: strong repo role, strong skills, good execution posture. Missing soul, handoff structure, and stage model.
-  Fix: add `Soul.md`, `Tools.md`, and `Heartbeat.md` in `ops/paperclip/blueprint-company/agents/webapp-codex/`; update `AGENTS.md` to read them before substantial runs; add explicit handoffs to `webapp-claude`, `blueprint-cto`, `buyer-solutions-agent`, `solutions-engineering-agent`, `site-catalog-agent`, and `conversion-agent`.
+  Fix: add `Soul.md`, `Tools.md`, and `Heartbeat.md` in `ops/paperclip/blueprint-company/agents/webapp-codex/`; update `AGENTS.md` to read them before substantial runs; add explicit handoffs to `webapp-review`, `blueprint-cto`, `buyer-solutions-agent`, `solutions-engineering-agent`, `site-catalog-agent`, and `conversion-agent`.
 
-- `webapp-claude`: Partial fit.
+- `webapp-review`: Partial fit.
   Why: strong review/planning role, but still not a full employee profile.
-  Fix: add `Soul.md`, `Tools.md`, and `Heartbeat.md` in `ops/paperclip/blueprint-company/agents/webapp-claude/`; update `AGENTS.md`; make explicit that it does not replace QA/release automation and instead interprets evidence from those systems.
+  Fix: add `Soul.md`, `Tools.md`, and `Heartbeat.md` in `ops/paperclip/blueprint-company/agents/webapp-review/`; update `AGENTS.md`; make explicit that it does not replace QA/release automation and instead interprets evidence from those systems.
 
 - `pipeline-codex`: Partial fit.
   Why: good implementation specialist, good anti-coupling language, but missing employee scaffolding.
-  Fix: add `Soul.md`, `Tools.md`, and `Heartbeat.md` in `ops/paperclip/blueprint-company/agents/pipeline-codex/`; add explicit interfaces with `pipeline-claude`, `capture-qa-agent`, `rights-provenance-agent`, and `beta-launch-commander`.
+  Fix: add `Soul.md`, `Tools.md`, and `Heartbeat.md` in `ops/paperclip/blueprint-company/agents/pipeline-codex/`; add explicit interfaces with `pipeline-review`, `capture-qa-agent`, `rights-provenance-agent`, and `beta-launch-commander`.
 
-- `pipeline-claude`: Partial fit.
+- `pipeline-review`: Partial fit.
   Why: good review role, but thin compared with the best agents.
-  Fix: add `Soul.md`, `Tools.md`, and `Heartbeat.md` in `ops/paperclip/blueprint-company/agents/pipeline-claude/`; define what counts as a real blocker vs a monitor-only concern.
+  Fix: add `Soul.md`, `Tools.md`, and `Heartbeat.md` in `ops/paperclip/blueprint-company/agents/pipeline-review/`; define what counts as a real blocker vs a monitor-only concern.
 
 - `capture-codex`: Partial fit.
   Why: good implementation posture and good contract language, but missing employee-style operating files.
-  Fix: add `Soul.md`, `Tools.md`, and `Heartbeat.md` in `ops/paperclip/blueprint-company/agents/capture-codex/`; make handoffs to `capture-claude`, `field-ops-agent`, and `capturer-success-agent` explicit.
+  Fix: add `Soul.md`, `Tools.md`, and `Heartbeat.md` in `ops/paperclip/blueprint-company/agents/capture-codex/`; make handoffs to `capture-review`, `field-ops-agent`, and `capturer-success-agent` explicit.
 
-- `capture-claude`: Partial fit.
+- `capture-review`: Partial fit.
   Why: useful planning/review role, but still a prompt-only specialist.
-  Fix: add `Soul.md`, `Tools.md`, and `Heartbeat.md` in `ops/paperclip/blueprint-company/agents/capture-claude/`; explicitly define how it interacts with rollout gates and cross-repo compatibility.
+  Fix: add `Soul.md`, `Tools.md`, and `Heartbeat.md` in `ops/paperclip/blueprint-company/agents/capture-review/`; explicitly define how it interacts with rollout gates and cross-repo compatibility.
 
 - `beta-launch-commander`: Strong fit.
   Why: exactly the right distinction between scripts doing checks and an agent interpreting release evidence.

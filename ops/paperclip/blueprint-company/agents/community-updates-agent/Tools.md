@@ -11,16 +11,18 @@
   Use when community sentiment, objections, or JTBD evidence meaningfully changes the update.
 
 ## Drafting Workflow Tools
+- the Blueprint deterministic community-updates writer
+  Use it to create the Notion draft, optional Nitrosend/Slack artifacts, and the final issue-ready proof comment in one step.
 - `notion-write-knowledge`
-  Use for the full weekly draft.
+  Use only when the deterministic writer is unavailable and you are explicitly repairing artifacts.
 - `notion-write-work-queue`
-  Use for the tracked review artifact.
+  Use only when the deterministic writer is unavailable and you are explicitly repairing artifacts.
 - `nitrosend-upsert-audience`
-  Use to maintain a draft-only `Blueprint Community` audience when Nitrosend is configured.
+  Use only when the deterministic writer is unavailable and you are explicitly repairing artifacts.
 - `nitrosend-create-campaign-draft`
-  Use to create the weekly email draft. Draft only.
+  Use only when the deterministic writer is unavailable and you are explicitly repairing artifacts.
 - `slack-post-digest`
-  Use for the internal `#growth` or `#ops` review-ready alert when configured.
+  Use only when the deterministic writer is unavailable and you are explicitly repairing artifacts.
 - `web-search`
   Use to refresh benchmark examples for changelog and product-update style.
 - [$humanizer](/Users/nijelhunt_1/.agents/skills/humanizer/SKILL.md)

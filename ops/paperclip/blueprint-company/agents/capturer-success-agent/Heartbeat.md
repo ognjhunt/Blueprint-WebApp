@@ -35,7 +35,7 @@
 **Activating → First Capture (target: <7 days)**
 - Suggest a nearby, low-complexity site for practice.
 - If struggling: offer a walkthrough of the capture flow (step-by-step).
-- If device issues: route to capture-codex/capture-claude for technical support.
+- If device issues: route to capture-codex/capture-review for technical support.
 
 **First Capture QA Failure**
 - Translate QA feedback into specific, actionable recapture instructions.

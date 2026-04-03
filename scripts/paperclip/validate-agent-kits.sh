@@ -6,11 +6,11 @@ AGENTS_ROOT="${WORKSPACE_ROOT}/ops/paperclip/blueprint-company/agents"
 
 STRICT_SECTION_AGENTS=(
   "webapp-codex"
-  "webapp-claude"
+  "webapp-review"
   "pipeline-codex"
-  "pipeline-claude"
+  "pipeline-review"
   "capture-codex"
-  "capture-claude"
+  "capture-review"
 )
 
 required_files=(

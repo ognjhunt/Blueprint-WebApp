@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildLocalQuotaFallbackDescriptor,
   buildClaudeFallbackAdapterConfig,
@@ -16,9 +16,22 @@ import {
   resolveHermesFallbackModels,
   resolveQuotaCooldownUntil,
   selectWorkspaceQuotaFallbackTargets,
+  syncExecutionPolicyToAdapter,
 } from "./quota-fallback.js";
 
 describe("quota fallback helpers", () => {
+  beforeEach(() => {
+    vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL", DEFAULT_HERMES_FALLBACK_MODEL);
+    vi.stubEnv(
+      "BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS",
+      DEFAULT_HERMES_FALLBACK_MODELS.join(","),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("detects common quota and rate-limit failures", () => {
     expect(isQuotaOrRateLimitFailure("Claude run failed: subtype=success: You've hit your limit · resets 8pm (UTC)")).toBe(true);
     expect(isQuotaOrRateLimitFailure("429 RESOURCE_EXHAUSTED: You exceeded your current quota and billing details.")).toBe(true);
@@ -213,7 +226,7 @@ describe("quota fallback helpers", () => {
             adapterConfig: { cwd: "/tmp/webapp", model: "gpt-5.4-mini" },
           },
           {
-            id: "pipeline-claude",
+            id: "pipeline-review",
             adapterType: "claude_local",
             adapterConfig: { cwd: "/tmp/pipeline", model: "claude-sonnet-4-6" },
           },
@@ -244,5 +257,42 @@ describe("quota fallback helpers", () => {
     expect(getWorkspaceAdapterCooldownKey("/tmp/webapp", "claude_local")).toBe(
       "/tmp/webapp::claude_local",
     );
+  });
+
+  it("syncs execution policy order to the active adapter", () => {
+    expect(
+      syncExecutionPolicyToAdapter(
+        {
+          executionPolicy: {
+            mode: "prefer_available",
+            preferredAdapterTypes: ["claude_local", "hermes_local", "opencode_local", "codex_local"],
+            compatibleAdapterTypes: ["claude_local", "hermes_local", "opencode_local", "codex_local"],
+            perAdapterConfig: {
+              codex_local: { model: "gpt-5.4-mini" },
+            },
+          },
+        },
+        "codex_local",
+      ),
+    ).toEqual({
+      executionPolicy: {
+        mode: "prefer_available",
+        preferredAdapterTypes: ["codex_local", "claude_local", "hermes_local", "opencode_local"],
+        compatibleAdapterTypes: ["codex_local", "claude_local", "hermes_local", "opencode_local"],
+        perAdapterConfig: {
+          codex_local: { model: "gpt-5.4-mini" },
+        },
+      },
+    });
+  });
+
+  it("creates a fallback execution policy when one is missing", () => {
+    expect(syncExecutionPolicyToAdapter({}, "hermes_local")).toEqual({
+      executionPolicy: {
+        mode: "prefer_available",
+        preferredAdapterTypes: ["hermes_local", "claude_local", "codex_local", "opencode_local"],
+        compatibleAdapterTypes: ["hermes_local", "claude_local", "codex_local", "opencode_local"],
+      },
+    });
   });
 });

@@ -41,3 +41,8 @@ Blueprint automation integration:
 
 - Use the local Blueprint automation plugin tools for Notion, Slack, and queue reads/writes.
 - Treat generated Notion and Slack artifacts as proof, not assumptions.
+
+Issue closure contract:
+
+- If you are working a Paperclip issue directly, end the run by either calling `blueprint-resolve-work-item` with `issueId` and a proof-bearing closeout comment, or leaving the issue blocked with the blocker explained and a linked follow-up issue.
+- When a Blueprint report or queue tool accepts `issueId`, always pass the current Paperclip issue id so the plugin can attach proof and close or block the issue automatically.

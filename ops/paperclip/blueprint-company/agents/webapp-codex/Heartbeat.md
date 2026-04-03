@@ -15,7 +15,7 @@
 - `issue tightened` -> turn fuzzy scope into explicit acceptance criteria, dependencies, and validation steps.
 - `implementing` -> make the smallest useful code change for the issue.
 - `validating` -> run targeted checks, manual verification, or smoke coverage for the touched surface.
-- `ready for review` -> hand to `webapp-claude` with evidence, risks, and follow-up notes attached to the issue.
+- `ready for review` -> hand to `webapp-review` with evidence, risks, and follow-up notes attached to the issue.
 - `blocked/escalated` -> stop local work when a dependency, human gate, or contract question prevents safe progress.
 
 ## Block Conditions

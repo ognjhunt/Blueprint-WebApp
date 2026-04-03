@@ -20,8 +20,8 @@ BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE:-au
 BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES:-0}"
 BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL:-gpt-5.4-mini}"
 BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT:-xhigh}"
-BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL:-opencode/minimax-m2.5-free}"
-BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL:-opencode/minimax-m2.5-free}"
+BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL:-google/gemini-2.5-flash}"
+BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL:-openrouter/qwen/qwen3-coder-480b:free}"
 BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-qwen/qwen3.6-plus:free}"
 OPENCODE_NO_TTY="${OPENCODE_NO_TTY:-1}"
 
@@ -62,11 +62,14 @@ const fallbackCodexModel =
 const fallbackCodexReasoningEffort =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT ?? "xhigh";
 const opencodeModel =
-  process.env.BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL ?? "opencode/minimax-m2.5-free";
+  process.env.BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL ?? "google/gemini-2.5-flash";
 const opencodeFallbackModel =
-  process.env.BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL ?? "opencode/minimax-m2.5-free";
+  process.env.BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL ?? "openrouter/qwen/qwen3-coder-480b:free";
 const hermesFallbackModel =
   process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL ?? "qwen/qwen3.6-plus:free";
+const forceAdapterSync = /^(1|true|yes)$/i.test(
+  process.env.BLUEPRINT_PAPERCLIP_FORCE_ADAPTER_SYNC ?? "",
+);
 const hermesFallbackModels = normalizeModelList([
   ...parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS),
   hermesFallbackModel,
@@ -167,12 +170,23 @@ function hasSuffix(value) {
 }
 
 function pickCanonical(rows, exactKey) {
+  const aliasMap = {
+    "docs-agent": ["documentation-agent"],
+  };
+  const aliases = aliasMap[exactKey] ?? [];
   const matches = rows.filter((row) => {
     const urlKey = typeof row.urlKey === "string" ? row.urlKey : "";
-    return urlKey === exactKey || (!hasSuffix(urlKey) && !hasSuffix(row.name) && urlKey.startsWith(exactKey));
+    return urlKey === exactKey
+      || aliases.includes(urlKey)
+      || (!hasSuffix(urlKey) && !hasSuffix(row.name) && urlKey.startsWith(exactKey));
   });
   const preferred = matches.find((row) => row.urlKey === exactKey);
-  return preferred ?? matches.find((row) => !hasSuffix(row.urlKey) && !hasSuffix(row.name)) ?? matches[0] ?? null;
+  const aliasPreferred = matches.find((row) => aliases.includes(row.urlKey));
+  return preferred
+    ?? aliasPreferred
+    ?? matches.find((row) => !hasSuffix(row.urlKey) && !hasSuffix(row.name))
+    ?? matches[0]
+    ?? null;
 }
 
 function pickMatching(rows, exactKey) {
@@ -201,11 +215,11 @@ const ROUTINE_TITLE_OVERRIDES = {
   "chief-of-staff-continuous-loop": "Chief of Staff Continuous Loop",
   "cto-cross-repo-triage": "CTO Cross-Repo Triage",
   "webapp-autonomy-loop": "WebApp Autonomy Loop",
-  "webapp-claude-review-loop": "WebApp Claude Review Loop",
+  "webapp-review-loop": "WebApp Review Loop",
   "pipeline-autonomy-loop": "Pipeline Autonomy Loop",
-  "pipeline-claude-review-loop": "Pipeline Claude Review Loop",
+  "pipeline-review-loop": "Pipeline Review Loop",
   "capture-autonomy-loop": "Capture Autonomy Loop",
-  "capture-claude-review-loop": "Capture Claude Review Loop",
+  "capture-review-loop": "Capture Review Loop",
   "ops-lead-morning": "Ops Lead Morning",
   "ops-lead-afternoon": "Ops Lead Afternoon",
   "intake-agent-hourly": "Intake Agent Hourly",
@@ -284,11 +298,11 @@ function inferRoutineAgentKey(routineKey, routineConfig) {
     [/^ceo-/, "blueprint-ceo"],
     [/^cto-/, "blueprint-cto"],
     [/^webapp-autonomy-loop$/, "webapp-codex"],
-    [/^webapp-claude-review-loop$/, "webapp-claude"],
+    [/^webapp-review-loop$/, "webapp-review"],
     [/^pipeline-autonomy-loop$/, "pipeline-codex"],
-    [/^pipeline-claude-review-loop$/, "pipeline-claude"],
+    [/^pipeline-review-loop$/, "pipeline-review"],
     [/^capture-autonomy-loop$/, "capture-codex"],
-    [/^capture-claude-review-loop$/, "capture-claude"],
+    [/^capture-review-loop$/, "capture-review"],
   ];
 
   const match = mappings.find(([pattern]) => pattern.test(routineKey));
@@ -301,11 +315,11 @@ const AGENT_DEFAULT_PROJECT_KEYS = {
   "notion-manager-agent": "blueprint-executive-ops",
   "blueprint-cto": "blueprint-webapp",
   "webapp-codex": "blueprint-webapp",
-  "webapp-claude": "blueprint-webapp",
+  "webapp-review": "blueprint-webapp",
   "pipeline-codex": "blueprint-capture-pipeline",
-  "pipeline-claude": "blueprint-capture-pipeline",
+  "pipeline-review": "blueprint-capture-pipeline",
   "capture-codex": "blueprint-capture",
-  "capture-claude": "blueprint-capture",
+  "capture-review": "blueprint-capture",
   "ops-lead": "blueprint-executive-ops",
   "intake-agent": "blueprint-webapp",
   "capture-qa-agent": "blueprint-capture-pipeline",
@@ -424,11 +438,11 @@ function buildInvestorRelationsRoutineDescription() {
 function buildCommunityUpdatesRoutineDescription() {
   return [
     "Read ops/paperclip/programs/community-updates-agent-program.md and the humanizer skill before drafting.",
-    "Ground on the current issue and gather the week's real shipped changes, community signals, and truthful supporting metrics from Paperclip, analytics, Firestore, and Firehose.",
-    "Draft the weekly update with notion-write-knowledge and create the review artifact with notion-write-work-queue.",
-    "When Nitrosend is configured, maintain a draft-only Blueprint Community audience and create the weekly campaign draft. Do not live send or publish.",
-    "When Slack is configured, post an internal #growth digest announcing the draft is ready for review.",
-    "PATCH the current issue to done only when the proof artifacts exist and every claim maps back to a real source. Otherwise PATCH it to blocked with the exact missing proof or metric gap.",
+    "Investigate the just-finished week first, then synthesize the findings into headline, shippedThisWeek, byTheNumbers, whatWeLearned, and whatIsNext.",
+    `Call POST ${paperclipApiUrl}/api/plugins/blueprint.automation/actions/community-updates-report with JSON body {"params":{"cadence":"weekly"...}}.`,
+    "On this local trusted Paperclip host, call the plugin action route directly by plugin key and X-Paperclip-Run-Id. Do not waste time resolving the plugin id. Do not send the agent bearer token to the plugin action route if it returns Board access required.",
+    "After the action returns, PATCH the current issue to done when data.outcome is done; otherwise PATCH it to blocked.",
+    "Use data.issueComment as the issue comment so the final state always contains proof links or the exact failure reason.",
   ].join(" ");
 }
 
@@ -875,6 +889,37 @@ function chooseAdapterForAgent(desired, requestedMode, workspaceAvailability) {
   return desired;
 }
 
+function asPlainObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function stableStringify(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableStringify(entry)).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => `${JSON.stringify(key)}:${stableStringify(entry)}`);
+    return `{${entries.join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function shouldPreserveFixedLiveAdapter(agent, workspaceAvailability) {
+  if (forceAdapterSync) return false;
+  const runtimeConfig = asPlainObject(agent?.runtimeConfig);
+  const executionPolicy = asPlainObject(runtimeConfig.executionPolicy);
+  if (executionPolicy.mode !== "fixed") return false;
+
+  const adapterType = typeof agent?.adapterType === "string" ? agent.adapterType : "";
+  if (!adapterType) return false;
+
+  const availability = workspaceAvailability?.[adapterType];
+  if (!availability) return true;
+  return availability.status === "pass" || availability.status === "warn";
+}
+
 const config = yaml.load(await fs.readFile(paperclipConfigPath, "utf8")) ?? {};
 const yamlAgents = config.agents ?? {};
 const yamlRoutines = config.routines ?? {};
@@ -934,23 +979,51 @@ for (const [agentKey, desired] of Object.entries(desiredAgents)) {
     console.warn(`Agent not found in Paperclip: ${agentKey}`);
     continue;
   }
-  const existingRuntimeConfig =
-    agent.runtimeConfig && typeof agent.runtimeConfig === "object" ? agent.runtimeConfig : {};
-  const nextRuntimeConfig = {
-    ...existingRuntimeConfig,
-    executionPolicy: buildExecutionPolicyForAgent(yamlAgentConfig),
-  };
-  delete nextRuntimeConfig.executionProfile;
-  await fetchJson(`/api/agents/${agent.id}`, {
-    method: "PATCH",
-    body: JSON.stringify({
-      adapterType: desired.adapterType,
-      replaceAdapterConfig: true,
-      adapterConfig: desired.adapterConfig,
-      runtimeConfig: nextRuntimeConfig,
-    }),
-  });
-  if (agent.adapterType !== desired.adapterType) {
+  const currentAdapterConfig = asPlainObject(agent.adapterConfig);
+  const existingRuntimeConfig = asPlainObject(agent.runtimeConfig);
+  const preserveFixedLiveAdapter = shouldPreserveFixedLiveAdapter(
+    agent,
+    workspaceAvailability[currentAdapterConfig.cwd ?? desired.adapterConfig.cwd] ?? {},
+  );
+  const effectiveDesired = preserveFixedLiveAdapter
+    ? {
+      adapterType: agent.adapterType,
+      adapterConfig: currentAdapterConfig,
+    }
+    : desired;
+
+  const nextRuntimeConfig = preserveFixedLiveAdapter
+    ? existingRuntimeConfig
+    : {
+      ...existingRuntimeConfig,
+      executionPolicy: buildExecutionPolicyForAgent(yamlAgentConfig),
+    };
+  if (!preserveFixedLiveAdapter) {
+    delete nextRuntimeConfig.executionProfile;
+  }
+
+  const agentNeedsPatch =
+    agent.adapterType !== effectiveDesired.adapterType
+    || stableStringify(currentAdapterConfig) !== stableStringify(effectiveDesired.adapterConfig)
+    || stableStringify(existingRuntimeConfig) !== stableStringify(nextRuntimeConfig);
+
+  if (agentNeedsPatch) {
+    await fetchJson(`/api/agents/${agent.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        adapterType: effectiveDesired.adapterType,
+        replaceAdapterConfig: true,
+        adapterConfig: effectiveDesired.adapterConfig,
+        runtimeConfig: nextRuntimeConfig,
+      }),
+    });
+  } else if (preserveFixedLiveAdapter) {
+    console.log(
+      `[paperclip] Preserved fixed live adapter override for ${agentKey} -> ${agent.adapterType}`,
+    );
+  }
+
+  if (agentNeedsPatch && agent.adapterType !== effectiveDesired.adapterType) {
     await fetchJson(`/api/agents/${agent.id}/runtime-state/reset-session`, {
       method: "POST",
       body: JSON.stringify({}),

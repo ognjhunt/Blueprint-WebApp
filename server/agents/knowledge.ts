@@ -188,14 +188,20 @@ async function walkMarkdownFiles(rootDir: string, relativePrefix = ""): Promise<
   return results.sort((a, b) => a.localeCompare(b));
 }
 
-async function readRepoDocExcerpt(relativeDocPath: string) {
+async function readRepoDocExcerpt(
+  relativeDocPath: string,
+  options?: {
+    compact?: boolean;
+  },
+) {
   const workspaceRoot = process.cwd();
   const absolutePath = path.join(workspaceRoot, relativeDocPath);
   try {
     const content = await fs.readFile(absolutePath, "utf8");
+    const maxLength = options?.compact ? 900 : 4000;
     return {
       path: relativeDocPath,
-      excerpt: content.slice(0, 4000).trim(),
+      excerpt: content.slice(0, maxLength).trim(),
     };
   } catch {
     return {
@@ -404,6 +410,9 @@ export async function getStartupContextOptions() {
 export async function resolveStartupContext(
   metadata?: Record<string, unknown>,
   queryText = "",
+  options?: {
+    compact?: boolean;
+  },
 ) {
   const normalized = normalizeMetadata(metadata);
   const startupPacks = await getStartupPacksByIds(normalized.startupPackIds || []);
@@ -431,20 +440,25 @@ export async function resolveStartupContext(
     startupPacks,
     normalized.operatorNotes || "",
   );
+  const compact = options?.compact === true;
   const repoDocs = await Promise.all(
-    mergedRepoDocPaths.slice(0, 8).map(readRepoDocExcerpt),
+    mergedRepoDocPaths
+      .slice(0, compact ? 4 : 8)
+      .map((docPath) => readRepoDocExcerpt(docPath, { compact })),
   );
-  const attachedDocuments = await getOpsDocumentsByIds(mergedDocumentIds.slice(0, 10));
+  const attachedDocuments = await getOpsDocumentsByIds(
+    mergedDocumentIds.slice(0, compact ? 4 : 10),
+  );
   const blueprintContexts = (
     await Promise.all(
       mergedBlueprintIds
-        .slice(0, 6)
+        .slice(0, compact ? 3 : 6)
         .map((blueprintId) => loadBlueprintContext(blueprintId, queryText)),
     )
   ).filter(Boolean);
 
   return {
-    mode: "interactive_operator_attached",
+    mode: compact ? "interactive_operator_attached_compact" : "interactive_operator_attached",
     operator_notes: mergedOperatorNotes,
     repo_docs: repoDocs,
     blueprint_contexts: blueprintContexts,
@@ -455,8 +469,11 @@ export async function resolveStartupContext(
       extracted_summary: document.extracted_summary || "",
       extraction_status: document.extraction_status,
     })),
-    external_sources: mergedExternalSources,
-    creative_contexts: mergedCreativeContexts,
+    external_sources: mergedExternalSources.slice(0, compact ? 6 : mergedExternalSources.length),
+    creative_contexts: mergedCreativeContexts.slice(
+      0,
+      compact ? 4 : mergedCreativeContexts.length,
+    ),
     attached_startup_packs: startupPacks.map((pack) => ({
       id: pack.id,
       name: pack.name,

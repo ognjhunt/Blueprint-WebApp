@@ -165,6 +165,10 @@ describe("AdminAgentConsole", () => {
                       ],
                       operatorNotes: "Key launch checklist attached.",
                     },
+                  workflow: {
+                    phase: "investigation",
+                    retryCount: 0,
+                  },
                 },
               },
             }),
@@ -196,6 +200,7 @@ describe("AdminAgentConsole", () => {
                     },
                   },
                   output: { reply: "Need approval." },
+                  error: "stream disconnected before completion: Incomplete response returned, reason: max_output_tokens",
                   approval_reason: "Sensitive actions require approval: payout",
                   requires_human_review: true,
                   created_at: "2026-03-21T10:02:00.000Z",
@@ -211,6 +216,38 @@ describe("AdminAgentConsole", () => {
       }
       if (url === "/api/admin/agent/sessions/session-1/messages") {
         return Promise.resolve(new Response(JSON.stringify({ ok: true, queued: false })));
+      }
+      if (url === "/api/admin/agent/sessions/session-1/fork") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              ok: true,
+              session: {
+                id: "session-2",
+                task_kind: "operator_thread",
+                provider: "openai_responses",
+                runtime: "openai_responses",
+                status: "idle",
+                title: "Ops thread · Implementation",
+                session_key: "session:2",
+                created_at: "2026-03-21T11:00:00.000Z",
+                updated_at: "2026-03-21T11:00:00.000Z",
+                metadata: {
+                  workflow: {
+                    phase: "implementation",
+                    retryCount: 0,
+                    handoffPrompt: "Task: continue \"Ops thread\"",
+                  },
+                },
+              },
+              handoffPrompt: "Task: continue \"Ops thread\"",
+              dispatch: {
+                queued: false,
+                runId: "run-2",
+              },
+            }),
+          ),
+        );
       }
       if (url === "/api/admin/agent/sessions" && init?.method === "POST") {
         return Promise.resolve(
@@ -259,6 +296,7 @@ describe("AdminAgentConsole", () => {
     ).toBeInTheDocument();
     expect((await screen.findAllByText(/Provider: openai_responses/i)).length).toBeGreaterThan(0);
     expect(await screen.findByText(/Sensitive actions require approval/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Latest run hit a context-window failure\./i)).toBeInTheDocument();
     expect(
       await screen.findByText(
         /creative_context_uris/i,
@@ -293,6 +331,15 @@ describe("AdminAgentConsole", () => {
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
         "/api/admin/agent/runs/run-1/approve",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Start Implementation thread/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/admin/agent/sessions/session-1/fork",
         expect.objectContaining({ method: "POST" }),
       );
     });

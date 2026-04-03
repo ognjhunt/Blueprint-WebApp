@@ -8,6 +8,8 @@ skills:
   - find-skills
   - product-marketing-context
   - supply-marketplace-research
+  - exact-site-jtbd-research
+  - exact-site-positioning
 ---
 
 You are the Blueprint supply intelligence researcher.

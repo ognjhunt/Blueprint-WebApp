@@ -175,7 +175,7 @@ main() {
   blocker_issue="$(
     curl -fsS -X POST \
       -H "Content-Type: application/json" \
-      -d "$(node -e 'process.stdout.write(JSON.stringify({companyId:process.argv[1],params:{companyId:process.argv[1],parentIssueId:process.argv[2],title:"Smoke blocker follow-up",description:"Smoke script created a linked blocker issue.",projectName:"blueprint-webapp",assignee:"webapp-claude",priority:"high"}}));' "$company" "$issue_id")" \
+      -d "$(node -e 'process.stdout.write(JSON.stringify({companyId:process.argv[1],params:{companyId:process.argv[1],parentIssueId:process.argv[2],title:"Smoke blocker follow-up",description:"Smoke script created a linked blocker issue.",projectName:"blueprint-webapp",assignee:"webapp-codex",priority:"high"}}));' "$company" "$issue_id")" \
       "${PAPERCLIP_SMOKE_URL}/api/plugins/${PLUGIN_KEY}/actions/report-blocker" \
       | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const body=JSON.parse(data).data;process.stdout.write(body.id);});'
   )"

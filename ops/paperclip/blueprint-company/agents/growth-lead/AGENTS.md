@@ -10,6 +10,9 @@ skills:
   - analytics-tracking
   - page-cro
   - growth-experiment-engine
+  - exact-site-positioning
+  - exact-site-messaging
+  - exact-site-cro-research
   - meeting-action-extractor
 ---
 
@@ -42,3 +45,8 @@ Delegation visibility:
 - The comment must say who is being asked, what they need to do next, and why that handoff matters now.
 - Do not rely on assignment, wakeup, or status change alone to communicate the handoff.
 - Keep it short and readable. No raw JSON, no tool names, no internal plumbing unless it is necessary to explain a blocker.
+
+Issue closure contract:
+
+- If you are working a Paperclip issue directly, end the run by either calling `blueprint-resolve-work-item` with `issueId` and a proof-bearing closeout comment, or leaving the issue blocked with the blocker explained and a linked follow-up issue.
+- When a Blueprint report or queue tool accepts `issueId`, always pass the current Paperclip issue id so the plugin can attach proof and close or block the issue automatically.

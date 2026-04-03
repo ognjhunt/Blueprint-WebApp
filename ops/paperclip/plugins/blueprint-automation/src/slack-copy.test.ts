@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildAgentRunFailureSlackCopy,
   buildAgentConversationSlackCopy,
   buildManagerIssueSlackCopy,
   buildManagedIssueSlackCopy,
@@ -7,6 +8,7 @@ import {
   formatAgentName,
   formatIssuePriority,
   formatIssueStatus,
+  formatOwnerLabel,
   shouldPostManagerIssueEventToSlack,
 } from "./slack-copy.js";
 
@@ -26,7 +28,7 @@ describe("slack alert copy", () => {
     expect(copy.summary).toContain(
       "What happened: The shared blueprint-webapp workspace has local changes and needs a quick review before more automation runs there.",
     );
-    expect(copy.summary).toContain("Owner: webapp codex");
+    expect(copy.summary).toContain("Owner: WebApp Codex");
     expect(copy.summary).not.toContain(expect.stringContaining("Fingerprint"));
   });
 
@@ -50,7 +52,8 @@ describe("slack alert copy", () => {
 
   it("normalizes helper labels used by Slack summaries", () => {
     expect(cleanIssueTitle("[Handoff] work-request: QA review")).toBe("work-request: QA review");
-    expect(formatAgentName("pipeline-claude")).toBe("pipeline claude");
+    expect(formatAgentName("pipeline-review")).toBe("Pipeline Review");
+    expect(formatOwnerLabel("345f4810-a187-4e0e-8381-1da3f953fbaf")).toBe("Assigned owner");
     expect(formatIssuePriority("high")).toBe("High");
     expect(formatIssueStatus("in_review")).toBe("In review");
   });
@@ -126,13 +129,51 @@ describe("slack alert copy", () => {
       issueTitle: "WebApp Codex Bootstrap",
       status: "blocked",
       priority: "high",
-      owner: "webapp codex",
+      owner: "webapp-codex",
     });
 
     expect(copy.title).toBe("Manager update: issue is blocked");
     expect(copy.summary).toContain("What happened: An active Paperclip issue is now blocked.");
     expect(copy.summary).toContain("Task: WebApp Codex Bootstrap");
-    expect(copy.summary).toContain("Owner: webapp codex");
+    expect(copy.summary).toContain("Owner: WebApp Codex");
     expect(copy.summary).toContain("Next move: Create the unblock path or delegate the blocker explicitly.");
+  });
+
+  it("adds a fresh-thread recommendation for context-window failures", () => {
+    const copy = buildAgentRunFailureSlackCopy({
+      failedAgentId: "webapp-codex",
+      issueId: "19bea205-c75d-47c4-8eaa-298a5c36aa4f",
+      error: "Codex ran out of room in the model's context window. Start a new thread or clear earlier history before retrying.",
+    });
+
+    expect(copy.title).toBe("Manager update: agent run failed");
+    expect(copy.summary).toContain("What happened: WebApp Codex hit a run failure while working an issue.");
+    expect(copy.summary).toContain("Issue: 19bea205-c75d-47c4-8eaa-298a5c36aa4f");
+    expect(copy.summary).toContain(
+      "Next move: Start a fresh thread with a compressed handoff, retry once there, then split or reroute the work if it fails again.",
+    );
+  });
+
+  it("adds a fresh-thread recommendation for max-output-token failures", () => {
+    const copy = buildAgentRunFailureSlackCopy({
+      failedAgentId: "webapp-codex",
+      issueId: "75c3b5a5-bc51-46ee-8c19-dada7adf166f",
+      error: "stream disconnected before completion: Incomplete response returned, reason: max_output_tokens",
+    });
+
+    expect(copy.summary).toContain(
+      "Next move: Start a fresh thread with a compressed handoff, retry once there, then split or reroute the work if it fails again.",
+    );
+  });
+
+  it("keeps generic next steps for other agent run failures", () => {
+    const copy = buildAgentRunFailureSlackCopy({
+      failedAgentId: "pipeline-review",
+      error: "Provider timeout while waiting for tool output",
+    });
+
+    expect(copy.summary).toContain(
+      "Next move: Decide whether to retry, reroute, or surface a blocker issue before the work stalls.",
+    );
   });
 });

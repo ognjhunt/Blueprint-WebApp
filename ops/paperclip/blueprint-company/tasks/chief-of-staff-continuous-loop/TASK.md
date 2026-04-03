@@ -17,6 +17,7 @@ Each run must:
 - keep work aligned with Blueprint's capture-first, world-model-product-first, provenance-truthful doctrine
 - reduce founder coordination load without crossing human gates for strategy, budget, rights/privacy, commercialization, legal, or policy decisions
 - leave the queue cleaner, clearer, and more truthful than it was at the start of the cycle
+- when you conclude a manager-owned issue, use `blueprint-resolve-work-item` with `issueId` so closure is recorded explicitly
 
 Slack visibility:
 

@@ -103,6 +103,11 @@ function asDate(value?: string | null) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function resolveReportDate(requestedDate: string | undefined, issue: Pick<Issue, "createdAt">) {
+  if (requestedDate) return requestedDate;
+  return etDateString(asDate(issue.createdAt) ?? new Date());
+}
+
 function compareDesc(left?: string | null, right?: string | null) {
   const leftMs = asDate(left)?.getTime() ?? 0;
   const rightMs = asDate(right)?.getTime() ?? 0;
@@ -390,7 +395,6 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const requestedKind = normalizeKind(args.get("kind"));
   const issueId = args.get("issue-id");
-  const date = args.get("date") ?? etDateString();
   const dryRun = args.get("dry-run") === "true";
   const skipNotion = dryRun || args.get("skip-notion") === "true";
   const noSlack = dryRun || args.get("no-slack") === "true";
@@ -418,6 +422,7 @@ async function main() {
   ]);
 
   const kind = requestedKind ?? inferKindFromIssueTitle(issue.title) ?? "morning";
+  const date = resolveReportDate(args.get("date"), issue);
 
   const assigneeNameById = new Map(
     agents.map((agent) => [agent.id, agent.name?.trim() || agent.urlKey || agent.id] as const),

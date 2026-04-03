@@ -54,11 +54,11 @@ Every canonical agent directory under `ops/paperclip/blueprint-company/agents/` 
 - The validator enforces the four-file kit for every canonical agent directory.
 - The validator enforces the full section-level employee kit for the modernized engineering specialists:
   - `webapp-codex`
-  - `webapp-claude`
+  - `webapp-review`
   - `pipeline-codex`
-  - `pipeline-claude`
+  - `pipeline-review`
   - `capture-codex`
-  - `capture-claude`
+  - `capture-review`
 
 ## Adding New Agents
 When adding a new canonical hire:
