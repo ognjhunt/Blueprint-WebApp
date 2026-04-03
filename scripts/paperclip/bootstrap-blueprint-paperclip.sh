@@ -121,6 +121,20 @@ paperclip_public_url_is_remote() {
   return 0
 }
 
+github_cli_ready_for_webhooks() {
+  if ! command -v gh >/dev/null 2>&1; then
+    echo "Skipping GitHub webhook setup: gh CLI is not installed."
+    return 1
+  fi
+
+  if ! gh auth status >/dev/null 2>&1; then
+    echo "Skipping GitHub webhook setup: gh CLI is not authenticated on this host."
+    return 1
+  fi
+
+  return 0
+}
+
 spawn_paperclip_background() {
   local action="$1"
   local runner_command=""
@@ -249,7 +263,8 @@ main() {
   "$PLUGIN_CONFIGURE_SCRIPT"
   if [ "${BLUEPRINT_PAPERCLIP_AUTO_SETUP_GITHUB_WEBHOOKS:-1}" = "1" ] \
     && [ -n "${BLUEPRINT_PAPERCLIP_GITHUB_WEBHOOK_SECRET:-}" ] \
-    && paperclip_public_url_is_remote; then
+    && paperclip_public_url_is_remote \
+    && github_cli_ready_for_webhooks; then
     "$WEBHOOK_SETUP_SCRIPT"
   fi
   echo "Paperclip is running at ${PAPERCLIP_PUBLIC_URL}"
