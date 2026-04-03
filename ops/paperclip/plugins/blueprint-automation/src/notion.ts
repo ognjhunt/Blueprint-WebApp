@@ -88,7 +88,32 @@ export interface WorkQueueQueryItem {
   dueDate?: string;
   lastStatusChange?: string;
   escalateAfter?: string;
+  lastEditedTime?: string;
   naturalKey: string;
+}
+
+function normalizeScanIdentityPart(value: string | undefined) {
+  return (value ?? "")
+    .normalize("NFKC")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+export function canonicalWorkQueueScanKey(item: Pick<WorkQueueQueryItem, "title" | "system" | "workType" | "naturalKey">) {
+  const naturalKeyParts = (item.naturalKey ?? "")
+    .split("::")
+    .map((part) => normalizeScanIdentityPart(part))
+    .filter(Boolean);
+  if (naturalKeyParts.length > 0) {
+    return naturalKeyParts.join("::");
+  }
+
+  return [
+    normalizeScanIdentityPart(item.title),
+    normalizeScanIdentityPart(item.system),
+    normalizeScanIdentityPart(item.workType),
+  ].join("::");
 }
 
 export interface KnowledgeEntry {
@@ -678,12 +703,52 @@ export async function queryWorkQueue(client: Client, filters: WorkQueueQuery): P
     dueDate: asString(page?.properties?.["Due Date"]?.date?.start),
     lastStatusChange: asString(page?.properties?.["Last Status Change"]?.date?.start),
     escalateAfter: asString(page?.properties?.["Escalate After"]?.date?.start),
+    lastEditedTime: asString(page?.last_edited_time),
     naturalKey: unique([
       getTitleFromPage(page),
       page?.properties?.System?.select?.name,
       page?.properties?.["Work Type"]?.select?.name,
     ]).join("::"),
   }));
+}
+
+function timestampRank(value: string | undefined) {
+  if (!value) return Number.NEGATIVE_INFINITY;
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;
+}
+
+function compareCanonicalWorkQueueItems(left: WorkQueueQueryItem, right: WorkQueueQueryItem) {
+  const lastStatusChangeDelta =
+    timestampRank(right.lastStatusChange) - timestampRank(left.lastStatusChange);
+  if (lastStatusChangeDelta !== 0) return lastStatusChangeDelta;
+
+  const lastEditedDelta =
+    timestampRank(right.lastEditedTime) - timestampRank(left.lastEditedTime);
+  if (lastEditedDelta !== 0) return lastEditedDelta;
+
+  const dueDateDelta = timestampRank(right.dueDate) - timestampRank(left.dueDate);
+  if (dueDateDelta !== 0) return dueDateDelta;
+
+  return left.id.localeCompare(right.id);
+}
+
+export function collapseWorkQueueItemsByNaturalKey(items: WorkQueueQueryItem[]): WorkQueueQueryItem[] {
+  const canonicalByNaturalKey = new Map<string, WorkQueueQueryItem>();
+
+  for (const item of items) {
+    const key = canonicalWorkQueueScanKey(item);
+    const existing = canonicalByNaturalKey.get(key);
+    if (!existing || compareCanonicalWorkQueueItems(item, existing) < 0) {
+      canonicalByNaturalKey.set(key, item);
+    }
+  }
+
+  return [...canonicalByNaturalKey.values()].sort((left, right) =>
+    left.title.localeCompare(right.title)
+    || left.system.localeCompare(right.system)
+    || left.workType.localeCompare(right.workType),
+  );
 }
 
 export async function createKnowledgeEntry(client: Client, entry: KnowledgeEntry): Promise<NotionWriteResult> {

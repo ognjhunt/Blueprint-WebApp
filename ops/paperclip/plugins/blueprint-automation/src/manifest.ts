@@ -230,6 +230,13 @@ const manifest: PaperclipPluginManifestV1 = {
       schedule: "0 */2 * * *",
     },
     {
+      jobKey: JOB_KEYS.notionQueueReconcile,
+      displayName: "Notion Queue Reconcile",
+      description:
+        "Manual one-time reconciliation of historical duplicate Notion Work Queue issues already synced into Paperclip.",
+      schedule: "0 0 1 1 *",
+    },
+    {
       jobKey: JOB_KEYS.routineHealthCheck,
       displayName: "Routine Health Check",
       description:
@@ -402,6 +409,21 @@ const manifest: PaperclipPluginManifestV1 = {
           recommendedFollowUps: {
             type: "array",
             items: { type: "string" },
+          },
+          followUpIssues: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                kind: { type: "string", enum: ["blocker", "owner_ready"] },
+                title: { type: "string" },
+                description: { type: "string" },
+                projectName: { type: "string" },
+                assignee: { type: "string" },
+                priority: { type: "string" },
+              },
+              required: ["kind", "title", "description", "projectName", "assignee"],
+            },
           },
         },
         required: [

@@ -5,6 +5,7 @@ export const PAGE_ROUTE = "blueprint-automation";
 export const JOB_KEYS = {
   repoScan: "repo-scan",
   opsQueueScan: "ops-queue-scan",
+  notionQueueReconcile: "notion-queue-reconcile",
   routineHealthCheck: "routine-health-check",
   handoffMonitor: "handoff-monitor",
   quotaCooldownEnforcer: "quota-cooldown-enforcer",
@@ -89,6 +90,7 @@ export const STATE_KEYS = {
   recentEvents: "recent-events",
   health: "health",
   routineHealth: "routine-health",
+  analyticsReportRuns: "analytics-report-runs",
   routineCatchups: "routine-catchups",
   managerAlerts: "manager-alerts",
   cityLaunchSelection: "city-launch-selection",

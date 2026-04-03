@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  canonicalWorkQueueScanKey,
+  collapseWorkQueueItemsByNaturalKey,
   detectStaleKnowledgeEntries,
   extractNotionId,
   normalizeKnowledgeEntry,
@@ -103,6 +105,74 @@ describe("notion helpers", () => {
     expect(item.needsFounder).toBe(true);
     expect(item.lastStatusChange).toBe("2026-04-01T09:20:00.000Z");
     expect(item.escalateAfter).toBe("2026-04-01T13:20:00.000Z");
+  });
+
+  it("collapses duplicate queue items onto the freshest natural key entry", () => {
+    const collapsed = collapseWorkQueueItemsByNaturalKey([
+      {
+        id: "older-duplicate",
+        title: "Analytics Daily Snapshot - 2026-04-03",
+        priority: "P2",
+        system: "WebApp",
+        businessLane: "Growth",
+        lifecycleStage: "Backlog",
+        workType: "Refresh",
+        url: "https://www.notion.so/older",
+        needsFounder: false,
+        ownerIds: [],
+        lastStatusChange: "2026-04-02T08:00:00.000Z",
+        lastEditedTime: "2026-04-02T08:00:00.000Z",
+        naturalKey: "Analytics Daily Snapshot - 2026-04-03::WebApp::Refresh",
+      },
+      {
+        id: "newer-duplicate",
+        title: "Analytics Daily Snapshot - 2026-04-03",
+        priority: "P2",
+        system: "WebApp",
+        businessLane: "Growth",
+        lifecycleStage: "Backlog",
+        workType: "Refresh",
+        url: "https://www.notion.so/newer",
+        needsFounder: false,
+        ownerIds: [],
+        lastStatusChange: "2026-04-03T08:00:00.000Z",
+        lastEditedTime: "2026-04-03T08:05:00.000Z",
+        naturalKey: "Analytics Daily Snapshot - 2026-04-03::WebApp::Refresh",
+      },
+      {
+        id: "other-item",
+        title: "Analytics Weekly Snapshot - 2026-04-06",
+        priority: "P1",
+        system: "WebApp",
+        businessLane: "Growth",
+        lifecycleStage: "Open",
+        workType: "Refresh",
+        url: "https://www.notion.so/weekly",
+        needsFounder: false,
+        ownerIds: [],
+        lastEditedTime: "2026-04-03T09:00:00.000Z",
+        naturalKey: "Analytics Weekly Snapshot - 2026-04-06::WebApp::Refresh",
+      },
+    ]);
+
+    expect(collapsed.map((item) => item.id)).toEqual(["newer-duplicate", "other-item"]);
+  });
+
+  it("derives the same canonical scan key for visually identical queue duplicates", () => {
+    const first = canonicalWorkQueueScanKey({
+      title: "Analytics Daily Snapshot - 2026-04-03",
+      system: "WebApp",
+      workType: "Refresh",
+      naturalKey: "Analytics Daily Snapshot - 2026-04-03::WebApp::Refresh",
+    });
+    const second = canonicalWorkQueueScanKey({
+      title: "  Analytics   Daily Snapshot - 2026-04-03  ",
+      system: "webapp",
+      workType: "refresh",
+      naturalKey: " analytics   daily snapshot - 2026-04-03 :: webapp :: refresh ",
+    });
+
+    expect(second).toBe(first);
   });
 
   it("normalizes founder-facing knowledge artifacts", () => {

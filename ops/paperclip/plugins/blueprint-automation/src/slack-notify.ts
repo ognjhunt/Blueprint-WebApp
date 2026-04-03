@@ -16,7 +16,7 @@ export interface SlackWebhookTargets {
   manager?: string;
 }
 
-function pickWebhookUrl(targets: SlackWebhookTargets, channel: string): string | null {
+export function resolveSlackWebhookUrl(targets: SlackWebhookTargets, channel: string): string | null {
   const normalized = channel.trim().toLowerCase();
   if (normalized.includes("manager")) {
     return targets.manager ?? targets.exec ?? targets.ops ?? targets.default ?? targets.growth ?? targets.engineering ?? null;
@@ -36,6 +36,16 @@ function pickWebhookUrl(targets: SlackWebhookTargets, channel: string): string |
   return targets.default ?? targets.manager ?? targets.exec ?? targets.ops ?? targets.growth ?? targets.engineering ?? null;
 }
 
+export function slackChannelsShareDestination(
+  targets: SlackWebhookTargets,
+  leftChannel: string,
+  rightChannel: string,
+) {
+  const leftWebhook = resolveSlackWebhookUrl(targets, leftChannel);
+  const rightWebhook = resolveSlackWebhookUrl(targets, rightChannel);
+  return Boolean(leftWebhook && rightWebhook && leftWebhook === rightWebhook);
+}
+
 export async function postSlackDigest(
   targets: SlackWebhookTargets,
   digest: SlackDigest
@@ -46,7 +56,7 @@ export async function postSlackDigest(
   statusCode?: number;
   responseBody?: string;
 }> {
-  const webhookUrl = pickWebhookUrl(targets, digest.channel);
+  const webhookUrl = resolveSlackWebhookUrl(targets, digest.channel);
   if (!webhookUrl) {
     return { ok: false, routedChannel: digest.channel, target: "none" };
   }

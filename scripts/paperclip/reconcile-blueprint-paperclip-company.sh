@@ -404,6 +404,9 @@ async function ensureCanonicalProject(companyId, projects, projectKey, projectCo
 function buildAnalyticsRoutineDescription(cadence) {
   return [
     "Investigate repo, CI, and Blueprint plugin state first, then synthesize the findings into headline, summaryBullets, workflowFindings, risks, and recommendedFollowUps.",
+    "Every recommendedFollowUp will be turned into a routed Paperclip follow-up issue by the deterministic writer, so keep those items concrete and owner-ready.",
+    "Use structured followUpIssues only when you need to override the default title, assignee, project, priority, or blocker-vs-owner_ready classification.",
+    "Do not place monitor-only or informational notes in recommendedFollowUps; keep those in summaryBullets, workflowFindings, or risks instead.",
     `Call POST ${paperclipApiUrl}/api/plugins/blueprint.automation/actions/analytics-report with JSON body {"params":{"cadence":"${cadence}"...}}.`,
     "On this local trusted Paperclip host, call the plugin action route directly by plugin key and X-Paperclip-Run-Id. Do not waste time resolving the plugin id. Do not send the agent bearer token to the plugin action route if it returns Board access required.",
     "After the action returns, PATCH the current issue to done when data.outcome is done; otherwise PATCH it to blocked.",

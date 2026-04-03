@@ -1,6 +1,6 @@
 import { promisify } from "node:util";
 import { execFile } from "node:child_process";
-import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import {
@@ -40,16 +40,24 @@ import {
   handleSupportWebhook,
 } from "./ops-webhooks.js";
 import {
+  canonicalWorkQueueScanKey,
+  collapseWorkQueueItemsByNaturalKey,
   buildNotionToolHandlers,
   createKnowledgeEntry,
   createNotionClient,
   createWorkQueueItem,
   queryDatabase,
   queryWorkQueue,
+  upsertKnowledgeEntry,
+  upsertWorkQueueItem,
 } from "./notion.js";
 import { assessNotionDrift, type NotionDriftAssessment } from "./notion-drift.js";
 import { collectFounderQueueAlerts, type FounderQueueAlert } from "./firestore.js";
-import { buildSlackToolHandler, postSlackDigest } from "./slack-notify.js";
+import {
+  buildSlackToolHandler,
+  postSlackDigest,
+  slackChannelsShareDestination,
+} from "./slack-notify.js";
 import { buildWebSearchToolHandler } from "./web-search.js";
 import {
   approveNitrosendCampaignSend,
@@ -134,6 +142,10 @@ import {
   preferredQueueRepoAgent,
 } from "./queue-routing.js";
 import { inferChiefOfStaffRoute } from "../../../chief-of-staff-routing.js";
+import {
+  buildAnalyticsFollowUpIssues,
+  type AnalyticsFollowUpIssue,
+} from "./analytics-followups.js";
 import {
   buildRoutineCatchUpWindowKey,
   isStaleRoutineExecutionIssue,
@@ -264,6 +276,14 @@ type SourceMappingData = {
   metadata?: Record<string, unknown>;
 };
 
+type NotionQueueDuplicateCandidate = {
+  mapping: PluginEntityRecord;
+  data: SourceMappingData;
+  issue: Issue;
+  queueKey: string;
+  queueTitle: string;
+};
+
 type RecentEvent = {
   id: string;
   kind: string;
@@ -328,6 +348,32 @@ type AnalyticsStructuredReport = {
   recommendedFollowUps: string[];
 };
 
+type AnalyticsReportRunStateEntry = {
+  reportKey: string;
+  cadence: AnalyticsReportCadence;
+  title: string;
+  signature: string;
+  firstRunAt: string;
+  lastRunAt: string;
+  issueId?: string;
+  notion?: {
+    workQueuePageId?: string;
+    workQueuePageUrl?: string;
+    knowledgePageId?: string;
+    knowledgePageUrl?: string;
+  };
+  slackDeliveredAt?: string;
+  slack?: {
+    routedChannel: string;
+    target: SlackDeliveryTarget;
+    statusCode?: number;
+    responseBody?: string;
+  };
+  followUpIssueIds?: string[];
+};
+
+type AnalyticsReportRunState = Record<string, AnalyticsReportRunStateEntry>;
+
 type AnalyticsOutputProof = {
   success: boolean;
   outcome: "done" | "blocked";
@@ -353,7 +399,15 @@ type AnalyticsOutputProof = {
     target: SlackDeliveryTarget;
     statusCode?: number;
     responseBody?: string;
+    deduped?: boolean;
+    deliveredAt?: string;
   };
+  followUpIssues?: Array<{
+    id: string;
+    title: string;
+    kind: AnalyticsFollowUpIssue["kind"];
+    status: string;
+  }>;
   proofLinks: string[];
   issueComment: string;
   errors: string[];
@@ -2220,6 +2274,7 @@ async function wakeChiefOfStaff(
     slackSummary?: string[];
     postToSlack?: boolean;
     bypassCooldown?: boolean;
+    suppressSlackIfSameTargetAsChannel?: string;
   },
 ) {
   if (!input.bypassCooldown) {
@@ -2264,11 +2319,24 @@ async function wakeChiefOfStaff(
 
   if (input.postToSlack !== false) {
     const slackChannel = input.slackChannel ?? "#paperclip-manager";
-    await postSlackActivity(ctx, config, {
-      channel: slackChannel,
-      title: input.slackTitle ?? input.title,
-      summary: (input.slackSummary ?? [input.detail]).filter((line) => line.trim().length > 0),
-    }).catch(() => undefined);
+    const slackTargets = await resolveSlackTargets(ctx, config);
+    const skipMirrorPost = input.suppressSlackIfSameTargetAsChannel
+      ? slackChannelsShareDestination(
+        slackTargets,
+        slackChannel,
+        input.suppressSlackIfSameTargetAsChannel,
+      )
+      : false;
+    if (!skipMirrorPost) {
+      await postSlackDigest(slackTargets, {
+        channel: slackChannel,
+        title: input.slackTitle ?? input.title,
+        sections: [{
+          heading: "Update",
+          items: (input.slackSummary ?? [input.detail]).filter((line) => line.trim().length > 0),
+        }],
+      }).catch(() => undefined);
+    }
   }
 
   return wakeResult;
@@ -3261,6 +3329,126 @@ async function getManagedIssue(ctx: PluginContext, companyId: string, fingerprin
   return { mapping, issue };
 }
 
+async function listSourceMappings(
+  ctx: PluginContext,
+  companyId: string,
+): Promise<PluginEntityRecord[]> {
+  const rows: PluginEntityRecord[] = [];
+  const limit = 200;
+  let offset = 0;
+
+  while (true) {
+    const batch = await ctx.entities.list({
+      entityType: ENTITY_TYPES.sourceMapping,
+      scopeKind: "company",
+      scopeId: companyId,
+      limit,
+      offset,
+    });
+    rows.push(...batch);
+    if (batch.length < limit) break;
+    offset += batch.length;
+  }
+
+  return rows;
+}
+
+function toNotionQueueDuplicateCandidate(
+  mapping: PluginEntityRecord,
+  issue: Issue | null,
+): NotionQueueDuplicateCandidate | null {
+  if (!issue) return null;
+
+  const data = (mapping.data ?? {}) as Partial<SourceMappingData>;
+  if (data.sourceType !== "notion-work-queue") return null;
+
+  const title = typeof mapping.title === "string" ? mapping.title.trim() : "";
+  const queueTitle = title.startsWith("Notion Work Queue: ")
+    ? title.slice("Notion Work Queue: ".length).trim()
+    : title;
+  if (!queueTitle) return null;
+
+  const metadata = (data.metadata ?? {}) as Record<string, unknown>;
+  const queueKey = canonicalWorkQueueScanKey({
+    title: queueTitle,
+    system: typeof metadata.system === "string" ? metadata.system : "",
+    workType: typeof metadata.workType === "string" ? metadata.workType : "",
+    naturalKey: typeof data.sourceId === "string" && data.sourceId.includes("::")
+      ? data.sourceId
+      : undefined,
+  });
+
+  return {
+    mapping,
+    data: data as SourceMappingData,
+    issue,
+    queueKey,
+    queueTitle,
+  };
+}
+
+function notionQueueIssueStatusRank(status: string) {
+  switch (status) {
+    case "in_progress":
+      return 6;
+    case "in_review":
+      return 5;
+    case "todo":
+      return 4;
+    case "backlog":
+      return 3;
+    case "blocked":
+      return 2;
+    case "done":
+      return 1;
+    case "cancelled":
+      return 0;
+    default:
+      return 0;
+  }
+}
+
+function notionQueueIssuePriorityRank(priority: string) {
+  switch (priority) {
+    case "critical":
+      return 4;
+    case "high":
+      return 3;
+    case "medium":
+      return 2;
+    case "low":
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+function compareNotionQueueDuplicateCandidates(
+  left: NotionQueueDuplicateCandidate,
+  right: NotionQueueDuplicateCandidate,
+) {
+  const leftResolved = left.issue.status === "done" || left.issue.status === "cancelled" ? 1 : 0;
+  const rightResolved = right.issue.status === "done" || right.issue.status === "cancelled" ? 1 : 0;
+  if (leftResolved !== rightResolved) return leftResolved - rightResolved;
+
+  const statusDelta =
+    notionQueueIssueStatusRank(right.issue.status) - notionQueueIssueStatusRank(left.issue.status);
+  if (statusDelta !== 0) return statusDelta;
+
+  const priorityDelta =
+    notionQueueIssuePriorityRank(right.issue.priority) - notionQueueIssuePriorityRank(left.issue.priority);
+  if (priorityDelta !== 0) return priorityDelta;
+
+  const hitsDelta = (right.data.hits ?? 0) - (left.data.hits ?? 0);
+  if (hitsDelta !== 0) return hitsDelta;
+
+  const updatedDelta =
+    new Date(right.issue.updatedAt).getTime() - new Date(left.issue.updatedAt).getTime();
+  if (updatedDelta !== 0) return updatedDelta;
+
+  return left.issue.id.localeCompare(right.issue.id);
+}
+
 function makeTraceBlock(input: UpsertManagedIssueInput) {
   const lines = [
     "## Automation Trace",
@@ -3887,6 +4075,7 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
       slackSummary: slackCopy.summary,
       // Concrete manager-owned follow-through should not be swallowed by the generic wakeup cooldown.
       bypassCooldown: directChiefOfStaffWake,
+      suppressSlackIfSameTargetAsChannel: slackChannelForAgent(assigneeResolution.selectedKey),
     }).catch(() => undefined);
     await wakeAssignedAgent(ctx, input.companyId, config, {
       issue: currentIssue,
@@ -4024,6 +4213,9 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
     slackChannel: "#paperclip-manager",
     slackTitle: `Manager update: ${slackCopy.title}`,
     slackSummary: slackCopy.summary,
+    suppressSlackIfSameTargetAsChannel: slackChannelForAgent(
+      existingData.assignee ?? getChiefOfStaffAgentKey(config),
+    ),
   }).catch(() => undefined);
 
   return { fingerprint, issue: updatedIssue };
@@ -4725,16 +4917,79 @@ function normalizeAnalyticsStructuredReport(
   return { report, validationErrors };
 }
 
+function normalizeAnalyticsFollowUpIssues(
+  params: Record<string, unknown>,
+): { followUpIssues: AnalyticsFollowUpIssue[]; validationErrors: string[] } {
+  const items = Array.isArray(params.followUpIssues) ? params.followUpIssues : [];
+  const validationErrors: string[] = [];
+  const followUpIssues: AnalyticsFollowUpIssue[] = [];
+
+  for (const [index, item] of items.entries()) {
+    if (!item || typeof item !== "object") {
+      validationErrors.push(`followUpIssues[${index}] must be an object.`);
+      continue;
+    }
+    const entry = item as Record<string, unknown>;
+    const kind = asString(entry.kind);
+    const title = asString(entry.title);
+    const description = asString(entry.description);
+    const projectName = asString(entry.projectName);
+    const assignee = asString(entry.assignee);
+    const priority = asString(entry.priority);
+
+    if (kind !== "blocker" && kind !== "owner_ready") {
+      validationErrors.push(`followUpIssues[${index}] kind must be blocker or owner_ready.`);
+      continue;
+    }
+    if (!title || !description || !projectName || !assignee) {
+      validationErrors.push(
+        `followUpIssues[${index}] must include title, description, projectName, and assignee.`,
+      );
+      continue;
+    }
+
+    followUpIssues.push({
+      kind,
+      title,
+      description,
+      projectName,
+      assignee,
+      priority,
+    });
+  }
+
+  return { followUpIssues, validationErrors };
+}
+
+function buildAnalyticsReportKey(cadence: AnalyticsReportCadence, generatedAt: string) {
+  return `analytics:${cadence}:${generatedAt.slice(0, 10)}`;
+}
+
+function stableDigest(value: unknown) {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+
+function pruneAnalyticsReportRunState(state: AnalyticsReportRunState) {
+  return Object.fromEntries(
+    Object.entries(state)
+      .sort((left, right) => new Date(right[1].lastRunAt).getTime() - new Date(left[1].lastRunAt).getTime())
+      .slice(0, 90),
+  );
+}
+
 function formatAnalyticsIssueComment(result: {
   outcome: "done" | "blocked";
   report: AnalyticsStructuredReport;
   cadence: AnalyticsReportCadence;
   notion?: AnalyticsOutputProof["notion"];
   slack?: AnalyticsOutputProof["slack"];
+  followUpIssues?: AnalyticsOutputProof["followUpIssues"];
   failureReason?: string;
 }) {
   const slackStatus = result.slack?.ok
-    ? `delivered to ${result.slack.routedChannel} (HTTP ${result.slack.statusCode ?? "unknown"}${result.slack.responseBody ? `, body: ${result.slack.responseBody}` : ""})`
+    ? result.slack.deduped
+      ? `already delivered to ${result.slack.routedChannel} at ${result.slack.deliveredAt ?? "an earlier run"}`
+      : `delivered to ${result.slack.routedChannel} (HTTP ${result.slack.statusCode ?? "unknown"}${result.slack.responseBody ? `, body: ${result.slack.responseBody}` : ""})`
     : `missing or failed${result.slack?.statusCode ? ` (HTTP ${result.slack.statusCode})` : ""}${result.slack?.responseBody ? `: ${result.slack.responseBody}` : ""}`;
 
   const lines = [
@@ -4746,6 +5001,7 @@ function formatAnalyticsIssueComment(result: {
     `- Notion Work Queue: ${result.notion?.workQueuePageUrl ?? result.notion?.workQueuePageId ?? "missing"}`,
     `- Notion Knowledge: ${result.notion?.knowledgePageUrl ?? result.notion?.knowledgePageId ?? "missing"}`,
     `- Slack digest: ${slackStatus}`,
+    `- Follow-up triage: ${result.followUpIssues && result.followUpIssues.length > 0 ? result.followUpIssues.map((entry) => `${entry.title} (${entry.kind}, ${entry.status})`).join("; ") : "no blocker-level or owner-ready follow-ups created"}`,
   ];
   return lines.join("\n");
 }
@@ -5368,7 +5624,26 @@ async function buildAnalyticsOutputProof(
   const generatedAt = nowIso();
   const title = `${cadence === "daily" ? "Analytics Daily" : "Analytics Weekly"} Snapshot - ${generatedAt.slice(0, 10)}`;
   const { report, validationErrors } = normalizeAnalyticsStructuredReport(params, cadence);
+  const { followUpIssues: explicitFollowUpIssues, validationErrors: followUpValidationErrors } = normalizeAnalyticsFollowUpIssues(params);
+  const followUpIssues = buildAnalyticsFollowUpIssues(
+    report.recommendedFollowUps,
+    explicitFollowUpIssues,
+    {
+      repoCatalog: config.repoCatalog ?? DEFAULT_REPO_CATALOG,
+      opsAgents: getOpsRoutingConfig(config),
+      growthAgents: getGrowthRoutingConfig(config),
+      executiveOpsProjectName: EXECUTIVE_OPS_PROJECT,
+    },
+  );
   const errors: string[] = [];
+  const reportKey = buildAnalyticsReportKey(cadence, generatedAt);
+  const reportSignature = stableDigest({
+    cadence,
+    title,
+    report,
+  });
+  const storedRuns = await readState<AnalyticsReportRunState>(ctx, companyId, STATE_KEYS.analyticsReportRuns) ?? {};
+  const existingRun = storedRuns[reportKey];
 
   const notionToken = await resolveOptionalSecret(
     ctx,
@@ -5422,6 +5697,7 @@ async function buildAnalyticsOutputProof(
       "Firestore admin credentials are not present in the Paperclip runtime environment.",
     ),
   ];
+  const priorRunMatches = existingRun?.signature === reportSignature;
 
   const reportLines = [
     `Generated at: ${generatedAt}`,
@@ -5465,16 +5741,18 @@ async function buildAnalyticsOutputProof(
     errors,
   };
 
-  if (validationErrors.length === 0 && notionToken) {
+  if (priorRunMatches && existingRun?.notion?.knowledgePageId && existingRun?.notion?.workQueuePageId) {
+    result.notion = existingRun.notion;
+  } else if (validationErrors.length === 0 && followUpValidationErrors.length === 0 && notionToken) {
     try {
       const notionClient = createNotionClient({ token: notionToken });
-      const knowledgeEntry = await createKnowledgeEntry(notionClient, {
+      const knowledgeEntry = await upsertKnowledgeEntry(notionClient, {
         title,
         type: "Reference",
         system: "WebApp",
         content: reportLines.join("\n"),
-      });
-      const workQueueEntry = await createWorkQueueItem(notionClient, {
+      }, { archiveDuplicates: true });
+      const workQueueEntry = await upsertWorkQueueItem(notionClient, {
         title,
         priority: cadence === "daily" ? "P2" : "P1",
         system: "WebApp",
@@ -5484,7 +5762,7 @@ async function buildAnalyticsOutputProof(
           report.headline,
           knowledgeEntry.pageUrl ? `Knowledge page: ${knowledgeEntry.pageUrl}` : `Knowledge page ID: ${knowledgeEntry.pageId}`,
         ].join(" "),
-      });
+      }, { archiveDuplicates: true });
       result.notion = {
         workQueuePageId: workQueueEntry.pageId,
         workQueuePageUrl: workQueueEntry.pageUrl,
@@ -5496,7 +5774,17 @@ async function buildAnalyticsOutputProof(
     }
   }
 
-  if (validationErrors.length === 0 && (slackGrowthWebhookUrl || slackOpsWebhookUrl)) {
+  if (existingRun?.slackDeliveredAt && existingRun?.slack?.routedChannel) {
+    result.slack = {
+      ok: true,
+      routedChannel: existingRun.slack.routedChannel,
+      target: existingRun.slack.target,
+      statusCode: existingRun.slack.statusCode,
+      responseBody: existingRun.slack.responseBody,
+      deduped: true,
+      deliveredAt: existingRun.slackDeliveredAt,
+    };
+  } else if (validationErrors.length === 0 && followUpValidationErrors.length === 0 && (slackGrowthWebhookUrl || slackOpsWebhookUrl)) {
     try {
       const slackResult = await postSlackDigest(
         {
@@ -5516,7 +5804,10 @@ async function buildAnalyticsOutputProof(
           ],
         },
       );
-      result.slack = slackResult;
+      result.slack = {
+        ...slackResult,
+        deliveredAt: slackResult.ok ? generatedAt : undefined,
+      };
       if (!slackResult.ok) {
         errors.push(`Slack digest failed with HTTP ${slackResult.statusCode ?? "unknown"}: ${slackResult.responseBody ?? "no response body"}`);
       }
@@ -5527,6 +5818,60 @@ async function buildAnalyticsOutputProof(
 
   if (validationErrors.length > 0) {
     errors.push(...validationErrors);
+  }
+  if (followUpValidationErrors.length > 0) {
+    errors.push(...followUpValidationErrors);
+  }
+
+  if (followUpIssues.length > 0) {
+    const parentIssueId = asString(params.issueId);
+    const createdFollowUps: NonNullable<AnalyticsOutputProof["followUpIssues"]> = [];
+    for (const followUp of followUpIssues) {
+      try {
+        const sourceId = stableDigest({
+          kind: followUp.kind,
+          title: followUp.title,
+          projectName: followUp.projectName,
+          assignee: followUp.assignee,
+        });
+        const upsertResult = await upsertManagedIssue(ctx, {
+          companyId,
+          sourceType: "analytics-report-triage",
+          sourceId,
+          title: followUp.title,
+          description: followUp.description,
+          projectName: followUp.projectName,
+          assignee: followUp.assignee,
+          priority: normalizeIssuePriority(followUp.priority, followUp.kind === "blocker" ? "high" : "medium"),
+          status: "todo",
+          parentIssueId,
+          metadata: {
+            reportKey,
+            followUpKind: followUp.kind,
+            cadence,
+            title,
+          },
+        });
+        createdFollowUps.push({
+          id: upsertResult.issue.id,
+          title: upsertResult.issue.title,
+          kind: followUp.kind,
+          status: upsertResult.issue.status,
+        });
+        if (parentIssueId) {
+          await ctx.issues.createComment(
+            parentIssueId,
+            `${followUp.kind === "blocker" ? "Blocked work" : "Owner-ready follow-up"} routed to ${followUp.assignee}: ${followUp.title}`,
+            companyId,
+          ).catch(() => undefined);
+        }
+      } catch (error) {
+        errors.push(`Follow-up triage failed for ${followUp.title}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+    if (createdFollowUps.length > 0) {
+      result.followUpIssues = createdFollowUps;
+    }
   }
 
   const failureReasons: string[] = [];
@@ -5553,6 +5898,32 @@ async function buildAnalyticsOutputProof(
   result.failureReason = [...failureReasons, ...errors].join(" ");
   result.success = failureReasons.length === 0 && errors.length === 0;
   result.outcome = result.success ? "done" : "blocked";
+  const nextRunState = pruneAnalyticsReportRunState({
+    ...storedRuns,
+    [reportKey]: {
+      reportKey,
+      cadence,
+      title,
+      signature: reportSignature,
+      firstRunAt: existingRun?.firstRunAt ?? generatedAt,
+      lastRunAt: generatedAt,
+      issueId: asString(params.issueId) ?? existingRun?.issueId,
+      notion: result.notion ?? existingRun?.notion,
+      slackDeliveredAt: result.slack?.ok
+        ? (result.slack.deduped ? existingRun?.slackDeliveredAt : result.slack.deliveredAt)
+        : existingRun?.slackDeliveredAt,
+      slack: result.slack?.ok
+        ? {
+          routedChannel: result.slack.routedChannel,
+          target: result.slack.target,
+          statusCode: result.slack.statusCode,
+          responseBody: result.slack.responseBody,
+        }
+        : existingRun?.slack,
+      followUpIssueIds: result.followUpIssues?.map((entry) => entry.id) ?? existingRun?.followUpIssueIds,
+    },
+  });
+  await writeState(ctx, companyId, STATE_KEYS.analyticsReportRuns, nextRunState);
   result.issueComment = formatAnalyticsIssueComment(result);
 
   // Track routine health, budget, and phase metrics
@@ -5650,6 +6021,7 @@ async function createFollowUpIssue(
       `Task: ${followUp.title}`,
       `Project: ${input.projectName}`,
     ],
+    suppressSlackIfSameTargetAsChannel: slackChannelForAgent(assigneeResolution.selectedKey),
   }).catch(() => undefined);
   if (assigneeResolution.rerouted) {
     await ctx.issues.createComment(
@@ -7347,6 +7719,21 @@ async function registerToolHandlers(ctx: PluginContext) {
           workflowFindings: { type: "array", items: { type: "string" } },
           risks: { type: "array", items: { type: "string" } },
           recommendedFollowUps: { type: "array", items: { type: "string" } },
+          followUpIssues: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                kind: { type: "string", enum: ["blocker", "owner_ready"] },
+                title: { type: "string" },
+                description: { type: "string" },
+                projectName: { type: "string" },
+                assignee: { type: "string" },
+                priority: { type: "string" },
+              },
+              required: ["kind", "title", "description", "projectName", "assignee"],
+            },
+          },
         },
         required: [
           "cadence",
@@ -8753,20 +9140,24 @@ async function runOpsQueueScanJob(ctx: PluginContext, companyId: string, config:
   }
 
   const notionClient = createNotionClient({ token: notionToken });
-  const workQueueItems = await queryWorkQueue(notionClient, {});
+  const workQueueItems = collapseWorkQueueItemsByNaturalKey(
+    await queryWorkQueue(notionClient, {}),
+  );
   let synced = 0;
 
   for (const item of workQueueItems) {
     const assignee = routeWorkQueueAssignee(item, config);
+    const sourceId = canonicalWorkQueueScanKey(item);
     await upsertManagedIssue(ctx, {
       companyId,
       sourceType: "notion-work-queue",
-      sourceId: item.id,
+      sourceId,
       title: `Notion Work Queue: ${item.title}`,
       description: [
         "Blueprint automation synced this Notion Work Queue item into Paperclip for active triage.",
         "",
         `- Notion page: ${item.url ?? item.id}`,
+        `- Canonical queue key: ${sourceId}`,
         `- System: ${item.system}`,
         `- Priority: ${item.priority}`,
         `- Lifecycle Stage: ${item.lifecycleStage || "unknown"}`,
@@ -8796,6 +9187,103 @@ async function runOpsQueueScanJob(ctx: PluginContext, companyId: string, config:
   });
 
   return { synced, skipped: false };
+}
+
+async function runNotionQueueReconcileJob(
+  ctx: PluginContext,
+  companyId: string,
+) {
+  const sourceMappings = await listSourceMappings(ctx, companyId);
+  const candidates = (
+    await Promise.all(sourceMappings.map(async (mapping) => {
+      const data = (mapping.data ?? {}) as Partial<SourceMappingData>;
+      const issueId = typeof data.issueId === "string" ? data.issueId : null;
+      const issue = issueId ? await ctx.issues.get(issueId, companyId).catch(() => null) : null;
+      return toNotionQueueDuplicateCandidate(mapping, issue);
+    }))
+  ).filter((value): value is NotionQueueDuplicateCandidate => Boolean(value));
+
+  const groups = new Map<string, NotionQueueDuplicateCandidate[]>();
+  for (const candidate of candidates) {
+    const existing = groups.get(candidate.queueKey) ?? [];
+    existing.push(candidate);
+    groups.set(candidate.queueKey, existing);
+  }
+
+  let cancelledCount = 0;
+  const keptIssueIds: string[] = [];
+  const cancelledIssueIds: string[] = [];
+
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+
+    const ranked = [...group].sort(compareNotionQueueDuplicateCandidates);
+    const keeper = ranked[0];
+    if (!keeper) continue;
+
+    const duplicates = ranked.slice(1).filter((entry) => entry.issue.status !== "cancelled");
+    if (duplicates.length === 0) continue;
+
+    keptIssueIds.push(keeper.issue.id);
+
+    for (const duplicate of duplicates) {
+      await ctx.issues.update(
+        duplicate.issue.id,
+        { status: "cancelled" },
+        companyId,
+      );
+      await ctx.issues.createComment(
+        duplicate.issue.id,
+        [
+          "One-time Notion queue reconciliation cancelled this duplicate Paperclip issue.",
+          `- Canonical issue: ${keeper.issue.id}`,
+          `- Canonical queue key: ${keeper.queueKey}`,
+          `- Duplicate source id: ${duplicate.data.sourceId}`,
+          `- Canonical source id: ${keeper.data.sourceId}`,
+        ].join("\n"),
+        companyId,
+      ).catch(() => undefined);
+
+      await upsertMapping(
+        ctx,
+        companyId,
+        duplicate.data.fingerprint,
+        duplicate.mapping.title ?? duplicate.issue.title,
+        "cancelled",
+        {
+          ...duplicate.data,
+          resolutionStatus: "cancelled",
+          lastSeenAt: nowIso(),
+        },
+      );
+
+      cancelledCount += 1;
+      cancelledIssueIds.push(duplicate.issue.id);
+    }
+
+    await ctx.issues.createComment(
+      keeper.issue.id,
+      [
+        "One-time Notion queue reconciliation kept this Paperclip issue as the canonical queue thread.",
+        `- Canonical queue key: ${keeper.queueKey}`,
+        `- Cancelled duplicates: ${duplicates.map((entry) => entry.issue.id).join(", ")}`,
+      ].join("\n"),
+      companyId,
+    ).catch(() => undefined);
+  }
+
+  await appendRecentEvent(ctx, companyId, {
+    kind: "notion-queue-reconcile",
+    title: "Notion queue reconciliation completed",
+    detail: `Cancelled ${cancelledCount} duplicate issues across ${keptIssueIds.length} canonical queue threads.`,
+  });
+
+  return {
+    cancelledCount,
+    canonicalIssueCount: keptIssueIds.length,
+    cancelledIssueIds,
+    keptIssueIds,
+  };
 }
 
 async function runHandoffMonitorJob(ctx: PluginContext, companyId: string, config: BlueprintAutomationConfig) {
@@ -9028,6 +9516,11 @@ const plugin: PaperclipPlugin = definePlugin({
       const config = await getConfig(ctx);
       const company = await findCompany(ctx, config.companyName);
       await runOpsQueueScanJob(ctx, company.id, config);
+    });
+    ctx.jobs.register(JOB_KEYS.notionQueueReconcile, async () => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      await runNotionQueueReconcileJob(ctx, company.id);
     });
     ctx.jobs.register(JOB_KEYS.routineHealthCheck, async () => {
       const config = await getConfig(ctx);

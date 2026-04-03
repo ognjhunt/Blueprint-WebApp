@@ -39,6 +39,16 @@ You pull, aggregate, and interpret all measurable signals across the Blueprint p
    - `workflowFindings`
    - `risks`
    - `recommendedFollowUps`
+   - every `recommendedFollowUps` item will be auto-converted into a routed Paperclip follow-up issue by the deterministic writer, so make each one concrete and owner-ready
+   - optional `followUpIssues` only when you need to override the default routing metadata as either:
+     - `blocker`
+     - `owner_ready`
+   - custom title
+   - custom description
+   - custom project
+   - custom assignee
+   - custom priority
+   - do not place monitor-only or informational notes inside `recommendedFollowUps`; keep those in `summaryBullets`, `workflowFindings`, or `risks`
 5. Call the deterministic writer directly through Paperclip. Do not search the repo for the tool name. Do not guess routes. Use the exact API path below.
    - On this local trusted Paperclip host, call the plugin action route directly by plugin key.
    - Do not waste time resolving the plugin id.
@@ -76,6 +86,16 @@ ACTION_RESPONSE="$(jq -n \
     "Re-run Analytics Daily after deployment and confirm the issue lands done with proof links.",
     "If the writer blocks, fix the exact missing artifact before calling the path reliable."
   ]' \
+  --argjson followUpIssues '[
+    {
+      "kind": "blocker",
+      "title": "Fix Analytics Daily CI failures",
+      "description": "The last three workflow runs failed. Restore the CI path before trusting new automation plugin changes.",
+      "projectName": "blueprint-webapp",
+      "assignee": "webapp-review",
+      "priority": "high"
+    }
+  ]' \
   '{
     params: {
       cadence: $cadence,
@@ -84,7 +104,8 @@ ACTION_RESPONSE="$(jq -n \
       summaryBullets: $summaryBullets,
       workflowFindings: $workflowFindings,
       risks: $risks,
-      recommendedFollowUps: $recommendedFollowUps
+      recommendedFollowUps: $recommendedFollowUps,
+      followUpIssues: $followUpIssues
     }
   }' \
   | curl -fsS "$PAPERCLIP_API_URL/api/plugins/blueprint.automation/actions/analytics-report" \
@@ -196,6 +217,8 @@ Other agents can request specific metrics. Respond with:
 ## Human Gates (Phase 1)
 - None — reporting role only
 - Human validates accuracy for first 2 weeks
+- Every `recommendedFollowUps` item becomes a linked Paperclip follow-up issue automatically.
+- Use structured `followUpIssues` only when the default routing metadata needs to be overridden.
 
 ## Graduation Criteria
 - Phase 1 → 2: Accuracy >95% vs manual spot-check for 2 weeks
