@@ -7,6 +7,12 @@ recurring: true
 
 Run the weekday founder awareness brief.
 
+Execution rule:
+
+- immediately run `tsx scripts/paperclip/chief-of-staff-founder-report.ts --issue-id <current-issue-id>`
+- do not begin with broad queue discovery, repo scanning, manual artifact drafting, or ad hoc Paperclip API fetches unless that script fails
+- if the script fails, leave one concise proof-bearing note with the failure reason before doing narrower manual recovery
+
 Each run must:
 
 - start with `blueprint-manager-state`

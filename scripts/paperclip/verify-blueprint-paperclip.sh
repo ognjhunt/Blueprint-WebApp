@@ -218,6 +218,45 @@ plugin_dashboard() {
     "${PAPERCLIP_API_URL}/api/plugins/${PLUGIN_KEY}/data/dashboard"
 }
 
+assert_founder_report_guardrails() {
+  local founder_script="tsx scripts/paperclip/chief-of-staff-founder-report.ts --issue-id <current-issue-id>"
+  local chief_of_staff_agents="$REPO_ROOT/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md"
+  local chief_of_staff_heartbeat="$REPO_ROOT/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/Heartbeat.md"
+  local founder_tasks=(
+    "$REPO_ROOT/ops/paperclip/blueprint-company/tasks/founder-morning-brief/TASK.md"
+    "$REPO_ROOT/ops/paperclip/blueprint-company/tasks/founder-daily-accountability-report/TASK.md"
+    "$REPO_ROOT/ops/paperclip/blueprint-company/tasks/founder-eod-brief/TASK.md"
+    "$REPO_ROOT/ops/paperclip/blueprint-company/tasks/founder-friday-operating-recap/TASK.md"
+    "$REPO_ROOT/ops/paperclip/blueprint-company/tasks/founder-weekly-gaps-report/TASK.md"
+  )
+
+  grep -Fq "$founder_script" "$chief_of_staff_agents" || {
+    echo "Verification failed: chief-of-staff AGENTS.md no longer hard-forces the founder-report fallback script." >&2
+    return 1
+  }
+
+  grep -Fq "do not browse the queue" "$chief_of_staff_agents" || {
+    echo "Verification failed: chief-of-staff AGENTS.md is missing the founder-report no-discovery guardrail." >&2
+    return 1
+  }
+
+  grep -Fq "$founder_script" "$chief_of_staff_heartbeat" || {
+    echo "Verification failed: chief-of-staff Heartbeat.md no longer points founder-report issues straight to the fallback script." >&2
+    return 1
+  }
+
+  for task_file in "${founder_tasks[@]}"; do
+    grep -Fq "Execution rule:" "$task_file" || {
+      echo "Verification failed: ${task_file} is missing a founder-report execution rule block." >&2
+      return 1
+    }
+    grep -Fq "$founder_script" "$task_file" || {
+      echo "Verification failed: ${task_file} no longer requires the founder-report fallback script first." >&2
+      return 1
+    }
+  done
+}
+
 print_connector_runbook_hint() {
   echo "See ${CONNECTOR_RUNBOOK_PATH} for the connector recovery runbook." >&2
 }
@@ -365,6 +404,7 @@ opencode_probe_acceptable() {
 
 main() {
   "$AGENT_KIT_VALIDATOR"
+  assert_founder_report_guardrails
   paperclip_health
   local company
   company="$(company_json)"

@@ -7,6 +7,12 @@ recurring: true
 
 Run the weekly founder operating recap.
 
+Execution rule:
+
+- immediately run `tsx scripts/paperclip/chief-of-staff-founder-report.ts --issue-id <current-issue-id>`
+- do not begin with broad queue discovery, repo scanning, or manual artifact drafting unless that script fails
+- if the script fails, leave one concise proof-bearing note with the failure reason before doing narrower manual recovery
+
 Each run must:
 
 - ground on `blueprint-manager-state`, the latest analytics weekly output, and the latest ops and growth signals
