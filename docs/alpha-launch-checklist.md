@@ -4,6 +4,8 @@ Last updated: 2026-03-22
 
 This checklist is the concrete launch gate for `Blueprint-WebApp`.
 
+For autonomous-org launch specifically, also use [autonomous-org-launch-checklist.md](/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/autonomous-org-launch-checklist.md). That file is the current source of truth for Hermes/Paperclip readiness.
+
 It is based on the repo's current deployment contract, alpha scripts, and the current implementation state.
 
 ## 1. Code Gate
@@ -30,6 +32,8 @@ Release rule:
 The launch environment must satisfy `npm run alpha:preflight`.
 
 Use [`.env.example`](/Users/nijelhunt_1/workspace/Blueprint-WebApp/.env.example) as the source of truth for the required keys and example variable names.
+Run `npm run alpha:env` for a grouped view of the currently missing launch env categories.
+For Render import specifically, start with [render.required.env.example](/Users/nijelhunt_1/workspace/Blueprint-WebApp/render.required.env.example) and [render.optional.env.example](/Users/nijelhunt_1/workspace/Blueprint-WebApp/render.optional.env.example).
 
 - [ ] Firebase Admin configured
   Required: `FIREBASE_SERVICE_ACCOUNT_JSON` or `GOOGLE_APPLICATION_CREDENTIALS`

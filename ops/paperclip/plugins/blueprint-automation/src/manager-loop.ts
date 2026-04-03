@@ -49,6 +49,26 @@ export type ManagerRoutineAlert = {
   lastIssueId: string | null;
 };
 
+export function buildRoutineHealthAlertSignature(alerts: ManagerRoutineAlert[]): string {
+  return JSON.stringify(
+    [...alerts]
+      .map((alert) => ({
+        routineKey: alert.routineKey,
+        kind: alert.kind,
+        agentKey: alert.agentKey,
+        lastSuccessAt: alert.lastSuccessAt,
+        expectedIntervalHours: alert.expectedIntervalHours,
+        consecutiveFailures: alert.consecutiveFailures,
+        lastIssueId: alert.lastIssueId,
+      }))
+      .sort((left, right) =>
+        left.routineKey.localeCompare(right.routineKey)
+        || left.kind.localeCompare(right.kind)
+        || left.agentKey.localeCompare(right.agentKey),
+      ),
+  );
+}
+
 export type ManagerAgentStatusSnapshot = {
   id: string;
   name: string;

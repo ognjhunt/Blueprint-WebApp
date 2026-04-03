@@ -17,14 +17,17 @@ Scope:
 Key constraints:
 
 - `claude_local` and `codex_local` support `paperclipSkillSync`
-- `hermes_local` does not support Paperclip skill sync today
-- Hermes on this host already has a smaller built-in subset of software-development skills, but most ops/research agents are not code-execution-first roles, so they remain unwired for now
+- `hermes_local` still relies on the local Paperclip server wrapper for reliable repo-skill-root discovery in this workspace
+- Hermes on this host now participates in Paperclip skill sync through that wrapper path, but most ops/research agents still intentionally carry smaller, domain-specific skill sets because they are not code-execution-first roles
 
 Wired now:
 
 - `blueprint-cto`
+- `blueprint-chief-of-staff`
+- `blueprint-ceo`
 - `beta-launch-commander`
 - `conversion-agent`
+- `notion-manager-agent`
 - `webapp-codex`
 - `webapp-claude`
 - `pipeline-codex`

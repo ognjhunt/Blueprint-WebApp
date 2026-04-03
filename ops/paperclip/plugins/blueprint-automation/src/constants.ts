@@ -86,6 +86,7 @@ export const STATE_KEYS = {
   recentEvents: "recent-events",
   health: "health",
   routineHealth: "routine-health",
+  managerAlerts: "manager-alerts",
   cityLaunchSelection: "city-launch-selection",
   budgetTracking: "budget-tracking",
   phaseTracking: "phase-tracking",

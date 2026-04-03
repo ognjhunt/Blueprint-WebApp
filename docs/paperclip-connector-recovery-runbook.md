@@ -2,6 +2,8 @@
 
 Use this runbook when Blueprint Paperclip agent runs degrade because GitHub or Google Calendar runtime connectors have lost auth.
 
+This is a connector-recovery runbook, not the full autonomous-alpha launch checklist. For the public launch decision, run the full gate sequence in [autonomous-org-launch-checklist.md](/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/autonomous-org-launch-checklist.md).
+
 ## What This Runbook Covers
 
 - shared Paperclip health and plugin readiness
@@ -31,6 +33,21 @@ Expected:
   - `BLUEPRINT_PAPERCLIP_GITHUB_WEBHOOK_SECRET`
 
 If this step fails on missing GitHub env/config, treat it as a connector/auth configuration problem, not generic runtime instability.
+
+Before continuing, also run:
+
+```bash
+npm run alpha:preflight
+npm run smoke:agent
+```
+
+Reason:
+
+- `verify-blueprint-paperclip.sh` proves Paperclip/package health
+- `alpha:preflight` proves the production env contract is actually present
+- `smoke:agent` proves the selected structured runtime provider is live
+
+Do not treat a passing Paperclip verify alone as public-launch readiness.
 
 ## 2. Refresh Plugin Configuration
 
@@ -115,6 +132,15 @@ Confirm the resulting runtime transcript does not show:
 
 - `plugin:github:github status failed`
 - `claude.ai Google Calendar status needs-auth`
+
+Then rerun:
+
+```bash
+npm run smoke:agent
+scripts/paperclip/verify-blueprint-paperclip.sh --smoke
+```
+
+These are the minimum post-fix confirmations before treating the recovered connectors as launch-capable.
 
 ## Notes
 

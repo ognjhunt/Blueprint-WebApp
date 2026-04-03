@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildRoutineHealthAlertSignature,
   buildDailyAccountabilitySnapshot,
   buildManagerStateSnapshot,
   collectRoutineHealthAlerts,
@@ -180,6 +181,40 @@ describe("manager loop helpers", () => {
     );
 
     expect(alerts).toEqual([]);
+  });
+
+  it("builds a stable routine-alert signature for unchanged manager alerts", () => {
+    const signature = buildRoutineHealthAlertSignature([
+      {
+        routineKey: "market-intel-daily",
+        routineTitle: "Market Intel Daily",
+        agentKey: "market-intel-agent",
+        kind: "stale",
+        detail: "Last healthy run is 89.2h old against a 24h cadence.",
+        lastRunAt: "2026-03-30T13:15:00.928Z",
+        lastSuccessAt: "2026-03-30T13:15:00.928Z",
+        consecutiveFailures: 0,
+        expectedIntervalHours: 24,
+        lastIssueId: "iss-2",
+      },
+    ]);
+
+    const sameAlertDifferentAgeText = buildRoutineHealthAlertSignature([
+      {
+        routineKey: "market-intel-daily",
+        routineTitle: "Market Intel Daily",
+        agentKey: "market-intel-agent",
+        kind: "stale",
+        detail: "Last healthy run is 91.2h old against a 24h cadence.",
+        lastRunAt: "2026-03-30T13:15:00.928Z",
+        lastSuccessAt: "2026-03-30T13:15:00.928Z",
+        consecutiveFailures: 0,
+        expectedIntervalHours: 24,
+        lastIssueId: "iss-2",
+      },
+    ]);
+
+    expect(signature).toBe(sameAlertDifferentAgeText);
   });
 
   it("builds a sparse daily accountability view from issue state and comment evidence", () => {

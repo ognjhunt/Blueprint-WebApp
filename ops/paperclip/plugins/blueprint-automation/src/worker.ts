@@ -1,7 +1,7 @@
 import { promisify } from "node:util";
 import { execFile } from "node:child_process";
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import {
   definePlugin,
@@ -96,6 +96,7 @@ import {
   isModelNotFoundFailure,
 } from "./quota-fallback.js";
 import {
+  buildRoutineHealthAlertSignature,
   buildDailyAccountabilitySnapshot,
   buildManagerStateSnapshot,
   collectRoutineHealthAlerts,
@@ -508,6 +509,13 @@ type FounderRemediationEntry = {
 
 type FounderRemediationState = Record<string, FounderRemediationEntry>;
 
+type ManagerAlertState = {
+  routineHealth: {
+    signature: string;
+    sentAt: string;
+  } | null;
+};
+
 type HandoffMonitorEntry = {
   requestCommentId: string | null;
   responseCommentId: string | null;
@@ -650,21 +658,27 @@ type ResolveManagedIssueInput = {
 
 let currentContext: PluginContext | null = null;
 const PAPERCLIP_COMPANY_CONFIG_PATH = new URL("../../../blueprint-company/.paperclip.yaml", import.meta.url);
-let cachedPaperclipYamlConfig: PaperclipYamlConfig | null | undefined;
+let cachedPaperclipYamlConfig: { mtimeMs: number; config: PaperclipYamlConfig | null } | undefined;
 
 function loadPaperclipYamlConfig(): PaperclipYamlConfig | null {
-  if (cachedPaperclipYamlConfig !== undefined) {
-    return cachedPaperclipYamlConfig;
-  }
-
   try {
+    const stats = statSync(PAPERCLIP_COMPANY_CONFIG_PATH);
+    if (cachedPaperclipYamlConfig && cachedPaperclipYamlConfig.mtimeMs === stats.mtimeMs) {
+      return cachedPaperclipYamlConfig.config;
+    }
     const raw = readFileSync(PAPERCLIP_COMPANY_CONFIG_PATH, "utf8");
-    cachedPaperclipYamlConfig = (yaml.load(raw) as PaperclipYamlConfig | undefined) ?? null;
+    cachedPaperclipYamlConfig = {
+      mtimeMs: stats.mtimeMs,
+      config: (yaml.load(raw) as PaperclipYamlConfig | undefined) ?? null,
+    };
   } catch {
-    cachedPaperclipYamlConfig = null;
+    cachedPaperclipYamlConfig = {
+      mtimeMs: Number.NaN,
+      config: null,
+    };
   }
 
-  return cachedPaperclipYamlConfig;
+  return cachedPaperclipYamlConfig.config;
 }
 
 function resolveYamlAgentKey(agentKey: string): string {
@@ -3011,6 +3025,20 @@ async function writeFounderRemediationState(
   await writeState(ctx, companyId, STATE_KEYS.founderRemediation, state);
 }
 
+async function readManagerAlertState(ctx: PluginContext, companyId: string) {
+  return await readState<ManagerAlertState>(ctx, companyId, STATE_KEYS.managerAlerts) ?? {
+    routineHealth: null,
+  };
+}
+
+async function writeManagerAlertState(
+  ctx: PluginContext,
+  companyId: string,
+  state: ManagerAlertState,
+) {
+  await writeState(ctx, companyId, STATE_KEYS.managerAlerts, state);
+}
+
 function latestCommentTimestamp(comments: IssueComment[]) {
   return comments.reduce<string | null>((latest, comment) => {
     const createdAt = toIsoTimestamp(comment.createdAt);
@@ -3031,6 +3059,44 @@ function hasMeaningfulSourceProgressSince(
     latestCommentTimestamp(comments),
   ].filter((value): value is string => typeof value === "string" && value.length > 0);
   return candidates.some((value) => Date.parse(value) - sinceMs > MEANINGFUL_PROGRESS_GRACE_MS);
+}
+
+function hasIssueCommentContaining(
+  comments: IssueComment[],
+  needle: string,
+  sinceIso?: string | null,
+) {
+  const sinceMs = sinceIso ? Date.parse(sinceIso) : Number.NEGATIVE_INFINITY;
+  return comments.some((comment) => {
+    if (typeof comment.body !== "string" || !comment.body.includes(needle)) {
+      return false;
+    }
+    const createdAt = Date.parse(toIsoTimestamp(comment.createdAt));
+    return !Number.isFinite(sinceMs) || createdAt + MEANINGFUL_PROGRESS_GRACE_MS >= sinceMs;
+  });
+}
+
+function reconcileRoutineHealthState(routineHealth: RoutineHealthState) {
+  let changed = false;
+  const nextState: RoutineHealthState = {};
+
+  for (const [key, entry] of Object.entries(routineHealth)) {
+    const configured = getConfiguredRoutineMetadata(entry.routineKey || key);
+    const nextEntry: ManagerRoutineHealthEntry = {
+      ...entry,
+      expectedIntervalHours: configured.expectedIntervalHours ?? entry.expectedIntervalHours,
+      routineStatus: configured.routineStatus ?? entry.routineStatus ?? "active",
+    };
+    if (
+      nextEntry.expectedIntervalHours !== entry.expectedIntervalHours
+      || nextEntry.routineStatus !== entry.routineStatus
+    ) {
+      changed = true;
+    }
+    nextState[key] = nextEntry;
+  }
+
+  return { changed, state: nextState };
 }
 
 async function nudgeBuyerRiskOwner(
@@ -3089,13 +3155,35 @@ async function ensureBuyerRiskRemediation(
 ) {
   const state = await readFounderRemediationState(ctx, companyId);
   const remediationKey = `buyer-risk:${risk.id}`;
-  const existing = state[remediationKey];
   const issue = await ctx.issues.get(risk.id, companyId);
   if (!issue) {
     return { notifyFounder: false, evidenceKey: null };
   }
 
   const comments = await listCommentsForIssue(ctx, companyId, issue.id).catch(() => []);
+  let existing = state[remediationKey];
+  const escalationFingerprint = makeFingerprint("founder-buyer-risk", issue.id);
+  const escalationManagedIssue = existing?.stage === "managed_escalation"
+    ? await getManagedIssue(ctx, companyId, escalationFingerprint)
+    : null;
+  if (
+    existing?.stage === "managed_escalation"
+    && (!escalationManagedIssue?.issue || ["done", "cancelled"].includes(escalationManagedIssue.issue.status))
+  ) {
+    delete state[remediationKey];
+    await writeFounderRemediationState(ctx, companyId, state);
+    existing = undefined;
+  }
+
+  if (
+    existing?.stage === "owner_nudged"
+    && !hasIssueCommentContaining(comments, "Manager escalation: buyer-risk checkpoint required.", existing.updatedAt)
+  ) {
+    state[remediationKey] = await nudgeBuyerRiskOwner(ctx, companyId, risk);
+    await writeFounderRemediationState(ctx, companyId, state);
+    return { notifyFounder: false, evidenceKey: null };
+  }
+
   if (existing && hasMeaningfulSourceProgressSince(issue, comments, existing.updatedAt)) {
     delete state[remediationKey];
     await writeFounderRemediationState(ctx, companyId, state);
@@ -3621,15 +3709,32 @@ async function updateRoutineHealth(
 async function runRoutineHealthCheck(ctx: PluginContext, companyId: string, config: BlueprintAutomationConfig) {
   await revalidateCityLaunchDoneIssues(ctx, companyId, config);
 
-  const healthState = await readState<RoutineHealthState>(ctx, companyId, STATE_KEYS.routineHealth) ?? {};
-  const routineAlerts = collectRoutineHealthAlerts(healthState, nowIso());
+  const storedHealthState = await readState<RoutineHealthState>(ctx, companyId, STATE_KEYS.routineHealth) ?? {};
+  const reconciledHealthState = reconcileRoutineHealthState(storedHealthState);
+  if (reconciledHealthState.changed) {
+    await writeState(ctx, companyId, STATE_KEYS.routineHealth, reconciledHealthState.state);
+  }
+
+  const generatedAt = nowIso();
+  const routineAlerts = collectRoutineHealthAlerts(reconciledHealthState.state, generatedAt);
+  const managerAlertState = await readManagerAlertState(ctx, companyId);
+  const routineAlertSignature = buildRoutineHealthAlertSignature(routineAlerts);
+  const shouldPostManagerRoutineAlert =
+    routineAlerts.length > 0 && managerAlertState.routineHealth?.signature !== routineAlertSignature;
   const alerts = routineAlerts.map((entry) =>
     entry.kind === "blocked"
       ? `:warning: *Routine Alert: ${entry.routineTitle}*\nStatus: blocked\nLast failure: ${entry.detail}\nConsecutive failures: ${entry.consecutiveFailures}\nAgent: ${entry.agentKey}\nIssue: ${entry.lastIssueId ?? "unknown"}`
       : `:warning: *Routine Alert: ${entry.routineTitle}*\nStatus: stale\nLast success: ${entry.lastSuccessAt ?? "never"}\nExpected interval: ${entry.expectedIntervalHours ?? "unknown"}h\nAgent: ${entry.agentKey}\nIssue: ${entry.lastIssueId ?? "unknown"}`,
   );
 
-  if (alerts.length > 0) {
+  if (alerts.length === 0 && managerAlertState.routineHealth) {
+    await writeManagerAlertState(ctx, companyId, {
+      ...managerAlertState,
+      routineHealth: null,
+    });
+  }
+
+  if (alerts.length > 0 && shouldPostManagerRoutineAlert) {
     const slackTargets = await resolveSlackTargets(ctx, config);
     if (slackTargets.default || slackTargets.ops || slackTargets.growth || slackTargets.exec || slackTargets.engineering || slackTargets.manager) {
       await postSlackDigest(
@@ -3653,6 +3758,14 @@ async function runRoutineHealthCheck(ctx: PluginContext, companyId: string, conf
       detail: `${routineAlerts.length} routine alert(s) need follow-through.`,
       slackChannel: "#paperclip-manager",
     }).catch(() => undefined);
+
+    await writeManagerAlertState(ctx, companyId, {
+      ...managerAlertState,
+      routineHealth: {
+        signature: routineAlertSignature,
+        sentAt: generatedAt,
+      },
+    });
   }
 
   const founderSnapshot = await buildChiefOfStaffState(ctx, companyId, config);
