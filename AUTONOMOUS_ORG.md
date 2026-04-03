@@ -17,6 +17,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 - Progressive autonomy — agents start supervised and graduate based on track record
 - Paperclip is the execution and ownership record; Notion is the workspace, knowledge, review, and operator-visibility surface; repo files are the definitional source of truth
 - Autoresearch-pattern loops drive continuous optimization (adapted from [Karpathy's autoresearch](https://github.com/karpathy/autoresearch))
+- Growth should stay anchored to one narrow commercial wedge at a time. The current priority wedge is **Exact-Site Hosted Review**: one real site, one workflow lane, one package-plus-hosted-review path, with explicit human gates on pricing, policy, rights, and irreversible commitments.
 
 ---
 
@@ -1523,10 +1524,12 @@ Hermes-backed research/copilot agents are configured to use Codex OAuth only on 
 
 | Service | Agents | Priority | Est. Cost | Status |
 |---------|--------|----------|-----------|--------|
-| Analytics (PostHog/GA4) | Analytics, Conversion, Growth Lead | P0 | Free tier | **Not yet set up** |
+| Analytics (PostHog/GA4) | Analytics, Conversion, Growth Lead | P0 | Free tier | **Repo wired; account config still needed** |
 | Web Search API | Market Intel | P1 | ~$50/mo | **Configured** |
 | Slack Incoming Webhook | All leads + CEO | P1 | Free | **Configured** |
-| SendGrid / Email API | Intake, Finance/Support | P1 | Free tier | **Not yet set up** |
+| SendGrid / Email API | Intake, Finance/Support, Growth | P1 | Free tier | **Repo wired; account config still needed** |
+| Google image generation | Growth, Community Updates, Robot Team Growth | P1 | Usage-based | **Repo wired; key/model config still needed** |
+| ElevenLabs voice | Support, Growth, Buyer-facing demo booking | P1 | Usage-based | **Repo wired; key/voice config still needed** |
 | Notion API Token | All agents (via plugin) | P0 | Free | **Configured** |
 | Cloudflare Tunnel | Plugin webhook intake | P0 | Free | **Verified** |
 

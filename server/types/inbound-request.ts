@@ -148,10 +148,19 @@ export interface DraftMessage {
   body: string;
 }
 
+export type RequestQueueKey =
+  | "inbound_request_review"
+  | "exact_site_hosted_review_queue";
+
+export type GrowthWedgeKey = "exact_site_hosted_review";
+
 export interface OpsAutomationEnvelope {
   status?: string;
-  queue?: string;
+  queue?: RequestQueueKey | string;
+  queue_label?: string | null;
   intent?: string;
+  wedge_key?: GrowthWedgeKey | null;
+  filter_tags?: string[];
   next_action?: string | null;
   recommended_path?: string | null;
   confidence?: number | null;
@@ -428,6 +437,9 @@ export interface InboundRequest {
   requestId: string;
   site_submission_id: string;
   buyer_request_id?: string | null;
+  queue_key?: RequestQueueKey | null;
+  growth_wedge?: GrowthWedgeKey | null;
+  queue_tags?: string[];
   createdAt: FirebaseFirestore.Timestamp;
   status: RequestStatus;
   qualification_state: QualificationState;
@@ -615,6 +627,9 @@ export interface InboundRequestListItem {
   requestId: string;
   site_submission_id: string;
   buyer_request_id?: string | null;
+  queue_key?: RequestQueueKey | null;
+  growth_wedge?: GrowthWedgeKey | null;
+  queue_tags?: string[];
   createdAt: string; // ISO string for client
   status: RequestStatus;
   qualification_state: QualificationState;
@@ -634,8 +649,10 @@ export interface InboundRequestListItem {
     siteName: string;
     siteLocation: string;
     taskStatement: string;
+    proofPathPreference?: ProofPathPreference | null;
   };
   owner: RequestOwner;
+  ops_automation?: OpsAutomationEnvelope;
   buyer_review_access?: BuyerReviewAccess;
   ops?: OpsSummary;
   pipeline?: PipelineAttachment;

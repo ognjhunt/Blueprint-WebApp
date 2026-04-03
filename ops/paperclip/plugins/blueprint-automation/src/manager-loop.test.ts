@@ -129,6 +129,7 @@ describe("manager loop helpers", () => {
           routineKey: "blocked",
           routineTitle: "Blocked Routine",
           agentKey: "ops-lead",
+          routineStatus: "active",
           lastOutcome: "blocked",
           lastRunAt: "2026-03-30T11:00:00.000Z",
           lastSuccessAt: "2026-03-30T10:00:00.000Z",
@@ -141,6 +142,7 @@ describe("manager loop helpers", () => {
           routineKey: "stale",
           routineTitle: "Stale Routine",
           agentKey: "growth-lead",
+          routineStatus: "active",
           lastOutcome: "done",
           lastRunAt: "2026-03-29T00:00:00.000Z",
           lastSuccessAt: "2026-03-29T00:00:00.000Z",
@@ -155,6 +157,29 @@ describe("manager loop helpers", () => {
 
     expect(alerts).toHaveLength(2);
     expect(alerts.map((alert) => alert.kind).sort()).toEqual(["blocked", "stale"]);
+  });
+
+  it("ignores paused routines when computing routine alerts", () => {
+    const alerts = collectRoutineHealthAlerts(
+      {
+        paused: {
+          routineKey: "paused",
+          routineTitle: "Demand Intel Daily",
+          agentKey: "demand-intel-agent",
+          routineStatus: "paused",
+          lastOutcome: "done",
+          lastRunAt: "2026-03-29T00:00:00.000Z",
+          lastSuccessAt: "2026-03-29T00:00:00.000Z",
+          lastFailureReason: null,
+          consecutiveFailures: 0,
+          expectedIntervalHours: 24,
+          lastIssueId: "iss-3",
+        },
+      },
+      "2026-03-30T12:00:00.000Z",
+    );
+
+    expect(alerts).toEqual([]);
   });
 
   it("builds a sparse daily accountability view from issue state and comment evidence", () => {

@@ -1,8 +1,14 @@
 import posthog from "posthog-js";
 import {
+  getDemandAttributionFromSearchParams,
   hasDemandAttribution,
   type DemandAttribution,
 } from "./demandAttribution";
+import { withCsrfHeader } from "./csrf";
+import {
+  getActiveExperimentAssignments,
+  getOrCreateExperimentAnonymousId,
+} from "./experiments";
 
 type AnalyticsConsent = {
   analytics: boolean;
@@ -14,7 +20,10 @@ const viteEnv =
     ? import.meta.env
     : ({} as Record<string, string | boolean | undefined>);
 
-const GA_MEASUREMENT_ID = (viteEnv.VITE_GA_MEASUREMENT_ID as string | undefined) || "";
+const GA_MEASUREMENT_ID =
+  (viteEnv.VITE_GA_MEASUREMENT_ID as string | undefined)
+  || (viteEnv.VITE_FIREBASE_MEASUREMENT_ID as string | undefined)
+  || "";
 const POSTHOG_PROJECT_TOKEN =
   (viteEnv.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN as string | undefined)?.trim() || "";
 const POSTHOG_HOST =
@@ -22,9 +31,23 @@ const POSTHOG_HOST =
 
 let gaInitialized = false;
 let posthogInitialized = false;
+let analyticsSessionId: string | null = null;
 
 function analyticsRuntimeEnabled() {
   return viteEnv.DEV !== true || Boolean(viteEnv.VITE_ENABLE_ANALYTICS);
+}
+
+function getAnalyticsSessionId() {
+  if (analyticsSessionId) {
+    return analyticsSessionId;
+  }
+
+  analyticsSessionId =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `session_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
+  return analyticsSessionId;
 }
 
 function hasConfiguredGa() {
@@ -69,6 +92,17 @@ function buildDemandAttributionEventParams(
   });
 }
 
+function currentDemandAttribution(): DemandAttribution | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const attribution = getDemandAttributionFromSearchParams(
+    new URLSearchParams(window.location.search),
+  );
+  return hasDemandAttribution(attribution) ? attribution : null;
+}
+
 function ensureGaLoaded() {
   if (!analyticsRuntimeEnabled() || !hasConfiguredGa()) {
     return;
@@ -103,6 +137,39 @@ function ensureGaLoaded() {
   });
 
   gaInitialized = true;
+}
+
+async function ingestFirstPartyEvent(
+  event: string,
+  parameters?: Record<string, string | number | boolean | undefined>,
+  page?: { path?: string; title?: string },
+) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    const headers = await withCsrfHeader({ "Content-Type": "application/json" });
+    await fetch("/api/analytics/ingest", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        event,
+        source: "webapp",
+        anonymousId: getOrCreateExperimentAnonymousId(),
+        sessionId: getAnalyticsSessionId(),
+        pagePath: page?.path || window.location.pathname,
+        pageTitle: page?.title || document.title,
+        currentUrl: window.location.href,
+        referrer: document.referrer || null,
+        experiments: getActiveExperimentAssignments(),
+        properties: parameters || {},
+        attribution: currentDemandAttribution(),
+      }),
+    });
+  } catch {
+    // Event ingestion should never break the customer-facing flow.
+  }
 }
 
 function applyGaConsent(consent: AnalyticsConsent | null | undefined) {
@@ -184,6 +251,8 @@ export function trackPageView(path: string, title?: string) {
       current_url: window.location.href,
     });
   }
+
+  void ingestFirstPartyEvent("$pageview", undefined, { path, title });
 }
 
 export function trackEvent(
@@ -197,6 +266,8 @@ export function trackEvent(
   if (posthogInitialized && hasConfiguredPostHog()) {
     posthog.capture(eventName, parameters);
   }
+
+  void ingestFirstPartyEvent(eventName, parameters);
 }
 
 function getSafeErrorType(error: unknown) {
@@ -218,6 +289,47 @@ function getSafeErrorType(error: unknown) {
 }
 
 export const analyticsEvents = {
+  experimentExposure: (experimentKey: string, variant: string, source: string) =>
+    trackEvent("experiment_exposure", {
+      experiment_key: experimentKey,
+      variant,
+      source,
+    }),
+
+  campaignKitGenerated: (assetGoal: string, skuName: string) =>
+    trackEvent("campaign_kit_generated", {
+      asset_goal: assetGoal,
+      sku_name: skuName,
+    }),
+
+  creativeImageGenerated: (assetGoal: string, aspectRatio: string) =>
+    trackEvent("creative_image_generated", {
+      asset_goal: assetGoal,
+      aspect_ratio: aspectRatio,
+    }),
+
+  creativeVideoRequested: (assetGoal: string, ratio: string) =>
+    trackEvent("creative_video_requested", {
+      asset_goal: assetGoal,
+      ratio,
+    }),
+
+  exactSiteReviewView: (variantId: string) =>
+    trackEvent("exact_site_review_view", {
+      variant_id: variantId,
+    }),
+
+  voiceConciergeStarted: (surface: string) =>
+    trackEvent("voice_concierge_started", {
+      surface,
+    }),
+
+  voiceConciergeCompleted: (surface: string, handoffRequired: boolean) =>
+    trackEvent("voice_concierge_completed", {
+      surface,
+      handoff_required: handoffRequired,
+    }),
+
   homeHeroView: (variantId: string, source: string) =>
     trackEvent("home_hero_view", { variant_id: variantId, source }),
 
@@ -528,4 +640,4 @@ export const analyticsEvents = {
     }),
 };
 
-export { getSafeErrorType };
+export { getAnalyticsSessionId, getOrCreateExperimentAnonymousId, getSafeErrorType };

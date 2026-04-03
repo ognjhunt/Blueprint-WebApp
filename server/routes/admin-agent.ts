@@ -25,6 +25,11 @@ import {
   getAgentRuntimeConnectionMetadata,
   runAgentRuntimeSmokeTest,
 } from "../agents/runtime-connectivity";
+import {
+  demoteAgentLane,
+  evaluateGraduationStatus,
+  promoteAgentLane,
+} from "../utils/agent-graduation";
 import { requireAdminRole } from "../middleware/requireAdminRole";
 import { resolveAccessContext } from "../utils/access-control";
 
@@ -75,6 +80,9 @@ function normalizeSession(session: unknown) {
         externalSources: Array.isArray(startupContext.externalSources)
           ? startupContext.externalSources
           : [],
+        creativeContexts: Array.isArray(startupContext.creativeContexts)
+          ? startupContext.creativeContexts
+          : [],
         operatorNotes:
           typeof startupContext.operatorNotes === "string"
             ? startupContext.operatorNotes
@@ -108,6 +116,7 @@ function normalizeStartupPack(pack: unknown) {
     blueprintIds: Array.isArray(value.blueprint_ids) ? value.blueprint_ids : [],
     documentIds: Array.isArray(value.document_ids) ? value.document_ids : [],
     externalSources: Array.isArray(value.external_sources) ? value.external_sources : [],
+    creativeContexts: Array.isArray(value.creative_contexts) ? value.creative_contexts : [],
     operatorNotes: typeof value.operator_notes === "string" ? value.operator_notes : "",
     toolPolicies:
       value.tool_policies && typeof value.tool_policies === "object"
@@ -206,6 +215,15 @@ const startupPackSourceSchema = z.object({
   source_type: z.string().max(120).optional(),
 });
 
+const creativeContextSchema = z.object({
+  id: z.string().min(1).max(160),
+  sku_name: z.string().max(200).optional(),
+  created_at: z.string().max(120).nullable().optional(),
+  rollout_variant: z.string().max(120).nullable().optional(),
+  research_topic: z.string().max(240).nullable().optional(),
+  storage_uri: z.string().min(1).max(2000),
+});
+
 const createStartupPackSchema = z.object({
   name: z.string().min(1).max(160),
   description: z.string().max(600).optional(),
@@ -213,6 +231,7 @@ const createStartupPackSchema = z.object({
   blueprintIds: z.array(z.string().min(1).max(160)).optional(),
   documentIds: z.array(z.string().min(1).max(160)).optional(),
   externalSources: z.array(startupPackSourceSchema).optional(),
+  creativeContexts: z.array(creativeContextSchema).optional(),
   operatorNotes: z.string().max(12000).optional(),
   toolPolicies: z.record(z.unknown()).optional(),
   ownerScope: z.enum(["workspace_admin", "org"]).optional(),
@@ -413,6 +432,7 @@ router.post("/startup-packs", requireAdminRole, async (req: Request, res: Respon
       blueprint_ids: payload.blueprintIds,
       document_ids: payload.documentIds,
       external_sources: payload.externalSources,
+      creative_contexts: payload.creativeContexts,
       operator_notes: payload.operatorNotes,
       tool_policies: payload.toolPolicies,
       owner_scope: payload.ownerScope,
@@ -446,6 +466,7 @@ router.patch("/startup-packs/:id", requireAdminRole, async (req: Request, res: R
       blueprint_ids: payload.blueprintIds,
       document_ids: payload.documentIds,
       external_sources: payload.externalSources,
+      creative_contexts: payload.creativeContexts,
       operator_notes: payload.operatorNotes,
       tool_policies: payload.toolPolicies,
       owner_scope: payload.ownerScope,
@@ -625,5 +646,73 @@ router.post("/runs/:id/cancel", requireAdminRole, async (req: Request, res: Resp
     return res.status(400).json({ ok: false, error: message });
   }
 });
+
+router.get("/graduation", requireAdminRole, async (_req: Request, res: Response) => {
+  try {
+    const lanes = await Promise.all([
+      evaluateGraduationStatus("waitlist"),
+      evaluateGraduationStatus("inbound_qualification"),
+      evaluateGraduationStatus("support_triage"),
+      evaluateGraduationStatus("payout_exception"),
+      evaluateGraduationStatus("capturer_reminders"),
+      evaluateGraduationStatus("buyer_lifecycle"),
+      evaluateGraduationStatus("growth_campaign"),
+    ]);
+
+    return res.json({ ok: true, lanes });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to fetch graduation status";
+    return res.status(400).json({ ok: false, error: message });
+  }
+});
+
+router.post(
+  "/graduation/:lane/promote",
+  requireAdminRole,
+  async (req: Request, res: Response) => {
+    try {
+      const actor = await resolveAccessContext(res);
+      const result = await promoteAgentLane(
+        req.params.lane,
+        actor.email || actor.uid || "ops@tryblueprint.io",
+      );
+
+      if (result.error) {
+        return res.status(400).json({ ok: false, error: result.error });
+      }
+
+      return res.json({ ok: true, lane: result });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to promote agent lane";
+      return res.status(400).json({ ok: false, error: message });
+    }
+  },
+);
+
+router.post(
+  "/graduation/:lane/demote",
+  requireAdminRole,
+  async (req: Request, res: Response) => {
+    try {
+      const actor = await resolveAccessContext(res);
+      const reason =
+        typeof req.body?.reason === "string" && req.body.reason.trim().length > 0
+          ? req.body.reason.trim()
+          : "Manual demotion";
+      const result = await demoteAgentLane(
+        req.params.lane,
+        actor.email || actor.uid || "ops@tryblueprint.io",
+        reason,
+      );
+      return res.json({ ok: true, lane: result });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to demote agent lane";
+      return res.status(400).json({ ok: false, error: message });
+    }
+  },
+);
 
 export default router;

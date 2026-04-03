@@ -1,11 +1,8 @@
 import { Router, Request, Response } from "express";
-import { authAdmin, dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
-import { getAgentRuntimeConnectionMetadata } from "../agents/runtime-connectivity";
 import { getHostedSessionLiveStoreStatus } from "../utils/hosted-session-live-store";
-import { getEmailTransportStatus } from "../utils/email";
-import { stripeClient } from "../constants/stripe";
-import { isTruthyEnvValue } from "../config/env";
+import { buildLaunchReadinessSnapshot } from "../utils/launch-readiness";
+import { maybeAlertOnLaunchReadinessTransition } from "../utils/ops-alerts";
 
 const router = Router();
 
@@ -53,153 +50,25 @@ router.get("/health/live", (_req: Request, res: Response) => {
  */
 router.get("/health/ready", async (_req: Request, res: Response) => {
   try {
-    const liveSessionStore = getHostedSessionLiveStoreStatus();
-    const emailTransport = getEmailTransportStatus();
-    const agentRuntime = getAgentRuntimeConnectionMetadata();
-    const automationFlags = {
-      waitlist: isTruthyEnvValue(process.env.BLUEPRINT_WAITLIST_AUTOMATION_ENABLED),
-      inbound: isTruthyEnvValue(process.env.BLUEPRINT_INBOUND_AUTOMATION_ENABLED),
-      support: isTruthyEnvValue(process.env.BLUEPRINT_SUPPORT_TRIAGE_ENABLED),
-      payout: isTruthyEnvValue(process.env.BLUEPRINT_PAYOUT_TRIAGE_ENABLED),
-      preview: isTruthyEnvValue(process.env.BLUEPRINT_PREVIEW_DIAGNOSIS_ENABLED),
-    };
-    const anyAutomationEnabled = Object.values(automationFlags).some(Boolean);
-    const stripeEnabled = Boolean(
-      process.env.STRIPE_SECRET_KEY?.trim()
-      || process.env.CHECKOUT_ALLOWED_ORIGINS?.trim()
-      || process.env.STRIPE_WEBHOOK_SECRET?.trim(),
-    );
-    const pipelineSyncEnabled = Boolean(
-      process.env.PIPELINE_SYNC_TOKEN?.trim()
-      || isTruthyEnvValue(process.env.BLUEPRINT_PIPELINE_SYNC_REQUIRED),
-    );
-    const emailRequired =
-      emailTransport.enabled || isTruthyEnvValue(process.env.BLUEPRINT_EMAIL_DELIVERY_REQUIRED);
-    const redisRequired =
-      Boolean(process.env.REDIS_URL?.trim()) || Boolean(process.env.RATE_LIMIT_REDIS_URL?.trim());
-    const firebaseAdminReady = Boolean(dbAdmin && authAdmin);
-    const redisReady =
-      !redisRequired
-      || (liveSessionStore.backend === "redis" && liveSessionStore.redisConnected === true);
-    const stripeReady =
-      !stripeEnabled || Boolean(stripeClient && process.env.STRIPE_WEBHOOK_SECRET?.trim());
-    const emailReady = !emailRequired || emailTransport.configured;
-    const pipelineSyncReady =
-      !pipelineSyncEnabled || Boolean(process.env.PIPELINE_SYNC_TOKEN?.trim());
-    const agentRuntimeReady = !anyAutomationEnabled || agentRuntime.configured;
+    const readiness = buildLaunchReadinessSnapshot();
+    await maybeAlertOnLaunchReadinessTransition(readiness);
 
-    const checks = {
-      server: true,
-      firebaseAdmin: firebaseAdminReady,
-      redis: redisReady,
-      stripe: stripeReady,
-      email: emailReady,
-      pipelineSync: pipelineSyncReady,
-      agentRuntime: agentRuntimeReady,
-    };
-
-    const launchChecks = {
-      firebaseAdmin: {
-        required: true,
-        ready: firebaseAdminReady,
-        detail: firebaseAdminReady
-          ? "Firebase Admin auth and firestore are configured."
-          : "Firebase Admin auth/firestore is unavailable.",
-      },
-      redis: {
-        required: redisRequired,
-        ready: redisReady,
-        detail: redisRequired
-          ? liveSessionStore.redisConnected
-            ? "Redis-backed live session state is connected."
-            : "Redis is configured for live session state but is not connected."
-          : "Redis-backed live session state is not required.",
-      },
-      stripe: {
-        required: stripeEnabled,
-        ready: stripeReady,
-        detail: stripeEnabled
-          ? stripeReady
-            ? "Stripe secret and webhook configuration are present."
-            : "Stripe is enabled but secret key or webhook secret is missing."
-          : "Stripe launch checks are disabled because Stripe envs are unset.",
-      },
-      email: {
-        required: emailRequired,
-        ready: emailReady,
-        detail: emailRequired
-          ? emailReady
-            ? "SMTP delivery is configured."
-            : "SMTP delivery is required but not fully configured."
-          : "SMTP delivery is not required.",
-      },
-      pipelineSync: {
-        required: pipelineSyncEnabled,
-        ready: pipelineSyncReady,
-        detail: pipelineSyncEnabled
-          ? pipelineSyncReady
-            ? "Pipeline sync token is configured."
-            : "Pipeline sync is enabled but PIPELINE_SYNC_TOKEN is missing."
-          : "Pipeline sync is not required.",
-      },
-      agentRuntime: {
-        required: anyAutomationEnabled,
-        ready: agentRuntimeReady,
-        detail: anyAutomationEnabled
-          ? agentRuntimeReady
-            ? `${agentRuntime.provider} is configured for enabled automation lanes.`
-            : `Automation lanes are enabled but the selected provider (${agentRuntime.provider}) is not configured.`
-          : "Agent runtime is not required because automation lanes are disabled.",
-      },
-      postSignupDirect: {
-        required: false,
-        ready: Boolean(
-          (
-            (process.env.GOOGLE_CLIENT_EMAIL?.trim() && process.env.GOOGLE_PRIVATE_KEY?.trim())
-            || process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim()
-            || process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim()
-          )
-          && process.env.GOOGLE_CALENDAR_ID?.trim()
-          && (
-            process.env.POST_SIGNUP_SPREADSHEET_ID?.trim()
-            || process.env.SPREADSHEET_ID?.trim()
-          ),
-        ),
-        detail: "Tracks whether post-signup calendar and sheet credentials are present for alpha launch.",
-      },
-      automationFlags,
-    };
-
-    const allHealthy = Object.values(checks).every(Boolean);
-
-    if (allHealthy) {
+    if (readiness.status === "ready") {
       res.status(200).json({
         status: "ready",
-        checks,
-        dependencies: {
-          liveSessionStore,
-          emailTransport,
-          agentRuntime,
-          stripeEnabled,
-          pipelineSyncEnabled,
-          redisRequired,
-          launchChecks,
-        },
+        checks: readiness.checks,
+        blockers: readiness.blockers,
+        warnings: readiness.warnings,
+        dependencies: readiness.dependencies,
         timestamp: new Date().toISOString(),
       });
     } else {
       res.status(503).json({
         status: "not_ready",
-        checks,
-        dependencies: {
-          liveSessionStore,
-          emailTransport,
-          agentRuntime,
-          stripeEnabled,
-          pipelineSyncEnabled,
-          redisRequired,
-          launchChecks,
-        },
+        checks: readiness.checks,
+        blockers: readiness.blockers,
+        warnings: readiness.warnings,
+        dependencies: readiness.dependencies,
         timestamp: new Date().toISOString(),
       });
     }

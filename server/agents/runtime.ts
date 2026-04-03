@@ -1,9 +1,6 @@
 import crypto from "node:crypto";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { runAcpHarnessTask } from "./adapters/acp-harness";
-import { runAnthropicAgentSdkTask } from "./adapters/anthropic-agent-sdk";
-import { runOpenAIResponsesTask } from "./adapters/openai-responses";
 import {
   cancelActionSession,
   startActionSession,
@@ -105,6 +102,23 @@ function isAutonomousAutomationTask(kind: AgentTaskKind) {
     "payout_exception_triage",
     "preview_diagnosis",
   ].includes(kind);
+}
+
+function summarizeCreativeContexts(startupContext: Record<string, unknown> | null) {
+  const creativeContexts = Array.isArray(startupContext?.creative_contexts)
+    ? (startupContext?.creative_contexts as Array<Record<string, unknown>>)
+    : [];
+
+  return {
+    creative_context_ids: creativeContexts
+      .map((context) => (typeof context.id === "string" ? context.id : null))
+      .filter(Boolean),
+    creative_context_uris: creativeContexts
+      .map((context) =>
+        typeof context.storage_uri === "string" ? context.storage_uri : null,
+      )
+      .filter(Boolean),
+  };
 }
 
 function shouldRequireHumanReview(
@@ -249,14 +263,17 @@ async function executeTask<TInput, TOutput>(
   task: NormalizedAgentTask<TInput, TOutput>,
 ): Promise<AgentResult<TOutput>> {
   if (task.provider === "openai_responses") {
+    const { runOpenAIResponsesTask } = await import("./adapters/openai-responses");
     return runOpenAIResponsesTask(task);
   }
 
   if (task.provider === "anthropic_agent_sdk") {
+    const { runAnthropicAgentSdkTask } = await import("./adapters/anthropic-agent-sdk");
     return runAnthropicAgentSdkTask(task);
   }
 
   if (task.provider === "acp_harness") {
+    const { runAcpHarnessTask } = await import("./adapters/acp-harness");
     return runAcpHarnessTask(task);
   }
 
@@ -608,6 +625,8 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
     metadata: {
       dispatch_mode: normalizedTask.session_policy.dispatch_mode,
       tool_mode: normalizedTask.tool_policy.mode,
+      ...((((normalizedTask.metadata || {}) as Record<string, unknown>)
+        .resolved_startup_context as Record<string, unknown> | undefined) || {}),
     },
   });
 
@@ -644,6 +663,8 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
       latencyMs,
       metadata: {
         requires_human_review: result.requires_human_review,
+        ...((((normalizedTask.metadata || {}) as Record<string, unknown>)
+          .resolved_startup_context as Record<string, unknown> | undefined) || {}),
       },
     });
 
@@ -694,6 +715,8 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
       summary: message,
       metadata: {
         exception: true,
+        ...((((normalizedTask.metadata || {}) as Record<string, unknown>)
+          .resolved_startup_context as Record<string, unknown> | undefined) || {}),
       },
     });
 
@@ -757,6 +780,20 @@ export async function createAgentSession(params: {
       document_ids:
         ((params.metadata?.startupContext as Record<string, unknown> | undefined)
           ?.documentIds as string[] | undefined) || [],
+      creative_context_ids:
+        Array.isArray(
+          (params.metadata?.startupContext as Record<string, unknown> | undefined)
+            ?.creativeContexts,
+        )
+          ? (
+              ((params.metadata?.startupContext as Record<string, unknown> | undefined)
+                ?.creativeContexts as Array<Record<string, unknown>>)
+            )
+              .map((context) =>
+                typeof context?.id === "string" ? context.id : null,
+              )
+              .filter(Boolean)
+          : [],
     },
   });
   const savedSession = await getSession(sessionId);
@@ -782,6 +819,17 @@ export async function sendAgentSessionMessage(params: {
             : "",
         )
       : null;
+
+  const resolvedStartupContextSummary = startupContext
+    ? {
+        creative_context_count: Array.isArray(
+          (startupContext as Record<string, unknown>).creative_contexts,
+        )
+          ? ((startupContext as Record<string, unknown>).creative_contexts as unknown[]).length
+          : 0,
+        ...summarizeCreativeContexts(startupContext as Record<string, unknown>),
+      }
+    : null;
 
   if (startupContext) {
     await recordOpsActionLog({
@@ -816,6 +864,11 @@ export async function sendAgentSessionMessage(params: {
           Array.isArray((startupContext as Record<string, unknown>).external_sources)
             ? ((startupContext as Record<string, unknown>).external_sources as unknown[]).length
             : 0,
+        creative_context_count:
+          Array.isArray((startupContext as Record<string, unknown>).creative_contexts)
+            ? ((startupContext as Record<string, unknown>).creative_contexts as unknown[]).length
+            : 0,
+        ...summarizeCreativeContexts(startupContext as Record<string, unknown>),
       },
     });
   }
@@ -826,6 +879,13 @@ export async function sendAgentSessionMessage(params: {
     session_key: params.task.session_key || session.session_key,
     provider: params.task.provider || session.provider,
     runtime: params.task.runtime || session.runtime,
+    metadata:
+      resolvedStartupContextSummary
+        ? {
+            ...((params.task.metadata || {}) as Record<string, unknown>),
+            resolved_startup_context: resolvedStartupContextSummary,
+          }
+        : params.task.metadata,
     input:
       startupContext && params.task.input && typeof params.task.input === "object"
         ? {
@@ -883,6 +943,7 @@ export async function sendAgentSessionMessage(params: {
         summary: "Queued behind an active session run",
         metadata: {
           active_run_id: activeRun.id,
+          ...(resolvedStartupContextSummary || {}),
         },
       },
     );
@@ -903,10 +964,23 @@ export async function sendAgentSessionMessage(params: {
     sessionId: params.sessionId,
   });
 
+  const nextSessionMetadata = {
+    ...(session.metadata || {}),
+    ...(result.artifacts && typeof result.artifacts === "object"
+      ? {
+          previous_response_id:
+            typeof (result.artifacts as Record<string, unknown>).openai_response_id === "string"
+              ? (result.artifacts as Record<string, unknown>).openai_response_id
+              : (session.metadata as Record<string, unknown> | undefined)?.previous_response_id,
+        }
+      : {}),
+  };
+
   await saveSession({
     ...session,
     status: result.status === "failed" ? "active" : "idle",
     last_run_id: runId,
+    metadata: nextSessionMetadata,
     updated_at: nowTimestamp(),
   });
 

@@ -31,10 +31,10 @@ describe("public capture and world-model copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Test your robot on the exact customer site before you travel\./i,
+        name: /Train your robot on the exact customer site before you visit\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /View public demo listing/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /View sample listing/i }).length).toBeGreaterThan(0);
     expect(container).toHaveTextContent(/world models/i);
     expect(container).toHaveTextContent(/capture/i);
     expect(container).toHaveTextContent(/robot teams?/i);
@@ -43,7 +43,7 @@ describe("public capture and world-model copy", () => {
     expect(container).not.toHaveTextContent(/digital twin/i);
     expect(container).not.toHaveTextContent(/SimReady/i);
     expect(container).not.toHaveTextContent(/marketplace/i);
-    expect(container).not.toHaveTextContent(/environments/i);
+    expect(screen.queryByRole("link", { name: /^Environments$/i })).not.toBeInTheDocument();
 
     expect(container).not.toHaveTextContent(/adapter weights/i);
     expect(container).not.toHaveTextContent(/LoRA/i);

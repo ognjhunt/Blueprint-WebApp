@@ -33,12 +33,19 @@ import type {
   PipelineAttachment,
   RequestedLane,
   BuyerType,
+  RequestQueueKey,
+  GrowthWedgeKey,
   UpdateRequestOpsPayload,
   ProofPathMilestoneKey,
+  OpsAutomationEnvelope,
 } from "../types/inbound-request";
 import { parseGsUri, sceneDashboardSchema } from "../utils/pipeline-dashboard";
 import { hasAnyRole } from "../utils/access-control";
 import { runWaitlistAutomationLoop } from "../utils/waitlistAutomation";
+import { buildGrowthIntegrationSummary } from "../utils/provider-status";
+import { getAgentRuntimeConnectionMetadata } from "../agents/runtime-connectivity";
+import { isAutomationLaneEnabled, isTruthyEnvValue } from "../config/env";
+import { buildLaunchReadinessSnapshot } from "../utils/launch-readiness";
 
 const router = Router();
 
@@ -88,6 +95,41 @@ function normalizeProofPathMilestones(raw: unknown) {
     artifact_handoff_delivered_at: normalizeTimestamp(value.artifact_handoff_delivered_at),
     artifact_handoff_accepted_at: normalizeTimestamp(value.artifact_handoff_accepted_at),
     human_commercial_handoff_at: normalizeTimestamp(value.human_commercial_handoff_at),
+  };
+}
+
+function normalizeOpsAutomationEnvelope(raw: unknown): OpsAutomationEnvelope | undefined {
+  if (!raw || typeof raw !== "object") {
+    return undefined;
+  }
+
+  const value = raw as Record<string, unknown>;
+  return {
+    status: typeof value.status === "string" ? value.status : "pending",
+    queue: typeof value.queue === "string" ? value.queue : undefined,
+    queue_label: typeof value.queue_label === "string" ? value.queue_label : null,
+    intent: typeof value.intent === "string" ? value.intent : undefined,
+    wedge_key:
+      value.wedge_key === "exact_site_hosted_review"
+        ? "exact_site_hosted_review"
+        : null,
+    filter_tags: Array.isArray(value.filter_tags)
+      ? value.filter_tags.filter((entry): entry is string => typeof entry === "string")
+      : [],
+    next_action: typeof value.next_action === "string" ? value.next_action : null,
+    recommended_path:
+      typeof value.recommended_path === "string" ? value.recommended_path : null,
+    confidence: typeof value.confidence === "number" ? value.confidence : null,
+    requires_human_review:
+      typeof value.requires_human_review === "boolean"
+        ? value.requires_human_review
+        : null,
+    provider: typeof value.provider === "string" ? value.provider : null,
+    runtime: typeof value.runtime === "string" ? value.runtime : null,
+    model: typeof value.model === "string" ? value.model : null,
+    last_error: typeof value.last_error === "string" ? value.last_error : null,
+    last_attempt_at: normalizeTimestamp(value.last_attempt_at),
+    processed_at: normalizeTimestamp(value.processed_at),
   };
 }
 
@@ -347,6 +389,21 @@ function ledgerMutationStatus(error: unknown) {
   return 500;
 }
 
+function parseGrowthEventTimestamp(value: unknown) {
+  const timestamp = value as { toDate?: () => Date } | string | null | undefined;
+  if (!timestamp) return null;
+  if (typeof timestamp === "string") {
+    const date = new Date(timestamp);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  const resolved = timestamp.toDate?.();
+  return resolved && !Number.isNaN(resolved.getTime()) ? resolved : null;
+}
+
+function normalizeDateKey(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
 function legacyStatusToQualificationState(status?: string | null): QualificationState {
   switch (status) {
     case "triaging":
@@ -400,11 +457,33 @@ function normalizeDecryptedRequest(decrypted: InboundRequest) {
   const pipeline = normalizePipelineAttachment(decrypted.pipeline);
   const derivedAssets = normalizeDerivedAssets(decrypted.derived_assets);
   const deploymentReadiness = normalizeDeploymentReadiness(decrypted.deployment_readiness);
+  const queueKey =
+    (typeof decrypted.queue_key === "string" && decrypted.queue_key.trim()) ||
+    (typeof decrypted.ops_automation?.queue === "string" && decrypted.ops_automation.queue.trim()) ||
+    "inbound_request_review";
+  const growthWedge =
+    (typeof decrypted.growth_wedge === "string" && decrypted.growth_wedge.trim()) ||
+    (typeof decrypted.ops_automation?.wedge_key === "string" &&
+      decrypted.ops_automation.wedge_key.trim()) ||
+    null;
+  const queueTags = Array.from(
+    new Set(
+      [
+        ...(Array.isArray(decrypted.queue_tags) ? decrypted.queue_tags : []),
+        ...(Array.isArray(decrypted.ops_automation?.filter_tags)
+          ? decrypted.ops_automation?.filter_tags
+          : []),
+      ].filter((value): value is string => typeof value === "string" && value.trim().length > 0),
+    ),
+  );
 
   return {
     ...decrypted,
     site_submission_id: decrypted.site_submission_id || decrypted.requestId,
     buyer_request_id: decrypted.buyer_request_id || decrypted.requestId,
+    queue_key: queueKey as RequestQueueKey,
+    growth_wedge: growthWedge as GrowthWedgeKey | null,
+    queue_tags: queueTags,
     status: qualificationState as RequestStatus,
     qualification_state: qualificationState,
     opportunity_state: opportunityState,
@@ -423,6 +502,12 @@ function normalizeDecryptedRequest(decrypted: InboundRequest) {
           proof_path: normalizeProofPathMilestones(decrypted.ops.proof_path),
         }
       : decrypted.ops,
+    ops_automation: {
+      ...(decrypted.ops_automation || {}),
+      queue: queueKey,
+      wedge_key: growthWedge,
+      filter_tags: queueTags,
+    },
     pipeline,
     derived_assets: derivedAssets,
     deployment_readiness: deploymentReadiness,
@@ -642,6 +727,8 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
     const {
       status,
       priority,
+      queue,
+      wedge,
       limit = "50",
       startAfter,
       sortBy = "createdAt",
@@ -669,6 +756,10 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
 
     // Apply pagination
     const limitNum = Math.min(parseInt(limit as string) || 50, 100);
+    const queueFilter = typeof queue === "string" ? queue.trim() : "";
+    const wedgeFilter = typeof wedge === "string" ? wedge.trim() : "";
+    const fetchLimit =
+      queueFilter || wedgeFilter ? Math.max(limitNum * 4, 200) : limitNum;
 
     if (startAfter && typeof startAfter === "string") {
       const startDoc = await db
@@ -680,7 +771,7 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
       }
     }
 
-    query = query.limit(limitNum);
+    query = query.limit(fetchLimit);
 
     const snapshot = await query.get();
 
@@ -694,6 +785,9 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
           requestId: decrypted.requestId,
           site_submission_id: decrypted.site_submission_id,
           buyer_request_id: decrypted.buyer_request_id,
+          queue_key: decrypted.queue_key || null,
+          growth_wedge: decrypted.growth_wedge || null,
+          queue_tags: decrypted.queue_tags || [],
           createdAt: decrypted.createdAt?.toDate?.()?.toISOString() || "",
           status: decrypted.status,
           qualification_state: decrypted.qualification_state,
@@ -713,8 +807,10 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
             siteName: decrypted.request.siteName,
             siteLocation: decrypted.request.siteLocation,
             taskStatement: decrypted.request.taskStatement,
+            proofPathPreference: decrypted.request.proofPathPreference || null,
           },
           owner: decrypted.owner,
+          ops_automation: normalizeOpsAutomationEnvelope(decrypted.ops_automation),
           buyer_review_access: {
             buyer_review_url: decrypted.buyer_review_access?.buyer_review_url || null,
             token_issued_at: normalizeTimestamp(decrypted.buyer_review_access?.token_issued_at),
@@ -737,6 +833,16 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
         } satisfies InboundRequestListItem;
       })
     );
+    const filteredLeads = leads.filter((lead) => {
+      if (queueFilter && lead.queue_key !== queueFilter) {
+        return false;
+      }
+      if (wedgeFilter && lead.growth_wedge !== wedgeFilter) {
+        return false;
+      }
+      return true;
+    });
+    const pagedLeads = filteredLeads.slice(0, limitNum);
 
     // Get total count for pagination info
     const countQuery = db.collection("inboundRequests");
@@ -744,12 +850,12 @@ router.get("/", requireAdmin, async (req: Request, res: Response) => {
     const totalCount = countSnapshot.data().count;
 
     return res.json({
-      leads,
+      leads: pagedLeads,
       pagination: {
-        total: totalCount,
+        total: queueFilter || wedgeFilter ? filteredLeads.length : totalCount,
         limit: limitNum,
-        hasMore: leads.length === limitNum,
-        lastId: leads.length > 0 ? leads[leads.length - 1].requestId : null,
+        hasMore: filteredLeads.length > limitNum,
+        lastId: pagedLeads.length > 0 ? pagedLeads[pagedLeads.length - 1].requestId : null,
       },
     });
   } catch (error) {
@@ -1043,6 +1149,9 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
       requestId: decrypted.requestId,
       site_submission_id: decrypted.site_submission_id,
       buyer_request_id: decrypted.buyer_request_id,
+      queue_key: decrypted.queue_key || null,
+      growth_wedge: decrypted.growth_wedge || null,
+      queue_tags: decrypted.queue_tags || [],
       createdAt: decrypted.createdAt?.toDate?.()?.toISOString() || "",
       status: decrypted.status,
       qualification_state: decrypted.qualification_state,
@@ -1063,8 +1172,8 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
         siteName: decrypted.request.siteName,
         siteLocation: decrypted.request.siteLocation,
         taskStatement: decrypted.request.taskStatement,
-        targetSiteType: decrypted.request.targetSiteType || null,
         proofPathPreference: decrypted.request.proofPathPreference || null,
+        targetSiteType: decrypted.request.targetSiteType || null,
         existingStackReviewWorkflow:
           decrypted.request.existingStackReviewWorkflow || null,
         humanGateTopics: decrypted.request.humanGateTopics || null,
@@ -1076,6 +1185,7 @@ router.get("/:requestId", requireAdmin, async (req: Request, res: Response) => {
         details: decrypted.request.details,
       },
       owner: decrypted.owner,
+      ops_automation: normalizeOpsAutomationEnvelope(decrypted.ops_automation),
       buyer_review_access: {
         buyer_review_url: decrypted.buyer_review_access?.buyer_review_url || null,
         token_issued_at: normalizeTimestamp(decrypted.buyer_review_access?.token_issued_at),
@@ -1747,10 +1857,347 @@ router.get("/stats/summary", requireAdmin, async (req: Request, res: Response) =
       newLast24h,
       byStatus: statusCounts,
       byPriority: priorityCounts,
+      byQueue: {
+        inbound_request_review: statsData.byQueue?.inbound_request_review ?? 0,
+        exact_site_hosted_review_queue:
+          statsData.byQueue?.exact_site_hosted_review_queue ?? 0,
+      },
+      byWedge: {
+        exact_site_hosted_review:
+          statsData.byWedge?.exact_site_hosted_review ?? 0,
+      },
     });
   } catch (error) {
     logger.error({ error }, "Error fetching lead stats");
     return res.status(500).json({ error: "Failed to fetch stats" });
+  }
+});
+
+router.get("/growth-scorecard", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: "Database not available" });
+    }
+
+    const periodDays = Math.min(
+      Math.max(parseInt(typeof req.query.days === "string" ? req.query.days : "30", 10) || 30, 7),
+      90,
+    );
+    const from = new Date();
+    from.setHours(0, 0, 0, 0);
+    from.setDate(from.getDate() - (periodDays - 1));
+
+    const growthEventsSnapshot = await db
+      .collection("growth_events")
+      .where("created_at", ">=", from)
+      .orderBy("created_at", "desc")
+      .limit(2500)
+      .get();
+
+    const eventsByDay = new Map<string, {
+      views: number;
+      contactStarts: number;
+      contactSubmissions: number;
+      contactCompleted: number;
+      voiceStarts: number;
+      voiceCompleted: number;
+    }>();
+    const experimentMap = new Map<string, { exposures: number; variants: Record<string, number> }>();
+    const campaignMap = new Map<
+      string,
+      { views: number; contactStarts: number; contactSubmissions: number; contactCompleted: number }
+    >();
+
+    let exactSiteViews = 0;
+    let exactSiteContactStarts = 0;
+    let exactSiteContactSubmissions = 0;
+    let exactSiteContactCompleted = 0;
+    let voiceStarts = 0;
+    let voiceCompleted = 0;
+
+    for (const doc of growthEventsSnapshot.docs) {
+      const data = doc.data() as Record<string, unknown>;
+      const event = typeof data.event === "string" ? data.event : "";
+      const properties =
+        data.properties && typeof data.properties === "object"
+          ? (data.properties as Record<string, unknown>)
+          : {};
+      const attribution =
+        data.attribution && typeof data.attribution === "object"
+          ? (data.attribution as Record<string, unknown>)
+          : {};
+      const attributionUtm =
+        attribution.utm && typeof attribution.utm === "object"
+          ? (attribution.utm as Record<string, unknown>)
+          : {};
+      const timestamp = parseGrowthEventTimestamp(data.created_at || data.created_at_iso);
+      const dayKey = normalizeDateKey(timestamp || from);
+      const daily = eventsByDay.get(dayKey) || {
+        views: 0,
+        contactStarts: 0,
+        contactSubmissions: 0,
+        contactCompleted: 0,
+        voiceStarts: 0,
+        voiceCompleted: 0,
+      };
+      const campaign =
+        typeof properties.utm_campaign === "string"
+          ? properties.utm_campaign
+          : typeof attributionUtm.campaign === "string"
+            ? attributionUtm.campaign
+            : null;
+      const isHostedReviewCampaign = campaign === "hosted_review_v1";
+
+      if (event === "exact_site_review_view") {
+        exactSiteViews += 1;
+        daily.views += 1;
+      }
+      if (event === "contact_request_started" && isHostedReviewCampaign) {
+        exactSiteContactStarts += 1;
+        daily.contactStarts += 1;
+      }
+      if (event === "contact_request_submitted" && isHostedReviewCampaign) {
+        exactSiteContactSubmissions += 1;
+        daily.contactSubmissions += 1;
+      }
+      if (event === "contact_request_completed" && isHostedReviewCampaign) {
+        exactSiteContactCompleted += 1;
+        daily.contactCompleted += 1;
+      }
+      if (event === "voice_concierge_started") {
+        voiceStarts += 1;
+        daily.voiceStarts += 1;
+      }
+      if (event === "voice_concierge_completed") {
+        voiceCompleted += 1;
+        daily.voiceCompleted += 1;
+      }
+
+      if (campaign) {
+        const bucket = campaignMap.get(campaign) || {
+          views: 0,
+          contactStarts: 0,
+          contactSubmissions: 0,
+          contactCompleted: 0,
+        };
+        if (event === "exact_site_review_view") bucket.views += 1;
+        if (event === "contact_request_started") bucket.contactStarts += 1;
+        if (event === "contact_request_submitted") bucket.contactSubmissions += 1;
+        if (event === "contact_request_completed") bucket.contactCompleted += 1;
+        campaignMap.set(campaign, bucket);
+      }
+
+      if (event === "experiment_exposure") {
+        const experimentKey =
+          typeof properties.experiment_key === "string" ? properties.experiment_key : "unknown";
+        const variant =
+          typeof properties.variant === "string" ? properties.variant : "unknown";
+        const bucket = experimentMap.get(experimentKey) || {
+          exposures: 0,
+          variants: {},
+        };
+        bucket.exposures += 1;
+        bucket.variants[variant] = (bucket.variants[variant] || 0) + 1;
+        experimentMap.set(experimentKey, bucket);
+      }
+
+      eventsByDay.set(dayKey, daily);
+    }
+
+    const hostedReviewQueueSnapshot = await db
+      .collection("inboundRequests")
+      .where("queue_key", "==", "exact_site_hosted_review_queue")
+      .get();
+
+    let currentQueueCount = 0;
+    let highPriorityQueueCount = 0;
+    let exactSiteRequiredCount = 0;
+    let queueCreatedLast7d = 0;
+    const workerDefinitions = [
+      { key: "waitlist", enabled: isAutomationLaneEnabled("BLUEPRINT_WAITLIST_AUTOMATION_ENABLED") },
+      { key: "inbound_qualification", enabled: isAutomationLaneEnabled("BLUEPRINT_INBOUND_AUTOMATION_ENABLED") },
+      { key: "support_triage", enabled: isAutomationLaneEnabled("BLUEPRINT_SUPPORT_TRIAGE_ENABLED") },
+      { key: "payout_exception", enabled: isAutomationLaneEnabled("BLUEPRINT_PAYOUT_TRIAGE_ENABLED") },
+      { key: "capturer_reminders", enabled: isAutomationLaneEnabled("BLUEPRINT_CAPTURER_REMINDER_ENABLED") },
+      { key: "buyer_lifecycle", enabled: isAutomationLaneEnabled("BLUEPRINT_BUYER_LIFECYCLE_ENABLED") },
+      { key: "experiment_rollout", enabled: isAutomationLaneEnabled("BLUEPRINT_EXPERIMENT_AUTOROLLOUT_ENABLED") },
+      { key: "autonomous_research_outbound", enabled: isAutomationLaneEnabled("BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_ENABLED") },
+      { key: "creative_asset_factory", enabled: isAutomationLaneEnabled("BLUEPRINT_CREATIVE_FACTORY_ENABLED") },
+      { key: "site_access_overdue_watchdog", enabled: isAutomationLaneEnabled("BLUEPRINT_SITE_ACCESS_OVERDUE_WATCHDOG_ENABLED") },
+      { key: "finance_review_overdue_watchdog", enabled: isAutomationLaneEnabled("BLUEPRINT_FINANCE_REVIEW_OVERDUE_WATCHDOG_ENABLED") },
+      { key: "preview_diagnosis", enabled: isAutomationLaneEnabled("BLUEPRINT_PREVIEW_DIAGNOSIS_ENABLED") },
+      { key: "sla_watchdog", enabled: isAutomationLaneEnabled("BLUEPRINT_SLA_WATCHDOG_ENABLED") },
+      { key: "notion_sync", enabled: isAutomationLaneEnabled("BLUEPRINT_NOTION_SYNC_ENABLED") },
+      { key: "graduation_eval", enabled: isAutomationLaneEnabled("BLUEPRINT_ALL_AUTOMATION_ENABLED") },
+      { key: "onboarding_sequence", enabled: isAutomationLaneEnabled("BLUEPRINT_ONBOARDING_ENABLED") },
+    ];
+    const last7d = new Date();
+    last7d.setDate(last7d.getDate() - 7);
+
+    hostedReviewQueueSnapshot.docs.forEach((doc) => {
+      const data = doc.data() as Record<string, unknown>;
+      currentQueueCount += 1;
+      if (data.priority === "high") {
+        highPriorityQueueCount += 1;
+      }
+      if (data.request && typeof data.request === "object") {
+        const request = data.request as Record<string, unknown>;
+        if (request.proofPathPreference === "exact_site_required") {
+          exactSiteRequiredCount += 1;
+        }
+      }
+      const createdAt = parseGrowthEventTimestamp(data.createdAt);
+      if (createdAt && createdAt >= last7d) {
+        queueCreatedLast7d += 1;
+      }
+    });
+
+    const workerStatusSnapshot = await db
+      .collection("opsAutomationWorkerStatus")
+      .get();
+    const persistedWorkerStatuses = new Map(
+      workerStatusSnapshot.docs.map((doc) => [doc.id, doc.data() as Record<string, unknown>]),
+    );
+    const workerStatuses = workerDefinitions.map(({ key, enabled }) => {
+      const data = persistedWorkerStatuses.get(key) || {};
+      return {
+        workerKey: key,
+        enabled,
+        status:
+          typeof data.status === "string"
+            ? data.status
+            : enabled
+              ? "awaiting_first_run"
+              : "disabled",
+        intervalMs:
+          typeof data.interval_ms === "number" ? data.interval_ms : null,
+        batchSize:
+          typeof data.batch_size === "number" ? data.batch_size : null,
+        startupDelayMs:
+          typeof data.startup_delay_ms === "number" ? data.startup_delay_ms : null,
+        lastRunNumber:
+          typeof data.last_run_number === "number" ? data.last_run_number : null,
+        lastRunStartedAt:
+          typeof data.last_run_started_at_iso === "string"
+            ? data.last_run_started_at_iso
+            : null,
+        lastRunCompletedAt:
+          typeof data.last_run_completed_at_iso === "string"
+            ? data.last_run_completed_at_iso
+            : null,
+        lastRunDurationMs:
+          typeof data.last_run_duration_ms === "number"
+            ? data.last_run_duration_ms
+            : null,
+        lastProcessedCount:
+          typeof data.last_processed_count === "number"
+            ? data.last_processed_count
+            : null,
+        lastFailedCount:
+          typeof data.last_failed_count === "number"
+            ? data.last_failed_count
+            : null,
+        lastError:
+          typeof data.last_error === "string" && data.last_error.trim().length > 0
+            ? data.last_error
+            : null,
+      };
+    });
+    const integrationVerificationSnapshot = await db
+      .collection("growthIntegrationVerifications")
+      .orderBy("verified_at", "desc")
+      .limit(1)
+      .get();
+    const latestIntegrationVerification = integrationVerificationSnapshot.empty
+      ? null
+      : (() => {
+          const doc = integrationVerificationSnapshot.docs[0];
+          const data = doc.data() as Record<string, unknown>;
+          return {
+            id: doc.id,
+            verifiedAt:
+              typeof data.verified_at_iso === "string" ? data.verified_at_iso : null,
+          };
+        })();
+    const creativeRunsSnapshot = await db
+      .collection("creative_factory_runs")
+      .orderBy("created_at", "desc")
+      .limit(5)
+      .get();
+    const recentCreativeRuns = creativeRunsSnapshot.docs.map((doc) => {
+      const data = doc.data() as Record<string, unknown>;
+      const remotionReel =
+        data.remotion_reel && typeof data.remotion_reel === "object"
+          ? (data.remotion_reel as Record<string, unknown>)
+          : {};
+      return {
+        id: doc.id,
+        status: typeof data.status === "string" ? data.status : "unknown",
+        skuName: typeof data.sku_name === "string" ? data.sku_name : "Unknown SKU",
+        createdAt: typeof data.created_at_iso === "string" ? data.created_at_iso : null,
+        storageUri:
+          typeof remotionReel.storage_uri === "string" ? remotionReel.storage_uri : null,
+      };
+    });
+
+    const launchReadiness = buildLaunchReadinessSnapshot();
+
+    return res.json({
+      window: {
+        days: periodDays,
+        from: from.toISOString(),
+        to: new Date().toISOString(),
+      },
+      funnel: {
+        exactSiteViews,
+        exactSiteContactStarts,
+        exactSiteContactSubmissions,
+        exactSiteContactCompleted,
+        voiceStarts,
+        voiceCompleted,
+      },
+      queue: {
+        currentHostedReviewItems: currentQueueCount,
+        newHostedReviewLast7d: queueCreatedLast7d,
+        highPriorityHostedReview: highPriorityQueueCount,
+        exactSiteRequiredSubmitted: exactSiteRequiredCount,
+      },
+      experiments: [...experimentMap.entries()].map(([experimentKey, value]) => ({
+        experimentKey,
+        exposures: value.exposures,
+        variants: value.variants,
+      })),
+      campaigns: [...campaignMap.entries()]
+        .map(([campaignName, value]) => ({
+          campaignName,
+          ...value,
+        }))
+        .sort((left, right) => right.contactSubmissions - left.contactSubmissions)
+        .slice(0, 10),
+      eventsByDay: [...eventsByDay.entries()]
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([date, value]) => ({
+          date,
+          ...value,
+        })),
+      operatorStatus: {
+        providers: buildGrowthIntegrationSummary(),
+        agentRuntime: getAgentRuntimeConnectionMetadata(),
+        workers: workerStatuses,
+        lastIntegrationVerification: latestIntegrationVerification,
+        recentCreativeRuns,
+        launchReadiness: {
+          status: launchReadiness.status,
+          blockers: launchReadiness.blockers,
+          warnings: launchReadiness.warnings,
+          checks: launchReadiness.checks,
+          launchChecks: launchReadiness.dependencies.launchChecks,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error({ error }, "Error fetching growth scorecard");
+    return res.status(500).json({ error: "Failed to fetch growth scorecard" });
   }
 });
 

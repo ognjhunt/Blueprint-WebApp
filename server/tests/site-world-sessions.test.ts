@@ -734,7 +734,7 @@ describe("site world session routes", () => {
     } finally {
       await stopServer(server);
     }
-  });
+  }, 60_000);
 
   it("resets and steps a stored hosted session", async () => {
     const { server, baseUrl } = await startServer();

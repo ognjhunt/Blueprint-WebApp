@@ -5,6 +5,37 @@ paperclip_api_health() {
   curl -fsS "${api_url}/api/health" >/dev/null 2>&1
 }
 
+paperclip_listen_ports_for_home() {
+  local paperclip_home="$1"
+  local pattern="(paperclipai run --data-dir ${paperclip_home}|cli/src/index.ts run --data-dir ${paperclip_home})"
+
+  pgrep -f "$pattern" 2>/dev/null \
+    | while read -r pid; do
+        [ -n "$pid" ] || continue
+        lsof -nP -a -p "$pid" -iTCP -sTCP:LISTEN 2>/dev/null \
+          | awk '/TCP/ { split($9, parts, ":"); print parts[length(parts)] }'
+      done \
+    | sort -u
+}
+
+paperclip_find_healthy_local_api_url() {
+  local paperclip_home="$1"
+  local paperclip_host="${2:-127.0.0.1}"
+  local port=""
+  local api_url=""
+
+  while read -r port; do
+    [ -n "$port" ] || continue
+    api_url="http://${paperclip_host}:${port}"
+    if paperclip_api_health "$api_url"; then
+      printf '%s\n' "$api_url"
+      return 0
+    fi
+  done < <(paperclip_listen_ports_for_home "$paperclip_home")
+
+  return 1
+}
+
 paperclip_api_fetch_json() {
   local api_url="$1"
   local path="$2"
@@ -38,6 +69,19 @@ paperclip_require_external_postgres() {
   local requirement="${BLUEPRINT_PAPERCLIP_REQUIRE_EXTERNAL_POSTGRES:-1}"
   if [[ ! "$requirement" =~ ^(1|true|yes)$ ]]; then
     return 0
+  fi
+
+  local paperclip_home="${PAPERCLIP_HOME:-/Users/nijelhunt_1/workspace/.paperclip-blueprint}"
+  local instance_id="${PAPERCLIP_INSTANCE_ID:-default}"
+  local config_path="${paperclip_home}/instances/${instance_id}/config.json"
+
+  if [ -f "$config_path" ]; then
+    if grep -q '"mode":[[:space:]]*"embedded-postgres"' "$config_path"; then
+      return 0
+    fi
+    if command -v jq >/dev/null 2>&1 && jq -e '.database.mode == "embedded-postgres"' "$config_path" >/dev/null 2>&1; then
+      return 0
+    fi
   fi
 
   if [ -n "${DATABASE_URL:-}" ]; then

@@ -5,6 +5,8 @@
 
 export type ActionType =
   | "send_email"
+  | "send_campaign_emails"
+  | "send_nitrosend_campaign"
   | "create_calendar_event"
   | "update_calendar_event"
   | "send_slack"
@@ -143,6 +145,22 @@ export const PAYOUT_POLICY: LaneSafetyPolicy = {
   alwaysHumanReview: () => true, // Always human
   maxDailyAutoSends: 0,
   contentChecks: false,
+};
+
+export const GROWTH_CAMPAIGN_POLICY: LaneSafetyPolicy = {
+  lane: "growth_campaign",
+  autoApproveCriteria: () => false,
+  alwaysHumanReview: () => true,
+  maxDailyAutoSends: 0,
+  contentChecks: true,
+};
+
+export const LIFECYCLE_POLICY: LaneSafetyPolicy = {
+  lane: "buyer_lifecycle",
+  autoApproveCriteria: () => false,
+  alwaysHumanReview: () => true,
+  maxDailyAutoSends: 0,
+  contentChecks: true,
 };
 
 export const SITE_ACCESS_POLICY: LaneSafetyPolicy = {

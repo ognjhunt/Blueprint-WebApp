@@ -93,6 +93,8 @@ Launch-critical note:
 - Optional: `OPENAI_DEFAULT_MODEL`
 - Optional: `ANTHROPIC_DEFAULT_MODEL`
 - Optional: `ACP_DEFAULT_HARNESS`
+- Optional analytics mirror:
+  `BLUEPRINT_ANALYTICS_INGEST_ENABLED=1`
 - Optional per-lane overrides:
   `OPENAI_WAITLIST_AUTOMATION_MODEL`,
   `OPENAI_INBOUND_QUALIFICATION_MODEL`,
@@ -134,6 +136,46 @@ REDIS_URL=rediss://default:<token>@active-phoenix-39183.upstash.io:6379
 - Optional: `VITE_SENTRY_DSN`
 - Optional: `VITE_ENABLE_ERROR_TRACKING_SMOKE_TEST=true`
 
+### Growth Ops
+- Optional PostHog client vars:
+  `VITE_PUBLIC_POSTHOG_PROJECT_TOKEN`
+  `VITE_PUBLIC_POSTHOG_HOST`
+- Optional GA4 override:
+  `VITE_GA_MEASUREMENT_ID`
+- Optional first-party growth event mirror:
+  `BLUEPRINT_ANALYTICS_INGEST_ENABLED=1`
+- Optional SendGrid email delivery:
+  `SENDGRID_API_KEY`
+  `SENDGRID_FROM_EMAIL`
+  `SENDGRID_FROM_NAME`
+  `SENDGRID_EVENT_WEBHOOK_SECRET`
+
+### Creative Pipeline
+- Google image generation:
+  `GOOGLE_GENAI_API_KEY` or `GEMINI_API_KEY`
+- Optional model override:
+  `GOOGLE_CREATIVE_IMAGE_MODEL`
+- Optional aspect-ratio default:
+  `GOOGLE_CREATIVE_IMAGE_DEFAULT_ASPECT_RATIO`
+- Optional Runway video generation:
+  `RUNWAY_API_KEY`
+  `RUNWAY_BASE_URL`
+  `BLUEPRINT_RUNWAY_VIDEO_MODEL`
+
+### Voice Concierge
+- `ELEVENLABS_API_KEY`
+- `ELEVENLABS_VOICE_ID`
+- Optional:
+  `ELEVENLABS_TTS_MODEL_ID`
+  `ELEVENLABS_AGENT_ID`
+  `ELEVENLABS_WEBHOOK_SECRET`
+  `BLUEPRINT_VOICE_BOOKING_URL`
+  `BLUEPRINT_SUPPORT_EMAIL`
+  `TWILIO_ACCOUNT_SID`
+  `TWILIO_AUTH_TOKEN`
+  `TWILIO_PHONE_NUMBER`
+  `BLUEPRINT_VOICE_FORWARD_NUMBER`
+
 ### Autonomous Alpha Automation
 
 These should be enabled for the no-human-in-the-loop alpha configuration:
@@ -143,6 +185,10 @@ These should be enabled for the no-human-in-the-loop alpha configuration:
 - `BLUEPRINT_SUPPORT_TRIAGE_ENABLED=1`
 - `BLUEPRINT_PAYOUT_TRIAGE_ENABLED=1`
 - `BLUEPRINT_PREVIEW_DIAGNOSIS_ENABLED=1`
+- `BLUEPRINT_EXPERIMENT_AUTOROLLOUT_ENABLED=1`
+- `BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_ENABLED=1`
+- `BLUEPRINT_CREATIVE_FACTORY_ENABLED=1`
+- `BLUEPRINT_BUYER_LIFECYCLE_ENABLED=1`
 
 Optional review-watchdog workers that only flag overdue human queues:
 
@@ -152,6 +198,31 @@ Optional review-watchdog workers that only flag overdue human queues:
 These watchdogs do not send outreach, grant permissions, submit disputes, or move funds. They only mark overdue review state in Firestore so operators can work the queue.
 - Optional field-ops reminder worker:
   `BLUEPRINT_CAPTURER_REMINDER_ENABLED=1`
+- Optional buyer lifecycle cadence overrides:
+  `BLUEPRINT_BUYER_LIFECYCLE_INTERVAL_MS`,
+  `BLUEPRINT_BUYER_LIFECYCLE_BATCH_SIZE`,
+  `BLUEPRINT_BUYER_LIFECYCLE_STARTUP_DELAY_MS`,
+  `BLUEPRINT_BUYER_LIFECYCLE_DAYS_SINCE_GRANT`
+- Optional experiment autorollout cadence and thresholds:
+  `BLUEPRINT_EXPERIMENT_AUTOROLLOUT_INTERVAL_MS`,
+  `BLUEPRINT_EXPERIMENT_AUTOROLLOUT_LOOKBACK_DAYS`,
+  `BLUEPRINT_EXPERIMENT_AUTOROLLOUT_MIN_EXPOSURES`,
+  `BLUEPRINT_EXPERIMENT_AUTOROLLOUT_MIN_RELATIVE_LIFT`
+- Optional autonomous research-to-outbound configuration:
+  `BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_INTERVAL_MS`,
+  `BLUEPRINT_AUTONOMOUS_RESEARCH_TOPICS`,
+  `BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS`,
+  `BLUEPRINT_AUTONOMOUS_OUTBOUND_CHANNEL`,
+  `BLUEPRINT_AUTONOMOUS_NITROSEND_AUDIENCE_ID`,
+  `FIREHOSE_API_TOKEN`,
+  `FIREHOSE_BASE_URL`
+- Optional creative factory configuration:
+  `BLUEPRINT_CREATIVE_FACTORY_INTERVAL_MS`,
+  `BLUEPRINT_CREATIVE_FACTORY_SKU`,
+  `BLUEPRINT_CREATIVE_FACTORY_AUDIENCE`,
+  `BLUEPRINT_CREATIVE_FACTORY_SITE_TYPE`,
+  `BLUEPRINT_CREATIVE_FACTORY_WORKFLOW`,
+  `BLUEPRINT_CREATIVE_FACTORY_CTA`
 
 Post-signup automation also requires:
 
@@ -174,6 +245,11 @@ Post-signup automation also requires:
 - Live hosted-session state now prefers Redis when `REDIS_URL` is configured, then falls back to in-process memory, with Firestore acting as async mirroring/trail storage.
 - Marketplace checkout and artifact entitlement flows are only truthful when Firebase Admin, Stripe checkout, and Stripe webhooks are all configured together.
 - Marketplace search and checkout now fail toward live `marketplace_items` inventory in production instead of silently relying on static sample content.
+- Growth telemetry can now mirror experiment exposures, page views, and campaign events into Firestore when `BLUEPRINT_ANALYTICS_INGEST_ENABLED=1`, which gives Paperclip and the analytics agent a first-party event stream even before PostHog/GA4 are fully live.
+- Experiment winners can now roll themselves into production overrides through the first-party event stream when the autorollout worker is enabled.
+- Autonomous research can now turn configured Firehose demand topics into draft outbound campaigns and queue them for human send approval.
+- The creative pipeline now supports both the protected campaign-kit builder and a background creative factory that can continuously generate proof-led prompt packs, images, and optional Runway tasks from live Blueprint signals.
+- The voice concierge now supports both web voice and Twilio-compatible PSTN intake. Pricing, legal, privacy, rights, contract, and irreversible commitments remain human-gated, and phone handoff can forward to a live operator when configured.
 - Legacy manual deployment scripts were removed; deployment should always run through project scripts.
 - `client/public/robots.txt` must exist at build time and be served in production.
 - `npm run alpha:preflight` is the launch-environment validator for Render and should pass before promoting the service.

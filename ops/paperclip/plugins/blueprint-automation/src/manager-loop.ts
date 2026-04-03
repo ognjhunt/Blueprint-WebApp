@@ -5,6 +5,7 @@ export type ManagerRoutineHealthEntry = {
   routineKey: string;
   routineTitle: string;
   agentKey: string;
+  routineStatus?: string | null;
   lastOutcome: "done" | "blocked" | "unknown";
   lastRunAt: string;
   lastSuccessAt: string | null;
@@ -242,6 +243,10 @@ export function collectRoutineHealthAlerts(
   const alerts: ManagerRoutineAlert[] = [];
 
   for (const entry of Object.values(routineHealth)) {
+    if (entry.routineStatus === "paused" || entry.routineStatus === "archived") {
+      continue;
+    }
+
     if (entry.consecutiveFailures >= 2) {
       alerts.push({
         routineKey: entry.routineKey,

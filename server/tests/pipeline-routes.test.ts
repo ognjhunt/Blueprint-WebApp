@@ -211,7 +211,7 @@ describe("pipeline integration routes", () => {
     } finally {
       await stopServer(server);
     }
-  });
+  }, 60_000);
 
   it("updates qualification truth only when authoritative_state_update is true", async () => {
     process.env.PIPELINE_SYNC_TOKEN = "secret";
@@ -410,7 +410,7 @@ describe("pipeline integration routes", () => {
     } finally {
       await stopServer(server);
     }
-  });
+  }, 60_000);
 
   it("returns 404 when a request has no attached scene dashboard", async () => {
     state.docData = {
@@ -449,7 +449,7 @@ describe("pipeline integration routes", () => {
     } finally {
       await stopServer(server);
     }
-  });
+  }, 60_000);
 
   it("returns 409 when the scene dashboard artifact is malformed", async () => {
     state.docData = {

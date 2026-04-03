@@ -226,7 +226,7 @@ describe("AdminLeads scene readiness", () => {
     fireEvent.click(leadButton);
 
     expect(await screen.findByText(/Scene readiness/i)).toBeInTheDocument();
-    expect(screen.getByText(/Whole-home/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Whole-home/i)).toBeInTheDocument();
     expect(screen.getByText(/Need redesign/i)).toBeInTheDocument();
     expect(screen.getByText(/Outside envelope/i)).toBeInTheDocument();
     expect(screen.getByText(/Pick up part_1/i)).toBeInTheDocument();

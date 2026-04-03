@@ -25,6 +25,7 @@ const Pricing = lazy(() => import("../pages/Pricing"));
 const CaseStudies = lazy(() => import("../pages/CaseStudies"));
 const SampleDeliverables = lazy(() => import("../pages/SampleDeliverables"));
 const Contact = lazy(() => import("../pages/Contact"));
+const ExactSiteHostedReview = lazy(() => import("../pages/ExactSiteHostedReview"));
 const HowItWorks = lazy(() => import("../pages/HowItWorks"));
 const Proof = lazy(() => import("../pages/Proof"));
 const Portal = lazy(() => import("../pages/Portal"));
@@ -40,6 +41,8 @@ const Privacy = lazy(() => import("../pages/Privacy"));
 const Terms = lazy(() => import("../pages/Terms"));
 const Settings = lazy(() => import("../pages/Settings"));
 const AdminLeads = lazy(() => import("../pages/AdminLeads"));
+const AdminGrowthOpsScorecard = lazy(() => import("../pages/AdminGrowthOpsScorecard"));
+const AdminGrowthStudio = lazy(() => import("../pages/AdminGrowthStudio"));
 const Dashboard = lazy(() => import("../pages/Dashboard"));
 const OffWaitlistSignUpFlow = lazy(() => import("../pages/OffWaitlistSignUpFlow"));
 const RequestConsole = lazy(() => import("../pages/RequestConsole"));
@@ -124,6 +127,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/sample-deliverables", layout: "public", component: SampleDeliverables },
   { path: "/case-studies", layout: "public", component: LegacyCaseStudiesRedirect },
   { path: "/contact", layout: "public", component: Contact },
+  { path: "/exact-site-hosted-review", layout: "public", component: ExactSiteHostedReview },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
   { path: "/proof", layout: "public", component: Proof },
   { path: "/faq", layout: "public", component: FAQ },
@@ -168,6 +172,8 @@ export const appRoutes: AppRoute[] = [
   { path: "/admin/leads/:requestId", layout: "protected", component: AdminLeads },
   { path: "/admin/submissions", layout: "protected", component: AdminLeads },
   { path: "/admin/submissions/:requestId", layout: "protected", component: AdminLeads },
+  { path: "/admin/growth-ops-scorecard", layout: "protected", component: AdminGrowthOpsScorecard },
+  { path: "/admin/growth-studio", layout: "protected", component: AdminGrowthStudio },
 
   // Dashboard
   { path: "/dashboard", layout: "protected", component: Dashboard },

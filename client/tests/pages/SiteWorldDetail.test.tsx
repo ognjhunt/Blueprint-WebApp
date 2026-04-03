@@ -90,7 +90,7 @@ describe("SiteWorldDetail", () => {
     expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Use this listing to ground one deployment question on the real site, compare the package with the hosted evaluation path/i,
+        /This world model is built from real capture of this facility\. Use it to answer a deployment question on the real site, compare the package with hosted evaluation/i,
       ),
     ).toBeInTheDocument();
     expect(

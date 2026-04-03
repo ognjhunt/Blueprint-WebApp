@@ -2,6 +2,11 @@
 
 Date: 2026-04-02
 
+Update:
+
+- superseded by the Hermes parity follow-up in this repo: `hermes_local` is now wired into Paperclip skill sync via the local Paperclip adapter wrapper, and Blueprint's Hermes-authored agents now carry additive `paperclipSkillSync` sets
+- the adapter package still needs an upstream fix for repo-skill-root discovery when loaded from `node_modules`; until then, the Paperclip server wrapper remains the source of truth for Hermes skill listing/sync behavior here
+
 Scope:
 
 - audited all Blueprint company agents in `ops/paperclip/blueprint-company/agents`

@@ -24,7 +24,7 @@ describe("Home", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Blueprint turns real indoor capture into site-specific world models, site packages, and hosted evaluation/i,
+        /Blueprint captures real customer facilities and turns them into digital environments your team can test against before showing up\./i,
       ),
     ).toBeInTheDocument();
     expect(
@@ -32,10 +32,10 @@ describe("Home", () => {
         .getAllByRole("link", { name: /Request hosted evaluation/i })
         .some(
           (link) =>
-            link.getAttribute("href") === "/contact?persona=robot-team&interest=evaluation-package",
+            link.getAttribute("href") === "/exact-site-hosted-review",
       ),
     ).toBe(true);
-    expect(screen.getByRole("link", { name: /View public demo/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /View sample listing/i })).toHaveAttribute(
       "href",
       "/world-models/siteworld-f5fd54898cfb",
     );
@@ -43,7 +43,7 @@ describe("Home", () => {
       screen.getByText(/a world model is a site-specific digital environment/i),
     ).toBeInTheDocument();
     expect(screen.getByText(/Prefer email\? Send a short brief\./i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Three terms buyers should not have to decode on their own\./i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Three things Blueprint sells\./i })).toBeInTheDocument();
   });
 
   it("surfaces honest proof, deliverables, and trust", { timeout: 10000 }, () => {
@@ -68,10 +68,8 @@ describe("Home", () => {
       "href",
       "/about",
     );
-    expect(screen.getByRole("link", { name: /See compatibility and export notes/i })).toHaveAttribute(
-      "href",
-      "/docs",
-    );
-    expect(screen.getByText(/capture-first, world-model-product-first/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Blueprint sells site-specific packages and hosted access, not deployment guarantees\./i),
+    ).toBeInTheDocument();
   });
 });

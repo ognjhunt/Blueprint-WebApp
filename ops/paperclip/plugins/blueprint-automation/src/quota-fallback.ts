@@ -34,6 +34,25 @@ export type WorkspaceAdapterCooldownRecord = {
 
 export type WorkspaceAdapterCooldownState = Record<string, WorkspaceAdapterCooldownRecord>;
 
+export const DEFAULT_HERMES_FALLBACK_MODEL = "qwen/qwen3.6-plus:free";
+export const DEFAULT_HERMES_FALLBACK_MODELS = [
+  "qwen/qwen3.6-plus:free",
+  "openrouter/free",
+  "stepfun/step-3.5-flash:free",
+  "nvidia/nemotron-3-super:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "openai/gpt-oss-120b:free",
+  "arcee-ai/trinity-large-preview:free",
+] as const;
+export const HERMES_MODEL_LADDER_CONFIG_KEY = "blueprintHermesModelLadder";
+export const FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY = "blueprintFallbackOriginAdapterType";
+
+export type LocalQuotaFallbackDescriptor = {
+  adapterType: LocalQuotaFallbackAdapterType;
+  reason: string;
+  adapterConfig: Record<string, unknown>;
+};
+
 const QUOTA_OR_RATE_LIMIT_RE =
   /(?:resource_exhausted|quota|rate[-\s]?limit|too many requests|\b429\b|billing details|you['’]ve hit your limit|hit your limit|limit[^.\n]*reset)/i;
 const MODEL_NOT_FOUND_RE = /model.*not.*found|model.*404|invalid.*model|unknown.*model|gpt-5-4-mini|http.*404|not_found_error/i;
@@ -60,6 +79,61 @@ export function isQuotaOrRateLimitFailure(message: string | null | undefined): b
 export function isModelNotFoundFailure(message: string | null | undefined): boolean {
   if (!message) return false;
   return MODEL_NOT_FOUND_RE.test(message);
+}
+
+function asTrimmedString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeModelList(values: Iterable<string>): string[] {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const value of values) {
+    const trimmed = value.trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    normalized.push(trimmed);
+  }
+  return normalized;
+}
+
+function parseModelList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return normalizeModelList(
+      value
+        .map((entry) => (typeof entry === "string" ? entry : ""))
+        .filter((entry) => entry.length > 0),
+    );
+  }
+
+  if (typeof value === "string") {
+    return normalizeModelList(value.split(","));
+  }
+
+  return [];
+}
+
+export function resolveHermesFallbackModels(
+  adapterConfig: Record<string, unknown> | null | undefined,
+  options?: {
+    includeCurrentModel?: boolean;
+  },
+): string[] {
+  const includeCurrentModel = options?.includeCurrentModel !== false;
+  const currentModel = asTrimmedString(adapterConfig?.model);
+  const configuredLadder = parseModelList(adapterConfig?.[HERMES_MODEL_LADDER_CONFIG_KEY]);
+  const envLadder = parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS);
+  const singleEnvModel = asTrimmedString(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL);
+
+  return normalizeModelList([
+    ...(includeCurrentModel && currentModel ? [currentModel] : []),
+    ...configuredLadder,
+    ...envLadder,
+    ...(singleEnvModel ? [singleEnvModel] : []),
+    ...DEFAULT_HERMES_FALLBACK_MODELS,
+  ]);
 }
 
 export function buildCodexFallbackAdapterConfig(
@@ -130,14 +204,142 @@ export function buildHermesFallbackAdapterConfig(
   const next = { ...(adapterConfig ?? {}) };
   delete next.dangerouslySkipPermissions;
   delete next.dangerouslyBypassApprovalsAndSandbox;
+  const ladder = resolveHermesFallbackModels(adapterConfig, { includeCurrentModel: false });
+  const model = options?.model ?? ladder[0] ?? process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL ?? DEFAULT_HERMES_FALLBACK_MODEL;
 
   return {
     ...next,
-    model: options?.model ?? process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL ?? "qwen/qwen3.6-plus-preview:free",
+    model,
+    [HERMES_MODEL_LADDER_CONFIG_KEY]: ladder.length > 0 ? ladder : [...DEFAULT_HERMES_FALLBACK_MODELS],
     modelReasoningEffort: next.modelReasoningEffort ?? "xhigh",
     cwd: options?.cwd ?? next.cwd ?? "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
     timeoutSec: next.timeoutSec ?? 1800,
   };
+}
+
+export function buildNextHermesFallbackAdapterConfig(
+  adapterConfig: Record<string, unknown> | null | undefined,
+): Record<string, unknown> | null {
+  const currentModel = asTrimmedString(adapterConfig?.model);
+  const ladder = resolveHermesFallbackModels(adapterConfig, { includeCurrentModel: false });
+  if (ladder.length === 0) {
+    return null;
+  }
+
+  const currentIndex = currentModel ? ladder.indexOf(currentModel) : -1;
+  const nextModel = currentIndex >= 0 ? ladder[currentIndex + 1] : ladder[0];
+  if (!nextModel || nextModel === currentModel) {
+    return null;
+  }
+
+  return buildHermesFallbackAdapterConfig(adapterConfig, {
+    model: nextModel,
+    cwd: asTrimmedString(adapterConfig?.cwd) ?? undefined,
+  });
+}
+
+function withFallbackOrigin(
+  adapterConfig: Record<string, unknown>,
+  originAdapterType: LocalQuotaFallbackAdapterType,
+): Record<string, unknown> {
+  return {
+    ...adapterConfig,
+    [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: originAdapterType,
+  };
+}
+
+export function buildLocalQuotaFallbackDescriptor(input: {
+  currentAdapterType: string;
+  currentAdapterConfig: Record<string, unknown> | null | undefined;
+  desiredAdapterType?: string | null;
+  desiredAdapterConfig?: Record<string, unknown> | null | undefined;
+}): LocalQuotaFallbackDescriptor | null {
+  const currentAdapterType = input.currentAdapterType;
+  const currentAdapterConfig = input.currentAdapterConfig ?? {};
+  const desiredAdapterType = input.desiredAdapterType ?? null;
+  const desiredAdapterConfig = input.desiredAdapterConfig ?? currentAdapterConfig;
+  const originAdapterType =
+    asTrimmedString(currentAdapterConfig[FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY])
+    ?? (desiredAdapterType === "hermes_local" ? "hermes_local" : null);
+
+  if (currentAdapterType === "claude_local") {
+    if (originAdapterType === "hermes_local") {
+      return {
+        adapterType: "codex_local",
+        reason: "quota_fallback_to_codex_local",
+        adapterConfig: withFallbackOrigin(
+          buildCodexFallbackAdapterConfig(desiredAdapterConfig, {
+            model: "gpt-5.4-mini",
+            modelReasoningEffort: "xhigh",
+          }),
+          "hermes_local",
+        ),
+      };
+    }
+
+    return {
+      adapterType: "hermes_local",
+      reason: "quota_fallback_to_hermes_free",
+      adapterConfig: buildHermesFallbackAdapterConfig(desiredAdapterConfig),
+    };
+  }
+
+  if (currentAdapterType === "codex_local") {
+    if (originAdapterType === "hermes_local") {
+      return {
+        adapterType: "opencode_local",
+        reason: "quota_fallback_to_opencode",
+        adapterConfig: withFallbackOrigin(
+          buildOpenCodeFallbackAdapterConfig(desiredAdapterConfig, {
+            cwd: asTrimmedString(desiredAdapterConfig?.cwd) ?? undefined,
+          }),
+          "hermes_local",
+        ),
+      };
+    }
+
+    return {
+      adapterType: "hermes_local",
+      reason: "quota_fallback_to_hermes_free",
+      adapterConfig: buildHermesFallbackAdapterConfig(desiredAdapterConfig),
+    };
+  }
+
+  if (currentAdapterType === "hermes_local") {
+    const nextHermesConfig = buildNextHermesFallbackAdapterConfig(currentAdapterConfig);
+    if (nextHermesConfig) {
+      return {
+        adapterType: "hermes_local",
+        reason: "quota_fallback_to_next_hermes_free_model",
+        adapterConfig: nextHermesConfig,
+      };
+    }
+
+    if (desiredAdapterType === "hermes_local" || originAdapterType === "hermes_local") {
+      return {
+        adapterType: "claude_local",
+        reason: "quota_fallback_to_claude_local",
+        adapterConfig: withFallbackOrigin(
+          buildClaudeFallbackAdapterConfig(desiredAdapterConfig),
+          "hermes_local",
+        ),
+      };
+    }
+
+    return {
+      adapterType: "opencode_local",
+      reason: "quota_fallback_to_opencode",
+      adapterConfig: buildOpenCodeFallbackAdapterConfig(currentAdapterConfig, {
+        cwd: asTrimmedString(currentAdapterConfig.cwd) ?? undefined,
+      }),
+    };
+  }
+
+  if (currentAdapterType === "opencode_local" && originAdapterType === "hermes_local") {
+    return null;
+  }
+
+  return null;
 }
 
 export function getLocalAdapterWorkspaceKey(

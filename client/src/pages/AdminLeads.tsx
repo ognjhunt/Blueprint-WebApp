@@ -102,6 +102,8 @@ interface StatsResponse {
   newLast24h: number;
   byStatus: Record<string, number>;
   byPriority: Record<string, number>;
+  byQueue?: Record<string, number>;
+  byWedge?: Record<string, number>;
 }
 
 interface WaitlistSubmissionItem {
@@ -356,6 +358,27 @@ function formatActionPreview(item: ActionQueueItem) {
   return preview(item.approval_reason || item.auto_approve_reason || "No preview available.");
 }
 
+function extractCreativeAssetUri(item: ActionQueueItem) {
+  const payload = item.action_payload || {};
+  const creativeContext =
+    payload.creativeContext && typeof payload.creativeContext === "object"
+      ? (payload.creativeContext as Record<string, unknown>)
+      : null;
+
+  if (typeof creativeContext?.storage_uri === "string" && creativeContext.storage_uri.trim()) {
+    return creativeContext.storage_uri.trim();
+  }
+
+  if (
+    typeof item.draft_output?.creative_asset_uri === "string"
+    && item.draft_output.creative_asset_uri.trim()
+  ) {
+    return item.draft_output.creative_asset_uri.trim();
+  }
+
+  return null;
+}
+
 function formatStringList(value: unknown) {
   if (!Array.isArray(value)) {
     return "";
@@ -371,7 +394,7 @@ export default function AdminLeads() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const [activeView, setActiveView] = useState<
-    "submissions" | "waitlist" | "approvals" | "field_ops" | "agent"
+    "submissions" | "hosted_review" | "waitlist" | "approvals" | "field_ops" | "agent"
   >("submissions");
   const [qualificationFilter, setQualificationFilter] = useState<QualificationState | "">("");
   const [priorityFilter, setPriorityFilter] = useState<RequestPriority | "">("");
@@ -396,6 +419,8 @@ export default function AdminLeads() {
   });
 
   const isAdmin = hasAnyRole(["admin", "ops"], userData, tokenClaims);
+  const effectiveLeadQueueFilter =
+    activeView === "hosted_review" ? "exact_site_hosted_review_queue" : "";
 
   useEffect(() => {
     if (currentUser && !isAdmin) {
@@ -404,12 +429,13 @@ export default function AdminLeads() {
   }, [currentUser, isAdmin, setLocation]);
 
   const leadsQuery = useQuery<LeadsResponse>({
-    queryKey: ["admin-submissions", qualificationFilter, priorityFilter],
-    enabled: isAdmin,
+    queryKey: ["admin-submissions", activeView, qualificationFilter, priorityFilter, effectiveLeadQueueFilter],
+    enabled: isAdmin && (activeView === "submissions" || activeView === "hosted_review"),
     queryFn: async () => {
       const params = new URLSearchParams();
       if (qualificationFilter) params.set("status", qualificationFilter);
       if (priorityFilter) params.set("priority", priorityFilter);
+      if (effectiveLeadQueueFilter) params.set("queue", effectiveLeadQueueFilter);
       const response = await fetch(`/api/admin/leads?${params.toString()}`, {
         headers: await withCsrfHeader({}),
       });
@@ -432,7 +458,10 @@ export default function AdminLeads() {
 
   const detailQuery = useQuery<InboundRequestDetail>({
     queryKey: ["admin-submission-detail", selectedRequestId],
-    enabled: isAdmin && activeView === "submissions" && !!selectedRequestId,
+    enabled:
+      isAdmin &&
+      (activeView === "submissions" || activeView === "hosted_review") &&
+      !!selectedRequestId,
     queryFn: async () => {
       const response = await fetch(`/api/admin/leads/${selectedRequestId}`, {
         headers: await withCsrfHeader({}),
@@ -1071,6 +1100,15 @@ export default function AdminLeads() {
   ).length;
 
   useEffect(() => {
+    if ((activeView === "submissions" || activeView === "hosted_review") && leads[0]) {
+      const hasSelectedLead = leads.some((lead) => lead.requestId === selectedRequestId);
+      if (!hasSelectedLead) {
+        setSelectedRequestId(leads[0].requestId);
+      }
+    }
+  }, [activeView, leads, selectedRequestId]);
+
+  useEffect(() => {
     if (activeView === "waitlist" && !selectedWaitlistSubmissionId && filteredWaitlistSubmissions[0]) {
       setSelectedWaitlistSubmissionId(filteredWaitlistSubmissions[0].id);
     }
@@ -1166,6 +1204,29 @@ export default function AdminLeads() {
       return [];
     }
 
+    if (activeView === "hosted_review") {
+      return [
+        {
+          label: "Hosted-review queue",
+          value: statsQuery.data?.byQueue?.exact_site_hosted_review_queue ?? leads.length,
+        },
+        {
+          label: "Exact-site wedge",
+          value: statsQuery.data?.byWedge?.exact_site_hosted_review ?? leads.length,
+        },
+        {
+          label: "High priority",
+          value: leads.filter((lead) => lead.priority === "high").length,
+        },
+        {
+          label: "Exact-site required",
+          value: leads.filter(
+            (lead) => lead.request.proofPathPreference === "exact_site_required",
+          ).length,
+        },
+      ];
+    }
+
     return [
       { label: "Total submissions", value: statsQuery.data?.total ?? 0 },
       { label: "Last 24h", value: statsQuery.data?.newLast24h ?? 0 },
@@ -1212,6 +1273,8 @@ export default function AdminLeads() {
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
               {activeView === "submissions"
                 ? "Admin Review Queue"
+                : activeView === "hosted_review"
+                  ? "Exact-Site Hosted Review Queue"
                 : activeView === "waitlist"
                   ? "Ops Intake Queue"
                   : activeView === "approvals"
@@ -1223,6 +1286,8 @@ export default function AdminLeads() {
             <h1 className="mt-2 text-3xl font-semibold text-zinc-950">
               {activeView === "submissions"
                 ? "Qualification submissions"
+                : activeView === "hosted_review"
+                  ? "Hosted-review requests"
                 : activeView === "waitlist"
                   ? "Waitlist and beta requests"
                   : activeView === "approvals"
@@ -1234,6 +1299,8 @@ export default function AdminLeads() {
             <p className="mt-2 text-zinc-600">
               {activeView === "submissions"
                 ? "Move submissions through qualification state and only activate opportunity state once a site clears review."
+                : activeView === "hosted_review"
+                  ? "Work the narrow exact-site hosted-review wedge from intake to proof-pack, hosted review, and human commercial handoff."
                 : activeView === "waitlist"
                   ? "Review structured waitlist and private beta intake without dropping into Firestore."
                   : activeView === "approvals"
@@ -1248,13 +1315,22 @@ export default function AdminLeads() {
               value={activeView}
               onValueChange={(value) =>
                 setActiveView(
-                  value as "submissions" | "waitlist" | "approvals" | "field_ops" | "agent",
+                  value as
+                    | "submissions"
+                    | "hosted_review"
+                    | "waitlist"
+                    | "approvals"
+                    | "field_ops"
+                    | "agent",
                 )
               }
             >
               <TabsList className="rounded-full border border-zinc-200 bg-white p-1">
                 <TabsTrigger value="submissions" className="rounded-full px-4">
                   Qualification
+                </TabsTrigger>
+                <TabsTrigger value="hosted_review" className="rounded-full px-4">
+                  Hosted Review
                 </TabsTrigger>
                 <TabsTrigger value="waitlist" className="rounded-full px-4">
                   Waitlist / Beta
@@ -1273,7 +1349,7 @@ export default function AdminLeads() {
             <button
               type="button"
               onClick={() =>
-                activeView === "submissions"
+                activeView === "submissions" || activeView === "hosted_review"
                   ? leadsQuery.refetch()
                   : activeView === "waitlist"
                     ? waitlistQuery.refetch()
@@ -1298,6 +1374,13 @@ export default function AdminLeads() {
               <RefreshCw className="mr-2 h-4 w-4" />
               Refresh
             </button>
+            <a
+              href="/admin/growth-ops-scorecard"
+              className="inline-flex items-center rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700"
+            >
+              <ClipboardList className="mr-2 h-4 w-4" />
+              Growth scorecard
+            </a>
             {activeView === "waitlist" ? (
               <button
                 type="button"
@@ -1410,6 +1493,15 @@ export default function AdminLeads() {
                       <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
                         {item.last_execution_error}
                       </p>
+                    ) : null}
+
+                    {extractCreativeAssetUri(item) ? (
+                      <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-900">
+                        <p className="font-medium">Creative asset context</p>
+                        <p className="mt-2 break-all font-mono text-xs">
+                          {extractCreativeAssetUri(item)}
+                        </p>
+                      </div>
                     ) : null}
 
                     <div className="mt-4 flex flex-wrap gap-2">
@@ -2120,7 +2212,7 @@ export default function AdminLeads() {
               </div>
             </div>
           </div>
-        ) : activeView === "submissions" ? (
+        ) : activeView === "submissions" || activeView === "hosted_review" ? (
           <>
             <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 md:flex-row">
               <div className="flex items-center gap-2 text-sm font-medium text-zinc-700">
@@ -2193,6 +2285,16 @@ export default function AdminLeads() {
                         <span className={`rounded-full px-3 py-1 ${priorityColors[lead.priority]}`}>
                           {priorityLabels[lead.priority]}
                         </span>
+                        {lead.growth_wedge ? (
+                          <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">
+                            exact-site wedge
+                          </span>
+                        ) : null}
+                        {lead.queue_key === "exact_site_hosted_review_queue" ? (
+                          <span className="rounded-full bg-indigo-100 px-3 py-1 text-indigo-700">
+                            hosted-review queue
+                          </span>
+                        ) : null}
                         {lead.request.requestedLanes.map((lane) => (
                           <span key={lane} className="rounded-full bg-zinc-100 px-3 py-1 text-zinc-700">
                             {requestedLaneLabels[lane]}
@@ -2217,6 +2319,11 @@ export default function AdminLeads() {
                       {selectedLead.request.siteName}
                     </h2>
                     <p className="mt-1 text-zinc-600">{selectedLead.request.siteLocation}</p>
+                    {selectedLead.queue_key ? (
+                      <p className="mt-2 text-sm text-zinc-500">
+                        Queue: {selectedLead.queue_key.replace(/_/g, " ")}
+                      </p>
+                    ) : null}
                   </div>
                   <a
                     href={selectedLead.context.sourcePageUrl}

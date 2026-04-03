@@ -287,6 +287,13 @@ export interface NitrosendCampaignDraft {
   sequenceId?: string;
 }
 
+export function assertNitrosendApprovedSend(params: Record<string, unknown>) {
+  const approvedBy = asString(params.approvedBy);
+  if (!approvedBy) {
+    throw new Error("Nitrosend live send requires approvedBy.");
+  }
+}
+
 export function assertNitrosendDraftOnly(params: Record<string, unknown>) {
   if (params.publish === true || params.sendNow === true || params.status === "scheduled") {
     throw new Error("Nitrosend live send or publish actions are disabled. Create draft artifacts only.");
@@ -421,6 +428,42 @@ export async function createNitrosendCampaignDraft(
     throw new Error("Nitrosend campaign response did not include a valid draft campaign.");
   }
   return campaign;
+}
+
+export async function approveNitrosendCampaignSend(
+  config: NitrosendConfig,
+  campaignId: string,
+  params: Record<string, unknown>,
+  fetchImpl: FetchLike = fetch,
+) {
+  assertNitrosendApprovedSend(params);
+  return fetchJson(
+    fetchImpl,
+    normalizeUrl(config.baseUrl, `/campaigns/${encodeURIComponent(campaignId)}/approve-send`),
+    {
+      method: "POST",
+      headers: nitrosendHeaders(config),
+      body: JSON.stringify(params),
+    },
+  );
+}
+
+export async function sendNitrosendCampaign(
+  config: NitrosendConfig,
+  campaignId: string,
+  params: Record<string, unknown>,
+  fetchImpl: FetchLike = fetch,
+) {
+  assertNitrosendApprovedSend(params);
+  return fetchJson(
+    fetchImpl,
+    normalizeUrl(config.baseUrl, `/campaigns/${encodeURIComponent(campaignId)}/send`),
+    {
+      method: "POST",
+      headers: nitrosendHeaders(config),
+      body: JSON.stringify(params),
+    },
+  );
 }
 
 export interface FirehoseConfig {

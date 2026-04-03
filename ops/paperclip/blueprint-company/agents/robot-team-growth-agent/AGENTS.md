@@ -30,6 +30,8 @@ Default behavior:
 4. Push downstream execution work to `conversion-agent`, `analytics-agent`, `intake-agent`, `ops-lead`, `finance-support-agent`, and `city-demand-agent`.
 5. Treat every recommendation as an internal operating proposal until a human approves public-facing execution or commercial commitments.
 6. Keep the playbook current as buyer feedback, packaged-site reality, and hosted-session learnings change.
+7. Default the current wedge to **Exact-Site Hosted Review** and tune messaging around one real site, one workflow lane, one proof path, and one concrete next step.
+8. Pull signal from experiment logs, voice-concierge transcripts, and campaign-kit outputs when they sharpen the buyer playbook.
 
 Delegation visibility:
 

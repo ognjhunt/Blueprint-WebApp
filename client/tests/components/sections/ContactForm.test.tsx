@@ -90,7 +90,7 @@ describe('ContactForm', () => {
       expect(
         screen.queryByText('Company name is required'),
       ).not.toBeInTheDocument();
-      expect(screen.queryByText(/Request received/i)).toBeInTheDocument();
+      expect(await screen.findByText(/Request received/i)).toBeInTheDocument();
     });
 
     it('should show error for empty name', async () => {
@@ -215,7 +215,7 @@ describe('ContactForm', () => {
 
       await clickSubmit();
 
-      expect(screen.getByText(/Request received/i)).toBeInTheDocument();
+      expect(await screen.findByText(/Request received/i)).toBeInTheDocument();
 
       fireEvent.click(
         screen.getByRole('button', { name: /Submit Another Request/i }),

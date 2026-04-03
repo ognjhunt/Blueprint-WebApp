@@ -18,6 +18,9 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
+            - product-marketing-context
+            - analytics-tracking
+            - writing-plans
             - plan-ceo-review
             - office-hours
             - retro
@@ -37,6 +40,20 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md
         timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - writing-plans
+            - cross-repo-operations
+            - dispatching-parallel-agents
+            - retro
+            - gh-cli
+            - plan-eng-review
+            - investigate
+            - review
+            - verification-before-completion
     budgetMonthlyCents: 4000
   notion-manager-agent:
     role: engineer
@@ -52,6 +69,14 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/notion-manager-agent/AGENTS.md
         timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - cross-repo-operations
+            - writing-plans
+            - verification-before-completion
     budgetMonthlyCents: 2200
   blueprint-cto:
     role: cto
@@ -319,6 +344,13 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/ops-lead/AGENTS.md
         timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - analytics-tracking
+            - writing-plans
     budgetMonthlyCents: 3000
   intake-agent:
     role: engineer
@@ -411,6 +443,15 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/growth-lead/AGENTS.md
         timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - analytics-tracking
+            - page-cro
+            - writing-plans
     budgetMonthlyCents: 3000
   conversion-agent:
     role: engineer
@@ -457,6 +498,14 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/analytics-agent/AGENTS.md
         timeoutSec: 1200
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - analytics-tracking
+            - investigate
+            - writing-plans
     budgetMonthlyCents: 2000
   investor-relations-agent:
     role: engineer
@@ -472,6 +521,14 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/investor-relations-agent/AGENTS.md
         timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - writing-plans
+            - retro
     budgetMonthlyCents: 2000
   community-updates-agent:
     role: engineer
@@ -488,6 +545,13 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/community-updates-agent/AGENTS.md
         timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - retro
     budgetMonthlyCents: 2000
   market-intel-agent:
     role: engineer
@@ -503,6 +567,13 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/market-intel-agent/AGENTS.md
         timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - writing-plans
     budgetMonthlyCents: 2000
   supply-intel-agent:
     role: engineer
@@ -519,6 +590,13 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/supply-intel-agent/AGENTS.md
         timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - writing-plans
     budgetMonthlyCents: 2000
   capturer-growth-agent:
     role: engineer
@@ -534,6 +612,14 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/capturer-growth-agent/AGENTS.md
         timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - analytics-tracking
+            - writing-plans
     budgetMonthlyCents: 2500
   city-launch-agent:
     role: engineer
@@ -550,6 +636,13 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/city-launch-agent/AGENTS.md
         timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - analytics-tracking
     budgetMonthlyCents: 2500
   demand-intel-agent:
     role: engineer
@@ -566,6 +659,13 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/demand-intel-agent/AGENTS.md
         timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - writing-plans
     budgetMonthlyCents: 2000
   robot-team-growth-agent:
     role: engineer
@@ -582,6 +682,14 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/robot-team-growth-agent/AGENTS.md
         timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - analytics-tracking
+            - page-cro
     budgetMonthlyCents: 2500
   site-operator-partnership-agent:
     role: engineer
@@ -598,6 +706,13 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/site-operator-partnership-agent/AGENTS.md
         timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - writing-plans
     budgetMonthlyCents: 2000
   beta-launch-commander:
     role: engineer
@@ -636,6 +751,14 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/buyer-solutions-agent/AGENTS.md
         timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - agent-browser
+            - writing-plans
     budgetMonthlyCents: 3000
   solutions-engineering-agent:
     role: engineer
@@ -653,6 +776,18 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/solutions-engineering-agent/AGENTS.md
         timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - cross-repo-operations
+            - gh-cli
+            - plan-eng-review
+            - investigate
+            - review
+            - writing-plans
+            - verification-before-completion
     budgetMonthlyCents: 2600
   rights-provenance-agent:
     role: engineer
@@ -688,6 +823,14 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/security-procurement-agent/AGENTS.md
         timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - cross-repo-operations
+            - cso
+            - writing-plans
     budgetMonthlyCents: 2400
   capturer-success-agent:
     role: engineer
@@ -703,6 +846,13 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/capturer-success-agent/AGENTS.md
         timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - analytics-tracking
+            - product-marketing-context
     budgetMonthlyCents: 2500
   city-demand-agent:
     role: engineer
@@ -719,6 +869,14 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/city-demand-agent/AGENTS.md
         timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - analytics-tracking
+            - page-cro
     budgetMonthlyCents: 2500
   site-catalog-agent:
     role: engineer
@@ -734,6 +892,13 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/site-catalog-agent/AGENTS.md
         timeoutSec: 1200
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - agent-browser
     budgetMonthlyCents: 2000
   outbound-sales-agent:
     role: engineer
@@ -749,6 +914,14 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/outbound-sales-agent/AGENTS.md
         timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - analytics-tracking
+            - writing-plans
     budgetMonthlyCents: 3000
   buyer-success-agent:
     role: engineer
@@ -764,6 +937,14 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/buyer-success-agent/AGENTS.md
         timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - analytics-tracking
+            - agent-browser
     budgetMonthlyCents: 2500
   revenue-ops-pricing-agent:
     role: engineer
@@ -781,6 +962,14 @@ agents:
         modelReasoningEffort: xhigh
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/revenue-ops-pricing-agent/AGENTS.md
         timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - analytics-tracking
+            - stripe-best-practices
+            - writing-plans
     budgetMonthlyCents: 2400
   docs-agent:
     role: engineer

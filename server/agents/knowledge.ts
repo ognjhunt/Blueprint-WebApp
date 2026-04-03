@@ -8,6 +8,7 @@ import type { KnowledgeSource } from "../types/knowledge";
 import { getOpsDocumentsByIds, listOpsDocuments } from "./ops-documents";
 import { getStartupPacksByIds, listStartupPacks } from "./startup-packs";
 import type {
+  CreativeContextReference,
   ExternalKnowledgeSource,
   StartupContextMetadata,
   StartupPackRecord,
@@ -62,6 +63,26 @@ function normalizeMetadata(metadata?: Record<string, unknown>): StartupContextMe
           }))
           .filter((value) => value.title && value.url)
       : [],
+    creativeContexts: Array.isArray(startupContext.creativeContexts)
+      ? startupContext.creativeContexts
+          .filter((value): value is CreativeContextReference =>
+            Boolean(
+              value &&
+                typeof value === "object" &&
+                typeof (value as CreativeContextReference).id === "string" &&
+                typeof (value as CreativeContextReference).storage_uri === "string",
+            ),
+          )
+          .map((value) => ({
+            id: value.id.trim(),
+            storage_uri: value.storage_uri.trim(),
+            sku_name: value.sku_name?.trim() || undefined,
+            created_at: value.created_at?.trim() || null,
+            rollout_variant: value.rollout_variant?.trim() || null,
+            research_topic: value.research_topic?.trim() || null,
+          }))
+          .filter((value) => value.id && value.storage_uri)
+      : [],
     operatorNotes:
       typeof startupContext.operatorNotes === "string"
         ? startupContext.operatorNotes.trim()
@@ -90,6 +111,29 @@ function dedupeExternalSources(sources: ExternalKnowledgeSource[]) {
       url,
       description: source.description?.trim() || undefined,
       source_type: source.source_type?.trim() || undefined,
+    });
+  }
+
+  return [...dedupe.values()];
+}
+
+function dedupeCreativeContexts(contexts: CreativeContextReference[]) {
+  const dedupe = new Map<string, CreativeContextReference>();
+
+  for (const context of contexts) {
+    const id = context.id?.trim() || "";
+    const storageUri = context.storage_uri?.trim() || "";
+    if (!id || !storageUri) {
+      continue;
+    }
+
+    dedupe.set(id, {
+      id,
+      storage_uri: storageUri,
+      sku_name: context.sku_name?.trim() || undefined,
+      created_at: context.created_at?.trim() || null,
+      rollout_variant: context.rollout_variant?.trim() || null,
+      research_topic: context.research_topic?.trim() || null,
     });
   }
 
@@ -245,6 +289,53 @@ export async function getStartupContextOptions() {
 
   const startupPacks = await listStartupPacks(25).catch(() => []);
   const opsDocuments = await listOpsDocuments(25).catch(() => []);
+  let recentCreativeRuns: Array<{
+    id: string;
+    skuName: string;
+    createdAt: string | null;
+    rolloutVariant?: string | null;
+    researchTopic?: string | null;
+    storageUri: string;
+  }> = [];
+  if (db) {
+    try {
+      const snapshot = await db
+        .collection("creative_factory_runs")
+        .orderBy("created_at", "desc")
+        .limit(10)
+        .get();
+      recentCreativeRuns = snapshot.docs
+        .map((doc) => {
+          const data = doc.data() as Record<string, unknown>;
+          const remotionReel =
+            data.remotion_reel && typeof data.remotion_reel === "object"
+              ? (data.remotion_reel as Record<string, unknown>)
+              : {};
+          const storageUri =
+            typeof remotionReel.storage_uri === "string"
+              ? remotionReel.storage_uri.trim()
+              : "";
+          if (!storageUri) {
+            return null;
+          }
+          return {
+            id: doc.id,
+            skuName:
+              typeof data.sku_name === "string" ? data.sku_name : "Unknown SKU",
+            createdAt:
+              typeof data.created_at_iso === "string" ? data.created_at_iso : null,
+            rolloutVariant:
+              typeof data.rollout_variant === "string" ? data.rollout_variant : null,
+            researchTopic:
+              typeof data.research_topic === "string" ? data.research_topic : null,
+            storageUri,
+          };
+        })
+        .filter((value): value is NonNullable<typeof value> => Boolean(value));
+    } catch {
+      recentCreativeRuns = [];
+    }
+  }
 
   return {
     repoDocs: docs,
@@ -279,6 +370,7 @@ export async function getStartupContextOptions() {
       blueprintIds: pack.blueprint_ids || [],
       documentIds: pack.document_ids || [],
       externalSources: pack.external_sources || [],
+      creativeContexts: pack.creative_contexts || [],
       operatorNotes: pack.operator_notes || "",
       toolPolicies: pack.tool_policies || {},
       ownerScope: pack.owner_scope || "workspace_admin",
@@ -300,6 +392,7 @@ export async function getStartupContextOptions() {
             ? pack.updated_at
             : null,
     })),
+    recentCreativeRuns,
     externalSourceTypes: [
       "notion_reference",
       "google_drive_reference",
@@ -330,6 +423,10 @@ export async function resolveStartupContext(
     ...startupPacks.flatMap((pack) => pack.external_sources || []),
     ...(normalized.externalSources || []),
   ]);
+  const mergedCreativeContexts = dedupeCreativeContexts([
+    ...startupPacks.flatMap((pack) => pack.creative_contexts || []),
+    ...(normalized.creativeContexts || []),
+  ]);
   const mergedOperatorNotes = mergeOperatorNotes(
     startupPacks,
     normalized.operatorNotes || "",
@@ -359,6 +456,7 @@ export async function resolveStartupContext(
       extraction_status: document.extraction_status,
     })),
     external_sources: mergedExternalSources,
+    creative_contexts: mergedCreativeContexts,
     attached_startup_packs: startupPacks.map((pack) => ({
       id: pack.id,
       name: pack.name,

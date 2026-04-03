@@ -47,7 +47,7 @@ Tier 4: opencode_local
 `buildHermesFallbackAdapterConfig` default model changes from `gpt-5.4-mini` to the env-driven free model:
 
 ```ts
-model: options?.model ?? process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL ?? "openrouter/qwen/qwen3.6-plus-preview:free"
+model: options?.model ?? process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL ?? "openrouter/qwen/qwen3.6-plus:free"
 ```
 
 `modelReasoningEffort` stays at `xhigh` — harmless for non-reasoning models, avoids removing a field that hermes may inspect.
@@ -56,13 +56,13 @@ model: options?.model ?? process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL ?
 
 **New env var (shell section):**
 ```bash
-BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-openrouter/qwen/qwen3.6-plus-preview:free}"
+BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-openrouter/qwen/qwen3.6-plus:free}"
 ```
 
 **New JS variable:**
 ```js
 const hermesFallbackModel =
-  process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL ?? "openrouter/qwen/qwen3.6-plus-preview:free";
+  process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL ?? "openrouter/qwen/qwen3.6-plus:free";
 ```
 
 **New `hermesFreeFallbackFor` function:**
@@ -108,12 +108,12 @@ Re-uses the existing `hermes_local` probe result. The probe verifies the harness
 
 ### Environment variable
 
-**Default:** `openrouter/qwen/qwen3.6-plus-preview:free`
+**Default:** `openrouter/qwen/qwen3.6-plus:free`
 **Env var:** `BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL`
 
 The full free tier chain is therefore:
 ```
-hermes (qwen3.6-plus-preview:free)
+hermes (qwen3.6-plus:free)
   → opencode primary (minimax-m2.5-free via BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL)
     → opencode fallback (qwen3-coder-480b:free via BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL)
 ```

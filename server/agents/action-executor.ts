@@ -9,6 +9,7 @@
 
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { sendEmail } from "../utils/email";
+import { sendNitrosendCampaign } from "../utils/nitrosend";
 import {
   createGoogleCalendarEvent,
   updateGoogleCalendarEvent,
@@ -63,6 +64,29 @@ export interface ExecuteActionParams {
   idempotencyKey: string;
 }
 
+function validateCampaignEmailPayload(
+  payload: ActionPayload,
+): { valid: boolean; reason?: string } {
+  const recipients = Array.isArray(payload.recipients)
+    ? payload.recipients.filter((value): value is string => typeof value === "string")
+    : [];
+
+  if (recipients.length === 0) {
+    return { valid: false, reason: "At least one campaign recipient is required" };
+  }
+
+  for (const recipient of recipients) {
+    if (!recipient.includes("@")) {
+      return { valid: false, reason: `Invalid campaign recipient email: ${recipient}` };
+    }
+  }
+
+  return validateEmailContent({
+    ...payload,
+    to: recipients[0],
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Main entry point
 // ---------------------------------------------------------------------------
@@ -109,8 +133,14 @@ export async function executeAction(
   const tier = evaluateActionTier(draftOutput, safetyPolicy);
 
   // 3. Content validation for email actions
-  if (safetyPolicy.contentChecks && actionType === "send_email") {
-    const validation = validateEmailContent(actionPayload);
+  if (
+    safetyPolicy.contentChecks &&
+    (actionType === "send_email" || actionType === "send_campaign_emails")
+  ) {
+    const validation =
+      actionType === "send_campaign_emails"
+        ? validateCampaignEmailPayload(actionPayload)
+        : validateEmailContent(actionPayload);
     if (!validation.valid) {
       const ledgerDocId = await writeLedgerDoc({
         idempotencyKey,
@@ -123,6 +153,15 @@ export async function executeAction(
         draftOutput,
         status: "pending_approval",
         autoApproveReason: null,
+        approvalReason: `content_validation_failed: ${validation.reason}`,
+      });
+      await syncSourceDocumentState({
+        sourceCollection,
+        sourceDocId,
+        actionType,
+        actionPayload,
+        ledgerDocId,
+        state: "pending_approval",
         approvalReason: `content_validation_failed: ${validation.reason}`,
       });
       return {
@@ -151,6 +190,15 @@ export async function executeAction(
         autoApproveReason: null,
         approvalReason: `daily_cap_exceeded: ${todayCount}/${safetyPolicy.maxDailyAutoSends}`,
       });
+      await syncSourceDocumentState({
+        sourceCollection,
+        sourceDocId,
+        actionType,
+        actionPayload,
+        ledgerDocId,
+        state: "pending_approval",
+        approvalReason: `daily_cap_exceeded: ${todayCount}/${safetyPolicy.maxDailyAutoSends}`,
+      });
       return { state: "pending_approval", tier: 3, ledgerDocId };
     }
   }
@@ -172,6 +220,15 @@ export async function executeAction(
         autoApproveReason: null,
         approvalReason: "requires_human_review",
       }));
+    await syncSourceDocumentState({
+      sourceCollection,
+      sourceDocId,
+      actionType,
+      actionPayload,
+      ledgerDocId,
+      state: "pending_approval",
+      approvalReason: "requires_human_review",
+    });
     return { state: "pending_approval", tier, ledgerDocId };
   }
 
@@ -193,12 +250,36 @@ export async function executeAction(
       autoApproveReason,
       approvalReason: null,
     }));
+  await syncSourceDocumentState({
+    sourceCollection,
+    sourceDocId,
+    actionType,
+    actionPayload,
+    ledgerDocId,
+    state: "auto_approved",
+  });
 
   // 6. Execute the action
   try {
     await updateLedgerStatus(ledgerDocId, "executing");
+    await syncSourceDocumentState({
+      sourceCollection,
+      sourceDocId,
+      actionType,
+      actionPayload,
+      ledgerDocId,
+      state: "executing",
+    });
     await performAction(actionType, actionPayload);
     await updateLedgerStatus(ledgerDocId, "sent", { sent_at: new Date() });
+    await syncSourceDocumentState({
+      sourceCollection,
+      sourceDocId,
+      actionType,
+      actionPayload,
+      ledgerDocId,
+      state: "sent",
+    });
 
     // Tier 2: send notification
     if (tier === 2) {
@@ -217,6 +298,15 @@ export async function executeAction(
       last_execution_error:
         err instanceof Error ? err.message : String(err),
       execution_attempts: attempts,
+    });
+    await syncSourceDocumentState({
+      sourceCollection,
+      sourceDocId,
+      actionType,
+      actionPayload,
+      ledgerDocId,
+      state: "failed",
+      error: err instanceof Error ? err.message : String(err),
     });
 
     if (attempts >= 3) {
@@ -261,15 +351,42 @@ export async function approveAction(
     approved_at: new Date(),
     updated_at: new Date(),
   });
+  await syncSourceDocumentState({
+    sourceCollection: data.source_collection,
+    sourceDocId: data.source_doc_id,
+    actionType: data.action_type,
+    actionPayload: data.action_payload,
+    ledgerDocId,
+    state: "operator_approved",
+    approvedBy: operatorEmail,
+  });
 
   // Now execute
   try {
     await ledgerRef.update({ status: "executing", updated_at: new Date() });
+    await syncSourceDocumentState({
+      sourceCollection: data.source_collection,
+      sourceDocId: data.source_doc_id,
+      actionType: data.action_type,
+      actionPayload: data.action_payload,
+      ledgerDocId,
+      state: "executing",
+      approvedBy: operatorEmail,
+    });
     await performAction(data.action_type, data.action_payload);
     await ledgerRef.update({
       status: "sent",
       sent_at: new Date(),
       updated_at: new Date(),
+    });
+    await syncSourceDocumentState({
+      sourceCollection: data.source_collection,
+      sourceDocId: data.source_doc_id,
+      actionType: data.action_type,
+      actionPayload: data.action_payload,
+      ledgerDocId,
+      state: "sent",
+      approvedBy: operatorEmail,
     });
 
     // Log override
@@ -291,6 +408,16 @@ export async function approveAction(
         err instanceof Error ? err.message : String(err),
       execution_attempts: attempts,
       updated_at: new Date(),
+    });
+    await syncSourceDocumentState({
+      sourceCollection: data.source_collection,
+      sourceDocId: data.source_doc_id,
+      actionType: data.action_type,
+      actionPayload: data.action_payload,
+      ledgerDocId,
+      state: "failed",
+      approvedBy: operatorEmail,
+      error: err instanceof Error ? err.message : String(err),
     });
     return {
       state: "failed",
@@ -322,6 +449,15 @@ export async function rejectAction(
     rejected_reason: reason,
     updated_at: new Date(),
   });
+  await syncSourceDocumentState({
+    sourceCollection: data.source_collection,
+    sourceDocId: data.source_doc_id,
+    actionType: data.action_type,
+    actionPayload: data.action_payload,
+    ledgerDocId,
+    state: "rejected",
+    rejectedReason: reason,
+  });
 
   await ledgerRef.collection("overrides").add({
     operator_email: operatorEmail,
@@ -350,12 +486,28 @@ export async function retryFailedAction(
 
   try {
     await ledgerRef.update({ status: "executing", updated_at: new Date() });
+    await syncSourceDocumentState({
+      sourceCollection: data.source_collection,
+      sourceDocId: data.source_doc_id,
+      actionType: data.action_type,
+      actionPayload: data.action_payload,
+      ledgerDocId,
+      state: "executing",
+    });
     await performAction(data.action_type, data.action_payload);
     await ledgerRef.update({
       status: "sent",
       sent_at: new Date(),
       execution_attempts: (data.execution_attempts ?? 0) + 1,
       updated_at: new Date(),
+    });
+    await syncSourceDocumentState({
+      sourceCollection: data.source_collection,
+      sourceDocId: data.source_doc_id,
+      actionType: data.action_type,
+      actionPayload: data.action_payload,
+      ledgerDocId,
+      state: "sent",
     });
     return { state: "sent", tier: data.action_tier, ledgerDocId };
   } catch (err) {
@@ -366,6 +518,15 @@ export async function retryFailedAction(
         err instanceof Error ? err.message : String(err),
       execution_attempts: attempts,
       updated_at: new Date(),
+    });
+    await syncSourceDocumentState({
+      sourceCollection: data.source_collection,
+      sourceDocId: data.source_doc_id,
+      actionType: data.action_type,
+      actionPayload: data.action_payload,
+      ledgerDocId,
+      state: "failed",
+      error: err instanceof Error ? err.message : String(err),
     });
     return {
       state: "failed",
@@ -448,6 +609,86 @@ async function updateLedgerStatus(
     });
 }
 
+async function syncSourceDocumentState(params: {
+  sourceCollection?: string | null;
+  sourceDocId?: string | null;
+  actionType: ActionType;
+  actionPayload: ActionPayload;
+  ledgerDocId: string;
+  state: ActionState;
+  approvalReason?: string | null;
+  rejectedReason?: string | null;
+  approvedBy?: string | null;
+  error?: string | null;
+}) {
+  const sourceCollection = typeof params.sourceCollection === "string" ? params.sourceCollection.trim() : "";
+  const sourceDocId = typeof params.sourceDocId === "string" ? params.sourceDocId.trim() : "";
+  if (!sourceCollection || !sourceDocId) {
+    return;
+  }
+
+  const ref = getDb().collection(sourceCollection).doc(sourceDocId);
+  const now = new Date();
+  const nowIso = now.toISOString();
+
+  if (sourceCollection === "growthCampaigns") {
+    await ref.set(
+      {
+        send_status: params.state,
+        last_ledger_doc_id: params.ledgerDocId,
+        approval_reason: params.approvalReason ?? null,
+        rejected_reason: params.rejectedReason ?? null,
+        last_execution_error: params.error ?? null,
+        approved_by: params.approvedBy ?? null,
+        approved_at: params.approvedBy ? nowIso : null,
+        sent_at: params.state === "sent" ? nowIso : null,
+        updated_at: nowIso,
+      },
+      { merge: true },
+    );
+    return;
+  }
+
+  if (sourceCollection === "marketplaceEntitlements" && params.actionType === "send_email") {
+    const lifecycleStage =
+      typeof params.actionPayload.lifecycleStage === "string"
+        ? params.actionPayload.lifecycleStage
+        : null;
+    const lifecycleDaysSinceGrant =
+      typeof params.actionPayload.lifecycleDaysSinceGrant === "number"
+        ? params.actionPayload.lifecycleDaysSinceGrant
+        : null;
+    const subject =
+      typeof params.actionPayload.subject === "string" ? params.actionPayload.subject : null;
+    const buyerEmail =
+      typeof params.actionPayload.to === "string" ? params.actionPayload.to : null;
+
+    await ref.set(
+      {
+        buyer_success: {
+          lifecycle: {
+            last_stage: lifecycleStage,
+            last_days_since_grant: lifecycleDaysSinceGrant,
+            last_status: params.state,
+            last_ledger_doc_id: params.ledgerDocId,
+            last_subject: subject,
+            last_buyer_email: buyerEmail,
+            last_approval_reason: params.approvalReason ?? null,
+            last_rejected_reason: params.rejectedReason ?? null,
+            last_error: params.error ?? null,
+            approved_by: params.approvedBy ?? null,
+            approved_at: params.approvedBy ? nowIso : null,
+            last_sent_at: params.state === "sent" ? nowIso : null,
+            updated_at: nowIso,
+          },
+        },
+        updated_at: now,
+      },
+      { merge: true },
+    );
+  }
+}
+
 async function countTodayAutoSends(lane: string): Promise<number> {
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
@@ -471,6 +712,80 @@ async function performAction(
         subject: payload.subject!,
         text: payload.body!,
       });
+      break;
+    case "send_campaign_emails": {
+      const recipients = Array.isArray(payload.recipients)
+        ? payload.recipients.filter((value): value is string => typeof value === "string" && value.includes("@"))
+        : [];
+      if (recipients.length === 0) {
+        throw new Error("Campaign send requires at least one recipient");
+      }
+
+      const failures: string[] = [];
+      for (const recipient of recipients) {
+        const result = await sendEmail({
+          to: recipient,
+          subject: payload.subject!,
+          text: payload.body!,
+          replyTo:
+            typeof payload.replyTo === "string" ? payload.replyTo : undefined,
+          sendGridCategories: ["blueprint_growth_campaign"],
+          sendGridCustomArgs:
+            typeof payload.campaignId === "string" && payload.campaignId.trim()
+              ? {
+                  bp_campaign_id: payload.campaignId,
+                }
+              : undefined,
+        });
+
+        if (!result.sent) {
+          failures.push(recipient);
+        }
+      }
+
+      if (payload.collection && payload.docId) {
+        await getDb()
+          .collection(String(payload.collection))
+          .doc(String(payload.docId))
+          .set(
+            {
+              event_counts: {
+                sent: recipients.length - failures.length,
+              },
+              recipient_count: recipients.length,
+              updated_at: new Date().toISOString(),
+            },
+            { merge: true },
+          );
+      }
+
+      if (failures.length > 0) {
+        throw new Error(`Campaign send failed for ${failures.length} recipient(s): ${failures.join(", ")}`);
+      }
+      break;
+    }
+    case "send_nitrosend_campaign":
+      if (typeof payload.campaignId !== "string" || !payload.campaignId.trim()) {
+        throw new Error("Nitrosend send requires a campaignId");
+      }
+      await sendNitrosendCampaign(
+        payload.campaignId,
+        typeof payload.approvedBy === "string" ? payload.approvedBy : undefined,
+        typeof payload.approvalNote === "string" ? payload.approvalNote : undefined,
+      );
+      if (payload.collection && payload.docId) {
+        await getDb()
+          .collection(String(payload.collection))
+          .doc(String(payload.docId))
+          .set(
+            {
+              send_status: "sent",
+              sent_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+            { merge: true },
+          );
+      }
       break;
     case "send_slack":
       await sendSlackMessage(payload.message ?? payload.body ?? "");

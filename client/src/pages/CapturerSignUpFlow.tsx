@@ -112,7 +112,7 @@ export default function CapturerSignUpFlow() {
   const [market, setMarket] = useState("");
   const [availability, setAvailability] = useState<AvailabilityValue>("flexible");
   const [equipment, setEquipment] = useState<EquipmentValue[]>(["iphone"]);
-  const [referralSource, setReferralSource] = useState<ReferralValue | "">("");
+  const [referralSource, setReferralSource] = useState<ReferralValue | "">("search");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [successSummary, setSuccessSummary] = useState<{ name: string; market: string } | null>(
     null,

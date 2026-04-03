@@ -6,6 +6,7 @@ MAINT_LABEL="com.blueprint.paperclip.maintenance"
 SERVER_PLIST_PATH="${HOME}/Library/LaunchAgents/${SERVER_LABEL}.plist"
 MAINT_PLIST_PATH="${HOME}/Library/LaunchAgents/${MAINT_LABEL}.plist"
 BOOTSTRAP_SCRIPT="/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/bootstrap-blueprint-paperclip.sh"
+MAINTENANCE_SCRIPT="/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/maintenance-blueprint-paperclip.sh"
 SERVICE_SCRIPT="/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/run-blueprint-paperclip-service.sh"
 PAPERCLIP_HOME="${PAPERCLIP_HOME:-/Users/nijelhunt_1/workspace/.paperclip-blueprint}"
 PAPERCLIP_ENV_FILE="${PAPERCLIP_ENV_FILE:-/Users/nijelhunt_1/workspace/.paperclip-blueprint.env}"
@@ -20,7 +21,7 @@ BASE_PATH="${PATH:-/usr/bin:/bin:/usr/sbin:/sbin}"
 LAUNCH_PATH="${HOME}/.bun/bin:${NODE_BIN_DIR}:${BASE_PATH}"
 
 mkdir -p "$LOG_DIR"
-chmod +x "$BOOTSTRAP_SCRIPT" "$SERVICE_SCRIPT"
+chmod +x "$BOOTSTRAP_SCRIPT" "$MAINTENANCE_SCRIPT" "$SERVICE_SCRIPT"
 
 cat >"$SERVER_PLIST_PATH" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -65,7 +66,7 @@ cat >"$MAINT_PLIST_PATH" <<PLIST
   <string>${MAINT_LABEL}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>${BOOTSTRAP_SCRIPT}</string>
+    <string>${MAINTENANCE_SCRIPT}</string>
   </array>
   <key>RunAtLoad</key>
   <true/>

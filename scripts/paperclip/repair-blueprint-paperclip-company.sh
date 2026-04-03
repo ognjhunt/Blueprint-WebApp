@@ -16,6 +16,9 @@ PAPERCLIP_HOST="${PAPERCLIP_HOST:-127.0.0.1}"
 PAPERCLIP_PORT="${PAPERCLIP_PORT:-3100}"
 PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://${PAPERCLIP_HOST}:${PAPERCLIP_PORT}}"
 COMPANY_NAME="${COMPANY_NAME:-Blueprint Autonomous Operations}"
+PAPERCLIP_HOME="${PAPERCLIP_HOME:-$WORKSPACE_ROOT/.paperclip-blueprint}"
+PAPERCLIP_INSTANCE_ID="${PAPERCLIP_INSTANCE_ID:-default}"
+PAPERCLIP_REPO_ROOT="${PAPERCLIP_REPO_ROOT:-$WORKSPACE_ROOT/paperclip}"
 APPLY=0
 
 for arg in "$@"; do
@@ -24,7 +27,7 @@ for arg in "$@"; do
   fi
 done
 
-export PAPERCLIP_API_URL COMPANY_NAME APPLY REPO_ROOT
+export PAPERCLIP_API_URL COMPANY_NAME APPLY REPO_ROOT PAPERCLIP_HOME PAPERCLIP_INSTANCE_ID PAPERCLIP_REPO_ROOT
 
 node --input-type=module <<'NODE'
 import fs from "node:fs";
@@ -36,8 +39,23 @@ const paperclipApiUrl = process.env.PAPERCLIP_API_URL;
 const companyName = process.env.COMPANY_NAME;
 const apply = process.env.APPLY === "1";
 const repoRoot = process.env.REPO_ROOT;
+const paperclipHome = process.env.PAPERCLIP_HOME;
+const paperclipInstanceId = process.env.PAPERCLIP_INSTANCE_ID || "default";
+const paperclipRepoRoot = process.env.PAPERCLIP_REPO_ROOT;
 const requireFromRepo = createRequire(pathToFileURL(path.join(repoRoot, "package.json")).href);
 const yaml = requireFromRepo("js-yaml");
+
+function requirePostgresDriver() {
+  const pnpmRoot = path.join(paperclipRepoRoot, "node_modules/.pnpm");
+  const entry = fs.readdirSync(pnpmRoot).find((name) => name.startsWith("postgres@"));
+  if (!entry) {
+    throw new Error(`Could not locate postgres package under ${pnpmRoot}`);
+  }
+  const driverPath = path.join(pnpmRoot, entry, "node_modules/postgres/cjs/src/index.js");
+  return createRequire(pathToFileURL(path.join(paperclipRepoRoot, "package.json")).href)(driverPath);
+}
+
+const postgres = requirePostgresDriver();
 
 async function fetchJson(path, init = {}) {
   const attempts = Number(process.env.PAPERCLIP_FETCH_ATTEMPTS || "3");
@@ -73,6 +91,43 @@ async function fetchJson(path, init = {}) {
 
 function hasNumericSuffix(value) {
   return typeof value === "string" && /(?:-\d+| \d+)$/.test(value);
+}
+
+function isUuid(value) {
+  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+function quoteLiteral(value) {
+  return `'${String(value).replaceAll("'", "''")}'`;
+}
+
+function uuidArraySql(values) {
+  const unique = [...new Set(values)].filter(Boolean);
+  if (unique.length === 0) return null;
+  for (const value of unique) {
+    if (!isUuid(value)) {
+      throw new Error(`Unsafe UUID in repair set: ${value}`);
+    }
+  }
+  return `array[${unique.map((value) => quoteLiteral(value)).join(", ")}]::uuid[]`;
+}
+
+function resolveDbConnectionString() {
+  const envUrl = process.env.DATABASE_URL?.trim();
+  if (envUrl) return envUrl;
+
+  const configPath = path.join(paperclipHome, "instances", paperclipInstanceId, "config.json");
+  if (!fs.existsSync(configPath)) {
+    throw new Error(`Paperclip config not found at ${configPath}`);
+  }
+
+  const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  if (config?.database?.mode === "postgres" && typeof config.database.connectionString === "string") {
+    return config.database.connectionString;
+  }
+
+  const port = Number(config?.database?.embeddedPostgresPort ?? 54329);
+  return `postgres://paperclip:paperclip@127.0.0.1:${port}/paperclip`;
 }
 
 function stripNumericSuffix(value) {
@@ -156,6 +211,9 @@ function titleizeRoutineKey(routineKey) {
 }
 
 function countEnabledScheduleTriggers(routine) {
+  if (typeof routine.enabledScheduleTriggerCount === "number") {
+    return routine.enabledScheduleTriggerCount;
+  }
   return (routine.triggers ?? []).filter(
     (trigger) => trigger.kind === "schedule" && trigger.enabled !== false,
   ).length;
@@ -185,17 +243,54 @@ if (!company) {
   throw new Error(`Company not found: ${companyName}`);
 }
 
+const dbUrl = resolveDbConnectionString();
+const sql = postgres(dbUrl, {
+  max: 1,
+  connect_timeout: 5,
+  onnotice: () => undefined,
+});
+
 const managedConfig = yaml.load(
   fs.readFileSync(path.join(repoRoot, "ops/paperclip/blueprint-company/.paperclip.yaml"), "utf8"),
 );
 
-const [agents, projects, routines, issues, openRoutineIssues] = await Promise.all([
+const [agents, projects, routines, issues] = await Promise.all([
   fetchJson(`/api/companies/${company.id}/agents`),
   fetchJson(`/api/companies/${company.id}/projects`),
-  fetchJson(`/api/companies/${company.id}/routines`),
-  fetchJson(`/api/companies/${company.id}/issues?limit=200`),
-  fetchJson(`/api/companies/${company.id}/issues?originKind=routine_execution&status=todo,in_progress,blocked`),
+  sql.unsafe(`
+    select r.id,
+           r.project_id as "projectId",
+           r.title,
+           r.assignee_agent_id as "assigneeAgentId",
+           r.status,
+           r.description,
+           r.created_at as "createdAt",
+           r.updated_at as "updatedAt",
+           coalesce(sum(case when rt.kind = 'schedule' and rt.enabled = true then 1 else 0 end), 0)::int as "enabledScheduleTriggerCount"
+    from routines r
+    left join routine_triggers rt on rt.routine_id = r.id
+    where r.company_id = ${quoteLiteral(company.id)}
+    group by r.id
+  `),
+  sql.unsafe(`
+    select id,
+           project_id as "projectId",
+           assignee_agent_id as "assigneeAgentId",
+           title,
+           status,
+           origin_kind as "originKind",
+           origin_id as "originId",
+           created_at as "createdAt"
+    from issues
+    where company_id = ${quoteLiteral(company.id)}
+  `),
 ]);
+
+const openRoutineIssues = issues.filter(
+  (issue) =>
+    issue.originKind === "routine_execution"
+    && ["backlog", "todo", "in_progress", "in_review", "blocked"].includes(issue.status),
+);
 
 const projectGroups = new Map();
 for (const project of projects) {
@@ -242,8 +337,12 @@ for (const group of agentGroups.values()) {
   }
 }
 
-const staleRoutineIds = routines
+const staleOwnedRoutineIds = routines
   .filter((routine) => staleProjectIds.has(routine.projectId) || staleAgentIds.has(routine.assigneeAgentId))
+  .map((routine) => routine.id);
+
+const staleRoutineIds = routines
+  .filter((routine) => staleOwnedRoutineIds.includes(routine.id))
   .filter((routine) => routine.status !== "paused")
   .map((routine) => routine.id);
 
@@ -279,6 +378,12 @@ for (const [title, rows] of routineGroups.entries()) {
   });
 }
 
+const duplicateRoutineIds = duplicateRoutineRepairs.flatMap((repair) => repair.duplicateRoutineIds);
+const managedRoutineIds = routines
+  .filter((routine) => managedRoutineTitles.has(routine.title))
+  .map((routine) => routine.id);
+const triggerResetRoutineIds = [...new Set([...managedRoutineIds, ...staleOwnedRoutineIds])];
+
 const openRoutineIssueGroups = new Map();
 for (const issue of openRoutineIssues) {
   const key = issue.originId || issue.id;
@@ -295,16 +400,19 @@ for (const [originId, group] of openRoutineIssueGroups.entries()) {
   );
   const routineId = originId;
   const latestOpenIssue = sorted[0];
-  const routineDetail = await fetchJson(`/api/routines/${routineId}`).catch(() => null);
-  const hasCompletedRunAfterLatestOpen = Boolean(
-    routineDetail?.recentRuns?.some(
-      (run) =>
-        typeof run.completedAt === "string"
-        && run.linkedIssue
-        && ["done", "cancelled"].includes(run.linkedIssue.status)
-        && new Date(run.completedAt).getTime() >= new Date(latestOpenIssue.createdAt).getTime(),
-    ),
-  );
+  const completionRows = isUuid(routineId)
+    ? await sql.unsafe(`
+      select 1
+      from routine_runs rr
+      left join issues i on i.id = rr.linked_issue_id
+      where rr.routine_id = ${quoteLiteral(routineId)}
+        and rr.completed_at is not null
+        and rr.completed_at >= ${quoteLiteral(latestOpenIssue.createdAt)}
+        and i.status in ('done', 'cancelled')
+      limit 1
+    `)
+    : [];
+  const hasCompletedRunAfterLatestOpen = completionRows.length > 0;
   routineIssueRepairs.push({
     routineId,
     title: latestOpenIssue.title,
@@ -328,6 +436,7 @@ const summary = {
     .map((agent) => agent.name),
   staleRoutineIds,
   staleIssueIds,
+  triggerResetRoutineCount: triggerResetRoutineIds.length,
   duplicateRoutineRepairs,
   routineIssueRepairs,
   apply,
@@ -336,73 +445,109 @@ const summary = {
 console.log(JSON.stringify(summary, null, 2));
 
 if (!apply) {
+  await sql.end({ timeout: 5 }).catch(() => undefined);
   process.exit(0);
 }
 
-for (const routine of routines.filter((row) => staleRoutineIds.includes(row.id))) {
-  await fetchJson(`/api/routines/${routine.id}`, {
-    method: "PATCH",
-    body: JSON.stringify({ status: "paused" }),
-  });
-}
-
-for (const issue of issues.filter((row) => staleIssueIds.includes(row.id))) {
-  await fetchJson(`/api/issues/${issue.id}`, {
-    method: "PATCH",
-    body: JSON.stringify({
-      status: "cancelled",
-      comment: "Cancelled by Blueprint duplicate-import repair because the issue belonged to a stale duplicate project or agent.",
-    }),
-  });
-}
-
-for (const repair of duplicateRoutineRepairs) {
-  for (const routineId of repair.duplicateRoutineIds) {
-    await fetchJson(`/api/routines/${routineId}`, {
-      method: "PATCH",
-      body: JSON.stringify({
-        status: "paused",
-        title: archivedDuplicateRoutineTitle(repair.title, routineId),
-        description: `Archived duplicate of ${repair.title}. Canonical routine: ${repair.keepRoutineId}.`,
-      }),
-    });
-    const detail = await fetchJson(`/api/routines/${routineId}`).catch(() => null);
-    for (const trigger of detail?.triggers ?? []) {
-      if (trigger.kind === "schedule") {
-        await fetchJson(`/api/routine-triggers/${trigger.id}`, { method: "DELETE" }).catch(() => undefined);
-      } else if (trigger.enabled !== false) {
-        await fetchJson(`/api/routine-triggers/${trigger.id}`, {
-          method: "PATCH",
-          body: JSON.stringify({ enabled: false }),
-        }).catch(() => undefined);
-      }
+try {
+  await sql.begin(async (tx) => {
+    const staleRoutineSql = uuidArraySql(staleRoutineIds);
+    if (staleRoutineSql) {
+      await tx.unsafe(`
+        update routines
+        set status = 'paused',
+            updated_at = now()
+        where id = any(${staleRoutineSql})
+      `);
     }
-  }
-}
 
-for (const repair of routineIssueRepairs) {
-  for (const issueId of repair.cancelIssueIds) {
-    await fetchJson(`/api/issues/${issueId}`, {
-      method: "PATCH",
-      body: JSON.stringify({
-        status: "cancelled",
-        comment:
-          repair.keepIssueId
-            ? `Cancelled by Blueprint routine repair because a newer open execution issue (${repair.keepIssueId}) already owns this routine.`
-            : "Cancelled by Blueprint routine repair because a newer completed routine run already produced the authoritative outcome.",
-      }),
-    });
-  }
-}
+    const duplicateRoutineSql = uuidArraySql(duplicateRoutineIds);
+    if (duplicateRoutineSql) {
+      await tx.unsafe(`
+        update routines
+        set status = 'paused',
+            updated_at = now()
+        where id = any(${duplicateRoutineSql})
+      `);
+    }
 
-for (const agentId of staleAgentIds) {
-  await fetchJson(`/api/agents/${agentId}/terminate`, { method: "POST" });
-}
+    for (const repair of duplicateRoutineRepairs) {
+      const duplicateSql = uuidArraySql(repair.duplicateRoutineIds);
+      if (!duplicateSql) continue;
+      await tx.unsafe(`
+        update routines
+        set title = 'Archived Duplicate | ' || ${quoteLiteral(repair.title)} || ' | ' || left(id::text, 8),
+            description = 'Archived duplicate of ' || ${quoteLiteral(repair.title)} || '. Canonical routine: ' || ${quoteLiteral(repair.keepRoutineId)} || '.',
+            updated_at = now()
+        where id = any(${duplicateSql})
+      `);
+    }
 
-for (const projectId of staleProjectIds) {
-  await fetchJson(`/api/projects/${projectId}`, {
-    method: "PATCH",
-    body: JSON.stringify({ archivedAt: new Date().toISOString() }),
+    const triggerResetSql = uuidArraySql(triggerResetRoutineIds);
+    if (triggerResetSql) {
+      await tx.unsafe(`
+        delete from routine_triggers
+        where kind = 'schedule'
+          and routine_id = any(${triggerResetSql})
+      `);
+    }
+
+    const disableTriggerSql = uuidArraySql([...staleOwnedRoutineIds, ...duplicateRoutineIds]);
+    if (disableTriggerSql) {
+      await tx.unsafe(`
+        update routine_triggers
+        set enabled = false,
+            updated_at = now()
+        where kind <> 'schedule'
+          and enabled = true
+          and routine_id = any(${disableTriggerSql})
+      `);
+    }
+
+    const staleIssueSql = uuidArraySql(staleIssueIds);
+    if (staleIssueSql) {
+      await tx.unsafe(`
+        update issues
+        set status = 'cancelled',
+            cancelled_at = coalesce(cancelled_at, now()),
+            updated_at = now()
+        where id = any(${staleIssueSql})
+      `);
+    }
+
+    for (const repair of routineIssueRepairs) {
+      const cancelSql = uuidArraySql(repair.cancelIssueIds);
+      if (!cancelSql) continue;
+      await tx.unsafe(`
+        update issues
+        set status = 'cancelled',
+            cancelled_at = coalesce(cancelled_at, now()),
+            updated_at = now()
+        where id = any(${cancelSql})
+      `);
+    }
+
+    const staleAgentSql = uuidArraySql([...staleAgentIds]);
+    if (staleAgentSql) {
+      await tx.unsafe(`
+        update agents
+        set status = 'terminated',
+            updated_at = now()
+        where id = any(${staleAgentSql})
+      `);
+    }
+
+    const staleProjectSql = uuidArraySql([...staleProjectIds]);
+    if (staleProjectSql) {
+      await tx.unsafe(`
+        update projects
+        set archived_at = coalesce(archived_at, now()),
+            updated_at = now()
+        where id = any(${staleProjectSql})
+      `);
+    }
   });
+} finally {
+  await sql.end({ timeout: 5 }).catch(() => undefined);
 }
 NODE

@@ -84,6 +84,12 @@ describe('OffWaitlistSignUpFlow', () => {
     });
     expect(continueButton).toBeDisabled();
 
+    fireEvent.change(screen.getByPlaceholderText(/Brightleaf Books, Durham/i), {
+      target: { value: 'Blueprint Durham' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('you@business.com'), {
+      target: { value: 'ops@tryblueprint.io' },
+    });
     const passwordInput = screen.getByPlaceholderText('At least 8 characters');
     fireEvent.change(passwordInput, { target: { value: 'strong-pass' } });
 

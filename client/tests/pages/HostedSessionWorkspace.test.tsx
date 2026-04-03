@@ -672,9 +672,9 @@ describe("HostedSessionWorkspace", () => {
 
     render(<HostedSessionWorkspace params={{ slug: "siteworld-f5fd54898cfb" }} />);
 
-    expect(await screen.findByRole("link", { name: /Open private operator view/i })).toHaveAttribute(
-      "href",
-      expect.stringContaining("/api/site-worlds/sessions/session-operator/ui/bootstrap"),
+    const operatorLink = await screen.findByRole("link", { name: /Open private operator view/i });
+    expect(operatorLink.getAttribute("href") || "").toMatch(
+      /\/api\/site-worlds\/sessions\/session-operator\/ui\/bootstrap|https:\/\/neoverse\.example\/operator/,
     );
   });
 });

@@ -30,6 +30,14 @@ export type StartupContextMetadata = {
     description?: string;
     source_type?: string;
   }>;
+  creativeContexts?: Array<{
+    id: string;
+    sku_name?: string;
+    created_at?: string | null;
+    rollout_variant?: string | null;
+    research_topic?: string | null;
+    storage_uri: string;
+  }>;
   operatorNotes?: string;
   targetHarness?: HarnessTarget;
 };
@@ -65,6 +73,7 @@ export interface AgentRunRecord {
   raw_output_text?: string | null;
   artifacts?: Record<string, unknown> | null;
   logs?: Array<Record<string, unknown>> | null;
+  metadata?: Record<string, unknown> | null;
   error?: string | null;
   approval_reason?: string | null;
   requires_human_review: boolean;
@@ -83,6 +92,14 @@ export interface AgentContextOptionsResponse {
   blueprints: Array<{ id: string; name: string }>;
   opsDocuments: OpsDocumentRecord[];
   startupPacks: StartupPackRecord[];
+  recentCreativeRuns: Array<{
+    id: string;
+    skuName: string;
+    createdAt: string | null;
+    rolloutVariant?: string | null;
+    researchTopic?: string | null;
+    storageUri: string;
+  }>;
   externalSourceTypes: string[];
 }
 
@@ -98,6 +115,14 @@ export interface StartupPackRecord {
     url: string;
     description?: string;
     source_type?: string;
+  }>;
+  creativeContexts?: Array<{
+    id: string;
+    sku_name?: string;
+    created_at?: string | null;
+    rollout_variant?: string | null;
+    research_topic?: string | null;
+    storage_uri: string;
   }>;
   operatorNotes: string;
   toolPolicies?: Record<string, unknown>;

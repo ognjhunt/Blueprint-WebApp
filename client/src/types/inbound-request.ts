@@ -27,6 +27,12 @@ export type ProofPathPreference =
   | "adjacent_site_acceptable"
   | "need_guidance";
 
+export type RequestQueueKey =
+  | "inbound_request_review"
+  | "exact_site_hosted_review_queue";
+
+export type GrowthWedgeKey = "exact_site_hosted_review";
+
 export type RequestedLane =
   | "qualification"
   | "preview_simulation"
@@ -182,6 +188,25 @@ export interface PipelineArtifacts {
   compatibility_matrix_uri?: string | null;
   recapture_diff_uri?: string | null;
   launchable_export_bundle_uri?: string | null;
+}
+
+export interface OpsAutomationEnvelope {
+  status?: string;
+  queue?: RequestQueueKey | string;
+  queue_label?: string | null;
+  intent?: string;
+  wedge_key?: GrowthWedgeKey | null;
+  filter_tags?: string[];
+  next_action?: string | null;
+  recommended_path?: string | null;
+  confidence?: number | null;
+  requires_human_review?: boolean | null;
+  provider?: string | null;
+  runtime?: string | null;
+  model?: string | null;
+  last_error?: string | null;
+  last_attempt_at?: string | null;
+  processed_at?: string | null;
 }
 
 export type ProviderRunStatus =
@@ -518,6 +543,9 @@ export interface InboundRequestListItem {
   requestId: string;
   site_submission_id: string;
   buyer_request_id?: string | null;
+  queue_key?: RequestQueueKey | null;
+  growth_wedge?: GrowthWedgeKey | null;
+  queue_tags?: string[];
   createdAt: string; // ISO string
   status: RequestStatus;
   qualification_state: QualificationState;
@@ -539,8 +567,10 @@ export interface InboundRequestListItem {
     siteLocation: string;
     taskStatement: string;
     details?: string | null;
+    proofPathPreference?: ProofPathPreference | null;
   };
   owner: RequestOwner;
+  ops_automation?: OpsAutomationEnvelope;
   buyer_review_access?: BuyerReviewAccess;
   ops?: OpsSummary;
   pipeline?: PipelineAttachment;
@@ -570,6 +600,7 @@ export interface InboundRequestDetail extends InboundRequestListItem {
     slackNotifiedAt?: string | null;
     crmSyncedAt?: string | null;
   };
+  ops_automation?: OpsAutomationEnvelope;
   buyer_review_access?: BuyerReviewAccess;
   ops?: OpsSummary;
   notes?: RequestNote[];

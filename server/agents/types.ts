@@ -89,12 +89,22 @@ export interface ExternalKnowledgeSource {
   source_type?: string;
 }
 
+export interface CreativeContextReference {
+  id: string;
+  sku_name?: string;
+  created_at?: string | null;
+  rollout_variant?: string | null;
+  research_topic?: string | null;
+  storage_uri: string;
+}
+
 export interface StartupContextMetadata {
   startupPackIds?: string[];
   repoDocPaths?: string[];
   blueprintIds?: string[];
   documentIds?: string[];
   externalSources?: ExternalKnowledgeSource[];
+  creativeContexts?: CreativeContextReference[];
   operatorNotes?: string;
   targetHarness?: HarnessTarget;
 }
@@ -208,6 +218,7 @@ export interface StartupPackRecord {
   blueprint_ids: string[];
   document_ids: string[];
   external_sources: ExternalKnowledgeSource[];
+  creative_contexts?: CreativeContextReference[];
   operator_notes?: string;
   tool_policies?: Record<string, unknown>;
   owner_scope?: StartupPackOwnerScope;

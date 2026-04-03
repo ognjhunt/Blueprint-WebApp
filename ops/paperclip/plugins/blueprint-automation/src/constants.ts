@@ -46,6 +46,8 @@ export const TOOL_NAMES = {
   nitrosendUpsertAudience: "nitrosend-upsert-audience",
   nitrosendDraftSequence: "nitrosend-draft-sequence",
   nitrosendCreateCampaignDraft: "nitrosend-create-campaign-draft",
+  nitrosendApproveCampaignSend: "nitrosend-approve-campaign-send",
+  nitrosendSendCampaign: "nitrosend-send-campaign",
   firehoseReadSignals: "firehose-read-signals",
   firehoseReadBrief: "firehose-read-brief",
   introwSearchPartners: "introw-search-partners",
@@ -92,6 +94,7 @@ export const STATE_KEYS = {
   workspaceAdapterCooldowns: "workspace-adapter-cooldowns",
   firehoseSignalCache: "firehose-signal-cache",
   founderVisibility: "founder-visibility",
+  founderRemediation: "founder-remediation",
 } as const;
 export const DEFAULT_COMPANY_NAME = "Blueprint Autonomous Operations";
 export const DEFAULT_REPO_CATALOG = [

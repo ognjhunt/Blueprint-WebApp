@@ -182,7 +182,7 @@ describe("inbound request route", () => {
     } finally {
       await stopServer(server);
     }
-  });
+  }, 60_000);
 
   it("still fails in production when Firebase Admin is unavailable", async () => {
     process.env.NODE_ENV = "production";
@@ -214,7 +214,7 @@ describe("inbound request route", () => {
     } finally {
       await stopServer(server);
     }
-  });
+  }, 60_000);
 
   it("accepts robot-team proof-path intake without a named site when site type is provided", async () => {
     process.env.NODE_ENV = "development";

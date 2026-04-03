@@ -12,6 +12,7 @@ import { isValidEmailAddress } from "../utils/validation";
 import { getRateLimitRedisClient } from "../utils/rate-limit-redis";
 import { encryptInboundRequestForStorage } from "../utils/field-encryption";
 import { createRequestReviewToken } from "../utils/request-review-auth";
+import { createSlaTracker } from "../utils/sla-enforcement";
 import { runInboundQualificationForRequest } from "../agents";
 import {
   HELP_WITH_OPTIONS,
@@ -30,6 +31,8 @@ import type {
   ProofPathPreference,
   RequestedLane,
   BuyerType,
+  RequestQueueKey,
+  GrowthWedgeKey,
   SubmitInboundRequestResponse,
 } from "../types/inbound-request";
 
@@ -279,6 +282,61 @@ function normalizeProofPathPreference(
   }
 
   return VALID_PROOF_PATH_PREFERENCES.includes(value) ? value : null;
+}
+
+function normalizeToken(value: string | null | undefined) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function determineInboundRouting(params: {
+  buyerType: BuyerType;
+  requestedLanes: RequestedLane[];
+  proofPathPreference: ProofPathPreference | null;
+  sourcePageUrl?: string | null;
+  utmCampaign?: string | null;
+  utmSource?: string | null;
+}) {
+  const sourcePageUrl = String(params.sourcePageUrl || "");
+  const normalizedCampaign = normalizeToken(params.utmCampaign);
+  const normalizedSource = normalizeToken(params.utmSource);
+  const exactSiteSignals = [
+    params.buyerType === "robot_team",
+    params.requestedLanes.includes("deeper_evaluation"),
+    params.proofPathPreference === "exact_site_required"
+      || sourcePageUrl.includes("/exact-site-hosted-review")
+      || normalizedCampaign.includes("hosted_review")
+      || normalizedSource === "exact_site_review",
+  ];
+
+  const isExactSiteHostedReview = exactSiteSignals.every(Boolean);
+  const queueKey: RequestQueueKey = isExactSiteHostedReview
+    ? "exact_site_hosted_review_queue"
+    : "inbound_request_review";
+  const growthWedge: GrowthWedgeKey | null = isExactSiteHostedReview
+    ? "exact_site_hosted_review"
+    : null;
+  const queueTags = [
+    params.buyerType,
+    ...params.requestedLanes,
+    params.proofPathPreference || null,
+    isExactSiteHostedReview ? "exact_site_hosted_review" : null,
+  ].filter((value): value is string => Boolean(value));
+
+  return {
+    queueKey,
+    growthWedge,
+    queueTags,
+    queueLabel: isExactSiteHostedReview
+      ? "Exact-Site Hosted Review"
+      : "Inbound Request Review",
+    nextAction: isExactSiteHostedReview
+      ? "review exact-site hosted-review scope, proof path, and buyer handoff readiness"
+      : "generate qualification recommendation",
+  };
 }
 
 function isProduction(): boolean {
@@ -562,6 +620,14 @@ router.post("/", async (req: Request, res: Response) => {
     const priority = computePriority(payload.budgetBucket, requestedLanes);
     const owner = computeOwner(requestedLanes);
     const demandAttribution = getDemandAttributionFromContext(payload.context);
+    const routing = determineInboundRouting({
+      buyerType,
+      requestedLanes,
+      proofPathPreference,
+      sourcePageUrl: payload.context?.sourcePageUrl || null,
+      utmCampaign: payload.context?.utm?.campaign || null,
+      utmSource: payload.context?.utm?.source || null,
+    });
 
     if (!db) {
       if (isProduction()) {
@@ -577,6 +643,9 @@ router.post("/", async (req: Request, res: Response) => {
       writeDevInboundRequest({
         requestId: payload.requestId,
         createdAt: new Date().toISOString(),
+        queue_key: routing.queueKey,
+        growth_wedge: routing.growthWedge,
+        queue_tags: routing.queueTags,
         status: "submitted",
         priority,
         owner,
@@ -651,6 +720,15 @@ router.post("/", async (req: Request, res: Response) => {
             human_commercial_handoff_at: null,
           },
         },
+        ops_automation: {
+          status: "pending",
+          queue: routing.queueKey,
+          queue_label: routing.queueLabel,
+          wedge_key: routing.growthWedge,
+          filter_tags: routing.queueTags,
+          intent: "inbound_qualification",
+          next_action: routing.nextAction,
+        },
         debug: {
           mode: "dev_fallback",
           logPath: DEV_INBOUND_REQUEST_LOG,
@@ -699,6 +777,9 @@ router.post("/", async (req: Request, res: Response) => {
     } = {
       requestId: payload.requestId,
       site_submission_id: payload.requestId,
+      queue_key: routing.queueKey,
+      growth_wedge: routing.growthWedge,
+      queue_tags: routing.queueTags,
       createdAt: now,
       status: "submitted" as RequestStatus,
       qualification_state: "submitted",
@@ -769,9 +850,12 @@ router.post("/", async (req: Request, res: Response) => {
       },
       ops_automation: {
         status: "pending",
-        queue: "inbound_request_review",
+        queue: routing.queueKey,
+        queue_label: routing.queueLabel,
         intent: "inbound_qualification",
-        next_action: "generate qualification recommendation",
+        wedge_key: routing.growthWedge,
+        filter_tags: routing.queueTags,
+        next_action: routing.nextAction,
         recommended_path: null,
         confidence: null,
         requires_human_review: null,
@@ -840,6 +924,13 @@ router.post("/", async (req: Request, res: Response) => {
           total: admin.firestore.FieldValue.increment(1),
           [`byStatus.submitted`]: admin.firestore.FieldValue.increment(1),
           [`byPriority.${priority}`]: admin.firestore.FieldValue.increment(1),
+          [`byQueue.${routing.queueKey}`]: admin.firestore.FieldValue.increment(1),
+          ...(routing.growthWedge
+            ? {
+                [`byWedge.${routing.growthWedge}`]:
+                  admin.firestore.FieldValue.increment(1),
+              }
+            : {}),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
         { merge: true }
@@ -857,6 +948,23 @@ router.post("/", async (req: Request, res: Response) => {
 
     // 9. Trigger async automations (don't block response)
     const automationPromises: Promise<void>[] = [];
+
+    if (
+      routing.queueKey === "exact_site_hosted_review_queue" ||
+      (payload.context?.sourcePageUrl || "").includes("/exact-site-hosted-review")
+    ) {
+      automationPromises.push(
+        createSlaTracker({
+          requestId: payload.requestId,
+          buyerEmail: emailLower,
+        }).catch((error) => {
+          logger.error(
+            { error, requestId: payload.requestId },
+            "Failed to create SLA tracker"
+          );
+        })
+      );
+    }
 
     // Slack notification
     automationPromises.push(
@@ -978,6 +1086,8 @@ Task: ${payload.taskStatement?.trim()}
 Budget: ${payload.budgetBucket}
 Requested lanes: ${requestedLanes.join(", ")}
 Priority: ${priority}
+Queue: ${routing.queueLabel}
+Growth wedge: ${routing.growthWedge || "none"}
 
 ${payload.workflowContext ? `Workflow context:\n${payload.workflowContext}\n` : ""}
 ${payload.targetSiteType ? `Target site type:\n${payload.targetSiteType}\n` : ""}

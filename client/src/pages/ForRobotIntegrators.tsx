@@ -1,5 +1,8 @@
+import { useEffect, useState } from "react";
 import { SEO } from "@/components/SEO";
 import { ScrollReveal, StaggerGroup, InteractiveCard } from "@/components/motion";
+import { analyticsEvents } from "@/lib/analytics";
+import { resolveExperimentVariant } from "@/lib/experiments";
 import { motion, useReducedMotion } from "framer-motion";
 import { FileCheck2, Gauge, GitBranchPlus, Play, Share2 } from "lucide-react";
 
@@ -45,6 +48,97 @@ const includedItems = [
 
 export default function ForRobotIntegrators() {
   const shouldReduce = useReducedMotion();
+  const [sectionOrder, setSectionOrder] = useState<"technical_first" | "outcome_first">(
+    "technical_first",
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void resolveExperimentVariant("integrators_value_prop_order", [
+      "technical_first",
+      "outcome_first",
+    ]).then((variant) => {
+      if (cancelled) {
+        return;
+      }
+      const resolved = variant === "outcome_first" ? "outcome_first" : "technical_first";
+      setSectionOrder(resolved);
+      analyticsEvents.experimentExposure(
+        "integrators_value_prop_order",
+        resolved,
+        "page_load",
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const useCaseSection = (
+    <section className="mt-12">
+      <ScrollReveal>
+        <div className="max-w-3xl">
+          <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+            What teams train and ship with this.
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-slate-600">
+            Give your team the exact site in a format that feeds directly into your
+            training pipeline and deployment decisions.
+          </p>
+        </div>
+      </ScrollReveal>
+
+      <StaggerGroup className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5" stagger={0.08}>
+        {useCaseCards.map((item) => (
+          <InteractiveCard key={item.title} accent="indigo" className="p-5 bg-slate-50">
+            <motion.div
+              whileHover={shouldReduce ? {} : { scale: 1.05 }}
+              className="inline-flex rounded-lg bg-white p-2"
+            >
+              {item.icon}
+            </motion.div>
+            <h3 className="mt-3 text-base font-semibold text-slate-900">{item.title}</h3>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.description}</p>
+          </InteractiveCard>
+        ))}
+      </StaggerGroup>
+    </section>
+  );
+
+  const whatYouGetSection = (
+    <section className="mt-12 grid gap-6 lg:grid-cols-[1fr_0.9fr]">
+      <ScrollReveal>
+        <InteractiveCard className="h-full p-6">
+          <h2 className="text-2xl font-bold text-slate-900">What you get</h2>
+          <ul className="mt-5 space-y-3">
+            {includedItems.map((item) => (
+              <li key={item} className="flex items-start gap-3 text-slate-700">
+                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </InteractiveCard>
+      </ScrollReveal>
+
+      <ScrollReveal delay={0.1}>
+        <motion.article
+          whileHover={shouldReduce ? {} : { y: -3 }}
+          transition={{ duration: 0.25 }}
+          className="h-full rounded-2xl border border-slate-200 bg-slate-900 p-6 text-white shadow-sm"
+        >
+          <h2 className="text-2xl font-bold">What to expect</h2>
+          <p className="mt-4 text-sm leading-7 text-white">
+            This works well for policy fine-tuning, training data generation, and release
+            comparison. It does not replace final on-site safety validation or stack-specific
+            signoff.
+          </p>
+        </motion.article>
+      </ScrollReveal>
+    </section>
+  );
 
   return (
     <>
@@ -82,7 +176,7 @@ export default function ForRobotIntegrators() {
                   Explore world models
                 </a>
                 <a
-                  href="/contact?persona=robot-team&interest=evaluation-package"
+                  href="/exact-site-hosted-review"
                   className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 transition-all hover:bg-slate-50"
                 >
                   Talk to us
@@ -122,65 +216,17 @@ export default function ForRobotIntegrators() {
             </motion.div>
           </motion.div>
 
-          <section className="mt-12">
-            <ScrollReveal>
-              <div className="max-w-3xl">
-                <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                  What teams train and ship with this.
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Give your team the exact site in a format that feeds directly into your
-                  training pipeline and deployment decisions.
-                </p>
-              </div>
-            </ScrollReveal>
-
-            <StaggerGroup className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5" stagger={0.08}>
-              {useCaseCards.map((item) => (
-                <InteractiveCard key={item.title} accent="indigo" className="p-5 bg-slate-50">
-                  <motion.div
-                    whileHover={shouldReduce ? {} : { scale: 1.05 }}
-                    className="inline-flex rounded-lg bg-white p-2"
-                  >
-                    {item.icon}
-                  </motion.div>
-                  <h3 className="mt-3 text-base font-semibold text-slate-900">{item.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.description}</p>
-                </InteractiveCard>
-              ))}
-            </StaggerGroup>
-          </section>
-
-          <section className="mt-12 grid gap-6 lg:grid-cols-[1fr_0.9fr]">
-            <ScrollReveal>
-              <InteractiveCard className="h-full p-6">
-                <h2 className="text-2xl font-bold text-slate-900">What you get</h2>
-                <ul className="mt-5 space-y-3">
-                  {includedItems.map((item) => (
-                    <li key={item} className="flex items-start gap-3 text-slate-700">
-                      <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </InteractiveCard>
-            </ScrollReveal>
-
-            <ScrollReveal delay={0.1}>
-              <motion.article
-                whileHover={shouldReduce ? {} : { y: -3 }}
-                transition={{ duration: 0.25 }}
-                className="h-full rounded-2xl border border-slate-200 bg-slate-900 p-6 text-white shadow-sm"
-              >
-                <h2 className="text-2xl font-bold">What to expect</h2>
-                <p className="mt-4 text-sm leading-7 text-white">
-                  This works well for policy fine-tuning, training data generation, and release
-                  comparison. It does not replace final on-site safety validation or stack-specific
-                  signoff.
-                </p>
-              </motion.article>
-            </ScrollReveal>
-          </section>
+          {sectionOrder === "outcome_first" ? (
+            <>
+              {whatYouGetSection}
+              {useCaseSection}
+            </>
+          ) : (
+            <>
+              {useCaseSection}
+              {whatYouGetSection}
+            </>
+          )}
         </div>
       </div>
     </>

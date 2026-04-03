@@ -22,7 +22,7 @@ BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_CLAUDE_LAN
 BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT:-xhigh}"
 BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL:-opencode/minimax-m2.5-free}"
 BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL:-opencode/minimax-m2.5-free}"
-BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-qwen/qwen3.6-plus-preview:free}"
+BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-qwen/qwen3.6-plus:free}"
 OPENCODE_NO_TTY="${OPENCODE_NO_TTY:-1}"
 
 export \
@@ -66,8 +66,19 @@ const opencodeModel =
 const opencodeFallbackModel =
   process.env.BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL ?? "opencode/minimax-m2.5-free";
 const hermesFallbackModel =
-  process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL ?? "qwen/qwen3.6-plus-preview:free";
+  process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL ?? "qwen/qwen3.6-plus:free";
+const hermesFallbackModels = normalizeModelList([
+  ...parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS),
+  hermesFallbackModel,
+  "openrouter/free",
+  "stepfun/step-3.5-flash:free",
+  "nvidia/nemotron-3-super:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "openai/gpt-oss-120b:free",
+  "arcee-ai/trinity-large-preview:free",
+]);
 const legacyHermesModel = "gpt-5.4-mini";
+const HERMES_MODEL_LADDER_CONFIG_KEY = "blueprintHermesModelLadder";
 const paperclipConfigPath = path.join(
   repoRoot,
   "ops/paperclip/blueprint-company/.paperclip.yaml",
@@ -94,6 +105,29 @@ function normalizeClaudeLaneMode(value) {
       );
       return "auto";
   }
+}
+
+function parseModelList(value) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return [];
+  }
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+function normalizeModelList(values) {
+  const seen = new Set();
+  const normalized = [];
+  for (const value of values) {
+    if (typeof value !== "string") continue;
+    const trimmed = value.trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    normalized.push(trimmed);
+  }
+  return normalized;
 }
 
 async function fetchJson(resourcePath, init = {}) {
@@ -515,14 +549,20 @@ function buildHermesAdapterConfig(adapterConfig) {
     typeof adapterConfig?.model === "string" && adapterConfig.model.trim().length > 0
       ? adapterConfig.model.trim()
       : "";
+  const ladder = normalizeModelList([
+    ...(configuredModel.length > 0 && configuredModel !== legacyHermesModel ? [configuredModel] : []),
+    ...parseModelList(adapterConfig?.[HERMES_MODEL_LADDER_CONFIG_KEY]),
+    ...hermesFallbackModels,
+  ]);
   const model =
     configuredModel.length > 0 && configuredModel !== legacyHermesModel
       ? configuredModel
-      : hermesFallbackModel;
+      : ladder[0] ?? hermesFallbackModel;
 
   return {
     ...next,
     model,
+    [HERMES_MODEL_LADDER_CONFIG_KEY]: ladder,
     modelReasoningEffort:
       typeof adapterConfig?.modelReasoningEffort === "string" && adapterConfig.modelReasoningEffort.trim().length > 0
         ? adapterConfig.modelReasoningEffort
@@ -533,33 +573,33 @@ function buildHermesAdapterConfig(adapterConfig) {
 
 function tertiaryOpencodeFallbackFor(desired, baseAdapterConfig = desired.adapterConfig ?? {}) {
   const adapterConfig = baseAdapterConfig ?? {};
+  const next = { ...adapterConfig };
   const cwd = typeof adapterConfig.cwd === "string" ? adapterConfig.cwd : "";
   if (!cwd) return null;
+  delete next.dangerouslySkipPermissions;
+  delete next.dangerouslyBypassApprovalsAndSandbox;
+  delete next.modelReasoningEffort;
   return {
     adapterType: "opencode_local",
     adapterConfig: {
+      ...next,
       cwd,
       model: opencodeModel,
       fallbackModel: opencodeFallbackModel,
       timeoutSec: typeof adapterConfig.timeoutSec === "number" ? adapterConfig.timeoutSec : 1800,
-      instructionsFilePath:
-        typeof adapterConfig.instructionsFilePath === "string" ? adapterConfig.instructionsFilePath : undefined,
     },
   };
 }
 
 function hermesFreeFallbackFor(desired, baseAdapterConfig = desired.adapterConfig ?? {}) {
-  const adapterConfig = baseAdapterConfig ?? {};
+  const adapterConfig = buildHermesAdapterConfig(baseAdapterConfig ?? {});
   const cwd = typeof adapterConfig.cwd === "string" ? adapterConfig.cwd : "";
   if (!cwd) return null;
   return {
     adapterType: "hermes_local",
     adapterConfig: {
+      ...adapterConfig,
       cwd,
-      model: hermesFallbackModel,
-      timeoutSec: typeof adapterConfig.timeoutSec === "number" ? adapterConfig.timeoutSec : 1800,
-      instructionsFilePath:
-        typeof adapterConfig.instructionsFilePath === "string" ? adapterConfig.instructionsFilePath : undefined,
     },
   };
 }
@@ -759,7 +799,7 @@ function buildExecutionPolicyForAgent(agentConfig) {
     return {
       mode: "prefer_available",
       compatibleAdapterTypes: ["hermes_local", "opencode_local", "claude_local", "codex_local"],
-      preferredAdapterTypes: ["hermes_local", "opencode_local", "claude_local", "codex_local"],
+      preferredAdapterTypes: ["hermes_local", "claude_local", "codex_local", "opencode_local"],
       perAdapterConfig,
     };
   }

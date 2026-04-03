@@ -12,6 +12,8 @@ import {
   markBuyerOrderPaidFromCheckout,
   markBuyerOrderPaymentFailure,
 } from "../utils/accounting";
+import { createOnboardingSequence } from "../utils/buyer-onboarding";
+import { initRenewalTracking } from "../utils/growth-ops";
 import { stripeClient } from "../constants/stripe";
 
 const stripeWebhookSecret = (process.env.STRIPE_WEBHOOK_SECRET || "").trim();
@@ -59,7 +61,7 @@ async function handleCheckoutSessionCompleted(
   }
 
   if (session.payment_status === "paid") {
-    return markBuyerOrderPaidFromCheckout({
+    const paidOrder = await markBuyerOrderPaidFromCheckout({
       orderId: order.id,
       checkoutSessionId,
       paymentIntentId:
@@ -69,6 +71,28 @@ async function handleCheckoutSessionCompleted(
       eventId: event.id,
       eventType: event.type,
     });
+
+    if (paidOrder?.id && paidOrder.buyer_email) {
+      void createOnboardingSequence({
+        orderId: paidOrder.id,
+        buyerEmail: paidOrder.buyer_email,
+        skuName: paidOrder.item.title || paidOrder.item.sku,
+        licenseTier: paidOrder.item.license_tier || "standard",
+      });
+
+      if (paidOrder.entitlement_id && paidOrder.paid_at) {
+        void initRenewalTracking({
+          entitlementId: paidOrder.entitlement_id,
+          orderId: paidOrder.id,
+          buyerEmail: paidOrder.buyer_email,
+          skuName: paidOrder.item.title || paidOrder.item.sku,
+          licenseTier: paidOrder.item.license_tier || "standard",
+          grantedAt: paidOrder.paid_at,
+        });
+      }
+    }
+
+    return paidOrder;
   }
 
   return null;

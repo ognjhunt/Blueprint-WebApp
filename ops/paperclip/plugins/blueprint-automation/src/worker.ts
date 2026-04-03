@@ -9,6 +9,7 @@ import {
   type Agent,
   type Company,
   type Issue,
+  type IssueComment,
   type PaperclipPlugin,
   type PluginContext,
   type PluginEntityRecord,
@@ -51,6 +52,7 @@ import { collectFounderQueueAlerts, type FounderQueueAlert } from "./firestore.j
 import { buildSlackToolHandler, postSlackDigest } from "./slack-notify.js";
 import { buildWebSearchToolHandler } from "./web-search.js";
 import {
+  approveNitrosendCampaignSend,
   buildFirehoseBrief,
   createIntrowPartnerDraft,
   createNitrosendCampaignDraft,
@@ -71,10 +73,12 @@ import {
   type IntrowConfig,
   type NitrosendConfig,
   type ResearchConfidence,
+  sendNitrosendCampaign,
   upsertNitrosendAudience,
   updateIntrowPartnerDraft,
 } from "./marketing-integrations.js";
 import {
+  buildLocalQuotaFallbackDescriptor,
   buildClaudeFallbackAdapterConfig,
   buildCodexFallbackAdapterConfig,
   buildQuotaFallbackRetryRecord,
@@ -121,6 +125,7 @@ import {
   formatIssueStatus,
   shouldPostManagerIssueEventToSlack,
 } from "./slack-copy.js";
+import { inferChiefOfStaffRoute } from "../../../chief-of-staff-routing.js";
 
 const execFileAsync = promisify(execFile);
 const GIT_BIN = process.env.BLUEPRINT_PAPERCLIP_GIT_BIN || "/usr/bin/git";
@@ -135,6 +140,8 @@ const ENTITY_TYPES = {
 } as const;
 const EXECUTIVE_OPS_PROJECT = "blueprint-executive-ops";
 const NOTION_MANAGER_AGENT = "notion-manager-agent";
+const BUYER_RISK_OWNER_RESPONSE_GRACE_HOURS = 12;
+const MEANINGFUL_PROGRESS_GRACE_MS = 5 * 60 * 1000;
 // STATE_KEYS imported from ./constants.js
 
 type RepoConfig = {
@@ -450,6 +457,7 @@ type FounderVisibilityIssue = {
   title: string;
   lane: FounderBusinessLane;
   owner: string;
+  projectName?: string | null;
   priority: Issue["priority"];
   status: Issue["status"];
   hoursSinceUpdate: number;
@@ -468,9 +476,13 @@ type FounderVisibilitySnapshot = {
   recentlyShipped: FounderVisibilityIssue[];
   queueAlerts: FounderQueueAlert[];
   routineMisses: Array<{
+    routineKey: string;
     routineTitle: string;
+    agentKey: string;
     kind: "blocked" | "stale";
     detail: string;
+    expectedIntervalHours: number | null;
+    lastIssueId: string | null;
   }>;
   buyerRisks: FounderVisibilityIssue[];
   capturerRisks: FounderVisibilityIssue[];
@@ -483,9 +495,18 @@ type FounderVisibilityState = {
     {
       sentAt: string;
       payloadHash: string;
+      evidenceKey?: string | null;
     }
   >;
 };
+
+type FounderRemediationEntry = {
+  stage: "owner_nudged" | "rerouted" | "managed_escalation";
+  updatedAt: string;
+  evidenceKey: string;
+};
+
+type FounderRemediationState = Record<string, FounderRemediationEntry>;
 
 type HandoffMonitorEntry = {
   requestCommentId: string | null;
@@ -545,6 +566,7 @@ type PaperclipYamlRoutineTrigger = {
 
 type PaperclipYamlRoutineConfig = {
   agent?: string;
+  status?: string;
   triggers?: PaperclipYamlRoutineTrigger[];
 };
 
@@ -682,6 +704,7 @@ function estimateRoutineIntervalHours(cronExpression: string): number | null {
 
 function getConfiguredRoutineMetadata(routineKey: string): {
   expectedIntervalHours: number | null;
+  routineStatus: string | null;
 } {
   const config = loadPaperclipYamlConfig();
   const routine = config?.routines?.[routineKey];
@@ -690,6 +713,7 @@ function getConfiguredRoutineMetadata(routineKey: string): {
     expectedIntervalHours: scheduleTrigger?.cronExpression
       ? estimateRoutineIntervalHours(scheduleTrigger.cronExpression)
       : null,
+    routineStatus: asString(routine?.status) ?? "active",
   };
 }
 
@@ -747,25 +771,17 @@ function parseAgentRunFailurePayload(value: unknown): AgentRunFailurePayload {
 function buildQuotaFallbackDescriptor(
   adapterType: string,
   adapterConfig: Record<string, unknown> | null | undefined,
+  desired?: {
+    adapterType: string;
+    adapterConfig: Record<string, unknown> | null | undefined;
+  } | null,
 ) {
-  if (adapterType === "claude_local" || adapterType === "codex_local") {
-    return {
-      adapterType: "hermes_local" as LocalQuotaFallbackAdapterType,
-      reason: "quota_fallback_to_hermes_free",
-      adapterConfig: buildHermesFallbackAdapterConfig(asRecord(adapterConfig)),
-    };
-  }
-  if (adapterType === "hermes_local") {
-    return {
-      adapterType: "opencode_local" as LocalQuotaFallbackAdapterType,
-      reason: "quota_fallback_to_opencode",
-      adapterConfig: buildOpenCodeFallbackAdapterConfig(asRecord(adapterConfig), {
-        model: "opencode/minimax-m2.5-free",
-      }),
-    };
-  }
-
-  return null;
+  return buildLocalQuotaFallbackDescriptor({
+    currentAdapterType: adapterType,
+    currentAdapterConfig: asRecord(adapterConfig),
+    desiredAdapterType: desired?.adapterType ?? null,
+    desiredAdapterConfig: asRecord(desired?.adapterConfig),
+  });
 }
 
 function buildDesiredAdapterDescriptor(agent: Agent) {
@@ -1227,6 +1243,14 @@ function getOpsRoutingConfig(config: BlueprintAutomationConfig) {
   };
 }
 
+function getGrowthRoutingConfig(config: BlueprintAutomationConfig) {
+  const agents = config.growthDepartment?.agents;
+  return {
+    growthLead: agents?.growthLead ?? "growth-lead",
+    conversionOptimizer: agents?.conversionOptimizer ?? "conversion-agent",
+  };
+}
+
 function getChiefOfStaffAgentKey(config: BlueprintAutomationConfig) {
   return config.management?.chiefOfStaffAgent ?? "blueprint-chief-of-staff";
 }
@@ -1479,6 +1503,7 @@ function buildFounderIssueVisibility(
     title: issue.title,
     lane: classifyFounderLane(ownerKey, issue.title),
     owner,
+    projectName: issue.projectName ?? null,
     priority: issue.priority,
     status: issue.status,
     hoursSinceUpdate: hoursSinceTimestamp(issue.updatedAt, nowMs),
@@ -1536,6 +1561,7 @@ async function queryNeedsFounderWorkQueue(
       title: item.title,
       lane: (asString(item.businessLane) as FounderBusinessLane | undefined) ?? "Executive",
       owner: item.ownerIds.length > 0 ? item.ownerIds.join(", ") : "Unassigned",
+      projectName: null,
       priority: (
         item.priority === "P0"
           ? "critical"
@@ -1583,6 +1609,7 @@ async function buildFounderVisibility(
       ...issue,
       lane: classifyFounderLane(issue.assigneeAgentId ? (agentKeyById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId) : null, issue.title),
       owner: issue.assigneeAgentId ? (agentNameById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId) : "Unassigned",
+      projectName: issue.projectName ?? null,
     }))
     .slice(0, 10);
 
@@ -1597,9 +1624,13 @@ async function buildFounderVisibility(
     .slice(0, 10);
 
   const routineMisses = managerSnapshot.routineAlerts.map((alert) => ({
+    routineKey: alert.routineKey,
     routineTitle: alert.routineTitle,
+    agentKey: alert.agentKey,
     kind: alert.kind,
     detail: alert.detail,
+    expectedIntervalHours: alert.expectedIntervalHours,
+    lastIssueId: alert.lastIssueId,
   }));
 
   return {
@@ -1620,6 +1651,8 @@ type FounderExceptionDigest = {
   lane: FounderBusinessLane;
   title: string;
   sections: Array<{ heading: string; items: string[] }>;
+  evidenceKey?: string | null;
+  requireEvidence?: boolean;
 };
 
 function digestPayloadHash(sections: FounderExceptionDigest["sections"]) {
@@ -1638,7 +1671,15 @@ async function maybePostFounderException(
   const payloadHash = digestPayloadHash(digest.sections);
   const cooldownMs = 6 * 60 * 60 * 1000;
 
-  if (existing) {
+  if (digest.requireEvidence && !digest.evidenceKey) {
+    return false;
+  }
+
+  if (digest.evidenceKey && existing?.evidenceKey === digest.evidenceKey) {
+    return false;
+  }
+
+  if (!digest.evidenceKey && existing) {
     const sentAt = new Date(existing.sentAt).getTime();
     if (Number.isFinite(sentAt) && now.getTime() - sentAt < cooldownMs && existing.payloadHash === payloadHash) {
       return false;
@@ -1659,6 +1700,7 @@ async function maybePostFounderException(
   state.alerts[digest.fingerprint] = {
     sentAt: now.toISOString(),
     payloadHash,
+    evidenceKey: digest.evidenceKey ?? null,
   };
   await writeState(ctx, companyId, STATE_KEYS.founderVisibility, state);
   return true;
@@ -2075,6 +2117,12 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function toIsoTimestamp(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "string" && value.length > 0) return value;
+  return new Date(0).toISOString();
+}
+
 function normalizeIssueStatus(value: unknown, fallback: UpsertManagedIssueInput["status"] = "todo") {
   const next = asString(value);
   if (!next) return fallback;
@@ -2450,7 +2498,12 @@ async function handleAgentRunFailureQuotaFallback(
     return;
   }
 
-  const fallback = buildQuotaFallbackDescriptor(agent.adapterType, asRecord(agent.adapterConfig));
+  const desired = buildDesiredAdapterDescriptor(agent);
+  const fallback = buildQuotaFallbackDescriptor(
+    agent.adapterType,
+    asRecord(agent.adapterConfig),
+    desired,
+  );
   if (!fallback) {
     await markAttempt(
       buildQuotaFallbackRetryRecord({
@@ -2478,6 +2531,7 @@ async function handleAgentRunFailureQuotaFallback(
 
   try {
     const allAgents = await listAgents(ctx, event.companyId).catch(() => []);
+    const agentById = new Map(allAgents.map((entry) => [entry.id, entry]));
     const workspaceTargets = selectWorkspaceQuotaFallbackTargets(
       {
         id: agent.id,
@@ -2493,9 +2547,11 @@ async function handleAgentRunFailureQuotaFallback(
     const siblingSwitchErrors: string[] = [];
 
     for (const target of workspaceTargets) {
+      const targetAgent = target.id === agent.id ? agent : agentById.get(target.id) ?? null;
       const targetFallback = buildQuotaFallbackDescriptor(
         target.adapterType,
         asRecord(target.adapterConfig),
+        targetAgent ? buildDesiredAdapterDescriptor(targetAgent) : null,
       );
       if (!targetFallback) {
         continue;
@@ -2586,17 +2642,21 @@ async function handleAgentRunFailureQuotaFallback(
 
     await appendRecentEvent(ctx, event.companyId, {
       kind: "quota-fallback-retry",
-      title: `Retried ${agent.name} on OpenCode (free model) after quota failure`,
+      title: `Retried ${agent.name} on ${fallback.adapterType} after quota failure`,
       issueId: payload.issueId ?? undefined,
       detail: payload.issueId
-        ? `Issue ${payload.issueId} retried from failed run ${payload.runId}; switched ${workspaceTargets.length} same-workspace agent(s) to ${fallback.adapterType} until ${cooldownUntil}.`
-        : `Task ${retryTaskKey} retried from failed run ${payload.runId}; switched ${workspaceTargets.length} same-workspace agent(s) to ${fallback.adapterType} until ${cooldownUntil}.`,
+        ? `Issue ${payload.issueId} retried from failed run ${payload.runId}; switched ${workspaceTargets.length} same-workspace agent(s) to ${fallback.adapterType}${fallback.adapterType !== agent.adapterType ? ` until ${cooldownUntil}` : ""}.`
+        : `Task ${retryTaskKey} retried from failed run ${payload.runId}; switched ${workspaceTargets.length} same-workspace agent(s) to ${fallback.adapterType}${fallback.adapterType !== agent.adapterType ? ` until ${cooldownUntil}` : ""}.`,
     });
 
     if (payload.issueId) {
+      const fallbackLabel =
+        fallback.adapterType === "hermes_local"
+          ? `hermes_local (${asString(fallback.adapterConfig.model) ?? "next free model"})`
+          : fallback.adapterType;
       await ctx.issues.createComment(
         payload.issueId,
-        `Detected a ${agent.adapterType === "claude_local" ? "Claude" : "OpenAI"} quota/rate-limit failure on run ${payload.runId}. Switched ${agent.name} and ${Math.max(workspaceTargets.length - 1, 0)} same-workspace peer(s) to opencode_local (free model) until ${cooldownUntil}, then requeued the work once.`,
+        `Detected a ${agent.adapterType} quota/rate-limit failure on run ${payload.runId}. Switched ${agent.name} and ${Math.max(workspaceTargets.length - 1, 0)} same-workspace peer(s) to ${fallbackLabel}${fallback.adapterType !== agent.adapterType ? ` until ${cooldownUntil}` : ""}, then requeued the work once.`,
         event.companyId,
       ).catch(() => undefined);
     }
@@ -2906,6 +2966,359 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
   return { fingerprint, issue: updatedIssue };
 }
 
+function managedIssueMutationSignature(issue: Issue | null | undefined) {
+  if (!issue) return "missing";
+  return [
+    issue.id,
+    issue.title,
+    issue.status,
+    issue.priority,
+    issue.assigneeAgentId ?? "unassigned",
+  ].join("|");
+}
+
+async function upsertManagedIssueWithEvidence(
+  ctx: PluginContext,
+  input: UpsertManagedIssueInput,
+) {
+  const fingerprint = makeFingerprint(input.sourceType, input.sourceId);
+  const before = await getManagedIssue(ctx, input.companyId, fingerprint);
+  const beforeSignature = managedIssueMutationSignature(before.issue);
+  const result = await upsertManagedIssue(ctx, input);
+  const afterSignature = managedIssueMutationSignature(result.issue);
+  const mutated = before.issue === null || beforeSignature !== afterSignature;
+
+  return {
+    ...result,
+    mutated,
+    evidenceKey: mutated ? `managed:${fingerprint}:${afterSignature}` : null,
+  };
+}
+
+async function readFounderRemediationState(ctx: PluginContext, companyId: string) {
+  return await readState<FounderRemediationState>(
+    ctx,
+    companyId,
+    STATE_KEYS.founderRemediation,
+  ) ?? {};
+}
+
+async function writeFounderRemediationState(
+  ctx: PluginContext,
+  companyId: string,
+  state: FounderRemediationState,
+) {
+  await writeState(ctx, companyId, STATE_KEYS.founderRemediation, state);
+}
+
+function latestCommentTimestamp(comments: IssueComment[]) {
+  return comments.reduce<string | null>((latest, comment) => {
+    const createdAt = toIsoTimestamp(comment.createdAt);
+    if (!latest) return createdAt;
+    return Date.parse(createdAt) > Date.parse(latest) ? createdAt : latest;
+  }, null);
+}
+
+function hasMeaningfulSourceProgressSince(
+  issue: Issue,
+  comments: IssueComment[],
+  sinceIso: string,
+) {
+  const sinceMs = Date.parse(sinceIso);
+  if (!Number.isFinite(sinceMs)) return false;
+  const candidates = [
+    toIsoTimestamp(issue.updatedAt),
+    latestCommentTimestamp(comments),
+  ].filter((value): value is string => typeof value === "string" && value.length > 0);
+  return candidates.some((value) => Date.parse(value) - sinceMs > MEANINGFUL_PROGRESS_GRACE_MS);
+}
+
+async function nudgeBuyerRiskOwner(
+  ctx: PluginContext,
+  companyId: string,
+  risk: FounderVisibilityIssue,
+) {
+  const now = nowIso();
+  const body = [
+    "Manager escalation: buyer-risk checkpoint required.",
+    `- This buyer path has been idle for ${risk.hoursSinceUpdate.toFixed(1)}h.`,
+    `- Owner: ${risk.owner}.`,
+    `- Required next step: leave a concrete next checkpoint or request a reroute within ${BUYER_RISK_OWNER_RESPONSE_GRACE_HOURS}h.`,
+    "- If the thread stays silent after that window, automation will reroute or escalate it.",
+  ].join("\n");
+  await ctx.issues.createComment(risk.id, body, companyId);
+  return {
+    stage: "owner_nudged" as const,
+    updatedAt: now,
+    evidenceKey: `buyer-risk:${risk.id}:owner-nudged`,
+  };
+}
+
+async function rerouteBuyerRiskIssue(
+  ctx: PluginContext,
+  companyId: string,
+  issue: Issue,
+  route: NonNullable<ReturnType<typeof inferChiefOfStaffRoute>>,
+) {
+  const assignee = await resolveAgent(ctx, companyId, route.assigneeKey);
+  await (ctx.issues.update as any)(
+    issue.id,
+    {
+      assigneeAgentId: assignee.id,
+      ...(route.status ? { status: route.status } : {}),
+    },
+    companyId,
+  );
+  await ctx.issues.createComment(
+    issue.id,
+    `${route.comment}\nManager escalation: this buyer path stayed idle after the owner checkpoint window, so it was rerouted for recovery.`,
+    companyId,
+  );
+  return {
+    stage: "rerouted" as const,
+    updatedAt: nowIso(),
+    evidenceKey: `buyer-risk:${issue.id}:rerouted:${route.assigneeKey}`,
+  };
+}
+
+async function ensureBuyerRiskRemediation(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+  risk: FounderVisibilityIssue,
+) {
+  const state = await readFounderRemediationState(ctx, companyId);
+  const remediationKey = `buyer-risk:${risk.id}`;
+  const existing = state[remediationKey];
+  const issue = await ctx.issues.get(risk.id, companyId);
+  if (!issue) {
+    return { notifyFounder: false, evidenceKey: null };
+  }
+
+  const comments = await listCommentsForIssue(ctx, companyId, issue.id).catch(() => []);
+  if (existing && hasMeaningfulSourceProgressSince(issue, comments, existing.updatedAt)) {
+    delete state[remediationKey];
+    await writeFounderRemediationState(ctx, companyId, state);
+    return { notifyFounder: false, evidenceKey: null };
+  }
+
+  if (!existing) {
+    state[remediationKey] = await nudgeBuyerRiskOwner(ctx, companyId, risk);
+    await writeFounderRemediationState(ctx, companyId, state);
+    return { notifyFounder: false, evidenceKey: null };
+  }
+
+  if (
+    existing.stage === "owner_nudged"
+    && hoursSinceTimestamp(existing.updatedAt, Date.now()) >= BUYER_RISK_OWNER_RESPONSE_GRACE_HOURS
+  ) {
+    const route = inferChiefOfStaffRoute({
+      title: issue.title,
+      status: issue.status,
+      project: { name: risk.projectName ?? EXECUTIVE_OPS_PROJECT },
+    });
+    const agents = await listAgents(ctx, companyId).catch(() => [] as Agent[]);
+    const ownerKeyById = new Map(
+      agents.map((agent) => [
+        agent.id,
+        normalizedCandidates(agent as unknown as Record<string, unknown>)[0] ?? agent.id,
+      ] as const),
+    );
+    const currentOwnerKey = issue.assigneeAgentId
+      ? (ownerKeyById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId)
+      : null;
+
+    if (route && route.assigneeKey !== currentOwnerKey) {
+      state[remediationKey] = await rerouteBuyerRiskIssue(ctx, companyId, issue, route);
+      await writeFounderRemediationState(ctx, companyId, state);
+      return { notifyFounder: true, evidenceKey: state[remediationKey]?.evidenceKey ?? null };
+    }
+
+    const escalation = await upsertManagedIssueWithEvidence(ctx, {
+      companyId,
+      sourceType: "founder-buyer-risk",
+      sourceId: issue.id,
+      title: `Buyer-risk escalation: ${issue.title}`,
+      description: [
+        `${issue.title} remained stale after the owner checkpoint window.`,
+        `Lane: ${risk.lane}`,
+        `Owner at escalation: ${risk.owner}`,
+        `Idle time: ${risk.hoursSinceUpdate.toFixed(1)}h`,
+      ].join("\n"),
+      projectName: EXECUTIVE_OPS_PROJECT,
+      assignee: getGrowthRoutingConfig(config).growthLead,
+      priority: "high",
+      status: "todo",
+      metadata: {
+        sourceIssueId: issue.id,
+        lane: risk.lane,
+      },
+      suppressRefreshComment: true,
+    });
+
+    if (escalation.mutated) {
+      await ctx.issues.createComment(
+        issue.id,
+        "Manager escalation: no safe owner reroute was available after the checkpoint window, so a follow-through issue was opened for Growth Lead.",
+        companyId,
+      );
+      state[remediationKey] = {
+        stage: "managed_escalation",
+        updatedAt: nowIso(),
+        evidenceKey: escalation.evidenceKey ?? `buyer-risk:${issue.id}:managed-escalation`,
+      };
+      await writeFounderRemediationState(ctx, companyId, state);
+      return { notifyFounder: true, evidenceKey: state[remediationKey]?.evidenceKey ?? null };
+    }
+  }
+
+  return { notifyFounder: false, evidenceKey: null };
+}
+
+async function ensureQueueAlertRemediation(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+  alert: FounderQueueAlert,
+) {
+  const escalation = await upsertManagedIssueWithEvidence(ctx, {
+    companyId,
+    sourceType: "founder-queue-alert",
+    sourceId: alert.queue,
+    title: `Queue threshold: ${alert.queue}`,
+    description: [
+      `${alert.queue} crossed a founder-visibility threshold.`,
+      alert.detail,
+      "Ops Lead should confirm the routing checkpoint and either reduce queue pressure or explain the blocker.",
+    ].join("\n"),
+    projectName: EXECUTIVE_OPS_PROJECT,
+    assignee: getOpsRoutingConfig(config).opsLead,
+    priority: "high",
+    status: "todo",
+    metadata: {
+      queue: alert.queue,
+      lane: alert.lane,
+    },
+    suppressRefreshComment: true,
+  });
+
+  return {
+    notifyFounder: escalation.mutated,
+    evidenceKey: escalation.evidenceKey,
+  };
+}
+
+async function ensureExperimentOutcomeRemediation(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+  outcome: FounderExperimentOutcome,
+) {
+  const escalation = await upsertManagedIssueWithEvidence(ctx, {
+    companyId,
+    sourceType: "founder-experiment-regression",
+    sourceId: outcome.url ?? outcome.title,
+    title: `Experiment regression: ${outcome.title}`,
+    description: [
+      `${outcome.title} landed as REVERT and needs a clean lesson plus next-step decision.`,
+      `Lifecycle stage: ${outcome.lifecycleStage}`,
+      ...(outcome.url ? [`Source: ${outcome.url}`] : []),
+    ].join("\n"),
+    projectName: EXECUTIVE_OPS_PROJECT,
+    assignee: getGrowthRoutingConfig(config).growthLead,
+    priority: "high",
+    status: "todo",
+    metadata: {
+      lifecycleStage: outcome.lifecycleStage,
+      url: outcome.url ?? null,
+    },
+    suppressRefreshComment: true,
+  });
+
+  return {
+    notifyFounder: escalation.mutated,
+    evidenceKey: escalation.evidenceKey,
+  };
+}
+
+function shouldResetStaleRoutineExecutionIssue(
+  issue: Issue | null,
+  alert: FounderVisibilitySnapshot["routineMisses"][number],
+  nowMs: number,
+) {
+  if (!issue) return false;
+  const record = issue as unknown as Record<string, unknown>;
+  if (record.originKind !== "routine_execution") return false;
+  if (typeof record.executionRunId === "string" && record.executionRunId.length > 0) return false;
+  if (issue.status === "done" || issue.status === "cancelled") return false;
+  const resetThresholdHours = Math.max((alert.expectedIntervalHours ?? 1) * 2, 6);
+  return hoursSinceTimestamp(issue.updatedAt, nowMs) >= resetThresholdHours;
+}
+
+async function ensureRoutineMissRemediation(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+  alert: FounderVisibilitySnapshot["routineMisses"][number],
+) {
+  const evidenceKeys: string[] = [];
+  if (alert.lastIssueId) {
+    const routineIssue = await ctx.issues.get(alert.lastIssueId, companyId).catch(() => null);
+    if (shouldResetStaleRoutineExecutionIssue(routineIssue, alert, Date.now())) {
+      await ctx.issues.update(
+        alert.lastIssueId,
+        { status: "cancelled" },
+        companyId,
+      );
+      await ctx.issues.createComment(
+        alert.lastIssueId,
+        [
+          "Automation recovery cancelled this stale routine-execution issue.",
+          `- Routine: ${alert.routineTitle}`,
+          `- Reason: ${alert.detail}`,
+          "- The next scheduled trigger can now open a fresh execution issue instead of coalescing into stale state.",
+        ].join("\n"),
+        companyId,
+      );
+      evidenceKeys.push(`routine-reset:${alert.lastIssueId}`);
+    }
+  }
+
+  const escalation = await upsertManagedIssueWithEvidence(ctx, {
+    companyId,
+    sourceType: "founder-routine-miss",
+    sourceId: `${alert.routineKey}:${alert.kind}`,
+    title: `Routine follow-through: ${alert.routineTitle}`,
+    description: [
+      `${alert.routineTitle} is ${alert.kind}.`,
+      alert.detail,
+      `Assigned agent: ${alert.agentKey}`,
+      "This issue exists so the stale lane gets a concrete owner, reroute, or closure decision in Paperclip before founder visibility is sent.",
+    ].join("\n"),
+    projectName: EXECUTIVE_OPS_PROJECT,
+    assignee: alert.agentKey === getChiefOfStaffAgentKey(config)
+      ? "blueprint-cto"
+      : getChiefOfStaffAgentKey(config),
+    priority: "high",
+    status: alert.kind === "blocked" ? "blocked" : "todo",
+    metadata: {
+      routineKey: alert.routineKey,
+      routineKind: alert.kind,
+      sourceIssueId: alert.lastIssueId,
+    },
+    suppressRefreshComment: true,
+  });
+
+  if (escalation.evidenceKey) {
+    evidenceKeys.push(escalation.evidenceKey);
+  }
+
+  return {
+    notifyFounder: evidenceKeys.length > 0,
+    evidenceKey: evidenceKeys.length > 0 ? evidenceKeys.join("|") : null,
+  };
+}
+
 async function syncNotionDriftAssessment(
   ctx: PluginContext,
   companyId: string,
@@ -3188,11 +3601,12 @@ async function updateRoutineHealth(
   const key = routineKey;
   const existing = state[key];
   const now = nowIso();
-  const { expectedIntervalHours } = getConfiguredRoutineMetadata(routineKey);
+  const { expectedIntervalHours, routineStatus } = getConfiguredRoutineMetadata(routineKey);
   state[key] = {
     routineKey,
     routineTitle,
     agentKey,
+    routineStatus,
     lastOutcome: outcome,
     lastRunAt: now,
     lastSuccessAt: outcome === "done" ? now : (existing?.lastSuccessAt ?? null),
@@ -3243,11 +3657,17 @@ async function runRoutineHealthCheck(ctx: PluginContext, companyId: string, conf
 
   const founderSnapshot = await buildChiefOfStaffState(ctx, companyId, config);
   for (const alert of founderSnapshot.founderVisibility.queueAlerts) {
+    const remediation = await ensureQueueAlertRemediation(ctx, companyId, config, alert);
+    if (!remediation.notifyFounder || !remediation.evidenceKey) {
+      continue;
+    }
     await maybePostFounderException(ctx, companyId, config, {
       fingerprint: `founder-exception:queue:${alert.queue}`,
       category: "Queue Threshold",
       lane: alert.lane,
       title: `Founder Exception | Queue Threshold | ${alert.lane}`,
+      evidenceKey: remediation.evidenceKey,
+      requireEvidence: true,
       sections: [
         { heading: "What Changed", items: [`${alert.queue} crossed a configured founder visibility threshold.`] },
         { heading: "Why It Matters Now", items: [alert.detail] },
@@ -3258,11 +3678,17 @@ async function runRoutineHealthCheck(ctx: PluginContext, companyId: string, conf
   }
 
   for (const alert of founderSnapshot.founderVisibility.routineMisses) {
+    const remediation = await ensureRoutineMissRemediation(ctx, companyId, config, alert);
+    if (!remediation.notifyFounder || !remediation.evidenceKey) {
+      continue;
+    }
     await maybePostFounderException(ctx, companyId, config, {
       fingerprint: `founder-exception:routine:${alert.routineTitle}:${alert.kind}`,
       category: "Routine Silent Failure",
       lane: "Executive",
       title: `Founder Exception | Routine Silent Failure | Executive`,
+      evidenceKey: remediation.evidenceKey,
+      requireEvidence: true,
       sections: [
         { heading: "What Changed", items: [`${alert.routineTitle} is ${alert.kind}.`] },
         { heading: "Why It Matters Now", items: [alert.detail] },
@@ -3273,11 +3699,17 @@ async function runRoutineHealthCheck(ctx: PluginContext, companyId: string, conf
   }
 
   for (const risk of founderSnapshot.founderVisibility.buyerRisks.filter((entry) => entry.priority === "critical" || entry.priority === "high")) {
+    const remediation = await ensureBuyerRiskRemediation(ctx, companyId, config, risk);
+    if (!remediation.notifyFounder || !remediation.evidenceKey) {
+      continue;
+    }
     await maybePostFounderException(ctx, companyId, config, {
       fingerprint: `founder-exception:buyer-risk:${risk.id}`,
       category: "Buyer Deal Risk",
       lane: "Buyer",
       title: `Founder Exception | Buyer Deal Risk | Buyer`,
+      evidenceKey: remediation.evidenceKey,
+      requireEvidence: true,
       sections: [
         { heading: "What Changed", items: [`Buyer-facing work is at risk: ${cleanIssueTitle(risk.title)}.`] },
         { heading: "Why It Matters Now", items: [`This thread has been blocked or idle for ${risk.hoursSinceUpdate.toFixed(1)}h and could slip buyer confidence.`] },
@@ -3288,11 +3720,17 @@ async function runRoutineHealthCheck(ctx: PluginContext, companyId: string, conf
   }
 
   for (const outcome of founderSnapshot.founderVisibility.experimentOutcomes.filter((entry) => entry.lifecycleStage.toLowerCase() === "revert")) {
+    const remediation = await ensureExperimentOutcomeRemediation(ctx, companyId, config, outcome);
+    if (!remediation.notifyFounder || !remediation.evidenceKey) {
+      continue;
+    }
     await maybePostFounderException(ctx, companyId, config, {
       fingerprint: `founder-exception:experiment:${outcome.title}:revert`,
       category: "Experiment Regression",
       lane: "Experiment",
       title: `Founder Exception | Experiment Regression | Experiment`,
+      evidenceKey: remediation.evidenceKey,
+      requireEvidence: true,
       sections: [
         { heading: "What Changed", items: [`An experiment outcome landed as REVERT: ${outcome.title}.`] },
         { heading: "Why It Matters Now", items: [`A guardrail or primary metric failed, so the change should not remain the operating default.`] },
@@ -5781,6 +6219,80 @@ async function registerToolHandlers(ctx: PluginContext) {
       return {
         content: `Created Nitrosend campaign draft ${campaign.name} (${campaign.id}).`,
         data: campaign,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.nitrosendApproveCampaignSend,
+    {
+      displayName: "Nitrosend Approve Campaign Send",
+      description: "Record a human approval against a Nitrosend campaign before send.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          campaignId: { type: "string" },
+          approvedBy: { type: "string" },
+          approvalNote: { type: "string" },
+        },
+        required: ["campaignId", "approvedBy"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const nitrosendConfig = await resolveNitrosendConfig(ctx, config);
+      if (!nitrosendConfig) {
+        throw new Error("Nitrosend adapter is not configured. Set nitrosendBaseUrl and nitrosendApiTokenRef.");
+      }
+      const campaignId = asString((params as Record<string, unknown>).campaignId);
+      if (!campaignId) {
+        throw new Error("campaignId is required");
+      }
+      const result = await approveNitrosendCampaignSend(
+        nitrosendConfig,
+        campaignId,
+        params as Record<string, unknown>,
+      );
+      return {
+        content: `Approved Nitrosend campaign ${campaignId} for send.`,
+        data: result,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.nitrosendSendCampaign,
+    {
+      displayName: "Nitrosend Send Campaign",
+      description: "Send a Nitrosend campaign after explicit human approval.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          campaignId: { type: "string" },
+          approvedBy: { type: "string" },
+          approvalNote: { type: "string" },
+        },
+        required: ["campaignId", "approvedBy"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const nitrosendConfig = await resolveNitrosendConfig(ctx, config);
+      if (!nitrosendConfig) {
+        throw new Error("Nitrosend adapter is not configured. Set nitrosendBaseUrl and nitrosendApiTokenRef.");
+      }
+      const campaignId = asString((params as Record<string, unknown>).campaignId);
+      if (!campaignId) {
+        throw new Error("campaignId is required");
+      }
+      const result = await sendNitrosendCampaign(
+        nitrosendConfig,
+        campaignId,
+        params as Record<string, unknown>,
+      );
+      return {
+        content: `Sent Nitrosend campaign ${campaignId}.`,
+        data: result,
       };
     },
   );

@@ -48,6 +48,12 @@ describe("AdminAgentConsole", () => {
                       blueprintIds: ["bp-1"],
                       documentIds: ["doc-1"],
                       externalSources: [],
+                      creativeContexts: [
+                        {
+                          id: "creative-1",
+                          storage_uri: "gs://blueprint-8c1ca.appspot.com/creative-factory/run-1/product-reel.mp4",
+                        },
+                      ],
                       operatorNotes: "Key launch checklist attached.",
                     },
                   },
@@ -78,6 +84,16 @@ describe("AdminAgentConsole", () => {
                 },
               ],
               startupPacks: [],
+              recentCreativeRuns: [
+                {
+                  id: "creative-1",
+                  skuName: "Exact-Site Hosted Review",
+                  createdAt: "2026-04-02T14:00:00.000Z",
+                  rolloutVariant: "proof_first",
+                  researchTopic: "warehouse robotics",
+                  storageUri: "gs://blueprint-8c1ca.appspot.com/creative-factory/run-1/product-reel.mp4",
+                },
+              ],
               externalSourceTypes: ["manual_url_reference"],
             }),
           ),
@@ -141,6 +157,12 @@ describe("AdminAgentConsole", () => {
                       blueprintIds: ["bp-1"],
                       documentIds: ["doc-1"],
                       externalSources: [],
+                      creativeContexts: [
+                        {
+                          id: "creative-1",
+                          storage_uri: "gs://blueprint-8c1ca.appspot.com/creative-factory/run-1/product-reel.mp4",
+                        },
+                      ],
                       operatorNotes: "Key launch checklist attached.",
                     },
                 },
@@ -165,6 +187,14 @@ describe("AdminAgentConsole", () => {
                   status: "pending_approval",
                   dispatch_mode: "collect",
                   input: {},
+                  metadata: {
+                    resolved_startup_context: {
+                      creative_context_ids: ["creative-1"],
+                      creative_context_uris: [
+                        "gs://blueprint-8c1ca.appspot.com/creative-factory/run-1/product-reel.mp4",
+                      ],
+                    },
+                  },
                   output: { reply: "Need approval." },
                   approval_reason: "Sensitive actions require approval: payout",
                   requires_human_review: true,
@@ -222,8 +252,18 @@ describe("AdminAgentConsole", () => {
         /docs\/ops-automation-analysis-2026\.md/i,
       ),
     ).toBeInTheDocument();
+    expect(
+      within(selectedSessionPanel as HTMLElement).getByText(
+        /gs:\/\/blueprint-8c1ca\.appspot\.com\/creative-factory\/run-1\/product-reel\.mp4/i,
+      ),
+    ).toBeInTheDocument();
     expect((await screen.findAllByText(/Provider: openai_responses/i)).length).toBeGreaterThan(0);
     expect(await screen.findByText(/Sensitive actions require approval/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        /creative_context_uris/i,
+      ),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Run smoke test/i }));
 

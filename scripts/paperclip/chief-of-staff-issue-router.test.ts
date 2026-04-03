@@ -32,4 +32,14 @@ describe("chief of staff issue router", () => {
 
     expect(route?.assigneeKey).toBe("webapp-codex");
   });
+
+  it("routes hosted-review proof-pack buyer threads to solutions-engineering-agent", () => {
+    const route = inferChiefOfStaffRoute({
+      title: "Conversion Refresh: robot-team proof-pack and hosted-review path",
+      status: "todo",
+      project: { name: "Blueprint Executive Ops" },
+    });
+
+    expect(route?.assigneeKey).toBe("solutions-engineering-agent");
+  });
 });

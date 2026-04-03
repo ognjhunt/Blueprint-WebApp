@@ -157,6 +157,7 @@ export default function AdminAgentConsole() {
   const [selectedRepoDocs, setSelectedRepoDocs] = useState<string[]>([]);
   const [selectedBlueprintIds, setSelectedBlueprintIds] = useState<string[]>([]);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
+  const [selectedCreativeRunIds, setSelectedCreativeRunIds] = useState<string[]>([]);
   const [externalSourcesText, setExternalSourcesText] = useState("");
   const [startupPackName, setStartupPackName] = useState("");
   const [startupPackDescription, setStartupPackDescription] = useState("");
@@ -263,6 +264,16 @@ export default function AdminAgentConsole() {
             blueprintIds: selectedBlueprintIds,
             documentIds: selectedDocumentIds,
             externalSources: parseExternalSources(externalSourcesText),
+            creativeContexts: availableCreativeRuns
+              .filter((run) => selectedCreativeRunIds.includes(run.id))
+              .map((run) => ({
+                id: run.id,
+                sku_name: run.skuName,
+                created_at: run.createdAt,
+                rollout_variant: run.rolloutVariant || null,
+                research_topic: run.researchTopic || null,
+                storage_uri: run.storageUri,
+              })),
             operatorNotes,
           },
         },
@@ -290,6 +301,16 @@ export default function AdminAgentConsole() {
         blueprintIds: selectedBlueprintIds,
         documentIds: selectedDocumentIds,
         externalSources: parseExternalSources(externalSourcesText),
+        creativeContexts: availableCreativeRuns
+          .filter((run) => selectedCreativeRunIds.includes(run.id))
+          .map((run) => ({
+            id: run.id,
+            sku_name: run.skuName,
+            created_at: run.createdAt,
+            rollout_variant: run.rolloutVariant || null,
+            research_topic: run.researchTopic || null,
+            storage_uri: run.storageUri,
+          })),
         operatorNotes,
       };
       const response = await fetch(
@@ -435,6 +456,7 @@ export default function AdminAgentConsole() {
   const availableBlueprints = contextOptionsQuery.data?.blueprints || [];
   const availableOpsDocuments = contextOptionsQuery.data?.opsDocuments || [];
   const availableStartupPacks = contextOptionsQuery.data?.startupPacks || [];
+  const availableCreativeRuns = contextOptionsQuery.data?.recentCreativeRuns || [];
   const runs = runsQuery.data?.runs || [];
   const actionLogs = actionLogsQuery.data?.actionLogs || [];
   const openClawConnectivity = openClawConnectivityQuery.data?.connectivity || null;
@@ -580,6 +602,9 @@ export default function AdminAgentConsole() {
                             setSelectedRepoDocs(pack.repoDocPaths || []);
                             setSelectedBlueprintIds(pack.blueprintIds || []);
                             setSelectedDocumentIds(pack.documentIds || []);
+                            setSelectedCreativeRunIds(
+                              (pack.creativeContexts || []).map((context) => context.id),
+                            );
                             setExternalSourcesText(
                               (pack.externalSources || [])
                                 .map(
@@ -651,6 +676,42 @@ export default function AdminAgentConsole() {
                           {document.title}
                           <span className="ml-1 text-xs text-zinc-400">
                             {document.extractionStatus}
+                          </span>
+                        </span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-zinc-200 p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  Attach recent creative runs
+                </p>
+                <div className="mt-2 max-h-36 space-y-2 overflow-y-auto">
+                  {availableCreativeRuns.length === 0 ? (
+                    <p className="text-sm text-zinc-500">No durable creative runs yet.</p>
+                  ) : (
+                    availableCreativeRuns.map((run) => (
+                      <label key={run.id} className="flex items-start gap-2 text-sm text-zinc-700">
+                        <input
+                          type="checkbox"
+                          checked={selectedCreativeRunIds.includes(run.id)}
+                          onChange={() =>
+                            setSelectedCreativeRunIds((current) =>
+                              current.includes(run.id)
+                                ? current.filter((value) => value !== run.id)
+                                : [...current, run.id],
+                            )
+                          }
+                        />
+                        <span>
+                          {run.skuName}
+                          <span className="ml-1 text-xs text-zinc-400">
+                            {run.createdAt ? formatTimestamp(run.createdAt) : "Unknown time"}
+                          </span>
+                          <span className="block break-all font-mono text-[11px] text-zinc-500">
+                            {run.storageUri}
                           </span>
                         </span>
                       </label>
@@ -986,6 +1047,23 @@ export default function AdminAgentConsole() {
                         .map((source) => source.title)
                         .join(", ") || "None"}
                     </p>
+                    <div>
+                      <p>
+                        Creative contexts:{" "}
+                        {(selectedSession.metadata?.startupContext?.creativeContexts || [])
+                          .map((context) => context.id)
+                          .join(", ") || "None"}
+                      </p>
+                      {(selectedSession.metadata?.startupContext?.creativeContexts || []).length > 0 ? (
+                        <div className="mt-2 space-y-2">
+                          {(selectedSession.metadata?.startupContext?.creativeContexts || []).map((context) => (
+                            <p key={context.id} className="break-all font-mono text-[11px] text-zinc-500">
+                              {context.storage_uri}
+                            </p>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                     {selectedSession.metadata?.startupContext?.operatorNotes ? (
                       <p>Notes: {selectedSession.metadata.startupContext.operatorNotes}</p>
                     ) : null}
@@ -1055,6 +1133,11 @@ export default function AdminAgentConsole() {
                     {run.output ? (
                       <pre className="mt-3 overflow-x-auto rounded-lg bg-zinc-950 p-3 text-xs text-zinc-100">
                         {JSON.stringify(run.output, null, 2)}
+                      </pre>
+                    ) : null}
+                    {run.metadata && Object.keys(run.metadata).length > 0 ? (
+                      <pre className="mt-3 overflow-x-auto rounded-lg bg-zinc-100 p-3 text-xs text-zinc-800">
+                        {JSON.stringify(run.metadata, null, 2)}
                       </pre>
                     ) : null}
                     <div className="mt-3 flex flex-wrap gap-2">

@@ -32,9 +32,70 @@ Runtime state is intentionally kept outside the git repo at:
 - `/Users/nijelhunt_1/workspace/.paperclip-blueprint`
 - optional shared env file: `/Users/nijelhunt_1/workspace/.paperclip-blueprint.env`
 
+## Local Recovery Notes
+
+Shared-instance process ownership on macOS should be:
+
+- `com.blueprint.paperclip` owns the single long-lived local control plane
+- `com.blueprint.paperclip.maintenance` only repairs or bootstraps when that shared instance is actually unhealthy
+
+Important scheduler/process recovery detail from the April 2, 2026 repair:
+
+- Paperclip can temporarily fall back from configured port `3100` to `3101` when `3100` is occupied during startup.
+- If maintenance only checks the configured `3100`, it can incorrectly bootstrap a second Paperclip tree while the LaunchAgent-managed instance is still healthy on `3101`.
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/paperclip-api.sh` now detects healthy local listeners for the shared `PAPERCLIP_HOME`.
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/maintenance-blueprint-paperclip.sh` and `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/bootstrap-blueprint-paperclip.sh` now skip spawning a new server when the shared instance is already healthy on an alternate local port.
+
+If you see `3101` again:
+
+- check `launchctl list | rg 'paperclip|blueprint'`
+- check `lsof -nP -iTCP:3100 -sTCP:LISTEN`
+- check `lsof -nP -iTCP:3101 -sTCP:LISTEN`
+- run `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/maintenance-blueprint-paperclip.sh`
+  to confirm it now reports the alternate healthy local URL instead of bootstrapping a duplicate
+- only restart `com.blueprint.paperclip` after `3100` is actually free
+
 Paperclip source is cloned at:
 
 - `/Users/nijelhunt_1/workspace/paperclip`
+
+Production VPS inventory:
+
+- host label: `paperclip-prod-01`
+- provider: DigitalOcean Droplet
+- public IPv4: `206.81.11.69`
+- private IPv4: `10.116.0.2`
+- region: `NYC1`
+- size: `4 GB / 80 GB Disk / Ubuntu 24.04 (LTS) x64`
+- VPC: `default-nyc1`
+- VPC CIDR: `10.116.0.0/20`
+- current operator note: no DigitalOcean firewall attached
+
+Current verified production state as of `2026-04-02T17:23:26Z`:
+
+- `paperclip.tryblueprint.io` resolves to `206.81.11.69`
+- public HTTPS and `/api/health` are healthy
+- `caddy.service` and `paperclip.service` are running on the droplet
+- host-level `ufw` is active and only exposes `22`, `80`, and `443`
+
+Production cleanup completed on `2026-04-02`:
+
+- deployed updated copies of:
+  - [paperclip-api.sh](/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/paperclip-api.sh)
+  - [bootstrap-blueprint-paperclip.sh](/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/bootstrap-blueprint-paperclip.sh)
+  - [maintenance-blueprint-paperclip.sh](/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/maintenance-blueprint-paperclip.sh)
+- removed the stale session-scoped Paperclip tree that had been serving `127.0.0.1:3101`
+- verified post-cleanup host state:
+  - `paperclip.service` remains active
+  - `127.0.0.1:3100` remains healthy
+  - `127.0.0.1:3101` no longer listens
+  - public `https://paperclip.tryblueprint.io/api/health` remains healthy
+
+Current production state:
+
+- externally healthy
+- internally clean
+- aligned with the local duplicate-process recovery fix set
 
 Hermes-backed Blueprint agents are expected to use Codex OAuth only on this host. Install and configure Hermes locally before running reconcile or verify:
 

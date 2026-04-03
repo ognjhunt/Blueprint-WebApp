@@ -896,7 +896,13 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
       : null;
   const runtimeReferenceImageUrl = site?.runtimeReferenceImageUrl || null;
   const artifactExplorer = sessionRecord?.siteModel?.artifactExplorer || site?.artifactExplorer || null;
-  const openDemoUrl = uiBootstrapUrl || "";
+  const openDemoUrl = String(
+    uiBootstrapUrl ||
+      presentationLaunchState?.uiBaseUrl ||
+      sessionRecord?.presentationRuntime?.uiBaseUrl ||
+      artifactExplorer?.operatorView?.uiBaseUrl ||
+      "",
+  ).trim();
   const runtimeInteractive =
     Boolean(sessionId) &&
     sessionStatus !== "starting" &&

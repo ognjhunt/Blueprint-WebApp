@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type {
+  CreativeContextReference,
   ExternalKnowledgeSource,
   StartupPackOwnerScope,
   StartupPackRecord,
@@ -53,6 +54,44 @@ function normalizeExternalSources(value: unknown): ExternalKnowledgeSource[] {
       url,
       description: description || undefined,
       source_type: sourceType || undefined,
+    });
+  }
+
+  return [...dedupe.values()];
+}
+
+function normalizeCreativeContexts(value: unknown): CreativeContextReference[] {
+  const contexts = Array.isArray(value) ? value : [];
+  const dedupe = new Map<string, CreativeContextReference>();
+
+  for (const context of contexts) {
+    if (!context || typeof context !== "object") {
+      continue;
+    }
+
+    const candidate = context as CreativeContextReference;
+    const id = typeof candidate.id === "string" ? candidate.id.trim() : "";
+    const storageUri =
+      typeof candidate.storage_uri === "string" ? candidate.storage_uri.trim() : "";
+    if (!id || !storageUri) {
+      continue;
+    }
+
+    dedupe.set(id, {
+      id,
+      storage_uri: storageUri,
+      sku_name:
+        typeof candidate.sku_name === "string" ? candidate.sku_name.trim() : undefined,
+      created_at:
+        typeof candidate.created_at === "string" ? candidate.created_at.trim() : null,
+      rollout_variant:
+        typeof candidate.rollout_variant === "string"
+          ? candidate.rollout_variant.trim()
+          : null,
+      research_topic:
+        typeof candidate.research_topic === "string"
+          ? candidate.research_topic.trim()
+          : null,
     });
   }
 
@@ -111,6 +150,7 @@ export async function createStartupPack(params: {
   blueprint_ids?: string[];
   document_ids?: string[];
   external_sources?: ExternalKnowledgeSource[];
+  creative_contexts?: CreativeContextReference[];
   operator_notes?: string;
   tool_policies?: Record<string, unknown>;
   owner_scope?: StartupPackOwnerScope;
@@ -130,6 +170,7 @@ export async function createStartupPack(params: {
     blueprint_ids: normalizeStringArray(params.blueprint_ids),
     document_ids: normalizeStringArray(params.document_ids),
     external_sources: normalizeExternalSources(params.external_sources),
+    creative_contexts: normalizeCreativeContexts(params.creative_contexts),
     operator_notes: params.operator_notes?.trim() || "",
     tool_policies:
       params.tool_policies && typeof params.tool_policies === "object"
@@ -171,6 +212,7 @@ export async function updateStartupPack(
     blueprint_ids?: string[];
     document_ids?: string[];
     external_sources?: ExternalKnowledgeSource[];
+    creative_contexts?: CreativeContextReference[];
     operator_notes?: string;
     tool_policies?: Record<string, unknown>;
     owner_scope?: StartupPackOwnerScope;
@@ -208,6 +250,9 @@ export async function updateStartupPack(
         : {}),
       ...(params.external_sources !== undefined
         ? { external_sources: normalizeExternalSources(params.external_sources) }
+        : {}),
+      ...(params.creative_contexts !== undefined
+        ? { creative_contexts: normalizeCreativeContexts(params.creative_contexts) }
         : {}),
       ...(params.operator_notes !== undefined
         ? { operator_notes: params.operator_notes.trim() }

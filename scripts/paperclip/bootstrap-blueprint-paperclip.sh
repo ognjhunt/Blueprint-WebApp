@@ -149,6 +149,12 @@ start_paperclip() {
     return
   fi
 
+  local existing_api_url=""
+  if existing_api_url="$(paperclip_find_healthy_local_api_url "$PAPERCLIP_HOME" "$PAPERCLIP_HOST")"; then
+    echo "Paperclip already healthy at ${existing_api_url}; skipping startup."
+    return
+  fi
+
   select_runner
   ensure_local_runner_ready
 

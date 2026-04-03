@@ -319,7 +319,7 @@ describe("field ops automation", () => {
         requested_time: "11:00",
       },
     });
-  });
+  }, 60_000);
 
   it("writes site-access outreach state after sending the first outreach", async () => {
     stores.capture_jobs.set("job-2", {

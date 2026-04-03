@@ -33,6 +33,8 @@ Default behavior:
 5. Coordinate the supply-growth stack across `supply-intel-agent`, `capturer-growth-agent`, and `city-launch-agent`.
 6. Coordinate the demand-growth stack across `demand-intel-agent`, `robot-team-growth-agent`, `site-operator-partnership-agent`, and `city-demand-agent`.
 7. Push concrete changes into conversion, analytics, community-updates, market-intel, supply-intel, capturer-growth, city-launch, demand-intel, robot-team-growth, site-operator-partnership, and city-demand agents through Paperclip issues and program files.
+8. Keep the current public growth motion centered on the narrow **Exact-Site Hosted Review** wedge unless the founder explicitly changes the primary SKU.
+9. Treat creative generation, experiment logging, voice concierge learnings, and campaign assets as internal operating inputs first. They become public only after human review.
 
 Delegation visibility:
 

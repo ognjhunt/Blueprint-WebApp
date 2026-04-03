@@ -23,13 +23,25 @@ import inboundRequestRouter from "./routes/inbound-request";
 import adminLeadsRouter from "./routes/admin-leads";
 import adminFieldOpsRouter from "./routes/admin-field-ops";
 import adminAgentRouter from "./routes/admin-agent";
+import adminCreativeRouter from "./routes/admin-creative";
+import adminGrowthRouter, {
+  nitrosendWebhookHandler,
+  sendgridWebhookHandler,
+} from "./routes/admin-growth";
 import adminSiteWorldsRouter from "./routes/admin-site-worlds";
+import analyticsIngestRouter from "./routes/analytics-ingest";
+import experimentsRouter from "./routes/experiments";
 import requestsRouter from "./routes/requests";
 import marketplaceRouter from "./routes/marketplace";
 import internalPipelineRouter from "./routes/internal-pipeline";
 import siteWorldsRouter from "./routes/site-worlds";
 import siteWorldSessionsRouter, { publicSiteWorldSessionsRouter } from "./routes/site-world-sessions";
 import { paperclipOpsFirestoreRelayHandler } from "./routes/paperclip-relay";
+import voiceRouter, {
+  telephonyInboundHandler,
+  telephonyStatusHandler,
+  voiceWebhookHandler,
+} from "./routes/voice";
 import verifyFirebaseToken from "./middleware/verifyFirebaseToken";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
 import marketplaceEntitlementsRouter from "./routes/marketplace-entitlements";
@@ -42,6 +54,7 @@ export function registerRoutes(app: Express) {
 
   // Public content summary for external tooling.
   app.use("/api/site-content", siteContentRouter);
+  app.use("/api/experiments", experimentsRouter);
   app.use("/api/internal/pipeline", internalPipelineRouter);
   app.post("/api/paperclip/ops-firestore-relay", paperclipOpsFirestoreRelayHandler);
   app.use("/api/site-worlds", siteWorldsRouter);
@@ -57,6 +70,7 @@ export function registerRoutes(app: Express) {
   );
   app.use("/api/marketplace", csrfProtection, marketplaceRouter);
   app.use("/api/errors", csrfProtection, errorsRouter);
+  app.use("/api/analytics", csrfProtection, analyticsIngestRouter);
   app.post(
     "/api/create-checkout-session",
     csrfProtection,
@@ -82,6 +96,12 @@ export function registerRoutes(app: Express) {
   app.post("/api/waitlist", csrfProtection, waitlistHandler);
   app.post("/api/apply", csrfProtection, applyHandler);
   app.use("/api/help", csrfProtection, helpRouter);
+  app.post("/api/voice/webhook", voiceWebhookHandler);
+  app.post("/api/voice/telephony/inbound", telephonyInboundHandler);
+  app.post("/api/voice/telephony/status", telephonyStatusHandler);
+  app.post("/api/growth/webhooks/nitrosend", nitrosendWebhookHandler);
+  app.post("/api/growth/webhooks/sendgrid", sendgridWebhookHandler);
+  app.use("/api/voice", csrfProtection, voiceRouter);
   // Inbound request (lead pipeline) - public submission endpoint
   app.use("/api/inbound-request", csrfProtection, inboundRequestRouter);
   app.use("/api/requests", csrfProtection, requestsRouter);
@@ -103,6 +123,18 @@ export function registerRoutes(app: Express) {
     csrfProtection,
     verifyFirebaseToken,
     adminAgentRouter,
+  );
+  app.use(
+    "/api/admin/creative",
+    csrfProtection,
+    verifyFirebaseToken,
+    adminCreativeRouter,
+  );
+  app.use(
+    "/api/admin/growth",
+    csrfProtection,
+    verifyFirebaseToken,
+    adminGrowthRouter,
   );
   app.use(
     "/api/admin/site-worlds",

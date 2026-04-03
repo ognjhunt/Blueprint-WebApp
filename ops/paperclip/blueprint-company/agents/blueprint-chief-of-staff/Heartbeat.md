@@ -14,6 +14,7 @@
 - push the next owner before the thread cools off
 
 ## Founder Awareness
+- for recurring founder report routine issues, jump straight to `tsx scripts/paperclip/chief-of-staff-founder-report.ts --issue-id <current-issue-id>` before doing any generic queue discovery
 - publish the weekday founder brief once ops, growth, and analytics signals are fresh enough to summarize cleanly
 - publish the Friday operating recap and weekly gaps report as separate artifacts
 - keep exec alerts sparse, high-signal, and decision-oriented

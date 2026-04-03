@@ -1,7 +1,10 @@
+import { useEffect, useState } from "react";
 import { SEO } from "@/components/SEO";
 import { ScrollReveal, StaggerGroup } from "@/components/motion";
 import { illustrativeLabel } from "@/data/marketingDefinitions";
 import { caseStudies } from "@/data/content";
+import { analyticsEvents } from "@/lib/analytics";
+import { resolveExperimentVariant } from "@/lib/experiments";
 import { ArrowRight, BarChart3, Database, GitBranch, MapPinned } from "lucide-react";
 
 const loopSteps = [
@@ -149,6 +152,108 @@ function LoopDiagram() {
 }
 
 export default function HowItWorks() {
+  const [formatVariant, setFormatVariant] = useState<"steps" | "video">("steps");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void resolveExperimentVariant("how_it_works_format", ["steps", "video"]).then((variant) => {
+      if (cancelled) {
+        return;
+      }
+      const resolved = variant === "video" ? "video" : "steps";
+      setFormatVariant(resolved);
+      analyticsEvents.experimentExposure("how_it_works_format", resolved, "page_load");
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const stepSection = formatVariant === "video" ? (
+    <>
+      <ScrollReveal>
+        <div className="mb-10 max-w-3xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+            The operating idea
+          </p>
+          <h2 className="mt-3 text-3xl font-bold text-slate-950 sm:text-4xl">
+            See the exact-site workflow first, then inspect the training loop.
+          </h2>
+          <p className="mt-4 text-sm leading-7 text-slate-600">
+            Blueprint keeps the site anchor truthful, then layers the hosted-review story and
+            controlled variation on top of the same facility.
+          </p>
+        </div>
+      </ScrollReveal>
+
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-950 shadow-sm">
+        <video
+          src="/proof/blueprint-proof-reel.mp4"
+          poster="/proof/blueprint-proof-reel-poster.jpg"
+          controls
+          playsInline
+          className="w-full"
+        />
+      </div>
+
+      <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {loopSteps.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <article key={item.title} className="rounded-2xl border border-slate-200 bg-white p-5">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-800">
+                <Icon className="h-5 w-5" />
+              </div>
+              <h3 className="mt-4 text-lg font-semibold text-slate-950">{item.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">{item.description}</p>
+            </article>
+          );
+        })}
+      </div>
+    </>
+  ) : (
+    <>
+      <ScrollReveal>
+        <div className="mb-10 max-w-3xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+            The operating idea
+          </p>
+          <h2 className="mt-3 text-3xl font-bold text-slate-950 sm:text-4xl">
+            Exact site plus controlled variation is the training loop that works.
+          </h2>
+          <p className="mt-4 text-sm leading-7 text-slate-600">
+            The exact site is a strong anchor, but the biggest lift comes when teams can
+            rerun the task under realistic variations and feed those results back into
+            their training stack.
+          </p>
+        </div>
+      </ScrollReveal>
+
+      <ScrollReveal>
+        <LoopDiagram />
+      </ScrollReveal>
+
+      <StaggerGroup className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4" stagger={0.08}>
+        {loopSteps.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <article key={item.title} className="rounded-2xl border border-slate-200 bg-white p-5">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-800">
+                <Icon className="h-5 w-5" />
+              </div>
+              <h3 className="mt-4 text-lg font-semibold text-slate-950">{item.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">{item.description}</p>
+            </article>
+          );
+        })}
+      </StaggerGroup>
+    </>
+  );
+
   return (
     <>
       <SEO
@@ -193,7 +298,7 @@ export default function HowItWorks() {
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </a>
                 <a
-                  href="/contact?persona=robot-team&interest=evaluation-package"
+                  href="/exact-site-hosted-review"
                   className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
                 >
                   Request hosted evaluation
@@ -205,42 +310,7 @@ export default function HowItWorks() {
 
         <section className="border-b border-slate-200 bg-slate-50/60 py-12 sm:py-16">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <ScrollReveal>
-              <div className="mb-10 max-w-3xl">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  The operating idea
-                </p>
-                <h2 className="mt-3 text-3xl font-bold text-slate-950 sm:text-4xl">
-                  Exact site plus controlled variation is the training loop that works.
-                </h2>
-                <p className="mt-4 text-sm leading-7 text-slate-600">
-                  The exact site is a strong anchor, but the biggest lift comes when teams can
-                  rerun the task under realistic variations and feed those results back into
-                  their training stack.
-                </p>
-              </div>
-            </ScrollReveal>
-
-            {/* Visual loop diagram */}
-            <ScrollReveal>
-              <LoopDiagram />
-            </ScrollReveal>
-
-            <StaggerGroup className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4" stagger={0.08}>
-              {loopSteps.map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <article key={item.title} className="rounded-2xl border border-slate-200 bg-white p-5">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-800">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <h3 className="mt-4 text-lg font-semibold text-slate-950">{item.title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">{item.description}</p>
-                  </article>
-                );
-              })}
-            </StaggerGroup>
+            {stepSection}
           </div>
         </section>
 

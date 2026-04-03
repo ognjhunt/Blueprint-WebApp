@@ -69,7 +69,7 @@ describe("build output", () => {
 
   it("ships honest proof surfaces without unsplash references on the examples page", () => {
     const examplesHtml = fs.readFileSync(
-      path.resolve(process.cwd(), "dist/public/case-studies/index.html"),
+      path.resolve(process.cwd(), "dist/public/sample-deliverables/index.html"),
       "utf8",
     );
     const homeHtml = fs.readFileSync(
@@ -78,7 +78,7 @@ describe("build output", () => {
     );
 
     expect(examplesHtml).not.toContain("images.unsplash.com");
-    expect(examplesHtml).toContain("Illustrative examples of the buyer surface.");
+    expect(examplesHtml).toContain("Sample artifact");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
   });
 
