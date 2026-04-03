@@ -1339,6 +1339,10 @@ tasks:
     status: active
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
+  docs-agent-sweep:
+    status: active
+    priority: medium
+    projectWorkspaceKey: blueprint-executive-ops
 routines:
   ceo-daily-review:
     priority: high
@@ -1782,4 +1786,13 @@ routines:
     triggers:
       - kind: schedule
         cronExpression: 30 10 * * 2
+        timezone: America/New_York
+  docs-agent-sweep:
+    agent: docs-agent
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
+    triggers:
+      - kind: schedule
+        cronExpression: 0 10 * * 2,5
         timezone: America/New_York

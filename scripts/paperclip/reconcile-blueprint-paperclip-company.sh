@@ -333,6 +333,7 @@ const AGENT_DEFAULT_PROJECT_KEYS = {
   "outbound-sales-agent": "blueprint-webapp",
   "buyer-success-agent": "blueprint-webapp",
   "revenue-ops-pricing-agent": "blueprint-executive-ops",
+  "docs-agent": "blueprint-executive-ops",
 };
 
 function resolveInstructionSource(agentKey) {
