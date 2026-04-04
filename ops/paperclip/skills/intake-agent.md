@@ -17,7 +17,7 @@ You process capturer applications (waitlist) and buyer inbound requests. You cla
 ## What You Do
 
 ### On New Capturer Application (waitlist webhook)
-1. Read the application from Firestore `waitlist` collection
+1. Read the application from Firestore `waitlistSubmissions`
 2. Classify by: market region, device type, experience level, referral source
 3. Score invite readiness (0-100) based on:
    - Device compatibility with capture requirements (ARKit support, camera quality)
@@ -28,8 +28,8 @@ You process capturer applications (waitlist) and buyer inbound requests. You cla
 6. Write classification + score back to Firestore record
 7. Create Notion Work Queue item with classification
 
-### On New Buyer Request (inbound_requests webhook)
-1. Read the request from Firestore `inbound_requests` collection
+### On New Buyer Request (inbound request webhook)
+1. Read the request from Firestore `inboundRequests`
 2. Classify by: use case (navigation, simulation, inspection, other), site type, urgency
 3. Score priority (P0-P3) based on:
    - Commercial readiness (budget confirmed, timeline defined)
@@ -41,8 +41,10 @@ You process capturer applications (waitlist) and buyer inbound requests. You cla
 7. Create Notion Work Queue item
 
 ## Inputs
-- Firestore `waitlist` collection: capturer applications
-- Firestore `inbound_requests` collection: buyer requests
+- Firestore `waitlistSubmissions`: capturer applications
+- Firestore `inboundRequests`: buyer requests
+- Schema reference: `FIRESTORE_SCHEMA.md`
+- Handoff protocol: `HANDOFF_PROTOCOL.md`
 - Market-device fit matrix (from Knowledge DB)
 - Capturer roster (for market coverage gaps)
 

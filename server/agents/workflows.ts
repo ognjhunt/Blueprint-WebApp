@@ -33,6 +33,8 @@ type WaitlistSubmissionRecord = {
   queue: string;
   intent: string;
   filter_tags: string[];
+  created_at: FirebaseFirestore.Timestamp | string | null;
+  updated_at: FirebaseFirestore.Timestamp | string | null;
   ops_automation: Record<string, unknown>;
 };
 
@@ -62,6 +64,55 @@ export type WaitlistAutomationRunResult = {
 
 function normalizeAutomationStatus(value: unknown): "completed" | "blocked" {
   return value === "blocked" ? "blocked" : "completed";
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function timestampToMs(value: unknown): number | null {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+
+  if (typeof value === "object") {
+    const maybeTimestamp = value as {
+      toDate?: () => Date;
+      seconds?: number;
+      nanoseconds?: number;
+    };
+
+    if (typeof maybeTimestamp.toDate === "function") {
+      return maybeTimestamp.toDate().getTime();
+    }
+
+    if (typeof maybeTimestamp.seconds === "number") {
+      return (
+        maybeTimestamp.seconds * 1000 +
+        Math.floor((maybeTimestamp.nanoseconds || 0) / 1_000_000)
+      );
+    }
+  }
+
+  return null;
+}
+
+function isOlderThanHours(value: unknown, ageHours: number, nowMs = Date.now()) {
+  const timestampMs = timestampToMs(value);
+  if (timestampMs === null) {
+    return false;
+  }
+
+  return nowMs - timestampMs >= ageHours * 60 * 60 * 1000;
 }
 
 function normalizeWaitlistSubmission(
@@ -94,6 +145,18 @@ function normalizeWaitlistSubmission(
     filter_tags: Array.isArray(data.filter_tags)
       ? data.filter_tags.filter((tag): tag is string => typeof tag === "string")
       : [],
+    created_at:
+      typeof data.created_at === "string" ||
+      typeof data.created_at === "object" ||
+      data.created_at === null
+        ? (data.created_at as FirebaseFirestore.Timestamp | string | null)
+        : null,
+    updated_at:
+      typeof data.updated_at === "string" ||
+      typeof data.updated_at === "object" ||
+      data.updated_at === null
+        ? (data.updated_at as FirebaseFirestore.Timestamp | string | null)
+        : null,
     ops_automation:
       data.ops_automation && typeof data.ops_automation === "object"
         ? (data.ops_automation as Record<string, unknown>)
@@ -198,6 +261,11 @@ export async function runWaitlistAutomationLoop(params?: {
   for (const doc of docs) {
     const submission = normalizeWaitlistSubmission(doc);
     if (!submission) {
+      continue;
+    }
+
+    const automationStatus = asString(submission.ops_automation.status);
+    if (!params?.submissionId && automationStatus && !["pending", "failed"].includes(automationStatus)) {
       continue;
     }
 
@@ -524,6 +592,147 @@ export async function runInboundQualificationLoop(params?: { limit?: number }) {
     } catch (error) {
       failedCount += 1;
       logger.error({ err: error, requestId: doc.id }, "Inbound qualification loop item failed");
+    }
+  }
+
+  return {
+    ok: true,
+    processedCount,
+    failedCount,
+  };
+}
+
+const STALE_INTAKE_THRESHOLD_HOURS = 24;
+const STALE_WAITLIST_STATUS = "follow_up_required";
+const STALE_INBOUND_STATUS = "in_review";
+const STALE_BLOCK_REASON_CODE = "stale_over_24h";
+const STALE_NEXT_ACTION_WAITLIST = "Review stalled capturer application";
+const STALE_NEXT_ACTION_INBOUND = "Review stalled buyer request";
+const STALE_LAST_ERROR = "No status update for >24h";
+const STALE_AUTOMATION_STATUSES = new Set(["pending", "running"]);
+
+export async function runIntakeStaleScanLoop(params?: { limit?: number; ageHours?: number }) {
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const limit = Math.max(1, Math.min(params?.limit ?? 25, 100));
+  const ageHours = Math.max(1, params?.ageHours ?? STALE_INTAKE_THRESHOLD_HOURS);
+  const nowMs = Date.now();
+
+  let processedCount = 0;
+  let failedCount = 0;
+
+  const waitlistSnapshot = await db
+    .collection("waitlistSubmissions")
+    .where("queue", "==", "capturer_beta_review")
+    .where("status", "==", "new")
+    .limit(limit)
+    .get();
+
+  for (const doc of waitlistSnapshot.docs) {
+    const submission = normalizeWaitlistSubmission(doc);
+    if (!submission) {
+      continue;
+    }
+
+    const automationStatus = asString(submission.ops_automation.status);
+    if (!automationStatus || !STALE_AUTOMATION_STATUSES.has(automationStatus)) {
+      continue;
+    }
+
+    const lastStatusUpdateAt =
+      submission.ops_automation.last_attempt_at ??
+      submission.updated_at ??
+      submission.created_at;
+
+    if (!isOlderThanHours(lastStatusUpdateAt, ageHours, nowMs)) {
+      continue;
+    }
+
+    try {
+      await doc.ref.set(
+        {
+          status: STALE_WAITLIST_STATUS,
+          human_review_required: true,
+          updated_at: admin.firestore.FieldValue.serverTimestamp(),
+          ops_automation: {
+            ...(submission.ops_automation || {}),
+            status: "stale",
+            next_action: STALE_NEXT_ACTION_WAITLIST,
+            last_error: STALE_LAST_ERROR,
+            block_reason_code: STALE_BLOCK_REASON_CODE,
+            retryable: true,
+            requires_human_review: true,
+          },
+        },
+        { merge: true },
+      );
+      processedCount += 1;
+    } catch (error) {
+      failedCount += 1;
+      logger.error(
+        { err: error, submissionId: submission.id },
+        "Failed to mark stale waitlist submission",
+      );
+    }
+  }
+
+  const inboundSnapshot = await db
+    .collection("inboundRequests")
+    .where("ops_automation.intent", "==", "inbound_qualification")
+    .limit(limit)
+    .get();
+
+  for (const doc of inboundSnapshot.docs) {
+    const data = doc.data() as Record<string, unknown>;
+    const automation =
+      data.ops_automation && typeof data.ops_automation === "object"
+        ? (data.ops_automation as Record<string, unknown>)
+        : {};
+    const automationStatus = asString(automation.status);
+
+    if (!automationStatus || !STALE_AUTOMATION_STATUSES.has(automationStatus)) {
+      continue;
+    }
+
+    const lastStatusUpdateAt =
+      automation.last_attempt_at ?? data.updatedAt ?? data.createdAt;
+
+    if (!isOlderThanHours(lastStatusUpdateAt, ageHours, nowMs)) {
+      continue;
+    }
+
+    try {
+      await doc.ref.set(
+        {
+          status: STALE_INBOUND_STATUS,
+          qualification_state: STALE_INBOUND_STATUS,
+          human_review_required: true,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          ops: {
+            ...(data.ops && typeof data.ops === "object" ? data.ops : {}),
+            next_step: `${STALE_NEXT_ACTION_INBOUND}; no status update for >24h.`,
+          },
+          ops_automation: {
+            ...automation,
+            status: "stale",
+            next_action: STALE_NEXT_ACTION_INBOUND,
+            last_error: STALE_LAST_ERROR,
+            block_reason_code: STALE_BLOCK_REASON_CODE,
+            retryable: true,
+            requires_human_review: true,
+          },
+        },
+        { merge: true },
+      );
+      processedCount += 1;
+    } catch (error) {
+      failedCount += 1;
+      logger.error(
+        { err: error, requestId: doc.id },
+        "Failed to mark stale inbound request",
+      );
     }
   }
 

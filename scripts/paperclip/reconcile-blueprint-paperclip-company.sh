@@ -409,6 +409,11 @@ const desiredRoutines = [
   },
 ];
 
+const desiredRoutinePolicies = {
+  concurrencyPolicy: "coalesce_if_active",
+  catchUpPolicy: "skip_missed",
+};
+
 for (const desired of desiredRoutines) {
   const { title, project, agent, cronExpression, timezone } = desired;
   if (!project || !agent) continue;
@@ -437,8 +442,8 @@ for (const desired of desiredRoutines) {
       assigneeAgentId: agent.id,
       status: "active",
       priority: preferred.priority ?? "medium",
-      concurrencyPolicy: preferred.concurrencyPolicy ?? "coalesce_if_active",
-      catchUpPolicy: preferred.catchUpPolicy ?? "skip_missed",
+      concurrencyPolicy: desiredRoutinePolicies.concurrencyPolicy,
+      catchUpPolicy: desiredRoutinePolicies.catchUpPolicy,
     }),
   });
 

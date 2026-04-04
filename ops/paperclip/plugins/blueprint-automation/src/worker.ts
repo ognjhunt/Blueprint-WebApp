@@ -1519,6 +1519,158 @@ async function registerActionHandlers(ctx: PluginContext) {
       comment: asString(params.comment) ?? "Resolved by Blueprint automation action.",
     });
   });
+
+  ctx.actions.register(ACTION_KEYS.marketIntelReport, async (params) => {
+    const config = await getConfig(ctx);
+    const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
+    const payload = params as Record<string, unknown>;
+    const reportParams = (payload.params ?? payload) as Record<string, unknown>;
+
+    const headline = asString(reportParams.headline) ?? "Market Intelligence Report";
+    const cadence = asString(reportParams.cadence) ?? "weekly";
+    const signals = Array.isArray(reportParams.signals) ? reportParams.signals : [];
+    const competitorUpdates = Array.isArray(reportParams.competitorUpdates) ? reportParams.competitorUpdates : [];
+    const technologyFindings = Array.isArray(reportParams.technologyFindings) ? reportParams.technologyFindings : [];
+    const recommendedActions = Array.isArray(reportParams.recommendedActions) ? reportParams.recommendedActions : [];
+    const sourcesAnalyzed = Array.isArray(reportParams.sourcesAnalyzed) ? reportParams.sourcesAnalyzed : [];
+    const reportDate = asString(reportParams.reportDate) ?? nowIso();
+
+    const commentLines = [
+      `## Market Intel ${cadence.charAt(0).toUpperCase() + cadence.slice(1)} Report — ${reportDate}`,
+      ``,
+      `### ${headline}`,
+      ``,
+      `#### Signals (${signals.length})`,
+    ];
+
+    for (const s of signals as Array<Record<string, unknown>>) {
+      const relevance = s.relevance ?? "?";
+      commentLines.push(`- **${s.title}** (relevance: ${relevance}/10) — ${s.summary ?? ""}`);
+      if (s.source) commentLines.push(`  Source: ${s.source} | ${s.date ?? ""}`);
+    }
+
+    commentLines.push(``, `#### Competitor Updates (${competitorUpdates.length})`);
+    for (const c of competitorUpdates as Array<Record<string, unknown>>) {
+      commentLines.push(`- **${c.company}** [${c.threatLevel ?? "unknown"}]: ${c.update ?? ""}`);
+    }
+
+    commentLines.push(``, `#### Technology Findings (${technologyFindings.length})`);
+    for (const t of technologyFindings as Array<Record<string, unknown>>) {
+      commentLines.push(`- **${t.title}** (relevance: ${t.relevance ?? "?"}/10) — ${t.summary ?? ""}`);
+    }
+
+    commentLines.push(``, `#### Recommended Actions (${recommendedActions.length})`);
+    for (const a of recommendedActions as Array<Record<string, unknown>>) {
+      commentLines.push(`- [${a.priority ?? "medium"}] ${a.action} — ${a.rationale ?? ""}`);
+    }
+
+    commentLines.push(``, `#### Sources Analyzed`);
+    for (const s of sourcesAnalyzed as string[]) {
+      commentLines.push(`- ${s}`);
+    }
+
+    const issueComment = commentLines.join("\n");
+
+    await writeState(ctx, company.id, `market-intel-${cadence}-latest`, {
+      headline,
+      cadence,
+      reportDate,
+      signalCount: signals.length,
+      competitorCount: competitorUpdates.length,
+      techFindingCount: technologyFindings.length,
+      actionCount: recommendedActions.length,
+      sourceCount: sourcesAnalyzed.length,
+      outcome: "done",
+      comment: issueComment,
+    });
+
+    return {
+      issueComment: issueComment,
+      outcome: "done",
+      data: {
+        headline,
+        signalCount: signals.length,
+        competitorCount: competitorUpdates.length,
+        techFindingCount: technologyFindings.length,
+        actionCount: recommendedActions.length,
+        reportDate,
+        cadence,
+      },
+    };
+  });
+
+  ctx.actions.register(ACTION_KEYS.analyticsReport, async (params) => {
+    const config = await getConfig(ctx);
+    const company = await findCompany(ctx, config.companyName);
+    const payload = params as Record<string, unknown>;
+    const reportParams = (payload.params ?? payload) as Record<string, unknown>;
+
+    const cadence = asString(reportParams.cadence) ?? "daily";
+    const headline = asString(reportParams.headline) ?? "Analytics Daily Report";
+    const summaryBullets = Array.isArray(reportParams.summaryBullets)
+      ? (reportParams.summaryBullets as string[])
+      : [];
+    const workflowFindings = Array.isArray(reportParams.workflowFindings)
+      ? (reportParams.workflowFindings as string[])
+      : [];
+    const risks = Array.isArray(reportParams.risks)
+      ? (reportParams.risks as string[])
+      : [];
+    const recommendedFollowUps = Array.isArray(reportParams.recommendedFollowUps)
+      ? (reportParams.recommendedFollowUps as string[])
+      : [];
+    const reportDate = nowIso();
+
+    const commentLines = [
+      `## Analytics ${cadence.charAt(0).toUpperCase() + cadence.slice(1)} Report — ${reportDate}`,
+      ``,
+      `### ${headline}`,
+      ``,
+      `#### Summary`,
+      ``,
+      ...summaryBullets.map((b) => `- ${b}`),
+      ``,
+      `#### Workflow Findings`,
+      ``,
+      ...workflowFindings.map((f) => `- ${f}`),
+      ``,
+      `#### Risks`,
+      ``,
+      ...risks.map((r) => `- ${r}`),
+      ``,
+      `#### Recommended Follow-Ups`,
+      ``,
+      ...recommendedFollowUps.map((f) => `- [ ] ${f}`),
+    ];
+
+    const issueComment = commentLines.join("\n");
+
+    await writeState(ctx, company.id, `analytics-${cadence}-latest`, {
+      headline,
+      cadence,
+      reportDate,
+      summaryCount: summaryBullets.length,
+      findingsCount: workflowFindings.length,
+      riskCount: risks.length,
+      actionCount: recommendedFollowUps.length,
+      outcome: "done",
+    });
+
+    return {
+      issueComment,
+      outcome: "done",
+      data: {
+        headline,
+        cadence,
+        reportDate,
+        summaryCount: summaryBullets.length,
+        findingsCount: workflowFindings.length,
+        riskCount: risks.length,
+        actionCount: recommendedFollowUps.length,
+        outcome: "done",
+      },
+    };
+  });
 }
 
 async function registerToolHandlers(ctx: PluginContext) {

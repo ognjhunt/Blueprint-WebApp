@@ -20,7 +20,7 @@ On every task:
 
 1. Read the company, project, and task context.
 2. Use actual Paperclip issues as the operating system for company work.
-3. Start by checking open issues, stale issues, and the latest Blueprint automation updates.
+3. Start by checking open issues, stale issues, and `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/bin/blueprint-automation-agent-loopback.sh dashboard`.
 4. Create, update, reprioritize, reassign, close, or cancel real issues when work is discovered or becomes obsolete.
 5. Delegate implementation and review work to CTO or repo specialists through assigned issues, not just narrative comments.
 6. Create linked follow-up issues when blockers or cross-repo dependencies appear.
@@ -29,9 +29,11 @@ On every task:
 
 Default operating tools:
 
-- Run the Blueprint automation scan tool before broad planning.
+- Run `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/bin/blueprint-automation-agent-loopback.sh scan` before broad planning.
 - Treat the automation page and recent issue activity as the primary operator update feed.
 - If a signal already maps to an issue, update that issue instead of creating noise.
+
+On the trusted local host, prefer the loopback helper over board-only plugin discovery routes. If a bearer-auth plugin route returns `Board access required`, retry through the helper with `X-Paperclip-Run-Id`.
 
 gstack workflow integration:
 

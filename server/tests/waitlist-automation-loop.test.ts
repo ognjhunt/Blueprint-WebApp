@@ -120,4 +120,30 @@ describe("waitlist automation loop", () => {
     );
     expect(docSet).toHaveBeenCalled();
   }, 15_000);
+
+  it("skips queue-scanned submissions already marked stale", async () => {
+    const originalData = fakeDoc.data;
+    const staleData = originalData();
+    fakeDoc.data = () => ({
+      ...staleData,
+      ops_automation: {
+        status: "stale",
+      },
+    });
+
+    try {
+      const { runWaitlistAutomationLoop } = await import("../utils/waitlistAutomation");
+      const result = await runWaitlistAutomationLoop({
+        queue: "capturer_beta_review",
+        limit: 1,
+      });
+
+      expect(result.ok).toBe(true);
+      expect(result.processedCount).toBe(0);
+      expect(runAgentTask).not.toHaveBeenCalled();
+      expect(docSet).not.toHaveBeenCalled();
+    } finally {
+      fakeDoc.data = originalData;
+    }
+  }, 15_000);
 });

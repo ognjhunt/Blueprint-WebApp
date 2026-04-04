@@ -30,6 +30,8 @@ export const ACTION_KEYS = {
   simulateSignal: "simulate-signal",
   reportBlocker: "report-blocker",
   resolveWorkItem: "resolve-work-item",
+  marketIntelReport: "market-intel-report",
+  analyticsReport: "analytics-report",
 } as const;
 export const DATA_KEYS = {
   dashboard: "dashboard",

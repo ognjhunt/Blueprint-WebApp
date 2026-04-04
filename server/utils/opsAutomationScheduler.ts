@@ -2,6 +2,7 @@ import { attachRequestMeta, logger } from "../logger";
 import { isEnvFlagEnabled } from "../config/env";
 import {
   runInboundQualificationLoop,
+  runIntakeStaleScanLoop,
   runPayoutExceptionTriageLoop,
   runPreviewDiagnosisLoop,
   runSupportTriageLoop,
@@ -10,7 +11,7 @@ import {
 
 type WorkerDefinition = {
   key: string;
-  enabledEnv: string;
+  enabled: () => boolean;
   intervalEnv: string;
   batchEnv: string;
   startupDelayEnv: string;
@@ -23,7 +24,7 @@ type WorkerDefinition = {
 const workers: WorkerDefinition[] = [
   {
     key: "waitlist",
-    enabledEnv: "BLUEPRINT_WAITLIST_AUTOMATION_ENABLED",
+    enabled: () => isEnvFlagEnabled("BLUEPRINT_WAITLIST_AUTOMATION_ENABLED"),
     intervalEnv: "BLUEPRINT_WAITLIST_AUTOMATION_INTERVAL_MS",
     batchEnv: "BLUEPRINT_WAITLIST_AUTOMATION_BATCH_SIZE",
     startupDelayEnv: "BLUEPRINT_WAITLIST_AUTOMATION_STARTUP_DELAY_MS",
@@ -38,7 +39,7 @@ const workers: WorkerDefinition[] = [
   },
   {
     key: "inbound_qualification",
-    enabledEnv: "BLUEPRINT_INBOUND_AUTOMATION_ENABLED",
+    enabled: () => isEnvFlagEnabled("BLUEPRINT_INBOUND_AUTOMATION_ENABLED"),
     intervalEnv: "BLUEPRINT_INBOUND_AUTOMATION_INTERVAL_MS",
     batchEnv: "BLUEPRINT_INBOUND_AUTOMATION_BATCH_SIZE",
     startupDelayEnv: "BLUEPRINT_INBOUND_AUTOMATION_STARTUP_DELAY_MS",
@@ -48,8 +49,21 @@ const workers: WorkerDefinition[] = [
     run: ({ limit }) => runInboundQualificationLoop({ limit }),
   },
   {
+    key: "intake_stale_scan",
+    enabled: () =>
+      isEnvFlagEnabled("BLUEPRINT_WAITLIST_AUTOMATION_ENABLED") ||
+      isEnvFlagEnabled("BLUEPRINT_INBOUND_AUTOMATION_ENABLED"),
+    intervalEnv: "BLUEPRINT_INTAKE_STALE_SCAN_INTERVAL_MS",
+    batchEnv: "BLUEPRINT_INTAKE_STALE_SCAN_BATCH_SIZE",
+    startupDelayEnv: "BLUEPRINT_INTAKE_STALE_SCAN_STARTUP_DELAY_MS",
+    defaultIntervalMs: 60 * 60 * 1000,
+    defaultBatchSize: 25,
+    defaultStartupDelayMs: 45 * 1000,
+    run: ({ limit }) => runIntakeStaleScanLoop({ limit, ageHours: 24 }),
+  },
+  {
     key: "support_triage",
-    enabledEnv: "BLUEPRINT_SUPPORT_TRIAGE_ENABLED",
+    enabled: () => isEnvFlagEnabled("BLUEPRINT_SUPPORT_TRIAGE_ENABLED"),
     intervalEnv: "BLUEPRINT_SUPPORT_TRIAGE_INTERVAL_MS",
     batchEnv: "BLUEPRINT_SUPPORT_TRIAGE_BATCH_SIZE",
     startupDelayEnv: "BLUEPRINT_SUPPORT_TRIAGE_STARTUP_DELAY_MS",
@@ -60,7 +74,7 @@ const workers: WorkerDefinition[] = [
   },
   {
     key: "payout_exception",
-    enabledEnv: "BLUEPRINT_PAYOUT_TRIAGE_ENABLED",
+    enabled: () => isEnvFlagEnabled("BLUEPRINT_PAYOUT_TRIAGE_ENABLED"),
     intervalEnv: "BLUEPRINT_PAYOUT_TRIAGE_INTERVAL_MS",
     batchEnv: "BLUEPRINT_PAYOUT_TRIAGE_BATCH_SIZE",
     startupDelayEnv: "BLUEPRINT_PAYOUT_TRIAGE_STARTUP_DELAY_MS",
@@ -71,7 +85,7 @@ const workers: WorkerDefinition[] = [
   },
   {
     key: "preview_diagnosis",
-    enabledEnv: "BLUEPRINT_PREVIEW_DIAGNOSIS_ENABLED",
+    enabled: () => isEnvFlagEnabled("BLUEPRINT_PREVIEW_DIAGNOSIS_ENABLED"),
     intervalEnv: "BLUEPRINT_PREVIEW_DIAGNOSIS_INTERVAL_MS",
     batchEnv: "BLUEPRINT_PREVIEW_DIAGNOSIS_BATCH_SIZE",
     startupDelayEnv: "BLUEPRINT_PREVIEW_DIAGNOSIS_STARTUP_DELAY_MS",
@@ -86,7 +100,7 @@ export function startOpsAutomationScheduler() {
   const disposers: Array<() => void> = [];
 
   for (const worker of workers) {
-    if (!isEnvFlagEnabled(worker.enabledEnv)) {
+    if (!worker.enabled()) {
       logger.info(
         attachRequestMeta({ route: "ops-automation-scheduler", worker: worker.key }),
         `Ops automation worker ${worker.key} disabled`,

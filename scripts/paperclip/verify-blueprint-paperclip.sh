@@ -74,9 +74,51 @@ require_routines() {
         "Market Intel Daily",
         "Market Intel Weekly"
       ];
+      const expectedPolicies = {
+        "CEO Daily Review": { concurrencyPolicy: "coalesce_if_active", catchUpPolicy: "skip_missed" },
+        "CTO Cross-Repo Triage": { concurrencyPolicy: "coalesce_if_active", catchUpPolicy: "skip_missed" },
+        "WebApp Autonomy Loop": { concurrencyPolicy: "coalesce_if_active", catchUpPolicy: "skip_missed" },
+        "WebApp Claude Review Loop": { concurrencyPolicy: "coalesce_if_active", catchUpPolicy: "skip_missed" },
+        "Pipeline Autonomy Loop": { concurrencyPolicy: "coalesce_if_active", catchUpPolicy: "skip_missed" },
+        "Pipeline Claude Review Loop": { concurrencyPolicy: "coalesce_if_active", catchUpPolicy: "skip_missed" },
+        "Capture Autonomy Loop": { concurrencyPolicy: "coalesce_if_active", catchUpPolicy: "skip_missed" },
+        "Capture Claude Review Loop": { concurrencyPolicy: "coalesce_if_active", catchUpPolicy: "skip_missed" },
+        "Ops Lead Morning": { concurrencyPolicy: "coalesce_if_active", catchUpPolicy: "skip_missed" },
+        "Ops Lead Afternoon": { concurrencyPolicy: "coalesce_if_active", catchUpPolicy: "skip_missed" },
+        "Intake Agent Hourly": { concurrencyPolicy: "coalesce_if_active", catchUpPolicy: "skip_missed" },
+        "Capture QA Daily": { concurrencyPolicy: "coalesce_if_active", catchUpPolicy: "skip_missed" },
+        "Field Ops Daily": { concurrencyPolicy: "coalesce_if_active", catchUpPolicy: "skip_missed" },
+        "Finance Support Daily": { concurrencyPolicy: "coalesce_if_active", catchUpPolicy: "skip_missed" },
+        "Growth Lead Daily": { concurrencyPolicy: "coalesce_if_active", catchUpPolicy: "skip_missed" },
+        "Growth Lead Weekly": { concurrencyPolicy: "coalesce_if_active", catchUpPolicy: "skip_missed" },
+        "Analytics Daily": { concurrencyPolicy: "coalesce_if_active", catchUpPolicy: "skip_missed" },
+        "Analytics Weekly": { concurrencyPolicy: "coalesce_if_active", catchUpPolicy: "skip_missed" },
+        "Conversion Weekly": { concurrencyPolicy: "coalesce_if_active", catchUpPolicy: "skip_missed" },
+        "Market Intel Daily": { concurrencyPolicy: "coalesce_if_active", catchUpPolicy: "skip_missed" },
+        "Market Intel Weekly": { concurrencyPolicy: "coalesce_if_active", catchUpPolicy: "skip_missed" }
+      };
       const missing=required.filter((title)=>!rows.find((row)=>row.title===title && row.status==="active"));
       if(missing.length>0){
         console.error(`Missing active routines: ${missing.join(", ")}`);
+        process.exit(1);
+      }
+      const policyMismatches=required
+        .map((title)=>({
+          title,
+          actual: rows.find((row)=>row.title===title && row.status==="active"),
+        }))
+        .filter(({title, actual})=>{
+          const expected = expectedPolicies[title];
+          return Boolean(actual && expected && (
+            actual.concurrencyPolicy !== expected.concurrencyPolicy ||
+            actual.catchUpPolicy !== expected.catchUpPolicy
+          ));
+        });
+      if(policyMismatches.length>0){
+        console.error(
+          "Routine policy mismatches:",
+          policyMismatches.map(({title, actual}) => `${title} (concurrency=${actual.concurrencyPolicy}, catchUp=${actual.catchUpPolicy})`).join(", ")
+        );
         process.exit(1);
       }
     });

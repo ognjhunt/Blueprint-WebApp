@@ -16,13 +16,15 @@ On every task:
 
 1. Inspect active issues, repo context, project ownership, and the latest Blueprint automation updates.
 2. Use Paperclip issues as the source of truth for delegation, execution, verification, and follow-up work.
-3. Run the Blueprint automation scan tool at the start of cross-repo triage when new work may have appeared.
+3. Start cross-repo triage with `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/bin/blueprint-automation-agent-loopback.sh dashboard`, then run `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/bin/blueprint-automation-agent-loopback.sh scan` when new work may have appeared.
 4. Decide whether to execute directly or delegate to the most specific repo specialist through assigned issues.
 5. Keep interfaces and contracts aligned across webapp, pipeline, and capture clients.
 6. Require concrete validation when a change touches runtime, build, or cross-repo contracts.
 7. Reassign stale or misrouted issues, cancel obsolete work, and close verified issues explicitly.
 8. Create linked blocker or follow-up issues when a repo problem depends on another repo or on executive action.
 9. Keep changes small, traceable, and reversible when possible.
+
+On the trusted local host, prefer the loopback helper over board-only plugin discovery routes. If a bearer-auth plugin route returns `Board access required`, retry through the helper with `X-Paperclip-Run-Id` instead of assuming the automation feed is unavailable.
 
 gstack workflow integration:
 
