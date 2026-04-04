@@ -224,7 +224,8 @@ function computeOwner(
 
 function normalizeRequestedLanes(
   requestedLanes?: RequestedLane[],
-  helpWith?: HelpWithOption[]
+  helpWith?: HelpWithOption[],
+  buyerType?: BuyerType
 ): RequestedLane[] {
   const normalized = new Set<RequestedLane>();
 
@@ -242,7 +243,7 @@ function normalizeRequestedLanes(
   });
 
   if (normalized.size === 0) {
-    normalized.add("qualification");
+    normalized.add(buyerType === "site_operator" ? "qualification" : "deeper_evaluation");
   }
 
   return [...normalized];
@@ -411,7 +412,7 @@ function generateConfirmationEmailHtml(firstName: string): string {
 
 /**
  * POST /api/inbound-request
- * Submit a new qualification-first site submission
+ * Submit a new site-specific request
  */
 router.post("/", async (req: Request, res: Response) => {
   const startTime = Date.now();
@@ -433,15 +434,13 @@ router.post("/", async (req: Request, res: Response) => {
     }
 
     // 2. Validate required fields
+    const buyerType = normalizeBuyerType(payload.buyerType);
     const requestedLanes = normalizeRequestedLanes(
       payload.requestedLanes,
-      payload.helpWith
+      payload.helpWith,
+      buyerType
     );
-    const legacyHelpWith = normalizeLegacyHelpWith(
-      requestedLanes,
-      payload.helpWith
-    );
-    const buyerType = normalizeBuyerType(payload.buyerType);
+    const legacyHelpWith = normalizeLegacyHelpWith(requestedLanes, payload.helpWith);
     const siteName = payload.siteName?.trim() || "";
     const siteLocation = payload.siteLocation?.trim() || "";
     const taskStatement = payload.taskStatement?.trim() || "";

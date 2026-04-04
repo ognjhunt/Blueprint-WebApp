@@ -195,4 +195,50 @@ describe("admin capture job publication", () => {
       await stopServer(server);
     }
   });
+
+  it("defaults robot-team submissions without requested lanes to hosted evaluation", async () => {
+    state.requestDocData = {
+      requestId: "req-3",
+      site_submission_id: "req-3",
+      status: "qualified_ready",
+      qualification_state: "qualified_ready",
+      opportunity_state: "handoff_ready",
+      request: {
+        buyerType: "robot_team",
+        siteName: "Site 3",
+        siteLocation: "300 Main St",
+        taskStatement: "Inspect storage",
+      },
+      ops: {
+        rights_status: "verified",
+        capture_policy_tier: "approved_capture",
+      },
+      enrichment: {},
+    };
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/req-3/capture-job`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          lat: 37.7749,
+          lng: -122.4194,
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(state.captureJobSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requested_outputs: ["deeper_evaluation"],
+          special_task_type: "buyer_requested_evaluation",
+        }),
+        { merge: true },
+      );
+    } finally {
+      await stopServer(server);
+    }
+  });
 });

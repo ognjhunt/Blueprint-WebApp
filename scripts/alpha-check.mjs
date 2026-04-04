@@ -8,11 +8,14 @@ const reportPath = path.join(reportDir, "vitest-alpha-report.json");
 
 fs.mkdirSync(reportDir, { recursive: true });
 
-function run(command, args) {
+function run(command, args, envOverrides = {}) {
   const result = spawnSync(command, args, {
     cwd: repoRoot,
     stdio: "inherit",
-    env: process.env,
+    env: {
+      ...process.env,
+      ...envOverrides,
+    },
   });
 
   if (result.status !== 0) {
@@ -50,13 +53,14 @@ function collectAssertionCounts(node) {
 }
 
 run("npm", ["run", "check"]);
+run("npm", ["run", "build"]);
 run("npx", [
   "vitest",
   "run",
   "--coverage",
   "--reporter=json",
   `--outputFile=${reportPath}`,
-]);
+], { RUN_BUILD_OUTPUT_TESTS: "1" });
 
 const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
 const counts = collectAssertionCounts(report);

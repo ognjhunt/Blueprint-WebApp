@@ -3,7 +3,14 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const distPublicPath = path.resolve(process.cwd(), "dist/public");
-const describeBuildOutput = fs.existsSync(distPublicPath) ? describe : describe.skip;
+const shouldRunBuildOutputSuite =
+  process.env.npm_lifecycle_event === "test:build-output" ||
+  process.env.RUN_BUILD_OUTPUT_TESTS === "1";
+
+// These assertions validate generated assets, so keep them out of the generic
+// coverage run and only execute them in the dedicated build-output check.
+const describeBuildOutput =
+  shouldRunBuildOutputSuite && fs.existsSync(distPublicPath) ? describe : describe.skip;
 
 describeBuildOutput("build output", () => {
   it("ships prerendered world-model slug pages", () => {

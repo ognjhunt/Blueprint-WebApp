@@ -38,15 +38,15 @@ export const OPPORTUNITY_STATES = [
 export const REQUESTED_LANE_LABELS = {
   qualification: "Site Review",
   preview_simulation: "Preview Simulation",
-  deeper_evaluation: "Evaluation Package",
+  deeper_evaluation: "Hosted Evaluation",
   managed_tuning: "Managed Tuning",
   data_licensing: "Data Licensing",
 } as const;
 
 export const REQUESTED_LANE_DESCRIPTIONS = {
-  qualification: "Review the site, task, and blockers first.",
+  qualification: "Use only when the workflow truly needs a site review pass.",
   preview_simulation: "Prepare a preview asset once the record supports it.",
-  deeper_evaluation: "Request a deeper technical review package for one exact site.",
+  deeper_evaluation: "Start with an exact-site package and hosted evaluation for one real site.",
   managed_tuning: "Flag later scenario generation or managed tuning work.",
   data_licensing: "Request licensed datasets or derived asset packages for one exact site.",
 } as const;
@@ -56,8 +56,8 @@ export const HELP_WITH_LABELS = {
   "scene-library": "Preview Simulation",
   "dataset-packs": "Data Licensing",
   "custom-capture": "Capture Request",
-  "pilot-exchange-location-brief": "Site Review Brief",
-  "pilot-exchange-policy-submission": "Evaluation Package",
+  "pilot-exchange-location-brief": "Exact-Site Brief",
+  "pilot-exchange-policy-submission": "Hosted Evaluation Package",
   "pilot-exchange-data-licensing": "Managed Tuning / Licensing",
 } as const;
 
@@ -90,6 +90,7 @@ export const CANONICAL_CONTACT_INTEREST_BY_LANE = {
 export const CONTACT_INTEREST_TO_LANE = {
   "site-qualification": "qualification",
   "preview-simulation": "preview_simulation",
+  "hosted-evaluation": "deeper_evaluation",
   "evaluation-package": "deeper_evaluation",
   "deeper-evaluation": "deeper_evaluation",
   "evaluation-run": "deeper_evaluation",

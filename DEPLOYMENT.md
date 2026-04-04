@@ -134,6 +134,15 @@ REDIS_URL=rediss://default:<token>@active-phoenix-39183.upstash.io:6379
 - Optional: `VITE_SENTRY_DSN`
 - Optional: `VITE_ENABLE_ERROR_TRACKING_SMOKE_TEST=true`
 
+### Browser Analytics
+- `VITE_GA_MEASUREMENT_ID`
+- `VITE_PUBLIC_POSTHOG_PROJECT_TOKEN`
+- `VITE_PUBLIC_POSTHOG_HOST`
+- Optional: `VITE_ENABLE_ANALYTICS` for development-only tracking
+
+Launch-critical note:
+- The browser analytics runtime reads `VITE_GA_MEASUREMENT_ID` and the PostHog vars directly. `VITE_FIREBASE_MEASUREMENT_ID` alone is not enough for live analytics.
+
 ### Autonomous Alpha Automation
 
 These should be enabled for the no-human-in-the-loop alpha configuration:

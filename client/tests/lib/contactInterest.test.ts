@@ -14,6 +14,7 @@ describe("contact interest mapping", () => {
   it("maps canonical values to requested lanes", () => {
     expect(normalizeInterestToLane("site-qualification")).toBe("qualification");
     expect(normalizeInterestToLane("evaluation-package")).toBe("deeper_evaluation");
+    expect(normalizeInterestToLane("hosted-evaluation")).toBe("deeper_evaluation");
     expect(normalizeInterestToLane("deeper-evaluation")).toBe("deeper_evaluation");
     expect(normalizeInterestToLane("managed-tuning")).toBe("managed_tuning");
   });

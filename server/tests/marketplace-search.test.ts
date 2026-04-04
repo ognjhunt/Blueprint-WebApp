@@ -42,7 +42,7 @@ beforeAll(async () => {
   csrfCookie = setCookie ? setCookie.split(";")[0] : "";
   const data = (await csrfResponse.json()) as { csrfToken?: string };
   csrfToken = data.csrfToken ?? "";
-}, 30000);
+});
 
 afterAll(async () => {
   if (!server) {

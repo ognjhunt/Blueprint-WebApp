@@ -248,4 +248,68 @@ describe("inbound request route", () => {
       await stopServer(server);
     }
   });
+
+  it("defaults robot-team requests without requestedLanes to hosted evaluation", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+
+    const { server, baseUrl } = await startRouterServer();
+
+    try {
+      const requestId = `robot-default-${Date.now()}`;
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...buildRobotTeamPayload(requestId, `grace.default+${Date.now()}@example.com`),
+          requestedLanes: undefined,
+        }),
+      });
+
+      expect(response.status).toBe(201);
+
+      const lines = fs.readFileSync(devLogPath, "utf8").trim().split("\n");
+      const savedRequest = lines
+        .map((line) => JSON.parse(line) as { requestId: string; request?: Record<string, unknown> })
+        .find((entry) => entry.requestId === requestId);
+
+      expect(savedRequest?.request?.requestedLanes).toEqual(["deeper_evaluation"]);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("defaults site-operator requests without requestedLanes to site review", async () => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+
+    const { server, baseUrl } = await startRouterServer();
+
+    try {
+      const requestId = `site-operator-default-${Date.now()}`;
+      const response = await fetch(`${baseUrl}/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...buildPayload(requestId, `ada.operator+${Date.now()}@example.com`),
+          requestedLanes: undefined,
+        }),
+      });
+
+      expect(response.status).toBe(201);
+
+      const lines = fs.readFileSync(devLogPath, "utf8").trim().split("\n");
+      const savedRequest = lines
+        .map((line) => JSON.parse(line) as { requestId: string; request?: Record<string, unknown> })
+        .find((entry) => entry.requestId === requestId);
+
+      expect(savedRequest?.request?.requestedLanes).toEqual(["qualification"]);
+    } finally {
+      await stopServer(server);
+    }
+  });
 });

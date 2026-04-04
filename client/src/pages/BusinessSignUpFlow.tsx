@@ -71,7 +71,7 @@ const BUYER_TYPES = [
   {
     value: "site_operator",
     label: "Site operator",
-    description: "I manage the facility, permissions, or governance around a site.",
+    description: "Optional lane for the facility owner, operator, or rights holder.",
   },
 ] as const;
 
@@ -622,7 +622,7 @@ export default function BusinessSignUpFlow() {
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-semibold text-zinc-900">Create your Blueprint account</h1>
           <p className="mt-2 text-zinc-600">
-            Start with a site submission, not a marketplace browse.
+            Start with an exact-site or hosted-evaluation request, not a qualification-first intake.
           </p>
         </div>
 
@@ -728,7 +728,9 @@ export default function BusinessSignUpFlow() {
                 variants={slideVariants}
                 transition={{ duration: 0.2 }}
               >
-                <h2 className="mb-4 text-lg font-medium text-zinc-900">Who is submitting and why</h2>
+                <h2 className="mb-4 text-lg font-medium text-zinc-900">
+                  Who is submitting the exact-site request?
+                </h2>
                 <div className="space-y-4">
                   <div>
                     <Label htmlFor="contactName">Your name</Label>
@@ -765,7 +767,7 @@ export default function BusinessSignUpFlow() {
                   </div>
 
                   <div className="space-y-3">
-                    <Label>Buyer type</Label>
+                    <Label>Entry lane</Label>
                     <RadioGroup value={buyerType} onValueChange={(value) => setBuyerType(value as BuyerType)}>
                       {BUYER_TYPES.map((option) => (
                         <label
@@ -830,7 +832,7 @@ export default function BusinessSignUpFlow() {
                 variants={slideVariants}
                 transition={{ duration: 0.2 }}
               >
-                <h2 className="mb-4 text-lg font-medium text-zinc-900">Site submission details</h2>
+                <h2 className="mb-4 text-lg font-medium text-zinc-900">Exact-site submission details</h2>
                 <div className="space-y-4">
                   <div>
                     <Label htmlFor="siteName">Site name</Label>

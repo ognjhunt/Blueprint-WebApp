@@ -1,5 +1,6 @@
 // @vitest-environment node
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import fs from "node:fs";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
   fileContents: new Map<string, string>(),
@@ -8,17 +9,7 @@ const state = vi.hoisted(() => ({
   applicationDefaultCalls: 0,
 }));
 
-vi.mock("node:fs", () => ({
-  default: {
-    readFileSync: (filePath: string) => {
-      const value = state.fileContents.get(filePath);
-      if (value == null) {
-        throw new Error(`ENOENT: ${filePath}`);
-      }
-      return value;
-    },
-  },
-}));
+const readFileSyncSpy = vi.spyOn(fs, "readFileSync");
 
 vi.mock("firebase-admin", () => {
   const admin = {
@@ -59,6 +50,13 @@ beforeEach(() => {
   state.apps.length = 0;
   state.certCalls.length = 0;
   state.applicationDefaultCalls = 0;
+  readFileSyncSpy.mockImplementation((filePath: Parameters<typeof fs.readFileSync>[0]) => {
+    const value = state.fileContents.get(String(filePath));
+    if (value == null) {
+      throw new Error(`ENOENT: ${String(filePath)}`);
+    }
+    return value;
+  });
   delete process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
   delete process.env.GOOGLE_CLOUD_PROJECT;
@@ -66,10 +64,15 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  readFileSyncSpy.mockReset();
   delete process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
   delete process.env.GOOGLE_CLOUD_PROJECT;
   delete process.env.K_SERVICE;
+});
+
+afterAll(() => {
+  readFileSyncSpy.mockRestore();
 });
 
 describe("firebaseAdmin config", () => {

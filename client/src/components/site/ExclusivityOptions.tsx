@@ -75,7 +75,9 @@ export function ExclusivityOptions({
       >
         <div className="flex items-center gap-2">
           <Lock className="h-4 w-4 text-zinc-500" />
-          <span className="text-sm font-semibold text-zinc-900">Exclusivity Options</span>
+          <span className="text-sm font-semibold text-zinc-900">
+            Exclusivity for exact-site packages
+          </span>
           {selectedExclusivity !== "non-exclusive" && (
             <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700">
               {selectedOption?.shortName}
@@ -99,7 +101,8 @@ export function ExclusivityOptions({
           <div className="flex items-start gap-2 rounded-lg bg-zinc-50 p-3 border border-zinc-100">
             <Info className="h-4 w-4 text-zinc-400 mt-0.5 shrink-0" />
             <p className="text-xs text-zinc-600">
-              By default, datasets are non-exclusive and available to all buyers. Optional exclusivity adds competitive protection at an additional cost.
+              By default, exact-site packages are non-exclusive. Optional exclusivity adds
+              competitive protection at an additional cost.
             </p>
           </div>
 
@@ -162,7 +165,7 @@ export function ExclusivityOptions({
                   )}
                   {option.type === "full-exclusive" && (
                     <div className="mt-2 ml-6 rounded bg-amber-100 px-2 py-1 text-xs text-amber-700">
-                      Contact sales for full exclusivity terms
+                      Contact sales for exact-site exclusivity terms
                     </div>
                   )}
                 </button>

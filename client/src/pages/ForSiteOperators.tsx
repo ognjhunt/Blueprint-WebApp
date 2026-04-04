@@ -69,7 +69,7 @@ export default function ForSiteOperators() {
     <>
       <SEO
         title="For Site Operators | Blueprint"
-        description="Blueprint helps site operators control access, rights, and commercialization for site-specific world models used by robot teams."
+        description="Blueprint gives site operators the optional third lane for controlling access, rights, and commercialization for site-specific world models used by robot teams."
         canonical="/for-site-operators"
       />
 
@@ -78,17 +78,23 @@ export default function ForSiteOperators() {
           {/* Header */}
           <ScrollReveal>
             <div className="space-y-6">
-              <span className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-600">
-                <Building2 className="h-3 w-3" />
-                For Site Operators
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-600">
+                  <Building2 className="h-3 w-3" />
+                  For Site Operators
+                </span>
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
+                  Optional third lane
+                </span>
+              </div>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
                 Turn your facility into a site-specific world-model asset.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
-                Register the site, set access and privacy rules, and choose whether Blueprint can
-                commercialize capture from your facility. That gives robot teams a grounded place
-                to train, evaluate, and plan against under rules you control.
+                If you manage the facility, use the optional operator lane to set access, privacy,
+                and commercialization rules before robot teams see the package. That gives robot
+                teams a grounded place to train, evaluate, and plan against under rules you
+                control.
               </p>
             </div>
           </ScrollReveal>
@@ -220,7 +226,7 @@ export default function ForSiteOperators() {
                 href="/contact?persona=site-operator"
                 className="inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-slate-800 hover:shadow-md"
               >
-                List your site
+                Open the operator lane
               </a>
               <a
                 href="/governance"

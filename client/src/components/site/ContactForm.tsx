@@ -154,7 +154,8 @@ export function ContactForm() {
   const requestedLanes: RequestedLane[] = hostedMode
     ? ["deeper_evaluation"]
     : [interestLane || getDefaultRequestedLane(persona)];
-  const requestedLane = requestedLanes[0] || "qualification";
+  const requestedLane =
+    requestedLanes[0] || (persona === "site_operator" ? "qualification" : "deeper_evaluation");
 
   useEffect(() => {
     analyticsEvents.contactRequestStarted({
@@ -347,7 +348,7 @@ export function ContactForm() {
           {hostedMode
             ? "Hosted evaluation request received"
             : persona === "site_operator"
-              ? "Facility inquiry received"
+              ? "Site operator request received"
               : "Brief received"}
         </h2>
         <p className="mt-4 text-zinc-600">
@@ -394,6 +395,13 @@ export function ContactForm() {
       {hostedMode ? (
         <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-sm text-zinc-700">
           You are requesting a hosted evaluation for a specific site. Keep the submission tight.
+          {siteName ? ` Site: ${siteName}.` : ""}
+          {siteLocation ? ` Location: ${siteLocation}.` : ""}
+        </div>
+      ) : persona === "site_operator" ? (
+        <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-zinc-700">
+          You are using the optional operator lane for a site you control. Keep rights, access,
+          and governance details tight.
           {siteName ? ` Site: ${siteName}.` : ""}
           {siteLocation ? ` Location: ${siteLocation}.` : ""}
         </div>
@@ -679,7 +687,7 @@ export function ContactForm() {
           : hostedMode
             ? "Request hosted evaluation"
             : persona === "site_operator"
-              ? "Send facility inquiry"
+              ? "Send operator lane request"
               : "Send a short brief"}
         <ArrowRight className="ml-2 h-4 w-4" />
       </button>

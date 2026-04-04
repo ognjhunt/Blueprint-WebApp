@@ -17,7 +17,8 @@
     "test:build-output": "vitest run client/tests/build-output.test.ts",
     "test:e2e": "playwright test",
     "alpha:check": "node scripts/alpha-check.mjs",
-    "alpha:preflight": "node scripts/launch-preflight.mjs"
+    "alpha:preflight": "node scripts/launch-preflight.mjs",
+    "alpha:env": "node scripts/launch-env-audit.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",

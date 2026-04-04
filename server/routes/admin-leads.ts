@@ -37,6 +37,7 @@ import type {
   ProofPathMilestoneKey,
 } from "../types/inbound-request";
 import { parseGsUri, sceneDashboardSchema } from "../utils/pipeline-dashboard";
+import { defaultRequestedLaneForBuyerType } from "../utils/request-defaults";
 import { hasAnyRole } from "../utils/access-control";
 import { runWaitlistAutomationLoop } from "../utils/waitlistAutomation";
 
@@ -391,12 +392,11 @@ function normalizeDecryptedRequest(decrypted: InboundRequest) {
     decrypted.opportunity_state
   );
 
+  const buyerType: BuyerType = decrypted.request.buyerType ?? "site_operator";
   const requestedLanes: RequestedLane[] =
     decrypted.request.requestedLanes && decrypted.request.requestedLanes.length > 0
       ? decrypted.request.requestedLanes
-      : ["qualification"];
-
-  const buyerType: BuyerType = decrypted.request.buyerType ?? "site_operator";
+      : [defaultRequestedLaneForBuyerType(buyerType)];
   const pipeline = normalizePipelineAttachment(decrypted.pipeline);
   const derivedAssets = normalizeDerivedAssets(decrypted.derived_assets);
   const deploymentReadiness = normalizeDeploymentReadiness(decrypted.deployment_readiness);

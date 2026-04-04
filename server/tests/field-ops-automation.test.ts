@@ -136,10 +136,14 @@ afterEach(() => {
 
 describe("field ops automation", () => {
   it("sends capturer confirmations and schedules the next reminder", async () => {
+    const baseNow = Date.now();
+    const availabilityStartsAt = new Date(baseNow + 72 * 60 * 60 * 1000).toISOString();
+    const expectedNextDueAt = new Date(baseNow + 24 * 60 * 60 * 1000).toISOString();
+
     stores.capture_jobs.set("job-1", {
       title: "Durham Facility",
       address: "123 Main St",
-      availabilityStartsAt: "2026-04-02T15:00:00.000Z",
+      availabilityStartsAt,
     });
     stores.users.set("creator-1", {
       email: "capturer@example.com",
@@ -175,6 +179,7 @@ describe("field ops automation", () => {
         reminders: {
           status: "pending",
           next_type: "reminder_48h",
+          next_due_at: expectedNextDueAt,
         },
       },
     });

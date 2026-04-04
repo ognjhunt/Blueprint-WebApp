@@ -50,6 +50,11 @@ describe("BusinessSignUpFlow analytics", () => {
   it("tracks the funnel start with the default robot-team lane", () => {
     render(<BusinessSignUpFlow />);
 
+    expect(
+      screen.getByText(
+        /Start with an exact-site or hosted-evaluation request, not a qualification-first intake\./i,
+      ),
+    ).toBeInTheDocument();
     expect(analyticsEventsMock.businessSignupStarted).toHaveBeenCalledWith({
       defaultRequestedLane: "deeper_evaluation",
       requestedLaneCount: 1,
@@ -111,7 +116,8 @@ describe("BusinessSignUpFlow analytics", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
 
-    await screen.findByText(/Who is submitting and why/i);
+    await screen.findByText(/Who is submitting the exact-site request\?/i);
+    expect(screen.getByRole("radio", { name: /Hosted Evaluation/i })).toBeInTheDocument();
 
     fireEvent.change(await screen.findByLabelText(/Your name/i), {
       target: { value: "Ada Lovelace" },
@@ -121,7 +127,7 @@ describe("BusinessSignUpFlow analytics", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
 
-    await screen.findByText(/Site submission details/i);
+    await screen.findByText(/Exact-site submission details/i);
 
     fireEvent.change(screen.getByLabelText(/Site name/i), {
       target: { value: "Durham fulfillment center" },

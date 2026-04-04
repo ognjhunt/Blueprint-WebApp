@@ -1,6 +1,7 @@
 import { Request, Response, Router } from "express";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { decryptInboundRequestForAdmin } from "../utils/field-encryption";
+import { defaultRequestedLaneForBuyerType } from "../utils/request-defaults";
 import type { InboundRequest, InboundRequestStored } from "../types/inbound-request";
 import {
   getRequestReviewCookieName,
@@ -86,6 +87,11 @@ router.get("/:requestId", async (req: Request, res: Response) => {
     const decrypted = (await decryptInboundRequestForAdmin(
       doc.data() as InboundRequestStored
     )) as unknown as InboundRequest;
+    const buyerType = decrypted.request.buyerType || "site_operator";
+    const requestedLanes =
+      decrypted.request.requestedLanes && decrypted.request.requestedLanes.length > 0
+        ? decrypted.request.requestedLanes
+        : [defaultRequestedLaneForBuyerType(buyerType)];
 
     return res.json({
       requestId: decrypted.requestId,
@@ -102,8 +108,8 @@ router.get("/:requestId", async (req: Request, res: Response) => {
         operatingConstraints: decrypted.request.operatingConstraints,
         privacySecurityConstraints: decrypted.request.privacySecurityConstraints,
         knownBlockers: decrypted.request.knownBlockers,
-        requestedLanes: decrypted.request.requestedLanes || [],
-        buyerType: decrypted.request.buyerType,
+        requestedLanes,
+        buyerType,
       },
       pipeline: decrypted.pipeline || null,
       derived_assets: decrypted.derived_assets || null,

@@ -30,12 +30,16 @@ Release rule:
 The launch environment must satisfy `npm run alpha:preflight`.
 
 Use [`.env.example`](/Users/nijelhunt_1/workspace/Blueprint-WebApp/.env.example) as the source of truth for the required keys and example variable names.
+Run `npm run alpha:env` for a grouped view of the currently missing launch env categories.
 
 - [ ] Firebase Admin configured
   Required: `FIREBASE_SERVICE_ACCOUNT_JSON` or `GOOGLE_APPLICATION_CREDENTIALS`
 - [ ] Agent runtime configured
   Required: `OPENAI_API_KEY`
   Optional: `OPENAI_DEFAULT_MODEL` and per-lane `OPENAI_*_MODEL` overrides
+- [ ] Browser analytics configured
+  Required: `VITE_GA_MEASUREMENT_ID`, `VITE_PUBLIC_POSTHOG_PROJECT_TOKEN`, `VITE_PUBLIC_POSTHOG_HOST`
+  Optional: `VITE_ENABLE_ANALYTICS` for development
 - [ ] Stripe configured
   Required: `STRIPE_SECRET_KEY`, `STRIPE_CONNECT_ACCOUNT_ID`, `STRIPE_WEBHOOK_SECRET`, `CHECKOUT_ALLOWED_ORIGINS`
 - [ ] Alpha automation flags enabled

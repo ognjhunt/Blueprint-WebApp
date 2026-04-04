@@ -102,12 +102,16 @@ describe("CapturerSignUpFlow analytics", () => {
       "password",
     );
 
+    await screen.findByRole("button", { name: /Create capturer account/i });
+
     fireEvent.change(screen.getByLabelText(/Home market/i), {
       target: { value: "Raleigh-Durham, NC" },
     });
     fireEvent.change(screen.getByLabelText(/Phone number/i), {
       target: { value: "(555) 555-5555" },
     });
+
+    fireEvent.click(screen.getByRole("radio", { name: /^Search$/i }));
 
     const checkboxes = screen.getAllByRole("checkbox");
     fireEvent.click(checkboxes[checkboxes.length - 1]);

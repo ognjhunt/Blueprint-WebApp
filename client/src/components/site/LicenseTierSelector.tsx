@@ -53,13 +53,14 @@ export function LicenseTierSelector({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-            License Type
+            License Scope
           </p>
           <div className="group relative">
             <Info className="h-3.5 w-3.5 text-zinc-400 cursor-help" />
             <div className="absolute right-0 top-full z-10 mt-1 hidden w-64 rounded-lg border border-zinc-200 bg-white p-3 shadow-lg group-hover:block">
               <p className="text-xs text-zinc-600">
-                Choose based on your use case. Research is for academic/R&D, Commercial for product development, Enterprise for large-scale deployment.
+                Choose the scope for an exact-site package. Research is for internal evaluation,
+                Commercial for product work, and Enterprise for custom terms and scale.
               </p>
             </div>
           </div>
@@ -105,12 +106,12 @@ export function LicenseTierSelector({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-zinc-900">Select License Type</p>
+        <p className="text-sm font-semibold text-zinc-900">Select license scope</p>
         <a
           href="/docs/licensing"
           className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
         >
-          Compare licenses
+          Compare scopes
         </a>
       </div>
 

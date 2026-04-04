@@ -55,6 +55,19 @@ requireCheck(
   "CHECKOUT_ALLOWED_ORIGINS is required for alpha checkout launch.",
 );
 
+requireCheck(
+  Boolean(envValue("VITE_GA_MEASUREMENT_ID")),
+  "VITE_GA_MEASUREMENT_ID is required for browser analytics.",
+);
+requireCheck(
+  Boolean(envValue("VITE_PUBLIC_POSTHOG_PROJECT_TOKEN")),
+  "VITE_PUBLIC_POSTHOG_PROJECT_TOKEN is required for browser analytics.",
+);
+requireCheck(
+  Boolean(envValue("VITE_PUBLIC_POSTHOG_HOST")),
+  "VITE_PUBLIC_POSTHOG_HOST is required for browser analytics.",
+);
+
 const automationFlags = {
   BLUEPRINT_WAITLIST_AUTOMATION_ENABLED: isTruthy(process.env.BLUEPRINT_WAITLIST_AUTOMATION_ENABLED),
   BLUEPRINT_INBOUND_AUTOMATION_ENABLED: isTruthy(process.env.BLUEPRINT_INBOUND_AUTOMATION_ENABLED),
