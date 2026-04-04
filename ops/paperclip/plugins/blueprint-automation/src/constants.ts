@@ -64,6 +64,7 @@ export const TOOL_NAMES = {
 } as const;
 export const ACTION_KEYS = {
   scanNow: "scan-now",
+  repairRouting: "repair-routing",
   managerState: "manager-state",
   simulateSignal: "simulate-signal",
   reportBlocker: "report-blocker",

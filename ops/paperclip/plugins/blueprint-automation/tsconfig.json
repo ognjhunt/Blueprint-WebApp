@@ -14,10 +14,11 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "dist",
-    "rootDir": "."
+    "rootDir": "../.."
   },
   "include": [
-    "src"
+    "src",
+    "../../chief-of-staff-routing.ts"
   ],
   "exclude": [
     "dist",

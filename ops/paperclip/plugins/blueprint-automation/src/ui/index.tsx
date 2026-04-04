@@ -117,6 +117,7 @@ function DashboardInner() {
   const context = useHostContext();
   const dashboard = usePluginData<DashboardData>("dashboard", context.companyId ? { companyId: context.companyId } : {});
   const scanNow = usePluginAction("scan-now");
+  const repairRouting = usePluginAction("repair-routing");
 
   if (dashboard.loading) return <div>Loading Blueprint automation status...</div>;
   if (dashboard.error) return <div>Blueprint automation error: {dashboard.error.message}</div>;
@@ -134,7 +135,10 @@ function DashboardInner() {
               Watch updates, not terminals. This page shows the latest automation scan, managed issues, and ingress activity.
             </div>
           </div>
-          <button onClick={() => void scanNow({ companyId: data.companyId })}>Run scan now</button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button onClick={() => void scanNow({ companyId: data.companyId })}>Run scan now</button>
+            <button onClick={() => void repairRouting({ companyId: data.companyId })}>Repair routing</button>
+          </div>
         </div>
       </Surface>
 

@@ -226,7 +226,7 @@ const manifest: PaperclipPluginManifestV1 = {
     {
       jobKey: JOB_KEYS.opsQueueScan,
       displayName: "Ops Queue Scan",
-      description: "Periodic scan of Notion Work Queue to detect stale or unassigned items.",
+      description: "Periodic scan of Notion Work Queue to detect stale or unassigned items and reconcile duplicate queue issues.",
       schedule: "0 */2 * * *",
     },
     {

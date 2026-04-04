@@ -4,6 +4,9 @@ import {
   collapseWorkQueueItemsByNaturalKey,
   detectStaleKnowledgeEntries,
   extractNotionId,
+  extractAnalyticsSnapshotDate,
+  isStaleAnalyticsSnapshotQueueItem,
+  mapWorkQueueLifecycleStageToIssueStatus,
   normalizeKnowledgeEntry,
   normalizeWorkQueueItem,
   planNotionUpsert,
@@ -173,6 +176,41 @@ describe("notion helpers", () => {
     });
 
     expect(second).toBe(first);
+  });
+
+  it("maps actionable work queue lifecycle stages onto Paperclip issue states", () => {
+    expect(mapWorkQueueLifecycleStageToIssueStatus("Open")).toBe("backlog");
+    expect(mapWorkQueueLifecycleStageToIssueStatus("Analytics")).toBe("backlog");
+    expect(mapWorkQueueLifecycleStageToIssueStatus("In Progress")).toBe("in_progress");
+    expect(mapWorkQueueLifecycleStageToIssueStatus("Waiting on Founder")).toBe("blocked");
+    expect(mapWorkQueueLifecycleStageToIssueStatus("Done")).toBe("done");
+  });
+
+  it("parses dated analytics snapshot titles", () => {
+    expect(extractAnalyticsSnapshotDate("Analytics Daily Snapshot - 2026-04-03")).toEqual({
+      cadence: "daily",
+      date: "2026-04-03",
+    });
+    expect(extractAnalyticsSnapshotDate("Analytics Weekly Snapshot - 2026-03-30")).toEqual({
+      cadence: "weekly",
+      date: "2026-03-30",
+    });
+    expect(extractAnalyticsSnapshotDate("Demand Intel Daily Digest - 2026-04-03 - robotics")).toBeNull();
+  });
+
+  it("treats older dated analytics snapshots as stale queue items", () => {
+    expect(
+      isStaleAnalyticsSnapshotQueueItem(
+        { title: "Analytics Daily Snapshot - 2026-04-03" } as any,
+        { now: new Date("2026-04-04T05:00:00.000Z"), timeZone: "America/New_York" },
+      ),
+    ).toBe(true);
+    expect(
+      isStaleAnalyticsSnapshotQueueItem(
+        { title: "Analytics Daily Snapshot - 2026-04-04" } as any,
+        { now: new Date("2026-04-04T05:00:00.000Z"), timeZone: "America/New_York" },
+      ),
+    ).toBe(false);
   });
 
   it("normalizes founder-facing knowledge artifacts", () => {

@@ -16,7 +16,7 @@ export type AnalyticsFollowUpIssue = {
 };
 
 type AnalyticsFollowUpRoutingConfig = {
-  repoCatalog: Array<RepoAgentConfig & { projectName: string }>;
+  repoCatalog: ReadonlyArray<RepoAgentConfig & { projectName: string }>;
   opsAgents: {
     opsLead: string;
     financeSupportAgent: string;

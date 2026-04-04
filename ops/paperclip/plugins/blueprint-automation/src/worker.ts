@@ -46,6 +46,9 @@ import {
   createKnowledgeEntry,
   createNotionClient,
   createWorkQueueItem,
+  extractAnalyticsSnapshotDate,
+  isStaleAnalyticsSnapshotQueueItem,
+  mapWorkQueueLifecycleStageToIssueStatus,
   queryDatabase,
   queryWorkQueue,
   upsertKnowledgeEntry,
@@ -138,6 +141,13 @@ import {
   shouldPostManagerIssueEventToSlack,
 } from "./slack-copy.js";
 import {
+  buildFounderIssueExceptionDigest,
+  maybePostFounderException as maybePostFounderExceptionDigest,
+  type FounderBusinessLane,
+  type FounderExceptionDigest,
+} from "./founder-exceptions.js";
+import {
+  inferRepoAgentForTask,
   isInboundEngineeringQueueTask,
   preferredQueueRepoAgent,
 } from "./queue-routing.js";
@@ -559,15 +569,6 @@ type FirehoseSignalCacheState = {
   signals: FirehoseSignal[];
 };
 
-type FounderBusinessLane =
-  | "Executive"
-  | "Ops"
-  | "Growth"
-  | "Buyer"
-  | "Capturer"
-  | "Experiment"
-  | "Risk";
-
 type FounderVisibilityIssue = {
   id: string;
   title: string;
@@ -603,17 +604,6 @@ type FounderVisibilitySnapshot = {
   buyerRisks: FounderVisibilityIssue[];
   capturerRisks: FounderVisibilityIssue[];
   experimentOutcomes: FounderExperimentOutcome[];
-};
-
-type FounderVisibilityState = {
-  alerts: Record<
-    string,
-    {
-      sentAt: string;
-      payloadHash: string;
-      evidenceKey?: string | null;
-    }
-  >;
 };
 
 type FounderRemediationEntry = {
@@ -1512,6 +1502,54 @@ function preferredRepoAgentForIssue(
   return preferReview ? repoConfig.reviewAgent : repoConfig.implementationAgent;
 }
 
+function routeManagedIssueAssignee(
+  input: {
+    projectName: string;
+    title: string;
+    description?: string | null;
+    assignee?: string | null;
+  },
+  config: BlueprintAutomationConfig,
+) {
+  const requestedAssignee = (input.assignee ?? "").trim();
+  const repoCatalog = config.repoCatalog ?? DEFAULT_REPO_CATALOG;
+  const repoAgent = inferRepoAgentForTask(
+    {
+      projectName: input.projectName,
+      title: input.title,
+      description: input.description,
+    },
+    repoCatalog,
+  );
+  if (!repoAgent) {
+    return requestedAssignee;
+  }
+
+  const repoConfig = repoCatalog.find((entry) =>
+    entry.implementationAgent === repoAgent || entry.reviewAgent === repoAgent,
+  );
+  if (!repoConfig) {
+    return repoAgent;
+  }
+
+  const opsRouting = getOpsRoutingConfig(config);
+  const growthRouting = getGrowthRoutingConfig(config);
+  const managerOwners = new Set([
+    "",
+    opsRouting.opsLead,
+    growthRouting.growthLead,
+    getChiefOfStaffAgentKey(config),
+    "blueprint-cto",
+  ]);
+  const repoOwners = new Set([repoConfig.implementationAgent, repoConfig.reviewAgent]);
+
+  if (managerOwners.has(requestedAssignee) || repoOwners.has(requestedAssignee)) {
+    return repoAgent;
+  }
+
+  return requestedAssignee;
+}
+
 function routeWorkQueueAssignee(
   item: {
     title: string;
@@ -1526,7 +1564,15 @@ function routeWorkQueueAssignee(
   const opsRouting = getOpsRoutingConfig(config);
   const growthRouting = getGrowthRoutingConfig(config);
   const repoCatalog = config.repoCatalog ?? DEFAULT_REPO_CATALOG;
-  const repoAgent = preferredQueueRepoAgent(item.system, item.title, repoCatalog);
+  const repoAgent =
+    inferRepoAgentForTask(
+      {
+        projectName: mapQueueSystemToProject(item.system),
+        title: item.title,
+      },
+      repoCatalog,
+    )
+    ?? preferredQueueRepoAgent(item.system, item.title, repoCatalog);
 
   if (repoAgent && isInboundEngineeringQueueTask(item.system, item.title, repoCatalog)) {
     return repoAgent;
@@ -1746,6 +1792,11 @@ function getTimezoneParts(date: Date, timeZone: string) {
   };
 }
 
+function formatDateInTimeZone(date: Date, timeZone: string) {
+  const parts = getTimezoneParts(date, timeZone);
+  return `${String(parts.year).padStart(4, "0")}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+}
+
 function scheduleWindowPassedToday(
   cronExpression: string,
   timeZone: string,
@@ -1823,6 +1874,89 @@ async function listAllIssues(ctx: PluginContext, companyId: string) {
     if (page.length < pageSize) break;
   }
   return rows;
+}
+
+async function repairManagedIssueRouting(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+) {
+  const [issues, agents, projects] = await Promise.all([
+    listAllIssues(ctx, companyId),
+    listAgents(ctx, companyId),
+    listProjects(ctx, companyId),
+  ]);
+  const agentKeyById = new Map(agents.map((agent) => [agent.id, agent.urlKey]));
+  const projectNameById = new Map(projects.map((project) => [project.id, project.name]));
+
+  const repaired: Array<{
+    issueId: string;
+    title: string;
+    from: string;
+    to: string;
+  }> = [];
+
+  for (const issue of issues) {
+    if (issue.status === "done" || issue.status === "cancelled") {
+      continue;
+    }
+
+    const projectName = issue.projectId ? (projectNameById.get(issue.projectId) ?? "") : "";
+    const currentAssignee =
+      issue.assigneeAgentId
+        ? (agentKeyById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId)
+        : "";
+    const routedAssignee = routeManagedIssueAssignee(
+      {
+        projectName,
+        title: issue.title,
+        description: issue.description,
+        assignee: currentAssignee,
+      },
+      config,
+    );
+
+    if (!routedAssignee || routedAssignee === currentAssignee) {
+      continue;
+    }
+
+    const assigneeResolution = await resolveAssignableAgent(ctx, companyId, config, routedAssignee).catch(() => null);
+    if (!assigneeResolution || issue.assigneeAgentId === assigneeResolution.agent.id) {
+      continue;
+    }
+
+    await ctx.issues.update(issue.id, { assigneeAgentId: assigneeResolution.agent.id }, companyId);
+    await ctx.issues.createComment(
+      issue.id,
+      [
+        "Routing repair reassigned this issue to the repo lane that matches the current task shape.",
+        `- Previous owner: ${formatAgentName(currentAssignee || "unassigned")}`,
+        `- New owner: ${formatAgentName(assigneeResolution.selectedKey)}`,
+        "- Reason: repo-coded implementation and review work now auto-routes to the matching execution or review lane.",
+      ].join("\n"),
+      companyId,
+    ).catch(() => undefined);
+
+    repaired.push({
+      issueId: issue.id,
+      title: issue.title,
+      from: currentAssignee || "unassigned",
+      to: assigneeResolution.selectedKey,
+    });
+  }
+
+  await appendRecentEvent(ctx, companyId, {
+    kind: "routing-repair",
+    title: "Managed issue routing repair completed",
+    detail: repaired.length > 0
+      ? repaired.map((entry) => `${entry.issueId}:${entry.from}->${entry.to}`).join(", ")
+      : "No misrouted open issues found.",
+  });
+
+  return {
+    repairedCount: repaired.length,
+    repaired,
+  };
 }
 
 async function listCommentsForIssue(ctx: PluginContext, companyId: string, issueId: string) {
@@ -2159,101 +2293,18 @@ async function buildFounderVisibility(
   };
 }
 
-type FounderExceptionDigest = {
-  fingerprint: string;
-  category: string;
-  lane: FounderBusinessLane;
-  title: string;
-  sections: Array<{ heading: string; items: string[] }>;
-  evidenceKey?: string | null;
-  requireEvidence?: boolean;
-};
-
-function digestPayloadHash(sections: FounderExceptionDigest["sections"]) {
-  return JSON.stringify(sections);
-}
-
-async function maybePostFounderException(
+async function postFounderException(
   ctx: PluginContext,
   companyId: string,
   config: BlueprintAutomationConfig,
   digest: FounderExceptionDigest,
 ) {
-  const state = await readState<FounderVisibilityState>(ctx, companyId, STATE_KEYS.founderVisibility) ?? { alerts: {} };
-  const existing = state.alerts[digest.fingerprint];
-  const now = new Date();
-  const payloadHash = digestPayloadHash(digest.sections);
-  const cooldownMs = 6 * 60 * 60 * 1000;
-
-  if (digest.requireEvidence && !digest.evidenceKey) {
-    return false;
-  }
-
-  if (digest.evidenceKey && existing?.evidenceKey === digest.evidenceKey) {
-    return false;
-  }
-
-  if (!digest.evidenceKey && existing) {
-    const sentAt = new Date(existing.sentAt).getTime();
-    if (Number.isFinite(sentAt) && now.getTime() - sentAt < cooldownMs && existing.payloadHash === payloadHash) {
-      return false;
-    }
-  }
-
-  const slackTargets = await resolveSlackTargets(ctx, config);
-  if (!(slackTargets.exec || slackTargets.manager || slackTargets.default)) {
-    return false;
-  }
-
-  await postSlackDigest(slackTargets, {
-    channel: "#paperclip-exec",
-    title: digest.title,
-    sections: digest.sections,
+  return maybePostFounderExceptionDigest(digest, {
+    readState: () => readState(ctx, companyId, STATE_KEYS.founderVisibility),
+    writeState: (state) => writeState(ctx, companyId, STATE_KEYS.founderVisibility, state),
+    resolveSlackTargets: () => resolveSlackTargets(ctx, config),
+    postSlackDigest,
   });
-
-  state.alerts[digest.fingerprint] = {
-    sentAt: now.toISOString(),
-    payloadHash,
-    evidenceKey: digest.evidenceKey ?? null,
-  };
-  await writeState(ctx, companyId, STATE_KEYS.founderVisibility, state);
-  return true;
-}
-
-function buildFounderIssueExceptionDigest(
-  issue: Issue,
-  owner: string,
-  lane: FounderBusinessLane,
-): FounderExceptionDigest | null {
-  const priority = issue.priority;
-  const highPriority = priority === "critical" || priority === "high";
-  const normalizedTitle = issue.title.toLowerCase();
-
-  if (issue.status === "blocked" && highPriority) {
-    const rightsLike = normalizedTitle.includes("rights")
-      || normalizedTitle.includes("privacy")
-      || normalizedTitle.includes("provenance");
-    const buyerLike = lane === "Buyer";
-    const category = rightsLike
-      ? "Rights / Privacy / Provenance"
-      : buyerLike
-        ? "Buyer Deal Risk"
-        : "P1 Blocker";
-    return {
-      fingerprint: `founder-exception:issue:${category}:${issue.id}`,
-      category,
-      lane: rightsLike ? "Risk" : lane,
-      title: `Founder Exception | ${category} | ${rightsLike ? "Risk" : lane}`,
-      sections: [
-        { heading: "What Changed", items: [`A ${priority} issue moved into blocked state: ${cleanIssueTitle(issue.title)}.`] },
-        { heading: "Why It Matters Now", items: [buyerLike ? "An active buyer-facing thread is at risk of slipping." : rightsLike ? "A rights, privacy, or provenance gate is blocking forward motion." : "A high-priority lane is blocked and needs active follow-through."] },
-        { heading: "Owner + Next Checkpoint", items: [`${owner} owns the next move. Checkpoint is the next meaningful unblock step on this issue.`] },
-        { heading: "Founder Decision Needed", items: [rightsLike ? "Be ready to decide whether to pause, narrow scope, or accept the restriction if the owner cannot clear it quickly." : buyerLike ? "Step in only if the owner cannot recover the buyer path by the next checkpoint." : "Reprioritize or step in only if the blocker remains unresolved after the next checkpoint."] },
-      ],
-    };
-  }
-
-  return null;
 }
 
 const CHIEF_OF_STAFF_WAKEUP_COOLDOWN_MS = 5 * 60 * 1000;
@@ -2275,6 +2326,7 @@ async function wakeChiefOfStaff(
     postToSlack?: boolean;
     bypassCooldown?: boolean;
     suppressSlackIfSameTargetAsChannel?: string;
+    eventIssueId?: string;
   },
 ) {
   if (!input.bypassCooldown) {
@@ -2313,7 +2365,9 @@ async function wakeChiefOfStaff(
   await appendRecentEvent(ctx, companyId, {
     kind: "chief-of-staff-wakeup",
     title: input.title,
-    issueId: typeof input.payload.issueId === "string" ? input.payload.issueId : undefined,
+    issueId:
+      input.eventIssueId
+      ?? (typeof input.payload.issueId === "string" ? input.payload.issueId : undefined),
     detail: input.detail,
   });
 
@@ -2340,6 +2394,16 @@ async function wakeChiefOfStaff(
   }
 
   return wakeResult;
+}
+
+function shouldBindChiefOfStaffToIssue(
+  chiefOfStaffAgentId: string | null | undefined,
+  assigneeAgentId: string | null | undefined,
+) {
+  if (!assigneeAgentId) {
+    return true;
+  }
+  return Boolean(chiefOfStaffAgentId) && assigneeAgentId === chiefOfStaffAgentId;
 }
 
 async function wakeAssignedAgent(
@@ -2531,11 +2595,11 @@ async function rerouteUnavailableIssueOwners(
         ),
         getChiefOfStaffAgentKey(config),
         "blueprint-cto",
-      ].filter((value, index, all) => value && all.indexOf(value) === index);
+      ].filter((value, index, all): value is string => Boolean(value) && all.indexOf(value) === index);
 
       const fallback = fallbackCandidates
         .map((key) => agentByKey.get(key) ?? null)
-        .find((candidate) => candidate && !isAgentUnavailable(candidate) && agentHasDesiredAdapter(candidate, candidate.urlKey));
+        .find((candidate) => candidate && !isAgentUnavailable(candidate) && agentHasDesiredAdapter(candidate, candidate.urlKey ?? ""));
 
       if (!fallback) {
         continue;
@@ -2557,7 +2621,7 @@ async function rerouteUnavailableIssueOwners(
       rerouted.push(`${issue.identifier}:missing-owner->${fallback.urlKey}`);
       continue;
     }
-    if (!isAgentUnavailable(assignee) && agentHasDesiredAdapter(assignee, assignee.urlKey)) {
+    if (!isAgentUnavailable(assignee) && agentHasDesiredAdapter(assignee, assignee.urlKey ?? "")) {
       continue;
     }
 
@@ -2565,11 +2629,11 @@ async function rerouteUnavailableIssueOwners(
       pickFallbackAgentKey(config, assignee.urlKey, issue),
       getChiefOfStaffAgentKey(config),
       "blueprint-cto",
-    ].filter((value, index, all) => value && all.indexOf(value) === index);
+    ].filter((value, index, all): value is string => Boolean(value) && all.indexOf(value) === index);
 
     const fallback = fallbackCandidates
       .map((key) => agentByKey.get(key) ?? null)
-      .find((candidate) => candidate && !isAgentUnavailable(candidate) && agentHasDesiredAdapter(candidate, candidate.urlKey));
+      .find((candidate) => candidate && !isAgentUnavailable(candidate) && agentHasDesiredAdapter(candidate, candidate.urlKey ?? ""));
 
     if (!fallback || fallback.id === assignee.id) {
       continue;
@@ -2586,7 +2650,7 @@ async function rerouteUnavailableIssueOwners(
         "Automation rerouted this issue because the current owner is unavailable for execution.",
         `- Previous owner: ${formatAgentName(assignee.urlKey)}`,
         `- New owner: ${formatAgentName(fallback.urlKey)}`,
-        `- Reason: agent status=${assignee.status}${agentHasDesiredAdapter(assignee, assignee.urlKey) ? "" : ` and adapter drifted from configured ${desiredAdapterTypeForAgent(assignee.urlKey)}`}`,
+        `- Reason: agent status=${assignee.status}${agentHasDesiredAdapter(assignee, assignee.urlKey ?? "") ? "" : ` and adapter drifted from configured ${desiredAdapterTypeForAgent(assignee.urlKey ?? "")}`}`,
       ].join("\n"),
       companyId,
     );
@@ -2874,17 +2938,22 @@ async function handleChiefOfStaffIssueSignal(
     priority: issue.priority,
     owner,
   });
+  const bindChiefToIssue = shouldBindChiefOfStaffToIssue(
+    chiefOfStaffAgent?.id ?? null,
+    issue.assigneeAgentId ?? null,
+  );
 
   await wakeChiefOfStaff(ctx, event.companyId, config, {
     reason: event.type,
     idempotencyKey: `chief-of-staff:${event.type}:${event.eventId}`,
     payload: {
       signalType: event.type,
-      issueId: issue.id,
+      ...(bindChiefToIssue ? { issueId: issue.id } : { signalIssueId: issue.id }),
       status: issue.status,
       priority: issue.priority,
       assigneeAgentId: issue.assigneeAgentId ?? null,
     },
+    eventIssueId: issue.id,
     title: `Chief of Staff wakeup from ${event.type}`,
     detail: `${issue.title} (${issue.id}) is now ${issue.status}${issue.assigneeAgentId ? ` and assigned to ${issue.assigneeAgentId}` : " and unassigned"}.`,
     slackChannel: "#paperclip-manager",
@@ -2896,7 +2965,7 @@ async function handleChiefOfStaffIssueSignal(
   const lane = classifyFounderLane(issue.assigneeAgentId ? (agentKeyById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId) : null, issue.title);
   const founderDigest = buildFounderIssueExceptionDigest(issue, owner, lane);
   if (founderDigest) {
-    await maybePostFounderException(ctx, event.companyId, config, founderDigest).catch(() => undefined);
+    await postFounderException(ctx, event.companyId, config, founderDigest).catch(() => undefined);
   }
 }
 
@@ -3375,7 +3444,7 @@ function toNotionQueueDuplicateCandidate(
     workType: typeof metadata.workType === "string" ? metadata.workType : "",
     naturalKey: typeof data.sourceId === "string" && data.sourceId.includes("::")
       ? data.sourceId
-      : undefined,
+      : "",
   });
 
   return {
@@ -3447,6 +3516,36 @@ function compareNotionQueueDuplicateCandidates(
   if (updatedDelta !== 0) return updatedDelta;
 
   return left.issue.id.localeCompare(right.issue.id);
+}
+
+function buildNotionQueueAliasMap(
+  sourceMappings: PluginEntityRecord[],
+  issues: Issue[],
+) {
+  const issueById = new Map(issues.map((issue) => [issue.id, issue] as const));
+  const groups = new Map<string, NotionQueueDuplicateCandidate[]>();
+
+  for (const mapping of sourceMappings) {
+    const data = (mapping.data ?? {}) as Partial<SourceMappingData>;
+    const issueId = typeof data.issueId === "string" ? data.issueId : null;
+    const issue = issueId ? (issueById.get(issueId) ?? null) : null;
+    const candidate = toNotionQueueDuplicateCandidate(mapping, issue);
+    if (!candidate) {
+      continue;
+    }
+    const existing = groups.get(candidate.queueKey) ?? [];
+    existing.push(candidate);
+    groups.set(candidate.queueKey, existing);
+  }
+
+  const aliases = new Map<string, NotionQueueDuplicateCandidate>();
+  for (const [queueKey, candidates] of groups.entries()) {
+    const canonical = [...candidates].sort(compareNotionQueueDuplicateCandidates)[0];
+    if (canonical) {
+      aliases.set(queueKey, canonical);
+    }
+  }
+  return aliases;
 }
 
 function makeTraceBlock(input: UpsertManagedIssueInput) {
@@ -3910,7 +4009,16 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
   const fingerprint = makeFingerprint(input.sourceType, input.sourceId);
   const project = await resolveProject(ctx, input.companyId, input.projectName);
   const config = await getConfig(ctx);
-  const assigneeResolution = await resolveAssignableAgent(ctx, input.companyId, config, input.assignee);
+  const routedAssignee = routeManagedIssueAssignee(
+    {
+      projectName: input.projectName,
+      title: input.title,
+      description: input.description,
+      assignee: input.assignee,
+    },
+    config,
+  );
+  const assigneeResolution = await resolveAssignableAgent(ctx, input.companyId, config, routedAssignee);
   const assignee = assigneeResolution.agent;
   const { mapping, issue } = await getManagedIssue(ctx, input.companyId, fingerprint);
   const existingData = (mapping?.data ?? {}) as Partial<SourceMappingData>;
@@ -4000,7 +4108,7 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
     title: input.title,
     fingerprint,
     issueId: currentIssue.id,
-    detail: `${input.projectName} -> ${input.assignee}`,
+    detail: `${input.projectName} -> ${routedAssignee}`,
   });
 
   await ctx.activity.log({
@@ -4014,7 +4122,8 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
       sourceId: input.sourceId,
       projectName: input.projectName,
       assignee: assigneeResolution.selectedKey,
-      preferredAssignee: input.assignee,
+      preferredAssignee: routedAssignee,
+      requestedAssignee: input.assignee,
       hits,
     },
   });
@@ -4039,7 +4148,7 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
     || previousIssueSnapshot.assigneeAgentId !== (currentIssue.assigneeAgentId ?? null);
   if (meaningfulUpdate) {
     const assigneeLabel = preferredAgentDisplayName(assignee, assigneeResolution.selectedKey);
-    const directChiefOfStaffWake = input.assignee === getChiefOfStaffAgentKey(config);
+    const directChiefOfStaffWake = routedAssignee === getChiefOfStaffAgentKey(config);
     const slackCopy = buildManagedIssueSlackCopy({
       event: isNewIssue ? "opened" : "updated",
       sourceType: input.sourceType,
@@ -4055,17 +4164,24 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
       title: slackCopy.title,
       summary: slackCopy.summary,
     }).catch(() => undefined);
+    const chiefOfStaffKey = getChiefOfStaffAgentKey(config);
+    const chiefOfStaffAgent = await resolveAgent(ctx, input.companyId, chiefOfStaffKey).catch(() => null);
+    const bindChiefToIssue = directChiefOfStaffWake || shouldBindChiefOfStaffToIssue(
+      chiefOfStaffAgent?.id ?? null,
+      currentIssue.assigneeAgentId ?? null,
+    );
     await wakeChiefOfStaff(ctx, input.companyId, config, {
       reason: isNewIssue ? "managed_issue_created" : "managed_issue_updated",
       idempotencyKey: `chief-of-staff:managed-issue:${fingerprint}:${currentIssue.status}:${currentIssue.assigneeAgentId ?? "unassigned"}`,
       payload: {
         signalType: isNewIssue ? "managed_issue_created" : "managed_issue_updated",
-        issueId: currentIssue.id,
+        ...(bindChiefToIssue ? { issueId: currentIssue.id } : { signalIssueId: currentIssue.id }),
         fingerprint,
         status: currentIssue.status,
         assigneeAgentId: currentIssue.assigneeAgentId ?? null,
         projectName: input.projectName,
       },
+      eventIssueId: currentIssue.id,
       title: isNewIssue
         ? "Chief of Staff wakeup from managed issue creation"
         : "Chief of Staff wakeup from managed issue update",
@@ -4961,8 +5077,8 @@ function normalizeAnalyticsFollowUpIssues(
   return { followUpIssues, validationErrors };
 }
 
-function buildAnalyticsReportKey(cadence: AnalyticsReportCadence, generatedAt: string) {
-  return `analytics:${cadence}:${generatedAt.slice(0, 10)}`;
+function buildAnalyticsReportKey(cadence: AnalyticsReportCadence, reportDate: string) {
+  return `analytics:${cadence}:${reportDate}`;
 }
 
 function stableDigest(value: unknown) {
@@ -5358,7 +5474,7 @@ async function runRoutineHealthCheck(ctx: PluginContext, companyId: string, conf
     if (!remediation.notifyFounder || !remediation.evidenceKey) {
       continue;
     }
-    await maybePostFounderException(ctx, companyId, config, {
+    await postFounderException(ctx, companyId, config, {
       fingerprint: `founder-exception:queue:${alert.queue}`,
       category: "Queue Threshold",
       lane: alert.lane,
@@ -5379,7 +5495,7 @@ async function runRoutineHealthCheck(ctx: PluginContext, companyId: string, conf
     if (!remediation.notifyFounder || !remediation.evidenceKey) {
       continue;
     }
-    await maybePostFounderException(ctx, companyId, config, {
+    await postFounderException(ctx, companyId, config, {
       fingerprint: `founder-exception:routine:${alert.routineTitle}:${alert.kind}`,
       category: "Routine Silent Failure",
       lane: "Executive",
@@ -5400,7 +5516,7 @@ async function runRoutineHealthCheck(ctx: PluginContext, companyId: string, conf
     if (!remediation.notifyFounder || !remediation.evidenceKey) {
       continue;
     }
-    await maybePostFounderException(ctx, companyId, config, {
+    await postFounderException(ctx, companyId, config, {
       fingerprint: `founder-exception:buyer-risk:${risk.id}`,
       category: "Buyer Deal Risk",
       lane: "Buyer",
@@ -5421,7 +5537,7 @@ async function runRoutineHealthCheck(ctx: PluginContext, companyId: string, conf
     if (!remediation.notifyFounder || !remediation.evidenceKey) {
       continue;
     }
-    await maybePostFounderException(ctx, companyId, config, {
+    await postFounderException(ctx, companyId, config, {
       fingerprint: `founder-exception:experiment:${outcome.title}:revert`,
       category: "Experiment Regression",
       lane: "Experiment",
@@ -5622,7 +5738,8 @@ async function buildAnalyticsOutputProof(
 ): Promise<AnalyticsOutputProof> {
   const cadence = asString(params.cadence) === "weekly" ? "weekly" : "daily";
   const generatedAt = nowIso();
-  const title = `${cadence === "daily" ? "Analytics Daily" : "Analytics Weekly"} Snapshot - ${generatedAt.slice(0, 10)}`;
+  const reportDate = formatDateInTimeZone(new Date(generatedAt), "America/New_York");
+  const title = `${cadence === "daily" ? "Analytics Daily" : "Analytics Weekly"} Snapshot - ${reportDate}`;
   const { report, validationErrors } = normalizeAnalyticsStructuredReport(params, cadence);
   const { followUpIssues: explicitFollowUpIssues, validationErrors: followUpValidationErrors } = normalizeAnalyticsFollowUpIssues(params);
   const followUpIssues = buildAnalyticsFollowUpIssues(
@@ -5636,7 +5753,7 @@ async function buildAnalyticsOutputProof(
     },
   );
   const errors: string[] = [];
-  const reportKey = buildAnalyticsReportKey(cadence, generatedAt);
+  const reportKey = buildAnalyticsReportKey(cadence, reportDate);
   const reportSignature = stableDigest({
     cadence,
     title,
@@ -5756,8 +5873,9 @@ async function buildAnalyticsOutputProof(
         title,
         priority: cadence === "daily" ? "P2" : "P1",
         system: "WebApp",
-        lifecycleStage: "Open",
+        lifecycleStage: "Done",
         workType: "Refresh",
+        lastStatusChange: generatedAt,
         substage: [
           report.headline,
           knowledgeEntry.pageUrl ? `Knowledge page: ${knowledgeEntry.pageUrl}` : `Knowledge page ID: ${knowledgeEntry.pageId}`,
@@ -5957,7 +6075,16 @@ async function createFollowUpIssue(
 ) {
   const project = await resolveProject(ctx, companyId, input.projectName);
   const config = await getConfig(ctx);
-  const assigneeResolution = await resolveAssignableAgent(ctx, companyId, config, input.assignee);
+  const routedAssignee = routeManagedIssueAssignee(
+    {
+      projectName: input.projectName,
+      title: input.title,
+      description: input.description,
+      assignee: input.assignee,
+    },
+    config,
+  );
+  const assigneeResolution = await resolveAssignableAgent(ctx, companyId, config, routedAssignee);
   const assignee = assigneeResolution.agent;
   const followUp = await (ctx.issues.create as any)({
     companyId,
@@ -7411,6 +7538,12 @@ async function registerActionHandlers(ctx: PluginContext) {
     const config = await getConfig(ctx);
     const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
     return await runFullRepoScan(ctx, company.id, config, "manual-action");
+  });
+
+  ctx.actions.register(ACTION_KEYS.repairRouting, async (params) => {
+    const config = await getConfig(ctx);
+    const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
+    return await repairManagedIssueRouting(ctx, company.id, config);
   });
 
   ctx.actions.register(ACTION_KEYS.managerState, async (params) => {
@@ -9143,11 +9276,45 @@ async function runOpsQueueScanJob(ctx: PluginContext, companyId: string, config:
   const workQueueItems = collapseWorkQueueItemsByNaturalKey(
     await queryWorkQueue(notionClient, {}),
   );
+  const [sourceMappings, issues] = await Promise.all([
+    listSourceMappings(ctx, companyId),
+    listAllIssues(ctx, companyId),
+  ]);
+  const notionQueueAliases = buildNotionQueueAliasMap(sourceMappings, issues);
   let synced = 0;
 
   for (const item of workQueueItems) {
+    const queueKey = canonicalWorkQueueScanKey(item);
+    const mappedAlias = notionQueueAliases.get(queueKey);
     const assignee = routeWorkQueueAssignee(item, config);
-    const sourceId = canonicalWorkQueueScanKey(item);
+    const sourceId = mappedAlias?.data.sourceId ?? queueKey;
+    const issueStatus = mapWorkQueueLifecycleStageToIssueStatus(item.lifecycleStage);
+
+    if (isStaleAnalyticsSnapshotQueueItem(item)) {
+      const snapshot = extractAnalyticsSnapshotDate(item.title);
+      await resolveManagedIssue(ctx, {
+        companyId,
+        sourceType: "notion-work-queue",
+        sourceId,
+        resolutionStatus: "done",
+        comment: snapshot
+          ? `Notion queue scan closed this stale analytics snapshot thread because ${snapshot.date} is before the current local queue date.`
+          : "Notion queue scan closed this stale analytics snapshot thread.",
+      });
+      continue;
+    }
+
+    if (issueStatus === "done") {
+      await resolveManagedIssue(ctx, {
+        companyId,
+        sourceType: "notion-work-queue",
+        sourceId,
+        resolutionStatus: "done",
+        comment: `Notion queue scan closed this work item because its Lifecycle Stage is ${item.lifecycleStage || "Done"}.`,
+      });
+      continue;
+    }
+
     await upsertManagedIssue(ctx, {
       companyId,
       sourceType: "notion-work-queue",
@@ -9166,7 +9333,7 @@ async function runOpsQueueScanJob(ctx: PluginContext, companyId: string, config:
       projectName: mapQueueSystemToProject(item.system),
       assignee,
       priority: mapQueuePriority(item.priority),
-      status: "todo",
+      status: issueStatus,
       signalUrl: item.url,
       metadata: {
         system: item.system,
@@ -9180,13 +9347,19 @@ async function runOpsQueueScanJob(ctx: PluginContext, companyId: string, config:
     synced += 1;
   }
 
+  const reconcileResult = await runNotionQueueReconcileJob(ctx, companyId);
+
   await appendRecentEvent(ctx, companyId, {
     kind: "ops-queue-scan",
     title: "Ops queue scan completed",
-    detail: `Synced ${synced} Notion work queue items at ${nowIso()}`,
+    detail: `Synced ${synced} Notion work queue items and cancelled ${reconcileResult.cancelledCount} duplicate queue issues at ${nowIso()}`,
   });
 
-  return { synced, skipped: false };
+  return {
+    synced,
+    skipped: false,
+    reconciledDuplicateIssues: reconcileResult.cancelledCount,
+  };
 }
 
 async function runNotionQueueReconcileJob(

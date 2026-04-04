@@ -92,6 +92,18 @@ export interface WorkQueueQueryItem {
   naturalKey: string;
 }
 
+function formatDateInTimeZone(date: Date, timeZone: string) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+  const value = (type: string) => parts.find((entry) => entry.type === type)?.value ?? "";
+  return `${value("year")}-${value("month")}-${value("day")}`;
+}
+
 function normalizeScanIdentityPart(value: string | undefined) {
   return (value ?? "")
     .normalize("NFKC")
@@ -114,6 +126,49 @@ export function canonicalWorkQueueScanKey(item: Pick<WorkQueueQueryItem, "title"
     normalizeScanIdentityPart(item.system),
     normalizeScanIdentityPart(item.workType),
   ].join("::");
+}
+
+export function mapWorkQueueLifecycleStageToIssueStatus(
+  lifecycleStage: string | undefined,
+): "backlog" | "in_progress" | "blocked" | "done" {
+  const normalized = normalizeScanIdentityPart(lifecycleStage);
+  switch (normalized) {
+    case "in progress":
+      return "in_progress";
+    case "blocked":
+    case "waiting on external":
+    case "waiting on founder":
+      return "blocked";
+    case "done":
+      return "done";
+    default:
+      return "backlog";
+  }
+}
+
+export function extractAnalyticsSnapshotDate(title: string | undefined) {
+  const match = /^(analytics (daily|weekly) snapshot)\s*-\s*(\d{4}-\d{2}-\d{2})$/i.exec(asString(title) ?? "");
+  if (!match || !match[2] || !match[3]) {
+    return null;
+  }
+  return {
+    cadence: match[2].toLowerCase() as "daily" | "weekly",
+    date: match[3],
+  };
+}
+
+export function isStaleAnalyticsSnapshotQueueItem(
+  item: Pick<WorkQueueQueryItem, "title">,
+  options?: { now?: Date; timeZone?: string },
+) {
+  const snapshot = extractAnalyticsSnapshotDate(item.title);
+  if (!snapshot) {
+    return false;
+  }
+  const now = options?.now ?? new Date();
+  const timeZone = options?.timeZone ?? "America/New_York";
+  const today = formatDateInTimeZone(now, timeZone);
+  return snapshot.date < today;
 }
 
 export interface KnowledgeEntry {

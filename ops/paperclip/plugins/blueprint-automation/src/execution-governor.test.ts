@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildRoutineCatchUpWindowKey,
   isAgentOperational,
   isStaleRoutineExecutionIssue,
   recommendedRoutineExecutionPolicy,
@@ -89,6 +90,21 @@ describe("execution governor helpers", () => {
         new Date("2026-04-03T17:30:00.000Z"),
       ),
     ).toBe(false);
+  });
+
+  it("keys catch-up reruns to the missed scheduled window rather than the current monitor minute", () => {
+    expect(
+      buildRoutineCatchUpWindowKey(
+        {
+          enabled: true,
+          cronExpression: "10 8 * * 1-5",
+          timezone: "America/New_York",
+          nextRunAt: "2026-04-04T12:10:00.000Z",
+          lastFiredAt: "2026-04-03T12:10:01.804Z",
+        },
+        new Date("2026-04-03T18:50:13.960Z"),
+      ),
+    ).toBe("2026-04-03:08:10:10 8 * * 1-5");
   });
 
   it("marks an old routine execution issue without a live run lock as stale", () => {

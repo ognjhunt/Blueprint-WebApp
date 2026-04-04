@@ -218,8 +218,35 @@ function sameScheduledWindow(
 
 export function buildRoutineCatchUpWindowKey(trigger: ScheduleTriggerLike, now: Date = new Date()) {
   if (!trigger.cronExpression || !trigger.timezone) return null;
+  const cronParts = trigger.cronExpression.trim().split(/\s+/);
+  if (cronParts.length !== 5) return null;
+  const [minuteToken, hourToken, dayOfMonthToken, monthToken, dayOfWeekToken] = cronParts;
+  const allowedMinutes = parseNumericSet(minuteToken, 0, 59);
+  const allowedHours = parseNumericSet(hourToken, 0, 23);
+  const allowedDaysOfMonth = parseNumericSet(dayOfMonthToken, 1, 31);
+  const allowedMonths = parseNumericSet(monthToken, 1, 12);
+  const allowedDaysOfWeek = parseNumericSet(dayOfWeekToken, 0, 7);
+  if (!allowedMinutes || !allowedHours || !allowedDaysOfMonth || !allowedMonths || !allowedDaysOfWeek) {
+    return null;
+  }
   const current = zonedParts(now, trigger.timezone);
-  return `${current.year}-${String(current.month).padStart(2, "0")}-${String(current.day).padStart(2, "0")}:${String(current.hour).padStart(2, "0")}:${String(current.minute).padStart(2, "0")}:${trigger.cronExpression}`;
+  const normalizedWeekdays = new Set(
+    [...allowedDaysOfWeek].map((value) => (value === 7 ? 0 : value)),
+  );
+  if (!allowedMonths.has(current.month)) return null;
+  if (!allowedDaysOfMonth.has(current.day) && dayOfMonthToken !== "*") return null;
+  if (!normalizedWeekdays.has(current.weekday) && dayOfWeekToken !== "*") return null;
+
+  const currentMinutes = current.hour * 60 + current.minute;
+  const scheduledMoments = [...allowedHours]
+    .flatMap((hour) => [...allowedMinutes].map((minute) => hour * 60 + minute))
+    .sort((left, right) => left - right);
+  const latestScheduledMoment = scheduledMoments.filter((value) => value <= currentMinutes).pop();
+  if (latestScheduledMoment === undefined) return null;
+
+  const scheduledHour = Math.floor(latestScheduledMoment / 60);
+  const scheduledMinute = latestScheduledMoment % 60;
+  return `${current.year}-${String(current.month).padStart(2, "0")}-${String(current.day).padStart(2, "0")}:${String(scheduledHour).padStart(2, "0")}:${String(scheduledMinute).padStart(2, "0")}:${trigger.cronExpression}`;
 }
 
 export function shouldTriggerRoutineCatchUp(trigger: ScheduleTriggerLike, now: Date = new Date()) {

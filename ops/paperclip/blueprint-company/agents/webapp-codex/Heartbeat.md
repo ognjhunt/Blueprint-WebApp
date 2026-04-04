@@ -6,6 +6,13 @@
 - **CI, smoke, or runtime regression on touched code:** reproduce, fix, and document the validation path.
 - **Cross-repo dependency discovered:** open a linked blocker and hand off before continuing blind.
 
+Execution guardrails for triggered issue runs:
+- Start from `PAPERCLIP_TASK_ID` when present. Do not replace an issue-bound run with a general repo sweep.
+- Use the issue heartbeat context and recent issue comments first. Pull broad repo state only when the issue itself is repo-drift or workspace-drift work.
+- Keep reads narrow: acceptance criteria, touched files, failing tests, launch scripts, or one concrete contract. Avoid multi-file dumps that are not directly required.
+- If the issue wake came from assignment or execution dispatch, prefer one focused implementation or validation pass over collecting extra repo context.
+- If a run starts in a fallback workspace instead of the project-primary checkout for `Blueprint-WebApp`, treat that as recovery-only context and avoid editing unrelated files there.
+
 ## Scheduled Runs
 - **Morning sweep (weekdays):** review assigned WebApp issues, stale implementation work, and open blockers.
 - **Pre-handoff sweep:** before moving any issue to review, confirm validation evidence and residual risk are documented.
