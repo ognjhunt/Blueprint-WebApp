@@ -13,6 +13,11 @@ import { incrementRequestCount, incrementErrorCount } from "./routes/health";
 import { validateEnv } from "./config/env";
 import { createRateLimitRedisStore } from "./utils/rate-limit-redis";
 import { startOpsAutomationScheduler } from "./utils/opsAutomationScheduler";
+import {
+  buildSitemapXml,
+  getPublicAssetDir,
+  getPublicAssetPath,
+} from "./utils/public-artifacts";
 
 const env = validateEnv();
 
@@ -322,12 +327,14 @@ app.use((req, res, next) => {
     );
   });
 
-  const publicDir = path.resolve(process.cwd(), "dist", "public");
-  const robotsPath = path.join(publicDir, "robots.txt");
-  const sitemapPath = path.join(publicDir, "sitemap.xml");
+  const publicDir = getPublicAssetDir(isProduction);
+  const robotsPath = getPublicAssetPath(isProduction, "robots.txt");
+  const sitemapPath = getPublicAssetPath(isProduction, "sitemap.xml");
+  const llmsPath = getPublicAssetPath(isProduction, "llms.txt");
+  const llmsFullPath = getPublicAssetPath(isProduction, "llms-full.txt");
   if (!fs.existsSync(robotsPath)) {
     const message =
-      "robots.txt is missing from dist/public. Ensure client/public/robots.txt is deployed verbatim.";
+      `robots.txt is missing from ${publicDir}. Ensure client/public/robots.txt is deployed verbatim.`;
     if (isProduction) {
       throw new Error(message);
     }
@@ -347,13 +354,14 @@ app.use((req, res, next) => {
       return res.sendFile(sitemapPath);
     }
 
+    if (!isProduction) {
+      return res.type("application/xml").send(buildSitemapXml());
+    }
+
     return res.sendStatus(404);
   });
 
   // Serve llms.txt files for AI crawlers
-  const llmsPath = path.join(publicDir, "llms.txt");
-  const llmsFullPath = path.join(publicDir, "llms-full.txt");
-
   app.get("/llms.txt", (_req, res) => {
     if (fs.existsSync(llmsPath)) {
       return res.type("text/plain").sendFile(llmsPath);
