@@ -14,6 +14,77 @@ const runExperimentAutorollout = vi.hoisted(() => vi.fn());
 const runAutonomousResearchOutboundLoop = vi.hoisted(() => vi.fn());
 const runCreativeAssetFactoryLoop = vi.hoisted(() => vi.fn());
 const sendSlackMessage = vi.hoisted(() => vi.fn());
+const workerFailureAlertState = vi.hoisted(() => new Map<string, string>());
+const maybeAlertOnWorkerStatusTransition = vi.hoisted(() =>
+  vi.fn(async (params: {
+    workerKey: string;
+    previousStatus: string | null;
+    nextStatus: string;
+    intervalMs: number;
+    batchSize: number;
+    runNumber: number;
+    processedCount?: number | null;
+    failedCount?: number | null;
+    error?: string | null;
+  }) => {
+    const humanizedWorkerKey = params.workerKey.replace(/_/g, " ");
+
+    if (params.nextStatus === "failed" && params.previousStatus !== "failed") {
+      workerFailureAlertState.set(params.workerKey, "failed");
+      await sendSlackMessage(
+        [
+          `:rotating_light: Blueprint worker failure: ${humanizedWorkerKey}`,
+          `- Run: #${params.runNumber}`,
+          `- Interval: ${params.intervalMs} ms`,
+          `- Batch: ${params.batchSize}`,
+          params.error ? `- Error: ${params.error}` : null,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      );
+      return;
+    }
+
+    if (
+      params.previousStatus === "failed" &&
+      params.nextStatus !== "failed" &&
+      workerFailureAlertState.get(params.workerKey) === "failed"
+    ) {
+      workerFailureAlertState.set(params.workerKey, "recovered");
+      await sendSlackMessage(
+        [
+          `:white_check_mark: Blueprint worker recovered: ${humanizedWorkerKey}`,
+          `- Run: #${params.runNumber}`,
+          params.processedCount !== undefined && params.processedCount !== null
+            ? `- Processed: ${params.processedCount}`
+            : null,
+          params.failedCount !== undefined && params.failedCount !== null
+            ? `- Failed: ${params.failedCount}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      );
+    }
+  }),
+);
+const firebaseAdminMock = vi.hoisted(() => ({
+  default: {
+    firestore: {
+      FieldValue: {
+        serverTimestamp: () => "timestamp",
+      },
+    },
+  },
+  dbAdmin: null,
+  authAdmin: null,
+}));
+
+vi.mock("../../client/src/lib/firebaseAdmin", () => firebaseAdminMock);
+
+vi.mock("../utils/ops-alerts", () => ({
+  maybeAlertOnWorkerStatusTransition,
+}));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   authAdmin: null,

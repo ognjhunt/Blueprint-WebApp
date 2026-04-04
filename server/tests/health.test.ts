@@ -26,6 +26,12 @@ vi.mock("../utils/hosted-session-live-store", () => ({
   }),
 }));
 
+vi.mock("../../client/src/lib/firebaseAdmin", () => ({
+  default: {},
+  dbAdmin: null,
+  authAdmin: null,
+}));
+
 async function startServer() {
   const { default: healthRouter } = await import("../routes/health");
   const app = express();
