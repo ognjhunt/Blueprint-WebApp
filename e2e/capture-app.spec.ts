@@ -5,14 +5,17 @@ test("capture app access page renders the handoff flow", async ({ page }) => {
 
   await expect(
     page.getByRole("heading", {
-      name: /This is the mobile handoff for people capturing real sites\./i,
+      name: /Open the capture app\./i,
     }),
   ).toBeVisible();
   await expect(
     page
-      .getByRole("link", { name: /Join the capture beta|Open app handoff/i })
+      .getByRole("link", { name: /Request capture access|Open capture app/i })
       .first(),
   ).toBeVisible();
-  await expect(page.getByText(/Capturers use the app, not the web portal\./i)).toBeVisible();
-  await expect(page.getByRole("link", { name: /Browse world models/i })).toBeVisible();
+  await expect(
+    page.getByText(/This is the public handoff for people recording indoor spaces for Blueprint\./i),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: /Read capture basics/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Explore world models/i })).toBeVisible();
 });

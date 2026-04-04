@@ -50,9 +50,12 @@ describe("AdminLeads scene readiness", () => {
                   requestId: "req-1",
                   site_submission_id: "req-1",
                   createdAt: "2026-03-11T12:00:00.000Z",
+                  latest_pipeline_completed_at: "2026-03-11T12:45:00.000Z",
                   status: "qualified_ready",
                   qualification_state: "qualified_ready",
                   opportunity_state: "handoff_ready",
+                  exchange_status: "eligible",
+                  exchange_visibility: "gated_robot_teams",
                   priority: "normal",
                   contact: {
                     firstName: "Ada",
@@ -104,9 +107,12 @@ describe("AdminLeads scene readiness", () => {
               requestId: "req-1",
               site_submission_id: "req-1",
               createdAt: "2026-03-11T12:00:00.000Z",
+              latest_pipeline_completed_at: "2026-03-11T12:45:00.000Z",
               status: "qualified_ready",
               qualification_state: "qualified_ready",
               opportunity_state: "handoff_ready",
+              exchange_status: "eligible",
+              exchange_visibility: "gated_robot_teams",
               priority: "normal",
               contact: {
                 firstName: "Ada",
@@ -223,9 +229,14 @@ describe("AdminLeads scene readiness", () => {
   it("renders scene readiness deployment counts and grouped tasks", async () => {
     renderPage();
     const leadButton = await screen.findByRole("button", { name: /Durham Facility/i });
+    expect(screen.getByText(/Exchange Eligible/i)).toBeInTheDocument();
+    expect(screen.getByText(/Pipeline freshness Mar/i)).toBeInTheDocument();
     fireEvent.click(leadButton);
 
     expect(await screen.findByText(/Scene readiness/i)).toBeInTheDocument();
+    expect(screen.getByText(/Exchange lifecycle/i)).toBeInTheDocument();
+    expect(screen.getByText(/Status: Eligible/i)).toBeInTheDocument();
+    expect(screen.getByText(/Visibility: Gated Robot Teams/i)).toBeInTheDocument();
     expect(screen.getByText(/Whole-home/i)).toBeInTheDocument();
     expect(screen.getByText(/Need redesign/i)).toBeInTheDocument();
     expect(screen.getByText(/Outside envelope/i)).toBeInTheDocument();

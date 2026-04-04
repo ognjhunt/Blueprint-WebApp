@@ -13,7 +13,8 @@
     "smoke:openclaw": "tsx scripts/agent-runtime-smoke.ts",
     "smoke:launch": "node scripts/launch-smoke.mjs",
     "audit:assets": "tsx scripts/audit-assets.ts",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage --config vitest.coverage.config.ts",
+    "test:build-output": "vitest run client/tests/build-output.test.ts",
     "test:e2e": "playwright test",
     "alpha:check": "node scripts/alpha-check.mjs",
     "alpha:preflight": "node scripts/launch-preflight.mjs"

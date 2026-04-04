@@ -611,64 +611,66 @@ describe("HostedSessionWorkspace", () => {
 
   it("surfaces the private operator view action only when a live bridge is configured", async () => {
     mockSearch = "sessionId=session-operator";
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        if (String(input).includes("/api/site-worlds/sessions/session-operator/ui-access")) {
-          return new Response(
-            JSON.stringify({ bootstrapUrl: "/api/site-worlds/sessions/session-operator/ui/bootstrap?token=test" }),
-            { status: 200, headers: { "Content-Type": "application/json" } },
-          );
-        }
-        if (String(input).includes("/api/site-worlds/sessions/session-operator/explorer-render")) {
-          return new Response(
-            JSON.stringify({
-              explorerState: {
-                explorerFrame: {
-                  framePath: "/api/site-worlds/sessions/session-operator/explorer-frame?cameraId=head_rgb",
-                  viewport: { width: 1600, height: 1200 },
-                  snapshotId: "snapshot-operator-1",
-                },
-                explorerQualityFlags: { presentation_quality: "preview" },
-                groundedSource: "pose_preview",
-                refineStatus: "idle",
-                debugArtifacts: {},
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      // Temporary debug logging to understand which request shape the page uses.
+      // This is removed once the failing path is fixed.
+      // eslint-disable-next-line no-console
+      console.log("FETCH", typeof input, String(input), init?.method || "GET");
+      if (String(input).includes("/api/site-worlds/sessions/session-operator/ui-access")) {
+        return new Response(
+          JSON.stringify({ bootstrapUrl: "/api/site-worlds/sessions/session-operator/ui/bootstrap?token=test" }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (String(input).includes("/api/site-worlds/sessions/session-operator/explorer-render")) {
+        return new Response(
+          JSON.stringify({
+            explorerState: {
+              explorerFrame: {
+                framePath: "/api/site-worlds/sessions/session-operator/explorer-frame?cameraId=head_rgb",
+                viewport: { width: 1600, height: 1200 },
+                snapshotId: "snapshot-operator-1",
+              },
+              explorerQualityFlags: { presentation_quality: "preview" },
+              groundedSource: "pose_preview",
+              refineStatus: "idle",
+              debugArtifacts: {},
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (String(input).includes("/api/site-worlds/sessions/session-operator") && (!init?.method || init.method === "GET")) {
+        return new Response(
+          JSON.stringify(
+            buildRuntimeSession({
+              sessionId: "session-operator",
+              sessionMode: "presentation_demo",
+              presentationRuntime: {
+                provider: "vast",
+                status: "live",
+                uiBaseUrl: "https://neoverse.example/operator",
+                proxyPath: "/api/site-worlds/sessions/session-operator/ui/",
+              },
+              presentationLaunchState: {
+                status: "live_viewer",
+                mode: "presentation_ui_live",
+                blockers: [],
+                blockerDetails: [],
+                presentationWorldManifestUri:
+                  "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/presentation_world/presentation_world_manifest.json",
+                runtimeDemoManifestUri:
+                  "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/presentation_world/runtime_demo_manifest.json",
+                uiBaseUrl: "https://neoverse.example/operator",
               },
             }),
-            { status: 200, headers: { "Content-Type": "application/json" } },
-          );
-        }
-        if (String(input).includes("/api/site-worlds/sessions/session-operator") && (!init?.method || init.method === "GET")) {
-          return new Response(
-            JSON.stringify(
-              buildRuntimeSession({
-                sessionId: "session-operator",
-                sessionMode: "presentation_demo",
-                presentationRuntime: {
-                  provider: "vast",
-                  status: "live",
-                  uiBaseUrl: "https://neoverse.example/operator",
-                  proxyPath: "/api/site-worlds/sessions/session-operator/ui/",
-                },
-                presentationLaunchState: {
-                  status: "live_viewer",
-                  mode: "presentation_ui_live",
-                  blockers: [],
-                  blockerDetails: [],
-                  presentationWorldManifestUri:
-                    "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/presentation_world/presentation_world_manifest.json",
-                  runtimeDemoManifestUri:
-                    "gs://local-blueprint/scenes/9483414B-8776-4F68-AC80-D3B3BA774A90/captures/6F2FD31B-0F9F-43C4-9DF9-885E1A295CF3/pipeline/presentation_world/runtime_demo_manifest.json",
-                  uiBaseUrl: "https://neoverse.example/operator",
-                },
-              }),
-            ),
-            { status: 200, headers: { "Content-Type": "application/json" } },
-          );
-        }
-        return new Response(JSON.stringify({ error: "not found" }), { status: 404 });
-      }),
-    );
+          ),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(JSON.stringify({ error: "not found" }), { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
 
     render(<HostedSessionWorkspace params={{ slug: "siteworld-f5fd54898cfb" }} />);
 

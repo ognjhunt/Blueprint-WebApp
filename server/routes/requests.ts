@@ -72,8 +72,12 @@ router.get("/:requestId", async (req: Request, res: Response) => {
       site_submission_id: decrypted.site_submission_id || decrypted.requestId,
       buyer_request_id: decrypted.buyer_request_id || decrypted.requestId,
       createdAt: decrypted.createdAt?.toDate?.()?.toISOString?.() || "",
+      latest_capture_completed_at: normalizeTimestamp(decrypted.latest_capture_completed_at),
+      latest_pipeline_completed_at: normalizeTimestamp(decrypted.latest_pipeline_completed_at),
       qualification_state: decrypted.qualification_state || decrypted.status,
       opportunity_state: decrypted.opportunity_state || "not_applicable",
+      exchange_status: decrypted.exchange_status || "not_listed",
+      exchange_visibility: decrypted.exchange_visibility || "private",
       request: {
         siteName: decrypted.request.siteName,
         siteLocation: decrypted.request.siteLocation,

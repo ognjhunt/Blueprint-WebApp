@@ -47,6 +47,7 @@ export const pipelineAttachmentSyncPayloadSchema = z.object({
   scene_id: z.string().optional().default(""),
   capture_id: z.string().optional().default(""),
   pipeline_prefix: z.string().optional().default(""),
+  latest_capture_completed_at: z.string().optional().default(""),
   qualification_state: z.string().optional().default(""),
   opportunity_state: z.string().optional().default(""),
   authoritative_state_update: z.boolean().optional().default(false),

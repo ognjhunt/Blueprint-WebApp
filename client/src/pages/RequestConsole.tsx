@@ -18,6 +18,8 @@ import {
   OPPORTUNITY_STATE_LABELS,
   REQUEST_CAPTURE_POLICY_LABELS,
   REQUEST_CAPTURE_STATUS_LABELS,
+  REQUEST_EXCHANGE_STATUS_LABELS,
+  REQUEST_EXCHANGE_VISIBILITY_LABELS,
   REQUEST_QUOTE_STATUS_LABELS,
   REQUEST_RIGHTS_STATUS_LABELS,
   REQUEST_STATUS_LABELS,
@@ -77,6 +79,17 @@ function ValueChip({ label, value }: { label: string; value?: string | null }) {
       <p className="mt-2 text-sm font-medium text-zinc-900">{value || "Pending"}</p>
     </div>
   );
+}
+
+function formatPipelineFreshness(value?: string | null) {
+  if (!value) return "Pending sync";
+
+  return new Date(value).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 export default function RequestConsole({ params }: RequestConsoleProps) {
@@ -382,6 +395,34 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                 <ValueChip label="Region" value={ops?.assigned_region_id || "Managed assignment"} />
                 <ValueChip label="Rights" value={REQUEST_RIGHTS_STATUS_LABELS[ops?.rights_status || "unknown"]} />
                 <ValueChip label="Capture Status" value={REQUEST_CAPTURE_STATUS_LABELS[ops?.capture_status || "not_requested"]} />
+              </div>
+            </section>
+
+            <section className="rounded-3xl border border-zinc-200 bg-white p-6">
+              <div className="flex items-center gap-3">
+                <Clock3 className="h-5 w-5 text-zinc-500" />
+                <h2 className="text-lg font-semibold text-zinc-950">Pipeline and Exchange</h2>
+              </div>
+              <div className="mt-5 grid gap-3">
+                <ValueChip
+                  label="Capture Freshness"
+                  value={formatPipelineFreshness(request.latest_capture_completed_at)}
+                />
+                <ValueChip
+                  label="Pipeline Freshness"
+                  value={formatPipelineFreshness(request.latest_pipeline_completed_at)}
+                />
+                <ValueChip
+                  label="Exchange Status"
+                  value={REQUEST_EXCHANGE_STATUS_LABELS[request.exchange_status || "not_listed"]}
+                />
+                <ValueChip
+                  label="Exchange Visibility"
+                  value={REQUEST_EXCHANGE_VISIBILITY_LABELS[request.exchange_visibility || "private"]}
+                />
+              </div>
+              <div className="mt-4 rounded-2xl bg-zinc-50 p-4 text-sm text-zinc-600">
+                Exchange visibility shows how Blueprint can surface this request to robot teams if it is published. It does not replace buyer review access, rights checks, or commercial approval.
               </div>
             </section>
 

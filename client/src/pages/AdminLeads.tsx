@@ -31,6 +31,8 @@ import type {
 } from "@/types/inbound-request";
 import {
   BUYER_TYPE_LABELS as buyerTypeLabels,
+  REQUEST_EXCHANGE_STATUS_LABELS as exchangeStatusLabels,
+  REQUEST_EXCHANGE_VISIBILITY_LABELS as exchangeVisibilityLabels,
   REQUEST_CAPTURE_POLICY_LABELS as capturePolicyLabels,
   REQUEST_CAPTURE_STATUS_LABELS as captureStatusLabels,
   OPPORTUNITY_STATE_LABELS as opportunityStateLabels,
@@ -159,6 +161,24 @@ function formatDate(dateString: string) {
     minute: "2-digit",
   });
 }
+
+function formatPipelineFreshness(dateString?: string | null) {
+  return dateString ? formatDate(dateString) : "Pending sync";
+}
+
+const exchangeStatusColors: Record<NonNullable<InboundRequestListItem["exchange_status"]>, string> = {
+  not_listed: "bg-zinc-100 text-zinc-700",
+  eligible: "bg-sky-100 text-sky-800",
+  live: "bg-emerald-100 text-emerald-700",
+  paused: "bg-amber-100 text-amber-800",
+  closed: "bg-rose-100 text-rose-700",
+};
+
+const exchangeVisibilityColors: Record<NonNullable<InboundRequestListItem["exchange_visibility"]>, string> = {
+  internal: "bg-amber-100 text-amber-800",
+  gated_robot_teams: "bg-sky-100 text-sky-800",
+  private: "bg-zinc-100 text-zinc-700",
+};
 
 export default function AdminLeads() {
   const { currentUser, userData, tokenClaims } = useAuth();
@@ -624,42 +644,61 @@ export default function AdminLeads() {
                   </div>
                 ) : (
                   leads.map((lead) => (
-                    <button
-                      key={lead.requestId}
-                      type="button"
-                      onClick={() => setSelectedRequestId(lead.requestId)}
-                      className={`w-full rounded-2xl border p-5 text-left ${
-                        selectedRequestId === lead.requestId
-                          ? "border-zinc-900 bg-white"
-                          : "border-zinc-200 bg-white"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-medium text-zinc-900">{lead.request.siteName}</p>
-                          <p className="text-sm text-zinc-600">
-                            {lead.contact.company} · {lead.request.siteLocation}
-                          </p>
-                        </div>
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-medium ${qualificationColors[lead.qualification_state]}`}
+                    (() => {
+                      const exchangeStatus = lead.exchange_status || "not_listed";
+                      const exchangeVisibility = lead.exchange_visibility || "private";
+
+                      return (
+                        <button
+                          key={lead.requestId}
+                          type="button"
+                          onClick={() => setSelectedRequestId(lead.requestId)}
+                          className={`w-full rounded-2xl border p-5 text-left ${
+                            selectedRequestId === lead.requestId
+                              ? "border-zinc-900 bg-white"
+                              : "border-zinc-200 bg-white"
+                          }`}
                         >
-                          {statusLabels[lead.qualification_state]}
-                        </span>
-                      </div>
-                      <p className="mt-3 text-sm text-zinc-600">{lead.request.taskStatement}</p>
-                      <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                        <span className={`rounded-full px-3 py-1 ${priorityColors[lead.priority]}`}>
-                          {priorityLabels[lead.priority]}
-                        </span>
-                        {lead.request.requestedLanes.map((lane) => (
-                          <span key={lane} className="rounded-full bg-zinc-100 px-3 py-1 text-zinc-700">
-                            {requestedLaneLabels[lane]}
-                          </span>
-                        ))}
-                      </div>
-                      <p className="mt-3 text-xs text-zinc-400">{formatDate(lead.createdAt)}</p>
-                    </button>
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="font-medium text-zinc-900">{lead.request.siteName}</p>
+                              <p className="text-sm text-zinc-600">
+                                {lead.contact.company} · {lead.request.siteLocation}
+                              </p>
+                            </div>
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-medium ${qualificationColors[lead.qualification_state]}`}
+                            >
+                              {statusLabels[lead.qualification_state]}
+                            </span>
+                          </div>
+                          <p className="mt-3 text-sm text-zinc-600">{lead.request.taskStatement}</p>
+                          <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                            <span className={`rounded-full px-3 py-1 ${priorityColors[lead.priority]}`}>
+                              {priorityLabels[lead.priority]}
+                            </span>
+                            <span className={`rounded-full px-3 py-1 ${exchangeStatusColors[exchangeStatus]}`}>
+                              Exchange {exchangeStatusLabels[exchangeStatus]}
+                            </span>
+                            <span
+                              className={`rounded-full px-3 py-1 ${exchangeVisibilityColors[exchangeVisibility]}`}
+                            >
+                              {exchangeVisibilityLabels[exchangeVisibility]}
+                            </span>
+                            {lead.request.requestedLanes.map((lane) => (
+                              <span key={lane} className="rounded-full bg-zinc-100 px-3 py-1 text-zinc-700">
+                                {requestedLaneLabels[lane]}
+                              </span>
+                            ))}
+                          </div>
+                          <div className="mt-3 space-y-1 text-xs text-zinc-400">
+                            <p>Created {formatDate(lead.createdAt)}</p>
+                            <p>Capture freshness {formatPipelineFreshness(lead.latest_capture_completed_at)}</p>
+                            <p>Pipeline freshness {formatPipelineFreshness(lead.latest_pipeline_completed_at)}</p>
+                          </div>
+                        </button>
+                      );
+                    })()
                   ))
                 )}
               </div>
@@ -747,6 +786,34 @@ export default function AdminLeads() {
                       <p>Budget: {selectedLead.request.budgetBucket}</p>
                       <p>Priority: {priorityLabels[selectedLead.priority]}</p>
                       <p>Created: {formatDate(selectedLead.createdAt)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-xl bg-zinc-50 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Pipeline freshness</p>
+                    <div className="mt-2 space-y-2 text-sm text-zinc-700">
+                      <p>
+                        Capture completed: {formatPipelineFreshness(selectedLead.latest_capture_completed_at)}
+                      </p>
+                      <p>
+                        Pipeline completed: {formatPipelineFreshness(selectedLead.latest_pipeline_completed_at)}
+                      </p>
+                      <p>
+                        Attachment sync: {formatPipelineFreshness(selectedLead.pipeline?.synced_at || null)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-zinc-50 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Exchange lifecycle</p>
+                    <div className="mt-2 space-y-2 text-sm text-zinc-700">
+                      <p>
+                        Status: {exchangeStatusLabels[selectedLead.exchange_status || "not_listed"]}
+                      </p>
+                      <p>
+                        Visibility: {exchangeVisibilityLabels[selectedLead.exchange_visibility || "private"]}
+                      </p>
                     </div>
                   </div>
                 </div>

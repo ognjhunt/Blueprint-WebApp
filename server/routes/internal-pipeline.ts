@@ -17,10 +17,15 @@ import type {
   DerivedAssetEntry,
   DerivedAssetsAttachment,
   DeploymentReadinessSummary,
+  ExchangeStatus,
+  ExchangeVisibility,
   OpportunityState,
   PipelineAttachment,
   PipelineArtifacts,
   QualificationState,
+  RequestCapturePolicyTier,
+  RequestCaptureStatus,
+  RequestRightsStatus,
 } from "../types/inbound-request";
 import { ZodError } from "zod";
 
@@ -34,11 +39,72 @@ const AUTO_CREATED_CONTACT = {
   company: "Blueprint",
 } as const;
 
+const READY_QUALIFICATION_STATES = new Set<QualificationState>([
+  "qualified_ready",
+  "qualified_risky",
+]);
+
+const REVIEW_REQUIRED_QUALIFICATION_STATES = new Set<QualificationState>([
+  "in_review",
+  "needs_more_evidence",
+  "needs_refresh",
+  "not_ready_yet",
+  "qualified_risky",
+]);
+
+const PRESERVED_EXCHANGE_STATUSES = new Set<ExchangeStatus>([
+  "live",
+  "paused",
+  "closed",
+]);
+
+const AUTO_MANAGED_NEXT_STEPS = new Set<string>([
+  "Contributor capture requested. Wait for upload or assign a closer space.",
+  "Review the auto-created pipeline-backed request and backfill customer metadata if needed.",
+  "Review qualification artifacts and decide whether this site can move into buyer handoff.",
+  "Review qualification artifacts and prepare buyer handoff for robot-team diligence.",
+  "Review qualification artifacts, risk notes, and decide whether to advance the buyer handoff.",
+  "Review missing evidence, recapture requirements, and schedule the next capture pass.",
+  "Review pipeline outputs and decide whether more evidence or manual escalation is required.",
+]);
+
 function allowPipelinePlaceholderRequests() {
   const normalized = String(process.env.PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS || "")
     .trim()
     .toLowerCase();
   return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
+function asString(value: unknown) {
+  if (typeof value !== "string") {
+    return "";
+  }
+  return value.trim();
+}
+
+function normalizeTimestamp(value: unknown) {
+  const timestamp = value as { toDate?: () => Date } | string | null | undefined;
+  if (!timestamp) {
+    return null;
+  }
+  if (typeof timestamp === "string") {
+    return timestamp;
+  }
+  return timestamp.toDate?.()?.toISOString?.() || null;
+}
+
+function normalizeIsoTimestamp(value: unknown) {
+  const text = asString(value);
+  if (!text) {
+    return null;
+  }
+
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return parsed.toISOString();
 }
 
 function inferDefaultOpportunityState(
@@ -59,6 +125,38 @@ function isQualificationState(value: string): value is QualificationState {
 
 function isOpportunityState(value: string): value is OpportunityState {
   return (OPPORTUNITY_STATES as readonly string[]).includes(value);
+}
+
+function isRequestCaptureStatus(value: string): value is RequestCaptureStatus {
+  return [
+    "not_requested",
+    "capture_requested",
+    "under_review",
+    "approved",
+    "needs_recapture",
+    "paid",
+  ].includes(value);
+}
+
+function isRequestRightsStatus(value: string): value is RequestRightsStatus {
+  return ["unknown", "verified", "permission_required", "blocked"].includes(value);
+}
+
+function isRequestCapturePolicyTier(value: string): value is RequestCapturePolicyTier {
+  return [
+    "approved_capture",
+    "review_required",
+    "permission_required",
+    "not_allowed",
+  ].includes(value);
+}
+
+function isExchangeStatus(value: string): value is ExchangeStatus {
+  return ["not_listed", "eligible", "live", "paused", "closed"].includes(value);
+}
+
+function isExchangeVisibility(value: string): value is ExchangeVisibility {
+  return ["internal", "gated_robot_teams", "private"].includes(value);
 }
 
 function isDerivedAssetStatus(
@@ -149,6 +247,169 @@ function buildDeploymentReadiness(
     ...(current || {}),
     ...(readiness as DeploymentReadinessSummary),
   };
+}
+
+function currentCaptureStatus(currentData: Record<string, unknown> | null) {
+  const raw = asString((currentData?.ops as Record<string, unknown> | undefined)?.capture_status);
+  return isRequestCaptureStatus(raw) ? raw : null;
+}
+
+function currentRightsStatus(currentData: Record<string, unknown> | null) {
+  const raw = asString((currentData?.ops as Record<string, unknown> | undefined)?.rights_status);
+  return isRequestRightsStatus(raw) ? raw : "unknown";
+}
+
+function currentCapturePolicyTier(currentData: Record<string, unknown> | null) {
+  const raw = asString((currentData?.ops as Record<string, unknown> | undefined)?.capture_policy_tier);
+  return isRequestCapturePolicyTier(raw) ? raw : "review_required";
+}
+
+function hasExchangeArtifacts(pipeline: PipelineAttachment) {
+  const artifacts = pipeline.artifacts || {};
+  return Boolean(
+    asString(artifacts.readiness_report_uri) && asString(artifacts.opportunity_handoff_uri)
+  );
+}
+
+function deriveCaptureStatus(params: {
+  currentData: Record<string, unknown> | null;
+  qualificationState: QualificationState;
+  deploymentReadiness?: DeploymentReadinessSummary;
+}): RequestCaptureStatus {
+  const existing = currentCaptureStatus(params.currentData);
+  if (existing === "paid") {
+    return existing;
+  }
+  if (params.deploymentReadiness?.recapture_required === true) {
+    return "needs_recapture";
+  }
+  switch (params.qualificationState) {
+    case "capture_requested":
+      return "capture_requested";
+    case "qa_passed":
+    case "in_review":
+      return "under_review";
+    case "qualified_ready":
+    case "qualified_risky":
+      return "approved";
+    case "needs_more_evidence":
+    case "needs_refresh":
+      return "needs_recapture";
+    case "not_ready_yet":
+      return existing === "capture_requested" ? "under_review" : existing || "under_review";
+    default:
+      return existing || "not_requested";
+  }
+}
+
+function derivedAssetsNeedReview(derivedAssets?: DerivedAssetsAttachment) {
+  if (!derivedAssets) {
+    return false;
+  }
+  return Object.entries(derivedAssets).some(([key, entry]) => {
+    if (key === "synced_at" || !entry || typeof entry !== "object") {
+      return false;
+    }
+    return entry.status === "failed" || entry.status === "review_required";
+  });
+}
+
+function deriveHumanReviewRequired(params: {
+  currentData: Record<string, unknown> | null;
+  qualificationState: QualificationState;
+  deploymentReadiness?: DeploymentReadinessSummary;
+  derivedAssets?: DerivedAssetsAttachment;
+}) {
+  const currentValue = params.currentData?.human_review_required === true;
+  if (currentValue) {
+    return true;
+  }
+  if (REVIEW_REQUIRED_QUALIFICATION_STATES.has(params.qualificationState)) {
+    return true;
+  }
+  if (params.deploymentReadiness?.recapture_required === true) {
+    return true;
+  }
+  return derivedAssetsNeedReview(params.derivedAssets);
+}
+
+function deriveExchangeProjection(params: {
+  currentData: Record<string, unknown> | null;
+  qualificationState: QualificationState;
+  opportunityState: OpportunityState;
+  pipeline: PipelineAttachment;
+  deploymentReadiness?: DeploymentReadinessSummary;
+}) {
+  const currentExchangeStatus = asString(params.currentData?.exchange_status);
+  const currentExchangeVisibility = asString(params.currentData?.exchange_visibility);
+  const rightsStatus = currentRightsStatus(params.currentData);
+  const capturePolicyTier = currentCapturePolicyTier(params.currentData);
+  const promotable =
+    READY_QUALIFICATION_STATES.has(params.qualificationState) &&
+    params.opportunityState === "handoff_ready" &&
+    hasExchangeArtifacts(params.pipeline) &&
+    params.deploymentReadiness?.recapture_required !== true &&
+    rightsStatus !== "blocked" &&
+    capturePolicyTier !== "not_allowed";
+
+  let exchangeStatus: ExchangeStatus =
+    PRESERVED_EXCHANGE_STATUSES.has(currentExchangeStatus as ExchangeStatus) &&
+    isExchangeStatus(currentExchangeStatus)
+      ? (currentExchangeStatus as ExchangeStatus)
+      : promotable
+        ? "eligible"
+        : "not_listed";
+
+  let exchangeVisibility: ExchangeVisibility;
+  if (
+    PRESERVED_EXCHANGE_STATUSES.has(exchangeStatus) &&
+    isExchangeVisibility(currentExchangeVisibility)
+  ) {
+    exchangeVisibility = currentExchangeVisibility as ExchangeVisibility;
+  } else if (promotable) {
+    exchangeVisibility =
+      rightsStatus === "verified" && capturePolicyTier === "approved_capture"
+        ? "gated_robot_teams"
+        : "internal";
+  } else if (READY_QUALIFICATION_STATES.has(params.qualificationState)) {
+    exchangeVisibility = rightsStatus === "blocked" ? "private" : "internal";
+  } else {
+    exchangeVisibility = "private";
+  }
+
+  if (!isExchangeStatus(exchangeStatus)) {
+    exchangeStatus = "not_listed";
+  }
+
+  return { exchangeStatus, exchangeVisibility };
+}
+
+function shouldRefreshNextStep(currentData: Record<string, unknown> | null) {
+  const currentNextStep = asString((currentData?.ops as Record<string, unknown> | undefined)?.next_step);
+  return !currentNextStep || AUTO_MANAGED_NEXT_STEPS.has(currentNextStep);
+}
+
+function deriveNextStep(params: {
+  qualificationState: QualificationState;
+  opportunityState: OpportunityState;
+  deploymentReadiness?: DeploymentReadinessSummary;
+}) {
+  if (
+    params.qualificationState === "needs_more_evidence" ||
+    params.deploymentReadiness?.recapture_required === true
+  ) {
+    return "Review missing evidence, recapture requirements, and schedule the next capture pass.";
+  }
+  if (params.qualificationState === "qualified_risky") {
+    return "Review qualification artifacts, risk notes, and decide whether to advance the buyer handoff.";
+  }
+  if (
+    params.qualificationState === "qualified_ready" &&
+    params.opportunityState === "handoff_ready"
+  ) {
+    return "Review qualification artifacts and prepare buyer handoff for robot-team diligence.";
+  }
+  return "Review pipeline outputs and decide whether more evidence or manual escalation is required.";
 }
 
 function buildPlaceholderInboundRequest(params: {
@@ -324,7 +585,13 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
     const updatePayload: Record<string, unknown> = {
       pipeline,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      latest_pipeline_completed_at: admin.firestore.FieldValue.serverTimestamp(),
     };
+
+    const latestCaptureCompletedAt = normalizeIsoTimestamp(parsedBody.latest_capture_completed_at);
+    if (latestCaptureCompletedAt) {
+      updatePayload.latest_capture_completed_at = latestCaptureCompletedAt;
+    }
 
     if (siteSubmissionId && !currentData?.site_submission_id) {
       updatePayload.site_submission_id = siteSubmissionId;
@@ -341,6 +608,55 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
     if (deploymentReadiness) {
       updatePayload.deployment_readiness = deploymentReadiness;
     }
+
+    updatePayload.human_review_required = deriveHumanReviewRequired({
+      currentData,
+      qualificationState: nextQualificationState,
+      deploymentReadiness,
+      derivedAssets,
+    });
+
+    const trustScore = deploymentReadiness?.buyer_trust_score?.score;
+    if (typeof trustScore === "number" && Number.isFinite(trustScore)) {
+      updatePayload.automation_confidence = trustScore;
+    }
+
+    const currentOps =
+      currentData?.ops && typeof currentData.ops === "object"
+        ? (currentData.ops as Record<string, unknown>)
+        : {};
+    const nextCaptureStatus = deriveCaptureStatus({
+      currentData,
+      qualificationState: nextQualificationState,
+      deploymentReadiness,
+    });
+    updatePayload.ops = {
+      ...currentOps,
+      capture_status: nextCaptureStatus,
+      ...(READY_QUALIFICATION_STATES.has(nextQualificationState) &&
+      !currentOps.last_buyer_ready_at
+        ? { last_buyer_ready_at: admin.firestore.FieldValue.serverTimestamp() }
+        : {}),
+      ...(shouldRefreshNextStep(currentData)
+        ? {
+            next_step: deriveNextStep({
+              qualificationState: nextQualificationState,
+              opportunityState: nextOpportunityState,
+              deploymentReadiness,
+            }),
+          }
+        : {}),
+    };
+
+    const exchangeProjection = deriveExchangeProjection({
+      currentData,
+      qualificationState: nextQualificationState,
+      opportunityState: nextOpportunityState,
+      pipeline,
+      deploymentReadiness,
+    });
+    updatePayload.exchange_status = exchangeProjection.exchangeStatus;
+    updatePayload.exchange_visibility = exchangeProjection.exchangeVisibility;
 
     const payoutRecommendationSource =
       deploymentReadiness && typeof deploymentReadiness === "object"
@@ -406,11 +722,16 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       ok: true,
       requestId: docRef.id,
       site_submission_id: siteSubmissionId || requestId,
+      latest_capture_completed_at:
+        latestCaptureCompletedAt || normalizeTimestamp(currentData?.latest_capture_completed_at),
       qualification_state: nextQualificationState,
       opportunity_state: nextOpportunityState,
       pipeline,
       derived_assets: derivedAssets,
       deployment_readiness: deploymentReadiness,
+      exchange_status: exchangeProjection.exchangeStatus,
+      exchange_visibility: exchangeProjection.exchangeVisibility,
+      human_review_required: updatePayload.human_review_required,
     });
   } catch (error) {
     if (error instanceof ZodError) {

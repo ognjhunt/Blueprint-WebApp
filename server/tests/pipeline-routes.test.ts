@@ -177,6 +177,7 @@ describe("pipeline integration routes", () => {
       expect(response.status).toBe(200);
       expect(update).toHaveBeenCalledWith(
         expect.objectContaining({
+          latest_capture_completed_at: "2026-03-20T14:03:02.000Z",
           derived_assets: expect.objectContaining({
             preview_simulation: expect.objectContaining({
               status: "generated",
@@ -203,6 +204,10 @@ describe("pipeline integration routes", () => {
           }),
         })
       );
+      const payload = await response.json();
+      expect(payload).toMatchObject({
+        latest_capture_completed_at: "2026-03-20T14:03:02.000Z",
+      });
       expect(update).not.toHaveBeenCalledWith(
         expect.objectContaining({
           qualification_state: expect.anything(),
@@ -248,6 +253,140 @@ describe("pipeline integration routes", () => {
           qualification_state: "qualified_ready",
           opportunity_state: "handoff_ready",
         })
+      );
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("projects buyer-ready lifecycle state when the pipeline returns a promotable qualified handoff", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "secret";
+    const update = vi.fn().mockResolvedValue(undefined);
+    state.queryDocs = [
+      {
+        ref: { id: "req-1", update },
+        data: () => ({
+          requestId: "req-1",
+          status: "capture_requested",
+          qualification_state: "capture_requested",
+          opportunity_state: "not_applicable",
+          ops: {
+            rights_status: "verified",
+            capture_policy_tier: "approved_capture",
+            capture_status: "capture_requested",
+            next_step:
+              "Contributor capture requested. Wait for upload or assign a closer space.",
+          },
+          human_review_required: false,
+        }),
+      },
+    ];
+    const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
+
+    try {
+      const response = await fetch(`${baseUrl}/attachments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Blueprint-Pipeline-Token": "secret",
+        },
+        body: JSON.stringify({
+          ...pipelineAttachmentFixture,
+          artifacts: {
+            ...((pipelineAttachmentFixture.artifacts as Record<string, unknown>) || {}),
+            readiness_report_uri:
+              "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/readiness_report.md",
+            opportunity_handoff_uri:
+              "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/opportunity_handoff.json",
+          },
+          deployment_readiness: {
+            buyer_trust_score: {
+              score: 0.93,
+              band: "high",
+              reasons: ["Strong coverage"],
+            },
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          latest_pipeline_completed_at: "SERVER_TIMESTAMP",
+          automation_confidence: 0.93,
+          human_review_required: false,
+          exchange_status: "eligible",
+          exchange_visibility: "gated_robot_teams",
+          ops: expect.objectContaining({
+            capture_status: "approved",
+            last_buyer_ready_at: "SERVER_TIMESTAMP",
+          }),
+        }),
+      );
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("keeps the request off exchange and marks review when the pipeline requires recapture", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "secret";
+    const update = vi.fn().mockResolvedValue(undefined);
+    state.queryDocs = [
+      {
+        ref: { id: "req-1", update },
+        data: () => ({
+          requestId: "req-1",
+          status: "capture_requested",
+          qualification_state: "capture_requested",
+          opportunity_state: "not_applicable",
+          ops: {
+            rights_status: "verified",
+            capture_policy_tier: "approved_capture",
+            capture_status: "capture_requested",
+          },
+          human_review_required: false,
+        }),
+      },
+    ];
+    const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
+
+    try {
+      const response = await fetch(`${baseUrl}/attachments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Blueprint-Pipeline-Token": "secret",
+        },
+        body: JSON.stringify({
+          ...pipelineAttachmentFixture,
+          qualification_state: "needs_more_evidence",
+          opportunity_state: "not_applicable",
+          derived_assets: {
+            ...((pipelineAttachmentFixture.derived_assets as Record<string, unknown>) || {}),
+            preview_simulation: {
+              status: "review_required",
+              manifest_uri:
+                "gs://bucket/scenes/scene-1/captures/cap-1/pipeline/preview_simulation/preview_simulation_manifest.json",
+            },
+          },
+          deployment_readiness: {
+            recapture_required: true,
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          human_review_required: true,
+          exchange_status: "not_listed",
+          exchange_visibility: "private",
+          ops: expect.objectContaining({
+            capture_status: "needs_recapture",
+          }),
+          qualification_state: "needs_more_evidence",
+          opportunity_state: "not_applicable",
+        }),
       );
     } finally {
       await stopServer(server);

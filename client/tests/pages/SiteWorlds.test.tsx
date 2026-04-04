@@ -13,7 +13,7 @@ describe("SiteWorlds", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /site-specific digital environment built from real capture of one facility and one workflow lane/i,
+        /Each world model is built from real capture of one indoor facility and one workflow lane\./i,
       ),
     ).toBeInTheDocument();
     expect(
@@ -22,16 +22,28 @@ describe("SiteWorlds", () => {
     expect(
       screen.getByRole("heading", { name: /Common reasons robot teams buy this surface\./i }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /Sites your team can train on right now\./i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Open any listing to see training data options, hosted evaluation, and what you can export\./i,
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Buy the site package/i)).toBeInTheDocument();
     expect(screen.getByText(/Request a hosted evaluation/i)).toBeInTheDocument();
+    expect(screen.getByText(/Case pick and shelf replenishment/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/What real site and workflow the model is anchored to/i),
+      screen.getByText(/Shelf replenishment validation before a rollout\./i),
     ).toBeInTheDocument();
     expect(screen.getByText(/Harborview Grocery Distribution Annex/i)).toBeInTheDocument();
     expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Public demo/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Embodiment/i)).toBeInTheDocument();
     expect(screen.getByText(/Quick filters/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Public demo available/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Hosted path ready/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Export ready/i })).toBeInTheDocument();
     expect(screen.queryByText(/Likely buyer:/i)).not.toBeInTheDocument();
 
     const packageLinks = screen.getAllByRole("link", { name: /Request site package/i });
@@ -46,5 +58,6 @@ describe("SiteWorlds", () => {
     expect(hostedUrl.pathname).toBe("/contact");
     expect(hostedUrl.searchParams.get("interest")).toBe("evaluation-package");
     expect(hostedUrl.searchParams.get("buyerType")).toBe("robot_team");
+    expect(hostedUrl.searchParams.get("siteName")).toBe("Harborview Grocery Distribution Annex");
   });
 });

@@ -286,6 +286,18 @@ export type RequestCaptureStatus =
   | "needs_recapture"
   | "paid";
 
+export type ExchangeStatus =
+  | "not_listed"
+  | "eligible"
+  | "live"
+  | "paused"
+  | "closed";
+
+export type ExchangeVisibility =
+  | "internal"
+  | "gated_robot_teams"
+  | "private";
+
 export interface BuyerReviewAccess {
   buyer_review_url?: string | null;
   token_issued_at?: FirebaseFirestore.Timestamp | string | null;
@@ -387,9 +399,13 @@ export interface InboundRequest {
   site_submission_id: string;
   buyer_request_id?: string | null;
   createdAt: FirebaseFirestore.Timestamp;
+  latest_capture_completed_at?: FirebaseFirestore.Timestamp | string | null;
+  latest_pipeline_completed_at?: FirebaseFirestore.Timestamp | string | null;
   status: RequestStatus;
   qualification_state: QualificationState;
   opportunity_state: OpportunityState;
+  exchange_status?: ExchangeStatus;
+  exchange_visibility?: ExchangeVisibility;
   priority: RequestPriority;
   owner: RequestOwner;
   contact: ContactInfo;
@@ -562,9 +578,13 @@ export interface InboundRequestListItem {
   site_submission_id: string;
   buyer_request_id?: string | null;
   createdAt: string; // ISO string for client
+  latest_capture_completed_at?: string | null;
+  latest_pipeline_completed_at?: string | null;
   status: RequestStatus;
   qualification_state: QualificationState;
   opportunity_state: OpportunityState;
+  exchange_status?: ExchangeStatus;
+  exchange_visibility?: ExchangeVisibility;
   priority: RequestPriority;
   contact: {
     firstName: string;

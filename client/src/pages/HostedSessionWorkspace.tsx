@@ -151,6 +151,14 @@ const SCRIPTED_WALKTHROUGH = [
   },
 ] as const;
 
+const DEFAULT_EXPLORER_POSE: ExplorerPose = {
+  x: 0,
+  y: 0,
+  z: 0,
+  yaw: 0,
+  pitch: 0,
+};
+
 function formatElapsed(seconds: number) {
   const minutes = Math.floor(seconds / 60)
     .toString()
@@ -449,7 +457,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   const [explorerViewport, setExplorerViewport] = useState<{ width: number; height: number } | null>(null);
   const [explorerBusyLabel, setExplorerBusyLabel] = useState("");
   const [explorerMoveSpeed, setExplorerMoveSpeed] = useState(0.18);
-  const [explorerPose, setExplorerPose] = useState<ExplorerPose>({ x: 0, y: 0, z: 0, yaw: 0, pitch: 0 });
+  const [explorerPose, setExplorerPose] = useState<ExplorerPose>(DEFAULT_EXPLORER_POSE);
   const explorerViewportRef = useRef<HTMLDivElement | null>(null);
   const liveVideoRef = useRef<HTMLVideoElement | null>(null);
   const liveControlKeysRef = useRef<Set<string>>(new Set());
@@ -702,7 +710,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
     setUiBootstrapUrl("");
     setUserSelectedMode(false);
     setExplorerState(null);
-    setExplorerPose({ x: 0, y: 0, z: 0, yaw: 0, pitch: 0 });
+    setExplorerPose(DEFAULT_EXPLORER_POSE);
     setExplorerBusyLabel("");
     setExplorerLoadError(false);
     setExplorerObservationSrc((current) => {
@@ -740,7 +748,10 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
   useEffect(() => {
     if (sessionRecord?.explorerState) {
       setExplorerState(sessionRecord.explorerState);
-      setExplorerPose(sessionRecord.explorerState.pose);
+      const nextPose = (sessionRecord.explorerState as Partial<ExplorerState>).pose;
+      if (nextPose) {
+        setExplorerPose(nextPose);
+      }
     }
   }, [sessionRecord?.explorerState]);
 
@@ -2645,7 +2656,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                           <button
                             type="button"
                             onClick={() => {
-                              setExplorerPose({ x: 0, y: 0, z: 0, yaw: 0, pitch: 0 });
+                              setExplorerPose(DEFAULT_EXPLORER_POSE);
                               setExplorerMoveSpeed(0.18);
                             }}
                             className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"

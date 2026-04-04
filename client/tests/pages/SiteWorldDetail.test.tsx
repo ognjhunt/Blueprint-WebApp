@@ -90,7 +90,7 @@ describe("SiteWorldDetail", () => {
     expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Use this listing to ground one deployment question on the real site, compare the package with the hosted evaluation path/i,
+        /This world model is built from real capture of this facility\. Use it to answer a deployment question on the real site, compare the package with hosted evaluation, and decide how your team should test before visiting\./i,
       ),
     ).toBeInTheDocument();
     expect(
@@ -108,7 +108,7 @@ describe("SiteWorldDetail", () => {
     expect(screen.getByRole("heading", { name: /What goes in/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What comes back/i })).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /What teams do with this world model/i }),
+      screen.getByRole("heading", { name: /What teams use this listing for\./i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/A sample eval loop for Harborview Grocery Distribution Annex/i)).toBeInTheDocument();
     expect(screen.queryByText(/Not specified/i)).not.toBeInTheDocument();

@@ -5,6 +5,7 @@
   "scene_id": "scene-1",
   "capture_id": "cap-1",
   "pipeline_prefix": "scenes/scene-1/captures/cap-1/pipeline",
+  "latest_capture_completed_at": "2026-03-20T14:03:02Z",
   "qualification_state": "qualified_ready",
   "opportunity_state": "handoff_ready",
   "authoritative_state_update": true,

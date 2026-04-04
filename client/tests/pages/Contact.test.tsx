@@ -54,7 +54,7 @@ describe("Contact page", () => {
     expect(screen.getAllByText(/For Robot Teams/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/What happens after you send this/i)).toBeInTheDocument();
     expect(screen.getByText(/Prefer a lighter first step\?/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Browse world models/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Explore world models/i })).toHaveAttribute(
       "href",
       "/world-models",
     );

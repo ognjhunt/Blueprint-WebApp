@@ -12,16 +12,24 @@ export default defineConfig({
     environment: 'happy-dom',
     setupFiles: './client/tests/setup.ts',
     css: true,
-    exclude: ['e2e/**', 'node_modules/**', 'dist/**', '.claude/**'],
+    include: [
+      'client/tests/**/*.{test,spec}.{ts,tsx,js,jsx}',
+      'server/tests/**/*.{test,spec}.{ts,tsx,js,jsx}',
+    ],
+    // Keep Vitest focused on repo-owned app suites. The Paperclip workspace
+    // mounts skill checkouts under `.agents`, which can contain their own test
+    // trees and nested node_modules that are unrelated to Blueprint-WebApp.
+    exclude: ['**/e2e/**', '**/dist/**', '**/.claude/**', '**/.agents/**', '**/node_modules/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       reportsDirectory: './coverage',
       exclude: [
-        'e2e/**',
-        'node_modules/**',
-        'dist/**',
-        '.claude/**',
+        '**/e2e/**',
+        '**/dist/**',
+        '**/.claude/**',
+        '**/.agents/**',
+        '**/node_modules/**',
         'scripts/launch-preflight.mjs',
         'scripts/launch-smoke.mjs',
       ],

@@ -251,6 +251,18 @@ export type RequestCaptureStatus =
   | "needs_recapture"
   | "paid";
 
+export type ExchangeStatus =
+  | "not_listed"
+  | "eligible"
+  | "live"
+  | "paused"
+  | "closed";
+
+export type ExchangeVisibility =
+  | "internal"
+  | "gated_robot_teams"
+  | "private";
+
 export interface BuyerReviewAccess {
   buyer_review_url?: string | null;
   token_issued_at?: string | null;
@@ -477,9 +489,13 @@ export interface InboundRequestListItem {
   site_submission_id: string;
   buyer_request_id?: string | null;
   createdAt: string; // ISO string
+  latest_capture_completed_at?: string | null;
+  latest_pipeline_completed_at?: string | null;
   status: RequestStatus;
   qualification_state: QualificationState;
   opportunity_state: OpportunityState;
+  exchange_status?: ExchangeStatus;
+  exchange_visibility?: ExchangeVisibility;
   priority: RequestPriority;
   contact: {
     firstName: string;
@@ -631,6 +647,20 @@ export const REQUEST_QUOTE_STATUS_LABELS: Record<RequestQuoteStatus, string> = {
   buyer_ready: "Buyer Ready",
   quoted: "Quoted",
   paid: "Paid",
+};
+
+export const REQUEST_EXCHANGE_STATUS_LABELS: Record<ExchangeStatus, string> = {
+  not_listed: "Not Listed",
+  eligible: "Eligible",
+  live: "Live",
+  paused: "Paused",
+  closed: "Closed",
+};
+
+export const REQUEST_EXCHANGE_VISIBILITY_LABELS: Record<ExchangeVisibility, string> = {
+  internal: "Internal Only",
+  gated_robot_teams: "Gated Robot Teams",
+  private: "Private",
 };
 
 // Help with labels for UI

@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-test("docs page is publicly reachable", async ({ page }) => {
-  await page.goto("/docs", { waitUntil: "domcontentloaded" });
+test("sample deliverables page is publicly reachable", async ({ page }) => {
+  await page.goto("/sample-deliverables", { waitUntil: "domcontentloaded" });
 
   await expect(
     page.getByRole("heading", {
-      name: /What stays stable, what the package contains, and what can vary by site\./i,
+      name: /What a buyer actually gets\./i,
     }),
   ).toBeVisible();
 });
