@@ -7294,6 +7294,130 @@ async function buildMarketIntelOutputProof(
   return result;
 }
 
+interface PlatformDoctrineDoc {
+  title: string;
+  naturalKey: string;
+  type: string;
+  fileContent: string;
+}
+
+interface SyncPlatformDoctrineResult {
+  success: boolean;
+  outcome: string;
+  synced: Array<{ title: string; pageId: string; pageUrl: string }>;
+  skipped: Array<{ title: string; reason: string }>;
+  errors: string[];
+  issueComment: string;
+  data?: Record<string, unknown>;
+}
+
+async function syncPlatformDoctrineToKnowledge(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  _companyId: string,
+  _params: Record<string, unknown>,
+): Promise<SyncPlatformDoctrineResult> {
+  const repoPath = typeof _params.repoPath === "string" ? _params.repoPath : "/Users/nijelhunt_1/workspace/Blueprint-WebApp";
+
+  const docs: PlatformDoctrineDoc[] = [
+    {
+      title: "Platform Context — System Framing & Product Doctrine",
+      naturalKey: "platform-context-doctrine",
+      type: "Platform Doctrine",
+      fileContent: "",
+    },
+    {
+      title: "World Model Strategy — Core Strategy Document",
+      naturalKey: "world-model-strategy-doctrine",
+      type: "Platform Doctrine",
+      fileContent: "",
+    },
+  ];
+
+  // Read from disk
+  const fs = await import("fs");
+  for (const d of docs) {
+    const fp = d.naturalKey.includes("platform-context")
+      ? `${repoPath}/PLATFORM_CONTEXT.md`
+      : `${repoPath}/WORLD_MODEL_STRATEGY_CONTEXT.md`;
+    try {
+      d.fileContent = fs.readFileSync(fp, "utf-8");
+    } catch (err) {
+      d.fileContent = `[File not found: ${fp}]\n${err instanceof Error ? err.message : String(err)}`;
+    }
+  }
+
+  const result: SyncPlatformDoctrineResult = {
+    success: true,
+    outcome: "done",
+    synced: [],
+    skipped: [],
+    errors: [],
+    issueComment: "",
+  };
+
+  // Resolve Notion token and upsert into Knowledge DB
+  const notionToken = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.notionApiTokenRef,
+    "NOTION_API_TOKEN",
+  );
+  if (notionToken) {
+    const notionClient = createNotionClient({ token: notionToken });
+    for (const d of docs) {
+      try {
+        const upsertResult = await upsertKnowledgeEntry(notionClient, {
+          title: d.title,
+          naturalKey: d.naturalKey,
+          type: "Reference",
+          content: d.fileContent,
+          system: "Cross-System",
+          lifecycleStage: "Active",
+        });
+        result.synced.push({
+          title: d.title,
+          pageId: upsertResult.pageId,
+          pageUrl: upsertResult.pageUrl ?? "",
+        });
+      } catch (err) {
+        const msg = `Failed to upsert "${d.title}": ${err instanceof Error ? err.message : String(err)}`;
+        result.errors.push(msg);
+        result.skipped.push({ title: d.title, reason: msg });
+      }
+    }
+  } else {
+    result.errors.push("NOTION_API_TOKEN secret not resolved — cannot sync to Notion Knowledge DB.");
+  }
+
+  const syncedCount = result.synced.length;
+  const errorCount = result.errors.length;
+  result.data = {
+    syncedCount,
+    errorCount,
+    documentsRead: docs.map((d) => ({ title: d.title, contentLength: d.fileContent.length })),
+    syncedDetails: result.synced,
+  };
+
+  const summaryParts: string[] = [];
+  if (syncedCount > 0) {
+    summaryParts.push(`Successfully synced ${syncedCount} platform doctrine document(s) to Notion Knowledge DB:`);
+    summaryParts.push(result.synced.map((s) => `- **${s.title}**: ${s.pageUrl || s.pageId}`).join("\n"));
+  }
+  if (errorCount > 0) {
+    summaryParts.push(`Errors (${errorCount}):`);
+    summaryParts.push(result.errors.join("\n"));
+  }
+  if (summaryParts.length === 0) {
+    summaryParts.push("No documents synced — check NOTION_API_TOKEN secret configuration.");
+    summaryParts.push(`Read ${docs.length} document(s) from repo:`);
+    summaryParts.push(docs.map((d) => `- **${d.title}**: ${d.fileContent.length} chars`).join("\n"));
+  }
+  result.issueComment = summaryParts.join("\n\n");
+  result.outcome = errorCount === 0 ? "done" : "partial";
+  result.success = syncedCount > 0;
+  return result;
+}
+
 async function handleGithubWebhook(
   ctx: PluginContext,
   config: BlueprintAutomationConfig,
@@ -7623,6 +7747,12 @@ async function registerActionHandlers(ctx: PluginContext) {
     const config = await getConfig(ctx);
     const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
     return await buildMarketIntelOutputProof(ctx, config, company.id, params);
+  });
+
+  ctx.actions.register(ACTION_KEYS.syncPlatformDoctrine, async (params) => {
+    const config = await getConfig(ctx);
+    const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
+    return await syncPlatformDoctrineToKnowledge(ctx, config, company.id, params);
   });
 }
 
