@@ -4,6 +4,18 @@ import { createServer } from "http";
 import type { Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../../client/src/lib/firebaseAdmin", () => ({
+  authAdmin: null,
+  dbAdmin: null,
+  default: {
+    firestore: {
+      FieldValue: {
+        serverTimestamp: () => ({ mocked: true }),
+      },
+    },
+  },
+}));
+
 vi.mock("../utils/hosted-session-live-store", () => ({
   getHostedSessionLiveStoreStatus: () => ({
     backend: "redis",

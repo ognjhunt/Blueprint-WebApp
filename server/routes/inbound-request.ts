@@ -421,19 +421,19 @@ function generateConfirmationEmailHtml(firstName: string): string {
                     <tr>
                       <td style="padding:8px 0;">
                         <a href="https://tryblueprint.io/how-it-works" style="color:#4f46e5;text-decoration:none;font-size:14px;">How it works</a>
-                        <span style="color:#9ca3af;font-size:14px;"> - From site intake to qualification, routing, and downstream review</span>
+                        <span style="color:#9ca3af;font-size:14px;"> - From site intake to review, routing, and downstream evaluation</span>
                       </td>
                     </tr>
                     <tr>
                       <td style="padding:8px 0;">
-                        <a href="https://tryblueprint.io/readiness-pack" style="color:#4f46e5;text-decoration:none;font-size:14px;">Readiness Pack</a>
-                        <span style="color:#9ca3af;font-size:14px;"> - What comes back from qualification</span>
+                        <a href="https://tryblueprint.io/world-models" style="color:#4f46e5;text-decoration:none;font-size:14px;">World models</a>
+                        <span style="color:#9ca3af;font-size:14px;"> - Site-specific packages and hosted access</span>
                       </td>
                     </tr>
                     <tr>
                       <td style="padding:8px 0;">
-                        <a href="https://tryblueprint.io/for-robot-integrators" style="color:#4f46e5;text-decoration:none;font-size:14px;">For robot teams</a>
-                        <span style="color:#9ca3af;font-size:14px;"> - How teams review qualified opportunities</span>
+                        <a href="https://tryblueprint.io/for-robot-teams" style="color:#4f46e5;text-decoration:none;font-size:14px;">For robot teams</a>
+                        <span style="color:#9ca3af;font-size:14px;"> - How teams review site-specific world models</span>
                       </td>
                     </tr>
                   </table>
@@ -1033,8 +1033,8 @@ Want to get started faster? Book a call now: https://calendly.com/blueprintar/30
 
 In the meantime, explore our resources:
 - How it works: https://tryblueprint.io/how-it-works
-- Readiness Pack: https://tryblueprint.io/readiness-pack
-- For robot teams: https://tryblueprint.io/for-robot-integrators
+- World models: https://tryblueprint.io/world-models
+- For robot teams: https://tryblueprint.io/for-robot-teams
 
 Best,
 The Blueprint Team

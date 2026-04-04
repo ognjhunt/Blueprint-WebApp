@@ -146,8 +146,8 @@ export default function OnboardingChecklist() {
         completed: progress.reviewQualifiedOpportunities,
         icon: FileSearch,
         action: {
-          label: "Open opportunities",
-          href: "/qualified-opportunities",
+          label: "Open world models",
+          href: "/world-models",
           updateField: "onboardingProgress.reviewQualifiedOpportunities",
         },
         optional: true,

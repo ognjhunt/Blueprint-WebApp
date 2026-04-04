@@ -369,10 +369,13 @@ app.use((req, res, next) => {
   });
 
   const legacyPublicRedirects = [
-    ["/pilot-exchange", "/qualified-opportunities"],
-    ["/pilot-exchange-guide", "/qualified-opportunities-guide"],
+    ["/pilot-exchange", "/world-models"],
+    ["/pilot-exchange-guide", "/world-models"],
+    ["/qualified-opportunities", "/world-models"],
+    ["/qualified-opportunities-guide", "/world-models"],
+    ["/readiness-pack", "/how-it-works"],
+    ["/quality-standard", "/how-it-works"],
     ["/for-robot-integrators", "/for-robot-teams"],
-    ["/quality-standard", "/readiness-pack"],
   ] as const;
 
   legacyPublicRedirects.forEach(([from, to]) => {

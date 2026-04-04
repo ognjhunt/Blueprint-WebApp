@@ -27,9 +27,6 @@ import FAQ from "../client/src/pages/FAQ";
 import Governance from "../client/src/pages/Governance";
 import About from "../client/src/pages/About";
 import Careers from "../client/src/pages/Careers";
-import ReadinessPack from "../client/src/pages/ReadinessPack";
-import PilotExchange from "../client/src/pages/PilotExchange";
-import PilotExchangeGuide from "../client/src/pages/PilotExchangeGuide";
 import Privacy from "../client/src/pages/Privacy";
 import Terms from "../client/src/pages/Terms";
 import Login from "../client/src/pages/Login";
@@ -67,11 +64,6 @@ const staticRoutes: StaticRoute[] = [
   { path: "/blog", component: Blog },
   { path: "/careers", component: Careers },
   { path: "/sign-in", component: Login },
-  { path: "/readiness-pack", component: ReadinessPack },
-  { path: "/qualified-opportunities", component: PilotExchange },
-  { path: "/qualified-opportunities-guide", component: PilotExchangeGuide },
-  { path: "/pilot-exchange", component: PilotExchange },
-  { path: "/pilot-exchange-guide", component: PilotExchangeGuide },
   { path: "/partners", component: Contact },
   { path: "/privacy", component: Privacy },
   { path: "/terms", component: Terms },

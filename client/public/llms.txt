@@ -1,17 +1,21 @@
-Blueprint is a qualification-first platform for robot deployment readiness. It helps operators and robot teams submit a site, review evidence, qualify the workflow, and route qualified opportunities into the right downstream lane.
+Blueprint is capture-first and world-model-product-first. It helps operators and robot teams submit a site, review evidence, package real sites into site-specific world models, and use hosted access plus optional review outputs.
 
 High-priority public URLs:
 - /
 - /how-it-works
 - /world-models
-- /readiness-pack
-- /qualified-opportunities
-- /qualified-opportunities-guide
+- /for-robot-teams
+- /for-site-operators
 - /sample-deliverables
 - /case-studies
 - /pricing
 - /solutions
+- /faq
+- /docs
+- /governance
 - /contact
+- /about
+- /careers
 - /privacy
 - /terms
 

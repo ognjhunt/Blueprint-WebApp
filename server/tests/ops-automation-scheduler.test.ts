@@ -15,6 +15,18 @@ const runAutonomousResearchOutboundLoop = vi.hoisted(() => vi.fn());
 const runCreativeAssetFactoryLoop = vi.hoisted(() => vi.fn());
 const sendSlackMessage = vi.hoisted(() => vi.fn());
 
+vi.mock("../../client/src/lib/firebaseAdmin", () => ({
+  authAdmin: null,
+  dbAdmin: null,
+  default: {
+    firestore: {
+      FieldValue: {
+        serverTimestamp: () => ({ mocked: true }),
+      },
+    },
+  },
+}));
+
 vi.mock("../agents", () => ({
   runWaitlistAutomationLoop,
   runInboundQualificationLoop,

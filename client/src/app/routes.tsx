@@ -50,11 +50,11 @@ const NotFound = lazy(() => import("../pages/NotFound"));
 
 // Legacy redirects
 const LegacyPilotExchangeRedirect = () => (
-  <MarketingRedirect to="/qualified-opportunities" />
+  <MarketingRedirect to="/world-models" />
 );
 
 const LegacyPilotExchangeGuideRedirect = () => (
-  <MarketingRedirect to="/qualified-opportunities-guide" />
+  <MarketingRedirect to="/world-models" />
 );
 
 const LegacyPartnersRedirect = () => (

@@ -265,6 +265,12 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
     const authoritativeStateUpdate = parsedBody.authoritative_state_update === true;
     const qualificationState = String(parsedBody.qualification_state || "").trim();
     const opportunityState = String(parsedBody.opportunity_state || "").trim();
+    const readinessQualificationState = String(
+      parsedBody.deployment_readiness?.qualification_state || "",
+    ).trim();
+    const readinessOpportunityState = String(
+      parsedBody.deployment_readiness?.opportunity_state || "",
+    ).trim();
 
     if (!siteSubmissionId && !requestId) {
       return res.status(400).json({ error: "site_submission_id or request_id is required" });
@@ -305,11 +311,16 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       shouldCreate = true;
     }
 
-    if (authoritativeStateUpdate && !isQualificationState(qualificationState)) {
+    const nextQualificationStateSource =
+      qualificationState || readinessQualificationState;
+    const nextOpportunityStateSource =
+      opportunityState || readinessOpportunityState;
+
+    if (authoritativeStateUpdate && !isQualificationState(nextQualificationStateSource)) {
       return res.status(400).json({ error: "Valid qualification_state is required" });
     }
 
-    if (opportunityState && !isOpportunityState(opportunityState)) {
+    if (nextOpportunityStateSource && !isOpportunityState(nextOpportunityStateSource)) {
       return res.status(400).json({ error: "Invalid opportunity_state" });
     }
 
@@ -323,15 +334,45 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       currentData?.deployment_readiness as DeploymentReadinessSummary | undefined
     );
     const nextQualificationState = authoritativeStateUpdate
-      ? (qualificationState as QualificationState)
+      ? (nextQualificationStateSource as QualificationState)
       : String(
           currentData?.qualification_state || currentData?.status || "submitted"
         ).trim() as QualificationState;
     const nextOpportunityState = (
       authoritativeStateUpdate
-        ? opportunityState || currentData?.opportunity_state || inferDefaultOpportunityState(nextQualificationState)
-        : currentData?.opportunity_state || inferDefaultOpportunityState(nextQualificationState)
+        ? nextOpportunityStateSource ||
+          currentData?.opportunity_state ||
+          inferDefaultOpportunityState(nextQualificationState)
+        : currentData?.opportunity_state ||
+          inferDefaultOpportunityState(nextQualificationState)
     ) as OpportunityState;
+    const currentBuyerType =
+      shouldCreate
+        ? "robot_team"
+        : String(
+            (currentData?.request as Record<string, unknown> | undefined)?.buyerType || "",
+          ).trim();
+    const currentOps =
+      currentData?.ops && typeof currentData.ops === "object"
+        ? (currentData.ops as Record<string, unknown>)
+        : {};
+    const currentProofPath =
+      currentOps.proof_path && typeof currentOps.proof_path === "object"
+        ? (currentOps.proof_path as Record<string, unknown>)
+        : {};
+    const nextProofPath = { ...currentProofPath };
+    const shouldStampQualifiedInbound =
+      authoritativeStateUpdate &&
+      currentBuyerType === "robot_team" &&
+      (nextQualificationState === "qualified_ready" ||
+        nextQualificationState === "qualified_risky");
+    if (
+      shouldStampQualifiedInbound &&
+      !nextProofPath.qualified_inbound_at
+    ) {
+      nextProofPath.qualified_inbound_at =
+        admin.firestore.FieldValue.serverTimestamp() as never;
+    }
 
     const updatePayload: Record<string, unknown> = {
       pipeline,
@@ -394,19 +435,35 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       updatePayload.opportunity_state = nextOpportunityState;
     }
 
+    if (shouldStampQualifiedInbound) {
+      updatePayload.ops = {
+        ...currentOps,
+        proof_path: nextProofPath,
+      };
+    }
+
     if (shouldCreate) {
+      const placeholderRecord = buildPlaceholderInboundRequest({
+        requestId: docRef.id,
+        siteSubmissionId: siteSubmissionId || docRef.id,
+        buyerRequestId: String(parsedBody.buyer_request_id || "").trim() || undefined,
+        qualificationState: nextQualificationState,
+        opportunityState: nextOpportunityState,
+        sceneId: pipeline.scene_id,
+        captureId: pipeline.capture_id,
+      });
       await docRef.set(
         {
-          ...buildPlaceholderInboundRequest({
-            requestId: docRef.id,
-            siteSubmissionId: siteSubmissionId || docRef.id,
-            buyerRequestId: String(parsedBody.buyer_request_id || "").trim() || undefined,
-            qualificationState: nextQualificationState,
-            opportunityState: nextOpportunityState,
-            sceneId: pipeline.scene_id,
-            captureId: pipeline.capture_id,
-          }),
+          ...placeholderRecord,
           ...updatePayload,
+          ...(updatePayload.ops
+            ? {
+                ops: {
+                  ...(placeholderRecord.ops || {}),
+                  ...(updatePayload.ops as Record<string, unknown>),
+                },
+              }
+            : {}),
         },
         { merge: true }
       );

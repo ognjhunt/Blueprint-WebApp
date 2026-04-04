@@ -13,28 +13,16 @@ router.get("/", (_req: Request, res: Response) => {
         description: "Overview of Blueprint's capture-first workflow for site-specific world models and hosted access.",
       },
       {
-        path: "/readiness-pack",
-        title: "Readiness Pack",
+        path: "/how-it-works",
+        title: "How It Works",
         description:
-          "Sample deliverable showing what a Blueprint qualification record produces: feasibility, blockers, readiness, and next steps.",
+          "How Blueprint captures a real site, packages it into a site-specific world model, and layers in hosted access plus optional review outputs.",
       },
       {
         path: "/world-models",
         title: "World Models",
         description:
-          "Site-specific world models teams can review, open, and run once a site is known or qualified.",
-      },
-      {
-        path: "/qualified-opportunities",
-        title: "Qualified Opportunities",
-        description:
-          "Site briefs that robot teams can review after Blueprint qualifies the site and workflow.",
-      },
-      {
-        path: "/qualified-opportunities-guide",
-        title: "Qualified Opportunities Guide",
-        description:
-          "Beginner-friendly explainer of Blueprint's site qualification and qualified opportunities workflow.",
+          "Site-specific world models teams can browse, open, and run once a site package is ready.",
       },
       {
         path: "/sample-deliverables",
@@ -66,7 +54,7 @@ router.get("/", (_req: Request, res: Response) => {
       {
         path: "/contact",
         title: "Contact",
-        description: "Tell Blueprint about a site and workflow so the team can qualify it and plan the next step.",
+        description: "Tell Blueprint about a site and workflow so the team can review scope, rights, and next steps.",
       },
     ],
     safety: "This endpoint only returns public, non-sensitive summaries.",

@@ -91,3 +91,6 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Run build-output tests
+        run: npm run test:build-output

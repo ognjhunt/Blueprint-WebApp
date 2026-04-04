@@ -1,53 +1,62 @@
 # Blueprint: long-form overview
 
 ## Product overview
-Blueprint is a qualification-first platform for robot deployment readiness. It starts with a site submission, guided evidence, task scoping, and a qualification decision before any preview asset, evaluation package, world-model-based adaptation, managed tuning, or licensing work begins.
+Blueprint is capture-first and world-model-product-first. It starts with real-site capture, preserves rights and provenance, packages that evidence into site-specific world models, and exposes hosted access plus optional review outputs for robot teams.
 
 ## Positioning
-- **Qualification-first workflow:** submit a site, task, and constraints, then move through evidence review and qualification before downstream work starts.
-- **Structured readiness decisions:** the default Blueprint output is a qualification read and routing decision, not a marketplace purchase or scene artifact.
-- **Qualified handoff:** once a site clears the right gates, robot teams can review a cleaner opportunity brief and request downstream work.
+- **Capture-first workflow:** real capture is the entry point, not a simulated demo disconnected from the site.
+- **Site-specific world-model products:** the primary sellable output is a package tied to the actual site and its provenance.
+- **Hosted access:** robot teams can inspect and run the package through hosted-session surfaces when the site is ready.
+- **Optional trust layers:** qualification, readiness, and review outputs can support the workflow without becoming the company story.
+- **Truth hierarchy:** raw capture, timestamps, poses, device metadata, rights, privacy, and provenance remain authoritative.
 
 ## Key capabilities
 - Site intake, task scoping, and constraint capture.
-- Qualification review, capture QA, and readiness decisions.
-- Qualified opportunities for downstream robot-team review.
-- Optional world models, preview simulation, robot evaluation packages, managed tuning, or data licensing after qualification.
-
-Downstream note: passive site capture is useful context, but serious robot adaptation usually also needs action-conditioned robot interaction data such as play, teleop logs, or task rollouts.
+- Evidence review and packaging into site-specific world models.
+- Hosted access and review surfaces for robot teams.
+- Optional readiness and review outputs when they materially improve trust or handoff.
+- Rights, privacy, and provenance handling around all downstream artifacts.
 
 ## Structured summaries of important pages
-- **Home (`/`)**: Top-level product narrative for Blueprint as a qualification-first platform for robot deployment readiness.
-- **How It Works (`/how-it-works`)**: Explains intake, evidence review, readiness scoring, and the qualification-first path.
-- **World Models (`/world-models`)**: Explains the hosted layer for site-specific world models that robot teams can open, run, and export from after qualification or when a site is already known.
-- **Readiness Pack (`/readiness-pack`)**: Shows the qualification record and the kind of readiness outputs Blueprint produces before deeper work starts.
-- **Qualified Opportunities (`/qualified-opportunities`)**: Shows the downstream brief format robot teams can review after site qualification.
-- **Qualified Opportunities Guide (`/qualified-opportunities-guide`)**: Explains the qualification and handoff workflow in more detail.
-- **Sample Deliverables (`/sample-deliverables`)**: Shows the walkthrough, exports, and package framing a robot team can inspect before buying.
-- **Results (`/case-studies`)**: Concrete delivery examples and outcomes from site-package and hosted-evaluation work.
-- **Pricing (`/pricing`)**: Start with site qualification, then add deeper evaluation or managed work only when justified.
+- **Home (`/`)**: Top-level product narrative for Blueprint as a capture-first system for site-specific world-model products and hosted access.
+- **How It Works (`/how-it-works`)**: Explains how Blueprint captures a real site, packages it into a site-specific world model, and layers in hosted access plus optional review outputs.
+- **World Models (`/world-models`)**: Site-specific world models teams can browse, open, and run once a site package is ready.
+- **For Robot Teams (`/for-robot-teams`)**: Overview of what robot teams can evaluate, open, and run from Blueprint's site-specific packages.
+- **For Site Operators (`/for-site-operators`)**: Overview of capture, access, and rights handling for site operators.
+- **Sample Deliverables (`/sample-deliverables`)**: Public examples of the walkthroughs, exports, and package framing a robot team can inspect before buying.
+- **Results (`/case-studies`)**: Selected delivery examples and outcomes from site-package and hosted-evaluation work.
+- **Pricing (`/pricing`)**: Plan options for teams and enterprises that need a site-specific package or hosted access.
 - **Solutions (`/solutions`)**: Use-case oriented summaries for robotics, autonomy, and AI evaluation workflows.
-- **Contact (`/contact`)**: Site submission intake for qualification, evidence review, and later-stage follow-on lanes.
+- **Contact (`/contact`)**: Site submission intake for review scope, rights, and next steps.
+- **FAQ (`/faq`)**: Answers to common questions about Blueprint's product, workflow, and outputs.
+- **Docs (`/docs`)**: Product documentation, onboarding, and platform guides.
+- **Governance (`/governance`)**: Platform and operating rules that keep the product grounded in capture truth.
+- **About (`/about`)**: Company overview and product framing.
+- **Careers (`/careers`)**: Hiring and team context.
 - **Privacy (`/privacy`)**: Privacy policy covering data collection, usage, and vendor relationships.
 - **Terms (`/terms`)**: Terms of service for Blueprint services and later-stage project work.
 
 ## FAQs
-- **What is Blueprint?** A qualification-first platform that helps teams determine whether a real site and workflow are ready enough to justify deeper pursuit.
-- **What is the default output?** A qualification record and routing decision for the next lane.
-- **Who is Blueprint for?** Site operators and robot teams that need a structured readiness decision before a pilot.
-- **How do I get started?** Submit the site, task, and constraints through the intake flow and follow the qualification process.
+- **What is Blueprint?** A capture-first platform that turns real sites into site-specific world-model products and hosted access.
+- **What is the default output?** A site-specific package and supporting review outputs, with truth and provenance preserved.
+- **Who is Blueprint for?** Site operators and robot teams that need a structured path from real capture to usable world-model products.
+- **How do I get started?** Submit the site, task, and constraints through the intake flow and use the resulting review path.
 
 ## Canonical URLs
-- / (Home)
+- /
 - /how-it-works
 - /world-models
-- /readiness-pack
-- /qualified-opportunities
-- /qualified-opportunities-guide
+- /for-robot-teams
+- /for-site-operators
 - /sample-deliverables
 - /case-studies
 - /pricing
 - /solutions
 - /contact
+- /faq
+- /docs
+- /governance
+- /about
+- /careers
 - /privacy
 - /terms

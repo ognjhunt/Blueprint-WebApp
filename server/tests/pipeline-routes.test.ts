@@ -224,10 +224,23 @@ describe("pipeline integration routes", () => {
           status: "submitted",
           qualification_state: "submitted",
           opportunity_state: "not_applicable",
+          request: {
+            buyerType: "robot_team",
+          },
         }),
       },
     ];
     const { server, baseUrl } = await startServer(() => import("../routes/internal-pipeline"));
+    const payload = {
+      ...pipelineAttachmentFixture,
+      qualification_state: "",
+      opportunity_state: "",
+      deployment_readiness: {
+        ...(pipelineAttachmentFixture.deployment_readiness as Record<string, unknown>),
+        qualification_state: "qualified_ready",
+        opportunity_state: "handoff_ready",
+      },
+    };
 
     try {
       const response = await fetch(`${baseUrl}/attachments`, {
@@ -236,9 +249,7 @@ describe("pipeline integration routes", () => {
           "Content-Type": "application/json",
           "X-Blueprint-Pipeline-Token": "secret",
         },
-        body: JSON.stringify({
-          ...pipelineAttachmentFixture,
-        }),
+        body: JSON.stringify(payload),
       });
 
       expect(response.status).toBe(200);
@@ -247,6 +258,11 @@ describe("pipeline integration routes", () => {
           status: "qualified_ready",
           qualification_state: "qualified_ready",
           opportunity_state: "handoff_ready",
+          ops: expect.objectContaining({
+            proof_path: expect.objectContaining({
+              qualified_inbound_at: "SERVER_TIMESTAMP",
+            }),
+          }),
         })
       );
     } finally {
@@ -315,6 +331,11 @@ describe("pipeline integration routes", () => {
           request: expect.objectContaining({
             siteName: "Pipeline site req-1",
             siteLocation: "Scene scene-1",
+          }),
+          ops: expect.objectContaining({
+            proof_path: expect.objectContaining({
+              qualified_inbound_at: "SERVER_TIMESTAMP",
+            }),
           }),
           pipeline: expect.objectContaining({
             scene_id: "scene-1",
