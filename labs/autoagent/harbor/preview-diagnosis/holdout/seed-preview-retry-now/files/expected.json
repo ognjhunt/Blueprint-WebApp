@@ -1,0 +1,13 @@
+{
+  "automation_status": "completed",
+  "block_reason_code": null,
+  "retryable": true,
+  "queue": "preview_retry_queue",
+  "confidence": 0.71,
+  "requires_human_review": false,
+  "retry_recommended": true,
+  "disposition": "retry_now",
+  "next_action": "Retry the preview job",
+  "rationale": "Failure looks transient and bounded.",
+  "internal_summary": "Safe to retry once."
+}

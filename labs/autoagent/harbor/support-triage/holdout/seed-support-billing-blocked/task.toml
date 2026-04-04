@@ -1,0 +1,25 @@
+schema_version = "1.1"
+
+[task]
+name = "blueprint/support_triage/holdout/seed-support-billing-blocked"
+description = "Blueprint support_triage fixture task for seed-support-billing-blocked"
+keywords = ["blueprint", "agent", "support_triage", "holdout"]
+
+[metadata]
+lane = "support_triage"
+split = "holdout"
+case_id = "seed-support-billing-blocked"
+
+[agent]
+timeout_sec = 180.0
+
+[verifier]
+timeout_sec = 30.0
+
+[environment]
+build_timeout_sec = 300.0
+allow_internet = false
+cpus = 1
+memory_mb = 2048
+storage_mb = 2048
+

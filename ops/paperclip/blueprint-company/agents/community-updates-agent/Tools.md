@@ -12,14 +12,12 @@
 
 ## Drafting Workflow Tools
 - the Blueprint deterministic community-updates writer
-  Use it to create the Notion draft, optional Nitrosend/Slack artifacts, and the final issue-ready proof comment in one step.
+  Use it to create the Notion draft, optional Slack/internal-review artifacts, the content-asset record, and the final issue-ready proof comment in one step.
+- `blueprint-record-content-outcome-review`
+  Use it when a shipped update, newsletter draft, blog draft, or social cutdown has enough evidence to record what worked, what missed, and what should change next.
 - `notion-write-knowledge`
   Use only when the deterministic writer is unavailable and you are explicitly repairing artifacts.
 - `notion-write-work-queue`
-  Use only when the deterministic writer is unavailable and you are explicitly repairing artifacts.
-- `nitrosend-upsert-audience`
-  Use only when the deterministic writer is unavailable and you are explicitly repairing artifacts.
-- `nitrosend-create-campaign-draft`
   Use only when the deterministic writer is unavailable and you are explicitly repairing artifacts.
 - `slack-post-digest`
   Use only when the deterministic writer is unavailable and you are explicitly repairing artifacts.

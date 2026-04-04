@@ -1,0 +1,25 @@
+schema_version = "1.1"
+
+[task]
+name = "blueprint/preview_diagnosis/dev/seed-preview-provider-escalation"
+description = "Blueprint preview_diagnosis fixture task for seed-preview-provider-escalation"
+keywords = ["blueprint", "agent", "preview_diagnosis", "dev"]
+
+[metadata]
+lane = "preview_diagnosis"
+split = "dev"
+case_id = "seed-preview-provider-escalation"
+
+[agent]
+timeout_sec = 180.0
+
+[verifier]
+timeout_sec = 30.0
+
+[environment]
+build_timeout_sec = 300.0
+allow_internet = false
+cpus = 1
+memory_mb = 2048
+storage_mb = 2048
+

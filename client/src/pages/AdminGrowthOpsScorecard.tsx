@@ -55,7 +55,6 @@ type GrowthScorecardResponse = {
         ga4?: { configured?: boolean };
         posthog?: { configured?: boolean };
       };
-      nitrosend?: { configured?: boolean };
       runway?: { configured?: boolean };
       elevenlabs?: { configured?: boolean; agentConfigured?: boolean };
       telephony?: { configured?: boolean; forwardNumberConfigured?: boolean };
@@ -357,7 +356,6 @@ export default function AdminGrowthOpsScorecard() {
                     <p className="font-medium text-zinc-950">Email and outbound</p>
                     <p>SendGrid: {String(Boolean(scorecard.operatorStatus.providers.sendgrid?.configured))}</p>
                     <p>SendGrid webhook: {String(Boolean(scorecard.operatorStatus.providers.sendgridWebhook?.configured))}</p>
-                    <p>Nitrosend: {String(Boolean(scorecard.operatorStatus.providers.nitrosend?.configured))}</p>
                   </div>
                   <div className="rounded-xl border border-zinc-200 p-4 text-sm text-zinc-700">
                     <p className="font-medium text-zinc-950">Creative</p>

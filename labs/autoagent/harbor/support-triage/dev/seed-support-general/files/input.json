@@ -1,0 +1,12 @@
+{
+  "id": "seed-support-1",
+  "requestSource": "contact_request",
+  "requesterName": "Ada Lovelace",
+  "email": "ada@example.com",
+  "company": "Analytical Engines",
+  "city": "Durham",
+  "state": "NC",
+  "companyWebsite": "https://analytical.example",
+  "message": "Please help with onboarding.",
+  "summary": "Support request"
+}

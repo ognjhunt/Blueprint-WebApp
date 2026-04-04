@@ -1,0 +1,19 @@
+{
+  "automation_status": "blocked",
+  "block_reason_code": "insufficient_signal",
+  "retryable": true,
+  "recommendation": "request_follow_up",
+  "confidence": 0.42,
+  "market_fit_score": 15,
+  "device_fit_score": 20,
+  "invite_readiness_score": 18,
+  "recommended_queue": "capturer_beta_follow_up",
+  "next_action": "Request more information",
+  "rationale": "Not enough signal to route safely.",
+  "market_summary": "No market evidence.",
+  "requires_human_review": false,
+  "draft_email": {
+    "subject": "A few details needed",
+    "body": "Please reply with your city, device details, and intended capture workflow."
+  }
+}

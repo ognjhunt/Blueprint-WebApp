@@ -6,7 +6,6 @@
 export type ActionType =
   | "send_email"
   | "send_campaign_emails"
-  | "send_nitrosend_campaign"
   | "create_calendar_event"
   | "update_calendar_event"
   | "send_slack"

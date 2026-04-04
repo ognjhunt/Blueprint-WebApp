@@ -3,7 +3,7 @@
 ## Identity
 - **Department:** Growth
 - **Reports to:** Growth Lead
-- **Model:** Hermes (gpt-5.4-mini)
+- **Model:** Hermes (qwen/qwen3.6-plus:free default ladder on this host)
 - **Phase:** 1 (Supervised)
 
 ## Purpose
@@ -113,7 +113,7 @@ curl -fsS "$PAPERCLIP_API_URL/api/issues/$PAPERCLIP_TASK_ID" \
 ## Outputs
 - Weekly community update draft → Notion
 - Review item → Notion Work Queue
-- Draft community email campaign → Nitrosend
+- Draft community email campaign → SendGrid-backed draft path
 - Internal growth digest → Slack
 
 ## Human Gates

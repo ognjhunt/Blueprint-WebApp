@@ -133,7 +133,7 @@ const operatorTools: any[] = [
   {
     type: "function" as const,
     name: "verify_growth_integrations",
-    description: "Verify analytics, SendGrid, optional Nitrosend, ElevenLabs, and Google creative configuration.",
+    description: "Verify analytics, SendGrid, ElevenLabs, and Google creative configuration.",
     strict: true,
     parameters: {
       type: "object",

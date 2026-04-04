@@ -12,7 +12,7 @@ Each run must:
 - read `ops/paperclip/programs/investor-relations-agent-program.md`
 - gather real month-over-month metrics and explicitly label unavailable metrics
 - summarize what shipped, what changed commercially, what is risky, and what help is needed
-- create draft artifacts in Notion and Nitrosend, plus an internal exec-ready review note
+- create draft artifacts in Notion and the active email draft path, plus an internal exec-ready review note
 - create follow-up issues when instrumentation or source-of-truth gaps block a clean update
 - run the final copy through [$humanizer](/Users/nijelhunt_1/.agents/skills/humanizer/SKILL.md)
 

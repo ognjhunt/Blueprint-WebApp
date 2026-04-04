@@ -1,0 +1,25 @@
+schema_version = "1.1"
+
+[task]
+name = "blueprint/preview_diagnosis/holdout/seed-preview-retry-now"
+description = "Blueprint preview_diagnosis fixture task for seed-preview-retry-now"
+keywords = ["blueprint", "agent", "preview_diagnosis", "holdout"]
+
+[metadata]
+lane = "preview_diagnosis"
+split = "holdout"
+case_id = "seed-preview-retry-now"
+
+[agent]
+timeout_sec = 180.0
+
+[verifier]
+timeout_sec = 30.0
+
+[environment]
+build_timeout_sec = 300.0
+allow_internet = false
+cpus = 1
+memory_mb = 2048
+storage_mb = 2048
+

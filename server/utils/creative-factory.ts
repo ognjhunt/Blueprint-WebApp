@@ -7,6 +7,7 @@ import { generateGoogleCreativeImages } from "./google-creative";
 import { startRunwayImageToVideoTask, type RunwayTaskRecord } from "./runway";
 import { getActiveExperimentRollouts } from "./experiment-ops";
 import { renderProductReel } from "./remotion-render";
+import { summarizeRecentContentOutcomeReviews } from "./content-ops";
 
 function normalizeString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -147,6 +148,23 @@ async function latestBuyerObjections() {
     .map(([label]) => label);
 }
 
+async function latestContentReviewSignals() {
+  const summary = await summarizeRecentContentOutcomeReviews({
+    lookbackDays: 45,
+    limit: 40,
+  }).catch(() => null);
+
+  if (!summary || summary.reviewCount === 0) {
+    return [];
+  }
+
+  return [
+    ...summary.workingPatterns.slice(0, 2).map((entry) => `Recent content that worked: ${entry}`),
+    ...summary.failingPatterns.slice(0, 1).map((entry) => `Recent content that missed: ${entry}`),
+    ...summary.recommendedNextMoves.slice(0, 1).map((entry) => `Next move to test: ${entry}`),
+  ];
+}
+
 function buildAutonomousCreativeBrief(params: {
   rolloutVariant?: string | null;
   researchTopic?: string | null;
@@ -202,6 +220,7 @@ export async function runCreativeAssetFactoryLoop() {
   const rollouts = await getActiveExperimentRollouts();
   const researchRun = await latestResearchRun();
   const buyerObjections = await latestBuyerObjections();
+  const contentReviewSignals = await latestContentReviewSignals();
   const runwayVideoModel =
     normalizeString(process.env.BLUEPRINT_RUNWAY_VIDEO_MODEL) || "gen4_turbo";
   const rolloutVariant = rollouts.exact_site_hosted_review_hero_v1 || null;
@@ -216,11 +235,12 @@ export async function runCreativeAssetFactoryLoop() {
         )
         .filter(Boolean)
     : [];
+  const mergedSignalHighlights = [...contentReviewSignals, ...signalHighlights].slice(0, 4);
 
   const brief = buildAutonomousCreativeBrief({
     rolloutVariant,
     researchTopic,
-    signalHighlights,
+    signalHighlights: mergedSignalHighlights,
     buyerObjections,
   });
   const runId = `${today}__${slugify(`${brief.skuName}-${researchTopic || "default"}`)}`;
@@ -329,6 +349,7 @@ export async function runCreativeAssetFactoryLoop() {
       status: firstImage ? "assets_generated" : "prompt_pack_generated",
       kit,
       buyer_objections: buyerObjections,
+      content_review_signals: contentReviewSignals,
       image_batch: imageBatch,
       runway_task: runwayTask,
       remotion_reel: remotionReel,

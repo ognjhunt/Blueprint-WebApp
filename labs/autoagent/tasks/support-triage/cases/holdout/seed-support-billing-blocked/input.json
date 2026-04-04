@@ -1,0 +1,12 @@
+{
+  "id": "seed-support-2",
+  "requestSource": "contact_request",
+  "requesterName": "Casey Doe",
+  "email": "casey@example.com",
+  "company": "Example Co",
+  "city": "Austin",
+  "state": "TX",
+  "companyWebsite": "https://example.invalid",
+  "message": "I need a refund for a charge on my account.",
+  "summary": "Billing refund request"
+}

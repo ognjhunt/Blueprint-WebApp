@@ -1,0 +1,17 @@
+{
+  "automation_status": "blocked",
+  "block_reason_code": "billing_human_review",
+  "retryable": false,
+  "category": "billing_question",
+  "queue": "finance_review",
+  "priority": "high",
+  "confidence": 0.95,
+  "requires_human_review": true,
+  "next_action": "Route to finance review",
+  "rationale": "Billing and refund issues require human review.",
+  "internal_summary": "Refund request blocked for operator handling.",
+  "suggested_response": {
+    "subject": "Your billing request is under review",
+    "body": "We received your billing request and routed it to the team for manual review."
+  }
+}

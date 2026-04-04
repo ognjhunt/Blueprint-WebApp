@@ -13,10 +13,6 @@ vi.mock("../utils/elevenlabs", () => ({
   }),
 }));
 
-vi.mock("../utils/nitrosend", () => ({
-  getNitrosendStatus: () => ({ configured: true }),
-}));
-
 vi.mock("../utils/runway", () => ({
   getRunwayStatus: () => ({
     configured: true,
@@ -51,7 +47,6 @@ describe("provider-status", () => {
     expect(summary.googleImage.model).toContain("gemini");
     expect(summary.googleImage.apiKeySource).toBe("GOOGLE_GENAI_API_KEY");
     expect(summary.runway.configured).toBe(true);
-    expect(summary.nitrosend.configured).toBe(true);
     expect(summary.elevenlabs.configured).toBe(true);
     expect(summary.analytics.ga4.configured).toBe(true);
     expect(summary.analytics.posthog.configured).toBe(true);

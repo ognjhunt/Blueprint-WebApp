@@ -4,7 +4,6 @@ import { hasAnyRole, resolveAccessContext } from "../utils/access-control";
 import { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import {
   createGrowthCampaignDraft,
-  ingestNitrosendWebhook,
   ingestSendGridWebhook,
   listGrowthCampaigns,
   queueGrowthCampaignSend,
@@ -15,6 +14,12 @@ import { logger } from "../logger";
 import { runExperimentAutorollout } from "../utils/experiment-ops";
 import { runCreativeAssetFactoryLoop } from "../utils/creative-factory";
 import { runAutonomousResearchOutboundLoop } from "../utils/autonomous-growth";
+import {
+  createContentOutcomeReview,
+  listContentOutcomeReviews,
+  normalizeContentOutcomeReviewInput,
+  summarizeRecentContentOutcomeReviews,
+} from "../utils/content-ops";
 import { parseGsUri } from "../utils/pipeline-dashboard";
 
 const router = Router();
@@ -163,7 +168,6 @@ router.post("/campaigns", requireOps, async (req, res) => {
     return res.status(201).json({
       ok: true,
       id: result.id,
-      nitrosendCampaignId: result.nitrosendCampaignId,
     });
   } catch (error) {
     logger.error({ err: error }, "Failed to create growth campaign");
@@ -220,6 +224,64 @@ router.get("/campaigns/:campaignId/events", requireOps, async (req, res) => {
   }
 });
 
+router.get("/campaigns/ship-broadcast/pending-approval", requireOps, async (req, res) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: "Database not available" });
+    }
+
+    const limit = Math.min(
+      Math.max(parseInt(typeof req.query.limit === "string" ? req.query.limit : "12", 10) || 12, 1),
+      50,
+    );
+
+    const snapshot = await db
+      .collection("growthCampaigns")
+      .where("send_status", "==", "pending_approval")
+      .orderBy("created_at", "desc")
+      .limit(limit * 3)
+      .get();
+
+    const items = snapshot.docs
+      .map((doc) => {
+      const data = doc.data() as Record<string, unknown>;
+      const automationContext =
+        data.automation_context && typeof data.automation_context === "object"
+          ? (data.automation_context as Record<string, unknown>)
+          : {};
+      return {
+        id: doc.id,
+        name: normalizeString(data.name) || "Unnamed campaign",
+        subject: normalizeString(data.subject) || "",
+        recipientCount:
+          typeof data.recipient_count === "number" ? data.recipient_count : 0,
+        sendStatus: normalizeString(data.send_status) || "unknown",
+        createdAt:
+          typeof data.created_at_iso === "string"
+            ? data.created_at_iso
+            : null,
+        lastLedgerDocId: normalizeString(data.last_ledger_doc_id) || null,
+        approvalReason: normalizeString(data.approval_reason) || null,
+        assetKey: normalizeString(automationContext.asset_key) || null,
+        assetType: normalizeString(automationContext.asset_type) || null,
+        sourceIssueIds: Array.isArray(automationContext.source_issue_ids)
+          ? automationContext.source_issue_ids.filter((value): value is string => typeof value === "string")
+          : [],
+        proofLinks: Array.isArray(automationContext.proof_links)
+          ? automationContext.proof_links.filter((value): value is string => typeof value === "string")
+          : [],
+      };
+      })
+      .filter((item) => item.assetType === "ship_broadcast")
+      .slice(0, limit);
+
+    return res.json({ items });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to list ship-broadcast drafts waiting approval");
+    return res.status(500).json({ error: "Failed to list ship-broadcast drafts waiting approval" });
+  }
+});
+
 router.post("/lifecycle/run", requireOps, async (req, res) => {
   try {
     const daysSinceGrant = Math.max(
@@ -233,6 +295,59 @@ router.post("/lifecycle/run", requireOps, async (req, res) => {
     return res.status(500).json({
       error: error instanceof Error ? error.message : "Failed to run lifecycle automation",
     });
+  }
+});
+
+router.get("/content-reviews", requireOps, async (req, res) => {
+  try {
+    const limit = Math.min(
+      Math.max(parseInt(typeof req.query.limit === "string" ? req.query.limit : "25", 10) || 25, 1),
+      100,
+    );
+    const assetKey = typeof req.query.assetKey === "string" ? req.query.assetKey.trim() : null;
+    const items = await listContentOutcomeReviews({ limit, assetKey });
+    return res.json({ items });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to list content outcome reviews");
+    return res.status(500).json({ error: "Failed to list content outcome reviews" });
+  }
+});
+
+router.get("/content-reviews/summary", requireOps, async (req, res) => {
+  try {
+    const lookbackDays = Math.min(
+      Math.max(parseInt(typeof req.query.lookbackDays === "string" ? req.query.lookbackDays : "30", 10) || 30, 1),
+      180,
+    );
+    const limit = Math.min(
+      Math.max(parseInt(typeof req.query.limit === "string" ? req.query.limit : "50", 10) || 50, 1),
+      100,
+    );
+    return res.json(await summarizeRecentContentOutcomeReviews({ lookbackDays, limit }));
+  } catch (error) {
+    logger.error({ err: error }, "Failed to summarize content outcome reviews");
+    return res.status(500).json({ error: "Failed to summarize content outcome reviews" });
+  }
+});
+
+router.post("/content-reviews", requireOps, async (req, res) => {
+  try {
+    const recordedAtIso = new Date().toISOString();
+    const review = normalizeContentOutcomeReviewInput(
+      req.body && typeof req.body === "object" ? req.body as Record<string, unknown> : {},
+      recordedAtIso,
+      await operatorEmail(res),
+    );
+    if (!review.assetKey || !review.summary || !review.evidenceSource) {
+      return res.status(400).json({ error: "assetKey, summary, and evidenceSource are required" });
+    }
+    return res.status(201).json({
+      ok: true,
+      review: await createContentOutcomeReview({ review }),
+    });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to create content outcome review");
+    return res.status(500).json({ error: "Failed to create content outcome review" });
   }
 });
 
@@ -282,25 +397,6 @@ router.get("/integrations/verify", requireOps, async (_req, res) => {
     return res.status(500).json({ error: "Failed to verify integrations" });
   }
 });
-
-export async function nitrosendWebhookHandler(req: Request, res: Response) {
-  const configuredSecret = getConfiguredEnvValue("NITROSEND_WEBHOOK_SECRET");
-  const providedSecret =
-    normalizeString(req.header("x-blueprint-growth-secret"))
-    || normalizeString(req.query.secret);
-
-  if (configuredSecret && configuredSecret !== providedSecret) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-
-  try {
-    await ingestNitrosendWebhook(req.body ?? {});
-    return res.status(202).json({ ok: true });
-  } catch (error) {
-    logger.error({ err: error }, "Failed to ingest Nitrosend webhook");
-    return res.status(500).json({ error: "Failed to ingest Nitrosend webhook" });
-  }
-}
 
 export async function sendgridWebhookHandler(req: Request, res: Response) {
   const configuredSecret = getConfiguredEnvValue("SENDGRID_EVENT_WEBHOOK_SECRET");

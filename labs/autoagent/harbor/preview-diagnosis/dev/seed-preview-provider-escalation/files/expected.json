@@ -1,0 +1,13 @@
+{
+  "automation_status": "blocked",
+  "block_reason_code": "provider_artifact_failure",
+  "retryable": false,
+  "queue": "preview_release_review",
+  "confidence": 0.84,
+  "requires_human_review": true,
+  "retry_recommended": false,
+  "disposition": "provider_escalation",
+  "next_action": "Escalate to provider review",
+  "rationale": "Provider-side artifact issue.",
+  "internal_summary": "Provider escalation needed."
+}

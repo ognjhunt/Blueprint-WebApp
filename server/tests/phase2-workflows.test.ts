@@ -180,6 +180,96 @@ describe("Phase 2 workflow execution", () => {
     );
   }, 15_000);
 
+  it("runs a support AutoAgent shadow pass when enabled", async () => {
+    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_ENABLED", "1");
+    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_LANES", "support_triage");
+    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER", "acp_harness");
+
+    runAgentTask
+      .mockResolvedValueOnce({
+        status: "completed",
+        provider: "openclaw",
+        runtime: "openclaw",
+        model: "openai/gpt-5.4",
+        tool_mode: "api",
+        output: {
+          automation_status: "completed",
+          block_reason_code: null,
+          retryable: false,
+          category: "general_support",
+          queue: "support_general",
+          priority: "normal",
+          confidence: 0.92,
+          requires_human_review: false,
+          next_action: "Send reply",
+          rationale: "Routine support request.",
+          internal_summary: "Safe support reply.",
+          suggested_response: {
+            subject: "Thanks for reaching out",
+            body: "We received your message and will follow up shortly with the next step.",
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        status: "completed",
+        provider: "acp_harness",
+        runtime: "acp_harness",
+        model: "codex",
+        tool_mode: "external_harness",
+        requires_human_review: false,
+        requires_approval: false,
+        output: {
+          automation_status: "completed",
+          block_reason_code: null,
+          retryable: false,
+          category: "general_support",
+          queue: "support_general",
+          priority: "normal",
+          confidence: 0.88,
+          requires_human_review: false,
+          next_action: "Send reply",
+          rationale: "Shadow support request.",
+          internal_summary: "Shadow support reply.",
+          suggested_response: {
+            subject: "Thanks for reaching out",
+            body: "We received your message and will follow up shortly with the next step.",
+          },
+        },
+      });
+    executePhase2WorkflowActions.mockResolvedValue({
+      records: [],
+      lastResult: null,
+      lastState: "sent",
+    });
+
+    const { runSupportTriageLoop } = await import("../agents/workflows");
+    await runSupportTriageLoop({ limit: 1 });
+
+    expect(runAgentTask).toHaveBeenCalledTimes(2);
+    expect(runAgentTask).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        kind: "support_triage",
+        provider: "acp_harness",
+        session_key: "support:contact-1:shadow:autoagent",
+      }),
+    );
+    expect(docSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ops_automation: expect.objectContaining({
+          shadow_runs: expect.objectContaining({
+            autoagent: expect.objectContaining({
+              kind: "support_triage",
+              provider: "acp_harness",
+              status: "completed",
+            }),
+          }),
+        }),
+      }),
+      expect.objectContaining({ merge: true }),
+    );
+  }, 15_000);
+
   it("routes payout triage through Phase 2 internal queue updates only", async () => {
     runAgentTask.mockResolvedValue({
       status: "completed",

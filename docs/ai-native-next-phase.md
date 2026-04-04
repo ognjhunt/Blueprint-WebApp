@@ -86,7 +86,7 @@ Implemented surfaces:
 - `/api/admin/growth/campaigns/:id/queue-send` for approval-gated SendGrid-backed campaign sends
 - `/api/admin/growth/lifecycle/run` for approval-gated buyer lifecycle check-ins
 - `/api/growth/webhooks/sendgrid` for SendGrid event ingestion when webhook delivery is configured
-- `/api/growth/webhooks/nitrosend` remains optional for Nitrosend-specific testing only
+- `/api/growth/webhooks/sendgrid` remains the active delivery-event path
 - `/admin/growth-ops-scorecard` for wedge, campaign, experiment, and queue summaries
 
 ## Required Config

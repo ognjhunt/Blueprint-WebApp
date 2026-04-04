@@ -1,0 +1,17 @@
+{
+  "automation_status": "completed",
+  "block_reason_code": null,
+  "retryable": false,
+  "category": "general_support",
+  "queue": "support_general",
+  "priority": "normal",
+  "confidence": 0.92,
+  "requires_human_review": false,
+  "next_action": "Send reply",
+  "rationale": "Routine support request.",
+  "internal_summary": "Safe support reply.",
+  "suggested_response": {
+    "subject": "Thanks for reaching out",
+    "body": "We received your message and will follow up shortly with the next step."
+  }
+}

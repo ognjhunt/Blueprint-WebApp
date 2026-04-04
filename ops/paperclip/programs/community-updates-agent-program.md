@@ -44,8 +44,7 @@ Produce Blueprint's weekly community update as a concise, human-sounding draft f
 ## Draft Artifact Workflow
 1. Create the long-form draft with `notion-write-knowledge`.
 2. Create the review artifact with `notion-write-work-queue`.
-3. If Nitrosend is configured, ensure a draft-only `Blueprint Community` audience exists with `nitrosend-upsert-audience`.
-4. If Nitrosend is configured, create the weekly email draft with `nitrosend-create-campaign-draft`.
+3. If SendGrid or SMTP is configured, prepare the weekly email draft through the active growth-campaign draft path.
 5. If Slack is configured, post an internal `#growth` draft-ready digest with `slack-post-digest`.
 
 ## Human Gates

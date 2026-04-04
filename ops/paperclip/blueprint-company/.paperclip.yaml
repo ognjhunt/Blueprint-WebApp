@@ -1297,6 +1297,18 @@ tasks:
     status: active
     priority: high
     projectWorkspaceKey: blueprint-webapp
+  ship-broadcast-refresh:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
+  ship-broadcast-approval-refresh:
+    status: active
+    priority: medium
+    projectWorkspaceKey: blueprint-webapp
+  content-feedback-refresh:
+    status: active
+    priority: medium
+    projectWorkspaceKey: blueprint-webapp
   supply-intel-daily:
     status: paused
     priority: medium
@@ -1625,6 +1637,33 @@ routines:
     triggers:
       - kind: schedule
         cronExpression: 0 9 * * 5
+        timezone: America/New_York
+  ship-broadcast-refresh:
+    agent: community-updates-agent
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: enqueue_missed_with_cap
+    triggers:
+      - kind: schedule
+        cronExpression: 0 11,15 * * 1-5
+        timezone: America/New_York
+  ship-broadcast-approval-refresh:
+    agent: growth-lead
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: enqueue_missed_with_cap
+    triggers:
+      - kind: schedule
+        cronExpression: 15 12,16 * * 1-5
+        timezone: America/New_York
+  content-feedback-refresh:
+    agent: growth-lead
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: enqueue_missed_with_cap
+    triggers:
+      - kind: schedule
+        cronExpression: 30 11 * * 1-5
         timezone: America/New_York
   conversion-weekly:
     agent: conversion-agent

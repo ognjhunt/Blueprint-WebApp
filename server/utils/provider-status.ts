@@ -1,7 +1,6 @@
 import { getConfiguredEnvValue, isEnvFlagEnabled } from "../config/env";
 import { getEmailTransportStatus } from "./email";
 import { getElevenLabsConfig } from "./elevenlabs";
-import { getNitrosendStatus } from "./nitrosend";
 import { getRunwayStatus } from "./runway";
 
 export type ProviderExecutionState =
@@ -138,7 +137,6 @@ export function buildGrowthIntegrationSummary(params?: {
               : "External analytics may be configured, but first-party event mirroring is disabled.",
       },
     },
-    nitrosend: getNitrosendStatus(),
     runway: getRunwayStatus(),
     elevenlabs: {
       configured: elevenlabs.configured,

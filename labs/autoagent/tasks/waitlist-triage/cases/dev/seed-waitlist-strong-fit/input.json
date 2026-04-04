@@ -1,0 +1,25 @@
+{
+  "submission": {
+    "id": "seed-waitlist-1",
+    "email": "ada@example.com",
+    "email_domain": "example.com",
+    "location_type": "retail",
+    "market": "Durham",
+    "role": "capturer",
+    "device": "iPhone 15 Pro",
+    "phone_present": true,
+    "source": "capture_app_private_beta",
+    "status": "new",
+    "queue": "capturer_beta_review",
+    "filter_tags": [
+      "market:durham"
+    ]
+  },
+  "market_context": {
+    "sameMarketCount": 3,
+    "sameMarketDeviceCount": 2,
+    "sameMarketPendingCount": 1,
+    "sameRoleCount": 5,
+    "recentExamples": []
+  }
+}

@@ -46,6 +46,7 @@
       "growthLead": "growth-lead",
       "conversionOptimizer": "conversion-agent",
       "analytics": "analytics-agent",
+      "communityUpdates": "community-updates-agent",
       "marketIntel": "market-intel-agent",
       "demandIntel": "demand-intel-agent",
       "robotTeamGrowth": "robot-team-growth-agent",
@@ -65,12 +66,10 @@
     "slackManagerWebhookUrlRef": "SLACK_MANAGER_WEBHOOK_URL",
     "searchApiKeyRef": "SEARCH_API_KEY",
     "searchApiProviderRef": "SEARCH_API_PROVIDER",
-    "nitrosendApiTokenRef": "NITROSEND_API_TOKEN",
     "firehoseApiTokenRef": "FIREHOSE_API_TOKEN",
     "introwApiTokenRef": "INTROW_API_TOKEN"
   },
   "marketingCapabilities": {
-    "nitrosendBaseUrl": "https://marketing.example.com/nitrosend",
     "firehoseBaseUrl": "https://marketing.example.com/firehose",
     "introwBaseUrl": "https://marketing.example.com/introw",
     "firehoseDefaultTopics": [

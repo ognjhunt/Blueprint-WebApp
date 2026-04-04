@@ -1,0 +1,25 @@
+schema_version = "1.1"
+
+[task]
+name = "blueprint/waitlist_triage/dev/seed-waitlist-strong-fit"
+description = "Blueprint waitlist_triage fixture task for seed-waitlist-strong-fit"
+keywords = ["blueprint", "agent", "waitlist_triage", "dev"]
+
+[metadata]
+lane = "waitlist_triage"
+split = "dev"
+case_id = "seed-waitlist-strong-fit"
+
+[agent]
+timeout_sec = 180.0
+
+[verifier]
+timeout_sec = 30.0
+
+[environment]
+build_timeout_sec = 300.0
+allow_internet = false
+cpus = 1
+memory_mb = 2048
+storage_mb = 2048
+

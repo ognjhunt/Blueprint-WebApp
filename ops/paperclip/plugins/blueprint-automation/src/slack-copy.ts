@@ -225,7 +225,9 @@ function buildManagedIssueTitle(input: ManagedIssueSlackCopyInput) {
         ? "Stuck handoff cleared"
         : "Stuck handoff needs follow-through";
     case "notion-work-queue":
-      return `New Notion work item in ${projectName}`;
+      return event === "resolved"
+        ? `Notion work item closed in ${projectName}`
+        : `New Notion work item in ${projectName}`;
     default:
       if (event === "resolved") return `Resolved in ${projectName}`;
       if (event === "opened") return `Needs attention in ${projectName}`;
@@ -262,7 +264,9 @@ function buildManagedIssueWhatHappened(input: ManagedIssueSlackCopyInput) {
         ? "The stuck handoff was cleared"
         : "A handoff got stuck and was escalated for follow-through";
     case "notion-work-queue":
-      return "A Notion work queue item was synced into Paperclip for active follow-up";
+      return event === "resolved"
+        ? "A Notion work queue item was closed after the synced follow-up no longer needed action"
+        : "A Notion work queue item was synced into Paperclip for active follow-up";
     default:
       return event === "resolved"
         ? `${cleanIssueTitle(input.issueTitle)} is resolved`

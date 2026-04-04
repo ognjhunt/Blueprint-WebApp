@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sparkles, Wand2 } from "lucide-react";
 import { withCsrfHeader } from "@/lib/csrf";
 import { analyticsEvents } from "@/components/Analytics";
@@ -117,7 +117,6 @@ type VerifyResponse = {
       note?: string;
     };
   };
-  nitrosend?: { configured?: boolean };
   telephony?: { configured?: boolean; forwardNumberConfigured?: boolean };
   researchOutbound?: {
     configured?: boolean;
@@ -154,7 +153,6 @@ type CampaignRecord = {
   subject?: string;
   channel?: string;
   send_status?: string;
-  nitrosend_campaign_id?: string | null;
   recipient_count?: number;
   last_ledger_doc_id?: string | null;
   last_execution_error?: string | null;
@@ -170,11 +168,25 @@ type CampaignRecord = {
 
 type CampaignListResponse = {
   localCampaigns: CampaignRecord[];
-  nitrosendCampaigns: Array<{
-    id: string;
-    name?: string;
-    status?: string;
-  }>;
+};
+
+type ShipBroadcastApprovalRecord = {
+  id: string;
+  name: string;
+  subject: string;
+  recipientCount: number;
+  sendStatus: string;
+  createdAt: string | null;
+  lastLedgerDocId: string | null;
+  approvalReason: string | null;
+  assetKey: string | null;
+  assetType: string | null;
+  sourceIssueIds: string[];
+  proofLinks: string[];
+};
+
+type ShipBroadcastApprovalQueueResponse = {
+  items: ShipBroadcastApprovalRecord[];
 };
 
 type CreativeRunRecord = {
@@ -213,6 +225,7 @@ function formatEventTime(value: string | null | undefined) {
 }
 
 export default function AdminGrowthStudio() {
+  const queryClient = useQueryClient();
   const [form, setForm] = useState({
     skuName: "Exact-Site Hosted Review",
     audience: "robotics deployment leads",
@@ -249,6 +262,7 @@ export default function AdminGrowthStudio() {
   const [runningExperimentRollout, setRunningExperimentRollout] = useState(false);
   const [runningAutonomousOutbound, setRunningAutonomousOutbound] = useState(false);
   const [runningCreativeFactory, setRunningCreativeFactory] = useState(false);
+  const [shipBroadcastRejectReasons, setShipBroadcastRejectReasons] = useState<Record<string, string>>({});
 
   const campaignsQuery = useQuery<CampaignListResponse>({
     queryKey: ["admin-growth-campaigns"],
@@ -274,9 +288,76 @@ export default function AdminGrowthStudio() {
       return response.json();
     },
   });
+  const shipBroadcastApprovalQueueQuery = useQuery<ShipBroadcastApprovalQueueResponse>({
+    queryKey: ["admin-growth-ship-broadcast-approval-queue"],
+    queryFn: async () => {
+      const response = await fetch("/api/admin/growth/campaigns/ship-broadcast/pending-approval?limit=8", {
+        headers: await withCsrfHeader({}),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch ship-broadcast approval queue");
+      }
+      return response.json();
+    },
+  });
+
+  const approveShipBroadcastMutation = useMutation({
+    mutationFn: async (ledgerId: string) => {
+      const response = await fetch(`/api/admin/leads/action-queue/${ledgerId}/approve`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to approve ship-broadcast draft");
+      }
+      return response.json();
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin-growth-campaigns"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-growth-ship-broadcast-approval-queue"] }),
+      ]);
+      setNotice("Ship-broadcast draft approved and sent.");
+      setError("");
+    },
+    onError: (mutationError) => {
+      setError(mutationError instanceof Error ? mutationError.message : "Failed to approve ship-broadcast draft");
+      setNotice("");
+    },
+  });
+  const rejectShipBroadcastMutation = useMutation({
+    mutationFn: async ({ ledgerId, reason }: { ledgerId: string; reason: string }) => {
+      const response = await fetch(`/api/admin/leads/action-queue/${ledgerId}/reject`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ reason }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to reject ship-broadcast draft");
+      }
+      return response.json();
+    },
+    onSuccess: async (_data, variables) => {
+      setShipBroadcastRejectReasons((current) => ({
+        ...current,
+        [variables.ledgerId]: "",
+      }));
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin-growth-campaigns"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-growth-ship-broadcast-approval-queue"] }),
+      ]);
+      setNotice("Ship-broadcast draft rejected.");
+      setError("");
+    },
+    onError: (mutationError) => {
+      setError(mutationError instanceof Error ? mutationError.message : "Failed to reject ship-broadcast draft");
+      setNotice("");
+    },
+  });
 
   async function refreshCampaigns() {
     await campaignsQuery.refetch();
+    await shipBroadcastApprovalQueueQuery.refetch();
   }
 
   async function refreshCreativeRuns() {
@@ -858,7 +939,6 @@ export default function AdminGrowthStudio() {
                 <p>PostHog configured: {String(Boolean(verifyResult.analytics?.posthog?.configured))}</p>
                 <p>SendGrid configured: {String(Boolean(verifyResult.sendgrid?.configured))}</p>
                 <p>SendGrid webhook configured: {String(Boolean(verifyResult.sendgridWebhook?.configured))}</p>
-                <p>Nitrosend configured: {String(Boolean(verifyResult.nitrosend?.configured))}</p>
                 <p>Runway configured: {String(Boolean(verifyResult.runway?.configured))}</p>
                 <p>ElevenLabs configured: {String(Boolean(verifyResult.elevenlabs?.configured))}</p>
                 <p>Telephony configured: {String(Boolean(verifyResult.telephony?.configured))}</p>
@@ -872,6 +952,107 @@ export default function AdminGrowthStudio() {
                 ) : null}
               </div>
             ) : null}
+
+            <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                    Ship-broadcast approval queue
+                  </p>
+                  <p className="mt-1 text-sm text-zinc-600">
+                    Fresh SendGrid ship-broadcast drafts already queued for human approval.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => shipBroadcastApprovalQueueQuery.refetch()}
+                  className="rounded-full border border-zinc-200 px-3 py-1 text-xs text-zinc-700"
+                >
+                  Refresh
+                </button>
+              </div>
+
+              {shipBroadcastApprovalQueueQuery.isLoading ? (
+                <p className="mt-4 text-sm text-zinc-500">Loading approval queue…</p>
+              ) : shipBroadcastApprovalQueueQuery.isError ? (
+                <p className="mt-4 text-sm text-rose-700">Failed to load ship-broadcast approval queue.</p>
+              ) : shipBroadcastApprovalQueueQuery.data?.items?.length ? (
+                <div className="mt-4 space-y-3">
+                  {shipBroadcastApprovalQueueQuery.data.items.map((item) => (
+                    <div key={item.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-zinc-950">{item.name}</p>
+                          <p className="mt-1 text-xs text-zinc-500">{item.subject}</p>
+                        </div>
+                        <div className="text-right text-xs text-zinc-500">
+                          <p>Status: {item.sendStatus}</p>
+                          <p>Recipients: {item.recipientCount}</p>
+                        </div>
+                      </div>
+                      <div className="mt-3 grid gap-2 text-xs text-zinc-500 sm:grid-cols-2">
+                        <p>Created: {formatEventTime(item.createdAt)}</p>
+                        <p>Ledger: {item.lastLedgerDocId || "none"}</p>
+                        <p>Asset key: {item.assetKey || "none"}</p>
+                        <p>Source issues: {item.sourceIssueIds.length ? item.sourceIssueIds.join(", ") : "none"}</p>
+                      </div>
+                      {item.lastLedgerDocId ? (
+                        <div className="mt-3">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <button
+                              type="button"
+                              onClick={() => approveShipBroadcastMutation.mutate(item.lastLedgerDocId!)}
+                              disabled={approveShipBroadcastMutation.isPending || rejectShipBroadcastMutation.isPending}
+                              className="rounded-full border border-zinc-900 bg-zinc-900 px-3 py-1 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {approveShipBroadcastMutation.isPending ? "Approving…" : "Approve and Send"}
+                            </button>
+                            <input
+                              type="text"
+                              value={shipBroadcastRejectReasons[item.lastLedgerDocId] || ""}
+                              onChange={(event) =>
+                                setShipBroadcastRejectReasons((current) => ({
+                                  ...current,
+                                  [item.lastLedgerDocId!]: event.target.value,
+                                }))}
+                              placeholder="Required reject reason"
+                              className="min-w-[220px] rounded-full border border-zinc-200 px-3 py-1 text-xs text-zinc-700"
+                              aria-label={`Reject reason for ${item.id}`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                rejectShipBroadcastMutation.mutate({
+                                  ledgerId: item.lastLedgerDocId!,
+                                  reason: (shipBroadcastRejectReasons[item.lastLedgerDocId!] || "").trim(),
+                                })}
+                              disabled={
+                                approveShipBroadcastMutation.isPending
+                                || rejectShipBroadcastMutation.isPending
+                                || !(shipBroadcastRejectReasons[item.lastLedgerDocId!] || "").trim()
+                              }
+                              className="rounded-full border border-rose-300 bg-white px-3 py-1 text-xs font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {rejectShipBroadcastMutation.isPending ? "Rejecting…" : "Reject"}
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+                      {item.proofLinks.length ? (
+                        <div className="mt-3 text-xs text-zinc-600">
+                          <p className="font-medium text-zinc-800">Proof links</p>
+                          {item.proofLinks.slice(0, 2).map((link) => (
+                            <p key={link} className="truncate">{link}</p>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-zinc-500">No ship-broadcast drafts are currently waiting approval.</p>
+              )}
+            </div>
 
             {runwayTask ? (
               <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-700">
@@ -1166,7 +1347,6 @@ export default function AdminGrowthStudio() {
                           <p>Last recipient: {campaign.response_tracking.last_recipient}</p>
                         ) : null}
                         <p>Recipients: {campaign.recipient_count || 0}</p>
-                        {campaign.nitrosend_campaign_id ? <p>Optional Nitrosend mirror: {campaign.nitrosend_campaign_id}</p> : null}
                       </div>
 
                       {campaign.approval_reason ? (

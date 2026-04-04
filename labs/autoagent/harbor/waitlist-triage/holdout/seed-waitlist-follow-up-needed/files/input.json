@@ -1,0 +1,23 @@
+{
+  "submission": {
+    "id": "seed-waitlist-2",
+    "email": "unclear@example.com",
+    "email_domain": "example.com",
+    "location_type": "unknown",
+    "market": "",
+    "role": "capturer",
+    "device": "Android",
+    "phone_present": false,
+    "source": "capture_app_private_beta",
+    "status": "new",
+    "queue": "capturer_beta_review",
+    "filter_tags": []
+  },
+  "market_context": {
+    "sameMarketCount": 0,
+    "sameMarketDeviceCount": 0,
+    "sameMarketPendingCount": 0,
+    "sameRoleCount": 1,
+    "recentExamples": []
+  }
+}

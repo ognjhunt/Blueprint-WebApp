@@ -187,7 +187,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 **Outputs:**
 - Investor update draft → Notion Knowledge DB
 - Review artifact → Notion Work Queue
-- Draft investor campaign → Nitrosend (when configured)
+- Draft investor campaign → SendGrid-backed draft path (when configured)
 - Internal review note → Slack `#exec` (when configured)
 
 **Human gates:** Any live send/publish, fundraising language, projections, runway claims, or board-sensitive disclosures.
@@ -1235,7 +1235,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 **Outputs:**
 - Weekly update draft → Notion Knowledge DB
 - Review artifact → Notion Work Queue
-- Draft community campaign → Nitrosend (when configured)
+- Draft community campaign → SendGrid-backed draft path (when configured)
 - Internal review note → Slack `#growth` (when configured)
 
 **Human gates:** Any live send/publish, unsupported traction claims, or sensitive rights/commercial disclosures.

@@ -12,6 +12,8 @@
 - `ops/paperclip/programs/site-operator-partnership-agent-program.md`
 - `ops/paperclip/programs/city-demand-agent-program.md`
 - Paperclip issue queue and Notion Work Queue items tagged for Growth
+- `blueprint-queue-operator-ready-ship-broadcasts`
+  Use it to queue only fresh, proof-complete SendGrid ship-broadcast drafts into the human approval path.
 
 ## Trust Model
 - instrumented funnel and queue evidence beat opinions

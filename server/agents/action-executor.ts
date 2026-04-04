@@ -9,7 +9,6 @@
 
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { sendEmail } from "../utils/email";
-import { sendNitrosendCampaign } from "../utils/nitrosend";
 import {
   createGoogleCalendarEvent,
   updateGoogleCalendarEvent,
@@ -764,29 +763,6 @@ async function performAction(
       }
       break;
     }
-    case "send_nitrosend_campaign":
-      if (typeof payload.campaignId !== "string" || !payload.campaignId.trim()) {
-        throw new Error("Nitrosend send requires a campaignId");
-      }
-      await sendNitrosendCampaign(
-        payload.campaignId,
-        typeof payload.approvedBy === "string" ? payload.approvedBy : undefined,
-        typeof payload.approvalNote === "string" ? payload.approvalNote : undefined,
-      );
-      if (payload.collection && payload.docId) {
-        await getDb()
-          .collection(String(payload.collection))
-          .doc(String(payload.docId))
-          .set(
-            {
-              send_status: "sent",
-              sent_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            },
-            { merge: true },
-          );
-      }
-      break;
     case "send_slack":
       await sendSlackMessage(payload.message ?? payload.body ?? "");
       break;

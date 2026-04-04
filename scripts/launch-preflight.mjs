@@ -121,28 +121,18 @@ if (researchOutboundEnabled) {
 
   const outboundChannel = (envValue("BLUEPRINT_AUTONOMOUS_OUTBOUND_CHANNEL") || "sendgrid").toLowerCase();
   requireCheck(
-    outboundChannel === "sendgrid" || outboundChannel === "nitrosend",
-    "BLUEPRINT_AUTONOMOUS_OUTBOUND_CHANNEL must be sendgrid or nitrosend when autonomous research outbound is enabled.",
+    outboundChannel === "sendgrid",
+    "BLUEPRINT_AUTONOMOUS_OUTBOUND_CHANNEL must be sendgrid when autonomous research outbound is enabled.",
   );
 
-  if (outboundChannel === "sendgrid") {
-    requireCheck(
-      Boolean(envValue("BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS")),
-      "BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS is required for autonomous research outbound over SendGrid/SMTP.",
-    );
-    requireCheck(
-      getEmailTransportStatus(),
-      "A configured SendGrid or SMTP transport is required for autonomous research outbound over SendGrid/SMTP.",
-    );
-  }
-
-  if (outboundChannel === "nitrosend") {
-    requireCheck(Boolean(envValue("NITROSEND_API_KEY")), "NITROSEND_API_KEY is required for autonomous research outbound over Nitrosend.");
-    requireCheck(
-      Boolean(envValue("BLUEPRINT_AUTONOMOUS_NITROSEND_AUDIENCE_ID")),
-      "BLUEPRINT_AUTONOMOUS_NITROSEND_AUDIENCE_ID is required for autonomous research outbound over Nitrosend.",
-    );
-  }
+  requireCheck(
+    Boolean(envValue("BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS")),
+    "BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS is required for autonomous research outbound over SendGrid/SMTP.",
+  );
+  requireCheck(
+    getEmailTransportStatus(),
+    "A configured SendGrid or SMTP transport is required for autonomous research outbound over SendGrid/SMTP.",
+  );
 }
 
 const creativeFactoryEnabled = automationFlags.BLUEPRINT_CREATIVE_FACTORY_ENABLED;

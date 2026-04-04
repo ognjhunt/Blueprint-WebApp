@@ -213,7 +213,6 @@ These watchdogs do not send outreach, grant permissions, submit disputes, or mov
   `BLUEPRINT_AUTONOMOUS_RESEARCH_TOPICS`,
   `BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS`,
   `BLUEPRINT_AUTONOMOUS_OUTBOUND_CHANNEL`,
-  `BLUEPRINT_AUTONOMOUS_NITROSEND_AUDIENCE_ID`,
   `FIREHOSE_API_TOKEN`,
   `FIREHOSE_BASE_URL`
 - Optional creative factory configuration:

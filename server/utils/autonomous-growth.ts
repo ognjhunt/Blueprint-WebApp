@@ -149,8 +149,7 @@ export async function runAutonomousResearchOutboundLoop(params?: {
     throw new Error("Firehose is not configured");
   }
 
-  const channel = normalizeString(process.env.BLUEPRINT_AUTONOMOUS_OUTBOUND_CHANNEL) || "sendgrid";
-  const audienceId = normalizeString(process.env.BLUEPRINT_AUTONOMOUS_NITROSEND_AUDIENCE_ID) || null;
+  const channel = "sendgrid";
   const recipients = outboundRecipientsFromEnv();
   const operatorEmail = params?.operatorEmail || "autonomous-growth@tryblueprint.io";
   const today = startOfUtcDay();
@@ -192,15 +191,12 @@ export async function runAutonomousResearchOutboundLoop(params?: {
       subject: draft.subject,
       body: draft.body,
       channel,
-      recipientEmails: channel === "sendgrid" ? recipients : [],
-      audienceId: channel === "nitrosend" ? audienceId : null,
+      recipientEmails: recipients,
       audienceQuery: `autonomous-topic:${topic}`,
     });
 
     let queueResult: Awaited<ReturnType<typeof queueGrowthCampaignSend>> | null = null;
-    const sendReady =
-      (channel === "sendgrid" && recipients.length > 0)
-      || (channel === "nitrosend" && audienceId);
+    const sendReady = recipients.length > 0;
     if (sendReady) {
       queueResult = await queueGrowthCampaignSend({
         campaignId: campaign.id,
@@ -213,9 +209,7 @@ export async function runAutonomousResearchOutboundLoop(params?: {
         topic,
         status: sendReady ? "campaign_queued" : "draft_created",
         campaign_id: campaign.id,
-        nitrosend_campaign_id: campaign.nitrosendCampaignId || null,
         channel,
-        audience_id: audienceId,
         recipients,
         queue_result_state:
           queueResult && typeof queueResult.state === "string" ? queueResult.state : null,

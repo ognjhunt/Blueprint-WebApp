@@ -1,0 +1,20 @@
+{
+  "built_at": "2026-04-04T15:13:29.195Z",
+  "summaries": [
+    {
+      "lane": "waitlist_triage",
+      "generated": 2,
+      "skipped": 0
+    },
+    {
+      "lane": "support_triage",
+      "generated": 2,
+      "skipped": 0
+    },
+    {
+      "lane": "preview_diagnosis",
+      "generated": 2,
+      "skipped": 0
+    }
+  ]
+}

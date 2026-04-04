@@ -64,7 +64,6 @@ beforeEach(() => {
   vi.stubEnv("BLUEPRINT_AUTONOMOUS_OUTBOUND_CHANNEL", "sendgrid");
   createGrowthCampaignDraft.mockResolvedValue({
     id: "campaign-1",
-    nitrosendCampaignId: null,
   });
   queueGrowthCampaignSend.mockResolvedValue({
     state: "queued",

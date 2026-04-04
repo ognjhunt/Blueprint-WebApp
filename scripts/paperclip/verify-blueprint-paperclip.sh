@@ -29,6 +29,7 @@ VERIFY_CLAUDE="${BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE:-1}"
 VERIFY_HERMES="${BLUEPRINT_PAPERCLIP_VERIFY_HERMES:-auto}"
 VERIFY_OPENCODE="${BLUEPRINT_PAPERCLIP_VERIFY_OPENCODE:-auto}"
 OPENCODE_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL:-google/gemini-2.5-flash}"
+HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-qwen/qwen3.6-plus:free}"
 FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES:-0}"
 HERMES_INSTRUCTIONS_FILE="/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md"
 AGENT_KIT_VALIDATOR="${SCRIPT_DIR}/validate-agent-kits.sh"
@@ -528,7 +529,7 @@ main() {
     run_test "$company_id" "Blueprint-WebApp" "hermes_local" "{
       \"adapterConfig\": {
         \"cwd\": \"/Users/nijelhunt_1/workspace/Blueprint-WebApp\",
-        \"model\": \"gpt-5.4-mini\",
+        \"model\": \"${HERMES_FALLBACK_MODEL}\",
         \"modelReasoningEffort\": \"xhigh\",
         \"instructionsFilePath\": \"${HERMES_INSTRUCTIONS_FILE}\",
         \"timeoutSec\": 1200

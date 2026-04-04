@@ -1,0 +1,28 @@
+{
+  "exported_at": "2026-04-04T15:13:29.153Z",
+  "summaries": [
+    {
+      "lane": "waitlist_triage",
+      "scanned": 0,
+      "exported": 0,
+      "skipped": 0,
+      "skipReasons": {}
+    },
+    {
+      "lane": "support_triage",
+      "scanned": 0,
+      "exported": 0,
+      "skipped": 0,
+      "skipReasons": {}
+    },
+    {
+      "lane": "preview_diagnosis",
+      "scanned": 7,
+      "exported": 0,
+      "skipped": 7,
+      "skipReasons": {
+        "missing_resolved_preview_fields": 7
+      }
+    }
+  ]
+}

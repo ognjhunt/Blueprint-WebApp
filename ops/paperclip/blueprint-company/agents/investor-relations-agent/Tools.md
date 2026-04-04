@@ -17,9 +17,7 @@
   Use for the full investor update draft.
 - `notion-write-work-queue`
   Use for the tracked work item and proof trail.
-- `nitrosend-upsert-audience`
-  Use to maintain a draft-only `Blueprint Investors` audience when Nitrosend is configured.
-- `nitrosend-create-campaign-draft`
+- the current SendGrid-backed growth campaign draft path
   Use to create the investor email draft. Draft only.
 - `slack-post-digest`
   Use for the internal `#paperclip-exec` draft-ready alert when configured.

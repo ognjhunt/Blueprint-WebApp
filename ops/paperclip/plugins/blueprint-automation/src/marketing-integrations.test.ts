@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   assertIntrowDraftOnly,
-  assertNitrosendDraftOnly,
   buildFirehoseBrief,
   dedupeFirehoseSignals,
   synthesizeCustomerResearch,
@@ -46,12 +45,6 @@ describe("marketing integration helpers", () => {
       "Which hosted-session proof pack gets repeated in procurement reviews?",
     );
     expect(synthesis.confidence).toBe("medium");
-  });
-
-  it("blocks Nitrosend live send actions centrally", () => {
-    expect(() => assertNitrosendDraftOnly({ sendNow: true })).toThrow(/disabled/i);
-    expect(() => assertNitrosendDraftOnly({ publish: true })).toThrow(/disabled/i);
-    expect(() => assertNitrosendDraftOnly({ status: "draft" })).not.toThrow();
   });
 
   it("blocks Introw live partner activation centrally", () => {

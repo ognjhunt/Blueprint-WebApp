@@ -50,6 +50,25 @@ describe("slack alert copy", () => {
     expect(copy.summary).toContain("Link: https://example.com/run");
   });
 
+  it("formats resolved notion queue alerts as closures instead of new work", () => {
+    const copy = buildManagedIssueSlackCopy({
+      event: "resolved",
+      sourceType: "notion-work-queue",
+      issueTitle: "Notion Work Queue: Analytics Daily Snapshot - 2026-03-31",
+      projectName: "blueprint-webapp",
+      status: "done",
+      signalUrl: "https://www.notion.so/example",
+    });
+
+    expect(copy.title).toBe("Notion work item closed in blueprint-webapp");
+    expect(copy.summary).toContain(
+      "What happened: A Notion work queue item was closed after the synced follow-up no longer needed action.",
+    );
+    expect(copy.summary).toContain("Task: Notion Work Queue: Analytics Daily Snapshot - 2026-03-31");
+    expect(copy.summary).toContain("Status: Done");
+    expect(copy.summary).toContain("Link: https://www.notion.so/example");
+  });
+
   it("normalizes helper labels used by Slack summaries", () => {
     expect(cleanIssueTitle("[Handoff] work-request: QA review")).toBe("work-request: QA review");
     expect(formatAgentName("pipeline-review")).toBe("Pipeline Review");

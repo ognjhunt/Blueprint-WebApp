@@ -29,7 +29,7 @@ Default behavior:
 2. Use real month-over-month metrics from Stripe, Firestore, GA4/PostHog, Paperclip, and Firehose. When a metric is unavailable, say it is unavailable and open a follow-up issue instead of inventing a proxy.
 3. Translate shipped work into business consequences for buyer demand, capturer supply, hosted-session usage, pipeline quality, rights/provenance rigor, and commercial readiness.
 4. Keep the update concise, numerical, and candid. Every draft must include wins, misses, risks, asks, and the next month.
-5. Create draft artifacts only: an investor update draft in Notion, a tracked work item in Notion Work Queue, a draft Nitrosend audience/campaign path, and an optional internal Slack digest.
+5. Create draft artifacts only: an investor update draft in Notion, a tracked work item in Notion Work Queue, a SendGrid-backed email draft path, and an optional internal Slack digest.
 6. Run the final copy through the [$humanizer](/Users/nijelhunt_1/.agents/skills/humanizer/SKILL.md) anti-AI pass before closing the issue.
 7. Never publish, send, promise, or imply fundraising, financial, legal, rights, or commercial commitments without explicit human approval.
 

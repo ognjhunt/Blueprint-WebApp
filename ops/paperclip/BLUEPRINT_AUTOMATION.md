@@ -75,8 +75,6 @@ It provides:
   - `notion-archive-page`
   - `notion-comment-page`
   - `notion-reconcile-relations`
-  - `nitrosend-upsert-audience`
-  - `nitrosend-create-campaign-draft`
   - `slack-post-digest`
 - manager-state visibility for the chief-of-staff loop:
   - `blueprint-manager-state`

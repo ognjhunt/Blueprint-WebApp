@@ -1,0 +1,12 @@
+{
+  "requestId": "seed-preview-2",
+  "siteWorldId": "scene-2",
+  "preview_status": "failed",
+  "provider_name": "worldlabs",
+  "provider_model": "wm-preview",
+  "provider_run_id": "run-2",
+  "failure_reason": "temporary timeout",
+  "preview_manifest_uri": "gs://preview-2.json",
+  "worldlabs_operation_manifest_uri": "gs://operation-2.json",
+  "worldlabs_world_manifest_uri": "gs://world-2.json"
+}

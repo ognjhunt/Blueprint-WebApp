@@ -76,7 +76,6 @@ describe("AdminGrowthOpsScorecard", () => {
               },
               sendgrid: { configured: true, provider: "sendgrid" },
               sendgridWebhook: { configured: true },
-              nitrosend: { configured: false },
               runway: { configured: true },
               googleImage: { configured: true, executionState: "ready" },
               elevenlabs: { configured: true, agentConfigured: false },

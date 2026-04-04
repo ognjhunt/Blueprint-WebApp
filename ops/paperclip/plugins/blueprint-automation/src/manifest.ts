@@ -151,6 +151,7 @@ const manifest: PaperclipPluginManifestV1 = {
               growthLead: { type: "string" },
               conversionOptimizer: { type: "string" },
               analytics: { type: "string" },
+              communityUpdates: { type: "string" },
               marketIntel: { type: "string" },
               demandIntel: { type: "string" },
               robotTeamGrowth: { type: "string" },
@@ -179,7 +180,6 @@ const manifest: PaperclipPluginManifestV1 = {
           slackManagerWebhookUrlRef: { type: "string", format: "secret-ref" },
           searchApiKeyRef: { type: "string", format: "secret-ref" },
           searchApiProviderRef: { type: "string", format: "secret-ref" },
-          nitrosendApiTokenRef: { type: "string", format: "secret-ref" },
           firehoseApiTokenRef: { type: "string", format: "secret-ref" },
           introwApiTokenRef: { type: "string", format: "secret-ref" },
         },
@@ -188,7 +188,6 @@ const manifest: PaperclipPluginManifestV1 = {
         type: "object",
         title: "Marketing Capability Integrations",
         properties: {
-          nitrosendBaseUrl: { type: "string", title: "Nitrosend Adapter Base URL" },
           firehoseBaseUrl: { type: "string", title: "Firehose Adapter Base URL" },
           introwBaseUrl: { type: "string", title: "Introw Adapter Base URL" },
           firehoseDefaultTopics: {

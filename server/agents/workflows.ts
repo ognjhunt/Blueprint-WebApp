@@ -22,6 +22,11 @@ import type {
   WaitlistTriageOutput,
   WaitlistTriageTaskInput,
 } from "./tasks/waitlist-triage";
+import type {
+  AgentProvider,
+  AgentResult,
+  AgentTaskKind,
+} from "./types";
 
 type WaitlistSubmissionRecord = {
   id: string;
@@ -66,6 +71,212 @@ export type WaitlistAutomationRunResult = {
   requiresHumanReview?: boolean;
   error?: string;
 };
+
+type AutoAgentShadowLane = Extract<
+  AgentTaskKind,
+  "waitlist_triage" | "support_triage" | "preview_diagnosis"
+>;
+
+type AutoAgentShadowParams<TInput, TOutput> = {
+  kind: AutoAgentShadowLane;
+  input: TInput;
+  sessionKey: string;
+  docRef: FirebaseFirestore.DocumentReference;
+  existingOpsAutomation: Record<string, unknown>;
+  sourceCollection: string;
+  sourceDocId: string;
+  metadata?: Record<string, unknown>;
+  primaryResult: AgentResult<TOutput>;
+};
+
+const AUTOAGENT_SHADOW_NAMESPACE = "autoagent";
+const AUTOAGENT_SHADOW_DEFAULT_PROVIDER: AgentProvider = "acp_harness";
+
+function parseCommaSeparatedEnv(value: string | undefined | null) {
+  return String(value || "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function getAutoAgentShadowConfiguredLanes(): Set<AutoAgentShadowLane> {
+  const configured = new Set<AutoAgentShadowLane>();
+  for (const lane of parseCommaSeparatedEnv(process.env.BLUEPRINT_AUTOAGENT_SHADOW_LANES)) {
+    if (
+      lane === "waitlist_triage"
+      || lane === "support_triage"
+      || lane === "preview_diagnosis"
+    ) {
+      configured.add(lane);
+    }
+  }
+  return configured;
+}
+
+function isAutoAgentShadowEnabledForLane(kind: AutoAgentShadowLane) {
+  const configuredLanes = getAutoAgentShadowConfiguredLanes();
+  const explicitFlag = String(process.env.BLUEPRINT_AUTOAGENT_SHADOW_ENABLED || "").trim();
+  const enabledByFlag =
+    explicitFlag.length > 0
+      ? /^(1|true|yes|on)$/i.test(explicitFlag)
+      : configuredLanes.size > 0;
+
+  return enabledByFlag && configuredLanes.has(kind);
+}
+
+function getAutoAgentShadowProvider(): AgentProvider {
+  const configuredProvider = (process.env.BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER || "").trim();
+  switch (configuredProvider) {
+    case "openai_responses":
+    case "anthropic_agent_sdk":
+    case "openclaw":
+    case "acp_harness":
+      return configuredProvider as AgentProvider;
+    default:
+      return AUTOAGENT_SHADOW_DEFAULT_PROVIDER;
+  }
+}
+
+function getAutoAgentShadowModel() {
+  const value = process.env.BLUEPRINT_AUTOAGENT_SHADOW_MODEL?.trim();
+  return value && value.length > 0 ? value : undefined;
+}
+
+function buildShadowRunRecord<TOutput>(
+  params: Pick<
+    AutoAgentShadowParams<unknown, TOutput>,
+    "kind" | "sessionKey" | "sourceCollection" | "sourceDocId" | "primaryResult"
+  > & {
+    result: AgentResult<TOutput>;
+  },
+) {
+  return {
+    namespace: AUTOAGENT_SHADOW_NAMESPACE,
+    kind: params.kind,
+    source_collection: params.sourceCollection,
+    source_doc_id: params.sourceDocId,
+    session_key: `${params.sessionKey}:shadow:${AUTOAGENT_SHADOW_NAMESPACE}`,
+    captured_at: admin.firestore.FieldValue.serverTimestamp(),
+    provider: params.result.provider,
+    runtime: params.result.runtime,
+    model: params.result.model,
+    tool_mode: params.result.tool_mode,
+    status: params.result.status,
+    requires_human_review: params.result.requires_human_review,
+    requires_approval: params.result.requires_approval,
+    error: params.result.error || null,
+    output: params.result.output ?? null,
+    primary: {
+      provider: params.primaryResult.provider,
+      runtime: params.primaryResult.runtime,
+      model: params.primaryResult.model,
+      tool_mode: params.primaryResult.tool_mode,
+      status: params.primaryResult.status,
+      requires_human_review: params.primaryResult.requires_human_review,
+      requires_approval: params.primaryResult.requires_approval,
+    },
+  };
+}
+
+async function writeAutoAgentShadowRecord(
+  docRef: FirebaseFirestore.DocumentReference,
+  existingOpsAutomation: Record<string, unknown>,
+  record: Record<string, unknown>,
+) {
+  const existingShadowRuns =
+    existingOpsAutomation.shadow_runs && typeof existingOpsAutomation.shadow_runs === "object"
+      ? (existingOpsAutomation.shadow_runs as Record<string, unknown>)
+      : {};
+
+  await docRef.set(
+    {
+      ops_automation: {
+        ...existingOpsAutomation,
+        shadow_runs: {
+          ...existingShadowRuns,
+          [AUTOAGENT_SHADOW_NAMESPACE]: record,
+        },
+      },
+    },
+    { merge: true },
+  );
+}
+
+async function maybeRunAutoAgentShadow<TInput, TOutput>(
+  params: AutoAgentShadowParams<TInput, TOutput>,
+) {
+  if (!isAutoAgentShadowEnabledForLane(params.kind)) {
+    return null;
+  }
+
+  const provider = getAutoAgentShadowProvider();
+  const model = getAutoAgentShadowModel();
+
+  try {
+    const result = await runAgentTask<TInput, TOutput>({
+      kind: params.kind,
+      input: params.input,
+      provider,
+      ...(model ? { model } : {}),
+      session_key: `${params.sessionKey}:shadow:${AUTOAGENT_SHADOW_NAMESPACE}`,
+      metadata: {
+        ...(params.metadata || {}),
+        shadow_namespace: AUTOAGENT_SHADOW_NAMESPACE,
+        shadow_source_collection: params.sourceCollection,
+        shadow_source_doc_id: params.sourceDocId,
+        shadow_of_session_key: params.sessionKey,
+      },
+    });
+
+    await writeAutoAgentShadowRecord(
+      params.docRef,
+      params.existingOpsAutomation,
+      buildShadowRunRecord({
+        kind: params.kind,
+        sessionKey: params.sessionKey,
+        sourceCollection: params.sourceCollection,
+        sourceDocId: params.sourceDocId,
+        primaryResult: params.primaryResult,
+        result,
+      }),
+    );
+
+    return result;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "AutoAgent shadow run failed";
+    logger.warn(
+      { err: error, kind: params.kind, sourceDocId: params.sourceDocId },
+      "AutoAgent shadow run failed",
+    );
+    await writeAutoAgentShadowRecord(
+      params.docRef,
+      params.existingOpsAutomation,
+      {
+        namespace: AUTOAGENT_SHADOW_NAMESPACE,
+        kind: params.kind,
+        source_collection: params.sourceCollection,
+        source_doc_id: params.sourceDocId,
+        session_key: `${params.sessionKey}:shadow:${AUTOAGENT_SHADOW_NAMESPACE}`,
+        captured_at: admin.firestore.FieldValue.serverTimestamp(),
+        provider,
+        runtime: provider,
+        model: model || null,
+        status: "failed",
+        error: message,
+        primary: {
+          provider: params.primaryResult.provider,
+          runtime: params.primaryResult.runtime,
+          model: params.primaryResult.model,
+          tool_mode: params.primaryResult.tool_mode,
+          status: params.primaryResult.status,
+          requires_human_review: params.primaryResult.requires_human_review,
+          requires_approval: params.primaryResult.requires_approval,
+        },
+      },
+    );
+    return null;
+  }
+}
 
 function normalizeAutomationStatus(value: unknown): "completed" | "blocked" {
   return value === "blocked" ? "blocked" : "completed";
@@ -527,6 +738,20 @@ export async function runWaitlistAutomationLoop(params?: {
         { merge: true },
       );
 
+      await maybeRunAutoAgentShadow({
+        kind: "waitlist_triage",
+        input: taskInput,
+        sessionKey: `waitlist:${submission.id}`,
+        docRef: doc.ref,
+        existingOpsAutomation: submission.ops_automation || {},
+        sourceCollection: "waitlistSubmissions",
+        sourceDocId: submission.id,
+        metadata: {
+          submission_id: submission.id,
+        },
+        primaryResult: result,
+      });
+
       const phase2Result = await executePhase2WorkflowActions({
         docRef: doc.ref,
         sourceCollection: "waitlistSubmissions",
@@ -936,6 +1161,23 @@ export async function runSupportTriageLoop(params?: { limit?: number }) {
         { merge: true },
       );
 
+      await maybeRunAutoAgentShadow({
+        kind: "support_triage",
+        input,
+        sessionKey: `support:${doc.id}`,
+        docRef: doc.ref,
+        existingOpsAutomation:
+          data.ops_automation && typeof data.ops_automation === "object"
+            ? (data.ops_automation as Record<string, unknown>)
+            : {},
+        sourceCollection: "contactRequests",
+        sourceDocId: doc.id,
+        metadata: {
+          contact_request_id: doc.id,
+        },
+        primaryResult: result,
+      });
+
       await executePhase2WorkflowActions({
         docRef: doc.ref,
         sourceCollection: "contactRequests",
@@ -1244,6 +1486,23 @@ export async function runPreviewDiagnosisLoop(params?: { limit?: number }) {
         },
         { merge: true },
       );
+
+      await maybeRunAutoAgentShadow({
+        kind: "preview_diagnosis",
+        input,
+        sessionKey: `preview:${doc.id}`,
+        docRef: doc.ref,
+        existingOpsAutomation:
+          decrypted.ops_automation && typeof decrypted.ops_automation === "object"
+            ? (decrypted.ops_automation as Record<string, unknown>)
+            : {},
+        sourceCollection: "inboundRequests",
+        sourceDocId: doc.id,
+        metadata: {
+          request_id: doc.id,
+        },
+        primaryResult: result,
+      });
 
       processedCount += 1;
     } catch (error) {

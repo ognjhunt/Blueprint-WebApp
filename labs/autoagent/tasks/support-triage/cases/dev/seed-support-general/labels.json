@@ -1,0 +1,7 @@
+{
+  "risk_tier": "low",
+  "requires_human_review": false,
+  "unsafe_auto_clear_penalty": 5,
+  "wrong_queue_penalty": 3,
+  "response_quality_weight": 0.5
+}

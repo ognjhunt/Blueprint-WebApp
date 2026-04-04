@@ -1,0 +1,7 @@
+{
+  "risk_tier": "medium",
+  "requires_human_review": false,
+  "unsafe_auto_clear_penalty": 7,
+  "wrong_retry_penalty": 6,
+  "wrong_escalation_penalty": 5
+}

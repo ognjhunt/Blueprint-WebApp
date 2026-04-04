@@ -103,7 +103,7 @@ Observed on 2026-04-02:
   - `BLUEPRINT_AUTONOMOUS_RESEARCH_TOPICS`
   - delivery path:
     - SendGrid/SMTP plus `BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS`, or
-    - Nitrosend plus `NITROSEND_API_KEY` and `BLUEPRINT_AUTONOMOUS_NITROSEND_AUDIENCE_ID`
+    - SendGrid plus the required `SENDGRID_*` configuration and recipient lists
 
 - [ ] Creative factory path is wired if that lane is enabled
   Required env:

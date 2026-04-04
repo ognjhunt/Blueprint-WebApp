@@ -432,7 +432,7 @@ function buildInvestorRelationsRoutineDescription() {
     "Read ops/paperclip/programs/investor-relations-agent-program.md and the humanizer skill before drafting.",
     "Ground on the current issue and gather real month-over-month metrics from Stripe, Firestore, analytics, Paperclip, and Firehose where relevant.",
     "Draft the full investor update with notion-write-knowledge and create the tracking artifact with notion-write-work-queue.",
-    "When Nitrosend is configured, maintain a draft-only Blueprint Investors audience and create the monthly draft campaign. Do not live send or publish.",
+    "When the active SendGrid-backed email draft path is configured, maintain the monthly investor draft. Do not live send or publish.",
     "When Slack is configured, post an internal #paperclip-exec digest announcing the draft is ready for review.",
     "PATCH the current issue to done only when the metrics are sourced, the draft artifacts exist, and the copy has passed the humanizer anti-AI pass. Otherwise PATCH it to blocked with the exact missing artifact or source-of-truth failure.",
   ].join(" ");

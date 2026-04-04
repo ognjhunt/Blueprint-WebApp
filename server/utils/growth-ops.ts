@@ -10,11 +10,7 @@ import {
 import { getConfiguredEnvValue } from "../config/env";
 import { getEmailTransportStatus } from "./email";
 import { logGrowthEvent } from "./growth-events";
-import {
-  createNitrosendCampaignDraft,
-  getNitrosendStatus,
-  listNitrosendCampaigns,
-} from "./nitrosend";
+import { summarizeRecentContentOutcomeReviews } from "./content-ops";
 import { buildGrowthIntegrationSummary } from "./provider-status";
 
 function serverTimestampValue() {
@@ -161,6 +157,11 @@ async function latestCreativeRunContext() {
     return null;
   }
 
+  const contentFeedback = await summarizeRecentContentOutcomeReviews({
+    lookbackDays: 45,
+    limit: 40,
+  }).catch(() => null);
+
   const snapshot = await db
     .collection("creative_factory_runs")
     .orderBy("created_at", "desc")
@@ -185,6 +186,14 @@ async function latestCreativeRunContext() {
       rollout_variant: normalizeString(data.rollout_variant) || null,
       research_topic: normalizeString(data.research_topic) || null,
       storage_uri: storageUri,
+      content_feedback: contentFeedback && contentFeedback.reviewCount > 0
+        ? {
+          review_count: contentFeedback.reviewCount,
+          working_patterns: contentFeedback.workingPatterns,
+          failing_patterns: contentFeedback.failingPatterns,
+          recommended_next_moves: contentFeedback.recommendedNextMoves,
+        }
+        : null,
     };
   }
 
@@ -205,14 +214,8 @@ export async function listGrowthCampaigns() {
     id: doc.id,
     ...doc.data(),
   }));
-
-  const nitrosendCampaigns = getNitrosendStatus().configured
-    ? await listNitrosendCampaigns().catch(() => [])
-    : [];
-
   return {
     localCampaigns,
-    nitrosendCampaigns,
   };
 }
 
@@ -225,6 +228,7 @@ export async function createGrowthCampaignDraft(params: {
   recipientEmails?: string[] | null;
   audienceId?: string | null;
   sequenceId?: string | null;
+  automationContext?: Record<string, unknown> | null;
 }) {
   if (!db) {
     throw new Error("Database not available");
@@ -232,20 +236,8 @@ export async function createGrowthCampaignDraft(params: {
 
   const recipientEmails = normalizeRecipientEmails(params.recipientEmails || []);
   const creativeContext = await latestCreativeRunContext();
-  let nitrosendCampaignId: string | null = null;
-  const channel = params.channel || "sendgrid";
-  if (channel === "nitrosend" && getNitrosendStatus().configured) {
-    const nitrosendCampaign = await createNitrosendCampaignDraft({
-      name: params.name,
-      audienceId: params.audienceId,
-      sequenceId: params.sequenceId,
-      content: {
-        subject: params.subject,
-        body: params.body,
-      },
-    });
-    nitrosendCampaignId = nitrosendCampaign.id;
-  }
+  const channel = "sendgrid";
+  const createdAtIso = new Date().toISOString();
 
   const ref = await db.collection("growthCampaigns").add({
     name: params.name,
@@ -255,14 +247,12 @@ export async function createGrowthCampaignDraft(params: {
     channel,
     recipient_emails: recipientEmails,
     recipient_count: recipientEmails.length,
-    delivery_provider:
-      channel === "nitrosend" && nitrosendCampaignId
-        ? "nitrosend"
-        : getEmailTransportStatus().provider || "sendgrid",
-    audience_id: params.audienceId || null,
-    sequence_id: params.sequenceId || null,
-    nitrosend_campaign_id: nitrosendCampaignId,
+    delivery_provider: getEmailTransportStatus().provider || "sendgrid",
     creative_context: creativeContext,
+    automation_context:
+      params.automationContext && typeof params.automationContext === "object"
+        ? params.automationContext
+        : null,
     send_status: "draft",
     event_counts: {
       sent: 0,
@@ -279,13 +269,29 @@ export async function createGrowthCampaignDraft(params: {
       last_event_at: null,
       last_recipient: null,
     },
+    created_at_iso: createdAtIso,
     created_at: admin.firestore.FieldValue.serverTimestamp(),
     updated_at: admin.firestore.FieldValue.serverTimestamp(),
   });
 
   return {
     id: ref.id,
-    nitrosendCampaignId,
+  };
+}
+
+export async function getGrowthCampaignRecord(campaignId: string) {
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const doc = await db.collection("growthCampaigns").doc(campaignId).get();
+  if (!doc.exists) {
+    return null;
+  }
+
+  return {
+    id: doc.id,
+    ...(doc.data() as Record<string, unknown>),
   };
 }
 
@@ -310,91 +316,50 @@ export async function queueGrowthCampaignSend(params: {
       ? (campaign.creative_context as Record<string, unknown>)
       : null;
 
-  if (recipientEmails.length > 0) {
-    const result = await executeAction({
-      sourceCollection: "growthCampaigns",
-      sourceDocId: params.campaignId,
-      actionType: "send_campaign_emails",
-      actionPayload: {
-        type: "send_campaign_emails",
-        recipients: recipientEmails,
-        subject: normalizeString(campaign.subject),
-        body: normalizeString(campaign.body),
-        campaignId: params.campaignId,
-        approvedBy: params.operatorEmail,
-        collection: "growthCampaigns",
-        docId: params.campaignId,
-        creativeContext,
-      },
-      safetyPolicy: GROWTH_CAMPAIGN_POLICY,
-      draftOutput: {
-        recommendation: "send_campaign",
-        confidence: 0.99,
-        requires_human_review: true,
-        category: "growth_campaign",
-        creative_asset_uri:
-          typeof creativeContext?.storage_uri === "string"
-            ? creativeContext.storage_uri
-            : null,
-      },
-      idempotencyKey: `growth_campaign_send:${params.campaignId}`,
-    });
-
-    await db.collection("growthCampaigns").doc(params.campaignId).set(
-      {
-        send_status:
-          result.state === "pending_approval" ? "pending_approval" : result.state,
-        last_ledger_doc_id: result.ledgerDocId,
-        updated_at: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    );
-
-    return result;
+  if (recipientEmails.length === 0) {
+    throw new Error("Campaign has no recipients configured for SendGrid delivery.");
   }
 
-  if (channel === "nitrosend" && normalizeString(campaign.nitrosend_campaign_id)) {
-    const result = await executeAction({
-      sourceCollection: "growthCampaigns",
-      sourceDocId: params.campaignId,
-      actionType: "send_nitrosend_campaign",
-      actionPayload: {
-        type: "send_nitrosend_campaign",
-        campaignId: normalizeString(campaign.nitrosend_campaign_id),
-        approvedBy: params.operatorEmail,
-        approvalNote: "Queued from growth campaign automation",
-        collection: "growthCampaigns",
-        docId: params.campaignId,
-        creativeContext,
-      },
-      safetyPolicy: GROWTH_CAMPAIGN_POLICY,
-      draftOutput: {
-        recommendation: "send_campaign",
-        confidence: 0.99,
-        requires_human_review: true,
-        category: "growth_campaign",
-        creative_asset_uri:
-          typeof creativeContext?.storage_uri === "string"
-            ? creativeContext.storage_uri
-            : null,
-      },
-      idempotencyKey: `growth_campaign_send:${params.campaignId}`,
-    });
+  const result = await executeAction({
+    sourceCollection: "growthCampaigns",
+    sourceDocId: params.campaignId,
+    actionType: "send_campaign_emails",
+    actionPayload: {
+      type: "send_campaign_emails",
+      recipients: recipientEmails,
+      subject: normalizeString(campaign.subject),
+      body: normalizeString(campaign.body),
+      campaignId: params.campaignId,
+      approvedBy: params.operatorEmail,
+      collection: "growthCampaigns",
+      docId: params.campaignId,
+      creativeContext,
+    },
+    safetyPolicy: GROWTH_CAMPAIGN_POLICY,
+    draftOutput: {
+      recommendation: "send_campaign",
+      confidence: 0.99,
+      requires_human_review: true,
+      category: "growth_campaign",
+      creative_asset_uri:
+        typeof creativeContext?.storage_uri === "string"
+          ? creativeContext.storage_uri
+          : null,
+    },
+    idempotencyKey: `growth_campaign_send:${params.campaignId}`,
+  });
 
-    await db.collection("growthCampaigns").doc(params.campaignId).set(
-      {
-        send_status:
-          result.state === "pending_approval" ? "pending_approval" : result.state,
-        last_ledger_doc_id: result.ledgerDocId,
-        updated_at: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    );
+  await db.collection("growthCampaigns").doc(params.campaignId).set(
+    {
+      send_status:
+        result.state === "pending_approval" ? "pending_approval" : result.state,
+      last_ledger_doc_id: result.ledgerDocId,
+      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
 
-    return result;
-  }
-
-  throw new Error("Campaign has no recipients configured for SendGrid delivery.");
+  return result;
 }
 
 export async function runBuyerLifecycleCheck(params: {
@@ -710,73 +675,6 @@ export async function verifyGrowthIntegrations() {
     ...summary,
     verificationId: null,
     verifiedAt: verifiedAtIso,
-  };
-}
-
-export async function ingestNitrosendWebhook(payload: unknown) {
-  if (!db) {
-    throw new Error("Database not available");
-  }
-
-  const body = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
-  const externalCampaignId =
-    normalizeString(body.campaignId) ||
-    normalizeString(body.campaign_id) ||
-    null;
-  const eventType = normalizeCampaignEventType(
-    body.event || body.eventType || body.type || body.status,
-  );
-  const recipient =
-    normalizeString(body.email) ||
-    normalizeString(body.recipient) ||
-    normalizeString(body.contactEmail) ||
-    null;
-  const receivedAtIso = new Date().toISOString();
-
-  let localCampaignId: string | null = null;
-  if (externalCampaignId) {
-    const snapshot = await db
-      .collection("growthCampaigns")
-      .where("nitrosend_campaign_id", "==", externalCampaignId)
-      .limit(1)
-      .get();
-    localCampaignId = snapshot.empty ? null : snapshot.docs[0].id;
-  }
-
-  await db.collection("growth_campaign_events").add({
-    campaign_id: localCampaignId || externalCampaignId || "unknown",
-    local_campaign_id: localCampaignId,
-    nitrosend_campaign_id: externalCampaignId,
-    event_type: eventType,
-    recipient,
-    payload: body,
-    received_at_iso: receivedAtIso,
-    received_at: admin.firestore.FieldValue.serverTimestamp(),
-    source: "nitrosend",
-  });
-
-  if (localCampaignId) {
-    await db.collection("growthCampaigns").doc(localCampaignId).set(
-      {
-        event_counts: {
-          [eventType]: admin.firestore.FieldValue.increment(1),
-        },
-        response_tracking: {
-          last_event_type: eventType,
-          last_event_at: receivedAtIso,
-          last_recipient: recipient,
-        },
-        updated_at: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    );
-  }
-
-  return {
-    localCampaignId,
-    nitrosendCampaignId: externalCampaignId,
-    eventType,
-    recipient,
   };
 }
 

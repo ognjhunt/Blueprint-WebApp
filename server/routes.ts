@@ -25,7 +25,6 @@ import adminFieldOpsRouter from "./routes/admin-field-ops";
 import adminAgentRouter from "./routes/admin-agent";
 import adminCreativeRouter from "./routes/admin-creative";
 import adminGrowthRouter, {
-  nitrosendWebhookHandler,
   sendgridWebhookHandler,
 } from "./routes/admin-growth";
 import adminSiteWorldsRouter from "./routes/admin-site-worlds";
@@ -99,7 +98,6 @@ export function registerRoutes(app: Express) {
   app.post("/api/voice/webhook", voiceWebhookHandler);
   app.post("/api/voice/telephony/inbound", telephonyInboundHandler);
   app.post("/api/voice/telephony/status", telephonyStatusHandler);
-  app.post("/api/growth/webhooks/nitrosend", nitrosendWebhookHandler);
   app.post("/api/growth/webhooks/sendgrid", sendgridWebhookHandler);
   app.use("/api/voice", csrfProtection, voiceRouter);
   // Inbound request (lead pipeline) - public submission endpoint

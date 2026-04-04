@@ -79,18 +79,13 @@ export function buildLaunchReadinessSnapshot() {
   const outboundRecipientsConfigured = Boolean(
     getConfiguredEnvValue("BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS"),
   );
-  const outboundAudienceConfigured = Boolean(
-    getConfiguredEnvValue("BLUEPRINT_AUTONOMOUS_NITROSEND_AUDIENCE_ID"),
-  );
   const outboundTopicsConfigured = Boolean(
     getConfiguredEnvValue("BLUEPRINT_AUTONOMOUS_RESEARCH_TOPICS"),
   );
   const researchDeliveryReady =
-    outboundChannel === "nitrosend"
-      ? growthIntegrations.nitrosend.configured && outboundAudienceConfigured
-      : outboundChannel === "sendgrid"
-        ? emailTransport.configured && outboundRecipientsConfigured
-        : false;
+    outboundChannel === "sendgrid"
+      ? emailTransport.configured && outboundRecipientsConfigured
+      : false;
   const experimentAutorolloutReady = !automationFlags.experimentRollout || firebaseAdminReady;
   const researchOutboundReady =
     !automationFlags.researchOutbound ||
@@ -206,11 +201,9 @@ export function buildLaunchReadinessSnapshot() {
       detail: automationFlags.researchOutbound
         ? researchOutboundReady
           ? `Autonomous research outbound is configured for the ${outboundChannel} delivery path.`
-          : outboundChannel === "nitrosend"
-            ? "Autonomous research outbound needs Firehose, research topics, Nitrosend API access, and BLUEPRINT_AUTONOMOUS_NITROSEND_AUDIENCE_ID."
-            : outboundChannel === "sendgrid"
-              ? "Autonomous research outbound needs Firehose, research topics, BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS, and a configured SendGrid/SMTP delivery path."
-              : `Autonomous research outbound channel "${outboundChannel}" is not supported. Use sendgrid or nitrosend.`
+          : outboundChannel === "sendgrid"
+            ? "Autonomous research outbound needs Firehose, research topics, BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS, and a configured SendGrid/SMTP delivery path."
+            : `Autonomous research outbound channel "${outboundChannel}" is not supported. Use sendgrid.`
         : "Autonomous research outbound is disabled.",
     },
     creativeFactory: {
