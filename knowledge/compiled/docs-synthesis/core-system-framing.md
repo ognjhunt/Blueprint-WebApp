@@ -7,15 +7,15 @@ source_urls:
   - 'repo:///AUTONOMOUS_ORG.md'
   - 'repo:///DEPLOYMENT.md'
   - 'repo:///AGENTS.md'
-last_verified_at: "2026-04-04"
+last_verified_at: "2026-04-05"
 owner: blueprint-ops-lead
 sensitivity: internal
 confidence: 0.95
 source_hashes:
   PLATFORM_CONTEXT.md: "1f7104c08b21"
   WORLD_MODEL_STRATEGY_CONTEXT.md: "924e7ed32f17"
-  AUTONOMOUS_ORG.md: "dcbcddfaf9d6"
-  DEPLOYMENT.md: "4cbda83b4b0c"
+  AUTONOMOUS_ORG.md: "a1594d9d40d5"
+  DEPLOYMENT.md: "61ba253ba5f8"
   AGENTS.md: "eaffe2a2abfb"
 ---
 
