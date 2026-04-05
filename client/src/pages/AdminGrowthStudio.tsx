@@ -130,6 +130,18 @@ type VerifyResponse = {
   googleImage?: ProviderStatus;
 };
 
+type NotionSyncResponse = {
+  ok?: boolean;
+  created?: number;
+  updated?: number;
+  errors?: number;
+  skipped?: number;
+  syncedAt?: string | null;
+  databaseId?: string | null;
+  sourceCounts?: Record<string, number>;
+  error?: string;
+};
+
 type RunwayTask = {
   id: string;
   status: string;
@@ -263,6 +275,8 @@ export default function AdminGrowthStudio() {
   const [runningAutonomousOutbound, setRunningAutonomousOutbound] = useState(false);
   const [runningCreativeFactory, setRunningCreativeFactory] = useState(false);
   const [shipBroadcastRejectReasons, setShipBroadcastRejectReasons] = useState<Record<string, string>>({});
+  const [runningNotionSync, setRunningNotionSync] = useState(false);
+  const [notionSyncResult, setNotionSyncResult] = useState<NotionSyncResponse | null>(null);
 
   const campaignsQuery = useQuery<CampaignListResponse>({
     queryKey: ["admin-growth-campaigns"],
@@ -549,6 +563,33 @@ export default function AdminGrowthStudio() {
       setNotice("Integration status refreshed.");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Failed to verify integrations");
+    }
+  }
+
+  async function syncNotionMirror() {
+    setRunningNotionSync(true);
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch("/api/admin/growth/notion/sync", {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+      });
+      const json = (await response.json()) as NotionSyncResponse;
+      if (!response.ok || !json.ok) {
+        throw new Error(json.error || "Failed to sync Growth Studio into Notion");
+      }
+
+      setNotionSyncResult(json);
+      setNotice(
+        `Notion mirror refreshed: ${json.created || 0} created, ${json.updated || 0} updated.`,
+      );
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error ? requestError.message : "Failed to sync Growth Studio into Notion",
+      );
+    } finally {
+      setRunningNotionSync(false);
     }
   }
 
@@ -881,6 +922,14 @@ export default function AdminGrowthStudio() {
               </button>
               <button
                 type="button"
+                onClick={syncNotionMirror}
+                disabled={runningNotionSync}
+                className="rounded-full border border-zinc-300 bg-white px-5 py-3 text-sm font-medium text-zinc-900 transition hover:border-zinc-400 disabled:opacity-60"
+              >
+                {runningNotionSync ? "Syncing Notion…" : "Sync to Notion Hub"}
+              </button>
+              <button
+                type="button"
                 onClick={runExperimentRollout}
                 disabled={runningExperimentRollout}
                 className="rounded-full border border-zinc-300 bg-white px-5 py-3 text-sm font-medium text-zinc-900 transition hover:border-zinc-400 disabled:opacity-60"
@@ -1053,6 +1102,27 @@ export default function AdminGrowthStudio() {
                 <p className="mt-4 text-sm text-zinc-500">No ship-broadcast drafts are currently waiting approval.</p>
               )}
             </div>
+            {notionSyncResult ? (
+              <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-700">
+                <p>Notion mirror synced at: {formatEventTime(notionSyncResult.syncedAt || null)}</p>
+                <p>Created: {notionSyncResult.created || 0}</p>
+                <p>Updated: {notionSyncResult.updated || 0}</p>
+                <p>Errors: {notionSyncResult.errors || 0}</p>
+                <p>Skipped: {notionSyncResult.skipped || 0}</p>
+                {notionSyncResult.sourceCounts ? (
+                  <div className="mt-2 space-y-1">
+                    <p className="font-semibold text-zinc-950">Source counts</p>
+                    <p>Ship-broadcast approvals: {notionSyncResult.sourceCounts.shipBroadcastApprovals || 0}</p>
+                    <p>Campaign drafts: {notionSyncResult.sourceCounts.campaignDrafts || 0}</p>
+                    <p>Creative runs: {notionSyncResult.sourceCounts.creativeRuns || 0}</p>
+                    <p>
+                      Integration verifications: {notionSyncResult.sourceCounts.integrationVerifications || 0}
+                    </p>
+                    <p>Content reviews: {notionSyncResult.sourceCounts.contentReviews || 0}</p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
             {runwayTask ? (
               <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-700">

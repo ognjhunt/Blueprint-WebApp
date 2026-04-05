@@ -108,7 +108,7 @@ export function buildLaunchReadinessSnapshot() {
     !automationFlags.slaWatchdog || (firebaseAdminReady && emailTransport.configured);
   const notionSyncReady =
     !automationFlags.notionSync ||
-    (firebaseAdminReady && Boolean(getConfiguredEnvValue("NOTION_API_KEY")));
+    (firebaseAdminReady && Boolean(getConfiguredEnvValue("NOTION_API_KEY", "NOTION_API_TOKEN")));
   const onboardingReady =
     !automationFlags.onboarding || (firebaseAdminReady && emailTransport.configured);
   const autonomousAutomationReady =

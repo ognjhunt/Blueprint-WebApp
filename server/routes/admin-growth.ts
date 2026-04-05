@@ -21,6 +21,7 @@ import {
   summarizeRecentContentOutcomeReviews,
 } from "../utils/content-ops";
 import { parseGsUri } from "../utils/pipeline-dashboard";
+import { syncGrowthStudioToNotion } from "../utils/notion-sync";
 
 const router = Router();
 
@@ -385,6 +386,22 @@ router.post("/automation/creative/run", requireOps, async (_req, res) => {
     logger.error({ err: error }, "Failed to run creative factory");
     return res.status(500).json({
       error: error instanceof Error ? error.message : "Failed to run creative factory",
+    });
+  }
+});
+
+router.post("/notion/sync", requireOps, async (req, res) => {
+  try {
+    const limit =
+      typeof req.query.limit === "string"
+        ? Math.min(Math.max(parseInt(req.query.limit, 10) || 25, 1), 50)
+        : 25;
+    const result = await syncGrowthStudioToNotion({ limit });
+    return res.json({ ok: true, ...result });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to sync growth studio into Notion");
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : "Failed to sync growth studio into Notion",
     });
   }
 });
