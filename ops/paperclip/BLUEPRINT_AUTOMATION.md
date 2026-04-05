@@ -29,7 +29,7 @@ The automation loop is deliberately grounded in real repo state and truthful pro
 - `blueprint-executive-ops` is the cross-repo / operator project for executive and blocker work.
 - `*-codex` agents stay on `codex_local` for implementation work.
 - `blueprint-chief-of-staff`, `notion-manager-agent`, `revenue-ops-pricing-agent`, `ops-lead`, `growth-lead`, `analytics-agent`, `investor-relations-agent`, `community-updates-agent`, `market-intel-agent`, `supply-intel-agent`, `capturer-growth-agent`, `city-launch-agent`, `demand-intel-agent`, `robot-team-growth-agent`, `site-operator-partnership-agent`, `city-demand-agent`, `buyer-solutions-agent`, `solutions-engineering-agent`, `security-procurement-agent`, `capturer-success-agent`, `site-catalog-agent`, `outbound-sales-agent`, and `buyer-success-agent` run on `hermes_local`.
-- Hermes-backed agents are configured for Codex OAuth only. Do not assume Anthropic/OpenAI API-key routing for them on this host.
+- Hermes-backed research/copilot agents are configured to use OpenRouter as the primary provider on this host, with Codex available as fallback when the free lane is unavailable.
 - `blueprint-ceo`, `blueprint-cto`, and the `*-claude` review agents are now controlled by `BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE`, which supports `claude`, `codex`, and `auto`.
 - In `auto`, reconcile probes the Claude adapter and flips only the executive/review lane to `codex_local` when Claude is unavailable, then flips back on a later maintenance pass when Claude is healthy again.
 - For immediate operator control, run `scripts/paperclip/switch-blueprint-paperclip-lanes.sh auto|claude|codex`.
@@ -172,7 +172,7 @@ In practice that means:
 - implementation agents stay on Codex when Codex is healthy, then fail over to Claude when Codex is unavailable
 - Hermes-backed chief-of-staff, ops, growth, and research/copilot/summary agents stay on Hermes when the local `hermes` CLI is healthy
 
-No Anthropic or OpenAI API-key wiring is required for the Codex/Claude host policy, and Hermes is expected to use Codex OAuth rather than provider API keys on this host.
+No Anthropic API-key wiring is required for the Codex/Claude host policy. Hermes research lanes are expected to use OpenRouter first and fall back to Codex on this host.
 
 ## Commands
 

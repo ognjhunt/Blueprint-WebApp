@@ -92,6 +92,13 @@ export interface WorkQueueQueryItem {
   naturalKey: string;
 }
 
+export interface WorkQueueScanConflict {
+  key: string;
+  canonicalItem: WorkQueueQueryItem;
+  entries: WorkQueueQueryItem[];
+  issueStatuses: string[];
+}
+
 function formatDateInTimeZone(date: Date, timeZone: string) {
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone,
@@ -254,6 +261,25 @@ function notionClient(client: Client): NotionClientAny {
 
 function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function asRichTextPlainText(value: unknown): string | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const content = value
+    .map((entry) => (
+      typeof entry === "object" && entry !== null
+        ? asString((entry as { plain_text?: unknown }).plain_text)
+          ?? asString((entry as { text?: { content?: unknown } }).text?.content)
+        : undefined
+    ))
+    .filter((entry): entry is string => Boolean(entry))
+    .join("")
+    .trim();
+
+  return content.length > 0 ? content : undefined;
 }
 
 function asStringArray(value: unknown): string[] {
@@ -460,8 +486,25 @@ export function detectStaleKnowledgeEntries(
     .map((entry) => entry.id);
 }
 
-function workQueueNaturalKey(item: WorkQueueItem): string {
-  return unique([item.naturalKey, item.title, item.system, item.workType]).join("::");
+function workQueueMatchKeys(item: Pick<WorkQueueItem, "title" | "system" | "workType" | "naturalKey">) {
+  const keys = new Set<string>();
+  keys.add(canonicalWorkQueueScanKey(item as Pick<WorkQueueQueryItem, "title" | "system" | "workType" | "naturalKey">));
+  keys.add(canonicalWorkQueueScanKey({
+    title: item.title,
+    system: item.system,
+    workType: item.workType,
+    naturalKey: `${item.title}::${item.system}::${item.workType}`,
+  }));
+  return [...keys].filter(Boolean);
+}
+
+function workQueuePageMatchKeys(page: any) {
+  return workQueueMatchKeys({
+    title: getTitleFromPage(page),
+    system: page?.properties?.System?.select?.name ?? "",
+    workType: page?.properties?.["Work Type"]?.select?.name ?? "",
+    naturalKey: asRichTextPlainText(page?.properties?.["Natural Key"]?.rich_text),
+  });
 }
 
 function knowledgeNaturalKey(entry: KnowledgeEntry): string {
@@ -632,14 +675,10 @@ export async function queryDatabase(client: Client, database: NotionDatabaseKey,
 }
 
 function filterWorkQueueMatches(pages: any[], item: WorkQueueItem): any[] {
-  const key = workQueueNaturalKey(item);
+  const keys = new Set(workQueueMatchKeys(item));
   return pages.filter((page) => {
-    const pageKey = unique([
-      getTitleFromPage(page),
-      page?.properties?.System?.select?.name,
-      page?.properties?.["Work Type"]?.select?.name,
-    ]).join("::");
-    return getTitleFromPage(page) === item.title && pageKey === key;
+    const pageKeys = workQueuePageMatchKeys(page);
+    return pageKeys.some((pageKey) => keys.has(pageKey));
   });
 }
 
@@ -759,11 +798,13 @@ export async function queryWorkQueue(client: Client, filters: WorkQueueQuery): P
     lastStatusChange: asString(page?.properties?.["Last Status Change"]?.date?.start),
     escalateAfter: asString(page?.properties?.["Escalate After"]?.date?.start),
     lastEditedTime: asString(page?.last_edited_time),
-    naturalKey: unique([
-      getTitleFromPage(page),
-      page?.properties?.System?.select?.name,
-      page?.properties?.["Work Type"]?.select?.name,
-    ]).join("::"),
+    naturalKey:
+      asRichTextPlainText(page?.properties?.["Natural Key"]?.rich_text)
+      ?? unique([
+        getTitleFromPage(page),
+        page?.properties?.System?.select?.name,
+        page?.properties?.["Work Type"]?.select?.name,
+      ]).join("::"),
   }));
 }
 
@@ -804,6 +845,53 @@ export function collapseWorkQueueItemsByNaturalKey(items: WorkQueueQueryItem[]):
     || left.system.localeCompare(right.system)
     || left.workType.localeCompare(right.workType),
   );
+}
+
+export function analyzeWorkQueueItemsForScan(items: WorkQueueQueryItem[]) {
+  const groups = new Map<string, WorkQueueQueryItem[]>();
+
+  for (const item of items) {
+    const key = canonicalWorkQueueScanKey(item);
+    const existing = groups.get(key) ?? [];
+    existing.push(item);
+    groups.set(key, existing);
+  }
+
+  const actionableItems: WorkQueueQueryItem[] = [];
+  const conflicts: WorkQueueScanConflict[] = [];
+
+  for (const [key, entries] of groups.entries()) {
+    const ranked = [...entries].sort(compareCanonicalWorkQueueItems);
+    const canonicalItem = ranked[0];
+    if (!canonicalItem) {
+      continue;
+    }
+
+    const issueStatuses = [...new Set(entries.map((entry) => mapWorkQueueLifecycleStageToIssueStatus(entry.lifecycleStage)))];
+    if (entries.length > 1 && issueStatuses.length > 1) {
+      conflicts.push({
+        key,
+        canonicalItem,
+        entries: ranked,
+        issueStatuses,
+      });
+      continue;
+    }
+
+    actionableItems.push(canonicalItem);
+  }
+
+  actionableItems.sort((left, right) =>
+    left.title.localeCompare(right.title)
+    || left.system.localeCompare(right.system)
+    || left.workType.localeCompare(right.workType),
+  );
+  conflicts.sort((left, right) => left.canonicalItem.title.localeCompare(right.canonicalItem.title));
+
+  return {
+    actionableItems,
+    conflicts,
+  };
 }
 
 export async function createKnowledgeEntry(client: Client, entry: KnowledgeEntry): Promise<NotionWriteResult> {

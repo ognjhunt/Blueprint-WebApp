@@ -40,8 +40,8 @@ import {
   handleSupportWebhook,
 } from "./ops-webhooks.js";
 import {
+  analyzeWorkQueueItemsForScan,
   canonicalWorkQueueScanKey,
-  collapseWorkQueueItemsByNaturalKey,
   buildNotionToolHandlers,
   createKnowledgeEntry,
   createNotionClient,
@@ -157,11 +157,6 @@ import {
   shouldTriggerRoutineCatchUp,
 } from "./execution-governor.js";
 import {
-  createGrowthCampaignDraft,
-  getGrowthCampaignRecord,
-  queueGrowthCampaignSend,
-} from "../../../../../server/utils/growth-ops.js";
-import {
   buildShipBroadcastIssueSpec,
   formatContentOutcomeReviewIssueComment,
   normalizeContentBrief,
@@ -189,6 +184,18 @@ const BUYER_RISK_OWNER_RESPONSE_GRACE_HOURS = 12;
 const MEANINGFUL_PROGRESS_GRACE_MS = 5 * 60 * 1000;
 const EXECUTION_DISPATCH_COOLDOWN_MS = 15 * 60 * 1000;
 // STATE_KEYS imported from ./constants.js
+
+type GrowthOpsModule = typeof import("../../../../../server/utils/growth-ops.js");
+
+let growthOpsModulePromise: Promise<GrowthOpsModule> | null = null;
+const resolvedSecretCache = new Map<string, string | null>();
+
+function loadGrowthOpsModule() {
+  if (!growthOpsModulePromise) {
+    growthOpsModulePromise = import("../../../../../server/utils/growth-ops.js");
+  }
+  return growthOpsModulePromise;
+}
 
 type RepoConfig = {
   key: string;
@@ -1374,11 +1381,19 @@ async function resolveOptionalSecret(
   fallbackName?: string,
 ): Promise<string | null> {
   if (ref) {
+    if (resolvedSecretCache.has(ref)) {
+      return resolvedSecretCache.get(ref) ?? null;
+    }
     const resolved = await ctx.secrets.resolve(ref);
+    resolvedSecretCache.set(ref, resolved ?? null);
     if (resolved) return resolved;
   }
   if (fallbackName) {
+    if (resolvedSecretCache.has(fallbackName)) {
+      return resolvedSecretCache.get(fallbackName) ?? null;
+    }
     const resolved = await ctx.secrets.resolve(fallbackName);
+    resolvedSecretCache.set(fallbackName, resolved ?? null);
     if (resolved) return resolved;
   }
   return null;
@@ -2742,10 +2757,15 @@ async function runExecutionDispatchJob(
   config: BlueprintAutomationConfig,
 ) {
   const issues = await listAllIssues(ctx, companyId);
+  const sourceMappings = await listSourceMappings(ctx, companyId).catch(() => []);
+  const sourceMappingByIssueId = buildSourceMappingIndexByIssueId(sourceMappings);
   const dispatched: string[] = [];
 
   for (const issue of issues) {
     if (!issue.assigneeAgentId || !issueNeedsExecution(issue.status)) {
+      continue;
+    }
+    if (isReferenceNotionBacklogIssue(issue, sourceMappingByIssueId)) {
       continue;
     }
     if (hoursSinceTimestamp(issue.updatedAt, Date.now()) * 60 * 60 * 1000 < MEANINGFUL_PROGRESS_GRACE_MS) {
@@ -3490,6 +3510,31 @@ async function listSourceMappings(
   return rows;
 }
 
+function buildSourceMappingIndexByIssueId(
+  mappings: PluginEntityRecord[],
+): Map<string, SourceMappingData> {
+  const index = new Map<string, SourceMappingData>();
+  for (const mapping of mappings) {
+    const data = (mapping.data ?? {}) as Partial<SourceMappingData>;
+    if (typeof data.issueId !== "string" || data.issueId.length === 0) continue;
+    if (typeof data.sourceType !== "string" || typeof data.sourceId !== "string") continue;
+    index.set(data.issueId, data as SourceMappingData);
+  }
+  return index;
+}
+
+function isReferenceNotionBacklogIssue(
+  issue: Pick<Issue, "id" | "status">,
+  mappingByIssueId: Map<string, SourceMappingData>,
+) {
+  if (issue.status !== "backlog") return false;
+  const mapping = mappingByIssueId.get(issue.id);
+  if (!mapping || mapping.sourceType !== "notion-work-queue") return false;
+  const metadata = (mapping.metadata ?? {}) as Record<string, unknown>;
+  const workType = typeof metadata.workType === "string" ? metadata.workType.trim().toLowerCase() : "";
+  return workType === "refresh" || mapping.sourceId.includes("::cross-system::refresh");
+}
+
 function toNotionQueueDuplicateCandidate(
   mapping: PluginEntityRecord,
   issue: Issue | null,
@@ -3558,6 +3603,10 @@ function notionQueueIssuePriorityRank(priority: string) {
     default:
       return 0;
   }
+}
+
+function notionQueueConflictSourceId(queueKey: string) {
+  return `queue-conflict:${queueKey}`;
 }
 
 function compareNotionQueueDuplicateCandidates(
@@ -4497,7 +4546,9 @@ async function writeManagerAlertState(
 const MANAGED_ISSUE_SLACK_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 
 function shouldApplyManagedIssueSlackCooldown(sourceType: string) {
-  return sourceType === "repo-dirty" || sourceType === "repo-branch-drift";
+  return sourceType === "repo-dirty"
+    || sourceType === "repo-branch-drift"
+    || sourceType === "notion-work-queue";
 }
 
 function buildManagedIssueSlackAlertSignature(input: {
@@ -5395,8 +5446,11 @@ async function queueOperatorReadyShipBroadcasts(
       break;
     }
 
+    const growthOpsModule = asset.growthCampaignDraftId
+      ? await loadGrowthOpsModule()
+      : null;
     const campaign = asset.growthCampaignDraftId
-      ? await getGrowthCampaignRecord(asset.growthCampaignDraftId).catch(() => null)
+      ? await growthOpsModule?.getGrowthCampaignRecord(asset.growthCampaignDraftId).catch(() => null)
       : null;
     const decision = evaluateOperatorReadyShipBroadcast(asset, campaign, now);
 
@@ -5410,7 +5464,8 @@ async function queueOperatorReadyShipBroadcasts(
       continue;
     }
 
-    const queueResult = await queueGrowthCampaignSend({
+    const growthOps = await loadGrowthOpsModule();
+    const queueResult = await growthOps.queueGrowthCampaignSend({
       campaignId: asset.growthCampaignDraftId!,
       operatorEmail,
     });
@@ -5687,7 +5742,8 @@ async function buildCommunityUpdatesOutputProof(
   const shouldCreateGrowthCampaignDraft = assetType === "ship_broadcast";
   if (validationErrors.length === 0 && shouldCreateGrowthCampaignDraft) {
     try {
-      const campaign = await createGrowthCampaignDraft({
+      const growthOps = await loadGrowthOpsModule();
+      const campaign = await growthOps.createGrowthCampaignDraft({
         name: title,
         subject: emailDraftSubject,
         body: emailDraftBody,
@@ -5979,6 +6035,13 @@ const MODEL_COST_ESTIMATES: Record<string, number> = {
   default: 0.30,
 };
 
+function estimateModelCostUsd(model: string | null | undefined) {
+  const normalized = typeof model === "string" ? model.trim() : "";
+  if (!normalized) return MODEL_COST_ESTIMATES.default;
+  if (normalized.includes(":free")) return 0;
+  return MODEL_COST_ESTIMATES[normalized] ?? MODEL_COST_ESTIMATES.default;
+}
+
 async function trackAgentRun(ctx: PluginContext, companyId: string, agentKey: string, model?: string) {
   const period = currentBudgetPeriod();
   const state = await readState<BudgetTrackingState>(ctx, companyId, STATE_KEYS.budgetTracking) ?? { period, agents: {} };
@@ -5989,7 +6052,7 @@ async function trackAgentRun(ctx: PluginContext, companyId: string, agentKey: st
   }
 
   const configuredModel = model ?? getConfiguredAgent(agentKey)?.adapter?.config?.model;
-  const costPerRun = MODEL_COST_ESTIMATES[configuredModel ?? "default"] ?? MODEL_COST_ESTIMATES.default;
+  const costPerRun = estimateModelCostUsd(configuredModel);
   const entry = state.agents[agentKey] ?? { runs: 0, estimatedCostUsd: 0 };
   entry.runs += 1;
   entry.estimatedCostUsd = Math.round((entry.estimatedCostUsd + costPerRun) * 100) / 100;
@@ -6008,12 +6071,14 @@ async function runBudgetCheck(ctx: PluginContext, companyId: string, config: Blu
 
   const alerts: string[] = [];
   for (const [agentKey, entry] of Object.entries(state.agents)) {
-    const limit = getBudgetLimit(agentKey);
-    const pct = (entry.estimatedCostUsd / limit) * 100;
+    const limitCents = getBudgetLimit(agentKey);
+    const limitUsd = limitCents / 100;
+    if (limitUsd <= 0) continue;
+    const pct = (entry.estimatedCostUsd / limitUsd) * 100;
     if (pct >= 100) {
-      alerts.push(`:rotating_light: *${agentKey}* exceeded monthly budget ($${entry.estimatedCostUsd.toFixed(2)} / $${limit} \u2014 ${pct.toFixed(0)}%, ${entry.runs} runs)`);
+      alerts.push(`:rotating_light: *${agentKey}* exceeded monthly budget ($${entry.estimatedCostUsd.toFixed(2)} / $${limitUsd.toFixed(2)} \u2014 ${pct.toFixed(0)}%, ${entry.runs} runs)`);
     } else if (pct >= 80) {
-      alerts.push(`:warning: *${agentKey}* at ${pct.toFixed(0)}% of monthly budget ($${entry.estimatedCostUsd.toFixed(2)} / $${limit}, ${entry.runs} runs)`);
+      alerts.push(`:warning: *${agentKey}* at ${pct.toFixed(0)}% of monthly budget ($${entry.estimatedCostUsd.toFixed(2)} / $${limitUsd.toFixed(2)}, ${entry.runs} runs)`);
     }
   }
 
@@ -8137,12 +8202,19 @@ async function getDashboardData(ctx: PluginContext, companyId: string): Promise<
   }));
   const recentEvents = await readState<RecentEvent[]>(ctx, companyId, STATE_KEYS.recentEvents) ?? [];
   const lastScan = await readState<Record<string, unknown>>(ctx, companyId, STATE_KEYS.lastScan);
-  const sourceMappings = await ctx.entities.list({
-    entityType: ENTITY_TYPES.sourceMapping,
-    scopeKind: "company",
-    scopeId: companyId,
-    limit: 100,
-    offset: 0,
+  const sourceMappings = (
+    await ctx.entities.list({
+      entityType: ENTITY_TYPES.sourceMapping,
+      scopeKind: "company",
+      scopeId: companyId,
+      limit: 1000,
+      offset: 0,
+    })
+  ).sort((left, right) => {
+    const leftData = (left.data ?? {}) as Partial<SourceMappingData>;
+    const rightData = (right.data ?? {}) as Partial<SourceMappingData>;
+    return Date.parse(toIsoTimestamp(rightData.lastSeenAt))
+      - Date.parse(toIsoTimestamp(leftData.lastSeenAt));
   });
   const openManagedIssues = (
     await Promise.all(
@@ -9851,15 +9923,58 @@ async function runOpsQueueScanJob(ctx: PluginContext, companyId: string, config:
 
   const notionClient = createNotionClient({ token: notionToken });
   const preReconcileResult = await runNotionQueueReconcileJob(ctx, companyId);
-  const workQueueItems = collapseWorkQueueItemsByNaturalKey(
-    await queryWorkQueue(notionClient, {}),
-  );
+  const scannedQueueItems = await queryWorkQueue(notionClient, {});
+  const {
+    actionableItems: workQueueItems,
+    conflicts: conflictingQueueGroups,
+  } = analyzeWorkQueueItemsForScan(scannedQueueItems);
   const [sourceMappings, issues] = await Promise.all([
     listSourceMappings(ctx, companyId),
     listAllIssues(ctx, companyId),
   ]);
   const notionQueueAliases = buildNotionQueueAliasMap(sourceMappings, issues);
   let synced = 0;
+  let suppressedConflicts = 0;
+
+  for (const conflict of conflictingQueueGroups) {
+    suppressedConflicts += 1;
+    const canonicalItem = conflict.canonicalItem;
+    const issueStatuses = conflict.issueStatuses.join(", ");
+    const duplicatePages = conflict.entries
+      .map((entry) => `- ${entry.url ?? entry.id} | lifecycle=${entry.lifecycleStage || "unknown"}`)
+      .join("\n");
+
+    await upsertManagedIssue(ctx, {
+      companyId,
+      sourceType: "notion-drift",
+      sourceId: notionQueueConflictSourceId(conflict.key),
+      title: `Notion drift: conflicting queue lifecycle for ${canonicalItem.title}`,
+      description: [
+        "Blueprint found multiple Notion Work Queue pages that collapse to the same queue key but disagree on lifecycle state.",
+        "",
+        `- Canonical queue key: ${conflict.key}`,
+        `- Observed issue states: ${issueStatuses}`,
+        `- Canonical page: ${canonicalItem.url ?? canonicalItem.id}`,
+        "- Queue sync is suppressing the actionable Paperclip alert for this key until the duplicate lifecycle drift is resolved.",
+        "",
+        "## Duplicate pages",
+        duplicatePages,
+      ].join("\n"),
+      projectName: EXECUTIVE_OPS_PROJECT,
+      assignee: NOTION_MANAGER_AGENT,
+      priority: "high",
+      status: "todo",
+      signalUrl: canonicalItem.url,
+      metadata: {
+        queueKey: conflict.key,
+        itemIds: conflict.entries.map((entry) => entry.id),
+        lifecycleStages: conflict.entries.map((entry) => entry.lifecycleStage),
+        issueStatuses: conflict.issueStatuses,
+      },
+      suppressRefreshComment: true,
+    });
+
+  }
 
   for (const item of workQueueItems) {
     const queueKey = canonicalWorkQueueScanKey(item);
@@ -9867,6 +9982,14 @@ async function runOpsQueueScanJob(ctx: PluginContext, companyId: string, config:
     const assignee = routeWorkQueueAssignee(item, config);
     const sourceId = mappedAlias?.data.sourceId ?? queueKey;
     const issueStatus = mapWorkQueueLifecycleStageToIssueStatus(item.lifecycleStage);
+
+    await resolveManagedIssue(ctx, {
+      companyId,
+      sourceType: "notion-drift",
+      sourceId: notionQueueConflictSourceId(queueKey),
+      resolutionStatus: "done",
+      comment: `Notion queue scan no longer sees conflicting lifecycle drift for ${item.title}.`,
+    });
 
     if (isStaleAnalyticsSnapshotQueueItem(item)) {
       const snapshot = extractAnalyticsSnapshotDate(item.title);
@@ -9928,13 +10051,14 @@ async function runOpsQueueScanJob(ctx: PluginContext, companyId: string, config:
   await appendRecentEvent(ctx, companyId, {
     kind: "ops-queue-scan",
     title: "Ops queue scan completed",
-    detail: `Synced ${synced} Notion work queue items after cancelling ${preReconcileResult.cancelledCount} duplicate queue issues at ${nowIso()}`,
+    detail: `Synced ${synced} Notion work queue items after cancelling ${preReconcileResult.cancelledCount} duplicate queue issues and suppressing ${suppressedConflicts} conflicting queue keys at ${nowIso()}`,
   });
 
   return {
     synced,
     skipped: false,
     reconciledDuplicateIssues: preReconcileResult.cancelledCount,
+    suppressedConflicts,
   };
 }
 

@@ -3,7 +3,7 @@
 ## Identity
 - **Department:** Growth
 - **Reports to:** Growth Lead
-- **Model:** Claude (claude-sonnet-4-6)
+- **Model:** Hermes (qwen/qwen3.6-plus:free primary via OpenRouter, Codex fallback on this host)
 - **Phase:** 1 (Supervised)
 
 ## Purpose

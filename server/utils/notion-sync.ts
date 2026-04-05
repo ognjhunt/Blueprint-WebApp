@@ -1,9 +1,38 @@
 import { Client } from "@notionhq/client";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { getConfiguredEnvValue } from "../config/env";
-import { buildGrowthIntegrationSummary } from "./provider-status";
+import {
+  type ContentOutcomeReviewRecord,
+  listContentOutcomeReviews,
+} from "./content-ops";
+import { verifyGrowthIntegrations } from "./growth-ops";
 
 type SyncCounts = { created: number; updated: number; errors: number };
+
+type GrowthStudioSyncResult = {
+  shipBroadcastApprovalQueue: SyncCounts;
+  campaignDrafts: SyncCounts;
+  creativeRuns: SyncCounts;
+  integrationChecks: SyncCounts;
+  contentOutcomeReviews: SyncCounts;
+  processedCount: number;
+  failedCount: number;
+};
+
+type NotionClientAny = Client & {
+  dataSources?: {
+    query: (params: Record<string, unknown>) => Promise<{ results?: Array<Record<string, any>> }>;
+  };
+  databases: {
+    query: (params: Record<string, unknown>) => Promise<{ results?: Array<Record<string, any>> }>;
+  };
+  pages: {
+    create: (params: Record<string, unknown>) => Promise<{ id: string }>;
+    update: (params: Record<string, unknown>) => Promise<{ id: string }>;
+  };
+};
+
+const NOTION_TEXT_LIMIT = 1800;
 
 function getNotionClient() {
   const apiKey = getConfiguredEnvValue("NOTION_API_KEY", "NOTION_API_TOKEN");
@@ -13,26 +42,95 @@ function getNotionClient() {
   return new Client({ auth: apiKey });
 }
 
-function titleProperty(content: string) {
-  return {
-    title: [{ text: { content } }],
-  };
-}
-
-function richTextProperty(content: string) {
-  return {
-    rich_text: [{ text: { content } }],
-  };
-}
-
-function selectProperty(content: string) {
-  return {
-    select: { name: content || "unknown" },
-  };
-}
-
 function normalizeString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeStringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.map((entry) => normalizeString(entry)).filter(Boolean)
+    : [];
+}
+
+function isValidEmail(value: string | null | undefined) {
+  return Boolean(value && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value));
+}
+
+function truncateText(value: string, limit = NOTION_TEXT_LIMIT) {
+  const normalized = normalizeString(value);
+  if (normalized.length <= limit) {
+    return normalized;
+  }
+  return `${normalized.slice(0, Math.max(limit - 1, 1)).trimEnd()}…`;
+}
+
+function joinList(value: unknown) {
+  return truncateText(normalizeStringArray(value).join("\n"));
+}
+
+function joinNotes(...values: Array<string | null | undefined>) {
+  return truncateText(
+    values
+      .map((value) => normalizeString(value))
+      .filter(Boolean)
+      .join("\n"),
+  );
+}
+
+function titleProperty(content: string) {
+  return {
+    title: [{ text: { content: truncateText(content || "Untitled") } }],
+  };
+}
+
+function richTextProperty(content: string | null | undefined) {
+  const normalized = truncateText(content || "");
+  return {
+    rich_text: normalized
+      ? [{ text: { content: normalized } }]
+      : [],
+  };
+}
+
+function selectProperty(content: string | null | undefined) {
+  const normalized = normalizeString(content);
+  return {
+    select: normalized ? { name: normalized } : null,
+  };
+}
+
+function numberProperty(value: unknown) {
+  const numeric = typeof value === "number" ? value : Number(value);
+  return {
+    number: Number.isFinite(numeric) ? numeric : null,
+  };
+}
+
+function dateProperty(value: string | null | undefined) {
+  const normalized = normalizeString(value);
+  return {
+    date: normalized ? { start: normalized } : null,
+  };
+}
+
+function checkboxProperty(value: unknown) {
+  return {
+    checkbox: value === true,
+  };
+}
+
+function emailProperty(value: string | null | undefined) {
+  const normalized = normalizeString(value);
+  return {
+    email: isValidEmail(normalized) ? normalized : null,
+  };
+}
+
+function multiSelectProperty(values: string[]) {
+  const unique = [...new Set(values.map((value) => normalizeString(value)).filter(Boolean))];
+  return {
+    multi_select: unique.map((value) => ({ name: value })),
+  };
 }
 
 function extractRichText(property: unknown) {
@@ -50,584 +148,211 @@ function extractSelect(property: unknown) {
   return (property as { select?: { name?: string } }).select?.name || "";
 }
 
-function normalizeDateTime(value: unknown) {
-  if (!value) {
-    return null;
-  }
-
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (!trimmed) {
-      return null;
-    }
-    const parsed = new Date(trimmed);
-    return Number.isNaN(parsed.getTime()) ? trimmed : parsed.toISOString();
-  }
-
-  if (typeof value === "number") {
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
-  }
-
+function extractTimestampFromFirestore(value: unknown) {
+  if (!value) return null;
+  if (typeof value === "string") return value;
   if (typeof value === "object" && typeof (value as { toDate?: () => Date }).toDate === "function") {
-    const parsed = (value as { toDate: () => Date }).toDate();
-    return parsed instanceof Date && !Number.isNaN(parsed.getTime()) ? parsed.toISOString() : null;
+    return (value as { toDate: () => Date }).toDate().toISOString();
   }
-
   return null;
 }
 
-function summarizeParts(parts: Array<string | null | undefined>) {
-  return parts
-    .map((part) => (typeof part === "string" ? part.trim() : ""))
-    .filter(Boolean)
-    .join(" • ");
-}
-
-const GROWTH_MIRROR_DB_ID = "f83b6c53-a33a-4790-9ca4-786dddadad46";
-
-type GrowthMirrorSourceAuthority = "app/API" | "Paperclip" | "Repo" | "External";
-
-type GrowthMirrorEntry = {
-  title: string;
-  system: "Cross-System" | "WebApp" | "Capture" | "Pipeline" | "Validation";
-  businessLane: "Growth";
-  lifecycleStage: string;
-  workType: "Refresh";
-  priority: "P0" | "P1" | "P2" | "P3";
-  substage: string;
-  outputLocation: "Notion";
-  executionSurface: "Repo";
-  sourceAuthority: GrowthMirrorSourceAuthority;
-  sourceCollection: string;
-  sourceId: string;
-  naturalKey: string;
-  needsFounder?: boolean;
-  lastStatusChange?: string | null;
-  dueDate?: string | null;
-};
-
-type GrowthMirrorCounts = SyncCounts & {
-  skipped: number;
-  syncedAt: string | null;
-  databaseId: string | null;
-  sourceCounts: Record<string, number>;
-};
-
-function buildGrowthMirrorProperties(entry: GrowthMirrorEntry, syncedAt: string) {
-  const properties: Record<string, unknown> = {
-    Title: titleProperty(entry.title),
-    Priority: selectProperty(entry.priority),
-    System: selectProperty(entry.system),
-    "Business Lane": selectProperty(entry.businessLane),
-    "Lifecycle Stage": selectProperty(entry.lifecycleStage),
-    "Work Type": selectProperty(entry.workType),
-    Substage: richTextProperty(entry.substage),
-    "Output Location": selectProperty(entry.outputLocation),
-    "Execution Surface": selectProperty(entry.executionSurface),
-    "Source Authority": selectProperty(entry.sourceAuthority),
-    "Last Synced At": {
-      date: {
-        start: syncedAt,
-      },
-    },
-  };
-
-  if (entry.needsFounder !== undefined) {
-    properties["Needs Founder"] = {
-      checkbox: entry.needsFounder,
-    };
-  }
-
-  if (entry.lastStatusChange) {
-    properties["Last Status Change"] = {
-      date: {
-        start: entry.lastStatusChange,
-      },
-    };
-  }
-
-  if (entry.dueDate) {
-    properties["Due Date"] = {
-      date: {
-        start: entry.dueDate,
-      },
-    };
-  }
-
-  return properties;
-}
-
-async function ensureGrowthMirrorSchema(notion: any, databaseId: string) {
-  const database = await notion.databases.retrieve({ database_id: databaseId });
-  const properties = (database?.properties || {}) as Record<string, unknown>;
-  const schemaUpdate: Record<string, unknown> = {};
-
-  if (!properties["Source Authority"]) {
-    schemaUpdate["Source Authority"] = {
-      select: {
-        options: [
-          { name: "app/API", color: "blue" },
-          { name: "Paperclip", color: "purple" },
-          { name: "Repo", color: "green" },
-          { name: "External", color: "gray" },
-        ],
-      },
-    };
-  }
-
-  if (!properties["Last Synced At"]) {
-    schemaUpdate["Last Synced At"] = { date: {} };
-  }
-
-  if (Object.keys(schemaUpdate).length > 0) {
-    await notion.databases.update({
-      database_id: databaseId,
-      properties: schemaUpdate,
-    });
+function normalizeCampaignSendStatus(value: unknown) {
+  const raw = normalizeString(value).toLowerCase();
+  switch (raw) {
+    case "draft":
+    case "pending_approval":
+    case "approved":
+    case "rejected":
+    case "queued":
+    case "sent":
+    case "failed":
+    case "auto_approved":
+    case "operator_approved":
+    case "executing":
+      return raw;
+    default:
+      return raw ? "draft" : "draft";
   }
 }
 
-async function queryMirrorPage(
-  notion: any,
-  databaseId: string,
-  entry: GrowthMirrorEntry,
-) {
-  const response = await notion.databases.query({
-    database_id: databaseId,
+function normalizeCreativeRunStatus(value: unknown) {
+  const raw = normalizeString(value).toLowerCase();
+  switch (raw) {
+    case "prompt_pack_generated":
+    case "assets_generated":
+    case "rendered":
+    case "failed":
+    case "skipped_existing":
+      return raw;
+    default:
+      return "unknown";
+  }
+}
+
+function normalizeContentAssetType(value: unknown) {
+  const raw = normalizeString(value).toLowerCase();
+  switch (raw) {
+    case "ship_broadcast":
+    case "landing_page":
+    case "email":
+    case "reel":
+      return raw;
+    default:
+      return "other";
+  }
+}
+
+function normalizeReviewChannels(values: unknown) {
+  const allowed = new Set(["sendgrid", "landing_page", "hosted_review", "web"]);
+  const normalized = normalizeStringArray(values).map((value) => value.toLowerCase());
+  if (normalized.length === 0) {
+    return ["other"];
+  }
+
+  const mapped = normalized.map((value) => (allowed.has(value) ? value : "other"));
+  return [...new Set(mapped)];
+}
+
+async function queryExistingPageByRichText(params: {
+  notion: NotionClientAny;
+  databaseId: string;
+  propertyName: string;
+  value: string;
+}) {
+  const queryPayload = {
     filter: {
-      and: [
-        { property: "Title", title: { equals: entry.title } },
-        { property: "System", select: { equals: entry.system } },
-        { property: "Work Type", select: { equals: entry.workType } },
-        { property: "Source Authority", select: { equals: entry.sourceAuthority } },
-      ],
+      property: params.propertyName,
+      rich_text: { equals: params.value },
     },
-    page_size: 5,
-  });
+    page_size: 1,
+  };
+  const response = params.notion.dataSources?.query
+    ? await params.notion.dataSources.query({
+        data_source_id: params.databaseId,
+        ...queryPayload,
+      })
+    : await params.notion.databases.query({
+        database_id: params.databaseId,
+        ...queryPayload,
+      });
 
-  return Array.isArray(response.results) ? response.results : [];
+  return Array.isArray(response.results) && response.results.length > 0
+    ? response.results[0]
+    : null;
 }
 
-async function upsertGrowthMirrorPage(
-  notion: any,
-  databaseId: string,
-  entry: GrowthMirrorEntry,
-  syncedAt: string,
-) {
-  const matches = await queryMirrorPage(notion, databaseId, entry);
-  const properties = buildGrowthMirrorProperties(entry, syncedAt);
+async function queryExistingPageByTitle(params: {
+  notion: NotionClientAny;
+  databaseId: string;
+  propertyName: string;
+  value: string;
+}) {
+  const queryPayload = {
+    filter: {
+      property: params.propertyName,
+      title: { equals: params.value },
+    },
+    page_size: 1,
+  };
+  const response = params.notion.dataSources?.query
+    ? await params.notion.dataSources.query({
+        data_source_id: params.databaseId,
+        ...queryPayload,
+      })
+    : await params.notion.databases.query({
+        database_id: params.databaseId,
+        ...queryPayload,
+      });
 
-  if (matches.length > 0) {
-    const response = await notion.pages.update({
-      page_id: matches[0].id,
-      properties,
+  return Array.isArray(response.results) && response.results.length > 0
+    ? response.results[0]
+    : null;
+}
+
+async function upsertPageByRichText(params: {
+  notion: NotionClientAny;
+  databaseId: string;
+  propertyName: string;
+  value: string;
+  properties: Record<string, unknown>;
+}) {
+  const useDataSourceParent = Boolean(params.notion.dataSources);
+  const existing = await queryExistingPageByRichText(params);
+
+  if (existing?.id) {
+    await params.notion.pages.update({
+      page_id: existing.id,
+      properties: params.properties,
     });
-    return { pageId: response.id, status: "updated" as const };
+    return "updated" as const;
   }
 
-  const response = await notion.pages.create({
-    parent: { database_id: databaseId },
-    properties,
+  await params.notion.pages.create({
+    parent: useDataSourceParent
+      ? { data_source_id: params.databaseId }
+      : { database_id: params.databaseId },
+    properties: params.properties,
   });
-  return { pageId: response.id, status: "created" as const };
+  return "created" as const;
 }
 
-function getGrowthMirrorDatabaseId() {
-  return getConfiguredEnvValue("NOTION_GROWTH_MIRROR_DB_ID") || GROWTH_MIRROR_DB_ID;
+async function upsertPageByTitle(params: {
+  notion: NotionClientAny;
+  databaseId: string;
+  titlePropertyName: string;
+  titleValue: string;
+  properties: Record<string, unknown>;
+}) {
+  const useDataSourceParent = Boolean(params.notion.dataSources);
+  const existing = await queryExistingPageByTitle({
+    notion: params.notion,
+    databaseId: params.databaseId,
+    propertyName: params.titlePropertyName,
+    value: params.titleValue,
+  });
+
+  if (existing?.id) {
+    await params.notion.pages.update({
+      page_id: existing.id,
+      properties: params.properties,
+    });
+    return "updated" as const;
+  }
+
+  await params.notion.pages.create({
+    parent: useDataSourceParent
+      ? { data_source_id: params.databaseId }
+      : { database_id: params.databaseId },
+    properties: params.properties,
+  });
+  return "created" as const;
 }
 
-async function queryRecentDocs(collection: string, orderField: string, limit: number) {
-  if (!db) {
-    return [];
-  }
-
-  try {
-    const snapshot = await db
-      .collection(collection)
-      .orderBy(orderField, "desc")
-      .limit(limit)
-      .get();
-    return snapshot.docs;
-  } catch {
-    const snapshot = await db.collection(collection).limit(limit).get();
-    return snapshot.docs;
-  }
+function incrementCounts(counts: SyncCounts, status: "created" | "updated" | "errors") {
+  counts[status] += 1;
 }
 
-function toGrowthMirrorEntryFromCampaign(
-  doc: { id: string; data: () => Record<string, unknown> },
-): GrowthMirrorEntry | null {
-  const data = doc.data();
-  const status = normalizeString(data.send_status || data.status || "draft");
-  if (status !== "draft") {
-    return null;
-  }
-
-  const channel = normalizeString(data.channel || "sendgrid");
-  const recipientCount =
-    typeof data.recipient_count === "number"
-      ? `${data.recipient_count} recipients`
-      : "";
-  const provider = normalizeString(data.delivery_provider || channel);
-  const name = normalizeString(data.name);
-  const createdAt = normalizeDateTime(data.created_at || data.createdAt || null);
-  const updatedAt = normalizeDateTime(data.updated_at || null);
-
-  return {
-    title: `Campaign draft: ${doc.id}`,
-    system: "WebApp",
-    businessLane: "Growth",
-    lifecycleStage: "Open",
-    workType: "Refresh",
-    priority: "P2",
-    substage: summarizeParts([
-      "Source authority: app/API",
-      name ? `Name: ${name}` : null,
-      `Status: ${status}`,
-      `Channel: ${channel}`,
-      provider ? `Delivery provider: ${provider}` : null,
-      recipientCount || null,
-    ]),
-    outputLocation: "Notion",
-    executionSurface: "Repo",
-    sourceAuthority: "app/API",
-    sourceCollection: "growthCampaigns",
-    sourceId: doc.id,
-    naturalKey: `growthCampaigns::${doc.id}`,
-    lastStatusChange: updatedAt || createdAt,
-  };
+function sumSyncCounts(...counts: SyncCounts[]) {
+  return counts.reduce(
+    (total, current) => ({
+      created: total.created + current.created,
+      updated: total.updated + current.updated,
+      errors: total.errors + current.errors,
+    }),
+    { created: 0, updated: 0, errors: 0 },
+  );
 }
 
-function toGrowthMirrorEntryFromActionLedger(
-  doc: { id: string; data: () => Record<string, unknown> },
-): GrowthMirrorEntry | null {
-  const data = doc.data();
-  const lane = normalizeString(data.lane);
-  const status = normalizeString(data.status || "pending_approval");
-  const actionType = normalizeString(data.action_type);
-  if (lane !== "growth_campaign") {
-    return null;
-  }
-  if (!["pending_approval", "failed"].includes(status)) {
-    return null;
-  }
-  if (!["send_campaign_emails", "send_nitrosend_campaign"].includes(actionType)) {
-    return null;
-  }
-
-  const payload = data.action_payload && typeof data.action_payload === "object"
-    ? (data.action_payload as Record<string, unknown>)
-    : {};
-  const draftOutput = data.draft_output && typeof data.draft_output === "object"
-    ? (data.draft_output as Record<string, unknown>)
-    : {};
-  const campaignId = normalizeString(payload.campaignId || payload.docId || data.source_doc_id);
-  const subject = normalizeString(payload.subject);
-  const approvedBy = normalizeString(data.approved_by);
-  const reason =
-    normalizeString(data.approval_reason) ||
-    normalizeString(data.auto_approve_reason) ||
-    normalizeString(data.last_execution_error) ||
-    normalizeString(draftOutput.recommendation);
-  const updatedAt = normalizeDateTime(data.updated_at || null);
-  const createdAt = normalizeDateTime(data.created_at || null);
-
-  return {
-    title: `Ship-broadcast approval: ${doc.id}`,
-    system: "WebApp",
-    businessLane: "Growth",
-    lifecycleStage: status === "failed" ? "Blocked" : "Waiting on Founder",
-    workType: "Refresh",
-    priority: status === "failed" ? "P0" : "P1",
-    substage: summarizeParts([
-      "Source authority: app/API",
-      campaignId ? `Campaign: ${campaignId}` : null,
-      subject ? `Subject: ${subject}` : null,
-      `Status: ${status}`,
-      approvedBy ? `Approved by: ${approvedBy}` : null,
-      reason ? `Reason: ${reason}` : null,
-    ]),
-    outputLocation: "Notion",
-    executionSurface: "Repo",
-    sourceAuthority: "app/API",
-    sourceCollection: "action_ledger",
-    sourceId: doc.id,
-    naturalKey: `action_ledger::${doc.id}`,
-    needsFounder: true,
-    lastStatusChange: updatedAt || createdAt,
-  };
-}
-
-function toGrowthMirrorEntryFromCreativeRun(
-  doc: { id: string; data: () => Record<string, unknown> },
-): GrowthMirrorEntry | null {
-  const data = doc.data();
-  const skuName = normalizeString(data.sku_name || doc.id);
-  const status = normalizeString(data.status || "unknown");
-  const generatedImages = Array.isArray(data.image_batch) ? data.image_batch.length : 0;
-  const remotionReel =
-    data.remotion_reel && typeof data.remotion_reel === "object"
-      ? (data.remotion_reel as Record<string, unknown>)
-      : {};
-  const reelStatus = normalizeString(remotionReel.status);
-  const reelError = normalizeString(remotionReel.error);
-  const createdAt = normalizeDateTime(data.created_at || null);
-
-  return {
-    title: `Creative run: ${doc.id}`,
-    system: "WebApp",
-    businessLane: "Growth",
-    lifecycleStage: reelStatus === "failed" || status === "failed" ? "Blocked" : "Done",
-    workType: "Refresh",
-    priority: reelStatus === "failed" || status === "failed" ? "P1" : "P2",
-    substage: summarizeParts([
-      "Source authority: app/API",
-      skuName ? `SKU: ${skuName}` : null,
-      status ? `Status: ${status}` : null,
-      generatedImages ? `Images: ${generatedImages}` : null,
-      reelStatus ? `Reel: ${reelStatus}` : null,
-      reelError ? `Error: ${reelError}` : null,
-    ]),
-    outputLocation: "Notion",
-    executionSurface: "Repo",
-    sourceAuthority: "app/API",
-    sourceCollection: "creative_factory_runs",
-    sourceId: doc.id,
-    naturalKey: `creative_factory_runs::${doc.id}`,
-    lastStatusChange: createdAt || normalizeDateTime(data.created_at_iso || null),
-  };
-}
-
-function summarizeIntegrationSnapshot(summary: Record<string, unknown> | undefined) {
-  const configuredLabel = (value: unknown) => (value ? "configured" : "missing");
-  const analytics = summary?.analytics && typeof summary.analytics === "object"
-    ? (summary.analytics as Record<string, unknown>)
-    : {};
-  const nitrosend = summary?.nitrosend && typeof summary.nitrosend === "object"
-    ? (summary.nitrosend as Record<string, unknown>)
-    : {};
-  const runway = summary?.runway && typeof summary.runway === "object"
-    ? (summary.runway as Record<string, unknown>)
-    : {};
-  const elevenlabs = summary?.elevenlabs && typeof summary.elevenlabs === "object"
-    ? (summary.elevenlabs as Record<string, unknown>)
-    : {};
-  const telephony = summary?.telephony && typeof summary.telephony === "object"
-    ? (summary.telephony as Record<string, unknown>)
-    : {};
-  const sendgrid = summary?.sendgrid && typeof summary.sendgrid === "object"
-    ? (summary.sendgrid as Record<string, unknown>)
-    : {};
-  const googleImage = summary?.googleImage && typeof summary.googleImage === "object"
-    ? (summary.googleImage as Record<string, unknown>)
-    : {};
-
-  return summarizeParts([
-    "Source authority: app/API",
-    analytics?.alignment && typeof analytics.alignment === "object"
-      ? normalizeString((analytics.alignment as Record<string, unknown>).note)
-      : null,
-    `SendGrid: ${configuredLabel(sendgrid.configured)}`,
-    `Nitrosend: ${configuredLabel(nitrosend.configured)}`,
-    `Runway: ${configuredLabel(runway.configured)}`,
-    `ElevenLabs: ${configuredLabel(elevenlabs.configured)}`,
-    `Telephony: ${configuredLabel(telephony.configured)}`,
-    `Google creative: ${normalizeString(googleImage.executionState || "unknown")}`,
-  ]);
-}
-
-function toGrowthMirrorEntryFromIntegrationVerification(
-  doc: { id: string; data: () => Record<string, unknown> },
-): GrowthMirrorEntry | null {
-  const data = doc.data();
-  const verifiedAt = normalizeDateTime(data.verified_at || null);
-  const verifiedAtIso = normalizeString(data.verified_at_iso);
-  const summary = data.summary && typeof data.summary === "object"
-    ? (data.summary as Record<string, unknown>)
-    : buildGrowthIntegrationSummary();
-
-  return {
-    title: `Integration verification: ${doc.id}`,
-    system: "WebApp",
-    businessLane: "Growth",
-    lifecycleStage: "Done",
-    workType: "Refresh",
-    priority: "P3",
-    substage: summarizeIntegrationSnapshot(summary) || "Source authority: app/API",
-    outputLocation: "Notion",
-    executionSurface: "Repo",
-    sourceAuthority: "app/API",
-    sourceCollection: "growthIntegrationVerifications",
-    sourceId: doc.id,
-    naturalKey: `growthIntegrationVerifications::${doc.id}`,
-    lastStatusChange: verifiedAt || verifiedAtIso || normalizeDateTime(data.updated_at || null),
-  };
-}
-
-function toGrowthMirrorEntryFromContentReview(
-  doc: { id: string; data: () => Record<string, unknown> },
-): GrowthMirrorEntry | null {
-  const data = doc.data();
-  const title = normalizeString(data.title || data.name || data.subject) || doc.id;
-  const status = normalizeString(data.status || data.review_status || data.outcome || data.result);
-  const summary = normalizeString(data.summary || data.notes || data.recommendation || data.feedback);
-  const reviewedAt =
-    normalizeDateTime(data.reviewed_at || null) ||
-    normalizeDateTime(data.updated_at || null) ||
-    normalizeDateTime(data.created_at || null);
-
-  return {
-    title: `Content review: ${doc.id}`,
-    system: "WebApp",
-    businessLane: "Growth",
-    lifecycleStage:
-      /reject|fail|block/i.test(status) ? "Blocked" : /done|approve|pass/i.test(status) ? "Done" : "In Progress",
-    workType: "Refresh",
-    priority: /reject|fail|block/i.test(status) ? "P1" : "P2",
-    substage: summarizeParts([
-      "Source authority: app/API",
-      title ? `Title: ${title}` : null,
-      status ? `Status: ${status}` : null,
-      summary ? `Summary: ${summary}` : null,
-    ]),
-    outputLocation: "Notion",
-    executionSurface: "Repo",
-    sourceAuthority: "app/API",
-    sourceCollection: "content_outcome_reviews",
-    sourceId: doc.id,
-    naturalKey: `content_outcome_reviews::${doc.id}`,
-    lastStatusChange: reviewedAt,
-  };
-}
-
-export async function syncGrowthStudioToNotion(params?: { limit?: number }): Promise<GrowthMirrorCounts> {
-  const notion = getNotionClient() as any;
-  if (!notion || !db) {
-    return {
-      created: 0,
-      updated: 0,
-      errors: 0,
-      skipped: 0,
-      syncedAt: null,
-      databaseId: null,
-      sourceCounts: {},
-    };
-  }
-
-  const databaseId = getGrowthMirrorDatabaseId();
-  const limit = Math.max(1, Math.min(params?.limit || 25, 50));
-  const syncedAt = new Date().toISOString();
-
-  try {
-    await ensureGrowthMirrorSchema(notion, databaseId);
-  } catch {
-    // Keep syncing even if schema reconciliation fails. Existing properties may still work.
-  }
-
-  const [approvalDocs, campaignDocs, creativeDocs, verificationDocs, contentReviewDocs] =
-    await Promise.all([
-      queryRecentDocs("action_ledger", "updated_at", limit),
-      queryRecentDocs("growthCampaigns", "created_at", limit),
-      queryRecentDocs("creative_factory_runs", "created_at", limit),
-      queryRecentDocs("growthIntegrationVerifications", "verified_at", limit),
-      queryRecentDocs("content_outcome_reviews", "created_at", limit),
-    ]);
-
-  const sourceCounts = {
-    shipBroadcastApprovals: 0,
-    campaignDrafts: 0,
-    creativeRuns: 0,
-    integrationVerifications: 0,
-    contentReviews: 0,
-  };
-
-  const entries: GrowthMirrorEntry[] = [];
-
-  for (const doc of approvalDocs) {
-    const entry = toGrowthMirrorEntryFromActionLedger(doc as { id: string; data: () => Record<string, unknown> });
-    if (entry) {
-      entries.push(entry);
-      sourceCounts.shipBroadcastApprovals += 1;
-    }
-  }
-
-  for (const doc of campaignDocs) {
-    const entry = toGrowthMirrorEntryFromCampaign(doc as { id: string; data: () => Record<string, unknown> });
-    if (entry) {
-      entries.push(entry);
-      sourceCounts.campaignDrafts += 1;
-    }
-  }
-
-  for (const doc of creativeDocs) {
-    const entry = toGrowthMirrorEntryFromCreativeRun(doc as { id: string; data: () => Record<string, unknown> });
-    if (entry) {
-      entries.push(entry);
-      sourceCounts.creativeRuns += 1;
-    }
-  }
-
-  for (const doc of verificationDocs) {
-    const entry = toGrowthMirrorEntryFromIntegrationVerification(
-      doc as { id: string; data: () => Record<string, unknown> },
-    );
-    if (entry) {
-      entries.push(entry);
-      sourceCounts.integrationVerifications += 1;
-    }
-  }
-
-  for (const doc of contentReviewDocs) {
-    const entry = toGrowthMirrorEntryFromContentReview(doc as { id: string; data: () => Record<string, unknown> });
-    if (entry) {
-      entries.push(entry);
-      sourceCounts.contentReviews += 1;
-    }
-  }
-
-  let created = 0;
-  let updated = 0;
-  let errors = 0;
-  let skipped = 0;
-
-  for (const entry of entries) {
-    try {
-      const result = await upsertGrowthMirrorPage(notion, databaseId, entry, syncedAt);
-      if (result.status === "created") {
-        created += 1;
-      } else {
-        updated += 1;
-      }
-    } catch {
-      errors += 1;
-    }
-  }
-
-  skipped = Math.max(0, approvalDocs.length + campaignDocs.length + creativeDocs.length + verificationDocs.length + contentReviewDocs.length - entries.length);
-
-  return {
-    created,
-    updated,
-    errors,
-    skipped,
-    syncedAt,
-    databaseId,
-    sourceCounts,
-  };
-}
-
-export async function syncFirestoreToNotion(params?: { limit?: number }): Promise<SyncCounts> {
-  const notion = getNotionClient() as any;
+async function syncLegacyFirestoreToNotion(params?: { limit?: number }): Promise<SyncCounts> {
+  const notion = getNotionClient() as NotionClientAny | null;
   if (!notion || !db) {
     return { created: 0, updated: 0, errors: 0 };
   }
+  const firestore = db;
 
   const limit = params?.limit || 50;
+  const counts: SyncCounts = { created: 0, updated: 0, errors: 0 };
   const configs = [
     {
       collection: "growthCampaigns",
@@ -672,10 +397,6 @@ export async function syncFirestoreToNotion(params?: { limit?: number }): Promis
     },
   ] as const;
 
-  let created = 0;
-  let updated = 0;
-  let errors = 0;
-
   for (const config of configs) {
     const databaseId = getConfiguredEnvValue(config.envKey);
     if (!databaseId) {
@@ -683,46 +404,479 @@ export async function syncFirestoreToNotion(params?: { limit?: number }): Promis
     }
 
     try {
-      const snapshot = await db.collection(config.collection).limit(limit).get();
+      const snapshot = await firestore.collection(config.collection).limit(limit).get();
       for (const doc of snapshot.docs) {
         try {
-          const properties = config.map(doc.id, doc.data() as Record<string, unknown>);
-          const existing = await notion.databases.query({
-            database_id: databaseId,
-            filter: {
-              property: "external_id",
-              rich_text: { equals: doc.id },
-            },
-            page_size: 1,
+          const status = await upsertPageByRichText({
+            notion,
+            databaseId,
+            propertyName: "external_id",
+            value: doc.id,
+            properties: config.map(doc.id, doc.data() as Record<string, unknown>),
           });
-
-          if (Array.isArray(existing.results) && existing.results.length > 0) {
-            await notion.pages.update({
-              page_id: existing.results[0].id,
-              properties,
-            });
-            updated += 1;
-          } else {
-            await notion.pages.create({
-              parent: { database_id: databaseId },
-              properties,
-            });
-            created += 1;
-          }
+          incrementCounts(counts, status);
         } catch {
-          errors += 1;
+          incrementCounts(counts, "errors");
         }
       }
     } catch {
-      errors += 1;
+      incrementCounts(counts, "errors");
     }
   }
 
-  return { created, updated, errors };
+  return counts;
+}
+
+async function syncShipBroadcastApprovalQueue(params: {
+  notion: NotionClientAny;
+  databaseId: string;
+  limit: number;
+  syncedAtIso: string;
+}) {
+  if (!db) {
+    return { created: 0, updated: 0, errors: 0 };
+  }
+  const firestore = db;
+  const counts: SyncCounts = { created: 0, updated: 0, errors: 0 };
+  const sourceLimit = Math.min(Math.max(params.limit * 10, 100), 500);
+
+  const snapshot = await firestore
+    .collection("growthCampaigns")
+    .orderBy("created_at", "desc")
+    .limit(sourceLimit)
+    .get();
+
+  const shipBroadcastDocs = snapshot.docs
+    .filter((doc) => {
+      const data = doc.data() as Record<string, unknown>;
+      const automationContext =
+        data.automation_context && typeof data.automation_context === "object"
+          ? (data.automation_context as Record<string, unknown>)
+          : {};
+      const assetKey = normalizeString(automationContext.asset_key).toLowerCase();
+      const assetType = normalizeString(automationContext.asset_type).toLowerCase();
+      return assetType === "ship_broadcast" || assetKey.startsWith("ship-broadcast:");
+    })
+    .slice(0, params.limit);
+
+  for (const doc of shipBroadcastDocs) {
+    try {
+      const data = doc.data() as Record<string, unknown>;
+      const automationContext =
+        data.automation_context && typeof data.automation_context === "object"
+          ? (data.automation_context as Record<string, unknown>)
+          : {};
+
+      const status = await upsertPageByRichText({
+        notion: params.notion,
+        databaseId: params.databaseId,
+        propertyName: "Campaign ID",
+        value: doc.id,
+        properties: {
+          Name: titleProperty(normalizeString(data.name) || `Ship broadcast ${doc.id}`),
+          "Campaign ID": richTextProperty(doc.id),
+          "Ledger ID": richTextProperty(normalizeString(data.last_ledger_doc_id)),
+          "Asset Key": richTextProperty(normalizeString(automationContext.asset_key)),
+          "Asset Type": selectProperty("ship_broadcast"),
+          "Send Status": selectProperty(normalizeCampaignSendStatus(data.send_status)),
+          "Recipient Count": numberProperty(data.recipient_count),
+          "Source Issue IDs": richTextProperty(joinList(automationContext.source_issue_ids)),
+          "Proof Links": richTextProperty(joinList(automationContext.proof_links)),
+          "Approval Reason": richTextProperty(normalizeString(data.approval_reason)),
+          "Last Synced At": dateProperty(params.syncedAtIso),
+          "Authoritative Source": selectProperty("Paperclip / WebApp API"),
+          Notes: richTextProperty(
+            joinNotes(
+              normalizeString(data.rejected_reason),
+              normalizeString(data.last_execution_error),
+            ),
+          ),
+        },
+      });
+      incrementCounts(counts, status);
+    } catch {
+      incrementCounts(counts, "errors");
+    }
+  }
+
+  return counts;
+}
+
+async function syncCampaignDrafts(params: {
+  notion: NotionClientAny;
+  databaseId: string;
+  limit: number;
+  syncedAtIso: string;
+}) {
+  if (!db) {
+    return { created: 0, updated: 0, errors: 0 };
+  }
+  const firestore = db;
+  const counts: SyncCounts = { created: 0, updated: 0, errors: 0 };
+  const snapshot = await firestore
+    .collection("growthCampaigns")
+    .orderBy("created_at", "desc")
+    .limit(params.limit)
+    .get();
+
+  for (const doc of snapshot.docs) {
+    try {
+      const data = doc.data() as Record<string, unknown>;
+      const automationContext =
+        data.automation_context && typeof data.automation_context === "object"
+          ? (data.automation_context as Record<string, unknown>)
+          : {};
+      const creativeContext =
+        data.creative_context && typeof data.creative_context === "object"
+          ? (data.creative_context as Record<string, unknown>)
+          : {};
+      const responseTracking =
+        data.response_tracking && typeof data.response_tracking === "object"
+          ? (data.response_tracking as Record<string, unknown>)
+          : {};
+
+      const status = await upsertPageByRichText({
+        notion: params.notion,
+        databaseId: params.databaseId,
+        propertyName: "Campaign ID",
+        value: doc.id,
+        properties: {
+          Name: titleProperty(normalizeString(data.name) || doc.id),
+          "Campaign ID": richTextProperty(doc.id),
+          Subject: richTextProperty(normalizeString(data.subject)),
+          Channel: selectProperty(normalizeString(data.channel) || "sendgrid"),
+          "Send Status": selectProperty(normalizeCampaignSendStatus(data.send_status)),
+          "Recipient Count": numberProperty(data.recipient_count),
+          "Creative Run ID": richTextProperty(normalizeString(creativeContext.creative_run_id)),
+          "Asset Key": richTextProperty(normalizeString(automationContext.asset_key)),
+          "Created At": dateProperty(normalizeString(data.created_at_iso)),
+          "Last Event Type": richTextProperty(normalizeString(responseTracking.last_event_type)),
+          "Last Recipient": emailProperty(normalizeString(responseTracking.last_recipient)),
+          "Last Synced At": dateProperty(params.syncedAtIso),
+          "Authoritative Source": selectProperty("WebApp API / SendGrid"),
+        },
+      });
+      incrementCounts(counts, status);
+    } catch {
+      incrementCounts(counts, "errors");
+    }
+  }
+
+  return counts;
+}
+
+async function syncCreativeRuns(params: {
+  notion: NotionClientAny;
+  databaseId: string;
+  limit: number;
+  syncedAtIso: string;
+}) {
+  if (!db) {
+    return { created: 0, updated: 0, errors: 0 };
+  }
+  const firestore = db;
+  const counts: SyncCounts = { created: 0, updated: 0, errors: 0 };
+  const snapshot = await firestore
+    .collection("creative_factory_runs")
+    .orderBy("created_at", "desc")
+    .limit(params.limit)
+    .get();
+
+  for (const doc of snapshot.docs) {
+    try {
+      const data = doc.data() as Record<string, unknown>;
+      const remotionReel =
+        data.remotion_reel && typeof data.remotion_reel === "object"
+          ? (data.remotion_reel as Record<string, unknown>)
+          : {};
+
+      const status = await upsertPageByRichText({
+        notion: params.notion,
+        databaseId: params.databaseId,
+        propertyName: "Creative Run ID",
+        value: doc.id,
+        properties: {
+          Name: titleProperty(normalizeString(data.sku_name) || `Creative run ${doc.id}`),
+          "Creative Run ID": richTextProperty(doc.id),
+          "SKU Name": richTextProperty(normalizeString(data.sku_name)),
+          "Research Topic": richTextProperty(normalizeString(data.research_topic)),
+          "Rollout Variant": richTextProperty(normalizeString(data.rollout_variant)),
+          Status: selectProperty(normalizeCreativeRunStatus(data.status)),
+          "Generated Images": numberProperty(Array.isArray(data.image_batch) ? data.image_batch.length : 0),
+          "Buyer Objections": richTextProperty(joinList(data.buyer_objections)),
+          "Reel URL / Storage URI": richTextProperty(
+            normalizeString(remotionReel.storage_uri)
+            || normalizeString(remotionReel.output_path),
+          ),
+          "Created At": dateProperty(normalizeString(data.created_at_iso)),
+          "Last Synced At": dateProperty(params.syncedAtIso),
+          "Authoritative Source": selectProperty("WebApp API / Storage"),
+        },
+      });
+      incrementCounts(counts, status);
+    } catch {
+      incrementCounts(counts, "errors");
+    }
+  }
+
+  return counts;
+}
+
+async function syncIntegrationChecks(params: {
+  notion: NotionClientAny;
+  databaseId: string;
+  limit: number;
+  syncedAtIso: string;
+}) {
+  if (!db) {
+    return { created: 0, updated: 0, errors: 0 };
+  }
+  const firestore = db;
+  const counts: SyncCounts = { created: 0, updated: 0, errors: 0 };
+  const snapshot = await firestore
+    .collection("growthIntegrationVerifications")
+    .orderBy("verified_at", "desc")
+    .limit(params.limit)
+    .get();
+
+  for (const doc of snapshot.docs) {
+    try {
+      const data = doc.data() as Record<string, unknown>;
+      const summary =
+        data.summary && typeof data.summary === "object"
+          ? (data.summary as Record<string, any>)
+          : {};
+      const analytics =
+        summary.analytics && typeof summary.analytics === "object"
+          ? (summary.analytics as Record<string, any>)
+          : {};
+      const runway =
+        summary.runway && typeof summary.runway === "object"
+          ? (summary.runway as Record<string, any>)
+          : {};
+      const elevenlabs =
+        summary.elevenlabs && typeof summary.elevenlabs === "object"
+          ? (summary.elevenlabs as Record<string, any>)
+          : {};
+      const telephony =
+        summary.telephony && typeof summary.telephony === "object"
+          ? (summary.telephony as Record<string, any>)
+          : {};
+      const researchOutbound =
+        summary.researchOutbound && typeof summary.researchOutbound === "object"
+          ? (summary.researchOutbound as Record<string, any>)
+          : {};
+      const sendgrid =
+        summary.sendgrid && typeof summary.sendgrid === "object"
+          ? (summary.sendgrid as Record<string, any>)
+          : {};
+      const sendgridWebhook =
+        summary.sendgridWebhook && typeof summary.sendgridWebhook === "object"
+          ? (summary.sendgridWebhook as Record<string, any>)
+          : {};
+      const googleImage =
+        summary.googleImage && typeof summary.googleImage === "object"
+          ? (summary.googleImage as Record<string, any>)
+          : {};
+
+      const title = `Growth Studio verification ${doc.id}`;
+      const status = await upsertPageByTitle({
+        notion: params.notion,
+        databaseId: params.databaseId,
+        titlePropertyName: "Name",
+        titleValue: title,
+        properties: {
+          Name: titleProperty(title),
+          "Checked At": dateProperty(
+            normalizeString(data.verified_at_iso) || extractTimestampFromFirestore(data.verified_at),
+          ),
+          "SendGrid Configured": checkboxProperty(sendgrid.configured === true),
+          "SendGrid Webhook Configured": checkboxProperty(sendgridWebhook.configured === true),
+          "Google Image Configured": checkboxProperty(googleImage.configured === true),
+          "Google Image State": selectProperty(normalizeString(googleImage.executionState) || "not_configured"),
+          "Runway Configured": checkboxProperty(runway.configured === true),
+          "ElevenLabs Configured": checkboxProperty(elevenlabs.configured === true),
+          "Telephony Configured": checkboxProperty(telephony.configured === true),
+          "Research Outbound Configured": checkboxProperty(researchOutbound.configured === true),
+          "Analytics Ingest Enabled": checkboxProperty(analytics.firstPartyIngest?.enabled === true),
+          "GA4 Configured": checkboxProperty(analytics.ga4?.configured === true),
+          "PostHog Configured": checkboxProperty(analytics.posthog?.configured === true),
+          Notes: richTextProperty(
+            joinNotes(
+              `verification_id:${doc.id}`,
+              normalizeString(analytics.alignment?.note),
+              normalizeString(googleImage.note),
+              normalizeString(googleImage.lastError),
+              `last_synced_at:${params.syncedAtIso}`,
+            ),
+          ),
+          "Authoritative Source": selectProperty("WebApp API / Runtime config"),
+        },
+      });
+      incrementCounts(counts, status);
+    } catch {
+      incrementCounts(counts, "errors");
+    }
+  }
+
+  return counts;
+}
+
+async function syncContentOutcomeReviews(params: {
+  notion: NotionClientAny;
+  databaseId: string;
+  limit: number;
+}) {
+  const counts: SyncCounts = { created: 0, updated: 0, errors: 0 };
+  const reviews = await listContentOutcomeReviews({ limit: params.limit });
+
+  for (const review of reviews) {
+    try {
+      const title = truncateText(
+        `${review.assetKey || "review"} @ ${normalizeString(review.recordedAt) || "unknown-time"}`,
+      );
+      const properties = {
+        Name: titleProperty(title),
+        "Asset Key": richTextProperty(review.assetKey),
+        "Issue ID": richTextProperty(review.issueId),
+        "Asset Type": selectProperty(normalizeContentAssetType(review.assetType)),
+        Channels: multiSelectProperty(normalizeReviewChannels(review.channels)),
+        Summary: richTextProperty(review.summary),
+        "What Worked": richTextProperty(truncateText(review.whatWorked.join("\n"))),
+        "What Did Not": richTextProperty(truncateText(review.whatDidNot.join("\n"))),
+        "Next Recommendation": richTextProperty(review.nextRecommendation),
+        "Evidence Source": richTextProperty(review.evidenceSource),
+        Confidence: numberProperty(review.confidence),
+        "Recorded At": dateProperty(review.recordedAt),
+        "Recorded By": richTextProperty(review.recordedBy),
+        "Authoritative Source": selectProperty("Operator review mirror"),
+      };
+
+      const status = review.issueId
+        ? await upsertPageByRichText({
+            notion: params.notion,
+            databaseId: params.databaseId,
+            propertyName: "Issue ID",
+            value: review.issueId,
+            properties,
+          })
+        : await upsertPageByTitle({
+            notion: params.notion,
+            databaseId: params.databaseId,
+            titlePropertyName: "Name",
+            titleValue: title,
+            properties,
+          });
+      incrementCounts(counts, status);
+    } catch {
+      incrementCounts(counts, "errors");
+    }
+  }
+
+  return counts;
+}
+
+export async function syncGrowthStudioToNotion(params?: {
+  limit?: number;
+  refreshIntegrationSnapshot?: boolean;
+}): Promise<GrowthStudioSyncResult> {
+  const notion = getNotionClient() as NotionClientAny | null;
+  const emptyCounts: SyncCounts = { created: 0, updated: 0, errors: 0 };
+
+  if (!notion || !db) {
+    return {
+      shipBroadcastApprovalQueue: emptyCounts,
+      campaignDrafts: emptyCounts,
+      creativeRuns: emptyCounts,
+      integrationChecks: emptyCounts,
+      contentOutcomeReviews: emptyCounts,
+      processedCount: 0,
+      failedCount: 0,
+    };
+  }
+
+  const limit = Math.max(1, Math.min(params?.limit ?? 50, 200));
+  const syncedAtIso = new Date().toISOString();
+
+  if (params?.refreshIntegrationSnapshot) {
+    await verifyGrowthIntegrations().catch(() => null);
+  }
+
+  const shipBroadcastApprovalQueueDbId = getConfiguredEnvValue("NOTION_GROWTH_STUDIO_SHIP_BROADCAST_DB_ID");
+  const campaignDraftsDbId = getConfiguredEnvValue("NOTION_GROWTH_STUDIO_CAMPAIGN_DRAFTS_DB_ID");
+  const creativeRunsDbId = getConfiguredEnvValue("NOTION_GROWTH_STUDIO_CREATIVE_RUNS_DB_ID");
+  const integrationChecksDbId = getConfiguredEnvValue("NOTION_GROWTH_STUDIO_INTEGRATION_CHECKS_DB_ID");
+  const contentReviewsDbId = getConfiguredEnvValue("NOTION_GROWTH_STUDIO_CONTENT_REVIEWS_DB_ID");
+
+  const shipBroadcastApprovalQueue = shipBroadcastApprovalQueueDbId
+    ? await syncShipBroadcastApprovalQueue({
+        notion,
+        databaseId: shipBroadcastApprovalQueueDbId,
+        limit,
+        syncedAtIso,
+      }).catch(() => ({ created: 0, updated: 0, errors: 1 }))
+    : emptyCounts;
+
+  const campaignDrafts = campaignDraftsDbId
+    ? await syncCampaignDrafts({
+        notion,
+        databaseId: campaignDraftsDbId,
+        limit,
+        syncedAtIso,
+      }).catch(() => ({ created: 0, updated: 0, errors: 1 }))
+    : emptyCounts;
+
+  const creativeRuns = creativeRunsDbId
+    ? await syncCreativeRuns({
+        notion,
+        databaseId: creativeRunsDbId,
+        limit,
+        syncedAtIso,
+      }).catch(() => ({ created: 0, updated: 0, errors: 1 }))
+    : emptyCounts;
+
+  const integrationChecks = integrationChecksDbId
+    ? await syncIntegrationChecks({
+        notion,
+        databaseId: integrationChecksDbId,
+        limit,
+        syncedAtIso,
+      }).catch(() => ({ created: 0, updated: 0, errors: 1 }))
+    : emptyCounts;
+
+  const contentOutcomeReviews = contentReviewsDbId
+    ? await syncContentOutcomeReviews({
+        notion,
+        databaseId: contentReviewsDbId,
+        limit,
+      }).catch(() => ({ created: 0, updated: 0, errors: 1 }))
+    : emptyCounts;
+
+  const totals = sumSyncCounts(
+    shipBroadcastApprovalQueue,
+    campaignDrafts,
+    creativeRuns,
+    integrationChecks,
+    contentOutcomeReviews,
+  );
+
+  return {
+    shipBroadcastApprovalQueue,
+    campaignDrafts,
+    creativeRuns,
+    integrationChecks,
+    contentOutcomeReviews,
+    processedCount: totals.created + totals.updated,
+    failedCount: totals.errors,
+  };
+}
+
+export async function syncFirestoreToNotion(params?: { limit?: number }): Promise<SyncCounts> {
+  return syncLegacyFirestoreToNotion(params);
 }
 
 export async function syncNotionToFirestore(params?: { limit?: number }): Promise<SyncCounts> {
-  const notion = getNotionClient() as any;
+  const notion = getNotionClient() as NotionClientAny | null;
   if (!notion || !db) {
     return { created: 0, updated: 0, errors: 0 };
   }
@@ -736,11 +890,17 @@ export async function syncNotionToFirestore(params?: { limit?: number }): Promis
   let errors = 0;
 
   try {
-    const response = await notion.databases.query({
-      database_id: databaseId,
-      page_size: params?.limit || 50,
-      sorts: [{ timestamp: "last_edited_time", direction: "descending" }],
-    });
+    const response = notion.dataSources?.query
+      ? await notion.dataSources.query({
+          data_source_id: databaseId,
+          page_size: params?.limit || 50,
+          sorts: [{ timestamp: "last_edited_time", direction: "descending" }],
+        })
+      : await notion.databases.query({
+          database_id: databaseId,
+          page_size: params?.limit || 50,
+          sorts: [{ timestamp: "last_edited_time", direction: "descending" }],
+        });
 
     for (const page of response.results || []) {
       try {
@@ -783,18 +943,26 @@ export async function syncNotionToFirestore(params?: { limit?: number }): Promis
 
 export async function runNotionBidirectionalSync(params?: {
   limit?: number;
+  refreshIntegrationSnapshot?: boolean;
 }): Promise<{ processedCount: number; failedCount: number }> {
   const toNotion = await syncFirestoreToNotion(params);
+  const growthStudio = await syncGrowthStudioToNotion({
+    ...params,
+    refreshIntegrationSnapshot: params?.refreshIntegrationSnapshot ?? true,
+  });
   const toFirestore = await syncNotionToFirestore(params);
-  const growthMirror = await syncGrowthStudioToNotion(params);
 
   return {
     processedCount:
       toNotion.created +
       toNotion.updated +
-      toFirestore.updated +
-      growthMirror.created +
-      growthMirror.updated,
-    failedCount: toNotion.errors + toFirestore.errors + growthMirror.errors,
+      growthStudio.processedCount +
+      toFirestore.updated,
+    failedCount:
+      toNotion.errors +
+      growthStudio.failedCount +
+      toFirestore.errors,
   };
 }
+
+export type { SyncCounts };

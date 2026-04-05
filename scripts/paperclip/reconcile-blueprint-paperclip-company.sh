@@ -22,6 +22,7 @@ BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_CLAUDE_LAN
 BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT:-xhigh}"
 BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL:-google/gemini-2.5-flash}"
 BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL:-openrouter/qwen/qwen3-coder-480b:free}"
+BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL:-qwen/qwen3.6-plus:free}"
 BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-qwen/qwen3.6-plus:free}"
 OPENCODE_NO_TTY="${OPENCODE_NO_TTY:-1}"
 
@@ -36,6 +37,7 @@ export \
   BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL \
   BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL \
   BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL \
+  BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL \
   BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL \
   OPENCODE_NO_TTY \
   BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT
@@ -65,6 +67,8 @@ const opencodeModel =
   process.env.BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL ?? "google/gemini-2.5-flash";
 const opencodeFallbackModel =
   process.env.BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL ?? "openrouter/qwen/qwen3-coder-480b:free";
+const hermesPrimaryModel =
+  process.env.BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL ?? "qwen/qwen3.6-plus:free";
 const hermesFallbackModel =
   process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL ?? "qwen/qwen3.6-plus:free";
 const forceAdapterSync = /^(1|true|yes)$/i.test(
@@ -575,7 +579,7 @@ function buildHermesAdapterConfig(adapterConfig) {
   const model =
     configuredModel.length > 0 && configuredModel !== legacyHermesModel
       ? configuredModel
-      : ladder[0] ?? hermesFallbackModel;
+      : hermesPrimaryModel;
 
   return {
     ...next,
@@ -610,7 +614,12 @@ function tertiaryOpencodeFallbackFor(desired, baseAdapterConfig = desired.adapte
 }
 
 function hermesFreeFallbackFor(desired, baseAdapterConfig = desired.adapterConfig ?? {}) {
-  const adapterConfig = buildHermesAdapterConfig(baseAdapterConfig ?? {});
+  const fallbackModel = hermesFallbackModels[0] ?? hermesFallbackModel;
+  const adapterConfig = buildHermesAdapterConfig({
+    ...(baseAdapterConfig ?? {}),
+    model: fallbackModel,
+    [HERMES_MODEL_LADDER_CONFIG_KEY]: hermesFallbackModels,
+  });
   const cwd = typeof adapterConfig.cwd === "string" ? adapterConfig.cwd : "";
   if (!cwd) return null;
   return {
@@ -816,8 +825,8 @@ function buildExecutionPolicyForAgent(agentConfig) {
   if (authoredAdapterType === "hermes_local") {
     return {
       mode: "prefer_available",
-      compatibleAdapterTypes: ["hermes_local", "opencode_local", "claude_local", "codex_local"],
-      preferredAdapterTypes: ["hermes_local", "claude_local", "codex_local", "opencode_local"],
+      compatibleAdapterTypes: ["hermes_local", "codex_local", "claude_local", "opencode_local"],
+      preferredAdapterTypes: ["hermes_local", "codex_local", "claude_local", "opencode_local"],
       perAdapterConfig,
     };
   }
@@ -853,6 +862,16 @@ function chooseAdapterForAgent(desired, requestedMode, workspaceAvailability) {
   if (desired.adapterType === "hermes_local") {
     const hermesStatus = workspaceAvailability?.hermes_local?.status;
     if (hermesStatus === "pass") return desired;
+    const codex = {
+      adapterType: "codex_local",
+      adapterConfig: buildCodexAdapterConfig(desired.adapterConfig),
+    };
+    if (workspaceAvailability?.codex_local?.status === "pass") return codex;
+    const claude = {
+      adapterType: "claude_local",
+      adapterConfig: buildClaudeAdapterConfig(desired.adapterConfig),
+    };
+    if (workspaceAvailability?.claude_local?.status === "pass") return claude;
     const opencode = tertiaryOpencodeFallbackFor(desired);
     if (opencode && workspaceAvailability?.opencode_local?.status === "pass") return opencode;
     return desired;
@@ -1032,8 +1051,38 @@ for (const [agentKey, desired] of Object.entries(desiredAgents)) {
       body: JSON.stringify({}),
     });
   }
+  const desiredBudgetMonthlyCents =
+    typeof yamlAgentConfig?.budgetMonthlyCents === "number"
+      ? yamlAgentConfig.budgetMonthlyCents
+      : 0;
+  if (agent.budgetMonthlyCents !== desiredBudgetMonthlyCents) {
+    await fetchJson(`/api/agents/${agent.id}/budgets`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        budgetMonthlyCents: desiredBudgetMonthlyCents,
+      }),
+    });
+  }
   if (agent.status === "paused") {
     await fetchJson(`/api/agents/${agent.id}/resume`, { method: "POST" });
+  }
+
+  const duplicateAgents = pickMatching(agents, agentKey)
+    .filter((candidate) => candidate.id !== agent.id);
+  for (const duplicate of duplicateAgents) {
+    if ((duplicate.budgetMonthlyCents ?? 0) !== 0) {
+      await fetchJson(`/api/agents/${duplicate.id}/budgets`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          budgetMonthlyCents: 0,
+        }),
+      }).catch(() => undefined);
+    }
+    if (duplicate.status !== "terminated") {
+      await fetchJson(`/api/agents/${duplicate.id}/terminate`, {
+        method: "POST",
+      }).catch(() => undefined);
+    }
   }
 }
 
@@ -1253,9 +1302,9 @@ for (const desired of desiredRoutines) {
 }
 
 for (const [agentKey, sourcePath] of Object.entries(instructionSources)) {
-  const matchingAgents = pickMatching(agents, agentKey);
-  for (const agent of matchingAgents) {
-    await syncAgentInstructions(agent, sourcePath);
+  const canonicalAgent = canonicalAgents[agentKey];
+  if (canonicalAgent) {
+    await syncAgentInstructions(canonicalAgent, sourcePath);
   }
 }
 

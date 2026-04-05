@@ -108,7 +108,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 |-------|-------|
 | **Department** | Executive |
 | **Reports to** | CEO |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | Live in Paperclip package |
 
 **Purpose:** Runs the continuous 24/7 managerial loop. Watches issue state, routine health, queue changes, and agent activity; decides what finished, what stalled, and what needs a next action; and routes or closes work in Paperclip.
@@ -170,7 +170,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 |-------|-------|
 | **Department** | Executive |
 | **Reports to** | Chief of Staff |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Produces the monthly investor update from real month-over-month metrics, shipped work, operating risks, and concrete asks. Drafts investor-facing blog/email artifacts but never sends them live.
@@ -203,7 +203,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 |-------|-------|
 | **Department** | Executive |
 | **Reports to** | Chief of Staff |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Reconciles Blueprint's Notion workspace after producer agents create artifacts. Keeps Work Queue, Knowledge, Skills, and linked Hub surfaces correctly placed, properly related, visibly fresh, and safely deduped without replacing Paperclip as the execution record.
@@ -237,7 +237,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 |-------|-------|
 | **Department** | Executive |
 | **Reports to** | Chief of Staff |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Maintains Blueprint's pricing and commercial system discipline. Connects buyer demand, site-catalog supply, usage, and delivery-cost signals into draft pricebook updates, package guidance, quote support, and discount guardrails without making live commercial commitments.
@@ -292,7 +292,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Ops |
 | **Reports to** | Chief of Staff |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Coordinates all product operations. Routes work between intake, QA, scheduling, and finance agents. Produces daily ops summary. Escalates blockers to CEO.
@@ -569,7 +569,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Ops |
 | **Reports to** | Ops Lead |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Owns the buyer journey from qualified inbound to proof-ready. Interprets messy buyer requests, translates them into concrete package requirements, tracks through capture matching and packaging, and delivers proof for buyer evaluation.
@@ -618,7 +618,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Ops |
 | **Reports to** | Ops Lead |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Owns technical buyer enablement from proof-ready to implementation-ready. Converts buyer stack questions, hosted-session requirements, export expectations, and deployment readiness into explicit evaluation plans and integration checklists grounded in the product and artifacts that already exist.
@@ -707,7 +707,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Ops |
 | **Reports to** | Ops Lead |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Drafts Blueprint's buyer-facing security, architecture, data-handling, and procurement responses from real system evidence. Keeps enterprise security review and procurement work moving without overstating legal, compliance, or certification posture.
@@ -747,7 +747,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Ops |
 | **Reports to** | Ops Lead |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Owns capturer activation and retention. Guides approved capturers through first capture success, translates QA feedback into actionable recapture instructions, monitors activity patterns, and identifies systemic platform issues from individual capturer struggles.
@@ -803,7 +803,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Chief of Staff |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Coordinates buyer demand, capturer supply, conversion, retention, and city planning. Sets experiment priorities using ICE scoring. Synthesizes analytics, market intelligence, supply intelligence, capturer growth planning, city launch planning, demand intelligence, robot-team growth planning, site-operator lane planning, and city demand planning into growth strategy.
@@ -860,7 +860,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Researches historical and current marketplace supply playbooks with emphasis on boots-on-the-ground growth, launch sequencing, incentive structures, referral loops, trust systems, and channel economics.
@@ -894,7 +894,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Converts supply-intel research into Blueprint's reusable capturer acquisition playbook. Maintains the generic channel, messaging, referral, and activation system that later city launches should inherit.
@@ -928,7 +928,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Adapts Blueprint's generic capturer growth playbook to specific cities. Starts with Austin, TX and San Francisco, CA.
@@ -962,7 +962,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Researches how robotics infrastructure, autonomy, simulation/data, and world-model businesses generated buyer demand from robot teams and adjacent technical buyers. Focuses on channels, proof requirements, hosted-demo motions, procurement triggers, and city/vertical demand signals.
@@ -996,7 +996,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Converts demand-intel research into Blueprint's reusable robot-team demand playbook. Maintains the generic ICP, messaging, proof-pack, hosted-session demo motion, and buyer funnel that later city-demand work should inherit.
@@ -1030,7 +1030,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Maintains Blueprint's optional third lane for site operators. Defines when site-operator demand matters, what access/privacy/rights/commercialization conversations are legitimate, and how this lane stays separate from the core robot-team buyer motion.
@@ -1064,7 +1064,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Adapts Blueprint's generic robot-team demand playbook to specific cities. Starts with Austin, TX and San Francisco, CA. Maps likely buyer clusters, facility-type demand, optional operator-lane opportunities, and city readiness.
@@ -1161,7 +1161,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Pulls, aggregates, and interprets all measurable signals across the platform. Detects anomalies. Produces daily/weekly reports. Answers ad-hoc metric queries from other agents.
@@ -1218,7 +1218,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Produces the weekly Blueprint community update for users, capturers, robot teams, partners, and interested operators. Turns real shipped work and community-relevant signals into a concise blog-plus-email draft.
@@ -1251,7 +1251,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Autoresearch-pattern agent for business intelligence. Continuously researches competitors, market trends, new papers/techniques, pricing movements, partnership opportunities, and regulatory changes.
@@ -1315,7 +1315,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Ops |
 | **Reports to** | Ops Lead |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Product listing manager for Blueprint's site-world catalog. Creates and maintains accurate, discoverable listings for every package that clears QA and rights review. Ensures descriptions match reality — no embellishment, no underselling.
@@ -1356,7 +1356,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Growth |
 | **Reports to** | Growth Lead |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Blueprint's business development representative for robot team outreach. Monitors market and demand intel for strong signals, researches prospects, drafts personalized outreach, tracks conversations, and hands off qualified leads to buyer-solutions-agent.
@@ -1407,7 +1407,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|-------|
 | **Department** | Ops |
 | **Reports to** | Ops Lead |
-| **Model** | Hermes (Codex OAuth) |
+| **Model** | Hermes (OpenRouter qwen free, Codex fallback) |
 | **Status** | New |
 
 **Purpose:** Customer success manager for Blueprint's robot team buyers post-delivery. Monitors hosted session usage, runs structured onboarding check-ins, collects and routes feedback, identifies expansion opportunities, and detects churn risk before it becomes churn.
@@ -1505,7 +1505,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 
 All agents run on the local Paperclip instance. They are lightweight — mostly LLM API calls + data reads/writes.
 
-Hermes-backed research/copilot agents are configured to use Codex OAuth only on this host. They are not expected to consume Anthropic or OpenAI API keys for their main model path.
+Hermes-backed research/copilot agents are configured to use OpenRouter first on this host, with Codex as fallback when the free lane is unavailable.
 
 | Component | Status | Notes |
 |-----------|--------|-------|

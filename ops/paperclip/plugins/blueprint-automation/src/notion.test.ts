@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  analyzeWorkQueueItemsForScan,
   canonicalWorkQueueScanKey,
   collapseWorkQueueItemsByNaturalKey,
   detectStaleKnowledgeEntries,
@@ -176,6 +177,64 @@ describe("notion helpers", () => {
     });
 
     expect(second).toBe(first);
+  });
+
+  it("keeps legacy title/system/work-type matching available when naturalKey is present", () => {
+    const first = canonicalWorkQueueScanKey({
+      title: "Analytics Daily Snapshot - 2026-04-03",
+      system: "WebApp",
+      workType: "Refresh",
+      naturalKey: "analytics:webapp:daily-snapshot:2026-04-03",
+    });
+    const second = canonicalWorkQueueScanKey({
+      title: "Analytics Daily Snapshot - 2026-04-03",
+      system: "WebApp",
+      workType: "Refresh",
+      naturalKey: "Analytics Daily Snapshot - 2026-04-03::WebApp::Refresh",
+    });
+
+    expect(first).toBe("analytics:webapp:daily-snapshot:2026-04-03");
+    expect(second).toBe("analytics daily snapshot - 2026-04-03::webapp::refresh");
+  });
+
+  it("suppresses queue scan sync when duplicate queue entries disagree on issue state", () => {
+    const result = analyzeWorkQueueItemsForScan([
+      {
+        id: "done-item",
+        title: "Analytics Daily Snapshot - 2026-04-03",
+        priority: "P2",
+        system: "WebApp",
+        businessLane: "Growth",
+        lifecycleStage: "Done",
+        workType: "Refresh",
+        url: "https://www.notion.so/done",
+        needsFounder: false,
+        ownerIds: [],
+        lastStatusChange: "2026-04-03T08:00:00.000Z",
+        lastEditedTime: "2026-04-03T08:00:00.000Z",
+        naturalKey: "Analytics Daily Snapshot - 2026-04-03::WebApp::Refresh",
+      },
+      {
+        id: "todo-item",
+        title: "Analytics Daily Snapshot - 2026-04-03",
+        priority: "P2",
+        system: "WebApp",
+        businessLane: "Growth",
+        lifecycleStage: "Open",
+        workType: "Refresh",
+        url: "https://www.notion.so/todo",
+        needsFounder: false,
+        ownerIds: [],
+        lastStatusChange: "2026-04-03T09:00:00.000Z",
+        lastEditedTime: "2026-04-03T09:00:00.000Z",
+        naturalKey: "Analytics Daily Snapshot - 2026-04-03::WebApp::Refresh",
+      },
+    ]);
+
+    expect(result.actionableItems).toEqual([]);
+    expect(result.conflicts).toHaveLength(1);
+    expect(result.conflicts[0]?.issueStatuses).toEqual(["done", "backlog"]);
+    expect(result.conflicts[0]?.canonicalItem.id).toBe("todo-item");
   });
 
   it("maps actionable work queue lifecycle stages onto Paperclip issue states", () => {

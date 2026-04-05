@@ -14,6 +14,7 @@ import { logger } from "../logger";
 import { runExperimentAutorollout } from "../utils/experiment-ops";
 import { runCreativeAssetFactoryLoop } from "../utils/creative-factory";
 import { runAutonomousResearchOutboundLoop } from "../utils/autonomous-growth";
+import { syncGrowthStudioToNotion } from "../utils/notion-sync";
 import {
   createContentOutcomeReview,
   listContentOutcomeReviews,
@@ -21,7 +22,6 @@ import {
   summarizeRecentContentOutcomeReviews,
 } from "../utils/content-ops";
 import { parseGsUri } from "../utils/pipeline-dashboard";
-import { syncGrowthStudioToNotion } from "../utils/notion-sync";
 
 const router = Router();
 
@@ -392,16 +392,23 @@ router.post("/automation/creative/run", requireOps, async (_req, res) => {
 
 router.post("/notion/sync", requireOps, async (req, res) => {
   try {
-    const limit =
-      typeof req.query.limit === "string"
-        ? Math.min(Math.max(parseInt(req.query.limit, 10) || 25, 1), 50)
-        : 25;
-    const result = await syncGrowthStudioToNotion({ limit });
-    return res.json({ ok: true, ...result });
+    const limit = Math.min(
+      Math.max(parseInt(typeof req.body?.limit === "number" ? String(req.body.limit) : String(req.body?.limit || "50"), 10) || 50, 1),
+      200,
+    );
+    const refreshIntegrationSnapshot = req.body?.refreshIntegrationSnapshot !== false;
+
+    return res.json({
+      ok: true,
+      result: await syncGrowthStudioToNotion({
+        limit,
+        refreshIntegrationSnapshot,
+      }),
+    });
   } catch (error) {
-    logger.error({ err: error }, "Failed to sync growth studio into Notion");
+    logger.error({ err: error }, "Failed to sync Growth Studio mirror to Notion");
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Failed to sync growth studio into Notion",
+      error: error instanceof Error ? error.message : "Failed to sync Growth Studio mirror to Notion",
     });
   }
 });

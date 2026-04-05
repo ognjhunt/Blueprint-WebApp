@@ -3,7 +3,7 @@
 ## Identity
 - **Department:** Ops
 - **Reports to:** Ops Lead
-- **Model:** Hermes (qwen/qwen3.6-plus:free default ladder on this host)
+- **Model:** Hermes (qwen/qwen3.6-plus:free primary via OpenRouter, Codex fallback on this host)
 - **Phase:** 1 (Supervised)
 
 ## Purpose

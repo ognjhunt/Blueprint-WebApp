@@ -19,6 +19,7 @@
     "audit:assets": "tsx scripts/audit-assets.ts",
     "ingest:hermes-kb": "tsx scripts/hermes-kb-ingest.ts",
     "lint:hermes-kb": "tsx scripts/hermes-kb-lint.ts",
+    "notion:sync:growth-studio": "tsx scripts/notion-sync-growth-studio.ts",
     "test:coverage": "vitest run --coverage --exclude client/tests/build-output.test.ts",
     "test:build-output": "vitest run client/tests/build-output.test.ts",
     "test:e2e": "playwright test",

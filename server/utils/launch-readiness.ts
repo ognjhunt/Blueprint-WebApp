@@ -106,9 +106,27 @@ export function buildLaunchReadinessSnapshot() {
     !automationFlags.buyerLifecycle || (firebaseAdminReady && emailTransport.configured);
   const slaWatchdogReady =
     !automationFlags.slaWatchdog || (firebaseAdminReady && emailTransport.configured);
+  const notionSyncDatabaseConfigured = Boolean(
+    getConfiguredEnvValue(
+      "NOTION_GROWTH_STUDIO_SHIP_BROADCAST_DB_ID",
+      "NOTION_GROWTH_STUDIO_CAMPAIGN_DRAFTS_DB_ID",
+      "NOTION_GROWTH_STUDIO_CREATIVE_RUNS_DB_ID",
+      "NOTION_GROWTH_STUDIO_INTEGRATION_CHECKS_DB_ID",
+      "NOTION_GROWTH_STUDIO_CONTENT_REVIEWS_DB_ID",
+      "NOTION_CAMPAIGNS_DB_ID",
+      "NOTION_CREATIVE_RUNS_DB_ID",
+      "NOTION_GRADUATION_DB_ID",
+      "NOTION_SLA_DB_ID",
+      "NOTION_TASKS_DB_ID",
+    ),
+  );
   const notionSyncReady =
     !automationFlags.notionSync ||
-    (firebaseAdminReady && Boolean(getConfiguredEnvValue("NOTION_API_KEY", "NOTION_API_TOKEN")));
+    (
+      firebaseAdminReady
+      && Boolean(getConfiguredEnvValue("NOTION_API_KEY", "NOTION_API_TOKEN"))
+      && notionSyncDatabaseConfigured
+    );
   const onboardingReady =
     !automationFlags.onboarding || (firebaseAdminReady && emailTransport.configured);
   const autonomousAutomationReady =
@@ -223,6 +241,15 @@ export function buildLaunchReadinessSnapshot() {
           ? "Buyer lifecycle outreach can queue provenance-grounded follow-up emails for provisioned entitlements."
           : "Buyer lifecycle is enabled, but Firebase Admin and a configured email transport are both required."
         : "Buyer lifecycle is disabled.",
+    },
+    notionSync: {
+      required: automationFlags.notionSync,
+      ready: notionSyncReady,
+      detail: automationFlags.notionSync
+        ? notionSyncReady
+          ? "Notion sync can mirror Blueprint state into the configured Notion databases."
+          : "Notion sync is enabled, but Firebase Admin, a Notion API token, or at least one target Notion database id is missing."
+        : "Notion sync is disabled.",
     },
     voiceConcierge: {
       required: false,
