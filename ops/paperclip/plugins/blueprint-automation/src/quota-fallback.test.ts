@@ -11,6 +11,7 @@ import {
   FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY,
   HERMES_MODEL_LADDER_CONFIG_KEY,
   getWorkspaceAdapterCooldownKey,
+  isIncompatibleHermesFreeRoutingModel,
   isQuotaOrRateLimitFailure,
   parseQuotaResetAt,
   resolveHermesFallbackModels,
@@ -92,6 +93,28 @@ describe("quota fallback helpers", () => {
     });
   });
 
+  it("does not carry Codex or Claude model ids onto Hermes free fallback", () => {
+    expect(isIncompatibleHermesFreeRoutingModel("gpt-5.4-mini")).toBe(true);
+    expect(isIncompatibleHermesFreeRoutingModel("claude-sonnet-4-6")).toBe(true);
+    expect(isIncompatibleHermesFreeRoutingModel("qwen/qwen3.6-plus:free")).toBe(false);
+    expect(isIncompatibleHermesFreeRoutingModel("openai/gpt-oss-120b:free")).toBe(false);
+
+    expect(
+      buildHermesFallbackAdapterConfig({
+        cwd: "/tmp/capture",
+        model: "gpt-5.4-mini",
+        dangerouslyBypassApprovalsAndSandbox: true,
+        timeoutSec: 900,
+      }),
+    ).toEqual({
+      cwd: "/tmp/capture",
+      model: DEFAULT_HERMES_FALLBACK_MODEL,
+      [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
+      modelReasoningEffort: "xhigh",
+      timeoutSec: 900,
+    });
+  });
+
   it("resolves a deterministic hermes free-model ladder", () => {
     expect(
       resolveHermesFallbackModels({
@@ -115,6 +138,26 @@ describe("quota fallback helpers", () => {
     ).toEqual({
       cwd: "/tmp/project",
       model: "openrouter/free",
+      [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
+      modelReasoningEffort: "xhigh",
+      timeoutSec: 1800,
+    });
+  });
+
+  it("replaces a leaked Codex model with the first free Hermes ladder step", () => {
+    expect(
+      buildNextHermesFallbackAdapterConfig({
+        cwd: "/tmp/project",
+        model: "gpt-5.4-mini",
+        [HERMES_MODEL_LADDER_CONFIG_KEY]: [
+          "gpt-5.4-mini",
+          "qwen/qwen3.6-plus:free",
+          "openrouter/free",
+        ],
+      }),
+    ).toEqual({
+      cwd: "/tmp/project",
+      model: "qwen/qwen3.6-plus:free",
       [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
       modelReasoningEffort: "xhigh",
       timeoutSec: 1800,

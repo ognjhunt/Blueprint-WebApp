@@ -150,6 +150,24 @@ function parseModelList(value: unknown): string[] {
   return [];
 }
 
+/**
+ * Model ids that belong to Codex / Claude / ChatGPT-style lanes and must not
+ * be carried onto Hermes free (OpenRouter) routing — e.g. when falling back
+ * from codex_local and copying adapterConfig.
+ */
+export function isIncompatibleHermesFreeRoutingModel(model: string | null | undefined): boolean {
+  const m = (model ?? "").trim().toLowerCase();
+  if (!m) return false;
+  if (m.includes("claude")) return true;
+  if (/^o[0-9]/.test(m)) return true;
+  if (/^gpt-/.test(m)) return true;
+  return false;
+}
+
+function filterCompatibleHermesLadderModels(models: string[]): string[] {
+  return models.filter((id) => !isIncompatibleHermesFreeRoutingModel(id));
+}
+
 export function resolveHermesFallbackModels(
   adapterConfig: Record<string, unknown> | null | undefined,
   options?: {
@@ -158,12 +176,23 @@ export function resolveHermesFallbackModels(
 ): string[] {
   const includeCurrentModel = options?.includeCurrentModel !== false;
   const currentModel = asTrimmedString(adapterConfig?.model);
-  const configuredLadder = parseModelList(adapterConfig?.[HERMES_MODEL_LADDER_CONFIG_KEY]);
-  const envLadder = parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS);
-  const singleEnvModel = asTrimmedString(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL);
+  const configuredLadder = filterCompatibleHermesLadderModels(
+    parseModelList(adapterConfig?.[HERMES_MODEL_LADDER_CONFIG_KEY]),
+  );
+  const envLadder = filterCompatibleHermesLadderModels(
+    parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS),
+  );
+  const singleEnvRaw = asTrimmedString(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL);
+  const singleEnvModel =
+    singleEnvRaw && !isIncompatibleHermesFreeRoutingModel(singleEnvRaw) ? singleEnvRaw : null;
+
+  const includeCurrent =
+    includeCurrentModel
+    && currentModel
+    && !isIncompatibleHermesFreeRoutingModel(currentModel);
 
   return normalizeModelList([
-    ...(includeCurrentModel && currentModel ? [currentModel] : []),
+    ...(includeCurrent ? [currentModel] : []),
     ...configuredLadder,
     ...envLadder,
     ...(singleEnvModel ? [singleEnvModel] : []),
@@ -239,8 +268,19 @@ export function buildHermesFallbackAdapterConfig(
   const next = { ...(adapterConfig ?? {}) };
   delete next.dangerouslySkipPermissions;
   delete next.dangerouslyBypassApprovalsAndSandbox;
+  delete next.model;
   const ladder = resolveHermesFallbackModels(adapterConfig, { includeCurrentModel: false });
-  const model = options?.model ?? ladder[0] ?? process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL ?? DEFAULT_HERMES_FALLBACK_MODEL;
+  const optionModel = asTrimmedString(options?.model as string | undefined);
+  const chosen =
+    optionModel && !isIncompatibleHermesFreeRoutingModel(optionModel) ? optionModel : null;
+  const envFallback = asTrimmedString(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL);
+  const envPrimary =
+    envFallback && !isIncompatibleHermesFreeRoutingModel(envFallback) ? envFallback : null;
+  const model =
+    chosen
+    ?? ladder[0]
+    ?? envPrimary
+    ?? DEFAULT_HERMES_FALLBACK_MODEL;
 
   return {
     ...next,
@@ -261,7 +301,9 @@ export function buildNextHermesFallbackAdapterConfig(
     return null;
   }
 
-  const currentIndex = currentModel ? ladder.indexOf(currentModel) : -1;
+  const routableCurrent =
+    currentModel && !isIncompatibleHermesFreeRoutingModel(currentModel) ? currentModel : null;
+  const currentIndex = routableCurrent ? ladder.indexOf(routableCurrent) : -1;
   const nextModel = currentIndex >= 0 ? ladder[currentIndex + 1] : ladder[0];
   if (!nextModel || nextModel === currentModel) {
     return null;

@@ -97,6 +97,7 @@ import {
   type WorkspaceAdapterCooldownState,
   buildOpenCodeFallbackAdapterConfig,
   buildHermesFallbackAdapterConfig,
+  isIncompatibleHermesFreeRoutingModel,
   isModelNotFoundFailure,
   syncExecutionPolicyToAdapter,
 } from "./quota-fallback.js";
@@ -2591,6 +2592,21 @@ async function healAgentExecutionTopology(
   const repaired: string[] = [];
 
   for (const agent of agents) {
+    if (agent.adapterType === "hermes_local") {
+      const cfg = asRecord(agent.adapterConfig) ?? {};
+      const modelStr = typeof cfg.model === "string" ? cfg.model.trim() : "";
+      if (modelStr && isIncompatibleHermesFreeRoutingModel(modelStr)) {
+        await ctx.agents.update(
+          agent.id,
+          { adapterConfig: buildHermesFallbackAdapterConfig(cfg) },
+          companyId,
+        );
+        await ctx.agents.resetRuntimeSession(agent.id, companyId);
+        repaired.push(`${agent.urlKey}:hermes_local:repaired-codex-claude-model-leak`);
+        continue;
+      }
+    }
+
     const desired = buildDesiredAdapterDescriptor(agent);
     if (!desired) {
       continue;

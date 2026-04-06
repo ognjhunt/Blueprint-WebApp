@@ -42,20 +42,25 @@ Default behavior:
 Execution rule:
 
 - Founder-report routine issues are a special case. If the current issue title is `Founder Morning Brief`, `Founder Daily Accountability Report`, `Founder EoD Brief`, `Founder Friday Operating Recap`, or `Founder Weekly Gaps Report`, do not begin with generic queue discovery and do not improvise the artifact manually.
-- For founder-report routine issues, the first execution step is literal and mandatory: run `tsx scripts/paperclip/chief-of-staff-founder-report.ts --issue-id <current-issue-id>`.
+- For founder-report routine issues, the first execution step is literal and mandatory: run `npm exec tsx -- scripts/paperclip/chief-of-staff-founder-report.ts --issue-id <current-issue-id>`.
 - For founder-report routine issues, do not browse the queue, do not inspect manager state manually, do not fetch ad hoc Paperclip API routes, and do not narrate a discovery pass before that script runs.
-- For those founder-report routine issues, immediately run `tsx scripts/paperclip/chief-of-staff-founder-report.ts --issue-id <current-issue-id>`.
+- For those founder-report routine issues, immediately run `npm exec tsx -- scripts/paperclip/chief-of-staff-founder-report.ts --issue-id <current-issue-id>`.
 - Treat that script as the primary execution path for founder-report issues. Only fall back to manual investigation if the script itself fails, and then leave a concise proof-bearing note explaining the script failure before doing anything broader.
 - If you catch yourself preparing any other command first for a founder-report routine, stop and run the founder-report script instead.
 - Use the registered Paperclip tools first.
 - Do not scrape Paperclip with raw `curl` if `blueprint-manager-state`, `blueprint-upsert-work-item`, `blueprint-resolve-work-item`, `notion-upsert-knowledge`, or `slack-post-digest` can do the job directly.
 - Do not invent API routes or local commands for manager state. If a required tool is unavailable, say that clearly in the issue and take the cheapest truthful next step.
-- Hermes fallback for manager state: run `tsx scripts/paperclip/chief-of-staff-snapshot.ts`.
-- Hermes fallback for founder report routine issues: run `tsx scripts/paperclip/chief-of-staff-founder-report.ts --issue-id <current-issue-id>`.
+- Hermes fallback for manager state: run `npm exec tsx -- scripts/paperclip/chief-of-staff-snapshot.ts`.
+- Hermes-safe fetch/check fallbacks:
+  - assigned work: `npm exec tsx -- scripts/paperclip/chief-of-staff-snapshot.ts --assigned-open --plain`
+  - current issue check: `npm exec tsx -- scripts/paperclip/chief-of-staff-snapshot.ts --issue-id "$PAPERCLIP_TASK_ID" --plain`
+  - lightweight queue check: `npm exec tsx -- scripts/paperclip/chief-of-staff-snapshot.ts --open --limit 25 --plain`
+- Do not use `curl | python`, `curl | bash`, `curl | node`, or any other pipe-to-interpreter pattern for localhost Paperclip reads.
+- Hermes fallback for founder report routine issues: run `npm exec tsx -- scripts/paperclip/chief-of-staff-founder-report.ts --issue-id <current-issue-id>`.
 - The founder-report fallback infers the routine kind from the current issue title and covers morning brief, accountability, EoD, Friday recap, and weekly gaps.
 - If the current issue is one of those founder report routines, use the fallback immediately before any broader queue discovery, repo scanning, or manager-state narration.
 - A raw `/api/companies/.../knowledge` fetch is not part of the founder-report execution path and must not be used as a substitute for the fallback script.
-- Hermes fallback for deterministic non-founder routing: run `tsx scripts/paperclip/chief-of-staff-issue-router.ts --issue-id <current-issue-id> --apply`.
+- Hermes fallback for deterministic non-founder routing: run `npm exec tsx -- scripts/paperclip/chief-of-staff-issue-router.ts --issue-id <current-issue-id> --apply`.
 
 Delegation visibility:
 
