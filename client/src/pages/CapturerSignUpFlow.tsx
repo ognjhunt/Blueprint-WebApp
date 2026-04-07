@@ -112,6 +112,7 @@ export default function CapturerSignUpFlow() {
   const [market, setMarket] = useState("");
   const [availability, setAvailability] = useState<AvailabilityValue>("flexible");
   const [equipment, setEquipment] = useState<EquipmentValue[]>(["iphone"]);
+  const [accessCode, setAccessCode] = useState("");
   const [referralSource, setReferralSource] = useState<ReferralValue | "">("search");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [successSummary, setSuccessSummary] = useState<{ name: string; market: string } | null>(
@@ -329,11 +330,12 @@ export default function CapturerSignUpFlow() {
         role: "capturer",
         roles: ["capturer"],
         planType: "capturer",
-        capturerApplicationStatus: "applied",
+        capturerApplicationStatus: "pending_review",
         capturerMarket: market.trim(),
         capturerEquipment: equipment,
         capturerAvailability: availability,
-        capturerReferralSource: referralSource,
+        capturerReferralSource: (accessCode.trim() ? "invite_or_access_code" : referralSource) as ReferralValue,
+        capturerAccessCode: accessCode.trim() || null,
         createdDate: timestamp,
         lastLoginAt: timestamp,
         lastSessionDate: timestamp,
@@ -408,6 +410,7 @@ export default function CapturerSignUpFlow() {
       setIsSubmitting(false);
     }
   }, [
+    accessCode,
     authMethod,
     availability,
     email,
@@ -473,8 +476,7 @@ export default function CapturerSignUpFlow() {
                 Apply on web. Capture in the Blueprint app.
               </h1>
               <p className="max-w-lg text-base leading-7 text-[color:var(--ink-soft)]">
-                This page is for account creation and access routing. Actual capture work should
-                happen in Blueprint Capture, not inside the operator dashboard.
+                Capturer access is invite- and code-gated. This page is for account creation and application review. Actual capture work happens in Blueprint Capture, not the operator dashboard.
               </p>
             </div>
 
@@ -502,31 +504,31 @@ export default function CapturerSignUpFlow() {
               </div>
             </div>
 
-            <div className="rounded-[1.6rem] border border-[color:var(--line-strong)] bg-[color:var(--panel)] p-5">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-muted)]">
-                What happens next
-              </p>
-              <ol className="mt-4 space-y-4 text-sm leading-6 text-[color:var(--ink-soft)]">
-                <li className="flex gap-3">
-                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--leaf)] text-xs font-semibold text-white">
-                    1
-                  </span>
-                  Create your account and tell us where you can capture.
-                </li>
-                <li className="flex gap-3">
-                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--leaf)] text-xs font-semibold text-white">
-                    2
-                  </span>
-                  We confirm your market and device fit before sending approval or access instructions.
-                </li>
-                <li className="flex gap-3">
-                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--leaf)] text-xs font-semibold text-white">
-                    3
-                  </span>
-                  Approved capturers complete sessions in Blueprint Capture, with payout and verification handled there.
-                </li>
-              </ol>
-            </div>
+              <div className="rounded-[1.6rem] border border-[color:var(--line-strong)] bg-[color:var(--panel)] p-5">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-muted)]">
+                  What happens next
+                </p>
+                <ol className="mt-4 space-y-4 text-sm leading-6 text-[color:var(--ink-soft)]">
+                  <li className="flex gap-3">
+                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--leaf)] text-xs font-semibold text-white">
+                      1
+                    </span>
+                    Create your account and tell us where you can capture. If you have an access or invite code, include it so your application routes correctly.
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--amber)] text-xs font-semibold text-white">
+                      2
+                    </span>
+                    Your application enters review. We confirm market fit, device availability, and cohort capacity before approval.
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--leaf)] text-xs font-semibold text-white">
+                      3
+                    </span>
+                    Approved capturers receive mobile access instructions and complete sessions in Blueprint Capture.
+                  </li>
+                </ol>
+              </div>
 
             <div className="rounded-2xl border border-dashed border-[color:var(--line-strong)] px-4 py-3 text-sm text-[color:var(--ink-soft)]">
               For site operators or robot teams, use{" "}
@@ -550,14 +552,14 @@ export default function CapturerSignUpFlow() {
             >
               <div className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-6 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[color:var(--leaf-deep)]">Capturer signup</p>
-                  <h2 className="mt-1 text-3xl font-semibold tracking-[-0.04em]">
-                    {step === 1 ? "Create your account" : "Tell us where you can work"}
-                  </h2>
-                  <p className="mt-2 max-w-xl text-sm leading-6 text-[color:var(--ink-soft)]">
-                    {step === 1
-                      ? "Keep the web form short. We only need enough to open your account and move you into the right market."
-                      : "This should feel more like a worker application than a site intake. No organization fields, no buyer workflow questions."}
+                  <p className="text-sm font-medium text-[color:var(--leaf-deep)]">Capturer application</p>
+              <h2 className="mt-1 text-3xl font-semibold tracking-[-0.04em]">
+                {step === 1 ? "Create your account" : "Tell us where you can work"}
+              </h2>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-[color:var(--ink-soft)]">
+                {step === 1
+                  ? "Keep the web form short. We only need enough to open your account and move you into the right market."
+                  : "This should feel more like a worker application than a site intake. No organization fields, no buyer workflow questions. Access is invite- and code-gated."}
                   </p>
                 </div>
                 <StepDots currentStep={step} />
@@ -684,6 +686,37 @@ export default function CapturerSignUpFlow() {
                       </div>
                     </div>
 
+                    <div className="rounded-[1.6rem] border border-[color:var(--amber)]/30 bg-[color:var(--amber)]/8 p-5">
+                      <div className="flex items-start gap-3">
+                        <Shield className="mt-0.5 h-5 w-5 text-[color:var(--amber)]" />
+                        <div>
+                          <p className="font-semibold text-[color:var(--ink)]">Gated access and approval</p>
+                          <p className="mt-1 text-sm leading-6 text-[color:var(--ink-soft)]">
+                            Blueprint capturer access is invite- and code-gated. Submitting this application does not guarantee approval. We review each submission for market fit and device availability before sending capture onboarding instructions.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="accessCode" className="text-[color:var(--ink)]">
+                        Access or invite code <span className="text-[color:var(--ink-muted)]">(if you have one)</span>
+                      </Label>
+                      <div className="relative mt-2">
+                        <Shield className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--ink-muted)]" />
+                        <Input
+                          id="accessCode"
+                          value={accessCode}
+                          onChange={(event) => setAccessCode(event.target.value)}
+                          placeholder="Enter your access or invite code"
+                          className="h-12 rounded-2xl border-[color:var(--line-strong)] pl-10"
+                        />
+                      </div>
+                      <p className="mt-1.5 text-xs text-[color:var(--ink-muted)]">
+                        If someone gave you a code, enter it here. It helps us route your application faster.
+                      </p>
+                    </div>
+
                     <div className="space-y-4">
                       <div>
                         <p className="text-sm font-semibold text-[color:var(--ink)]">What can you capture with?</p>
@@ -769,8 +802,10 @@ export default function CapturerSignUpFlow() {
                           className="mt-1"
                         />
                         <span className="text-sm leading-6 text-[color:var(--ink-soft)]">
-                          I understand this website is for capturer application and account setup.
-                          Actual capture sessions, verification, and payout setup happen in Blueprint
+                          I understand this is an application for capturer access, not an open
+                          signup. Approval is not guaranteed — Blueprint reviews each submission for
+                          market fit and device availability before granting capture access. Actual
+                          capture sessions, verification, and payout setup happen in Blueprint
                           Capture. I agree to Blueprint&apos;s{" "}
                           <a href="/terms" className="font-semibold text-[color:var(--leaf-deep)] underline-offset-4 hover:underline">
                             Terms
@@ -838,12 +873,12 @@ export default function CapturerSignUpFlow() {
                   <CircleCheckBig className="h-7 w-7" />
                 </div>
                 <h2 className="mt-6 text-3xl font-semibold tracking-[-0.04em]">
-                  Account created.
+                  Application submitted.
                 </h2>
                 <p className="mt-3 max-w-xl text-base leading-7 text-[color:var(--ink-soft)]">
                   {successSummary
-                    ? `${successSummary.name}, your capturer account is ready for ${successSummary.market}.`
-                    : "Your capturer account is ready."} The next step is not a site-operator dashboard. It is the capture workflow.
+                    ? `${successSummary.name}, your capturer application for ${successSummary.market} has been submitted.`
+                    : "Your capturer application has been submitted."} This is not an approval — it is the first step. We review every application before granting capture access.
                 </p>
               </div>
 
@@ -852,9 +887,9 @@ export default function CapturerSignUpFlow() {
                   <div className="flex items-start gap-4">
                     <Smartphone className="mt-1 h-5 w-5 text-[color:var(--leaf-deep)]" />
                     <div>
-                      <p className="font-semibold text-[color:var(--ink)]">Use Blueprint Capture for the real work</p>
+                      <p className="font-semibold text-[color:var(--ink)]">Application under review</p>
                       <p className="mt-1 text-sm leading-6 text-[color:var(--ink-soft)]">
-                        Website signup is complete. Actual capture sessions, review steps, and payout setup should live in the capture product.
+                        Your submission is in the capturer queue. We will reach out via email with access instructions once your application is approved. In the meantime, the Blueprint Capture app is where actual capture sessions, review steps, and payout setup live.
                       </p>
                     </div>
                   </div>

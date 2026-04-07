@@ -115,7 +115,7 @@ describe("CapturerSignUpFlow analytics", () => {
     fireEvent.click(screen.getByRole("button", { name: /Create capturer account/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Account created\./i)).toBeInTheDocument();
+      expect(screen.getByText(/Application submitted/i)).toBeInTheDocument();
     });
 
     expect(analyticsEventsMock.capturerSignupSubmitted).toHaveBeenCalledWith({
