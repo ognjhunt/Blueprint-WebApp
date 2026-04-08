@@ -13,6 +13,7 @@ const runBuyerLifecycleCheck = vi.hoisted(() => vi.fn());
 const runExperimentAutorollout = vi.hoisted(() => vi.fn());
 const runAutonomousResearchOutboundLoop = vi.hoisted(() => vi.fn());
 const runCreativeAssetFactoryLoop = vi.hoisted(() => vi.fn());
+const runGapClosureLoop = vi.hoisted(() => vi.fn());
 const sendSlackMessage = vi.hoisted(() => vi.fn());
 const workerFailureAlertState = vi.hoisted(() => new Map<string, string>());
 const maybeAlertOnWorkerStatusTransition = vi.hoisted(() =>
@@ -128,6 +129,10 @@ vi.mock("../utils/creative-factory", () => ({
   runCreativeAssetFactoryLoop,
 }));
 
+vi.mock("../utils/gap-closure", () => ({
+  runGapClosureLoop,
+}));
+
 vi.mock("../utils/slack", () => ({
   sendSlackMessage,
 }));
@@ -146,6 +151,11 @@ beforeEach(() => {
   runExperimentAutorollout.mockResolvedValue({ count: 1, evaluations: [] });
   runAutonomousResearchOutboundLoop.mockResolvedValue({ count: 1, results: [] });
   runCreativeAssetFactoryLoop.mockResolvedValue({ status: "assets_generated" });
+  runGapClosureLoop.mockResolvedValue({
+    processedCount: 1,
+    failedCount: 0,
+    activeFindingCount: 0,
+  });
   sendSlackMessage.mockResolvedValue({ sent: true });
 });
 
@@ -194,6 +204,20 @@ describe("ops automation scheduler", () => {
     expect(flagOverdueSiteAccessReviews).toHaveBeenCalledWith({ limit: 50 });
     expect(flagOverdueFinanceReviews).toHaveBeenCalledWith({ limit: 50 });
     expect(runPayoutExceptionTriageLoop).not.toHaveBeenCalled();
+
+    stop();
+  });
+
+  it("runs gap closure when enabled", async () => {
+    vi.stubEnv("BLUEPRINT_GAP_CLOSURE_ENABLED", "1");
+    vi.stubEnv("BLUEPRINT_GAP_CLOSURE_STARTUP_DELAY_MS", "0");
+
+    const { startOpsAutomationScheduler } = await import("../utils/opsAutomationScheduler");
+    const stop = startOpsAutomationScheduler();
+
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(runGapClosureLoop).toHaveBeenCalledWith({ limit: 100 });
 
     stop();
   });

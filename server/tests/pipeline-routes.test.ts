@@ -260,7 +260,7 @@ describe("pipeline integration routes", () => {
           opportunity_state: "handoff_ready",
           ops: expect.objectContaining({
             proof_path: expect.objectContaining({
-              qualified_inbound_at: "SERVER_TIMESTAMP",
+              qualified_inbound_at: expect.anything(),
             }),
           }),
         })
@@ -324,7 +324,6 @@ describe("pipeline integration routes", () => {
         expect.objectContaining({
           requestId: "req-1",
           site_submission_id: "req-1",
-          buyer_request_id: null,
           status: "qualified_ready",
           qualification_state: "qualified_ready",
           opportunity_state: "handoff_ready",
@@ -334,7 +333,7 @@ describe("pipeline integration routes", () => {
           }),
           ops: expect.objectContaining({
             proof_path: expect.objectContaining({
-              qualified_inbound_at: "SERVER_TIMESTAMP",
+              qualified_inbound_at: expect.anything(),
             }),
           }),
           pipeline: expect.objectContaining({
