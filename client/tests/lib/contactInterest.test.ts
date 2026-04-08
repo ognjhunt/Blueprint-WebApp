@@ -6,12 +6,13 @@ import {
 
 describe("contact interest mapping", () => {
   it("keeps canonical public interests stable", () => {
-    expect(CANONICAL_CONTACT_INTEREST_BY_LANE.qualification).toBe("site-qualification");
+    expect(CANONICAL_CONTACT_INTEREST_BY_LANE.qualification).toBe("site-review");
     expect(CANONICAL_CONTACT_INTEREST_BY_LANE.deeper_evaluation).toBe("evaluation-package");
     expect(CANONICAL_CONTACT_INTEREST_BY_LANE.managed_tuning).toBe("managed-tuning");
   });
 
   it("maps canonical values to requested lanes", () => {
+    expect(normalizeInterestToLane("site-review")).toBe("qualification");
     expect(normalizeInterestToLane("site-qualification")).toBe("qualification");
     expect(normalizeInterestToLane("evaluation-package")).toBe("deeper_evaluation");
     expect(normalizeInterestToLane("deeper-evaluation")).toBe("deeper_evaluation");

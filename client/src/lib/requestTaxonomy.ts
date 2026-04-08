@@ -80,7 +80,7 @@ export const LANE_TO_LEGACY_HELP_WITH = {
 } as const;
 
 export const CANONICAL_CONTACT_INTEREST_BY_LANE = {
-  qualification: "site-qualification",
+  qualification: "site-review",
   preview_simulation: "preview-simulation",
   deeper_evaluation: "evaluation-package",
   managed_tuning: "managed-tuning",
@@ -88,6 +88,7 @@ export const CANONICAL_CONTACT_INTEREST_BY_LANE = {
 } as const;
 
 export const CONTACT_INTEREST_TO_LANE = {
+  "site-review": "qualification",
   "site-qualification": "qualification",
   "preview-simulation": "preview_simulation",
   "evaluation-package": "deeper_evaluation",

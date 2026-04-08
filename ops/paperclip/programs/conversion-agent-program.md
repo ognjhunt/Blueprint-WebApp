@@ -5,8 +5,8 @@ Unblock trustworthy funnel measurement before running experiments, then correct 
 
 ## Current Cycle: Baseline Measurement (not experimentation)
 The first cycle is a measurement cycle, not an experiment cycle:
-1. Add step-level and outcome-level analytics coverage to the capturer signup flow (`/client/src/pages/CapturerSignUpFlow.tsx`).
-2. Add start, submit, success, and failure events to the buyer signup and contact request flows (`/client/src/pages/BusinessSignUpFlow.tsx`, `/client/src/components/site/ContactForm.tsx`).
+1. Confirm step-level and outcome-level analytics coverage is live on the capturer signup flow (`/client/src/pages/CapturerSignUpFlow.tsx`).
+2. Confirm start, submit, success, and failure events are live on the buyer signup and contact request flows (`/client/src/pages/BusinessSignUpFlow.tsx`, `/client/src/components/site/ContactForm.tsx`).
 3. Validate PostHog and GA event naming, property shape, and no-PII discipline against the current analytics contract in `/client/src/lib/analytics.ts`.
 4. Establish current completion rate per step and per entry lane only after the above events are live.
 5. Audit whether buyer-entry defaults are pushing a qualification-first story instead of an exact-site world-model story.
@@ -48,5 +48,5 @@ Focus area: `/client/src/pages/CapturerSignUpFlow.tsx` and related components.
 - Analytics Daily first run completed 2026-03-29 (BLU-38) — operational health focus, not funnel metrics yet
 - PostHog deployed 2026-03-27; funnel data still accumulating
 - Current signup flow is multi-step; friction points unknown until baseline data
-- As of 2026-03-30, the repo analytics layer exists but the capturer signup flow is not emitting the step-level events this program depends on.
-- As of 2026-03-30, buyer entry flows still default to `qualification` lanes in key surfaces, which risks pulling the product story away from capture-first, world-model-product-first positioning.
+- As of 2026-04-08, the repo analytics layer emits the capturer signup, buyer signup, and contact request events this program depends on, and the associated analytics contract tests pass in the current worktree.
+- As of 2026-04-08, buyer-entry defaults still need a final audit for any remaining qualification-first framing in key surfaces, but the current blocker is live production data accumulation rather than missing event plumbing.

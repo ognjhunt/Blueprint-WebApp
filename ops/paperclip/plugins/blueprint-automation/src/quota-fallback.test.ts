@@ -11,6 +11,7 @@ import {
   FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY,
   HERMES_MODEL_LADDER_CONFIG_KEY,
   getWorkspaceAdapterCooldownKey,
+  isDisallowedHermesFallbackModel,
   isFreshSessionRetryableFailure,
   isIncompatibleHermesFreeRoutingModel,
   isQuotaOrRateLimitFailure,
@@ -128,6 +129,38 @@ describe("quota fallback helpers", () => {
       modelReasoningEffort: "xhigh",
       timeoutSec: 900,
     });
+  });
+
+  it("rejects deprecated qwen3.6-plus fallback ids even when env drift reintroduces them", () => {
+    vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL", "openrouter/qwen/qwen3.6-plus:free");
+    vi.stubEnv(
+      "BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS",
+      [
+        "openrouter/qwen/qwen3.6-plus:free",
+        "qwen/qwen3.6-plus:free",
+        "arcee-ai/trinity-large-preview:free",
+        "z-ai/glm-5.1",
+      ].join(","),
+    );
+
+    expect(isDisallowedHermesFallbackModel("openrouter/qwen/qwen3.6-plus:free")).toBe(true);
+    expect(isDisallowedHermesFallbackModel("qwen/qwen3.6-plus:free")).toBe(true);
+    expect(isDisallowedHermesFallbackModel("arcee-ai/trinity-large-preview:free")).toBe(false);
+    const resolved = resolveHermesFallbackModels({ cwd: "/tmp/project" });
+    expect(resolved[0]).toBe(DEFAULT_HERMES_FALLBACK_MODEL);
+    expect(resolved).not.toContain("openrouter/qwen/qwen3.6-plus:free");
+    expect(resolved).not.toContain("qwen/qwen3.6-plus:free");
+    expect(resolved).toContain("z-ai/glm-5.1");
+    const config = buildHermesFallbackAdapterConfig({
+      cwd: "/tmp/project",
+      model: "qwen/qwen3.6-plus:free",
+    });
+    expect(config.cwd).toBe("/tmp/project");
+    expect(config.model).toBe(DEFAULT_HERMES_FALLBACK_MODEL);
+    expect(config[HERMES_MODEL_LADDER_CONFIG_KEY]).not.toContain("openrouter/qwen/qwen3.6-plus:free");
+    expect(config[HERMES_MODEL_LADDER_CONFIG_KEY]).not.toContain("qwen/qwen3.6-plus:free");
+    expect(config.modelReasoningEffort).toBe("xhigh");
+    expect(config.timeoutSec).toBe(1800);
   });
 
   it("resolves a deterministic hermes free-model ladder", () => {

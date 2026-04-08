@@ -40,7 +40,6 @@ export const DEFAULT_HERMES_FALLBACK_MODELS = [
   "openrouter/free",
   "stepfun/step-3.5-flash:free",
   "nvidia/nemotron-3-super:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
   "openai/gpt-oss-120b:free",
   "arcee-ai/trinity-large-thinking",
   "z-ai/glm-5.1",
@@ -64,6 +63,8 @@ const QUOTA_OR_RATE_LIMIT_RE =
 const MODEL_NOT_FOUND_RE = /model.*not.*found|model.*404|invalid.*model|unknown.*model|gpt-5-4-mini|http.*404|not_found_error/i;
 const FRESH_SESSION_RETRYABLE_RE =
   /(?:context window|ran out of room|clear earlier history|start a new thread|max[_ ]output[_ ]tokens|incomplete response returned|stream disconnected before completion)/i;
+const DISALLOWED_HERMES_FALLBACK_MODEL_RE =
+  /^(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?$/i;
 const MONTH_INDEX: Record<string, number> = {
   jan: 0,
   feb: 1,
@@ -170,8 +171,16 @@ export function isIncompatibleHermesFreeRoutingModel(model: string | null | unde
   return false;
 }
 
+export function isDisallowedHermesFallbackModel(model: string | null | undefined): boolean {
+  const m = (model ?? "").trim();
+  if (!m) return false;
+  return DISALLOWED_HERMES_FALLBACK_MODEL_RE.test(m);
+}
+
 function filterCompatibleHermesLadderModels(models: string[]): string[] {
-  return models.filter((id) => !isIncompatibleHermesFreeRoutingModel(id));
+  return models.filter(
+    (id) => !isIncompatibleHermesFreeRoutingModel(id) && !isDisallowedHermesFallbackModel(id),
+  );
 }
 
 export function resolveHermesFallbackModels(
@@ -190,7 +199,11 @@ export function resolveHermesFallbackModels(
   );
   const singleEnvRaw = asTrimmedString(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL);
   const singleEnvModel =
-    singleEnvRaw && !isIncompatibleHermesFreeRoutingModel(singleEnvRaw) ? singleEnvRaw : null;
+    singleEnvRaw
+      && !isIncompatibleHermesFreeRoutingModel(singleEnvRaw)
+      && !isDisallowedHermesFallbackModel(singleEnvRaw)
+      ? singleEnvRaw
+      : null;
 
   const includeCurrent =
     includeCurrentModel
@@ -258,10 +271,18 @@ export function buildHermesFallbackAdapterConfig(
   const ladder = resolveHermesFallbackModels(adapterConfig, { includeCurrentModel: false });
   const optionModel = asTrimmedString(options?.model as string | undefined);
   const chosen =
-    optionModel && !isIncompatibleHermesFreeRoutingModel(optionModel) ? optionModel : null;
+    optionModel
+      && !isIncompatibleHermesFreeRoutingModel(optionModel)
+      && !isDisallowedHermesFallbackModel(optionModel)
+      ? optionModel
+      : null;
   const envFallback = asTrimmedString(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL);
   const envPrimary =
-    envFallback && !isIncompatibleHermesFreeRoutingModel(envFallback) ? envFallback : null;
+    envFallback
+      && !isIncompatibleHermesFreeRoutingModel(envFallback)
+      && !isDisallowedHermesFallbackModel(envFallback)
+      ? envFallback
+      : null;
   const model =
     chosen
     ?? ladder[0]

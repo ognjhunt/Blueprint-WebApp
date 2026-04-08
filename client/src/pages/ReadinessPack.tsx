@@ -93,7 +93,7 @@ export default function ReadinessPack() {
                 </p>
 
                 <CTAButtons
-                  primaryHref="/contact?interest=site-qualification"
+                  primaryHref="/contact?interest=site-review"
                   primaryLabel="Request readiness review"
                   secondaryHref="/how-it-works"
                   secondaryLabel="How it works"
@@ -163,7 +163,7 @@ export default function ReadinessPack() {
                   blockers without making review the center of the product story.
                 </p>
                 <a
-                  href="/contact?interest=site-qualification"
+                  href="/contact?interest=site-review"
                   className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
                 >
                   Request readiness review
