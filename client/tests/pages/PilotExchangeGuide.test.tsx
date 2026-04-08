@@ -72,9 +72,10 @@ describe("PilotExchangeGuide", () => {
 
     expect(screen.getByText(/Who Pays for What/i)).toBeInTheDocument();
     expect(screen.getByText(/Hosted Record \(Default\)/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Readiness Pack/i })).toBeInTheDocument();
-    expect(screen.getByText(/Technical Evaluation/i)).toBeInTheDocument();
-    expect(screen.getByText(/Deployment Prep \/ Managed Tuning/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Exact-Site Hosted Review$/i, { selector: "h3" })).toBeInTheDocument();
+    expect(screen.getByText(/^Evaluation Package$/i, { selector: "h3" })).toBeInTheDocument();
+    expect(screen.getByText(/^Data Licensing \/ Derived Assets$/i, { selector: "h3" })).toBeInTheDocument();
+    expect(screen.getByText(/^Managed Tuning \/ Deployment Support$/i, { selector: "h3" })).toBeInTheDocument();
     expect(screen.getByText(/Ownership Options/i)).toBeInTheDocument();
     expect(screen.getByText(/Hosted Record \(Default\)/i)).toBeInTheDocument();
     expect(screen.getByText(/Private Access Terms \(Paid\)/i)).toBeInTheDocument();
