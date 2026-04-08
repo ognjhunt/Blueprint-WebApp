@@ -1,4 +1,53 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+
 const truthyValues = new Set(["1", "true", "yes", "on"]);
+
+function stripWrappingQuotes(value) {
+  const trimmed = String(value || "").trim();
+  if (
+    (trimmed.startsWith("\"") && trimmed.endsWith("\""))
+    || (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+function loadEnvFile(filePath) {
+  if (!filePath || !fs.existsSync(filePath)) return;
+  const contents = fs.readFileSync(filePath, "utf8");
+  for (const line of contents.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const separatorIndex = trimmed.indexOf("=");
+    if (separatorIndex <= 0) continue;
+    const key = trimmed.slice(0, separatorIndex).trim();
+    if (!key || process.env[key]) continue;
+    process.env[key] = stripWrappingQuotes(trimmed.slice(separatorIndex + 1)).replace(/\\n/g, "\n");
+  }
+}
+
+for (const candidate of [
+  process.env.BLUEPRINT_ENV_FILE,
+  process.env.PAPERCLIP_ENV_FILE,
+  path.resolve(process.cwd(), ".env"),
+  path.resolve(process.cwd(), ".env.local"),
+  path.resolve(process.cwd(), "../.paperclip-blueprint.env"),
+]) {
+  loadEnvFile(candidate);
+}
+
+function hasCodexLocalProvider() {
+  const authPath = process.env.CODEX_AUTH_FILE?.trim() || path.join(os.homedir(), ".codex", "auth.json");
+  if (!fs.existsSync(authPath)) return false;
+  const probe = spawnSync(process.env.CODEX_LOCAL_COMMAND?.trim() || "codex", ["--version"], {
+    stdio: "ignore",
+  });
+  return probe.status === 0;
+}
 
 function envValue(...keys) {
   for (const key of keys) {
@@ -44,8 +93,8 @@ requireCheck(
 );
 
 requireCheck(
-  Boolean(envValue("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "ACP_HARNESS_URL")),
-  "One structured automation provider is required for alpha launch. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, or ACP_HARNESS_URL.",
+  hasCodexLocalProvider() || Boolean(envValue("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "ACP_HARNESS_URL")),
+  "One structured automation provider is required for alpha launch. Configure local Codex OAuth or set OPENAI_API_KEY, ANTHROPIC_API_KEY, or ACP_HARNESS_URL.",
 );
 
 requireCheck(Boolean(envValue("STRIPE_SECRET_KEY")), "STRIPE_SECRET_KEY is required for checkout.");
