@@ -84,6 +84,11 @@ describe("growth Notion sync", () => {
     process.env = {
       ...originalEnv,
       NOTION_API_TOKEN: "secret-token",
+      NOTION_GROWTH_STUDIO_SHIP_BROADCAST_DB_ID: "notion-db-ship-broadcast",
+      NOTION_GROWTH_STUDIO_CAMPAIGN_DRAFTS_DB_ID: "notion-db-campaign-drafts",
+      NOTION_GROWTH_STUDIO_CREATIVE_RUNS_DB_ID: "notion-db-creative-runs",
+      NOTION_GROWTH_STUDIO_INTEGRATION_CHECKS_DB_ID: "notion-db-integration-checks",
+      NOTION_GROWTH_STUDIO_CONTENT_REVIEWS_DB_ID: "notion-db-content-reviews",
     };
 
     mockDatabasesRetrieve.mockResolvedValue({

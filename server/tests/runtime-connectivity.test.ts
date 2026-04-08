@@ -8,6 +8,9 @@ vi.mock("../agents/runtime", () => ({
 }));
 
 afterEach(() => {
+  delete process.env.CODEX_LOCAL_AVAILABLE;
+  delete process.env.CODEX_AUTH_FILE;
+  delete process.env.CODEX_DEFAULT_MODEL;
   delete process.env.OPENAI_API_KEY;
   delete process.env.ANTHROPIC_API_KEY;
   delete process.env.ACP_HARNESS_URL;
@@ -70,5 +73,20 @@ describe("runtime connectivity", () => {
         runtime: "anthropic_agent_sdk",
       }),
     );
+  });
+
+  it("prefers local Codex when the auth file is present", async () => {
+    process.env.CODEX_LOCAL_AVAILABLE = "1";
+    process.env.CODEX_DEFAULT_MODEL = "gpt-5.4-mini";
+
+    const { getAgentRuntimeConnectionMetadata } = await import(
+      "../agents/runtime-connectivity"
+    );
+
+    expect(getAgentRuntimeConnectionMetadata()).toMatchObject({
+      provider: "codex_local",
+      configured: true,
+      default_model: "gpt-5.4-mini",
+    });
   });
 });
