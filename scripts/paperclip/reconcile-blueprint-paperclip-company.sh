@@ -103,6 +103,7 @@ Hard rules:
 - Never pipe curl output into Python, Node, bash, or any other interpreter.
 - Prefer plain curl for reads, or a single-process Python/urllib fetch when you need local parsing.
 - Prefer GET {{paperclipApiUrl}}/agents/me/inbox-lite for assignment checks.
+- If PAPERCLIP_API_KEY is missing or an auth call returns 401/403, switch to auth-regression fallback immediately: use read-only company issue listing, summarize assigned open work, and exit without retries.
 - Never look for unassigned work.
 - Never self-assign from backlog.
 - For mutating calls, include Authorization: Bearer $PAPERCLIP_API_KEY and X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID.
@@ -138,12 +139,19 @@ Heartbeat wake:
    curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/agents/me/inbox-lite"
 2. If the inbox is empty, do not inspect backlog or unassigned issues. Exit after a brief summary.
 3. If the inbox has assigned issues, pick the highest-priority non-terminal issue, read it through /heartbeat-context, checkout it, do the work, and leave a status comment.
+4. If step 1 fails with 401/403 or PAPERCLIP_API_KEY is missing, run auth-regression fallback instead of retrying:
+   - Read-only issue listing:
+     curl -fsS "{{paperclipApiUrl}}/companies/$PAPERCLIP_COMPANY_ID/issues"
+   - Restrict to issues where assigneeAgentId equals $PAPERCLIP_AGENT_ID and status is not done/cancelled.
+   - Do not self-assign, do not inspect unassigned backlog, and do not attempt mutating routes without auth.
+   - Leave a brief proof-bearing summary of assigned open issues you found (or none) and exit cheaply.
 {{/noTask}}`;
 const HERMES_SAFETY_BUNDLE_SECTION = `
 
 ## Paperclip Runtime Safety
 
 - Prefer \`GET /agents/me/inbox-lite\` for assignment checks.
+- If \`/agents/me/inbox-lite\` returns \`401\` or \`403\`, switch to read-only \`GET /companies/$PAPERCLIP_COMPANY_ID/issues\`, filter by \`assigneeAgentId=$PAPERCLIP_AGENT_ID\`, summarize, and exit without retries.
 - Do not use \`curl | python\`, \`curl | node\`, \`curl | bash\`, or any other pipe-to-interpreter pattern for localhost Paperclip reads.
 - Do not inspect unassigned backlog as part of heartbeat work discovery.
 - Do not self-assign from backlog.
