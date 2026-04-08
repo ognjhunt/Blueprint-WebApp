@@ -1,3 +1,4 @@
+import "./bootstrap-env";
 import { z } from "zod";
 
 const PLACEHOLDER_VALUES = new Set(["PLACEHOLDER", "DUMMY"]);
@@ -183,6 +184,20 @@ const envSchema = z
     BLUEPRINT_FINANCE_REVIEW_OVERDUE_WATCHDOG_INTERVAL_MS: z.coerce.number().int().positive().optional(),
     BLUEPRINT_FINANCE_REVIEW_OVERDUE_WATCHDOG_BATCH_SIZE: z.coerce.number().int().positive().optional(),
     BLUEPRINT_FINANCE_REVIEW_OVERDUE_WATCHDOG_STARTUP_DELAY_MS: z.coerce.number().int().nonnegative().optional(),
+    BLUEPRINT_GAP_CLOSURE_ENABLED: z.string().trim().optional(),
+    BLUEPRINT_GAP_CLOSURE_INTERVAL_MS: z.coerce.number().int().positive().optional(),
+    BLUEPRINT_GAP_CLOSURE_BATCH_SIZE: z.coerce.number().int().positive().optional(),
+    BLUEPRINT_GAP_CLOSURE_STARTUP_DELAY_MS: z.coerce.number().int().nonnegative().optional(),
+    BLUEPRINT_GAP_INTAKE_TOKEN: z.string().trim().optional(),
+    BLUEPRINT_GAP_DELEGATION_WEBHOOK_URL: z.string().trim().optional(),
+    BLUEPRINT_PHASE2_WAITLIST_ENABLED: z.string().trim().optional(),
+    BLUEPRINT_PHASE2_INBOUND_ENABLED: z.string().trim().optional(),
+    BLUEPRINT_PHASE2_SUPPORT_ENABLED: z.string().trim().optional(),
+    BLUEPRINT_PHASE2_PAYOUT_ENABLED: z.string().trim().optional(),
+    BLUEPRINT_PAPERCLIP_HERMES_MODEL: z.string().trim().optional(),
+    BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL: z.string().trim().optional(),
+    BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL: z.string().trim().optional(),
+    BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS: z.string().trim().optional(),
     OPENAI_SUPPORT_TRIAGE_MODEL: z.string().trim().optional(),
     OPENAI_PAYOUT_EXCEPTION_MODEL: z.string().trim().optional(),
     OPENAI_PREVIEW_DIAGNOSIS_MODEL: z.string().trim().optional(),
@@ -237,6 +252,11 @@ export function isAutomationLaneEnabled(laneEnvKey: string): boolean {
   }
 
   return isEnvFlagEnabled("BLUEPRINT_ALL_AUTOMATION_ENABLED");
+}
+
+export function isPhase2LaneEnabled(lane: "waitlist" | "inbound" | "support" | "payout"): boolean {
+  const laneKey = `BLUEPRINT_PHASE2_${lane.toUpperCase()}_ENABLED`;
+  return isTruthyEnvValue(process.env[laneKey]);
 }
 
 export function requireConfiguredEnvValue(
