@@ -3,7 +3,7 @@
 ## Status
 - phase: planning
 - owner: city-launch-agent
-- last-reviewed: 2026-03-30
+- last-reviewed: 2026-04-06
 - recommended-posture: gated cohort pilot, not public launch
 - last-human-launch-decision: not approved
 
@@ -13,8 +13,11 @@ Austin is the better first city for Blueprint's capturer-side learning loop beca
 Austin should be used to answer one question first: can Blueprint recruit and activate a small local cohort through trusted channels, visible review steps, and clear no-hype expectations about work, quality, approval, and access routing?
 
 ## What Changed This Pass
+- evidence-backed: multiple agent bootstraps completed April 5 (capturer-growth, supply-intel, market-intel, robot-team-growth, site-operator-partnership, solutions-engineering, security-procurement, revenue-ops-pricing), creating a more complete execution infrastructure than existed at last review.
 - evidence-backed: the capturer signup flow now requires an explicit access-source choice and supports invite/access-code routing in the current worktree.
 - evidence-backed: structured capturer and buyer signup analytics events are present in code, but Austin-specific city and market reporting still needs deployment and end-to-end validation.
+- evidence-backed: growth-lead weekly review (April 6) flagged the analytics gap (BLU-1583, BLU-1580, BLU-1581 still todo) as a critical risk — city expansion cannot be evidence-based until analytics is live.
+- inferred: the Bootstrap phase is largely complete; the system is transitioning from setup to execution. Austin remains the first-city candidate but now has more downstream agent capacity to absorb city-specific work items.
 - inferred: Austin still needs a human decision on who can issue invites or access codes, so the city remains a gated pilot rather than a public recruiting motion.
 
 ## Why Austin Now
@@ -56,7 +59,7 @@ Austin should be used to answer one question first: can Blueprint recruit and ac
 |---|---:|---|
 | channel reachability | 3/5 | Austin has credible narrow-channel options, but no proven city-level response data yet |
 | likely supply quality | 4/5 | Relationship-seeded cohorts should outperform broad volume if the bar stays high |
-| operations feasibility | 3/5 | A small first cohort is operationally plausible, but city-specific capacity rules are not yet written |
+|| operations feasibility | 3/5 | A small first cohort is operationally plausible. Agent bootstraps are complete, so field-ops-agent and intake-agent now exist as named owners for city-specific rules, but Austin capacity thresholds and assignment logic still need to be written. |
 | measurement readiness | 3/5 | Structured capturer and buyer signup events now exist in the current worktree, but Austin city and market cuts are not yet validated in analytics or deployed |
 | legal/compliance clarity | 2/5 | Incentive language, public posting rules, and local interpretation still require human review |
 | strategic importance | 4/5 | Austin is the cleaner place to learn city launch mechanics before broader expansion |

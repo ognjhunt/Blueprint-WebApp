@@ -3,7 +3,7 @@
 ## Status
 - phase: planning
 - owner: city-launch-agent
-- last-reviewed: 2026-03-30
+- last-reviewed: 2026-04-06
 - recommended-posture: high-bar gated cohort after Austin learning loop, not public launch
 - last-human-launch-decision: not approved
 
@@ -13,8 +13,11 @@ San Francisco is strategically important because it concentrates the most techni
 The city should answer a different question from Austin: once Blueprint has a credible gated-cohort system, can it attract selective Bay Area contributors through invite or access-code routing without sounding like generic gig work or generic AI infrastructure?
 
 ## What Changed This Pass
+- evidence-backed: multiple agent bootstraps completed April 5, creating a more complete execution infrastructure than existed at last review — SF now has clearer downstream owners for analytics, conversion, intake, and field-ops dependencies.
 - evidence-backed: the capturer signup flow now requires an explicit access-source choice and supports invite/access-code routing in the current worktree.
 - evidence-backed: structured signup analytics exist in code, but San Francisco-specific city and referral cuts still need deployment and end-to-end validation.
+- evidence-backed: growth-lead weekly review (April 6) flagged the analytics gap as a critical cross-stack risk — SF expansion decisions are even more analytics-dependent than Austin's due to the higher bar and lower tolerance for noise.
+- inferred: the transition from bootstrap to execution means SF-specific work items (proof-first copy, high-bar intake rubric, trust pack) now have named agent owners who can act once gated on human approvals.
 - inferred: San Francisco still needs a human decision on who can issue access codes and how tightly they are distributed, so it remains a high-bar gated cohort rather than a public recruiting market.
 
 ## Why San Francisco Now
