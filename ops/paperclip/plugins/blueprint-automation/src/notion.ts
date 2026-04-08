@@ -654,15 +654,23 @@ function buildSkillProperties(entry: SkillMetadata, includeDefaults = true) {
 
 async function queryDatabaseByTitle(client: Client, database: NotionDatabaseKey, title: string): Promise<any[]> {
   const notion = notionClient(client);
-  const response = await notion.dataSources.query({
-    data_source_id: DATABASE_CONFIG[database].dataSourceId,
-    filter: {
-      property: DATABASE_CONFIG[database].titleProperty,
-      title: { equals: title },
-    },
-    page_size: 25,
-  });
-  return (response.results ?? []) as any[];
+  const allResults: any[] = [];
+  let startCursor: string | undefined = undefined;
+  do {
+    const response = await notion.dataSources.query({
+      data_source_id: DATABASE_CONFIG[database].dataSourceId,
+      filter: {
+        property: DATABASE_CONFIG[database].titleProperty,
+        title: { equals: title },
+      },
+      page_size: 25,
+      start_cursor: startCursor,
+    });
+    const results = (response.results ?? []) as any[];
+    allResults.push(...results);
+    startCursor = response.has_more ? (response.next_cursor as string | undefined) : undefined;
+  } while (startCursor);
+  return allResults;
 }
 
 export async function queryDatabase(client: Client, database: NotionDatabaseKey, pageSize = 50): Promise<any[]> {
@@ -1240,7 +1248,11 @@ export function buildNotionToolHandlers(client: Client): Record<string, NotionHa
       return { success: true, items, count: items.length };
     },
     "notion-write-work-queue": async (params) => {
-      return { success: true, ...(await createWorkQueueItem(client, normalizeWorkQueueItem(params, true))) };
+      const normalized = normalizeWorkQueueItem(params, true);
+      const result = await upsertWorkQueueItem(client, normalized, {
+        archiveDuplicates: params.archiveDuplicates === true,
+      });
+      return { success: true, ...result };
     },
     "notion-write-knowledge": async (params) => {
       return { success: true, ...(await createKnowledgeEntry(client, normalizeKnowledgeEntry(params, true))) };

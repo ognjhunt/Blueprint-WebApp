@@ -34,15 +34,16 @@ export type WorkspaceAdapterCooldownRecord = {
 
 export type WorkspaceAdapterCooldownState = Record<string, WorkspaceAdapterCooldownRecord>;
 
-export const DEFAULT_HERMES_FALLBACK_MODEL = "qwen/qwen3.6-plus:free";
+export const DEFAULT_HERMES_FALLBACK_MODEL = "arcee-ai/trinity-large-preview:free";
 export const DEFAULT_HERMES_FALLBACK_MODELS = [
-  "qwen/qwen3.6-plus:free",
+  "arcee-ai/trinity-large-preview:free",
   "openrouter/free",
   "stepfun/step-3.5-flash:free",
   "nvidia/nemotron-3-super:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
   "openai/gpt-oss-120b:free",
-  "arcee-ai/trinity-large-preview:free",
+  "arcee-ai/trinity-large-thinking",
+  "z-ai/glm-5.1",
 ] as const;
 export const HERMES_MODEL_LADDER_CONFIG_KEY = "blueprintHermesModelLadder";
 export const FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY = "blueprintFallbackOriginAdapterType";

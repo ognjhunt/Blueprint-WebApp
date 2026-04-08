@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   definePlugin,
   runWorker,
@@ -167,8 +168,10 @@ import {
   type ContentChannel,
   type ContentOutcomeReview,
 } from "./content-ops.js";
+import { ensureKbReportArtifact } from "./kb-artifacts.js";
 
 const execFileAsync = promisify(execFile);
+const BLUEPRINT_WEBAPP_REPO_ROOT = fileURLToPath(new URL("../../../../../", import.meta.url));
 const GIT_BIN = process.env.BLUEPRINT_PAPERCLIP_GIT_BIN || "/usr/bin/git";
 const CODEX_FALLBACK_MODEL =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL || "gpt-5.4-mini";
@@ -418,6 +421,10 @@ type AnalyticsOutputProof = {
     knowledgePageId?: string;
     knowledgePageUrl?: string;
   };
+  kbArtifact?: {
+    path: string;
+    generated: boolean;
+  };
   slack?: {
     ok: boolean;
     routedChannel: string;
@@ -519,6 +526,10 @@ type CommunityUpdatesOutputProof = {
     knowledgePageId?: string;
     knowledgePageUrl?: string;
   };
+  kbArtifact?: {
+    path: string;
+    generated: boolean;
+  };
   slack?: {
     configured: boolean;
     ok?: boolean;
@@ -573,6 +584,10 @@ type DemandIntelOutputProof = {
     knowledgePageId?: string;
     knowledgePageUrl?: string;
   };
+  kbArtifact?: {
+    path: string;
+    generated: boolean;
+  };
   slack?: {
     ok: boolean;
     routedChannel: string;
@@ -614,6 +629,10 @@ type CustomerResearchOutputProof = {
     workQueuePageUrl?: string;
     knowledgePageId?: string;
     knowledgePageUrl?: string;
+  };
+  kbArtifact?: {
+    path: string;
+    generated: boolean;
   };
   slack?: {
     ok: boolean;
@@ -803,6 +822,10 @@ type MarketIntelOutputProof = {
     knowledgePageId?: string;
     knowledgePageUrl?: string;
   };
+  kbArtifact?: {
+    path: string;
+    generated: boolean;
+  };
   slack?: {
     ok: boolean;
     routedChannel: string;
@@ -843,6 +866,7 @@ type ResolveManagedIssueInput = {
 };
 
 let currentContext: PluginContext | null = null;
+let startupMaintenancePromise: Promise<void> | null = null;
 const PAPERCLIP_COMPANY_CONFIG_PATH = new URL("../../../blueprint-company/.paperclip.yaml", import.meta.url);
 let cachedPaperclipYamlConfig: { mtimeMs: number; config: PaperclipYamlConfig | null } | undefined;
 
@@ -1881,6 +1905,36 @@ function formatDateInTimeZone(date: Date, timeZone: string) {
   return `${String(parts.year).padStart(4, "0")}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
 }
 
+async function ensureKbArtifactForReport(input: {
+  params: Record<string, unknown>;
+  generatedAt: string;
+  title: string;
+  defaultCategory: string;
+  owner: string;
+  summary: string;
+  evidence: string[];
+  recommendedFollowUp: string[];
+}) {
+  const result = await ensureKbReportArtifact({
+    repoRoot: BLUEPRINT_WEBAPP_REPO_ROOT,
+    requestedPath: asString(input.params.kbArtifactPath),
+    defaultCategory: input.defaultCategory,
+    title: input.title,
+    generatedAt: input.generatedAt,
+    owner: input.owner,
+    summary: input.summary,
+    evidence: input.evidence,
+    recommendedFollowUp: input.recommendedFollowUp,
+    linkedKbPages: coerceStringArray(input.params.kbLinkedPages),
+    issueId: asString(input.params.issueId),
+  });
+
+  return {
+    path: result.repoRelativePath,
+    generated: result.generated,
+  };
+}
+
 function scheduleWindowPassedToday(
   cronExpression: string,
   timeZone: string,
@@ -2663,6 +2717,35 @@ async function healAgentExecutionTopology(
   }
 
   return repaired;
+}
+
+function ensureStartupMaintenance(ctx: PluginContext) {
+  if (startupMaintenancePromise) {
+    return startupMaintenancePromise;
+  }
+
+  startupMaintenancePromise = new Promise<void>((resolve) => {
+    setTimeout(() => {
+      void (async () => {
+        try {
+          const config = await getConfig(ctx);
+          const company = await findCompany(ctx, config.companyName);
+          await enforceWorkspaceAdapterCooldowns(ctx, company.id);
+          await healAgentExecutionTopology(ctx, company.id);
+        } catch (error) {
+          ctx.logger.warn("startup automation maintenance failed", {
+            meta: {
+              stack: error instanceof Error ? error.stack : undefined,
+            },
+          });
+        } finally {
+          resolve();
+        }
+      })();
+    }, 0);
+  });
+
+  return startupMaintenancePromise;
 }
 
 async function rerouteUnavailableIssueOwners(
@@ -5530,6 +5613,7 @@ function formatAnalyticsIssueComment(result: {
       : `${result.cadence === "daily" ? "Daily" : "Weekly"} analytics report blocked.`,
     `- Headline: ${result.report.headline}`,
     ...(result.failureReason ? [`- Failure reason: ${result.failureReason}`] : []),
+    `- KB artifact: ${result.kbArtifact ? `${result.kbArtifact.path}${result.kbArtifact.generated ? " (generated)" : ""}` : "missing"}`,
     `- Notion Work Queue: ${result.notion?.workQueuePageUrl ?? result.notion?.workQueuePageId ?? "missing"}`,
     `- Notion Knowledge: ${result.notion?.knowledgePageUrl ?? result.notion?.knowledgePageId ?? "missing"}`,
     `- Slack digest: ${slackStatus}`,
@@ -5555,6 +5639,7 @@ function formatCommunityUpdatesIssueComment(result: CommunityUpdatesOutputProof)
     `- Channels: ${result.channels.join(", ") || "unspecified"}`,
     `- Headline: ${result.report.headline}`,
     ...(result.failureReason ? [`- Failure reason: ${result.failureReason}`] : []),
+    `- KB artifact: ${result.kbArtifact ? `${result.kbArtifact.path}${result.kbArtifact.generated ? " (generated)" : ""}` : "missing"}`,
     `- Notion Work Queue: ${result.notion?.workQueuePageUrl ?? result.notion?.workQueuePageId ?? "missing"}`,
     `- Notion Knowledge: ${result.notion?.knowledgePageUrl ?? result.notion?.knowledgePageId ?? "missing"}`,
     `- SendGrid draft: ${result.growthCampaignDraft ? `${result.growthCampaignDraft.id} (${result.growthCampaignDraft.recipientCount} recipients)` : "not created"}`,
@@ -5688,7 +5773,28 @@ async function buildCommunityUpdatesOutputProof(
     errors,
   };
 
-  if (validationErrors.length === 0 && notionToken) {
+  if (validationErrors.length === 0) {
+    try {
+      result.kbArtifact = await ensureKbArtifactForReport({
+        params,
+        generatedAt,
+        title,
+        defaultCategory: "community-updates",
+        owner: "community-updates-agent",
+        summary: report.headline,
+        evidence: [
+          ...report.shippedThisWeek,
+          ...report.byTheNumbers,
+          ...report.whatWeLearned,
+        ],
+        recommendedFollowUp: report.whatIsNext,
+      });
+    } catch (error) {
+      errors.push(`KB artifact failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  if (validationErrors.length === 0 && result.kbArtifact && notionToken) {
     try {
       const notionClient = createNotionClient({ token: notionToken });
       const knowledgeEntry = await createKnowledgeEntry(notionClient, {
@@ -5719,7 +5825,7 @@ async function buildCommunityUpdatesOutputProof(
     }
   }
 
-  if (validationErrors.length === 0 && slackConfigured) {
+  if (validationErrors.length === 0 && result.kbArtifact && slackConfigured) {
     try {
       const slackResult = await postSlackDigest(
         {
@@ -5790,6 +5896,9 @@ async function buildCommunityUpdatesOutputProof(
   }
 
   const failureReasons: string[] = [];
+  if (!result.kbArtifact?.path) {
+    failureReasons.push("Missing KB artifact.");
+  }
   if (!result.notion?.workQueuePageId) {
     failureReasons.push("Missing Notion Work Queue artifact.");
   }
@@ -5808,6 +5917,7 @@ async function buildCommunityUpdatesOutputProof(
   }
 
   result.proofLinks = [
+    result.kbArtifact?.path,
     ...brief.proofLinks,
     result.notion?.workQueuePageUrl,
     result.notion?.knowledgePageUrl,
@@ -6347,9 +6457,30 @@ async function buildAnalyticsOutputProof(
     errors,
   };
 
+  if (validationErrors.length === 0 && followUpValidationErrors.length === 0) {
+    try {
+      result.kbArtifact = await ensureKbArtifactForReport({
+        params,
+        generatedAt,
+        title,
+        defaultCategory: "analytics",
+        owner: "analytics-agent",
+        summary: report.headline,
+        evidence: [
+          ...report.summaryBullets,
+          ...report.workflowFindings,
+          ...report.risks,
+        ],
+        recommendedFollowUp: report.recommendedFollowUps,
+      });
+    } catch (error) {
+      errors.push(`KB artifact failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   if (priorRunMatches && existingRun?.notion?.knowledgePageId && existingRun?.notion?.workQueuePageId) {
     result.notion = existingRun.notion;
-  } else if (validationErrors.length === 0 && followUpValidationErrors.length === 0 && notionToken) {
+  } else if (validationErrors.length === 0 && followUpValidationErrors.length === 0 && result.kbArtifact && notionToken) {
     try {
       const notionClient = createNotionClient({ token: notionToken });
       const knowledgeEntry = await upsertKnowledgeEntry(notionClient, {
@@ -6391,7 +6522,7 @@ async function buildAnalyticsOutputProof(
       deduped: true,
       deliveredAt: existingRun.slackDeliveredAt,
     };
-  } else if (validationErrors.length === 0 && followUpValidationErrors.length === 0 && (slackGrowthWebhookUrl || slackOpsWebhookUrl)) {
+  } else if (validationErrors.length === 0 && followUpValidationErrors.length === 0 && result.kbArtifact && (slackGrowthWebhookUrl || slackOpsWebhookUrl)) {
     try {
       const slackResult = await postSlackDigest(
         {
@@ -6482,6 +6613,9 @@ async function buildAnalyticsOutputProof(
   }
 
   const failureReasons: string[] = [];
+  if (!result.kbArtifact?.path) {
+    failureReasons.push("Missing KB artifact.");
+  }
   if (!result.notion?.workQueuePageId) {
     failureReasons.push("Missing Notion Work Queue artifact.");
   }
@@ -6499,6 +6633,7 @@ async function buildAnalyticsOutputProof(
   }
 
   result.proofLinks = [
+    result.kbArtifact?.path,
     result.notion?.workQueuePageUrl,
     result.notion?.knowledgePageUrl,
   ].filter((value): value is string => typeof value === "string" && value.length > 0);
@@ -7232,6 +7367,7 @@ function formatDemandIntelIssueComment(result: {
     `- Signals: ${result.report.signals.length}`,
     `- Open questions: ${result.report.openQuestions.length}`,
     ...(result.failureReason ? [`- Failure reason: ${result.failureReason}`] : []),
+    `- KB artifact: ${result.kbArtifact ? `${result.kbArtifact.path}${result.kbArtifact.generated ? " (generated)" : ""}` : "missing"}`,
     `- Notion Work Queue: ${result.notion?.workQueuePageUrl ?? result.notion?.workQueuePageId ?? "missing"}`,
     `- Notion Knowledge: ${result.notion?.knowledgePageUrl ?? result.notion?.knowledgePageId ?? "missing"}`,
     `- Slack digest: ${slackStatus}`,
@@ -7303,7 +7439,30 @@ async function buildDemandIntelOutputProof(
     errors,
   };
 
-  if (validationErrors.length === 0 && notionToken) {
+  if (validationErrors.length === 0) {
+    try {
+      result.kbArtifact = await ensureKbArtifactForReport({
+        params,
+        generatedAt,
+        title,
+        defaultCategory: "demand-intel",
+        owner: "demand-intel-agent",
+        summary: report.headline,
+        evidence: [
+          ...scopeLines,
+          ...report.signals,
+          ...report.proofRequirements,
+          ...report.channelFindings,
+          ...report.partnershipFindings,
+        ],
+        recommendedFollowUp: report.recommendedActions,
+      });
+    } catch (error) {
+      errors.push(`KB artifact failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  if (validationErrors.length === 0 && result.kbArtifact && notionToken) {
     try {
       const notionClient = createNotionClient({ token: notionToken });
       const knowledgeEntry = await createKnowledgeEntry(notionClient, {
@@ -7341,7 +7500,7 @@ async function buildDemandIntelOutputProof(
     }
   }
 
-  if (validationErrors.length === 0 && (slackGrowthWebhookUrl || slackOpsWebhookUrl)) {
+  if (validationErrors.length === 0 && result.kbArtifact && (slackGrowthWebhookUrl || slackOpsWebhookUrl)) {
     try {
       const slackResult = await postSlackDigest(
         {
@@ -7376,13 +7535,14 @@ async function buildDemandIntelOutputProof(
   if (validationErrors.length > 0) errors.push(...validationErrors);
 
   const failureReasons: string[] = [];
+  if (!result.kbArtifact?.path) failureReasons.push("Missing KB artifact.");
   if (!result.notion?.workQueuePageId) failureReasons.push("Missing Notion Work Queue artifact.");
   if (!result.notion?.knowledgePageId) failureReasons.push("Missing Notion Knowledge artifact.");
   if (!result.slack?.ok) {
     failureReasons.push(result.slack ? `Slack digest failed (HTTP ${result.slack.statusCode ?? "unknown"})` : "Missing Slack digest artifact.");
   }
 
-  result.proofLinks = [result.notion?.workQueuePageUrl, result.notion?.knowledgePageUrl]
+  result.proofLinks = [result.kbArtifact?.path, result.notion?.workQueuePageUrl, result.notion?.knowledgePageUrl]
     .filter((value): value is string => typeof value === "string" && value.length > 0);
   result.failureReason = [...failureReasons, ...errors].join(" ");
   result.success = failureReasons.length === 0 && errors.length === 0;
@@ -7421,6 +7581,7 @@ function formatCustomerResearchIssueComment(result: CustomerResearchOutputProof)
     `- Personas: ${result.synthesis.personas.length}`,
     `- Confidence: ${result.synthesis.confidence}`,
     ...(result.failureReason ? [`- Failure reason: ${result.failureReason}`] : []),
+    `- KB artifact: ${result.kbArtifact ? `${result.kbArtifact.path}${result.kbArtifact.generated ? " (generated)" : ""}` : "missing"}`,
     `- Notion Work Queue: ${result.notion?.workQueuePageUrl ?? result.notion?.workQueuePageId ?? "missing"}`,
     `- Notion Knowledge: ${result.notion?.knowledgePageUrl ?? result.notion?.knowledgePageId ?? "missing"}`,
     `- Slack digest: ${slackStatus}`,
@@ -7516,7 +7677,26 @@ async function buildCustomerResearchOutputProof(
     errors,
   };
 
-  if (errors.length === 0 && notionToken) {
+  if (errors.length === 0) {
+    try {
+      result.kbArtifact = await ensureKbArtifactForReport({
+        params,
+        generatedAt,
+        title,
+        defaultCategory: "customer-research",
+        owner: "demand-intel-agent",
+        summary: headline,
+        evidence: synthesis.evidence.map((entry) =>
+          `[${entry.label}] ${entry.source}: ${entry.summary}${entry.url ? ` (${entry.url})` : ""}`,
+        ),
+        recommendedFollowUp: recommendedActions,
+      });
+    } catch (error) {
+      result.errors.push(`KB artifact failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  if (errors.length === 0 && result.kbArtifact && notionToken) {
     try {
       const notionClient = createNotionClient({ token: notionToken });
       const knowledgeEntry = await createKnowledgeEntry(notionClient, {
@@ -7553,7 +7733,7 @@ async function buildCustomerResearchOutputProof(
     }
   }
 
-  if (errors.length === 0 && slackGrowthWebhookUrl) {
+  if (errors.length === 0 && result.kbArtifact && slackGrowthWebhookUrl) {
     try {
       const slackResult = await postSlackDigest(
         {
@@ -7581,13 +7761,14 @@ async function buildCustomerResearchOutputProof(
   }
 
   const failureReasons: string[] = [];
+  if (!result.kbArtifact?.path) failureReasons.push("Missing KB artifact.");
   if (!result.notion?.workQueuePageId) failureReasons.push("Missing Notion Work Queue artifact.");
   if (!result.notion?.knowledgePageId) failureReasons.push("Missing Notion Knowledge artifact.");
   if (!result.slack?.ok) {
     failureReasons.push(result.slack ? `Slack digest failed (HTTP ${result.slack.statusCode ?? "unknown"})` : "Missing Slack digest artifact.");
   }
 
-  result.proofLinks = [result.notion?.workQueuePageUrl, result.notion?.knowledgePageUrl]
+  result.proofLinks = [result.kbArtifact?.path, result.notion?.workQueuePageUrl, result.notion?.knowledgePageUrl]
     .filter((value): value is string => typeof value === "string" && value.length > 0);
   result.failureReason = [...failureReasons, ...result.errors].join(" ");
   result.success = failureReasons.length === 0 && result.errors.length === 0;
@@ -7636,6 +7817,7 @@ function formatMarketIntelIssueComment(result: {
     `- Headline: ${result.report.headline}`,
     `- Signals: ${result.report.signals.length}`,
     ...(result.failureReason ? [`- Failure reason: ${result.failureReason}`] : []),
+    `- KB artifact: ${result.kbArtifact ? `${result.kbArtifact.path}${result.kbArtifact.generated ? " (generated)" : ""}` : "missing"}`,
     `- Notion Work Queue: ${result.notion?.workQueuePageUrl ?? result.notion?.workQueuePageId ?? "missing"}`,
     `- Notion Knowledge: ${result.notion?.knowledgePageUrl ?? result.notion?.knowledgePageId ?? "missing"}`,
     `- Slack digest: ${slackStatus}`,
@@ -7705,9 +7887,30 @@ async function buildMarketIntelOutputProof(
     errors,
   };
 
+  if (validationErrors.length === 0) {
+    try {
+      result.kbArtifact = await ensureKbArtifactForReport({
+        params,
+        generatedAt,
+        title,
+        defaultCategory: "market-intel",
+        owner: "market-intel-agent",
+        summary: report.headline,
+        evidence: [
+          ...signalLines,
+          ...report.competitorUpdates,
+          ...report.technologyFindings,
+        ],
+        recommendedFollowUp: report.recommendedActions,
+      });
+    } catch (error) {
+      errors.push(`KB artifact failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   if (priorRunMatches && existingRun?.notion?.knowledgePageId && existingRun?.notion?.workQueuePageId) {
     result.notion = existingRun.notion;
-  } else if (validationErrors.length === 0 && notionToken) {
+  } else if (validationErrors.length === 0 && result.kbArtifact && notionToken) {
     try {
       const notionClient = createNotionClient({ token: notionToken });
       const knowledgeEntry = await upsertKnowledgeEntry(notionClient, {
@@ -7748,7 +7951,7 @@ async function buildMarketIntelOutputProof(
       deduped: true,
       deliveredAt: existingRun.slackDeliveredAt,
     };
-  } else if (validationErrors.length === 0 && (slackGrowthWebhookUrl || slackOpsWebhookUrl)) {
+  } else if (validationErrors.length === 0 && result.kbArtifact && (slackGrowthWebhookUrl || slackOpsWebhookUrl)) {
     try {
       const slackResult = await postSlackDigest(
         {
@@ -7783,13 +7986,14 @@ async function buildMarketIntelOutputProof(
   if (validationErrors.length > 0) errors.push(...validationErrors);
 
   const failureReasons: string[] = [];
+  if (!result.kbArtifact?.path) failureReasons.push("Missing KB artifact.");
   if (!result.notion?.workQueuePageId) failureReasons.push("Missing Notion Work Queue artifact.");
   if (!result.notion?.knowledgePageId) failureReasons.push("Missing Notion Knowledge artifact.");
   if (!result.slack?.ok) {
     failureReasons.push(result.slack ? `Slack digest failed (HTTP ${result.slack.statusCode ?? "unknown"})` : "Missing Slack digest artifact.");
   }
 
-  result.proofLinks = [result.notion?.workQueuePageUrl, result.notion?.knowledgePageUrl]
+  result.proofLinks = [result.kbArtifact?.path, result.notion?.workQueuePageUrl, result.notion?.knowledgePageUrl]
     .filter((v): v is string => typeof v === "string" && v.length > 0);
   result.failureReason = [...failureReasons, ...errors].join(" ");
   result.success = failureReasons.length === 0 && errors.length === 0;
@@ -8596,7 +8800,7 @@ async function registerToolHandlers(ctx: PluginContext) {
     {
       displayName: "Generate Analytics Report",
       description:
-        "Create a truthful Blueprint analytics snapshot, write the resulting Notion artifacts, and post the companion Slack digest.",
+        "Create a truthful Blueprint analytics snapshot, require or generate a repo KB artifact, write the resulting Notion artifacts, and post the companion Slack digest.",
       parametersSchema: {
         type: "object",
         properties: {
@@ -8608,6 +8812,8 @@ async function registerToolHandlers(ctx: PluginContext) {
           workflowFindings: { type: "array", items: { type: "string" } },
           risks: { type: "array", items: { type: "string" } },
           recommendedFollowUps: { type: "array", items: { type: "string" } },
+          kbArtifactPath: { type: "string" },
+          kbLinkedPages: { type: "array", items: { type: "string" } },
           followUpIssues: {
             type: "array",
             items: {
@@ -8680,7 +8886,7 @@ async function registerToolHandlers(ctx: PluginContext) {
     {
       displayName: "Generate Community Updates Report",
       description:
-        "Create a deterministic Blueprint community update draft, write required proof artifacts, and return the issue closeout payload.",
+        "Create a deterministic Blueprint community update draft, require or generate a repo KB artifact, write required proof artifacts, and return the issue closeout payload.",
       parametersSchema: {
         type: "object",
         properties: {
@@ -8705,6 +8911,8 @@ async function registerToolHandlers(ctx: PluginContext) {
           byTheNumbers: { type: "array", items: { type: "string" } },
           whatWeLearned: { type: "array", items: { type: "string" } },
           whatIsNext: { type: "array", items: { type: "string" } },
+          kbArtifactPath: { type: "string" },
+          kbLinkedPages: { type: "array", items: { type: "string" } },
         },
         required: [
           "cadence",
@@ -8924,7 +9132,7 @@ async function registerToolHandlers(ctx: PluginContext) {
     {
       displayName: "Generate Customer Research Report",
       description:
-        "Write a customer research artifact to Notion, post the Slack digest, and return the proof/comment payload for issue completion.",
+        "Require or generate a repo KB artifact, write the mirrored customer research artifact to Notion, post the Slack digest, and return the proof/comment payload for issue completion.",
       parametersSchema: {
         type: "object",
         properties: {
@@ -8936,6 +9144,8 @@ async function registerToolHandlers(ctx: PluginContext) {
           headline: { type: "string" },
           evidence: { type: "array", items: { type: "object" } },
           recommendedActions: { type: "array", items: { type: "string" } },
+          kbArtifactPath: { type: "string" },
+          kbLinkedPages: { type: "array", items: { type: "string" } },
         },
         required: ["topic", "headline", "evidence", "recommendedActions"],
       },
@@ -8982,7 +9192,7 @@ async function registerToolHandlers(ctx: PluginContext) {
     {
       displayName: "Generate Demand Intel Report",
       description:
-        "Create a deterministic demand intelligence report from Blueprint demand-side research, write Notion artifacts, and post the companion Slack digest.",
+        "Create a deterministic demand intelligence report from Blueprint demand-side research, require or generate a repo KB artifact, write Notion artifacts, and post the companion Slack digest.",
       parametersSchema: {
         type: "object",
         properties: {
@@ -9004,6 +9214,8 @@ async function registerToolHandlers(ctx: PluginContext) {
           recommendedActions: { type: "array", items: { type: "string" } },
           confidence: { type: "string", enum: ["high", "medium", "low"] },
           openQuestions: { type: "array", items: { type: "string" } },
+          kbArtifactPath: { type: "string" },
+          kbLinkedPages: { type: "array", items: { type: "string" } },
         },
         required: [
           "cadence",
@@ -9068,7 +9280,7 @@ async function registerToolHandlers(ctx: PluginContext) {
     {
       displayName: "Generate Market Intel Report",
       description:
-        "Create a deterministic market intelligence report from agent-supplied findings, write Notion artifacts, and post Slack digest.",
+        "Create a deterministic market intelligence report from agent-supplied findings, require or generate a repo KB artifact, write Notion artifacts, and post Slack digest.",
       parametersSchema: {
         type: "object",
         properties: {
@@ -9080,6 +9292,8 @@ async function registerToolHandlers(ctx: PluginContext) {
           competitorUpdates: { type: "array", items: { type: "string" } },
           technologyFindings: { type: "array", items: { type: "string" } },
           recommendedActions: { type: "array", items: { type: "string" } },
+          kbArtifactPath: { type: "string" },
+          kbLinkedPages: { type: "array", items: { type: "string" } },
         },
         required: ["cadence", "headline", "signals", "competitorUpdates", "technologyFindings", "recommendedActions"],
       },
@@ -10431,18 +10645,7 @@ const plugin: PaperclipPlugin = definePlugin({
       const company = await findCompany(ctx, config.companyName);
       await runExecutionDispatchJob(ctx, company.id, config);
     });
-    try {
-      const config = await getConfig(ctx);
-      const company = await findCompany(ctx, config.companyName);
-      await enforceWorkspaceAdapterCooldowns(ctx, company.id);
-      await healAgentExecutionTopology(ctx, company.id);
-    } catch (error) {
-      ctx.logger.warn("startup automation maintenance failed", {
-        meta: {
-          stack: error instanceof Error ? error.stack : undefined,
-        },
-      });
-    }
+    void ensureStartupMaintenance(ctx);
   },
 
   async onHealth(): Promise<PluginHealthDiagnostics> {
