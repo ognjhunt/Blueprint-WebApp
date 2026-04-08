@@ -1,5 +1,12 @@
 # Platform Context
 
+> **Source of truth:** [Blueprint Knowledge](https://www.notion.so/16d80154161d80db869bcfba4fe70be3) — Platform Doctrine
+> This file is the repo-authoritative mirror of Blueprint Knowledge for core system framing.
+> All Blueprint agent roles and developers consuming this file should treat Notion as the canonical
+> operational surface and this file as the definitional source of truth within the repo.
+> When changes are made to Notion Knowledge, the Notion Manager agent is responsible for pushing
+> mirror updates to this file. When changes are made here, they should be reconciled back.
+
 <!-- SHARED_PLATFORM_CONTEXT_START -->
 ## Shared Platform Doctrine
 

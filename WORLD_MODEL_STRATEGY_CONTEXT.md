@@ -1,5 +1,12 @@
 # World Model Strategy Context
 
+> **Source of truth:** [Blueprint Knowledge](https://www.notion.so/16d80154161d80db869bcfba4fe70be3) — World Model Strategy
+> This file is the repo-authoritative mirror of Blueprint Knowledge for world-model strategy framing.
+> All Blueprint agent roles and developers consuming this file should treat Notion as the canonical
+> operational surface and this file as the definitional source of truth within the repo.
+> When changes are made to Notion Knowledge, the Notion Manager agent is responsible for pushing
+> mirror updates to this file. When changes are made here, they should be reconciled back.
+
 <!-- SHARED_WORLD_MODEL_STRATEGY_START -->
 ## Strategic Doctrine
 

@@ -13,10 +13,13 @@ This repo must reinforce the platform doctrine in:
 
 Before making changes, read:
 
-1. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md`
-2. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/WORLD_MODEL_STRATEGY_CONTEXT.md`
-3. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/DEPLOYMENT.md`
-4. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/package.json`
+1. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md` — repo-authoritative mirror of Blueprint Knowledge for platform doctrine
+2. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/WORLD_MODEL_STRATEGY_CONTEXT.md` — repo-authoritative mirror of Blueprint Knowledge for world-model strategy
+3. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/AUTONOMOUS_ORG.md` — repo-authoritative mirror of Blueprint Knowledge for org structure
+4. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/DEPLOYMENT.md`
+5. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/package.json`
+6. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/ai-tooling-adoption-implementation-2026-04-07.md`
+7. `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/ai-skills-governance-2026-04-07.md`
 
 ## Product Rules
 
@@ -41,6 +44,9 @@ Before making changes, read:
 - Prefer edits that strengthen buyer usability, ops clarity, and delivery of real-site outputs.
 - Avoid inventing fake supply, fake providers, or fake readiness states in production paths.
 - Keep changes aligned with the other Blueprint repos when contracts cross repo boundaries.
+- Treat the current Firebase, Firestore, Stripe, Render, Redis, Notion, and Paperclip stack as the default operating stack for this repo.
+- Do not use external boilerplates, skill packs, or AI-generated migration suggestions to introduce new primary services unless `blueprint-cto` explicitly approves the change.
+- Anything that applies to Claude guidance in this repo also applies to Codex and Hermes-backed agents unless a narrower runtime rule explicitly overrides it.
 
 ## Commands
 
