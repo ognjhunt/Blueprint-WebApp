@@ -34,6 +34,24 @@ function nowTimestamp() {
   return admin.firestore.FieldValue.serverTimestamp();
 }
 
+function stripUndefinedDeep<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value
+      .filter((entry) => entry !== undefined)
+      .map((entry) => stripUndefinedDeep(entry)) as T;
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([, entry]) => entry !== undefined)
+        .map(([key, entry]) => [key, stripUndefinedDeep(entry)]),
+    ) as T;
+  }
+
+  return value;
+}
+
 const CONTEXT_WINDOW_FAILURE_PATTERN =
   /(context window|out of room|too much (earlier )?history|prompt (is )?too long|maximum context|token limit|max[_ ]output[_ ]tokens|incomplete response returned|stream disconnected before completion)/i;
 
@@ -236,18 +254,21 @@ function buildForkedSessionTitle(sourceTitle: string, phase: AgentThreadPhase, r
 
 function normalizeAgentProvider(provider?: AgentProvider): AgentProvider {
   switch (provider) {
+    case "codex_local":
     case "openai_responses":
     case "anthropic_agent_sdk":
     case "acp_harness":
     case "openclaw":
       return provider;
     default:
-      return "openai_responses";
+      return "codex_local";
   }
 }
 
 function defaultModelForProvider(provider: AgentProvider) {
   switch (provider) {
+    case "codex_local":
+      return process.env.CODEX_DEFAULT_MODEL?.trim() || "gpt-5.4-mini";
     case "openai_responses":
       return process.env.OPENAI_DEFAULT_MODEL?.trim() || "gpt-5.4";
     case "anthropic_agent_sdk":
@@ -468,6 +489,11 @@ async function executeTask<TInput, TOutput>(
     return runOpenAIResponsesTask(task);
   }
 
+  if (task.provider === "codex_local") {
+    const { runCodexLocalTask } = await import("./adapters/codex-local");
+    return runCodexLocalTask(task);
+  }
+
   if (task.provider === "anthropic_agent_sdk") {
     const { runAnthropicAgentSdkTask } = await import("./adapters/anthropic-agent-sdk");
     return runAnthropicAgentSdkTask(task);
@@ -582,14 +608,14 @@ async function saveSession(session: PersistedAgentSession) {
   if (!db) {
     return;
   }
-  await db.collection("agentSessions").doc(session.id).set(session, { merge: true });
+  await db.collection("agentSessions").doc(session.id).set(stripUndefinedDeep(session), { merge: true });
 }
 
 async function saveRun(run: PersistedAgentRun) {
   if (!db) {
     return;
   }
-  await db.collection("agentRuns").doc(run.id).set(run, { merge: true });
+  await db.collection("agentRuns").doc(run.id).set(stripUndefinedDeep(run), { merge: true });
 }
 
 async function getRun(runId: string) {
@@ -667,14 +693,14 @@ async function markRunStatus(
   }
 
   await db.collection("agentRuns").doc(runId).set(
-    {
+    stripUndefinedDeep({
       status,
       updated_at: nowTimestamp(),
       ...(status === "running" ? { started_at: nowTimestamp() } : {}),
       ...(status === "completed" ? { completed_at: nowTimestamp() } : {}),
       ...(status === "cancelled" ? { cancelled_at: nowTimestamp() } : {}),
       ...updates,
-    },
+    }),
     { merge: true },
   );
 }
@@ -768,7 +794,7 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
         requires_human_review: true,
         tool_policy: normalizedTask.tool_policy,
         approval_policy: normalizedTask.approval_policy,
-        metadata: normalizedTask.metadata,
+        metadata: normalizedTask.metadata || {},
         resume_from_run_id: normalizedTask.resume_from_run_id || null,
         created_at: nowTimestamp(),
         updated_at: nowTimestamp(),
@@ -807,7 +833,7 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
       }),
       tool_policy: normalizedTask.tool_policy,
       approval_policy: normalizedTask.approval_policy,
-      metadata: normalizedTask.metadata,
+      metadata: normalizedTask.metadata || {},
       resume_from_run_id: normalizedTask.resume_from_run_id || null,
       created_at: nowTimestamp(),
       updated_at: nowTimestamp(),
@@ -834,7 +860,7 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
         }),
         tool_policy: normalizedTask.tool_policy,
         approval_policy: normalizedTask.approval_policy,
-        metadata: normalizedTask.metadata,
+        metadata: normalizedTask.metadata || {},
         resume_from_run_id: normalizedTask.resume_from_run_id || null,
         created_at: nowTimestamp(),
         updated_at: nowTimestamp(),
@@ -1172,7 +1198,7 @@ export async function sendAgentSessionMessage(params: {
       requires_human_review: false,
       tool_policy: normalizedTask.tool_policy,
       approval_policy: normalizedTask.approval_policy,
-      metadata: normalizedTask.metadata,
+      metadata: normalizedTask.metadata || {},
       resume_from_run_id: normalizedTask.resume_from_run_id || null,
       created_at: nowTimestamp(),
       updated_at: nowTimestamp(),

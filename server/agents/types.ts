@@ -4,7 +4,8 @@ export type AgentProvider =
   | "openclaw"
   | "openai_responses"
   | "anthropic_agent_sdk"
-  | "acp_harness";
+  | "acp_harness"
+  | "codex_local";
 
 export type AgentRuntime = AgentProvider;
 

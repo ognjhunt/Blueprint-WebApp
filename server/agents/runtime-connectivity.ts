@@ -35,6 +35,8 @@ export function getAgentRuntimeConnectionMetadata() {
     timeout_ms: Number(
       provider === "anthropic_agent_sdk"
         ? process.env.ANTHROPIC_TIMEOUT_MS ?? 20_000
+        : provider === "codex_local"
+          ? process.env.CODEX_TIMEOUT_MS ?? 120_000
         : provider === "openclaw"
           ? process.env.OPENCLAW_TIMEOUT_MS ?? 20_000
           : process.env.OPENAI_TIMEOUT_MS ?? 20_000,
