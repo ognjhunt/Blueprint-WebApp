@@ -57,21 +57,27 @@ const fallbackCodexModel =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL ?? "gpt-5.4-mini";
 const fallbackCodexReasoningEffort =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT ?? "xhigh";
-const hermesPrimaryModel =
-  process.env.BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL ?? "arcee-ai/trinity-large-preview:free";
-const hermesFallbackModel =
-  process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL ?? "arcee-ai/trinity-large-preview:free";
+const DEFAULT_HERMES_MODEL = "arcee-ai/trinity-large-preview:free";
+const DISALLOWED_HERMES_MODEL_RE =
+  /^(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?$/i;
+const hermesPrimaryModel = sanitizeHermesModel(
+  process.env.BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL,
+  DEFAULT_HERMES_MODEL,
+);
+const hermesFallbackModel = sanitizeHermesModel(
+  process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL,
+  DEFAULT_HERMES_MODEL,
+);
 const forceAdapterSync = /^(1|true|yes)$/i.test(
   process.env.BLUEPRINT_PAPERCLIP_FORCE_ADAPTER_SYNC ?? "",
 );
-const hermesFallbackModels = normalizeModelList([
+const hermesFallbackModels = normalizeHermesModelList([
   ...parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS),
   hermesFallbackModel,
-  "arcee-ai/trinity-large-preview:free",
+  DEFAULT_HERMES_MODEL,
   "openrouter/free",
   "stepfun/step-3.5-flash:free",
   "nvidia/nemotron-3-super:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
   "openai/gpt-oss-120b:free",
   "arcee-ai/trinity-large-thinking",
   "z-ai/glm-5.1",
@@ -125,6 +131,27 @@ function normalizeModelList(values) {
     normalized.push(trimmed);
   }
   return normalized;
+}
+
+function isDisallowedHermesModel(value) {
+  return typeof value === "string" && DISALLOWED_HERMES_MODEL_RE.test(value.trim());
+}
+
+function sanitizeHermesModel(value, fallback) {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+  const trimmed = value.trim();
+  if (!trimmed || isDisallowedHermesModel(trimmed)) {
+    return fallback;
+  }
+  return trimmed;
+}
+
+function normalizeHermesModelList(values) {
+  return normalizeModelList(
+    values.filter((value) => typeof value === "string" && !isDisallowedHermesModel(value)),
+  );
 }
 
 async function fetchJson(resourcePath, init = {}) {
@@ -292,6 +319,10 @@ function countEnabledScheduleTriggers(routine) {
   return (routine.triggers ?? []).filter(
     (trigger) => trigger.kind === "schedule" && trigger.enabled !== false,
   ).length;
+}
+
+function sameNullableValue(left, right) {
+  return (left ?? null) === (right ?? null);
 }
 
 function pickPreferredRoutine(matching, projectId, agentId) {
@@ -581,10 +612,12 @@ function buildCodexAdapterConfig(adapterConfig) {
 function buildHermesAdapterConfig(adapterConfig) {
   const next = { ...(adapterConfig ?? {}) };
   const configuredModel =
-    typeof adapterConfig?.model === "string" && adapterConfig.model.trim().length > 0
+    typeof adapterConfig?.model === "string"
+      && adapterConfig.model.trim().length > 0
+      && !isDisallowedHermesModel(adapterConfig.model)
       ? adapterConfig.model.trim()
       : "";
-  const ladder = normalizeModelList([
+  const ladder = normalizeHermesModelList([
     ...(configuredModel.length > 0 && configuredModel !== legacyHermesModel ? [configuredModel] : []),
     ...parseModelList(adapterConfig?.[HERMES_MODEL_LADDER_CONFIG_KEY]),
     ...hermesFallbackModels,
@@ -1169,21 +1202,37 @@ for (const desired of desiredRoutines) {
       }),
     });
 
-  const updated = await fetchJson(`/api/routines/${preferred.id}`, {
-    method: "PATCH",
-    body: JSON.stringify({
-      projectId: project.id,
-      assigneeAgentId: agent.id,
-      description,
-      status: desiredStatus,
-      priority,
-      concurrencyPolicy: preferred.concurrencyPolicy ?? "coalesce_if_active",
-      catchUpPolicy: preferred.catchUpPolicy ?? "skip_missed",
-    }),
-  });
+  const desiredConcurrencyPolicy = preferred.concurrencyPolicy ?? "coalesce_if_active";
+  const desiredCatchUpPolicy = preferred.catchUpPolicy ?? "skip_missed";
+  const routineNeedsPatch =
+    preferred.projectId !== project.id
+    || preferred.assigneeAgentId !== agent.id
+    || !sameNullableValue(preferred.description, description)
+    || preferred.status !== desiredStatus
+    || preferred.priority !== priority
+    || preferred.concurrencyPolicy !== desiredConcurrencyPolicy
+    || preferred.catchUpPolicy !== desiredCatchUpPolicy;
 
-  const allScheduleTriggers = (updated.triggers ?? []).filter((trigger) => trigger.kind === "schedule");
-  const scheduleTrigger = allScheduleTriggers[0] ?? null;
+  if (routineNeedsPatch) {
+    await fetchJson(`/api/routines/${preferred.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        projectId: project.id,
+        assigneeAgentId: agent.id,
+        description,
+        status: desiredStatus,
+        priority,
+        concurrencyPolicy: desiredConcurrencyPolicy,
+        catchUpPolicy: desiredCatchUpPolicy,
+      }),
+    });
+  }
+
+  const preferredDetail = await fetchJson(`/api/routines/${preferred.id}`);
+  const preferredScheduleTriggers = (preferredDetail.triggers ?? []).filter(
+    (trigger) => trigger.kind === "schedule",
+  );
+  const scheduleTrigger = preferredScheduleTriggers[0] ?? null;
   if (!scheduleTrigger) {
     await fetchJson(`/api/routines/${preferred.id}/triggers`, {
       method: "POST",
@@ -1194,7 +1243,11 @@ for (const desired of desiredRoutines) {
         enabled: desiredStatus === "active",
       }),
     });
-  } else {
+  } else if (
+    scheduleTrigger.cronExpression !== cronExpression
+    || scheduleTrigger.timezone !== timezone
+    || scheduleTrigger.enabled !== (desiredStatus === "active")
+  ) {
     await fetchJson(`/api/routine-triggers/${scheduleTrigger.id}`, {
       method: "PATCH",
       body: JSON.stringify({
@@ -1205,11 +1258,11 @@ for (const desired of desiredRoutines) {
     });
   }
 
-  const preferredDetail = await fetchJson(`/api/routines/${preferred.id}`);
-  const preferredScheduleTriggers = (preferredDetail.triggers ?? []).filter(
+  const refreshedPreferredDetail = await fetchJson(`/api/routines/${preferred.id}`);
+  const refreshedScheduleTriggers = (refreshedPreferredDetail.triggers ?? []).filter(
     (trigger) => trigger.kind === "schedule",
   );
-  const canonicalTrigger = preferredScheduleTriggers[0] ?? null;
+  const canonicalTrigger = refreshedScheduleTriggers[0] ?? null;
   if (!canonicalTrigger) {
     throw new Error(`Routine ${title} is missing a schedule trigger after reconcile`);
   }
@@ -1228,7 +1281,7 @@ for (const desired of desiredRoutines) {
       }),
     });
   }
-  for (const duplicateTrigger of preferredScheduleTriggers.slice(1)) {
+  for (const duplicateTrigger of refreshedScheduleTriggers.slice(1)) {
     await fetchJson(`/api/routine-triggers/${duplicateTrigger.id}`, { method: "DELETE" }).catch(() => undefined);
   }
 
