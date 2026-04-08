@@ -18,8 +18,7 @@ import type {
 } from "./tasks/post-signup-scheduling";
 import type { PayoutExceptionInput } from "./tasks/payout-exception-triage";
 import type { SupportTriageInput } from "./tasks/support-triage";
-import type {
-  WaitlistTriageOutput,
+import type { WaitlistTriageOutput,
   WaitlistTriageTaskInput,
 } from "./tasks/waitlist-triage";
 import type {
@@ -27,6 +26,7 @@ import type {
   AgentResult,
   AgentTaskKind,
 } from "./types";
+import { isPhase2LaneEnabled } from "../config/env";
 
 type WaitlistSubmissionRecord = {
   id: string;
@@ -752,23 +752,26 @@ export async function runWaitlistAutomationLoop(params?: {
         primaryResult: result,
       });
 
-      const phase2Result = await executePhase2WorkflowActions({
-        docRef: doc.ref,
-        sourceCollection: "waitlistSubmissions",
-        sourceDocId: submission.id,
-        lane: "waitlist",
-        draftOutput: result.output,
-        existingOpsAutomation: {
-          ...(submission.ops_automation || {}),
-          ...phase2DraftPatch,
-          status: automationStatus,
-          recommended_path: result.output.recommended_queue,
-          rationale: result.output.rationale,
-          market_summary: result.output.market_summary,
-          draft_email: result.output.draft_email,
-        },
-        actions: specs,
-      });
+      let phase2Result: Awaited<ReturnType<typeof executePhase2WorkflowActions>> | null = null;
+      if (isPhase2LaneEnabled("waitlist")) {
+        phase2Result = await executePhase2WorkflowActions({
+          docRef: doc.ref,
+          sourceCollection: "waitlistSubmissions",
+          sourceDocId: submission.id,
+          lane: "waitlist",
+          draftOutput: result.output,
+          existingOpsAutomation: {
+            ...(submission.ops_automation || {}),
+            ...phase2DraftPatch,
+            status: automationStatus,
+            recommended_path: result.output.recommended_queue,
+            rationale: result.output.rationale,
+            market_summary: result.output.market_summary,
+            draft_email: result.output.draft_email,
+          },
+          actions: specs,
+        });
+      }
 
       results.push({
         submissionId: submission.id,
@@ -778,7 +781,7 @@ export async function runWaitlistAutomationLoop(params?: {
         recommendedQueue: result.output.recommended_queue,
         inviteReadinessScore: result.output.invite_readiness_score,
         requiresHumanReview: result.output.requires_human_review,
-        error: phase2Result.lastState === "failed" ? phase2Result.lastResult?.error : undefined,
+        error: phase2Result?.lastState === "failed" ? phase2Result?.lastResult?.error : undefined,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown waitlist automation error";
@@ -956,37 +959,39 @@ export async function runInboundQualificationForRequest(
     { merge: true },
   );
 
-  await executePhase2WorkflowActions({
-    docRef,
-    sourceCollection: "inboundRequests",
-    sourceDocId: request.requestId,
-    lane: "inbound",
-    draftOutput: result.output,
-    existingOpsAutomation: {
-      ...(request.ops_automation || {}),
-      ...phase2DraftPatch,
-      status: automationStatus,
-      recommended_path: result.output.qualification_state_recommendation,
-      provider: result.provider,
-      runtime: result.runtime,
-      model: result.model,
-      tool_mode: result.tool_mode,
-      execution_id: `${request.requestId}:${Date.now()}`,
-      session_key: `inbound:${request.requestId}`,
-      qualification_state_recommendation:
-        result.output.qualification_state_recommendation,
-      opportunity_state_recommendation:
-        result.output.opportunity_state_recommendation,
-      missing_information: result.output.missing_information,
-      internal_summary: result.output.internal_summary,
-      buyer_follow_up: result.output.buyer_follow_up,
-      rationale: result.output.rationale,
-      last_error: null,
-      last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
-      processed_at: admin.firestore.FieldValue.serverTimestamp(),
-    },
-    actions: specs,
-  });
+  if (isPhase2LaneEnabled("inbound")) {
+    await executePhase2WorkflowActions({
+      docRef,
+      sourceCollection: "inboundRequests",
+      sourceDocId: request.requestId,
+      lane: "inbound",
+      draftOutput: result.output,
+      existingOpsAutomation: {
+        ...(request.ops_automation || {}),
+        ...phase2DraftPatch,
+        status: automationStatus,
+        recommended_path: result.output.qualification_state_recommendation,
+        provider: result.provider,
+        runtime: result.runtime,
+        model: result.model,
+        tool_mode: result.tool_mode,
+        execution_id: `${request.requestId}:${Date.now()}`,
+        session_key: `inbound:${request.requestId}`,
+        qualification_state_recommendation:
+          result.output.qualification_state_recommendation,
+        opportunity_state_recommendation:
+          result.output.opportunity_state_recommendation,
+        missing_information: result.output.missing_information,
+        internal_summary: result.output.internal_summary,
+        buyer_follow_up: result.output.buyer_follow_up,
+        rationale: result.output.rationale,
+        last_error: null,
+        last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
+        processed_at: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      actions: specs,
+    });
+  }
 
   return result.output;
 }
@@ -1178,35 +1183,37 @@ export async function runSupportTriageLoop(params?: { limit?: number }) {
         primaryResult: result,
       });
 
-      await executePhase2WorkflowActions({
-        docRef: doc.ref,
-        sourceCollection: "contactRequests",
-        sourceDocId: doc.id,
-        lane: "support",
-        draftOutput: result.output,
-        existingOpsAutomation: {
-          ...(data.ops_automation && typeof data.ops_automation === "object"
-            ? (data.ops_automation as Record<string, unknown>)
-            : {}),
-          ...phase2DraftPatch,
-          status: normalizeAutomationStatus(result.output.automation_status),
-          intent: "support_triage",
-          recommended_path: result.output.category,
-          provider: result.provider,
-          runtime: result.runtime,
-          model: result.model,
-          tool_mode: result.tool_mode,
-          execution_id: `${doc.id}:${Date.now()}`,
-          session_key: `support:${doc.id}`,
-          rationale: result.output.rationale,
-          internal_summary: result.output.internal_summary,
-          suggested_response: result.output.suggested_response,
-          last_error: null,
-          last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
-          processed_at: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        actions: specs,
-      });
+      if (isPhase2LaneEnabled("support")) {
+        await executePhase2WorkflowActions({
+          docRef: doc.ref,
+          sourceCollection: "contactRequests",
+          sourceDocId: doc.id,
+          lane: "support",
+          draftOutput: result.output,
+          existingOpsAutomation: {
+            ...(data.ops_automation && typeof data.ops_automation === "object"
+              ? (data.ops_automation as Record<string, unknown>)
+              : {}),
+            ...phase2DraftPatch,
+            status: normalizeAutomationStatus(result.output.automation_status),
+            intent: "support_triage",
+            recommended_path: result.output.category,
+            provider: result.provider,
+            runtime: result.runtime,
+            model: result.model,
+            tool_mode: result.tool_mode,
+            execution_id: `${doc.id}:${Date.now()}`,
+            session_key: `support:${doc.id}`,
+            rationale: result.output.rationale,
+            internal_summary: result.output.internal_summary,
+            suggested_response: result.output.suggested_response,
+            last_error: null,
+            last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
+            processed_at: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          actions: specs,
+        });
+      }
 
       processedCount += 1;
     } catch (error) {
@@ -1327,35 +1334,37 @@ export async function runPayoutExceptionTriageLoop(params?: { limit?: number }) 
         { merge: true },
       );
 
-      await executePhase2WorkflowActions({
-        docRef: doc.ref,
-        sourceCollection: "creatorPayouts",
-        sourceDocId: doc.id,
-        lane: "payout",
-        draftOutput: result.output,
-        existingOpsAutomation: {
-          ...(data.ops_automation && typeof data.ops_automation === "object"
-            ? (data.ops_automation as Record<string, unknown>)
-            : {}),
-          ...phase2DraftPatch,
-          status: normalizeAutomationStatus(result.output.automation_status),
-          intent: "payout_exception_triage",
-          recommended_path: result.output.disposition,
-          provider: result.provider,
-          runtime: result.runtime,
-          model: result.model,
-          tool_mode: result.tool_mode,
-          execution_id: `${doc.id}:${Date.now()}`,
-          session_key: `payout:${doc.id}`,
-          rationale: result.output.rationale,
-          internal_summary: result.output.internal_summary,
-          approval_reason: null,
-          last_error: result.error || null,
-          last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
-          processed_at: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        actions: specs,
-      });
+      if (isPhase2LaneEnabled("payout")) {
+        await executePhase2WorkflowActions({
+          docRef: doc.ref,
+          sourceCollection: "creatorPayouts",
+          sourceDocId: doc.id,
+          lane: "payout",
+          draftOutput: result.output,
+          existingOpsAutomation: {
+            ...(data.ops_automation && typeof data.ops_automation === "object"
+              ? (data.ops_automation as Record<string, unknown>)
+              : {}),
+            ...phase2DraftPatch,
+            status: normalizeAutomationStatus(result.output.automation_status),
+            intent: "payout_exception_triage",
+            recommended_path: result.output.disposition,
+            provider: result.provider,
+            runtime: result.runtime,
+            model: result.model,
+            tool_mode: result.tool_mode,
+            execution_id: `${doc.id}:${Date.now()}`,
+            session_key: `payout:${doc.id}`,
+            rationale: result.output.rationale,
+            internal_summary: result.output.internal_summary,
+            approval_reason: null,
+            last_error: result.error || null,
+            last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
+            processed_at: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          actions: specs,
+        });
+      }
 
       processedCount += 1;
     } catch (error) {
