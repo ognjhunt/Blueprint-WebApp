@@ -6,7 +6,7 @@ This directory contains the local Paperclip package and bootstrap scripts used t
 - `/Users/nijelhunt_1/workspace/BlueprintCapturePipeline`
 - `/Users/nijelhunt_1/workspace/BlueprintCapture`
 
-The current baseline includes a Hermes-backed `blueprint-chief-of-staff` loop that runs every 5 minutes, wakes on issue/routine/failure signals, and mirrors major task/delegation movement into Slack when webhook targets are configured.
+The current baseline includes a Hermes-backed `blueprint-chief-of-staff` loop that wakes on issue/routine/failure signals and mirrors major task/delegation movement into Slack when webhook targets are configured.
 
 Main entrypoints:
 
@@ -25,7 +25,7 @@ Main entrypoints:
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/validate-agent-kits.sh`: repo-side validator for the mandatory four-file agent kit
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/verify-blueprint-paperclip.sh`: run environment checks against the imported local adapters
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/smoke-blueprint-paperclip-automation.sh`: end-to-end smoke for issue creation, dedupe, blocker follow-up, and resolution
-- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/install-blueprint-paperclip-launchagent.sh`: install a macOS LaunchAgent that re-runs the bootstrap script every 5 minutes and at login
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/install-blueprint-paperclip-launchagent.sh`: install macOS LaunchAgents for the long-lived server and a slower maintenance sweep
 
 Runtime state is intentionally kept outside the git repo at:
 
@@ -37,7 +37,7 @@ Runtime state is intentionally kept outside the git repo at:
 Shared-instance process ownership on macOS should be:
 
 - `com.blueprint.paperclip` owns the single long-lived local control plane
-- `com.blueprint.paperclip.maintenance` only repairs or bootstraps when that shared instance is actually unhealthy
+- `com.blueprint.paperclip.maintenance` only performs destructive bootstrap after a sustained unhealthy window, not on a single transient health miss
 
 Important scheduler/process recovery detail from the April 2, 2026 repair:
 

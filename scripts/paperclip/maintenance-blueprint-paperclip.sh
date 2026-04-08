@@ -25,6 +25,8 @@ LOCK_DIR="${PAPERCLIP_HOME}/locks"
 MAINTENANCE_LOCK_DIR="${LOCK_DIR}/maintenance.lock"
 STRICT_PORT_LAST_ATTEMPT_FILE="${LOCK_DIR}/strict-port-reenforce.last"
 STRICT_PORT_RETRY_INTERVAL_SECONDS="${PAPERCLIP_STRICT_PORT_RETRY_INTERVAL_SECONDS:-1800}"
+UNHEALTHY_SINCE_FILE="${LOCK_DIR}/maintenance.unhealthy-since"
+FULL_BOOTSTRAP_AFTER_SECONDS="${PAPERCLIP_MAINTENANCE_FULL_BOOTSTRAP_AFTER_SECONDS:-900}"
 
 acquire_maintenance_lock() {
   mkdir -p "$LOCK_DIR"
@@ -58,14 +60,39 @@ record_strict_port_reenforce_attempt() {
   date +%s >"$STRICT_PORT_LAST_ATTEMPT_FILE"
 }
 
+clear_unhealthy_since() {
+  rm -f "$UNHEALTHY_SINCE_FILE"
+}
+
+unhealthy_since_ts() {
+  if [ ! -f "$UNHEALTHY_SINCE_FILE" ]; then
+    return 1
+  fi
+
+  local value
+  value="$(cat "$UNHEALTHY_SINCE_FILE" 2>/dev/null || true)"
+  if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+    return 1
+  fi
+
+  printf '%s\n' "$value"
+}
+
+record_unhealthy_since() {
+  local now_ts="$1"
+  printf '%s\n' "$now_ts" >"$UNHEALTHY_SINCE_FILE"
+}
+
 acquire_maintenance_lock
 
 if paperclip_api_health "$PAPERCLIP_API_URL"; then
+  clear_unhealthy_since
   echo "Paperclip healthy at ${PAPERCLIP_API_URL}; skipping full bootstrap."
   exit 0
 fi
 
 if ACTIVE_API_URL="$(paperclip_find_healthy_local_api_url "$PAPERCLIP_HOME" "$PAPERCLIP_HOST")"; then
+  clear_unhealthy_since
   if [ "$ACTIVE_API_URL" = "$PAPERCLIP_API_URL" ]; then
     echo "Paperclip healthy at ${ACTIVE_API_URL}; skipping full bootstrap."
     exit 0
@@ -86,5 +113,19 @@ if ACTIVE_API_URL="$(paperclip_find_healthy_local_api_url "$PAPERCLIP_HOME" "$PA
   exit 0
 fi
 
-echo "Paperclip unhealthy at ${PAPERCLIP_API_URL}; running full bootstrap."
+now_ts="$(date +%s)"
+unhealthy_ts="$(unhealthy_since_ts || true)"
+if [[ ! "$unhealthy_ts" =~ ^[0-9]+$ ]]; then
+  record_unhealthy_since "$now_ts"
+  echo "Paperclip unhealthy at ${PAPERCLIP_API_URL}; first transient miss recorded. Deferring full bootstrap for ${FULL_BOOTSTRAP_AFTER_SECONDS}s."
+  exit 0
+fi
+
+age_seconds=$((now_ts - unhealthy_ts))
+if [ "$age_seconds" -lt "$FULL_BOOTSTRAP_AFTER_SECONDS" ]; then
+  echo "Paperclip unhealthy at ${PAPERCLIP_API_URL}; miss has lasted ${age_seconds}s, below the ${FULL_BOOTSTRAP_AFTER_SECONDS}s bootstrap threshold. Skipping destructive recovery."
+  exit 0
+fi
+
+echo "Paperclip unhealthy at ${PAPERCLIP_API_URL} for ${age_seconds}s; running full bootstrap."
 exec "$BOOTSTRAP_SCRIPT"

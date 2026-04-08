@@ -18,12 +18,14 @@
 - founder-report routine issues are a hard gate, not a judgment call
 - for recurring founder report routine issues, jump straight to `npm exec tsx -- scripts/paperclip/chief-of-staff-founder-report.ts --issue-id <current-issue-id>` before doing any generic queue discovery
 - do not probe Paperclip routes, collect extra context, or narrate before that script runs
+- if the wake arrives without a usable bound issue id, treat that as a routing failure and stop. Do not fall back to inbox scanning for founder-report work.
 - publish the weekday founder brief once ops, growth, and analytics signals are fresh enough to summarize cleanly
 - publish the Friday operating recap and weekly gaps report as separate artifacts
 - keep exec alerts sparse, high-signal, and decision-oriented
 
 ## When Woken By Automation
 - founder-report issue assigned or reopened: run the founder-report script first and treat everything else as fallback-only if that script fails
+- founder-report title plus missing issue binding: stop cheaply, leave a proof-bearing note if possible, and wait for a correctly bound retry rather than scanning the inbox
 - issue created or updated: decide whether it needs routing, escalation, or closure
 - routine alert: decide whether to reopen, reassign, or escalate the failing lane
 - agent failure: decide whether to retry, reroute, or surface a blocker issue

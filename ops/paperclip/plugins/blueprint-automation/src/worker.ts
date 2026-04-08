@@ -3292,17 +3292,13 @@ async function handleChiefOfStaffIssueSignal(
     priority: issue.priority,
     owner,
   });
-  const bindChiefToIssue = shouldBindChiefOfStaffToIssue(
-    chiefOfStaffAgent?.id ?? null,
-    issue.assigneeAgentId ?? null,
-  );
-
   await wakeChiefOfStaff(ctx, event.companyId, config, {
     reason: event.type,
     idempotencyKey: `chief-of-staff:${event.type}:${event.eventId}`,
     payload: {
       signalType: event.type,
-      ...(bindChiefToIssue ? { issueId: issue.id } : { signalIssueId: issue.id }),
+      issueId: issue.id,
+      signalIssueId: issue.id,
       status: issue.status,
       priority: issue.priority,
       assigneeAgentId: issue.assigneeAgentId ?? null,
@@ -5275,18 +5271,13 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
       });
     }
 
-    const chiefOfStaffKey = getChiefOfStaffAgentKey(config);
-    const chiefOfStaffAgent = await resolveAgent(ctx, input.companyId, chiefOfStaffKey).catch(() => null);
-    const bindChiefToIssue = directChiefOfStaffWake || shouldBindChiefOfStaffToIssue(
-      chiefOfStaffAgent?.id ?? null,
-      currentIssue.assigneeAgentId ?? null,
-    );
     await wakeChiefOfStaff(ctx, input.companyId, config, {
       reason: isNewIssue ? "managed_issue_created" : "managed_issue_updated",
       idempotencyKey: `chief-of-staff:managed-issue:${fingerprint}:${currentIssue.status}:${currentIssue.assigneeAgentId ?? "unassigned"}`,
       payload: {
         signalType: isNewIssue ? "managed_issue_created" : "managed_issue_updated",
-        ...(bindChiefToIssue ? { issueId: currentIssue.id } : { signalIssueId: currentIssue.id }),
+        issueId: currentIssue.id,
+        signalIssueId: currentIssue.id,
         fingerprint,
         status: currentIssue.status,
         assigneeAgentId: currentIssue.assigneeAgentId ?? null,

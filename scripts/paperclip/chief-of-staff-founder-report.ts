@@ -394,7 +394,7 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const requestedKind = normalizeKind(args.get("kind"));
-  const issueId = args.get("issue-id");
+  const issueId = args.get("issue-id") ?? process.env.PAPERCLIP_TASK_ID;
   const dryRun = args.get("dry-run") === "true";
   const skipNotion = dryRun || args.get("skip-notion") === "true";
   const noSlack = dryRun || args.get("no-slack") === "true";

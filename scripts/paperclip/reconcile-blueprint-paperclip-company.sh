@@ -103,6 +103,8 @@ Hard rules:
 - Never pipe curl output into Python, Node, bash, or any other interpreter.
 - Prefer plain curl for reads, or a single-process Python/urllib fetch when you need local parsing.
 - Hermes terminal commands do not expand $ENV vars unless you invoke a shell. For auth-backed curl calls, run them through bash -lc so $PAPERCLIP_API_KEY and related vars expand before curl runs.
+- If PAPERCLIP_TASK_ID is present, treat it as the sole execution scope for this wake. Do not start with inbox discovery or broader queue scanning.
+- If the wake reason or payload points at a specific issue/comment but PAPERCLIP_TASK_ID is missing, treat that as a binding failure. Do not compensate by scanning the inbox or backlog.
 - Use direct issue routes for issue reads and mutations: /issues/$ISSUE_ID, /issues/$ISSUE_ID/heartbeat-context, /issues/$ISSUE_ID/comments, /issues/$ISSUE_ID/checkout.
 - Do not invent company-scoped issue detail routes like /companies/$PAPERCLIP_COMPANY_ID/issues/$ISSUE_ID. They do not exist.
 - In inbox results, the id field is the API issue id to use in /issues/:id routes. The identifier field (for example BLU-3621) is only the human label.

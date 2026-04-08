@@ -20,9 +20,12 @@ PAPERCLIP_PORT="${PAPERCLIP_PORT:-3100}"
 PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://${PAPERCLIP_HOST}:${PAPERCLIP_PORT}}"
 PAPERCLIP_PUBLIC_URL="${PAPERCLIP_PUBLIC_URL:-$PAPERCLIP_API_URL}"
 COMPANY_NAME="${COMPANY_NAME:-Blueprint Autonomous Operations}"
+PAPERCLIP_HOME="${PAPERCLIP_HOME:-$WORKSPACE_ROOT/.paperclip-blueprint}"
+PAPERCLIP_INSTANCE_ID="${PAPERCLIP_INSTANCE_ID:-default}"
 PLUGIN_KEY="blueprint.automation"
 PLUGIN_DIR="/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/plugins/blueprint-automation"
 CONFIG_TEMPLATE="/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-automation.config.json"
+PLUGIN_STAMP_FILE="${PAPERCLIP_HOME}/instances/${PAPERCLIP_INSTANCE_ID}/blueprint-automation-plugin.sha256"
 
 require_health() {
   paperclip_api_health "$PAPERCLIP_API_URL"
@@ -86,13 +89,47 @@ ensure_plugin_build() {
   (cd "$PLUGIN_DIR" && npm install >/dev/null && npm run build >/dev/null)
 }
 
+plugin_source_fingerprint() {
+  (
+    cd "$PLUGIN_DIR"
+    find . -type f \
+      ! -path './node_modules/*' \
+      ! -path './dist/*' \
+      ! -path './.git/*' \
+      | sort \
+      | while read -r path; do
+          shasum -a 256 "$path"
+        done \
+      | shasum -a 256 \
+      | awk '{print $1}'
+  )
+}
+
+read_plugin_stamp() {
+  [ -f "$PLUGIN_STAMP_FILE" ] || return 1
+  cat "$PLUGIN_STAMP_FILE"
+}
+
+write_plugin_stamp() {
+  local fingerprint="$1"
+  mkdir -p "$(dirname "$PLUGIN_STAMP_FILE")"
+  printf '%s' "$fingerprint" >"$PLUGIN_STAMP_FILE"
+}
+
 ensure_plugin_installed() {
   local plugin_record=""
+  local plugin_fingerprint=""
+  plugin_fingerprint="$(plugin_source_fingerprint)"
   if plugin_record="$(plugin_json 2>/dev/null)"; then
     local plugin_id
     local status
+    local stamped_fingerprint=""
     plugin_id="$(printf '%s' "$plugin_record" | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const row=JSON.parse(data);process.stdout.write(row.id);});')"
-    curl -fsS -X POST "${PAPERCLIP_API_URL}/api/plugins/${plugin_id}/upgrade" >/dev/null || true
+    stamped_fingerprint="$(read_plugin_stamp || true)"
+    if [ "$stamped_fingerprint" != "$plugin_fingerprint" ]; then
+      curl -fsS -X POST "${PAPERCLIP_API_URL}/api/plugins/${plugin_id}/upgrade" >/dev/null || true
+      write_plugin_stamp "$plugin_fingerprint"
+    fi
     status="$(printf '%s' "$plugin_record" | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const row=JSON.parse(data);process.stdout.write(row.status);});')"
     if [ "$status" != "ready" ]; then
       curl -fsS -X POST "${PAPERCLIP_API_URL}/api/plugins/${plugin_id}/enable" >/dev/null || true
@@ -104,6 +141,7 @@ ensure_plugin_installed() {
     -H "Content-Type: application/json" \
     -d "$(node -e 'process.stdout.write(JSON.stringify({packageName:process.argv[1],isLocalPath:true}));' "$PLUGIN_DIR")" \
     "${PAPERCLIP_API_URL}/api/plugins/install" >/dev/null
+  write_plugin_stamp "$plugin_fingerprint"
 }
 
 write_plugin_config() {
