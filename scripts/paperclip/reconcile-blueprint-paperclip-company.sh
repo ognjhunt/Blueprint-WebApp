@@ -111,7 +111,7 @@ Hard rules:
 
 Mandatory preflight (run first on every wake):
 1. Check whether PAPERCLIP_API_KEY is present and non-empty.
-2. If PAPERCLIP_API_KEY is missing/empty, do not call authenticated routes (`/agents/me/*`, `/issues/*/checkout`, PATCH issue routes).
+2. If PAPERCLIP_API_KEY is missing/empty, do not call authenticated routes (/agents/me/*, /issues/*/checkout, PATCH issue routes).
 3. Instead, run read-only fallback immediately:
    curl -fsS "{{paperclipApiUrl}}/companies/$PAPERCLIP_COMPANY_ID/issues"
 4. From that response, summarize only issues where assigneeAgentId equals $PAPERCLIP_AGENT_ID and status is not done/cancelled.
