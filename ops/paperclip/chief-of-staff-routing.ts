@@ -33,11 +33,37 @@ export function inferChiefOfStaffRoute(
     || title.startsWith("notion work queue:")
     || title.includes("founder os")
     || title.includes("blueprint hub")
+    || (
+      title.includes("knowledge db")
+      && (title.includes("review timestamp") || title.includes("stale entr"))
+    )
+    || title.includes("orphaned/empty notion pages")
   ) {
     return route(
       "notion-manager-agent",
       "the issue is about Blueprint-managed Notion structure or workspace drift",
     );
+  }
+  if (title.includes("investor relations agent bootstrap")) {
+    return route("investor-relations-agent", "the issue is bootstrapping the investor relations lane");
+  }
+  if (title.includes("security procurement agent bootstrap")) {
+    return route("security-procurement-agent", "the issue is bootstrapping the security and procurement lane");
+  }
+  if (title.includes("revenue ops pricing agent bootstrap")) {
+    return route("revenue-ops-pricing-agent", "the issue is bootstrapping the pricing operations lane");
+  }
+  if (title.includes("demand intel agent bootstrap")) {
+    return route("demand-intel-agent", "the issue is bootstrapping the buyer demand research lane");
+  }
+  if (title.includes("city demand agent bootstrap")) {
+    return route("city-demand-agent", "the issue is bootstrapping the city demand lane");
+  }
+  if (title.includes("site operator partnership agent bootstrap")) {
+    return route("site-operator-partnership-agent", "the issue is bootstrapping the site-operator partnership lane");
+  }
+  if (title.includes("runtime provider") || title.includes("smoke launch")) {
+    return route("webapp-codex", "the issue is a Blueprint-WebApp runtime configuration thread");
   }
   if (
     title.startsWith("stripe:")
@@ -77,6 +103,17 @@ export function inferChiefOfStaffRoute(
       "solutions-engineering-agent",
       "the issue is a technical buyer enablement or delivery thread",
     );
+  }
+  if (title.includes("analytics")) {
+    return route("analytics-agent", "the issue is an analytics instrumentation or reporting thread");
+  }
+  if (
+    title.includes("conversion refresh")
+    || title.includes("conversion ")
+    || title.includes("cro")
+    || title.includes("experiment")
+  ) {
+    return route("conversion-agent", "the issue is a conversion optimization or CRO thread");
   }
   if (title.includes("ci failure") || title.includes("branch drift")) {
     if (projectName.includes("webapp")) {
