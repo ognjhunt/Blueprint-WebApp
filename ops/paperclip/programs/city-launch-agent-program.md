@@ -57,3 +57,12 @@ Score each city 1-5 on:
 
 ## Operating Rule
 The city-launch agent does not invent a launch. It translates reusable strategy into city-specific plans and makes dependencies explicit, one city at a time.
+
+## Weekly Run Log
+
+### 2026-04-06
+- Refreshed Austin and San Francisco playbooks with latest findings
+- Incorporated April 5 agent bootstrap completions as new downstream capacity
+- Incorporated growth-lead weekly review analytics gap findings
+- No new city guides published this run (Austin and SF still first in queue, Chicago already has a guide)
+- Key block: analytics instrumentation not deployed — city expansion cannot be evidence-based
