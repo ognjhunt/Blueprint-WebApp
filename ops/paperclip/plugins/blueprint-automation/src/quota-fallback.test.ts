@@ -11,6 +11,7 @@ import {
   FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY,
   HERMES_MODEL_LADDER_CONFIG_KEY,
   getWorkspaceAdapterCooldownKey,
+  isFreshSessionRetryableFailure,
   isIncompatibleHermesFreeRoutingModel,
   isQuotaOrRateLimitFailure,
   parseQuotaResetAt,
@@ -38,6 +39,20 @@ describe("quota fallback helpers", () => {
     expect(isQuotaOrRateLimitFailure("429 RESOURCE_EXHAUSTED: You exceeded your current quota and billing details.")).toBe(true);
     expect(isQuotaOrRateLimitFailure("rate limit exceeded")).toBe(true);
     expect(isQuotaOrRateLimitFailure("adapter exited with code 1")).toBe(false);
+  });
+
+  it("detects fresh-session retryable context and output-limit failures", () => {
+    expect(
+      isFreshSessionRetryableFailure(
+        "Codex ran out of room in the model's context window. Start a new thread or clear earlier history before retrying.",
+      ),
+    ).toBe(true);
+    expect(
+      isFreshSessionRetryableFailure(
+        "stream disconnected before completion: Incomplete response returned, reason: max_output_tokens",
+      ),
+    ).toBe(true);
+    expect(isFreshSessionRetryableFailure("Process lost -- child pid 2156045 is no longer running")).toBe(false);
   });
 
   it("builds a codex adapter config from a claude config", () => {
@@ -216,6 +231,23 @@ describe("quota fallback helpers", () => {
         [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: "hermes_local",
       },
     });
+
+    expect(
+      buildLocalQuotaFallbackDescriptor({
+        currentAdapterType: "codex_local",
+        currentAdapterConfig: {
+          cwd: "/tmp/project",
+          model: "gpt-5.4-mini",
+          modelReasoningEffort: "xhigh",
+          dangerouslyBypassApprovalsAndSandbox: true,
+          [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: "hermes_local",
+        },
+        desiredAdapterType: "hermes_local",
+        desiredAdapterConfig: {
+          cwd: "/tmp/project",
+        },
+      }),
+    ).toBeNull();
   });
 
   it("normalizes retry record defaults", () => {
@@ -308,8 +340,8 @@ describe("quota fallback helpers", () => {
         {
           executionPolicy: {
             mode: "prefer_available",
-            preferredAdapterTypes: ["claude_local", "hermes_local", "opencode_local", "codex_local"],
-            compatibleAdapterTypes: ["claude_local", "hermes_local", "opencode_local", "codex_local"],
+            preferredAdapterTypes: ["claude_local", "hermes_local", "codex_local"],
+            compatibleAdapterTypes: ["claude_local", "hermes_local", "codex_local"],
             perAdapterConfig: {
               codex_local: { model: "gpt-5.4-mini" },
             },
@@ -320,8 +352,8 @@ describe("quota fallback helpers", () => {
     ).toEqual({
       executionPolicy: {
         mode: "prefer_available",
-        preferredAdapterTypes: ["codex_local", "claude_local", "hermes_local", "opencode_local"],
-        compatibleAdapterTypes: ["codex_local", "claude_local", "hermes_local", "opencode_local"],
+        preferredAdapterTypes: ["codex_local", "claude_local", "hermes_local"],
+        compatibleAdapterTypes: ["codex_local", "claude_local", "hermes_local"],
         perAdapterConfig: {
           codex_local: { model: "gpt-5.4-mini" },
         },
@@ -333,8 +365,8 @@ describe("quota fallback helpers", () => {
     expect(syncExecutionPolicyToAdapter({}, "hermes_local")).toEqual({
       executionPolicy: {
         mode: "prefer_available",
-        preferredAdapterTypes: ["hermes_local", "claude_local", "codex_local", "opencode_local"],
-        compatibleAdapterTypes: ["hermes_local", "claude_local", "codex_local", "opencode_local"],
+        preferredAdapterTypes: ["hermes_local", "claude_local", "codex_local"],
+        compatibleAdapterTypes: ["hermes_local", "claude_local", "codex_local"],
       },
     });
   });

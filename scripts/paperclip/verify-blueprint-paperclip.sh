@@ -27,8 +27,6 @@ RUN_SMOKE=0
 CLAUDE_LANE_MODE="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE:-auto}"
 VERIFY_CLAUDE="${BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE:-1}"
 VERIFY_HERMES="${BLUEPRINT_PAPERCLIP_VERIFY_HERMES:-auto}"
-VERIFY_OPENCODE="${BLUEPRINT_PAPERCLIP_VERIFY_OPENCODE:-auto}"
-OPENCODE_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL:-google/gemini-2.5-flash}"
 HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-arcee-ai/trinity-large-preview:free}"
 FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES:-0}"
 HERMES_INSTRUCTIONS_FILE="/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md"
@@ -460,32 +458,6 @@ hermes_oauth_only_probe_ok() {
   '
 }
 
-should_verify_opencode() {
-  case "${VERIFY_OPENCODE}" in
-    1|true|yes)
-      return 0
-      ;;
-    0|false|no)
-      return 1
-      ;;
-    auto|"")
-      command -v opencode >/dev/null 2>&1
-      ;;
-    *)
-      echo "Unknown BLUEPRINT_PAPERCLIP_VERIFY_OPENCODE=${VERIFY_OPENCODE}; expected auto|0|1" >&2
-      return 1
-      ;;
-  esac
-}
-
-# opencode_local probe is non-fatal: pass or warn (e.g. opencode_no_zen_key) are both acceptable.
-# We only fail if the status is explicitly "fail" AND the user has set VERIFY_OPENCODE=1.
-opencode_probe_acceptable() {
-  [ "${LAST_TEST_STATUS}" = "pass" ] && return 0
-  [ "${LAST_TEST_STATUS}" = "warn" ] && return 0
-  return 1
-}
-
 main() {
   "$AGENT_KIT_VALIDATOR"
   assert_founder_report_guardrails
@@ -609,30 +581,6 @@ main() {
     }
   else
     echo "Skipping Hermes adapter verification (set BLUEPRINT_PAPERCLIP_VERIFY_HERMES=1 to require it)."
-  fi
-
-  if should_verify_opencode; then
-    echo "Running OpenCode adapter verification (Tier 3 fallback — Google Gemini 2.5 Flash + OpenRouter)..."
-    run_test "$company_id" "Blueprint-WebApp" "opencode_local" "{
-      \"adapterConfig\": {
-        \"cwd\": \"/Users/nijelhunt_1/workspace/Blueprint-WebApp\",
-        \"model\": \"${OPENCODE_PRIMARY_MODEL}\",
-        \"dangerouslySkipPermissions\": true,
-        \"timeoutSec\": 1200
-      }
-    }"
-    if opencode_probe_acceptable; then
-      echo "OpenCode adapter: ${LAST_TEST_STATUS} — Tier 3 fallback is available."
-    else
-      if [ "${VERIFY_OPENCODE}" = "1" ]; then
-        echo "Verification failed: opencode_local probe returned ${LAST_TEST_STATUS}. Install OpenCode or set BLUEPRINT_PAPERCLIP_VERIFY_OPENCODE=0 to skip." >&2
-        return 1
-      else
-        echo "WARNING: OpenCode adapter probe returned ${LAST_TEST_STATUS}. Tier 3 fallback may be unavailable (set BLUEPRINT_PAPERCLIP_VERIFY_OPENCODE=1 to require it)."
-      fi
-    fi
-  else
-    echo "Skipping OpenCode adapter verification (install opencode CLI or set BLUEPRINT_PAPERCLIP_VERIFY_OPENCODE=1 to enable)."
   fi
 
   if [ "$RUN_SMOKE" -eq 1 ]; then

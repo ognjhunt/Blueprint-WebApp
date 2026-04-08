@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   inferExecutionOwnerFromContext,
   isLikelySmokeArtifact,
+  planParentParkingRecovery,
   planChiefOwnedBacklogDelegation,
   shouldQuarantineSmokeArtifact,
 } from "./delegation-scaffolding.js";
@@ -207,5 +208,37 @@ describe("delegation scaffolding", () => {
       },
       CONFIG,
     )).toBeNull();
+  });
+
+  it("clears temporary parent parking once a specialist child is active", () => {
+    expect(
+      planParentParkingRecovery(
+        {
+          status: "backlog",
+          currentAssignee: "blueprint-chief-of-staff",
+          childAssignee: "market-intel-agent",
+          childStatus: "todo",
+        },
+        CONFIG,
+      ),
+    ).toEqual({
+      assignee: "market-intel-agent",
+      reason:
+        "delegated execution is active in a specialist lane, so the parked parent should stop sitting in oversight ownership.",
+    });
+  });
+
+  it("keeps parent parking in place when the child is still parked in oversight", () => {
+    expect(
+      planParentParkingRecovery(
+        {
+          status: "backlog",
+          currentAssignee: "blueprint-chief-of-staff",
+          childAssignee: "growth-lead",
+          childStatus: "todo",
+        },
+        CONFIG,
+      ),
+    ).toBeNull();
   });
 });

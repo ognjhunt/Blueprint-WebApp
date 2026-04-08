@@ -20,11 +20,8 @@ BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE:-au
 BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES:-0}"
 BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL:-gpt-5.4-mini}"
 BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT:-xhigh}"
-BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL:-google/gemini-2.5-flash}"
-BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL:-openrouter/qwen/qwen3-coder-480b:free}"
 BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL:-arcee-ai/trinity-large-preview:free}"
 BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-arcee-ai/trinity-large-preview:free}"
-OPENCODE_NO_TTY="${OPENCODE_NO_TTY:-1}"
 
 export \
   PAPERCLIP_API_URL \
@@ -35,11 +32,8 @@ export \
   BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE \
   BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES \
   BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL \
-  BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL \
-  BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL \
   BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL \
   BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL \
-  OPENCODE_NO_TTY \
   BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT
 
 node --input-type=module <<'NODE'
@@ -63,10 +57,6 @@ const fallbackCodexModel =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL ?? "gpt-5.4-mini";
 const fallbackCodexReasoningEffort =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT ?? "xhigh";
-const opencodeModel =
-  process.env.BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL ?? "google/gemini-2.5-flash";
-const opencodeFallbackModel =
-  process.env.BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL ?? "openrouter/qwen/qwen3-coder-480b:free";
 const hermesPrimaryModel =
   process.env.BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL ?? "arcee-ai/trinity-large-preview:free";
 const hermesFallbackModel =
@@ -101,8 +91,6 @@ function normalizeClaudeLaneMode(value) {
     case "codex":
     case "fallback":
       return "codex";
-    case "openrouter":
-      return "openrouter";
     case "hermes":
       return "hermes";
     case "auto":
@@ -558,13 +546,6 @@ function buildHermesProbeConfig(adapterConfig) {
   };
 }
 
-function buildOpencodeProbeConfig(cwd) {
-  return {
-    cwd,
-    model: opencodeModel,
-  };
-}
-
 function buildClaudeAdapterConfig(adapterConfig) {
   const next = { ...(adapterConfig ?? {}) };
   delete next.dangerouslyBypassApprovalsAndSandbox;
@@ -622,26 +603,6 @@ function buildHermesAdapterConfig(adapterConfig) {
         ? adapterConfig.modelReasoningEffort
         : "xhigh",
     timeoutSec: typeof adapterConfig?.timeoutSec === "number" ? adapterConfig.timeoutSec : 1800,
-  };
-}
-
-function tertiaryOpencodeFallbackFor(desired, baseAdapterConfig = desired.adapterConfig ?? {}) {
-  const adapterConfig = baseAdapterConfig ?? {};
-  const next = { ...adapterConfig };
-  const cwd = typeof adapterConfig.cwd === "string" ? adapterConfig.cwd : "";
-  if (!cwd) return null;
-  delete next.dangerouslySkipPermissions;
-  delete next.dangerouslyBypassApprovalsAndSandbox;
-  delete next.modelReasoningEffort;
-  return {
-    adapterType: "opencode_local",
-    adapterConfig: {
-      ...next,
-      cwd,
-      model: opencodeModel,
-      fallbackModel: opencodeFallbackModel,
-      timeoutSec: typeof adapterConfig.timeoutSec === "number" ? adapterConfig.timeoutSec : 1800,
-    },
   };
 }
 
@@ -733,10 +694,6 @@ function buildWorkspaceProbeMatrix(yamlAgents) {
     if (!entry.hermes_local) {
       entry.hermes_local = { cwd };
     }
-    // Probe opencode_local for every cwd that has any adapter — it is the tertiary fallback for all
-    if (!entry.opencode_local) {
-      entry.opencode_local = buildOpencodeProbeConfig(cwd);
-    }
   }
   return byCwd;
 }
@@ -765,13 +722,6 @@ async function resolveWorkspaceAvailability(companyId, yamlAgents) {
         companyId,
         "hermes_local",
         probeConfigs.hermes_local,
-      );
-    }
-    if (probeConfigs.opencode_local) {
-      availability[cwd].opencode_local = await probeAdapter(
-        companyId,
-        "opencode_local",
-        probeConfigs.opencode_local,
       );
     }
   }
@@ -830,17 +780,13 @@ function buildExecutionPolicyForAgent(agentConfig) {
           { adapterType: authoredAdapterType, adapterConfig: authoredAdapterConfig },
           authoredAdapterConfig,
         )?.adapterConfig ?? undefined,
-    opencode_local: tertiaryOpencodeFallbackFor(
-      { adapterType: authoredAdapterType, adapterConfig: authoredAdapterConfig },
-      authoredAdapterConfig,
-    )?.adapterConfig ?? undefined,
   };
 
   if (authoredAdapterType === "claude_local") {
     return {
       mode: "prefer_available",
-      compatibleAdapterTypes: ["claude_local", "hermes_local", "opencode_local", "codex_local"],
-      preferredAdapterTypes: ["claude_local", "hermes_local", "opencode_local", "codex_local"],
+      compatibleAdapterTypes: ["claude_local", "hermes_local", "codex_local"],
+      preferredAdapterTypes: ["claude_local", "hermes_local", "codex_local"],
       perAdapterConfig,
     };
   }
@@ -848,8 +794,8 @@ function buildExecutionPolicyForAgent(agentConfig) {
   if (authoredAdapterType === "codex_local") {
     return {
       mode: "prefer_available",
-      compatibleAdapterTypes: ["codex_local", "claude_local", "hermes_local", "opencode_local"],
-      preferredAdapterTypes: ["codex_local", "claude_local", "hermes_local", "opencode_local"],
+      compatibleAdapterTypes: ["codex_local", "claude_local", "hermes_local"],
+      preferredAdapterTypes: ["codex_local", "claude_local", "hermes_local"],
       perAdapterConfig,
     };
   }
@@ -857,17 +803,8 @@ function buildExecutionPolicyForAgent(agentConfig) {
   if (authoredAdapterType === "hermes_local") {
     return {
       mode: "prefer_available",
-      compatibleAdapterTypes: ["hermes_local", "codex_local", "claude_local", "opencode_local"],
-      preferredAdapterTypes: ["hermes_local", "codex_local", "claude_local", "opencode_local"],
-      perAdapterConfig,
-    };
-  }
-
-  if (authoredAdapterType === "opencode_local") {
-    return {
-      mode: "prefer_available",
-      compatibleAdapterTypes: ["opencode_local", "hermes_local"],
-      preferredAdapterTypes: ["opencode_local", "hermes_local"],
+      compatibleAdapterTypes: ["hermes_local", "codex_local", "claude_local"],
+      preferredAdapterTypes: ["hermes_local", "codex_local", "claude_local"],
       perAdapterConfig,
     };
   }
@@ -876,21 +813,14 @@ function buildExecutionPolicyForAgent(agentConfig) {
 }
 
 function chooseAdapterForAgent(desired, requestedMode, workspaceAvailability) {
-  // openrouter mode: force all agents immediately to opencode_local (no probing)
-  if (requestedMode === "openrouter") {
-    return tertiaryOpencodeFallbackFor(desired) ?? desired;
-  }
-
-  // hermes mode: force all agents to hermes_local (skip claude/codex), fall to opencode if hermes fails
+  // hermes mode: force all agents to hermes_local when it is available
   if (requestedMode === "hermes") {
     const hermesFree = hermesFreeFallbackFor(desired);
     if (hermesFree && workspaceAvailability?.hermes_local?.status === "pass") return hermesFree;
-    const opencode = tertiaryOpencodeFallbackFor(desired);
-    if (opencode && workspaceAvailability?.opencode_local?.status === "pass") return opencode;
-    return hermesFree ?? desired;
+    return desired;
   }
 
-  // hermes_local: no tier-2 equivalent — probe hermes, fall to opencode on failure
+  // hermes_local: probe hermes, then fall back to the paid local adapters
   if (desired.adapterType === "hermes_local") {
     const hermesStatus = workspaceAvailability?.hermes_local?.status;
     if (hermesStatus === "pass") return desired;
@@ -904,8 +834,6 @@ function chooseAdapterForAgent(desired, requestedMode, workspaceAvailability) {
       adapterConfig: buildClaudeAdapterConfig(desired.adapterConfig),
     };
     if (workspaceAvailability?.claude_local?.status === "pass") return claude;
-    const opencode = tertiaryOpencodeFallbackFor(desired);
-    if (opencode && workspaceAvailability?.opencode_local?.status === "pass") return opencode;
     return desired;
   }
 
@@ -932,13 +860,9 @@ function chooseAdapterForAgent(desired, requestedMode, workspaceAvailability) {
     if (fallbackStatus === "pass") return fallback;
   }
 
-  // Tier 3: hermes_local with free OpenRouter model (before terminal opencode fallback)
+  // Tier 3: hermes_local with the free ladder
   const hermesFree = hermesFreeFallbackFor(desired);
   if (hermesFree && workspaceAvailability?.hermes_local?.status === "pass") return hermesFree;
-
-  // Tier 4: opencode_local (free, auto-activates when all other tiers fail)
-  const opencode = tertiaryOpencodeFallbackFor(desired);
-  if (opencode && workspaceAvailability?.opencode_local?.status === "pass") return opencode;
 
   return desired;
 }
@@ -996,9 +920,8 @@ for (const [cwd, adapters] of Object.entries(workspaceAvailability)) {
   const claudeReason = adapters.claude_local?.reason ?? "not configured";
   const codexReason = adapters.codex_local?.reason ?? "not configured";
   const hermesReason = adapters.hermes_local?.reason ?? "not configured";
-  const opencodeReason = adapters.opencode_local?.reason ?? "not configured";
   console.log(
-    `[paperclip] ${cwd} -> claude=${adapters.claude_local?.status ?? "n/a"} (${claudeReason}) | codex=${adapters.codex_local?.status ?? "n/a"} (${codexReason}) | hermes=${adapters.hermes_local?.status ?? "n/a"} (${hermesReason}) | opencode=${adapters.opencode_local?.status ?? "n/a"} (${opencodeReason})`,
+    `[paperclip] ${cwd} -> claude=${adapters.claude_local?.status ?? "n/a"} (${claudeReason}) | codex=${adapters.codex_local?.status ?? "n/a"} (${codexReason}) | hermes=${adapters.hermes_local?.status ?? "n/a"} (${hermesReason})`,
   );
 }
 

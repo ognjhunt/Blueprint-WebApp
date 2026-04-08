@@ -12,7 +12,7 @@ export type QuotaFallbackRetryRecord = {
 
 export type QuotaFallbackRetryState = Record<string, QuotaFallbackRetryRecord>;
 
-export type LocalQuotaFallbackAdapterType = "claude_local" | "codex_local" | "opencode_local" | "hermes_local";
+export type LocalQuotaFallbackAdapterType = "claude_local" | "codex_local" | "hermes_local";
 
 export type LocalAdapterSnapshot = {
   id: string;
@@ -51,7 +51,6 @@ const LOCAL_EXECUTION_POLICY_ADAPTERS: LocalQuotaFallbackAdapterType[] = [
   "claude_local",
   "codex_local",
   "hermes_local",
-  "opencode_local",
 ];
 
 export type LocalQuotaFallbackDescriptor = {
@@ -63,6 +62,8 @@ export type LocalQuotaFallbackDescriptor = {
 const QUOTA_OR_RATE_LIMIT_RE =
   /(?:resource_exhausted|quota|rate[-\s]?limit|too many requests|\b429\b|billing details|you['’]ve hit your limit|hit your limit|limit[^.\n]*reset)/i;
 const MODEL_NOT_FOUND_RE = /model.*not.*found|model.*404|invalid.*model|unknown.*model|gpt-5-4-mini|http.*404|not_found_error/i;
+const FRESH_SESSION_RETRYABLE_RE =
+  /(?:context window|ran out of room|clear earlier history|start a new thread|max[_ ]output[_ ]tokens|incomplete response returned|stream disconnected before completion)/i;
 const MONTH_INDEX: Record<string, number> = {
   jan: 0,
   feb: 1,
@@ -86,6 +87,11 @@ export function isQuotaOrRateLimitFailure(message: string | null | undefined): b
 export function isModelNotFoundFailure(message: string | null | undefined): boolean {
   if (!message) return false;
   return MODEL_NOT_FOUND_RE.test(message);
+}
+
+export function isFreshSessionRetryableFailure(message: string | null | undefined): boolean {
+  if (!message) return false;
+  return FRESH_SESSION_RETRYABLE_RE.test(message);
 }
 
 function asTrimmedString(value: unknown): string | null {
@@ -120,8 +126,7 @@ function normalizeExecutionPolicyAdapterList(
     if (
       candidate !== "claude_local" &&
       candidate !== "codex_local" &&
-      candidate !== "hermes_local" &&
-      candidate !== "opencode_local"
+      candidate !== "hermes_local"
     ) {
       continue;
     }
@@ -236,26 +241,6 @@ export function buildClaudeFallbackAdapterConfig(
     ...next,
     model: options?.model ?? "claude-sonnet-4-6",
     dangerouslySkipPermissions: true,
-  };
-}
-
-export function buildOpenCodeFallbackAdapterConfig(
-  adapterConfig: Record<string, unknown> | null | undefined,
-  options?: {
-    model?: string;
-    cwd?: string;
-  },
-): Record<string, unknown> {
-  const next = { ...(adapterConfig ?? {}) };
-  delete next.dangerouslySkipPermissions;
-  delete next.dangerouslyBypassApprovalsAndSandbox;
-  delete next.modelReasoningEffort;
-
-  return {
-    ...next,
-    model: options?.model ?? "opencode/minimax-m2.5-free",
-    cwd: options?.cwd ?? next.cwd ?? "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
-    timeoutSec: next.timeoutSec ?? 1800,
   };
 }
 
@@ -393,16 +378,7 @@ export function buildLocalQuotaFallbackDescriptor(input: {
 
   if (currentAdapterType === "codex_local") {
     if (originAdapterType === "hermes_local") {
-      return {
-        adapterType: "opencode_local",
-        reason: "quota_fallback_to_opencode",
-        adapterConfig: withFallbackOrigin(
-          buildOpenCodeFallbackAdapterConfig(desiredAdapterConfig, {
-            cwd: asTrimmedString(desiredAdapterConfig?.cwd) ?? undefined,
-          }),
-          "hermes_local",
-        ),
-      };
+      return null;
     }
 
     return {
@@ -433,17 +409,28 @@ export function buildLocalQuotaFallbackDescriptor(input: {
       };
     }
 
-    return {
-      adapterType: "opencode_local",
-      reason: "quota_fallback_to_opencode",
-      adapterConfig: buildOpenCodeFallbackAdapterConfig(currentAdapterConfig, {
-        cwd: asTrimmedString(currentAdapterConfig.cwd) ?? undefined,
-      }),
-    };
-  }
+    if (desiredAdapterType === "claude_local") {
+      return {
+        adapterType: "codex_local",
+        reason: "quota_fallback_to_codex_local",
+        adapterConfig: withFallbackOrigin(
+          buildCodexFallbackAdapterConfig(desiredAdapterConfig, {
+            model: "gpt-5.4-mini",
+            modelReasoningEffort: "xhigh",
+          }),
+          "hermes_local",
+        ),
+      };
+    }
 
-  if (currentAdapterType === "opencode_local" && originAdapterType === "hermes_local") {
-    return null;
+    return {
+      adapterType: "claude_local",
+      reason: "quota_fallback_to_claude_local",
+      adapterConfig: withFallbackOrigin(
+        buildClaudeFallbackAdapterConfig(desiredAdapterConfig),
+        "hermes_local",
+      ),
+    };
   }
 
   return null;

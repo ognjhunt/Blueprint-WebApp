@@ -96,8 +96,8 @@ import {
   type QuotaFallbackRetryState,
   type WorkspaceAdapterCooldownRecord,
   type WorkspaceAdapterCooldownState,
-  buildOpenCodeFallbackAdapterConfig,
   buildHermesFallbackAdapterConfig,
+  isFreshSessionRetryableFailure,
   isIncompatibleHermesFreeRoutingModel,
   isModelNotFoundFailure,
   syncExecutionPolicyToAdapter,
@@ -150,6 +150,7 @@ import { planBlockedIssueFollowUp } from "./blocked-followups.js";
 import {
   inferExecutionOwnerFromContext,
   planChiefOwnedBacklogDelegation,
+  planParentParkingRecovery,
   shouldQuarantineSmokeArtifact,
 } from "./delegation-scaffolding.js";
 import { inferChiefOfStaffRoute } from "../../../chief-of-staff-routing.js";
@@ -1070,7 +1071,6 @@ function buildDesiredAdapterDescriptor(agent: Agent): {
   if (
     (configuredAdapterType !== "claude_local" &&
       configuredAdapterType !== "codex_local" &&
-      configuredAdapterType !== "opencode_local" &&
       configuredAdapterType !== "hermes_local") ||
     !configuredAdapterConfig
   ) {
@@ -2977,6 +2977,7 @@ async function runRoutingMaintenanceAction(
       scaffolding.quarantined.length > 0 ? `quarantined smoke: ${scaffolding.quarantined.join(", ")}` : null,
       scaffolding.delegated.length > 0 ? `delegated backlog: ${scaffolding.delegated.join(", ")}` : null,
       scaffolding.corrected.length > 0 ? `corrected delegated routing: ${scaffolding.corrected.join(", ")}` : null,
+      scaffolding.recoveredParents.length > 0 ? `cleared parent parking: ${scaffolding.recoveredParents.join(", ")}` : null,
       dispatch.dispatched > 0 ? `execution dispatches: ${dispatch.dispatched}` : null,
     ].filter(Boolean).join(" | "),
   });
@@ -3016,6 +3017,7 @@ function summarizeMaintenanceResult(result: Awaited<ReturnType<typeof runRouting
     quarantinedSmoke: result.scaffolding.quarantined.length,
     delegatedBacklog: result.scaffolding.delegated.length,
     correctedDelegations: result.scaffolding.corrected.length,
+    recoveredParentParking: result.scaffolding.recoveredParents.length,
     executionDispatches: result.dispatch.dispatched,
   };
 }
@@ -3560,6 +3562,90 @@ async function repairDelegatedExecutionRouting(
   return corrected;
 }
 
+async function repairParkedParentOwnership(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+  issues: Issue[],
+  agents: Agent[],
+) {
+  const delegationConfig = buildDelegationScaffoldingConfig(config);
+  const agentKeyById = new Map(
+    agents.map((agent) => [
+      agent.id,
+      normalizedCandidates(agent as unknown as Record<string, unknown>)[0] ?? agent.id,
+    ] as const),
+  );
+
+  const recovered: Array<{ issueId: string; from: string; to: string }> = [];
+
+  for (const issue of issues) {
+    const currentAssignee = issue.assigneeAgentId
+      ? (agentKeyById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId)
+      : null;
+    if (!currentAssignee || !isOversightIssueOwnerKey(currentAssignee, config)) {
+      continue;
+    }
+
+    const activeChild = issues.find((candidate) =>
+      candidate.parentId === issue.id
+      && !["done", "cancelled"].includes(candidate.status)
+      && isDelegatedExecutionIssue(candidate),
+    );
+    if (!activeChild || !activeChild.assigneeAgentId) {
+      continue;
+    }
+
+    const childAssignee = agentKeyById.get(activeChild.assigneeAgentId) ?? activeChild.assigneeAgentId;
+    const recoveryPlan = planParentParkingRecovery(
+      {
+        status: issue.status,
+        currentAssignee,
+        childAssignee,
+        childStatus: activeChild.status,
+      },
+      delegationConfig,
+    );
+    if (!recoveryPlan) {
+      continue;
+    }
+
+    const assigneeResolution = await resolveAssignableAgent(
+      ctx,
+      companyId,
+      config,
+      recoveryPlan.assignee,
+    ).catch(() => null);
+    if (!assigneeResolution || issue.assigneeAgentId === assigneeResolution.agent.id) {
+      continue;
+    }
+    if (isOversightIssueOwnerKey(assigneeResolution.selectedKey, config)) {
+      continue;
+    }
+
+    await ctx.issues.update(issue.id, { assigneeAgentId: assigneeResolution.agent.id }, companyId);
+    await ctx.issues.createComment(
+      issue.id,
+      [
+        "Automation cleared temporary oversight parking on this parent issue.",
+        `- Previous owner: ${formatAgentName(currentAssignee)}`,
+        `- Active execution child: ${activeChild.identifier ?? activeChild.id} (${activeChild.title})`,
+        `- New owner: ${formatAgentName(assigneeResolution.selectedKey)}`,
+        `- Reason: ${recoveryPlan.reason}`,
+      ].join("\n"),
+      companyId,
+    ).catch(() => undefined);
+
+    recovered.push({
+      issueId: issue.identifier ?? issue.id,
+      from: currentAssignee,
+      to: assigneeResolution.selectedKey,
+    });
+  }
+
+  return recovered;
+}
+
 async function createDelegatedFollowUpIssue(
   ctx: PluginContext,
   companyId: string,
@@ -3722,6 +3808,7 @@ async function runDelegationScaffoldingPass(
   const quarantined: string[] = [];
   const delegated: string[] = [];
   const corrected: string[] = [];
+  const recoveredParents: string[] = [];
   const now = nowIso();
 
   for (const issue of issues) {
@@ -3781,8 +3868,18 @@ async function runDelegationScaffoldingPass(
   corrected.push(
     ...correctedIssues.map((entry) => `${entry.issueId}:${entry.from}->${entry.to}`),
   );
+  const parentRecovery = await repairParkedParentOwnership(
+    ctx,
+    companyId,
+    config,
+    executionIssues,
+    agents,
+  );
+  recoveredParents.push(
+    ...parentRecovery.map((entry) => `${entry.issueId}:${entry.from}->${entry.to}`),
+  );
 
-  if (quarantined.length > 0 || delegated.length > 0 || corrected.length > 0) {
+  if (quarantined.length > 0 || delegated.length > 0 || corrected.length > 0 || recoveredParents.length > 0) {
     await appendRecentEvent(ctx, companyId, {
       kind: "delegation-scaffolding",
       title: "Delegation scaffolding maintenance completed",
@@ -3790,6 +3887,7 @@ async function runDelegationScaffoldingPass(
         quarantined.length > 0 ? `quarantined smoke: ${quarantined.join(", ")}` : null,
         delegated.length > 0 ? `delegated backlog: ${delegated.join(", ")}` : null,
         corrected.length > 0 ? `corrected delegated routing: ${corrected.join(", ")}` : null,
+        recoveredParents.length > 0 ? `cleared parent parking: ${recoveredParents.join(", ")}` : null,
       ].filter(Boolean).join(" | "),
     });
   }
@@ -3798,6 +3896,7 @@ async function runDelegationScaffoldingPass(
     quarantined,
     delegated,
     corrected,
+    recoveredParents,
   };
 }
 
@@ -4865,6 +4964,130 @@ async function handleAgentRunFailureQuotaFallback(
     await appendRecentEvent(ctx, event.companyId, {
       kind: "quota-fallback-error",
       title: `${fallback.adapterType === "codex_local" ? "Codex" : "Claude"} fallback failed for ${agent.name}`,
+      issueId: payload.issueId ?? undefined,
+      detail: errorMessage,
+    });
+  }
+}
+
+async function handleAgentRunFailureFreshSessionRetry(
+  ctx: PluginContext,
+  event: { companyId: string; payload: unknown },
+) {
+  const payload = parseAgentRunFailurePayload(event.payload);
+  if (!payload.agentId || !payload.runId || !payload.error) {
+    return;
+  }
+  if (
+    isQuotaOrRateLimitFailure(payload.error)
+    || isModelNotFoundFailure(payload.error)
+    || !isFreshSessionRetryableFailure(payload.error)
+  ) {
+    return;
+  }
+
+  const existingState =
+    await readState<QuotaFallbackRetryState>(ctx, event.companyId, STATE_KEYS.freshSessionRetries) ?? {};
+  if (existingState[payload.runId]) {
+    return;
+  }
+
+  const markAttempt = async (record: ReturnType<typeof buildQuotaFallbackRetryRecord>) => {
+    await writeState(ctx, event.companyId, STATE_KEYS.freshSessionRetries, {
+      ...existingState,
+      [payload.runId as string]: record,
+    });
+  };
+
+  const agent = await ctx.agents.get(payload.agentId, event.companyId).catch(() => null);
+  if (!agent) {
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "skipped",
+        agentId: payload.agentId,
+        issueId: payload.issueId,
+        taskKey: payload.taskKey ?? payload.taskId,
+        reason: "fresh_session_retry_skipped",
+        note: "Agent not found.",
+      }),
+    );
+    return;
+  }
+
+  const retryTaskKey =
+    payload.taskKey
+    ?? payload.taskId
+    ?? payload.issueId
+    ?? `fresh-session-retry:${agent.id}:${payload.runId}`;
+
+  try {
+    await ctx.agents.resetRuntimeSession(agent.id, event.companyId, {
+      taskKey: retryTaskKey,
+    }).catch(() => undefined);
+
+    const wakePayload: Record<string, unknown> = {
+      retryOfRunId: payload.runId,
+      taskKey: retryTaskKey,
+    };
+    if (payload.issueId) wakePayload.issueId = payload.issueId;
+    if (payload.taskId) wakePayload.taskId = payload.taskId;
+
+    const wakeResult = await ctx.agents.wakeup(agent.id, event.companyId, {
+      source: "automation",
+      triggerDetail: "system",
+      reason: "fresh_session_retry_after_context_failure",
+      payload: wakePayload,
+      idempotencyKey: `fresh-session-retry:${payload.runId}`,
+      forceFreshSession: true,
+    });
+
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "retried",
+        agentId: agent.id,
+        issueId: payload.issueId,
+        taskKey: retryTaskKey,
+        reason: "fresh_session_retry_after_context_failure",
+        wakeupRunId: asString(wakeResult?.runId) ?? null,
+        note: payload.error,
+      }),
+    );
+
+    await appendRecentEvent(ctx, event.companyId, {
+      kind: "fresh-session-retry",
+      title: `Retried ${agent.name} on a fresh session after context/output overflow`,
+      issueId: payload.issueId ?? undefined,
+      detail: payload.issueId
+        ? `Issue ${payload.issueId} retried from failed run ${payload.runId} with a fresh session.`
+        : `Task ${retryTaskKey} retried from failed run ${payload.runId} with a fresh session.`,
+    });
+
+    if (payload.issueId) {
+      await ctx.issues.createComment(
+        payload.issueId,
+        `Detected a context/output-limit failure on run ${payload.runId}. Cleared the runtime session and requeued the work once on a fresh session.`,
+        event.companyId,
+      ).catch(() => undefined);
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "failed",
+        agentId: agent.id,
+        issueId: payload.issueId,
+        taskKey: retryTaskKey,
+        reason: "fresh_session_retry_failed",
+        note: errorMessage,
+      }),
+    );
+
+    await appendRecentEvent(ctx, event.companyId, {
+      kind: "fresh-session-retry-error",
+      title: `Fresh-session retry failed for ${agent.name}`,
       issueId: payload.issueId ?? undefined,
       detail: errorMessage,
     });
@@ -7451,11 +7674,44 @@ async function getPrimaryWorkspaceForRepo(
   return { projectId: project.id, workspace };
 }
 
-function parseGitStatus(output: string) {
+function extractGitStatusPath(entry: string) {
+  const raw = entry.slice(3).trim();
+  if (!raw) return "";
+  const renameParts = raw.split(" -> ");
+  return (renameParts[renameParts.length - 1] ?? raw).trim();
+}
+
+function hasGitSubmoduleMapping(workspacePath: string, targetPath: string) {
+  const gitmodulesPath = path.join(workspacePath, ".gitmodules");
+  if (!existsSync(gitmodulesPath)) {
+    return false;
+  }
+  const contents = readFileSync(gitmodulesPath, "utf8");
+  return contents.includes(`path = ${targetPath}`);
+}
+
+function shouldIgnoreGitStatusEntry(workspacePath: string, entry: string) {
+  const entryPath = extractGitStatusPath(entry).replace(/\\/g, "/").replace(/\/+$/, "");
+  if (!entryPath) return false;
+
+  if (entryPath === "paperclip-desktop" && !hasGitSubmoduleMapping(workspacePath, entryPath)) {
+    return true;
+  }
+
+  if (entryPath.endsWith("-drift-backup") || entryPath.includes("-drift-backup/")) {
+    return true;
+  }
+
+  return false;
+}
+
+function parseGitStatus(output: string, workspacePath: string) {
   const lines = output.split("\n").filter(Boolean);
   const branchLine = lines[0] ?? "";
   const branch = branchLine.replace(/^##\s*/, "").split("...")[0] ?? "unknown";
-  const changedEntries = lines.slice(1);
+  const changedEntries = lines
+    .slice(1)
+    .filter((entry) => !shouldIgnoreGitStatusEntry(workspacePath, entry));
   const untrackedFiles = changedEntries.filter((line) => line.startsWith("??")).length;
   const aheadMatch = branchLine.match(/ahead (\d+)/);
   const behindMatch = branchLine.match(/behind (\d+)/);
@@ -7472,7 +7728,7 @@ async function scanRepoWorkspace(workspacePath: string) {
   const result = await execFileAsync(GIT_BIN, ["status", "--porcelain=v1", "--branch"], {
     cwd: workspacePath,
   });
-  return parseGitStatus(result.stdout);
+  return parseGitStatus(result.stdout, workspacePath);
 }
 
 function agentCwd(agent: Agent) {
@@ -11228,6 +11484,18 @@ const plugin: PaperclipPlugin = definePlugin({
         await handleAgentRunFailureQuotaFallback(ctx, event);
       } catch (error) {
         ctx.logger.warn("agent.run.failed quota fallback handler failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            runId: asString(asRecord(event.payload)?.runId) ?? null,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+      try {
+        await handleAgentRunFailureFreshSessionRetry(ctx, event);
+      } catch (error) {
+        ctx.logger.warn("agent.run.failed fresh-session retry handler failed", {
           meta: {
             companyId: event.companyId,
             eventId: event.eventId,

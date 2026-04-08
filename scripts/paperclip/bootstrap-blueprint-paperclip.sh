@@ -19,7 +19,6 @@ PAPERCLIP_DIR="${PAPERCLIP_DIR:-$WORKSPACE_ROOT/paperclip}"
 PAPERCLIP_HOME="${PAPERCLIP_HOME:-$WORKSPACE_ROOT/.paperclip-blueprint}"
 PACKAGE_DIR="${PACKAGE_DIR:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company}"
 CODEX_GSTACK_SCRIPT="${CODEX_GSTACK_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/ensure-codex-gstack.sh}"
-OPENCODE_INSTALL_SCRIPT="${OPENCODE_INSTALL_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/ensure-opencode-install.sh}"
 PUBLIC_URL_SCRIPT="${PUBLIC_URL_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/ensure-blueprint-paperclip-public-url.sh}"
 PLUGIN_CONFIGURE_SCRIPT="${PLUGIN_CONFIGURE_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/configure-blueprint-paperclip-plugin.sh}"
 RENDER_SYNC_SCRIPT="${RENDER_SYNC_SCRIPT:-/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/sync-blueprint-render-paperclip-env.sh}"
@@ -293,7 +292,6 @@ import_company() {
 main() {
   ensure_prereqs
   "$CODEX_GSTACK_SCRIPT"
-  "$OPENCODE_INSTALL_SCRIPT"
   start_paperclip
   PAPERCLIP_PUBLIC_URL="$("$PUBLIC_URL_SCRIPT")"
   export PAPERCLIP_PUBLIC_URL

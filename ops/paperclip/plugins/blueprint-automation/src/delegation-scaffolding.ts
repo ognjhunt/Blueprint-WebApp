@@ -43,6 +43,11 @@ export type ChiefOwnedBacklogDelegationPlan = {
   assignee: string;
 };
 
+export type ParentParkingRecoveryPlan = {
+  assignee: string;
+  reason: string;
+};
+
 type ChiefOwnedBacklogContext = {
   identifier?: string | null;
   title: string;
@@ -59,6 +64,13 @@ type SmokeArtifactContext = {
   updatedAt?: string | null;
   parentStatus?: string | null;
   source?: DelegationSourceHint | null;
+};
+
+type ParentParkingRecoveryContext = {
+  status: string;
+  currentAssignee?: string | null;
+  childAssignee?: string | null;
+  childStatus?: string | null;
 };
 
 export type ExecutionOwnerContext = {
@@ -383,9 +395,38 @@ export function planChiefOwnedBacklogDelegation(
       `Oversight owner: ${input.currentAssignee?.trim() || "Unassigned"}`,
       `Target owner: ${assignee}`,
       "",
-      "This child issue is the execution lane. Keep the parent thread as managerial oversight only.",
+      "This child issue is the execution lane. Automation may later clear temporary oversight parking on the parent once the specialist lane is healthy again.",
     ].join("\n"),
     projectName: childProjectName,
     assignee,
+  };
+}
+
+export function planParentParkingRecovery(
+  input: ParentParkingRecoveryContext,
+  config: DelegationScaffoldingConfig,
+): ParentParkingRecoveryPlan | null {
+  const parentStatus = normalize(input.status);
+  if (!["backlog", "todo", "in_progress", "in_review"].includes(parentStatus)) {
+    return null;
+  }
+
+  if (!isOversightOwner(input.currentAssignee, config)) {
+    return null;
+  }
+
+  const childStatus = normalize(input.childStatus);
+  if (!["backlog", "todo", "in_progress", "in_review", "blocked"].includes(childStatus)) {
+    return null;
+  }
+
+  const childAssignee = (input.childAssignee ?? "").trim();
+  if (!childAssignee || isOversightOwner(childAssignee, config)) {
+    return null;
+  }
+
+  return {
+    assignee: childAssignee,
+    reason: "delegated execution is active in a specialist lane, so the parked parent should stop sitting in oversight ownership.",
   };
 }
