@@ -41,6 +41,19 @@ IMPORT_LOG="$LOG_DIR/paperclip-import.log"
 PID_FILE="$PAPERCLIP_HOME/paperclip.pid"
 PACKAGE_STAMP="$INSTANCE_ROOT/blueprint-company-package.sha256"
 PAPERCLIP_RUNNER=""
+LOCK_DIR="$PAPERCLIP_HOME/locks"
+BOOTSTRAP_LOCK_DIR="$LOCK_DIR/bootstrap.lock"
+
+acquire_bootstrap_lock() {
+  mkdir -p "$LOCK_DIR"
+  if mkdir "$BOOTSTRAP_LOCK_DIR" >/dev/null 2>&1; then
+    trap 'rmdir "$BOOTSTRAP_LOCK_DIR" >/dev/null 2>&1 || true' EXIT INT TERM
+    return 0
+  fi
+
+  echo "Bootstrap already in progress; skipping overlapping invocation."
+  exit 0
+}
 
 normalize_instance_server_port_config() {
   [ -f "$CONFIG_PATH" ] || return 0
@@ -138,6 +151,14 @@ paperclip_local_health() {
 fetch_api_json() {
   local path="$1"
   paperclip_api_fetch_json "$PAPERCLIP_API_URL" "$path" "Blueprint Paperclip API"
+}
+
+refresh_active_api_url() {
+  local resolved_api_url=""
+  if resolved_api_url="$(paperclip_resolve_api_url "$PAPERCLIP_API_URL" "$PAPERCLIP_HOME" "$PAPERCLIP_HOST")"; then
+    PAPERCLIP_API_URL="$resolved_api_url"
+    export PAPERCLIP_API_URL
+  fi
 }
 
 paperclip_public_url_is_remote() {
@@ -333,10 +354,12 @@ import_company() {
 }
 
 main() {
+  acquire_bootstrap_lock
   ensure_prereqs
   normalize_instance_server_port_config
   "$CODEX_GSTACK_SCRIPT"
   start_paperclip
+  refresh_active_api_url
   PAPERCLIP_PUBLIC_URL="$("$PUBLIC_URL_SCRIPT")"
   export PAPERCLIP_PUBLIC_URL
   "$RENDER_SYNC_SCRIPT"

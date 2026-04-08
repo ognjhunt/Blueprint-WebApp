@@ -4,6 +4,10 @@ set -euo pipefail
 WORKSPACE_ROOT="/Users/nijelhunt_1/workspace"
 REPO_ROOT="$WORKSPACE_ROOT/Blueprint-WebApp"
 PAPERCLIP_ENV_FILE="${PAPERCLIP_ENV_FILE:-$WORKSPACE_ROOT/.paperclip-blueprint.env}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=./paperclip-api.sh
+source "$SCRIPT_DIR/paperclip-api.sh"
 
 if [ -f "$PAPERCLIP_ENV_FILE" ]; then
   set -a
@@ -26,6 +30,10 @@ for arg in "$@"; do
     APPLY=1
   fi
 done
+
+if RESOLVED_API_URL="$(paperclip_resolve_api_url "$PAPERCLIP_API_URL" "$PAPERCLIP_HOME" "$PAPERCLIP_HOST")"; then
+  PAPERCLIP_API_URL="$RESOLVED_API_URL"
+fi
 
 export PAPERCLIP_API_URL COMPANY_NAME APPLY REPO_ROOT PAPERCLIP_HOME PAPERCLIP_INSTANCE_ID PAPERCLIP_REPO_ROOT
 
