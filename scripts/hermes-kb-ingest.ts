@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-type Command = "raw-source" | "compiled-page";
+type Command = "raw-source" | "compiled-page" | "report";
 
 type ParsedArgs = {
   command: Command | null;
@@ -22,7 +22,7 @@ function parseArgs(argv: string[]): ParsedArgs {
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
-    if (!command && (token === "raw-source" || token === "compiled-page")) {
+    if (!command && (token === "raw-source" || token === "compiled-page" || token === "report")) {
       command = token;
       continue;
     }
@@ -75,13 +75,20 @@ function slugify(value: string) {
 }
 
 function todayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function daysAgoIsoDate(daysAgo: number) {
   const date = new Date();
   date.setDate(date.getDate() - daysAgo);
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function renderBulletList(items: string[], fallback: string) {
@@ -119,6 +126,13 @@ async function fileExists(targetPath: string) {
   } catch {
     return false;
   }
+}
+
+function requireIsoDate(value: string, flag: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new Error(`Invalid value for --${flag}: expected YYYY-MM-DD`);
+  }
+  return value;
 }
 
 async function ensureParentDir(targetPath: string, dryRun: boolean) {
@@ -204,8 +218,12 @@ async function scaffoldRawSource(flags: Map<string, string[]>, dryRun: boolean) 
   const extractionIssues = getMany(flags, "extraction-issue");
   const nextDestinations = getMany(flags, "next-kb-destination");
   const openQuestions = getMany(flags, "open-question");
+  const capturedAt = requireIsoDate(
+    getFirst(flags, "captured-at").trim() || todayIsoDate(),
+    "captured-at",
+  );
 
-  const folder = path.join(knowledgeRoot, "raw", sourceSystem, slug);
+  const folder = path.join(knowledgeRoot, "raw", sourceSystem, capturedAt, slug);
   const filePath = path.join(folder, "source-note.md");
   if (await fileExists(filePath)) {
     throw new Error(`Raw source note already exists: ${toRepoRelative(filePath)}`);
@@ -284,6 +302,7 @@ async function scaffoldCompiledPage(flags: Map<string, string[]>, dryRun: boolea
   const contradictions = getMany(flags, "contradiction");
   const staleReason = getFirst(flags, "stale-reason").trim();
   const lastVerifiedAt = getFirst(flags, "last-verified-at").trim() || todayIsoDate();
+  requireIsoDate(lastVerifiedAt, "last-verified-at");
 
   const pagePath = path.join(knowledgeRoot, "compiled", category, `${slug}.md`);
   if (await fileExists(pagePath)) {
@@ -363,6 +382,96 @@ async function scaffoldCompiledPage(flags: Map<string, string[]>, dryRun: boolea
   return { created, indexUpdates };
 }
 
+function buildLinkedKbPagesBlock(fromFile: string, relatedPages: string[]) {
+  if (relatedPages.length === 0) {
+    return "- Related KB pages";
+  }
+
+  return relatedPages.map((relatedPage) => {
+    const absoluteRelated = toAbsoluteFromRepoPath(relatedPage);
+    const label = toRepoRelative(absoluteRelated);
+    const href = relativeMarkdownLink(fromFile, absoluteRelated);
+    return `- [${label}](${href})`;
+  }).join("\n");
+}
+
+async function scaffoldReport(flags: Map<string, string[]>, dryRun: boolean) {
+  const category = requireValue(flags, "category").replace(/^\/+|\/+$/g, "");
+  const title = requireValue(flags, "title");
+  const slug = getFirst(flags, "slug").trim() || slugify(title);
+  const authority = getFirst(flags, "authority").trim() || "draft";
+  const sourceSystem = requireValue(flags, "source-system");
+  const owner = requireValue(flags, "owner");
+  const sensitivity = getFirst(flags, "sensitivity").trim() || "internal";
+  const confidence = getFirst(flags, "confidence").trim() || "0.65";
+  const lastVerifiedAt = requireIsoDate(
+    getFirst(flags, "last-verified-at").trim() || todayIsoDate(),
+    "last-verified-at",
+  );
+  const reportDate = requireIsoDate(
+    getFirst(flags, "report-date").trim() || todayIsoDate(),
+    "report-date",
+  );
+
+  assertEnum(authority, allowedAuthority, "authority");
+  assertEnum(sourceSystem, allowedSourceSystems, "source-system");
+  assertEnum(sensitivity, allowedSensitivity, "sensitivity");
+
+  const numericConfidence = Number(confidence);
+  if (Number.isNaN(numericConfidence) || numericConfidence < 0 || numericConfidence > 1) {
+    throw new Error("Confidence must be a number between 0 and 1.");
+  }
+
+  const sourceUrls = [
+    ...getMany(flags, "source-url"),
+    ...getMany(flags, "source-locator"),
+  ];
+  if (sourceUrls.length === 0) {
+    throw new Error("Provide at least one --source-url or --source-locator.");
+  }
+
+  const recommendedFollowUp = getMany(flags, "recommended-follow-up");
+  const linkedPages = getMany(flags, "linked-page");
+  for (const linkedPage of linkedPages) {
+    const absoluteRelated = toAbsoluteFromRepoPath(linkedPage);
+    if (!(await fileExists(absoluteRelated))) {
+      throw new Error(`Linked page does not exist: ${linkedPage}`);
+    }
+  }
+
+  const reportPath = path.join(knowledgeRoot, "reports", category, `${reportDate}-${slug}.md`);
+  if (await fileExists(reportPath)) {
+    throw new Error(`Report already exists: ${toRepoRelative(reportPath)}`);
+  }
+
+  const template = await readTemplate("report.template.md");
+  const content = applyTemplate(template, {
+    AUTHORITY: authority,
+    SOURCE_SYSTEM: sourceSystem,
+    SOURCE_URLS_YAML: buildSourceUrlsYaml(sourceUrls),
+    LAST_VERIFIED_AT: lastVerifiedAt,
+    OWNER: owner,
+    SENSITIVITY: sensitivity,
+    CONFIDENCE: numericConfidence.toString(),
+    TITLE: title,
+    RECOMMENDED_FOLLOW_UP_BLOCK: renderBulletList(
+      recommendedFollowUp,
+      "Owner, next step, and why it matters",
+    ),
+    LINKED_KB_PAGES_BLOCK: buildLinkedKbPagesBlock(reportPath, linkedPages),
+  });
+
+  await ensureParentDir(reportPath, dryRun);
+  if (!dryRun) {
+    await fs.writeFile(reportPath, `${content.trimEnd()}\n`, "utf8");
+  }
+
+  return {
+    created: [toRepoRelative(reportPath)],
+    indexUpdates: [],
+  };
+}
+
 function usage() {
   return `
 Hermes KB ingest helper
@@ -372,6 +481,7 @@ Commands:
     --source-system <paperclip|notion|repo|web|drive>
     --title <title>
     [--slug <slug>]
+    [--captured-at <YYYY-MM-DD>]
     [--sensitivity <public|internal|restricted>]
     --source-url <url-or-locator> (repeatable)
     [--capture-note <text>] (repeatable)
@@ -395,6 +505,21 @@ Commands:
     [--contradiction <text>] (repeatable)
     [--stale-reason <text>]
 
+  report
+    --category <reports subfolder>
+    --title <title>
+    --owner <agent-or-team>
+    --source-system <paperclip|notion|repo|web|drive>
+    --source-url <url-or-locator> (repeatable)
+    [--slug <slug>]
+    [--authority <canonical|derived|draft>]
+    [--sensitivity <public|internal|restricted>]
+    [--confidence <0..1>]
+    [--last-verified-at <YYYY-MM-DD>]
+    [--report-date <YYYY-MM-DD>]
+    [--recommended-follow-up <text>] (repeatable)
+    [--linked-page <repo-relative-path>] (repeatable)
+
 Global:
   --dry-run
   --help
@@ -413,7 +538,9 @@ async function main() {
   const result =
     parsed.command === "raw-source"
       ? await scaffoldRawSource(parsed.flags, dryRun)
-      : await scaffoldCompiledPage(parsed.flags, dryRun);
+      : parsed.command === "compiled-page"
+        ? await scaffoldCompiledPage(parsed.flags, dryRun)
+        : await scaffoldReport(parsed.flags, dryRun);
 
   console.log(`${dryRun ? "Dry run complete" : "Scaffold complete"} for ${parsed.command}.`);
   console.log(JSON.stringify(result, null, 2));
