@@ -102,6 +102,7 @@ Authentication env vars are already injected: PAPERCLIP_API_KEY, PAPERCLIP_RUN_I
 Hard rules:
 - Never pipe curl output into Python, Node, bash, or any other interpreter.
 - Prefer plain curl for reads, or a single-process Python/urllib fetch when you need local parsing.
+- Hermes terminal commands do not expand $ENV vars unless you invoke a shell. For auth-backed curl calls, run them through bash -lc so $PAPERCLIP_API_KEY and related vars expand before curl runs.
 - Prefer GET {{paperclipApiUrl}}/agents/me/inbox-lite for assignment checks.
 - If PAPERCLIP_API_KEY is missing or an auth call returns 401/403, switch to auth-regression fallback immediately: use read-only company issue listing, summarize assigned open work, and exit without retries.
 - Never look for unassigned work.
@@ -124,28 +125,28 @@ Assigned task:
 
 Start with:
 1. Read compact context:
-   curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/issues/{{taskId}}/heartbeat-context"
+   bash -lc 'curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/issues/{{taskId}}/heartbeat-context"'
 2. If this wake came from a comment:
-   curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/issues/{{taskId}}/comments/{{commentId}}"
+   bash -lc 'curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/issues/{{taskId}}/comments/{{commentId}}"'
 3. Checkout before work:
-   curl -fsS -X POST "{{paperclipApiUrl}}/issues/{{taskId}}/checkout" -H "Authorization: Bearer $PAPERCLIP_API_KEY" -H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID" -H "Content-Type: application/json" -d "{\"agentId\":\"$PAPERCLIP_AGENT_ID\",\"expectedStatuses\":[\"todo\",\"backlog\",\"blocked\"]}"
+   bash -lc 'curl -fsS -X POST "{{paperclipApiUrl}}/issues/{{taskId}}/checkout" -H "Authorization: Bearer $PAPERCLIP_API_KEY" -H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID" -H "Content-Type: application/json" -d "{\"agentId\":\"$PAPERCLIP_AGENT_ID\",\"expectedStatuses\":[\"todo\",\"backlog\",\"blocked\"]}"'
 
 After doing the work:
 - Mark done with a proof-bearing comment:
-  curl -fsS -X PATCH "{{paperclipApiUrl}}/issues/{{taskId}}" -H "Authorization: Bearer $PAPERCLIP_API_KEY" -H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID" -H "Content-Type: application/json" -d "{\"status\":\"done\",\"comment\":\"What changed, how you verified it, and any remaining risk.\"}"
+  bash -lc 'curl -fsS -X PATCH "{{paperclipApiUrl}}/issues/{{taskId}}" -H "Authorization: Bearer $PAPERCLIP_API_KEY" -H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID" -H "Content-Type: application/json" -d "{\"status\":\"done\",\"comment\":\"What changed, how you verified it, and any remaining risk.\"}"'
 - If blocked, patch the issue to status blocked with a blocker comment before exiting.
 {{/taskId}}
 
 {{#commentId}}
 If you need the full comment thread, use:
-curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/issues/{{taskId}}/comments"
+bash -lc 'curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/issues/{{taskId}}/comments"'
 {{/commentId}}
 
 {{#noTask}}
 Heartbeat wake:
 1. If PAPERCLIP_API_KEY is missing/empty, skip inbox auth calls and execute the mandatory preflight fallback above.
 2. Check your assigned inbox:
-   curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/agents/me/inbox-lite"
+   bash -lc 'curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/agents/me/inbox-lite"'
 3. If the inbox is empty, do not inspect backlog or unassigned issues. Exit after a brief summary.
 4. If the inbox has assigned issues, pick the highest-priority non-terminal issue, read it through /heartbeat-context, checkout it, do the work, and leave a status comment.
 5. If step 2 fails with 401/403, run auth-regression fallback instead of retrying:
