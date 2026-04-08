@@ -105,6 +105,7 @@ export const STATE_KEYS = {
   firehoseSignalCache: "firehose-signal-cache",
   founderVisibility: "founder-visibility",
   founderRemediation: "founder-remediation",
+  maintenance: "maintenance",
 } as const;
 export const DEFAULT_COMPANY_NAME = "Blueprint Autonomous Operations";
 export const DEFAULT_REPO_CATALOG = [

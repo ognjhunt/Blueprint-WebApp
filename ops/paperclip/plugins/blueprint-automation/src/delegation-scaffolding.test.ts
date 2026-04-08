@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  inferExecutionOwnerFromContext,
   isLikelySmokeArtifact,
   planChiefOwnedBacklogDelegation,
   shouldQuarantineSmokeArtifact,
@@ -75,6 +76,96 @@ describe("delegation scaffolding", () => {
       assignee: "market-intel-agent",
       projectName: "Blueprint Executive Ops",
     });
+  });
+
+  it("delegates growth-lead oversight backlog into the owning specialist lane", () => {
+    const plan = planChiefOwnedBacklogDelegation(
+      {
+        identifier: "BLU-1597",
+        title: "Notion Work Queue: Demand Intel Weekly Digest - 2026-04-04",
+        status: "backlog",
+        projectName: "Blueprint Executive Ops",
+        currentAssignee: "growth-lead",
+        source: {
+          sourceType: "notion-work-queue",
+          metadata: {
+            system: "Executive",
+            queueTitle: "Demand Intel Weekly Digest - 2026-04-04",
+          },
+        },
+      },
+      CONFIG,
+    );
+
+    expect(plan).toMatchObject({
+      assignee: "demand-intel-agent",
+      projectName: "Blueprint Executive Ops",
+    });
+  });
+
+  it("routes routine follow-through to the specialist from structured metadata", () => {
+    expect(
+      inferExecutionOwnerFromContext(
+        {
+          title: "Routine follow-through: Analytics Daily",
+          source: {
+            sourceType: "founder-routine-miss",
+            metadata: {
+              agentKey: "analytics-agent",
+              routineKey: "analytics-daily",
+            },
+          },
+        },
+        CONFIG,
+      ),
+    ).toBe("analytics-agent");
+  });
+
+  it("routes queue lifecycle drift into the underlying execution lane instead of notion-manager", () => {
+    const plan = planChiefOwnedBacklogDelegation(
+      {
+        identifier: "BLU-1615",
+        title: "Notion drift: conflicting queue lifecycle for Analytics Daily Snapshot - 2026-03-29",
+        status: "todo",
+        projectName: "Blueprint Executive Ops",
+        currentAssignee: "notion-manager-agent",
+        source: {
+          sourceType: "notion-drift",
+          metadata: {
+            driftKind: "queue_lifecycle_conflict",
+            queueTitle: "Analytics Daily Snapshot - 2026-03-29",
+            queueSystem: "Executive",
+          },
+        },
+      },
+      CONFIG,
+    );
+
+    expect(plan).toMatchObject({
+      assignee: "analytics-agent",
+      projectName: "Blueprint Executive Ops",
+    });
+  });
+
+  it("keeps duplicate notion drift with notion-manager ownership", () => {
+    expect(
+      planChiefOwnedBacklogDelegation(
+        {
+          title: "Notion drift: duplicate pages for Analytics Daily Snapshot - 2026-03-29",
+          status: "todo",
+          projectName: "Blueprint Executive Ops",
+          currentAssignee: "notion-manager-agent",
+          source: {
+            sourceType: "notion-drift",
+            metadata: {
+              driftKind: "duplicate",
+              database: "work_queue",
+            },
+          },
+        },
+        CONFIG,
+      ),
+    ).toBeNull();
   });
 
   it("plans a repo implementation child for chief-owned capture sync backlog", () => {

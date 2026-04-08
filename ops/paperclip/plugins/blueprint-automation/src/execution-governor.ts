@@ -76,6 +76,7 @@ function fallbackChainForAgent(preferredKey: string, management: ManagementRouti
     "field-ops-agent": ["ops-lead", management.chiefOfStaffKey],
     "finance-support-agent": ["ops-lead", management.chiefOfStaffKey],
     "growth-lead": [management.chiefOfStaffKey, management.ctoKey],
+    "notion-manager-agent": [management.chiefOfStaffKey, management.ctoKey],
     "conversion-agent": [management.ctoKey, management.chiefOfStaffKey],
     "docs-agent": [management.ctoKey, management.chiefOfStaffKey],
   };
@@ -101,7 +102,7 @@ function fallbackChainForAgent(preferredKey: string, management: ManagementRouti
     || normalized.includes("site-catalog")
     || normalized.includes("outbound-sales")
   ) {
-    return ["growth-lead", management.chiefOfStaffKey, management.ctoKey];
+    return [management.chiefOfStaffKey, "growth-lead", management.ctoKey];
   }
 
   return [management.chiefOfStaffKey, management.ctoKey, management.ceoKey];

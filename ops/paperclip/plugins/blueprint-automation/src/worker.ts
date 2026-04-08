@@ -148,6 +148,7 @@ import {
 } from "./queue-routing.js";
 import { planBlockedIssueFollowUp } from "./blocked-followups.js";
 import {
+  inferExecutionOwnerFromContext,
   planChiefOwnedBacklogDelegation,
   shouldQuarantineSmokeArtifact,
 } from "./delegation-scaffolding.js";
@@ -235,6 +236,7 @@ type GrowthDepartmentConfig = {
     communityUpdates: string;
     marketIntel: string;
     demandIntel: string;
+    capturerGrowth: string;
     robotTeamGrowth: string;
     siteOperatorPartnership: string;
     cityDemand: string;
@@ -731,6 +733,13 @@ type RoutineCatchupState = Record<string, {
   triggerUpdatedAt: string;
   lastManualRunAt: string;
 }>;
+type MaintenanceState = {
+  running: boolean;
+  startedAt: string | null;
+  finishedAt: string | null;
+  lastError: string | null;
+  lastResult: Record<string, unknown> | null;
+};
 
 // ── Monitoring, Budget & Phase Types ───────────────────
 
@@ -1270,6 +1279,7 @@ function normalizeConfig(rawConfig: Record<string, unknown>): BlueprintAutomatio
         communityUpdates: asString(growthAgents.communityUpdates) ?? "community-updates-agent",
         marketIntel: asString(growthAgents.marketIntel) ?? "market-intel-agent",
         demandIntel: asString(growthAgents.demandIntel) ?? "demand-intel-agent",
+        capturerGrowth: asString(growthAgents.capturerGrowth) ?? "capturer-growth-agent",
         robotTeamGrowth: asString(growthAgents.robotTeamGrowth) ?? "robot-team-growth-agent",
         siteOperatorPartnership: asString(growthAgents.siteOperatorPartnership) ?? "site-operator-partnership-agent",
         cityDemand: asString(growthAgents.cityDemand) ?? "city-demand-agent",
@@ -1543,6 +1553,14 @@ function getGrowthRoutingConfig(config: BlueprintAutomationConfig) {
   return {
     growthLead: agents?.growthLead ?? "growth-lead",
     conversionOptimizer: agents?.conversionOptimizer ?? "conversion-agent",
+    analytics: agents?.analytics ?? "analytics-agent",
+    communityUpdates: agents?.communityUpdates ?? "community-updates-agent",
+    marketIntel: agents?.marketIntel ?? "market-intel-agent",
+    demandIntel: agents?.demandIntel ?? "demand-intel-agent",
+    capturerGrowth: agents?.capturerGrowth ?? "capturer-growth-agent",
+    robotTeamGrowth: agents?.robotTeamGrowth ?? "robot-team-growth-agent",
+    siteOperatorPartnership: agents?.siteOperatorPartnership ?? "site-operator-partnership-agent",
+    cityDemand: agents?.cityDemand ?? "city-demand-agent",
   };
 }
 
@@ -2882,8 +2900,13 @@ async function runExecutionDispatchJob(
   ctx: PluginContext,
   companyId: string,
   config: BlueprintAutomationConfig,
+  options?: {
+    skipScaffolding?: boolean;
+  },
 ) {
-  await runDelegationScaffoldingPass(ctx, companyId);
+  if (!options?.skipScaffolding) {
+    await runDelegationScaffoldingPass(ctx, companyId);
+  }
   const issues = await listAllIssues(ctx, companyId);
   const sourceMappings = await listSourceMappings(ctx, companyId).catch(() => []);
   const sourceMappingByIssueId = buildSourceMappingIndexByIssueId(sourceMappings);
@@ -2901,7 +2924,10 @@ async function runExecutionDispatchJob(
     }
 
     const assignee = await ctx.agents.get(issue.assigneeAgentId, companyId).catch(() => null);
-    if (!assignee || assignee.urlKey === getChiefOfStaffAgentKey(config)) {
+    if (!assignee) {
+      continue;
+    }
+    if (assignee.urlKey === getChiefOfStaffAgentKey(config) && !isDelegatedExecutionIssue(issue)) {
       continue;
     }
 
@@ -2928,6 +2954,114 @@ async function runExecutionDispatchJob(
   }
 
   return { dispatched: dispatched.length };
+}
+
+async function runRoutingMaintenanceAction(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+) {
+  const healedAgents = await healAgentExecutionTopology(ctx, companyId);
+  const unavailableOwnerReroutes = await rerouteUnavailableIssueOwners(ctx, companyId, config);
+  const routingRepair = await repairManagedIssueRouting(ctx, companyId, config);
+  const scaffolding = await runDelegationScaffoldingPass(ctx, companyId);
+  const dispatch = await runExecutionDispatchJob(ctx, companyId, config, { skipScaffolding: true });
+
+  await appendRecentEvent(ctx, companyId, {
+    kind: "routing-maintenance",
+    title: "Routing maintenance completed",
+    detail: [
+      healedAgents.length > 0 ? `healed agents: ${healedAgents.join(", ")}` : null,
+      unavailableOwnerReroutes.length > 0 ? `unavailable reroutes: ${unavailableOwnerReroutes.join(", ")}` : null,
+      routingRepair.repaired.length > 0 ? `routing repairs: ${routingRepair.repaired.map((entry) => `${entry.issueId}:${entry.from}->${entry.to}`).join(", ")}` : null,
+      scaffolding.quarantined.length > 0 ? `quarantined smoke: ${scaffolding.quarantined.join(", ")}` : null,
+      scaffolding.delegated.length > 0 ? `delegated backlog: ${scaffolding.delegated.join(", ")}` : null,
+      scaffolding.corrected.length > 0 ? `corrected delegated routing: ${scaffolding.corrected.join(", ")}` : null,
+      dispatch.dispatched > 0 ? `execution dispatches: ${dispatch.dispatched}` : null,
+    ].filter(Boolean).join(" | "),
+  });
+
+  return {
+    healedAgents,
+    unavailableOwnerReroutes,
+    routingRepair,
+    scaffolding,
+    dispatch,
+  };
+}
+
+async function readMaintenanceState(ctx: PluginContext, companyId: string): Promise<MaintenanceState> {
+  return await readState<MaintenanceState>(ctx, companyId, STATE_KEYS.maintenance) ?? {
+    running: false,
+    startedAt: null,
+    finishedAt: null,
+    lastError: null,
+    lastResult: null,
+  };
+}
+
+async function writeMaintenanceState(
+  ctx: PluginContext,
+  companyId: string,
+  value: MaintenanceState,
+) {
+  await writeState(ctx, companyId, STATE_KEYS.maintenance, value);
+}
+
+function summarizeMaintenanceResult(result: Awaited<ReturnType<typeof runRoutingMaintenanceAction>>) {
+  return {
+    healedAgents: result.healedAgents.length,
+    unavailableOwnerReroutes: result.unavailableOwnerReroutes.length,
+    routingRepairs: result.routingRepair.repaired.length,
+    quarantinedSmoke: result.scaffolding.quarantined.length,
+    delegatedBacklog: result.scaffolding.delegated.length,
+    correctedDelegations: result.scaffolding.corrected.length,
+    executionDispatches: result.dispatch.dispatched,
+  };
+}
+
+function startRoutingMaintenanceRun(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+) {
+  setTimeout(() => {
+    void (async () => {
+      const startedAt = nowIso();
+      await writeMaintenanceState(ctx, companyId, {
+        running: true,
+        startedAt,
+        finishedAt: null,
+        lastError: null,
+        lastResult: null,
+      });
+
+      try {
+        const result = await runRoutingMaintenanceAction(ctx, companyId, config);
+        await writeMaintenanceState(ctx, companyId, {
+          running: false,
+          startedAt,
+          finishedAt: nowIso(),
+          lastError: null,
+          lastResult: summarizeMaintenanceResult(result),
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        await appendRecentEvent(ctx, companyId, {
+          kind: "routing-maintenance-failed",
+          title: "Routing maintenance failed",
+          detail: message,
+        }).catch(() => undefined);
+        await writeMaintenanceState(ctx, companyId, {
+          running: false,
+          startedAt,
+          finishedAt: nowIso(),
+          lastError: message,
+          lastResult: null,
+        });
+      }
+    })();
+  }, 0);
 }
 
 async function maybeCatchUpMissedRoutines(
@@ -3317,6 +3451,115 @@ function buildDelegationScaffoldingConfig(config: BlueprintAutomationConfig) {
   };
 }
 
+function isOversightIssueOwnerKey(
+  assigneeKey: string | null | undefined,
+  config: BlueprintAutomationConfig,
+) {
+  const normalizedAssignee = (assigneeKey ?? "").trim().toLowerCase();
+  if (!normalizedAssignee) {
+    return false;
+  }
+
+  const opsRouting = getOpsRoutingConfig(config);
+  const growthRouting = getGrowthRoutingConfig(config);
+  const oversightOwners = new Set([
+    getChiefOfStaffAgentKey(config),
+    "blueprint-cto",
+    opsRouting.opsLead,
+    growthRouting.growthLead,
+    NOTION_MANAGER_AGENT,
+  ]);
+  return oversightOwners.has(normalizedAssignee);
+}
+
+function isDelegatedExecutionIssue(issue: Issue) {
+  if (!issue.parentId || !issueNeedsExecution(issue.status)) {
+    return false;
+  }
+
+  const originId = asString((issue as unknown as Record<string, unknown>).originId);
+  return Boolean(
+    (originId && (originId.startsWith("delegation:") || originId.startsWith("blocker:")))
+      || /^follow through:/i.test(issue.title)
+      || /unblock path/i.test(issue.title),
+  );
+}
+
+async function repairDelegatedExecutionRouting(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+  issues: Issue[],
+  agents: Agent[],
+  projects: Project[],
+) {
+  const delegationConfig = buildDelegationScaffoldingConfig(config);
+  const projectNameById = new Map(projects.map((project) => [project.id, project.name] as const));
+  const agentKeyById = new Map(
+    agents.map((agent) => [
+      agent.id,
+      normalizedCandidates(agent as unknown as Record<string, unknown>)[0] ?? agent.id,
+    ] as const),
+  );
+
+  const corrected: Array<{ issueId: string; from: string; to: string }> = [];
+
+  for (const issue of issues) {
+    if (!isDelegatedExecutionIssue(issue)) {
+      continue;
+    }
+
+    const currentAssignee = issue.assigneeAgentId
+      ? (agentKeyById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId)
+      : null;
+    if (!currentAssignee || !isOversightIssueOwnerKey(currentAssignee, config)) {
+      continue;
+    }
+
+    const projectName = issue.projectId ? (projectNameById.get(issue.projectId) ?? null) : null;
+    const preferredAssignee = inferExecutionOwnerFromContext(
+      {
+        title: issue.title,
+        description: issue.description,
+        projectName,
+      },
+      delegationConfig,
+    );
+    if (!preferredAssignee || preferredAssignee === currentAssignee) {
+      continue;
+    }
+
+    const assigneeResolution = await resolveAssignableAgent(
+      ctx,
+      companyId,
+      config,
+      preferredAssignee,
+    ).catch(() => null);
+    if (!assigneeResolution || issue.assigneeAgentId === assigneeResolution.agent.id) {
+      continue;
+    }
+
+    await ctx.issues.update(issue.id, { assigneeAgentId: assigneeResolution.agent.id }, companyId);
+    await ctx.issues.createComment(
+      issue.id,
+      [
+        "Automation corrected this delegated execution issue so it sits in the owning lane instead of an oversight lane.",
+        `- Previous owner: ${formatAgentName(currentAssignee)}`,
+        `- Preferred owner: ${formatAgentName(preferredAssignee)}`,
+        `- Current owner: ${formatAgentName(assigneeResolution.selectedKey)}`,
+      ].join("\n"),
+      companyId,
+    ).catch(() => undefined);
+    corrected.push({
+      issueId: issue.identifier ?? issue.id,
+      from: currentAssignee,
+      to: assigneeResolution.selectedKey,
+    });
+  }
+
+  return corrected;
+}
+
 async function createDelegatedFollowUpIssue(
   ctx: PluginContext,
   companyId: string,
@@ -3470,13 +3713,15 @@ async function runDelegationScaffoldingPass(
   ctx: PluginContext,
   companyId: string,
 ) {
-  const [issues, sourceMappings] = await Promise.all([
+  const [config, issues, sourceMappings] = await Promise.all([
+    getConfig(ctx),
     listAllIssues(ctx, companyId),
     listSourceMappings(ctx, companyId),
   ]);
   const mappingByIssueId = buildSourceMappingIndexByIssueId(sourceMappings);
   const quarantined: string[] = [];
   const delegated: string[] = [];
+  const corrected: string[] = [];
   const now = nowIso();
 
   for (const issue of issues) {
@@ -3518,13 +3763,33 @@ async function runDelegationScaffoldingPass(
     }
   }
 
-  if (quarantined.length > 0 || delegated.length > 0) {
+  const executionIssues = delegated.length > 0
+    ? await listAllIssues(ctx, companyId)
+    : refreshedIssues;
+  const [agents, projects] = await Promise.all([
+    listAgents(ctx, companyId),
+    listProjects(ctx, companyId),
+  ]);
+  const correctedIssues = await repairDelegatedExecutionRouting(
+    ctx,
+    companyId,
+    config,
+    executionIssues,
+    agents,
+    projects,
+  );
+  corrected.push(
+    ...correctedIssues.map((entry) => `${entry.issueId}:${entry.from}->${entry.to}`),
+  );
+
+  if (quarantined.length > 0 || delegated.length > 0 || corrected.length > 0) {
     await appendRecentEvent(ctx, companyId, {
       kind: "delegation-scaffolding",
       title: "Delegation scaffolding maintenance completed",
       detail: [
         quarantined.length > 0 ? `quarantined smoke: ${quarantined.join(", ")}` : null,
         delegated.length > 0 ? `delegated backlog: ${delegated.join(", ")}` : null,
+        corrected.length > 0 ? `corrected delegated routing: ${corrected.join(", ")}` : null,
       ].filter(Boolean).join(" | "),
     });
   }
@@ -3532,6 +3797,7 @@ async function runDelegationScaffoldingPass(
   return {
     quarantined,
     delegated,
+    corrected,
   };
 }
 
@@ -5477,6 +5743,7 @@ async function ensureRoutineMissRemediation(
     metadata: {
       routineKey: alert.routineKey,
       routineKind: alert.kind,
+      agentKey: alert.agentKey,
       sourceIssueId: alert.lastIssueId,
     },
     suppressRefreshComment: true,
@@ -7243,6 +7510,75 @@ async function resolveRepoWorkspacePath(
   );
 }
 
+function projectPrefersIsolatedRepoExecution(project: Project) {
+  const policy = asRecord((project as unknown as Record<string, unknown>).executionWorkspacePolicy);
+  if (!policy || !asBoolean(policy.enabled, false)) {
+    return false;
+  }
+
+  const defaultMode = asString(policy.defaultMode) ?? "shared_workspace";
+  if (defaultMode === "isolated_workspace") {
+    return true;
+  }
+
+  const strategy = asRecord(policy.workspaceStrategy);
+  return asString(strategy?.type) === "git_worktree";
+}
+
+async function selectRepoWorkspaceForScan(
+  ctx: PluginContext,
+  companyId: string,
+  repoConfig: RepoConfig,
+  project: Project,
+  workspace: PluginWorkspace,
+) {
+  const primaryWorkspacePath = await resolveRepoWorkspacePath(ctx, companyId, repoConfig, workspace);
+  const primaryStatus = await scanRepoWorkspace(primaryWorkspacePath);
+  if (!projectPrefersIsolatedRepoExecution(project) || primaryStatus.changedFiles === 0) {
+    return {
+      workspacePath: primaryWorkspacePath,
+      status: primaryStatus,
+      source: "primary_workspace" as const,
+    };
+  }
+
+  const implementationAgent = await resolveAgent(ctx, companyId, repoConfig.implementationAgent).catch(() => null);
+  const reviewAgent = await resolveAgent(ctx, companyId, repoConfig.reviewAgent).catch(() => null);
+  const seenPaths = new Set([path.resolve(primaryWorkspacePath)]);
+  const candidates = [
+    { source: "implementation_agent" as const, path: implementationAgent ? agentCwd(implementationAgent) : null },
+    { source: "review_agent" as const, path: reviewAgent ? agentCwd(reviewAgent) : null },
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate.path || !existsSync(candidate.path)) {
+      continue;
+    }
+    const normalizedPath = path.resolve(candidate.path);
+    if (seenPaths.has(normalizedPath)) {
+      continue;
+    }
+    seenPaths.add(normalizedPath);
+
+    const candidateStatus = await scanRepoWorkspace(candidate.path).catch(() => null);
+    if (!candidateStatus || candidateStatus.changedFiles > 0) {
+      continue;
+    }
+
+    return {
+      workspacePath: candidate.path,
+      status: candidateStatus,
+      source: candidate.source,
+    };
+  }
+
+  return {
+    workspacePath: primaryWorkspacePath,
+    status: primaryStatus,
+    source: "primary_workspace" as const,
+  };
+}
+
 function getCityLaunchRoutineType(issue: Pick<Issue, "title" | "originKind">): CityLaunchRoutineType | null {
   if (issue.originKind !== "routine_execution") return null;
   const normalized = issue.title.trim().toLowerCase();
@@ -7369,9 +7705,10 @@ async function revalidateCityLaunchDoneIssues(
 }
 
 async function scanRepoDrift(ctx: PluginContext, companyId: string, repoConfig: RepoConfig) {
+  const project = await resolveProject(ctx, companyId, repoConfig.projectName);
   const { workspace } = await getPrimaryWorkspaceForRepo(ctx, companyId, repoConfig);
-  const workspacePath = await resolveRepoWorkspacePath(ctx, companyId, repoConfig, workspace);
-  const status = await scanRepoWorkspace(workspacePath);
+  const selection = await selectRepoWorkspaceForScan(ctx, companyId, repoConfig, project, workspace);
+  const status = selection.status;
 
   await resolveManagedIssue(ctx, {
     companyId,
@@ -7406,7 +7743,8 @@ async function scanRepoDrift(ctx: PluginContext, companyId: string, repoConfig: 
     });
   }
 
-  const branchDrift = status.branch !== repoConfig.defaultBranch || status.ahead > 0 || status.behind > 0;
+  const branchDrift = selection.source === "primary_workspace"
+    && (status.branch !== repoConfig.defaultBranch || status.ahead > 0 || status.behind > 0);
   if (branchDrift) {
     await upsertManagedIssue(ctx, {
       companyId,
@@ -8880,13 +9218,21 @@ async function registerActionHandlers(ctx: PluginContext) {
   ctx.actions.register(ACTION_KEYS.repairRouting, async (params) => {
     const config = await getConfig(ctx);
     const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
-    const [routingRepair, scaffolding] = await Promise.all([
-      repairManagedIssueRouting(ctx, company.id, config),
-      runDelegationScaffoldingPass(ctx, company.id),
-    ]);
+    const maintenance = await readMaintenanceState(ctx, company.id);
+    if (maintenance.running) {
+      return {
+        queued: false,
+        running: true,
+        maintenance,
+      };
+    }
+
+    startRoutingMaintenanceRun(ctx, company.id, config);
     return {
-      routingRepair,
-      scaffolding,
+      queued: true,
+      running: false,
+      startedAt: nowIso(),
+      maintenance,
     };
   });
 
@@ -10586,7 +10932,12 @@ async function runOpsQueueScanJob(ctx: PluginContext, companyId: string, config:
       status: "todo",
       signalUrl: canonicalItem.url,
       metadata: {
+        driftKind: "queue_lifecycle_conflict",
         queueKey: conflict.key,
+        queueTitle: canonicalItem.title,
+        queueSystem: canonicalItem.system,
+        queueWorkType: canonicalItem.workType,
+        queueLifecycleStage: canonicalItem.lifecycleStage,
         itemIds: conflict.entries.map((entry) => entry.id),
         lifecycleStages: conflict.entries.map((entry) => entry.lifecycleStage),
         issueStatuses: conflict.issueStatuses,
@@ -10854,21 +11205,23 @@ const plugin: PaperclipPlugin = definePlugin({
     await registerActionHandlers(ctx);
     if (!toolRegistrationStarted) {
       toolRegistrationStarted = true;
-      void registerToolHandlers(ctx)
-        .then(() => {
-          toolRegistrationReady = true;
-          toolRegistrationError = null;
-        })
-        .catch((error) => {
-          toolRegistrationReady = false;
-          toolRegistrationError = error instanceof Error ? error.message : String(error);
-          ctx.logger.warn("blueprint tool registration failed", {
-            meta: {
-              error: toolRegistrationError,
-              stack: error instanceof Error ? error.stack : undefined,
-            },
+      setTimeout(() => {
+        void registerToolHandlers(ctx)
+          .then(() => {
+            toolRegistrationReady = true;
+            toolRegistrationError = null;
+          })
+          .catch((error) => {
+            toolRegistrationReady = false;
+            toolRegistrationError = error instanceof Error ? error.message : String(error);
+            ctx.logger.warn("blueprint tool registration failed", {
+              meta: {
+                error: toolRegistrationError,
+                stack: error instanceof Error ? error.stack : undefined,
+              },
+            });
           });
-        });
+      }, 0);
     }
     ctx.events.on("agent.run.failed", async (event) => {
       try {
@@ -11100,7 +11453,9 @@ const plugin: PaperclipPlugin = definePlugin({
       const company = await findCompany(ctx, config.companyName);
       await runExecutionDispatchJob(ctx, company.id, config);
     });
-    void ensureStartupMaintenance(ctx);
+    setTimeout(() => {
+      void ensureStartupMaintenance(ctx);
+    }, 0);
   },
 
   async onHealth(): Promise<PluginHealthDiagnostics> {

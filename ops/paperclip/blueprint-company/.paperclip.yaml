@@ -1043,11 +1043,14 @@ projects:
     color: blue
     executionWorkspacePolicy:
       enabled: true
-      defaultMode: shared_workspace
+      defaultMode: isolated_workspace
       allowIssueOverride: true
       defaultProjectWorkspaceKey: blueprint-webapp
       workspaceStrategy:
-        type: project_primary
+        type: git_worktree
+        baseRef: main
+        branchTemplate: "{{issue.identifier}}-{{slug}}"
+        worktreeParentDir: ".paperclip/worktrees"
     workspaces:
       blueprint-webapp:
         name: Blueprint-WebApp

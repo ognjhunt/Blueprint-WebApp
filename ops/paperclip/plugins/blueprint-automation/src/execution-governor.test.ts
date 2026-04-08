@@ -55,6 +55,43 @@ describe("execution governor helpers", () => {
     ).toBe("webapp-review");
   });
 
+  it("routes unavailable analytics work to chief of staff before growth lead", () => {
+    expect(
+      selectHealthyAgentKey(
+        "analytics-agent",
+        {
+          "analytics-agent": "error",
+          "blueprint-chief-of-staff": "idle",
+          "growth-lead": "idle",
+          "blueprint-cto": "idle",
+        },
+        {
+          chiefOfStaffKey: "blueprint-chief-of-staff",
+          ctoKey: "blueprint-cto",
+          ceoKey: "blueprint-ceo",
+        },
+      ).assigneeKey,
+    ).toBe("blueprint-chief-of-staff");
+  });
+
+  it("routes unavailable notion-manager work to chief of staff before CTO", () => {
+    expect(
+      selectHealthyAgentKey(
+        "notion-manager-agent",
+        {
+          "notion-manager-agent": "error",
+          "blueprint-chief-of-staff": "idle",
+          "blueprint-cto": "idle",
+        },
+        {
+          chiefOfStaffKey: "blueprint-chief-of-staff",
+          ctoKey: "blueprint-cto",
+          ceoKey: "blueprint-ceo",
+        },
+      ).assigneeKey,
+    ).toBe("blueprint-chief-of-staff");
+  });
+
   it("defaults routines to auditable execution rather than coalescing or skipping", () => {
     expect(recommendedRoutineExecutionPolicy()).toEqual({
       concurrencyPolicy: "always_enqueue",

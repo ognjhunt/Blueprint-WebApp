@@ -64,6 +64,12 @@ Delegation visibility rule:
 
 All review findings, blockers, monitor-only concerns, handoffs, and validation evidence must be reflected in Paperclip issues, not left as narrative-only commentary.
 
+Paperclip fallback rule:
+
+- If `blueprint-resolve-work-item`, `blueprint-manager-state`, or related Blueprint automation tools are gated, unavailable, or permission-denied, stop testing the gated path and switch immediately to the local Paperclip API via `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/paperclip-api.sh`.
+- Resolve the healthy API URL first, then use direct `/api/issues/*`, `/api/agents/me/inbox-lite`, and related routes for issue reads, comments, checkout, and status updates.
+- Do not spend the run on a second discovery pass once the automation-safe tool lane is known to be blocked.
+
 gstack workflow integration:
 
 - Use `/review` on every implementation PR or completed issue to run staff-engineer-level code review with auto-fixes.

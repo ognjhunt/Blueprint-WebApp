@@ -61,6 +61,15 @@ type SmokeArtifactContext = {
   source?: DelegationSourceHint | null;
 };
 
+export type ExecutionOwnerContext = {
+  title: string;
+  description?: string | null;
+  projectName?: string | null;
+  source?: DelegationSourceHint | null;
+};
+
+const NOTION_MANAGER_AGENT = "notion-manager-agent";
+
 function normalize(value?: string | null) {
   return (value ?? "").trim().toLowerCase();
 }
@@ -111,6 +120,42 @@ function normalizeBacklogBaseTitle(title: string) {
     .replace(/^execute follow-through for\s+/i, "");
 }
 
+function metadataString(metadata: Record<string, unknown> | null | undefined, key: string) {
+  const value = metadata?.[key];
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function queueProjectNameForSystem(system: string | null | undefined) {
+  const normalizedSystem = normalize(system);
+  if (normalizedSystem === "webapp") return "blueprint-webapp";
+  if (normalizedSystem === "pipeline") return "blueprint-capture-pipeline";
+  if (normalizedSystem === "capture") return "blueprint-capture";
+  return "Blueprint Executive Ops";
+}
+
+function isOversightOwner(
+  assignee: string | null | undefined,
+  config: DelegationScaffoldingConfig,
+) {
+  const normalizedAssignee = normalize(assignee);
+  if (!normalizedAssignee) return false;
+
+  const ops = config.opsAgents ?? {};
+  const growth = config.growthAgents ?? {};
+  const oversightOwners = new Set(
+    [
+      config.chiefOfStaffAgent,
+      config.ctoAgent,
+      ops.opsLead,
+      growth.growthLead,
+      NOTION_MANAGER_AGENT,
+    ]
+      .map((value) => normalize(value))
+      .filter((value) => value.length > 0),
+  );
+  return oversightOwners.has(normalizedAssignee);
+}
+
 function specialistFromTitle(
   title: string,
   config: DelegationScaffoldingConfig,
@@ -141,6 +186,98 @@ function specialistFromTitle(
   }
 
   return null;
+}
+
+function queueExecutionOwner(
+  title: string,
+  projectName: string | null | undefined,
+  config: DelegationScaffoldingConfig,
+) {
+  const repoProject = repoConfigForProject(projectName, config.repoCatalog);
+  if (
+    repoProject
+    && hasAny(normalize(title), ["platform context", "gpu contract", "gpu contracts", "bridge"])
+  ) {
+    return repoProject.implementationAgent;
+  }
+
+  const repoAgent = inferRepoAgentForTask(
+    {
+      projectName,
+      title,
+    },
+    config.repoCatalog,
+  );
+  return specialistFromTitle(title, config) ?? repoAgent;
+}
+
+function notionDriftExecutionOwner(
+  input: ExecutionOwnerContext,
+  config: DelegationScaffoldingConfig,
+) {
+  const metadata = input.source?.metadata ?? null;
+  const driftKind = normalize(metadataString(metadata, "driftKind"));
+
+  if (driftKind === "queue_lifecycle_conflict") {
+    const queueTitle =
+      metadataString(metadata, "queueTitle")
+      ?? input.title
+        .replace(/^follow through:\s*/i, "")
+        .replace(/^notion drift:\s*conflicting queue lifecycle for\s*/i, "")
+        .trim();
+    const queueSystem = metadataString(metadata, "queueSystem");
+    const queueProjectName = queueProjectNameForSystem(
+      queueSystem ?? metadataString(metadata, "projectName"),
+    );
+    return queueExecutionOwner(queueTitle, queueProjectName, config);
+  }
+  return NOTION_MANAGER_AGENT;
+}
+
+export function inferExecutionOwnerFromContext(
+  input: ExecutionOwnerContext,
+  config: DelegationScaffoldingConfig,
+) {
+  const normalizedTitle = normalizeBacklogBaseTitle(input.title);
+  const sourceType = normalize(input.source?.sourceType);
+  const metadata = input.source?.metadata ?? null;
+
+  if (sourceType === "founder-routine-miss") {
+    const routineOwner =
+      metadataString(metadata, "agentKey")
+      ?? metadataString(metadata, "preferredAgentKey");
+    if (routineOwner) {
+      return routineOwner;
+    }
+  }
+
+  if (sourceType === "notion-drift") {
+    return notionDriftExecutionOwner(
+      {
+        ...input,
+        title: normalizedTitle,
+      },
+      config,
+    );
+  }
+
+  if (sourceType === "notion-work-queue") {
+    const queueTitle =
+      metadataString(metadata, "queueTitle")
+      ?? normalizedTitle.replace(/^notion work queue:\s*/i, "");
+    const queueSystem = metadataString(metadata, "system");
+    return queueExecutionOwner(
+      queueTitle,
+      queueProjectNameForSystem(queueSystem ?? input.projectName),
+      config,
+    );
+  }
+
+  return queueExecutionOwner(
+    normalizedTitle,
+    input.projectName ?? metadataString(metadata, "projectName"),
+    config,
+  );
 }
 
 export function isLikelySmokeArtifact(input: {
@@ -197,30 +334,20 @@ export function planChiefOwnedBacklogDelegation(
     return null;
   }
 
-  const chiefOfStaffAgent = normalize(config.chiefOfStaffAgent) || "blueprint-chief-of-staff";
-  const ctoAgent = normalize(config.ctoAgent) || "blueprint-cto";
   const currentAssignee = normalize(input.currentAssignee);
-  if (currentAssignee !== chiefOfStaffAgent && currentAssignee !== ctoAgent) {
+  if (!isOversightOwner(input.currentAssignee, config)) {
     return null;
   }
 
   const projectName = input.projectName?.trim() || config.executiveOpsProjectName || "";
-  const repoProject = repoConfigForProject(projectName, config.repoCatalog);
-  const normalizedTitle = normalize(input.title);
-  const repoAgent = inferRepoAgentForTask(
+  let assignee = inferExecutionOwnerFromContext(
     {
-      projectName,
       title: input.title,
+      projectName,
+      source: input.source,
     },
-    config.repoCatalog,
+    config,
   );
-
-  let assignee =
-    repoProject && hasAny(normalizedTitle, ["platform context", "gpu contract", "gpu contracts", "bridge"])
-      ? repoProject.implementationAgent
-      : specialistFromTitle(input.title, config)
-    ?? repoAgent
-    ?? null;
 
   if (!assignee) {
     const route = inferChiefOfStaffRoute({

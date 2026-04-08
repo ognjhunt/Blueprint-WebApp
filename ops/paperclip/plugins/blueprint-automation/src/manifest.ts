@@ -154,6 +154,7 @@ const manifest: PaperclipPluginManifestV1 = {
               communityUpdates: { type: "string" },
               marketIntel: { type: "string" },
               demandIntel: { type: "string" },
+              capturerGrowth: { type: "string" },
               robotTeamGrowth: { type: "string" },
               siteOperatorPartnership: { type: "string" },
               cityDemand: { type: "string" },

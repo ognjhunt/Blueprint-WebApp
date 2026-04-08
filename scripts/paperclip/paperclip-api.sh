@@ -36,6 +36,30 @@ paperclip_find_healthy_local_api_url() {
   return 1
 }
 
+paperclip_resolve_api_url() {
+  local explicit_api_url="${1:-}"
+  local paperclip_home="${2:-${PAPERCLIP_HOME:-/Users/nijelhunt_1/workspace/.paperclip-blueprint}}"
+  local paperclip_host="${3:-${PAPERCLIP_HOST:-127.0.0.1}}"
+  local discovered_api_url=""
+
+  if [ -n "$explicit_api_url" ] && paperclip_api_health "$explicit_api_url"; then
+    printf '%s\n' "$explicit_api_url"
+    return 0
+  fi
+
+  if discovered_api_url="$(paperclip_find_healthy_local_api_url "$paperclip_home" "$paperclip_host" 2>/dev/null)"; then
+    printf '%s\n' "$discovered_api_url"
+    return 0
+  fi
+
+  if [ -n "$explicit_api_url" ]; then
+    printf '%s\n' "$explicit_api_url"
+    return 0
+  fi
+
+  return 1
+}
+
 paperclip_api_fetch_json() {
   local api_url="$1"
   local path="$2"
@@ -44,16 +68,19 @@ paperclip_api_fetch_json() {
   local delay_seconds="${5:-1}"
   local response=""
   local error_message=""
+  local resolved_api_url=""
+
+  resolved_api_url="$(paperclip_resolve_api_url "$api_url")" || resolved_api_url="$api_url"
 
   for ((attempt = 1; attempt <= attempts; attempt += 1)); do
-    if response="$(curl -fsS "${api_url}${path}" 2>&1)"; then
+    if response="$(curl -fsS "${resolved_api_url}${path}" 2>&1)"; then
       if [ -n "$response" ]; then
         printf '%s' "$response"
         return 0
       fi
       error_message="${label} returned an empty response for ${path}"
     else
-      error_message="${label} unavailable at ${api_url}${path}: ${response}"
+      error_message="${label} unavailable at ${resolved_api_url}${path}: ${response}"
     fi
 
     if [ "$attempt" -lt "$attempts" ]; then

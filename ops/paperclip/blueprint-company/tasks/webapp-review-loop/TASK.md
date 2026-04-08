@@ -14,6 +14,7 @@ Each run must:
 - create or refine the most useful next task for the implementation specialist when follow-up work is needed
 - keep the queue concrete and traceable instead of leaving review findings in prose only
 - end with `blueprint-resolve-work-item` using the current `issueId` and a proof-bearing closeout comment when review is complete
+- if Blueprint automation lifecycle tools are gated or permission-denied, switch immediately to the local Paperclip API fallback using `scripts/paperclip/paperclip-api.sh` and continue the review loop there instead of burning the run on tool rediscovery
 
 gstack workflow:
 
