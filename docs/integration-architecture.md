@@ -369,33 +369,39 @@ To support the bridge cleanly, add these fields to the request document:
 
 The platform should be sold in this order:
 
-1. `Readiness Pack`
-- site intake + capture + qualification report
+1. `Exact-Site Hosted Review`
+- capture-backed hosted access for one real facility
 
-2. `Qualified Opportunity`
-- handoff-ready site brief for robot-team review
+2. `Evaluation Package`
+- deeper site-specific diligence once the hosted review is useful
 
-3. `Technical Evaluation`
-- deeper evaluation + geometry-backed diligence
+3. `Data Licensing / Derived Assets`
+- scoped package delivery, usage rights, and downstream assets
 
-4. `Deployment Prep / Managed Tuning`
-- scene package, validation, tuning, licensing
+4. `Managed Tuning / Deployment Support`
+- higher-touch validation, tuning, licensing, and deployment help
 
-The data model should reflect that ladder:
+The data model should reflect that ladder without making qualification the product center of gravity:
 
-- all requests start in qualification
-- only some become exchange items
-- only some exchange items escalate to deeper evaluation
-- only some of those become tuning or training engagements
+- requests may begin in review/qualification, but that is a support layer
+- hosted review and site-specific package delivery are the primary commercial surfaces
+- deeper evaluation, licensing, and managed tuning only activate for the subset of sites that justify them
 
-## Biggest Integration Gap
+## Current Bridge Status
 
-Right now:
+The production bridge is now implemented in:
 
-- `BlueprintCapturePipeline` emits the right artifacts
-- `Blueprint-WebApp` has the right state model
-- `BlueprintCapture` can provide the evidence package once export/finalization is fixed
+- [`server/routes/internal-pipeline.ts`](/Users/nijelhunt_1/workspace/Blueprint-WebApp/server/routes/internal-pipeline.ts)
+- [`server/utils/pipelineStateMachine.ts`](/Users/nijelhunt_1/workspace/Blueprint-WebApp/server/utils/pipelineStateMachine.ts)
 
-But the bridge that writes pipeline outputs back into Firestore and promotes eligible sites into live exchange inventory is still missing.
+Current posture:
 
-That bridge should be treated as the next high-priority systems integration.
+- `BlueprintCapturePipeline` emits the downstream artifacts
+- `Blueprint-WebApp` ingests those artifacts into inbound request state, proof-path milestones, and hosted-review readiness
+- buyer and ops surfaces can inspect bridge state through the internal pipeline status/readiness endpoints
+
+The remaining work is not "build the bridge" from scratch. The remaining work is operational:
+
+- keep production sync verified end to end
+- ensure live exchange promotion stays gated by truthful hosted-review readiness
+- keep docs and reporting surfaces aligned with the implemented bridge

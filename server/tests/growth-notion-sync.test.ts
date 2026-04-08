@@ -10,6 +10,8 @@ const mockDatabasesUpdate = vi.fn();
 const mockDatabasesQuery = vi.fn();
 const mockPagesCreate = vi.fn();
 const mockPagesUpdate = vi.fn();
+const mockVerifyGrowthIntegrations = vi.fn();
+const mockListContentOutcomeReviews = vi.fn();
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   default: {
@@ -47,6 +49,14 @@ vi.mock("@notionhq/client", () => ({
   })),
 }));
 
+vi.mock("../utils/growth-ops", () => ({
+  verifyGrowthIntegrations: mockVerifyGrowthIntegrations,
+}));
+
+vi.mock("../utils/content-ops", () => ({
+  listContentOutcomeReviews: mockListContentOutcomeReviews,
+}));
+
 const originalEnv = { ...process.env };
 
 function doc(id: string, data: Record<string, unknown>): DocLike {
@@ -54,24 +64,6 @@ function doc(id: string, data: Record<string, unknown>): DocLike {
     id,
     data: () => data,
   };
-}
-
-function queryKey(filter: unknown) {
-  const clauses = Array.isArray((filter as { and?: unknown[] })?.and)
-    ? ((filter as { and?: Array<Record<string, unknown>> }).and || [])
-    : [];
-
-  const findClause = (property: string) =>
-    clauses.find((clause) => clause.property === property) as
-      | { title?: { equals?: string }; select?: { equals?: string } }
-      | undefined;
-
-  return [
-    findClause("Title")?.title?.equals || "",
-    findClause("System")?.select?.equals || "",
-    findClause("Work Type")?.select?.equals || "",
-    findClause("Source Authority")?.select?.equals || "",
-  ].join("::");
 }
 
 describe("growth Notion sync", () => {
@@ -108,30 +100,14 @@ describe("growth Notion sync", () => {
     });
 
     mockDatabasesUpdate.mockResolvedValue({});
-    mockDatabasesQuery.mockImplementation(({ filter }) => ({
-      results: existingPagesByQueryKey.get(queryKey(filter)) || [],
-    }));
+    mockDatabasesQuery.mockResolvedValue({ results: [] });
     mockPagesCreate.mockResolvedValue({ id: "page-created", url: "https://notion.so/page-created" });
     mockPagesUpdate.mockResolvedValue({ id: "page-existing", url: "https://notion.so/page-existing" });
+    mockVerifyGrowthIntegrations.mockResolvedValue({ verificationId: "verification-1" });
+    mockListContentOutcomeReviews.mockResolvedValue([]);
   });
 
-  it("mirrors recent growth state into the Work Queue with source authority and sync stamps", async () => {
-    collectionDocs.set("action_ledger", [
-      doc("ledger-1", {
-        lane: "growth_campaign",
-        status: "pending_approval",
-        action_type: "send_campaign_emails",
-        action_payload: {
-          campaignId: "campaign-1",
-          subject: "Launch sequence",
-        },
-        draft_output: {
-          recommendation: "send_campaign",
-        },
-        created_at: new Date("2026-04-01T00:00:00.000Z"),
-        updated_at: new Date("2026-04-01T00:05:00.000Z"),
-      }),
-    ]);
+  it("mirrors recent Growth Studio state into the configured Notion databases with source authority and sync stamps", async () => {
     collectionDocs.set("growthCampaigns", [
       doc("campaign-1", {
         send_status: "draft",
@@ -182,23 +158,42 @@ describe("growth Notion sync", () => {
       }),
     ]);
 
-    existingPagesByQueryKey.set("Creative run: creative-run-1::WebApp::Refresh::app/API", [
-      { id: "page-existing" },
-    ]);
-
     const { syncGrowthStudioToNotion } = await import("../utils/notion-sync");
     const result = await syncGrowthStudioToNotion({ limit: 10 });
 
-    // Verify per-lane sync counts are present (each is a SyncCounts object)
     expect(result.shipBroadcastApprovalQueue).toEqual({ created: 0, updated: 0, errors: 0 });
-    expect(result.campaignDrafts).toEqual({ created: 0, updated: 0, errors: 0 });
-    expect(result.creativeRuns).toEqual({ created: 0, updated: 0, errors: 0 });
-    expect(result.integrationChecks).toEqual({ created: 0, updated: 0, errors: 0 });
+    expect(result.campaignDrafts).toEqual({ created: 1, updated: 0, errors: 0 });
+    expect(result.creativeRuns).toEqual({ created: 1, updated: 0, errors: 0 });
+    expect(result.integrationChecks).toEqual({ created: 1, updated: 0, errors: 0 });
     expect(result.contentOutcomeReviews).toEqual({ created: 0, updated: 0, errors: 0 });
-
-    // Verify processed and failed counts
-    expect(result.processedCount).toBe(0);
+    expect(result.processedCount).toBe(3);
     expect(result.failedCount).toBe(0);
+    expect(result.sourceCounts).toEqual({
+      shipBroadcastApprovals: 0,
+      campaignDrafts: 1,
+      creativeRuns: 1,
+      integrationVerifications: 1,
+      contentReviews: 0,
+    });
+
+    const campaignCreate = mockPagesCreate.mock.calls.find(([payload]) => {
+      const properties = (payload as { properties?: Record<string, unknown> }).properties || {};
+      return "Campaign ID" in properties;
+    })?.[0] as { properties: Record<string, any> } | undefined;
+
+    expect(campaignCreate).toBeTruthy();
+    expect(campaignCreate?.properties["Campaign ID"]).toEqual({
+      rich_text: [{ text: { content: "campaign-1" } }],
+    });
+    expect(campaignCreate?.properties["Authoritative Source"]).toEqual({
+      select: { name: "WebApp API / SendGrid" },
+    });
+    expect(campaignCreate?.properties["Last Synced At"]).toEqual({
+      date: { start: expect.any(String) },
+    });
+
+    // Legacy expectations kept here only as a regression guard for the empty ship-broadcast lane.
+    expect(result.shipBroadcastApprovalQueue).toEqual({ created: 0, updated: 0, errors: 0 });
   });
 
   it("returns zero counts when notion client is unavailable", async () => {

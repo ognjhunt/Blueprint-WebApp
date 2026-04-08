@@ -72,6 +72,8 @@ describe("alpha automation runtime autonomy", () => {
     const { runAgentTask } = await import("../agents/runtime");
     const result = await runAgentTask({
       kind: "payout_exception_triage",
+      provider: "openai_responses",
+      runtime: "openai_responses",
       input: {
         id: "payout-1",
       },

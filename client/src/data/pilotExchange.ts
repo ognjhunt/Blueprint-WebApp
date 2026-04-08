@@ -341,42 +341,42 @@ export const pilotExchangeFaq: PilotExchangeFaqItem[] = [
     id: "faq-06",
     question: "Who controls the site record and derived assets?",
     answer:
-      "Blueprint hosts the qualification record by default, while customers receive licensed access and usage rights for any approved derived assets. Private or higher-control terms are available for larger engagements.",
+      "Blueprint hosts the capture-backed site record by default, while customers receive licensed access and usage rights for approved hosted review sessions, evaluation packages, and derived assets. Private or higher-control terms are available for larger engagements.",
   },
 ];
 
 export const exchangeBusinessModelCards: ExchangeBusinessModelCard[] = [
   {
     id: "biz-01",
-    title: "Readiness Pack",
-    payer: "Location Site",
+    title: "Exact-Site Hosted Review",
+    payer: "Robotics Team",
     pricing: "$1.5K-$4K per site",
     description:
-      "The first product: site intake, capture, qualification, and a handoff-ready readiness pack.",
+      "The core wedge: one real site, truthful capture provenance, and a hosted review flow that lets buyers inspect the exact facility before deeper work.",
   },
   {
     id: "biz-02",
-    title: "Qualified Opportunity",
+    title: "Evaluation Package",
     payer: "Robotics Team",
     pricing: "$2K-$10K per brief or subscription",
     description:
-      "Robot teams pay to review qualified site briefs instead of chasing random leads.",
+      "Robot teams pay for a site-specific technical package once the hosted review shows a real workflow fit worth deeper diligence.",
   },
   {
     id: "biz-03",
-    title: "Technical Evaluation",
+    title: "Data Licensing / Derived Assets",
     payer: "Robotics Team",
     pricing: "$7.5K-$20K per site",
     description:
-      "Premium diligence for a specific robot, site, and workflow once both sides are serious.",
+      "Licensed scene memory, preview outputs, and derived assets for one exact site when the buyer needs the package, not just the review session.",
   },
   {
     id: "biz-04",
-    title: "Deployment Prep / Managed Tuning",
+    title: "Managed Tuning / Deployment Support",
     payer: "Robotics Team",
     pricing: "$20K-$100K+ scoped",
     description:
-      "Highest-touch lane for advanced validation, tuning, and later licensing on selected programs.",
+      "Highest-touch lane for validation, tuning, private rights terms, and deployment support on selected exact-site programs.",
   },
 ];
 
