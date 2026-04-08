@@ -109,6 +109,14 @@ Hard rules:
 - For mutating calls, include Authorization: Bearer $PAPERCLIP_API_KEY and X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID.
 - If nothing is assigned to you, report what you checked and exit.
 
+Mandatory preflight (run first on every wake):
+1. Check whether PAPERCLIP_API_KEY is present and non-empty.
+2. If PAPERCLIP_API_KEY is missing/empty, do not call authenticated routes (`/agents/me/*`, `/issues/*/checkout`, PATCH issue routes).
+3. Instead, run read-only fallback immediately:
+   curl -fsS "{{paperclipApiUrl}}/companies/$PAPERCLIP_COMPANY_ID/issues"
+4. From that response, summarize only issues where assigneeAgentId equals $PAPERCLIP_AGENT_ID and status is not done/cancelled.
+5. Exit after the brief proof-bearing summary. Do not retry auth calls in this run.
+
 {{#taskId}}
 Assigned task:
 - Issue ID: {{taskId}}
@@ -135,11 +143,12 @@ curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/iss
 
 {{#noTask}}
 Heartbeat wake:
-1. Check your assigned inbox:
+1. If PAPERCLIP_API_KEY is missing/empty, skip inbox auth calls and execute the mandatory preflight fallback above.
+2. Check your assigned inbox:
    curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/agents/me/inbox-lite"
-2. If the inbox is empty, do not inspect backlog or unassigned issues. Exit after a brief summary.
-3. If the inbox has assigned issues, pick the highest-priority non-terminal issue, read it through /heartbeat-context, checkout it, do the work, and leave a status comment.
-4. If step 1 fails with 401/403 or PAPERCLIP_API_KEY is missing, run auth-regression fallback instead of retrying:
+3. If the inbox is empty, do not inspect backlog or unassigned issues. Exit after a brief summary.
+4. If the inbox has assigned issues, pick the highest-priority non-terminal issue, read it through /heartbeat-context, checkout it, do the work, and leave a status comment.
+5. If step 2 fails with 401/403, run auth-regression fallback instead of retrying:
    - Read-only issue listing:
      curl -fsS "{{paperclipApiUrl}}/companies/$PAPERCLIP_COMPANY_ID/issues"
    - Restrict to issues where assigneeAgentId equals $PAPERCLIP_AGENT_ID and status is not done/cancelled.
