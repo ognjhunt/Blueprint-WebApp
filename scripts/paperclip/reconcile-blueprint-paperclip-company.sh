@@ -103,11 +103,16 @@ Hard rules:
 - Never pipe curl output into Python, Node, bash, or any other interpreter.
 - Prefer plain curl for reads, or a single-process Python/urllib fetch when you need local parsing.
 - Hermes terminal commands do not expand $ENV vars unless you invoke a shell. For auth-backed curl calls, run them through bash -lc so $PAPERCLIP_API_KEY and related vars expand before curl runs.
+- Use direct issue routes for issue reads and mutations: /issues/$ISSUE_ID, /issues/$ISSUE_ID/heartbeat-context, /issues/$ISSUE_ID/comments, /issues/$ISSUE_ID/checkout.
+- Do not invent company-scoped issue detail routes like /companies/$PAPERCLIP_COMPANY_ID/issues/$ISSUE_ID. They do not exist.
+- In inbox results, the id field is the API issue id to use in /issues/:id routes. The identifier field (for example BLU-3621) is only the human label.
 - Prefer GET {{paperclipApiUrl}}/agents/me/inbox-lite for assignment checks.
 - If PAPERCLIP_API_KEY is missing or an auth call returns 401/403, switch to auth-regression fallback immediately: use read-only company issue listing, summarize assigned open work, and exit without retries.
 - Never look for unassigned work.
 - Never self-assign from backlog.
 - For mutating calls, include Authorization: Bearer $PAPERCLIP_API_KEY and X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID.
+- Issue checkout is a POST to /issues/$ISSUE_ID/checkout with JSON body {"agentId":"$PAPERCLIP_AGENT_ID","expectedStatuses":["todo","backlog","blocked"]}. Do not fake checkout by PATCHing /issues/$ISSUE_ID with checkoutRunId.
+- A checkout request that omits agentId, expectedStatuses, or Content-Type: application/json will 400. Do not shorten or improvise the checkout command.
 - If nothing is assigned to you, report what you checked and exit.
 
 Mandatory preflight (run first on every wake):
@@ -148,8 +153,17 @@ Heartbeat wake:
 2. Check your assigned inbox:
    bash -lc 'curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/agents/me/inbox-lite"'
 3. If the inbox is empty, do not inspect backlog or unassigned issues. Exit after a brief summary.
-4. If the inbox has assigned issues, pick the highest-priority non-terminal issue, read it through /heartbeat-context, checkout it, do the work, and leave a status comment.
-5. If step 2 fails with 401/403, run auth-regression fallback instead of retrying:
+4. If the inbox has assigned issues, choose the target issue from the returned rows and store its id as ISSUE_ID. Use that UUID for every /issues/:id route.
+5. Read the selected issue through the direct issue routes:
+   - Metadata:
+     bash -lc 'curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/issues/$ISSUE_ID"'
+   - Compact work context:
+     bash -lc 'curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/issues/$ISSUE_ID/heartbeat-context"'
+6. Checkout rules:
+   - If the selected issue status is todo, backlog, or blocked, copy this exact checkout command and only replace ISSUE_ID:
+     bash -lc 'ISSUE_ID="$ISSUE_ID"; curl -fsS -X POST "{{paperclipApiUrl}}/issues/$ISSUE_ID/checkout" -H "Authorization: Bearer $PAPERCLIP_API_KEY" -H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID" -H "Content-Type: application/json" --data "{\"agentId\":\"$PAPERCLIP_AGENT_ID\",\"expectedStatuses\":[\"todo\",\"backlog\",\"blocked\"]}"'
+   - If the selected issue is already in_progress and assigned to you, do not PATCH it just to simulate checkout. Read /heartbeat-context and continue the work.
+7. If step 2 fails with 401/403, run auth-regression fallback instead of retrying:
    - Read-only issue listing:
      curl -fsS "{{paperclipApiUrl}}/companies/$PAPERCLIP_COMPANY_ID/issues"
    - Restrict to issues where assigneeAgentId equals $PAPERCLIP_AGENT_ID and status is not done/cancelled.
