@@ -13,6 +13,10 @@ import {
   upsertCreatorPayoutFromPipeline,
 } from "../utils/accounting";
 import { ensureCreatorStripeAccountId } from "../utils/stripeConnectAccounts";
+import {
+  computePipelineStateTransition,
+  checkHostedReviewReadiness,
+} from "../utils/pipelineStateMachine";
 import type {
   DerivedAssetEntry,
   DerivedAssetsAttachment,
@@ -21,6 +25,7 @@ import type {
   PipelineAttachment,
   PipelineArtifacts,
   QualificationState,
+  ProofPathMilestones,
 } from "../types/inbound-request";
 import { ZodError } from "zod";
 
@@ -356,23 +361,44 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       currentData?.ops && typeof currentData.ops === "object"
         ? (currentData.ops as Record<string, unknown>)
         : {};
-    const currentProofPath =
+    const currentProofPath: ProofPathMilestones =
       currentOps.proof_path && typeof currentOps.proof_path === "object"
-        ? (currentOps.proof_path as Record<string, unknown>)
-        : {};
-    const nextProofPath = { ...currentProofPath };
-    const shouldStampQualifiedInbound =
-      authoritativeStateUpdate &&
-      currentBuyerType === "robot_team" &&
-      (nextQualificationState === "qualified_ready" ||
-        nextQualificationState === "qualified_risky");
-    if (
-      shouldStampQualifiedInbound &&
-      !nextProofPath.qualified_inbound_at
-    ) {
-      nextProofPath.qualified_inbound_at =
-        admin.firestore.FieldValue.serverTimestamp() as never;
-    }
+        ? (currentOps.proof_path as ProofPathMilestones)
+        : {
+            exact_site_requested_at: null,
+            qualified_inbound_at: null,
+            proof_pack_delivered_at: null,
+            proof_pack_reviewed_at: null,
+            hosted_review_ready_at: null,
+            hosted_review_started_at: null,
+            hosted_review_follow_up_at: null,
+            artifact_handoff_delivered_at: null,
+            artifact_handoff_accepted_at: null,
+            human_commercial_handoff_at: null,
+          };
+
+    // Use the pipeline state machine for comprehensive state transition
+    const stateTransition = computePipelineStateTransition({
+      artifacts: pipeline.artifacts,
+      derivedAssets: derivedAssets || (currentData?.derived_assets as DerivedAssetsAttachment | undefined),
+      deploymentReadiness: deploymentReadiness || (currentData?.deployment_readiness as DeploymentReadinessSummary | undefined),
+      authoritativeStateUpdate,
+      explicitQualificationState: parsedBody.qualification_state,
+      explicitOpportunityState: parsedBody.opportunity_state,
+      currentQualificationState: nextQualificationState as QualificationState | undefined,
+      currentOpportunityState: nextOpportunityState as OpportunityState | undefined,
+      currentProofPath,
+      currentOps,
+      currentDerivedAssets: currentData?.derived_assets as DerivedAssetsAttachment | undefined,
+      currentDeploymentReadiness: currentData?.deployment_readiness as DeploymentReadinessSummary | undefined,
+    });
+
+    const finalQualificationState = authoritativeStateUpdate
+      ? stateTransition.qualificationState
+      : nextQualificationState;
+    const finalOpportunityState = authoritativeStateUpdate
+      ? stateTransition.opportunityState
+      : nextOpportunityState;
 
     const updatePayload: Record<string, unknown> = {
       pipeline,
@@ -391,13 +417,15 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       updatePayload.derived_assets = derivedAssets;
     }
 
-    if (deploymentReadiness) {
+    if (stateTransition.deploymentReadiness) {
+      updatePayload.deployment_readiness = stateTransition.deploymentReadiness;
+    } else if (deploymentReadiness) {
       updatePayload.deployment_readiness = deploymentReadiness;
     }
 
     const payoutRecommendationSource =
-      deploymentReadiness && typeof deploymentReadiness === "object"
-        ? (deploymentReadiness as Record<string, unknown>)
+      (stateTransition.deploymentReadiness || deploymentReadiness) && typeof (stateTransition.deploymentReadiness || deploymentReadiness) === "object"
+        ? ((stateTransition.deploymentReadiness || deploymentReadiness) as Record<string, unknown>)
         : null;
     const payoutRecommendation =
       payoutRecommendationSource &&
@@ -430,17 +458,32 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
     }
 
     if (authoritativeStateUpdate) {
-      updatePayload.status = nextQualificationState;
-      updatePayload.qualification_state = nextQualificationState;
-      updatePayload.opportunity_state = nextOpportunityState;
+      updatePayload.status = finalQualificationState;
+      updatePayload.qualification_state = finalQualificationState;
+      updatePayload.opportunity_state = finalOpportunityState;
     }
 
-    if (shouldStampQualifiedInbound) {
-      updatePayload.ops = {
-        ...currentOps,
-        proof_path: nextProofPath,
-      };
-    }
+    // Update ops envelope from state machine (includes proof path milestones)
+    const updatedOps = {
+      ...currentOps,
+      proof_path: stateTransition.proofPathUpdate.proofPath,
+      ...(stateTransition.opsUpdate.capturePolicyTier ? {
+        capture_policy_tier: stateTransition.opsUpdate.capturePolicyTier,
+      } : {}),
+      ...(stateTransition.opsUpdate.rightsStatus ? {
+        rights_status: stateTransition.opsUpdate.rightsStatus,
+      } : {}),
+      ...(stateTransition.opsUpdate.captureStatus ? {
+        capture_status: stateTransition.opsUpdate.captureStatus,
+      } : {}),
+      ...(stateTransition.opsUpdate.quoteStatus ? {
+        quote_status: stateTransition.opsUpdate.quoteStatus,
+      } : {}),
+      ...(stateTransition.opsUpdate.nextStep ? {
+        next_step: stateTransition.opsUpdate.nextStep,
+      } : {}),
+    };
+    updatePayload.ops = updatedOps;
 
     if (shouldCreate) {
       const placeholderRecord = buildPlaceholderInboundRequest({
@@ -487,6 +530,136 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
     }
     logger.error({ error }, "Failed to attach pipeline metadata");
     return res.status(500).json({ error: "Failed to attach pipeline metadata" });
+  }
+});
+
+/**
+ * GET /api/internal/pipeline/status/:requestId
+ *
+ * Inspect the current pipeline bridge state for a request: artifact inventory,
+ * milestone status, hosted review readiness, and recommended next action.
+ */
+router.get("/status/:requestId", requirePipelineToken, async (req: Request, res: Response) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: "Database not available" });
+    }
+
+    const doc = await db.collection("inboundRequests").doc(req.params.requestId).get();
+    if (!doc.exists) {
+      return res.status(404).json({ error: "Request not found", requestId: req.params.requestId });
+    }
+
+    const data = doc.data() as Record<string, unknown> | undefined;
+    if (!data) {
+      return res.status(404).json({ error: "Request has no data", requestId: req.params.requestId });
+    }
+
+    const pipeline = data.pipeline as (PipelineAttachment | undefined);
+    const derivedAssets = data.derived_assets as (DerivedAssetsAttachment | undefined);
+    const deploymentReadiness = data.deployment_readiness as (DeploymentReadinessSummary | undefined);
+    const ops = data.ops as (Record<string, unknown> | undefined);
+
+    const hostedReviewReadiness = checkHostedReviewReadiness({
+      artifacts: pipeline?.artifacts,
+      derivedAssets,
+    });
+
+    const stateTransition = computePipelineStateTransition({
+      artifacts: pipeline?.artifacts,
+      derivedAssets,
+      deploymentReadiness,
+      authoritativeStateUpdate: false,
+      currentQualificationState: data.qualification_state as QualificationState | undefined,
+      currentOpportunityState: data.opportunity_state as OpportunityState | undefined,
+      currentProofPath: (ops?.proof_path as ProofPathMilestones | undefined) ?? {
+        exact_site_requested_at: null,
+        qualified_inbound_at: null,
+        proof_pack_delivered_at: null,
+        proof_pack_reviewed_at: null,
+        hosted_review_ready_at: null,
+        hosted_review_started_at: null,
+        hosted_review_follow_up_at: null,
+        artifact_handoff_delivered_at: null,
+        artifact_handoff_accepted_at: null,
+        human_commercial_handoff_at: null,
+      },
+      currentOps: ops,
+      currentDeploymentReadiness: deploymentReadiness,
+    });
+
+    return res.json({
+      ok: true,
+      requestId: doc.id,
+      artifacts: {
+        total: stateTransition.artifactCount.total,
+        core: stateTransition.artifactCount.core,
+        inventory: pipeline?.artifacts ?? {},
+      },
+      milestones: stateTransition.proofPathUpdate.proofPath,
+      hostedReviewReadiness,
+      state: {
+        qualification: stateTransition.qualificationState,
+        opportunity: stateTransition.opportunityState,
+        recommendedAction: stateTransition.recommendedAction,
+        requiresHumanReview: stateTransition.requiresHumanReview,
+      },
+      ops: stateTransition.opsUpdate.opsAutomation,
+      deployment_readiness: stateTransition.deploymentReadiness,
+      pipelineSyncedAt: pipeline?.synced_at,
+    });
+  } catch (error) {
+    logger.error({ error }, "Failed to retrieve pipeline status");
+    return res.status(500).json({ error: "Failed to retrieve pipeline status" });
+  }
+});
+
+/**
+ * GET /api/internal/pipeline/hosted-readiness/:siteSubmissionId
+ *
+ * Check whether a site has sufficient pipeline outputs for buyer-facing
+ * hosted review. Used by the marketing/sales-facing surfaces to know when
+ * a site world is "live" for demos.
+ */
+router.get("/hosted-readiness/:siteSubmissionId", requirePipelineToken, async (req: Request, res: Response) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: "Database not available" });
+    }
+
+    const snapshot = await db
+      .collection("inboundRequests")
+      .where("site_submission_id", "==", req.params.siteSubmissionId)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ error: "Site submission not found" });
+    }
+
+    const data = snapshot.docs[0].data();
+    const pipeline = data?.pipeline as (PipelineAttachment | undefined);
+    const derivedAssets = data?.derived_assets as (DerivedAssetsAttachment | undefined);
+
+    const readiness = checkHostedReviewReadiness({
+      artifacts: pipeline?.artifacts,
+      derivedAssets,
+    });
+
+    return res.json({
+      ok: true,
+      siteSubmissionId: req.params.siteSubmissionId,
+      ...readiness,
+      pipeline: pipeline ? {
+        scene_id: pipeline.scene_id,
+        capture_id: pipeline.capture_id,
+        pipeline_prefix: pipeline.pipeline_prefix,
+        synced_at: pipeline.synced_at,
+      } : null,
+    });
+  } catch (error) {
+    logger.error({ error }, "Failed to check hosted readiness");
+    return res.status(500).json({ error: "Failed to check hosted readiness" });
   }
 });
 
