@@ -24,7 +24,7 @@ Good enough only when all of these are true:
 - `npm run alpha:preflight` passes with no required failures
 - `npm run smoke:agent` passes
 - `scripts/paperclip/verify-blueprint-paperclip.sh --smoke` passes
-- live connector re-auth is complete for the Claude GitHub connector and the `claude.ai Google Calendar` connector
+- GitHub webhook/plugin config and server-side Google Calendar wiring are complete
 - paid buyer flows, ops notifications, and production automation lanes are backed by real credentials, not local fallbacks
 
 ## Current Status
@@ -63,7 +63,7 @@ Observed on 2026-04-02:
   Why it blocks launch: buyer checkout auth, entitlements, pipeline attachment sync, queue persistence, and Firestore-backed automations depend on it.
 
 - [ ] One structured automation provider is live
-  Required env: one of `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `ACP_HARNESS_URL`
+  Required runtime: local Codex OAuth, or one of `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `ACP_HARNESS_URL`
   Why it blocks launch: autonomous lanes cannot run real agent tasks without it.
 
 - [ ] Stripe production wiring is complete
@@ -118,13 +118,13 @@ Observed on 2026-04-02:
   Recommended:
   - `BLUEPRINT_VOICE_BOOKING_URL`
 
-- [ ] Claude GitHub connector is re-authenticated
+- [ ] GitHub webhook/plugin config is healthy
   Evidence: follow [paperclip-connector-recovery-runbook.md](/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/paperclip-connector-recovery-runbook.md)
-  Pass condition: GitHub-dependent lanes stop surfacing connector-auth failures in runtime transcripts.
+  Pass condition: GitHub-dependent lanes stop surfacing webhook/plugin failures.
 
-- [ ] `claude.ai Google Calendar` connector is re-authenticated
+- [ ] Server-side Google Calendar wiring is healthy
   Evidence: follow [paperclip-connector-recovery-runbook.md](/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/paperclip-connector-recovery-runbook.md)
-  Pass condition: field-ops agent can complete a real calendar-backed booking/reschedule path without connector-auth failures.
+  Pass condition: field-ops agent can complete a real calendar-backed booking/reschedule path without calendar-config failures.
 
 - [ ] Agent runtime smoke passes against the selected provider
   Evidence: run `npm run smoke:agent`

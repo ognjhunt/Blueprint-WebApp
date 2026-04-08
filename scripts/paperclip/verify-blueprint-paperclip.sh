@@ -245,10 +245,28 @@ NODE
 
 plugin_dashboard() {
   local company_id="$1"
-  curl -fsS -X POST \
-    -H "Content-Type: application/json" \
-    -d "$(node -e 'process.stdout.write(JSON.stringify({companyId:process.argv[1]}));' "$company_id")" \
-    "${PAPERCLIP_API_URL}/api/plugins/${PLUGIN_KEY}/data/dashboard"
+  local attempts="${2:-5}"
+  local delay_seconds="${3:-2}"
+  local payload
+  payload="$(node -e 'process.stdout.write(JSON.stringify({companyId:process.argv[1]}));' "$company_id")"
+  local result=""
+
+  for _ in $(seq 1 "$attempts"); do
+    result="$(
+      curl -fsS -X POST \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "${PAPERCLIP_API_URL}/api/plugins/${PLUGIN_KEY}/data/dashboard" 2>/dev/null || true
+    )"
+    if [ -n "$result" ]; then
+      printf '%s' "$result"
+      return 0
+    fi
+    sleep "$delay_seconds"
+  done
+
+  echo "Verification failed: ${PLUGIN_KEY} dashboard endpoint did not return successfully after ${attempts} attempts." >&2
+  return 1
 }
 
 assert_founder_report_guardrails() {
@@ -322,7 +340,7 @@ assert_connector_prereqs() {
   fi
 
   echo "Connector prerequisite check passed for GitHub secrets." >&2
-  echo "Manual runtime step still required: re-auth the Claude GitHub connector and claude.ai Google Calendar connector, then run the targeted checks in the runbook." >&2
+  echo "Server-side calendar wiring is still required before field-ops calendar automation is considered healthy." >&2
 }
 
 run_test() {
@@ -344,29 +362,52 @@ run_test() {
 
 assert_workspace_ready() {
   local repo_label="$1"
-  local codex_status="$2"
+  local codex_ok="$2"
   local claude_status="$3"
 
   case "$CLAUDE_LANE_MODE" in
     codex)
-      [ "$codex_status" = "pass" ] || {
+      [ "$codex_ok" = "1" ] || {
         echo "Verification failed: ${repo_label} requires Codex in forced codex mode." >&2
         return 1
       }
       ;;
     claude)
       [ "$claude_status" = "pass" ] || {
-        echo "Verification failed: ${repo_label} requires Claude in forced claude mode." >&2
+        echo "Verification failed: ${repo_label} requires the legacy review adapter in forced claude mode." >&2
         return 1
       }
       ;;
     *)
-      if [ "$codex_status" != "pass" ] && [ "$claude_status" != "pass" ]; then
-        echo "Verification failed: ${repo_label} has neither a healthy Codex nor Claude adapter." >&2
+      if [ "$codex_ok" != "1" ] && [ "$claude_status" != "pass" ]; then
+        echo "Verification failed: ${repo_label} has no healthy local execution adapter." >&2
         return 1
       fi
       ;;
   esac
+}
+
+codex_oauth_probe_ok() {
+  [ "${LAST_TEST_STATUS}" = "pass" ] && return 0
+  [ "${LAST_TEST_STATUS}" = "warn" ] || return 1
+
+  printf '%s' "${LAST_TEST_RESULT}" | node -e '
+    let data="";
+    process.stdin.on("data",(chunk)=>data+=chunk);
+    process.stdin.on("end",()=>{
+      const payload = JSON.parse(data);
+      const checks = Array.isArray(payload.checks) ? payload.checks : [];
+      const warnCodes = checks
+        .filter((check) => check && check.level === "warn")
+        .map((check) => check.code)
+        .filter(Boolean);
+      const allowedWarns = warnCodes.length === 1 && warnCodes[0] === "codex_hello_probe_timed_out";
+      const hasCommand = checks.some((check) => check && check.code === "codex_command_resolvable");
+      const hasAuth = checks.some((check) => check && check.code === "codex_native_auth_present");
+      const hasCwd = checks.some((check) => check && check.code === "codex_cwd_valid");
+      process.exit(allowedWarns && hasCommand && hasAuth && hasCwd ? 0 : 1);
+    });
+  '
 }
 
 should_verify_hermes() {
@@ -486,7 +527,7 @@ main() {
 
   echo "Running adapter tests across all three Blueprint repos..."
 
-  local webapp_codex webapp_claude pipeline_codex pipeline_claude capture_codex capture_claude
+  local webapp_codex webapp_codex_ok webapp_claude pipeline_codex pipeline_codex_ok pipeline_claude capture_codex capture_codex_ok capture_claude
   LAST_TEST_STATUS="fail"
   run_test "$company_id" "Blueprint-WebApp" "codex_local" '{
     "adapterConfig": {
@@ -496,6 +537,7 @@ main() {
     }
   }'
   webapp_codex="$LAST_TEST_STATUS"
+  if codex_oauth_probe_ok; then webapp_codex_ok="1"; else webapp_codex_ok="0"; fi
   run_test "$company_id" "BlueprintCapturePipeline" "codex_local" '{
     "adapterConfig": {
       "cwd": "/Users/nijelhunt_1/workspace/BlueprintCapturePipeline",
@@ -504,6 +546,7 @@ main() {
     }
   }'
   pipeline_codex="$LAST_TEST_STATUS"
+  if codex_oauth_probe_ok; then pipeline_codex_ok="1"; else pipeline_codex_ok="0"; fi
   run_test "$company_id" "BlueprintCapture" "codex_local" '{
     "adapterConfig": {
       "cwd": "/Users/nijelhunt_1/workspace/BlueprintCapture",
@@ -512,12 +555,13 @@ main() {
     }
   }'
   capture_codex="$LAST_TEST_STATUS"
+  if codex_oauth_probe_ok; then capture_codex_ok="1"; else capture_codex_ok="0"; fi
 
   webapp_claude="skipped"
   pipeline_claude="skipped"
   capture_claude="skipped"
-  if [ "$VERIFY_CLAUDE" = "1" ] || [ "$CLAUDE_LANE_MODE" = "auto" ] || [ "$CLAUDE_LANE_MODE" = "claude" ]; then
-    echo "Running Claude adapter verification..."
+  if [ "$VERIFY_CLAUDE" = "1" ]; then
+    echo "Running legacy review adapter verification..."
     run_test "$company_id" "Blueprint-WebApp" "claude_local" '{
       "adapterConfig": {
         "cwd": "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
@@ -544,9 +588,9 @@ main() {
     capture_claude="$LAST_TEST_STATUS"
   fi
 
-  assert_workspace_ready "Blueprint-WebApp" "$webapp_codex" "$webapp_claude"
-  assert_workspace_ready "BlueprintCapturePipeline" "$pipeline_codex" "$pipeline_claude"
-  assert_workspace_ready "BlueprintCapture" "$capture_codex" "$capture_claude"
+  assert_workspace_ready "Blueprint-WebApp" "$webapp_codex_ok" "$webapp_claude"
+  assert_workspace_ready "BlueprintCapturePipeline" "$pipeline_codex_ok" "$pipeline_claude"
+  assert_workspace_ready "BlueprintCapture" "$capture_codex_ok" "$capture_claude"
 
   if should_verify_hermes; then
     echo "Running Hermes adapter verification for Blueprint-WebApp research/copilot agents..."

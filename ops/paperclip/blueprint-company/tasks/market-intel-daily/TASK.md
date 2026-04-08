@@ -11,6 +11,7 @@ Each run must:
 
 - read `ops/paperclip/programs/market-intel-program.md`
 - investigate competitor moves, world-model backend signals, regulatory changes, and robotics deployment market shifts
+- capture reusable source context in `knowledge/raw/web/<date>/...` and update the relevant page in `knowledge/compiled/market-intel/` before publishing the mirrored operator-facing artifact
 - convert findings into Blueprint-relevant implications instead of generic ecosystem summaries
 - create or update Paperclip issues for `growth-lead`, `robot-team-growth-agent`, `site-operator-partnership-agent`, or `blueprint-cto` when action is justified
 - leave explicit notes about what is evidence-backed, what is inferred, and what still needs validation

@@ -1,0 +1,264 @@
+import { inferChiefOfStaffRoute } from "../../../chief-of-staff-routing.js";
+import {
+  inferRepoAgentForTask,
+  type RepoAgentConfig,
+} from "./queue-routing.js";
+
+export type DelegationScaffoldingConfig = {
+  chiefOfStaffAgent: string;
+  ctoAgent?: string;
+  executiveOpsProjectName?: string;
+  repoCatalog: ReadonlyArray<RepoAgentConfig>;
+  opsAgents?: {
+    opsLead?: string;
+    intake?: string;
+    captureQa?: string;
+    fieldOps?: string;
+    financeSupport?: string;
+  };
+  growthAgents?: {
+    growthLead?: string;
+    conversionOptimizer?: string;
+    analytics?: string;
+    communityUpdates?: string;
+    marketIntel?: string;
+    demandIntel?: string;
+    robotTeamGrowth?: string;
+    siteOperatorPartnership?: string;
+    cityDemand?: string;
+    capturerGrowth?: string;
+  };
+};
+
+export type DelegationSourceHint = {
+  sourceType?: string | null;
+  sourceId?: string | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+export type ChiefOwnedBacklogDelegationPlan = {
+  title: string;
+  description: string;
+  projectName: string;
+  assignee: string;
+};
+
+type ChiefOwnedBacklogContext = {
+  identifier?: string | null;
+  title: string;
+  status: string;
+  projectName?: string | null;
+  currentAssignee?: string | null;
+  source?: DelegationSourceHint | null;
+  hasOpenChild?: boolean;
+};
+
+type SmokeArtifactContext = {
+  title: string;
+  status: string;
+  updatedAt?: string | null;
+  parentStatus?: string | null;
+  source?: DelegationSourceHint | null;
+};
+
+function normalize(value?: string | null) {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function normalizeLoose(value?: string | null) {
+  return normalize(value).replace(/[^a-z0-9]/g, "");
+}
+
+function hasAny(text: string, needles: string[]) {
+  return needles.some((needle) => text.includes(needle));
+}
+
+function repoConfigForAgent(
+  assignee: string | null | undefined,
+  repoCatalog: ReadonlyArray<RepoAgentConfig>,
+) {
+  const normalizedAssignee = normalize(assignee);
+  if (!normalizedAssignee) return null;
+
+  return repoCatalog.find((entry) =>
+    normalize(entry.implementationAgent) === normalizedAssignee
+    || normalize(entry.reviewAgent) === normalizedAssignee,
+  ) ?? null;
+}
+
+function repoConfigForProject(
+  projectName: string | null | undefined,
+  repoCatalog: ReadonlyArray<RepoAgentConfig>,
+) {
+  const normalizedProjectName = normalizeLoose(projectName);
+  if (!normalizedProjectName) return null;
+
+  return repoCatalog.find((entry) => (
+    [
+      entry.key,
+      entry.projectName,
+      entry.githubRepo,
+    ]
+      .map((value) => normalizeLoose(value))
+      .includes(normalizedProjectName)
+  )) ?? null;
+}
+
+function normalizeBacklogBaseTitle(title: string) {
+  return title
+    .trim()
+    .replace(/^follow through:\s*/i, "")
+    .replace(/^execute follow-through for\s+/i, "");
+}
+
+function specialistFromTitle(
+  title: string,
+  config: DelegationScaffoldingConfig,
+) {
+  const normalizedTitle = normalize(title);
+  const ops = config.opsAgents ?? {};
+  const growth = config.growthAgents ?? {};
+
+  if (normalizedTitle.includes("market intel")) return growth.marketIntel ?? "market-intel-agent";
+  if (normalizedTitle.includes("demand intel")) return growth.demandIntel ?? "demand-intel-agent";
+  if (normalizedTitle.includes("analytics")) return growth.analytics ?? "analytics-agent";
+  if (normalizedTitle.includes("community update")) return growth.communityUpdates ?? "community-updates-agent";
+  if (normalizedTitle.includes("investor")) return "investor-relations-agent";
+  if (normalizedTitle.includes("pricing")) return "revenue-ops-pricing-agent";
+  if (normalizedTitle.includes("security") || normalizedTitle.includes("procurement")) return "security-procurement-agent";
+  if (normalizedTitle.includes("city launch")) return "city-launch-agent";
+  if (normalizedTitle.includes("city demand")) return growth.cityDemand ?? "city-demand-agent";
+  if (normalizedTitle.includes("capturer growth")) return growth.capturerGrowth ?? "capturer-growth-agent";
+  if (normalizedTitle.includes("robot team")) return growth.robotTeamGrowth ?? "robot-team-growth-agent";
+  if (normalizedTitle.includes("site operator")) return growth.siteOperatorPartnership ?? "site-operator-partnership-agent";
+  if (normalizedTitle.includes("support") || normalizedTitle.includes("finance")) return ops.financeSupport ?? "finance-support-agent";
+  if (normalizedTitle.includes("intake") || normalizedTitle.includes("waitlist") || normalizedTitle.includes("inbound")) return ops.intake ?? "intake-agent";
+  if (normalizedTitle.includes("schedule") || normalizedTitle.includes("field ops")) return ops.fieldOps ?? "field-ops-agent";
+  if (normalizedTitle.includes("qa") || normalizedTitle.includes("quality")) return ops.captureQa ?? "capture-qa-agent";
+  if (normalizedTitle.includes("conversion") || normalizedTitle.includes("cro") || normalizedTitle.includes("experiment")) return growth.conversionOptimizer ?? "conversion-agent";
+  if (hasAny(normalizedTitle, ["blueprint knowledge", "repo-authoritative", "doc mirror"])) {
+    return ops.opsLead ?? "ops-lead";
+  }
+
+  return null;
+}
+
+export function isLikelySmokeArtifact(input: {
+  title: string;
+  source?: DelegationSourceHint | null;
+}) {
+  const normalizedTitle = normalize(input.title);
+  const sourceType = normalize(input.source?.sourceType);
+  const sourceId = normalize(input.source?.sourceId);
+
+  return hasAny(normalizedTitle, ["smoke ", " smoke", "smoke-", "smoke ci issue"])
+    || normalizedTitle.includes("evt_smoke_")
+    || normalizedTitle.includes("smoke support ticket")
+    || normalizedTitle.includes("smoke blocker")
+    || sourceType === "smoke-ci"
+    || sourceId.includes("smoke-")
+    || sourceId.includes("evt_smoke_");
+}
+
+export function shouldQuarantineSmokeArtifact(
+  input: SmokeArtifactContext,
+  nowIso: string,
+  graceMinutes = 5,
+) {
+  if (!isLikelySmokeArtifact({ title: input.title, source: input.source })) {
+    return false;
+  }
+  if (["done", "cancelled"].includes(normalize(input.status))) {
+    return false;
+  }
+  if (["done", "cancelled"].includes(normalize(input.parentStatus))) {
+    return true;
+  }
+
+  const updatedAtMs = Date.parse(input.updatedAt ?? "");
+  if (!Number.isFinite(updatedAtMs)) {
+    return true;
+  }
+  return Date.parse(nowIso) - updatedAtMs >= graceMinutes * 60 * 1000;
+}
+
+export function planChiefOwnedBacklogDelegation(
+  input: ChiefOwnedBacklogContext,
+  config: DelegationScaffoldingConfig,
+): ChiefOwnedBacklogDelegationPlan | null {
+  const status = normalize(input.status);
+  if (!["backlog", "todo"].includes(status)) {
+    return null;
+  }
+  if (input.hasOpenChild) {
+    return null;
+  }
+  if (isLikelySmokeArtifact({ title: input.title, source: input.source })) {
+    return null;
+  }
+
+  const chiefOfStaffAgent = normalize(config.chiefOfStaffAgent) || "blueprint-chief-of-staff";
+  const ctoAgent = normalize(config.ctoAgent) || "blueprint-cto";
+  const currentAssignee = normalize(input.currentAssignee);
+  if (currentAssignee !== chiefOfStaffAgent && currentAssignee !== ctoAgent) {
+    return null;
+  }
+
+  const projectName = input.projectName?.trim() || config.executiveOpsProjectName || "";
+  const repoProject = repoConfigForProject(projectName, config.repoCatalog);
+  const normalizedTitle = normalize(input.title);
+  const repoAgent = inferRepoAgentForTask(
+    {
+      projectName,
+      title: input.title,
+    },
+    config.repoCatalog,
+  );
+
+  let assignee =
+    repoProject && hasAny(normalizedTitle, ["platform context", "gpu contract", "gpu contracts", "bridge"])
+      ? repoProject.implementationAgent
+      : specialistFromTitle(input.title, config)
+    ?? repoAgent
+    ?? null;
+
+  if (!assignee) {
+    const route = inferChiefOfStaffRoute({
+      title: input.title,
+      status: input.status,
+      project: projectName ? { name: projectName } : null,
+    });
+    assignee = route?.assigneeKey ?? null;
+  }
+
+  if (!assignee || normalize(assignee) === currentAssignee) {
+    return null;
+  }
+
+  const assigneeRepo = repoConfigForAgent(assignee, config.repoCatalog);
+  const issueRepo = repoConfigForProject(projectName, config.repoCatalog);
+  const childProjectName =
+    assigneeRepo?.projectName
+    ?? issueRepo?.projectName
+    ?? projectName;
+
+  if (!childProjectName) {
+    return null;
+  }
+
+  const baseTitle = normalizeBacklogBaseTitle(input.title);
+  return {
+    title: `Follow through: ${baseTitle}`,
+    description: [
+      "Auto-created from a chief-of-staff owned backlog thread so execution moves into a concrete specialist lane.",
+      "",
+      `Parent issue: ${input.identifier?.trim() ? `${input.identifier} (${input.title})` : input.title}`,
+      `Oversight owner: ${input.currentAssignee?.trim() || "Unassigned"}`,
+      `Target owner: ${assignee}`,
+      "",
+      "This child issue is the execution lane. Keep the parent thread as managerial oversight only.",
+    ].join("\n"),
+    projectName: childProjectName,
+    assignee,
+  };
+}

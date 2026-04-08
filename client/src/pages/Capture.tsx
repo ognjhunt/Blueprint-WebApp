@@ -24,7 +24,7 @@ const steps = [
 
 const whoItsFor = [
   "People recording indoor spaces with a supported device.",
-  "Capturers who need the app handoff and basic expectations.",
+  "Capturers with an invite or access code who need the app handoff and basic expectations.",
   "Anyone who landed on the site looking for capture instructions instead of buyer information.",
 ];
 
@@ -33,7 +33,7 @@ export default function Capture() {
     <>
       <SEO
         title="Capture Basics | Blueprint"
-        description="A short explainer for Blueprint capturers and the mobile app handoff."
+        description="Blueprint capturer basics, invite/code-gated access, and the mobile app handoff."
         canonical="/capture"
         noIndex={true}
       />
@@ -52,8 +52,9 @@ export default function Capture() {
                 </h1>
                 <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
                   If you are recording a site for Blueprint, start here for the basics, then open
-                  the app. If you still need approval, apply for capturer access first. The main
-                  website is for robot teams buying access to real sites.
+                  the app. If you still need approval or an invite/access code, apply for capturer
+                  access first. Capturer access is invite- and code-gated, and approval is not
+                  guaranteed. The main website is for robot teams buying access to real sites.
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <a

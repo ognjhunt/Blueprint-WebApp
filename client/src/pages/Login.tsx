@@ -150,7 +150,8 @@ export default function Login() {
           <p className="text-sm font-semibold text-slate-900">Capturer?</p>
           <p className="mt-1 text-sm leading-6 text-slate-600">
             Capturers do not sign in on the web app. Use the mobile app to capture, upload,
-            and track payouts.
+            and track payouts. Capturer access is invite- and code-gated, and approval is not
+            guaranteed.
           </p>
           <a
             href="/signup/capturer"

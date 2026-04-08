@@ -11,6 +11,7 @@ Each run must:
 
 - read `ops/paperclip/programs/supply-intel-agent-program.md`
 - investigate recent marketplace supply-growth signals with emphasis on launch playbooks, channel economics, incentives, and city sequencing
+- capture reusable source context in `knowledge/raw/web/<date>/...` and update the relevant page in `knowledge/compiled/supply-intel/` before publishing any mirrored operator-facing artifact
 - convert findings into Blueprint-relevant implications instead of broad market commentary
 - create or update Paperclip issues for `capturer-growth-agent`, `city-launch-agent`, or `growth-lead` when action is justified
 - leave explicit notes about what is evidence-backed, what is inferred, and what is still missing

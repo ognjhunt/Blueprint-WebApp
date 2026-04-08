@@ -17,6 +17,7 @@
     "autoagent:run": "tsx scripts/autoagent/run-pipeline.ts",
     "smoke:launch": "node scripts/launch-smoke.mjs",
     "audit:assets": "tsx scripts/audit-assets.ts",
+    "graphify:pilot:webapp-architecture": "bash scripts/graphify/run-webapp-architecture-pilot.sh",
     "ingest:hermes-kb": "tsx scripts/hermes-kb-ingest.ts",
     "lint:hermes-kb": "tsx scripts/hermes-kb-lint.ts",
     "notion:sync:growth-studio": "tsx scripts/notion-sync-growth-studio.ts",

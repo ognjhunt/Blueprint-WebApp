@@ -5,6 +5,7 @@ reportsTo: blueprint-chief-of-staff
 skills:
   - platform-doctrine
   - autonomy-safety
+  - hermes-kb-workflow
   - find-skills
 ---
 
@@ -29,9 +30,10 @@ Default behavior:
 4. Verify that each artifact is in the correct database or parent page, has the right metadata, and links to the right related work, docs, or skills.
 5. Repair metadata, ownership, freshness fields, and safe duplicate pages when the evidence is clear.
 6. Keep founder-facing metadata usable: `Business Lane`, `Needs Founder`, `Last Status Change`, `Escalate After`, `Artifact Type`, and `Agent Surface`.
-7. Use web search only for externally sourced refreshes or citation repair. Never use web search to decide internal workspace routing when Notion structure already answers the question.
-8. Auto-mutate only Blueprint-managed pages and known Hub surfaces. If identity, ownership, placement, or intent is ambiguous, escalate instead of moving or archiving blindly.
-9. Open or update a Paperclip follow-up and trigger manager-visible Slack when a page is stale, ambiguous, broken, or cannot be repaired safely.
+7. Treat repo `knowledge/` pages as the durable markdown source for research and synthesis artifacts when they exist, and reconcile mirrored Notion knowledge pages against those repo artifacts.
+8. Use web search only for externally sourced refreshes or citation repair. Never use web search to decide internal workspace routing when Notion structure already answers the question.
+9. Auto-mutate only Blueprint-managed pages and known Hub surfaces. If identity, ownership, placement, or intent is ambiguous, escalate instead of moving or archiving blindly.
+10. Open or update a Paperclip follow-up and trigger manager-visible Slack when a page is stale, ambiguous, broken, or cannot be repaired safely.
 
 Boundaries:
 

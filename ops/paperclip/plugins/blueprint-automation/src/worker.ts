@@ -146,6 +146,11 @@ import {
   isInboundEngineeringQueueTask,
   preferredQueueRepoAgent,
 } from "./queue-routing.js";
+import { planBlockedIssueFollowUp } from "./blocked-followups.js";
+import {
+  planChiefOwnedBacklogDelegation,
+  shouldQuarantineSmokeArtifact,
+} from "./delegation-scaffolding.js";
 import { inferChiefOfStaffRoute } from "../../../chief-of-staff-routing.js";
 import {
   buildAnalyticsFollowUpIssues,
@@ -866,6 +871,9 @@ type ResolveManagedIssueInput = {
 };
 
 let currentContext: PluginContext | null = null;
+let toolRegistrationStarted = false;
+let toolRegistrationReady = false;
+let toolRegistrationError: string | null = null;
 let startupMaintenancePromise: Promise<void> | null = null;
 const PAPERCLIP_COMPANY_CONFIG_PATH = new URL("../../../blueprint-company/.paperclip.yaml", import.meta.url);
 let cachedPaperclipYamlConfig: { mtimeMs: number; config: PaperclipYamlConfig | null } | undefined;
@@ -2475,6 +2483,14 @@ async function wakeChiefOfStaff(
         reason: input.reason,
         remainingMs: CHIEF_OF_STAFF_WAKEUP_COOLDOWN_MS - elapsed,
       });
+      await appendRecentEvent(ctx, companyId, {
+        kind: "chief-of-staff-wakeup-skipped",
+        title: `Skipped chief-of-staff wakeup: ${input.title}`,
+        issueId:
+          input.eventIssueId
+          ?? (typeof input.payload.issueId === "string" ? input.payload.issueId : undefined),
+        detail: `Suppressed by cooldown with ${CHIEF_OF_STAFF_WAKEUP_COOLDOWN_MS - elapsed}ms remaining.`,
+      });
       return null;
     }
   }
@@ -2490,16 +2506,6 @@ async function wakeChiefOfStaff(
     return null;
   }
 
-  const wakeResult = await ctx.agents.wakeup(agent.id, companyId, {
-    source: "automation",
-    triggerDetail: "system",
-    reason: input.reason,
-    payload: input.payload,
-    idempotencyKey: input.idempotencyKey,
-  });
-
-  chiefOfStaffLastWakeupByCompany.set(companyId, Date.now());
-
   await appendRecentEvent(ctx, companyId, {
     kind: "chief-of-staff-wakeup",
     title: input.title,
@@ -2508,6 +2514,28 @@ async function wakeChiefOfStaff(
       ?? (typeof input.payload.issueId === "string" ? input.payload.issueId : undefined),
     detail: input.detail,
   });
+
+  let wakeResult: Awaited<ReturnType<typeof ctx.agents.wakeup>> | null = null;
+  try {
+    wakeResult = await ctx.agents.wakeup(agent.id, companyId, {
+      source: "automation",
+      triggerDetail: "system",
+      reason: input.reason,
+      payload: input.payload,
+      idempotencyKey: input.idempotencyKey,
+    });
+    chiefOfStaffLastWakeupByCompany.set(companyId, Date.now());
+  } catch (error) {
+    await appendRecentEvent(ctx, companyId, {
+      kind: "chief-of-staff-wakeup-failed",
+      title: `Failed chief-of-staff wakeup: ${input.title}`,
+      issueId:
+        input.eventIssueId
+        ?? (typeof input.payload.issueId === "string" ? input.payload.issueId : undefined),
+      detail: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
 
   if (input.postToSlack !== false) {
     const slackChannel = input.slackChannel ?? "#paperclip-manager";
@@ -2855,6 +2883,7 @@ async function runExecutionDispatchJob(
   companyId: string,
   config: BlueprintAutomationConfig,
 ) {
+  await runDelegationScaffoldingPass(ctx, companyId);
   const issues = await listAllIssues(ctx, companyId);
   const sourceMappings = await listSourceMappings(ctx, companyId).catch(() => []);
   const sourceMappingByIssueId = buildSourceMappingIndexByIssueId(sourceMappings);
@@ -3154,6 +3183,356 @@ async function handleChiefOfStaffIssueSignal(
   if (founderDigest) {
     await postFounderException(ctx, event.companyId, config, founderDigest).catch(() => undefined);
   }
+}
+
+function latestSubstantiveBlockedComment(comments: IssueComment[]) {
+  const ignoredPrefixes = [
+    "automation refresh",
+    "automation rerouted this issue",
+    "automation rerouted this execution issue",
+    "created follow-up blocker issue",
+    "repo scan cleared",
+  ];
+
+  const ordered = [...comments].sort(
+    (left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt),
+  );
+  return ordered.find((comment) => {
+    const body = comment.body.trim().toLowerCase();
+    if (!body) return false;
+    return !ignoredPrefixes.some((prefix) => body.startsWith(prefix));
+  }) ?? null;
+}
+
+async function maybeCreateBlockedIssueFollowUp(
+  ctx: PluginContext,
+  companyId: string,
+  issueId: string,
+) {
+  const issue = await ctx.issues.get(issueId, companyId);
+  if (!issue || issue.status !== "blocked") {
+    return null;
+  }
+
+  const [config, issues, agents, projects, comments] = await Promise.all([
+    getConfig(ctx),
+    listAllIssues(ctx, companyId),
+    listAgents(ctx, companyId),
+    listProjects(ctx, companyId),
+    listCommentsForIssue(ctx, companyId, issueId).catch(() => [] as IssueComment[]),
+  ]);
+
+  const activeChildren = issues.filter((candidate) =>
+    candidate.parentId === issue.id && !["done", "cancelled"].includes(candidate.status),
+  );
+  if (activeChildren.length > 0) {
+    return null;
+  }
+
+  const projectNameById = new Map(projects.map((project) => [project.id, project.name] as const));
+  const agentKeyById = new Map(
+    agents.map((agent) => [
+      agent.id,
+      normalizedCandidates(agent as unknown as Record<string, unknown>)[0] ?? agent.id,
+    ] as const),
+  );
+
+  const followUpPlan = planBlockedIssueFollowUp(
+    {
+      identifier: issue.identifier,
+      title: issue.title,
+      status: issue.status,
+      projectName: issue.projectId ? (projectNameById.get(issue.projectId) ?? null) : null,
+      currentAssignee: issue.assigneeAgentId ? (agentKeyById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId) : null,
+      blockerSummary: latestSubstantiveBlockedComment(comments)?.body ?? null,
+      hasOpenChild: activeChildren.length > 0,
+    },
+    {
+      chiefOfStaffAgent: getChiefOfStaffAgentKey(config),
+      ctoAgent: "blueprint-cto",
+      executiveOpsProjectName: EXECUTIVE_OPS_PROJECT,
+      repoCatalog: config.repoCatalog ?? DEFAULT_REPO_CATALOG,
+      opsAgents: {
+        opsLead: getOpsRoutingConfig(config).opsLead,
+        intake: getOpsRoutingConfig(config).intakeAgent,
+        captureQa: getOpsRoutingConfig(config).captureQaAgent,
+        fieldOps: getOpsRoutingConfig(config).fieldOpsAgent,
+        financeSupport: getOpsRoutingConfig(config).financeSupportAgent,
+      },
+      growthAgents: {
+        growthLead: getGrowthRoutingConfig(config).growthLead,
+        conversionOptimizer: getGrowthRoutingConfig(config).conversionOptimizer,
+        analytics: "analytics-agent",
+        communityUpdates: "community-updates-agent",
+        marketIntel: "market-intel-agent",
+        demandIntel: "demand-intel-agent",
+        robotTeamGrowth: "robot-team-growth-agent",
+        siteOperatorPartnership: "site-operator-partnership-agent",
+        cityDemand: "city-demand-agent",
+      },
+    },
+  );
+
+  if (!followUpPlan) {
+    return null;
+  }
+
+  return await createFollowUpIssue(ctx, companyId, {
+    parentIssueId: issue.id,
+    title: followUpPlan.title,
+    description: followUpPlan.description,
+    projectName: followUpPlan.projectName,
+    assignee: followUpPlan.assignee,
+    priority: issue.priority,
+  });
+}
+
+function buildDelegationScaffoldingConfig(config: BlueprintAutomationConfig) {
+  const opsAgents = config.opsDepartment?.agents;
+  const growthAgents = config.growthDepartment?.agents;
+  return {
+    chiefOfStaffAgent: getChiefOfStaffAgentKey(config),
+    ctoAgent: "blueprint-cto",
+    executiveOpsProjectName: EXECUTIVE_OPS_PROJECT,
+    repoCatalog: config.repoCatalog ?? DEFAULT_REPO_CATALOG,
+    opsAgents: {
+      opsLead: opsAgents?.opsLead ?? "ops-lead",
+      intake: opsAgents?.intake ?? "intake-agent",
+      captureQa: opsAgents?.captureQa ?? "capture-qa-agent",
+      fieldOps: opsAgents?.fieldOps ?? "field-ops-agent",
+      financeSupport: opsAgents?.financeSupport ?? "finance-support-agent",
+    },
+    growthAgents: {
+      growthLead: growthAgents?.growthLead ?? "growth-lead",
+      conversionOptimizer: growthAgents?.conversionOptimizer ?? "conversion-agent",
+      analytics: growthAgents?.analytics ?? "analytics-agent",
+      communityUpdates: growthAgents?.communityUpdates ?? "community-updates-agent",
+      marketIntel: growthAgents?.marketIntel ?? "market-intel-agent",
+      demandIntel: growthAgents?.demandIntel ?? "demand-intel-agent",
+      robotTeamGrowth: growthAgents?.robotTeamGrowth ?? "robot-team-growth-agent",
+      siteOperatorPartnership: growthAgents?.siteOperatorPartnership ?? "site-operator-partnership-agent",
+      cityDemand: growthAgents?.cityDemand ?? "city-demand-agent",
+      capturerGrowth: growthAgents?.capturerGrowth ?? "capturer-growth-agent",
+    },
+  };
+}
+
+async function createDelegatedFollowUpIssue(
+  ctx: PluginContext,
+  companyId: string,
+  input: {
+    parentIssueId: string;
+    title: string;
+    description: string;
+    projectName: string;
+    assignee: string;
+    priority?: string;
+  },
+) {
+  const project = await resolveProject(ctx, companyId, input.projectName);
+  const config = await getConfig(ctx);
+  const routedAssignee = routeManagedIssueAssignee(
+    {
+      projectName: input.projectName,
+      title: input.title,
+      description: input.description,
+      assignee: input.assignee,
+    },
+    config,
+  );
+  const assigneeResolution = await resolveAssignableAgent(ctx, companyId, config, routedAssignee);
+  const assignee = assigneeResolution.agent;
+  const followUp = await (ctx.issues.create as any)({
+    companyId,
+    projectId: project.id,
+    parentId: input.parentIssueId,
+    title: input.title,
+    description: `${input.description}\n\n## Delegation Trace\n- Parent issue: ${input.parentIssueId}`,
+    priority: normalizeIssuePriority(input.priority, "high"),
+    assigneeAgentId: assignee.id,
+    status: "todo",
+    originKind: ORIGIN_KIND,
+    originId: `delegation:${input.parentIssueId}:${input.projectName}:${input.title}`,
+  });
+  await ctx.issues.createComment(
+    input.parentIssueId,
+    `Created delegated follow-up issue ${followUp.id}: ${followUp.title}`,
+    companyId,
+  );
+  await appendRecentEvent(ctx, companyId, {
+    kind: "delegation-follow-up",
+    title: input.title,
+    issueId: followUp.id,
+    detail: `Parent issue ${input.parentIssueId}`,
+  });
+  await postSlackActivity(ctx, config, {
+    channel: slackChannelForAgent(assigneeResolution.selectedKey),
+    title: `Delegated follow-through handed to ${formatAgentName(assigneeResolution.selectedKey)}`,
+    summary: [
+      `What happened: A chief-owned backlog thread was delegated to ${formatAgentName(assigneeResolution.selectedKey)} for execution.`,
+      `Task: ${followUp.title}`,
+      `Parent issue: ${input.parentIssueId}`,
+      `Project: ${input.projectName}`,
+      `Priority: ${formatIssuePriority(followUp.priority) ?? followUp.priority}`,
+    ],
+  }).catch(() => undefined);
+  await wakeChiefOfStaff(ctx, companyId, config, {
+    reason: "delegation_follow_up_created",
+    idempotencyKey: `chief-of-staff:delegation-follow-up:${followUp.id}`,
+    payload: {
+      signalType: "delegation_follow_up_created",
+      issueId: followUp.id,
+      parentIssueId: input.parentIssueId,
+      assignee: assigneeResolution.selectedKey,
+      projectName: input.projectName,
+    },
+    title: "Chief of Staff wakeup from delegation follow-up",
+    detail: `${followUp.title} (${followUp.id}) was delegated to ${assigneeResolution.selectedKey}.`,
+    slackChannel: "#paperclip-manager",
+    slackTitle: "Manager update: work was delegated",
+    slackSummary: [
+      `What happened: A chief-owned backlog thread was delegated to ${formatAgentName(assigneeResolution.selectedKey)} for execution.`,
+      `Task: ${followUp.title}`,
+      `Project: ${input.projectName}`,
+    ],
+    suppressSlackIfSameTargetAsChannel: slackChannelForAgent(assigneeResolution.selectedKey),
+  }).catch(() => undefined);
+  return followUp;
+}
+
+async function maybeCreateChiefOwnedBacklogFollowUp(
+  ctx: PluginContext,
+  companyId: string,
+  issueId: string,
+) {
+  const [config, issue, issues, agents, projects, sourceMappings] = await Promise.all([
+    getConfig(ctx),
+    ctx.issues.get(issueId, companyId),
+    listAllIssues(ctx, companyId),
+    listAgents(ctx, companyId),
+    listProjects(ctx, companyId),
+    listSourceMappings(ctx, companyId),
+  ]);
+  if (!issue) {
+    return null;
+  }
+
+  const activeChildren = issues.filter((candidate) =>
+    candidate.parentId === issue.id && !["done", "cancelled"].includes(candidate.status),
+  );
+  if (activeChildren.length > 0) {
+    return null;
+  }
+
+  const projectNameById = new Map(projects.map((project) => [project.id, project.name] as const));
+  const agentKeyById = new Map(
+    agents.map((agent) => [
+      agent.id,
+      normalizedCandidates(agent as unknown as Record<string, unknown>)[0] ?? agent.id,
+    ] as const),
+  );
+  const mappingByIssueId = buildSourceMappingIndexByIssueId(sourceMappings);
+  const source = mappingByIssueId.get(issue.id);
+  const plan = planChiefOwnedBacklogDelegation(
+    {
+      identifier: issue.identifier,
+      title: issue.title,
+      status: issue.status,
+      projectName: issue.projectId ? (projectNameById.get(issue.projectId) ?? null) : null,
+      currentAssignee: issue.assigneeAgentId ? (agentKeyById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId) : null,
+      hasOpenChild: activeChildren.length > 0,
+      source: source
+        ? {
+          sourceType: source.sourceType,
+          sourceId: source.sourceId,
+          metadata: (source.metadata ?? {}) as Record<string, unknown>,
+        }
+        : null,
+    },
+    buildDelegationScaffoldingConfig(config),
+  );
+
+  if (!plan) {
+    return null;
+  }
+
+  return await createDelegatedFollowUpIssue(ctx, companyId, {
+    parentIssueId: issue.id,
+    title: plan.title,
+    description: plan.description,
+    projectName: plan.projectName,
+    assignee: plan.assignee,
+    priority: issue.priority,
+  });
+}
+
+async function runDelegationScaffoldingPass(
+  ctx: PluginContext,
+  companyId: string,
+) {
+  const [issues, sourceMappings] = await Promise.all([
+    listAllIssues(ctx, companyId),
+    listSourceMappings(ctx, companyId),
+  ]);
+  const mappingByIssueId = buildSourceMappingIndexByIssueId(sourceMappings);
+  const quarantined: string[] = [];
+  const delegated: string[] = [];
+  const now = nowIso();
+
+  for (const issue of issues) {
+    const source = mappingByIssueId.get(issue.id);
+    const parent = issue.parentId ? issues.find((candidate) => candidate.id === issue.parentId) ?? null : null;
+    if (shouldQuarantineSmokeArtifact(
+      {
+        title: issue.title,
+        status: issue.status,
+        updatedAt: toIsoTimestamp(issue.updatedAt),
+        parentStatus: parent?.status ?? null,
+        source: source
+          ? {
+            sourceType: source.sourceType,
+            sourceId: source.sourceId,
+            metadata: (source.metadata ?? {}) as Record<string, unknown>,
+          }
+          : null,
+      },
+      now,
+    )) {
+      await ctx.issues.update(issue.id, { status: "cancelled" }, companyId).catch(() => undefined);
+      await ctx.issues.createComment(
+        issue.id,
+        "Automation quarantined this smoke-test artifact so test traffic does not stay mixed into the real execution queue.",
+        companyId,
+      ).catch(() => undefined);
+      quarantined.push(issue.identifier);
+    }
+  }
+
+  const refreshedIssues = quarantined.length > 0
+    ? await listAllIssues(ctx, companyId)
+    : issues;
+  for (const issue of refreshedIssues) {
+    const followUp = await maybeCreateChiefOwnedBacklogFollowUp(ctx, companyId, issue.id).catch(() => null);
+    if (followUp?.identifier) {
+      delegated.push(`${issue.identifier}->${followUp.identifier}`);
+    }
+  }
+
+  if (quarantined.length > 0 || delegated.length > 0) {
+    await appendRecentEvent(ctx, companyId, {
+      kind: "delegation-scaffolding",
+      title: "Delegation scaffolding maintenance completed",
+      detail: [
+        quarantined.length > 0 ? `quarantined smoke: ${quarantined.join(", ")}` : null,
+        delegated.length > 0 ? `delegated backlog: ${delegated.join(", ")}` : null,
+      ].filter(Boolean).join(" | "),
+    });
+  }
+
+  return {
+    quarantined,
+    delegated,
+  };
 }
 
 async function handleChiefOfStaffRunFailureSignal(
@@ -4398,41 +4777,45 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
         title: slackCopy.title,
         summary: slackCopy.summary,
       }).catch(() => undefined);
-      const chiefOfStaffKey = getChiefOfStaffAgentKey(config);
-      const chiefOfStaffAgent = await resolveAgent(ctx, input.companyId, chiefOfStaffKey).catch(() => null);
-      const bindChiefToIssue = directChiefOfStaffWake || shouldBindChiefOfStaffToIssue(
-        chiefOfStaffAgent?.id ?? null,
-        currentIssue.assigneeAgentId ?? null,
-      );
-      await wakeChiefOfStaff(ctx, input.companyId, config, {
-        reason: isNewIssue ? "managed_issue_created" : "managed_issue_updated",
-        idempotencyKey: `chief-of-staff:managed-issue:${fingerprint}:${currentIssue.status}:${currentIssue.assigneeAgentId ?? "unassigned"}`,
-        payload: {
-          signalType: isNewIssue ? "managed_issue_created" : "managed_issue_updated",
-          ...(bindChiefToIssue ? { issueId: currentIssue.id } : { signalIssueId: currentIssue.id }),
-          fingerprint,
-          status: currentIssue.status,
-          assigneeAgentId: currentIssue.assigneeAgentId ?? null,
-          projectName: input.projectName,
-        },
-        eventIssueId: currentIssue.id,
-        title: isNewIssue
-          ? "Chief of Staff wakeup from managed issue creation"
-          : "Chief of Staff wakeup from managed issue update",
-        detail: `${currentIssue.title} (${currentIssue.id}) is ${currentIssue.status} in ${input.projectName}.`,
-        slackChannel: "#paperclip-manager",
-        slackTitle: `Manager update: ${slackCopy.title}`,
-        slackSummary: slackCopy.summary,
-        // Concrete manager-owned follow-through should not be swallowed by the generic wakeup cooldown.
-        bypassCooldown: directChiefOfStaffWake,
-        suppressSlackIfSameTargetAsChannel: slackChannelForAgent(assigneeResolution.selectedKey),
-      }).catch(() => undefined);
       await recordManagedIssueSlackAlert(ctx, input.companyId, {
         fingerprint,
         sourceType: input.sourceType,
         signature: slackAlertSignature,
       });
     }
+
+    const chiefOfStaffKey = getChiefOfStaffAgentKey(config);
+    const chiefOfStaffAgent = await resolveAgent(ctx, input.companyId, chiefOfStaffKey).catch(() => null);
+    const bindChiefToIssue = directChiefOfStaffWake || shouldBindChiefOfStaffToIssue(
+      chiefOfStaffAgent?.id ?? null,
+      currentIssue.assigneeAgentId ?? null,
+    );
+    await wakeChiefOfStaff(ctx, input.companyId, config, {
+      reason: isNewIssue ? "managed_issue_created" : "managed_issue_updated",
+      idempotencyKey: `chief-of-staff:managed-issue:${fingerprint}:${currentIssue.status}:${currentIssue.assigneeAgentId ?? "unassigned"}`,
+      payload: {
+        signalType: isNewIssue ? "managed_issue_created" : "managed_issue_updated",
+        ...(bindChiefToIssue ? { issueId: currentIssue.id } : { signalIssueId: currentIssue.id }),
+        fingerprint,
+        status: currentIssue.status,
+        assigneeAgentId: currentIssue.assigneeAgentId ?? null,
+        projectName: input.projectName,
+      },
+      eventIssueId: currentIssue.id,
+      title: isNewIssue
+        ? "Chief of Staff wakeup from managed issue creation"
+        : "Chief of Staff wakeup from managed issue update",
+      detail: `${currentIssue.title} (${currentIssue.id}) is ${currentIssue.status} in ${input.projectName}.`,
+      slackChannel: "#paperclip-manager",
+      slackTitle: `Manager update: ${slackCopy.title}`,
+      slackSummary: slackCopy.summary,
+      // Concrete manager-owned follow-through should not be swallowed by the generic wakeup cooldown.
+      bypassCooldown: directChiefOfStaffWake,
+      suppressSlackIfSameTargetAsChannel: slackChannelForAgent(assigneeResolution.selectedKey),
+      // Slack dedupe is handled separately from the wakeup itself.
+      postToSlack: !suppressManagedSlackAlert,
+    }).catch(() => undefined);
+
     await wakeAssignedAgent(ctx, input.companyId, config, {
       issue: currentIssue,
       assigneeKey: assigneeResolution.selectedKey,
@@ -8497,7 +8880,14 @@ async function registerActionHandlers(ctx: PluginContext) {
   ctx.actions.register(ACTION_KEYS.repairRouting, async (params) => {
     const config = await getConfig(ctx);
     const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
-    return await repairManagedIssueRouting(ctx, company.id, config);
+    const [routingRepair, scaffolding] = await Promise.all([
+      repairManagedIssueRouting(ctx, company.id, config),
+      runDelegationScaffoldingPass(ctx, company.id),
+    ]);
+    return {
+      routingRepair,
+      scaffolding,
+    };
   });
 
   ctx.actions.register(ACTION_KEYS.managerState, async (params) => {
@@ -10462,7 +10852,24 @@ const plugin: PaperclipPlugin = definePlugin({
     currentContext = ctx;
     await registerDataHandlers(ctx);
     await registerActionHandlers(ctx);
-    await registerToolHandlers(ctx);
+    if (!toolRegistrationStarted) {
+      toolRegistrationStarted = true;
+      void registerToolHandlers(ctx)
+        .then(() => {
+          toolRegistrationReady = true;
+          toolRegistrationError = null;
+        })
+        .catch((error) => {
+          toolRegistrationReady = false;
+          toolRegistrationError = error instanceof Error ? error.message : String(error);
+          ctx.logger.warn("blueprint tool registration failed", {
+            meta: {
+              error: toolRegistrationError,
+              stack: error instanceof Error ? error.stack : undefined,
+            },
+          });
+        });
+    }
     ctx.events.on("agent.run.failed", async (event) => {
       try {
         await handleAgentRunFailureQuotaFallback(ctx, event);
@@ -10507,6 +10914,30 @@ const plugin: PaperclipPlugin = definePlugin({
           },
         });
       }
+      try {
+        await maybeCreateBlockedIssueFollowUp(ctx, event.companyId, event.entityId);
+      } catch (error) {
+        ctx.logger.warn("issue.created blocked follow-up synthesis failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            issueId: event.entityId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+      try {
+        await maybeCreateChiefOwnedBacklogFollowUp(ctx, event.companyId, event.entityId);
+      } catch (error) {
+        ctx.logger.warn("issue.created backlog delegation synthesis failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            issueId: event.entityId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
     });
     ctx.events.on("issue.updated", async (event) => {
       if (!event.entityId) return;
@@ -10532,6 +10963,30 @@ const plugin: PaperclipPlugin = definePlugin({
         });
       } catch (error) {
         ctx.logger.warn("issue.updated chief-of-staff wakeup failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            issueId: event.entityId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+      try {
+        await maybeCreateBlockedIssueFollowUp(ctx, event.companyId, event.entityId);
+      } catch (error) {
+        ctx.logger.warn("issue.updated blocked follow-up synthesis failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            issueId: event.entityId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+      try {
+        await maybeCreateChiefOwnedBacklogFollowUp(ctx, event.companyId, event.entityId);
+      } catch (error) {
+        ctx.logger.warn("issue.updated backlog delegation synthesis failed", {
           meta: {
             companyId: event.companyId,
             eventId: event.eventId,
@@ -10658,10 +11113,16 @@ const plugin: PaperclipPlugin = definePlugin({
       const health = await readState<Record<string, unknown>>(currentContext, company.id, STATE_KEYS.health);
       return {
         status: (health?.status as PluginHealthDiagnostics["status"]) ?? "ok",
-        message: asString(health?.message) ?? "Blueprint automation is ready.",
+        message: toolRegistrationError
+          ? `Blueprint automation is ready with deferred tool-registration errors: ${toolRegistrationError}`
+          : toolRegistrationReady
+            ? (asString(health?.message) ?? "Blueprint automation is ready.")
+            : "Blueprint automation is ready; tool registration is still warming in the background.",
         details: {
           companyId: company.id,
           updatedAt: health?.updatedAt ?? null,
+          toolRegistrationReady,
+          toolRegistrationError,
         },
       };
     } catch (error) {

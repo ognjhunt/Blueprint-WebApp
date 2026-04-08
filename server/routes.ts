@@ -33,6 +33,7 @@ import experimentsRouter from "./routes/experiments";
 import requestsRouter from "./routes/requests";
 import marketplaceRouter from "./routes/marketplace";
 import internalPipelineRouter from "./routes/internal-pipeline";
+import internalGapIntakeRouter from "./routes/internal-gap-intake";
 import siteWorldsRouter from "./routes/site-worlds";
 import siteWorldSessionsRouter, { publicSiteWorldSessionsRouter } from "./routes/site-world-sessions";
 import { paperclipOpsFirestoreRelayHandler } from "./routes/paperclip-relay";
@@ -55,6 +56,7 @@ export function registerRoutes(app: Express) {
   app.use("/api/site-content", siteContentRouter);
   app.use("/api/experiments", experimentsRouter);
   app.use("/api/internal/pipeline", internalPipelineRouter);
+  app.use("/api/internal/gap-intake", internalGapIntakeRouter);
   app.post("/api/paperclip/ops-firestore-relay", paperclipOpsFirestoreRelayHandler);
   app.use("/api/site-worlds", siteWorldsRouter);
   app.use("/api/site-worlds/sessions", publicSiteWorldSessionsRouter);

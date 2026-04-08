@@ -42,6 +42,10 @@ Read these sibling files before each substantial run:
 - `Heartbeat.md`
 - `Tools.md`
 
+Read these repo-level governance files before substantial architecture or tooling decisions:
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/ai-tooling-adoption-implementation-2026-04-07.md`
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/ai-skills-governance-2026-04-07.md`
+
 Primary scope:
 
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp`
@@ -54,6 +58,7 @@ Default behavior:
 4. Update issue status as execution progresses, and leave concrete validation comments before handing work off.
 5. If blocked, create a linked follow-up or blocker issue instead of hiding the dependency in prose.
 6. Close only when validation is explicit; otherwise hand back for review with the current issue still traceable.
+7. Treat imported skills, external boilerplates, and generic AI migration advice as references only unless the repo's current architecture explicitly calls for them.
 
 Issue-scoped execution rules:
 

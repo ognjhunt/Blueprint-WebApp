@@ -12,7 +12,7 @@ goals:
   - Strengthen Blueprint's capture-first, world-model-product-first platform across the webapp, capture pipeline, and capture clients.
 ---
 
-Blueprint Autonomous Operations exists to coordinate Codex and Claude Code agents across the three Blueprint repos without manual session babysitting.
+Blueprint Autonomous Operations exists to coordinate Codex, Claude, and Hermes-backed agents across the three Blueprint repos without manual session babysitting.
 
 Operating priorities:
 
@@ -27,3 +27,4 @@ Non-goals:
 - turning Blueprint into a qualification-first company
 - coupling the platform to one model provider
 - presenting generated downstream artifacts as primary truth
+- letting agent-specific defaults silently introduce new primary services or fork source-of-truth systems

@@ -1,0 +1,19 @@
+# Approved first-pass corpus for the Blueprint-WebApp architecture graph pilot
+
+PLATFORM_CONTEXT.md
+WORLD_MODEL_STRATEGY_CONTEXT.md
+AUTONOMOUS_ORG.md
+docs/
+knowledge/compiled/
+knowledge/indexes/
+knowledge/README.md
+knowledge/AGENTS.md
+ops/paperclip/
+server/agents/
+server/utils/opsAutomationScheduler.ts
+server/utils/agent-graduation.ts
+server/utils/notion-sync.ts
+server/utils/autonomous-growth.ts
+server/routes/admin-agent.ts
+server/routes/admin-growth.ts
+server/routes/paperclip-relay.ts

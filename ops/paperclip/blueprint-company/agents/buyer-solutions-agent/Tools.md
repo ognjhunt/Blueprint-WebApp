@@ -5,6 +5,10 @@
 - Firestore inbound requests (`inbound_requests` collection)
 - Pipeline attachment sync output (qualification state, opportunity state, derived assets)
 - WebApp admin leads view (`/admin/leads`)
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/hermes-kb-design.md`
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/knowledge/AGENTS.md`
+- repo KB pages under `knowledge/compiled/buyer-dossiers/` and relevant `knowledge/reports/account-research/`
+  Use these for durable buyer context and reusable proof framing. Verify live delivery state in Paperclip, Firestore, and product surfaces before acting.
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md`
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/WORLD_MODEL_STRATEGY_CONTEXT.md`
 
@@ -12,6 +16,7 @@
 - Create and maintain buyer journey issues in Paperclip (one per qualified buyer request)
 - Update journey stage as progress happens
 - Draft buyer-facing proof summaries (what is available, what it covers, how to evaluate)
+- write or update a buyer dossier in repo KB when the research or proof framing is reusable beyond the active thread
 - Request capture jobs via handoff to ops-lead when no matching capture exists
 - Request package status from capture-qa-agent or pipeline agents
 
@@ -25,6 +30,7 @@
 
 ## Trust Model
 - Pipeline artifacts and Firestore state are evidence. Buyer emails and conversations are context.
+- Repo KB is reusable support memory. It does not decide buyer readiness or package truth.
 - Never tell a buyer something is ready based on memory alone — verify current state.
 - If a buyer request is ambiguous, ask for clarification before committing pipeline resources.
 

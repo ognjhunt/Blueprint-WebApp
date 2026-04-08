@@ -96,7 +96,7 @@ describe("quota fallback helpers", () => {
   it("does not carry Codex or Claude model ids onto Hermes free fallback", () => {
     expect(isIncompatibleHermesFreeRoutingModel("gpt-5.4-mini")).toBe(true);
     expect(isIncompatibleHermesFreeRoutingModel("claude-sonnet-4-6")).toBe(true);
-    expect(isIncompatibleHermesFreeRoutingModel("qwen/qwen3.6-plus:free")).toBe(false);
+    expect(isIncompatibleHermesFreeRoutingModel("arcee-ai/trinity-large-preview:free")).toBe(false);
     expect(isIncompatibleHermesFreeRoutingModel("openai/gpt-oss-120b:free")).toBe(false);
 
     expect(
@@ -119,7 +119,7 @@ describe("quota fallback helpers", () => {
     expect(
       resolveHermesFallbackModels({
         cwd: "/tmp/project",
-        model: "qwen/qwen3.6-plus:free",
+        model: "arcee-ai/trinity-large-preview:free",
       }),
     ).toEqual([...DEFAULT_HERMES_FALLBACK_MODELS]);
   });
@@ -128,9 +128,9 @@ describe("quota fallback helpers", () => {
     expect(
       buildNextHermesFallbackAdapterConfig({
         cwd: "/tmp/project",
-        model: "qwen/qwen3.6-plus:free",
+        model: "arcee-ai/trinity-large-preview:free",
         [HERMES_MODEL_LADDER_CONFIG_KEY]: [
-          "qwen/qwen3.6-plus:free",
+          "arcee-ai/trinity-large-preview:free",
           "openrouter/free",
           "stepfun/step-3.5-flash:free",
         ],
@@ -151,13 +151,13 @@ describe("quota fallback helpers", () => {
         model: "gpt-5.4-mini",
         [HERMES_MODEL_LADDER_CONFIG_KEY]: [
           "gpt-5.4-mini",
-          "qwen/qwen3.6-plus:free",
+          "arcee-ai/trinity-large-preview:free",
           "openrouter/free",
         ],
       }),
     ).toEqual({
       cwd: "/tmp/project",
-      model: "qwen/qwen3.6-plus:free",
+      model: "arcee-ai/trinity-large-preview:free",
       [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
       modelReasoningEffort: "xhigh",
       timeoutSec: 1800,

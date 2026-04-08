@@ -20,5 +20,6 @@ Before editing KB pages:
 Scaffolding commands:
 
 - `npm run ingest:hermes-kb -- --help`
-- `npm run ingest:hermes-kb -- raw-source --source-system web --title "Example source" --source-url https://example.com`
-- `npm run ingest:hermes-kb -- compiled-page --category market-intel --title "Example page" --owner demand-intel-agent --source-system web --source-url https://example.com`
+- `npm run ingest:hermes-kb -- raw-source --source-system web --title "Example source" --source-url https://example.com --captured-at 2026-04-07`
+- `npm run ingest:hermes-kb -- compiled-page --category demand-intel --title "Example page" --owner demand-intel-agent --source-system web --source-url https://example.com`
+- `npm run ingest:hermes-kb -- report --category account-research --title "Example account memo" --owner buyer-solutions-agent --source-system web --source-url https://example.com`

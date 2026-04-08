@@ -50,10 +50,27 @@ company_id() {
 
 dashboard_json() {
   local company_id="$1"
-  curl -fsS -X POST \
-    -H "Content-Type: application/json" \
-    -d "$(node -e 'process.stdout.write(JSON.stringify({companyId:process.argv[1],params:{companyId:process.argv[1]}}));' "$company_id")" \
-    "${PAPERCLIP_SMOKE_URL}/api/plugins/${PLUGIN_KEY}/data/dashboard"
+  local attempts="${2:-5}"
+  local delay_seconds="${3:-2}"
+  local payload
+  payload="$(node -e 'process.stdout.write(JSON.stringify({companyId:process.argv[1],params:{companyId:process.argv[1]}}));' "$company_id")"
+  local result=""
+
+  for _ in $(seq 1 "$attempts"); do
+    result="$(
+      curl -fsS -X POST \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "${PAPERCLIP_SMOKE_URL}/api/plugins/${PLUGIN_KEY}/data/dashboard" 2>/dev/null || true
+    )"
+    if [ -n "$result" ]; then
+      printf '%s' "$result"
+      return 0
+    fi
+    sleep "$delay_seconds"
+  done
+
+  return 1
 }
 
 manager_state_json() {
@@ -67,12 +84,14 @@ manager_state_json() {
 wait_for_manager_wakeup() {
   local company_id="$1"
   local issue_id="$2"
-  local attempts="${3:-20}"
+  local attempts="${3:-60}"
   local sleep_seconds="${4:-1}"
 
   for _ in $(seq 1 "$attempts"); do
-    if dashboard_json "$company_id" \
-      | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const body=JSON.parse(data).data;const issueId=process.argv[1];const match=(body.recentEvents||[]).find((row)=>row.kind==="chief-of-staff-wakeup" && ((row.issueId||"")===issueId || String(row.detail||"").includes(issueId)));process.exit(match ? 0 : 1);});' "$issue_id"; then
+    local dashboard_payload
+    dashboard_payload="$(dashboard_json "$company_id" 2>/dev/null || true)"
+    if [ -n "$dashboard_payload" ] && printf '%s' "$dashboard_payload" \
+      | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{if(!data.trim()){process.exit(1);}const body=JSON.parse(data).data;const issueId=process.argv[1];const match=(body.recentEvents||[]).find((row)=>(row.kind==="chief-of-staff-wakeup" || row.kind==="chief-of-staff-wakeup-skipped") && ((row.issueId||"")===issueId || String(row.detail||"").includes(issueId)));process.exit(match ? 0 : 1);});' "$issue_id"; then
       return 0
     fi
     sleep "$sleep_seconds"
@@ -225,7 +244,7 @@ main() {
   echo "firestore issue: ${firestore_issue}"
   echo "stripe issue: ${stripe_issue}"
   echo "support issue: ${support_issue}"
-  echo "Connector auth note: runtime GitHub/Google Calendar connector re-auth is a separate operator step. See ${CONNECTOR_RUNBOOK_PATH}"
+  echo "Calendar wiring note: server-side Google Calendar configuration is a separate operator step. See ${CONNECTOR_RUNBOOK_PATH}"
 }
 
 main "$@"

@@ -5,6 +5,7 @@ reportsTo: growth-lead
 skills:
   - platform-doctrine
   - autonomy-safety
+  - hermes-kb-workflow
   - find-skills
   - product-marketing-context
   - supply-marketplace-research

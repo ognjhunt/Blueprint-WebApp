@@ -49,6 +49,7 @@ knowledge/
   compiled/
     README.md
     market-intel/
+    demand-intel/
     supply-intel/
     buyer-dossiers/
     playbooks/
@@ -246,11 +247,14 @@ Use `npm run ingest:hermes-kb -- <command> ...` to scaffold new KB entries from 
 Supported commands:
 
 - `raw-source`
-  - creates `knowledge/raw/<source-system>/<slug>/source-note.md`
+  - creates `knowledge/raw/<source-system>/<YYYY-MM-DD>/<slug>/source-note.md`
   - accepts repeated source locators and optional open questions
 - `compiled-page`
   - creates `knowledge/compiled/<category>/<slug>.md`
   - updates backlinks, open questions, contradictions, and stale-page cleanup based on the flags provided
+- `report`
+  - creates `knowledge/reports/<category>/<YYYY-MM-DD>-<slug>.md`
+  - supports linked KB pages and recommended follow-up scaffolding
 
 Run `npm run ingest:hermes-kb -- --help` for the current flag set.
 
@@ -260,13 +264,15 @@ Run `npm run ingest:hermes-kb -- --help` for the current flag set.
 
 Start with the agents whose work is already synthesis-heavy and low-risk with respect to company authority:
 
-1. `demand-intel-agent`
-   - writes `knowledge/raw/web/`, `knowledge/compiled/market-intel/`, and `knowledge/reports/account-research/`
-2. `supply-intel-agent`
+1. `market-intel-agent`
+   - writes `knowledge/raw/web/`, `knowledge/compiled/market-intel/`, and mirrored operator-facing research artifacts
+2. `demand-intel-agent`
+   - writes `knowledge/raw/web/`, `knowledge/compiled/demand-intel/`, and `knowledge/reports/account-research/`
+3. `supply-intel-agent`
    - writes `knowledge/raw/web/`, `knowledge/compiled/supply-intel/`, and `knowledge/reports/launch-research/`
-3. `buyer-solutions-agent`
+4. `buyer-solutions-agent`
    - writes `knowledge/compiled/buyer-dossiers/` and account-specific `knowledge/reports/account-research/`
-4. `solutions-engineering-agent`
+5. `solutions-engineering-agent`
    - writes `knowledge/compiled/playbooks/` and technical buyer reports
 
 ### Phase 1 readers
@@ -326,10 +332,9 @@ When a page touches company policy, work state, or package truth, it must link t
 
 ## Recommended Next Implementation Step
 
-This repo change establishes the file contract and linting. The next implementation step should be a small ingest helper that:
+This repo now has the file contract, linting, and ingest helper. The next implementation step should be operational adoption:
 
-- creates dated source folders in `knowledge/raw/`
-- scaffolds compiled pages from templates
-- updates index files after a write
-
-That helper should come after at least a few manual KB pages prove the schema is actually ergonomic for Hermes.
+- attach the KB workflow skill to the Phase 1 writer and reader agents
+- make writer agents update `knowledge/` before publishing mirrored Notion artifacts
+- make reader agents use KB pages for continuity without treating them as execution truth
+- keep the repo KB as the durable markdown work surface and Notion as the mirrored review surface

@@ -25,7 +25,7 @@ export default function CaptureAppPlaceholder() {
     <>
       <SEO
         title="Capture App | Blueprint"
-        description="Open the Blueprint capture app or request capture access."
+        description="Open the Blueprint capture app or request invite-gated capturer access."
         canonical="/capture-app"
         noIndex={true}
       />
@@ -43,7 +43,8 @@ export default function CaptureAppPlaceholder() {
             <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
               This is the public handoff for people recording indoor spaces for Blueprint. If
               you are here to buy world models, go to the catalog instead. If you still need
-              approval, apply for capturer access first.
+              approval or an invite/access code, apply for capturer access first. Capturer access
+              is invite- and code-gated, and approval is not guaranteed.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">

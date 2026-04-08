@@ -42,4 +42,25 @@ describe("chief of staff issue router", () => {
 
     expect(route?.assigneeKey).toBe("solutions-engineering-agent");
   });
+
+  it("routes bootstrap issues to their owning specialist agents", () => {
+    const route = inferChiefOfStaffRoute({
+      title: "Investor Relations Agent Bootstrap",
+      status: "todo",
+      project: { name: "Blueprint Executive Ops" },
+    });
+
+    expect(route?.assigneeKey).toBe("investor-relations-agent");
+  });
+
+  it("routes knowledge freshness cleanup to notion-manager-agent", () => {
+    const route = inferChiefOfStaffRoute({
+      title: "Ensure Knowledge DB entries have review timestamps and stale entries get flagged",
+      status: "backlog",
+      project: { name: "Blueprint Executive Ops" },
+    });
+
+    expect(route?.assigneeKey).toBe("notion-manager-agent");
+    expect(route?.status).toBe("todo");
+  });
 });

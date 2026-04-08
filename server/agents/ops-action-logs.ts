@@ -10,6 +10,24 @@ function nowTimestamp() {
   return admin.firestore.FieldValue.serverTimestamp();
 }
 
+function stripUndefinedDeep<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value
+      .filter((entry) => entry !== undefined)
+      .map((entry) => stripUndefinedDeep(entry)) as T;
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([, entry]) => entry !== undefined)
+        .map(([key, entry]) => [key, stripUndefinedDeep(entry)]),
+    ) as T;
+  }
+
+  return value;
+}
+
 export async function recordOpsActionLog(
   params: Omit<PersistedOpsActionLog, "id" | "created_at"> & { id?: string },
 ) {
@@ -37,7 +55,7 @@ export async function recordOpsActionLog(
   };
 
   try {
-    await db.collection(ACTION_LOG_COLLECTION).doc(record.id).set(record);
+    await db.collection(ACTION_LOG_COLLECTION).doc(record.id).set(stripUndefinedDeep(record));
   } catch (error) {
     logger.warn(
       {

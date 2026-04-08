@@ -5,6 +5,9 @@
   Use this to understand which producer runs completed, which ones blocked, and which issues need follow-through.
 - Paperclip issues, comments, and routine proof
   This is the source of truth for execution ownership and next actions.
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/hermes-kb-design.md`
+- repo KB under `/Users/nijelhunt_1/workspace/Blueprint-WebApp/knowledge/`
+  Use this as the durable markdown source when reconciling mirrored research and synthesis artifacts.
 - Blueprint Hub page: `https://www.notion.so/16d80154161d80db869bcfba4fe70be3`
 - Blueprint Work Queue: `collection://51d93d65-8a00-4dd4-a9a2-fd9a6e69120d`
 - Blueprint Knowledge: `collection://b9e4ca9c-db43-4a16-9780-f15eb100c8b4`
@@ -39,6 +42,7 @@
 
 ## Trust Model
 - Paperclip issue state outranks Notion page state for execution truth
+- repo KB outranks Notion Knowledge pages for durable markdown research artifacts when both exist
 - Blueprint-managed Hub structure outranks ad-hoc page placement guesses
 - explicit page relations outrank inferred relationships from titles alone
 

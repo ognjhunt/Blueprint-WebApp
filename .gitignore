@@ -35,3 +35,14 @@ playwright-report/
 # Git worktrees
 .worktrees/
 .gstack/
+
+# Local graph generation artifacts
+graphify-out/
+.graphify_*
+.graphifyignore.local
+derived/graphify/*
+!derived/graphify/README.md
+!derived/graphify/webapp-architecture/
+derived/graphify/webapp-architecture/*
+!derived/graphify/webapp-architecture/README.md
+!derived/graphify/webapp-architecture/corpus.manifest.txt

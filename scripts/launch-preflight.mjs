@@ -65,11 +65,34 @@ function isTruthy(value) {
 
 const failures = [];
 const warnings = [];
+const preflightMode = String(process.env.BLUEPRINT_ALPHA_PREFLIGHT_MODE || "strict").trim().toLowerCase();
+const waivedRequirements = preflightMode === "local_test"
+  ? new Set(
+    String(process.env.BLUEPRINT_ALPHA_PREFLIGHT_WAIVERS || "")
+      .split(/[,\n]+/)
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean),
+  )
+  : new Set();
 
 function requireCheck(ok, message) {
   if (!ok) {
     failures.push(message);
   }
+}
+
+function requireCheckWithWaiver(key, ok, message) {
+  if (ok) {
+    return;
+  }
+
+  const normalizedKey = key.trim().toLowerCase();
+  if (waivedRequirements.has(normalizedKey)) {
+    warnings.push(`${message} Waived in local_test mode by BLUEPRINT_ALPHA_PREFLIGHT_WAIVERS=${normalizedKey}.`);
+    return;
+  }
+
+  failures.push(message);
 }
 
 function warnCheck(ok, message) {
@@ -97,16 +120,19 @@ requireCheck(
   "One structured automation provider is required for alpha launch. Configure local Codex OAuth or set OPENAI_API_KEY, ANTHROPIC_API_KEY, or ACP_HARNESS_URL.",
 );
 
-requireCheck(Boolean(envValue("STRIPE_SECRET_KEY")), "STRIPE_SECRET_KEY is required for checkout.");
-requireCheck(
+requireCheckWithWaiver("stripe", Boolean(envValue("STRIPE_SECRET_KEY")), "STRIPE_SECRET_KEY is required for checkout.");
+requireCheckWithWaiver(
+  "stripe",
   Boolean(envValue("STRIPE_CONNECT_ACCOUNT_ID")),
   "STRIPE_CONNECT_ACCOUNT_ID is required for creator payout and onboarding flows.",
 );
-requireCheck(
+requireCheckWithWaiver(
+  "stripe",
   Boolean(envValue("STRIPE_WEBHOOK_SECRET")),
   "STRIPE_WEBHOOK_SECRET is required for webhook validation.",
 );
-requireCheck(
+requireCheckWithWaiver(
+  "stripe",
   Boolean(envValue("CHECKOUT_ALLOWED_ORIGINS")),
   "CHECKOUT_ALLOWED_ORIGINS is required for alpha checkout launch.",
 );
@@ -131,25 +157,32 @@ const googleAuthReady = Boolean(
   (envValue("GOOGLE_CLIENT_EMAIL") && envValue("GOOGLE_PRIVATE_KEY"))
   || envValue("FIREBASE_SERVICE_ACCOUNT_JSON", "GOOGLE_APPLICATION_CREDENTIALS"),
 );
-requireCheck(
+requireCheckWithWaiver(
+  "post_signup",
   googleAuthReady,
   "Google service account credentials are required for post-signup automation. Set GOOGLE_CLIENT_EMAIL and GOOGLE_PRIVATE_KEY, or reuse FIREBASE_SERVICE_ACCOUNT_JSON / GOOGLE_APPLICATION_CREDENTIALS.",
 );
-requireCheck(Boolean(envValue("GOOGLE_CALENDAR_ID")), "GOOGLE_CALENDAR_ID is required for post-signup calendar automation.");
-requireCheck(
+requireCheckWithWaiver("post_signup", Boolean(envValue("GOOGLE_CALENDAR_ID")), "GOOGLE_CALENDAR_ID is required for post-signup calendar automation.");
+requireCheckWithWaiver(
+  "post_signup",
   Boolean(envValue("POST_SIGNUP_SPREADSHEET_ID", "SPREADSHEET_ID")),
   "POST_SIGNUP_SPREADSHEET_ID or SPREADSHEET_ID is required for post-signup sheet updates.",
 );
-requireCheck(Boolean(envValue("SLACK_WEBHOOK_URL")), "SLACK_WEBHOOK_URL is required for autonomous post-signup notifications.");
+requireCheckWithWaiver("post_signup", Boolean(envValue("SLACK_WEBHOOK_URL")), "SLACK_WEBHOOK_URL is required for autonomous post-signup notifications.");
 
 const smtpEnabled = Boolean(
   envValue("SMTP_HOST") || envValue("SMTP_PORT") || envValue("SMTP_USER") || envValue("SMTP_PASS"),
 );
-requireCheck(
+requireCheckWithWaiver(
+  "post_signup",
   !smtpEnabled || Boolean(envValue("SMTP_HOST") && envValue("SMTP_PORT") && envValue("SMTP_USER") && envValue("SMTP_PASS")),
   "SMTP_HOST, SMTP_PORT, SMTP_USER, and SMTP_PASS must all be set when SMTP delivery is enabled.",
 );
-requireCheck(smtpEnabled, "SMTP delivery must be configured for autonomous post-signup email.");
+requireCheckWithWaiver(
+  "post_signup",
+  getEmailTransportStatus(),
+  "A configured SendGrid or SMTP transport is required for autonomous post-signup email.",
+);
 
 const experimentAutorolloutEnabled = automationFlags.BLUEPRINT_EXPERIMENT_AUTOROLLOUT_ENABLED;
 if (experimentAutorolloutEnabled) {
@@ -161,9 +194,10 @@ if (experimentAutorolloutEnabled) {
 
 const researchOutboundEnabled = automationFlags.BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_ENABLED;
 if (researchOutboundEnabled) {
-  requireCheck(Boolean(envValue("FIREHOSE_API_TOKEN")), "FIREHOSE_API_TOKEN is required when autonomous research outbound is enabled.");
-  requireCheck(Boolean(envValue("FIREHOSE_BASE_URL")), "FIREHOSE_BASE_URL is required when autonomous research outbound is enabled.");
-  requireCheck(
+  requireCheckWithWaiver("research_outbound", Boolean(envValue("FIREHOSE_API_TOKEN")), "FIREHOSE_API_TOKEN is required when autonomous research outbound is enabled.");
+  requireCheckWithWaiver("research_outbound", Boolean(envValue("FIREHOSE_BASE_URL")), "FIREHOSE_BASE_URL is required when autonomous research outbound is enabled.");
+  requireCheckWithWaiver(
+    "research_outbound",
     Boolean(envValue("BLUEPRINT_AUTONOMOUS_RESEARCH_TOPICS")),
     "BLUEPRINT_AUTONOMOUS_RESEARCH_TOPICS is required when autonomous research outbound is enabled.",
   );
@@ -174,11 +208,13 @@ if (researchOutboundEnabled) {
     "BLUEPRINT_AUTONOMOUS_OUTBOUND_CHANNEL must be sendgrid when autonomous research outbound is enabled.",
   );
 
-  requireCheck(
+  requireCheckWithWaiver(
+    "research_outbound",
     Boolean(envValue("BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS")),
     "BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS is required for autonomous research outbound over SendGrid/SMTP.",
   );
-  requireCheck(
+  requireCheckWithWaiver(
+    "research_outbound",
     getEmailTransportStatus(),
     "A configured SendGrid or SMTP transport is required for autonomous research outbound over SendGrid/SMTP.",
   );
@@ -256,6 +292,7 @@ function getEmailTransportStatus() {
 }
 
 console.log("Alpha launch preflight");
+console.log(`Mode: ${preflightMode}`);
 console.log("");
 
 if (failures.length === 0) {

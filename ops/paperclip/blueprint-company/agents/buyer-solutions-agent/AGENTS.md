@@ -5,6 +5,7 @@ reportsTo: ops-lead
 skills:
   - platform-doctrine
   - autonomy-safety
+  - hermes-kb-workflow
   - webapp-repo-operations
   - truthful-quality-gate
   - buyer-package-framing

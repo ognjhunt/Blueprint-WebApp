@@ -22,12 +22,11 @@ What this report is for and the main conclusion.
 
 ## Recommended Follow-up
 
-- Owner, next step, and why it matters
-- Canonical system to update if action is approved
+{{RECOMMENDED_FOLLOW_UP_BLOCK}}
 
 ## Linked KB Pages
 
-- Related compiled pages
+{{LINKED_KB_PAGES_BLOCK}}
 
 ## Authority Boundary
 

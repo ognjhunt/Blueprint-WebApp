@@ -1,0 +1,48 @@
+# Package managers and build output
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+
+# Local agent and tooling state
+.git/
+.claude/
+.agents/
+.gstack/
+.tmp/
+.worktrees/
+.pytest_cache/
+.windsurf/
+
+# Local environment and secrets
+.env
+.env.*
+functions/.env*
+*firebase-adminsdk-*.json
+render.required.env.example
+render.optional.env.example
+
+# Generated and temporary media
+attached_assets/
+temp_large_assets/
+Screenshot *.png
+Blueprint QR Code.png
+WEBSITE.png
+generated-icon.png
+image.png
+pre-proof.png
+
+# Runtime logs and generated reports
+firebase-debug.log
+graphify-out/
+derived/graphify/
+
+# Build/vendor noise not useful for the first Blueprint pilot
+server/public/
+client/public/proof/
+paperclip-desktop/
+ops/paperclip/external/
+
+# Large or low-signal raw corpora should be included only intentionally
+knowledge/raw/

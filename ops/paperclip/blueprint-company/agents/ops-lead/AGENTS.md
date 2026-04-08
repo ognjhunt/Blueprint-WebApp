@@ -5,6 +5,7 @@ reportsTo: blueprint-chief-of-staff
 skills:
   - platform-doctrine
   - autonomy-safety
+  - hermes-kb-workflow
   - find-skills
   - meeting-action-extractor
 ---
