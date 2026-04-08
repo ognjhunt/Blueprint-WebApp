@@ -1,9 +1,9 @@
 export const REQUESTED_LANES = [
-  "qualification",
-  "preview_simulation",
   "deeper_evaluation",
-  "managed_tuning",
+  "preview_simulation",
   "data_licensing",
+  "managed_tuning",
+  "qualification",
 ] as const;
 
 export const HELP_WITH_OPTIONS = [
