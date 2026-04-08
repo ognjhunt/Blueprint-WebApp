@@ -22,8 +22,8 @@ BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_CLAUDE_LAN
 BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT:-xhigh}"
 BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL:-google/gemini-2.5-flash}"
 BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL:-openrouter/qwen/qwen3-coder-480b:free}"
-BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL:-qwen/qwen3.6-plus:free}"
-BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-qwen/qwen3.6-plus:free}"
+BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL:-arcee-ai/trinity-large-preview:free}"
+BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-arcee-ai/trinity-large-preview:free}"
 OPENCODE_NO_TTY="${OPENCODE_NO_TTY:-1}"
 
 export \
@@ -68,21 +68,23 @@ const opencodeModel =
 const opencodeFallbackModel =
   process.env.BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL ?? "openrouter/qwen/qwen3-coder-480b:free";
 const hermesPrimaryModel =
-  process.env.BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL ?? "qwen/qwen3.6-plus:free";
+  process.env.BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL ?? "arcee-ai/trinity-large-preview:free";
 const hermesFallbackModel =
-  process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL ?? "qwen/qwen3.6-plus:free";
+  process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL ?? "arcee-ai/trinity-large-preview:free";
 const forceAdapterSync = /^(1|true|yes)$/i.test(
   process.env.BLUEPRINT_PAPERCLIP_FORCE_ADAPTER_SYNC ?? "",
 );
 const hermesFallbackModels = normalizeModelList([
   ...parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS),
   hermesFallbackModel,
+  "arcee-ai/trinity-large-preview:free",
   "openrouter/free",
   "stepfun/step-3.5-flash:free",
   "nvidia/nemotron-3-super:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
   "openai/gpt-oss-120b:free",
-  "arcee-ai/trinity-large-preview:free",
+  "arcee-ai/trinity-large-thinking",
+  "z-ai/glm-5.1",
 ]);
 const legacyHermesModel = "gpt-5.4-mini";
 const HERMES_MODEL_LADDER_CONFIG_KEY = "blueprintHermesModelLadder";
@@ -153,10 +155,22 @@ async function fetchJson(resourcePath, init = {}) {
         throw new Error(`${init.method ?? "GET"} ${resourcePath} failed: ${response.status} ${text}`);
       }
       const text = await response.text();
-      if (text.length > 0) {
-        return JSON.parse(text);
+      if (!text || text.trim().length === 0) {
+        lastError = `Empty response for ${resourcePath}`;
+        if (attempt < attempts) {
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
+        continue;
       }
-      lastError = `Empty response for ${resourcePath}`;
+      try {
+        return JSON.parse(text);
+      } catch (parseError) {
+        lastError = `Invalid JSON from ${resourcePath}: ${text.slice(0, 200)}`;
+        if (attempt < attempts) {
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
+        continue;
+      }
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
     }
@@ -167,6 +181,24 @@ async function fetchJson(resourcePath, init = {}) {
   }
 
   throw new Error(`Blueprint Paperclip API unavailable at ${paperclipApiUrl}${resourcePath}: ${lastError}`);
+}
+
+async function fetchJsonWithConflictRetry(resourcePath, init = {}, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
+    try {
+      return await fetchJson(resourcePath, init);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const isConflict = message.includes("409") || message.includes("conflict") || message.includes("duplicate");
+      if (!isConflict || attempt >= maxRetries) {
+        throw error;
+      }
+      const backoffMs = 200 * Math.pow(2, attempt);
+      console.warn(`[paperclip] Conflict on ${resourcePath}, retry ${attempt}/${maxRetries} after ${backoffMs}ms`);
+      await new Promise((resolve) => setTimeout(resolve, backoffMs));
+    }
+  }
+  throw new Error(`All conflict retries exhausted for ${resourcePath}`);
 }
 
 function hasSuffix(value) {
@@ -1200,7 +1232,7 @@ for (const desired of desiredRoutines) {
   const matching = routines.filter((routine) => routine.title === title);
   const preferred =
     pickPreferredRoutine(matching, project.id, agent.id) ??
-    await fetchJson(`/api/companies/${company.id}/routines`, {
+    await fetchJsonWithConflictRetry(`/api/companies/${company.id}/routines`, {
       method: "POST",
       body: JSON.stringify({
         projectId: project.id,

@@ -157,6 +157,45 @@ spawn_paperclip_background() {
   echo $! >"$PID_FILE"
 }
 
+wait_for_postgres_ready() {
+  if [ -z "${DATABASE_URL:-}" ]; then
+    return 0
+  fi
+
+  echo "Waiting for external Postgres to be reachable..." | tee -a "$RUNTIME_LOG"
+  for _ in $(seq 1 30); do
+    if node -e "
+      const url = require('url');
+      const { execSync } = require('child_process');
+      try {
+        const parsed = new url.URL(process.argv[1]);
+        const pg = require('pg');
+        const client = new pg.Client({
+          host: parsed.hostname,
+          port: parseInt(parsed.port || '5432'),
+          user: parsed.username,
+          password: parsed.password,
+          database: parsed.pathname.slice(1),
+          ssl: parsed.searchParams.get('sslmode') === 'require' ? { rejectUnauthorized: false } : false,
+        });
+        client.connect().then(() => {
+          return client.query('SELECT 1');
+        }).then(() => {
+          client.end();
+          process.exit(0);
+        }).catch(() => {
+          process.exit(1);
+        });
+      } catch { process.exit(1); }
+    " "$DATABASE_URL" 2>/dev/null; then
+      echo "Postgres is reachable." | tee -a "$RUNTIME_LOG"
+      return 0
+    fi
+    sleep 2
+  done
+  echo "WARNING: Postgres did not become reachable within 60s. Paperclip may fail to start." | tee -a "$RUNTIME_LOG"
+}
+
 start_paperclip() {
   mkdir -p "$LOG_DIR"
   if paperclip_local_health; then
@@ -168,6 +207,8 @@ start_paperclip() {
     echo "Paperclip already healthy at ${existing_api_url}; skipping startup."
     return
   fi
+
+  wait_for_postgres_ready
 
   select_runner
   ensure_local_runner_ready

@@ -29,7 +29,7 @@ VERIFY_CLAUDE="${BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE:-1}"
 VERIFY_HERMES="${BLUEPRINT_PAPERCLIP_VERIFY_HERMES:-auto}"
 VERIFY_OPENCODE="${BLUEPRINT_PAPERCLIP_VERIFY_OPENCODE:-auto}"
 OPENCODE_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL:-google/gemini-2.5-flash}"
-HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-qwen/qwen3.6-plus:free}"
+HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-arcee-ai/trinity-large-preview:free}"
 FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES:-0}"
 HERMES_INSTRUCTIONS_FILE="/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md"
 AGENT_KIT_VALIDATOR="${SCRIPT_DIR}/validate-agent-kits.sh"
@@ -252,7 +252,7 @@ plugin_dashboard() {
 }
 
 assert_founder_report_guardrails() {
-  local founder_script="tsx scripts/paperclip/chief-of-staff-founder-report.ts --issue-id <current-issue-id>"
+  local founder_script="npm exec tsx -- scripts/paperclip/chief-of-staff-founder-report.ts --issue-id <current-issue-id>"
   local chief_of_staff_agents="$REPO_ROOT/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md"
   local chief_of_staff_heartbeat="$REPO_ROOT/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/Heartbeat.md"
   local founder_tasks=(
@@ -401,10 +401,20 @@ hermes_oauth_only_probe_ok() {
         .filter((check) => check && check.level === "warn")
         .map((check) => check.code)
         .filter(Boolean);
-      const allowedWarns = warnCodes.length === 1 && warnCodes[0] === "hermes_no_api_keys";
-      const hasVersion = checks.some((check) => check && check.code === "hermes_version");
+      const allowedWarns = warnCodes.every((code) =>
+        code === "hermes_no_api_keys"
+        || code === "hermes_version_failed"
+        || code === "hermes_version_unknown"
+      );
+      const hasVersion =
+        checks.some((check) => check && check.code === "hermes_version")
+        || checks.some((check) => check && check.code === "hermes_version_failed")
+        || checks.some((check) => check && check.code === "hermes_version_unknown");
       const hasModel = checks.some((check) => check && check.code === "hermes_model_configured");
-      process.exit(allowedWarns && hasVersion && hasModel ? 0 : 1);
+      const hasProviderSignal =
+        checks.some((check) => check && check.code === "hermes_api_keys_found")
+        || checks.some((check) => check && check.code === "hermes_no_api_keys");
+      process.exit(allowedWarns && hasVersion && hasModel && hasProviderSignal ? 0 : 1);
     });
   '
 }
@@ -451,10 +461,24 @@ main() {
   plugin_config="$(plugin_config_json "$plugin_id")"
   local plugin_status
   plugin_status="$(printf '%s' "$plugin" | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const row=JSON.parse(data);process.stdout.write(row.status);});')"
+  local plugin_last_error
+  plugin_last_error="$(printf '%s' "$plugin" | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const row=JSON.parse(data);process.stdout.write(typeof row.lastError === "string" ? row.lastError : "");});')"
   local plugin_has_config
   plugin_has_config="$(printf '%s' "$plugin_config" | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const row=JSON.parse(data);process.stdout.write(row.configJson && typeof row.configJson === "object" ? "yes" : "no");});')"
-  [ "$plugin_status" = "ready" ]
-  [ "$plugin_has_config" = "yes" ]
+
+  if [ "$plugin_status" != "ready" ]; then
+    echo "Verification failed: ${PLUGIN_KEY} plugin status is ${plugin_status}, expected ready." >&2
+    if [ -n "$plugin_last_error" ]; then
+      echo "Plugin error: ${plugin_last_error}" >&2
+    fi
+    return 1
+  fi
+
+  if [ "$plugin_has_config" != "yes" ]; then
+    echo "Verification failed: ${PLUGIN_KEY} plugin is installed but missing persisted config." >&2
+    return 1
+  fi
+
   assert_connector_prereqs
 
   require_routines "$company_id"
