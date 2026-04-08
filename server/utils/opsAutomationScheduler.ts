@@ -22,6 +22,7 @@ import { runSlaWatchdog } from "./sla-enforcement";
 import { runNotionBidirectionalSync } from "./notion-sync";
 import { runGraduationEvaluation } from "./agent-graduation";
 import { runOnboardingWorker } from "./buyer-onboarding";
+import { runGapClosureLoop } from "./gap-closure";
 
 const WORKER_STATUS_COLLECTION = "opsAutomationWorkerStatus";
 
@@ -288,6 +289,18 @@ const workers: WorkerDefinition[] = [
     maxBatchSize: 100,
     defaultStartupDelayMs: 75 * 1000,
     run: ({ limit }) => runOnboardingWorker({ limit }),
+  },
+  {
+    key: "gap_closure",
+    enabledEnv: "BLUEPRINT_GAP_CLOSURE_ENABLED",
+    intervalEnv: "BLUEPRINT_GAP_CLOSURE_INTERVAL_MS",
+    batchEnv: "BLUEPRINT_GAP_CLOSURE_BATCH_SIZE",
+    startupDelayEnv: "BLUEPRINT_GAP_CLOSURE_STARTUP_DELAY_MS",
+    defaultIntervalMs: 15 * 60 * 1000,
+    defaultBatchSize: 100,
+    maxBatchSize: 500,
+    defaultStartupDelayMs: 95 * 1000,
+    run: ({ limit }) => runGapClosureLoop({ limit }),
   },
 ];
 

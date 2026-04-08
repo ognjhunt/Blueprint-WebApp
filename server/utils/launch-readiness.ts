@@ -16,8 +16,51 @@ type LaunchCheck = {
   detail: string;
 };
 
+export type ReadinessGapFinding = {
+  stableId: string;
+  checkKey: string;
+  title: string;
+  detail: string;
+  severity: "blocker";
+};
+
 function launchBlockerMessage(label: string, check: LaunchCheck) {
   return `${label}: ${check.detail}`;
+}
+
+/**
+ * Active launch blockers as stable gap records for the gap-closure registry.
+ * Skips optional checks and the nested automationFlags object.
+ */
+export function listActiveReadinessFindings(
+  snapshot: ReturnType<typeof buildLaunchReadinessSnapshot>,
+): ReadinessGapFinding[] {
+  const launchChecks = snapshot.dependencies.launchChecks as Record<
+    string,
+    LaunchCheck | Record<string, unknown>
+  >;
+  const out: ReadinessGapFinding[] = [];
+
+  for (const [checkKey, raw] of Object.entries(launchChecks)) {
+    if (checkKey === "automationFlags" || !raw || typeof raw !== "object") {
+      continue;
+    }
+    if (!("required" in raw) || !("ready" in raw)) {
+      continue;
+    }
+    const check = raw as LaunchCheck;
+    if (check.required && !check.ready) {
+      out.push({
+        stableId: `readiness:${checkKey}`,
+        checkKey,
+        title: `Launch readiness: ${checkKey}`,
+        detail: check.detail,
+        severity: "blocker",
+      });
+    }
+  }
+
+  return out;
 }
 
 export function buildLaunchReadinessSnapshot() {
