@@ -99,6 +99,7 @@ npm run alpha:check
 This project has a graphify knowledge graph at graphify-out/.
 
 Rules:
-- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
-- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
-- After modifying code files in this session, run `python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"` to keep the graph current
+- Before answering architecture or codebase questions, prefer `derived/graphify/webapp-architecture/corpus/graphify-out/GRAPH_REPORT.md` for god nodes and community structure.
+- If `graphify-out/GRAPH_REPORT.md` exists, you may use it; otherwise fall back to the derived graph workspace above.
+- If `graphify-out/wiki/index.md` exists, navigate it instead of reading raw files
+- After modifying code files in this session, run `bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz` to refresh the staged architecture pilot and publish the canonical root `graphify-out/` outputs.

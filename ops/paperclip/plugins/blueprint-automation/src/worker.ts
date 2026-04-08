@@ -183,7 +183,7 @@ const GIT_BIN = process.env.BLUEPRINT_PAPERCLIP_GIT_BIN || "/usr/bin/git";
 const CODEX_FALLBACK_MODEL =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL || "gpt-5.4-mini";
 const CODEX_FALLBACK_REASONING_EFFORT =
-  process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT || "xhigh";
+  process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT || "medium";
 const WORKSPACE_QUOTA_COOLDOWN_MS =
   Number(process.env.BLUEPRINT_PAPERCLIP_WORKSPACE_QUOTA_COOLDOWN_MS || "") || 6 * 60 * 60 * 1000;
 const ENTITY_TYPES = {
@@ -213,6 +213,7 @@ type RepoConfig = {
   projectName: string;
   githubRepo: string;
   defaultBranch: string;
+  ciWatchAgent?: string;
   implementationAgent: string;
   reviewAgent: string;
 };
@@ -1256,6 +1257,7 @@ function normalizeConfig(rawConfig: Record<string, unknown>): BlueprintAutomatio
         projectName: entry.projectName,
         githubRepo: entry.githubRepo,
         defaultBranch: entry.defaultBranch,
+        ciWatchAgent: asString((entry as Record<string, unknown>).ciWatchAgent) ?? undefined,
         implementationAgent: entry.implementationAgent,
         reviewAgent: entry.reviewAgent,
       }))
@@ -8062,6 +8064,7 @@ async function syncGithubWorkflowRun(
   const htmlUrl = asString(workflowRun.html_url);
   const conclusion = asString(workflowRun.conclusion) ?? asString(workflowRun.status) ?? "unknown";
   const sourceId = `${repoConfig.key}:${workflowName}:${branch}`;
+  const fingerprint = makeFingerprint("github-workflow", sourceId);
 
   if (["success", "neutral", "skipped"].includes(conclusion)) {
     await resolveManagedIssue(ctx, {
@@ -8078,15 +8081,39 @@ async function syncGithubWorkflowRun(
     return;
   }
 
+  const { mapping, issue } = await getManagedIssue(ctx, companyId, fingerprint);
+  const existingData = (mapping?.data ?? {}) as Partial<SourceMappingData>;
+  const existingMetadata =
+    existingData.metadata && typeof existingData.metadata === "object"
+      ? existingData.metadata as Record<string, unknown>
+      : {};
+  const existingRunId = typeof existingMetadata.runId === "string" ? existingMetadata.runId : null;
+  const existingConclusion =
+    typeof existingMetadata.conclusion === "string" ? existingMetadata.conclusion : null;
+  const existingSignalUrl = typeof existingData.signalUrl === "string" ? existingData.signalUrl : null;
+  const issueStatus = typeof issue?.status === "string" ? issue.status : null;
+  const isOpenIssue =
+    issueStatus !== null && issueStatus !== "done" && issueStatus !== "cancelled";
+
+  if (
+    issue &&
+    isOpenIssue &&
+    existingRunId === runId &&
+    existingConclusion === conclusion &&
+    existingSignalUrl === (htmlUrl ?? null)
+  ) {
+    return;
+  }
+
   await upsertManagedIssue(ctx, {
     companyId,
     sourceType: "github-workflow",
     sourceId,
     title: `${repoConfig.projectName} CI failure: ${workflowName}`,
     description:
-      `GitHub Actions reported ${conclusion} for ${workflowName} on branch ${branch}. This should stay tracked in Paperclip until a succeeding run clears it.`,
+      `GitHub Actions reported ${conclusion} for ${workflowName} on branch ${branch}. Keep this issue narrowly focused on monitoring the workflow state until a succeeding run clears it. Open a separate engineering follow-up if repo work is required.`,
     projectName: repoConfig.projectName,
-    assignee: repoConfig.implementationAgent,
+    assignee: repoConfig.ciWatchAgent ?? repoConfig.implementationAgent,
     priority: "high",
     status: "todo",
     signalUrl: htmlUrl,

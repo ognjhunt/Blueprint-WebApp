@@ -115,18 +115,32 @@ export function inferChiefOfStaffRoute(
   ) {
     return route("conversion-agent", "the issue is a conversion optimization or CRO thread");
   }
-  if (title.includes("ci failure") || title.includes("branch drift")) {
+  if (title.includes("ci failure")) {
     if (projectName.includes("webapp")) {
-      return route("webapp-codex", "the issue is a Blueprint-WebApp engineering execution thread");
+      return route("webapp-ci-watch", "the issue is a Blueprint-WebApp CI monitoring thread");
     }
     if (projectName.includes("pipeline")) {
       return route(
-        "pipeline-codex",
-        "the issue is a BlueprintCapturePipeline engineering execution thread",
+        "pipeline-ci-watch",
+        "the issue is a BlueprintCapturePipeline CI monitoring thread",
       );
     }
     if (projectName.includes("capture")) {
-      return route("capture-codex", "the issue is a BlueprintCapture engineering execution thread");
+      return route("capture-ci-watch", "the issue is a BlueprintCapture CI monitoring thread");
+    }
+  }
+  if (title.includes("branch drift")) {
+    if (projectName.includes("webapp")) {
+      return route("webapp-review", "the issue is a Blueprint-WebApp repo drift review thread");
+    }
+    if (projectName.includes("pipeline")) {
+      return route(
+        "pipeline-review",
+        "the issue is a BlueprintCapturePipeline repo drift review thread",
+      );
+    }
+    if (projectName.includes("capture")) {
+      return route("capture-review", "the issue is a BlueprintCapture repo drift review thread");
     }
   }
   if (projectName.includes("executive")) {

@@ -92,11 +92,30 @@ describe("execution governor helpers", () => {
     ).toBe("blueprint-chief-of-staff");
   });
 
-  it("defaults routines to auditable execution rather than coalescing or skipping", () => {
+  it("defaults routines to coalesced execution with no catch-up backlog", () => {
     expect(recommendedRoutineExecutionPolicy()).toEqual({
-      concurrencyPolicy: "always_enqueue",
-      catchUpPolicy: "enqueue_missed_with_cap",
+      concurrencyPolicy: "coalesce_if_active",
+      catchUpPolicy: "skip_missed",
     });
+  });
+
+  it("reroutes unavailable CI watchers into the implementation lane before escalating", () => {
+    expect(
+      selectHealthyAgentKey(
+        "webapp-ci-watch",
+        {
+          "webapp-ci-watch": "error",
+          "webapp-codex": "idle",
+          "webapp-review": "idle",
+          "blueprint-cto": "idle",
+        },
+        {
+          chiefOfStaffKey: "blueprint-chief-of-staff",
+          ctoKey: "blueprint-cto",
+          ceoKey: "blueprint-ceo",
+        },
+      ).assigneeKey,
+    ).toBe("webapp-codex");
   });
 
   it("detects a missed weekday schedule after the local fire time", () => {

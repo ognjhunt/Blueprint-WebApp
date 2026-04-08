@@ -63,10 +63,13 @@ function fallbackChainForAgent(preferredKey: string, management: ManagementRouti
   const projectFallbacks: Record<string, string[]> = {
     "webapp-codex": ["webapp-review", management.ctoKey, management.chiefOfStaffKey],
     "webapp-review": ["webapp-codex", management.ctoKey, management.chiefOfStaffKey],
+    "webapp-ci-watch": ["webapp-codex", "webapp-review", management.ctoKey, management.chiefOfStaffKey],
     "pipeline-codex": ["pipeline-review", management.ctoKey, management.chiefOfStaffKey],
     "pipeline-review": ["pipeline-codex", management.ctoKey, management.chiefOfStaffKey],
+    "pipeline-ci-watch": ["pipeline-codex", "pipeline-review", management.ctoKey, management.chiefOfStaffKey],
     "capture-codex": ["capture-review", management.ctoKey, management.chiefOfStaffKey],
     "capture-review": ["capture-codex", management.ctoKey, management.chiefOfStaffKey],
+    "capture-ci-watch": ["capture-codex", "capture-review", management.ctoKey, management.chiefOfStaffKey],
     "blueprint-chief-of-staff": [management.ctoKey],
     "blueprint-cto": [management.chiefOfStaffKey],
     "blueprint-ceo": [management.chiefOfStaffKey],
@@ -139,8 +142,8 @@ export function selectHealthyAgentKey(
 
 export function recommendedRoutineExecutionPolicy(): RoutineExecutionPolicy {
   return {
-    concurrencyPolicy: "always_enqueue",
-    catchUpPolicy: "enqueue_missed_with_cap",
+    concurrencyPolicy: "coalesce_if_active",
+    catchUpPolicy: "skip_missed",
   };
 }
 

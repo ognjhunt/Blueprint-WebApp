@@ -570,7 +570,7 @@ main() {
       \"adapterConfig\": {
         \"cwd\": \"/Users/nijelhunt_1/workspace/Blueprint-WebApp\",
         \"model\": \"${HERMES_FALLBACK_MODEL}\",
-        \"modelReasoningEffort\": \"xhigh\",
+        \"modelReasoningEffort\": \"medium\",
         \"instructionsFilePath\": \"${HERMES_INSTRUCTIONS_FILE}\",
         \"timeoutSec\": 1200
       }

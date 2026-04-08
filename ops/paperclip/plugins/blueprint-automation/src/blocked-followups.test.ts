@@ -6,9 +6,9 @@ const ROUTING_CONFIG = {
   ctoAgent: "blueprint-cto",
   executiveOpsProjectName: "blueprint-executive-ops",
   repoCatalog: [
-    { key: "webapp", projectName: "blueprint-webapp", githubRepo: "Blueprint-WebApp", implementationAgent: "webapp-codex", reviewAgent: "webapp-review" },
-    { key: "pipeline", projectName: "blueprint-capture-pipeline", githubRepo: "BlueprintCapturePipeline", implementationAgent: "pipeline-codex", reviewAgent: "pipeline-review" },
-    { key: "capture", projectName: "blueprint-capture", githubRepo: "BlueprintCapture", implementationAgent: "capture-codex", reviewAgent: "capture-review" },
+    { key: "webapp", projectName: "blueprint-webapp", githubRepo: "Blueprint-WebApp", ciWatchAgent: "webapp-ci-watch", implementationAgent: "webapp-codex", reviewAgent: "webapp-review" },
+    { key: "pipeline", projectName: "blueprint-capture-pipeline", githubRepo: "BlueprintCapturePipeline", ciWatchAgent: "pipeline-ci-watch", implementationAgent: "pipeline-codex", reviewAgent: "pipeline-review" },
+    { key: "capture", projectName: "blueprint-capture", githubRepo: "BlueprintCapture", ciWatchAgent: "capture-ci-watch", implementationAgent: "capture-codex", reviewAgent: "capture-review" },
   ],
   opsAgents: {
     opsLead: "ops-lead",
@@ -67,6 +67,25 @@ describe("blocked issue follow-up planning", () => {
       title: "Review unblock path for Fix analytics verification runtime env audit",
       projectName: "blueprint-webapp",
       assignee: "webapp-review",
+    });
+  });
+
+  it("routes blocked CI watch work into the implementation lane", () => {
+    const plan = planBlockedIssueFollowUp(
+      {
+        title: "blueprint-webapp CI failure: CI",
+        status: "blocked",
+        projectName: "blueprint-webapp",
+        currentAssignee: "webapp-ci-watch",
+        blockerSummary: "Latest failing run points to a stale test assertion that needs a repo change.",
+      },
+      ROUTING_CONFIG,
+    );
+
+    expect(plan).toMatchObject({
+      title: "Implement unblock path for blueprint-webapp CI failure: CI",
+      projectName: "blueprint-webapp",
+      assignee: "webapp-codex",
     });
   });
 

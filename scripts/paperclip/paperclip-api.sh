@@ -5,11 +5,16 @@ paperclip_api_health() {
   curl -fsS "${api_url}/api/health" >/dev/null 2>&1
 }
 
-paperclip_listen_ports_for_home() {
+paperclip_listen_pids_for_home() {
   local paperclip_home="$1"
   local pattern="(paperclipai run --data-dir ${paperclip_home}|cli/src/index.ts run --data-dir ${paperclip_home})"
 
-  pgrep -f "$pattern" 2>/dev/null \
+  pgrep -f "$pattern" 2>/dev/null | sort -u
+}
+
+paperclip_listen_ports_for_home() {
+  local paperclip_home="$1"
+  paperclip_listen_pids_for_home "$paperclip_home" \
     | while read -r pid; do
         [ -n "$pid" ] || continue
         lsof -nP -a -p "$pid" -iTCP -sTCP:LISTEN 2>/dev/null \
@@ -34,6 +39,29 @@ paperclip_find_healthy_local_api_url() {
   done < <(paperclip_listen_ports_for_home "$paperclip_home")
 
   return 1
+}
+
+paperclip_stop_processes_for_home() {
+  local paperclip_home="$1"
+  local pids=""
+  local remaining=""
+
+  pids="$(paperclip_listen_pids_for_home "$paperclip_home" | tr '\n' ' ')"
+  [ -n "${pids// }" ] || return 0
+
+  kill $pids 2>/dev/null || true
+
+  for _ in $(seq 1 15); do
+    remaining="$(paperclip_listen_pids_for_home "$paperclip_home" | tr '\n' ' ')"
+    [ -z "${remaining// }" ] && return 0
+    sleep 1
+  done
+
+  kill -9 $remaining 2>/dev/null || true
+  sleep 1
+
+  remaining="$(paperclip_listen_pids_for_home "$paperclip_home" | tr '\n' ' ')"
+  [ -z "${remaining// }" ]
 }
 
 paperclip_resolve_api_url() {

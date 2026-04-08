@@ -8,6 +8,17 @@
 - WebApp CI, smoke, QA, benchmark, and deploy evidence
 - live buyer, licensing, hosted-session, and admin surfaces when verification requires them
 
+Issue-bound default reads:
+- `/api/issues/:id/heartbeat-context`
+- `/api/issues/:id/comments`
+- the touched repo files and failing test or CI evidence
+
+Avoid on issue-bound runs:
+- `/api/companies/:companyId/issues`
+- `/api/companies/:companyId/agents`
+- `blueprint-manager-state`
+- repo-wide greps under `ops/paperclip/` unless the issue is about Paperclip itself
+
 ## Actions You Own
 - implement concrete WebApp code changes tied to a real issue
 - tighten acceptance criteria when an implementation issue is under-specified

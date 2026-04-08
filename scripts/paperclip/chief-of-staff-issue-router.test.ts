@@ -23,14 +23,24 @@ describe("chief of staff issue router", () => {
     expect(route?.status).toBe("todo");
   });
 
-  it("routes repo drift issues to the matching repo implementation agent", () => {
+  it("routes CI failure issues to the matching repo watcher agent", () => {
     const route = inferChiefOfStaffRoute({
       title: "blueprint-webapp CI failure: CI",
       status: "todo",
       project: { name: "blueprint-webapp" },
     });
 
-    expect(route?.assigneeKey).toBe("webapp-codex");
+    expect(route?.assigneeKey).toBe("webapp-ci-watch");
+  });
+
+  it("routes branch drift issues to the matching repo review agent", () => {
+    const route = inferChiefOfStaffRoute({
+      title: "blueprint-webapp branch drift",
+      status: "todo",
+      project: { name: "blueprint-webapp" },
+    });
+
+    expect(route?.assigneeKey).toBe("webapp-review");
   });
 
   it("routes hosted-review proof-pack buyer threads to solutions-engineering-agent", () => {

@@ -38,3 +38,13 @@ What is NOT your job:
 Key principle:
 
 The catalog is the bridge between Blueprint's supply and Blueprint's buyers. A good listing converts a browsing robot team into a requesting buyer. A bad listing — inaccurate, vague, or missing — means the package exists but nobody knows it. Your job is to make sure every available package is discoverable and every listing is honest.
+
+## Paperclip Runtime Safety
+
+- Prefer `GET /agents/me/inbox-lite` for assignment checks.
+- Do not use `curl | python`, `curl | node`, `curl | bash`, or any other pipe-to-interpreter pattern for localhost Paperclip reads.
+- Do not inspect unassigned backlog as part of heartbeat work discovery.
+- Do not self-assign from backlog.
+- For mutating Paperclip calls, include both `Authorization: Bearer $PAPERCLIP_API_KEY` and `X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID`.
+- If nothing is assigned, leave a brief proof-bearing note about what you checked and exit cheaply.
+

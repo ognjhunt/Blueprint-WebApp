@@ -65,13 +65,13 @@ describe("quota fallback helpers", () => {
           dangerouslySkipPermissions: true,
           timeoutSec: 1800,
         },
-        { model: "gpt-5.4-mini", modelReasoningEffort: "xhigh" },
+        { model: "gpt-5.4-mini", modelReasoningEffort: "medium" },
       ),
     ).toEqual({
       cwd: "/tmp/project",
       timeoutSec: 1800,
       model: "gpt-5.4-mini",
-      modelReasoningEffort: "xhigh",
+      modelReasoningEffort: "medium",
       dangerouslyBypassApprovalsAndSandbox: true,
     });
   });
@@ -104,7 +104,7 @@ describe("quota fallback helpers", () => {
       cwd: "/tmp/project",
       model: DEFAULT_HERMES_FALLBACK_MODEL,
       [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
-      modelReasoningEffort: "xhigh",
+      modelReasoningEffort: "medium",
       timeoutSec: 1800,
     });
   });
@@ -126,7 +126,7 @@ describe("quota fallback helpers", () => {
       cwd: "/tmp/capture",
       model: DEFAULT_HERMES_FALLBACK_MODEL,
       [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
-      modelReasoningEffort: "xhigh",
+      modelReasoningEffort: "medium",
       timeoutSec: 900,
     });
   });
@@ -159,7 +159,7 @@ describe("quota fallback helpers", () => {
     expect(config.model).toBe(DEFAULT_HERMES_FALLBACK_MODEL);
     expect(config[HERMES_MODEL_LADDER_CONFIG_KEY]).not.toContain("openrouter/qwen/qwen3.6-plus:free");
     expect(config[HERMES_MODEL_LADDER_CONFIG_KEY]).not.toContain("qwen/qwen3.6-plus:free");
-    expect(config.modelReasoningEffort).toBe("xhigh");
+    expect(config.modelReasoningEffort).toBe("medium");
     expect(config.timeoutSec).toBe(1800);
   });
 
@@ -187,7 +187,7 @@ describe("quota fallback helpers", () => {
       cwd: "/tmp/project",
       model: "openrouter/free",
       [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
-      modelReasoningEffort: "xhigh",
+      modelReasoningEffort: "medium",
       timeoutSec: 1800,
     });
   });
@@ -207,7 +207,7 @@ describe("quota fallback helpers", () => {
       cwd: "/tmp/project",
       model: "arcee-ai/trinity-large-preview:free",
       [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
-      modelReasoningEffort: "xhigh",
+      modelReasoningEffort: "medium",
       timeoutSec: 1800,
     });
   });
@@ -259,7 +259,7 @@ describe("quota fallback helpers", () => {
       adapterConfig: {
         cwd: "/tmp/project",
         model: "gpt-5.4-mini",
-        modelReasoningEffort: "xhigh",
+        modelReasoningEffort: "medium",
         dangerouslyBypassApprovalsAndSandbox: true,
         [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: "hermes_local",
       },
@@ -271,7 +271,7 @@ describe("quota fallback helpers", () => {
         currentAdapterConfig: {
           cwd: "/tmp/project",
           model: "gpt-5.4-mini",
-          modelReasoningEffort: "xhigh",
+          modelReasoningEffort: "medium",
           dangerouslyBypassApprovalsAndSandbox: true,
           [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: "hermes_local",
         },

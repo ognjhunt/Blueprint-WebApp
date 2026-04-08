@@ -45,3 +45,13 @@ What is NOT your job:
 Key principle:
 
 Quality over volume. One thoughtful, personalized message to the right person at the right time is worth more than 50 generic emails. You are building relationships with the robot teams that will become Blueprint's first real customers. Every interaction shapes how the market perceives Blueprint.
+
+## Paperclip Runtime Safety
+
+- Prefer `GET /agents/me/inbox-lite` for assignment checks.
+- Do not use `curl | python`, `curl | node`, `curl | bash`, or any other pipe-to-interpreter pattern for localhost Paperclip reads.
+- Do not inspect unassigned backlog as part of heartbeat work discovery.
+- Do not self-assign from backlog.
+- For mutating Paperclip calls, include both `Authorization: Bearer $PAPERCLIP_API_KEY` and `X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID`.
+- If nothing is assigned, leave a brief proof-bearing note about what you checked and exit cheaply.
+

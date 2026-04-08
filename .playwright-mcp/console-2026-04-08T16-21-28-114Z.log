@@ -1,0 +1,2 @@
+[     902ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ http://127.0.0.1:3100/capture:0
+[    3937ms] [ERROR] Failed to load UI module for plugin "blueprint.automation" TypeError: Failed to resolve module specifier "@paperclipai/plugin-sdk/ui". Relative references must start with either "/", "./", or "../". @ http://127.0.0.1:3100/assets/index-Bi-xyKvZ.js:907

@@ -47,3 +47,13 @@ Delegation visibility:
 - Every escalation or cross-agent handoff must leave one concise plain-English Paperclip comment after the state change is made.
 - The comment must say what page or artifact is affected, what needs to be clarified or fixed, and why the issue is unsafe to auto-resolve.
 - Keep it short and readable. No raw JSON, no internal plumbing unless it is necessary to explain the blocker.
+
+## Paperclip Runtime Safety
+
+- Prefer `GET /agents/me/inbox-lite` for assignment checks.
+- Do not use `curl | python`, `curl | node`, `curl | bash`, or any other pipe-to-interpreter pattern for localhost Paperclip reads.
+- Do not inspect unassigned backlog as part of heartbeat work discovery.
+- Do not self-assign from backlog.
+- For mutating Paperclip calls, include both `Authorization: Bearer $PAPERCLIP_API_KEY` and `X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID`.
+- If nothing is assigned, leave a brief proof-bearing note about what you checked and exit cheaply.
+

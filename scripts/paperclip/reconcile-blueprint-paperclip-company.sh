@@ -19,7 +19,7 @@ COMPANY_NAME="${COMPANY_NAME:-Blueprint Autonomous Operations}"
 BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE:-auto}"
 BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES:-0}"
 BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL:-gpt-5.4-mini}"
-BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT:-xhigh}"
+BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT:-medium}"
 BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL:-arcee-ai/trinity-large-preview:free}"
 BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-arcee-ai/trinity-large-preview:free}"
 
@@ -56,7 +56,7 @@ const forceCodexClaudeLanes = /^(1|true|yes)$/i.test(
 const fallbackCodexModel =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL ?? "gpt-5.4-mini";
 const fallbackCodexReasoningEffort =
-  process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT ?? "xhigh";
+  process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT ?? "medium";
 const DEFAULT_HERMES_MODEL = "arcee-ai/trinity-large-preview:free";
 const DISALLOWED_HERMES_MODEL_RE =
   /^(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?$/i;
@@ -84,6 +84,62 @@ const hermesFallbackModels = normalizeHermesModelList([
 ]);
 const legacyHermesModel = "gpt-5.4-mini";
 const HERMES_MODEL_LADDER_CONFIG_KEY = "blueprintHermesModelLadder";
+const BLUEPRINT_HERMES_PROMPT_TEMPLATE = String.raw`You are "{{agentName}}", an AI agent employee in a Paperclip-managed company.
+
+Use the terminal tool for Paperclip API calls against {{paperclipApiUrl}}.
+Authentication env vars are already injected: PAPERCLIP_API_KEY, PAPERCLIP_RUN_ID, PAPERCLIP_AGENT_ID, and when present PAPERCLIP_TASK_ID.
+
+Hard rules:
+- Never pipe curl output into Python, Node, bash, or any other interpreter.
+- Prefer plain curl for reads, or a single-process Python/urllib fetch when you need local parsing.
+- Prefer GET {{paperclipApiUrl}}/agents/me/inbox-lite for assignment checks.
+- Never look for unassigned work.
+- Never self-assign from backlog.
+- For mutating calls, include Authorization: Bearer $PAPERCLIP_API_KEY and X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID.
+- If nothing is assigned to you, report what you checked and exit.
+
+{{#taskId}}
+Assigned task:
+- Issue ID: {{taskId}}
+- Title: {{taskTitle}}
+
+Start with:
+1. Read compact context:
+   curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/issues/{{taskId}}/heartbeat-context"
+2. If this wake came from a comment:
+   curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/issues/{{taskId}}/comments/{{commentId}}"
+3. Checkout before work:
+   curl -fsS -X POST "{{paperclipApiUrl}}/issues/{{taskId}}/checkout" -H "Authorization: Bearer $PAPERCLIP_API_KEY" -H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID" -H "Content-Type: application/json" -d "{\"agentId\":\"$PAPERCLIP_AGENT_ID\",\"expectedStatuses\":[\"todo\",\"backlog\",\"blocked\"]}"
+
+After doing the work:
+- Mark done with a proof-bearing comment:
+  curl -fsS -X PATCH "{{paperclipApiUrl}}/issues/{{taskId}}" -H "Authorization: Bearer $PAPERCLIP_API_KEY" -H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID" -H "Content-Type: application/json" -d "{\"status\":\"done\",\"comment\":\"What changed, how you verified it, and any remaining risk.\"}"
+- If blocked, patch the issue to status blocked with a blocker comment before exiting.
+{{/taskId}}
+
+{{#commentId}}
+If you need the full comment thread, use:
+curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/issues/{{taskId}}/comments"
+{{/commentId}}
+
+{{#noTask}}
+Heartbeat wake:
+1. Check your assigned inbox:
+   curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/agents/me/inbox-lite"
+2. If the inbox is empty, do not inspect backlog or unassigned issues. Exit after a brief summary.
+3. If the inbox has assigned issues, pick the highest-priority non-terminal issue, read it through /heartbeat-context, checkout it, do the work, and leave a status comment.
+{{/noTask}}`;
+const HERMES_SAFETY_BUNDLE_SECTION = `
+
+## Paperclip Runtime Safety
+
+- Prefer \`GET /agents/me/inbox-lite\` for assignment checks.
+- Do not use \`curl | python\`, \`curl | node\`, \`curl | bash\`, or any other pipe-to-interpreter pattern for localhost Paperclip reads.
+- Do not inspect unassigned backlog as part of heartbeat work discovery.
+- Do not self-assign from backlog.
+- For mutating Paperclip calls, include both \`Authorization: Bearer $PAPERCLIP_API_KEY\` and \`X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID\`.
+- If nothing is assigned, leave a brief proof-bearing note about what you checked and exit cheaply.
+`;
 const paperclipConfigPath = path.join(
   repoRoot,
   "ops/paperclip/blueprint-company/.paperclip.yaml",
@@ -631,10 +687,15 @@ function buildHermesAdapterConfig(adapterConfig) {
     ...next,
     model,
     [HERMES_MODEL_LADDER_CONFIG_KEY]: ladder,
+    paperclipApiUrl,
+    promptTemplate:
+      typeof adapterConfig?.promptTemplate === "string" && adapterConfig.promptTemplate.trim().length > 0
+        ? adapterConfig.promptTemplate
+        : BLUEPRINT_HERMES_PROMPT_TEMPLATE,
     modelReasoningEffort:
       typeof adapterConfig?.modelReasoningEffort === "string" && adapterConfig.modelReasoningEffort.trim().length > 0
         ? adapterConfig.modelReasoningEffort
-        : "xhigh",
+        : "medium",
     timeoutSec: typeof adapterConfig?.timeoutSec === "number" ? adapterConfig.timeoutSec : 1800,
   };
 }
@@ -1114,6 +1175,14 @@ async function syncAgentInstructions(agent, sourcePath) {
       path: "AGENTS.md",
       content: await fs.readFile(sourcePath, "utf8"),
     });
+  }
+
+  if (agent.adapterType === "hermes_local") {
+    for (const file of bundleFiles) {
+      if (file.path !== "AGENTS.md") continue;
+      if (file.content.includes("## Paperclip Runtime Safety")) continue;
+      file.content = `${file.content.trimEnd()}${HERMES_SAFETY_BUNDLE_SECTION}\n`;
+    }
   }
 
   await fetchJson(`/api/agents/${agent.id}/instructions-bundle`, {

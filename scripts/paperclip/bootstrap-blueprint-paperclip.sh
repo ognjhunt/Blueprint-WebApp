@@ -30,6 +30,7 @@ PAPERCLIP_PORT="${PAPERCLIP_PORT:-3100}"
 PAPERCLIP_LOCAL_URL="${PAPERCLIP_LOCAL_URL:-http://${PAPERCLIP_HOST}:${PAPERCLIP_PORT}}"
 PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-$PAPERCLIP_LOCAL_URL}"
 PAPERCLIP_PUBLIC_URL="${PAPERCLIP_PUBLIC_URL:-http://${PAPERCLIP_HOST}:${PAPERCLIP_PORT}}"
+PAPERCLIP_STRICT_PORT="${PAPERCLIP_STRICT_PORT:-true}"
 COMPANY_NAME="${COMPANY_NAME:-Blueprint Autonomous Operations}"
 PAPERCLIP_INSTANCE_ID="${PAPERCLIP_INSTANCE_ID:-default}"
 INSTANCE_ROOT="$PAPERCLIP_HOME/instances/$PAPERCLIP_INSTANCE_ID"
@@ -40,6 +41,32 @@ IMPORT_LOG="$LOG_DIR/paperclip-import.log"
 PID_FILE="$PAPERCLIP_HOME/paperclip.pid"
 PACKAGE_STAMP="$INSTANCE_ROOT/blueprint-company-package.sha256"
 PAPERCLIP_RUNNER=""
+
+normalize_instance_server_port_config() {
+  [ -f "$CONFIG_PATH" ] || return 0
+
+  node - <<'NODE' "$CONFIG_PATH" "$PAPERCLIP_PORT"
+const fs = require("node:fs");
+
+const configPath = process.argv[2];
+const desiredPort = Number(process.argv[3]);
+if (!Number.isFinite(desiredPort) || desiredPort <= 0) process.exit(0);
+
+const raw = fs.readFileSync(configPath, "utf8");
+const parsed = JSON.parse(raw);
+if (!parsed || typeof parsed !== "object") process.exit(0);
+if (!parsed.server || typeof parsed.server !== "object") parsed.server = {};
+
+if (parsed.server.port === desiredPort) process.exit(0);
+
+parsed.server.port = desiredPort;
+if (!parsed.$meta || typeof parsed.$meta !== "object") parsed.$meta = {};
+parsed.$meta.updatedAt = new Date().toISOString();
+parsed.$meta.source = "bootstrap-blueprint-paperclip";
+
+fs.writeFileSync(configPath, `${JSON.stringify(parsed, null, 2)}\n`, "utf8");
+NODE
+}
 
 ensure_prereqs() {
   command -v node >/dev/null 2>&1 || { echo "node is required" >&2; exit 1; }
@@ -85,6 +112,7 @@ paperclip_cli() {
         PAPERCLIP_PUBLIC_URL="$PAPERCLIP_PUBLIC_URL" \
         HOST="$PAPERCLIP_HOST" \
         PORT="$PAPERCLIP_PORT" \
+        PAPERCLIP_STRICT_PORT="$PAPERCLIP_STRICT_PORT" \
         pnpm paperclipai "$@"
     )
     return
@@ -98,6 +126,7 @@ paperclip_cli() {
       PAPERCLIP_PUBLIC_URL="$PAPERCLIP_PUBLIC_URL" \
       HOST="$PAPERCLIP_HOST" \
       PORT="$PAPERCLIP_PORT" \
+      PAPERCLIP_STRICT_PORT="$PAPERCLIP_STRICT_PORT" \
       npx -y paperclipai "$@"
   )
 }
@@ -140,15 +169,15 @@ spawn_paperclip_background() {
 
   if [ "$PAPERCLIP_RUNNER" = "local" ]; then
     if [ "$action" = "run" ]; then
-      runner_command="cd \"$PAPERCLIP_DIR\" && exec env PAPERCLIP_HOME=\"$PAPERCLIP_HOME\" PAPERCLIP_INSTANCE_ID=\"$PAPERCLIP_INSTANCE_ID\" PAPERCLIP_PUBLIC_URL=\"$PAPERCLIP_PUBLIC_URL\" HOST=\"$PAPERCLIP_HOST\" PORT=\"$PAPERCLIP_PORT\" pnpm paperclipai run --data-dir \"$PAPERCLIP_HOME\""
+      runner_command="cd \"$PAPERCLIP_DIR\" && exec env PAPERCLIP_HOME=\"$PAPERCLIP_HOME\" PAPERCLIP_INSTANCE_ID=\"$PAPERCLIP_INSTANCE_ID\" PAPERCLIP_PUBLIC_URL=\"$PAPERCLIP_PUBLIC_URL\" HOST=\"$PAPERCLIP_HOST\" PORT=\"$PAPERCLIP_PORT\" PAPERCLIP_STRICT_PORT=\"$PAPERCLIP_STRICT_PORT\" pnpm paperclipai run --data-dir \"$PAPERCLIP_HOME\""
     else
-      runner_command="cd \"$PAPERCLIP_DIR\" && exec env PAPERCLIP_HOME=\"$PAPERCLIP_HOME\" PAPERCLIP_INSTANCE_ID=\"$PAPERCLIP_INSTANCE_ID\" PAPERCLIP_PUBLIC_URL=\"$PAPERCLIP_PUBLIC_URL\" HOST=\"$PAPERCLIP_HOST\" PORT=\"$PAPERCLIP_PORT\" pnpm paperclipai onboard --data-dir \"$PAPERCLIP_HOME\" --yes"
+      runner_command="cd \"$PAPERCLIP_DIR\" && exec env PAPERCLIP_HOME=\"$PAPERCLIP_HOME\" PAPERCLIP_INSTANCE_ID=\"$PAPERCLIP_INSTANCE_ID\" PAPERCLIP_PUBLIC_URL=\"$PAPERCLIP_PUBLIC_URL\" HOST=\"$PAPERCLIP_HOST\" PORT=\"$PAPERCLIP_PORT\" PAPERCLIP_STRICT_PORT=\"$PAPERCLIP_STRICT_PORT\" pnpm paperclipai onboard --data-dir \"$PAPERCLIP_HOME\" --yes"
     fi
   else
     if [ "$action" = "run" ]; then
-      runner_command="cd \"$WORKSPACE_ROOT\" && exec env PAPERCLIP_HOME=\"$PAPERCLIP_HOME\" PAPERCLIP_INSTANCE_ID=\"$PAPERCLIP_INSTANCE_ID\" PAPERCLIP_PUBLIC_URL=\"$PAPERCLIP_PUBLIC_URL\" HOST=\"$PAPERCLIP_HOST\" PORT=\"$PAPERCLIP_PORT\" npx -y paperclipai run --data-dir \"$PAPERCLIP_HOME\""
+      runner_command="cd \"$WORKSPACE_ROOT\" && exec env PAPERCLIP_HOME=\"$PAPERCLIP_HOME\" PAPERCLIP_INSTANCE_ID=\"$PAPERCLIP_INSTANCE_ID\" PAPERCLIP_PUBLIC_URL=\"$PAPERCLIP_PUBLIC_URL\" HOST=\"$PAPERCLIP_HOST\" PORT=\"$PAPERCLIP_PORT\" PAPERCLIP_STRICT_PORT=\"$PAPERCLIP_STRICT_PORT\" npx -y paperclipai run --data-dir \"$PAPERCLIP_HOME\""
     else
-      runner_command="cd \"$WORKSPACE_ROOT\" && exec env PAPERCLIP_HOME=\"$PAPERCLIP_HOME\" PAPERCLIP_INSTANCE_ID=\"$PAPERCLIP_INSTANCE_ID\" PAPERCLIP_PUBLIC_URL=\"$PAPERCLIP_PUBLIC_URL\" HOST=\"$PAPERCLIP_HOST\" PORT=\"$PAPERCLIP_PORT\" npx -y paperclipai onboard --data-dir \"$PAPERCLIP_HOME\" --yes"
+      runner_command="cd \"$WORKSPACE_ROOT\" && exec env PAPERCLIP_HOME=\"$PAPERCLIP_HOME\" PAPERCLIP_INSTANCE_ID=\"$PAPERCLIP_INSTANCE_ID\" PAPERCLIP_PUBLIC_URL=\"$PAPERCLIP_PUBLIC_URL\" HOST=\"$PAPERCLIP_HOST\" PORT=\"$PAPERCLIP_PORT\" PAPERCLIP_STRICT_PORT=\"$PAPERCLIP_STRICT_PORT\" npx -y paperclipai onboard --data-dir \"$PAPERCLIP_HOME\" --yes"
     fi
   fi
 
@@ -203,8 +232,22 @@ start_paperclip() {
 
   local existing_api_url=""
   if existing_api_url="$(paperclip_find_healthy_local_api_url "$PAPERCLIP_HOME" "$PAPERCLIP_HOST")"; then
-    echo "Paperclip already healthy at ${existing_api_url}; skipping startup."
-    return
+    if [ "$existing_api_url" = "$PAPERCLIP_LOCAL_URL" ]; then
+      echo "Paperclip already healthy at ${existing_api_url}; skipping startup."
+      return
+    fi
+
+    if [[ "$PAPERCLIP_STRICT_PORT" =~ ^(1|true|yes)$ ]]; then
+      echo "Paperclip drift detected: healthy at ${existing_api_url}, expected ${PAPERCLIP_LOCAL_URL}. Restarting on the configured port." | tee -a "$RUNTIME_LOG"
+      paperclip_stop_processes_for_home "$PAPERCLIP_HOME" || {
+        echo "Failed to stop the stale Paperclip process for ${PAPERCLIP_HOME}" >&2
+        exit 1
+      }
+      sleep 1
+    else
+      echo "Paperclip already healthy at ${existing_api_url}; skipping startup."
+      return
+    fi
   fi
 
   wait_for_postgres_ready
@@ -291,6 +334,7 @@ import_company() {
 
 main() {
   ensure_prereqs
+  normalize_instance_server_port_config
   "$CODEX_GSTACK_SCRIPT"
   start_paperclip
   PAPERCLIP_PUBLIC_URL="$("$PUBLIC_URL_SCRIPT")"

@@ -1,5 +1,6 @@
 export type RepoAgentConfig = {
   key: string;
+  ciWatchAgent?: string;
   implementationAgent: string;
   reviewAgent: string;
   projectName?: string;

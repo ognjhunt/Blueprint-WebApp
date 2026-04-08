@@ -10,7 +10,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
@@ -36,7 +36,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
@@ -65,7 +65,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/notion-manager-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
@@ -86,7 +86,7 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         model: gpt-5.4-mini
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
@@ -116,41 +116,20 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         model: gpt-5.4-mini
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
             - webapp-repo-operations
-            - autonomy-safety
             - gh-cli
-            - vercel-react-best-practices
-            - web-design-guidelines
-            - agent-browser
-            - stripe-best-practices
-            - page-cro
             - plan-eng-review
             - investigate
-            - ship
-            - land-and-deploy
             - careful
-            - review
-            - qa
-            - browse
-            - cso
-            - design-review
-            - benchmark
             - using-git-worktrees
-            - writing-plans
-            - dispatching-parallel-agents
-            - subagent-driven-development
             - systematic-debugging
-            - test-driven-development
-            - requesting-code-review
-            - receiving-code-review
             - verification-before-completion
-            - finishing-a-development-branch
     budgetMonthlyCents: 3000
   webapp-review:
     role: engineer
@@ -161,38 +140,41 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         model: gpt-5.4-mini
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
           desiredSkills:
             - platform-doctrine
             - webapp-repo-operations
-            - autonomy-safety
             - gh-cli
-            - vercel-react-best-practices
-            - web-design-guidelines
-            - agent-browser
-            - stripe-best-practices
-            - page-cro
-            - plan-eng-review
             - investigate
-            - ship
-            - land-and-deploy
-            - careful
             - review
             - qa
             - browse
-            - cso
             - design-review
             - benchmark
-            - writing-plans
-            - dispatching-parallel-agents
-            - systematic-debugging
-            - requesting-code-review
-            - receiving-code-review
             - verification-before-completion
     budgetMonthlyCents: 3000
+  webapp-ci-watch:
+    role: engineer
+    icon: activity
+    capabilities: Lightweight CI monitoring and unblock triage for Blueprint-WebApp.
+    adapter:
+      type: hermes_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        modelReasoningEffort: medium
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/webapp-ci-watch/AGENTS.md
+        timeoutSec: 900
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - webapp-repo-operations
+            - gh-cli
+            - investigate
+            - verification-before-completion
+    budgetMonthlyCents: 1200
   pipeline-codex:
     role: engineer
     icon: cpu
@@ -202,7 +184,7 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapturePipeline
         model: gpt-5.4-mini
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
@@ -239,7 +221,7 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapturePipeline
         model: gpt-5.4-mini
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
@@ -263,6 +245,25 @@ agents:
             - receiving-code-review
             - verification-before-completion
     budgetMonthlyCents: 3000
+  pipeline-ci-watch:
+    role: engineer
+    icon: activity
+    capabilities: Lightweight CI monitoring and unblock triage for BlueprintCapturePipeline.
+    adapter:
+      type: hermes_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/BlueprintCapturePipeline
+        modelReasoningEffort: medium
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/pipeline-ci-watch/AGENTS.md
+        timeoutSec: 900
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - pipeline-repo-operations
+            - gh-cli
+            - investigate
+            - verification-before-completion
+    budgetMonthlyCents: 1200
   capture-codex:
     role: engineer
     icon: wrench
@@ -272,7 +273,7 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapture
         model: gpt-5.4-mini
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
@@ -309,7 +310,7 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapture
         model: gpt-5.4-mini
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
@@ -333,6 +334,25 @@ agents:
             - receiving-code-review
             - verification-before-completion
     budgetMonthlyCents: 3000
+  capture-ci-watch:
+    role: engineer
+    icon: activity
+    capabilities: Lightweight CI monitoring and unblock triage for BlueprintCapture.
+    adapter:
+      type: hermes_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/BlueprintCapture
+        modelReasoningEffort: medium
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/capture-ci-watch/AGENTS.md
+        timeoutSec: 900
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - capture-repo-operations
+            - gh-cli
+            - investigate
+            - verification-before-completion
+    budgetMonthlyCents: 1200
   ops-lead:
     role: cto
     icon: bullseye
@@ -344,7 +364,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/ops-lead/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
@@ -365,7 +385,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         timeoutSec: 1200
         paperclipSkillSync:
           desiredSkills:
@@ -383,7 +403,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapturePipeline
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         timeoutSec: 1200
         paperclipSkillSync:
           desiredSkills:
@@ -401,7 +421,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapture
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         timeoutSec: 1200
         paperclipSkillSync:
           desiredSkills:
@@ -419,7 +439,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         timeoutSec: 1200
         paperclipSkillSync:
           desiredSkills:
@@ -439,7 +459,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/growth-lead/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
@@ -468,7 +488,7 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         model: gpt-5.4-mini
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
@@ -502,7 +522,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/analytics-agent/AGENTS.md
         timeoutSec: 1200
         paperclipSkillSync:
@@ -525,7 +545,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/investor-relations-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
@@ -550,7 +570,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/community-updates-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
@@ -573,7 +593,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/market-intel-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
@@ -598,7 +618,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/supply-intel-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
@@ -622,7 +642,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/capturer-growth-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
@@ -646,7 +666,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/city-launch-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
@@ -669,7 +689,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/demand-intel-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
@@ -694,7 +714,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/robot-team-growth-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
@@ -723,7 +743,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/site-operator-partnership-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
@@ -745,7 +765,7 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         model: gpt-5.4-mini
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         timeoutSec: 1800
         dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
@@ -769,7 +789,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/buyer-solutions-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
@@ -794,7 +814,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/solutions-engineering-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
@@ -820,7 +840,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapturePipeline
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         timeoutSec: 1200
         paperclipSkillSync:
           desiredSkills:
@@ -840,7 +860,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/security-procurement-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
@@ -863,7 +883,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapture
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/capturer-success-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
@@ -886,7 +906,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/city-demand-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
@@ -909,7 +929,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/site-catalog-agent/AGENTS.md
         timeoutSec: 1200
         paperclipSkillSync:
@@ -931,7 +951,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/outbound-sales-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
@@ -959,7 +979,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/buyer-success-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
@@ -984,7 +1004,7 @@ agents:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/revenue-ops-pricing-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
@@ -1007,7 +1027,7 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         model: gpt-5.4-mini
-        modelReasoningEffort: xhigh
+        modelReasoningEffort: medium
         timeoutSec: 1200
         dangerouslyBypassApprovalsAndSandbox: true
         paperclipSkillSync:
@@ -1412,16 +1432,16 @@ routines:
         timezone: America/New_York
   webapp-autonomy-loop:
     priority: high
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 15 11 * * 1-5
         timezone: America/New_York
   webapp-review-loop:
     priority: medium
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
         cronExpression: 45 11 * * 1-5

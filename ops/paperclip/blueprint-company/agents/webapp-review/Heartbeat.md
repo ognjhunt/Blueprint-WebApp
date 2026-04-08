@@ -6,6 +6,11 @@
 - **QA, browser, benchmark, or smoke regression:** decide whether it is blocking, monitor-only, or mis-scoped.
 - **Automation-created WebApp alert:** convert the signal into a tracked issue or close it as noise with evidence.
 
+Issue-bound execution guardrails:
+- Start from `PAPERCLIP_TASK_ID` when present. Do not widen an assigned issue into backlog triage.
+- Prefer issue heartbeat context, direct validation evidence, and the touched files.
+- Avoid company-wide issue scans, manager-state calls, and long governance-doc reads unless the assigned issue is specifically about those surfaces.
+
 ## Scheduled Runs
 - **Morning triage (weekdays):** review in-flight, blocked, stale, and automation-created WebApp issues.
 - **Pre-close sweep:** before closing a WebApp issue, confirm the issue record, repo state, and validation evidence all agree.

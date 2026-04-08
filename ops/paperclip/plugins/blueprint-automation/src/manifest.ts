@@ -19,6 +19,7 @@ const repoCatalogSchemaItem = {
     projectName: { type: "string" },
     githubRepo: { type: "string" },
     defaultBranch: { type: "string" },
+    ciWatchAgent: { type: "string" },
     implementationAgent: { type: "string" },
     reviewAgent: { type: "string" },
   },

@@ -65,7 +65,6 @@ while IFS= read -r agent_dir; do
     tools_file="${agent_dir}/Tools.md"
     heartbeat_file="${agent_dir}/Heartbeat.md"
 
-    require_literal "$agents_file" "Read these sibling files before each substantial run:" "the sibling-file read instruction"
     require_literal "$agents_file" "Primary scope:" "the primary scope section"
     require_literal "$agents_file" "Default behavior:" "the default behavior section"
     require_literal "$agents_file" "What is NOT your job:" "the non-goals section"

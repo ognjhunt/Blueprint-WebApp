@@ -234,7 +234,7 @@ export function buildCodexFallbackAdapterConfig(
   return {
     ...next,
     model: options?.model ?? "gpt-5.4-mini",
-    modelReasoningEffort: options?.modelReasoningEffort ?? "high",
+    modelReasoningEffort: options?.modelReasoningEffort ?? "medium",
     dangerouslyBypassApprovalsAndSandbox: true,
   };
 }
@@ -293,7 +293,7 @@ export function buildHermesFallbackAdapterConfig(
     ...next,
     model,
     [HERMES_MODEL_LADDER_CONFIG_KEY]: ladder.length > 0 ? ladder : [...DEFAULT_HERMES_FALLBACK_MODELS],
-    modelReasoningEffort: next.modelReasoningEffort ?? "xhigh",
+    modelReasoningEffort: next.modelReasoningEffort ?? "medium",
     cwd: options?.cwd ?? next.cwd ?? "/Users/nijelhunt_1/workspace/Blueprint-WebApp",
     timeoutSec: next.timeoutSec ?? 1800,
   };
@@ -383,7 +383,7 @@ export function buildLocalQuotaFallbackDescriptor(input: {
         adapterConfig: withFallbackOrigin(
           buildCodexFallbackAdapterConfig(desiredAdapterConfig, {
             model: "gpt-5.4-mini",
-            modelReasoningEffort: "xhigh",
+            modelReasoningEffort: "medium",
           }),
           "hermes_local",
         ),
@@ -437,7 +437,7 @@ export function buildLocalQuotaFallbackDescriptor(input: {
         adapterConfig: withFallbackOrigin(
           buildCodexFallbackAdapterConfig(desiredAdapterConfig, {
             model: "gpt-5.4-mini",
-            modelReasoningEffort: "xhigh",
+            modelReasoningEffort: "medium",
           }),
           "hermes_local",
         ),

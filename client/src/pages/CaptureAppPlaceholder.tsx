@@ -42,9 +42,9 @@ export default function CaptureAppPlaceholder() {
             </h1>
             <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
               This is the public handoff for people recording indoor spaces for Blueprint. If
-              you are here to buy world models, go to the catalog instead. If you still need
-              approval or an invite/access code, apply for capturer access first. Capturer access
-              is invite- and code-gated, and approval is not guaranteed.
+              you have an invite or access code, open the app below. If you still need approval
+              or a code, apply for capturer access first. Capturer access is invite- and
+              code-gated, and approval is not guaranteed.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">

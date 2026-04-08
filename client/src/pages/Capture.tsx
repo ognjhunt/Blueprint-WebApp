@@ -48,13 +48,14 @@ export default function Capture() {
                   For Capturers
                 </p>
                 <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-                  Capture for Blueprint starts in the app.
+                  If you have an invite or access code, start here.
                 </h1>
                 <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
-                  If you are recording a site for Blueprint, start here for the basics, then open
-                  the app. If you still need approval or an invite/access code, apply for capturer
-                  access first. Capturer access is invite- and code-gated, and approval is not
-                  guaranteed. The main website is for robot teams buying access to real sites.
+                  If you are recording a site for Blueprint, use the mobile app handoff below.
+                  If you still need approval or an invite/access code, apply for capturer access
+                  first. Capturer access is invite- and code-gated, and approval is not
+                  guaranteed. Blueprint reviews each application for market fit, device
+                  availability, and cohort capacity before granting access.
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <a

@@ -20,6 +20,7 @@ PAPERCLIP_HOST="${PAPERCLIP_HOST:-127.0.0.1}"
 PAPERCLIP_PORT="${PAPERCLIP_PORT:-3100}"
 PAPERCLIP_API_URL="${PAPERCLIP_API_URL:-http://${PAPERCLIP_HOST}:${PAPERCLIP_PORT}}"
 PAPERCLIP_HOME="${PAPERCLIP_HOME:-$WORKSPACE_ROOT/.paperclip-blueprint}"
+PAPERCLIP_STRICT_PORT="${PAPERCLIP_STRICT_PORT:-true}"
 
 if paperclip_api_health "$PAPERCLIP_API_URL"; then
   echo "Paperclip healthy at ${PAPERCLIP_API_URL}; skipping full bootstrap."
@@ -27,6 +28,16 @@ if paperclip_api_health "$PAPERCLIP_API_URL"; then
 fi
 
 if ACTIVE_API_URL="$(paperclip_find_healthy_local_api_url "$PAPERCLIP_HOME" "$PAPERCLIP_HOST")"; then
+  if [ "$ACTIVE_API_URL" = "$PAPERCLIP_API_URL" ]; then
+    echo "Paperclip healthy at ${ACTIVE_API_URL}; skipping full bootstrap."
+    exit 0
+  fi
+
+  if [[ "$PAPERCLIP_STRICT_PORT" =~ ^(1|true|yes)$ ]]; then
+    echo "Paperclip healthy at ${ACTIVE_API_URL}, but the configured endpoint ${PAPERCLIP_API_URL} is stale. Re-enforcing the configured port." >&2
+    exec "$BOOTSTRAP_SCRIPT"
+  fi
+
   echo "Paperclip healthy at ${ACTIVE_API_URL}; configured endpoint ${PAPERCLIP_API_URL} is stale. Skipping full bootstrap."
   exit 0
 fi

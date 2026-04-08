@@ -165,7 +165,9 @@ export function planBlockedIssueFollowUp(
     || "";
 
   if (repoConfig) {
-    if (currentAssignee === normalize(repoConfig.reviewAgent)) {
+    if (currentAssignee === normalize(repoConfig.ciWatchAgent)) {
+      assignee = repoConfig.implementationAgent;
+    } else if (currentAssignee === normalize(repoConfig.reviewAgent)) {
       assignee = repoConfig.implementationAgent;
     } else if (currentAssignee === normalize(repoConfig.implementationAgent)) {
       assignee = repoConfig.reviewAgent;

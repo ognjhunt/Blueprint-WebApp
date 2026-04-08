@@ -9,7 +9,7 @@
 Execution guardrails for triggered issue runs:
 - Start from `PAPERCLIP_TASK_ID` when present. Do not replace an issue-bound run with a general repo sweep.
 - Use the issue heartbeat context and recent issue comments first. Pull broad repo state only when the issue itself is repo-drift or workspace-drift work.
-- Keep reads narrow: acceptance criteria, touched files, failing tests, launch scripts, or one concrete contract. Avoid multi-file dumps that are not directly required.
+- Keep reads narrow: acceptance criteria, touched files, failing tests, launch scripts, or one concrete contract. Avoid multi-file dumps, company-wide issue scans, and long markdown reads that are not directly required.
 - If the issue wake came from assignment or execution dispatch, prefer one focused implementation or validation pass over collecting extra repo context.
 - If a run starts in a fallback workspace instead of the project-primary checkout for `Blueprint-WebApp`, treat that as recovery-only context and avoid editing unrelated files there.
 
