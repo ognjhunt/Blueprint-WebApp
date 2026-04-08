@@ -1,4 +1,2 @@
-export {
-  runWaitlistAutomationLoop,
-  type WaitlistAutomationRunResult,
-} from "../agents/workflows";
+export { runWaitlistAutomationLoop } from "../agents/workflows";
+export type { WaitlistAutomationRunResult } from "../agents/workflows";

@@ -17,6 +17,13 @@ type GrowthStudioSyncResult = {
   contentOutcomeReviews: SyncCounts;
   processedCount: number;
   failedCount: number;
+  // Summary totals for compatibility with legacy consumers and tests
+  created: number;
+  updated: number;
+  errors: number;
+  skipped: number;
+  sourceCounts: Record<string, number>;
+  syncedAt: string;
 };
 
 type NotionClientAny = Client & {
@@ -782,6 +789,7 @@ export async function syncGrowthStudioToNotion(params?: {
 }): Promise<GrowthStudioSyncResult> {
   const notion = getNotionClient() as NotionClientAny | null;
   const emptyCounts: SyncCounts = { created: 0, updated: 0, errors: 0 };
+  const syncedAtIso = new Date().toISOString();
 
   if (!notion || !db) {
     return {
@@ -792,11 +800,16 @@ export async function syncGrowthStudioToNotion(params?: {
       contentOutcomeReviews: emptyCounts,
       processedCount: 0,
       failedCount: 0,
+      created: 0,
+      updated: 0,
+      errors: 0,
+      skipped: 0,
+      sourceCounts: {},
+      syncedAt: syncedAtIso,
     };
   }
 
   const limit = Math.max(1, Math.min(params?.limit ?? 50, 200));
-  const syncedAtIso = new Date().toISOString();
 
   if (params?.refreshIntegrationSnapshot) {
     await verifyGrowthIntegrations().catch(() => null);
@@ -868,6 +881,18 @@ export async function syncGrowthStudioToNotion(params?: {
     contentOutcomeReviews,
     processedCount: totals.created + totals.updated,
     failedCount: totals.errors,
+    created: totals.created,
+    updated: totals.updated,
+    errors: totals.errors,
+    skipped: 0,
+    sourceCounts: {
+      shipBroadcastApprovals: shipBroadcastApprovalQueue.created + shipBroadcastApprovalQueue.updated,
+      campaignDrafts: campaignDrafts.created + campaignDrafts.updated,
+      creativeRuns: creativeRuns.created + creativeRuns.updated,
+      integrationVerifications: integrationChecks.created + integrationChecks.updated,
+      contentReviews: contentOutcomeReviews.created + contentOutcomeReviews.updated,
+    },
+    syncedAt: syncedAtIso,
   };
 }
 
