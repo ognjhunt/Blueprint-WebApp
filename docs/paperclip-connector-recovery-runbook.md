@@ -72,6 +72,20 @@ These steps are manual. They are not fully machine-verifiable from the current P
 
 Re-auth the GitHub connector used by Claude-facing runtime agents.
 
+**Steps:**
+
+1. Open Claude (claude.ai) in your browser
+2. Go to Settings → Connected Apps → GitHub
+3. If it shows "failed" or disconnected, click "Reconnect" or "Disconnect" then "Connect"
+4. Authorize the OAuth flow for your GitHub account (`ognjhunt`)
+5. Verify the connection by checking that Claude can see your repos
+
+**Alternative (if Claude UI doesn't work):**
+
+1. Go to GitHub → Settings → Applications → Authorized OAuth Apps
+2. Find the Claude app and revoke access
+3. Go back to Claude and re-authorize from scratch
+
 Success criteria:
 
 - the connector no longer shows `failed` in runtime transcript context
@@ -80,6 +94,20 @@ Success criteria:
 ### Google Calendar
 
 Re-auth the `claude.ai Google Calendar` connector used by field-ops workflows.
+
+**Steps:**
+
+1. Open Claude (claude.ai) in your browser
+2. Go to Settings → Connected Apps → Google Calendar
+3. If it shows "needs-auth" or disconnected, click "Reconnect" or "Connect"
+4. Authorize the OAuth flow for your Google account
+5. Select the calendar you want Claude to access (or grant access to all)
+
+**Alternative (if Claude UI doesn't work):**
+
+1. Go to Google Account → Security → Third-party apps with account access
+2. Find Claude and remove access
+3. Go back to Claude and re-authorize from scratch
 
 Success criteria:
 
