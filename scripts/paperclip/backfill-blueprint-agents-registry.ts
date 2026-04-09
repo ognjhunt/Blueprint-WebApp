@@ -5,6 +5,11 @@ const notionToken = process.env.NOTION_API_TOKEN;
 const paperclipApiUrl = process.env.PAPERCLIP_API_URL ?? "http://127.0.0.1:3100";
 const companyName = process.env.COMPANY_NAME ?? "Blueprint Autonomous Operations";
 const skipBody = /^(1|true|yes)$/i.test(process.env.BLUEPRINT_AGENT_REGISTRY_SKIP_BODY ?? "");
+const onlyKeys = (process.env.BLUEPRINT_AGENT_REGISTRY_KEYS ?? "")
+  .split(",")
+  .map((value) => value.trim())
+  .filter((value) => value.length > 0);
+const pauseMs = Math.max(0, Number(process.env.BLUEPRINT_AGENT_REGISTRY_PAUSE_MS || "0") || 0);
 
 if (!notionToken) {
   throw new Error("NOTION_API_TOKEN is required.");
@@ -37,6 +42,8 @@ async function main() {
     liveAgents,
     maxAttempts: 4,
     notionClient,
+    onlyKeys,
+    pauseMs,
     skipBody,
   });
   console.log(JSON.stringify(result, null, 2));

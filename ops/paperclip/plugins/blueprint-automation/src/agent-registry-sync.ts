@@ -13,7 +13,15 @@ import {
   type SimpleTextBlock,
 } from "./notion.js";
 
-const REPO_ROOT = fileURLToPath(new URL("../../../../../", import.meta.url));
+function resolveRepoRoot() {
+  try {
+    return fileURLToPath(new URL("../../../../../", import.meta.url));
+  } catch {
+    return process.cwd();
+  }
+}
+
+const REPO_ROOT = resolveRepoRoot();
 const PAPERCLIP_CONFIG_PATH = path.join(REPO_ROOT, "ops/paperclip/blueprint-company/.paperclip.yaml");
 const AGENT_KITS_ROOT = path.join(REPO_ROOT, "ops/paperclip/blueprint-company/agents");
 const GITHUB_BLOB_BASE = "https://github.com/ognjhunt/Blueprint-WebApp/blob/main";
@@ -225,6 +233,12 @@ type SyncedRegistryRow = {
   pageId: string;
   pageUrl?: string;
   reportsToKey?: string;
+};
+
+type PreparedRegistrySpec = ReturnType<typeof buildSpecForKey> & {
+  displayName: string;
+  key: string;
+  liveAgent?: LiveAgentRecord;
 };
 
 function asString(value: unknown): string | undefined {
@@ -718,6 +732,21 @@ function matchExistingAgentPage(
     .sort((left, right) => safeDateRank(right.lastEditedTime) - safeDateRank(left.lastEditedTime))[0];
 }
 
+function findAgentPageByKey(
+  pages: AgentPageRecord[],
+  key: string | undefined,
+) {
+  const normalizedKey = normalizeText(key);
+  if (!normalizedKey) {
+    return undefined;
+  }
+
+  return pages.find((page) =>
+    normalizeText(page.canonicalKey) === normalizedKey
+    || normalizeText(page.paperclipKey) === normalizedKey,
+  );
+}
+
 async function archiveDuplicateAgentPages(
   notionClient: Client,
   preferredPageIdsByKey: Map<string, string>,
@@ -1016,10 +1045,69 @@ function buildSpecForKey(
   };
 }
 
+function resolveRegistryDisplayNames(specs: PreparedRegistrySpec[]) {
+  const displayNameByKey = new Map<string, string>();
+  const entriesByTitle = new Map<string, PreparedRegistrySpec[]>();
+
+  for (const spec of specs) {
+    const entries = entriesByTitle.get(spec.displayName) ?? [];
+    entries.push(spec);
+    entriesByTitle.set(spec.displayName, entries);
+  }
+
+  for (const [title, entries] of entriesByTitle.entries()) {
+    if (entries.length === 1) {
+      displayNameByKey.set(entries[0].key, title);
+      continue;
+    }
+
+    const liveEntries = entries.filter((entry) => entry.liveAgent);
+    const preferredEntry =
+      (liveEntries.length === 1 ? liveEntries[0] : undefined)
+      ?? entries.find((entry) => entry.key === entry.metadataSourceKey)
+      ?? entries[0];
+
+    for (const entry of entries) {
+      displayNameByKey.set(
+        entry.key,
+        entry.key === preferredEntry.key ? title : `${title} (${entry.key})`,
+      );
+    }
+  }
+
+  return displayNameByKey;
+}
+
+function resolveRoutinesForKey(
+  key: string,
+  metadataSourceKey: string,
+  routinesByAgent: Map<string, Array<{ title: string; status: string; cronExpression: string; timezone: string }>>,
+) {
+  const direct = routinesByAgent.get(key) ?? [];
+  if (direct.length > 0 || metadataSourceKey === key) {
+    return direct;
+  }
+  return routinesByAgent.get(metadataSourceKey) ?? [];
+}
+
+function resolveLastActiveTimestamp(
+  liveAgent: LiveAgentRecord | undefined,
+  metadataSourceKey: string,
+  liveLastActiveByMetadataSourceKey: Map<string, string>,
+) {
+  return (
+    asString(liveAgent?.updatedAt)
+    ?? asString(liveAgent?.createdAt)
+    ?? liveLastActiveByMetadataSourceKey.get(metadataSourceKey)
+  );
+}
+
 export async function syncBlueprintAgentRegistry(input: {
   archiveDuplicates?: boolean;
   liveAgents: LiveAgentRecord[];
   notionClient: Client;
+  onlyKeys?: string[];
+  pauseMs?: number;
   skipBody?: boolean;
 }) {
   const { config, specs } = loadCanonicalAgentSpecs();
@@ -1041,26 +1129,60 @@ export async function syncBlueprintAgentRegistry(input: {
   const latestRunByAgentKey = latestRunsByAgentKey(readRunPageRecords(agentRunPagesRaw));
   const existingAgentPages = readAgentPageRecords(agentPagesRaw);
 
+  const requestedKeys = new Set(
+    (input.onlyKeys ?? [])
+      .map((value) => asString(value))
+      .filter((value): value is string => Boolean(value)),
+  );
   const targetKeys = [...new Set([
     ...specs.keys(),
     ...liveAgentsByKey.keys(),
-  ])].sort();
+  ])]
+    .filter((key) => requestedKeys.size === 0 || requestedKeys.has(key))
+    .sort();
 
-  const syncedRows = new Map<string, SyncedRegistryRow>();
-
-  for (const key of targetKeys) {
+  const preparedSpecs = targetKeys.map((key) => {
     const liveAgent = liveAgentsByKey.get(key);
     const canonicalSpec = specs.get(key) ?? specs.get(LEGACY_AGENT_ALIASES[key] ?? "");
-    const spec = buildSpecForKey(key, canonicalSpec, liveAgent);
+    const builtSpec = buildSpecForKey(key, canonicalSpec, liveAgent);
+    return {
+      ...builtSpec,
+      displayName: builtSpec.displayName,
+      key,
+      liveAgent,
+    } satisfies PreparedRegistrySpec;
+  });
+  const displayNameByKey = resolveRegistryDisplayNames(preparedSpecs);
+  const liveLastActiveByMetadataSourceKey = new Map<string, string>();
+  for (const prepared of preparedSpecs) {
+    const lastActive = asString(prepared.liveAgent?.updatedAt) ?? asString(prepared.liveAgent?.createdAt);
+    if (!lastActive) {
+      continue;
+    }
+    const existing = liveLastActiveByMetadataSourceKey.get(prepared.metadataSourceKey);
+    if (!existing || safeDateRank(lastActive) >= safeDateRank(existing)) {
+      liveLastActiveByMetadataSourceKey.set(prepared.metadataSourceKey, lastActive);
+    }
+  }
+
+  const syncedRows = new Map<string, SyncedRegistryRow>();
+  const pauseMs = Math.max(0, input.pauseMs ?? 0);
+
+  for (const prepared of preparedSpecs) {
+    const { key, liveAgent } = prepared;
+    const spec = {
+      ...prepared,
+      displayName: displayNameByKey.get(key) ?? prepared.displayName,
+    };
     const department = deriveDepartment(key, spec.reportsToKey);
     const role = deriveRole(key);
     const primaryRuntime = derivePrimaryRuntime(spec.runtimeAdapterType);
-    const routines = canonicalRoutinesByAgent.get(key) ?? [];
+    const routines = resolveRoutinesForKey(key, spec.metadataSourceKey, canonicalRoutinesByAgent);
     const latestRun = latestRunByAgentKey.get(key);
     const notionSurfaces = deriveNotionSurfaces(key, department);
     const readableSurfaces = deriveReadableSurfaces(key, department, spec.desiredSkills);
     const writableSurfaces = deriveWritableSurfaces(key, department);
-    const toolAccess = deriveToolAccess(key, department, spec.desiredSkills, primaryRuntime);
+    const toolAccess = deriveToolAccess(spec.metadataSourceKey, department, spec.desiredSkills, primaryRuntime);
     const defaultTriggers = deriveDefaultTriggers(key, routines, role);
     const linkedSkills = matchSkillPages(skillPages, key, spec.metadataSourceKey, spec.displayName);
     const status = deriveRegistryStatus(key, liveAgent);
@@ -1071,7 +1193,7 @@ export async function syncBlueprintAgentRegistry(input: {
       department,
       humanGates: deriveHumanGates(key, role, department),
       instructionsSource: githubBlobUrlForPath(spec.instructionsFilePath),
-      lastActive: asString(liveAgent?.updatedAt) ?? asString(liveAgent?.createdAt),
+      lastActive: resolveLastActiveTimestamp(liveAgent, spec.metadataSourceKey, liveLastActiveByMetadataSourceKey),
       lastPermissionReview: undefined,
       lastRunStatus: deriveLastRunStatus(liveAgent, latestRun?.status),
       linkedSkillPageIds: linkedSkills.map((page) => page.id),
@@ -1105,6 +1227,9 @@ export async function syncBlueprintAgentRegistry(input: {
       pageUrl: upserted.pageUrl,
       reportsToKey: spec.reportsToKey,
     });
+    if (pauseMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, pauseMs));
+    }
   }
 
   for (const [key, row] of syncedRows.entries()) {
@@ -1118,12 +1243,19 @@ export async function syncBlueprintAgentRegistry(input: {
 
   for (const [key, row] of syncedRows.entries()) {
     const reportsToRow = row.reportsToKey ? syncedRows.get(row.reportsToKey) : undefined;
+    const reportsToExistingPage = reportsToRow
+      ? undefined
+      : findAgentPageByKey(existingAgentPages, row.reportsToKey);
     const directReports = row.directReportKeys
       .map((directReportKey) => syncedRows.get(directReportKey))
       .filter((value): value is SyncedRegistryRow => Boolean(value))
       .sort((left, right) => left.entry.title.localeCompare(right.entry.title));
-    const spec = buildSpecForKey(key, specs.get(key) ?? specs.get(LEGACY_AGENT_ALIASES[key] ?? ""), liveAgentsByKey.get(key));
-    const routines = canonicalRoutinesByAgent.get(key) ?? [];
+    const prepared = preparedSpecs.find((entry) => entry.key === key);
+    const spec = {
+      ...(prepared ?? buildSpecForKey(key, specs.get(key) ?? specs.get(LEGACY_AGENT_ALIASES[key] ?? ""), liveAgentsByKey.get(key))),
+      displayName: row.entry.title,
+    };
+    const routines = resolveRoutinesForKey(key, spec.metadataSourceKey, canonicalRoutinesByAgent);
     const routineLines = deriveRoutineLines(
       key,
       routines,
@@ -1134,9 +1266,12 @@ export async function syncBlueprintAgentRegistry(input: {
     await updatePageMetadata(input.notionClient, row.pageId, "agents", {
       linkedSkillPageIds: row.entry.linkedSkillPageIds,
       latestRunPageIds: row.latestRunPageId ? [row.latestRunPageId] : [],
-      reportsToPageIds: reportsToRow ? [reportsToRow.pageId] : [],
+      reportsToPageIds: reportsToRow ? [reportsToRow.pageId] : reportsToExistingPage ? [reportsToExistingPage.id] : [],
       directReportPageIds: directReports.map((directReport) => directReport.pageId),
     });
+    if (pauseMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, pauseMs));
+    }
 
     row.bodyBlocks = buildBodyBlocks({
       defaultTriggers: row.entry.defaultTriggers ?? [],
@@ -1154,7 +1289,7 @@ export async function syncBlueprintAgentRegistry(input: {
       readableSurfaces: row.entry.readableSurfaces ?? [],
       relatedFiles: relatedRepoFiles(key, spec.metadataSourceKey, spec.instructionsFilePath),
       reportsToKey: row.reportsToKey,
-      reportsToLabel: reportsToRow?.entry.title ?? "Board / human founder",
+      reportsToLabel: reportsToRow?.entry.title ?? reportsToExistingPage?.title ?? "Board / human founder",
       role: row.entry.role ?? "Specialist",
       routineLines,
       status: row.entry.status ?? "Active",
@@ -1162,6 +1297,9 @@ export async function syncBlueprintAgentRegistry(input: {
     });
     if (!input.skipBody) {
       await replacePageBlocks(input.notionClient, row.pageId, row.bodyBlocks);
+      if (pauseMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, pauseMs));
+      }
     }
   }
 
@@ -1190,7 +1328,9 @@ function isRetryableNotionError(error: unknown) {
   const code = asString(record.code);
   const status = typeof record.status === "number" ? record.status : undefined;
   return (
-    code === "notionhq_client_request_timeout"
+    status === 429
+    || code === "rate_limited"
+    || code === "notionhq_client_request_timeout"
     || (code === "notionhq_client_response_error" && (status === 502 || status === 503 || status === 504))
   );
 }
@@ -1213,7 +1353,10 @@ export async function syncBlueprintAgentRegistryWithRetries(
       if (!isRetryableNotionError(error) || attempt === maxAttempts) {
         throw error;
       }
-      await new Promise((resolve) => setTimeout(resolve, delayMs * attempt));
+      const errorRecord = error as Record<string, unknown>;
+      const status = typeof errorRecord.status === "number" ? errorRecord.status : undefined;
+      const retryDelayMs = status === 429 ? Math.max(30000 * attempt, delayMs * attempt) : delayMs * attempt;
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
     }
   }
 

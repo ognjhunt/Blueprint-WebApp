@@ -1251,28 +1251,46 @@ export async function replacePageBlocks(
   blocks: SimpleTextBlock[],
 ) {
   const notion = notionClient(client);
+  const sanitizedBlocks = blocks
+    .map((block) => ({
+      ...block,
+      text: block.text.trim(),
+    }))
+    .filter((block) => block.text.length > 0);
+
   const existingBlocks = await listBlockChildren(client, pageId, 100);
+  const existingSimpleBlocks = existingBlocks
+    .map((block) => ({
+      text: extractBlockPlainText(block).trim(),
+      type: block.type as SimpleTextBlock["type"],
+    }))
+    .filter((block) => block.text.length > 0);
+
+  if (
+    existingSimpleBlocks.length === sanitizedBlocks.length
+    && existingSimpleBlocks.every((block, index) =>
+      block.type === sanitizedBlocks[index]?.type
+      && block.text === sanitizedBlocks[index]?.text,
+    )
+  ) {
+    return;
+  }
+
   for (const block of existingBlocks) {
     if (block.id) {
       await notion.blocks.delete({ block_id: block.id });
     }
   }
 
-  const sanitizedBlocks = blocks
-    .map((block) => ({
-      ...block,
-      text: block.text.trim(),
-    }))
-    .filter((block) => block.text.length > 0)
-    .map((block) => buildSimpleTextBlock(block));
+  const notionBlocks = sanitizedBlocks.map((block) => buildSimpleTextBlock(block));
 
-  if (sanitizedBlocks.length === 0) {
+  if (notionBlocks.length === 0) {
     return;
   }
 
   await notion.blocks.children.append({
     block_id: pageId,
-    children: sanitizedBlocks,
+    children: notionBlocks,
   });
 }
 
