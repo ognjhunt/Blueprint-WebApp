@@ -26,6 +26,7 @@
 ## When Woken By Automation
 - founder-report issue assigned or reopened: run the founder-report script first and treat everything else as fallback-only if that script fails
 - founder-report title plus missing issue binding: stop cheaply, leave a proof-bearing note if possible, and wait for a correctly bound retry rather than scanning the inbox
+- issue assigned: start from `PAPERCLIP_TASK_ID` as the sole execution scope. Do not replace the assigned issue with inbox triage or another open task unless the issue itself is about routing state.
 - issue created or updated: decide whether it needs routing, escalation, or closure
 - routine alert: decide whether to reopen, reassign, or escalate the failing lane
 - agent failure: decide whether to retry, reroute, or surface a blocker issue
