@@ -114,7 +114,11 @@ Hard rules:
 - Never self-assign from backlog.
 - For mutating calls, include Authorization: Bearer $PAPERCLIP_API_KEY and X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID.
 - Issue checkout is a POST to /issues/$ISSUE_ID/checkout with JSON body {"agentId":"$PAPERCLIP_AGENT_ID","expectedStatuses":["todo","backlog","blocked"]}. Do not fake checkout by PATCHing /issues/$ISSUE_ID with checkoutRunId.
+- If an assigned issue is already in_progress and assigned to you, never call /issues/$ISSUE_ID/checkout again for that run. Read /issues/$ISSUE_ID and /issues/$ISSUE_ID/heartbeat-context, continue the work, and leave the final status patch only when the work is actually done or blocked.
 - A checkout request that omits agentId, expectedStatuses, or Content-Type: application/json will 400. Do not shorten or improvise the checkout command.
+- Issue comments are a POST to /issues/$ISSUE_ID/comments with JSON body {"body":"..."}.
+- Comment writes also require Authorization: Bearer $PAPERCLIP_API_KEY, X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID, and Content-Type: application/json.
+- Never send {"content":"..."} to /issues/$ISSUE_ID/comments.
 - If nothing is assigned to you, report what you checked and exit.
 
 Mandatory preflight (run first on every wake):
@@ -131,12 +135,16 @@ Assigned task:
 - Title: {{taskTitle}}
 
 Start with:
-1. Read compact context:
+1. Read issue metadata:
+   bash -lc 'curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/issues/{{taskId}}"'
+2. Read compact context:
    bash -lc 'curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/issues/{{taskId}}/heartbeat-context"'
-2. If this wake came from a comment:
+3. If this wake came from a comment:
    bash -lc 'curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/issues/{{taskId}}/comments/{{commentId}}"'
-3. Checkout before work:
-   bash -lc 'curl -fsS -X POST "{{paperclipApiUrl}}/issues/{{taskId}}/checkout" -H "Authorization: Bearer $PAPERCLIP_API_KEY" -H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID" -H "Content-Type: application/json" -d "{\"agentId\":\"$PAPERCLIP_AGENT_ID\",\"expectedStatuses\":[\"todo\",\"backlog\",\"blocked\"]}"'
+4. Checkout rules:
+   - If the current issue status is todo, backlog, or blocked, use the exact checkout command:
+     bash -lc 'curl -fsS -X POST "{{paperclipApiUrl}}/issues/{{taskId}}/checkout" -H "Authorization: Bearer $PAPERCLIP_API_KEY" -H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID" -H "Content-Type: application/json" -d "{\"agentId\":\"$PAPERCLIP_AGENT_ID\",\"expectedStatuses\":[\"todo\",\"backlog\",\"blocked\"]}"'
+   - If the current issue is already in_progress and assigned to you, never call /issues/{{taskId}}/checkout again for that run. Read /heartbeat-context and continue the work.
 
 After doing the work:
 - Mark done with a proof-bearing comment:
@@ -182,6 +190,10 @@ const HERMES_SAFETY_BUNDLE_SECTION = `
 - Do not inspect unassigned backlog as part of heartbeat work discovery.
 - Do not self-assign from backlog.
 - For mutating Paperclip calls, include both \`Authorization: Bearer $PAPERCLIP_API_KEY\` and \`X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID\`.
+- If an assigned issue is already \`in_progress\` and assigned to you, never call \`/issues/$ISSUE_ID/checkout\` again for that run. Read \`/issues/$ISSUE_ID\` and \`/issues/$ISSUE_ID/heartbeat-context\`, continue the work, and leave the final status patch only when the work is actually done or blocked.
+- Issue comments are a \`POST\` to \`/issues/$ISSUE_ID/comments\` with JSON body \`{"body":"..."}\`.
+- Comment writes also require \`Authorization: Bearer $PAPERCLIP_API_KEY\`, \`X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID\`, and \`Content-Type: application/json\`.
+- Never send \`{"content":"..."}\` to \`/issues/$ISSUE_ID/comments\`.
 - If nothing is assigned, leave a brief proof-bearing note about what you checked and exit cheaply.
 `;
 const paperclipConfigPath = path.join(
