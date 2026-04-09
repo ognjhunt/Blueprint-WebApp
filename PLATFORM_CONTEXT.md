@@ -13,11 +13,12 @@
 ### System Framing
 
 - `BlueprintCapture` is the capture client and supply-side evidence collection tool.
-- `BlueprintCapturePipeline` turns capture bundles into site-specific world-model packages, hosted-session artifacts, and optional trust / review outputs.
+- `BlueprintCapturePipeline` turns capture bundles through the bridge and GPU compatibility contracts into site-specific world-model packages, hosted-session artifacts, and optional trust / review outputs.
 - `Blueprint-WebApp` is the buyer, licensing, ops, and hosted-access surface around those packages.
 - `BlueprintValidation` remains optional downstream infrastructure for deeper benchmarking, robot evaluation, and specialized runtime checks.
 
 This platform is capture-first and world-model-product-first.
+The bridge materialization contract and GPU compatibility contract are downstream compatibility layers, not sources of capture truth.
 
 ### Product Center of Gravity
 
