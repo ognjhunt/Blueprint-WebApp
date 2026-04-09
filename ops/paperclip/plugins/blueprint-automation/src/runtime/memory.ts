@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import type { PluginContext } from "@paperclipai/plugin-sdk";
 import { fileURLToPath } from "node:url";
@@ -16,11 +16,28 @@ import type { MemoryAuthority, MemoryDurability, MemoryRecord, MemoryScope } fro
 import { nowIso } from "./types.js";
 
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
-const PLATFORM_CONTEXT_PATH = path.resolve(MODULE_DIR, "../../../../../../PLATFORM_CONTEXT.md");
-const WORLD_MODEL_CONTEXT_PATH = path.resolve(MODULE_DIR, "../../../../../../WORLD_MODEL_STRATEGY_CONTEXT.md");
-const AUTONOMOUS_ORG_PATH = path.resolve(MODULE_DIR, "../../../../../../AUTONOMOUS_ORG.md");
-const TOOLING_POLICY_PATH = path.resolve(MODULE_DIR, "../../../../../../docs/ai-tooling-adoption-implementation-2026-04-07.md");
-const SKILLS_POLICY_PATH = path.resolve(MODULE_DIR, "../../../../../../docs/ai-skills-governance-2026-04-07.md");
+
+function resolveRepoRoot() {
+  let current = MODULE_DIR;
+  for (let index = 0; index < 8; index += 1) {
+    if (existsSync(path.join(current, "PLATFORM_CONTEXT.md"))) {
+      return current;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) {
+      break;
+    }
+    current = parent;
+  }
+  return process.cwd();
+}
+
+const REPO_ROOT = resolveRepoRoot();
+const PLATFORM_CONTEXT_PATH = path.join(REPO_ROOT, "PLATFORM_CONTEXT.md");
+const WORLD_MODEL_CONTEXT_PATH = path.join(REPO_ROOT, "WORLD_MODEL_STRATEGY_CONTEXT.md");
+const AUTONOMOUS_ORG_PATH = path.join(REPO_ROOT, "AUTONOMOUS_ORG.md");
+const TOOLING_POLICY_PATH = path.join(REPO_ROOT, "docs/ai-tooling-adoption-implementation-2026-04-07.md");
+const SKILLS_POLICY_PATH = path.join(REPO_ROOT, "docs/ai-skills-governance-2026-04-07.md");
 
 export async function readMemoryRecord(
   ctx: PluginContext,
