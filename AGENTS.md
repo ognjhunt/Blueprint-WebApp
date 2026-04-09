@@ -48,6 +48,14 @@ Before making changes, read:
 - Do not use external boilerplates, skill packs, or AI-generated migration suggestions to introduce new primary services unless `blueprint-cto` explicitly approves the change.
 - Anything that applies to Claude guidance in this repo also applies to Codex and Hermes-backed agents unless a narrower runtime rule explicitly overrides it.
 
+## CI Issues
+
+- Treat unresolved CI failures as active diagnosis work by default, not passive monitoring.
+- A single fast "already green?" check is allowed first: inspect the referenced failing run and check for a newer successful run on the default branch.
+- If no newer green default-branch run exists, switch into investigate mode in the same run: inspect failing jobs or logs, identify the failing step or error class, and leave evidence on the owning issue.
+- Only treat a CI issue as monitor-only when the issue explicitly says it is recovery tracking only, a linked issue already owns root-cause remediation, or the failure is confirmed external to repo scope.
+- Do not leave an unresolved CI failure open with only a status note that it is still failing; either investigate it or link the blocker that owns the diagnosis.
+
 ## Commands
 
 Install:
