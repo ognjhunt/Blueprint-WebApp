@@ -48,6 +48,11 @@ company_id() {
     | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const match=rows.find((row)=>row.name===process.argv[1]);if(!match){process.exit(2);}process.stdout.write(match.id);});' "$COMPANY_NAME"
 }
 
+plugin_id() {
+  fetch_smoke_json "/api/plugins" \
+    | node -e 'let data="";process.stdin.on("data",(chunk)=>data+=chunk);process.stdin.on("end",()=>{const rows=JSON.parse(data);const match=rows.find((row)=>row.pluginKey===process.argv[1]);if(!match){process.exit(2);}process.stdout.write(match.id);});' "$PLUGIN_KEY"
+}
+
 dashboard_json() {
   local company_id="$1"
   local attempts="${2:-5}"
@@ -150,6 +155,9 @@ send_support_webhook() {
 
 main() {
   paperclip_health
+  local plugin_id_value
+  plugin_id_value="$(plugin_id)"
+  paperclip_wait_for_plugin_worker_running "$PAPERCLIP_SMOKE_URL" "$plugin_id_value"
   local company
   company="$(company_id)"
 

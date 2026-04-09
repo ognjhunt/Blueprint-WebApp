@@ -26,7 +26,7 @@ BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_
 BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL:-gpt-5.4-mini}"
 BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT:-medium}"
 BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL:-arcee-ai/trinity-large-preview:free}"
-BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-arcee-ai/trinity-large-preview:free}"
+BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-nvidia/nemotron-3-super-120b-a12b:free}"
 
 if RESOLVED_API_URL="$(paperclip_resolve_api_url "$PAPERCLIP_API_URL" "$PAPERCLIP_HOME" "$PAPERCLIP_HOST")"; then
   PAPERCLIP_API_URL="$RESOLVED_API_URL"
@@ -69,7 +69,7 @@ const fallbackCodexReasoningEffort =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT ?? "medium";
 const DEFAULT_HERMES_MODEL = "arcee-ai/trinity-large-preview:free";
 const DISALLOWED_HERMES_MODEL_RE =
-  /^(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?$/i;
+  /^(?:anthropic\/)?claude(?:[-/].*)?$/i;
 const hermesPrimaryModel = sanitizeHermesModel(
   process.env.BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL,
   DEFAULT_HERMES_MODEL,
@@ -81,16 +81,26 @@ const hermesFallbackModel = sanitizeHermesModel(
 const forceAdapterSync = /^(1|true|yes)$/i.test(
   process.env.BLUEPRINT_PAPERCLIP_FORCE_ADAPTER_SYNC ?? "",
 );
-const hermesFallbackModels = normalizeHermesModelList([
+const hermesFreeModels = normalizeHermesModelList([
+  hermesPrimaryModel,
   ...parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS),
   hermesFallbackModel,
   DEFAULT_HERMES_MODEL,
-  "openrouter/free",
-  "stepfun/step-3.5-flash:free",
-  "nvidia/nemotron-3-super:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "z-ai/glm-4.5-air:free",
+  "minimax/minimax-m2.5:free",
   "openai/gpt-oss-120b:free",
-  "arcee-ai/trinity-large-thinking",
+  "qwen/qwen3-coder:free",
+  "openrouter/free",
+]);
+const hermesPaidModels = normalizeHermesModelList([
+  ...parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_PAID_MODELS),
   "z-ai/glm-5.1",
+  "arcee-ai/trinity-large-thinking",
+]);
+const hermesModelLadder = normalizeHermesModelList([
+  ...hermesFreeModels,
+  ...hermesPaidModels,
 ]);
 const legacyHermesModel = "gpt-5.4-mini";
 const HERMES_MODEL_LADDER_CONFIG_KEY = "blueprintHermesModelLadder";
@@ -730,6 +740,9 @@ function buildHermesProbeConfig(adapterConfig) {
     ...(typeof normalized.model === "string" && normalized.model.trim().length > 0
       ? { model: normalized.model }
       : {}),
+    ...(typeof normalized.provider === "string" && normalized.provider.trim().length > 0
+      ? { provider: normalized.provider }
+      : {}),
     ...(typeof normalized.timeoutSec === "number" ? { timeoutSec: normalized.timeoutSec } : {}),
   };
 }
@@ -777,7 +790,7 @@ function buildHermesAdapterConfig(adapterConfig) {
   const ladder = normalizeHermesModelList([
     ...(configuredModel.length > 0 && configuredModel !== legacyHermesModel ? [configuredModel] : []),
     ...parseModelList(adapterConfig?.[HERMES_MODEL_LADDER_CONFIG_KEY]),
-    ...hermesFallbackModels,
+    ...hermesModelLadder,
   ]);
   const model =
     configuredModel.length > 0 && configuredModel !== legacyHermesModel
@@ -787,6 +800,7 @@ function buildHermesAdapterConfig(adapterConfig) {
   return {
     ...next,
     model,
+    provider: "openrouter",
     [HERMES_MODEL_LADDER_CONFIG_KEY]: ladder,
     paperclipApiUrl,
     promptTemplate:
@@ -802,11 +816,11 @@ function buildHermesAdapterConfig(adapterConfig) {
 }
 
 function hermesFreeFallbackFor(desired, baseAdapterConfig = desired.adapterConfig ?? {}) {
-  const fallbackModel = hermesFallbackModels[0] ?? hermesFallbackModel;
+  const fallbackModel = hermesFreeModels[0] ?? hermesFallbackModel;
   const adapterConfig = buildHermesAdapterConfig({
     ...(baseAdapterConfig ?? {}),
     model: fallbackModel,
-    [HERMES_MODEL_LADDER_CONFIG_KEY]: hermesFallbackModels,
+    [HERMES_MODEL_LADDER_CONFIG_KEY]: hermesModelLadder,
   });
   const cwd = typeof adapterConfig.cwd === "string" ? adapterConfig.cwd : "";
   if (!cwd) return null;
@@ -998,9 +1012,12 @@ function buildExecutionPolicyForAgent(agentConfig) {
   if (authoredAdapterType === "hermes_local") {
     return {
       mode: "prefer_available",
-      compatibleAdapterTypes: ["hermes_local", "codex_local", "claude_local"],
-      preferredAdapterTypes: ["hermes_local", "codex_local", "claude_local"],
-      perAdapterConfig,
+      compatibleAdapterTypes: ["hermes_local", "codex_local"],
+      preferredAdapterTypes: ["hermes_local", "codex_local"],
+      perAdapterConfig: {
+        codex_local: perAdapterConfig.codex_local,
+        hermes_local: perAdapterConfig.hermes_local,
+      },
     };
   }
 
@@ -1024,11 +1041,6 @@ function chooseAdapterForAgent(desired, requestedMode, workspaceAvailability) {
       adapterConfig: buildCodexAdapterConfig(desired.adapterConfig),
     };
     if (workspaceAvailability?.codex_local?.status === "pass") return codex;
-    const claude = {
-      adapterType: "claude_local",
-      adapterConfig: buildClaudeAdapterConfig(desired.adapterConfig),
-    };
-    if (workspaceAvailability?.claude_local?.status === "pass") return claude;
     return desired;
   }
 

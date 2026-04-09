@@ -275,6 +275,13 @@ const manifest: PaperclipPluginManifestV1 = {
         "Wakes assigned agents for stale actionable issues so work is executed instead of remaining passive queue state.",
       schedule: "*/15 * * * *",
     },
+    {
+      jobKey: JOB_KEYS.localHeadroomCheck,
+      displayName: "Local Headroom Check",
+      description:
+        "Checks local trusted-host disk headroom and opens a concrete Paperclip issue before low-storage conditions degrade the control plane.",
+      schedule: "*/30 * * * *",
+    },
   ],
   webhooks: [
     {

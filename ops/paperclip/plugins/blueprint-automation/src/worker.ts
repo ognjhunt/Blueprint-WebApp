@@ -49,10 +49,12 @@ import {
   createNotionClient,
   createWorkQueueItem,
   extractAnalyticsSnapshotDate,
+  findWorkQueueItemPage,
   isStaleAnalyticsSnapshotQueueItem,
   mapWorkQueueLifecycleStageToIssueStatus,
   queryDatabase,
   queryWorkQueue,
+  normalizeWorkQueueItem,
   type WorkQueueItem,
   updatePageMetadata,
   upsertAgentRegistryEntry,
@@ -151,13 +153,28 @@ import {
   isInboundEngineeringQueueTask,
   preferredQueueRepoAgent,
 } from "./queue-routing.js";
-import { planBlockedIssueFollowUp } from "./blocked-followups.js";
+import {
+  shouldPreserveResolvedNotionQueueIssue,
+  workQueueIssueTitle,
+  workQueueLifecycleStageForResolution,
+} from "./notion-queue-lifecycle.js";
+import {
+  normalizeMaintenanceState,
+  ROUTING_MAINTENANCE_STALE_MS,
+} from "./maintenance-guard.js";
+import {
+  blockedFollowUpFamilyKey,
+  isBlockedFollowUpTitle,
+  planBlockedIssueFollowUp,
+} from "./blocked-followups.js";
 import {
   inferExecutionOwnerFromContext,
   planChiefOwnedBacklogDelegation,
   planParentParkingRecovery,
   shouldQuarantineSmokeArtifact,
 } from "./delegation-scaffolding.js";
+import { findAutoResolvableCloseoutComment } from "./managed-closeout.js";
+import { verifyDispatchWake } from "./execution-dispatch-verification.js";
 import { inferChiefOfStaffRoute } from "../../../chief-of-staff-routing.js";
 import {
   buildAnalyticsFollowUpIssues,
@@ -216,8 +233,22 @@ import {
 import { buildBlueprintRuntimeMetadata } from "./runtime/versioning.js";
 
 const execFileAsync = promisify(execFile);
+const HEADROOM_WARNING_BYTES = 30 * 1024 * 1024 * 1024;
+const HEADROOM_CRITICAL_BYTES = 15 * 1024 * 1024 * 1024;
+const HEADROOM_WARNING_USED_PERCENT = 90;
+const HEADROOM_CRITICAL_USED_PERCENT = 95;
+
+type DiskHeadroomCheck = {
+  filesystem: string;
+  mountedOn: string;
+  targetPath: string;
+  totalBytes: number;
+  availableBytes: number;
+  usedPercent: number;
+};
 const BLUEPRINT_WEBAPP_REPO_ROOT = fileURLToPath(new URL("../../../../../", import.meta.url));
 const GIT_BIN = process.env.BLUEPRINT_PAPERCLIP_GIT_BIN || "/usr/bin/git";
+const EXECUTION_DISPATCH_MAX_RUNTIME_MS = 45 * 1000;
 const CODEX_FALLBACK_MODEL =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL || "gpt-5.4-mini";
 const CODEX_FALLBACK_REASONING_EFFORT =
@@ -2464,6 +2495,70 @@ async function listCommentsForIssue(ctx: PluginContext, companyId: string, issue
   return await ctx.issues.listComments(issueId, companyId);
 }
 
+async function autoResolveManagedIssuesFromCloseoutComments(
+  ctx: PluginContext,
+  companyId: string,
+  options?: {
+    deadlineMs?: number;
+    maxIssues?: number;
+  },
+) {
+  const [issues, sourceMappings] = await Promise.all([
+    listAllIssues(ctx, companyId),
+    listSourceMappings(ctx, companyId),
+  ]);
+  const resolved: string[] = [];
+  const deadlineMs = options?.deadlineMs ?? Number.POSITIVE_INFINITY;
+  const maxIssues = options?.maxIssues ?? Number.POSITIVE_INFINITY;
+  const candidates = issues
+    .filter((issue) => !["done", "cancelled"].includes(issue.status))
+    .sort((left, right) => Date.parse(toIsoTimestamp(right.updatedAt)) - Date.parse(toIsoTimestamp(left.updatedAt)))
+    .slice(0, maxIssues);
+
+  for (const issue of candidates) {
+    if (Date.now() >= deadlineMs) {
+      break;
+    }
+    const sourceMapping = findSourceMappingRecordByIssueId(sourceMappings, issue.id);
+    if (!sourceMapping) {
+      continue;
+    }
+
+    const comments = await listCommentsForIssue(ctx, companyId, issue.id).catch(() => [] as IssueComment[]);
+    const closeoutComment = findAutoResolvableCloseoutComment(comments, {
+      issueUpdatedAt: toIsoTimestamp(issue.updatedAt),
+      assigneeAgentId: issue.assigneeAgentId,
+    });
+    if (!closeoutComment) {
+      continue;
+    }
+
+    await resolveManagedIssue(ctx, {
+      companyId,
+      sourceType: sourceMapping.data.sourceType,
+      sourceId: sourceMapping.data.sourceId,
+      resolutionStatus: "done",
+      comment: [
+        "Manager enforcement resolved this managed issue from a proof-bearing closeout comment.",
+        `- Source comment at: ${toIsoTimestamp(closeoutComment.createdAt)}`,
+        "",
+        (closeoutComment.body ?? "").trim(),
+      ].join("\n"),
+    }).catch(() => undefined);
+    resolved.push(issue.identifier ?? issue.id);
+  }
+
+  if (resolved.length > 0) {
+    await appendRecentEvent(ctx, companyId, {
+      kind: "managed-closeout-enforced",
+      title: "Manager closeout enforcement resolved managed issues",
+      detail: resolved.join(", "),
+    });
+  }
+
+  return resolved;
+}
+
 async function buildHandoffState(
   ctx: PluginContext,
   companyId: string,
@@ -2942,6 +3037,7 @@ async function wakeAssignedAgent(
   if (!issueNeedsExecution(issue.status)) {
     return null;
   }
+  const dispatchedAt = nowIso();
 
   const dispatchState =
     await readState<ExecutionDispatchState>(ctx, companyId, STATE_KEYS.executionDispatches) ?? {};
@@ -3026,12 +3122,50 @@ async function wakeAssignedAgent(
     forceFreshSession: issue.status === "todo" || issue.status === "backlog" || agent.status === "error",
   });
 
+  const [refreshedIssue, runtimeSession] = await Promise.all([
+    ctx.issues.get(issue.id, companyId).catch(() => issue),
+    getLatestSessionForIssue(ctx, companyId, issue.id).catch(() => null),
+  ]);
+  const dispatchVerification = verifyDispatchWake({
+    wakeRunId: asString(wakeResult?.runId) ?? null,
+    expectedAssigneeKey: resolution.selectedKey,
+    issueExecutionRunId: refreshedIssue?.executionRunId ?? null,
+    issueExecutionAgentNameKey: refreshedIssue?.executionAgentNameKey ?? null,
+    runtimeSession: runtimeSession
+      ? {
+        agentKey: runtimeSession.agentKey,
+        status: runtimeSession.status,
+        updatedAt: runtimeSession.updatedAt,
+      }
+      : null,
+    dispatchedAt,
+  });
+  if (!dispatchVerification.verified) {
+    await ctx.issues.createComment(
+      issue.id,
+      [
+        "Automation wakeup verification failed for this execution issue.",
+        `- Expected owner: ${formatAgentName(resolution.selectedKey)}`,
+        "- Wakeup was requested, but Paperclip did not expose a fresh run/session proof yet.",
+        "- Next move: inspect the runtime lane before assuming the issue is actively executing.",
+      ].join("\n"),
+      companyId,
+    ).catch(() => undefined);
+    await appendRecentEvent(ctx, companyId, {
+      kind: "issue-dispatch-unverified",
+      title: issue.title,
+      issueId: issue.id,
+      detail: `${resolution.selectedKey} wakeup lacked execution proof.`,
+    });
+    return null;
+  }
+
   const nextState: ExecutionDispatchState = {
     ...dispatchState,
     [issue.id]: {
       signature,
       assignee: resolution.selectedKey,
-      dispatchedAt: nowIso(),
+      dispatchedAt,
       wakeupRunId: asString(wakeResult?.runId) ?? null,
     },
   };
@@ -3299,11 +3433,37 @@ async function runExecutionDispatchJob(
   config: BlueprintAutomationConfig,
   options?: {
     skipScaffolding?: boolean;
+    deadlineMs?: number;
+    skipRoutingRepairs?: boolean;
   },
 ) {
-  await healAgentExecutionTopology(ctx, companyId).catch(() => undefined);
-  await rerouteUnavailableIssueOwners(ctx, companyId, config).catch(() => undefined);
-  await repairManagedIssueRouting(ctx, companyId, config).catch(() => undefined);
+  const deadlineMs = options?.deadlineMs ?? (Date.now() + EXECUTION_DISPATCH_MAX_RUNTIME_MS);
+  const hasTimeLeft = () => Date.now() < deadlineMs;
+  const enforcedCloseouts = await autoResolveManagedIssuesFromCloseoutComments(ctx, companyId, {
+    deadlineMs,
+    maxIssues: 20,
+  }).catch(() => [] as string[]);
+  const collapsedBlockedFollowUps = await collapseRecursiveBlockedFollowUps(ctx, companyId, {
+    deadlineMs,
+    maxIssues: 20,
+  }).catch(() => [] as string[]);
+  if (!hasTimeLeft()) {
+    await appendRecentEvent(ctx, companyId, {
+      kind: "execution-dispatch-budget-exhausted",
+      title: "Execution dispatch exited early after exhausting its runtime budget",
+      detail: `Budget: ${EXECUTION_DISPATCH_MAX_RUNTIME_MS}ms`,
+    }).catch(() => undefined);
+    return {
+      dispatched: 0,
+      enforcedCloseouts,
+      collapsedBlockedFollowUps,
+    };
+  }
+  if (!options?.skipRoutingRepairs) {
+    await healAgentExecutionTopology(ctx, companyId).catch(() => undefined);
+    await rerouteUnavailableIssueOwners(ctx, companyId, config).catch(() => undefined);
+    await repairManagedIssueRouting(ctx, companyId, config).catch(() => undefined);
+  }
   if (!options?.skipScaffolding) {
     await runDelegationScaffoldingPass(ctx, companyId);
   }
@@ -3313,6 +3473,14 @@ async function runExecutionDispatchJob(
   const dispatched: string[] = [];
 
   for (const issue of issues) {
+    if (!hasTimeLeft()) {
+      await appendRecentEvent(ctx, companyId, {
+        kind: "execution-dispatch-budget-exhausted",
+        title: "Execution dispatch exited early after exhausting its runtime budget",
+        detail: `Dispatched ${dispatched.length} issue(s) before hitting the ${EXECUTION_DISPATCH_MAX_RUNTIME_MS}ms budget.`,
+      }).catch(() => undefined);
+      break;
+    }
     if (!issue.assigneeAgentId || !issueNeedsExecution(issue.status)) {
       continue;
     }
@@ -3353,7 +3521,11 @@ async function runExecutionDispatchJob(
     });
   }
 
-  return { dispatched: dispatched.length };
+  return {
+    dispatched: dispatched.length,
+    enforcedCloseouts,
+    collapsedBlockedFollowUps,
+  };
 }
 
 async function runRoutingMaintenanceAction(
@@ -3380,6 +3552,8 @@ async function runRoutingMaintenanceAction(
       scaffolding.delegated.length > 0 ? `delegated backlog: ${scaffolding.delegated.join(", ")}` : null,
       scaffolding.corrected.length > 0 ? `corrected delegated routing: ${scaffolding.corrected.join(", ")}` : null,
       scaffolding.recoveredParents.length > 0 ? `cleared parent parking: ${scaffolding.recoveredParents.join(", ")}` : null,
+      dispatch.enforcedCloseouts.length > 0 ? `enforced closeouts: ${dispatch.enforcedCloseouts.join(", ")}` : null,
+      dispatch.collapsedBlockedFollowUps.length > 0 ? `collapsed blocker chains: ${dispatch.collapsedBlockedFollowUps.join(", ")}` : null,
       dispatch.dispatched > 0 ? `execution dispatches: ${dispatch.dispatched}` : null,
     ].filter(Boolean).join(" | "),
   });
@@ -3395,13 +3569,18 @@ async function runRoutingMaintenanceAction(
 }
 
 async function readMaintenanceState(ctx: PluginContext, companyId: string): Promise<MaintenanceState> {
-  return await readState<MaintenanceState>(ctx, companyId, STATE_KEYS.maintenance) ?? {
+  const state = await readState<MaintenanceState>(ctx, companyId, STATE_KEYS.maintenance) ?? {
     running: false,
     startedAt: null,
     finishedAt: null,
     lastError: null,
     lastResult: null,
   };
+  const normalized = normalizeMaintenanceState(state, nowIso());
+  if (normalized.changed) {
+    await writeState(ctx, companyId, STATE_KEYS.maintenance, normalized.state).catch(() => undefined);
+  }
+  return normalized.state;
 }
 
 async function writeMaintenanceState(
@@ -3422,6 +3601,8 @@ function summarizeMaintenanceResult(result: Awaited<ReturnType<typeof runRouting
     delegatedBacklog: result.scaffolding.delegated.length,
     correctedDelegations: result.scaffolding.corrected.length,
     recoveredParentParking: result.scaffolding.recoveredParents.length,
+    enforcedCloseouts: result.dispatch.enforcedCloseouts.length,
+    collapsedBlockedFollowUps: result.dispatch.collapsedBlockedFollowUps.length,
     executionDispatches: result.dispatch.dispatched,
   };
 }
@@ -3433,6 +3614,10 @@ function startRoutingMaintenanceRun(
 ) {
   setTimeout(() => {
     void (async () => {
+      const existing = await readMaintenanceState(ctx, companyId);
+      if (existing.running) {
+        return;
+      }
       const startedAt = nowIso();
       await writeMaintenanceState(ctx, companyId, {
         running: true,
@@ -3761,6 +3946,81 @@ function latestSubstantiveBlockedComment(comments: IssueComment[]) {
     if (!body) return false;
     return !ignoredPrefixes.some((prefix) => body.startsWith(prefix));
   }) ?? null;
+}
+
+function findNearestBlockedFollowUpAncestor(
+  issue: Issue,
+  issuesById: Map<string, Issue>,
+) {
+  const familyKey = blockedFollowUpFamilyKey(issue.title);
+  let currentParentId = issue.parentId;
+  while (currentParentId) {
+    const parent = issuesById.get(currentParentId) ?? null;
+    if (!parent) {
+      break;
+    }
+    if (
+      !["done", "cancelled"].includes(parent.status)
+      && isBlockedFollowUpTitle(parent.title)
+      && blockedFollowUpFamilyKey(parent.title) === familyKey
+    ) {
+      return parent;
+    }
+    currentParentId = parent.parentId;
+  }
+  return null;
+}
+
+async function collapseRecursiveBlockedFollowUps(
+  ctx: PluginContext,
+  companyId: string,
+  options?: {
+    deadlineMs?: number;
+    maxIssues?: number;
+  },
+) {
+  const issues = await listAllIssues(ctx, companyId);
+  const issuesById = new Map(issues.map((issue) => [issue.id, issue] as const));
+  const collapsed: string[] = [];
+  const deadlineMs = options?.deadlineMs ?? Number.POSITIVE_INFINITY;
+  const maxIssues = options?.maxIssues ?? Number.POSITIVE_INFINITY;
+  const candidates = issues
+    .filter((issue) => !["done", "cancelled"].includes(issue.status) && isBlockedFollowUpTitle(issue.title))
+    .sort((left, right) => Date.parse(toIsoTimestamp(right.updatedAt)) - Date.parse(toIsoTimestamp(left.updatedAt)))
+    .slice(0, maxIssues);
+
+  for (const issue of candidates) {
+    if (Date.now() >= deadlineMs) {
+      break;
+    }
+    const ancestor = findNearestBlockedFollowUpAncestor(issue, issuesById);
+    if (!ancestor) {
+      continue;
+    }
+
+    await ctx.issues.createComment(
+      ancestor.id,
+      `Automation merged recursive blocker follow-up ${issue.id} back into this canonical unblock thread.`,
+      companyId,
+    ).catch(() => undefined);
+    await ctx.issues.update(issue.id, { status: "cancelled" }, companyId).catch(() => undefined);
+    await ctx.issues.createComment(
+      issue.id,
+      `Automation cancelled this recursive blocker follow-up because ancestor ${ancestor.id} already owns the same unblock path.`,
+      companyId,
+    ).catch(() => undefined);
+    collapsed.push(`${issue.identifier ?? issue.id}->${ancestor.identifier ?? ancestor.id}`);
+  }
+
+  if (collapsed.length > 0) {
+    await appendRecentEvent(ctx, companyId, {
+      kind: "blocked-follow-ups-collapsed",
+      title: "Collapsed recursive blocker follow-ups",
+      detail: collapsed.join(", "),
+    });
+  }
+
+  return collapsed;
 }
 
 async function maybeCreateBlockedIssueFollowUp(
@@ -4795,6 +5055,191 @@ async function writeHealth(ctx: PluginContext, companyId: string, status: Plugin
   });
 }
 
+function formatBytes(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "0 B";
+  const units = ["B", "KiB", "MiB", "GiB", "TiB"];
+  let size = value;
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+  return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+async function readDiskHeadroom(targetPath: string): Promise<DiskHeadroomCheck | null> {
+  try {
+    const { stdout } = await execFileAsync("df", ["-Pk", targetPath], {
+      cwd: process.cwd(),
+      timeout: 5_000,
+      maxBuffer: 1024 * 1024,
+    });
+    const lines = stdout.trim().split(/\r?\n/);
+    const line = lines[lines.length - 1]?.trim();
+    if (!line) return null;
+    const parts = line.split(/\s+/);
+    if (parts.length < 6) return null;
+    const availableBlocks = Number(parts[3] ?? "0");
+    const capacityToken = parts[4] ?? "0%";
+    const mountedOn = parts.slice(5).join(" ");
+    const usedPercent = Number(capacityToken.replace(/%$/, ""));
+    const totalBlocks = Number(parts[1] ?? "0");
+    return {
+      filesystem: parts[0] ?? targetPath,
+      mountedOn,
+      targetPath,
+      totalBytes: totalBlocks * 1024,
+      availableBytes: availableBlocks * 1024,
+      usedPercent: Number.isFinite(usedPercent) ? usedPercent : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function classifyDiskHeadroom(check: DiskHeadroomCheck) {
+  if (
+    check.availableBytes <= HEADROOM_CRITICAL_BYTES
+    || check.usedPercent >= HEADROOM_CRITICAL_USED_PERCENT
+  ) {
+    return "critical" as const;
+  }
+  if (
+    check.availableBytes <= HEADROOM_WARNING_BYTES
+    || check.usedPercent >= HEADROOM_WARNING_USED_PERCENT
+  ) {
+    return "warning" as const;
+  }
+  return "ok" as const;
+}
+
+async function runLocalHeadroomCheckJob(
+  ctx: PluginContext,
+  companyId: string,
+  config: BlueprintAutomationConfig,
+) {
+  const configuredTargets = [
+    process.env.PAPERCLIP_HOME
+      ? path.resolve(process.env.PAPERCLIP_HOME)
+      : path.resolve(process.cwd(), "..", ".paperclip-blueprint"),
+    path.resolve(process.cwd()),
+  ];
+  const seenTargets = new Set<string>();
+  const checks: DiskHeadroomCheck[] = [];
+  for (const target of configuredTargets) {
+    const resolved = path.resolve(target);
+    if (seenTargets.has(resolved)) continue;
+    seenTargets.add(resolved);
+    const check = await readDiskHeadroom(resolved);
+    if (check) checks.push(check);
+  }
+
+  if (checks.length === 0) {
+    await appendRecentEvent(ctx, companyId, {
+      kind: "local-headroom-check",
+      title: "Local headroom check skipped",
+      detail: "Could not read local disk headroom from any configured target path.",
+    });
+    return { status: "skipped" as const, checks: [] };
+  }
+
+  const uniqueChecks = new Map<string, DiskHeadroomCheck>();
+  for (const check of checks) {
+    const key = `${check.filesystem}::${check.mountedOn}`;
+    if (!uniqueChecks.has(key)) {
+      uniqueChecks.set(key, check);
+    }
+  }
+
+  const normalizedChecks = [...uniqueChecks.values()];
+  const statuses = normalizedChecks.map(classifyDiskHeadroom);
+  const overallStatus = statuses.includes("critical")
+    ? "critical"
+    : statuses.includes("warning")
+      ? "warning"
+      : "ok";
+  const chiefOfStaffAgent = config.management?.chiefOfStaffAgent ?? "blueprint-chief-of-staff";
+
+  for (const check of normalizedChecks) {
+    const status = classifyDiskHeadroom(check);
+    const sourceId = `${check.filesystem}:${check.mountedOn}`;
+    const detail = [
+      `- Target path: ${check.targetPath}`,
+      `- Filesystem: ${check.filesystem}`,
+      `- Mount: ${check.mountedOn}`,
+      `- Available: ${formatBytes(check.availableBytes)}`,
+      `- Total: ${formatBytes(check.totalBytes)}`,
+      `- Used: ${check.usedPercent}%`,
+    ].join("\n");
+
+    if (status === "ok") {
+      await resolveManagedIssue(ctx, {
+        companyId,
+        sourceType: "local-disk-headroom",
+        sourceId,
+        resolutionStatus: "done",
+        comment: `Local disk headroom recovered.\n${detail}`,
+      });
+      continue;
+    }
+
+    await upsertManagedIssue(ctx, {
+      companyId,
+      sourceType: "local-disk-headroom",
+      sourceId,
+      title: `Local disk headroom ${status}: ${check.mountedOn}`,
+      description: [
+        "Local trusted-host disk headroom is below the configured safety threshold.",
+        "",
+        detail,
+        "",
+        "This issue exists so the chief of staff or operator reduces storage pressure before Paperclip logging, backups, or worker IPC degrade again.",
+      ].join("\n"),
+      projectName: EXECUTIVE_OPS_PROJECT,
+      assignee: chiefOfStaffAgent,
+      priority: status === "critical" ? "critical" : "high",
+      status: "todo",
+      metadata: {
+        mount: check.mountedOn,
+        filesystem: check.filesystem,
+        targetPath: check.targetPath,
+        availableBytes: check.availableBytes,
+        totalBytes: check.totalBytes,
+        usedPercent: check.usedPercent,
+        severity: status,
+      },
+      comment: `Local headroom check recorded ${status} disk pressure.\n${detail}`,
+      suppressRefreshComment: true,
+    });
+  }
+
+  await appendRecentEvent(ctx, companyId, {
+    kind: "local-headroom-check",
+    title: `Local headroom check ${overallStatus}`,
+    detail: normalizedChecks
+      .map((check) =>
+        `${check.mountedOn}: ${formatBytes(check.availableBytes)} free, ${check.usedPercent}% used (${classifyDiskHeadroom(check)})`,
+      )
+      .join(" | "),
+  });
+  await writeHealth(
+    ctx,
+    companyId,
+    overallStatus === "ok" ? "ok" : "degraded",
+    overallStatus === "ok"
+      ? "Local disk headroom is within the configured operating window."
+      : "Local disk headroom is below the configured operating window.",
+  );
+
+  return {
+    status: overallStatus,
+    checks: normalizedChecks.map((check) => ({
+      ...check,
+      severity: classifyDiskHeadroom(check),
+    })),
+  };
+}
+
 function mergeBlueprintRuntimeConfig(
   runtimeConfig: Record<string, unknown> | null,
   agentKey: string,
@@ -5223,6 +5668,88 @@ function buildSourceMappingIndexByIssueId(
     index.set(data.issueId, data as SourceMappingData);
   }
   return index;
+}
+
+function findSourceMappingRecordByIssueId(
+  mappings: PluginEntityRecord[],
+  issueId: string,
+): { mapping: PluginEntityRecord; data: SourceMappingData } | null {
+  for (const mapping of mappings) {
+    const data = (mapping.data ?? {}) as Partial<SourceMappingData>;
+    if (data.issueId !== issueId) {
+      continue;
+    }
+    if (typeof data.sourceType !== "string" || typeof data.sourceId !== "string") {
+      continue;
+    }
+    return { mapping, data: data as SourceMappingData };
+  }
+  return null;
+}
+
+function buildResolvedWorkQueueItem(
+  issueTitle: string,
+  mapping: SourceMappingData,
+  resolutionStatus: "done" | "cancelled",
+): WorkQueueItem | null {
+  if (mapping.sourceType !== "notion-work-queue") {
+    return null;
+  }
+
+  const title = workQueueIssueTitle(issueTitle);
+  if (!title) {
+    return null;
+  }
+
+  const metadata = (mapping.metadata ?? {}) as Record<string, unknown>;
+  return normalizeWorkQueueItem(
+    {
+      title,
+      priority: typeof metadata.priority === "string" ? metadata.priority : undefined,
+      system: typeof metadata.system === "string" ? metadata.system : undefined,
+      businessLane: typeof metadata.businessLane === "string" ? metadata.businessLane : undefined,
+      lifecycleStage: workQueueLifecycleStageForResolution(resolutionStatus),
+      workType: typeof metadata.workType === "string" ? metadata.workType : undefined,
+      substage: typeof metadata.substage === "string" ? metadata.substage : undefined,
+      lastStatusChange: nowIso(),
+      naturalKey: mapping.sourceId.includes("::") ? mapping.sourceId : undefined,
+    },
+    true,
+  );
+}
+
+async function syncResolvedNotionWorkQueuePage(
+  ctx: PluginContext,
+  mapping: SourceMappingData,
+  issueTitle: string,
+  resolutionStatus: "done" | "cancelled",
+) {
+  const queueItem = buildResolvedWorkQueueItem(issueTitle, mapping, resolutionStatus);
+  if (!queueItem) {
+    return null;
+  }
+
+  const config = await getConfig(ctx);
+  const notionToken = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.notionApiTokenRef,
+    "NOTION_API_TOKEN",
+  );
+  if (!notionToken) {
+    return null;
+  }
+
+  const notionClient = createNotionClient({ token: notionToken });
+  const page = await findWorkQueueItemPage(notionClient, queueItem);
+  if (!page) {
+    return null;
+  }
+
+  await updatePageMetadata(notionClient, page.pageId, "work_queue", {
+    lifecycleStage: queueItem.lifecycleStage,
+    lastStatusChange: queueItem.lastStatusChange,
+  });
+  return page;
 }
 
 function isReferenceNotionBacklogIssue(
@@ -6277,6 +6804,28 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
     resolutionStatus: input.resolutionStatus,
     metadata: existingData.metadata,
   });
+
+  if (existingData.sourceType === "notion-work-queue") {
+    await syncResolvedNotionWorkQueuePage(
+      ctx,
+      {
+        ...existingData,
+        fingerprint,
+        issueId: updatedIssue.id,
+        sourceType: existingData.sourceType ?? input.sourceType,
+        sourceId: existingData.sourceId ?? input.sourceId,
+        projectName: existingData.projectName ?? "unknown",
+        assignee: existingData.assignee ?? "unknown",
+        hits: existingData.hits ?? 1,
+        firstSeenAt: existingData.firstSeenAt ?? nowIso(),
+        lastSeenAt: nowIso(),
+        resolutionStatus: input.resolutionStatus,
+        metadata: existingData.metadata,
+      },
+      updatedIssue.title,
+      input.resolutionStatus,
+    ).catch(() => undefined);
+  }
 
   await appendRecentEvent(ctx, input.companyId, {
     kind: "issue-resolved",
@@ -11164,11 +11713,31 @@ async function registerActionHandlers(ctx: PluginContext) {
   ctx.actions.register(ACTION_KEYS.resolveWorkItem, async (params) => {
     const config = await getConfig(ctx);
     const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
+    const issueId = asString(params.issueId);
+    const resolutionStatus =
+      asString(params.resolutionStatus) === "cancelled"
+        ? "cancelled"
+        : asString(params.resolutionStatus) === "blocked"
+          ? "blocked"
+          : "done";
+    if (issueId && resolutionStatus !== "blocked") {
+      const mappings = await listSourceMappings(ctx, company.id);
+      const sourceMapping = findSourceMappingRecordByIssueId(mappings, issueId);
+      if (sourceMapping) {
+        return await resolveManagedIssue(ctx, {
+          companyId: company.id,
+          sourceType: sourceMapping.data.sourceType,
+          sourceId: sourceMapping.data.sourceId,
+          resolutionStatus,
+          comment: asString(params.comment) ?? "Resolved by Blueprint automation action.",
+        });
+      }
+    }
     return await resolveManagedIssue(ctx, {
       companyId: company.id,
       sourceType: asString(params.sourceType) ?? "manual-signal",
       sourceId: asString(params.sourceId) ?? "",
-      resolutionStatus: asString(params.resolutionStatus) === "cancelled" ? "cancelled" : "done",
+      resolutionStatus,
       comment: asString(params.comment) ?? "Resolved by Blueprint automation action.",
     });
   });
@@ -11393,13 +11962,28 @@ async function registerToolHandlers(ctx: PluginContext) {
       const config = await getConfig(ctx);
       const company = await findCompany(ctx, config.companyName);
       const issueId = asString((params as Record<string, unknown>).issueId);
-      if (issueId) {
-        const resolutionStatus =
-          asString((params as Record<string, unknown>).resolutionStatus) === "cancelled"
-            ? "cancelled"
-            : asString((params as Record<string, unknown>).resolutionStatus) === "blocked"
-              ? "blocked"
-              : "done";
+      const resolutionStatus =
+        asString((params as Record<string, unknown>).resolutionStatus) === "cancelled"
+          ? "cancelled"
+          : asString((params as Record<string, unknown>).resolutionStatus) === "blocked"
+            ? "blocked"
+            : "done";
+      if (issueId && resolutionStatus !== "blocked") {
+        const mappings = await listSourceMappings(ctx, company.id);
+        const sourceMapping = findSourceMappingRecordByIssueId(mappings, issueId);
+        if (sourceMapping) {
+          const result = await resolveManagedIssue(ctx, {
+            companyId: company.id,
+            sourceType: sourceMapping.data.sourceType,
+            sourceId: sourceMapping.data.sourceId,
+            resolutionStatus,
+            comment: asString((params as Record<string, unknown>).comment) ?? "Resolved by Blueprint automation tool.",
+          });
+          return {
+            content: result.issue ? `Resolved managed issue ${result.issue.id} by issue reference.` : "No matching managed issue found for that issue id.",
+            data: result,
+          };
+        }
         const issue = await ctx.issues.get(issueId, company.id);
         if (!issue) {
           return {
@@ -13402,6 +13986,16 @@ async function runOpsQueueScanJob(ctx: PluginContext, companyId: string, config:
       continue;
     }
 
+    if (mappedAlias && shouldPreserveResolvedNotionQueueIssue(mappedAlias.issue, mappedAlias.data, item)) {
+      await syncResolvedNotionWorkQueuePage(
+        ctx,
+        mappedAlias.data,
+        mappedAlias.issue.title,
+        mappedAlias.issue.status === "cancelled" ? "cancelled" : "done",
+      ).catch(() => undefined);
+      continue;
+    }
+
     await upsertManagedIssue(ctx, {
       companyId,
       sourceType: "notion-work-queue",
@@ -13922,7 +14516,16 @@ const plugin: PaperclipPlugin = definePlugin({
     ctx.jobs.register(JOB_KEYS.executionDispatch, async () => {
       const config = await getConfig(ctx);
       const company = await findCompany(ctx, config.companyName);
-      await runExecutionDispatchJob(ctx, company.id, config);
+      await runExecutionDispatchJob(ctx, company.id, config, {
+        skipScaffolding: true,
+        skipRoutingRepairs: true,
+        deadlineMs: Date.now() + EXECUTION_DISPATCH_MAX_RUNTIME_MS,
+      });
+    });
+    ctx.jobs.register(JOB_KEYS.localHeadroomCheck, async () => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      await runLocalHeadroomCheckJob(ctx, company.id, config);
     });
     setTimeout(() => {
       void ensureStartupMaintenance(ctx);

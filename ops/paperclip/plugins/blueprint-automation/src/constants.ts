@@ -11,6 +11,7 @@ export const JOB_KEYS = {
   handoffMonitor: "handoff-monitor",
   quotaCooldownEnforcer: "quota-cooldown-enforcer",
   executionDispatch: "execution-dispatch",
+  localHeadroomCheck: "local-headroom-check",
 } as const;
 export const WEBHOOK_KEYS = {
   github: "github",
