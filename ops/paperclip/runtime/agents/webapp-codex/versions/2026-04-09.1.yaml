@@ -1,0 +1,38 @@
+version: 2026-04-09.1
+agent_key: webapp-codex
+environment_profile: engineering_impl_default
+resolved_inputs:
+  sources:
+    - PLATFORM_CONTEXT.md
+    - WORLD_MODEL_STRATEGY_CONTEXT.md
+    - ops/paperclip/blueprint-company/agents/webapp-codex/AGENTS.md
+    - ops/paperclip/blueprint-company/agents/webapp-codex/Soul.md
+  summary: Primary implementation runtime for Blueprint-WebApp with trace-linked code changes and file-backed release metadata.
+active_tools:
+  - blueprint-runtime-session-status
+  - blueprint-runtime-session-checkpoint
+  - blueprint-runtime-memory-read
+  - blueprint-runtime-memory-write
+  - blueprint-runtime-spawn-subagent
+active_skills:
+  - verification-before-completion
+memory_bindings:
+  - doctrine_shared
+  - project_shared:blueprint-webapp
+  - agent_local:webapp-codex
+vault:
+  default_scope: session
+  allowed_refs:
+    - BLUEPRINT_PAPERCLIP_GITHUB_TOKEN
+  allowed_tools:
+    - git
+    - github
+adapter_policy:
+  preferred:
+    - codex_local
+    - claude_local
+review_policy:
+  requires_verification: true
+  evidence:
+    - build or check output
+    - targeted test output

@@ -1,0 +1,6 @@
+channel: staging
+agent_key: webapp-review
+version: 2026-04-09.1
+approved_by: blueprint-cto
+approved_at: 2026-04-09T18:15:00Z
+notes: Stage after review-loop smoke and runtime policy verification.

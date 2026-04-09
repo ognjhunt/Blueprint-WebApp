@@ -4,21 +4,40 @@ import { z } from "zod";
 import {
   approveAgentRun,
   cancelAgentRun,
+  cancelAgentSession,
+  compactAgentSession,
+  createAgentProfile,
   createOpsDocument,
   createAgentSession,
+  createEnvironmentProfile,
   createStartupPack,
+  delegateManagedAgentTask,
   extractOpsDocument,
+  interruptAgentSession,
   forkAgentSessionWithHandoff,
+  getAgentProfile,
   getAgentSession,
+  getEnvironmentProfile,
   getOpsDocument,
   getStartupPack,
   getStartupContextOptions,
+  listAgentProfiles,
   listAgentRunsForSession,
   listAgentSessions,
+  listCheckpointsForSession,
+  listCompactionsForSession,
+  listEnvironmentProfiles,
   listOpsDocuments,
   listOpsActionLogs,
+  listRuntimeEventsForSession,
   listStartupPacks,
+  resumeAgentSession,
   sendAgentSessionMessage,
+  spawnSessionSubagents,
+  startAgentSessionRun,
+  steerAgentSession,
+  updateAgentProfile,
+  updateEnvironmentProfile,
   updateOpsDocument,
   updateStartupPack,
 } from "../agents";
@@ -104,6 +123,58 @@ function normalizeRun(run: unknown) {
     started_at: normalizeTimestamp(value.started_at),
     completed_at: normalizeTimestamp(value.completed_at),
     cancelled_at: normalizeTimestamp(value.cancelled_at),
+  };
+}
+
+function normalizeAgentProfile(profile: unknown) {
+  const value = profile as Record<string, unknown>;
+  return {
+    ...value,
+    created_at: normalizeTimestamp(value.created_at),
+    updated_at: normalizeTimestamp(value.updated_at),
+    capabilities: Array.isArray(value.capabilities) ? value.capabilities : [],
+    human_gates: Array.isArray(value.human_gates) ? value.human_gates : [],
+    allowed_subagent_profile_ids: Array.isArray(value.allowed_subagent_profile_ids)
+      ? value.allowed_subagent_profile_ids
+      : [],
+  };
+}
+
+function normalizeEnvironmentProfile(profile: unknown) {
+  const value = profile as Record<string, unknown>;
+  return {
+    ...value,
+    created_at: normalizeTimestamp(value.created_at),
+    updated_at: normalizeTimestamp(value.updated_at),
+    repo_mounts: Array.isArray(value.repo_mounts) ? value.repo_mounts : [],
+    package_set: Array.isArray(value.package_set) ? value.package_set : [],
+    secret_bindings: Array.isArray(value.secret_bindings) ? value.secret_bindings : [],
+    startup_pack_ids: Array.isArray(value.startup_pack_ids) ? value.startup_pack_ids : [],
+  };
+}
+
+function normalizeRuntimeEvent(event: unknown) {
+  const value = event as Record<string, unknown>;
+  return {
+    ...value,
+    created_at: normalizeTimestamp(value.created_at),
+  };
+}
+
+function normalizeCheckpoint(checkpoint: unknown) {
+  const value = checkpoint as Record<string, unknown>;
+  return {
+    ...value,
+    created_at: normalizeTimestamp(value.created_at),
+  };
+}
+
+function normalizeCompaction(compaction: unknown) {
+  const value = compaction as Record<string, unknown>;
+  return {
+    ...value,
+    created_at: normalizeTimestamp(value.created_at),
+    updated_at: normalizeTimestamp(value.updated_at),
   };
 }
 
@@ -193,8 +264,10 @@ function normalizeActionLog(log: unknown) {
 
 const createSessionSchema = z.object({
   title: z.string().min(1).max(200),
-  task_kind: z.enum(["operator_thread", "support_triage"]),
+  task_kind: z.enum(["operator_thread", "support_triage", "external_harness_thread"]),
   session_key: z.string().min(1).max(200).optional(),
+  agent_profile_id: z.string().min(1).max(200).nullable().optional(),
+  environment_profile_id: z.string().min(1).max(200).nullable().optional(),
   metadata: z.record(z.unknown()).optional(),
 });
 
@@ -205,8 +278,74 @@ const sessionMessageSchema = z.object({
   tool_policy: z.record(z.unknown()).optional(),
   approval_policy: z.record(z.unknown()).optional(),
   session_policy: z.record(z.unknown()).optional(),
+  outcome_contract: z.record(z.unknown()).optional(),
   resume_from_run_id: z.string().optional(),
+  parent_run_id: z.string().optional(),
   metadata: z.record(z.unknown()).optional(),
+});
+
+const agentProfileSchema = z.object({
+  key: z.string().min(1).max(160),
+  name: z.string().min(1).max(200),
+  description: z.string().max(1200).optional(),
+  task_kind: z.enum(["operator_thread", "support_triage", "external_harness_thread"]),
+  default_provider: z.string().max(120).optional(),
+  default_runtime: z.string().max(120).optional(),
+  default_model: z.string().max(200).nullable().optional(),
+  lane: z.string().max(120).nullable().optional(),
+  default_environment_profile_id: z.string().max(200).nullable().optional(),
+  startup_context: z.record(z.unknown()).optional(),
+  tool_policy: z.record(z.unknown()).optional(),
+  approval_policy: z.record(z.unknown()).optional(),
+  session_policy: z.record(z.unknown()).optional(),
+  outcome_contract: z.record(z.unknown()).optional(),
+  capabilities: z.array(z.string().min(1).max(240)).optional(),
+  human_gates: z.array(z.string().min(1).max(240)).optional(),
+  allowed_subagent_profile_ids: z.array(z.string().min(1).max(200)).optional(),
+});
+
+const environmentProfileSchema = z.object({
+  key: z.string().min(1).max(160),
+  name: z.string().min(1).max(200),
+  description: z.string().max(1200).optional(),
+  lane: z.string().min(1).max(120),
+  repo_mounts: z.array(z.string().min(1).max(400)).optional(),
+  package_set: z.array(z.string().min(1).max(200)).optional(),
+  secret_bindings: z.array(z.string().min(1).max(200)).optional(),
+  startup_pack_ids: z.array(z.string().min(1).max(200)).optional(),
+  network_rules: z.record(z.unknown()).optional(),
+  runtime_constraints: z.record(z.unknown()).optional(),
+  tool_policy: z.record(z.unknown()).optional(),
+  approval_policy: z.record(z.unknown()).optional(),
+  session_policy: z.record(z.unknown()).optional(),
+});
+
+const sessionControlSchema = z.object({
+  message: z.string().min(1).max(8000).optional(),
+  reason: z.string().min(1).max(1000).optional(),
+  checkpoint_id: z.string().min(1).max(200).optional(),
+  phase: z.enum(["investigation", "implementation", "review_qa"]).optional(),
+});
+
+const delegationSchema = z.object({
+  title: z.string().min(1).max(200),
+  message: z.string().min(1).max(8000),
+  agent_profile_id: z.string().min(1).max(200),
+  environment_profile_id: z.string().min(1).max(200).nullable().optional(),
+  parent_session_id: z.string().min(1).max(200).nullable().optional(),
+  parent_run_id: z.string().min(1).max(200).nullable().optional(),
+});
+
+const subagentBatchSchema = z.object({
+  parent_run_id: z.string().min(1).max(200).nullable().optional(),
+  workers: z.array(
+    z.object({
+      title: z.string().min(1).max(200),
+      message: z.string().min(1).max(8000),
+      agent_profile_id: z.string().min(1).max(200),
+      environment_profile_id: z.string().min(1).max(200).nullable().optional(),
+    }),
+  ).min(1).max(6),
 });
 
 const forkSessionSchema = z.object({
@@ -348,10 +487,88 @@ router.get(
   },
 );
 
+router.get(
+  "/sessions/:id/events",
+  requireAdminRole,
+  async (req: Request, res: Response) => {
+    try {
+      const limit =
+        typeof req.query.limit === "string" ? Number(req.query.limit) : undefined;
+      const events = await listRuntimeEventsForSession(
+        req.params.id,
+        Number.isFinite(limit) ? limit : undefined,
+      );
+      return res.json({
+        ok: true,
+        events: events.map((event) => normalizeRuntimeEvent(event)),
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to list runtime events";
+      return res.status(400).json({ ok: false, error: message });
+    }
+  },
+);
+
+router.get(
+  "/sessions/:id/checkpoints",
+  requireAdminRole,
+  async (req: Request, res: Response) => {
+    try {
+      const limit =
+        typeof req.query.limit === "string" ? Number(req.query.limit) : undefined;
+      const checkpoints = await listCheckpointsForSession(
+        req.params.id,
+        Number.isFinite(limit) ? limit : undefined,
+      );
+      return res.json({
+        ok: true,
+        checkpoints: checkpoints.map((checkpoint) => normalizeCheckpoint(checkpoint)),
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to list checkpoints";
+      return res.status(400).json({ ok: false, error: message });
+    }
+  },
+);
+
+router.get(
+  "/sessions/:id/compactions",
+  requireAdminRole,
+  async (req: Request, res: Response) => {
+    try {
+      const limit =
+        typeof req.query.limit === "string" ? Number(req.query.limit) : undefined;
+      const compactions = await listCompactionsForSession(
+        req.params.id,
+        Number.isFinite(limit) ? limit : undefined,
+      );
+      return res.json({
+        ok: true,
+        compactions: compactions.map((compaction) => normalizeCompaction(compaction)),
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to list compactions";
+      return res.status(400).json({ ok: false, error: message });
+    }
+  },
+);
+
 router.get("/context/options", requireAdminRole, async (_req: Request, res: Response) => {
   try {
-    const options = await getStartupContextOptions();
-    return res.json({ ok: true, ...options });
+    const [options, profiles, environments] = await Promise.all([
+      getStartupContextOptions(),
+      listAgentProfiles(),
+      listEnvironmentProfiles(),
+    ]);
+    return res.json({
+      ok: true,
+      ...options,
+      profiles: profiles.map((profile) => normalizeAgentProfile(profile)),
+      environments: environments.map((environment) => normalizeEnvironmentProfile(environment)),
+    });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to load startup context options";
@@ -393,6 +610,122 @@ router.get("/runtime/connectivity", requireAdminRole, runtimeConnectivityHandler
 router.post("/runtime/smoke-test", requireAdminRole, runtimeSmokeHandler);
 router.get("/openclaw/connectivity", requireAdminRole, runtimeConnectivityHandler);
 router.post("/openclaw/smoke-test", requireAdminRole, runtimeSmokeHandler);
+
+router.get("/profiles", requireAdminRole, async (_req: Request, res: Response) => {
+  try {
+    const profiles = await listAgentProfiles();
+    return res.json({
+      ok: true,
+      profiles: profiles.map((profile) => normalizeAgentProfile(profile)),
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to list agent profiles";
+    return res.status(400).json({ ok: false, error: message });
+  }
+});
+
+router.get("/profiles/:id", requireAdminRole, async (req: Request, res: Response) => {
+  try {
+    const profile = await getAgentProfile(req.params.id);
+    if (!profile) {
+      return res.status(404).json({ ok: false, error: "Agent profile not found" });
+    }
+    return res.json({ ok: true, profile: normalizeAgentProfile(profile) });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to load agent profile";
+    return res.status(400).json({ ok: false, error: message });
+  }
+});
+
+router.post("/profiles", requireAdminRole, async (req: Request, res: Response) => {
+  try {
+    const payload = agentProfileSchema.parse(req.body ?? {});
+    const profile = await createAgentProfile(payload as any);
+    return res.status(201).json({ ok: true, profile: normalizeAgentProfile(profile) });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to create agent profile";
+    return res.status(400).json({ ok: false, error: message });
+  }
+});
+
+router.patch("/profiles/:id", requireAdminRole, async (req: Request, res: Response) => {
+  try {
+    const payload = agentProfileSchema.partial().parse(req.body ?? {});
+    const profile = await updateAgentProfile(req.params.id, payload as any);
+    if (!profile) {
+      return res.status(404).json({ ok: false, error: "Agent profile not found or not editable" });
+    }
+    return res.json({ ok: true, profile: normalizeAgentProfile(profile) });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to update agent profile";
+    return res.status(400).json({ ok: false, error: message });
+  }
+});
+
+router.get("/environments", requireAdminRole, async (_req: Request, res: Response) => {
+  try {
+    const environments = await listEnvironmentProfiles();
+    return res.json({
+      ok: true,
+      environments: environments.map((profile) => normalizeEnvironmentProfile(profile)),
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to list environment profiles";
+    return res.status(400).json({ ok: false, error: message });
+  }
+});
+
+router.get("/environments/:id", requireAdminRole, async (req: Request, res: Response) => {
+  try {
+    const environment = await getEnvironmentProfile(req.params.id);
+    if (!environment) {
+      return res.status(404).json({ ok: false, error: "Environment profile not found" });
+    }
+    return res.json({ ok: true, environment: normalizeEnvironmentProfile(environment) });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to load environment profile";
+    return res.status(400).json({ ok: false, error: message });
+  }
+});
+
+router.post("/environments", requireAdminRole, async (req: Request, res: Response) => {
+  try {
+    const payload = environmentProfileSchema.parse(req.body ?? {});
+    const environment = await createEnvironmentProfile(payload as any);
+    return res.status(201).json({
+      ok: true,
+      environment: normalizeEnvironmentProfile(environment),
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to create environment profile";
+    return res.status(400).json({ ok: false, error: message });
+  }
+});
+
+router.patch("/environments/:id", requireAdminRole, async (req: Request, res: Response) => {
+  try {
+    const payload = environmentProfileSchema.partial().parse(req.body ?? {});
+    const environment = await updateEnvironmentProfile(req.params.id, payload as any);
+    if (!environment) {
+      return res.status(404).json({ ok: false, error: "Environment profile not found or not editable" });
+    }
+    return res.json({
+      ok: true,
+      environment: normalizeEnvironmentProfile(environment),
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to update environment profile";
+    return res.status(400).json({ ok: false, error: message });
+  }
+});
 
 router.get("/startup-packs", requireAdminRole, async (req: Request, res: Response) => {
   try {
@@ -616,7 +949,9 @@ router.post(
           tool_policy: payload.tool_policy,
           approval_policy: payload.approval_policy,
           session_policy: payload.session_policy,
+          outcome_contract: payload.outcome_contract,
           resume_from_run_id: payload.resume_from_run_id,
+          parent_run_id: payload.parent_run_id,
           metadata: payload.metadata,
         },
       });
@@ -628,6 +963,125 @@ router.post(
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to send agent message";
+      return res.status(400).json({ ok: false, error: message });
+    }
+  },
+);
+
+router.post(
+  "/sessions/:id/control/start",
+  requireAdminRole,
+  async (req: Request, res: Response) => {
+    try {
+      const payload = sessionControlSchema.parse(req.body ?? {});
+      const result = await startAgentSessionRun({
+        sessionId: req.params.id,
+        message: payload.message || "Start the bounded task.",
+      });
+      return res.status(result.queued ? 202 : 200).json({ ok: true, ...result });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to start agent session";
+      return res.status(400).json({ ok: false, error: message });
+    }
+  },
+);
+
+router.post(
+  "/sessions/:id/control/interrupt",
+  requireAdminRole,
+  async (req: Request, res: Response) => {
+    try {
+      const payload = sessionControlSchema.parse(req.body ?? {});
+      const result = await interruptAgentSession({
+        sessionId: req.params.id,
+        reason: payload.reason,
+      });
+      return res.json({ ok: true, ...result });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to interrupt session";
+      return res.status(400).json({ ok: false, error: message });
+    }
+  },
+);
+
+router.post(
+  "/sessions/:id/control/steer",
+  requireAdminRole,
+  async (req: Request, res: Response) => {
+    try {
+      const payload = sessionControlSchema.parse(req.body ?? {});
+      if (!payload.message) {
+        return res.status(400).json({ ok: false, error: "Steer message is required" });
+      }
+      const result = await steerAgentSession({
+        sessionId: req.params.id,
+        message: payload.message,
+      });
+      return res.status(result.queued ? 202 : 200).json({ ok: true, ...result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to steer session";
+      return res.status(400).json({ ok: false, error: message });
+    }
+  },
+);
+
+router.post(
+  "/sessions/:id/control/resume",
+  requireAdminRole,
+  async (req: Request, res: Response) => {
+    try {
+      const payload = sessionControlSchema.parse(req.body ?? {});
+      const result = await resumeAgentSession({
+        sessionId: req.params.id,
+        checkpointId: payload.checkpoint_id,
+      });
+      return res.status(result.queued ? 202 : 200).json({ ok: true, ...result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to resume session";
+      return res.status(400).json({ ok: false, error: message });
+    }
+  },
+);
+
+router.post(
+  "/sessions/:id/control/compact",
+  requireAdminRole,
+  async (req: Request, res: Response) => {
+    try {
+      const payload = sessionControlSchema.parse(req.body ?? {});
+      const result = await compactAgentSession({
+        sessionId: req.params.id,
+        phase: payload.phase || "investigation",
+        reason: payload.reason,
+      });
+      return res.status(result.dispatch.queued ? 202 : 200).json({
+        ok: true,
+        session: normalizeSession(result.session),
+        handoffPrompt: result.handoffPrompt,
+        dispatch: result.dispatch,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to compact session";
+      return res.status(400).json({ ok: false, error: message });
+    }
+  },
+);
+
+router.post(
+  "/sessions/:id/control/cancel",
+  requireAdminRole,
+  async (req: Request, res: Response) => {
+    try {
+      const payload = sessionControlSchema.parse(req.body ?? {});
+      const session = await cancelAgentSession({
+        sessionId: req.params.id,
+        reason: payload.reason,
+      });
+      return res.json({ ok: true, session: normalizeSession(session) });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to cancel session";
       return res.status(400).json({ ok: false, error: message });
     }
   },
@@ -653,6 +1107,60 @@ router.post(
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to fork agent session";
+      return res.status(400).json({ ok: false, error: message });
+    }
+  },
+);
+
+router.post("/delegations", requireAdminRole, async (req: Request, res: Response) => {
+  try {
+    const payload = delegationSchema.parse(req.body ?? {});
+    const result = await delegateManagedAgentTask({
+      title: payload.title,
+      message: payload.message,
+      agentProfileId: payload.agent_profile_id,
+      environmentProfileId: payload.environment_profile_id || null,
+      parentSessionId: payload.parent_session_id || null,
+      parentRunId: payload.parent_run_id || null,
+    });
+
+    return res.status(result.dispatch.queued ? 202 : 201).json({
+      ok: true,
+      session: normalizeSession(result.session),
+      dispatch: result.dispatch,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to delegate managed task";
+    return res.status(400).json({ ok: false, error: message });
+  }
+});
+
+router.post(
+  "/sessions/:id/subagents",
+  requireAdminRole,
+  async (req: Request, res: Response) => {
+    try {
+      const payload = subagentBatchSchema.parse(req.body ?? {});
+      const results = await spawnSessionSubagents({
+        parentSessionId: req.params.id,
+        parentRunId: payload.parent_run_id || null,
+        workers: payload.workers.map((worker) => ({
+          title: worker.title,
+          message: worker.message,
+          agentProfileId: worker.agent_profile_id,
+          environmentProfileId: worker.environment_profile_id || null,
+        })),
+      });
+
+      return res.status(201).json({
+        ok: true,
+        sessions: results.map((result) => normalizeSession(result.session)),
+        dispatches: results.map((result) => result.dispatch),
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to spawn subagents";
       return res.status(400).json({ ok: false, error: message });
     }
   },

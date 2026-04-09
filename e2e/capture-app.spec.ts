@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test("capture app access page renders the handoff flow", async ({ page }) => {
-  await page.goto("/capture-app", { waitUntil: "domcontentloaded" });
+  await page.goto("/capture-app", { waitUntil: "networkidle" });
 
   await expect(
     page.getByRole("heading", {

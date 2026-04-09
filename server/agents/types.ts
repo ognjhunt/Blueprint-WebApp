@@ -27,6 +27,8 @@ export type AgentRunStatus =
   | "pending_approval"
   | "cancelled";
 
+export type RuntimeEventStatus = "info" | "success" | "warning" | "error";
+
 export type AgentToolMode =
   | "none"
   | "api"
@@ -84,6 +86,29 @@ export interface SessionPolicy {
   max_concurrent: number;
 }
 
+export interface OutcomeContract {
+  objective: string;
+  success_criteria: string[];
+  self_checks: string[];
+  proof_requirements: string[];
+  pass_threshold: number;
+  bounded_scope?: string;
+  grader_name?: string;
+}
+
+export interface OutcomeCheckResult {
+  label: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface OutcomeEvaluation {
+  status: "pass" | "partial" | "fail";
+  score: number;
+  summary: string;
+  checks: OutcomeCheckResult[];
+}
+
 export interface ExternalKnowledgeSource {
   title: string;
   url: string;
@@ -122,7 +147,9 @@ export interface AgentTask<TInput = unknown> {
   tool_policy?: Partial<ToolPolicy>;
   approval_policy?: Partial<ApprovalPolicy>;
   session_policy?: Partial<SessionPolicy>;
+  outcome_contract?: Partial<OutcomeContract>;
   resume_from_run_id?: string | null;
+  parent_run_id?: string | null;
   metadata?: Record<string, unknown>;
 }
 
@@ -133,6 +160,7 @@ export interface StructuredTaskDefinition<TInput = unknown, TOutput = unknown> {
   model_by_provider?: Partial<Record<AgentProvider, string>>;
   output_schema: z.ZodType<TOutput>;
   build_prompt: (input: TInput) => string;
+  build_outcome_contract?: (input: TInput) => OutcomeContract;
   tool_policy?: Partial<ToolPolicy>;
   approval_policy?: Partial<ApprovalPolicy>;
   session_policy?: Partial<SessionPolicy>;
@@ -146,6 +174,7 @@ export interface NormalizedAgentTask<TInput = unknown, TOutput = unknown>
   tool_policy: ToolPolicy;
   approval_policy: ApprovalPolicy;
   session_policy: SessionPolicy;
+  outcome_contract: OutcomeContract;
   definition: StructuredTaskDefinition<TInput, TOutput>;
 }
 
@@ -178,6 +207,9 @@ export interface PersistedAgentSession {
   created_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
   updated_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
   last_run_id?: string | null;
+  agent_profile_id?: string | null;
+  environment_profile_id?: string | null;
+  latest_checkpoint_id?: string | null;
   metadata?: Record<string, unknown>;
 }
 
@@ -199,10 +231,13 @@ export interface PersistedAgentRun {
   error?: string | null;
   approval_reason?: string | null;
   requires_human_review: boolean;
+  parent_run_id?: string | null;
   openclaw_session_id?: string | null;
   openclaw_run_id?: string | null;
   tool_policy: ToolPolicy;
   approval_policy: ApprovalPolicy;
+  outcome_contract?: OutcomeContract | null;
+  outcome_evaluation?: OutcomeEvaluation | null;
   metadata?: Record<string, unknown>;
   created_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
   updated_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
@@ -308,4 +343,98 @@ export interface PersistedOpsActionLog {
   latency_ms?: number | null;
   metadata?: Record<string, unknown>;
   created_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
+}
+
+export interface AgentProfileRecord {
+  id: string;
+  key: string;
+  name: string;
+  description?: string;
+  task_kind: AgentTaskKind;
+  default_provider?: AgentProvider;
+  default_runtime?: AgentRuntime;
+  default_model?: string | null;
+  lane?: string | null;
+  default_environment_profile_id?: string | null;
+  startup_context?: StartupContextMetadata;
+  tool_policy?: Partial<ToolPolicy>;
+  approval_policy?: Partial<ApprovalPolicy>;
+  session_policy?: Partial<SessionPolicy>;
+  outcome_contract?: OutcomeContract | null;
+  capabilities?: string[];
+  human_gates?: string[];
+  allowed_subagent_profile_ids?: string[];
+  built_in?: boolean;
+  created_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
+  updated_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
+}
+
+export interface AgentEnvironmentProfileRecord {
+  id: string;
+  key: string;
+  name: string;
+  description?: string;
+  lane: string;
+  repo_mounts: string[];
+  package_set: string[];
+  secret_bindings: string[];
+  startup_pack_ids?: string[];
+  network_rules: {
+    mode: "restricted" | "open" | "deny_list";
+    allow_network: boolean;
+    allow_domains: string[];
+    deny_domains: string[];
+  };
+  runtime_constraints?: {
+    isolated_runtime: boolean;
+    checkpoint_on_failure: boolean;
+    checkpoint_on_control: boolean;
+  };
+  tool_policy?: Partial<ToolPolicy>;
+  approval_policy?: Partial<ApprovalPolicy>;
+  session_policy?: Partial<SessionPolicy>;
+  built_in?: boolean;
+  created_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
+  updated_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
+}
+
+export interface RuntimeEventRecord {
+  id: string;
+  session_id: string;
+  run_id?: string | null;
+  checkpoint_id?: string | null;
+  kind: string;
+  status: RuntimeEventStatus;
+  summary: string;
+  detail?: string | null;
+  metadata?: Record<string, unknown>;
+  created_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
+}
+
+export interface AgentCheckpointRecord {
+  id: string;
+  session_id: string;
+  run_id?: string | null;
+  session_key?: string | null;
+  label: string;
+  trigger: string;
+  replayable: boolean;
+  snapshot: Record<string, unknown>;
+  created_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
+}
+
+export interface AgentCompactionRecord {
+  id: string;
+  source_session_id: string;
+  source_run_id?: string | null;
+  target_session_id?: string | null;
+  target_run_id?: string | null;
+  phase?: AgentThreadPhase | null;
+  reason: string;
+  status: "created" | "continued" | "failed";
+  handoff_prompt: string;
+  summary: string;
+  metadata?: Record<string, unknown>;
+  created_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
+  updated_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
 }

@@ -53,6 +53,25 @@ export const supportTriageTask: StructuredTaskDefinition<
     mode: "api",
     prefer_direct_api: true,
   },
+  build_outcome_contract() {
+    return {
+      objective: "Classify the support request safely and recommend the right next action.",
+      success_criteria: [
+        "Category, queue, and priority are explicit.",
+        "Suggested response is concise and safe.",
+        "Human review is required when the issue is sensitive or low confidence.",
+      ],
+      self_checks: [
+        "Confirm there is no unsupported promise or irreversible commitment.",
+      ],
+      proof_requirements: [
+        "Use the inbound request details as supporting evidence.",
+      ],
+      pass_threshold: 0.8,
+      bounded_scope: "One support request.",
+      grader_name: "support-triage-grader",
+    };
+  },
   build_prompt(input) {
     return `You are Blueprint's support and ops triage copilot.
 

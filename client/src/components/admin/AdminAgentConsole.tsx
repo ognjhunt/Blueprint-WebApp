@@ -15,13 +15,18 @@ import {
 
 import { withCsrfHeader } from "@/lib/csrf";
 import type {
+  AgentCheckpointRecord,
+  AgentCompactionRecord,
   AgentContextOptionsResponse,
+  AgentEnvironmentProfileRecord,
+  AgentProfileRecord,
   OpsActionLogRecord,
   OpsDocumentRecord,
   AgentRunRecord,
   AgentSessionRecord,
   AgentThreadPhase,
   AgentTaskKind,
+  RuntimeEventRecord,
   StartupPackRecord,
 } from "@/types/agent";
 
@@ -39,6 +44,11 @@ const sessionTaskOptions: Array<{
     value: "support_triage",
     label: "Support triage",
     description: "Structured support investigations through the alpha agent runtime.",
+  },
+  {
+    value: "external_harness_thread",
+    label: "External harness thread",
+    description: "Bounded external-harness execution lane for implementation subagents.",
   },
 ];
 
@@ -63,6 +73,13 @@ function parseExternalSources(value: string) {
       };
     })
     .filter((entry) => entry.title && entry.url);
+}
+
+function parseLineList(value: string) {
+  return value
+    .split("\n")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
 }
 
 function statusColor(status: AgentRunRecord["status"]) {
@@ -118,6 +135,24 @@ function formatLatency(latencyMs?: number | null) {
   if (!latencyMs || latencyMs < 1) return null;
   if (latencyMs < 1000) return `${latencyMs} ms`;
   return `${(latencyMs / 1000).toFixed(1)} s`;
+}
+
+function runtimeEventStatusColor(status: RuntimeEventRecord["status"]) {
+  switch (status) {
+    case "success":
+      return "bg-emerald-100 text-emerald-700";
+    case "warning":
+      return "bg-amber-100 text-amber-800";
+    case "error":
+      return "bg-rose-100 text-rose-700";
+    default:
+      return "bg-zinc-100 text-zinc-700";
+  }
+}
+
+function scorePercent(score?: number | null) {
+  if (typeof score !== "number") return null;
+  return `${Math.round(score * 100)}%`;
 }
 
 function phaseLabel(phase: AgentThreadPhase) {
@@ -182,7 +217,30 @@ export default function AdminAgentConsole() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [title, setTitle] = useState("Ops agent thread");
   const [taskKind, setTaskKind] = useState<AgentTaskKind>("operator_thread");
+  const [selectedAgentProfileId, setSelectedAgentProfileId] = useState<string>("");
+  const [selectedEnvironmentProfileId, setSelectedEnvironmentProfileId] = useState<string>("");
   const [message, setMessage] = useState("");
+  const [steerMessage, setSteerMessage] = useState("");
+  const [delegationTitle, setDelegationTitle] = useState("Bounded delegated task");
+  const [delegationMessage, setDelegationMessage] = useState("");
+  const [delegationProfileId, setDelegationProfileId] = useState("");
+  const [delegationEnvironmentProfileId, setDelegationEnvironmentProfileId] = useState("");
+  const [compactPhase, setCompactPhase] = useState<AgentThreadPhase>("investigation");
+  const [profileEditorId, setProfileEditorId] = useState<string | null>(null);
+  const [profileEditorName, setProfileEditorName] = useState("");
+  const [profileEditorKey, setProfileEditorKey] = useState("");
+  const [profileEditorDescription, setProfileEditorDescription] = useState("");
+  const [profileEditorTaskKind, setProfileEditorTaskKind] = useState<AgentTaskKind>("operator_thread");
+  const [profileEditorCapabilities, setProfileEditorCapabilities] = useState("");
+  const [profileEditorHumanGates, setProfileEditorHumanGates] = useState("");
+  const [environmentEditorId, setEnvironmentEditorId] = useState<string | null>(null);
+  const [environmentEditorName, setEnvironmentEditorName] = useState("");
+  const [environmentEditorKey, setEnvironmentEditorKey] = useState("");
+  const [environmentEditorDescription, setEnvironmentEditorDescription] = useState("");
+  const [environmentEditorLane, setEnvironmentEditorLane] = useState("session");
+  const [environmentEditorPackages, setEnvironmentEditorPackages] = useState("");
+  const [environmentEditorSecrets, setEnvironmentEditorSecrets] = useState("");
+  const [environmentEditorMounts, setEnvironmentEditorMounts] = useState("");
   const [operatorNotes, setOperatorNotes] = useState("");
   const [selectedStartupPackIds, setSelectedStartupPackIds] = useState<string[]>([]);
   const [selectedRepoDocs, setSelectedRepoDocs] = useState<string[]>([]);
@@ -261,6 +319,42 @@ export default function AdminAgentConsole() {
     },
   });
 
+  const eventsQuery = useQuery<{ ok: boolean; events: RuntimeEventRecord[] }>({
+    queryKey: ["admin-agent-events", activeSessionId],
+    enabled: Boolean(activeSessionId),
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/events`, {
+        headers: await withCsrfHeader({}),
+      });
+      if (!response.ok) throw new Error("Failed to fetch runtime events");
+      return response.json();
+    },
+  });
+
+  const checkpointsQuery = useQuery<{ ok: boolean; checkpoints: AgentCheckpointRecord[] }>({
+    queryKey: ["admin-agent-checkpoints", activeSessionId],
+    enabled: Boolean(activeSessionId),
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/checkpoints`, {
+        headers: await withCsrfHeader({}),
+      });
+      if (!response.ok) throw new Error("Failed to fetch checkpoints");
+      return response.json();
+    },
+  });
+
+  const compactionsQuery = useQuery<{ ok: boolean; compactions: AgentCompactionRecord[] }>({
+    queryKey: ["admin-agent-compactions", activeSessionId],
+    enabled: Boolean(activeSessionId),
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/compactions`, {
+        headers: await withCsrfHeader({}),
+      });
+      if (!response.ok) throw new Error("Failed to fetch compactions");
+      return response.json();
+    },
+  });
+
   const openClawConnectivityQuery = useQuery<OpenClawConnectivityResponse>({
     queryKey: ["admin-agent-openclaw-connectivity"],
     queryFn: async () => {
@@ -278,6 +372,42 @@ export default function AdminAgentConsole() {
     }
   }, [selectedSessionId, sessionsQuery.data?.sessions]);
 
+  useEffect(() => {
+    const profiles = contextOptionsQuery.data?.profiles || [];
+    if (!selectedAgentProfileId && profiles[0]?.id) {
+      setSelectedAgentProfileId(profiles[0].id);
+    }
+    if (!delegationProfileId && profiles[0]?.id) {
+      setDelegationProfileId(profiles[0].id);
+    }
+  }, [contextOptionsQuery.data?.profiles, selectedAgentProfileId, delegationProfileId]);
+
+  useEffect(() => {
+    const environments = contextOptionsQuery.data?.environments || [];
+    if (!selectedEnvironmentProfileId && environments[0]?.id) {
+      setSelectedEnvironmentProfileId(environments[0].id);
+    }
+    if (!delegationEnvironmentProfileId && environments[0]?.id) {
+      setDelegationEnvironmentProfileId(environments[0].id);
+    }
+  }, [
+    contextOptionsQuery.data?.environments,
+    selectedEnvironmentProfileId,
+    delegationEnvironmentProfileId,
+  ]);
+
+  useEffect(() => {
+    const profile = (contextOptionsQuery.data?.profiles || []).find(
+      (entry) => entry.id === selectedAgentProfileId,
+    );
+    if (profile?.task_kind) {
+      setTaskKind(profile.task_kind);
+    }
+    if (profile?.default_environment_profile_id && !selectedEnvironmentProfileId) {
+      setSelectedEnvironmentProfileId(profile.default_environment_profile_id);
+    }
+  }, [contextOptionsQuery.data?.profiles, selectedAgentProfileId, selectedEnvironmentProfileId]);
+
   const selectedSession =
     sessionDetailQuery.data?.session
     || sessionsQuery.data?.sessions?.find((session) => session.id === activeSessionId)
@@ -288,6 +418,8 @@ export default function AdminAgentConsole() {
       const payload = {
         title,
         task_kind: taskKind,
+        agent_profile_id: selectedAgentProfileId || undefined,
+        environment_profile_id: selectedEnvironmentProfileId || undefined,
         metadata: {
           startupContext: {
             startupPackIds: selectedStartupPackIds,
@@ -306,6 +438,10 @@ export default function AdminAgentConsole() {
                 storage_uri: run.storageUri,
               })),
             operatorNotes,
+          },
+          managedRuntime: {
+            agentProfileId: selectedAgentProfileId || null,
+            environmentProfileId: selectedEnvironmentProfileId || null,
           },
         },
       };
@@ -409,9 +545,15 @@ export default function AdminAgentConsole() {
       if (!activeSessionId) {
         throw new Error("No session selected");
       }
+      const sessionTaskKind = selectedSession?.task_kind || "operator_thread";
       const body = {
-        task_kind: selectedSession?.task_kind || "operator_thread",
-        input: { message },
+        task_kind: sessionTaskKind,
+        input:
+          sessionTaskKind === "support_triage"
+            ? { summary: message, message }
+            : sessionTaskKind === "external_harness_thread"
+              ? { message, harness: "codex" }
+              : { message },
       };
 
       const response = await fetch(
@@ -431,6 +573,8 @@ export default function AdminAgentConsole() {
       queryClient.invalidateQueries({
         queryKey: ["admin-agent-action-logs", activeSessionId],
       });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-events", activeSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-checkpoints", activeSessionId] });
       setMessage("");
     },
   });
@@ -449,6 +593,7 @@ export default function AdminAgentConsole() {
       queryClient.invalidateQueries({
         queryKey: ["admin-agent-action-logs", activeSessionId],
       });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-events", activeSessionId] });
     },
   });
 
@@ -466,6 +611,7 @@ export default function AdminAgentConsole() {
       queryClient.invalidateQueries({
         queryKey: ["admin-agent-action-logs", activeSessionId],
       });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-events", activeSessionId] });
     },
   });
 
@@ -508,7 +654,218 @@ export default function AdminAgentConsole() {
       queryClient.invalidateQueries({
         queryKey: ["admin-agent-action-logs", activeSessionId],
       });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-events", activeSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-checkpoints", activeSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-compactions", activeSessionId] });
       setSelectedSessionId(data.session.id);
+    },
+  });
+
+  const startSessionMutation = useMutation({
+    mutationFn: async () => {
+      if (!activeSessionId) throw new Error("No session selected");
+      const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/control/start`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ message: message.trim() || "Start the bounded task." }),
+      });
+      if (!response.ok) throw new Error("Failed to start session");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-runs", activeSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-action-logs", activeSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-events", activeSessionId] });
+    },
+  });
+
+  const interruptSessionMutation = useMutation({
+    mutationFn: async () => {
+      if (!activeSessionId) throw new Error("No session selected");
+      const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/control/interrupt`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ reason: "Interrupted by operator from managed runtime console" }),
+      });
+      if (!response.ok) throw new Error("Failed to interrupt session");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-runs", activeSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-events", activeSessionId] });
+    },
+  });
+
+  const steerSessionMutation = useMutation({
+    mutationFn: async () => {
+      if (!activeSessionId) throw new Error("No session selected");
+      const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/control/steer`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ message: steerMessage }),
+      });
+      if (!response.ok) throw new Error("Failed to steer session");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-runs", activeSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-events", activeSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-action-logs", activeSessionId] });
+      setSteerMessage("");
+    },
+  });
+
+  const resumeSessionMutation = useMutation({
+    mutationFn: async (checkpointId?: string) => {
+      if (!activeSessionId) throw new Error("No session selected");
+      const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/control/resume`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ checkpoint_id: checkpointId }),
+      });
+      if (!response.ok) throw new Error("Failed to resume session");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-runs", activeSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-events", activeSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-checkpoints", activeSessionId] });
+    },
+  });
+
+  const cancelSessionMutation = useMutation({
+    mutationFn: async () => {
+      if (!activeSessionId) throw new Error("No session selected");
+      const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/control/cancel`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ reason: "Cancelled from managed runtime console" }),
+      });
+      if (!response.ok) throw new Error("Failed to cancel session");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-runs", activeSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-events", activeSessionId] });
+    },
+  });
+
+  const delegationMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/admin/agent/delegations", {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          title: delegationTitle,
+          message: delegationMessage,
+          agent_profile_id: delegationProfileId,
+          environment_profile_id: delegationEnvironmentProfileId || null,
+          parent_session_id: activeSessionId || null,
+          parent_run_id: runs[0]?.id || null,
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to delegate managed task");
+      return response.json() as Promise<{ ok: boolean; session: AgentSessionRecord }>;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-events", activeSessionId] });
+      setDelegationMessage("");
+      setSelectedSessionId(data.session.id);
+    },
+  });
+
+  const compactSessionMutation = useMutation({
+    mutationFn: async () => {
+      if (!activeSessionId) throw new Error("No session selected");
+      const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/control/compact`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ phase: compactPhase }),
+      });
+      if (!response.ok) throw new Error("Failed to compact session");
+      return response.json() as Promise<ForkSessionResponse>;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-compactions", activeSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-events", activeSessionId] });
+      setSelectedSessionId(data.session.id);
+    },
+  });
+
+  const saveProfileMutation = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        key: profileEditorKey,
+        name: profileEditorName,
+        description: profileEditorDescription,
+        task_kind: profileEditorTaskKind,
+        capabilities: parseLineList(profileEditorCapabilities),
+        human_gates: parseLineList(profileEditorHumanGates),
+      };
+      const response = await fetch(
+        profileEditorId ? `/api/admin/agent/profiles/${profileEditorId}` : "/api/admin/agent/profiles",
+        {
+          method: profileEditorId ? "PATCH" : "POST",
+          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+          body: JSON.stringify(payload),
+        },
+      );
+      if (!response.ok) throw new Error("Failed to save agent profile");
+      return response.json() as Promise<{ ok: boolean; profile: AgentProfileRecord }>;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-context-options"] });
+      setSelectedAgentProfileId(data.profile.id);
+      setDelegationProfileId((current) => current || data.profile.id);
+      setProfileEditorId(null);
+      setProfileEditorName("");
+      setProfileEditorKey("");
+      setProfileEditorDescription("");
+      setProfileEditorCapabilities("");
+      setProfileEditorHumanGates("");
+    },
+  });
+
+  const saveEnvironmentMutation = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        key: environmentEditorKey,
+        name: environmentEditorName,
+        description: environmentEditorDescription,
+        lane: environmentEditorLane,
+        package_set: parseLineList(environmentEditorPackages),
+        secret_bindings: parseLineList(environmentEditorSecrets),
+        repo_mounts: parseLineList(environmentEditorMounts),
+      };
+      const response = await fetch(
+        environmentEditorId
+          ? `/api/admin/agent/environments/${environmentEditorId}`
+          : "/api/admin/agent/environments",
+        {
+          method: environmentEditorId ? "PATCH" : "POST",
+          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+          body: JSON.stringify(payload),
+        },
+      );
+      if (!response.ok) throw new Error("Failed to save environment profile");
+      return response.json() as Promise<{ ok: boolean; environment: AgentEnvironmentProfileRecord }>;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-agent-context-options"] });
+      setSelectedEnvironmentProfileId(data.environment.id);
+      setDelegationEnvironmentProfileId((current) => current || data.environment.id);
+      setEnvironmentEditorId(null);
+      setEnvironmentEditorName("");
+      setEnvironmentEditorKey("");
+      setEnvironmentEditorDescription("");
+      setEnvironmentEditorLane("session");
+      setEnvironmentEditorPackages("");
+      setEnvironmentEditorSecrets("");
+      setEnvironmentEditorMounts("");
     },
   });
 
@@ -516,9 +873,14 @@ export default function AdminAgentConsole() {
   const availableBlueprints = contextOptionsQuery.data?.blueprints || [];
   const availableOpsDocuments = contextOptionsQuery.data?.opsDocuments || [];
   const availableStartupPacks = contextOptionsQuery.data?.startupPacks || [];
+  const availableProfiles = contextOptionsQuery.data?.profiles || [];
+  const availableEnvironments = contextOptionsQuery.data?.environments || [];
   const availableCreativeRuns = contextOptionsQuery.data?.recentCreativeRuns || [];
   const runs = runsQuery.data?.runs || [];
   const actionLogs = actionLogsQuery.data?.actionLogs || [];
+  const runtimeEvents = eventsQuery.data?.events || [];
+  const checkpoints = checkpointsQuery.data?.checkpoints || [];
+  const compactions = compactionsQuery.data?.compactions || [];
   const openClawConnectivity = openClawConnectivityQuery.data?.connectivity || null;
   const openClawSmokeResult = openClawSmokeTestMutation.data?.smokeTest || null;
   const openClawSmokeError =
@@ -564,6 +926,37 @@ export default function AdminAgentConsole() {
   const workflowPhase = selectedSession?.metadata?.workflow?.phase;
   const workflowRetryCount = selectedSession?.metadata?.workflow?.retryCount ?? 0;
   const workflowHandoffPrompt = selectedSession?.metadata?.workflow?.handoffPrompt;
+  const selectedProfile = availableProfiles.find((profile) => profile.id === selectedAgentProfileId) || null;
+  const selectedEnvironment =
+    availableEnvironments.find((environment) => environment.id === selectedEnvironmentProfileId) || null;
+  const selectedDelegationProfile =
+    availableProfiles.find((profile) => profile.id === delegationProfileId) || null;
+  const sessionTimeline = useMemo(
+    () =>
+      [...runtimeEvents, ...actionLogs.map((log) => ({
+        id: `action-${log.id}`,
+        session_id: log.sessionId || activeSessionId || "",
+        run_id: log.runId || null,
+        kind: log.actionKey,
+        status:
+          log.status === "completed"
+            ? "success"
+            : log.status === "failed"
+              ? "error"
+              : log.status === "pending_approval"
+                ? "warning"
+                : "info",
+        summary: log.summary || log.actionKey,
+        detail: null,
+        metadata: log.metadata || {},
+        created_at: log.createdAt,
+      }))].sort((a, b) => {
+        const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return bTime - aTime;
+      }),
+    [runtimeEvents, actionLogs, activeSessionId],
+  );
 
   return (
     <div className="space-y-6">
@@ -611,9 +1004,61 @@ export default function AdminAgentConsole() {
                   </option>
                 ))}
               </select>
+              <select
+                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                value={selectedAgentProfileId}
+                onChange={(event) => setSelectedAgentProfileId(event.target.value)}
+              >
+                <option value="">Select agent profile</option>
+                {availableProfiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.name}
+                    {profile.built_in ? " · built-in" : ""}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                value={selectedEnvironmentProfileId}
+                onChange={(event) => setSelectedEnvironmentProfileId(event.target.value)}
+              >
+                <option value="">Select environment profile</option>
+                {availableEnvironments.map((environment) => (
+                  <option key={environment.id} value={environment.id}>
+                    {environment.name}
+                    {environment.built_in ? " · built-in" : ""}
+                  </option>
+                ))}
+              </select>
               <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
-                Execution backend: OpenAI Responses
+                Execution backend: {selectedProfile?.default_provider || "openai_responses"}
               </div>
+              {selectedProfile ? (
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700">
+                  <p className="font-medium text-zinc-900">{selectedProfile.name}</p>
+                  {selectedProfile.description ? (
+                    <p className="mt-1 text-zinc-600">{selectedProfile.description}</p>
+                  ) : null}
+                  <p className="mt-2 text-xs text-zinc-500">
+                    Task kind: {selectedProfile.task_kind}
+                    {selectedProfile.outcome_contract?.bounded_scope
+                      ? ` · ${selectedProfile.outcome_contract.bounded_scope}`
+                      : ""}
+                  </p>
+                </div>
+              ) : null}
+              {selectedEnvironment ? (
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700">
+                  <p className="font-medium text-zinc-900">{selectedEnvironment.name}</p>
+                  {selectedEnvironment.description ? (
+                    <p className="mt-1 text-zinc-600">{selectedEnvironment.description}</p>
+                  ) : null}
+                  <p className="mt-2 text-xs text-zinc-500">
+                    Lane: {selectedEnvironment.lane} · Packages:{" "}
+                    {selectedEnvironment.package_set.join(", ") || "None"}
+                  </p>
+                </div>
+              ) : null}
 
               <div className="rounded-xl border border-zinc-200 p-3">
                 <div className="flex items-center gap-2">
@@ -907,6 +1352,182 @@ export default function AdminAgentConsole() {
                 </div>
               </div>
 
+              <div className="rounded-xl border border-dashed border-zinc-300 p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  Agent profile library
+                </p>
+                <div className="mt-3 space-y-2">
+                  <div className="max-h-36 space-y-2 overflow-y-auto">
+                    {availableProfiles.map((profile) => (
+                      <div key={profile.id} className="flex items-start justify-between gap-3 rounded-lg border border-zinc-200 p-2 text-sm">
+                        <div>
+                          <p className="font-medium text-zinc-900">{profile.name}</p>
+                          <p className="text-xs text-zinc-500">{profile.task_kind}</p>
+                        </div>
+                        <button
+                          type="button"
+                          className="text-xs text-zinc-500 underline"
+                          onClick={() => {
+                            setProfileEditorId(profile.built_in ? null : profile.id);
+                            setProfileEditorName(profile.name);
+                            setProfileEditorKey(profile.key);
+                            setProfileEditorDescription(profile.description || "");
+                            setProfileEditorTaskKind(profile.task_kind);
+                            setProfileEditorCapabilities((profile.capabilities || []).join("\n"));
+                            setProfileEditorHumanGates((profile.human_gates || []).join("\n"));
+                          }}
+                        >
+                          {profile.built_in ? "Clone" : "Edit"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <input
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    value={profileEditorName}
+                    onChange={(event) => setProfileEditorName(event.target.value)}
+                    placeholder="Profile name"
+                  />
+                  <input
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    value={profileEditorKey}
+                    onChange={(event) => setProfileEditorKey(event.target.value)}
+                    placeholder="Profile key"
+                  />
+                  <select
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    value={profileEditorTaskKind}
+                    onChange={(event) => setProfileEditorTaskKind(event.target.value as AgentTaskKind)}
+                  >
+                    {sessionTaskOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <textarea
+                    className="min-h-[72px] w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    value={profileEditorDescription}
+                    onChange={(event) => setProfileEditorDescription(event.target.value)}
+                    placeholder="Profile description"
+                  />
+                  <textarea
+                    className="min-h-[72px] w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    value={profileEditorCapabilities}
+                    onChange={(event) => setProfileEditorCapabilities(event.target.value)}
+                    placeholder="Capabilities, one per line"
+                  />
+                  <textarea
+                    className="min-h-[72px] w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    value={profileEditorHumanGates}
+                    onChange={(event) => setProfileEditorHumanGates(event.target.value)}
+                    placeholder="Human gates, one per line"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => saveProfileMutation.mutate()}
+                    className="inline-flex items-center rounded-full border border-zinc-300 px-4 py-2 text-sm text-zinc-800"
+                    disabled={!profileEditorName.trim() || !profileEditorKey.trim() || saveProfileMutation.isPending}
+                  >
+                    {saveProfileMutation.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Layers3 className="mr-2 h-4 w-4" />
+                    )}
+                    {profileEditorId ? "Update profile" : "Create profile"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-dashed border-zinc-300 p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  Environment library
+                </p>
+                <div className="mt-3 space-y-2">
+                  <div className="max-h-36 space-y-2 overflow-y-auto">
+                    {availableEnvironments.map((environment) => (
+                      <div key={environment.id} className="flex items-start justify-between gap-3 rounded-lg border border-zinc-200 p-2 text-sm">
+                        <div>
+                          <p className="font-medium text-zinc-900">{environment.name}</p>
+                          <p className="text-xs text-zinc-500">{environment.lane}</p>
+                        </div>
+                        <button
+                          type="button"
+                          className="text-xs text-zinc-500 underline"
+                          onClick={() => {
+                            setEnvironmentEditorId(environment.built_in ? null : environment.id);
+                            setEnvironmentEditorName(environment.name);
+                            setEnvironmentEditorKey(environment.key);
+                            setEnvironmentEditorDescription(environment.description || "");
+                            setEnvironmentEditorLane(environment.lane);
+                            setEnvironmentEditorPackages((environment.package_set || []).join("\n"));
+                            setEnvironmentEditorSecrets((environment.secret_bindings || []).join("\n"));
+                            setEnvironmentEditorMounts((environment.repo_mounts || []).join("\n"));
+                          }}
+                        >
+                          {environment.built_in ? "Clone" : "Edit"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <input
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    value={environmentEditorName}
+                    onChange={(event) => setEnvironmentEditorName(event.target.value)}
+                    placeholder="Environment name"
+                  />
+                  <input
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    value={environmentEditorKey}
+                    onChange={(event) => setEnvironmentEditorKey(event.target.value)}
+                    placeholder="Environment key"
+                  />
+                  <input
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    value={environmentEditorLane}
+                    onChange={(event) => setEnvironmentEditorLane(event.target.value)}
+                    placeholder="Lane"
+                  />
+                  <textarea
+                    className="min-h-[72px] w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    value={environmentEditorDescription}
+                    onChange={(event) => setEnvironmentEditorDescription(event.target.value)}
+                    placeholder="Environment description"
+                  />
+                  <textarea
+                    className="min-h-[72px] w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    value={environmentEditorPackages}
+                    onChange={(event) => setEnvironmentEditorPackages(event.target.value)}
+                    placeholder="Packages, one per line"
+                  />
+                  <textarea
+                    className="min-h-[72px] w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    value={environmentEditorSecrets}
+                    onChange={(event) => setEnvironmentEditorSecrets(event.target.value)}
+                    placeholder="Secrets, one per line"
+                  />
+                  <textarea
+                    className="min-h-[72px] w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                    value={environmentEditorMounts}
+                    onChange={(event) => setEnvironmentEditorMounts(event.target.value)}
+                    placeholder="Repo mounts, one per line"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => saveEnvironmentMutation.mutate()}
+                    className="inline-flex items-center rounded-full border border-zinc-300 px-4 py-2 text-sm text-zinc-800"
+                    disabled={!environmentEditorName.trim() || !environmentEditorKey.trim() || saveEnvironmentMutation.isPending}
+                  >
+                    {saveEnvironmentMutation.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Layers3 className="mr-2 h-4 w-4" />
+                    )}
+                    {environmentEditorId ? "Update environment" : "Create environment"}
+                  </button>
+                </div>
+              </div>
+
               <button
                 type="button"
                 onClick={() => createSessionMutation.mutate()}
@@ -951,6 +1572,14 @@ export default function AdminAgentConsole() {
                         <p className="text-xs text-zinc-500">
                           {session.task_kind} · {session.provider}
                         </p>
+                        {session.metadata?.managedRuntime?.profileName ? (
+                          <p className="text-[11px] text-zinc-400">
+                            {session.metadata.managedRuntime.profileName}
+                            {session.metadata.managedRuntime.environmentName
+                              ? ` · ${session.metadata.managedRuntime.environmentName}`
+                              : ""}
+                          </p>
+                        ) : null}
                       </div>
                       <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-700">
                         {session.status}
@@ -1072,6 +1701,14 @@ export default function AdminAgentConsole() {
                   <p className="mt-1 text-sm text-zinc-600">
                     {selectedSession.task_kind} · {selectedSession.provider}
                   </p>
+                  {selectedSession.metadata?.managedRuntime?.profileName ? (
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Profile: {selectedSession.metadata.managedRuntime.profileName}
+                      {selectedSession.metadata.managedRuntime.environmentName
+                        ? ` · Environment: ${selectedSession.metadata.managedRuntime.environmentName}`
+                        : ""}
+                    </p>
+                  ) : null}
                   {workflowPhase ? (
                     <p className="mt-1 text-xs text-zinc-500">
                       Phase: {phaseLabel(workflowPhase)}
@@ -1082,6 +1719,206 @@ export default function AdminAgentConsole() {
                     Last updated {formatTimestamp(selectedSession.updated_at)}
                   </p>
                 </div>
+
+                <div className="rounded-xl border border-zinc-200 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                    Live controls
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => startSessionMutation.mutate()}
+                      className="inline-flex items-center rounded-full border border-zinc-300 px-3 py-1 text-xs text-zinc-800"
+                      disabled={startSessionMutation.isPending}
+                    >
+                      {startSessionMutation.isPending ? (
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      ) : (
+                        <PlayCircle className="mr-1 h-3 w-3" />
+                      )}
+                      Start
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => interruptSessionMutation.mutate()}
+                      className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs text-amber-800"
+                      disabled={interruptSessionMutation.isPending}
+                    >
+                      {interruptSessionMutation.isPending ? (
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      ) : (
+                        <SquareX className="mr-1 h-3 w-3" />
+                      )}
+                      Interrupt
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => resumeSessionMutation.mutate(selectedSession.latest_checkpoint_id || undefined)}
+                      className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs text-blue-700"
+                      disabled={resumeSessionMutation.isPending}
+                    >
+                      {resumeSessionMutation.isPending ? (
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      ) : (
+                        <PlayCircle className="mr-1 h-3 w-3" />
+                      )}
+                      Resume
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => cancelSessionMutation.mutate()}
+                      className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs text-rose-700"
+                      disabled={cancelSessionMutation.isPending}
+                    >
+                      {cancelSessionMutation.isPending ? (
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      ) : (
+                        <SquareX className="mr-1 h-3 w-3" />
+                      )}
+                      Cancel session
+                    </button>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <select
+                      className="rounded-lg border border-zinc-200 px-3 py-2 text-xs"
+                      value={compactPhase}
+                      onChange={(event) => setCompactPhase(event.target.value as AgentThreadPhase)}
+                    >
+                      <option value="investigation">Investigation</option>
+                      <option value="implementation">Implementation</option>
+                      <option value="review_qa">Review/QA</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => compactSessionMutation.mutate()}
+                      className="inline-flex items-center rounded-full border border-zinc-300 px-3 py-1 text-xs text-zinc-800"
+                      disabled={compactSessionMutation.isPending}
+                    >
+                      {compactSessionMutation.isPending ? (
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      ) : (
+                        <Layers3 className="mr-1 h-3 w-3" />
+                      )}
+                      Compact into fresh thread
+                    </button>
+                  </div>
+                  <textarea
+                    className="mt-3 min-h-[88px] w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                    value={steerMessage}
+                    onChange={(event) => setSteerMessage(event.target.value)}
+                    placeholder="Steer the active session with a fresh instruction"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => steerSessionMutation.mutate()}
+                    className="mt-3 inline-flex items-center rounded-full border border-zinc-300 px-3 py-1 text-xs text-zinc-800"
+                    disabled={steerSessionMutation.isPending || !steerMessage.trim()}
+                  >
+                    {steerSessionMutation.isPending ? (
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                    ) : (
+                      <MessageSquare className="mr-1 h-3 w-3" />
+                    )}
+                    Steer active run
+                  </button>
+                </div>
+
+                <div className="rounded-xl border border-zinc-200 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                    Human delegation
+                  </p>
+                  <p className="mt-2 text-sm text-zinc-600">
+                    Assign a bounded task to another managed agent profile without touching raw Paperclip state.
+                  </p>
+                  <div className="mt-3 grid gap-3">
+                    <input
+                      className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                      value={delegationTitle}
+                      onChange={(event) => setDelegationTitle(event.target.value)}
+                      placeholder="Delegation title"
+                    />
+                    <select
+                      className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                      value={delegationProfileId}
+                      onChange={(event) => setDelegationProfileId(event.target.value)}
+                    >
+                      <option value="">Select subagent profile</option>
+                      {availableProfiles.map((profile) => (
+                        <option key={profile.id} value={profile.id}>
+                          {profile.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                      value={delegationEnvironmentProfileId}
+                      onChange={(event) => setDelegationEnvironmentProfileId(event.target.value)}
+                    >
+                      <option value="">Select environment</option>
+                      {availableEnvironments.map((environment) => (
+                        <option key={environment.id} value={environment.id}>
+                          {environment.name}
+                        </option>
+                      ))}
+                    </select>
+                    {selectedDelegationProfile?.outcome_contract ? (
+                      <div className="rounded-lg bg-zinc-50 p-3 text-xs text-zinc-600">
+                        Outcome contract: {selectedDelegationProfile.outcome_contract.objective}
+                      </div>
+                    ) : null}
+                    <textarea
+                      className="min-h-[100px] w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                      value={delegationMessage}
+                      onChange={(event) => setDelegationMessage(event.target.value)}
+                      placeholder="Bounded task for the delegated agent"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => delegationMutation.mutate()}
+                      className="inline-flex items-center rounded-full border border-zinc-300 px-3 py-1 text-xs text-zinc-800"
+                      disabled={
+                        delegationMutation.isPending ||
+                        !delegationTitle.trim() ||
+                        !delegationMessage.trim() ||
+                        !delegationProfileId
+                      }
+                    >
+                      {delegationMutation.isPending ? (
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      ) : (
+                        <Layers3 className="mr-1 h-3 w-3" />
+                      )}
+                      Delegate bounded task
+                    </button>
+                  </div>
+                </div>
+
+                {selectedSession.metadata?.latest_outcome_evaluation ? (
+                  <div className="rounded-xl border border-zinc-200 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                      Latest outcome grade
+                    </p>
+                    <div className="mt-3 flex items-center gap-2">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${
+                          selectedSession.metadata.latest_outcome_evaluation.status === "pass"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : selectedSession.metadata.latest_outcome_evaluation.status === "partial"
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-rose-100 text-rose-700"
+                        }`}
+                      >
+                        {selectedSession.metadata.latest_outcome_evaluation.status}
+                      </span>
+                      <span className="text-sm text-zinc-600">
+                        {scorePercent(selectedSession.metadata.latest_outcome_evaluation.score)}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-zinc-700">
+                      {selectedSession.metadata.latest_outcome_evaluation.summary}
+                    </p>
+                  </div>
+                ) : null}
 
                 <div className="rounded-xl border border-zinc-200 p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
@@ -1251,6 +2088,35 @@ export default function AdminAgentConsole() {
                     {run.error ? (
                       <p className="mt-3 text-sm text-rose-700">{run.error}</p>
                     ) : null}
+                    {run.outcome_evaluation ? (
+                      <div className="mt-3 rounded-lg bg-zinc-50 p-3 text-sm text-zinc-700">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-medium ${
+                              run.outcome_evaluation.status === "pass"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : run.outcome_evaluation.status === "partial"
+                                  ? "bg-amber-100 text-amber-800"
+                                  : "bg-rose-100 text-rose-700"
+                            }`}
+                          >
+                            {run.outcome_evaluation.status}
+                          </span>
+                          <span className="text-xs text-zinc-500">
+                            {scorePercent(run.outcome_evaluation.score)}
+                          </span>
+                        </div>
+                        <p className="mt-2">{run.outcome_evaluation.summary}</p>
+                      </div>
+                    ) : null}
+                    {run.outcome_contract ? (
+                      <div className="mt-3 rounded-lg border border-zinc-200 p-3 text-sm text-zinc-700">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                          Outcome contract
+                        </p>
+                        <p className="mt-2">{run.outcome_contract.objective}</p>
+                      </div>
+                    ) : null}
                     {run.output ? (
                       <pre className="mt-3 overflow-x-auto rounded-lg bg-zinc-950 p-3 text-xs text-zinc-100">
                         {JSON.stringify(run.output, null, 2)}
@@ -1347,6 +2213,127 @@ export default function AdminAgentConsole() {
                         {JSON.stringify(log.metadata, null, 2)}
                       </pre>
                     ) : null}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+            <div className="flex items-center gap-2">
+              <Clock3 className="h-4 w-4 text-zinc-500" />
+              <h2 className="font-semibold text-zinc-950">Managed runtime timeline</h2>
+            </div>
+            <div className="mt-4 space-y-3">
+              {eventsQuery.isLoading ? (
+                <p className="text-sm text-zinc-500">Loading runtime events...</p>
+              ) : sessionTimeline.length === 0 ? (
+                <p className="text-sm text-zinc-500">No runtime events yet.</p>
+              ) : (
+                sessionTimeline.map((item) => (
+                  <div key={item.id} className="rounded-xl border border-zinc-200 p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${runtimeEventStatusColor(item.status as RuntimeEventRecord["status"])}`}>
+                        {item.status}
+                      </span>
+                      <span className="text-xs font-medium text-zinc-700">{item.kind}</span>
+                      <span className="text-xs text-zinc-400">{formatTimestamp(item.created_at)}</span>
+                    </div>
+                    <p className="mt-3 text-sm text-zinc-700">{item.summary}</p>
+                    {item.detail ? <p className="mt-2 text-xs text-zinc-500">{item.detail}</p> : null}
+                    {item.metadata && Object.keys(item.metadata).length > 0 ? (
+                      <pre className="mt-3 overflow-x-auto rounded-lg bg-zinc-950 p-3 text-xs text-zinc-100">
+                        {JSON.stringify(item.metadata, null, 2)}
+                      </pre>
+                    ) : null}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+            <div className="flex items-center gap-2">
+              <Layers3 className="h-4 w-4 text-zinc-500" />
+              <h2 className="font-semibold text-zinc-950">Checkpoints</h2>
+            </div>
+            <div className="mt-4 space-y-3">
+              {checkpointsQuery.isLoading ? (
+                <p className="text-sm text-zinc-500">Loading checkpoints...</p>
+              ) : checkpoints.length === 0 ? (
+                <p className="text-sm text-zinc-500">No checkpoints for this session yet.</p>
+              ) : (
+                checkpoints.map((checkpoint) => (
+                  <div key={checkpoint.id} className="rounded-xl border border-zinc-200 p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-700">
+                        {checkpoint.trigger}
+                      </span>
+                      <span className="text-xs text-zinc-400">
+                        {formatTimestamp(checkpoint.created_at)}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm text-zinc-700">{checkpoint.label}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {checkpoint.replayable ? (
+                        <button
+                          type="button"
+                          onClick={() => resumeSessionMutation.mutate(checkpoint.id)}
+                          className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs text-blue-700"
+                          disabled={resumeSessionMutation.isPending}
+                        >
+                          {resumeSessionMutation.isPending ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : (
+                            <PlayCircle className="mr-1 h-3 w-3" />
+                          )}
+                          Replay from checkpoint
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+            <div className="flex items-center gap-2">
+              <Layers3 className="h-4 w-4 text-zinc-500" />
+              <h2 className="font-semibold text-zinc-950">Compactions</h2>
+            </div>
+            <div className="mt-4 space-y-3">
+              {compactionsQuery.isLoading ? (
+                <p className="text-sm text-zinc-500">Loading compactions...</p>
+              ) : compactions.length === 0 ? (
+                <p className="text-sm text-zinc-500">No compactions for this session yet.</p>
+              ) : (
+                compactions.map((compaction) => (
+                  <div key={compaction.id} className="rounded-xl border border-zinc-200 p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${
+                        compaction.status === "continued"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : compaction.status === "failed"
+                            ? "bg-rose-100 text-rose-700"
+                            : "bg-zinc-100 text-zinc-700"
+                      }`}>
+                        {compaction.status}
+                      </span>
+                      <span className="text-xs text-zinc-500">{compaction.reason}</span>
+                      <span className="text-xs text-zinc-400">
+                        {formatTimestamp(compaction.created_at)}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm text-zinc-700">{compaction.summary}</p>
+                    {compaction.phase ? (
+                      <p className="mt-2 text-xs text-zinc-500">
+                        Phase: {phaseLabel(compaction.phase)}
+                      </p>
+                    ) : null}
+                    <pre className="mt-3 overflow-x-auto rounded-lg bg-zinc-950 p-3 text-xs text-zinc-100">
+                      {compaction.handoff_prompt}
+                    </pre>
                   </div>
                 ))
               )}

@@ -1,0 +1,35 @@
+version: 2026-04-09.1
+agent_key: webapp-review
+environment_profile: engineering_review_readonly
+resolved_inputs:
+  sources:
+    - PLATFORM_CONTEXT.md
+    - WORLD_MODEL_STRATEGY_CONTEXT.md
+    - ops/paperclip/blueprint-company/agents/webapp-review/AGENTS.md
+    - ops/paperclip/blueprint-company/agents/webapp-review/Soul.md
+  summary: Review runtime for Blueprint-WebApp focused on traceable findings, bounded tools, and no silent mutation.
+active_tools:
+  - blueprint-runtime-session-status
+  - blueprint-runtime-session-checkpoint
+  - blueprint-runtime-memory-read
+active_skills:
+  - verification-before-completion
+memory_bindings:
+  - doctrine_shared
+  - project_shared:blueprint-webapp
+  - agent_local:webapp-review
+vault:
+  default_scope: session
+  allowed_refs:
+    - BLUEPRINT_PAPERCLIP_GITHUB_TOKEN
+  allowed_tools:
+    - github
+adapter_policy:
+  preferred:
+    - claude_local
+    - codex_local
+review_policy:
+  requires_verification: true
+  evidence:
+    - findings output
+    - trace-linked review evidence

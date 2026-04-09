@@ -1,0 +1,38 @@
+key: engineering_review_readonly
+description: Review-oriented profile with read access, testing, and no direct external writes.
+runtime_lane: review
+adapter_policy:
+  preferred:
+    - claude_local
+    - codex_local
+tools:
+  allow:
+    - repo_read
+    - rg_search
+    - build
+    - test
+    - diff_review
+  deny:
+    - repo_write
+    - slack_post
+    - notion_write
+    - finance_mutation
+network_policy:
+  mode: restricted
+repo_mounts:
+  - /Users/nijelhunt_1/workspace/Blueprint-WebApp
+memory:
+  bind:
+    - doctrine_shared
+    - project_shared:blueprint-webapp
+vault:
+  default_scope: session
+  allowed_refs:
+    - BLUEPRINT_PAPERCLIP_GITHUB_TOKEN
+  allowed_tools:
+    - github
+artifacts:
+  require_trace_link: true
+  publish_to_issue: true
+review:
+  human_gate: cto-review

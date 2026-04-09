@@ -80,6 +80,11 @@ describe("preview diagnosis AutoAgent shadow", () => {
     vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_ENABLED", "1");
     vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_LANES", "preview_diagnosis");
     vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER", "acp_harness");
+    vi.stubEnv("BLUEPRINT_PREVIEW_DIAGNOSIS_BROWSER_SHADOW_ENABLED", "1");
+    vi.stubEnv(
+      "BLUEPRINT_PREVIEW_DIAGNOSIS_BROWSER_SHADOW_ALLOWED_DOMAINS",
+      "preview.tryblueprint.io,hosted.tryblueprint.io",
+    );
 
     decryptInboundRequestForAdmin.mockResolvedValue({
       requestId: "request-1",
@@ -161,6 +166,28 @@ describe("preview diagnosis AutoAgent shadow", () => {
         kind: "preview_diagnosis",
         provider: "acp_harness",
         session_key: "preview:request-1:shadow:autoagent",
+        tool_policy: expect.objectContaining({
+          mode: "browser",
+          prefer_direct_api: false,
+          browser_fallback_allowed: true,
+          isolated_runtime_required: true,
+          allowed_domains: ["preview.tryblueprint.io", "hosted.tryblueprint.io"],
+          allowed_actions: [
+            "read_only_browser",
+            "screenshot_capture",
+            "console_capture",
+            "artifact_report",
+          ],
+        }),
+        metadata: expect.objectContaining({
+          request_id: "request-1",
+          preview_browser_shadow_enabled: true,
+          preview_browser_shadow_allowed_domains: [
+            "preview.tryblueprint.io",
+            "hosted.tryblueprint.io",
+          ],
+          shadow_namespace: "autoagent",
+        }),
       }),
     );
     expect(docSet).toHaveBeenCalledWith(
@@ -176,6 +203,90 @@ describe("preview diagnosis AutoAgent shadow", () => {
         }),
       }),
       expect.objectContaining({ merge: true }),
+    );
+  });
+
+  it("does not attach browser shadow policy without an explicit allowlist", async () => {
+    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_ENABLED", "1");
+    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_LANES", "preview_diagnosis");
+    vi.stubEnv("BLUEPRINT_AUTOAGENT_SHADOW_PROVIDER", "acp_harness");
+    vi.stubEnv("BLUEPRINT_PREVIEW_DIAGNOSIS_BROWSER_SHADOW_ENABLED", "1");
+
+    decryptInboundRequestForAdmin.mockResolvedValue({
+      requestId: "request-1",
+      deployment_readiness: {
+        preview_status: "failed",
+        provider_run: {
+          status: "failed",
+        },
+      },
+      pipeline: {
+        scene_id: "scene-1",
+        artifacts: {},
+      },
+      ops_automation: {},
+    });
+
+    runAgentTask
+      .mockResolvedValueOnce({
+        status: "completed",
+        provider: "openclaw",
+        runtime: "openclaw",
+        model: "openai/gpt-5.4",
+        tool_mode: "api",
+        requires_human_review: true,
+        requires_approval: false,
+        output: {
+          disposition: "provider_escalation",
+          automation_status: "blocked",
+          block_reason_code: "provider_artifact_failure",
+          retryable: false,
+          queue: "preview_release_review",
+          confidence: 0.84,
+          requires_human_review: true,
+          retry_recommended: false,
+          next_action: "Escalate to provider review",
+          rationale: "Provider-side artifact issue.",
+          internal_summary: "Provider escalation needed.",
+        },
+      })
+      .mockResolvedValueOnce({
+        status: "completed",
+        provider: "acp_harness",
+        runtime: "acp_harness",
+        model: "codex",
+        tool_mode: "external_harness",
+        requires_human_review: true,
+        requires_approval: false,
+        output: {
+          disposition: "provider_escalation",
+          automation_status: "blocked",
+          block_reason_code: "provider_artifact_failure",
+          retryable: false,
+          queue: "preview_release_review",
+          confidence: 0.82,
+          requires_human_review: true,
+          retry_recommended: false,
+          next_action: "Escalate to provider review",
+          rationale: "Shadow provider-side artifact issue.",
+          internal_summary: "Shadow provider escalation needed.",
+        },
+      });
+
+    const { runPreviewDiagnosisLoop } = await import("../agents/workflows");
+    const result = await runPreviewDiagnosisLoop({ limit: 1 });
+
+    expect(result.ok).toBe(true);
+    expect(runAgentTask).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        kind: "preview_diagnosis",
+        tool_policy: undefined,
+        metadata: expect.objectContaining({
+          request_id: "request-1",
+          shadow_namespace: "autoagent",
+        }),
+      }),
     );
   });
 });

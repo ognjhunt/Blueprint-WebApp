@@ -27,6 +27,26 @@ export const operatorThreadTask: StructuredTaskDefinition<
     mode: "mixed",
     prefer_direct_api: true,
   },
+  build_outcome_contract() {
+    return {
+      objective: "Respond to the operator request with a bounded, actionable answer.",
+      success_criteria: [
+        "Reply directly addresses the request.",
+        "Summary is concise and specific.",
+        "Suggested actions are concrete.",
+      ],
+      self_checks: [
+        "Confirm there are no unsupported claims.",
+        "Confirm blockers or escalations are explicit.",
+      ],
+      proof_requirements: [
+        "Reference the attached startup context when it materially informed the reply.",
+      ],
+      pass_threshold: 0.75,
+      bounded_scope: "One operator request.",
+      grader_name: "operator-thread-grader",
+    };
+  },
   session_policy: {
     dispatch_mode: "collect",
     lane: "session",

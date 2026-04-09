@@ -1,0 +1,6 @@
+channel: draft
+agent_key: webapp-codex
+version: 2026-04-09.1
+approved_by: webapp-codex
+approved_at: 2026-04-09T18:00:00Z
+notes: Draft runtime release adding session tracking and file-backed execution metadata.

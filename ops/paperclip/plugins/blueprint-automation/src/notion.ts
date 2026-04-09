@@ -1,6 +1,6 @@
 import { Client } from "@notionhq/client";
 
-export type NotionDatabaseKey = "work_queue" | "knowledge" | "skills";
+export type NotionDatabaseKey = "work_queue" | "knowledge" | "skills" | "agents" | "agent_runs";
 
 const HUB_PAGE_ID = "16d80154-161d-80db-869b-cfba4fe70be3";
 const WORK_QUEUE_DB = "f83b6c53-a33a-4790-9ca4-786dddadad46";
@@ -9,6 +9,10 @@ const KNOWLEDGE_DB = "7c729783-c377-4342-bf00-5555b88a2ec6";
 const KNOWLEDGE_DS = "b9e4ca9c-db43-4a16-9780-f15eb100c8b4";
 const SKILLS_DB = "4e37bd7a-e448-4f81-aa3e-b8860826e98c";
 const SKILLS_DS = "a9301f67-d565-4270-85e4-1fb8b82f96af";
+const AGENTS_DB = "c6021156-6796-42c5-bef4-58d2eb12d6ab";
+const AGENTS_DS = "66762c9c-b543-41d3-8f1f-95b80aed409a";
+const AGENT_RUNS_DB = "bce59b92-4cf6-446d-9e07-e026c824563b";
+const AGENT_RUNS_DS = "1ddce596-3c89-46e4-afeb-34e905017d87";
 const NOTION_TEXT_CONTENT_LIMIT = 1800;
 
 const DATABASE_CONFIG: Record<
@@ -18,6 +22,8 @@ const DATABASE_CONFIG: Record<
   work_queue: { databaseId: WORK_QUEUE_DB, dataSourceId: WORK_QUEUE_DS, titleProperty: "Title" },
   knowledge: { databaseId: KNOWLEDGE_DB, dataSourceId: KNOWLEDGE_DS, titleProperty: "Title" },
   skills: { databaseId: SKILLS_DB, dataSourceId: SKILLS_DS, titleProperty: "Title" },
+  agents: { databaseId: AGENTS_DB, dataSourceId: AGENTS_DS, titleProperty: "Agent" },
+  agent_runs: { databaseId: AGENT_RUNS_DB, dataSourceId: AGENT_RUNS_DS, titleProperty: "Run" },
 };
 
 const KNOWLEDGE_REVIEW_WINDOWS_DAYS: Record<string, number> = {
@@ -217,6 +223,66 @@ export interface SkillMetadata {
   relatedDocPageIds?: string[];
   relatedDocPageUrls?: string[];
   naturalKey?: string;
+}
+
+export interface AgentRegistryEntry {
+  title: string;
+  canonicalKey?: string;
+  department?: "Executive" | "Engineering" | "Ops" | "Growth";
+  role?: "Lead" | "Specialist" | "Reviewer" | "Implementer" | "CI Watch" | "Coordinator";
+  primaryRuntime?:
+    | "Paperclip/Hermes"
+    | "Paperclip/Codex"
+    | "Notion Custom Agent"
+    | "External Coding Agent"
+    | "Human-only";
+  notionSurfaces?: string[];
+  status?: "Active" | "Pilot" | "Paused" | "Disabled";
+  ownerIds?: string[];
+  humanGates?: string[];
+  readableSurfaces?: string[];
+  writableSurfaces?: string[];
+  toolAccess?: string[];
+  paperclipAgentKey?: string;
+  notionAgentUrl?: string;
+  defaultTriggers?: string[];
+  lastActive?: string;
+  lastRunStatus?: "Unknown" | "Ready" | "Running" | "Waiting on Human" | "Blocked" | "Failed" | "Done";
+  linkedSkillPageIds?: string[];
+  linkedSkillPageUrls?: string[];
+  needsAccessReview?: boolean;
+  lastPermissionReview?: string;
+  instructionsSource?: string;
+  reportsToPageIds?: string[];
+  reportsToPageUrls?: string[];
+  directReportPageIds?: string[];
+  directReportPageUrls?: string[];
+  latestRunPageIds?: string[];
+  latestRunPageUrls?: string[];
+}
+
+export interface AgentRunEntry {
+  title: string;
+  runId?: string;
+  agentPageIds?: string[];
+  agentPageUrls?: string[];
+  agentKey?: string;
+  runtime?: "Paperclip/Hermes" | "Paperclip/Codex" | "Notion Custom Agent" | "External Coding Agent";
+  status?: "Queued" | "Running" | "Waiting on Human" | "Blocked" | "Failed" | "Done" | "Canceled";
+  triggerSource?: "Schedule" | "Webhook" | "Manual" | "Comment Mention" | "Database Update" | "Task Assignment";
+  sourceWorkItemPageIds?: string[];
+  sourceWorkItemPageUrls?: string[];
+  outputDocPageIds?: string[];
+  outputDocPageUrls?: string[];
+  startedAt?: string;
+  endedAt?: string;
+  artifactUrl?: string;
+  paperclipUrl?: string;
+  errorSummary?: string;
+  requiresHumanReview?: boolean;
+  approverIds?: string[];
+  costClass?: "Low" | "Medium" | "High";
+  notes?: string;
 }
 
 export interface NotionPageSummary {
@@ -652,6 +718,132 @@ function buildSkillProperties(entry: SkillMetadata, includeDefaults = true) {
   return properties;
 }
 
+function normalizeAgentRegistryEntry(input: Record<string, unknown>, includeDefaults: boolean): AgentRegistryEntry {
+  return {
+    title: asString(input.title) ?? asString(input.Agent) ?? "Untitled agent",
+    canonicalKey: asString(input.canonicalKey) ?? asString(input["Canonical Key"]),
+    department: asString(input.department ?? input.Department) as AgentRegistryEntry["department"] | undefined,
+    role: asString(input.role ?? input.Role) as AgentRegistryEntry["role"] | undefined,
+    primaryRuntime: asString(input.primaryRuntime ?? input["Primary Runtime"]) as AgentRegistryEntry["primaryRuntime"] | undefined,
+    notionSurfaces: asStringArray(input.notionSurfaces ?? input["Notion Surface"]),
+    status: (asString(input.status ?? input.Status) as AgentRegistryEntry["status"] | undefined) ?? (includeDefaults ? "Active" : undefined),
+    ownerIds: asStringArray(input.ownerIds ?? input.Owner),
+    humanGates: asStringArray(input.humanGates ?? input["Human Gate"]),
+    readableSurfaces: asStringArray(input.readableSurfaces ?? input["Readable Surfaces"]),
+    writableSurfaces: asStringArray(input.writableSurfaces ?? input["Writable Surfaces"]),
+    toolAccess: asStringArray(input.toolAccess ?? input["Tool Access"]),
+    paperclipAgentKey: asString(input.paperclipAgentKey ?? input["Paperclip Agent Key"]),
+    notionAgentUrl: asString(input.notionAgentUrl ?? input["Notion Agent URL"]),
+    defaultTriggers: asStringArray(input.defaultTriggers ?? input["Default Trigger"]),
+    lastActive: asString(input.lastActive ?? input["Last Active"]),
+    lastRunStatus: (asString(input.lastRunStatus ?? input["Last Run Status"]) as AgentRegistryEntry["lastRunStatus"] | undefined)
+      ?? (includeDefaults ? "Unknown" : undefined),
+    linkedSkillPageIds: asStringArray(input.linkedSkillPageIds),
+    linkedSkillPageUrls: asStringArray(input.linkedSkillPageUrls ?? input["Linked Skills"]),
+    needsAccessReview: typeof input.needsAccessReview === "boolean"
+      ? input.needsAccessReview
+      : String(input["Needs Access Review"] ?? "").trim() === "__YES__"
+        ? true
+        : includeDefaults ? false : undefined,
+    lastPermissionReview: asString(input.lastPermissionReview ?? input["Last Permission Review"]),
+    instructionsSource: asString(input.instructionsSource ?? input["Instructions Source"]),
+    reportsToPageIds: asStringArray(input.reportsToPageIds),
+    reportsToPageUrls: asStringArray(input["Reports To"] ?? input.reportsToPageUrls),
+    directReportPageIds: asStringArray(input.directReportPageIds),
+    directReportPageUrls: asStringArray(input["Direct Reports"] ?? input.directReportPageUrls),
+    latestRunPageIds: asStringArray(input.latestRunPageIds),
+    latestRunPageUrls: asStringArray(input["Latest Run"] ?? input.latestRunPageUrls),
+  };
+}
+
+function normalizeAgentRunEntry(input: Record<string, unknown>, includeDefaults: boolean): AgentRunEntry {
+  return {
+    title: asString(input.title) ?? asString(input.Run) ?? "Untitled run",
+    runId: asString(input.runId ?? input["Run ID"]),
+    agentPageIds: asStringArray(input.agentPageIds),
+    agentPageUrls: asStringArray(input.Agent ?? input.agentPageUrls),
+    agentKey: asString(input.agentKey ?? input["Agent Key"]),
+    runtime: asString(input.runtime ?? input.Runtime) as AgentRunEntry["runtime"] | undefined,
+    status: (asString(input.status ?? input.Status) as AgentRunEntry["status"] | undefined) ?? (includeDefaults ? "Queued" : undefined),
+    triggerSource: asString(input.triggerSource ?? input["Trigger Source"]) as AgentRunEntry["triggerSource"] | undefined,
+    sourceWorkItemPageIds: asStringArray(input.sourceWorkItemPageIds),
+    sourceWorkItemPageUrls: asStringArray(input["Source Work Item"] ?? input.sourceWorkItemPageUrls),
+    outputDocPageIds: asStringArray(input.outputDocPageIds),
+    outputDocPageUrls: asStringArray(input["Output Doc"] ?? input.outputDocPageUrls),
+    startedAt: asString(input.startedAt ?? input["Started At"]),
+    endedAt: asString(input.endedAt ?? input["Ended At"]),
+    artifactUrl: asString(input.artifactUrl ?? input["Artifact URL"]),
+    paperclipUrl: asString(input.paperclipUrl ?? input["Paperclip URL"]),
+    errorSummary: asString(input.errorSummary ?? input["Error Summary"]),
+    requiresHumanReview: typeof input.requiresHumanReview === "boolean"
+      ? input.requiresHumanReview
+      : String(input["Requires Human Review"] ?? "").trim() === "__YES__"
+        ? true
+        : includeDefaults ? false : undefined,
+    approverIds: asStringArray(input.approverIds ?? input.Approver),
+    costClass: asString(input.costClass ?? input["Cost Class"]) as AgentRunEntry["costClass"] | undefined,
+    notes: asString(input.notes ?? input.Notes),
+  };
+}
+
+function buildAgentRegistryProperties(entry: AgentRegistryEntry, includeDefaults = true) {
+  const normalized = includeDefaults
+    ? normalizeAgentRegistryEntry(entry as unknown as Record<string, unknown>, true)
+    : entry;
+  const properties: Record<string, unknown> = {};
+  maybeSet(properties, "Agent", buildTitleProperty(normalized.title));
+  maybeSet(properties, "Canonical Key", buildRichTextProperty(normalized.canonicalKey));
+  maybeSet(properties, "Department", buildSelectProperty(normalized.department));
+  maybeSet(properties, "Role", buildSelectProperty(normalized.role));
+  maybeSet(properties, "Primary Runtime", buildSelectProperty(normalized.primaryRuntime));
+  maybeSet(properties, "Notion Surface", buildMultiSelectProperty(normalized.notionSurfaces));
+  maybeSet(properties, "Status", buildSelectProperty(normalized.status));
+  maybeSet(properties, "Owner", buildPeopleProperty(normalized.ownerIds));
+  maybeSet(properties, "Human Gate", buildMultiSelectProperty(normalized.humanGates));
+  maybeSet(properties, "Readable Surfaces", buildMultiSelectProperty(normalized.readableSurfaces));
+  maybeSet(properties, "Writable Surfaces", buildMultiSelectProperty(normalized.writableSurfaces));
+  maybeSet(properties, "Tool Access", buildMultiSelectProperty(normalized.toolAccess));
+  maybeSet(properties, "Paperclip Agent Key", buildRichTextProperty(normalized.paperclipAgentKey));
+  maybeSet(properties, "Notion Agent URL", normalized.notionAgentUrl ? { url: normalized.notionAgentUrl } : undefined);
+  maybeSet(properties, "Default Trigger", buildMultiSelectProperty(normalized.defaultTriggers));
+  maybeSet(properties, "Last Active", buildDateProperty(normalized.lastActive));
+  maybeSet(properties, "Last Run Status", buildSelectProperty(normalized.lastRunStatus));
+  maybeSet(properties, "Linked Skills", buildRelationProperty(normalized.linkedSkillPageIds, normalized.linkedSkillPageUrls));
+  maybeSet(properties, "Needs Access Review", buildCheckboxProperty(normalized.needsAccessReview));
+  maybeSet(properties, "Last Permission Review", buildDateProperty(normalized.lastPermissionReview));
+  maybeSet(properties, "Instructions Source", normalized.instructionsSource ? { url: normalized.instructionsSource } : undefined);
+  maybeSet(properties, "Reports To", buildRelationProperty(normalized.reportsToPageIds, normalized.reportsToPageUrls));
+  maybeSet(properties, "Direct Reports", buildRelationProperty(normalized.directReportPageIds, normalized.directReportPageUrls));
+  maybeSet(properties, "Latest Run", buildRelationProperty(normalized.latestRunPageIds, normalized.latestRunPageUrls));
+  return properties;
+}
+
+function buildAgentRunProperties(entry: AgentRunEntry, includeDefaults = true) {
+  const normalized = includeDefaults
+    ? normalizeAgentRunEntry(entry as unknown as Record<string, unknown>, true)
+    : entry;
+  const properties: Record<string, unknown> = {};
+  maybeSet(properties, "Run", buildTitleProperty(normalized.title));
+  maybeSet(properties, "Run ID", buildRichTextProperty(normalized.runId));
+  maybeSet(properties, "Agent", buildRelationProperty(normalized.agentPageIds, normalized.agentPageUrls));
+  maybeSet(properties, "Agent Key", buildRichTextProperty(normalized.agentKey));
+  maybeSet(properties, "Runtime", buildSelectProperty(normalized.runtime));
+  maybeSet(properties, "Status", buildSelectProperty(normalized.status));
+  maybeSet(properties, "Trigger Source", buildSelectProperty(normalized.triggerSource));
+  maybeSet(properties, "Source Work Item", buildRelationProperty(normalized.sourceWorkItemPageIds, normalized.sourceWorkItemPageUrls));
+  maybeSet(properties, "Output Doc", buildRelationProperty(normalized.outputDocPageIds, normalized.outputDocPageUrls));
+  maybeSet(properties, "Started At", buildDateProperty(normalized.startedAt));
+  maybeSet(properties, "Ended At", buildDateProperty(normalized.endedAt));
+  maybeSet(properties, "Artifact URL", normalized.artifactUrl ? { url: normalized.artifactUrl } : undefined);
+  maybeSet(properties, "Paperclip URL", normalized.paperclipUrl ? { url: normalized.paperclipUrl } : undefined);
+  maybeSet(properties, "Error Summary", buildRichTextProperty(normalized.errorSummary));
+  maybeSet(properties, "Requires Human Review", buildCheckboxProperty(normalized.requiresHumanReview));
+  maybeSet(properties, "Approver", buildPeopleProperty(normalized.approverIds));
+  maybeSet(properties, "Cost Class", buildSelectProperty(normalized.costClass));
+  maybeSet(properties, "Notes", buildRichTextProperty(normalized.notes));
+  return properties;
+}
+
 async function queryDatabaseByTitle(client: Client, database: NotionDatabaseKey, title: string): Promise<any[]> {
   const notion = notionClient(client);
   const allResults: any[] = [];
@@ -711,6 +903,32 @@ function filterSkillMatches(pages: any[], entry: SkillMetadata): any[] {
       page?.properties?.["Skill Type"]?.select?.name,
     ]).join("::");
     return getTitleFromPage(page) === entry.title && pageKey === key;
+  });
+}
+
+function filterAgentRegistryMatches(pages: any[], entry: AgentRegistryEntry): any[] {
+  return pages.filter((page) => {
+    const pageTitle = getTitleFromPage(page);
+    const pageCanonicalKey = asRichTextPlainText(page?.properties?.["Canonical Key"]?.rich_text);
+    const pagePaperclipKey = asRichTextPlainText(page?.properties?.["Paperclip Agent Key"]?.rich_text);
+    return (
+      (entry.paperclipAgentKey && pagePaperclipKey === entry.paperclipAgentKey)
+      || (entry.canonicalKey && pageCanonicalKey === entry.canonicalKey)
+      || pageTitle === entry.title
+    );
+  });
+}
+
+function filterAgentRunMatches(pages: any[], entry: AgentRunEntry): any[] {
+  return pages.filter((page) => {
+    const pageTitle = getTitleFromPage(page);
+    const pageRunId = asRichTextPlainText(page?.properties?.["Run ID"]?.rich_text);
+    const pageAgentKey = asRichTextPlainText(page?.properties?.["Agent Key"]?.rich_text);
+    return (
+      (entry.runId && pageRunId === entry.runId)
+      || (entry.runId && entry.agentKey && pageRunId === entry.runId && pageAgentKey === entry.agentKey)
+      || (pageTitle === entry.title && (!entry.agentKey || pageAgentKey === entry.agentKey))
+    );
   });
 }
 
@@ -1059,7 +1277,11 @@ export async function updatePageMetadata(
       ? buildWorkQueueProperties(normalizeWorkQueueItem(metadata, false), false)
       : database === "knowledge"
         ? buildKnowledgeProperties(normalizeKnowledgeEntry(metadata, false), false)
-        : buildSkillProperties(normalizeSkillMetadata(metadata, false), false);
+        : database === "skills"
+          ? buildSkillProperties(normalizeSkillMetadata(metadata, false), false)
+          : database === "agents"
+            ? buildAgentRegistryProperties(normalizeAgentRegistryEntry(metadata, false), false)
+            : buildAgentRunProperties(normalizeAgentRunEntry(metadata, false), false);
   const response = await notion.pages.update({
     page_id: pageId,
     properties: properties as any,
@@ -1095,6 +1317,78 @@ async function appendSanitizedBlocks(client: Client, sourcePageId: string, targe
   });
 }
 
+export async function createAgentRegistryEntry(client: Client, entry: AgentRegistryEntry): Promise<NotionWriteResult> {
+  const notion = notionClient(client);
+  const response = await notion.pages.create({
+    parent: { database_id: AGENTS_DB },
+    properties: buildAgentRegistryProperties(entry, true) as any,
+  });
+  return { pageId: response.id, pageUrl: asString(response.url) };
+}
+
+export async function createAgentRunEntry(client: Client, entry: AgentRunEntry): Promise<NotionWriteResult> {
+  const notion = notionClient(client);
+  const response = await notion.pages.create({
+    parent: { database_id: AGENT_RUNS_DB },
+    properties: buildAgentRunProperties(entry, true) as any,
+  });
+  return { pageId: response.id, pageUrl: asString(response.url) };
+}
+
+export async function upsertAgentRegistryEntry(
+  client: Client,
+  entry: AgentRegistryEntry,
+  options?: { archiveDuplicates?: boolean },
+): Promise<NotionUpsertResult> {
+  const notion = notionClient(client);
+  const matches = filterAgentRegistryMatches(await queryDatabaseByTitle(client, "agents", entry.title), entry);
+  const plan = planNotionUpsert(matches);
+  if (plan.action === "create" || !plan.canonical) {
+    const created = await createAgentRegistryEntry(client, entry);
+    return { ...created, status: "created", duplicatePageIds: [] };
+  }
+  const response = await notion.pages.update({
+    page_id: plan.canonical.id,
+    properties: buildAgentRegistryProperties(entry, true) as any,
+  });
+  if (options?.archiveDuplicates && plan.duplicates.length > 0) {
+    await archiveDuplicatePages(client, plan.duplicates);
+  }
+  return {
+    pageId: response.id,
+    pageUrl: asString(response.url),
+    status: "updated",
+    duplicatePageIds: plan.duplicates.map((page) => page.id),
+  };
+}
+
+export async function upsertAgentRunEntry(
+  client: Client,
+  entry: AgentRunEntry,
+  options?: { archiveDuplicates?: boolean },
+): Promise<NotionUpsertResult> {
+  const notion = notionClient(client);
+  const matches = filterAgentRunMatches(await queryDatabaseByTitle(client, "agent_runs", entry.title), entry);
+  const plan = planNotionUpsert(matches);
+  if (plan.action === "create" || !plan.canonical) {
+    const created = await createAgentRunEntry(client, entry);
+    return { ...created, status: "created", duplicatePageIds: [] };
+  }
+  const response = await notion.pages.update({
+    page_id: plan.canonical.id,
+    properties: buildAgentRunProperties(entry, true) as any,
+  });
+  if (options?.archiveDuplicates && plan.duplicates.length > 0) {
+    await archiveDuplicatePages(client, plan.duplicates);
+  }
+  return {
+    pageId: response.id,
+    pageUrl: asString(response.url),
+    status: "updated",
+    duplicatePageIds: plan.duplicates.map((page) => page.id),
+  };
+}
+
 export async function movePage(
   client: Client,
   input: {
@@ -1113,6 +1407,10 @@ export async function movePage(
     created = await createWorkQueueItem(client, normalizeWorkQueueItem({ title, ...(input.metadata ?? {}) }, true));
   } else if (input.targetDatabase === "knowledge") {
     created = await createKnowledgeEntry(client, normalizeKnowledgeEntry({ title, ...(input.metadata ?? {}) }, true));
+  } else if (input.targetDatabase === "agents") {
+    created = await createAgentRegistryEntry(client, normalizeAgentRegistryEntry({ title, ...(input.metadata ?? {}) }, true));
+  } else if (input.targetDatabase === "agent_runs") {
+    created = await createAgentRunEntry(client, normalizeAgentRunEntry({ title, ...(input.metadata ?? {}) }, true));
   } else {
     const upserted = await upsertSkillMetadata(client, normalizeSkillMetadata({ title, ...(input.metadata ?? {}) }, true));
     created = { pageId: upserted.pageId, pageUrl: upserted.pageUrl };
@@ -1358,4 +1656,8 @@ export const NOTION_MANAGER_CONSTANTS = {
   knowledgeDsId: KNOWLEDGE_DS,
   skillsDbId: SKILLS_DB,
   skillsDsId: SKILLS_DS,
+  agentsDbId: AGENTS_DB,
+  agentsDsId: AGENTS_DS,
+  agentRunsDbId: AGENT_RUNS_DB,
+  agentRunsDsId: AGENT_RUNS_DS,
 };

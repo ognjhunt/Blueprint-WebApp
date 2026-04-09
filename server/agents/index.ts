@@ -6,3 +6,8 @@ export * from "./knowledge";
 export * from "./startup-packs";
 export * from "./ops-action-logs";
 export * from "./ops-documents";
+export * from "./agent-profiles";
+export * from "./environment-profiles";
+export * from "./runtime-events";
+export * from "./checkpoints";
+export * from "./compactions";

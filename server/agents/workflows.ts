@@ -22,6 +22,7 @@ import type { WaitlistTriageOutput,
   WaitlistTriageTaskInput,
 } from "./tasks/waitlist-triage";
 import type {
+  AgentTask,
   AgentProvider,
   AgentResult,
   AgentTaskKind,
@@ -86,11 +87,18 @@ type AutoAgentShadowParams<TInput, TOutput> = {
   sourceCollection: string;
   sourceDocId: string;
   metadata?: Record<string, unknown>;
+  taskOverrides?: Partial<AgentTask<TInput>>;
   primaryResult: AgentResult<TOutput>;
 };
 
 const AUTOAGENT_SHADOW_NAMESPACE = "autoagent";
 const AUTOAGENT_SHADOW_DEFAULT_PROVIDER: AgentProvider = "acp_harness";
+const PREVIEW_BROWSER_SHADOW_ALLOWED_ACTIONS = [
+  "read_only_browser",
+  "screenshot_capture",
+  "console_capture",
+  "artifact_report",
+] as const;
 
 function parseCommaSeparatedEnv(value: string | undefined | null) {
   return String(value || "")
@@ -140,6 +148,43 @@ function getAutoAgentShadowProvider(): AgentProvider {
 function getAutoAgentShadowModel() {
   const value = process.env.BLUEPRINT_AUTOAGENT_SHADOW_MODEL?.trim();
   return value && value.length > 0 ? value : undefined;
+}
+
+function isEnvFlagEnabled(value: string | undefined | null) {
+  return /^(1|true|yes|on)$/i.test(String(value || "").trim());
+}
+
+function buildPreviewDiagnosisBrowserShadowTaskOverrides():
+  | Partial<AgentTask<PreviewDiagnosisInput>>
+  | undefined {
+  if (!isEnvFlagEnabled(process.env.BLUEPRINT_PREVIEW_DIAGNOSIS_BROWSER_SHADOW_ENABLED)) {
+    return undefined;
+  }
+
+  const allowedDomains = parseCommaSeparatedEnv(
+    process.env.BLUEPRINT_PREVIEW_DIAGNOSIS_BROWSER_SHADOW_ALLOWED_DOMAINS,
+  );
+  if (allowedDomains.length === 0) {
+    logger.warn(
+      "Preview diagnosis browser shadow was enabled without allowed domains; falling back to non-browser shadow posture",
+    );
+    return undefined;
+  }
+
+  return {
+    tool_policy: {
+      mode: "browser",
+      prefer_direct_api: false,
+      browser_fallback_allowed: true,
+      isolated_runtime_required: true,
+      allowed_domains: allowedDomains,
+      allowed_actions: [...PREVIEW_BROWSER_SHADOW_ALLOWED_ACTIONS],
+    },
+    metadata: {
+      preview_browser_shadow_enabled: true,
+      preview_browser_shadow_allowed_domains: allowedDomains,
+    },
+  };
 }
 
 function buildShadowRunRecord<TOutput>(
@@ -213,19 +258,25 @@ async function maybeRunAutoAgentShadow<TInput, TOutput>(
   const model = getAutoAgentShadowModel();
 
   try {
+    const mergedMetadata = {
+      ...(params.metadata || {}),
+      ...((params.taskOverrides?.metadata as Record<string, unknown> | undefined) || {}),
+      shadow_namespace: AUTOAGENT_SHADOW_NAMESPACE,
+      shadow_source_collection: params.sourceCollection,
+      shadow_source_doc_id: params.sourceDocId,
+      shadow_of_session_key: params.sessionKey,
+    };
+
     const result = await runAgentTask<TInput, TOutput>({
       kind: params.kind,
       input: params.input,
       provider,
       ...(model ? { model } : {}),
       session_key: `${params.sessionKey}:shadow:${AUTOAGENT_SHADOW_NAMESPACE}`,
-      metadata: {
-        ...(params.metadata || {}),
-        shadow_namespace: AUTOAGENT_SHADOW_NAMESPACE,
-        shadow_source_collection: params.sourceCollection,
-        shadow_source_doc_id: params.sourceDocId,
-        shadow_of_session_key: params.sessionKey,
-      },
+      tool_policy: params.taskOverrides?.tool_policy,
+      approval_policy: params.taskOverrides?.approval_policy,
+      session_policy: params.taskOverrides?.session_policy,
+      metadata: mergedMetadata,
     });
 
     await writeAutoAgentShadowRecord(
@@ -1510,6 +1561,7 @@ export async function runPreviewDiagnosisLoop(params?: { limit?: number }) {
         metadata: {
           request_id: doc.id,
         },
+        taskOverrides: buildPreviewDiagnosisBrowserShadowTaskOverrides(),
         primaryResult: result,
       });
 

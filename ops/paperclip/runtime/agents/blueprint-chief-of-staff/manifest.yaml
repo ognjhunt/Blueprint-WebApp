@@ -1,0 +1,19 @@
+agent_key: blueprint-chief-of-staff
+default_channel: production
+default_environment_profile: ops_internal_mutation_limited
+employee_kit:
+  agent_path: ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md
+  soul_path: ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/Soul.md
+  task_paths:
+    - ops/paperclip/blueprint-company/tasks/chief-of-staff-continuous-loop/TASK.md
+memory_bindings:
+  - doctrine_shared
+  - project_shared:blueprint-webapp
+  - agent_local:blueprint-chief-of-staff
+promotion_policy:
+  staging_requires:
+    - manager-state verification
+    - routing smoke
+  production_requires:
+    - founder visibility check
+    - chief-of-staff loop verification

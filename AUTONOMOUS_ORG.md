@@ -234,6 +234,39 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 
 ---
 
+#### Notion Reconciler (`notion-reconciler`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Executive |
+| **Reports to** | Chief of Staff |
+| **Model** | Hermes (Paperclip execution truth, Notion visibility mirror) |
+| **Status** | Pilot |
+
+**Purpose:** Runs the new Notion-facing pilot reconcile loop against Blueprint Hub command databases. Repairs clear metadata drift, stale flags, doctrine status, and relation links across Work Queue, Knowledge, Skills, Agents, and Agent Runs without treating Notion as execution truth.
+
+**Triggers:**
+- Weekday daily reconcile sweep
+- Weekly structure sweep
+- Event: manual wake from Chief of Staff, Notion Manager Agent, or a follow-up issue about Blueprint Hub drift
+
+**Inputs:**
+- Blueprint Work Queue, Knowledge, Skills, Agents, and Agent Runs databases
+- Paperclip issue state and routine context
+- `ops/paperclip/blueprint-company/agents/notion-reconciler/AGENTS.md`
+
+**Outputs:**
+- repaired Notion metadata and relations on Blueprint-managed pages
+- explicit stale/doctrine flags where the truth is clear
+- run-level visibility row in Blueprint Agent Runs
+- blocked follow-up comment when the cleanup is unsafe or ambiguous
+
+**Human gates:** Ambiguous page identity, unsafe move/archive decisions, and rights/privacy-sensitive cleanup.
+
+**Instructions:** `ops/paperclip/blueprint-company/agents/notion-reconciler/AGENTS.md`
+
+---
+
 #### Revenue Ops & Pricing Agent (`revenue-ops-pricing-agent`)
 
 | Field | Value |
@@ -1215,6 +1248,38 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 
 ---
 
+#### Metrics Reporter (`metrics-reporter`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Growth |
+| **Reports to** | Growth Lead |
+| **Model** | Hermes (Paperclip execution truth, Notion visibility mirror) |
+| **Status** | Pilot |
+
+**Purpose:** Produces recurring internal metrics reports for the new Notion-facing pilot lane. Reads analytics, Growth Studio, Work Queue, and Knowledge context, then writes proof-backed report pages into Blueprint Knowledge with optional Work Queue breadcrumbs and Agent Runs visibility.
+
+**Triggers:**
+- Weekday daily metrics recap
+- Weekly internal metrics roundup
+- Event: manual wake from Growth Lead or Chief of Staff
+
+**Inputs:**
+- analytics sources and Growth Studio mirrors
+- Blueprint Work Queue and Knowledge
+- `ops/paperclip/blueprint-company/agents/metrics-reporter/AGENTS.md`
+
+**Outputs:**
+- recurring metrics report pages in Blueprint Knowledge
+- optional Work Queue breadcrumb items
+- run-level visibility row in Blueprint Agent Runs
+
+**Human gates:** External reuse of material claims still requires human review.
+
+**Instructions:** `ops/paperclip/blueprint-company/agents/metrics-reporter/AGENTS.md`
+
+---
+
 #### Community Updates Agent (`community-updates-agent`)
 
 | Field | Value |
@@ -1245,6 +1310,38 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 
 **Instructions:** `ops/paperclip/blueprint-company/agents/community-updates-agent/AGENTS.md`
 **Program:** `ops/paperclip/programs/community-updates-agent-program.md`
+
+---
+
+#### Workspace Digest Publisher (`workspace-digest-publisher`)
+
+| Field | Value |
+|-------|-------|
+| **Department** | Growth |
+| **Reports to** | Growth Lead |
+| **Model** | Hermes (Paperclip execution truth, Notion visibility mirror) |
+| **Status** | Pilot |
+
+**Purpose:** Produces an internal weekly Blueprint workspace digest from Knowledge, Growth Studio, and Work Queue evidence. Writes draft roundup pages into Blueprint Knowledge, opens optional follow-up work items, and mirrors run visibility into Blueprint Agent Runs.
+
+**Triggers:**
+- Weekly digest draft run
+- Event: manual wake tied to a launch, review, or operating recap need
+
+**Inputs:**
+- Blueprint Knowledge
+- Growth Studio mirrors
+- selected Work Queue views
+- `ops/paperclip/blueprint-company/agents/workspace-digest-publisher/AGENTS.md`
+
+**Outputs:**
+- weekly internal digest draft → Blueprint Knowledge
+- optional follow-up work items → Blueprint Work Queue
+- run-level visibility row → Blueprint Agent Runs
+
+**Human gates:** Externalization of draft language or reuse as public messaging.
+
+**Instructions:** `ops/paperclip/blueprint-company/agents/workspace-digest-publisher/AGENTS.md`
 
 ---
 
@@ -1638,6 +1735,8 @@ Updated by Growth Lead (for Conversion + Market Intel) or CEO (for ad-hoc overri
 |------|-----------------|----------------|
 | Agent definitions + org chart | Repo (`AUTONOMOUS_ORG.md`) | Repo → Notion |
 | Execution ownership + live task state | Paperclip issues + routines | Paperclip → Notion |
+| Agent registry + runtime access posture | Notion Agents DB | Repo/Paperclip → Notion |
+| Agent run visibility + approval breadcrumbs | Notion Agent Runs DB | Paperclip/app → Notion |
 | Research working memory + reusable synthesis | Repo `knowledge/` | Agents → repo |
 | Workspace review queue + operator visibility | Notion Work Queue | Paperclip/agents → Notion, curated by `notion-manager-agent` |
 | Operator-facing knowledge mirror | Notion Knowledge DB | Repo/Paperclip/agents → Notion, curated by `notion-manager-agent` |
@@ -1660,6 +1759,8 @@ Updated by Growth Lead (for Conversion + Market Intel) or CEO (for ad-hoc overri
 | Blueprint Work Queue | Task tracking for all agents + humans | [Work Queue](https://www.notion.so/f83b6c53a33a47909ca4786dddadad46) |
 | Blueprint Skills | Skill file metadata + lifecycle tracking | [Skills](https://www.notion.so/4e37bd7ae4484f81aa3eb8860826e98c) |
 | Blueprint Knowledge | Research outputs, experiment logs, reference docs | [Knowledge](https://www.notion.so/7c729783c3774342bf005555b88a2ec6) |
+| Blueprint Agents | Agent registry, runtime, access posture, and Hub surfacing | [Agents](https://www.notion.so/c6021156679642c5bef458d2eb12d6ab) |
+| Blueprint Agent Runs | Run-level status, approval breadcrumbs, and artifact links | [Agent Runs](https://www.notion.so/bce59b924cf6446d9e07e026c824563b) |
 
 ---
 

@@ -77,6 +77,29 @@ agents:
             - writing-plans
             - verification-before-completion
     budgetMonthlyCents: 2200
+  notion-reconciler:
+    role: engineer
+    icon: database
+    capabilities: >-
+      Notion-facing Paperclip/Hermes pilot that reconciles Blueprint Hub metadata across Work Queue, Knowledge,
+      Skills, and Agents. Repairs clear relation drift, flags stale doctrine surfaces, mirrors each run into Blueprint
+      Agent Runs, and leaves ambiguous cleanup decisions visible instead of silently guessing.
+    adapter:
+      type: hermes_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        modelReasoningEffort: medium
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/notion-reconciler/AGENTS.md
+        timeoutSec: 1800
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - cross-repo-operations
+            - writing-plans
+            - verification-before-completion
+    budgetMonthlyCents: 2200
   blueprint-cto:
     role: cto
     icon: circuit-board
@@ -582,6 +605,54 @@ agents:
             - exact-site-messaging
             - retro
     budgetMonthlyCents: 2000
+  metrics-reporter:
+    role: engineer
+    icon: target
+    capabilities: >-
+      Notion-facing Paperclip/Hermes pilot that turns truthful analytics, Growth Studio, Work Queue, and Knowledge
+      signals into recurring internal metrics reports. Writes Blueprint Knowledge artifacts, optional Work Queue
+      breadcrumbs, and mirrors run status into Blueprint Agent Runs.
+    adapter:
+      type: hermes_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        modelReasoningEffort: medium
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/metrics-reporter/AGENTS.md
+        timeoutSec: 1200
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - analytics-tracking
+            - investigate
+            - writing-plans
+            - verification-before-completion
+    budgetMonthlyCents: 1800
+  workspace-digest-publisher:
+    role: engineer
+    icon: file-code
+    capabilities: >-
+      Notion-facing Paperclip/Hermes pilot that compresses weekly Blueprint workspace activity into an internal digest
+      draft. Reads Knowledge, Growth Studio, and selected Work Queue views, writes draft roundup pages in Knowledge,
+      creates optional follow-up work items, and mirrors runs into Blueprint Agent Runs.
+    adapter:
+      type: hermes_local
+      config:
+        cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        modelReasoningEffort: medium
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/workspace-digest-publisher/AGENTS.md
+        timeoutSec: 1500
+        paperclipSkillSync:
+          desiredSkills:
+            - platform-doctrine
+            - autonomy-safety
+            - find-skills
+            - product-marketing-context
+            - analytics-tracking
+            - writing-plans
+            - verification-before-completion
+    budgetMonthlyCents: 1800
   market-intel-agent:
     role: engineer
     icon: globe
@@ -1248,11 +1319,23 @@ tasks:
     status: done
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
+  notion-reconciler-bootstrap:
+    status: done
+    priority: high
+    projectWorkspaceKey: blueprint-executive-ops
+  metrics-reporter-bootstrap:
+    status: done
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
   investor-relations-agent-bootstrap:
     status: done
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   community-updates-agent-bootstrap:
+    status: done
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
+  workspace-digest-publisher-bootstrap:
     status: done
     priority: high
     projectWorkspaceKey: blueprint-webapp
@@ -1643,6 +1726,26 @@ routines:
       - kind: schedule
         cronExpression: 0 15 * * 5
         timezone: America/New_York
+  notion-reconciler-daily:
+    agent: notion-reconciler
+    status: paused
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: enqueue_missed_with_cap
+    triggers:
+      - kind: schedule
+        cronExpression: 15 11 * * 1-5
+        timezone: America/New_York
+  notion-reconciler-weekly:
+    agent: notion-reconciler
+    status: paused
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: enqueue_missed_with_cap
+    triggers:
+      - kind: schedule
+        cronExpression: 15 15 * * 5
+        timezone: America/New_York
   investor-relations-monthly:
     agent: investor-relations-agent
     priority: high
@@ -1660,6 +1763,36 @@ routines:
     triggers:
       - kind: schedule
         cronExpression: 0 9 * * 5
+        timezone: America/New_York
+  metrics-reporter-daily:
+    agent: metrics-reporter
+    status: paused
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: enqueue_missed_with_cap
+    triggers:
+      - kind: schedule
+        cronExpression: 15 7 * * 1-5
+        timezone: America/New_York
+  metrics-reporter-weekly:
+    agent: metrics-reporter
+    status: paused
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: enqueue_missed_with_cap
+    triggers:
+      - kind: schedule
+        cronExpression: 45 7 * * 1
+        timezone: America/New_York
+  workspace-digest-weekly:
+    agent: workspace-digest-publisher
+    status: paused
+    priority: medium
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: enqueue_missed_with_cap
+    triggers:
+      - kind: schedule
+        cronExpression: 0 16 * * 5
         timezone: America/New_York
   ship-broadcast-refresh:
     agent: community-updates-agent

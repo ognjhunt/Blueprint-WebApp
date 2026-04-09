@@ -401,8 +401,13 @@ const ROUTINE_TITLE_OVERRIDES = {
   "notion-manager-reconcile-sweep": "Notion Manager Reconcile Sweep",
   "notion-manager-stale-audit": "Notion Manager Stale Audit",
   "notion-manager-weekly-structure-sweep": "Notion Manager Weekly Structure Sweep",
+  "notion-reconciler-daily": "Notion Reconciler Daily",
+  "notion-reconciler-weekly": "Notion Reconciler Weekly",
   "investor-relations-monthly": "Investor Relations Monthly",
   "community-updates-weekly": "Community Updates Weekly",
+  "metrics-reporter-daily": "Metrics Reporter Daily",
+  "metrics-reporter-weekly": "Metrics Reporter Weekly",
+  "workspace-digest-weekly": "Workspace Digest Weekly",
   "conversion-weekly": "Conversion Weekly",
   "market-intel-daily": "Market Intel Daily",
   "market-intel-weekly": "Market Intel Weekly",
@@ -480,6 +485,7 @@ const AGENT_DEFAULT_PROJECT_KEYS = {
   "blueprint-ceo": "blueprint-executive-ops",
   "blueprint-chief-of-staff": "blueprint-executive-ops",
   "notion-manager-agent": "blueprint-executive-ops",
+  "notion-reconciler": "blueprint-executive-ops",
   "blueprint-cto": "blueprint-webapp",
   "webapp-codex": "blueprint-webapp",
   "webapp-review": "blueprint-webapp",
@@ -495,8 +501,10 @@ const AGENT_DEFAULT_PROJECT_KEYS = {
   "growth-lead": "blueprint-executive-ops",
   "conversion-agent": "blueprint-webapp",
   "analytics-agent": "blueprint-webapp",
+  "metrics-reporter": "blueprint-webapp",
   "investor-relations-agent": "blueprint-executive-ops",
   "community-updates-agent": "blueprint-webapp",
+  "workspace-digest-publisher": "blueprint-webapp",
   "market-intel-agent": "blueprint-webapp",
   "supply-intel-agent": "blueprint-executive-ops",
   "capturer-growth-agent": "blueprint-webapp",
@@ -616,11 +624,48 @@ function buildCommunityUpdatesRoutineDescription() {
   ].join(" ");
 }
 
+function buildNotionReconcilerRoutineDescription(mode) {
+  return [
+    "Inspect Blueprint Hub state first across Work Queue, Knowledge, Skills, Agents, and Agent Runs.",
+    "Repair only clear metadata drift, stale flags, doctrine status, relation repair, and safe duplicates on Blueprint-managed pages.",
+    "Do not guess across ambiguous page identity or unsafe archive/move decisions.",
+    `Call POST ${paperclipApiUrl}/api/plugins/blueprint.automation/actions/notion-reconciler-run with JSON body {"params":{"mode":"${mode}"...}} after the sweep is complete so Agent Runs mirrors the work.`,
+    "After the action returns, PATCH the current issue to done when data.outcome is done; otherwise PATCH it to blocked.",
+    "Use data.issueComment as the issue comment so the final state carries the repair counts and escalations.",
+  ].join(" ");
+}
+
+function buildMetricsReporterRoutineDescription(cadence) {
+  return [
+    "Investigate analytics, Growth Studio, Work Queue, and Knowledge first, then synthesize the report into headline, executiveSummary, metricHighlights, anomalies, and recommendedFollowUps.",
+    `Call POST ${paperclipApiUrl}/api/plugins/blueprint.automation/actions/metrics-reporter-report with JSON body {"params":{"cadence":"${cadence}"...}}.`,
+    "On this local trusted Paperclip host, call the plugin action route directly by plugin key and X-Paperclip-Run-Id.",
+    "After the action returns, PATCH the current issue to done when data.outcome is done; otherwise PATCH it to blocked.",
+    "Use data.issueComment as the issue comment so the final state contains proof links or the exact failure reason.",
+  ].join(" ");
+}
+
+function buildWorkspaceDigestRoutineDescription() {
+  return [
+    "Investigate Blueprint Knowledge, Growth Studio context, and selected Work Queue views before drafting.",
+    "Synthesize the digest into headline, roundup, highlights, risks, nextActions, and optional followUpWorkItems.",
+    `Call POST ${paperclipApiUrl}/api/plugins/blueprint.automation/actions/workspace-digest-report with JSON body {"params":{"cadence":"weekly"...}}.`,
+    "On this local trusted Paperclip host, call the plugin action route directly by plugin key and X-Paperclip-Run-Id.",
+    "After the action returns, PATCH the current issue to done when data.outcome is done; otherwise PATCH it to blocked.",
+    "Use data.issueComment as the issue comment so the final state contains the draft artifact links or the exact failure reason.",
+  ].join(" ");
+}
+
 function buildRoutineDescription(routineKey) {
   if (routineKey === "analytics-daily") return buildAnalyticsRoutineDescription("daily");
   if (routineKey === "analytics-weekly") return buildAnalyticsRoutineDescription("weekly");
+  if (routineKey === "notion-reconciler-daily") return buildNotionReconcilerRoutineDescription("daily");
+  if (routineKey === "notion-reconciler-weekly") return buildNotionReconcilerRoutineDescription("weekly");
   if (routineKey === "investor-relations-monthly") return buildInvestorRelationsRoutineDescription();
   if (routineKey === "community-updates-weekly") return buildCommunityUpdatesRoutineDescription();
+  if (routineKey === "metrics-reporter-daily") return buildMetricsReporterRoutineDescription("daily");
+  if (routineKey === "metrics-reporter-weekly") return buildMetricsReporterRoutineDescription("weekly");
+  if (routineKey === "workspace-digest-weekly") return buildWorkspaceDigestRoutineDescription();
   if (routineKey === "market-intel-daily") return buildMarketIntelRoutineDescription("daily");
   if (routineKey === "market-intel-weekly") return buildMarketIntelRoutineDescription("weekly");
   return undefined;

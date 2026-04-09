@@ -1,0 +1,17 @@
+agent_key: webapp-review
+default_channel: production
+default_environment_profile: engineering_review_readonly
+employee_kit:
+  agent_path: ops/paperclip/blueprint-company/agents/webapp-review/AGENTS.md
+  soul_path: ops/paperclip/blueprint-company/agents/webapp-review/Soul.md
+memory_bindings:
+  - doctrine_shared
+  - project_shared:blueprint-webapp
+  - agent_local:webapp-review
+promotion_policy:
+  staging_requires:
+    - review loop smoke
+    - read-only policy check
+  production_requires:
+    - review quality verification
+    - CTO approval

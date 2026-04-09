@@ -1,0 +1,17 @@
+agent_key: webapp-codex
+default_channel: production
+default_environment_profile: engineering_impl_default
+employee_kit:
+  agent_path: ops/paperclip/blueprint-company/agents/webapp-codex/AGENTS.md
+  soul_path: ops/paperclip/blueprint-company/agents/webapp-codex/Soul.md
+memory_bindings:
+  - doctrine_shared
+  - project_shared:blueprint-webapp
+  - agent_local:webapp-codex
+promotion_policy:
+  staging_requires:
+    - build check
+    - targeted verification
+  production_requires:
+    - implementation verification
+    - review acknowledgement

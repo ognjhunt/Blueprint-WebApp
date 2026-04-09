@@ -208,10 +208,15 @@ function founderWatchlist(issues: Issue[]) {
   });
 }
 
-function withinHours(issue: Issue, hours: number) {
+function reportAnchorDate(date: string) {
+  const explicit = asDate(`${date}T23:59:59.999Z`);
+  return explicit ?? new Date();
+}
+
+function withinHours(issue: Issue, hours: number, anchor = new Date()) {
   const updatedAt = asDate(issue.completedAt ?? issue.updatedAt ?? issue.createdAt);
   if (!updatedAt) return false;
-  return (Date.now() - updatedAt.getTime()) <= hours * 60 * 60 * 1000;
+  return (anchor.getTime() - updatedAt.getTime()) <= hours * 60 * 60 * 1000;
 }
 
 function inferKindFromIssueTitle(title: string): FounderReportKind | null {
@@ -273,6 +278,7 @@ function sectionIssues(candidates: Issue[], limit: number, usedFingerprints: Set
 }
 
 export function buildReport(kind: FounderReportKind, date: string, issues: Issue[], assigneeNameById: Map<string, string>): FounderReport {
+  const anchor = reportAnchorDate(date);
   const open = issues.filter((issue) => !["done", "cancelled"].includes(issue.status));
   const done = issues
     .filter((issue) => issue.status === "done")
@@ -284,10 +290,10 @@ export function buildReport(kind: FounderReportKind, date: string, issues: Issue
   const founder = founderWatchlist(open).sort((left, right) => compareDesc(left.updatedAt, right.updatedAt));
   const slipped = uniqueById([
     ...blocked,
-    ...open.filter((issue) => issue.priority === "high" && withinHours(issue, 72)),
+    ...open.filter((issue) => issue.priority === "high" && withinHours(issue, 72, anchor)),
   ]).slice(0, 8);
-  const recentDone = uniqueBySignal(done.filter((issue) => withinHours(issue, 24)));
-  const weeklyDone = uniqueBySignal(done.filter((issue) => withinHours(issue, 24 * 7)));
+  const recentDone = uniqueBySignal(done.filter((issue) => withinHours(issue, 24, anchor)));
+  const weeklyDone = uniqueBySignal(done.filter((issue) => withinHours(issue, 24 * 7, anchor)));
   const weakProof = uniqueBySignal(topOpenIssues(open).filter((issue) => !founderWatchlist([issue]).length)).slice(0, 8);
 
   const usedFingerprints = new Set<string>();

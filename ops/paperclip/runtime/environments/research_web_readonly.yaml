@@ -1,0 +1,38 @@
+key: research_web_readonly
+description: Read-only research profile for search, web evidence, and synthesis work.
+runtime_lane: research
+adapter_policy:
+  preferred:
+    - hermes_local
+    - codex_local
+tools:
+  allow:
+    - web_search
+    - repo_read
+    - notion_read
+    - kb_write
+  deny:
+    - repo_write
+    - slack_post
+    - notion_write
+    - finance_mutation
+network_policy:
+  mode: unrestricted
+repo_mounts:
+  - /Users/nijelhunt_1/workspace/Blueprint-WebApp
+memory:
+  bind:
+    - doctrine_shared
+    - project_shared:blueprint-webapp
+vault:
+  default_scope: session
+  allowed_refs:
+    - SEARCH_API_KEY
+    - SEARCH_API_PROVIDER
+  allowed_tools:
+    - web-search
+artifacts:
+  require_trace_link: true
+  publish_to_issue: true
+review:
+  human_gate: research-review

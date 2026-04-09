@@ -180,6 +180,7 @@ describe("ops automation scheduler", () => {
     vi.stubEnv("BLUEPRINT_BUYER_LIFECYCLE_STARTUP_DELAY_MS", "0");
     vi.stubEnv("BLUEPRINT_SITE_ACCESS_OVERDUE_WATCHDOG_ENABLED", "1");
     vi.stubEnv("BLUEPRINT_FINANCE_REVIEW_OVERDUE_WATCHDOG_ENABLED", "1");
+    vi.stubEnv("BLUEPRINT_PAYOUT_TRIAGE_ENABLED", "0");
 
     const { startOpsAutomationScheduler } = await import("../utils/opsAutomationScheduler");
     const stop = startOpsAutomationScheduler();

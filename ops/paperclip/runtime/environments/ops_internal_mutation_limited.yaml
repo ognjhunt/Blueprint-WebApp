@@ -1,0 +1,37 @@
+key: ops_internal_mutation_limited
+description: Internal ops profile for controlled queue, workspace, and routing mutations with manager visibility.
+runtime_lane: ops
+adapter_policy:
+  preferred:
+    - hermes_local
+    - codex_local
+tools:
+  allow:
+    - repo_read
+    - notion_write
+    - slack_post
+    - queue_update
+  deny:
+    - finance_mutation
+    - external_send
+network_policy:
+  mode: restricted
+repo_mounts:
+  - /Users/nijelhunt_1/workspace/Blueprint-WebApp
+memory:
+  bind:
+    - doctrine_shared
+    - project_shared:blueprint-webapp
+vault:
+  default_scope: session
+  allowed_refs:
+    - NOTION_API_TOKEN
+    - SLACK_MANAGER_WEBHOOK_URL
+  allowed_tools:
+    - notion
+    - slack
+artifacts:
+  require_trace_link: true
+  publish_to_issue: true
+review:
+  human_gate: ops-lead-review

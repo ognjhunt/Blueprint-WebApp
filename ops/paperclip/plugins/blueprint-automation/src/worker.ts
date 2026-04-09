@@ -44,6 +44,7 @@ import {
   analyzeWorkQueueItemsForScan,
   canonicalWorkQueueScanKey,
   buildNotionToolHandlers,
+  createAgentRunEntry,
   createKnowledgeEntry,
   createNotionClient,
   createWorkQueueItem,
@@ -52,6 +53,9 @@ import {
   mapWorkQueueLifecycleStageToIssueStatus,
   queryDatabase,
   queryWorkQueue,
+  type WorkQueueItem,
+  updatePageMetadata,
+  upsertAgentRegistryEntry,
   upsertKnowledgeEntry,
   upsertWorkQueueItem,
 } from "./notion.js";
@@ -166,6 +170,9 @@ import {
   shouldTriggerRoutineCatchUp,
 } from "./execution-governor.js";
 import {
+  shouldPreservePreferredExecutionLane,
+} from "./preferred-execution-lane.js";
+import {
   buildShipBroadcastIssueSpec,
   formatContentOutcomeReviewIssueComment,
   normalizeContentBrief,
@@ -176,6 +183,36 @@ import {
   type ContentOutcomeReview,
 } from "./content-ops.js";
 import { ensureKbReportArtifact } from "./kb-artifacts.js";
+import { loadEnvironmentProfile } from "./runtime/environment-profiles.js";
+import {
+  listMemoryStoreRecords,
+  readMemoryRecord,
+  syncDoctrineMemoryStore,
+  writeMemoryRecord,
+} from "./runtime/memory.js";
+import {
+  addRuntimeSessionArtifacts,
+  createRuntimeCheckpoint,
+  ensureRuntimeSession,
+  getLatestSessionForIssue,
+  getRuntimeSession,
+  listRecentRuntimeSessions,
+  updateRuntimeSession,
+  updateRuntimeSessionStatus,
+} from "./runtime/sessions.js";
+import {
+  createRuntimeSubagent,
+  listRuntimeSubagentsForParent,
+  updateRuntimeSubagentStatus,
+} from "./runtime/subagents.js";
+import { appendRuntimeTraceEvent, readRuntimeTrace } from "./runtime/tracing.js";
+import {
+  isTerminalRuntimeSessionStatus,
+  issueStatusToRuntimeSessionStatus,
+  type RuntimeSession,
+  type RuntimeSessionStatus,
+} from "./runtime/types.js";
+import { buildBlueprintRuntimeMetadata } from "./runtime/versioning.js";
 
 const execFileAsync = promisify(execFile);
 const BLUEPRINT_WEBAPP_REPO_ROOT = fileURLToPath(new URL("../../../../../", import.meta.url));
@@ -195,6 +232,141 @@ const BUYER_RISK_OWNER_RESPONSE_GRACE_HOURS = 12;
 const MEANINGFUL_PROGRESS_GRACE_MS = 5 * 60 * 1000;
 const EXECUTION_DISPATCH_COOLDOWN_MS = 15 * 60 * 1000;
 // STATE_KEYS imported from ./constants.js
+
+const PILOT_AGENT_TITLES = {
+  "notion-reconciler": "Notion Reconciler",
+  "metrics-reporter": "Metrics Reporter",
+  "workspace-digest-publisher": "Workspace Digest Publisher",
+} as const;
+
+type PilotAgentKey = keyof typeof PILOT_AGENT_TITLES;
+
+type PilotRunStatus = "Queued" | "Running" | "Waiting on Human" | "Blocked" | "Failed" | "Done" | "Canceled";
+
+type PilotRunMirror = {
+  notionClient: ReturnType<typeof createNotionClient>;
+  agentPageId: string;
+  runPageId: string;
+  runPageUrl?: string;
+  runId: string;
+};
+
+type PilotRunFinalizeInput = {
+  status: PilotRunStatus;
+  startedAt: string;
+  endedAt?: string;
+  triggerSource: "Schedule" | "Webhook" | "Manual" | "Comment Mention" | "Database Update" | "Task Assignment";
+  issueId?: string;
+  outputDocPageId?: string;
+  outputDocPageUrl?: string;
+  artifactUrl?: string;
+  errorSummary?: string;
+  requiresHumanReview?: boolean;
+  notes?: string;
+};
+
+function isPilotAgentKey(value: string | null | undefined): value is PilotAgentKey {
+  return typeof value === "string" && value in PILOT_AGENT_TITLES;
+}
+
+function pilotAgentTitle(agentKey: PilotAgentKey) {
+  return PILOT_AGENT_TITLES[agentKey];
+}
+
+function pilotAgentDepartment(agentKey: PilotAgentKey) {
+  return agentKey === "notion-reconciler" ? "Executive" : "Growth";
+}
+
+function pilotAgentRole(agentKey: PilotAgentKey) {
+  return agentKey === "notion-reconciler" ? "Coordinator" : "Specialist";
+}
+
+function pilotAgentRuntime(agentKey: PilotAgentKey): "Paperclip/Hermes" | "Paperclip/Codex" {
+  const adapterType = getConfiguredAgent(agentKey)?.adapter?.type;
+  return adapterType === "codex_local" ? "Paperclip/Codex" : "Paperclip/Hermes";
+}
+
+function pilotAgentNotionSurfaces(agentKey: PilotAgentKey) {
+  if (agentKey === "notion-reconciler") {
+    return [
+      "Blueprint Agents",
+      "Blueprint Agent Runs",
+      "Blueprint Work Queue",
+      "Blueprint Knowledge",
+      "Blueprint Skills",
+    ];
+  }
+  return ["Blueprint Agents", "Blueprint Agent Runs", "Blueprint Knowledge", "Blueprint Work Queue"];
+}
+
+function pilotAgentReadableSurfaces(agentKey: PilotAgentKey) {
+  if (agentKey === "notion-reconciler") {
+    return ["Blueprint Work Queue", "Blueprint Knowledge", "Blueprint Skills", "Blueprint Agents"];
+  }
+  return ["Blueprint Knowledge", "Blueprint Work Queue", "Growth Studio mirror"];
+}
+
+function pilotAgentWritableSurfaces(agentKey: PilotAgentKey) {
+  if (agentKey === "notion-reconciler") {
+    return ["Blueprint Work Queue", "Blueprint Knowledge", "Blueprint Skills", "Blueprint Agents", "Blueprint Agent Runs"];
+  }
+  return ["Blueprint Knowledge", "Blueprint Work Queue", "Blueprint Agent Runs"];
+}
+
+function pilotAgentToolAccess(agentKey: PilotAgentKey) {
+  if (agentKey === "notion-reconciler") {
+    return [
+      "notion-search-pages",
+      "notion-fetch-page",
+      "notion-update-page-metadata",
+      "notion-reconcile-relations",
+      "notion-comment-page",
+      "notion-archive-page",
+    ];
+  }
+  return ["notion-upsert-knowledge", "notion-upsert-work-queue"];
+}
+
+function pilotAgentHumanGates(agentKey: PilotAgentKey) {
+  if (agentKey === "notion-reconciler") {
+    return ["Ambiguous workspace mutation", "Rights or privacy-sensitive cleanup"];
+  }
+  if (agentKey === "metrics-reporter") {
+    return ["Human review before external reuse of material metric claims"];
+  }
+  return ["Human review before turning internal draft language into public copy"];
+}
+
+function mapPilotRunStatusToRegistryStatus(status: PilotRunStatus) {
+  switch (status) {
+    case "Running":
+      return "Running";
+    case "Waiting on Human":
+      return "Waiting on Human";
+    case "Blocked":
+      return "Blocked";
+    case "Failed":
+      return "Failed";
+    case "Done":
+      return "Done";
+    default:
+      return "Ready";
+  }
+}
+
+function resolvePaperclipIssueUrl(issueId: string | undefined) {
+  const baseUrl =
+    asString(process.env.PAPERCLIP_APP_URL)
+    ?? asString(process.env.BLUEPRINT_PAPERCLIP_APP_URL);
+  if (!baseUrl || !issueId) {
+    return undefined;
+  }
+  return `${baseUrl.replace(/\/$/, "")}/issues/${issueId}`;
+}
+
+function firstHttpUrl(values: Array<string | undefined | null>) {
+  return values.find((value) => typeof value === "string" && /^https?:\/\//i.test(value)) ?? undefined;
+}
 
 type GrowthOpsModule = typeof import("../../../../../server/utils/growth-ops.js");
 
@@ -235,7 +407,9 @@ type GrowthDepartmentConfig = {
     growthLead: string;
     conversionOptimizer: string;
     analytics: string;
+    metricsReporter: string;
     communityUpdates: string;
+    workspaceDigestPublisher: string;
     marketIntel: string;
     demandIntel: string;
     capturerGrowth: string;
@@ -260,6 +434,7 @@ type SecretRefsConfig = {
 
 type ManagementConfig = {
   chiefOfStaffAgent: string;
+  notionReconcilerAgent: string;
 };
 
 type MarketingCapabilitiesConfig = {
@@ -1034,6 +1209,24 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
+function preferredAgentKey(agent: Agent | null | undefined) {
+  return (
+    asString((agent as Record<string, unknown> | null)?.urlKey)
+    ?? asString((agent as Record<string, unknown> | null)?.slug)
+    ?? asString((agent as Record<string, unknown> | null)?.key)
+    ?? asString((agent as Record<string, unknown> | null)?.name)
+    ?? asString((agent as Record<string, unknown> | null)?.title)
+    ?? asString((agent as Record<string, unknown> | null)?.id)
+  ) ?? null;
+}
+
+function extractUrls(value: string | null | undefined) {
+  if (!value) {
+    return [];
+  }
+  return [...value.matchAll(/https?:\/\/[^\s)\]]+/gi)].map((match) => match[0]);
+}
+
 function parseAgentRunFailurePayload(value: unknown): AgentRunFailurePayload {
   const payload = asRecord(value) ?? {};
   return {
@@ -1278,7 +1471,9 @@ function normalizeConfig(rawConfig: Record<string, unknown>): BlueprintAutomatio
         growthLead: asString(growthAgents.growthLead) ?? "growth-lead",
         conversionOptimizer: asString(growthAgents.conversionOptimizer) ?? "conversion-agent",
         analytics: asString(growthAgents.analytics) ?? "analytics-agent",
+        metricsReporter: asString(growthAgents.metricsReporter) ?? "metrics-reporter",
         communityUpdates: asString(growthAgents.communityUpdates) ?? "community-updates-agent",
+        workspaceDigestPublisher: asString(growthAgents.workspaceDigestPublisher) ?? "workspace-digest-publisher",
         marketIntel: asString(growthAgents.marketIntel) ?? "market-intel-agent",
         demandIntel: asString(growthAgents.demandIntel) ?? "demand-intel-agent",
         capturerGrowth: asString(growthAgents.capturerGrowth) ?? "capturer-growth-agent",
@@ -1289,6 +1484,7 @@ function normalizeConfig(rawConfig: Record<string, unknown>): BlueprintAutomatio
     },
     management: {
       chiefOfStaffAgent: asString(management.chiefOfStaffAgent) ?? "blueprint-chief-of-staff",
+      notionReconcilerAgent: asString(management.notionReconcilerAgent) ?? "notion-reconciler",
     },
     secrets: {
       notionApiTokenRef: asString(secrets.notionApiTokenRef) ?? asString(secrets.notionApiToken),
@@ -1838,10 +2034,15 @@ async function resolveAssignableAgent(
   companyId: string,
   config: BlueprintAutomationConfig,
   preferredAgentKey: string,
+  options?: {
+    allowFallback?: boolean;
+    revivePreferredAgent?: boolean;
+    taskKey?: string | null;
+  },
 ) {
-  const agents = await listAgents(ctx, companyId);
+  let agents = await listAgents(ctx, companyId);
   const target = preferredAgentKey.trim().toLowerCase();
-  const preferredAgent = [...agents]
+  let preferredAgent = [...agents]
     .map((entry) => ({ entry, score: scoreAgentMatch(entry, target) }))
     .filter((entry) => entry.score > 0)
     .sort((left, right) => right.score - left.score)[0]?.entry;
@@ -1850,7 +2051,52 @@ async function resolveAssignableAgent(
     throw new Error(`Agent not found for Blueprint automation: ${preferredAgentKey}`);
   }
 
-  const preferredKey = normalizedCandidates(preferredAgent as unknown as Record<string, unknown>)[0] ?? target;
+  let preferredKey = normalizedCandidates(preferredAgent as unknown as Record<string, unknown>)[0] ?? target;
+
+  if (
+    options?.revivePreferredAgent
+    && (isAgentUnavailable(preferredAgent) || !agentHasDesiredAdapter(preferredAgent, preferredKey))
+  ) {
+    const desired = buildDesiredAdapterDescriptor(preferredAgent);
+    if (desired) {
+      const runtimeConfigRecord = asRecord(preferredAgent.runtimeConfig);
+      const targetRuntimeConfig = syncExecutionPolicyToAdapter(
+        runtimeConfigRecord,
+        desired.adapterType,
+      );
+      await ctx.agents.update(
+        preferredAgent.id,
+        {
+          adapterType: desired.adapterType,
+          adapterConfig: desired.adapterConfig,
+          runtimeConfig: targetRuntimeConfig,
+        },
+        companyId,
+      ).catch(() => undefined);
+    }
+    await ctx.agents.resetRuntimeSession(
+      preferredAgent.id,
+      companyId,
+      options.taskKey ? { taskKey: options.taskKey } : undefined,
+    ).catch(() => undefined);
+    agents = await listAgents(ctx, companyId);
+    preferredAgent = [...agents]
+      .map((entry) => ({ entry, score: scoreAgentMatch(entry, target) }))
+      .filter((entry) => entry.score > 0)
+      .sort((left, right) => right.score - left.score)[0]?.entry ?? preferredAgent;
+    preferredKey = normalizedCandidates(preferredAgent as unknown as Record<string, unknown>)[0] ?? target;
+  }
+
+  if (options?.allowFallback === false) {
+    return {
+      agent: preferredAgent,
+      preferredKey,
+      selectedKey: preferredKey,
+      rerouted: false,
+      attempted: [preferredKey],
+    };
+  }
+
   const selected = selectHealthyAgentKey(
     preferredKey,
     buildAgentStatusMap(agents),
@@ -1867,6 +2113,25 @@ async function resolveAssignableAgent(
     rerouted: selected.rerouted && selected.assigneeKey !== preferredKey,
     attempted: selected.attempted,
   };
+}
+
+async function cancelIssueExecutionRunIfNeeded(
+  issue: Pick<Issue, "executionRunId" | "executionAgentNameKey">,
+  nextAssigneeKey: string,
+) {
+  if (!issue.executionRunId) {
+    return false;
+  }
+  if (
+    issue.executionAgentNameKey
+    && issue.executionAgentNameKey.trim().toLowerCase() === nextAssigneeKey.trim().toLowerCase()
+  ) {
+    return false;
+  }
+  await fetchPaperclipApiJson(`/api/heartbeat-runs/${issue.executionRunId}/cancel`, {
+    method: "POST",
+  }).catch(() => null);
+  return true;
 }
 
 function parseCronField(field: string, min: number, max: number) {
@@ -2086,11 +2351,27 @@ async function repairManagedIssueRouting(
       continue;
     }
 
-    const assigneeResolution = await resolveAssignableAgent(ctx, companyId, config, routedAssignee).catch(() => null);
+    const preservePreferredLane = shouldPreservePreferredExecutionLane({
+      title: issue.title,
+      preferredAssignee: routedAssignee,
+      parentId: issue.parentId ?? null,
+    });
+    const assigneeResolution = await resolveAssignableAgent(
+      ctx,
+      companyId,
+      config,
+      routedAssignee,
+      {
+        allowFallback: !preservePreferredLane,
+        revivePreferredAgent: preservePreferredLane,
+        taskKey: issue.id,
+      },
+    ).catch(() => null);
     if (!assigneeResolution || issue.assigneeAgentId === assigneeResolution.agent.id) {
       continue;
     }
 
+    await cancelIssueExecutionRunIfNeeded(issue, assigneeResolution.selectedKey).catch(() => undefined);
     await ctx.issues.update(issue.id, { assigneeAgentId: assigneeResolution.agent.id }, companyId);
     await ctx.issues.createComment(
       issue.id,
@@ -2622,7 +2903,22 @@ async function wakeAssignedAgent(
     return null;
   }
 
-  let resolution = await resolveAssignableAgent(ctx, companyId, config, input.assigneeKey).catch(() => null);
+  const preservePreferredLane = shouldPreservePreferredExecutionLane({
+    title: issue.title,
+    preferredAssignee: input.assigneeKey,
+    parentId: issue.parentId ?? null,
+  });
+  let resolution = await resolveAssignableAgent(
+    ctx,
+    companyId,
+    config,
+    input.assigneeKey,
+    {
+      allowFallback: !preservePreferredLane,
+      revivePreferredAgent: true,
+      taskKey: issue.id,
+    },
+  ).catch(() => null);
   let agent = resolution?.agent ?? null;
   if (!agent || !resolution) {
     return null;
@@ -2633,12 +2929,23 @@ async function wakeAssignedAgent(
       await ctx.agents.resetRuntimeSession(agent.id, companyId, { taskKey: issue.id }).catch(() => undefined);
     }
     agent = await ctx.agents.get(agent.id, companyId).catch(() => agent);
-    resolution = await resolveAssignableAgent(ctx, companyId, config, resolution.selectedKey).catch(() => resolution);
+    resolution = await resolveAssignableAgent(
+      ctx,
+      companyId,
+      config,
+      resolution.selectedKey,
+      {
+        allowFallback: !preservePreferredLane,
+        revivePreferredAgent: preservePreferredLane,
+        taskKey: issue.id,
+      },
+    ).catch(() => resolution);
   }
   if (!agent || !resolution || isAgentUnavailable(agent) || !agentHasDesiredAdapter(agent, resolution.selectedKey)) {
     return null;
   }
-  if (resolution.rerouted && issue.assigneeAgentId !== agent.id) {
+  if (!preservePreferredLane && resolution.rerouted && issue.assigneeAgentId !== agent.id) {
+    await cancelIssueExecutionRunIfNeeded(issue, resolution.selectedKey).catch(() => undefined);
     await ctx.issues.update(issue.id, { assigneeAgentId: agent.id }, companyId).catch(() => undefined);
     await ctx.issues.createComment(
       issue.id,
@@ -2778,8 +3085,10 @@ function ensureStartupMaintenance(ctx: PluginContext) {
         try {
           const config = await getConfig(ctx);
           const company = await findCompany(ctx, config.companyName);
+          await syncDoctrineMemoryStore(ctx, company.id);
           await enforceWorkspaceAdapterCooldowns(ctx, company.id);
           await healAgentExecutionTopology(ctx, company.id);
+          await syncAgentRuntimeMetadata(ctx, company.id);
         } catch (error) {
           ctx.logger.warn("startup automation maintenance failed", {
             meta: {
@@ -2855,6 +3164,36 @@ async function rerouteUnavailableIssueOwners(
       continue;
     }
 
+    const preservePreferredLane = shouldPreservePreferredExecutionLane({
+      title: issue.title,
+      preferredAssignee: assignee.urlKey,
+      parentId: issue.parentId ?? null,
+    });
+    if (preservePreferredLane) {
+      await resolveAssignableAgent(
+        ctx,
+        companyId,
+        config,
+        assignee.urlKey ?? "",
+        {
+          allowFallback: false,
+          revivePreferredAgent: true,
+          taskKey: issue.id,
+        },
+      ).catch(() => undefined);
+      const refreshedAssignee = await ctx.agents.get(assignee.id, companyId).catch(() => assignee);
+      if (!isAgentUnavailable(refreshedAssignee) && agentHasDesiredAdapter(refreshedAssignee, refreshedAssignee.urlKey ?? "")) {
+        continue;
+      }
+      await appendRecentEvent(ctx, companyId, {
+        kind: "issue-owner-recovery-pending",
+        title: `Recovery pending for ${issue.title}`,
+        issueId: issue.id,
+        detail: `${issue.identifier}:${assignee.urlKey} remains unavailable after an automatic recovery attempt; preserving specialist ownership.`,
+      });
+      continue;
+    }
+
     const fallbackCandidates = [
       pickFallbackAgentKey(config, assignee.urlKey, issue),
       getChiefOfStaffAgentKey(config),
@@ -2869,6 +3208,7 @@ async function rerouteUnavailableIssueOwners(
       continue;
     }
 
+    await cancelIssueExecutionRunIfNeeded(issue, fallback.urlKey ?? fallback.id).catch(() => undefined);
     await ctx.issues.update(
       issue.id,
       { assigneeAgentId: fallback.id },
@@ -2906,6 +3246,9 @@ async function runExecutionDispatchJob(
     skipScaffolding?: boolean;
   },
 ) {
+  await healAgentExecutionTopology(ctx, companyId).catch(() => undefined);
+  await rerouteUnavailableIssueOwners(ctx, companyId, config).catch(() => undefined);
+  await repairManagedIssueRouting(ctx, companyId, config).catch(() => undefined);
   if (!options?.skipScaffolding) {
     await runDelegationScaffoldingPass(ctx, companyId);
   }
@@ -2964,6 +3307,7 @@ async function runRoutingMaintenanceAction(
   config: BlueprintAutomationConfig,
 ) {
   const healedAgents = await healAgentExecutionTopology(ctx, companyId);
+  const syncedRuntimeMetadata = await syncAgentRuntimeMetadata(ctx, companyId);
   const unavailableOwnerReroutes = await rerouteUnavailableIssueOwners(ctx, companyId, config);
   const routingRepair = await repairManagedIssueRouting(ctx, companyId, config);
   const scaffolding = await runDelegationScaffoldingPass(ctx, companyId);
@@ -2974,6 +3318,7 @@ async function runRoutingMaintenanceAction(
     title: "Routing maintenance completed",
     detail: [
       healedAgents.length > 0 ? `healed agents: ${healedAgents.join(", ")}` : null,
+      syncedRuntimeMetadata.length > 0 ? `runtime sync: ${syncedRuntimeMetadata.join(", ")}` : null,
       unavailableOwnerReroutes.length > 0 ? `unavailable reroutes: ${unavailableOwnerReroutes.join(", ")}` : null,
       routingRepair.repaired.length > 0 ? `routing repairs: ${routingRepair.repaired.map((entry) => `${entry.issueId}:${entry.from}->${entry.to}`).join(", ")}` : null,
       scaffolding.quarantined.length > 0 ? `quarantined smoke: ${scaffolding.quarantined.join(", ")}` : null,
@@ -2986,6 +3331,7 @@ async function runRoutingMaintenanceAction(
 
   return {
     healedAgents,
+    syncedRuntimeMetadata,
     unavailableOwnerReroutes,
     routingRepair,
     scaffolding,
@@ -3014,6 +3360,7 @@ async function writeMaintenanceState(
 function summarizeMaintenanceResult(result: Awaited<ReturnType<typeof runRoutingMaintenanceAction>>) {
   return {
     healedAgents: result.healedAgents.length,
+    syncedRuntimeMetadata: result.syncedRuntimeMetadata.length,
     unavailableOwnerReroutes: result.unavailableOwnerReroutes.length,
     routingRepairs: result.routingRepair.repaired.length,
     quarantinedSmoke: result.scaffolding.quarantined.length,
@@ -3245,6 +3592,29 @@ async function finalizeIssueWithProof(
 
   await ctx.issues.createComment(issueId, input.issueComment, companyId);
   await ctx.issues.update(issueId, { status: input.outcome }, companyId);
+  const session = await getLatestSessionForIssue(ctx, companyId, issueId).catch(() => null);
+  if (session) {
+    await traceSessionArtifactsFromComment(
+      ctx,
+      companyId,
+      session.id,
+      input.issueComment,
+      "Captured proof links from issue finalization.",
+    ).catch(() => undefined);
+    await createRuntimeCheckpoint(
+      ctx,
+      companyId,
+      session.id,
+      `issue-finalized:${input.outcome}`,
+    ).catch(() => undefined);
+    await updateRuntimeSessionStatus(
+      ctx,
+      companyId,
+      session.id,
+      input.outcome === "done" ? "completed" : "blocked",
+      `Issue finalized with outcome ${input.outcome}.`,
+    ).catch(() => undefined);
+  }
 }
 
 async function handleChiefOfStaffIssueSignal(
@@ -3534,11 +3904,17 @@ async function repairDelegatedExecutionRouting(
       companyId,
       config,
       preferredAssignee,
+      {
+        allowFallback: false,
+        revivePreferredAgent: true,
+        taskKey: issue.id,
+      },
     ).catch(() => null);
     if (!assigneeResolution || issue.assigneeAgentId === assigneeResolution.agent.id) {
       continue;
     }
 
+    await cancelIssueExecutionRunIfNeeded(issue, assigneeResolution.selectedKey).catch(() => undefined);
     await ctx.issues.update(issue.id, { assigneeAgentId: assigneeResolution.agent.id }, companyId);
     await ctx.issues.createComment(
       issue.id,
@@ -3667,7 +4043,17 @@ async function createDelegatedFollowUpIssue(
     },
     config,
   );
-  const assigneeResolution = await resolveAssignableAgent(ctx, companyId, config, routedAssignee);
+  const assigneeResolution = await resolveAssignableAgent(
+    ctx,
+    companyId,
+    config,
+    routedAssignee,
+    {
+      allowFallback: false,
+      revivePreferredAgent: true,
+      taskKey: input.parentIssueId,
+    },
+  );
   const assignee = assigneeResolution.agent;
   const followUp = await (ctx.issues.create as any)({
     companyId,
@@ -4028,6 +4414,31 @@ async function handleRoutineExecutionSignal(
     }
   }
 
+  const assigneeKey = preferredAgentKey(assignee) ?? preferredAssigneeKey;
+  const runtimeSession = await ensureRuntimeSession(ctx, event.companyId, {
+    issueId: routine.activeIssue?.id ?? null,
+    agentKey: assigneeKey,
+    status: "starting",
+    wakeReason: "routine.run_triggered",
+    summary: routine.title,
+  });
+  await appendRuntimeTraceEvent(ctx, event.companyId, runtimeSession.id, {
+    type: "session.resumed",
+    actor: "runtime",
+    summary: `Routine ${routine.title} triggered execution.`,
+    detail: {
+      routineId: routine.id,
+      issueId: routine.activeIssue?.id ?? null,
+      assigneeAgentId: assignee.id,
+    },
+  });
+  await createRuntimeCheckpoint(
+    ctx,
+    event.companyId,
+    runtimeSession.id,
+    `routine:${routine.id}:dispatch`,
+  );
+
   await ctx.agents.wakeup(assignee.id, event.companyId, {
     source: "automation",
     triggerDetail: "system",
@@ -4046,7 +4457,7 @@ async function handleRoutineExecutionSignal(
     kind: "routine-dispatched",
     title: routine.title,
     issueId: routine.activeIssue?.id,
-    detail: `${routine.title} triggered execution for ${assignee.urlKey}.`,
+    detail: `${routine.title} triggered execution for ${assignee.urlKey}. Runtime session: ${runtimeSession.id}.`,
   });
 }
 
@@ -4113,6 +4524,31 @@ async function handleAgentConversationActivitySignal(
   const actorKey = preferredAgentChannelKey(actorAgent) ?? actorId;
   const assigneeKey = preferredAgentChannelKey(assigneeAgent);
   const fallbackIssueTitle = issueTitle ?? issue.title;
+  const runtimeSession = await ensureRuntimeSession(ctx, event.companyId, {
+    issueId,
+    agentKey: actorKey,
+    status: "running",
+    wakeReason: "issue.comment_added",
+    summary: fallbackIssueTitle,
+  });
+  await appendRuntimeTraceEvent(ctx, event.companyId, runtimeSession.id, {
+    type: "model.turn_completed",
+    actor: "agent",
+    summary: `Agent comment added on ${issueIdentifier ?? issueId}.`,
+    detail: {
+      commentId,
+      actorId,
+      assigneeAgentId: issue.assigneeAgentId ?? null,
+      bodySnippet,
+    },
+  });
+  await traceSessionArtifactsFromComment(
+    ctx,
+    event.companyId,
+    runtimeSession.id,
+    bodySnippet,
+    `Captured links from ${actorKey} comment.`,
+  );
 
   let slackCopy = buildAgentConversationSlackCopy({
     kind: "comment",
@@ -4135,6 +4571,17 @@ async function handleAgentConversationActivitySignal(
     const parsed = comment ? parseHandoffComment(comment.body) : null;
 
     if (parsed?.kind === "request") {
+      await appendRuntimeTraceEvent(ctx, event.companyId, runtimeSession.id, {
+        type: "handoff.created",
+        actor: "agent",
+        summary: `Structured handoff requested from ${parsed.data.from} to ${parsed.data.to}.`,
+        detail: {
+          to: parsed.data.to,
+          type: parsed.data.type,
+          priority: parsed.data.priority,
+          expectedOutcome: parsed.data.expectedOutcome,
+        },
+      });
       slackCopy = buildAgentConversationSlackCopy({
         kind: "handoff_request",
         actor: parsed.data.from,
@@ -4152,6 +4599,16 @@ async function handleAgentConversationActivitySignal(
       ];
       recentEventKind = "handoff-comment";
     } else if (parsed?.kind === "response") {
+      await appendRuntimeTraceEvent(ctx, event.companyId, runtimeSession.id, {
+        type: "subagent.completed",
+        actor: "subagent",
+        summary: `Structured handoff response returned from ${parsed.data.from}.`,
+        detail: {
+          to: parsed.data.to,
+          outcome: parsed.data.outcome,
+          proofLinkCount: parsed.data.proofLinks?.length ?? 0,
+        },
+      });
       slackCopy = buildAgentConversationSlackCopy({
         kind: "handoff_response",
         actor: parsed.data.from,
@@ -4281,6 +4738,355 @@ async function writeHealth(ctx: PluginContext, companyId: string, status: Plugin
     message,
     updatedAt: nowIso(),
   });
+}
+
+function mergeBlueprintRuntimeConfig(
+  runtimeConfig: Record<string, unknown> | null,
+  agentKey: string,
+) {
+  const metadata = buildBlueprintRuntimeMetadata(agentKey);
+  if (!metadata) {
+    return runtimeConfig;
+  }
+  const environmentProfile = loadEnvironmentProfile(metadata.version.environment_profile);
+  return {
+    ...(runtimeConfig ?? {}),
+    blueprintRuntime: {
+      agentKey,
+      channelRef: metadata.channelRef,
+      agentVersionRef: metadata.agentVersionRef,
+      environmentProfileKey: metadata.version.environment_profile,
+      memoryBindings: [
+        ...(metadata.manifest.memory_bindings ?? []),
+        ...(metadata.version.memory_bindings ?? []),
+        ...(environmentProfile?.memory?.bind ?? []),
+      ].filter((value, index, all) => value && all.indexOf(value) === index),
+      vaultPolicy: {
+        defaultScope: metadata.version.vault?.default_scope ?? environmentProfile?.vault?.default_scope ?? "session",
+        allowedRefs: [
+          ...(metadata.version.vault?.allowed_refs ?? []),
+          ...(environmentProfile?.vault?.allowed_refs ?? []),
+        ].filter((value, index, all) => value && all.indexOf(value) === index),
+        allowedTools: [
+          ...(metadata.version.vault?.allowed_tools ?? []),
+          ...(environmentProfile?.vault?.allowed_tools ?? []),
+        ].filter((value, index, all) => value && all.indexOf(value) === index),
+      },
+      syncedAt: nowIso(),
+    },
+  };
+}
+
+async function syncAgentRuntimeMetadata(
+  ctx: PluginContext,
+  companyId: string,
+  agents?: Agent[],
+) {
+  const targetAgents = agents ?? await listAgents(ctx, companyId);
+  const synced: string[] = [];
+
+  for (const agent of targetAgents) {
+    const agentKey = preferredAgentKey(agent);
+    if (!agentKey) {
+      continue;
+    }
+    const nextRuntimeConfig = mergeBlueprintRuntimeConfig(asRecord(agent.runtimeConfig), agentKey);
+    if (!nextRuntimeConfig) {
+      continue;
+    }
+    const currentJson = JSON.stringify(asRecord(agent.runtimeConfig) ?? {});
+    const nextJson = JSON.stringify(nextRuntimeConfig);
+    if (currentJson === nextJson) {
+      continue;
+    }
+    await ctx.agents.update(agent.id, { runtimeConfig: nextRuntimeConfig }, companyId);
+    synced.push(agentKey);
+  }
+
+  if (synced.length > 0) {
+    await appendRecentEvent(ctx, companyId, {
+      kind: "runtime-version-sync",
+      title: "Synced file-backed runtime metadata",
+      detail: synced.join(", "),
+    }).catch(() => undefined);
+  }
+
+  return synced;
+}
+
+async function startPilotAgentRunMirror(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  companyId: string,
+  input: {
+    agentKey: PilotAgentKey;
+    title: string;
+    triggerSource: PilotRunFinalizeInput["triggerSource"];
+    issueId?: string;
+    startedAt: string;
+    notes?: string;
+  },
+): Promise<PilotRunMirror | null> {
+  const notionToken = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.notionApiTokenRef,
+    "NOTION_API_TOKEN",
+  );
+  if (!notionToken) {
+    return null;
+  }
+
+  const notionClient = createNotionClient({ token: notionToken });
+  const registryEntry = await upsertAgentRegistryEntry(
+    notionClient,
+    {
+      title: pilotAgentTitle(input.agentKey),
+      canonicalKey: input.agentKey,
+      department: pilotAgentDepartment(input.agentKey),
+      role: pilotAgentRole(input.agentKey),
+      primaryRuntime: pilotAgentRuntime(input.agentKey),
+      notionSurfaces: pilotAgentNotionSurfaces(input.agentKey),
+      status: "Pilot",
+      humanGates: pilotAgentHumanGates(input.agentKey),
+      readableSurfaces: pilotAgentReadableSurfaces(input.agentKey),
+      writableSurfaces: pilotAgentWritableSurfaces(input.agentKey),
+      toolAccess: pilotAgentToolAccess(input.agentKey),
+      paperclipAgentKey: input.agentKey,
+      defaultTriggers: ["Schedule", "Manual Wakeup"],
+      lastActive: input.startedAt,
+      lastRunStatus: "Running",
+    },
+    { archiveDuplicates: true },
+  );
+
+  const runId = randomUUID();
+  const runEntry = await createAgentRunEntry(notionClient, {
+    title: input.title,
+    runId,
+    agentPageIds: [registryEntry.pageId],
+    agentKey: input.agentKey,
+    runtime: pilotAgentRuntime(input.agentKey),
+    status: "Running",
+    triggerSource: input.triggerSource,
+    startedAt: input.startedAt,
+    paperclipUrl: resolvePaperclipIssueUrl(input.issueId),
+    costClass: input.agentKey === "notion-reconciler" ? "Low" : "Medium",
+    notes: input.notes,
+  });
+
+  await updatePageMetadata(notionClient, registryEntry.pageId, "agents", {
+    latestRunPageIds: [runEntry.pageId],
+    lastActive: input.startedAt,
+    lastRunStatus: "Running",
+  });
+
+  return {
+    notionClient,
+    agentPageId: registryEntry.pageId,
+    runPageId: runEntry.pageId,
+    runPageUrl: runEntry.pageUrl,
+    runId,
+  };
+}
+
+async function finalizePilotAgentRunMirror(
+  mirror: PilotRunMirror | null,
+  input: PilotRunFinalizeInput,
+) {
+  if (!mirror) {
+    return;
+  }
+
+  await updatePageMetadata(mirror.notionClient, mirror.runPageId, "agent_runs", {
+    runId: mirror.runId,
+    status: input.status,
+    startedAt: input.startedAt,
+    endedAt: input.endedAt,
+    outputDocPageIds: input.outputDocPageId ? [input.outputDocPageId] : [],
+    outputDocPageUrls: input.outputDocPageUrl ? [input.outputDocPageUrl] : [],
+    artifactUrl: input.artifactUrl,
+    paperclipUrl: resolvePaperclipIssueUrl(input.issueId),
+    errorSummary: input.errorSummary,
+    requiresHumanReview: input.requiresHumanReview,
+    notes: input.notes,
+  });
+
+  await updatePageMetadata(mirror.notionClient, mirror.agentPageId, "agents", {
+    latestRunPageIds: [mirror.runPageId],
+    lastActive: input.endedAt ?? input.startedAt,
+    lastRunStatus: mapPilotRunStatusToRegistryStatus(input.status),
+  });
+}
+
+async function syncPilotAgentRegistryRow(
+  ctx: PluginContext,
+  companyId: string,
+  agent: Agent,
+) {
+  const agentKey = preferredAgentKey(agent);
+  if (!isPilotAgentKey(agentKey)) {
+    return;
+  }
+
+  const config = await getConfig(ctx);
+  const notionToken = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.notionApiTokenRef,
+    "NOTION_API_TOKEN",
+  );
+  if (!notionToken) {
+    return;
+  }
+
+  const status = asString((agent as unknown as Record<string, unknown>).status);
+  const lastRunStatus =
+    status === "running"
+      ? "Running"
+      : status === "paused"
+        ? "Ready"
+        : status === "error"
+          ? "Failed"
+          : "Unknown";
+
+  const notionClient = createNotionClient({ token: notionToken });
+  await upsertAgentRegistryEntry(
+    notionClient,
+    {
+      title: pilotAgentTitle(agentKey),
+      canonicalKey: agentKey,
+      department: pilotAgentDepartment(agentKey),
+      role: pilotAgentRole(agentKey),
+      primaryRuntime: pilotAgentRuntime(agentKey),
+      notionSurfaces: pilotAgentNotionSurfaces(agentKey),
+      status: "Pilot",
+      humanGates: pilotAgentHumanGates(agentKey),
+      readableSurfaces: pilotAgentReadableSurfaces(agentKey),
+      writableSurfaces: pilotAgentWritableSurfaces(agentKey),
+      toolAccess: pilotAgentToolAccess(agentKey),
+      paperclipAgentKey: agentKey,
+      defaultTriggers: ["Schedule", "Manual Wakeup"],
+      lastRunStatus,
+    },
+    { archiveDuplicates: true },
+  );
+}
+
+async function traceSessionArtifactsFromComment(
+  ctx: PluginContext,
+  companyId: string,
+  sessionId: string,
+  body: string | null | undefined,
+  summary?: string,
+) {
+  const proofLinks = extractUrls(body);
+  if (proofLinks.length === 0) {
+    return;
+  }
+  await addRuntimeSessionArtifacts(ctx, companyId, sessionId, {
+    proofLinks,
+    summary: summary ?? "Captured proof links from agent comment.",
+  });
+}
+
+async function syncIssueRuntimeSession(
+  ctx: PluginContext,
+  companyId: string,
+  issueId: string,
+) {
+  const issue = await ctx.issues.get(issueId, companyId).catch(() => null);
+  if (!issue) {
+    return null;
+  }
+
+  const existing = await getLatestSessionForIssue(ctx, companyId, issue.id);
+  if (!issue.assigneeAgentId) {
+    if (existing && !isTerminalRuntimeSessionStatus(existing.status)) {
+      await updateRuntimeSessionStatus(
+        ctx,
+        companyId,
+        existing.id,
+        issueStatusToRuntimeSessionStatus(issue.status, "queued"),
+        `Issue ${issue.id} changed without an assignee.`,
+      );
+    }
+    return existing;
+  }
+
+  const assignee = await ctx.agents.get(issue.assigneeAgentId, companyId).catch(() => null);
+  const agentKey = preferredAgentKey(assignee);
+  if (!agentKey) {
+    return existing;
+  }
+
+  if (
+    existing
+    && existing.agentKey !== agentKey
+    && !isTerminalRuntimeSessionStatus(existing.status)
+  ) {
+    await updateRuntimeSessionStatus(
+      ctx,
+      companyId,
+      existing.id,
+      "cancelled",
+      `Runtime ownership moved from ${existing.agentKey} to ${agentKey}.`,
+    );
+  }
+
+  const session = await ensureRuntimeSession(ctx, companyId, {
+    issueId: issue.id,
+    agentKey,
+    status: issueStatusToRuntimeSessionStatus(issue.status, "queued"),
+    summary: issue.title,
+    wakeReason: "issue.sync",
+  });
+  if (session.status !== issueStatusToRuntimeSessionStatus(issue.status, "queued")) {
+    await updateRuntimeSessionStatus(
+      ctx,
+      companyId,
+      session.id,
+      issueStatusToRuntimeSessionStatus(issue.status, "queued"),
+      `Issue ${issue.identifier ?? issue.id} moved to ${issue.status}.`,
+    );
+  }
+  return session;
+}
+
+async function traceAgentRunFailureSession(
+  ctx: PluginContext,
+  companyId: string,
+  payload: AgentRunFailurePayload,
+) {
+  const agent = payload.agentId ? await ctx.agents.get(payload.agentId, companyId).catch(() => null) : null;
+  const agentKey = preferredAgentKey(agent) ?? "unknown-agent";
+  const session =
+    payload.issueId
+      ? await ensureRuntimeSession(ctx, companyId, {
+        issueId: payload.issueId,
+        agentKey,
+        status: "failed",
+        wakeReason: "agent.run.failed",
+        summary: payload.error ?? "Agent run failed.",
+      })
+      : null;
+  if (session) {
+    await appendRuntimeTraceEvent(ctx, companyId, session.id, {
+      type: "session.failed",
+      actor: "runtime",
+      summary: payload.error ?? "Agent run failed.",
+      detail: {
+        runId: payload.runId,
+        taskId: payload.taskId,
+        taskKey: payload.taskKey,
+      },
+    });
+    await updateRuntimeSessionStatus(
+      ctx,
+      companyId,
+      session.id,
+      "failed",
+      payload.error ?? "Agent run failed.",
+    );
+  }
 }
 
 async function getMapping(
@@ -5105,7 +5911,23 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
     },
     config,
   );
-  const assigneeResolution = await resolveAssignableAgent(ctx, input.companyId, config, routedAssignee);
+  const preservePreferredLane = shouldPreservePreferredExecutionLane({
+    title: input.title,
+    preferredAssignee: routedAssignee,
+    sourceType: input.sourceType,
+    parentId: input.parentIssueId ?? null,
+  });
+  const assigneeResolution = await resolveAssignableAgent(
+    ctx,
+    input.companyId,
+    config,
+    routedAssignee,
+    {
+      allowFallback: !preservePreferredLane,
+      revivePreferredAgent: preservePreferredLane,
+      taskKey: `${input.sourceType}:${input.sourceId}`,
+    },
+  );
   const assignee = assigneeResolution.agent;
   const { mapping, issue } = await getManagedIssue(ctx, input.companyId, fingerprint);
   const existingData = (mapping?.data ?? {}) as Partial<SourceMappingData>;
@@ -5129,6 +5951,10 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
         : desiredStatus === "todo"
           ? currentIssue.status
           : desiredStatus;
+
+    if (currentIssue.assigneeAgentId !== assignee.id) {
+      await cancelIssueExecutionRunIfNeeded(currentIssue, assigneeResolution.selectedKey).catch(() => undefined);
+    }
 
     const updatedIssue = await (ctx.issues.update as any)(
       currentIssue.id,
@@ -5214,6 +6040,23 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
       hits,
     },
   });
+
+  const runtimeSession = await syncIssueRuntimeSession(ctx, input.companyId, currentIssue.id).catch(() => null);
+  if (runtimeSession) {
+    await appendRuntimeTraceEvent(ctx, input.companyId, runtimeSession.id, {
+      type: "session.status_changed",
+      actor: "runtime",
+      summary: isNewIssue
+        ? `Managed issue created for ${input.sourceType}:${input.sourceId}.`
+        : `Managed issue refreshed for ${input.sourceType}:${input.sourceId}.`,
+      detail: {
+        fingerprint,
+        desiredStatus,
+        currentStatus: currentIssue.status,
+        assigneeAgentId: currentIssue.assigneeAgentId ?? null,
+      },
+    }).catch(() => undefined);
+  }
 
   if (isNewIssue && desiredPriority && ["critical", "high"].includes(desiredPriority)) {
     await sendNotification(ctx, config, input.companyId, {
@@ -6184,6 +7027,254 @@ function coerceStringArray(value: unknown): string[] {
   return singleValue ? [singleValue] : [];
 }
 
+type MetricsReporterCadence = "daily" | "weekly";
+
+type MetricsReporterStructuredReport = {
+  headline: string;
+  executiveSummary: string[];
+  metricHighlights: string[];
+  anomalies: string[];
+  recommendedFollowUps: string[];
+  growthStudioLinks: string[];
+  sourceEvidence: string[];
+};
+
+type MetricsReporterOutputProof = {
+  success: boolean;
+  outcome: "done" | "blocked";
+  cadence: MetricsReporterCadence;
+  generatedAt: string;
+  title: string;
+  report: MetricsReporterStructuredReport;
+  proofLinks: string[];
+  issueComment: string;
+  errors: string[];
+  failureReason?: string;
+  kbArtifact?: { path?: string; linkedPages?: string[] };
+  notion?: {
+    knowledgePageId?: string;
+    knowledgePageUrl?: string;
+    workQueuePageId?: string;
+    workQueuePageUrl?: string;
+  };
+};
+
+type WorkspaceDigestCadence = "weekly" | "ad_hoc";
+
+type WorkspaceDigestStructuredReport = {
+  headline: string;
+  roundup: string;
+  highlights: string[];
+  risks: string[];
+  nextActions: string[];
+  sourceEvidence: string[];
+};
+
+type WorkspaceDigestFollowUpItem = {
+  title: string;
+  priority: string;
+  system: string;
+  businessLane?: string;
+  lifecycleStage?: string;
+  workType?: string;
+  substage?: string;
+};
+
+type WorkspaceDigestOutputProof = {
+  success: boolean;
+  outcome: "done" | "blocked";
+  cadence: WorkspaceDigestCadence;
+  generatedAt: string;
+  title: string;
+  report: WorkspaceDigestStructuredReport;
+  proofLinks: string[];
+  issueComment: string;
+  errors: string[];
+  failureReason?: string;
+  kbArtifact?: { path?: string; linkedPages?: string[] };
+  notion?: {
+    knowledgePageId?: string;
+    knowledgePageUrl?: string;
+  };
+  followUpWorkQueueItems?: Array<{ pageId: string; pageUrl?: string; title: string }>;
+};
+
+type NotionReconcilerRunProof = {
+  success: boolean;
+  outcome: "done" | "blocked";
+  mode: "daily" | "weekly" | "manual";
+  generatedAt: string;
+  title: string;
+  summary: string;
+  counts: {
+    metadataCleanups: number;
+    staleFlags: number;
+    doctrineRepairs: number;
+    relationRepairs: number;
+    duplicatesArchived: number;
+  };
+  touchedPages: string[];
+  escalations: string[];
+  proofLinks: string[];
+  issueComment: string;
+  errors: string[];
+  failureReason?: string;
+};
+
+function normalizeMetricsReporterStructuredReport(
+  params: Record<string, unknown>,
+  cadence: MetricsReporterCadence,
+): { report: MetricsReporterStructuredReport; validationErrors: string[] } {
+  const report: MetricsReporterStructuredReport = {
+    headline: asString(params.headline) ?? "",
+    executiveSummary: coerceStringArray(params.executiveSummary ?? params.summaryBullets),
+    metricHighlights: coerceStringArray(params.metricHighlights ?? params.workflowFindings),
+    anomalies: coerceStringArray(params.anomalies ?? params.risks),
+    recommendedFollowUps: coerceStringArray(params.recommendedFollowUps),
+    growthStudioLinks: coerceStringArray(params.growthStudioLinks),
+    sourceEvidence: coerceStringArray(params.sourceEvidence),
+  };
+
+  const validationErrors: string[] = [];
+  if (!report.headline) {
+    validationErrors.push(`Missing headline for ${cadence} metrics reporter output.`);
+  }
+  if (report.executiveSummary.length === 0) {
+    validationErrors.push("Missing executiveSummary items for metrics reporter output.");
+  }
+  if (report.metricHighlights.length === 0) {
+    validationErrors.push("Missing metricHighlights for metrics reporter output.");
+  }
+  if (report.anomalies.length === 0) {
+    validationErrors.push("Missing anomalies for metrics reporter output.");
+  }
+  if (report.recommendedFollowUps.length === 0) {
+    validationErrors.push("Missing recommendedFollowUps for metrics reporter output.");
+  }
+
+  return { report, validationErrors };
+}
+
+function normalizeWorkspaceDigestStructuredReport(
+  params: Record<string, unknown>,
+  cadence: WorkspaceDigestCadence,
+): { report: WorkspaceDigestStructuredReport; validationErrors: string[] } {
+  const report: WorkspaceDigestStructuredReport = {
+    headline: asString(params.headline) ?? "",
+    roundup: asString(params.roundup) ?? "",
+    highlights: coerceStringArray(params.highlights),
+    risks: coerceStringArray(params.risks),
+    nextActions: coerceStringArray(params.nextActions),
+    sourceEvidence: coerceStringArray(params.sourceEvidence),
+  };
+
+  const validationErrors: string[] = [];
+  if (!report.headline) {
+    validationErrors.push(`Missing headline for ${cadence} workspace digest.`);
+  }
+  if (!report.roundup) {
+    validationErrors.push("Missing roundup for workspace digest.");
+  }
+  if (report.highlights.length === 0) {
+    validationErrors.push("Missing highlights for workspace digest.");
+  }
+  if (report.nextActions.length === 0) {
+    validationErrors.push("Missing nextActions for workspace digest.");
+  }
+
+  return { report, validationErrors };
+}
+
+function normalizeWorkspaceDigestFollowUpItems(
+  params: Record<string, unknown>,
+): { items: WorkspaceDigestFollowUpItem[]; validationErrors: string[] } {
+  const rawItems = Array.isArray(params.followUpWorkItems) ? params.followUpWorkItems : [];
+  const validationErrors: string[] = [];
+  const items: WorkspaceDigestFollowUpItem[] = [];
+
+  for (const [index, item] of rawItems.entries()) {
+    if (!item || typeof item !== "object") {
+      validationErrors.push(`followUpWorkItems[${index}] must be an object.`);
+      continue;
+    }
+    const entry = item as Record<string, unknown>;
+    const title = asString(entry.title);
+    const priority = asString(entry.priority) ?? "P2";
+    const system = asString(entry.system) ?? "WebApp";
+    if (!title) {
+      validationErrors.push(`followUpWorkItems[${index}] must include a title.`);
+      continue;
+    }
+    items.push({
+      title,
+      priority,
+      system,
+      businessLane: asString(entry.businessLane),
+      lifecycleStage: asString(entry.lifecycleStage) ?? "Open",
+      workType: asString(entry.workType) ?? "Task",
+      substage: asString(entry.substage),
+    });
+  }
+
+  return { items, validationErrors };
+}
+
+function formatMetricsReporterIssueComment(result: MetricsReporterOutputProof) {
+  const proofLinks = result.proofLinks.length > 0 ? result.proofLinks.join(", ") : "none";
+  const lines = [
+    `Outcome: ${result.outcome.toUpperCase()}`,
+    `Headline: ${result.report.headline}`,
+    `Knowledge artifact: ${result.notion?.knowledgePageUrl ?? "missing"}`,
+    `Work Queue breadcrumb: ${result.notion?.workQueuePageUrl ?? "not created"}`,
+    `Proof links: ${proofLinks}`,
+  ];
+  if (result.failureReason) {
+    lines.push(`Failure reason: ${result.failureReason}`);
+  }
+  if (result.errors.length > 0) {
+    lines.push(`Errors: ${result.errors.join(" | ")}`);
+  }
+  return lines.join("\n");
+}
+
+function formatWorkspaceDigestIssueComment(result: WorkspaceDigestOutputProof) {
+  const proofLinks = result.proofLinks.length > 0 ? result.proofLinks.join(", ") : "none";
+  const followUps = result.followUpWorkQueueItems?.length
+    ? result.followUpWorkQueueItems.map((item) => item.title).join(", ")
+    : "none";
+  const lines = [
+    `Outcome: ${result.outcome.toUpperCase()}`,
+    `Headline: ${result.report.headline}`,
+    `Knowledge artifact: ${result.notion?.knowledgePageUrl ?? "missing"}`,
+    `Follow-up work items: ${followUps}`,
+    `Proof links: ${proofLinks}`,
+  ];
+  if (result.failureReason) {
+    lines.push(`Failure reason: ${result.failureReason}`);
+  }
+  if (result.errors.length > 0) {
+    lines.push(`Errors: ${result.errors.join(" | ")}`);
+  }
+  return lines.join("\n");
+}
+
+function formatNotionReconcilerIssueComment(result: NotionReconcilerRunProof) {
+  const lines = [
+    `Outcome: ${result.outcome.toUpperCase()}`,
+    `Summary: ${result.summary}`,
+    `Repairs: metadata=${result.counts.metadataCleanups}, stale=${result.counts.staleFlags}, doctrine=${result.counts.doctrineRepairs}, relations=${result.counts.relationRepairs}, duplicates=${result.counts.duplicatesArchived}`,
+    `Touched pages: ${result.touchedPages.length > 0 ? result.touchedPages.join(", ") : "none"}`,
+    `Escalations: ${result.escalations.length > 0 ? result.escalations.join(" | ") : "none"}`,
+  ];
+  if (result.failureReason) {
+    lines.push(`Failure reason: ${result.failureReason}`);
+  }
+  if (result.errors.length > 0) {
+    lines.push(`Errors: ${result.errors.join(" | ")}`);
+  }
+  return lines.join("\n");
+}
+
 function normalizeCommunityUpdatesStructuredReport(
   params: Record<string, unknown>,
 ): { report: CommunityUpdatesStructuredReport; validationErrors: string[] } {
@@ -6822,6 +7913,468 @@ async function buildCommunityUpdatesOutputProof(
   );
   await trackAgentRun(ctx, companyId, "community-updates-agent");
   await updatePhaseMetrics(ctx, companyId, "community-updates-agent", result.outcome);
+
+  return result;
+}
+
+async function buildMetricsReporterOutputProof(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  companyId: string,
+  params: Record<string, unknown>,
+): Promise<MetricsReporterOutputProof> {
+  const cadence = asString(params.cadence) === "weekly" ? "weekly" : "daily";
+  const generatedAt = nowIso();
+  const reportDate = formatDateInTimeZone(new Date(generatedAt), "America/New_York");
+  const title = `Metrics Reporter ${cadence === "weekly" ? "Weekly" : "Daily"} Report - ${reportDate}`;
+  const triggerSource = asString(params.issueId) ? "Task Assignment" : "Manual";
+  const runMirror = await startPilotAgentRunMirror(ctx, config, companyId, {
+    agentKey: "metrics-reporter",
+    title,
+    triggerSource,
+    issueId: asString(params.issueId),
+    startedAt: generatedAt,
+    notes: `Cadence: ${cadence}`,
+  });
+  const notionClient = runMirror?.notionClient ?? null;
+  const { report, validationErrors } = normalizeMetricsReporterStructuredReport(params, cadence);
+  const errors: string[] = [];
+
+  const result: MetricsReporterOutputProof = {
+    success: false,
+    outcome: "blocked",
+    cadence,
+    generatedAt,
+    title,
+    report,
+    proofLinks: [],
+    issueComment: "",
+    errors,
+  };
+
+  const reportLines = [
+    `Generated at: ${generatedAt}`,
+    `Cadence: ${cadence}`,
+    "",
+    "## Headline",
+    report.headline,
+    "",
+    "## Executive Summary",
+    ...report.executiveSummary.map((line) => `- ${line}`),
+    "",
+    "## Metric Highlights",
+    ...report.metricHighlights.map((line) => `- ${line}`),
+    "",
+    "## Anomalies And Risks",
+    ...report.anomalies.map((line) => `- ${line}`),
+    "",
+    "## Recommended Follow-Ups",
+    ...report.recommendedFollowUps.map((line) => `- ${line}`),
+    "",
+    "## Growth Studio Links",
+    ...(report.growthStudioLinks.length > 0 ? report.growthStudioLinks.map((line) => `- ${line}`) : ["- none"]),
+    "",
+    "## Source Evidence",
+    ...(report.sourceEvidence.length > 0 ? report.sourceEvidence.map((line) => `- ${line}`) : ["- none"]),
+  ];
+  if (validationErrors.length > 0) {
+    reportLines.push("", "## Validation Errors", ...validationErrors.map((line) => `- ${line}`));
+  }
+
+  if (validationErrors.length === 0) {
+    try {
+      result.kbArtifact = await ensureKbArtifactForReport({
+        params,
+        generatedAt,
+        title,
+        defaultCategory: "metrics-reporter",
+        owner: "metrics-reporter",
+        summary: report.headline,
+        evidence: [
+          ...report.executiveSummary,
+          ...report.metricHighlights,
+          ...report.anomalies,
+          ...report.sourceEvidence,
+        ],
+        recommendedFollowUp: report.recommendedFollowUps,
+      });
+    } catch (error) {
+      errors.push(`KB artifact failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  if (validationErrors.length === 0 && notionClient) {
+    try {
+      const knowledgeEntry = await upsertKnowledgeEntry(
+        notionClient,
+        {
+          title,
+          type: "Reference",
+          system: "WebApp",
+          content: reportLines.join("\n"),
+          sourceOfTruth: "Repo",
+          canonicalSource: result.kbArtifact?.path,
+          agentSurfaces: ["Metrics Reporter"],
+          lifecycleStage: "Done",
+        },
+        { archiveDuplicates: true },
+      );
+      result.notion = {
+        knowledgePageId: knowledgeEntry.pageId,
+        knowledgePageUrl: knowledgeEntry.pageUrl,
+      };
+
+      if (params.createWorkQueueBreadcrumb !== false) {
+        const breadcrumb = await upsertWorkQueueItem(
+          notionClient,
+          {
+            title,
+            priority: cadence === "weekly" ? "P1" : "P2",
+            system: "WebApp",
+            businessLane: "Growth",
+            lifecycleStage: "Done",
+            workType: "Refresh",
+            lastStatusChange: generatedAt,
+            substage: [
+              report.headline,
+              knowledgeEntry.pageUrl ? `Knowledge page: ${knowledgeEntry.pageUrl}` : null,
+              report.recommendedFollowUps.length > 0 ? `Follow-ups: ${report.recommendedFollowUps.join("; ")}` : null,
+            ].filter(Boolean).join(" "),
+          },
+          { archiveDuplicates: true },
+        );
+        result.notion.workQueuePageId = breadcrumb.pageId;
+        result.notion.workQueuePageUrl = breadcrumb.pageUrl;
+      }
+    } catch (error) {
+      errors.push(`Notion write failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  const failureReasons: string[] = [];
+  if (validationErrors.length > 0) {
+    errors.push(...validationErrors);
+  }
+  if (!result.kbArtifact?.path) {
+    failureReasons.push("Missing KB artifact.");
+  }
+  if (!result.notion?.knowledgePageId) {
+    failureReasons.push("Missing Notion Knowledge artifact.");
+  }
+
+  result.proofLinks = [
+    result.kbArtifact?.path,
+    result.notion?.knowledgePageUrl,
+    result.notion?.workQueuePageUrl,
+    ...report.growthStudioLinks,
+    ...report.sourceEvidence,
+  ].filter((value): value is string => typeof value === "string" && value.length > 0);
+  result.failureReason = [...failureReasons, ...errors].join(" ");
+  result.success = failureReasons.length === 0 && errors.length === 0;
+  result.outcome = result.success ? "done" : "blocked";
+  result.issueComment = formatMetricsReporterIssueComment(result);
+
+  await updateRoutineHealth(
+    ctx,
+    companyId,
+    `metrics-reporter-${cadence}`,
+    `Metrics Reporter ${cadence.charAt(0).toUpperCase()}${cadence.slice(1)}`,
+    "metrics-reporter",
+    result.outcome,
+    result.failureReason,
+    asString(params.issueId),
+  );
+  await trackAgentRun(ctx, companyId, "metrics-reporter");
+  await updatePhaseMetrics(ctx, companyId, "metrics-reporter", result.outcome);
+  await finalizePilotAgentRunMirror(runMirror, {
+    status: result.outcome === "done" ? "Done" : "Blocked",
+    startedAt: generatedAt,
+    endedAt: nowIso(),
+    triggerSource,
+    issueId: asString(params.issueId),
+    outputDocPageId: result.notion?.knowledgePageId,
+    outputDocPageUrl: result.notion?.knowledgePageUrl,
+    artifactUrl: firstHttpUrl([result.notion?.knowledgePageUrl, ...report.growthStudioLinks]),
+    errorSummary: result.outcome === "blocked" ? result.failureReason : undefined,
+    notes: `Highlights: ${report.metricHighlights.length}; anomalies: ${report.anomalies.length}; follow-ups: ${report.recommendedFollowUps.length}.`,
+  });
+
+  return result;
+}
+
+async function buildWorkspaceDigestOutputProof(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  companyId: string,
+  params: Record<string, unknown>,
+): Promise<WorkspaceDigestOutputProof> {
+  const cadence = asString(params.cadence) === "ad_hoc" ? "ad_hoc" : "weekly";
+  const generatedAt = nowIso();
+  const reportDate = formatDateInTimeZone(new Date(generatedAt), "America/New_York");
+  const title = `Workspace Digest ${cadence === "weekly" ? "Weekly" : "Ad Hoc"} Draft - ${reportDate}`;
+  const triggerSource = asString(params.issueId) ? "Task Assignment" : "Manual";
+  const runMirror = await startPilotAgentRunMirror(ctx, config, companyId, {
+    agentKey: "workspace-digest-publisher",
+    title,
+    triggerSource,
+    issueId: asString(params.issueId),
+    startedAt: generatedAt,
+    notes: `Cadence: ${cadence}`,
+  });
+  const notionClient = runMirror?.notionClient ?? null;
+  const { report, validationErrors } = normalizeWorkspaceDigestStructuredReport(params, cadence);
+  const { items: followUpItems, validationErrors: followUpValidationErrors } =
+    normalizeWorkspaceDigestFollowUpItems(params);
+  const errors: string[] = [];
+
+  const result: WorkspaceDigestOutputProof = {
+    success: false,
+    outcome: "blocked",
+    cadence,
+    generatedAt,
+    title,
+    report,
+    proofLinks: [],
+    issueComment: "",
+    errors,
+  };
+
+  const reportLines = [
+    `Generated at: ${generatedAt}`,
+    `Cadence: ${cadence}`,
+    "",
+    "## Headline",
+    report.headline,
+    "",
+    "## Roundup",
+    report.roundup,
+    "",
+    "## Highlights",
+    ...report.highlights.map((line) => `- ${line}`),
+    "",
+    "## Risks",
+    ...(report.risks.length > 0 ? report.risks.map((line) => `- ${line}`) : ["- none"]),
+    "",
+    "## Next Actions",
+    ...report.nextActions.map((line) => `- ${line}`),
+    "",
+    "## Source Evidence",
+    ...(report.sourceEvidence.length > 0 ? report.sourceEvidence.map((line) => `- ${line}`) : ["- none"]),
+  ];
+  if (validationErrors.length > 0 || followUpValidationErrors.length > 0) {
+    reportLines.push(
+      "",
+      "## Validation Errors",
+      ...[...validationErrors, ...followUpValidationErrors].map((line) => `- ${line}`),
+    );
+  }
+
+  if (validationErrors.length === 0 && followUpValidationErrors.length === 0) {
+    try {
+      result.kbArtifact = await ensureKbArtifactForReport({
+        params,
+        generatedAt,
+        title,
+        defaultCategory: "workspace-digest",
+        owner: "workspace-digest-publisher",
+        summary: report.headline,
+        evidence: [...report.highlights, ...report.risks, ...report.sourceEvidence],
+        recommendedFollowUp: report.nextActions,
+      });
+    } catch (error) {
+      errors.push(`KB artifact failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  if (validationErrors.length === 0 && followUpValidationErrors.length === 0 && notionClient) {
+    try {
+      const knowledgeEntry = await upsertKnowledgeEntry(
+        notionClient,
+        {
+          title,
+          type: "Reference",
+          system: "WebApp",
+          content: reportLines.join("\n"),
+          sourceOfTruth: "Repo",
+          canonicalSource: result.kbArtifact?.path,
+          agentSurfaces: ["Workspace Digest Publisher"],
+          lifecycleStage: "Draft",
+        },
+        { archiveDuplicates: true },
+      );
+      result.notion = {
+        knowledgePageId: knowledgeEntry.pageId,
+        knowledgePageUrl: knowledgeEntry.pageUrl,
+      };
+
+      const createdFollowUps: Array<{ pageId: string; pageUrl?: string; title: string }> = [];
+      for (const item of followUpItems) {
+        const workQueueEntry = await upsertWorkQueueItem(
+          notionClient,
+          {
+            title: item.title,
+            priority: item.priority as "P0" | "P1" | "P2" | "P3",
+            system: item.system as "Cross-System" | "WebApp" | "Capture" | "Pipeline" | "Validation",
+            businessLane: item.businessLane as WorkQueueItem["businessLane"] | undefined,
+            lifecycleStage: item.lifecycleStage ?? "Open",
+            workType: (item.workType ?? "Task") as WorkQueueItem["workType"],
+            substage: item.substage ?? (knowledgeEntry.pageUrl ? `Digest: ${knowledgeEntry.pageUrl}` : undefined),
+            relatedDocPageUrls: knowledgeEntry.pageUrl ? [knowledgeEntry.pageUrl] : undefined,
+          },
+          { archiveDuplicates: true },
+        );
+        createdFollowUps.push({
+          pageId: workQueueEntry.pageId,
+          pageUrl: workQueueEntry.pageUrl,
+          title: item.title,
+        });
+      }
+      if (createdFollowUps.length > 0) {
+        result.followUpWorkQueueItems = createdFollowUps;
+      }
+    } catch (error) {
+      errors.push(`Notion write failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  const failureReasons: string[] = [];
+  if (validationErrors.length > 0) {
+    errors.push(...validationErrors);
+  }
+  if (followUpValidationErrors.length > 0) {
+    errors.push(...followUpValidationErrors);
+  }
+  if (!result.kbArtifact?.path) {
+    failureReasons.push("Missing KB artifact.");
+  }
+  if (!result.notion?.knowledgePageId) {
+    failureReasons.push("Missing Notion Knowledge artifact.");
+  }
+
+  result.proofLinks = [
+    result.kbArtifact?.path,
+    result.notion?.knowledgePageUrl,
+    ...(result.followUpWorkQueueItems ?? []).map((item) => item.pageUrl),
+    ...report.sourceEvidence,
+  ].filter((value): value is string => typeof value === "string" && value.length > 0);
+  result.failureReason = [...failureReasons, ...errors].join(" ");
+  result.success = failureReasons.length === 0 && errors.length === 0;
+  result.outcome = result.success ? "done" : "blocked";
+  result.issueComment = formatWorkspaceDigestIssueComment(result);
+
+  await updateRoutineHealth(
+    ctx,
+    companyId,
+    cadence === "weekly" ? "workspace-digest-weekly" : "workspace-digest-ad-hoc",
+    cadence === "weekly" ? "Workspace Digest Weekly" : "Workspace Digest Ad Hoc",
+    "workspace-digest-publisher",
+    result.outcome,
+    result.failureReason,
+    asString(params.issueId),
+  );
+  await trackAgentRun(ctx, companyId, "workspace-digest-publisher");
+  await updatePhaseMetrics(ctx, companyId, "workspace-digest-publisher", result.outcome);
+  await finalizePilotAgentRunMirror(runMirror, {
+    status: result.outcome === "done" ? "Done" : "Blocked",
+    startedAt: generatedAt,
+    endedAt: nowIso(),
+    triggerSource,
+    issueId: asString(params.issueId),
+    outputDocPageId: result.notion?.knowledgePageId,
+    outputDocPageUrl: result.notion?.knowledgePageUrl,
+    artifactUrl: firstHttpUrl([result.notion?.knowledgePageUrl, ...(result.followUpWorkQueueItems ?? []).map((item) => item.pageUrl)]),
+    errorSummary: result.outcome === "blocked" ? result.failureReason : undefined,
+    notes: `Highlights: ${report.highlights.length}; risks: ${report.risks.length}; follow-up work items: ${result.followUpWorkQueueItems?.length ?? 0}.`,
+  });
+
+  return result;
+}
+
+async function recordNotionReconcilerRun(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  companyId: string,
+  params: Record<string, unknown>,
+): Promise<NotionReconcilerRunProof> {
+  const mode = asString(params.mode) === "weekly"
+    ? "weekly"
+    : asString(params.mode) === "manual"
+      ? "manual"
+      : "daily";
+  const generatedAt = nowIso();
+  const reportDate = formatDateInTimeZone(new Date(generatedAt), "America/New_York");
+  const title = `Notion Reconciler ${mode === "weekly" ? "Weekly" : mode === "manual" ? "Manual" : "Daily"} Run - ${reportDate}`;
+  const triggerSource = asString(params.issueId) ? "Task Assignment" : "Manual";
+  const runMirror = await startPilotAgentRunMirror(ctx, config, companyId, {
+    agentKey: "notion-reconciler",
+    title,
+    triggerSource,
+    issueId: asString(params.issueId),
+    startedAt: generatedAt,
+    notes: `Mode: ${mode}`,
+  });
+
+  const summary = asString(params.summary) ?? "";
+  const touchedPages = coerceStringArray(params.touchedPages);
+  const escalations = coerceStringArray(params.escalations);
+  const blockedReason = asString(params.blockedReason);
+  const counts = {
+    metadataCleanups: asNumber(params.metadataCleanups) ?? 0,
+    staleFlags: asNumber(params.staleFlags) ?? 0,
+    doctrineRepairs: asNumber(params.doctrineRepairs) ?? 0,
+    relationRepairs: asNumber(params.relationRepairs) ?? 0,
+    duplicatesArchived: asNumber(params.duplicatesArchived) ?? 0,
+  };
+  const errors: string[] = [];
+  if (!summary) {
+    errors.push("Missing summary for notion reconciler run.");
+  }
+
+  const result: NotionReconcilerRunProof = {
+    success: false,
+    outcome: blockedReason ? "blocked" : "done",
+    mode,
+    generatedAt,
+    title,
+    summary,
+    counts,
+    touchedPages,
+    escalations,
+    proofLinks: touchedPages,
+    issueComment: "",
+    errors,
+  };
+
+  if (errors.length > 0) {
+    result.outcome = "blocked";
+  }
+  result.failureReason = [blockedReason, ...errors].filter(Boolean).join(" ");
+  result.success = result.outcome === "done" && errors.length === 0;
+  result.issueComment = formatNotionReconcilerIssueComment(result);
+
+  await updateRoutineHealth(
+    ctx,
+    companyId,
+    mode === "weekly" ? "notion-reconciler-weekly" : "notion-reconciler-daily",
+    mode === "weekly" ? "Notion Reconciler Weekly" : mode === "manual" ? "Notion Reconciler Manual" : "Notion Reconciler Daily",
+    "notion-reconciler",
+    result.outcome,
+    result.failureReason,
+    asString(params.issueId),
+  );
+  await trackAgentRun(ctx, companyId, "notion-reconciler");
+  await updatePhaseMetrics(ctx, companyId, "notion-reconciler", result.outcome);
+  await finalizePilotAgentRunMirror(runMirror, {
+    status: result.outcome === "done" ? "Done" : "Blocked",
+    startedAt: generatedAt,
+    endedAt: nowIso(),
+    triggerSource,
+    issueId: asString(params.issueId),
+    artifactUrl: firstHttpUrl(touchedPages),
+    errorSummary: result.outcome === "blocked" ? result.failureReason : undefined,
+    requiresHumanReview: escalations.length > 0 || result.outcome === "blocked",
+    notes: `metadata=${counts.metadataCleanups}; stale=${counts.staleFlags}; doctrine=${counts.doctrineRepairs}; relations=${counts.relationRepairs}; duplicates=${counts.duplicatesArchived}.`,
+  });
 
   return result;
 }
@@ -9571,6 +11124,24 @@ async function registerActionHandlers(ctx: PluginContext) {
     return await buildCommunityUpdatesOutputProof(ctx, config, company.id, params);
   });
 
+  ctx.actions.register(ACTION_KEYS.metricsReporterReport, async (params) => {
+    const config = await getConfig(ctx);
+    const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
+    return await buildMetricsReporterOutputProof(ctx, config, company.id, params);
+  });
+
+  ctx.actions.register(ACTION_KEYS.workspaceDigestReport, async (params) => {
+    const config = await getConfig(ctx);
+    const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
+    return await buildWorkspaceDigestOutputProof(ctx, config, company.id, params);
+  });
+
+  ctx.actions.register(ACTION_KEYS.notionReconcilerRun, async (params) => {
+    const config = await getConfig(ctx);
+    const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
+    return await recordNotionReconcilerRun(ctx, config, company.id, params);
+  });
+
   ctx.actions.register(ACTION_KEYS.customerResearchReport, async (params) => {
     const config = await getConfig(ctx);
     const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
@@ -9806,6 +11377,302 @@ async function registerToolHandlers(ctx: PluginContext) {
   );
 
   ctx.tools.register(
+    TOOL_NAMES.runtimeSessionStatus,
+    {
+      displayName: "Blueprint Runtime Session Status",
+      description:
+        "Inspect Blueprint runtime sessions, their trace summaries, checkpoints, and linked subagents by session or issue.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          companyName: { type: "string" },
+          sessionId: { type: "string" },
+          issueId: { type: "string" },
+          recentLimit: { type: "number" },
+        },
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(
+        ctx,
+        asString((params as Record<string, unknown>).companyName) ?? config.companyName,
+      );
+      const sessionId = asString((params as Record<string, unknown>).sessionId);
+      const issueId = asString((params as Record<string, unknown>).issueId);
+      const recentLimit = Math.max(1, Math.min(asNumber((params as Record<string, unknown>).recentLimit) ?? 5, 20));
+      const session =
+        sessionId
+          ? await getRuntimeSession(ctx, company.id, sessionId)
+          : issueId
+            ? await getLatestSessionForIssue(ctx, company.id, issueId)
+            : null;
+      if (session) {
+        const [trace, subagents] = await Promise.all([
+          readRuntimeTrace(ctx, company.id, session.id),
+          listRuntimeSubagentsForParent(ctx, company.id, session.id),
+        ]);
+        return {
+          content: [
+            `Session ${session.id} is ${session.status} for ${session.agentKey}.`,
+            `Version: ${session.agentVersionRef}${session.channelRef ? ` (${session.channelRef})` : ""}`,
+            `Environment: ${session.environmentProfileKey}`,
+            `Trace events: ${trace.length}`,
+            `Subagents: ${subagents.length}`,
+          ].join("\n"),
+          data: {
+            session,
+            trace: trace.slice(-25),
+            subagents,
+          },
+        };
+      }
+
+      const recent = await listRecentRuntimeSessions(ctx, company.id, recentLimit);
+      return {
+        content: `Loaded ${recent.length} recent runtime session(s).`,
+        data: { recent },
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.runtimeSessionCheckpoint,
+    {
+      displayName: "Blueprint Runtime Session Checkpoint",
+      description: "Create a lightweight workflow checkpoint for a runtime session.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          companyName: { type: "string" },
+          sessionId: { type: "string" },
+          reason: { type: "string" },
+        },
+        required: ["sessionId", "reason"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(
+        ctx,
+        asString((params as Record<string, unknown>).companyName) ?? config.companyName,
+      );
+      const checkpoint = await createRuntimeCheckpoint(
+        ctx,
+        company.id,
+        asString((params as Record<string, unknown>).sessionId) ?? "",
+        asString((params as Record<string, unknown>).reason) ?? "manual-checkpoint",
+      );
+      return {
+        content: `Created runtime checkpoint ${checkpoint.id}.`,
+        data: checkpoint,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.runtimeMemoryRead,
+    {
+      displayName: "Blueprint Runtime Memory Read",
+      description: "Read one runtime memory record or list a memory store.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          companyName: { type: "string" },
+          storeKey: { type: "string" },
+          path: { type: "string" },
+        },
+        required: ["storeKey"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(
+        ctx,
+        asString((params as Record<string, unknown>).companyName) ?? config.companyName,
+      );
+      const storeKey = asString((params as Record<string, unknown>).storeKey) ?? "";
+      const memoryPath = asString((params as Record<string, unknown>).path);
+      if (memoryPath) {
+        const record = await readMemoryRecord(ctx, company.id, storeKey, memoryPath);
+        return {
+          content: record ? `Loaded ${storeKey}${memoryPath} (v${record.version}).` : `No memory found for ${storeKey}${memoryPath}.`,
+          data: record,
+        };
+      }
+      const records = await listMemoryStoreRecords(ctx, company.id, storeKey);
+      return {
+        content: `Loaded ${records.length} record(s) from ${storeKey}.`,
+        data: records,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.runtimeMemoryWrite,
+    {
+      displayName: "Blueprint Runtime Memory Write",
+      description: "Write a scoped runtime memory record with durability and approval metadata.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          companyName: { type: "string" },
+          storeKey: { type: "string" },
+          path: { type: "string" },
+          scope: { type: "string" },
+          title: { type: "string" },
+          content: { type: "string" },
+          labels: { type: "array", items: { type: "string" } },
+          sourceSessionId: { type: "string" },
+          sourceIssueId: { type: "string" },
+          authority: { type: "string" },
+          durability: { type: "string" },
+          approvalEvidence: { type: "string" },
+        },
+        required: ["storeKey", "path", "scope", "title", "content", "authority"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(
+        ctx,
+        asString((params as Record<string, unknown>).companyName) ?? config.companyName,
+      );
+      const record = await writeMemoryRecord(ctx, company.id, {
+        storeKey: asString((params as Record<string, unknown>).storeKey) ?? "",
+        path: asString((params as Record<string, unknown>).path) ?? "",
+        scope: (asString((params as Record<string, unknown>).scope) ?? "session_scratch") as any,
+        title: asString((params as Record<string, unknown>).title) ?? "",
+        content: asString((params as Record<string, unknown>).content) ?? "",
+        labels: Array.isArray((params as Record<string, unknown>).labels) ? ((params as Record<string, unknown>).labels as string[]) : [],
+        sourceSessionId: asString((params as Record<string, unknown>).sourceSessionId) ?? null,
+        sourceIssueId: asString((params as Record<string, unknown>).sourceIssueId) ?? null,
+        authority: (asString((params as Record<string, unknown>).authority) ?? "agent_candidate") as any,
+        durability: (asString((params as Record<string, unknown>).durability) ?? "candidate_durable") as any,
+        approvalEvidence: asString((params as Record<string, unknown>).approvalEvidence) ?? null,
+      });
+      if (record.sourceSessionId) {
+        await appendRuntimeTraceEvent(ctx, company.id, record.sourceSessionId, {
+          type: "memory.write",
+          actor: "agent",
+          summary: `Wrote memory ${record.storeKey}${record.path} v${record.version}.`,
+          detail: {
+            scope: record.scope,
+            authority: record.authority,
+            durability: record.durability,
+          },
+        }).catch(() => undefined);
+      }
+      return {
+        content: `Wrote ${record.storeKey}${record.path} as v${record.version}.`,
+        data: record,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.runtimeSpawnSubagent,
+    {
+      displayName: "Blueprint Runtime Spawn Subagent",
+      description:
+        "Create a bounded runtime subagent, attach it to a parent session, and wake the target agent with the required context.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          companyName: { type: "string" },
+          parentSessionId: { type: "string" },
+          issueId: { type: "string" },
+          assignedAgentKey: { type: "string" },
+          purpose: { type: "string" },
+          expectedOutput: { type: "string" },
+          environmentProfileKey: { type: "string" },
+        },
+        required: ["assignedAgentKey", "purpose", "expectedOutput"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(
+        ctx,
+        asString((params as Record<string, unknown>).companyName) ?? config.companyName,
+      );
+      const parentSessionId =
+        asString((params as Record<string, unknown>).parentSessionId)
+        ?? (asString((params as Record<string, unknown>).issueId)
+          ? (await getLatestSessionForIssue(
+            ctx,
+            company.id,
+            asString((params as Record<string, unknown>).issueId) ?? "",
+          ))?.id ?? null
+          : null);
+      if (!parentSessionId) {
+        throw new Error("runtime_spawn_subagent requires parentSessionId or an issueId with an existing runtime session.");
+      }
+      const parentSession = await getRuntimeSession(ctx, company.id, parentSessionId);
+      if (!parentSession) {
+        throw new Error(`Parent runtime session not found: ${parentSessionId}`);
+      }
+      const assignedAgentKey = asString((params as Record<string, unknown>).assignedAgentKey) ?? "";
+      const childSession = await ensureRuntimeSession(ctx, company.id, {
+        issueId: parentSession.issueId,
+        parentSessionId: parentSession.id,
+        agentKey: assignedAgentKey,
+        environmentProfileKey: asString((params as Record<string, unknown>).environmentProfileKey) ?? null,
+        status: "queued",
+        wakeReason: "runtime.subagent.spawned",
+        summary: asString((params as Record<string, unknown>).purpose) ?? "",
+      });
+      const subagent = await createRuntimeSubagent(ctx, company.id, {
+        parentSessionId: parentSession.id,
+        childSessionId: childSession.id,
+        requestedByAgentKey: parentSession.agentKey,
+        assignedAgentKey,
+        purpose: asString((params as Record<string, unknown>).purpose) ?? "",
+        expectedOutput: asString((params as Record<string, unknown>).expectedOutput) ?? "",
+        status: "queued",
+        environmentProfileKey: childSession.environmentProfileKey,
+        memoryBindings: childSession.memoryBindings,
+        vaultGrantIds: childSession.vaultGrantIds,
+      });
+      await appendRuntimeTraceEvent(ctx, company.id, parentSession.id, {
+        type: "subagent.spawned",
+        actor: "runtime",
+        summary: `Spawned ${assignedAgentKey} as a runtime subagent.`,
+        detail: {
+          subagentId: subagent.id,
+          childSessionId: childSession.id,
+          purpose: subagent.purpose,
+          expectedOutput: subagent.expectedOutput,
+        },
+      });
+      const assigneeResolution = await resolveAssignableAgent(ctx, company.id, config, assignedAgentKey);
+      await ctx.agents.wakeup(assigneeResolution.agent.id, company.id, {
+        source: "automation",
+        triggerDetail: "system",
+        reason: "runtime.subagent.spawned",
+        payload: {
+          parentSessionId: parentSession.id,
+          childSessionId: childSession.id,
+          issueId: parentSession.issueId ?? null,
+          purpose: subagent.purpose,
+          expectedOutput: subagent.expectedOutput,
+        },
+        idempotencyKey: `runtime-subagent:${subagent.id}`,
+        forceFreshSession: true,
+      });
+      await updateRuntimeSubagentStatus(ctx, company.id, subagent.id, "running");
+      await updateRuntimeSessionStatus(ctx, company.id, childSession.id, "running", subagent.purpose);
+      return {
+        content: `Spawned runtime subagent ${subagent.id} for ${assignedAgentKey}.`,
+        data: {
+          subagent,
+          childSessionId: childSession.id,
+        },
+      };
+    },
+  );
+
+  ctx.tools.register(
     TOOL_NAMES.analyticsReport,
     {
       displayName: "Generate Analytics Report",
@@ -9970,6 +11837,219 @@ async function registerToolHandlers(ctx: PluginContext) {
           ? `Generated ${cadence === "weekly" ? "weekly" : "ad hoc"} community update draft with proof artifacts.`
           : `Community update writer blocked: ${report.failureReason || report.errors.join("; ") || "unknown error"}.`,
         data: report,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.metricsReporterReport,
+    {
+      displayName: "Generate Metrics Reporter Output",
+      description:
+        "Create a Blueprint Notion-facing metrics report, require a repo KB artifact, mirror the report into Notion Knowledge, and optionally leave a Work Queue breadcrumb.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          cadence: { type: "string", enum: ["daily", "weekly"] },
+          companyName: { type: "string" },
+          issueId: { type: "string" },
+          headline: { type: "string" },
+          executiveSummary: { type: "array", items: { type: "string" } },
+          metricHighlights: { type: "array", items: { type: "string" } },
+          anomalies: { type: "array", items: { type: "string" } },
+          recommendedFollowUps: { type: "array", items: { type: "string" } },
+          growthStudioLinks: { type: "array", items: { type: "string" } },
+          sourceEvidence: { type: "array", items: { type: "string" } },
+          createWorkQueueBreadcrumb: { type: "boolean" },
+          kbArtifactPath: { type: "string" },
+          kbLinkedPages: { type: "array", items: { type: "string" } },
+        },
+        required: [
+          "cadence",
+          "headline",
+          "executiveSummary",
+          "metricHighlights",
+          "anomalies",
+          "recommendedFollowUps",
+        ],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(
+        ctx,
+        asString((params as Record<string, unknown>).companyName) ?? config.companyName,
+      );
+      const cadence =
+        asString((params as Record<string, unknown>).cadence) === "weekly"
+          ? "weekly"
+          : "daily";
+      const report = await buildMetricsReporterOutputProof(
+        ctx,
+        config,
+        company.id,
+        params as Record<string, unknown>,
+      );
+      const issueId = asString((params as Record<string, unknown>).issueId);
+      if (issueId) {
+        try {
+          await finalizeIssueWithProof(ctx, company.id, {
+            issueId,
+            issueComment: report.issueComment,
+            outcome: report.outcome,
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          report.errors.push(`Issue finalization failed: ${message}`);
+          report.success = false;
+          report.outcome = "blocked";
+          report.failureReason = [report.failureReason, message].filter(Boolean).join(" ");
+        }
+      }
+      return {
+        content: report.success
+          ? `Generated ${cadence} metrics report with Notion artifacts.`
+          : `Metrics reporter blocked: ${report.failureReason || report.errors.join("; ") || "unknown error"}.`,
+        data: report,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.workspaceDigestReport,
+    {
+      displayName: "Generate Workspace Digest",
+      description:
+        "Create a Blueprint workspace roundup draft, require a repo KB artifact, mirror it into Notion Knowledge, and optionally create follow-up Work Queue items.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          cadence: { type: "string", enum: ["weekly", "ad_hoc"] },
+          companyName: { type: "string" },
+          issueId: { type: "string" },
+          headline: { type: "string" },
+          roundup: { type: "string" },
+          highlights: { type: "array", items: { type: "string" } },
+          risks: { type: "array", items: { type: "string" } },
+          nextActions: { type: "array", items: { type: "string" } },
+          sourceEvidence: { type: "array", items: { type: "string" } },
+          followUpWorkItems: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                priority: { type: "string" },
+                system: { type: "string" },
+                businessLane: { type: "string" },
+                lifecycleStage: { type: "string" },
+                workType: { type: "string" },
+                substage: { type: "string" },
+              },
+              required: ["title"],
+            },
+          },
+          kbArtifactPath: { type: "string" },
+          kbLinkedPages: { type: "array", items: { type: "string" } },
+        },
+        required: ["cadence", "headline", "roundup", "highlights", "nextActions"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(
+        ctx,
+        asString((params as Record<string, unknown>).companyName) ?? config.companyName,
+      );
+      const report = await buildWorkspaceDigestOutputProof(
+        ctx,
+        config,
+        company.id,
+        params as Record<string, unknown>,
+      );
+      const issueId = asString((params as Record<string, unknown>).issueId);
+      if (issueId) {
+        try {
+          await finalizeIssueWithProof(ctx, company.id, {
+            issueId,
+            issueComment: report.issueComment,
+            outcome: report.outcome,
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          report.errors.push(`Issue finalization failed: ${message}`);
+          report.success = false;
+          report.outcome = "blocked";
+          report.failureReason = [report.failureReason, message].filter(Boolean).join(" ");
+        }
+      }
+      return {
+        content: report.success
+          ? `Generated ${report.cadence === "weekly" ? "weekly" : "ad hoc"} workspace digest with Notion artifacts.`
+          : `Workspace digest publisher blocked: ${report.failureReason || report.errors.join("; ") || "unknown error"}.`,
+        data: report,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.notionReconcilerRun,
+    {
+      displayName: "Record Notion Reconciler Run",
+      description:
+        "Mirror a Notion Reconciler sweep into Blueprint Agent Runs after the agent finishes metadata cleanup, stale-flagging, doctrine checks, and relation repair work.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          companyName: { type: "string" },
+          issueId: { type: "string" },
+          mode: { type: "string", enum: ["daily", "weekly", "manual"] },
+          summary: { type: "string" },
+          metadataCleanups: { type: "number" },
+          staleFlags: { type: "number" },
+          doctrineRepairs: { type: "number" },
+          relationRepairs: { type: "number" },
+          duplicatesArchived: { type: "number" },
+          touchedPages: { type: "array", items: { type: "string" } },
+          escalations: { type: "array", items: { type: "string" } },
+          blockedReason: { type: "string" },
+        },
+        required: ["summary"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(
+        ctx,
+        asString((params as Record<string, unknown>).companyName) ?? config.companyName,
+      );
+      const result = await recordNotionReconcilerRun(
+        ctx,
+        config,
+        company.id,
+        params as Record<string, unknown>,
+      );
+      const issueId = asString((params as Record<string, unknown>).issueId);
+      if (issueId) {
+        try {
+          await finalizeIssueWithProof(ctx, company.id, {
+            issueId,
+            issueComment: result.issueComment,
+            outcome: result.outcome,
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          result.errors.push(`Issue finalization failed: ${message}`);
+          result.success = false;
+          result.outcome = "blocked";
+          result.failureReason = [result.failureReason, message].filter(Boolean).join(" ");
+        }
+      }
+      return {
+        content: result.success
+          ? `Recorded notion reconciler ${result.mode} run with Agent Runs mirror.`
+          : `Notion reconciler run recorder blocked: ${result.failureReason || result.errors.join("; ") || "unknown error"}.`,
+        data: result,
       };
     },
   );
@@ -10761,7 +12841,7 @@ async function registerToolHandlers(ctx: PluginContext) {
           parametersSchema: {
             type: "object",
             properties: {
-              database: { type: "string", enum: ["work_queue", "knowledge", "skills"] },
+              database: { type: "string", enum: ["work_queue", "knowledge", "skills", "agents", "agent_runs"] },
               query: { type: "string" },
               title: { type: "string" },
               limit: { type: "number" },
@@ -10895,7 +12975,7 @@ async function registerToolHandlers(ctx: PluginContext) {
             type: "object",
             properties: {
               pageId: { type: "string" },
-              database: { type: "string", enum: ["work_queue", "knowledge", "skills"] },
+              database: { type: "string", enum: ["work_queue", "knowledge", "skills", "agents", "agent_runs"] },
               businessLane: { type: "string" },
               needsFounder: { type: "boolean" },
               lastStatusChange: { type: "string" },
@@ -10943,7 +13023,7 @@ async function registerToolHandlers(ctx: PluginContext) {
             type: "object",
             properties: {
               pageId: { type: "string" },
-              targetDatabase: { type: "string", enum: ["work_queue", "knowledge", "skills"] },
+              targetDatabase: { type: "string", enum: ["work_queue", "knowledge", "skills", "agents", "agent_runs"] },
               archiveOriginal: { type: "boolean" },
               preserveContent: { type: "boolean" },
               metadata: { type: "object" },
@@ -11005,7 +13085,7 @@ async function registerToolHandlers(ctx: PluginContext) {
             type: "object",
             properties: {
               pageId: { type: "string" },
-              database: { type: "string", enum: ["work_queue", "knowledge", "skills"] },
+              database: { type: "string", enum: ["work_queue", "knowledge", "skills", "agents", "agent_runs"] },
               ownerIds: { type: "array", items: { type: "string" } },
               requestedByIds: { type: "array", items: { type: "string" } },
               relatedWorkPageIds: { type: "array", items: { type: "string" } },
@@ -11499,6 +13579,17 @@ const plugin: PaperclipPlugin = definePlugin({
     }
     ctx.events.on("agent.run.failed", async (event) => {
       try {
+        await traceAgentRunFailureSession(ctx, event.companyId, parseAgentRunFailurePayload(event.payload));
+      } catch (error) {
+        ctx.logger.warn("agent.run.failed runtime session sync failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+      try {
         await handleAgentRunFailureQuotaFallback(ctx, event);
       } catch (error) {
         ctx.logger.warn("agent.run.failed quota fallback handler failed", {
@@ -11536,6 +13627,18 @@ const plugin: PaperclipPlugin = definePlugin({
     });
     ctx.events.on("issue.created", async (event) => {
       if (!event.entityId) return;
+      try {
+        await syncIssueRuntimeSession(ctx, event.companyId, event.entityId);
+      } catch (error) {
+        ctx.logger.warn("issue.created runtime session sync failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            issueId: event.entityId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
       try {
         await handleChiefOfStaffIssueSignal(ctx, {
           eventId: event.eventId,
@@ -11580,6 +13683,18 @@ const plugin: PaperclipPlugin = definePlugin({
     });
     ctx.events.on("issue.updated", async (event) => {
       if (!event.entityId) return;
+      try {
+        await syncIssueRuntimeSession(ctx, event.companyId, event.entityId);
+      } catch (error) {
+        ctx.logger.warn("issue.updated runtime session sync failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            issueId: event.entityId,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
       try {
         const config = await getConfig(ctx);
         await validateCityLaunchIssueCompletion(ctx, event.companyId, config, event.entityId);
@@ -11676,6 +13791,8 @@ const plugin: PaperclipPlugin = definePlugin({
         const agent = await ctx.agents.get(event.entityId, event.companyId);
         if (agent) {
           await enforceWorkspaceAdapterCooldowns(ctx, event.companyId, [agent]);
+          await syncAgentRuntimeMetadata(ctx, event.companyId, [agent]);
+          await syncPilotAgentRegistryRow(ctx, event.companyId, agent);
         }
       } catch (error) {
         ctx.logger.warn("agent.updated cooldown enforcement failed", {
@@ -11694,6 +13811,8 @@ const plugin: PaperclipPlugin = definePlugin({
         const agent = await ctx.agents.get(event.entityId, event.companyId);
         if (agent) {
           await enforceWorkspaceAdapterCooldowns(ctx, event.companyId, [agent]);
+          await syncAgentRuntimeMetadata(ctx, event.companyId, [agent]);
+          await syncPilotAgentRegistryRow(ctx, event.companyId, agent);
         }
       } catch (error) {
         ctx.logger.warn("agent.created cooldown enforcement failed", {

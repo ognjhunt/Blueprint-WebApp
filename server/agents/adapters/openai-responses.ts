@@ -231,6 +231,7 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
   }
 
   const tools = task.kind === "operator_thread" ? operatorTools : undefined;
+  const traceLogs: Array<Record<string, unknown>> = [];
   const previousResponseId =
     task.session_policy.lane === "session" &&
     task.metadata &&
@@ -248,6 +249,19 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
     },
     tools,
   });
+  traceLogs.push({
+    event_type: "provider.request.prepared",
+    status: "info",
+    summary: "Prepared OpenAI Responses request",
+    model: task.model,
+  });
+  traceLogs.push({
+    event_type: "provider.response.created",
+    status: "info",
+    summary: "Created OpenAI response",
+    response_id: (response as any).id || null,
+    previous_response_id: previousResponseId || null,
+  });
 
   let toolIterations = 0;
   while (tools && toolIterations < 5) {
@@ -263,7 +277,23 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
         typeof call.arguments === "string" && call.arguments.trim().length > 0
           ? JSON.parse(call.arguments)
           : {};
+      traceLogs.push({
+        event_type: "tool.call",
+        status: "info",
+        summary: `Invoked ${call.name}`,
+        tool_name: call.name,
+        tool_args: args,
+        call_id: call.call_id,
+      });
       const result = await runOperatorTool(call.name, args);
+      traceLogs.push({
+        event_type: "tool.result",
+        status: "success",
+        summary: `Completed ${call.name}`,
+        tool_name: call.name,
+        call_id: call.call_id,
+        tool_result: result,
+      });
       toolOutputs.push({
         type: "function_call_output",
         call_id: call.call_id,
@@ -280,14 +310,38 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
       },
       tools,
     });
+    traceLogs.push({
+      event_type: "provider.response.created",
+      status: "info",
+      summary: "Created follow-up OpenAI response",
+      response_id: (response as any).id || null,
+      iteration: toolIterations + 1,
+    });
 
     toolIterations += 1;
   }
 
   const rawText = response.output_text || "";
+  traceLogs.push({
+    event_type: "provider.response.extracted_text",
+    status: "info",
+    summary: "Extracted OpenAI response text",
+    chars: rawText.length,
+  });
+  const payload = extractJsonPayload(rawText);
+  traceLogs.push({
+    event_type: "provider.response.parsed",
+    status: "success",
+    summary: "Parsed OpenAI JSON payload",
+  });
   const parsed = (task.definition.output_schema as ZodType<TOutput>).parse(
-    extractJsonPayload(rawText),
+    payload,
   );
+  traceLogs.push({
+    event_type: "provider.schema.validated",
+    status: "success",
+    summary: "Validated OpenAI output against schema",
+  });
 
   return {
     status: "completed",
@@ -301,6 +355,7 @@ export async function runOpenAIResponsesTask<TInput, TOutput>(
       openai_response_id: (response as any).id || null,
       tool_iterations: toolIterations,
     },
+    logs: traceLogs,
     requires_human_review: inferRequiresHumanReview(parsed),
     requires_approval: false,
   };

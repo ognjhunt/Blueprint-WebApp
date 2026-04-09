@@ -65,6 +65,15 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
     };
   }
 
+  const traceLogs: Array<Record<string, unknown>> = [
+    {
+      event_type: "provider.request.prepared",
+      status: "info",
+      summary: "Prepared Anthropic message request",
+      model: task.model,
+    },
+  ];
+
   const response = await client.messages.create({
     model: task.model,
     max_tokens: 4000,
@@ -75,11 +84,34 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
       },
     ],
   });
+  traceLogs.push({
+    event_type: "provider.response.received",
+    status: "info",
+    summary: "Received Anthropic message response",
+    stop_reason: (response as any).stop_reason ?? null,
+  });
 
   const rawText = extractText(response.content);
+  traceLogs.push({
+    event_type: "provider.response.extracted_text",
+    status: "info",
+    summary: "Extracted Anthropic text response",
+    chars: rawText.length,
+  });
+  const payload = extractJsonPayload(rawText);
+  traceLogs.push({
+    event_type: "provider.response.parsed",
+    status: "success",
+    summary: "Parsed Anthropic JSON payload",
+  });
   const parsed = (task.definition.output_schema as ZodType<TOutput>).parse(
-    extractJsonPayload(rawText),
+    payload,
   );
+  traceLogs.push({
+    event_type: "provider.schema.validated",
+    status: "success",
+    summary: "Validated Anthropic output against schema",
+  });
 
   return {
     status: "completed",
@@ -89,6 +121,7 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
     tool_mode: task.tool_policy.mode,
     output: parsed,
     raw_output_text: rawText,
+    logs: traceLogs,
     requires_human_review: inferRequiresHumanReview(parsed),
     requires_approval: false,
   };

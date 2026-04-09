@@ -33,6 +33,24 @@ export const externalHarnessThreadTask: StructuredTaskDefinition<
     browser_fallback_allowed: false,
     isolated_runtime_required: true,
   },
+  build_outcome_contract() {
+    return {
+      objective: "Execute the bounded harness task and return a concise status.",
+      success_criteria: [
+        "The reply states whether the harness task completed.",
+        "Suggested actions are concrete when follow-up is needed.",
+      ],
+      self_checks: [
+        "Confirm the task stayed within the requested harness scope.",
+      ],
+      proof_requirements: [
+        "Name produced artifacts, code changes, or blockers.",
+      ],
+      pass_threshold: 0.75,
+      bounded_scope: "One harness step.",
+      grader_name: "external-harness-thread-grader",
+    };
+  },
   session_policy: {
     dispatch_mode: "collect",
     lane: "external_harness",

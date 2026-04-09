@@ -1,0 +1,41 @@
+version: 2026-04-09.1
+agent_key: blueprint-chief-of-staff
+environment_profile: ops_internal_mutation_limited
+resolved_inputs:
+  sources:
+    - AUTONOMOUS_ORG.md
+    - ops/paperclip/BLUEPRINT_AUTOMATION.md
+    - ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md
+    - ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/Soul.md
+  summary: Continuous managerial loop with issue-state, routine-health, and routing authority under Paperclip.
+active_tools:
+  - blueprint-manager-state
+  - blueprint-scan-work
+  - blueprint-upsert-work-item
+  - blueprint-report-blocker
+  - blueprint-resolve-work-item
+  - notion-upsert-work-queue
+  - slack-post-digest
+active_skills:
+  - platform-doctrine
+memory_bindings:
+  - doctrine_shared
+  - project_shared:blueprint-webapp
+  - agent_local:blueprint-chief-of-staff
+vault:
+  default_scope: session
+  allowed_refs:
+    - NOTION_API_TOKEN
+    - SLACK_MANAGER_WEBHOOK_URL
+  allowed_tools:
+    - notion
+    - slack
+adapter_policy:
+  preferred:
+    - hermes_local
+    - codex_local
+review_policy:
+  requires_verification: true
+  evidence:
+    - manager-state output
+    - routine health snapshot

@@ -12,6 +12,8 @@
 - Blueprint Work Queue: `collection://51d93d65-8a00-4dd4-a9a2-fd9a6e69120d`
 - Blueprint Knowledge: `collection://b9e4ca9c-db43-4a16-9780-f15eb100c8b4`
 - Blueprint Skills: `collection://a9301f67-d565-4270-85e4-1fb8b82f96af`
+- Blueprint Agents: `collection://66762c9c-b543-41d3-8f1f-95b80aed409a`
+- Blueprint Agent Runs: `collection://1ddce596-3c89-46e4-afeb-34e905017d87`
 - Founder OS page and the founder-facing linked views under Blueprint Hub
 
 ## Notion Manager Tools
@@ -33,6 +35,8 @@
   Use this when a page needs human clarification or a visible note about why it was not auto-fixed.
 - `notion-reconcile-relations`
   Use this to repair related work, docs, skills, and owner/freshness metadata together.
+- `notion-read-work-queue`
+  Use this when a cleanup depends on the current execution breadcrumb or the agent-facing queue view.
 - `web-search`
   Secondary tool only. Use it for citation repair or externally sourced refreshes, not internal workspace routing.
 
@@ -42,6 +46,7 @@
 
 ## Trust Model
 - Paperclip issue state outranks Notion page state for execution truth
+- Paperclip and app runtime state outrank Notion Agent Runs rows for live execution truth
 - repo KB outranks Notion Knowledge pages for durable markdown research artifacts when both exist
 - Blueprint-managed Hub structure outranks ad-hoc page placement guesses
 - explicit page relations outrank inferred relationships from titles alone

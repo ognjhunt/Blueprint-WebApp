@@ -58,8 +58,25 @@ export async function runCodexLocalTask<TInput, TOutput>(
     await fs.mkdtemp(path.join(os.tmpdir(), "blueprint-codex-local-")),
     "last-message.txt",
   );
+  const traceLogs: Array<Record<string, unknown>> = [
+    {
+      event_type: "provider.request.prepared",
+      status: "info",
+      summary: "Prepared Codex local invocation",
+      command: codexCommand,
+      workdir: codexWorkdir,
+      model: task.model,
+    },
+  ];
 
   try {
+    traceLogs.push({
+      event_type: "provider.process.started",
+      status: "info",
+      summary: "Started Codex local process",
+      command: codexCommand,
+      output_file: outputFile,
+    });
     await execFileAsync(
       codexCommand,
       [
@@ -84,9 +101,26 @@ export async function runCodexLocalTask<TInput, TOutput>(
     );
 
     const rawText = await fs.readFile(outputFile, "utf8");
+    traceLogs.push({
+      event_type: "provider.response.received",
+      status: "info",
+      summary: "Read Codex local output",
+      bytes: rawText.length,
+    });
+    const payload = extractJsonPayload(rawText);
+    traceLogs.push({
+      event_type: "provider.response.parsed",
+      status: "success",
+      summary: "Parsed Codex local JSON payload",
+    });
     const parsed = (task.definition.output_schema as ZodType<TOutput>).parse(
-      extractJsonPayload(rawText),
+      payload,
     );
+    traceLogs.push({
+      event_type: "provider.schema.validated",
+      status: "success",
+      summary: "Validated Codex output against schema",
+    });
 
     return {
       status: "completed",
@@ -100,6 +134,7 @@ export async function runCodexLocalTask<TInput, TOutput>(
         codex_command: codexCommand,
         codex_workdir: codexWorkdir,
       },
+      logs: traceLogs,
       requires_human_review: inferRequiresHumanReview(parsed),
       requires_approval: false,
     };
@@ -118,6 +153,12 @@ export async function runCodexLocalTask<TInput, TOutput>(
       details.stderr ? `stderr: ${details.stderr}` : "",
       details.stdout ? `stdout: ${details.stdout}` : "",
     ].filter(Boolean);
+    traceLogs.push({
+      event_type: "provider.process.failed",
+      status: "error",
+      summary: "Codex local task failed",
+      error: errorLines.join("\n") || "Codex local task failed",
+    });
 
     return {
       status: "failed",
@@ -126,6 +167,7 @@ export async function runCodexLocalTask<TInput, TOutput>(
       model: task.model,
       tool_mode: task.tool_policy.mode,
       error: errorLines.join("\n") || "Codex local task failed",
+      logs: traceLogs,
       requires_human_review: true,
       requires_approval: false,
     };

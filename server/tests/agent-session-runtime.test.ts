@@ -39,6 +39,11 @@ function createFakeDb() {
     agentSessions: new Map<string, Record<string, unknown>>(),
     agentRuns: new Map<string, Record<string, unknown>>(),
     opsActionLogs: new Map<string, Record<string, unknown>>(),
+    agentRuntimeEvents: new Map<string, Record<string, unknown>>(),
+    agentCheckpoints: new Map<string, Record<string, unknown>>(),
+    agentCompactions: new Map<string, Record<string, unknown>>(),
+    agentProfiles: new Map<string, Record<string, unknown>>(),
+    agentEnvironmentProfiles: new Map<string, Record<string, unknown>>(),
     opsDocuments: new Map<string, Record<string, unknown>>(),
     startupPacks: new Map<string, Record<string, unknown>>(),
   };
@@ -136,6 +141,11 @@ beforeEach(() => {
   fake.store.agentSessions.clear();
   fake.store.agentRuns.clear();
   fake.store.opsActionLogs.clear();
+  fake.store.agentRuntimeEvents.clear();
+  fake.store.agentCheckpoints.clear();
+  fake.store.agentCompactions.clear();
+  fake.store.agentProfiles.clear();
+  fake.store.agentEnvironmentProfiles.clear();
   fake.store.opsDocuments.clear();
   fake.store.startupPacks.clear();
 });
@@ -242,5 +252,116 @@ describe("agent session runtime", () => {
       workflow_phase: "implementation",
     });
     expect(runOpenAIResponsesTask).toHaveBeenCalled();
+  });
+
+  it("applies managed runtime profiles and records runtime events and checkpoints", async () => {
+    const {
+      createAgentSession,
+      sendAgentSessionMessage,
+      listRuntimeEventsForSession,
+      listCheckpointsForSession,
+    } = await import("../agents/runtime");
+
+    const session = await createAgentSession({
+      title: "Managed runtime session",
+      task_kind: "operator_thread",
+      agent_profile_id: "built-in-ops-operator",
+      environment_profile_id: "built-in-session-default",
+      metadata: {
+        startupContext: {
+          repoDocPaths: ["docs/runbook.md"],
+        },
+      },
+    });
+
+    await sendAgentSessionMessage({
+      sessionId: session.id,
+      task: {
+        kind: "operator_thread",
+        input: {
+          message: "Summarize the bounded work.",
+        },
+      },
+    });
+
+    const events = await listRuntimeEventsForSession(session.id);
+    const checkpoints = await listCheckpointsForSession(session.id);
+
+    expect(events.some((event) => event.kind === "session.created")).toBe(true);
+    expect(events.some((event) => event.kind === "run.outcome.graded")).toBe(true);
+    expect(checkpoints.length).toBeGreaterThan(0);
+  });
+
+  it("delegates a bounded subagent task from a parent session", async () => {
+    const {
+      createAgentSession,
+      delegateManagedAgentTask,
+      listRuntimeEventsForSession,
+    } = await import("../agents/runtime");
+
+    const parentSession = await createAgentSession({
+      title: "Parent session",
+      task_kind: "operator_thread",
+      agent_profile_id: "built-in-ops-operator",
+      environment_profile_id: "built-in-session-default",
+    });
+
+    const delegated = await delegateManagedAgentTask({
+      title: "Delegated research task",
+      message: "Collect the narrow evidence needed for the issue.",
+      agentProfileId: "built-in-research-subagent",
+      environmentProfileId: "built-in-web-research",
+      parentSessionId: parentSession.id,
+    });
+
+    expect(delegated.session.agent_profile_id).toBe("built-in-research-subagent");
+
+    const parentEvents = await listRuntimeEventsForSession(parentSession.id);
+    expect(parentEvents.some((event) => event.kind === "subagent.spawned")).toBe(true);
+  });
+
+  it("records a first-class compaction when a session is forked", async () => {
+    const {
+      createAgentSession,
+      forkAgentSessionWithHandoff,
+      listCompactionsForSession,
+    } = await import("../agents/runtime");
+
+    const session = await createAgentSession({
+      title: "Compaction source",
+      task_kind: "operator_thread",
+      provider: "openai_responses",
+      session_key: "session:compaction",
+    });
+
+    fake.store.agentRuns.set("run-compaction", {
+      id: "run-compaction",
+      session_id: session.id,
+      session_key: "session:compaction",
+      task_kind: "operator_thread",
+      provider: "openai_responses",
+      runtime: "openai_responses",
+      model: "gpt-5.4",
+      status: "failed",
+      input: {
+        kind: "operator_thread",
+        input: {
+          message: "The thread overflowed and needs compaction.",
+        },
+      },
+      error: "context window exceeded",
+      created_at: "timestamp",
+      updated_at: "timestamp",
+    });
+
+    await forkAgentSessionWithHandoff({
+      sessionId: session.id,
+      phase: "implementation",
+      sourceRunId: "run-compaction",
+    });
+
+    const compactions = await listCompactionsForSession(session.id);
+    expect(compactions.length).toBeGreaterThan(0);
+    expect(compactions[0]?.target_session_id).toBeTruthy();
   });
 });

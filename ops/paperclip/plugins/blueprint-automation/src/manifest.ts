@@ -152,7 +152,9 @@ const manifest: PaperclipPluginManifestV1 = {
               growthLead: { type: "string" },
               conversionOptimizer: { type: "string" },
               analytics: { type: "string" },
+              metricsReporter: { type: "string" },
               communityUpdates: { type: "string" },
+              workspaceDigestPublisher: { type: "string" },
               marketIntel: { type: "string" },
               demandIntel: { type: "string" },
               capturerGrowth: { type: "string" },
@@ -168,6 +170,7 @@ const manifest: PaperclipPluginManifestV1 = {
         title: "Management",
         properties: {
           chiefOfStaffAgent: { type: "string", default: "blueprint-chief-of-staff" },
+          notionReconcilerAgent: { type: "string", default: "notion-reconciler" },
         },
       },
       secrets: {
@@ -476,6 +479,80 @@ const manifest: PaperclipPluginManifestV1 = {
       },
     },
     {
+      name: TOOL_NAMES.metricsReporterReport,
+      displayName: "Generate Metrics Reporter Output",
+      description:
+        "Write a deterministic Blueprint internal metrics report from agent-supplied findings, then return proof artifacts for issue completion.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          cadence: { type: "string", enum: ["daily", "weekly"] },
+          companyName: { type: "string" },
+          issueId: { type: "string" },
+          headline: { type: "string" },
+          executiveSummary: { type: "array", items: { type: "string" } },
+          metricHighlights: { type: "array", items: { type: "string" } },
+          anomalies: { type: "array", items: { type: "string" } },
+          recommendedFollowUps: { type: "array", items: { type: "string" } },
+          growthStudioLinks: { type: "array", items: { type: "string" } },
+          sourceEvidence: { type: "array", items: { type: "string" } },
+        },
+        required: [
+          "cadence",
+          "headline",
+          "executiveSummary",
+          "metricHighlights",
+          "anomalies",
+          "recommendedFollowUps",
+        ],
+      },
+    },
+    {
+      name: TOOL_NAMES.workspaceDigestReport,
+      displayName: "Generate Workspace Digest",
+      description:
+        "Write a deterministic Blueprint workspace digest draft from agent-supplied findings, then return proof artifacts for issue completion.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          cadence: { type: "string", enum: ["weekly", "ad_hoc"] },
+          companyName: { type: "string" },
+          issueId: { type: "string" },
+          headline: { type: "string" },
+          roundup: { type: "string" },
+          highlights: { type: "array", items: { type: "string" } },
+          risks: { type: "array", items: { type: "string" } },
+          nextActions: { type: "array", items: { type: "string" } },
+          sourceEvidence: { type: "array", items: { type: "string" } },
+        },
+        required: ["cadence", "headline", "roundup", "highlights", "nextActions"],
+      },
+    },
+    {
+      name: TOOL_NAMES.notionReconcilerRun,
+      displayName: "Record Notion Reconciler Run",
+      description:
+        "Record the outcome of a Notion Reconciler sweep so Blueprint Agent Runs and the pilot registry stay current.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          companyName: { type: "string" },
+          issueId: { type: "string" },
+          mode: { type: "string", enum: ["daily", "weekly", "manual"] },
+          summary: { type: "string" },
+          metadataCleanups: { type: "number" },
+          staleFlags: { type: "number" },
+          doctrineRepairs: { type: "number" },
+          relationRepairs: { type: "number" },
+          duplicatesArchived: { type: "number" },
+          touchedPages: { type: "array", items: { type: "string" } },
+          escalations: { type: "array", items: { type: "string" } },
+          blockedReason: { type: "string" },
+        },
+        required: ["summary"],
+      },
+    },
+    {
       name: TOOL_NAMES.notionReadWorkQueue,
       displayName: "Read Notion Work Queue",
       description: "Query Blueprint Work Queue items by system, priority, or lifecycle stage.",
@@ -527,7 +604,7 @@ const manifest: PaperclipPluginManifestV1 = {
       parametersSchema: {
         type: "object",
         properties: {
-          database: { type: "string", enum: ["work_queue", "knowledge", "skills"] },
+          database: { type: "string", enum: ["work_queue", "knowledge", "skills", "agents", "agent_runs"] },
           query: { type: "string" },
           title: { type: "string" },
           limit: { type: "number" },
@@ -612,7 +689,7 @@ const manifest: PaperclipPluginManifestV1 = {
         type: "object",
         properties: {
           pageId: { type: "string" },
-          database: { type: "string", enum: ["work_queue", "knowledge", "skills"] },
+          database: { type: "string", enum: ["work_queue", "knowledge", "skills", "agents", "agent_runs"] },
         },
         required: ["pageId", "database"],
       },
@@ -625,7 +702,7 @@ const manifest: PaperclipPluginManifestV1 = {
         type: "object",
         properties: {
           pageId: { type: "string" },
-          targetDatabase: { type: "string", enum: ["work_queue", "knowledge", "skills"] },
+          targetDatabase: { type: "string", enum: ["work_queue", "knowledge", "skills", "agents", "agent_runs"] },
           archiveOriginal: { type: "boolean" },
           preserveContent: { type: "boolean" },
           metadata: { type: "object" },
@@ -666,7 +743,7 @@ const manifest: PaperclipPluginManifestV1 = {
         type: "object",
         properties: {
           pageId: { type: "string" },
-          database: { type: "string", enum: ["work_queue", "knowledge", "skills"] },
+          database: { type: "string", enum: ["work_queue", "knowledge", "skills", "agents", "agent_runs"] },
           ownerIds: { type: "array", items: { type: "string" } },
           requestedByIds: { type: "array", items: { type: "string" } },
           relatedWorkPageIds: { type: "array", items: { type: "string" } },

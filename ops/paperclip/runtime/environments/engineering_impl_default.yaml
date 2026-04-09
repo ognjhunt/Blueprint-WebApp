@@ -1,0 +1,39 @@
+key: engineering_impl_default
+description: Default implementation profile for repo-mutating engineering work with explicit trace linkage.
+runtime_lane: implementation
+adapter_policy:
+  preferred:
+    - codex_local
+    - claude_local
+tools:
+  allow:
+    - repo_read
+    - repo_write
+    - rg_search
+    - build
+    - test
+    - git_status
+  deny:
+    - slack_post
+    - notion_write
+    - finance_mutation
+network_policy:
+  mode: restricted
+repo_mounts:
+  - /Users/nijelhunt_1/workspace/Blueprint-WebApp
+memory:
+  bind:
+    - doctrine_shared
+    - project_shared:blueprint-webapp
+vault:
+  default_scope: session
+  allowed_refs:
+    - BLUEPRINT_PAPERCLIP_GITHUB_TOKEN
+  allowed_tools:
+    - git
+    - github
+artifacts:
+  require_trace_link: true
+  publish_to_issue: true
+review:
+  human_gate: engineering-review

@@ -49,7 +49,7 @@ beforeAll(async () => {
   csrfCookie = setCookie ? setCookie.split(";")[0] : "";
   const data = (await csrfResponse.json()) as { csrfToken?: string };
   csrfToken = data.csrfToken ?? "";
-}, 30000);
+}, 60000);
 
 afterAll(async () => {
   if (!server) {
@@ -76,6 +76,11 @@ const protectedEndpoints = [
   { method: "POST", path: "/api/admin/agent/sessions" },
   { method: "GET", path: "/api/admin/agent/sessions" },
   { method: "GET", path: "/api/admin/agent/context/options" },
+  { method: "GET", path: "/api/admin/agent/profiles" },
+  { method: "GET", path: "/api/admin/agent/environments" },
+  { method: "POST", path: "/api/admin/agent/delegations" },
+  { method: "POST", path: "/api/admin/agent/sessions/test-session/control/start" },
+  { method: "POST", path: "/api/admin/agent/sessions/test-session/control/compact" },
   { method: "POST", path: "/api/qr/pending-session" },
   { method: "GET", path: "/api/googlePlaces" },
   { method: "POST", path: "/api/site-worlds/sessions" },

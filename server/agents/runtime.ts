@@ -1,6 +1,10 @@
 import crypto from "node:crypto";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { getAgentProfile } from "./agent-profiles";
+import { createAgentCheckpoint, getAgentCheckpoint, listAgentCheckpoints } from "./checkpoints";
+import { createAgentCompaction, listAgentCompactions } from "./compactions";
+import { getEnvironmentProfile } from "./environment-profiles";
 import {
   cancelActionSession,
   startActionSession,
@@ -9,6 +13,7 @@ import {
 import { attachRequestMeta, logger } from "../logger";
 import { resolveStartupContext } from "./knowledge";
 import { recordOpsActionLog } from "./ops-action-logs";
+import { recordRuntimeEvent, listRuntimeEvents } from "./runtime-events";
 import {
   mergeApprovalPolicy,
   mergeSessionPolicy,
@@ -24,10 +29,15 @@ import type {
   AgentTaskKind,
   AgentThreadPhase,
   NormalizedAgentTask,
+  OutcomeContract,
+  OutcomeEvaluation,
   OpsActionRiskLevel,
   PersistedAgentRun,
   PersistedAgentSession,
   ApprovalPolicy,
+  AgentProfileRecord,
+  AgentEnvironmentProfileRecord,
+  RuntimeEventRecord,
 } from "./types";
 
 function nowTimestamp() {
@@ -50,6 +60,295 @@ function stripUndefinedDeep<T>(value: T): T {
   }
 
   return value;
+}
+
+function mergeStringArrays(...values: Array<string[] | undefined>) {
+  return Array.from(
+    new Set(
+      values
+        .flatMap((value) => value || [])
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function defaultOutcomeContract(taskKind: AgentTaskKind): OutcomeContract {
+  switch (taskKind) {
+    case "support_triage":
+      return {
+        objective: "Safely classify the inbound issue and recommend the next operator action.",
+        success_criteria: [
+          "Category, queue, and priority are explicit.",
+          "Suggested response is concise and safe.",
+          "Human review is required when confidence or risk warrants it.",
+        ],
+        self_checks: [
+          "Verify that no unsupported promise is made.",
+          "Verify that escalation is explicit for blocked or sensitive issues.",
+        ],
+        proof_requirements: ["Use the inbound request details as evidence."],
+        pass_threshold: 0.8,
+        bounded_scope: "One support issue.",
+        grader_name: "default-support-grader",
+      };
+    case "external_harness_thread":
+      return {
+        objective: "Complete the bounded external harness task and return a concise status.",
+        success_criteria: [
+          "The response states whether the bounded task completed.",
+          "Suggested next actions are concrete when work is incomplete.",
+        ],
+        self_checks: ["Verify that the request stayed bounded to the assigned harness task."],
+        proof_requirements: ["Name any produced artifact, file, or unresolved blocker."],
+        pass_threshold: 0.75,
+        bounded_scope: "One external harness thread step.",
+        grader_name: "default-external-harness-grader",
+      };
+    default:
+      return {
+        objective: "Produce a bounded operator-quality response with clear next actions.",
+        success_criteria: [
+          "The reply addresses the operator request directly.",
+          "The summary is specific and useful.",
+          "Suggested actions are concrete.",
+        ],
+        self_checks: [
+          "Verify that no claim outruns the supplied evidence.",
+          "Verify that unresolved blockers are explicit.",
+        ],
+        proof_requirements: ["Reference the attached context when it materially informed the answer."],
+        pass_threshold: 0.75,
+        bounded_scope: "One operator request.",
+        grader_name: "default-operator-grader",
+      };
+  }
+}
+
+function mergeOutcomeContract(
+  taskKind: AgentTaskKind,
+  ...contracts: Array<Partial<OutcomeContract> | undefined | null>
+): OutcomeContract {
+  const base = defaultOutcomeContract(taskKind);
+  return contracts.reduce<OutcomeContract>(
+    (acc, contract) => ({
+      ...acc,
+      ...contract,
+      objective: contract?.objective?.trim() || acc.objective,
+      success_criteria: contract?.success_criteria
+        ? mergeStringArrays(contract.success_criteria)
+        : acc.success_criteria,
+      self_checks: contract?.self_checks
+        ? mergeStringArrays(contract.self_checks)
+        : acc.self_checks,
+      proof_requirements: contract?.proof_requirements
+        ? mergeStringArrays(contract.proof_requirements)
+        : acc.proof_requirements,
+      pass_threshold:
+        typeof contract?.pass_threshold === "number" ? contract.pass_threshold : acc.pass_threshold,
+      bounded_scope: contract?.bounded_scope?.trim() || acc.bounded_scope,
+      grader_name: contract?.grader_name?.trim() || acc.grader_name,
+    }),
+    base,
+  );
+}
+
+function normalizeStartupContextMetadata(value: unknown) {
+  const record = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  return {
+    startupPackIds: mergeStringArrays(record.startupPackIds as string[] | undefined),
+    repoDocPaths: mergeStringArrays(record.repoDocPaths as string[] | undefined),
+    blueprintIds: mergeStringArrays(record.blueprintIds as string[] | undefined),
+    documentIds: mergeStringArrays(record.documentIds as string[] | undefined),
+    externalSources: Array.isArray(record.externalSources)
+      ? record.externalSources.filter((entry) => entry && typeof entry === "object")
+      : [],
+    creativeContexts: Array.isArray(record.creativeContexts)
+      ? record.creativeContexts.filter((entry) => entry && typeof entry === "object")
+      : [],
+    operatorNotes:
+      typeof record.operatorNotes === "string" ? record.operatorNotes.trim() : "",
+    targetHarness:
+      record.targetHarness === "claude_code" ? "claude_code" : "codex",
+  };
+}
+
+function mergeStartupContextMetadata(...values: Array<unknown>) {
+  return values.reduce<{
+    startupPackIds: string[];
+    repoDocPaths: string[];
+    blueprintIds: string[];
+    documentIds: string[];
+    externalSources: Array<Record<string, unknown>>;
+    creativeContexts: Array<Record<string, unknown>>;
+    operatorNotes: string;
+    targetHarness: "codex" | "claude_code";
+  }>(
+    (acc, value) => {
+      const next = normalizeStartupContextMetadata(value);
+      return {
+        startupPackIds: mergeStringArrays(acc.startupPackIds, next.startupPackIds),
+        repoDocPaths: mergeStringArrays(acc.repoDocPaths, next.repoDocPaths),
+        blueprintIds: mergeStringArrays(acc.blueprintIds, next.blueprintIds),
+        documentIds: mergeStringArrays(acc.documentIds, next.documentIds),
+        externalSources: [...acc.externalSources, ...next.externalSources],
+        creativeContexts: [...acc.creativeContexts, ...next.creativeContexts],
+        operatorNotes: [acc.operatorNotes, next.operatorNotes].filter(Boolean).join("\n\n").trim(),
+        targetHarness: (next.targetHarness || acc.targetHarness) as "codex" | "claude_code",
+      };
+    },
+    {
+      startupPackIds: [] as string[],
+      repoDocPaths: [] as string[],
+      blueprintIds: [] as string[],
+      documentIds: [] as string[],
+      externalSources: [] as Array<Record<string, unknown>>,
+      creativeContexts: [] as Array<Record<string, unknown>>,
+      operatorNotes: "",
+      targetHarness: "codex" as const,
+    },
+  );
+}
+
+async function resolveManagedRuntimeMetadata(metadata?: Record<string, unknown>) {
+  const source = metadata && typeof metadata === "object" ? metadata : {};
+  const managedRuntime =
+    source.managedRuntime && typeof source.managedRuntime === "object"
+      ? (source.managedRuntime as Record<string, unknown>)
+      : {};
+  const startupContext =
+    source.startupContext && typeof source.startupContext === "object"
+      ? (source.startupContext as Record<string, unknown>)
+      : {};
+
+  const agentProfileId =
+    typeof managedRuntime.agentProfileId === "string" ? managedRuntime.agentProfileId : null;
+  const environmentProfileId =
+    typeof managedRuntime.environmentProfileId === "string"
+      ? managedRuntime.environmentProfileId
+      : null;
+
+  const [agentProfile, environmentProfile] = await Promise.all([
+    agentProfileId ? getAgentProfile(agentProfileId) : Promise.resolve(null),
+    environmentProfileId ? getEnvironmentProfile(environmentProfileId) : Promise.resolve(null),
+  ]);
+
+  const mergedStartupContext = mergeStartupContextMetadata(
+    agentProfile?.startup_context,
+    environmentProfile
+      ? {
+          startupPackIds: environmentProfile.startup_pack_ids || [],
+        }
+      : undefined,
+    startupContext,
+  );
+
+  return {
+    agentProfile,
+    environmentProfile,
+    metadata: {
+      ...source,
+      startupContext: mergedStartupContext,
+      managedRuntime: {
+        ...managedRuntime,
+        agentProfileId: agentProfile?.id || agentProfileId,
+        environmentProfileId: environmentProfile?.id || environmentProfileId,
+        profileName: agentProfile?.name || null,
+        environmentName: environmentProfile?.name || null,
+      },
+    } as Record<string, unknown>,
+  };
+}
+
+function buildEnvironmentSnapshot(environmentProfile: AgentEnvironmentProfileRecord | null) {
+  if (!environmentProfile) {
+    return null;
+  }
+  return {
+    id: environmentProfile.id,
+    key: environmentProfile.key,
+    name: environmentProfile.name,
+    lane: environmentProfile.lane,
+    repo_mounts: environmentProfile.repo_mounts,
+    package_set: environmentProfile.package_set,
+    secret_bindings: environmentProfile.secret_bindings,
+    network_rules: environmentProfile.network_rules,
+    runtime_constraints: environmentProfile.runtime_constraints || null,
+  };
+}
+
+function buildProfileSnapshot(agentProfile: AgentProfileRecord | null) {
+  if (!agentProfile) {
+    return null;
+  }
+  return {
+    id: agentProfile.id,
+    key: agentProfile.key,
+    name: agentProfile.name,
+    task_kind: agentProfile.task_kind,
+    lane: agentProfile.lane || null,
+    capabilities: agentProfile.capabilities || [],
+    human_gates: agentProfile.human_gates || [],
+  };
+}
+
+function gradeOutcome<TOutput>(
+  task: NormalizedAgentTask<unknown, TOutput>,
+  result: AgentResult<TOutput>,
+): OutcomeEvaluation {
+  const checks = [
+    {
+      label: "completed_without_runtime_error",
+      passed: result.status === "completed" && !result.error,
+      detail:
+        result.status === "completed"
+          ? "Run completed."
+          : result.error || `Run ended with status ${result.status}.`,
+    },
+    {
+      label: "has_structured_output",
+      passed: Boolean(result.output),
+      detail: result.output ? "Structured output present." : "No structured output returned.",
+    },
+    {
+      label: "passes_human_review_gate",
+      passed: result.requires_human_review === false,
+      detail: result.requires_human_review
+        ? "Run still requires human review."
+        : "Run stayed within autonomous bounds.",
+    },
+    {
+      label: "meets_proof_expectations",
+      passed:
+        task.outcome_contract.proof_requirements.length === 0
+        || Boolean(result.artifacts || result.logs || result.raw_output_text),
+      detail:
+        task.outcome_contract.proof_requirements.length === 0
+          ? "No explicit proof requirement."
+          : result.artifacts || result.logs || result.raw_output_text
+            ? "Trace or artifacts captured."
+            : "No proof-bearing trace or artifact captured.",
+    },
+  ];
+
+  const passed = checks.filter((check) => check.passed).length;
+  const score = checks.length > 0 ? passed / checks.length : 0;
+  return {
+    status:
+      score >= task.outcome_contract.pass_threshold
+        ? "pass"
+        : score >= Math.max(task.outcome_contract.pass_threshold - 0.2, 0.4)
+          ? "partial"
+          : "fail",
+    score,
+    summary:
+      score >= task.outcome_contract.pass_threshold
+        ? "Run satisfied the managed outcome contract."
+        : score >= Math.max(task.outcome_contract.pass_threshold - 0.2, 0.4)
+          ? "Run partially satisfied the outcome contract and needs follow-up."
+          : "Run failed the managed outcome contract.",
+    checks,
+  };
 }
 
 const CONTEXT_WINDOW_FAILURE_PATTERN =
@@ -307,6 +606,11 @@ function normalizeTask<TInput, TOutput>(
     session_policy: mergeSessionPolicy(
       definition.session_policy,
       task.session_policy,
+    ),
+    outcome_contract: mergeOutcomeContract(
+      task.kind,
+      definition.build_outcome_contract?.(task.input),
+      task.outcome_contract,
     ),
   };
 }
@@ -665,6 +969,99 @@ async function listRunsForSession(sessionId: string, limit = 100) {
   return snapshot.docs.map((doc) => doc.data() as PersistedAgentRun);
 }
 
+async function updateSessionRuntimePointers(
+  sessionId: string,
+  updates: Partial<PersistedAgentSession>,
+) {
+  const session = await getSession(sessionId);
+  if (!session) {
+    return null;
+  }
+  const nextSession = {
+    ...session,
+    ...updates,
+    updated_at: nowTimestamp(),
+  };
+  await saveSession(nextSession);
+  return nextSession;
+}
+
+async function createRuntimeCheckpoint(params: {
+  session: PersistedAgentSession;
+  runId?: string | null;
+  label: string;
+  trigger: string;
+  replayable?: boolean;
+  snapshot: Record<string, unknown>;
+}) {
+  const checkpoint = await createAgentCheckpoint({
+    session_id: params.session.id,
+    run_id: params.runId || null,
+    session_key: params.session.session_key,
+    label: params.label,
+    trigger: params.trigger,
+    replayable: params.replayable,
+    snapshot: params.snapshot,
+  });
+  if (checkpoint) {
+    await updateSessionRuntimePointers(params.session.id, {
+      latest_checkpoint_id: checkpoint.id,
+    });
+    await recordRuntimeEvent({
+      session_id: params.session.id,
+      run_id: params.runId || null,
+      checkpoint_id: checkpoint.id,
+      kind: "checkpoint.created",
+      status: "success",
+      summary: params.label,
+      detail: `Checkpoint captured via ${params.trigger}.`,
+      metadata: {
+        trigger: params.trigger,
+        replayable: params.replayable !== false,
+      },
+    });
+  }
+  return checkpoint;
+}
+
+async function emitAdapterTraceEvents(params: {
+  sessionId: string;
+  runId: string;
+  logs?: Array<Record<string, unknown>> | null;
+}) {
+  for (const log of params.logs || []) {
+    if (!log || typeof log !== "object") {
+      continue;
+    }
+    await recordRuntimeEvent({
+      session_id: params.sessionId,
+      run_id: params.runId,
+      kind:
+        typeof log.event_type === "string"
+          ? log.event_type
+          : typeof log.type === "string"
+            ? log.type
+            : "adapter.log",
+      status:
+        log.status === "error"
+          ? "error"
+          : log.status === "warning"
+            ? "warning"
+            : log.status === "success"
+              ? "success"
+              : "info",
+      summary:
+        typeof log.summary === "string"
+          ? log.summary
+          : typeof log.message === "string"
+            ? log.message
+            : "Adapter trace event",
+      detail: typeof log.detail === "string" ? log.detail : null,
+      metadata: log,
+    });
+  }
+}
+
 async function findActiveSessionRun(sessionKey: string) {
   if (!db) {
     return null;
@@ -794,10 +1191,38 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
         requires_human_review: true,
         tool_policy: normalizedTask.tool_policy,
         approval_policy: normalizedTask.approval_policy,
+        outcome_contract: normalizedTask.outcome_contract,
         metadata: normalizedTask.metadata || {},
         resume_from_run_id: normalizedTask.resume_from_run_id || null,
+        parent_run_id: normalizedTask.parent_run_id || null,
         created_at: nowTimestamp(),
         updated_at: nowTimestamp(),
+      });
+    }
+
+    if (options?.sessionId) {
+      const session = await getSession(options.sessionId);
+      if (session) {
+        await createRuntimeCheckpoint({
+          session,
+          runId,
+          label: "Pending approval checkpoint",
+          trigger: "run.pending_approval",
+          snapshot: {
+            task: normalizedTask,
+            approval_reason: approval.reason,
+          },
+        });
+      }
+      await recordRuntimeEvent({
+        session_id: options.sessionId,
+        run_id: runId,
+        kind: "run.pending_approval",
+        status: "warning",
+        summary: approval.reason || "Run requires approval before execution",
+        metadata: {
+          sensitive_actions: normalizedTask.approval_policy.sensitive_actions,
+        },
       });
     }
 
@@ -833,8 +1258,10 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
       }),
       tool_policy: normalizedTask.tool_policy,
       approval_policy: normalizedTask.approval_policy,
+      outcome_contract: normalizedTask.outcome_contract,
       metadata: normalizedTask.metadata || {},
       resume_from_run_id: normalizedTask.resume_from_run_id || null,
+      parent_run_id: normalizedTask.parent_run_id || null,
       created_at: nowTimestamp(),
       updated_at: nowTimestamp(),
       started_at: nowTimestamp(),
@@ -860,8 +1287,10 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
         }),
         tool_policy: normalizedTask.tool_policy,
         approval_policy: normalizedTask.approval_policy,
+        outcome_contract: normalizedTask.outcome_contract,
         metadata: normalizedTask.metadata || {},
         resume_from_run_id: normalizedTask.resume_from_run_id || null,
+        parent_run_id: normalizedTask.parent_run_id || null,
         created_at: nowTimestamp(),
         updated_at: nowTimestamp(),
         started_at: nowTimestamp(),
@@ -883,11 +1312,38 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
     },
   });
 
+  if (options?.sessionId) {
+    const session = await getSession(options.sessionId);
+    if (session) {
+      await createRuntimeCheckpoint({
+        session,
+        runId,
+        label: "Run started checkpoint",
+        trigger: "run.started",
+        snapshot: {
+          task: normalizedTask,
+        },
+      });
+    }
+    await recordRuntimeEvent({
+      session_id: options.sessionId,
+      run_id: runId,
+      kind: "run.started",
+      status: "info",
+      summary: `Started ${normalizedTask.kind}`,
+      metadata: {
+        dispatch_mode: normalizedTask.session_policy.dispatch_mode,
+        tool_mode: normalizedTask.tool_policy.mode,
+      },
+    });
+  }
+
   try {
     const startedAtMs = Date.now();
     const result = await executeTask(normalizedTask);
     const status = resultStatus(result);
     const latencyMs = Date.now() - startedAtMs;
+    const outcomeEvaluation = gradeOutcome(normalizedTaskForLogs, result as AgentResult<unknown>);
 
     if (db) {
       await markRunStatus(runId, status, {
@@ -900,6 +1356,75 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
         requires_human_review: result.requires_human_review,
         openclaw_session_id: result.openclaw_session_id || null,
         openclaw_run_id: result.openclaw_run_id || null,
+        outcome_evaluation: outcomeEvaluation,
+      });
+    }
+
+    if (options?.sessionId) {
+      await emitAdapterTraceEvents({
+        sessionId: options.sessionId,
+        runId,
+        logs: result.logs,
+      });
+      const session = await getSession(options.sessionId);
+      if (session) {
+        await createRuntimeCheckpoint({
+          session,
+          runId,
+          label: `Run ${status} checkpoint`,
+          trigger: `run.${status}`,
+          snapshot: {
+            task: normalizedTask,
+            result,
+            outcome_evaluation: outcomeEvaluation,
+          },
+        });
+        await updateSessionRuntimePointers(options.sessionId, {
+          metadata: {
+            ...(session.metadata || {}),
+            latest_outcome_evaluation: outcomeEvaluation,
+          },
+        });
+      }
+      await recordRuntimeEvent({
+        session_id: options.sessionId,
+        run_id: runId,
+        kind: "run.outcome.graded",
+        status:
+          outcomeEvaluation.status === "pass"
+            ? "success"
+            : outcomeEvaluation.status === "partial"
+              ? "warning"
+              : "error",
+        summary: outcomeEvaluation.summary,
+        metadata: {
+          score: outcomeEvaluation.score,
+          checks: outcomeEvaluation.checks,
+        },
+      });
+      await recordRuntimeEvent({
+        session_id: options.sessionId,
+        run_id: runId,
+        kind: `run.${status}`,
+        status:
+          status === "completed"
+            ? "success"
+            : status === "failed"
+              ? "error"
+              : "warning",
+        summary:
+          status === "completed"
+            ? `${normalizedTask.kind} completed`
+            : result.error || `${normalizedTask.kind} finished with status ${status}`,
+        metadata: {
+          latency_ms: latencyMs,
+          requires_human_review: result.requires_human_review,
+          tool_mode: normalizedTask.tool_policy.mode,
+          output: result.output ?? null,
+          artifacts: result.artifacts ?? null,
+          raw_output_text: result.raw_output_text ?? null,
+          outcome_evaluation: outcomeEvaluation,
+        },
       });
     }
 
@@ -948,6 +1473,18 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
         requires_human_review: shouldRequireHumanReview(normalizedTaskForLogs, {
           status: "failed",
         }),
+        outcome_evaluation: {
+          status: "fail",
+          score: 0,
+          summary: "Run failed before satisfying the managed outcome contract.",
+          checks: [
+            {
+              label: "completed_without_runtime_error",
+              passed: false,
+              detail: message,
+            },
+          ],
+        },
       });
     }
 
@@ -973,6 +1510,32 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
       },
     });
 
+    if (options?.sessionId) {
+      const session = await getSession(options.sessionId);
+      if (session) {
+        await createRuntimeCheckpoint({
+          session,
+          runId,
+          label: "Run failed checkpoint",
+          trigger: "run.failed",
+          snapshot: {
+            task: normalizedTask,
+            error: message,
+          },
+        });
+      }
+      await recordRuntimeEvent({
+        session_id: options.sessionId,
+        run_id: runId,
+        kind: "run.failed",
+        status: "error",
+        summary: message,
+        metadata: {
+          tool_mode: normalizedTask.tool_policy.mode,
+        },
+      });
+    }
+
     return {
       status: "failed",
       provider: normalizedTask.provider,
@@ -994,10 +1557,30 @@ export async function createAgentSession(params: {
   provider?: NormalizedAgentTask["provider"];
   runtime?: NormalizedAgentTask["runtime"];
   session_key?: string;
+  agent_profile_id?: string | null;
+  environment_profile_id?: string | null;
   metadata?: Record<string, unknown>;
 }) {
   const sessionId = crypto.randomUUID();
-  const provider = normalizeAgentProvider(params.provider);
+  const profile = params.agent_profile_id ? await getAgentProfile(params.agent_profile_id) : null;
+  const environment = params.environment_profile_id
+    ? await getEnvironmentProfile(params.environment_profile_id)
+    : null;
+  const resolvedRuntimeMetadata = await resolveManagedRuntimeMetadata({
+    ...(params.metadata || {}),
+    managedRuntime: {
+      ...(((params.metadata || {}).managedRuntime as Record<string, unknown> | undefined) || {}),
+      agentProfileId: profile?.id || params.agent_profile_id || null,
+      environmentProfileId: environment?.id || params.environment_profile_id || null,
+      agentProfileKey: profile?.key || null,
+      environmentProfileKey: environment?.key || null,
+      environmentSnapshot: buildEnvironmentSnapshot(environment),
+      agentProfileSnapshot: buildProfileSnapshot(profile),
+    },
+  });
+  const provider = normalizeAgentProvider(
+    params.provider || profile?.default_provider,
+  );
   const session: PersistedAgentSession = {
     id: sessionId,
     title: params.title,
@@ -1006,12 +1589,27 @@ export async function createAgentSession(params: {
     runtime: normalizeAgentProvider(params.runtime || provider),
     status: "idle",
     session_key: params.session_key || `session:${sessionId}`,
+    agent_profile_id: profile?.id || params.agent_profile_id || null,
+    environment_profile_id: environment?.id || params.environment_profile_id || null,
     created_at: nowTimestamp(),
     updated_at: nowTimestamp(),
-    metadata: params.metadata || {},
+    metadata: resolvedRuntimeMetadata.metadata,
   };
 
   await saveSession(session);
+  const initialCheckpoint = await createRuntimeCheckpoint({
+    session,
+    label: "Session initialized",
+    trigger: "session.create",
+    replayable: true,
+    snapshot: {
+      session,
+      managedRuntime: resolvedRuntimeMetadata.metadata.managedRuntime || {},
+    },
+  });
+  if (initialCheckpoint) {
+    session.latest_checkpoint_id = initialCheckpoint.id;
+  }
   await recordOpsActionLog({
     session_id: sessionId,
     run_id: null,
@@ -1027,19 +1625,21 @@ export async function createAgentSession(params: {
     requires_approval: false,
     metadata: {
       title: session.title,
+      agent_profile_id: session.agent_profile_id,
+      environment_profile_id: session.environment_profile_id,
       startup_pack_ids:
-        ((params.metadata?.startupContext as Record<string, unknown> | undefined)
+        ((resolvedRuntimeMetadata.metadata.startupContext as Record<string, unknown> | undefined)
           ?.startupPackIds as string[] | undefined) || [],
       document_ids:
-        ((params.metadata?.startupContext as Record<string, unknown> | undefined)
+        ((resolvedRuntimeMetadata.metadata.startupContext as Record<string, unknown> | undefined)
           ?.documentIds as string[] | undefined) || [],
       creative_context_ids:
         Array.isArray(
-          (params.metadata?.startupContext as Record<string, unknown> | undefined)
+          (resolvedRuntimeMetadata.metadata.startupContext as Record<string, unknown> | undefined)
             ?.creativeContexts,
         )
           ? (
-              ((params.metadata?.startupContext as Record<string, unknown> | undefined)
+              ((resolvedRuntimeMetadata.metadata.startupContext as Record<string, unknown> | undefined)
                 ?.creativeContexts as Array<Record<string, unknown>>)
             )
               .map((context) =>
@@ -1047,6 +1647,17 @@ export async function createAgentSession(params: {
               )
               .filter(Boolean)
           : [],
+      },
+  });
+  await recordRuntimeEvent({
+    session_id: sessionId,
+    kind: "session.created",
+    status: "success",
+    summary: `Created ${params.task_kind} session`,
+    metadata: {
+      title: session.title,
+      agent_profile_id: session.agent_profile_id,
+      environment_profile_id: session.environment_profile_id,
     },
   });
   const savedSession = await getSession(sessionId);
@@ -1066,12 +1677,25 @@ export async function sendAgentSessionMessage(params: {
     params.task.metadata && typeof params.task.metadata === "object"
       ? (params.task.metadata as Record<string, unknown>)
       : {};
+  const agentProfile = session.agent_profile_id
+    ? await getAgentProfile(session.agent_profile_id)
+    : null;
+  const environmentProfile = session.environment_profile_id
+    ? await getEnvironmentProfile(session.environment_profile_id)
+    : null;
   const workflowMetadata =
     session.metadata &&
     typeof session.metadata === "object" &&
     (session.metadata as Record<string, unknown>).workflow &&
     typeof (session.metadata as Record<string, unknown>).workflow === "object"
       ? ((session.metadata as Record<string, unknown>).workflow as Record<string, unknown>)
+      : {};
+  const sessionStartupContext =
+    session.metadata &&
+    typeof session.metadata === "object" &&
+    (session.metadata as Record<string, unknown>).startupContext &&
+    typeof (session.metadata as Record<string, unknown>).startupContext === "object"
+      ? ((session.metadata as Record<string, unknown>).startupContext as Record<string, unknown>)
       : {};
   const compactStartupContext =
     taskMetadata.compact_startup_context === true
@@ -1081,7 +1705,18 @@ export async function sendAgentSessionMessage(params: {
     params.task.kind === "operator_thread" ||
     params.task.kind === "external_harness_thread"
       ? await resolveStartupContext(
-          session.metadata as Record<string, unknown> | undefined,
+          {
+            ...(session.metadata as Record<string, unknown> | undefined),
+            startupContext: mergeStartupContextMetadata(
+              agentProfile?.startup_context,
+              environmentProfile
+                ? {
+                    startupPackIds: environmentProfile.startup_pack_ids || [],
+                  }
+                : undefined,
+              sessionStartupContext,
+            ),
+          },
           typeof (params.task.input as Record<string, unknown> | undefined)?.message === "string"
             ? String((params.task.input as Record<string, unknown>).message)
             : "",
@@ -1148,15 +1783,47 @@ export async function sendAgentSessionMessage(params: {
     ...params.task,
     session_id: params.sessionId,
     session_key: params.task.session_key || session.session_key,
-    provider: params.task.provider || session.provider,
-    runtime: params.task.runtime || session.runtime,
+    parent_run_id: params.task.parent_run_id || null,
+    provider: params.task.provider || agentProfile?.default_provider || session.provider,
+    runtime: params.task.runtime || agentProfile?.default_runtime || session.runtime,
+    tool_policy: mergeToolPolicy(
+      environmentProfile?.tool_policy,
+      agentProfile?.tool_policy,
+      params.task.tool_policy,
+    ),
+    approval_policy: mergeApprovalPolicy(
+      environmentProfile?.approval_policy,
+      agentProfile?.approval_policy,
+      params.task.approval_policy,
+    ),
+    session_policy: mergeSessionPolicy(
+      environmentProfile?.session_policy,
+      agentProfile?.session_policy,
+      params.task.session_policy,
+    ),
+    outcome_contract: mergeOutcomeContract(
+      params.task.kind,
+      agentProfile?.outcome_contract,
+      params.task.outcome_contract,
+    ),
     metadata:
-      resolvedStartupContextSummary
+      {
+        ...(resolvedStartupContextSummary
         ? {
             ...taskMetadata,
             resolved_startup_context: resolvedStartupContextSummary,
           }
-        : taskMetadata,
+        : taskMetadata),
+        managedRuntime: {
+          ...((taskMetadata.managedRuntime as Record<string, unknown> | undefined) || {}),
+          agentProfileId: agentProfile?.id || session.agent_profile_id || null,
+          environmentProfileId: environmentProfile?.id || session.environment_profile_id || null,
+          profileName: agentProfile?.name || null,
+          environmentName: environmentProfile?.name || null,
+          profileSnapshot: buildProfileSnapshot(agentProfile),
+          environmentSnapshot: buildEnvironmentSnapshot(environmentProfile),
+        },
+      },
     input:
       startupContext && params.task.input && typeof params.task.input === "object"
         ? {
@@ -1167,10 +1834,34 @@ export async function sendAgentSessionMessage(params: {
   });
 
   const activeRun = await findActiveSessionRun(normalizedTask.session_key || session.session_key);
+  await recordRuntimeEvent({
+    session_id: params.sessionId,
+    run_id: activeRun?.id || null,
+    kind: "session.message.received",
+    status: "info",
+    summary: "Received session message",
+    metadata: {
+      dispatch_mode: normalizedTask.session_policy.dispatch_mode,
+      parent_run_id: normalizedTask.parent_run_id || null,
+      compact_startup_context: compactStartupContext,
+      agent_profile_id: agentProfile?.id || session.agent_profile_id || null,
+      environment_profile_id: environmentProfile?.id || session.environment_profile_id || null,
+    },
+  });
 
   if (activeRun && normalizedTask.session_policy.dispatch_mode === "interrupt") {
     await markRunStatus(activeRun.id, "cancelled", {
       error: "Interrupted by a newer session message",
+    });
+    await recordRuntimeEvent({
+      session_id: params.sessionId,
+      run_id: activeRun.id,
+      kind: "run.interrupted",
+      status: "warning",
+      summary: "Interrupted active run for a newer session message",
+      metadata: {
+        dispatch_mode: normalizedTask.session_policy.dispatch_mode,
+      },
     });
   }
 
@@ -1198,12 +1889,24 @@ export async function sendAgentSessionMessage(params: {
       requires_human_review: false,
       tool_policy: normalizedTask.tool_policy,
       approval_policy: normalizedTask.approval_policy,
+      outcome_contract: normalizedTask.outcome_contract,
       metadata: normalizedTask.metadata || {},
       resume_from_run_id: normalizedTask.resume_from_run_id || null,
+      parent_run_id: normalizedTask.parent_run_id || null,
       created_at: nowTimestamp(),
       updated_at: nowTimestamp(),
     };
     await saveRun(queuedRun);
+    await createRuntimeCheckpoint({
+      session,
+      runId: queuedRun.id,
+      label: "Queued run prepared",
+      trigger: "run.queued",
+      snapshot: {
+        task: normalizedTask,
+        active_run_id: activeRun.id,
+      },
+    });
     await logRunEvent(
       normalizedTask as unknown as NormalizedAgentTask<unknown, unknown>,
       {
@@ -1218,6 +1921,16 @@ export async function sendAgentSessionMessage(params: {
         },
       },
     );
+    await recordRuntimeEvent({
+      session_id: params.sessionId,
+      run_id: queuedRun.id,
+      kind: "run.queued",
+      status: "info",
+      summary: "Queued behind an active session run",
+      metadata: {
+        active_run_id: activeRun.id,
+      },
+    });
     await saveSession({
       ...session,
       status: "active",
@@ -1253,6 +1966,20 @@ export async function sendAgentSessionMessage(params: {
     last_run_id: runId,
     metadata: nextSessionMetadata,
     updated_at: nowTimestamp(),
+  });
+  await createRuntimeCheckpoint({
+    session: {
+      ...session,
+      metadata: nextSessionMetadata,
+    },
+    runId,
+    label: `Run ${result.status}`,
+    trigger: `run.${result.status}`,
+    snapshot: {
+      task: normalizedTask,
+      result,
+      session_metadata: nextSessionMetadata,
+    },
   });
 
   return {
@@ -1375,6 +2102,36 @@ export async function forkAgentSessionWithHandoff(params: {
     },
   });
 
+  const compaction = await createAgentCompaction({
+    source_session_id: sourceSession.id,
+    source_run_id: sourceRun?.id || null,
+    target_session_id: forkedSession.id,
+    target_run_id: dispatch.runId,
+    phase: params.phase,
+    reason: isContextWindowFailure(sourceRun?.error || null)
+      ? "context_window_failure"
+      : "manual_phase_fork",
+    status: "continued",
+    handoff_prompt: handoffPrompt,
+    summary: `Compacted ${sourceSession.title} into a ${phaseLabel(params.phase)} thread.`,
+    metadata: {
+      retry_count: retryCount,
+    },
+  });
+  await recordRuntimeEvent({
+    session_id: sourceSession.id,
+    run_id: sourceRun?.id || null,
+    kind: "session.compacted",
+    status: "success",
+    summary: `Compacted into ${forkedSession.title}`,
+    metadata: {
+      compaction_id: compaction?.id || null,
+      target_session_id: forkedSession.id,
+      target_run_id: dispatch.runId,
+      phase: params.phase,
+    },
+  });
+
   return {
     session: (await getSession(forkedSession.id)) || forkedSession,
     handoffPrompt,
@@ -1423,6 +2180,18 @@ export async function approveAgentRun(runId: string) {
       previous_approval_reason: run.approval_reason || null,
     },
   });
+  if (run.session_id) {
+    await recordRuntimeEvent({
+      session_id: run.session_id,
+      run_id: runId,
+      kind: "run.approved",
+      status: "success",
+      summary: "Operator approved pending run",
+      metadata: {
+        previous_approval_reason: run.approval_reason || null,
+      },
+    });
+  }
 
   const input = {
     ...(run.input as AgentTask),
@@ -1479,9 +2248,348 @@ export async function cancelAgentRun(runId: string) {
     requires_approval: false,
     metadata: {},
   });
+  if (run.session_id) {
+    await recordRuntimeEvent({
+      session_id: run.session_id,
+      run_id: runId,
+      kind: "run.cancelled",
+      status: "warning",
+      summary: "Operator cancelled run",
+      metadata: {},
+    });
+  }
 
   return {
     ...run,
     status: "cancelled" as const,
   };
+}
+
+async function findLatestRunnableTask(sessionId: string) {
+  const runs = await listRunsForSession(sessionId, 25);
+  const candidate = runs.find((run) => run.input && typeof run.input === "object");
+  return candidate ? (candidate.input as AgentTask) : null;
+}
+
+export async function listRuntimeEventsForSession(sessionId: string, limit?: number) {
+  return listRuntimeEvents({ sessionId, limit });
+}
+
+export async function listCheckpointsForSession(sessionId: string, limit?: number) {
+  return listAgentCheckpoints({ sessionId, limit });
+}
+
+export async function listCompactionsForSession(sessionId: string, limit?: number) {
+  return listAgentCompactions({ sessionId, limit });
+}
+
+export async function startAgentSessionRun(params: {
+  sessionId: string;
+  message: string;
+}) {
+  const session = await getSession(params.sessionId);
+  if (!session) {
+    throw new Error("Agent session not found");
+  }
+
+  await recordRuntimeEvent({
+    session_id: params.sessionId,
+    kind: "session.control.start",
+    status: "info",
+    summary: "Operator started the session",
+    metadata: {},
+  });
+
+  return sendAgentSessionMessage({
+    sessionId: params.sessionId,
+    task: {
+      kind: session.task_kind,
+      input:
+        session.task_kind === "support_triage"
+          ? { summary: params.message, message: params.message }
+          : session.task_kind === "external_harness_thread"
+            ? { message: params.message, harness: "codex" }
+          : { message: params.message },
+      metadata: {
+        control_action: "start",
+      },
+    },
+  });
+}
+
+export async function interruptAgentSession(params: {
+  sessionId: string;
+  reason?: string;
+}) {
+  const session = await getSession(params.sessionId);
+  if (!session) {
+    throw new Error("Agent session not found");
+  }
+
+  const activeRun = await findActiveSessionRun(session.session_key);
+  if (!activeRun) {
+    await recordRuntimeEvent({
+      session_id: params.sessionId,
+      kind: "session.control.interrupt",
+      status: "info",
+      summary: "Interrupt requested with no active run",
+      metadata: {
+        reason: params.reason || null,
+      },
+    });
+    return { interrupted: false, run: null };
+  }
+
+  const run = await cancelAgentRun(activeRun.id);
+  await recordRuntimeEvent({
+    session_id: params.sessionId,
+    run_id: activeRun.id,
+    kind: "session.control.interrupt",
+    status: "warning",
+    summary: "Operator interrupted the active run",
+    metadata: {
+      reason: params.reason || null,
+    },
+  });
+  return { interrupted: true, run };
+}
+
+export async function steerAgentSession(params: {
+  sessionId: string;
+  message: string;
+}) {
+  const session = await getSession(params.sessionId);
+  if (!session) {
+    throw new Error("Agent session not found");
+  }
+
+  const latestRun = (await listRunsForSession(params.sessionId, 1))[0] || null;
+  await interruptAgentSession({
+    sessionId: params.sessionId,
+    reason: "Steered by operator",
+  });
+  await recordRuntimeEvent({
+    session_id: params.sessionId,
+    run_id: latestRun?.id || null,
+    kind: "session.control.steer",
+    status: "info",
+    summary: "Operator steered the session",
+    metadata: {},
+  });
+
+  return sendAgentSessionMessage({
+    sessionId: params.sessionId,
+    task: {
+      kind: session.task_kind,
+      input:
+        session.task_kind === "support_triage"
+          ? { summary: params.message, message: params.message }
+          : session.task_kind === "external_harness_thread"
+            ? { message: params.message, harness: "codex" }
+          : { message: params.message },
+      session_policy: {
+        dispatch_mode: "interrupt",
+      },
+      metadata: {
+        control_action: "steer",
+      },
+      parent_run_id: latestRun?.id || null,
+    },
+  });
+}
+
+export async function resumeAgentSession(params: {
+  sessionId: string;
+  checkpointId?: string;
+}) {
+  const session = await getSession(params.sessionId);
+  if (!session) {
+    throw new Error("Agent session not found");
+  }
+
+  const checkpoint = params.checkpointId
+    ? await getAgentCheckpoint(params.checkpointId)
+    : session.latest_checkpoint_id
+      ? await getAgentCheckpoint(session.latest_checkpoint_id)
+      : (await listAgentCheckpoints({ sessionId: params.sessionId, limit: 1 }))[0] || null;
+  const lastTask = checkpoint?.snapshot?.task && typeof checkpoint.snapshot.task === "object"
+    ? (checkpoint.snapshot.task as AgentTask)
+    : await findLatestRunnableTask(params.sessionId);
+
+  if (!lastTask) {
+    throw new Error("No replayable task state found for this session");
+  }
+
+  await recordRuntimeEvent({
+    session_id: params.sessionId,
+    run_id: checkpoint?.run_id || null,
+    checkpoint_id: checkpoint?.id || null,
+    kind: "session.control.resume",
+    status: "info",
+    summary: "Operator resumed the session from checkpoint",
+    metadata: {},
+  });
+
+  return sendAgentSessionMessage({
+    sessionId: params.sessionId,
+    task: {
+      ...lastTask,
+      metadata: {
+        ...((lastTask.metadata as Record<string, unknown> | undefined) || {}),
+        control_action: "resume",
+        resumed_from_checkpoint_id: checkpoint?.id || null,
+      },
+      resume_from_run_id: checkpoint?.run_id || lastTask.resume_from_run_id || null,
+    },
+  });
+}
+
+export async function cancelAgentSession(params: {
+  sessionId: string;
+  reason?: string;
+}) {
+  const session = await getSession(params.sessionId);
+  if (!session) {
+    throw new Error("Agent session not found");
+  }
+
+  const activeRun = await findActiveSessionRun(session.session_key);
+  if (activeRun) {
+    await cancelAgentRun(activeRun.id);
+  }
+  await saveSession({
+    ...session,
+    status: "cancelled",
+    updated_at: nowTimestamp(),
+  });
+  await recordRuntimeEvent({
+    session_id: params.sessionId,
+    run_id: activeRun?.id || null,
+    kind: "session.control.cancel",
+    status: "warning",
+    summary: "Operator cancelled the session",
+    metadata: {
+      reason: params.reason || null,
+    },
+  });
+
+  return (await getSession(params.sessionId)) || session;
+}
+
+export async function compactAgentSession(params: {
+  sessionId: string;
+  phase: AgentThreadPhase;
+  reason?: string;
+}) {
+  return forkAgentSessionWithHandoff({
+    sessionId: params.sessionId,
+    phase: params.phase,
+  });
+}
+
+export async function delegateManagedAgentTask(params: {
+  title: string;
+  message: string;
+  agentProfileId: string;
+  environmentProfileId?: string | null;
+  parentSessionId?: string | null;
+  parentRunId?: string | null;
+}) {
+  const profile = await getAgentProfile(params.agentProfileId);
+  if (!profile) {
+    throw new Error("Agent profile not found");
+  }
+
+  const session = await createAgentSession({
+    title: params.title,
+    task_kind: profile.task_kind,
+    provider: profile.default_provider,
+    runtime: profile.default_runtime,
+    agent_profile_id: profile.id,
+    environment_profile_id:
+      params.environmentProfileId || profile.default_environment_profile_id || null,
+    metadata: {
+      startupContext: profile.startup_context || {},
+      workflow: {
+        phase: "investigation",
+      },
+      managedRuntime: {
+        delegation: {
+          parentSessionId: params.parentSessionId || null,
+          parentRunId: params.parentRunId || null,
+        },
+      },
+    },
+  });
+
+  const dispatch = await sendAgentSessionMessage({
+    sessionId: session.id,
+    task: {
+      kind: profile.task_kind,
+      input:
+        profile.task_kind === "support_triage"
+          ? { summary: params.message, message: params.message }
+          : profile.task_kind === "external_harness_thread"
+            ? { message: params.message, harness: "codex" }
+            : { message: params.message },
+      metadata: {
+        control_action: "delegated_start",
+      },
+      parent_run_id: params.parentRunId || null,
+      outcome_contract: profile.outcome_contract || undefined,
+    },
+  });
+
+  if (params.parentSessionId) {
+    await recordRuntimeEvent({
+      session_id: params.parentSessionId,
+      run_id: params.parentRunId || null,
+      kind: "subagent.spawned",
+      status: "success",
+      summary: `Delegated bounded task to ${profile.name}`,
+      metadata: {
+        child_session_id: session.id,
+        child_profile_id: profile.id,
+      },
+    });
+  }
+
+  return {
+    session,
+    dispatch,
+  };
+}
+
+export async function spawnSessionSubagents(params: {
+  parentSessionId: string;
+  parentRunId?: string | null;
+  workers: Array<{
+    title: string;
+    message: string;
+    agentProfileId: string;
+    environmentProfileId?: string | null;
+  }>;
+}) {
+  const results = await Promise.all(
+    params.workers.map((worker) =>
+      delegateManagedAgentTask({
+        ...worker,
+        parentSessionId: params.parentSessionId,
+        parentRunId: params.parentRunId || null,
+      }),
+    ),
+  );
+
+  await recordRuntimeEvent({
+    session_id: params.parentSessionId,
+    run_id: params.parentRunId || null,
+    kind: "subagent.batch_spawned",
+    status: "success",
+    summary: `Spawned ${results.length} subagent session(s)`,
+    metadata: {
+      child_session_ids: results.map((result) => result.session.id),
+    },
+  });
+
+  return results;
 }
