@@ -59,6 +59,7 @@ import {
   upsertKnowledgeEntry,
   upsertWorkQueueItem,
 } from "./notion.js";
+import { syncBlueprintAgentRegistryWithRetries, type LiveAgentRecord } from "./agent-registry-sync.js";
 import { assessNotionDrift, type NotionDriftAssessment } from "./notion-drift.js";
 import { collectFounderQueueAlerts, type FounderQueueAlert } from "./firestore.js";
 import {
@@ -2296,6 +2297,59 @@ async function listAgents(ctx: PluginContext, companyId: string) {
   return await ctx.agents.list({ companyId, limit: 200, offset: 0 });
 }
 
+function toLiveAgentRegistryRecord(agent: Agent): LiveAgentRecord | null {
+  const key = preferredAgentKey(agent);
+  if (!key) {
+    return null;
+  }
+
+  const record = agent as unknown as Record<string, unknown>;
+  return {
+    adapterType: asString(record.adapterType) ?? asString(record.adapter?.type) ?? null,
+    createdAt: asString(record.createdAt) ?? null,
+    id: agent.id,
+    name: asString(agent.name) ?? asString(record.title) ?? key,
+    status: asString(record.status) ?? null,
+    updatedAt: asString(record.updatedAt) ?? null,
+    urlKey: key,
+  };
+}
+
+async function syncAllAgentRegistryRows(
+  ctx: PluginContext,
+  config: BlueprintAutomationConfig,
+  companyId: string,
+  agents?: Agent[],
+) {
+  const notionToken = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.notionApiTokenRef,
+    "NOTION_API_TOKEN",
+  );
+  if (!notionToken) {
+    return null;
+  }
+
+  const liveAgents = (agents ?? await listAgents(ctx, companyId))
+    .map((agent) => toLiveAgentRegistryRecord(agent))
+    .filter((agent): agent is LiveAgentRecord => Boolean(agent));
+  const notionClient = createNotionClient({ token: notionToken });
+  return await syncBlueprintAgentRegistryWithRetries({
+    archiveDuplicates: true,
+    liveAgents,
+    notionClient,
+  });
+}
+
+async function syncSingleAgentRegistryRow(
+  ctx: PluginContext,
+  companyId: string,
+  agent: Agent,
+) {
+  const config = await getConfig(ctx);
+  return await syncAllAgentRegistryRows(ctx, config, companyId, [agent]);
+}
+
 async function listAllIssues(ctx: PluginContext, companyId: string) {
   const pageSize = 200;
   const rows: Issue[] = [];
@@ -3089,6 +3143,7 @@ function ensureStartupMaintenance(ctx: PluginContext) {
           await enforceWorkspaceAdapterCooldowns(ctx, company.id);
           await healAgentExecutionTopology(ctx, company.id);
           await syncAgentRuntimeMetadata(ctx, company.id);
+          await syncAllAgentRegistryRows(ctx, config, company.id);
         } catch (error) {
           ctx.logger.warn("startup automation maintenance failed", {
             meta: {
@@ -11036,6 +11091,12 @@ async function registerDataHandlers(ctx: PluginContext) {
 }
 
 async function registerActionHandlers(ctx: PluginContext) {
+  ctx.actions.register(ACTION_KEYS.agentRegistrySync, async (params) => {
+    const config = await getConfig(ctx);
+    const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
+    return await syncAllAgentRegistryRows(ctx, config, company.id);
+  });
+
   ctx.actions.register(ACTION_KEYS.scanNow, async (params) => {
     const config = await getConfig(ctx);
     const company = await findCompany(ctx, asString(params.companyName) ?? config.companyName);
@@ -13792,7 +13853,7 @@ const plugin: PaperclipPlugin = definePlugin({
         if (agent) {
           await enforceWorkspaceAdapterCooldowns(ctx, event.companyId, [agent]);
           await syncAgentRuntimeMetadata(ctx, event.companyId, [agent]);
-          await syncPilotAgentRegistryRow(ctx, event.companyId, agent);
+          await syncSingleAgentRegistryRow(ctx, event.companyId, agent);
         }
       } catch (error) {
         ctx.logger.warn("agent.updated cooldown enforcement failed", {
@@ -13812,7 +13873,7 @@ const plugin: PaperclipPlugin = definePlugin({
         if (agent) {
           await enforceWorkspaceAdapterCooldowns(ctx, event.companyId, [agent]);
           await syncAgentRuntimeMetadata(ctx, event.companyId, [agent]);
-          await syncPilotAgentRegistryRow(ctx, event.companyId, agent);
+          await syncSingleAgentRegistryRow(ctx, event.companyId, agent);
         }
       } catch (error) {
         ctx.logger.warn("agent.created cooldown enforcement failed", {
@@ -13827,6 +13888,11 @@ const plugin: PaperclipPlugin = definePlugin({
     });
     ctx.jobs.register(JOB_KEYS.repoScan, async (job) => {
       await runRepoScanJob(ctx, job);
+    });
+    ctx.jobs.register(JOB_KEYS.agentRegistrySync, async () => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      await syncAllAgentRegistryRows(ctx, config, company.id);
     });
     ctx.jobs.register(JOB_KEYS.opsQueueScan, async (job) => {
       const config = await getConfig(ctx);

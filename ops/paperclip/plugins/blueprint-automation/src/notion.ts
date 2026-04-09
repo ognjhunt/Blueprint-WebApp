@@ -1,4 +1,6 @@
 import { Client } from "@notionhq/client";
+import { existsSync, statSync } from "node:fs";
+import path from "node:path";
 
 export type NotionDatabaseKey = "work_queue" | "knowledge" | "skills" | "agents" | "agent_runs";
 
@@ -14,6 +16,7 @@ const AGENTS_DS = "66762c9c-b543-41d3-8f1f-95b80aed409a";
 const AGENT_RUNS_DB = "bce59b92-4cf6-446d-9e07-e026c824563b";
 const AGENT_RUNS_DS = "1ddce596-3c89-46e4-afeb-34e905017d87";
 const NOTION_TEXT_CONTENT_LIMIT = 1800;
+const BLUEPRINT_WEBAPP_REPO_ROOT = path.resolve(process.cwd());
 
 const DATABASE_CONFIG: Record<
   NotionDatabaseKey,
@@ -297,6 +300,11 @@ export interface NotionPageSummary {
   properties?: Record<string, unknown>;
 }
 
+export interface SimpleTextBlock {
+  type: "heading_1" | "heading_2" | "heading_3" | "paragraph" | "bulleted_list_item";
+  text: string;
+}
+
 interface PageLike {
   id: string;
   archived?: boolean;
@@ -318,7 +326,10 @@ export interface KnowledgeFreshnessCandidate {
 }
 
 export function createNotionClient(config: NotionConfig): Client {
-  return new Client({ auth: config.token });
+  return new Client({
+    auth: config.token,
+    timeoutMs: Number(process.env.BLUEPRINT_NOTION_TIMEOUT_MS || "180000"),
+  });
 }
 
 function notionClient(client: Client): NotionClientAny {
@@ -357,6 +368,26 @@ function asStringArray(value: unknown): string[] {
   }
   const single = asString(value);
   return single ? [single] : [];
+}
+
+export function resolveRepoKnowledgeLastReviewed(entry: KnowledgeEntry): string | undefined {
+  if (entry.sourceOfTruth !== "Repo" || !entry.canonicalSource) {
+    return undefined;
+  }
+
+  const candidatePath = path.isAbsolute(entry.canonicalSource)
+    ? entry.canonicalSource
+    : path.resolve(BLUEPRINT_WEBAPP_REPO_ROOT, entry.canonicalSource);
+
+  if (!existsSync(candidatePath)) {
+    return undefined;
+  }
+
+  try {
+    return new Date(statSync(candidatePath).mtimeMs).toISOString();
+  } catch {
+    return undefined;
+  }
 }
 
 function unique(values: Array<string | undefined | null>): string[] {
@@ -429,6 +460,17 @@ function buildParagraphRichText(content: string) {
     type: "text" as const,
     text: { content: chunk },
   }));
+}
+
+function buildSimpleTextBlock(block: SimpleTextBlock) {
+  const richText = buildParagraphRichText(block.text);
+  return {
+    object: "block" as const,
+    type: block.type,
+    [block.type]: {
+      rich_text: richText,
+    },
+  };
 }
 
 function buildTitleProperty(title: string) {
@@ -600,7 +642,7 @@ function inferBusinessLane(input: Partial<WorkQueueItem> & Record<string, unknow
 
 export function normalizeWorkQueueItem(input: Partial<WorkQueueItem> & Record<string, unknown>, includeDefaults: boolean): WorkQueueItem {
   return {
-    title: asString(input.title) ?? "Untitled work item",
+    title: (asString(input.title) ?? (includeDefaults ? "Untitled work item" : undefined)) as WorkQueueItem["title"],
     priority: (asString(input.priority) as WorkQueueItem["priority"] | undefined) ?? (includeDefaults ? "P2" : undefined as never),
     system: (asString(input.system) as WorkQueueItem["system"] | undefined) ?? (includeDefaults ? "Cross-System" : undefined as never),
     businessLane: inferBusinessLane(input, includeDefaults),
@@ -625,7 +667,7 @@ export function normalizeWorkQueueItem(input: Partial<WorkQueueItem> & Record<st
 
 export function normalizeKnowledgeEntry(input: Partial<KnowledgeEntry> & Record<string, unknown>, includeDefaults: boolean): KnowledgeEntry {
   return {
-    title: asString(input.title) ?? "Untitled knowledge entry",
+    title: (asString(input.title) ?? (includeDefaults ? "Untitled knowledge entry" : undefined)) as KnowledgeEntry["title"],
     type: (asString(input.type) ?? asString(input.category) ?? (includeDefaults ? "Reference" : undefined)) as KnowledgeEntry["type"],
     system: (asString(input.system) ?? asString(input.source) ?? (includeDefaults ? "Cross-System" : undefined)) as KnowledgeEntry["system"],
     content: asString(input.content) ?? "",
@@ -648,7 +690,7 @@ export function normalizeKnowledgeEntry(input: Partial<KnowledgeEntry> & Record<
 
 function normalizeSkillMetadata(input: Partial<SkillMetadata> & Record<string, unknown>, includeDefaults: boolean): SkillMetadata {
   return {
-    title: asString(input.title) ?? "Untitled skill",
+    title: (asString(input.title) ?? (includeDefaults ? "Untitled skill" : undefined)) as SkillMetadata["title"],
     skillType: (asString(input.skillType) as SkillMetadata["skillType"] | undefined) ?? (includeDefaults ? "Workflow" : undefined),
     system: (asString(input.system) as SkillMetadata["system"] | undefined) ?? (includeDefaults ? "Cross-System" : undefined),
     canonicalSkillFile: asString(input.canonicalSkillFile),
@@ -664,7 +706,7 @@ function normalizeSkillMetadata(input: Partial<SkillMetadata> & Record<string, u
 function buildWorkQueueProperties(item: WorkQueueItem, includeDefaults = true) {
   const normalized = includeDefaults ? normalizeWorkQueueItem(item as unknown as Record<string, unknown>, true) : item;
   const properties: Record<string, unknown> = {};
-  maybeSet(properties, "Title", buildTitleProperty(normalized.title));
+  maybeSet(properties, "Title", asString(normalized.title) ? buildTitleProperty(normalized.title) : undefined);
   maybeSet(properties, "Priority", buildSelectProperty(normalized.priority));
   maybeSet(properties, "System", buildSelectProperty(normalized.system));
   maybeSet(properties, "Business Lane", buildSelectProperty(normalized.businessLane));
@@ -686,15 +728,19 @@ function buildWorkQueueProperties(item: WorkQueueItem, includeDefaults = true) {
 
 function buildKnowledgeProperties(entry: KnowledgeEntry, includeDefaults = true) {
   const normalized = includeDefaults ? normalizeKnowledgeEntry(entry as unknown as Record<string, unknown>, true) : entry;
+  const resolvedLastReviewed =
+    normalized.lastReviewed
+    ?? resolveRepoKnowledgeLastReviewed(normalized)
+    ?? (includeDefaults ? new Date().toISOString() : undefined);
   const properties: Record<string, unknown> = {};
-  maybeSet(properties, "Title", buildTitleProperty(normalized.title));
+  maybeSet(properties, "Title", asString(normalized.title) ? buildTitleProperty(normalized.title) : undefined);
   maybeSet(properties, "Type", buildSelectProperty(normalized.type));
   maybeSet(properties, "System", buildSelectProperty(normalized.system));
   maybeSet(properties, "Artifact Type", buildSelectProperty(normalized.artifactType));
   maybeSet(properties, "Agent Surface", buildMultiSelectProperty(normalized.agentSurfaces?.length ? normalized.agentSurfaces : includeDefaults ? ["Shared"] : undefined));
   maybeSet(properties, "Source of Truth", buildSelectProperty(normalized.sourceOfTruth));
   maybeSet(properties, "Canonical Source", buildRichTextProperty(normalized.canonicalSource));
-  maybeSet(properties, "Last Reviewed", buildDateProperty(normalized.lastReviewed ?? (includeDefaults ? new Date().toISOString() : undefined)));
+  maybeSet(properties, "Last Reviewed", buildDateProperty(resolvedLastReviewed));
   maybeSet(properties, "Review Cadence", buildSelectProperty(normalized.reviewCadence));
   maybeSet(properties, "Lifecycle Stage", buildSelectProperty(normalized.lifecycleStage));
   maybeSet(properties, "Substage", buildRichTextProperty(normalized.substage));
@@ -707,7 +753,7 @@ function buildKnowledgeProperties(entry: KnowledgeEntry, includeDefaults = true)
 function buildSkillProperties(entry: SkillMetadata, includeDefaults = true) {
   const normalized = includeDefaults ? normalizeSkillMetadata(entry as unknown as Record<string, unknown>, true) : entry;
   const properties: Record<string, unknown> = {};
-  maybeSet(properties, "Title", buildTitleProperty(normalized.title));
+  maybeSet(properties, "Title", asString(normalized.title) ? buildTitleProperty(normalized.title) : undefined);
   maybeSet(properties, "Skill Type", buildSelectProperty(normalized.skillType));
   maybeSet(properties, "System", buildSelectProperty(normalized.system));
   maybeSet(properties, "Canonical Skill File", buildRichTextProperty(normalized.canonicalSkillFile));
@@ -720,7 +766,7 @@ function buildSkillProperties(entry: SkillMetadata, includeDefaults = true) {
 
 function normalizeAgentRegistryEntry(input: Record<string, unknown>, includeDefaults: boolean): AgentRegistryEntry {
   return {
-    title: asString(input.title) ?? asString(input.Agent) ?? "Untitled agent",
+    title: (asString(input.title) ?? asString(input.Agent) ?? (includeDefaults ? "Untitled agent" : undefined)) as AgentRegistryEntry["title"],
     canonicalKey: asString(input.canonicalKey) ?? asString(input["Canonical Key"]),
     department: asString(input.department ?? input.Department) as AgentRegistryEntry["department"] | undefined,
     role: asString(input.role ?? input.Role) as AgentRegistryEntry["role"] | undefined,
@@ -758,7 +804,7 @@ function normalizeAgentRegistryEntry(input: Record<string, unknown>, includeDefa
 
 function normalizeAgentRunEntry(input: Record<string, unknown>, includeDefaults: boolean): AgentRunEntry {
   return {
-    title: asString(input.title) ?? asString(input.Run) ?? "Untitled run",
+    title: (asString(input.title) ?? asString(input.Run) ?? (includeDefaults ? "Untitled run" : undefined)) as AgentRunEntry["title"],
     runId: asString(input.runId ?? input["Run ID"]),
     agentPageIds: asStringArray(input.agentPageIds),
     agentPageUrls: asStringArray(input.Agent ?? input.agentPageUrls),
@@ -791,7 +837,7 @@ function buildAgentRegistryProperties(entry: AgentRegistryEntry, includeDefaults
     ? normalizeAgentRegistryEntry(entry as unknown as Record<string, unknown>, true)
     : entry;
   const properties: Record<string, unknown> = {};
-  maybeSet(properties, "Agent", buildTitleProperty(normalized.title));
+  maybeSet(properties, "Agent", asString(normalized.title) ? buildTitleProperty(normalized.title) : undefined);
   maybeSet(properties, "Canonical Key", buildRichTextProperty(normalized.canonicalKey));
   maybeSet(properties, "Department", buildSelectProperty(normalized.department));
   maybeSet(properties, "Role", buildSelectProperty(normalized.role));
@@ -823,7 +869,7 @@ function buildAgentRunProperties(entry: AgentRunEntry, includeDefaults = true) {
     ? normalizeAgentRunEntry(entry as unknown as Record<string, unknown>, true)
     : entry;
   const properties: Record<string, unknown> = {};
-  maybeSet(properties, "Run", buildTitleProperty(normalized.title));
+  maybeSet(properties, "Run", asString(normalized.title) ? buildTitleProperty(normalized.title) : undefined);
   maybeSet(properties, "Run ID", buildRichTextProperty(normalized.runId));
   maybeSet(properties, "Agent", buildRelationProperty(normalized.agentPageIds, normalized.agentPageUrls));
   maybeSet(properties, "Agent Key", buildRichTextProperty(normalized.agentKey));
@@ -867,11 +913,20 @@ async function queryDatabaseByTitle(client: Client, database: NotionDatabaseKey,
 
 export async function queryDatabase(client: Client, database: NotionDatabaseKey, pageSize = 50): Promise<any[]> {
   const notion = notionClient(client);
-  const response = await notion.dataSources.query({
-    data_source_id: DATABASE_CONFIG[database].dataSourceId,
-    page_size: pageSize,
-  });
-  return (response.results ?? []) as any[];
+  const results: any[] = [];
+  let startCursor: string | undefined;
+
+  do {
+    const response = await notion.dataSources.query({
+      data_source_id: DATABASE_CONFIG[database].dataSourceId,
+      page_size: Math.min(100, pageSize),
+      start_cursor: startCursor,
+    });
+    results.push(...((response.results ?? []) as any[]));
+    startCursor = response.has_more ? (response.next_cursor as string | undefined) : undefined;
+  } while (startCursor);
+
+  return results;
 }
 
 function filterWorkQueueMatches(pages: any[], item: WorkQueueItem): any[] {
@@ -1187,6 +1242,37 @@ async function replacePageContent(client: Client, pageId: string, content: strin
         },
       },
     ],
+  });
+}
+
+export async function replacePageBlocks(
+  client: Client,
+  pageId: string,
+  blocks: SimpleTextBlock[],
+) {
+  const notion = notionClient(client);
+  const existingBlocks = await listBlockChildren(client, pageId, 100);
+  for (const block of existingBlocks) {
+    if (block.id) {
+      await notion.blocks.delete({ block_id: block.id });
+    }
+  }
+
+  const sanitizedBlocks = blocks
+    .map((block) => ({
+      ...block,
+      text: block.text.trim(),
+    }))
+    .filter((block) => block.text.length > 0)
+    .map((block) => buildSimpleTextBlock(block));
+
+  if (sanitizedBlocks.length === 0) {
+    return;
+  }
+
+  await notion.blocks.children.append({
+    block_id: pageId,
+    children: sanitizedBlocks,
   });
 }
 

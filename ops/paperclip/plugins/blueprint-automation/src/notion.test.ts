@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   analyzeWorkQueueItemsForScan,
@@ -9,6 +12,7 @@ import {
   isStaleAnalyticsSnapshotQueueItem,
   mapWorkQueueLifecycleStageToIssueStatus,
   normalizeKnowledgeEntry,
+  resolveRepoKnowledgeLastReviewed,
   normalizeWorkQueueItem,
   planNotionUpsert,
 } from "./notion.js";
@@ -286,5 +290,30 @@ describe("notion helpers", () => {
 
     expect(entry.artifactType).toBe("EoD Founder Brief");
     expect(entry.agentSurfaces).toEqual(["Founder OS"]);
+  });
+
+  it("uses repo markdown mtime for repo-backed knowledge freshness", () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), "bp-knowledge-"));
+    const markdownPath = path.join(tempDir, "knowledge.md");
+
+    try {
+      writeFileSync(markdownPath, "# Knowledge\n");
+      const mtime = new Date("2026-04-01T15:45:12.000Z");
+      utimesSync(markdownPath, mtime, mtime);
+
+      const relativeSource = path.relative(process.cwd(), markdownPath);
+      const resolved = resolveRepoKnowledgeLastReviewed({
+        title: "Repo-backed Knowledge",
+        type: "Reference",
+        system: "WebApp",
+        content: "",
+        sourceOfTruth: "Repo",
+        canonicalSource: relativeSource,
+      });
+
+      expect(resolved).toBe("2026-04-01T15:45:12.000Z");
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });

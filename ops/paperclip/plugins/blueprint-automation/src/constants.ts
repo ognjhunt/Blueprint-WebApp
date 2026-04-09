@@ -3,6 +3,7 @@ export const PLUGIN_VERSION = "0.1.0";
 export const ORIGIN_KIND = "blueprint_automation";
 export const PAGE_ROUTE = "blueprint-automation";
 export const JOB_KEYS = {
+  agentRegistrySync: "agent-registry-sync",
   repoScan: "repo-scan",
   opsQueueScan: "ops-queue-scan",
   notionQueueReconcile: "notion-queue-reconcile",
@@ -68,6 +69,7 @@ export const TOOL_NAMES = {
   syncPlatformDoctrine: "blueprint-sync-platform-doctrine",
 } as const;
 export const ACTION_KEYS = {
+  agentRegistrySync: "agent-registry-sync",
   scanNow: "scan-now",
   repairRouting: "repair-routing",
   managerState: "manager-state",

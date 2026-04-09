@@ -221,6 +221,13 @@ const manifest: PaperclipPluginManifestV1 = {
   },
   jobs: [
     {
+      jobKey: JOB_KEYS.agentRegistrySync,
+      displayName: "Blueprint Agent Registry Sync",
+      description:
+        "Reconciles Blueprint Agents registry metadata and generated page bodies against repo truth and live Paperclip state.",
+      schedule: "30 */6 * * *",
+    },
+    {
       jobKey: JOB_KEYS.repoScan,
       displayName: "Blueprint Repo Scan",
       description:
