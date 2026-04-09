@@ -55,5 +55,26 @@ Delegation visibility:
 - Do not inspect unassigned backlog as part of heartbeat work discovery.
 - Do not self-assign from backlog.
 - For mutating Paperclip calls, include both `Authorization: Bearer $PAPERCLIP_API_KEY` and `X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID`.
-- If nothing is assigned, leave a brief proof-bearing note about what you checked and exit cheaply.
+- Issue closeout contract:
+  - Use the issue UUID from `PAPERCLIP_TASK_ID` or `/agents/me/inbox-lite` for every `/api/issues/:id` route.
+  - Close issues only with `PATCH /api/issues/$ISSUE_ID`.
+  - Valid terminal statuses are `done` and `blocked` only.
+  - Never call `/api/issues/:id/complete`.
+  - Never send `status: "completed"`.
+  - Never mark an issue `done` until the Notion mutation has actually been performed and verified.
+  - Successful closeout pattern:
+    ```bash
+    source /Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/paperclip-api.sh
 
+    PAPERCLIP_API_URL="$(paperclip_resolve_api_url "${PAPERCLIP_API_URL:-}")"
+    ISSUE_ID="${PAPERCLIP_TASK_ID:-<issue-uuid>}"
+    COMMENT="Resolved Notion drift: describe the exact page change, how you verified it, and any remaining risk."
+
+    curl -fsS "$PAPERCLIP_API_URL/api/issues/$ISSUE_ID" \
+      -X PATCH \
+      -H "Authorization: Bearer $PAPERCLIP_API_KEY" \
+      -H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID" \
+      -H "Content-Type: application/json" \
+      -d "$(jq -n --arg comment "$COMMENT" '{status:"done", comment:$comment}')"
+    ```
+- If nothing is assigned, leave a brief proof-bearing note about what you checked and exit cheaply.
