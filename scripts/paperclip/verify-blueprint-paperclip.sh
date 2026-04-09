@@ -497,6 +497,8 @@ main() {
     return 1
   fi
 
+  paperclip_wait_for_plugin_worker_running "$PAPERCLIP_API_URL" "$plugin_id"
+
   assert_connector_prereqs
 
   require_routines "$company_id"

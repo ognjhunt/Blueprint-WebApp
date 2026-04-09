@@ -1033,6 +1033,21 @@ export async function upsertWorkQueueItem(
   };
 }
 
+export async function findWorkQueueItemPage(
+  client: Client,
+  item: WorkQueueItem,
+): Promise<NotionWriteResult | null> {
+  const matches = filterWorkQueueMatches(await queryDatabaseByTitle(client, "work_queue", item.title), item);
+  const plan = planNotionUpsert(matches);
+  if (!plan.canonical) {
+    return null;
+  }
+  return {
+    pageId: plan.canonical.id,
+    pageUrl: asString(plan.canonical.url),
+  };
+}
+
 export async function queryWorkQueue(client: Client, filters: WorkQueueQuery): Promise<WorkQueueQueryItem[]> {
   const filterConditions: Record<string, unknown>[] = [];
   if (filters.system) filterConditions.push({ property: "System", select: { equals: filters.system } });

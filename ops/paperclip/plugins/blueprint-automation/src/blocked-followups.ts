@@ -60,6 +60,14 @@ function baseBlockedTitle(title: string) {
     .replace(/^unblock\s+/i, "");
 }
 
+export function isBlockedFollowUpTitle(title: string) {
+  return baseBlockedTitle(title) !== title.trim();
+}
+
+export function blockedFollowUpFamilyKey(title: string) {
+  return normalize(baseBlockedTitle(title));
+}
+
 function repoConfigForProject(
   projectName: string | null | undefined,
   repoCatalog: ReadonlyArray<RepoAgentConfig>,
@@ -126,6 +134,9 @@ export function planBlockedIssueFollowUp(
   config: BlockedFollowUpRoutingConfig,
 ): BlockedFollowUpPlan | null {
   if (normalize(input.status) !== "blocked") {
+    return null;
+  }
+  if (isBlockedFollowUpTitle(input.title)) {
     return null;
   }
   if (input.hasOpenChild) {

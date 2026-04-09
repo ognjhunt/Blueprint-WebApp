@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { planBlockedIssueFollowUp } from "./blocked-followups.js";
+import {
+  blockedFollowUpFamilyKey,
+  isBlockedFollowUpTitle,
+  planBlockedIssueFollowUp,
+} from "./blocked-followups.js";
 
 const ROUTING_CONFIG = {
   chiefOfStaffAgent: "blueprint-chief-of-staff",
@@ -139,5 +143,29 @@ describe("blocked issue follow-up planning", () => {
     );
 
     expect(plan).toBeNull();
+  });
+
+  it("does not recurse when the current issue is already an unblock follow-up", () => {
+    expect(
+      planBlockedIssueFollowUp(
+        {
+          title: "Review unblock path for Fix analytics verification runtime env audit",
+          status: "blocked",
+          projectName: "blueprint-webapp",
+          currentAssignee: "webapp-review",
+          blockerSummary: "Still waiting on runtime env.",
+        },
+        ROUTING_CONFIG,
+      ),
+    ).toBeNull();
+  });
+
+  it("identifies blocker follow-up families by normalized base title", () => {
+    expect(isBlockedFollowUpTitle("Review unblock path for Fix analytics verification runtime env audit")).toBe(true);
+    expect(
+      blockedFollowUpFamilyKey("Implement unblock path for [\"Fix analytics live verification webapp check 182140\"]"),
+    ).toBe(
+      blockedFollowUpFamilyKey("[\"Fix analytics live verification webapp check 182140\"]"),
+    );
   });
 });

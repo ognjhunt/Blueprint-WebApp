@@ -120,6 +120,41 @@ paperclip_api_fetch_json() {
   return 1
 }
 
+paperclip_wait_for_plugin_worker_running() {
+  local api_url="$1"
+  local plugin_id="$2"
+  local attempts="${3:-30}"
+  local delay_seconds="${4:-1}"
+  local resolved_api_url=""
+  local payload=""
+
+  resolved_api_url="$(paperclip_resolve_api_url "$api_url")" || resolved_api_url="$api_url"
+
+  for ((attempt = 1; attempt <= attempts; attempt += 1)); do
+    payload="$(curl -fsS "${resolved_api_url}/api/plugins/${plugin_id}/health" 2>/dev/null || true)"
+    if [ -n "$payload" ] && printf '%s' "$payload" | node -e '
+      let data="";
+      process.stdin.on("data",(chunk)=>data+=chunk);
+      process.stdin.on("end",()=>{
+        if(!data.trim()) process.exit(1);
+        const body=JSON.parse(data);
+        const checks=Array.isArray(body.checks) ? body.checks : [];
+        const workerCheck=checks.find((entry)=>entry && entry.name==="worker_runtime");
+        process.exit(body.healthy === true && workerCheck && workerCheck.passed === true ? 0 : 1);
+      });
+    '; then
+      return 0
+    fi
+
+    if [ "$attempt" -lt "$attempts" ]; then
+      sleep "$delay_seconds"
+    fi
+  done
+
+  echo "Plugin worker ${plugin_id} did not reach running/healthy state at ${resolved_api_url}." >&2
+  return 1
+}
+
 paperclip_require_external_postgres() {
   local requirement="${BLUEPRINT_PAPERCLIP_REQUIRE_EXTERNAL_POSTGRES:-1}"
   if [[ ! "$requirement" =~ ^(1|true|yes)$ ]]; then
