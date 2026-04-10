@@ -34,6 +34,7 @@ describe("quota fallback helpers", () => {
       "BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS",
       DEFAULT_HERMES_FALLBACK_MODELS.join(","),
     );
+    vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS", "0");
   });
 
   afterEach(() => {
@@ -263,6 +264,32 @@ describe("quota fallback helpers", () => {
         model: "arcee-ai/trinity-large-preview:free",
       }),
     ).toEqual([...DEFAULT_HERMES_FALLBACK_MODELS]);
+  });
+
+  it("filters paid openrouter models unless explicitly re-enabled", () => {
+    vi.stubEnv(
+      "BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS",
+      [
+        "arcee-ai/trinity-large-preview:free",
+        "arcee-ai/trinity-large-thinking",
+        "z-ai/glm-5.1",
+        "qwen/qwen3-coder:free",
+      ].join(","),
+    );
+
+    expect(resolveHermesFallbackModels({ cwd: "/tmp/project" })).toEqual([
+      "arcee-ai/trinity-large-preview:free",
+      "qwen/qwen3-coder:free",
+      "openai/gpt-oss-120b:free",
+      "nvidia/nemotron-3-super-120b-a12b:free",
+      "z-ai/glm-4.5-air:free",
+      "minimax/minimax-m2.5:free",
+    ]);
+
+    vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS", "1");
+
+    expect(resolveHermesFallbackModels({ cwd: "/tmp/project" })).toContain("arcee-ai/trinity-large-thinking");
+    expect(resolveHermesFallbackModels({ cwd: "/tmp/project" })).toContain("z-ai/glm-5.1");
   });
 
   it("advances hermes to the next free model before changing adapters", () => {

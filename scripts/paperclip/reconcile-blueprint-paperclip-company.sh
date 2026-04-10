@@ -68,6 +68,9 @@ const fallbackCodexModel =
 const fallbackCodexReasoningEffort =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT ?? "medium";
 const DEFAULT_HERMES_MODEL = "arcee-ai/trinity-large-preview:free";
+const allowPaidHermesModels = /^(1|true|yes)$/i.test(
+  process.env.BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS ?? "",
+);
 const DISALLOWED_HERMES_MODEL_RE =
   /^(?:(?:anthropic\/)?claude(?:[-/].*)?|openrouter\/free|(?:openrouter\/)?nvidia\/nemotron-3-super(?::free)?|(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
 const hermesPrimaryModel = sanitizeHermesModel(
@@ -93,7 +96,7 @@ const hermesFreeModels = normalizeHermesModelList([
   "qwen/qwen3-coder:free",
 ]);
 const hermesPaidModels = normalizeHermesModelList([
-  ...parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_PAID_MODELS),
+  ...(allowPaidHermesModels ? parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_PAID_MODELS) : []),
 ]);
 const hermesModelLadder = normalizeHermesModelList([
   ...hermesFreeModels,
@@ -284,12 +287,16 @@ function isDisallowedHermesModel(value) {
   return typeof value === "string" && DISALLOWED_HERMES_MODEL_RE.test(value.trim());
 }
 
+function isHermesFreeModel(value) {
+  return typeof value === "string" && value.trim().toLowerCase().endsWith(":free");
+}
+
 function sanitizeHermesModel(value, fallback) {
   if (typeof value !== "string") {
     return fallback;
   }
   const trimmed = value.trim();
-  if (!trimmed || isDisallowedHermesModel(trimmed)) {
+  if (!trimmed || isDisallowedHermesModel(trimmed) || (!allowPaidHermesModels && !isHermesFreeModel(trimmed))) {
     return fallback;
   }
   return trimmed;
@@ -297,7 +304,12 @@ function sanitizeHermesModel(value, fallback) {
 
 function normalizeHermesModelList(values) {
   return normalizeModelList(
-    values.filter((value) => typeof value === "string" && !isDisallowedHermesModel(value)),
+    values.filter(
+      (value) =>
+        typeof value === "string"
+        && !isDisallowedHermesModel(value)
+        && (allowPaidHermesModels || isHermesFreeModel(value)),
+    ),
   );
 }
 
@@ -822,12 +834,10 @@ function buildCodexAdapterConfig(adapterConfig) {
 
 function buildHermesAdapterConfig(adapterConfig) {
   const next = { ...(adapterConfig ?? {}) };
-  const configuredModel =
-    typeof adapterConfig?.model === "string"
-      && adapterConfig.model.trim().length > 0
-      && !isDisallowedHermesModel(adapterConfig.model)
-      ? adapterConfig.model.trim()
-      : "";
+  const configuredModel = sanitizeHermesModel(
+    typeof adapterConfig?.model === "string" ? adapterConfig.model : "",
+    "",
+  );
   const ladder = normalizeHermesModelList([
     ...(configuredModel.length > 0 && configuredModel !== legacyHermesModel ? [configuredModel] : []),
     ...parseModelList(adapterConfig?.[HERMES_MODEL_LADDER_CONFIG_KEY]),

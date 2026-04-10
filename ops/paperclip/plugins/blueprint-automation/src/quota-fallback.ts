@@ -160,6 +160,15 @@ function asTrimmedString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function arePaidHermesModelsAllowed(): boolean {
+  return /^(1|true|yes)$/i.test(process.env.BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS ?? "");
+}
+
+function isHermesFreeRoutingModel(model: string | null | undefined): boolean {
+  const trimmed = (model ?? "").trim().toLowerCase();
+  return trimmed.endsWith(":free");
+}
+
 function normalizeModelList(values: Iterable<string>): string[] {
   const seen = new Set<string>();
   const normalized: string[] = [];
@@ -241,8 +250,12 @@ export function isDisallowedHermesFallbackModel(model: string | null | undefined
 }
 
 function filterCompatibleHermesLadderModels(models: string[]): string[] {
+  const allowPaid = arePaidHermesModelsAllowed();
   return models.filter(
-    (id) => !isIncompatibleHermesFreeRoutingModel(id) && !isDisallowedHermesFallbackModel(id),
+    (id) =>
+      !isIncompatibleHermesFreeRoutingModel(id)
+      && !isDisallowedHermesFallbackModel(id)
+      && (allowPaid || isHermesFreeRoutingModel(id)),
   );
 }
 
@@ -252,6 +265,7 @@ export function resolveHermesFallbackModels(
     includeCurrentModel?: boolean;
   },
 ): string[] {
+  const allowPaid = arePaidHermesModelsAllowed();
   const includeCurrentModel = options?.includeCurrentModel !== false;
   const currentModel = asTrimmedString(adapterConfig?.model);
   const configuredLadder = filterCompatibleHermesLadderModels(
@@ -265,13 +279,15 @@ export function resolveHermesFallbackModels(
     singleEnvRaw
       && !isIncompatibleHermesFreeRoutingModel(singleEnvRaw)
       && !isDisallowedHermesFallbackModel(singleEnvRaw)
+      && (allowPaid || isHermesFreeRoutingModel(singleEnvRaw))
       ? singleEnvRaw
       : null;
 
   const includeCurrent =
     includeCurrentModel
     && currentModel
-    && !isIncompatibleHermesFreeRoutingModel(currentModel);
+    && !isIncompatibleHermesFreeRoutingModel(currentModel)
+    && (allowPaid || isHermesFreeRoutingModel(currentModel));
 
   return normalizeModelList([
     ...(includeCurrent ? [currentModel] : []),
@@ -327,6 +343,7 @@ export function buildHermesFallbackAdapterConfig(
     cwd?: string;
   },
 ): Record<string, unknown> {
+  const allowPaid = arePaidHermesModelsAllowed();
   const next = { ...(adapterConfig ?? {}) };
   delete next.dangerouslySkipPermissions;
   delete next.dangerouslyBypassApprovalsAndSandbox;
@@ -337,6 +354,7 @@ export function buildHermesFallbackAdapterConfig(
     optionModel
       && !isIncompatibleHermesFreeRoutingModel(optionModel)
       && !isDisallowedHermesFallbackModel(optionModel)
+      && (allowPaid || isHermesFreeRoutingModel(optionModel))
       ? optionModel
       : null;
   const envFallback = asTrimmedString(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL);
@@ -344,6 +362,7 @@ export function buildHermesFallbackAdapterConfig(
     envFallback
       && !isIncompatibleHermesFreeRoutingModel(envFallback)
       && !isDisallowedHermesFallbackModel(envFallback)
+      && (allowPaid || isHermesFreeRoutingModel(envFallback))
       ? envFallback
       : null;
   const model =
@@ -365,6 +384,7 @@ export function buildHermesFallbackAdapterConfig(
 export function buildNextHermesFallbackAdapterConfig(
   adapterConfig: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> | null {
+  const allowPaid = arePaidHermesModelsAllowed();
   const currentModel = asTrimmedString(adapterConfig?.model);
   const ladder = resolveHermesFallbackModels(adapterConfig, { includeCurrentModel: false });
   if (ladder.length === 0) {
@@ -372,7 +392,11 @@ export function buildNextHermesFallbackAdapterConfig(
   }
 
   const routableCurrent =
-    currentModel && !isIncompatibleHermesFreeRoutingModel(currentModel) ? currentModel : null;
+    currentModel
+    && !isIncompatibleHermesFreeRoutingModel(currentModel)
+    && (allowPaid || isHermesFreeRoutingModel(currentModel))
+      ? currentModel
+      : null;
   const currentIndex = routableCurrent ? ladder.indexOf(routableCurrent) : -1;
   const nextModel = currentIndex >= 0 ? ladder[currentIndex + 1] : ladder[0];
   if (!nextModel || nextModel === currentModel) {
