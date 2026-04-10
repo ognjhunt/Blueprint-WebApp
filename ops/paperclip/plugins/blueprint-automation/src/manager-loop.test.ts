@@ -116,6 +116,12 @@ describe("manager loop helpers", () => {
     expect(snapshot.summary.stuckHandoffCount).toBe(0);
     expect(snapshot.handoffSummary.avgLatencyHours).toBeNull();
     expect(snapshot.dailyAccountability.agentsRan).toEqual([]);
+    expect(snapshot.openIssues).toHaveLength(3);
+    expect(snapshot.openIssues.map((issue) => issue.id)).toEqual([
+      "iss-blocked",
+      "iss-stale",
+      "iss-unassigned",
+    ]);
     expect(snapshot.blockedIssues.map((issue) => issue.id)).toContain("iss-blocked");
     expect(snapshot.staleIssues.map((issue) => issue.id)).toContain("iss-stale");
     expect(snapshot.unassignedIssues.map((issue) => issue.id)).toContain("iss-unassigned");

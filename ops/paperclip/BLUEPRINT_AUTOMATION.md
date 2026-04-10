@@ -93,6 +93,9 @@ It provides:
 - deterministic org-wide Paperclip read fallback at `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts`
   - gives agents a read-only path for inbox-lite, direct issue reads, and heartbeat-context without hand-written `jq` filters
   - the intended use is "fallback for Paperclip reads", not "invent new discovery passes"
+- board-safe triage snapshot access:
+  - `scripts/paperclip/chief-of-staff-snapshot.ts` now prefers the plugin action route `/api/plugins/blueprint.automation/actions/manager-state` when the company issue list is board-gated
+  - use that route, with `X-Paperclip-Run-Id`, for CTO and manager triage scans before falling back to manual issue-list reads
 - event-driven Notion drift issue creation through the existing Notion tool wrappers
   - producer writes now create or resolve `notion-drift` Paperclip issues for unresolved duplicate-page drift and stale metadata drift
   - this is the intended replacement path while the old Notion sweep routines remain paused

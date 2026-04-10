@@ -129,6 +129,7 @@ export type ManagerStateSnapshot = {
     stuckHandoffCount: number;
   };
   handoffSummary: ManagerHandoffSummary;
+  openIssues: ManagerIssueSnapshot[];
   blockedIssues: ManagerIssueSnapshot[];
   staleIssues: ManagerIssueSnapshot[];
   recentlyCompletedIssues: ManagerIssueSnapshot[];
@@ -591,6 +592,7 @@ export function buildManagerStateSnapshot(input: BuildManagerStateInput): Manage
       stuckHandoffCount: handoffAnalytics.summary.stuckCount,
     },
     handoffSummary: handoffAnalytics.summary,
+    openIssues: openIssues.slice(0, 100),
     blockedIssues: blockedIssues.slice(0, 20),
     staleIssues: staleIssues.slice(0, 20),
     recentlyCompletedIssues,
