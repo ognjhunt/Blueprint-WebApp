@@ -12,6 +12,8 @@ const closeoutStatusesLine = "Valid terminal statuses are `done` and `blocked` o
 const closeoutCompletedLine = 'Never send `status: "completed"`.';
 const preferredCliLine =
   "For checkout, release, status updates, and comments, prefer `npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue ...` so the CLI serializes JSON safely and forwards `PAPERCLIP_RUN_ID` automatically.";
+const missingJwtCliFallbackLine =
+  'If PAPERCLIP_API_KEY is missing on this trusted host and PAPERCLIP_TASK_ID is present, stop using auth-backed curl and switch to \'npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue get|checkout|update|comment "$PAPERCLIP_TASK_ID" ...\' for the bound issue.';
 
 async function collectAgentInstructionFiles(root: string): Promise<string[]> {
   const entries = await fs.readdir(root, { withFileTypes: true });
@@ -54,6 +56,13 @@ describe("Blueprint Paperclip agent instruction guards", () => {
     }
 
     expect(directPaperclipAgents.length).toBeGreaterThan(0);
+  });
+
+  it("keeps the no-JWT trusted-host CLI fallback in the shared Hermes reconcile template", async () => {
+    const reconcilePath = path.resolve("scripts/paperclip/reconcile-blueprint-paperclip-company.sh");
+    const content = await fs.readFile(reconcilePath, "utf8");
+
+    expect(content).toContain(missingJwtCliFallbackLine);
   });
 
   it("keeps the chief of staff heartbeat pinned to the assigned issue on issue_assigned wakes", async () => {
