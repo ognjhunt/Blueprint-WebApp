@@ -23,6 +23,9 @@ describe("Capturer access copy", () => {
   it("keeps the capture overview explicit about invite and code gating", () => {
     render(<Capture />);
 
+    expect(
+      screen.getByRole("heading", { name: /capture for blueprint starts in the app/i }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/invite- and code-gated/i)).toBeInTheDocument();
     expect(screen.getByText(/approval is not guaranteed/i)).toBeInTheDocument();
   });

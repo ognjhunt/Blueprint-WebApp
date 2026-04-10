@@ -103,6 +103,32 @@ function asDate(value?: string | null) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function timeZoneOffsetMs(date: Date, timeZone: string) {
+  const formatted = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    timeZoneName: "shortOffset",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(date);
+  const timeZoneName = formatted.find((part) => part.type === "timeZoneName")?.value;
+  const match = timeZoneName?.match(/^GMT([+-])(\d{1,2})(?::?(\d{2}))?$/);
+  if (!match) return 0;
+  const sign = match[1] === "-" ? -1 : 1;
+  const hours = Number.parseInt(match[2] ?? "0", 10);
+  const minutes = Number.parseInt(match[3] ?? "0", 10);
+  return sign * (hours * 60 + minutes) * 60 * 1000;
+}
+
+function reportCutoff(date: string, timeZone = "America/New_York") {
+  const [year, month, day] = date.split("-").map((value) => Number.parseInt(value, 10));
+  if (!year || !month || !day) {
+    return null;
+  }
+  const sample = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+  const offsetMs = timeZoneOffsetMs(sample, timeZone);
+  return new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999) - offsetMs);
+}
+
 function resolveReportDate(requestedDate: string | undefined, issue: Pick<Issue, "createdAt">) {
   if (requestedDate) return requestedDate;
   return etDateString(asDate(issue.createdAt) ?? new Date());
@@ -208,15 +234,11 @@ function founderWatchlist(issues: Issue[]) {
   });
 }
 
-function reportAnchorDate(date: string) {
-  const explicit = asDate(`${date}T23:59:59.999Z`);
-  return explicit ?? new Date();
-}
-
-function withinHours(issue: Issue, hours: number, anchor = new Date()) {
+function withinHours(issue: Issue, hours: number, referenceTime: Date) {
   const updatedAt = asDate(issue.completedAt ?? issue.updatedAt ?? issue.createdAt);
   if (!updatedAt) return false;
-  return (anchor.getTime() - updatedAt.getTime()) <= hours * 60 * 60 * 1000;
+  const elapsedMs = referenceTime.getTime() - updatedAt.getTime();
+  return elapsedMs >= 0 && elapsedMs <= hours * 60 * 60 * 1000;
 }
 
 function inferKindFromIssueTitle(title: string): FounderReportKind | null {
@@ -278,7 +300,7 @@ function sectionIssues(candidates: Issue[], limit: number, usedFingerprints: Set
 }
 
 export function buildReport(kind: FounderReportKind, date: string, issues: Issue[], assigneeNameById: Map<string, string>): FounderReport {
-  const anchor = reportAnchorDate(date);
+  const referenceTime = reportCutoff(date) ?? new Date();
   const open = issues.filter((issue) => !["done", "cancelled"].includes(issue.status));
   const done = issues
     .filter((issue) => issue.status === "done")
@@ -290,10 +312,10 @@ export function buildReport(kind: FounderReportKind, date: string, issues: Issue
   const founder = founderWatchlist(open).sort((left, right) => compareDesc(left.updatedAt, right.updatedAt));
   const slipped = uniqueById([
     ...blocked,
-    ...open.filter((issue) => issue.priority === "high" && withinHours(issue, 72, anchor)),
+    ...open.filter((issue) => issue.priority === "high" && withinHours(issue, 72, referenceTime)),
   ]).slice(0, 8);
-  const recentDone = uniqueBySignal(done.filter((issue) => withinHours(issue, 24, anchor)));
-  const weeklyDone = uniqueBySignal(done.filter((issue) => withinHours(issue, 24 * 7, anchor)));
+  const recentDone = uniqueBySignal(done.filter((issue) => withinHours(issue, 24, referenceTime)));
+  const weeklyDone = uniqueBySignal(done.filter((issue) => withinHours(issue, 24 * 7, referenceTime)));
   const weakProof = uniqueBySignal(topOpenIssues(open).filter((issue) => !founderWatchlist([issue]).length)).slice(0, 8);
 
   const usedFingerprints = new Set<string>();

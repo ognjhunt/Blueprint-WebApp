@@ -90,6 +90,10 @@ import {
   updateIntrowPartnerDraft,
 } from "./marketing-integrations.js";
 import {
+  loadPlatformDoctrineDocs,
+  resolveConfiguredRepoRoot,
+} from "./repo-root.js";
+import {
   buildLocalQuotaFallbackDescriptor,
   buildClaudeFallbackAdapterConfig,
   buildCodexFallbackAdapterConfig,
@@ -11226,13 +11230,6 @@ async function buildMarketIntelOutputProof(
   return result;
 }
 
-interface PlatformDoctrineDoc {
-  title: string;
-  naturalKey: string;
-  type: string;
-  fileContent: string;
-}
-
 interface SyncPlatformDoctrineResult {
   success: boolean;
   outcome: string;
@@ -11249,35 +11246,11 @@ async function syncPlatformDoctrineToKnowledge(
   _companyId: string,
   _params: Record<string, unknown>,
 ): Promise<SyncPlatformDoctrineResult> {
-  const repoPath = typeof _params.repoPath === "string" ? _params.repoPath : "/Users/nijelhunt_1/workspace/Blueprint-WebApp";
-
-  const docs: PlatformDoctrineDoc[] = [
-    {
-      title: "Platform Context — System Framing & Product Doctrine",
-      naturalKey: "platform-context-doctrine",
-      type: "Platform Doctrine",
-      fileContent: "",
-    },
-    {
-      title: "World Model Strategy — Core Strategy Document",
-      naturalKey: "world-model-strategy-doctrine",
-      type: "Platform Doctrine",
-      fileContent: "",
-    },
-  ];
-
-  // Read from disk
-  const fs = await import("fs");
-  for (const d of docs) {
-    const fp = d.naturalKey.includes("platform-context")
-      ? `${repoPath}/PLATFORM_CONTEXT.md`
-      : `${repoPath}/WORLD_MODEL_STRATEGY_CONTEXT.md`;
-    try {
-      d.fileContent = fs.readFileSync(fp, "utf-8");
-    } catch (err) {
-      d.fileContent = `[File not found: ${fp}]\n${err instanceof Error ? err.message : String(err)}`;
-    }
-  }
+  const repoRoot = resolveConfiguredRepoRoot(
+    typeof _params.repoPath === "string" ? _params.repoPath : null,
+    BLUEPRINT_WEBAPP_REPO_ROOT,
+  );
+  const docs = loadPlatformDoctrineDocs(repoRoot);
 
   const result: SyncPlatformDoctrineResult = {
     success: true,

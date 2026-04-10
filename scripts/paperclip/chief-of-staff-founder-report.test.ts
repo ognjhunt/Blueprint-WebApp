@@ -131,4 +131,34 @@ describe("chief of staff founder report", () => {
     expect(report.content).toContain("Validate inbound request exchange lifecycle surfaces");
     expect(report.content).toContain("Paperclip Firebase Admin access remains blocked");
   });
+
+  it("does not count future-dated issues in the requested report window", () => {
+    const issues: Issue[] = [
+      {
+        id: "future-done",
+        identifier: "BLU-14",
+        title: "Validate raw capture bundles before upload and honor manifest video URIs in the bridge",
+        status: "done",
+        priority: "high",
+        assigneeAgentId: "capture",
+        updatedAt: "2026-04-02T04:30:00.000Z",
+        completedAt: "2026-04-02T04:30:00.000Z",
+      },
+      {
+        id: "current-done",
+        identifier: "BLU-15",
+        title: "Validate inbound request exchange lifecycle surfaces",
+        status: "done",
+        priority: "high",
+        assigneeAgentId: "ops",
+        updatedAt: "2026-04-01T21:00:00.000Z",
+        completedAt: "2026-04-01T21:00:00.000Z",
+      },
+    ];
+
+    const report = buildReport("friday_recap", "2026-04-01", issues, assignees);
+
+    expect(report.content).not.toContain("BLU-14");
+    expect(report.content).toContain("Validate inbound request exchange lifecycle surfaces");
+  });
 });
