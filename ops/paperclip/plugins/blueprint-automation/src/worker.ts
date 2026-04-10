@@ -176,7 +176,10 @@ import {
 } from "./delegation-scaffolding.js";
 import { findAutoResolvableCloseoutComment } from "./managed-closeout.js";
 import { verifyDispatchWake } from "./execution-dispatch-verification.js";
-import { inferChiefOfStaffRoute } from "../../../chief-of-staff-routing.js";
+import {
+  inferChiefOfStaffRoute,
+  isNotionManagerRegistryWorkTitle,
+} from "../../../chief-of-staff-routing.js";
 import {
   buildAnalyticsFollowUpIssues,
   type AnalyticsFollowUpIssue,
@@ -1941,6 +1944,10 @@ function routeWorkQueueAssignee(
 
   if (repoAgent && isInboundEngineeringQueueTask(item.system, item.title, repoCatalog)) {
     return repoAgent;
+  }
+
+  if (isNotionManagerRegistryWorkTitle(item.title)) {
+    return NOTION_MANAGER_AGENT;
   }
 
   if (normalizedTitle.includes("market intel")) return "market-intel-agent";

@@ -66,5 +66,6 @@ When you are a KB reader:
 - Keep raw sources close to their original form.
 - Keep authority boundaries explicit in every compiled page and report.
 - Do not scrape `https://www.notion.so`, call private Notion `/api/v3` routes, or depend on `token_v2` cookies from agent runs when a supported Blueprint tool or maintained API path exists.
+- If the active run does not have the supported Blueprint Notion tool path available, stop and leave the issue `blocked` with the missing capability called out explicitly. Do not fall back to browser navigation, raw `curl` against `notion.so`, or HTML scraping.
 - If a run touches a sensitive truth domain, link to the canonical system instead of summarizing it as settled KB fact.
 - Do not add KB write paths for `rights-provenance-agent`, `capture-qa-agent`, `capture-codex`, or `pipeline-codex`.

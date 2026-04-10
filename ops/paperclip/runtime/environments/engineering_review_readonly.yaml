@@ -8,6 +8,7 @@ adapter_policy:
 tools:
   allow:
     - repo_read
+    - notion_read
     - rg_search
     - build
     - test
@@ -28,8 +29,10 @@ memory:
 vault:
   default_scope: session
   allowed_refs:
+    - NOTION_API_TOKEN
     - BLUEPRINT_PAPERCLIP_GITHUB_TOKEN
   allowed_tools:
+    - notion
     - github
 artifacts:
   require_trace_link: true

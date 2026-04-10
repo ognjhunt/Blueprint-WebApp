@@ -73,4 +73,15 @@ describe("chief of staff issue router", () => {
     expect(route?.assigneeKey).toBe("notion-manager-agent");
     expect(route?.status).toBe("todo");
   });
+
+  it("routes Blueprint agent registry backfill work to notion-manager-agent", () => {
+    const route = inferChiefOfStaffRoute({
+      title: "Notion Work Queue: Backfill Blueprint Agents registry metadata and canonical links",
+      status: "backlog",
+      project: { name: "Blueprint Executive Ops" },
+    });
+
+    expect(route?.assigneeKey).toBe("notion-manager-agent");
+    expect(route?.status).toBe("todo");
+  });
 });

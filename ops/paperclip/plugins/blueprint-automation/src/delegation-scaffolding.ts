@@ -1,4 +1,7 @@
-import { inferChiefOfStaffRoute } from "../../../chief-of-staff-routing.js";
+import {
+  inferChiefOfStaffRoute,
+  isNotionManagerRegistryWorkTitle,
+} from "../../../chief-of-staff-routing.js";
 import {
   inferRepoAgentForTask,
   type RepoAgentConfig,
@@ -176,6 +179,7 @@ function specialistFromTitle(
   const ops = config.opsAgents ?? {};
   const growth = config.growthAgents ?? {};
 
+  if (isNotionManagerRegistryWorkTitle(title)) return NOTION_MANAGER_AGENT;
   if (normalizedTitle.includes("market intel")) return growth.marketIntel ?? "market-intel-agent";
   if (normalizedTitle.includes("demand intel")) return growth.demandIntel ?? "demand-intel-agent";
   if (normalizedTitle.includes("analytics")) return growth.analytics ?? "analytics-agent";

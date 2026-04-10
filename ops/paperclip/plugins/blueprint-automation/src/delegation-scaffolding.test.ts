@@ -169,6 +169,31 @@ describe("delegation scaffolding", () => {
     ).toBeNull();
   });
 
+  it("routes Blueprint agent registry backfill queue work to notion-manager-agent", () => {
+    const plan = planChiefOwnedBacklogDelegation(
+      {
+        identifier: "BLU-3768",
+        title: "Notion Work Queue: Backfill Blueprint Agents registry metadata and canonical links",
+        status: "backlog",
+        projectName: "Blueprint Executive Ops",
+        currentAssignee: "blueprint-chief-of-staff",
+        source: {
+          sourceType: "notion-work-queue",
+          metadata: {
+            system: "Executive",
+            queueTitle: "Backfill Blueprint Agents registry metadata and canonical links",
+          },
+        },
+      },
+      CONFIG,
+    );
+
+    expect(plan).toMatchObject({
+      assignee: "notion-manager-agent",
+      projectName: "Blueprint Executive Ops",
+    });
+  });
+
   it("plans a repo implementation child for chief-owned capture sync backlog", () => {
     const plan = planChiefOwnedBacklogDelegation(
       {

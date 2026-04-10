@@ -15,6 +15,37 @@ function normalize(value?: string | null) {
   return (value ?? "").trim().toLowerCase();
 }
 
+export function isNotionManagerRegistryWorkTitle(value?: string | null) {
+  const title = normalize(value);
+  return (
+    title.includes("blueprint agents registry")
+    || (
+      title.includes("agent registry")
+      && (
+        title.includes("backfill")
+        || title.includes("metadata")
+        || title.includes("canonical link")
+      )
+    )
+  );
+}
+
+export function isNotionManagerWorkTitle(value?: string | null) {
+  const title = normalize(value);
+  return (
+    title.includes("notion drift")
+    || title.startsWith("notion work queue:")
+    || title.includes("founder os")
+    || title.includes("blueprint hub")
+    || (
+      title.includes("knowledge db")
+      && (title.includes("review timestamp") || title.includes("stale entr"))
+    )
+    || title.includes("orphaned/empty notion pages")
+    || isNotionManagerRegistryWorkTitle(title)
+  );
+}
+
 export function inferChiefOfStaffRoute(
   issue: ChiefOfStaffRoutingIssue,
 ): ChiefOfStaffRouteDecision | null {
@@ -28,17 +59,7 @@ export function inferChiefOfStaffRoute(
     comment: `Deterministic chief-of-staff routing moved this issue to ${assigneeKey} because ${rationale}.`,
   });
 
-  if (
-    title.includes("notion drift")
-    || title.startsWith("notion work queue:")
-    || title.includes("founder os")
-    || title.includes("blueprint hub")
-    || (
-      title.includes("knowledge db")
-      && (title.includes("review timestamp") || title.includes("stale entr"))
-    )
-    || title.includes("orphaned/empty notion pages")
-  ) {
+  if (isNotionManagerWorkTitle(title)) {
     return route(
       "notion-manager-agent",
       "the issue is about Blueprint-managed Notion structure or workspace drift",

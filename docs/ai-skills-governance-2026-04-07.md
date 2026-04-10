@@ -154,6 +154,7 @@ Do not:
 - depend on `token_v2` browser cookies as an automation credential
 
 If a supported Notion read or write path is unavailable, the agent should leave the work blocked with that missing capability called out explicitly rather than inventing a scraper.
+That rule applies even when browser tools are available: browser navigation is not an acceptable fallback for Blueprint-managed Notion state.
 
 ## Truth Boundary Rule
 
