@@ -164,6 +164,7 @@ import {
 } from "./maintenance-guard.js";
 import {
   blockedFollowUpFamilyKey,
+  isHumanGatedBlockedIssue,
   isBlockedFollowUpTitle,
   planBlockedIssueFollowUp,
 } from "./blocked-followups.js";
@@ -4061,6 +4062,7 @@ async function maybeCreateBlockedIssueFollowUp(
       identifier: issue.identifier,
       title: issue.title,
       status: issue.status,
+      description: issue.description ?? null,
       projectName: issue.projectId ? (projectNameById.get(issue.projectId) ?? null) : null,
       currentAssignee: issue.assigneeAgentId ? (agentKeyById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId) : null,
       blockerSummary: latestSubstantiveBlockedComment(comments)?.body ?? null,
@@ -9718,8 +9720,31 @@ async function createFollowUpIssue(
     projectName: string;
     assignee: string;
     priority?: string;
+    allowHumanGatedParentFollowUp?: boolean;
   },
 ) {
+  if (!input.allowHumanGatedParentFollowUp) {
+    const [parentIssue, parentComments] = await Promise.all([
+      ctx.issues.get(input.parentIssueId, companyId).catch(() => null),
+      listCommentsForIssue(ctx, companyId, input.parentIssueId).catch(() => [] as IssueComment[]),
+    ]);
+    if (
+      parentIssue
+      && isHumanGatedBlockedIssue({
+        identifier: parentIssue.identifier,
+        title: parentIssue.title,
+        description: parentIssue.description ?? null,
+        status: parentIssue.status,
+        projectName: null,
+        currentAssignee: null,
+        blockerSummary: latestSubstantiveBlockedComment(parentComments)?.body ?? null,
+        hasOpenChild: false,
+      })
+    ) {
+      throw new Error(`Refusing to create follow-up blocker for human-gated parent issue ${input.parentIssueId}`);
+    }
+  }
+
   const project = await resolveProject(ctx, companyId, input.projectName);
   const config = await getConfig(ctx);
   const routedAssignee = routeManagedIssueAssignee(
@@ -11536,6 +11561,7 @@ async function handleOperatorIntakeWebhook(
       projectName: asString(payload.projectName) ?? "",
       assignee: asString(payload.assignee) ?? "",
       priority: asString(payload.priority) ?? "high",
+      allowHumanGatedParentFollowUp: true,
     });
   }
 
@@ -11707,6 +11733,7 @@ async function registerActionHandlers(ctx: PluginContext) {
       projectName: asString(params.projectName) ?? DEFAULT_REPO_CATALOG[0].projectName,
       assignee: asString(params.assignee) ?? DEFAULT_REPO_CATALOG[0].reviewAgent,
       priority: asString(params.priority) ?? "high",
+      allowHumanGatedParentFollowUp: true,
     });
   });
 
@@ -11933,6 +11960,7 @@ async function registerToolHandlers(ctx: PluginContext) {
         projectName: asString((params as Record<string, unknown>).projectName) ?? DEFAULT_REPO_CATALOG[0].projectName,
         assignee: asString((params as Record<string, unknown>).assignee) ?? DEFAULT_REPO_CATALOG[0].reviewAgent,
         priority: asString((params as Record<string, unknown>).priority) ?? "high",
+        allowHumanGatedParentFollowUp: true,
       });
       return {
         content: `Created blocker follow-up issue ${followUp.id}.`,

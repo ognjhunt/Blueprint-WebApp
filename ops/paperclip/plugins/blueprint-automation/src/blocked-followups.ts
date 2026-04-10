@@ -40,6 +40,7 @@ type BlockedIssueContext = {
   identifier?: string | null;
   title: string;
   status: string;
+  description?: string | null;
   projectName?: string | null;
   currentAssignee?: string | null;
   blockerSummary?: string | null;
@@ -58,6 +59,26 @@ function baseBlockedTitle(title: string) {
     .replace(/^route unblock path for\s+/i, "")
     .replace(/^escalate unblock path for\s+/i, "")
     .replace(/^unblock\s+/i, "");
+}
+
+const HUMAN_GATED_BLOCKED_RE = [
+  /founder approval required/i,
+  /founder-gated/i,
+  /founder gate/i,
+  /`human gate`/i,
+  /\bhuman gate\b/i,
+  /must not be closed autonomously/i,
+  /do not create follow-up issues/i,
+  /authorized human/i,
+];
+
+export function isHumanGatedBlockedIssue(input: BlockedIssueContext) {
+  const evidence = [
+    input.title,
+    input.description ?? "",
+    input.blockerSummary ?? "",
+  ].join("\n");
+  return HUMAN_GATED_BLOCKED_RE.some((pattern) => pattern.test(evidence));
 }
 
 export function isBlockedFollowUpTitle(title: string) {
@@ -140,6 +161,9 @@ export function planBlockedIssueFollowUp(
     return null;
   }
   if (input.hasOpenChild) {
+    return null;
+  }
+  if (isHumanGatedBlockedIssue(input)) {
     return null;
   }
 

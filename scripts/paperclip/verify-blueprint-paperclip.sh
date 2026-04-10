@@ -504,6 +504,34 @@ main() {
   require_routines "$company_id"
   plugin_dashboard "$company_id" >/dev/null
 
+  local hermes_policy_check
+  hermes_policy_check="$(
+    fetch_api_json "/api/companies/${company_id}/agents" \
+      | node -e '
+        let data="";
+        process.stdin.on("data",(chunk)=>data+=chunk);
+        process.stdin.on("end",()=>{
+          const rows = JSON.parse(data);
+          const failures = [];
+          for (const row of rows) {
+            if (row.adapterType !== "hermes_local") continue;
+            const policy = row.runtimeConfig?.executionPolicy ?? {};
+            const preferred = Array.isArray(policy.preferredAdapterTypes) ? policy.preferredAdapterTypes : [];
+            const compatible = Array.isArray(policy.compatibleAdapterTypes) ? policy.compatibleAdapterTypes : [];
+            if (preferred.includes("claude_local") || compatible.includes("claude_local")) {
+              failures.push(`${row.name || row.id}: hermes execution policy still exposes claude_local`);
+            }
+          }
+          process.stdout.write(failures.join("\n"));
+          process.exit(failures.length > 0 ? 1 : 0);
+        });
+      ' 2>&1
+  )" || {
+    echo "Verification failed: Hermes-backed agents still expose claude_local in live execution policy." >&2
+    echo "$hermes_policy_check" >&2
+    return 1
+  }
+
   echo "Running adapter tests across all three Blueprint repos..."
 
   local webapp_codex webapp_codex_ok webapp_claude pipeline_codex pipeline_codex_ok pipeline_claude capture_codex capture_codex_ok capture_claude

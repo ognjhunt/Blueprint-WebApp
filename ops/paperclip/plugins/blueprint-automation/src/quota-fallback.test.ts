@@ -229,12 +229,13 @@ describe("quota fallback helpers", () => {
         },
       }),
     ).toEqual({
-      adapterType: "claude_local",
-      reason: "quota_fallback_to_claude_local",
+      adapterType: "codex_local",
+      reason: "quota_fallback_to_codex_local",
       adapterConfig: {
         cwd: "/tmp/project",
-        model: "claude-sonnet-4-6",
-        dangerouslySkipPermissions: true,
+        model: "gpt-5.4-mini",
+        modelReasoningEffort: "medium",
+        dangerouslyBypassApprovalsAndSandbox: true,
         [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: "hermes_local",
       },
     });
@@ -398,8 +399,8 @@ describe("quota fallback helpers", () => {
     expect(syncExecutionPolicyToAdapter({}, "hermes_local")).toEqual({
       executionPolicy: {
         mode: "prefer_available",
-        preferredAdapterTypes: ["hermes_local", "claude_local", "codex_local"],
-        compatibleAdapterTypes: ["hermes_local", "claude_local", "codex_local"],
+        preferredAdapterTypes: ["hermes_local", "codex_local"],
+        compatibleAdapterTypes: ["hermes_local", "codex_local"],
       },
     });
   });

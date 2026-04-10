@@ -52,6 +52,11 @@ const LOCAL_EXECUTION_POLICY_ADAPTERS: LocalQuotaFallbackAdapterType[] = [
   "hermes_local",
 ];
 
+const HERMES_EXECUTION_POLICY_ADAPTERS: LocalQuotaFallbackAdapterType[] = [
+  "hermes_local",
+  "codex_local",
+];
+
 export type LocalQuotaFallbackDescriptor = {
   adapterType: LocalQuotaFallbackAdapterType;
   reason: string;
@@ -117,13 +122,17 @@ function normalizeExecutionPolicyAdapterList(
   values: unknown,
   targetAdapterType: LocalQuotaFallbackAdapterType,
 ): LocalQuotaFallbackAdapterType[] {
+  const defaultAdapters =
+    targetAdapterType === "hermes_local"
+      ? HERMES_EXECUTION_POLICY_ADAPTERS
+      : LOCAL_EXECUTION_POLICY_ADAPTERS;
   const source = Array.isArray(values) && values.length > 0
     ? values
-    : LOCAL_EXECUTION_POLICY_ADAPTERS;
+    : defaultAdapters;
   const normalized: LocalQuotaFallbackAdapterType[] = [];
   const seen = new Set<LocalQuotaFallbackAdapterType>();
 
-  for (const candidate of [targetAdapterType, ...source, ...LOCAL_EXECUTION_POLICY_ADAPTERS]) {
+  for (const candidate of [targetAdapterType, ...source, ...defaultAdapters]) {
     if (
       candidate !== "claude_local" &&
       candidate !== "codex_local" &&
@@ -421,10 +430,13 @@ export function buildLocalQuotaFallbackDescriptor(input: {
 
     if (desiredAdapterType === "hermes_local" || originAdapterType === "hermes_local") {
       return {
-        adapterType: "claude_local",
-        reason: "quota_fallback_to_claude_local",
+        adapterType: "codex_local",
+        reason: "quota_fallback_to_codex_local",
         adapterConfig: withFallbackOrigin(
-          buildClaudeFallbackAdapterConfig(desiredAdapterConfig),
+          buildCodexFallbackAdapterConfig(desiredAdapterConfig, {
+            model: "gpt-5.4-mini",
+            modelReasoningEffort: "medium",
+          }),
           "hermes_local",
         ),
       };
@@ -445,10 +457,13 @@ export function buildLocalQuotaFallbackDescriptor(input: {
     }
 
     return {
-      adapterType: "claude_local",
-      reason: "quota_fallback_to_claude_local",
+      adapterType: "codex_local",
+      reason: "quota_fallback_to_codex_local",
       adapterConfig: withFallbackOrigin(
-        buildClaudeFallbackAdapterConfig(desiredAdapterConfig),
+        buildCodexFallbackAdapterConfig(desiredAdapterConfig, {
+          model: "gpt-5.4-mini",
+          modelReasoningEffort: "medium",
+        }),
         "hermes_local",
       ),
     };

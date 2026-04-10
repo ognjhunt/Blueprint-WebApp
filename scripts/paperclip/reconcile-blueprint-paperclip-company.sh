@@ -369,6 +369,17 @@ function pickMatching(rows, exactKey) {
   });
 }
 
+async function cancelOpenRunsForAgent(companyId, agentId) {
+  const runs = await fetchJson(`/api/companies/${companyId}/heartbeat-runs?agentId=${agentId}&limit=200`);
+  const openRuns = runs.filter((run) => run.status === "queued" || run.status === "running");
+  for (const run of openRuns) {
+    await fetchJson(`/api/heartbeat-runs/${run.id}/cancel`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }).catch(() => undefined);
+  }
+}
+
 function toPaperclipAgentKey(agentKey) {
   return agentKey;
 }
@@ -1099,6 +1110,15 @@ function shouldPreserveFixedLiveAdapter(agent, workspaceAvailability) {
 
   const adapterType = typeof agent?.adapterType === "string" ? agent.adapterType : "";
   if (!adapterType) return false;
+  if (
+    adapterType === "hermes_local"
+    && (
+      (Array.isArray(executionPolicy.preferredAdapterTypes) && executionPolicy.preferredAdapterTypes.includes("claude_local"))
+      || (Array.isArray(executionPolicy.compatibleAdapterTypes) && executionPolicy.compatibleAdapterTypes.includes("claude_local"))
+    )
+  ) {
+    return false;
+  }
 
   const availability = workspaceAvailability?.[adapterType];
   if (!availability) return true;
@@ -1240,6 +1260,7 @@ for (const [agentKey, desired] of Object.entries(desiredAgents)) {
         }),
       }).catch(() => undefined);
     }
+    await cancelOpenRunsForAgent(company.id, duplicate.id);
     if (duplicate.status !== "terminated") {
       await fetchJson(`/api/agents/${duplicate.id}/terminate`, {
         method: "POST",

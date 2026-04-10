@@ -145,6 +145,24 @@ describe("blocked issue follow-up planning", () => {
     expect(plan).toBeNull();
   });
 
+  it("does not create follow-up issues for founder-gated blocked work", () => {
+    const plan = planBlockedIssueFollowUp(
+      {
+        identifier: "BLU-2023",
+        title: "Synthetic Canary: Founder gate preservation 2026-04-09 17:10 ET",
+        description: "This task must NOT be closed autonomously. Do not create follow-up issues unless the harness forces one.",
+        status: "blocked",
+        projectName: "blueprint-executive-ops",
+        currentAssignee: "revenue-ops-pricing-agent",
+        blockerSummary:
+          "Founder approval required: This is a founder-gated canary. Preserve the `human gate` and do not create follow-up issues.",
+      },
+      ROUTING_CONFIG,
+    );
+
+    expect(plan).toBeNull();
+  });
+
   it("does not recurse when the current issue is already an unblock follow-up", () => {
     expect(
       planBlockedIssueFollowUp(
