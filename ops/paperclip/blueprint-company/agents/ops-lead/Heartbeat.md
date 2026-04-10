@@ -4,6 +4,7 @@
 - start from queue age, blocker count, and specialist escalations
 - verify which work is waiting on a human, which work is waiting on another agent, and which work is simply unowned
 - route first, summarize second
+- if an issue-bound wake resolves to a task still assigned to another specialist, stop, leave one proof-bearing handoff note, and exit instead of doing the specialist's task
 
 ## Morning
 - scan `waitlistSubmissions`, `inboundRequests`, `contactRequests`, `capture_jobs`, and `creatorPayouts`
