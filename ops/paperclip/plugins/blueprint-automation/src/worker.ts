@@ -101,6 +101,8 @@ import {
   getLocalAdapterWorkspaceKey,
   getWorkspaceAdapterCooldownKey,
   isQuotaOrRateLimitFailure,
+  isProcessLossFailure,
+  isProviderTimeoutFailure,
   resolveQuotaCooldownUntil,
   selectWorkspaceQuotaFallbackTargets,
   type LocalQuotaFallbackAdapterType,
@@ -6487,6 +6489,206 @@ async function handleAgentRunFailureFreshSessionRetry(
     await appendRecentEvent(ctx, event.companyId, {
       kind: "fresh-session-retry-error",
       title: `Fresh-session retry failed for ${agent.name}`,
+      issueId: payload.issueId ?? undefined,
+      detail: errorMessage,
+    });
+  }
+}
+
+async function handleAgentRunFailureRuntimeFallback(
+  ctx: PluginContext,
+  event: { companyId: string; payload: unknown },
+) {
+  const payload = parseAgentRunFailurePayload(event.payload);
+  if (!payload.agentId || !payload.runId || !payload.error) {
+    return;
+  }
+  if (!isProviderTimeoutFailure(payload.error) && !isProcessLossFailure(payload.error)) {
+    return;
+  }
+
+  const existingState =
+    await readState<QuotaFallbackRetryState>(ctx, event.companyId, STATE_KEYS.runtimeFailureRetries) ?? {};
+  if (existingState[payload.runId]) {
+    return;
+  }
+
+  const markAttempt = async (record: ReturnType<typeof buildQuotaFallbackRetryRecord>) => {
+    await writeState(ctx, event.companyId, STATE_KEYS.runtimeFailureRetries, {
+      ...existingState,
+      [payload.runId as string]: record,
+    });
+  };
+
+  const agent = await ctx.agents.get(payload.agentId, event.companyId).catch(() => null);
+  if (!agent || agent.adapterType !== "hermes_local") {
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "skipped",
+        agentId: payload.agentId,
+        issueId: payload.issueId,
+        taskKey: payload.taskKey ?? payload.taskId,
+        reason: "runtime_failure_fallback_skipped",
+        note: !agent ? "Agent not found." : `Adapter ${agent.adapterType} is not hermes_local.`,
+      }),
+    );
+    return;
+  }
+
+  const desired = buildDesiredAdapterDescriptor(agent);
+  const fallback = buildQuotaFallbackDescriptor(
+    agent.adapterType,
+    asRecord(agent.adapterConfig),
+    desired,
+  );
+  if (!fallback) {
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "skipped",
+        agentId: agent.id,
+        issueId: payload.issueId,
+        taskKey: payload.taskKey ?? payload.taskId,
+        reason: "runtime_failure_fallback_skipped",
+        note: "No configured runtime fallback for hermes_local.",
+      }),
+    );
+    return;
+  }
+
+  const retryTaskKey =
+    payload.taskKey ??
+    payload.taskId ??
+    payload.issueId ??
+    `runtime-fallback:${agent.id}:${payload.runId}`;
+  const cooldownUntil = resolveQuotaCooldownUntil(payload.error, {
+    defaultCooldownMs: 2 * 60 * 60 * 1000,
+  });
+
+  try {
+    const allAgents = await listAgents(ctx, event.companyId).catch(() => []);
+    const workspaceTargets = selectWorkspaceQuotaFallbackTargets(
+      {
+        id: agent.id,
+        adapterType: agent.adapterType,
+        adapterConfig: asRecord(agent.adapterConfig),
+      },
+      allAgents.map((entry) => ({
+        id: entry.id,
+        adapterType: entry.adapterType,
+        adapterConfig: asRecord(entry.adapterConfig),
+      })),
+    );
+
+    for (const target of workspaceTargets) {
+      await ctx.agents.update(
+        target.id,
+        {
+          adapterType: fallback.adapterType,
+          adapterConfig: fallback.adapterConfig,
+        },
+        event.companyId,
+      );
+      await ctx.agents.resetRuntimeSession(
+        target.id,
+        event.companyId,
+        target.id === agent.id
+          ? {
+            taskKey: retryTaskKey,
+          }
+          : undefined,
+      ).catch(() => undefined);
+    }
+
+    const workspaceKey = getLocalAdapterWorkspaceKey(asRecord(agent.adapterConfig));
+    if (workspaceKey && fallback.adapterType !== agent.adapterType) {
+      await setWorkspaceCooldown(ctx, event.companyId, {
+        workspaceKey,
+        unavailableAdapterType: agent.adapterType,
+        fallbackAdapterType: fallback.adapterType,
+        cooldownUntil,
+        recordedAt: nowIso(),
+        reason: isProcessLossFailure(payload.error)
+          ? "runtime_process_loss_fallback"
+          : "runtime_timeout_fallback",
+        sourceRunId: payload.runId,
+        sourceAgentId: agent.id,
+        note: payload.error,
+      });
+    }
+
+    const wakePayload: Record<string, unknown> = {
+      retryOfRunId: payload.runId,
+      taskKey: retryTaskKey,
+    };
+    if (payload.issueId) wakePayload.issueId = payload.issueId;
+    if (payload.taskId) wakePayload.taskId = payload.taskId;
+
+    const wakeResult = await ctx.agents.wakeup(agent.id, event.companyId, {
+      source: "automation",
+      triggerDetail: "system",
+      reason: isProcessLossFailure(payload.error)
+        ? "runtime_process_loss_fallback_retry"
+        : "runtime_timeout_fallback_retry",
+      payload: wakePayload,
+      idempotencyKey: `runtime-fallback:${payload.runId}`,
+      forceFreshSession: true,
+    });
+
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "retried",
+        agentId: agent.id,
+        issueId: payload.issueId,
+        taskKey: retryTaskKey,
+        reason: isProcessLossFailure(payload.error)
+          ? "runtime_process_loss_fallback_retry"
+          : "runtime_timeout_fallback_retry",
+        fallbackAdapterType: fallback.adapterType,
+        wakeupRunId: asString(wakeResult?.runId) ?? null,
+        note: payload.error,
+      }),
+    );
+
+    await appendRecentEvent(ctx, event.companyId, {
+      kind: "runtime-fallback-retry",
+      title: `Retried ${agent.name} on ${fallback.adapterType} after Hermes runtime failure`,
+      issueId: payload.issueId ?? undefined,
+      detail: payload.issueId
+        ? `Issue ${payload.issueId} retried from failed run ${payload.runId}; switched ${workspaceTargets.length} same-workspace agent(s) to ${fallback.adapterType}${fallback.adapterType !== agent.adapterType ? ` until ${cooldownUntil}` : ""}.`
+        : `Task ${retryTaskKey} retried from failed run ${payload.runId}; switched ${workspaceTargets.length} same-workspace agent(s) to ${fallback.adapterType}${fallback.adapterType !== agent.adapterType ? ` until ${cooldownUntil}` : ""}.`,
+    });
+
+    if (payload.issueId) {
+      const fallbackLabel =
+        fallback.adapterType === "hermes_local"
+          ? `hermes_local (${asString(fallback.adapterConfig.model) ?? "next ladder model"})`
+          : fallback.adapterType;
+      await ctx.issues.createComment(
+        payload.issueId,
+        `Detected a Hermes runtime failure on run ${payload.runId}. Switched ${agent.name} and ${Math.max(workspaceTargets.length - 1, 0)} same-workspace peer(s) to ${fallbackLabel}${fallback.adapterType !== agent.adapterType ? ` until ${cooldownUntil}` : ""}, then requeued the work once on a fresh session.`,
+        event.companyId,
+      ).catch(() => undefined);
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "failed",
+        agentId: agent.id,
+        issueId: payload.issueId,
+        taskKey: retryTaskKey,
+        reason: "runtime_failure_fallback_failed",
+        note: errorMessage,
+      }),
+    );
+
+    await appendRecentEvent(ctx, event.companyId, {
+      kind: "runtime-fallback-error",
+      title: `Runtime fallback failed for ${agent.name}`,
       issueId: payload.issueId ?? undefined,
       detail: errorMessage,
     });
@@ -14256,6 +14458,18 @@ const plugin: PaperclipPlugin = definePlugin({
         await handleAgentRunFailureQuotaFallback(ctx, event);
       } catch (error) {
         ctx.logger.warn("agent.run.failed quota fallback handler failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            runId: asString(asRecord(event.payload)?.runId) ?? null,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+      try {
+        await handleAgentRunFailureRuntimeFallback(ctx, event);
+      } catch (error) {
+        ctx.logger.warn("agent.run.failed runtime fallback handler failed", {
           meta: {
             companyId: event.companyId,
             eventId: event.eventId,

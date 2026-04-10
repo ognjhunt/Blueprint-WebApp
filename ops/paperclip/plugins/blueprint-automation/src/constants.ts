@@ -117,6 +117,7 @@ export const STATE_KEYS = {
   handoffMonitor: "handoff-monitor",
   executionDispatches: "execution-dispatches",
   quotaFallbackRetries: "quota-fallback-retries",
+  runtimeFailureRetries: "runtime-failure-retries",
   freshSessionRetries: "fresh-session-retries",
   workspaceAdapterCooldowns: "workspace-adapter-cooldowns",
   firehoseSignalCache: "firehose-signal-cache",

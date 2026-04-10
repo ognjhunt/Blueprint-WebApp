@@ -68,6 +68,10 @@ const QUOTA_OR_RATE_LIMIT_RE =
 const MODEL_NOT_FOUND_RE = /model.*not.*found|model.*404|invalid.*model|unknown.*model|gpt-5-4-mini|http.*404|not_found_error/i;
 const FRESH_SESSION_RETRYABLE_RE =
   /(?:context window|ran out of room|clear earlier history|start a new thread|max[_ ]output[_ ]tokens|incomplete response returned|stream disconnected before completion)/i;
+const PROVIDER_TIMEOUT_RE =
+  /(?:timed out while running|^\s*timed out\s*$|provider=.*openrouter|via openrouter|request timed out|deadline exceeded)/i;
+const PROCESS_LOSS_RE =
+  /(?:process lost --|child pid .* no longer running|server may have restarted)/i;
 const DISALLOWED_HERMES_FALLBACK_MODEL_RE =
   /^(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?$/i;
 const MONTH_INDEX: Record<string, number> = {
@@ -98,6 +102,16 @@ export function isModelNotFoundFailure(message: string | null | undefined): bool
 export function isFreshSessionRetryableFailure(message: string | null | undefined): boolean {
   if (!message) return false;
   return FRESH_SESSION_RETRYABLE_RE.test(message);
+}
+
+export function isProviderTimeoutFailure(message: string | null | undefined): boolean {
+  if (!message) return false;
+  return PROVIDER_TIMEOUT_RE.test(message);
+}
+
+export function isProcessLossFailure(message: string | null | undefined): boolean {
+  if (!message) return false;
+  return PROCESS_LOSS_RE.test(message);
 }
 
 function asTrimmedString(value: unknown): string | null {

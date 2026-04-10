@@ -14,6 +14,8 @@ import {
   isDisallowedHermesFallbackModel,
   isFreshSessionRetryableFailure,
   isIncompatibleHermesFreeRoutingModel,
+  isProcessLossFailure,
+  isProviderTimeoutFailure,
   isQuotaOrRateLimitFailure,
   parseQuotaResetAt,
   resolveHermesFallbackModels,
@@ -54,6 +56,20 @@ describe("quota fallback helpers", () => {
       ),
     ).toBe(true);
     expect(isFreshSessionRetryableFailure("Process lost -- child pid 2156045 is no longer running")).toBe(false);
+  });
+
+  it("detects recoverable provider timeouts and process-loss failures", () => {
+    expect(
+      isProviderTimeoutFailure(
+        "Hermes timed out while running arcee-ai/trinity-large-preview:free via openrouter.",
+      ),
+    ).toBe(true);
+    expect(isProviderTimeoutFailure("Timed out")).toBe(true);
+    expect(isProviderTimeoutFailure("429 RESOURCE_EXHAUSTED")).toBe(false);
+
+    expect(isProcessLossFailure("Process lost -- child pid 2156045 is no longer running")).toBe(true);
+    expect(isProcessLossFailure("Process lost -- server may have restarted")).toBe(true);
+    expect(isProcessLossFailure("Timed out")).toBe(false);
   });
 
   it("builds a codex adapter config from a claude config", () => {
