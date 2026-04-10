@@ -137,6 +137,11 @@ import {
   type CityLaunchStoredSelection,
 } from "./city-launch-proof.js";
 import {
+  findStaleRunningHeartbeatRun,
+  getHeartbeatRunTaskKey,
+  type HeartbeatRunLike,
+} from "./chief-of-staff-run-recovery.js";
+import {
   buildAgentRunFailureSlackCopy,
   buildAgentConversationSlackCopy,
   buildManagerIssueSlackCopy,
@@ -2918,7 +2923,46 @@ async function postFounderException(
 }
 
 const CHIEF_OF_STAFF_WAKEUP_COOLDOWN_MS = 5 * 60 * 1000;
+const CHIEF_OF_STAFF_STALE_RUNNING_IDLE_MS = 12 * 60 * 1000;
+const CHIEF_OF_STAFF_RUN_RECOVERY_LIMIT = 50;
 const chiefOfStaffLastWakeupByCompany = new Map<string, number>();
+
+async function recoverStaleChiefOfStaffRunIfNeeded(
+  ctx: PluginContext,
+  companyId: string,
+  agent: Agent,
+  issueId?: string,
+) {
+  const runs = await fetchPaperclipApiJson<HeartbeatRunLike[]>(
+    `/api/companies/${companyId}/heartbeat-runs?agentId=${agent.id}&limit=${CHIEF_OF_STAFF_RUN_RECOVERY_LIMIT}`,
+  );
+  const staleRun = findStaleRunningHeartbeatRun(runs, Date.now(), CHIEF_OF_STAFF_STALE_RUNNING_IDLE_MS);
+  if (!staleRun) {
+    return null;
+  }
+
+  await fetchPaperclipApiJson(`/api/heartbeat-runs/${staleRun.run.id}/cancel`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+
+  const taskKey = getHeartbeatRunTaskKey(staleRun.run);
+  if (taskKey) {
+    await ctx.agents.resetRuntimeSession(agent.id, companyId, { taskKey }).catch(() => undefined);
+  } else {
+    await ctx.agents.resetRuntimeSession(agent.id, companyId).catch(() => undefined);
+  }
+
+  const idleMinutes = Math.max(1, Math.round(staleRun.idleMs / (1000 * 60)));
+  await appendRecentEvent(ctx, companyId, {
+    kind: "chief-of-staff-wakeup-skipped",
+    title: "Recovered stale chief-of-staff run before wake",
+    issueId,
+    detail: `Cancelled stale running run ${staleRun.run.id} after ${idleMinutes} minutes without updates, then reset the chief-of-staff runtime session.`,
+  });
+
+  return staleRun.run.id;
+}
 
 async function wakeChiefOfStaff(
   ctx: PluginContext,
@@ -2969,6 +3013,28 @@ async function wakeChiefOfStaff(
     });
     return null;
   }
+
+  await recoverStaleChiefOfStaffRunIfNeeded(
+    ctx,
+    companyId,
+    agent,
+    input.eventIssueId
+      ?? (typeof input.payload.issueId === "string" ? input.payload.issueId : undefined),
+  ).catch(async (error) => {
+    ctx.logger.warn("chief-of-staff stale-run recovery failed", {
+      companyId,
+      agentId: agent.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    await appendRecentEvent(ctx, companyId, {
+      kind: "chief-of-staff-wakeup-skipped",
+      title: `Failed stale-run recovery before chief-of-staff wake: ${input.title}`,
+      issueId:
+        input.eventIssueId
+        ?? (typeof input.payload.issueId === "string" ? input.payload.issueId : undefined),
+      detail: error instanceof Error ? error.message : String(error),
+    });
+  });
 
   await appendRecentEvent(ctx, companyId, {
     kind: "chief-of-staff-wakeup",
