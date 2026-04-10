@@ -110,6 +110,7 @@ import {
   type WorkspaceAdapterCooldownRecord,
   type WorkspaceAdapterCooldownState,
   buildHermesFallbackAdapterConfig,
+  extractLogicalSucceededRunFailure,
   isFreshSessionRetryableFailure,
   isIncompatibleHermesFreeRoutingModel,
   isModelNotFoundFailure,
@@ -270,6 +271,12 @@ const CODEX_FALLBACK_REASONING_EFFORT =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT || "medium";
 const WORKSPACE_QUOTA_COOLDOWN_MS =
   Number(process.env.BLUEPRINT_PAPERCLIP_WORKSPACE_QUOTA_COOLDOWN_MS || "") || 6 * 60 * 60 * 1000;
+const LOGICAL_SUCCEEDED_RUN_RECOVERY_INTERVAL_MS =
+  Number(process.env.BLUEPRINT_PAPERCLIP_LOGICAL_SUCCEEDED_RUN_RECOVERY_INTERVAL_MS || "") || 2 * 60 * 1000;
+const LOGICAL_SUCCEEDED_RUN_LOOKBACK_MS =
+  Number(process.env.BLUEPRINT_PAPERCLIP_LOGICAL_SUCCEEDED_RUN_LOOKBACK_MS || "") || 2 * 60 * 60 * 1000;
+const LOGICAL_SUCCEEDED_RUN_SCAN_LIMIT =
+  Number(process.env.BLUEPRINT_PAPERCLIP_LOGICAL_SUCCEEDED_RUN_SCAN_LIMIT || "") || 80;
 const ENTITY_TYPES = {
   sourceMapping: "source-mapping",
 } as const;
@@ -518,6 +525,14 @@ type AgentRunFailurePayload = {
   taskId: string | null;
   taskKey: string | null;
   error: string | null;
+};
+
+type HeartbeatRunRecord = {
+  agentId: string;
+  contextSnapshot?: Record<string, unknown> | null;
+  createdAt?: string | null;
+  id: string;
+  status?: string | null;
 };
 
 type SourceMappingData = {
@@ -1108,6 +1123,7 @@ let toolRegistrationStarted = false;
 let toolRegistrationReady = false;
 let toolRegistrationError: string | null = null;
 let startupMaintenancePromise: Promise<void> | null = null;
+let logicalSucceededRunRecoveryStarted = false;
 const PAPERCLIP_COMPANY_CONFIG_PATH = new URL("../../../blueprint-company/.paperclip.yaml", import.meta.url);
 let cachedPaperclipYamlConfig: { mtimeMs: number; config: PaperclipYamlConfig | null } | undefined;
 
@@ -2326,6 +2342,51 @@ async function fetchPaperclipApiJson<T>(path: string, init?: RequestInit): Promi
   return await response.json() as T;
 }
 
+function safeDateRank(value: string | null | undefined) {
+  if (!value) return Number.NEGATIVE_INFINITY;
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
+}
+
+async function fetchHeartbeatRuns(companyId: string, limit = LOGICAL_SUCCEEDED_RUN_SCAN_LIMIT) {
+  return await fetchPaperclipApiJson<HeartbeatRunRecord[]>(
+    `/api/companies/${companyId}/heartbeat-runs?limit=${Math.max(1, limit)}`,
+  );
+}
+
+async function fetchHeartbeatRunLog(runId: string, limitBytes = 16384) {
+  try {
+    const payload = await fetchPaperclipApiJson<{ content?: string | null }>(
+      `/api/heartbeat-runs/${runId}/log?offset=0&limitBytes=${Math.max(1024, limitBytes)}`,
+    );
+    return asString(payload.content) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function buildLogicalSucceededRunFailurePayload(
+  run: HeartbeatRunRecord,
+  logText: string,
+): AgentRunFailurePayload | null {
+  if ((asString(run.status) ?? "").trim().toLowerCase() !== "succeeded") {
+    return null;
+  }
+  const error = extractLogicalSucceededRunFailure(logText);
+  if (!error) {
+    return null;
+  }
+  const context = asRecord(run.contextSnapshot);
+  return {
+    agentId: asString(run.agentId) ?? null,
+    runId: asString(run.id) ?? null,
+    issueId: asString(context?.issueId) ?? null,
+    taskId: asString(context?.taskId) ?? null,
+    taskKey: asString(context?.taskKey) ?? null,
+    error,
+  };
+}
+
 async function findCompany(ctx: PluginContext, companyName?: string): Promise<Company> {
   const companies = await ctx.companies.list({ limit: 100, offset: 0 });
   const target = (companyName ?? DEFAULT_COMPANY_NAME).trim().toLowerCase();
@@ -3372,6 +3433,58 @@ function ensureStartupMaintenance(ctx: PluginContext) {
   });
 
   return startupMaintenancePromise;
+}
+
+async function recoverLogicalSucceededRunFailures(
+  ctx: PluginContext,
+  companyId: string,
+) {
+  const runs = await fetchHeartbeatRuns(companyId, LOGICAL_SUCCEEDED_RUN_SCAN_LIMIT).catch(() => []);
+  const cutoff = Date.now() - LOGICAL_SUCCEEDED_RUN_LOOKBACK_MS;
+  const recentSucceededRuns = (Array.isArray(runs) ? runs : [])
+    .filter((run) => (asString(run.status) ?? "").trim().toLowerCase() === "succeeded")
+    .filter((run) => safeDateRank(run.createdAt) >= cutoff)
+    .sort((left, right) => safeDateRank(right.createdAt) - safeDateRank(left.createdAt));
+
+  for (const run of recentSucceededRuns) {
+    const logText = await fetchHeartbeatRunLog(run.id);
+    const payload = buildLogicalSucceededRunFailurePayload(run, logText);
+    if (!payload?.agentId || !payload.runId || !payload.error) {
+      continue;
+    }
+    await handleAgentRunFailureQuotaFallback(ctx, {
+      companyId,
+      payload,
+    });
+  }
+}
+
+function ensureLogicalSucceededRunRecovery(ctx: PluginContext) {
+  if (logicalSucceededRunRecoveryStarted) {
+    return;
+  }
+  logicalSucceededRunRecoveryStarted = true;
+
+  const runRecovery = async () => {
+    try {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      await recoverLogicalSucceededRunFailures(ctx, company.id);
+    } catch (error) {
+      ctx.logger.warn("logical succeeded-run recovery failed", {
+        meta: {
+          stack: error instanceof Error ? error.stack : undefined,
+        },
+      });
+    }
+  };
+
+  setTimeout(() => {
+    void runRecovery();
+  }, 0);
+  setInterval(() => {
+    void runRecovery();
+  }, LOGICAL_SUCCEEDED_RUN_RECOVERY_INTERVAL_MS);
 }
 
 async function rerouteUnavailableIssueOwners(
@@ -14817,6 +14930,7 @@ const plugin: PaperclipPlugin = definePlugin({
     });
     setTimeout(() => {
       void ensureStartupMaintenance(ctx);
+      ensureLogicalSucceededRunRecovery(ctx);
     }, 0);
   },
 

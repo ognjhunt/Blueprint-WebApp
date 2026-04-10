@@ -8,6 +8,7 @@ import {
   buildQuotaFallbackRetryRecord,
   DEFAULT_HERMES_FALLBACK_MODEL,
   DEFAULT_HERMES_FALLBACK_MODELS,
+  extractLogicalSucceededRunFailure,
   FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY,
   HERMES_MODEL_LADDER_CONFIG_KEY,
   getWorkspaceAdapterCooldownKey,
@@ -42,6 +43,32 @@ describe("quota fallback helpers", () => {
     expect(isQuotaOrRateLimitFailure("429 RESOURCE_EXHAUSTED: You exceeded your current quota and billing details.")).toBe(true);
     expect(isQuotaOrRateLimitFailure("rate limit exceeded")).toBe(true);
     expect(isQuotaOrRateLimitFailure("adapter exited with code 1")).toBe(false);
+  });
+
+  it("extracts terminal logical-failure text from succeeded-run logs", () => {
+    expect(
+      extractLogicalSucceededRunFailure(
+        `
+          [hermes] Starting Hermes Agent
+          Final error: HTTP 429: Rate limit exceeded: free-models-per-min.
+          API call failed after 3 retries: HTTP 429: Rate limit exceeded: free-models-per-min.
+          [hermes] Exit code: 0, timed out: false
+        `,
+      ),
+    ).toContain("HTTP 429: Rate limit exceeded: free-models-per-min.");
+
+    expect(
+      extractLogicalSucceededRunFailure(
+        `
+          [hermes] Starting Hermes Agent
+          HTTP 404: No endpoints found for stepfun/step-3.5-flash:free.
+          Non-retryable client error (HTTP 404). Aborting.
+          [hermes] Exit code: 0, timed out: false
+        `,
+      ),
+    ).toContain("HTTP 404: No endpoints found for stepfun/step-3.5-flash:free.");
+
+    expect(extractLogicalSucceededRunFailure("[hermes] Exit code: 0, timed out: false")).toBeNull();
   });
 
   it("detects fresh-session retryable context and output-limit failures", () => {

@@ -73,6 +73,12 @@ const PROCESS_LOSS_RE =
   /(?:process lost --|child pid .* no longer running|server may have restarted)/i;
 const DISALLOWED_HERMES_FALLBACK_MODEL_RE =
   /^(?:(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
+const TERMINAL_LOGICAL_FAILURE_PATTERNS = [
+  /api call failed after \d+ retries:\s*(http \d+:[^\n]+)/i,
+  /final error:\s*(http \d+:[^\n]+)/i,
+  /http 404:\s*no endpoints found for[^\n]+/i,
+  /rate limit exceeded:[^\n]+/i,
+] as const;
 const MONTH_INDEX: Record<string, number> = {
   jan: 0,
   feb: 1,
@@ -111,6 +117,27 @@ export function isProviderTimeoutFailure(message: string | null | undefined): bo
 export function isProcessLossFailure(message: string | null | undefined): boolean {
   if (!message) return false;
   return PROCESS_LOSS_RE.test(message);
+}
+
+export function extractLogicalSucceededRunFailure(message: string | null | undefined): string | null {
+  if (!message) return null;
+  const normalized = message.replace(/\s+/g, " ").trim();
+  if (!normalized) return null;
+
+  for (const pattern of TERMINAL_LOGICAL_FAILURE_PATTERNS) {
+    const match = normalized.match(pattern);
+    if (!match) continue;
+    const candidate = (match[1] ?? match[0] ?? "").replace(/\s+/g, " ").trim();
+    if (isQuotaOrRateLimitFailure(candidate) || isModelNotFoundFailure(candidate)) {
+      return candidate;
+    }
+  }
+
+  if (isQuotaOrRateLimitFailure(normalized) || isModelNotFoundFailure(normalized)) {
+    return normalized.slice(0, 400);
+  }
+
+  return null;
 }
 
 function asTrimmedString(value: unknown): string | null {
