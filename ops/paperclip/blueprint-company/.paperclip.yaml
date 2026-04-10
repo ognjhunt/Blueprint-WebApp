@@ -145,6 +145,7 @@ agents:
       type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/webapp-codex/AGENTS.md
         model: gpt-5.4-mini
         modelReasoningEffort: medium
         timeoutSec: 1800
@@ -169,6 +170,7 @@ agents:
       type: codex_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
+        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/webapp-review/AGENTS.md
         model: gpt-5.4-mini
         modelReasoningEffort: medium
         timeoutSec: 1800

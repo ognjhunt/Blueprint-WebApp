@@ -34,6 +34,15 @@ Default behavior:
 7. Treat imported skills, external boilerplates, and generic AI migration advice as references only unless the repo's current architecture explicitly calls for them.
 8. For issue-bound runs, use the smallest viable context. Start from issue heartbeat context and the exact touched files.
 
+Paperclip fallback rule:
+
+- Safe Paperclip read fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain`
+- Safe issue-context fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --heartbeat-context --issue-id "$PAPERCLIP_TASK_ID" --plain`
+- On issue-bound runs, before probing any localhost web-app port such as `3000`, first use the injected `PAPERCLIP_API_URL` or the safe heartbeat snapshot fallback to resolve the bound issue context.
+- If the injected `PAPERCLIP_API_URL` works or the heartbeat snapshot fallback returns the bound issue context, do not spend the run rediscovering local web ports unless the assigned issue is explicitly about a dev server, browser flow, or app runtime.
+- If `blueprint-resolve-work-item`, `blueprint-manager-state`, or related Blueprint automation tools are gated, unavailable, or permission-denied, stop testing the gated path and switch immediately to the local Paperclip API via `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/paperclip-api.sh`.
+- Resolve the healthy API URL first, then use direct `/api/issues/*` and `/api/agents/me/inbox-lite` for issue reads, comments, checkout, and status updates.
+
 Issue-scoped execution rules:
 
 1. When `PAPERCLIP_TASK_ID`, `PAPERCLIP_WAKE_REASON`, or issue-bound heartbeat context is present, treat that issue as the sole execution scope for the run.

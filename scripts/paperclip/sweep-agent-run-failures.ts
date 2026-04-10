@@ -236,6 +236,25 @@ export function classifyFailureSignature(input: {
   }
 
   if (
+    rawText.includes("rate limit exceeded")
+    || rawText.includes("rate limit persisted after")
+    || rawText.includes("api call failed after")
+    || rawText.includes("final error: http 429")
+    || rawText.includes("free-models-per-min")
+    || rawText.includes("free-models-per-day-high-balance")
+    || rawText.includes("insufficient credits")
+    || rawText.includes("spend limit exceeded")
+  ) {
+    return {
+      key: "provider_quota_or_rate_limit",
+      title: "Provider quota/rate-limit interrupted the run",
+      category: "runtime_capacity" as const,
+      fixLayer: "Hermes ladder fallback, provider quota policy, or lane cooldown recovery",
+      matchedBy: "429/quota output in run logs",
+    };
+  }
+
+  if (
     logicalSucceededFailure
     && (
       rawText.includes("no endpoints found for")

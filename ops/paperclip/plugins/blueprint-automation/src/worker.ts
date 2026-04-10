@@ -1322,6 +1322,25 @@ function buildQuotaFallbackDescriptor(
   } | null,
   failureReason?: string | null,
 ) {
+  if (isOrgForcedCodexMode()) {
+    if (adapterType === "codex_local") {
+      return null;
+    }
+    if (adapterType === "claude_local" || adapterType === "hermes_local") {
+      return {
+        adapterType: "codex_local",
+        reason: "org_forced_codex_mode",
+        adapterConfig: buildCodexFallbackAdapterConfig(
+          asRecord(desired?.adapterConfig) ?? asRecord(adapterConfig),
+          {
+            model: "gpt-5.4-mini",
+            modelReasoningEffort: "medium",
+          },
+        ),
+      };
+    }
+  }
+
   return buildLocalQuotaFallbackDescriptor({
     currentAdapterType: adapterType,
     currentAdapterConfig: asRecord(adapterConfig),
@@ -1335,6 +1354,7 @@ function buildDesiredAdapterDescriptor(agent: Agent): {
   adapterType: LocalQuotaFallbackAdapterType;
   adapterConfig: Record<string, unknown>;
 } | null {
+  const requestedMode = (process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE ?? "").trim().toLowerCase();
   const configuredAgent = getConfiguredAgent(agent.urlKey);
   const configuredAdapterType = configuredAgent?.adapter?.type;
   const configuredAdapterConfig = asRecord(configuredAgent?.adapter?.config);
@@ -1347,10 +1367,24 @@ function buildDesiredAdapterDescriptor(agent: Agent): {
     return null;
   }
 
+  if (requestedMode === "codex") {
+    return {
+      adapterType: "codex_local",
+      adapterConfig: buildCodexFallbackAdapterConfig(configuredAdapterConfig, {
+        model: "gpt-5.4-mini",
+        modelReasoningEffort: "medium",
+      }),
+    };
+  }
+
   return {
     adapterType: configuredAdapterType,
     adapterConfig: configuredAdapterConfig,
   };
+}
+
+function isOrgForcedCodexMode() {
+  return (process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE ?? "").trim().toLowerCase() === "codex";
 }
 
 function getActiveWorkspaceCooldown(
@@ -1388,6 +1422,27 @@ async function setWorkspaceCooldown(
   await writeState(ctx, companyId, STATE_KEYS.workspaceAdapterCooldowns, nextState);
 }
 
+async function clearWorkspaceCooldownsIfForcedCodexMode(
+  ctx: PluginContext,
+  companyId: string,
+) {
+  if (!isOrgForcedCodexMode()) {
+    return false;
+  }
+  const currentState =
+    await readState<WorkspaceAdapterCooldownState>(ctx, companyId, STATE_KEYS.workspaceAdapterCooldowns) ?? {};
+  if (Object.keys(currentState).length === 0) {
+    return false;
+  }
+  await writeState(ctx, companyId, STATE_KEYS.workspaceAdapterCooldowns, {});
+  await appendRecentEvent(ctx, companyId, {
+    kind: "workspace-cooldowns-cleared",
+    title: "Cleared workspace adapter cooldowns for codex mode",
+    detail: `Removed ${Object.keys(currentState).length} persisted workspace cooldown override(s).`,
+  });
+  return true;
+}
+
 async function enforceWorkspaceAdapterCooldowns(
   ctx: PluginContext,
   companyId: string,
@@ -1422,7 +1477,10 @@ async function enforceWorkspaceAdapterCooldowns(
     const workspaceKey = getLocalAdapterWorkspaceKey(
       asRecord(agent.adapterConfig) ?? desired.adapterConfig,
     );
-    const cooldown = getActiveWorkspaceCooldown(activeState, workspaceKey, desired.adapterType, now);
+    const cooldown =
+      isOrgForcedCodexMode() && desired.adapterType === "codex_local"
+        ? null
+        : getActiveWorkspaceCooldown(activeState, workspaceKey, desired.adapterType, now);
     const targetAdapterType = cooldown?.fallbackAdapterType ?? desired.adapterType;
     const runtimeConfigRecord = asRecord(agent.runtimeConfig);
     const targetRuntimeConfig = syncExecutionPolicyToAdapter(
@@ -3555,6 +3613,7 @@ function ensureStartupMaintenance(ctx: PluginContext) {
           const config = await getConfig(ctx);
           const company = await findCompany(ctx, config.companyName);
           await syncDoctrineMemoryStore(ctx, company.id);
+          await clearWorkspaceCooldownsIfForcedCodexMode(ctx, company.id);
           await enforceWorkspaceAdapterCooldowns(ctx, company.id);
           await healAgentExecutionTopology(ctx, company.id);
           await syncAgentRuntimeMetadata(ctx, company.id);

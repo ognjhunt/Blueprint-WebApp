@@ -135,6 +135,25 @@ describe("sweep agent run failures", () => {
     expect(classifyFailureSignature({ run, logText }).key).toBe("provider_quota_or_rate_limit_marked_succeeded");
   });
 
+  it("does not misclassify explicit 429 ladder failures as timeouts", () => {
+    const signature = classifyFailureSignature({
+      run: {
+        id: "run-failed-429",
+        agentId: "agent-429",
+        companyId: "company-1",
+        status: "failed",
+      },
+      logText: `
+        [hermes] Starting Hermes Agent (1/6, model=openai/gpt-oss-120b:free, provider=openrouter [modelInference], timeout=1800s)
+        Error: HTTP 429: Rate limit exceeded: free-models-per-day-high-balance.
+        API call failed after 3 retries: HTTP 429: Rate limit exceeded: free-models-per-day-high-balance.
+      `,
+    });
+
+    expect(signature.key).toBe("provider_quota_or_rate_limit");
+    expect(signature.title).toBe("Provider quota/rate-limit interrupted the run");
+  });
+
   it("treats succeeded 402 provider-credit failures as the same runtime-capacity family", () => {
     const signature = classifyFailureSignature({
       run: {

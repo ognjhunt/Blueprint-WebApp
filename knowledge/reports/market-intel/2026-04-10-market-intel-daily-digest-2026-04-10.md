@@ -1,37 +1,54 @@
 ---
 authority: draft
-source_system: paperclip
+source_system: web
 source_urls:
-  - "paperclip://issue/2455af6f-48a7-4f2e-b416-3992d8d89787"
+  - "https://poly.cam/press-release/space-mode-access-expanded-2026"
+  - "https://www.worldlabs.ai/blog/announcing-the-world-api"
+  - "https://www.worldlabs.ai/blog/3d-as-code"
+  - "https://www.worldlabs.ai/blog/funding-2026"
+  - "https://nvidianews.nvidia.com/news/nvidia-announces-open-physical-ai-data-factory-blueprint-to-accelerate-robotics-vision-ai-agents-and-autonomous-vehicle-development"
+  - "https://blogs.nvidia.com/blog/gtc-2026-virtual-worlds-physical-ai/"
+  - "https://arxiv.org/abs/2601.12814"
+  - "https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai"
+  - "https://digital-strategy.ec.europa.eu/en/faqs/navigating-ai-act"
+  - "https://cppa.ca.gov/announcements/2025/20250923.html"
 last_verified_at: 2026-04-10
 owner: market-intel-agent
 sensitivity: internal
-confidence: 0.7
+confidence: 0.78
 ---
 
 # Market Intel Daily Digest - 2026-04-10
 
 ## Summary
 
-Market Intel Daily: Competitor landscape shifting with new 3DGS developments
+Blueprint's market baseline is moving toward cheaper capture, API-shaped world-model products, and stricter documentation expectations.
 
 ## Evidence
 
-- - [6.5] Polycam raises Series B (TechCrunch): Direct competitor raised 0M for enterprise 3D capture.
-- Matterport expands enterprise features
-- Luma AI releases new consumer capture app
-- Waywe raises B for world models in autonomous driving
-- New open-source NeRF optimization library gains traction
+- [8.1] Polycam opened free non-LiDAR iPhone 3D scanning to iPhone 13+ users. Evidence-backed; this lowers capture friction and broadens the baseline expectation for simple mobile capture. Source: https://poly.cam/press-release/space-mode-access-expanded-2026
+- [7.8] NVIDIA released the Physical AI Data Factory Blueprint and broadened Omniverse/DSX blueprint adoption across robotics and industrial digital twins. Evidence-backed; this is a platform-shaping signal because the market is being trained on digital-twin-first workflows. Sources: https://nvidianews.nvidia.com/news/nvidia-announces-open-physical-ai-data-factory-blueprint-to-accelerate-robotics-vision-ai-agents-and-autonomous-vehicle-development and https://blogs.nvidia.com/blog/gtc-2026-virtual-worlds-physical-ai/
+- [7.4] World Labs launched a public World API and is framing "3D as code" as a developer interface, backed by a large funding round. Evidence-backed; this is a direct platform competitor signal, not just a research-lab update. Sources: https://www.worldlabs.ai/blog/announcing-the-world-api, https://www.worldlabs.ai/blog/3d-as-code, https://www.worldlabs.ai/blog/funding-2026
+- [7.0] CSGaussian proposes rate-distortion-optimized compression and segmentation for 3D Gaussian Splatting. Evidence-backed; relevant to Blueprint because compression and semantic packaging affect deployability, memory footprint, and downstream editability. Source: https://arxiv.org/abs/2601.12814
+- [7.2] EU AI Act transparency and high-risk rules start applying in August 2026, and California privacy regulations already took effect on January 1, 2026 with risk-assessment and ADMT timelines following. Evidence-backed; the direct Blueprint implication is stronger provenance, traceability, and documentation discipline in the package contract. Sources: https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai, https://digital-strategy.ec.europa.eu/en/faqs/navigating-ai-act, https://cppa.ca.gov/announcements/2025/20250923.html
+
+## Notes
+
+- Evidence: all five signals are grounded in primary sources.
+- Inference: the strongest Blueprint response is to double down on site specificity, rights-safe packaging, and buyer workflow rather than chase model ownership.
+- Open question: whether World Labs and NVIDIA convert these platform pushes into pricing, export, or integration patterns that buyers will expect from Blueprint within the next 1-2 quarters.
 
 ## Recommended Follow-up
 
-- Monitor Polycam enterprise launch for feature overlap
-- Evaluate 3DGS compression paper for backend integration
-- Track Matterport enterprise expansion as competitive intelligence
+- Benchmark Blueprint's capture onboarding and first-scan success against Polycam's non-LiDAR flow.
+- Track World Labs' API surface for pricing, export, and integration patterns that could become buyer expectations.
+- Add a compression-aware packaging experiment for 3DGS assets and measure memory, latency, and export size.
+- Tighten provenance, consent, and traceability metadata for EU/California-facing deployments.
 
 ## Linked KB Pages
 
-- Related KB pages
+- [Market Intel Tracker](../../compiled/market-intel/market-intel-tracker.md)
+- [Raw source note - 2026-04-10](../../raw/web/2026-04-10/market-intel-sources.md)
 
 ## Authority Boundary
 

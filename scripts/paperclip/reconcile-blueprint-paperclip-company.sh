@@ -1019,7 +1019,7 @@ function fallbackAdapterFor(desired) {
   };
 }
 
-function buildExecutionPolicyForAgent(agentConfig) {
+function buildExecutionPolicyForAgent(agentConfig, requestedMode) {
   const authoredAdapterType = agentConfig?.adapter?.type;
   const authoredAdapterConfig = agentConfig?.adapter?.config ?? {};
   if (!authoredAdapterType || !authoredAdapterConfig) {
@@ -1041,6 +1041,15 @@ function buildExecutionPolicyForAgent(agentConfig) {
           authoredAdapterConfig,
         )?.adapterConfig ?? undefined,
   };
+
+  if (requestedMode === "codex") {
+    return {
+      mode: "prefer_available",
+      compatibleAdapterTypes: ["codex_local", "hermes_local", "claude_local"],
+      preferredAdapterTypes: ["codex_local", "hermes_local", "claude_local"],
+      perAdapterConfig,
+    };
+  }
 
   if (authoredAdapterType === "claude_local") {
     return {
@@ -1085,6 +1094,13 @@ function chooseAdapterForAgent(desired, requestedMode, workspaceAvailability) {
 
   // hermes_local: probe hermes, then fall back to the paid local adapters
   if (desired.adapterType === "hermes_local") {
+    if (requestedMode === "codex") {
+      const codex = {
+        adapterType: "codex_local",
+        adapterConfig: buildCodexAdapterConfig(desired.adapterConfig),
+      };
+      if (workspaceAvailability?.codex_local?.status === "pass") return codex;
+    }
     const hermesStatus = workspaceAvailability?.hermes_local?.status;
     if (hermesStatus === "pass") return desired;
     const codex = {
@@ -1240,7 +1256,7 @@ for (const [agentKey, desired] of Object.entries(desiredAgents)) {
     ? existingRuntimeConfig
     : {
       ...existingRuntimeConfig,
-      executionPolicy: buildExecutionPolicyForAgent(yamlAgentConfig),
+      executionPolicy: buildExecutionPolicyForAgent(yamlAgentConfig, effectiveRequestedMode),
     };
   if (!preserveFixedLiveAdapter) {
     delete nextRuntimeConfig.executionProfile;
