@@ -10,6 +10,8 @@ const bindingFailureLine =
 const closeoutPatchLine = "Close issues only with `PATCH /api/issues/$ISSUE_ID`.";
 const closeoutStatusesLine = "Valid terminal statuses are `done` and `blocked` only.";
 const closeoutCompletedLine = 'Never send `status: "completed"`.';
+const preferredCliLine =
+  "For checkout, release, status updates, and comments, prefer `npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue ...` so the CLI serializes JSON safely and forwards `PAPERCLIP_RUN_ID` automatically.";
 
 async function collectAgentInstructionFiles(root: string): Promise<string[]> {
   const entries = await fs.readdir(root, { withFileTypes: true });
@@ -47,6 +49,7 @@ describe("Blueprint Paperclip agent instruction guards", () => {
         expect(content, `${file} is missing the raw closeout patch guard`).toContain(closeoutPatchLine);
         expect(content, `${file} is missing the raw closeout status guard`).toContain(closeoutStatusesLine);
         expect(content, `${file} is missing the invalid completed-status guard`).toContain(closeoutCompletedLine);
+        expect(content, `${file} is missing the Paperclip CLI mutation guard`).toContain(preferredCliLine);
       }
     }
 

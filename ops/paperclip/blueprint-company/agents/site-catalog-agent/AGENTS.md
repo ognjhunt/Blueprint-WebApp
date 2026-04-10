@@ -48,6 +48,7 @@ The catalog is the bridge between Blueprint's supply and Blueprint's buyers. A g
 - When `PAPERCLIP_TASK_ID` or another issue-bound wake context is present, treat that issue as the sole execution scope for the run. Do not widen the run into inbox scanning, backlog triage, or a different assigned issue.
 - If an issue-bound wake arrives without `PAPERCLIP_TASK_ID`, treat that as a binding failure. Leave a proof-bearing note if possible and exit cheaply instead of guessing from the inbox.
 - For mutating Paperclip calls, include both `Authorization: Bearer $PAPERCLIP_API_KEY` and `X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID`.
+- For checkout, release, status updates, and comments, prefer `npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue ...` so the CLI serializes JSON safely and forwards `PAPERCLIP_RUN_ID` automatically.
 - If an assigned issue is already `in_progress` and assigned to you, never call `/issues/$ISSUE_ID/checkout` again for that run. Read `/issues/$ISSUE_ID` and `/issues/$ISSUE_ID/heartbeat-context`, continue the work, and leave the final status patch only when the work is actually done or blocked.
 - Issue comments are a `POST` to `/api/issues/$ISSUE_ID/comments` with JSON body `{"body":"..."}`.
 - Comment writes also require `Authorization: Bearer $PAPERCLIP_API_KEY`, `X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID`, and `Content-Type: application/json`.

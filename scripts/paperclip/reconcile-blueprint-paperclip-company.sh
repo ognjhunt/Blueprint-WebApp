@@ -123,6 +123,7 @@ Hard rules:
 - Never look for unassigned work.
 - Never self-assign from backlog.
 - For mutating calls, include Authorization: Bearer $PAPERCLIP_API_KEY and X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID.
+- For checkout, release, status updates, and comments, prefer `npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue ...` so the CLI serializes JSON safely and forwards PAPERCLIP_RUN_ID automatically.
 - Issue checkout is a POST to /issues/$ISSUE_ID/checkout with JSON body {"agentId":"$PAPERCLIP_AGENT_ID","expectedStatuses":["todo","backlog","blocked"]}. Do not fake checkout by PATCHing /issues/$ISSUE_ID with checkoutRunId.
 - If an assigned issue is already in_progress and assigned to you, never call /issues/$ISSUE_ID/checkout again for that run. Read /issues/$ISSUE_ID and /issues/$ISSUE_ID/heartbeat-context, continue the work, and leave the final status patch only when the work is actually done or blocked.
 - A checkout request that omits agentId, expectedStatuses, or Content-Type: application/json will 400. Do not shorten or improvise the checkout command.
@@ -153,12 +154,12 @@ Start with:
    bash -lc 'curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/issues/{{taskId}}/comments/{{commentId}}"'
 4. Checkout rules:
    - If the current issue status is todo, backlog, or blocked, use the exact checkout command:
-     bash -lc 'curl -fsS -X POST "{{paperclipApiUrl}}/issues/{{taskId}}/checkout" -H "Authorization: Bearer $PAPERCLIP_API_KEY" -H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID" -H "Content-Type: application/json" -d "{\"agentId\":\"$PAPERCLIP_AGENT_ID\",\"expectedStatuses\":[\"todo\",\"backlog\",\"blocked\"]}"'
+     bash -lc 'npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue checkout "{{taskId}}" --agent-id "$PAPERCLIP_AGENT_ID"'
    - If the current issue is already in_progress and assigned to you, never call /issues/{{taskId}}/checkout again for that run. Read /heartbeat-context and continue the work.
 
 After doing the work:
 - Mark done with a proof-bearing comment:
-  bash -lc 'curl -fsS -X PATCH "{{paperclipApiUrl}}/issues/{{taskId}}" -H "Authorization: Bearer $PAPERCLIP_API_KEY" -H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID" -H "Content-Type: application/json" -d "{\"status\":\"done\",\"comment\":\"What changed, how you verified it, and any remaining risk.\"}"'
+  bash -lc 'npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue update "{{taskId}}" --status done --comment "What changed, how you verified it, and any remaining risk."'
 - If blocked, patch the issue to status blocked with a blocker comment before exiting.
 {{/taskId}}
 
@@ -181,7 +182,7 @@ Heartbeat wake:
      bash -lc 'curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/issues/$ISSUE_ID/heartbeat-context"'
 6. Checkout rules:
    - If the selected issue status is todo, backlog, or blocked, copy this exact checkout command and only replace ISSUE_ID:
-     bash -lc 'ISSUE_ID="$ISSUE_ID"; curl -fsS -X POST "{{paperclipApiUrl}}/issues/$ISSUE_ID/checkout" -H "Authorization: Bearer $PAPERCLIP_API_KEY" -H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID" -H "Content-Type: application/json" --data "{\"agentId\":\"$PAPERCLIP_AGENT_ID\",\"expectedStatuses\":[\"todo\",\"backlog\",\"blocked\"]}"'
+     bash -lc 'ISSUE_ID="$ISSUE_ID"; npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue checkout "$ISSUE_ID" --agent-id "$PAPERCLIP_AGENT_ID"'
    - If the selected issue is already in_progress and assigned to you, do not PATCH it just to simulate checkout. Read /heartbeat-context and continue the work.
 7. If step 2 fails with 401/403, run auth-regression fallback instead of retrying:
    - Read-only issue listing:
@@ -200,6 +201,7 @@ const HERMES_SAFETY_BUNDLE_SECTION = `
 - Do not inspect unassigned backlog as part of heartbeat work discovery.
 - Do not self-assign from backlog.
 - For mutating Paperclip calls, include both \`Authorization: Bearer $PAPERCLIP_API_KEY\` and \`X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID\`.
+- For checkout, release, status updates, and comments, prefer \`npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue ...\` so the CLI serializes JSON safely and forwards \`PAPERCLIP_RUN_ID\` automatically.
 - If an assigned issue is already \`in_progress\` and assigned to you, never call \`/issues/$ISSUE_ID/checkout\` again for that run. Read \`/issues/$ISSUE_ID\` and \`/issues/$ISSUE_ID/heartbeat-context\`, continue the work, and leave the final status patch only when the work is actually done or blocked.
 - Issue comments are a \`POST\` to \`/issues/$ISSUE_ID/comments\` with JSON body \`{"body":"..."}\`.
 - Comment writes also require \`Authorization: Bearer $PAPERCLIP_API_KEY\`, \`X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID\`, and \`Content-Type: application/json\`.
