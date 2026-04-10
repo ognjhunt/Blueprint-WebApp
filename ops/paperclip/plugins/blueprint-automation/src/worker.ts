@@ -98,9 +98,11 @@ import {
   buildClaudeFallbackAdapterConfig,
   buildCodexFallbackAdapterConfig,
   buildQuotaFallbackRetryRecord,
+  FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY,
   getLocalAdapterWorkspaceKey,
   getWorkspaceAdapterCooldownKey,
   isQuotaOrRateLimitFailure,
+  isProviderCreditFailure,
   isProcessLossFailure,
   isProviderTimeoutFailure,
   resolveQuotaCooldownUntil,
@@ -6367,11 +6369,25 @@ async function handleAgentRunFailureQuotaFallback(
   }
 
   const desired = buildDesiredAdapterDescriptor(agent);
-  const fallback = buildQuotaFallbackDescriptor(
-    agent.adapterType,
-    asRecord(agent.adapterConfig),
-    desired,
-  );
+  const providerCreditFailure =
+    agent.adapterType === "hermes_local" && isProviderCreditFailure(payload.error);
+  const fallback = providerCreditFailure
+    ? {
+      adapterType: "codex_local" as const,
+      reason: "quota_fallback_to_codex_local_after_provider_credit_failure",
+      adapterConfig: {
+        ...buildCodexFallbackAdapterConfig(asRecord(desired?.adapterConfig) ?? asRecord(agent.adapterConfig), {
+          model: "gpt-5.4-mini",
+          modelReasoningEffort: "medium",
+        }),
+        [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: "hermes_local",
+      },
+    }
+    : buildQuotaFallbackDescriptor(
+      agent.adapterType,
+      asRecord(agent.adapterConfig),
+      desired,
+    );
   if (!fallback) {
     await markAttempt(
       buildQuotaFallbackRetryRecord({

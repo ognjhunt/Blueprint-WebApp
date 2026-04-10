@@ -16,6 +16,7 @@ import {
   isFreshSessionRetryableFailure,
   isIncompatibleHermesFreeRoutingModel,
   isProcessLossFailure,
+  isProviderCreditFailure,
   isProviderTimeoutFailure,
   isQuotaOrRateLimitFailure,
   parseQuotaResetAt,
@@ -42,7 +43,14 @@ describe("quota fallback helpers", () => {
     expect(isQuotaOrRateLimitFailure("Claude run failed: subtype=success: You've hit your limit · resets 8pm (UTC)")).toBe(true);
     expect(isQuotaOrRateLimitFailure("429 RESOURCE_EXHAUSTED: You exceeded your current quota and billing details.")).toBe(true);
     expect(isQuotaOrRateLimitFailure("rate limit exceeded")).toBe(true);
+    expect(isQuotaOrRateLimitFailure("HTTP 402: Insufficient credits. Add more using https://openrouter.ai/settings/credits")).toBe(true);
     expect(isQuotaOrRateLimitFailure("adapter exited with code 1")).toBe(false);
+  });
+
+  it("detects provider credit and spend-limit failures", () => {
+    expect(isProviderCreditFailure("HTTP 402: Insufficient credits. Add more using https://openrouter.ai/settings/credits")).toBe(true);
+    expect(isProviderCreditFailure("API key USD spend limit exceeded.")).toBe(true);
+    expect(isProviderCreditFailure("HTTP 429: Rate limit exceeded: free-models-per-min.")).toBe(false);
   });
 
   it("extracts terminal logical-failure text from succeeded-run logs", () => {

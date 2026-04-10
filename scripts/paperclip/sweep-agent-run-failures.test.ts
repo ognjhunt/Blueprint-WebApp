@@ -135,6 +135,26 @@ describe("sweep agent run failures", () => {
     expect(classifyFailureSignature({ run, logText }).key).toBe("provider_quota_or_rate_limit_marked_succeeded");
   });
 
+  it("treats succeeded 402 provider-credit failures as the same runtime-capacity family", () => {
+    const signature = classifyFailureSignature({
+      run: {
+        id: "run-succeeded-402",
+        agentId: "agent-402",
+        companyId: "company-1",
+        status: "succeeded",
+      },
+      logText: `
+        [hermes] Starting Hermes Agent (model=z-ai/glm-5.1, provider=openrouter [adapterConfig], timeout=1800s)
+        Error: HTTP 402: Insufficient credits. Add more using https://openrouter.ai/settings/credits
+        Non-retryable client error (HTTP 402). Aborting.
+        [hermes] Exit code: 0, timed out: false
+      `,
+    });
+
+    expect(signature.key).toBe("provider_quota_or_rate_limit_marked_succeeded");
+    expect(signature.category).toBe("runtime_capacity");
+  });
+
   it("classifies succeeded runs with dead model ids as provider/model contract failures", () => {
     const signature = classifyFailureSignature({
       run: {

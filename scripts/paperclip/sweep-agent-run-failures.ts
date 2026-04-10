@@ -177,8 +177,12 @@ export function isLogicalFailureSucceededRun(input: {
     rawText.includes("api call failed after")
     || rawText.includes("rate limit persisted after")
     || rawText.includes("final error: http 429")
+    || rawText.includes("final error: http 402")
     || rawText.includes("final error: http 404")
+    || rawText.includes("non-retryable client error (http 402). aborting")
     || rawText.includes("non-retryable client error (http 404). aborting")
+    || rawText.includes("insufficient credits")
+    || rawText.includes("spend limit exceeded")
     || rawText.includes("no endpoints found for")
   );
 }
@@ -217,6 +221,9 @@ export function classifyFailureSignature(input: {
       || rawText.includes("rate limit persisted after")
       || rawText.includes("api call failed after")
       || rawText.includes("final error: http 429")
+      || rawText.includes("final error: http 402")
+      || rawText.includes("insufficient credits")
+      || rawText.includes("spend limit exceeded")
     )
   ) {
     return {
