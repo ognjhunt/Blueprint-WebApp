@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { classifyFailureSignature, clusterRunFailures, resolveSinceTimestamp } from "./sweep-agent-run-failures.ts";
+import {
+  classifyFailureSignature,
+  clusterRunFailures,
+  isLogicalFailureSucceededRun,
+  resolveSinceTimestamp,
+} from "./sweep-agent-run-failures.ts";
 
 describe("sweep agent run failures", () => {
   it("classifies the invalid jq /api/runs failure as a shared prompt guardrail gap", () => {
@@ -109,6 +114,45 @@ describe("sweep agent run failures", () => {
 
     expect(timeoutSignature.key).toBe("provider_or_model_timeout");
     expect(processLossSignature.key).toBe("process_loss_or_service_restart");
+  });
+
+  it("detects succeeded runs that only contain terminal provider failures", () => {
+    const run = {
+      id: "run-succeeded-rate-limit",
+      agentId: "agent-rate-limit",
+      companyId: "company-1",
+      status: "succeeded",
+    };
+    const logText = `
+      [hermes] Starting Hermes Agent (1/11, model=arcee-ai/trinity-large-preview:free, provider=openrouter [adapterConfig], timeout=1800s)
+      Max retries (3) exhausted - trying fallback...
+      Final error: HTTP 429: Rate limit exceeded: free-models-per-min.
+      API call failed after 3 retries: HTTP 429: Rate limit exceeded: free-models-per-min.
+      [hermes] Exit code: 0, timed out: false
+    `;
+
+    expect(isLogicalFailureSucceededRun({ run, logText })).toBe(true);
+    expect(classifyFailureSignature({ run, logText }).key).toBe("provider_quota_or_rate_limit_marked_succeeded");
+  });
+
+  it("classifies succeeded runs with dead model ids as provider/model contract failures", () => {
+    const signature = classifyFailureSignature({
+      run: {
+        id: "run-succeeded-404",
+        agentId: "agent-404",
+        companyId: "company-1",
+        status: "succeeded",
+      },
+      logText: `
+        [hermes] Starting Hermes Agent (1/11, model=stepfun/step-3.5-flash:free, provider=openrouter [adapterConfig], timeout=1800s)
+        Error: HTTP 404: No endpoints found for stepfun/step-3.5-flash:free.
+        Non-retryable client error (HTTP 404). Aborting.
+        [hermes] Exit code: 0, timed out: false
+      `,
+    });
+
+    expect(signature.key).toBe("provider_model_contract_failure_marked_succeeded");
+    expect(signature.category).toBe("route_contract");
   });
 
   it("resolves --since-hours into an ISO cutoff", () => {

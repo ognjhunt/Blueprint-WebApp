@@ -155,6 +155,34 @@ function compactSnippet(value: string | undefined, maxLength = 220) {
   return `${normalized.slice(0, maxLength - 1)}…`;
 }
 
+function logicalFailureText(run: HeartbeatRunRecord, logText?: string, bestText?: string) {
+  return normalizeWhitespace(
+    [bestText ?? "", logText ?? "", asString(run.error), asString(run.stderrExcerpt), asString(run.stdoutExcerpt)]
+      .filter(Boolean)
+      .join("\n"),
+  );
+}
+
+export function isLogicalFailureSucceededRun(input: {
+  run: HeartbeatRunRecord;
+  logText?: string;
+  bestText?: string;
+}) {
+  const status = normalizeWhitespace(input.run.status ?? "").toLowerCase();
+  if (status !== "succeeded") return false;
+  const rawText = logicalFailureText(input.run, input.logText, input.bestText).toLowerCase();
+  if (rawText.length === 0) return false;
+
+  return (
+    rawText.includes("api call failed after")
+    || rawText.includes("rate limit persisted after")
+    || rawText.includes("final error: http 429")
+    || rawText.includes("final error: http 404")
+    || rawText.includes("non-retryable client error (http 404). aborting")
+    || rawText.includes("no endpoints found for")
+  );
+}
+
 function bestRunText(run: HeartbeatRunRecord, logText?: string) {
   const resultJson = asRecord(run.resultJson);
   return [
@@ -177,11 +205,45 @@ export function classifyFailureSignature(input: {
   const { run } = input;
   const context = asRecord(run.contextSnapshot);
   const issueBound = Boolean(asString(context?.issueId));
-  const sourceText = [input.bestText ?? "", input.logText ?? "", asString(run.error), asString(run.stderrExcerpt), asString(run.stdoutExcerpt)]
-    .filter(Boolean)
-    .join("\n");
+  const sourceText = logicalFailureText(run, input.logText, input.bestText);
   const rawText = normalizeWhitespace(sourceText).toLowerCase();
   const text = normalizeForSignature(sourceText);
+  const logicalSucceededFailure = isLogicalFailureSucceededRun(input);
+
+  if (
+    logicalSucceededFailure
+    && (
+      rawText.includes("rate limit exceeded")
+      || rawText.includes("rate limit persisted after")
+      || rawText.includes("api call failed after")
+      || rawText.includes("final error: http 429")
+    )
+  ) {
+    return {
+      key: "provider_quota_or_rate_limit_marked_succeeded",
+      title: "Provider quota/rate-limit failure was recorded as succeeded",
+      category: "runtime_capacity" as const,
+      fixLayer: "Hermes ladder fallback and run-result mapping",
+      matchedBy: "429/rate-limit output in a succeeded run",
+    };
+  }
+
+  if (
+    logicalSucceededFailure
+    && (
+      rawText.includes("no endpoints found for")
+      || rawText.includes("non-retryable client error (http 404). aborting")
+      || rawText.includes("final error: http 404")
+    )
+  ) {
+    return {
+      key: "provider_model_contract_failure_marked_succeeded",
+      title: "Invalid provider/model config was recorded as succeeded",
+      category: "route_contract" as const,
+      fixLayer: "shared Hermes model ladder sanitization and run-result mapping",
+      matchedBy: "404/no-endpoints output in a succeeded run",
+    };
+  }
 
   if (
     (rawText.includes("jq: error") || rawText.includes(" is not defined at <top-level>") || rawText.includes("[exit 3]"))
@@ -495,7 +557,7 @@ function buildMarkdownReport(input: {
   lines.push("# Agent Run Failure Sweep");
   lines.push("");
   lines.push(`- Inspected runs: ${input.inspectedRuns}`);
-  lines.push(`- Candidate failed/stalled runs: ${input.candidateRuns}`);
+  lines.push(`- Candidate failed/stalled/logical-failure runs: ${input.candidateRuns}`);
   lines.push(`- Failure families: ${input.clusters.length}`);
   lines.push(`- Sweep limit: ${input.limit}`);
   lines.push(`- Stalled threshold: ${input.stalledMinutes} minutes`);
@@ -505,7 +567,7 @@ function buildMarkdownReport(input: {
   lines.push("");
 
   if (input.clusters.length === 0) {
-    lines.push("No failed or stalled runs matched the sweep window.");
+    lines.push("No failed, stalled, or logical-failure runs matched the sweep window.");
     return lines.join("\n");
   }
 
@@ -584,12 +646,16 @@ async function main() {
   const candidates: CandidateRun[] = [];
   for (const run of filteredRuns) {
     const candidate = isCandidateRun(run, stalledMinutes);
-    if (!candidate.matches) continue;
+    const status = normalizeWhitespace(run.status ?? "").toLowerCase();
+    const shouldInspectSucceededRun = status === "succeeded";
+    if (!candidate.matches && !shouldInspectSucceededRun) continue;
     const [issues, logText] = await Promise.all([
       fetchRunIssues(run.id),
       fetchRunLog(run.id, maxLogBytes),
     ]);
     const bestText = bestRunText(run, logText);
+    const logicalSucceededFailure = isLogicalFailureSucceededRun({ run, logText, bestText });
+    if (!candidate.matches && !logicalSucceededFailure) continue;
     candidates.push({
       run,
       agent: agentsById.get(run.agentId),
@@ -597,7 +663,7 @@ async function main() {
       logText,
       bestText,
       signature: classifyFailureSignature({ run, logText, bestText }),
-      stalled: candidate.stalled,
+      stalled: candidate.stalled && !logicalSucceededFailure,
     });
   }
 

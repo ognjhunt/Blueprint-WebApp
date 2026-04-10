@@ -179,6 +179,28 @@ describe("quota fallback helpers", () => {
     expect(config.timeoutSec).toBe(1800);
   });
 
+  it("rejects removed stepfun free-model ids even when env drift reintroduces them", () => {
+    vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL", "stepfun/step-3.5-flash:free");
+    vi.stubEnv(
+      "BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS",
+      [
+        "stepfun/step-3.5-flash:free",
+        "arcee-ai/trinity-large-preview:free",
+        "openrouter/free",
+      ].join(","),
+    );
+
+    expect(isDisallowedHermesFallbackModel("stepfun/step-3.5-flash:free")).toBe(true);
+    const resolved = resolveHermesFallbackModels({ cwd: "/tmp/project" });
+    expect(resolved).not.toContain("stepfun/step-3.5-flash:free");
+    const config = buildHermesFallbackAdapterConfig({
+      cwd: "/tmp/project",
+      model: "stepfun/step-3.5-flash:free",
+    });
+    expect(config.model).toBe(DEFAULT_HERMES_FALLBACK_MODEL);
+    expect(config[HERMES_MODEL_LADDER_CONFIG_KEY]).not.toContain("stepfun/step-3.5-flash:free");
+  });
+
   it("resolves a deterministic hermes free-model ladder", () => {
     expect(
       resolveHermesFallbackModels({
@@ -196,7 +218,7 @@ describe("quota fallback helpers", () => {
         [HERMES_MODEL_LADDER_CONFIG_KEY]: [
           "arcee-ai/trinity-large-preview:free",
           "openrouter/free",
-          "stepfun/step-3.5-flash:free",
+          "nvidia/nemotron-3-super:free",
         ],
       }),
     ).toEqual({

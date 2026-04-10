@@ -69,7 +69,7 @@ const fallbackCodexReasoningEffort =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT ?? "medium";
 const DEFAULT_HERMES_MODEL = "arcee-ai/trinity-large-preview:free";
 const DISALLOWED_HERMES_MODEL_RE =
-  /^(?:anthropic\/)?claude(?:[-/].*)?$/i;
+  /^(?:(?:anthropic\/)?claude(?:[-/].*)?|(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
 const hermesPrimaryModel = sanitizeHermesModel(
   process.env.BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL,
   DEFAULT_HERMES_MODEL,

@@ -38,7 +38,6 @@ export const DEFAULT_HERMES_FALLBACK_MODEL = "arcee-ai/trinity-large-preview:fre
 export const DEFAULT_HERMES_FALLBACK_MODELS = [
   "arcee-ai/trinity-large-preview:free",
   "openrouter/free",
-  "stepfun/step-3.5-flash:free",
   "nvidia/nemotron-3-super:free",
   "openai/gpt-oss-120b:free",
   "arcee-ai/trinity-large-thinking",
@@ -73,7 +72,7 @@ const PROVIDER_TIMEOUT_RE =
 const PROCESS_LOSS_RE =
   /(?:process lost --|child pid .* no longer running|server may have restarted)/i;
 const DISALLOWED_HERMES_FALLBACK_MODEL_RE =
-  /^(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?$/i;
+  /^(?:(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
 const MONTH_INDEX: Record<string, number> = {
   jan: 0,
   feb: 1,
