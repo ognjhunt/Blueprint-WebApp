@@ -76,7 +76,7 @@ const PROCESS_LOSS_RE =
 const DISALLOWED_HERMES_FALLBACK_MODEL_RE =
   /^(?:openrouter\/free|(?:openrouter\/)?nvidia\/nemotron-3-super(?::free)?|(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
 const OPENROUTER_SHARED_FREE_POOL_LIMIT_RE =
-  /free-models-per-(?:min|day(?:-high-balance)?)/i;
+  /(?:free-models-per-(?:min|day(?:-high-balance)?)|limit_rpm\/[^\s]+|high demand for [^.\n]+:free on openrouter|limited to \d+ requests per minute)/i;
 const TERMINAL_LOGICAL_FAILURE_PATTERNS = [
   /api call failed after \d+ retries:\s*(http \d+:[^\n]+)/i,
   /final error:\s*(http \d+:[^\n]+)/i,

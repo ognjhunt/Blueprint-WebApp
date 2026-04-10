@@ -340,6 +340,11 @@ describe("quota fallback helpers", () => {
       isSharedOpenRouterFreePoolRateLimitFailure("HTTP 429: Rate limit exceeded: free-models-per-day-high-balance."),
     ).toBe(true);
     expect(
+      isSharedOpenRouterFreePoolRateLimitFailure(
+        "HTTP 429: Rate limit exceeded: limit_rpm/qwen/qwen3-coder-480b-a35b-07-25/a9bbd882. High demand for qwen/qwen3-coder:free on OpenRouter - limited to 8 requests per minute. Please retry shortly.",
+      ),
+    ).toBe(true);
+    expect(
       isSharedOpenRouterFreePoolRateLimitFailure("HTTP 429: Too Many Requests."),
     ).toBe(false);
   });
@@ -358,6 +363,33 @@ describe("quota fallback helpers", () => {
           cwd: "/tmp/project",
         },
         failureReason: "HTTP 429: Rate limit exceeded: free-models-per-min.",
+      }),
+    ).toEqual({
+      adapterType: "codex_local",
+      reason: "quota_fallback_to_codex_local_after_shared_openrouter_free_pool_limit",
+      adapterConfig: {
+        cwd: "/tmp/project",
+        model: "gpt-5.4-mini",
+        modelReasoningEffort: "medium",
+        dangerouslyBypassApprovalsAndSandbox: true,
+        [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: "hermes_local",
+      },
+    });
+
+    expect(
+      buildLocalQuotaFallbackDescriptor({
+        currentAdapterType: "hermes_local",
+        currentAdapterConfig: {
+          cwd: "/tmp/project",
+          model: "qwen/qwen3-coder:free",
+          [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
+        },
+        desiredAdapterType: "hermes_local",
+        desiredAdapterConfig: {
+          cwd: "/tmp/project",
+        },
+        failureReason:
+          "HTTP 429: Rate limit exceeded: limit_rpm/qwen/qwen3-coder-480b-a35b-07-25/a9bbd882. High demand for qwen/qwen3-coder:free on OpenRouter - limited to 8 requests per minute. Please retry shortly.",
       }),
     ).toEqual({
       adapterType: "codex_local",
