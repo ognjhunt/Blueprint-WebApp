@@ -407,6 +407,24 @@ export function clusterRunFailures(runs: CandidateRun[]) {
   });
 }
 
+export function resolveSinceTimestamp(input: {
+  since?: string;
+  sinceHours?: number | null;
+  now?: Date;
+}) {
+  if (input.sinceHours && Number.isFinite(input.sinceHours) && input.sinceHours > 0) {
+    const now = input.now ?? new Date();
+    return new Date(now.getTime() - input.sinceHours * 60 * 60 * 1000).toISOString();
+  }
+  const explicit = asString(input.since);
+  if (!explicit) return null;
+  const parsed = Date.parse(explicit);
+  if (Number.isNaN(parsed)) {
+    throw new Error(`Invalid --since value: ${explicit}`);
+  }
+  return new Date(parsed).toISOString();
+}
+
 function printHelp() {
   console.log(`Usage: npm exec tsx -- scripts/paperclip/sweep-agent-run-failures.ts [options]
 
@@ -417,6 +435,8 @@ Options:
   --agent-id <id>           Limit the sweep to one agent.
   --limit <n>               Max runs to inspect. Default: 250.
   --stalled-minutes <n>     Treat running/queued runs older than this as stalled. Default: 20.
+  --since <iso8601>         Only inspect runs created at or after this timestamp.
+  --since-hours <n>         Only inspect runs from the last N hours.
   --max-log-bytes <n>       Max log bytes to read per candidate run. Default: 32768.
   --markdown                Output markdown report. Default.
   --json                    Output JSON.
@@ -469,6 +489,7 @@ function buildMarkdownReport(input: {
   clusters: Cluster[];
   limit: number;
   stalledMinutes: number;
+  since?: string | null;
 }) {
   const lines: string[] = [];
   lines.push("# Agent Run Failure Sweep");
@@ -478,6 +499,9 @@ function buildMarkdownReport(input: {
   lines.push(`- Failure families: ${input.clusters.length}`);
   lines.push(`- Sweep limit: ${input.limit}`);
   lines.push(`- Stalled threshold: ${input.stalledMinutes} minutes`);
+  if (input.since) {
+    lines.push(`- Since: ${input.since}`);
+  }
   lines.push("");
 
   if (input.clusters.length === 0) {
@@ -528,10 +552,19 @@ async function main() {
 
   const limit = Math.max(1, Math.min(1000, Number.parseInt(args.get("limit") ?? "250", 10) || 250));
   const stalledMinutes = Math.max(1, Number.parseInt(args.get("stalled-minutes") ?? "20", 10) || 20);
+  const sinceHoursRaw = args.get("since-hours");
+  const sinceHours =
+    sinceHoursRaw && Number.isFinite(Number.parseFloat(sinceHoursRaw))
+      ? Number.parseFloat(sinceHoursRaw)
+      : null;
   const maxLogBytes = Math.max(1024, Number.parseInt(args.get("max-log-bytes") ?? "32768", 10) || 32768);
   const agentId = args.get("agent-id");
   const json = args.get("json") === "true";
   const companyId = await resolveCompanyId(args.get("company-id"));
+  const since = resolveSinceTimestamp({
+    since: args.get("since"),
+    sinceHours,
+  });
 
   const [runs, agents] = await Promise.all([
     fetchJson<HeartbeatRunRecord[]>(
@@ -544,9 +577,12 @@ async function main() {
   const relevantRuns = (Array.isArray(runs) ? runs : [])
     .slice()
     .sort((left, right) => safeDateRank(right.createdAt) - safeDateRank(left.createdAt));
+  const filteredRuns = since
+    ? relevantRuns.filter((run) => safeDateRank(run.createdAt) >= safeDateRank(since))
+    : relevantRuns;
 
   const candidates: CandidateRun[] = [];
-  for (const run of relevantRuns) {
+  for (const run of filteredRuns) {
     const candidate = isCandidateRun(run, stalledMinutes);
     if (!candidate.matches) continue;
     const [issues, logText] = await Promise.all([
@@ -570,22 +606,24 @@ async function main() {
   if (json) {
     console.log(JSON.stringify({
       generatedAt: new Date().toISOString(),
-      companyId,
-      inspectedRuns: relevantRuns.length,
+        companyId,
+      inspectedRuns: filteredRuns.length,
       candidateRuns: candidates.length,
       limit,
       stalledMinutes,
+      since,
       clusters,
     }, null, 2));
     return;
   }
 
   console.log(buildMarkdownReport({
-    inspectedRuns: relevantRuns.length,
+    inspectedRuns: filteredRuns.length,
     candidateRuns: candidates.length,
     clusters,
     limit,
     stalledMinutes,
+    since,
   }));
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyFailureSignature, clusterRunFailures } from "./sweep-agent-run-failures.ts";
+import { classifyFailureSignature, clusterRunFailures, resolveSinceTimestamp } from "./sweep-agent-run-failures.ts";
 
 describe("sweep agent run failures", () => {
   it("classifies the invalid jq /api/runs failure as a shared prompt guardrail gap", () => {
@@ -109,5 +109,14 @@ describe("sweep agent run failures", () => {
 
     expect(timeoutSignature.key).toBe("provider_or_model_timeout");
     expect(processLossSignature.key).toBe("process_loss_or_service_restart");
+  });
+
+  it("resolves --since-hours into an ISO cutoff", () => {
+    expect(
+      resolveSinceTimestamp({
+        sinceHours: 6,
+        now: new Date("2026-04-10T12:00:00.000Z"),
+      }),
+    ).toBe("2026-04-10T06:00:00.000Z");
   });
 });
