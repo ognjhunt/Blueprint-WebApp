@@ -342,11 +342,12 @@ function hasSuffix(value) {
   return typeof value === "string" && /(?:-\d+| \d+)$/.test(value);
 }
 
+const AGENT_KEY_ALIASES = {
+  "docs-agent": ["documentation-agent"],
+};
+
 function pickCanonical(rows, exactKey) {
-  const aliasMap = {
-    "docs-agent": ["documentation-agent"],
-  };
-  const aliases = aliasMap[exactKey] ?? [];
+  const aliases = AGENT_KEY_ALIASES[exactKey] ?? [];
   const matches = rows.filter((row) => {
     const urlKey = typeof row.urlKey === "string" ? row.urlKey : "";
     return urlKey === exactKey
@@ -363,9 +364,13 @@ function pickCanonical(rows, exactKey) {
 }
 
 function pickMatching(rows, exactKey) {
+  const aliases = AGENT_KEY_ALIASES[exactKey] ?? [];
   return rows.filter((row) => {
     const urlKey = typeof row.urlKey === "string" ? row.urlKey : "";
-    return urlKey === exactKey || urlKey.startsWith(`${exactKey}-`);
+    return urlKey === exactKey
+      || aliases.includes(urlKey)
+      || urlKey.startsWith(`${exactKey}-`)
+      || aliases.some((alias) => urlKey.startsWith(`${alias}-`));
   });
 }
 
