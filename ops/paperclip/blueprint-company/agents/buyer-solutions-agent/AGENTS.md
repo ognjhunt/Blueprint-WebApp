@@ -47,6 +47,9 @@ Every buyer should feel like they have a dedicated account manager who knows the
 ## Paperclip Runtime Safety
 
 - Prefer `GET /agents/me/inbox-lite` for assignment checks.
+- Hermes-safe read fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain`
+- Hermes-safe issue-context fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --heartbeat-context --issue-id "$PAPERCLIP_TASK_ID" --plain`
+- If the safe fallback script fails, report that failure and stop. Do not invent ad hoc `/api/runs` probes or hand-written `jq` filters.
 - Do not use `curl | python`, `curl | node`, `curl | bash`, or any other pipe-to-interpreter pattern for localhost Paperclip reads.
 - Do not inspect unassigned backlog as part of heartbeat work discovery.
 - Do not self-assign from backlog.

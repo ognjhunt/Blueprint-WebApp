@@ -119,6 +119,9 @@ Hard rules:
 - Do not invent company-scoped issue detail routes like /companies/$PAPERCLIP_COMPANY_ID/issues/$ISSUE_ID. They do not exist.
 - In inbox results, the id field is the API issue id to use in /issues/:id routes. The identifier field (for example BLU-3621) is only the human label.
 - Prefer GET {{paperclipApiUrl}}/agents/me/inbox-lite for assignment checks.
+- Hermes-safe read fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain`
+- Hermes-safe issue-context fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --heartbeat-context --issue-id "$PAPERCLIP_TASK_ID" --plain`
+- If the safe fallback script fails, report that failure and stop. Do not invent ad hoc /api/runs probes or hand-written jq filters.
 - If PAPERCLIP_API_KEY is missing or an auth call returns 401/403, switch to auth-regression fallback immediately: use read-only company issue listing, summarize assigned open work, and exit without retries.
 - Never look for unassigned work.
 - Never self-assign from backlog.
@@ -196,6 +199,9 @@ const HERMES_SAFETY_BUNDLE_SECTION = `
 ## Paperclip Runtime Safety
 
 - Prefer \`GET /agents/me/inbox-lite\` for assignment checks.
+- Hermes-safe read fallback: \`npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain\`
+- Hermes-safe issue-context fallback: \`npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --heartbeat-context --issue-id "$PAPERCLIP_TASK_ID" --plain\`
+- If the safe fallback script fails, report that failure and stop. Do not invent ad hoc \`/api/runs\` probes or hand-written \`jq\` filters.
 - If \`/agents/me/inbox-lite\` returns \`401\` or \`403\`, switch to read-only \`GET /companies/$PAPERCLIP_COMPANY_ID/issues\`, filter by \`assigneeAgentId=$PAPERCLIP_AGENT_ID\`, summarize, and exit without retries.
 - Do not use \`curl | python\`, \`curl | node\`, \`curl | bash\`, or any other pipe-to-interpreter pattern for localhost Paperclip reads.
 - Do not inspect unassigned backlog as part of heartbeat work discovery.

@@ -59,8 +59,14 @@ while IFS= read -r agent_dir; do
     [ -f "${agent_dir}/${file_name}" ] || fail "${agent_slug} is missing ${file_name}"
   done
 
+  agents_file="${agent_dir}/AGENTS.md"
+  if grep -Fq "## Paperclip Runtime Safety" "$agents_file"; then
+    require_literal "$agents_file" 'npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain' "the shared Paperclip read fallback"
+    require_literal "$agents_file" 'npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --heartbeat-context --issue-id "$PAPERCLIP_TASK_ID" --plain' "the shared Paperclip issue-context fallback"
+    require_literal "$agents_file" 'Do not invent ad hoc `/api/runs` probes or hand-written `jq` filters.' "the no-ad-hoc-run-probe rule"
+  fi
+
   if [[ "$agent_slug" =~ ^(${strict_agents_regex})$ ]]; then
-    agents_file="${agent_dir}/AGENTS.md"
     soul_file="${agent_dir}/Soul.md"
     tools_file="${agent_dir}/Tools.md"
     heartbeat_file="${agent_dir}/Heartbeat.md"

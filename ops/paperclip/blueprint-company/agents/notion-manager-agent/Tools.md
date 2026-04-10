@@ -55,3 +55,5 @@
 - arbitrary workspace cleanup outside known Blueprint-managed surfaces
 - archive or move operations when the natural key is weak or contested
 - external search when local workspace evidence is already sufficient
+- recent Paperclip run history as a proxy for current Notion truth
+  If the Notion tool path is unavailable, block the issue instead of guessing from run logs.

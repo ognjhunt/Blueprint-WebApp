@@ -9,6 +9,8 @@ Blueprint now has three layers working together inside Paperclip:
    - safe queue fetch: `npm exec tsx -- scripts/paperclip/chief-of-staff-snapshot.ts --assigned-open --plain`
    - safe single-issue check: `npm exec tsx -- scripts/paperclip/chief-of-staff-snapshot.ts --issue-id "$PAPERCLIP_TASK_ID" --plain`
    - safe open-queue check: `npm exec tsx -- scripts/paperclip/chief-of-staff-snapshot.ts --open --limit 25 --plain`
+   - org-wide safe Paperclip read fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain`
+   - org-wide safe issue-context fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --heartbeat-context --issue-id "$PAPERCLIP_TASK_ID" --plain`
    - avoid `curl | python` and other pipe-to-interpreter localhost reads for Paperclip state
 3. A Blueprint-specific plugin at `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/plugins/blueprint-automation`.
 4. Bootstrap, configure, verify, and smoke scripts that provision the plugin, secret refs, and automation checks on a persistent trusted host.
@@ -88,6 +90,9 @@ It provides:
   - posts the founder Slack digest directly when an exec webhook is present
 - deterministic non-founder routing fallback at `npm exec tsx -- scripts/paperclip/chief-of-staff-issue-router.ts`
   - routes obvious Notion, city-launch, finance/support, security/procurement, and repo-drift issues without relying on Hermes narration quality
+- deterministic org-wide Paperclip read fallback at `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts`
+  - gives agents a read-only path for inbox-lite, direct issue reads, and heartbeat-context without hand-written `jq` filters
+  - the intended use is "fallback for Paperclip reads", not "invent new discovery passes"
 - event-driven Notion drift issue creation through the existing Notion tool wrappers
   - producer writes now create or resolve `notion-drift` Paperclip issues for unresolved duplicate-page drift and stale metadata drift
   - this is the intended replacement path while the old Notion sweep routines remain paused

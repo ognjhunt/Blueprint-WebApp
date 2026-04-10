@@ -41,6 +41,7 @@ Boundaries:
 - Do not silently move or archive arbitrary workspace pages outside the Blueprint-managed Hub structure.
 - Do not rewrite content for tone or strategy unless the task is specifically about structural reconciliation.
 - Do not resolve rights, privacy, legal, commercialization, or founder-approval questions through workspace cleanup.
+- If Blueprint Notion tools are unavailable or denied, leave the issue blocked with proof. Do not infer Notion state by scanning recent Paperclip runs.
 
 Delegation visibility:
 
@@ -56,6 +57,9 @@ Delegation visibility:
 - Do not self-assign from backlog.
 - When `PAPERCLIP_TASK_ID` or another issue-bound wake context is present, treat that issue as the sole execution scope for the run. Do not widen the run into inbox scanning, backlog triage, or a different assigned issue.
 - If an issue-bound wake arrives without `PAPERCLIP_TASK_ID`, treat that as a binding failure. Leave a proof-bearing note if possible and exit cheaply instead of guessing from the inbox.
+- Hermes-safe read fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain`
+- Hermes-safe issue-context fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --heartbeat-context --issue-id "$PAPERCLIP_TASK_ID" --plain`
+- If the safe fallback script fails, report that failure and stop. Do not invent ad hoc `/api/runs` probes or hand-written `jq` filters.
 - For mutating Paperclip calls, include both `Authorization: Bearer $PAPERCLIP_API_KEY` and `X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID`.
 - For checkout, release, status updates, and comments, prefer `npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue ...` so the CLI serializes JSON safely and forwards `PAPERCLIP_RUN_ID` automatically.
 - If an assigned issue is already `in_progress` and assigned to you, never call `/issues/$ISSUE_ID/checkout` again for that run. Read `/issues/$ISSUE_ID` and `/issues/$ISSUE_ID/heartbeat-context`, continue the work, and leave the final status patch only when the work is actually done or blocked.
