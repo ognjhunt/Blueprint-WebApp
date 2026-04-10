@@ -37,7 +37,8 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
@@ -53,6 +54,8 @@ agents:
             - investigate
             - review
             - verification-before-completion
+            - hermes-kb-workflow
+            - meeting-action-extractor
     budgetMonthlyCents: 4000
   notion-manager-agent:
     role: engineer
@@ -66,7 +69,8 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/notion-manager-agent/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/notion-manager-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
@@ -76,20 +80,22 @@ agents:
             - cross-repo-operations
             - writing-plans
             - verification-before-completion
+            - hermes-kb-workflow
     budgetMonthlyCents: 2200
   notion-reconciler:
     role: engineer
     icon: database
     capabilities: >-
-      Notion-facing Paperclip/Hermes pilot that reconciles Blueprint Hub metadata across Work Queue, Knowledge,
-      Skills, and Agents. Repairs clear relation drift, flags stale doctrine surfaces, mirrors each run into Blueprint
-      Agent Runs, and leaves ambiguous cleanup decisions visible instead of silently guessing.
+      Notion-facing Paperclip/Hermes pilot that reconciles Blueprint Hub metadata across Work Queue, Knowledge, Skills,
+      and Agents. Repairs clear relation drift, flags stale doctrine surfaces, mirrors each run into Blueprint Agent
+      Runs, and leaves ambiguous cleanup decisions visible instead of silently guessing.
     adapter:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/notion-reconciler/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/notion-reconciler/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
@@ -99,6 +105,7 @@ agents:
             - cross-repo-operations
             - writing-plans
             - verification-before-completion
+            - hermes-kb-workflow
     budgetMonthlyCents: 2200
   blueprint-cto:
     role: cto
@@ -277,7 +284,8 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapturePipeline
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/pipeline-ci-watch/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/pipeline-ci-watch/AGENTS.md
         timeoutSec: 900
         paperclipSkillSync:
           desiredSkills:
@@ -366,7 +374,8 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapture
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/capture-ci-watch/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/capture-ci-watch/AGENTS.md
         timeoutSec: 900
         paperclipSkillSync:
           desiredSkills:
@@ -397,6 +406,8 @@ agents:
             - find-skills
             - analytics-tracking
             - writing-plans
+            - hermes-kb-workflow
+            - meeting-action-extractor
     budgetMonthlyCents: 3000
   intake-agent:
     role: engineer
@@ -476,8 +487,8 @@ agents:
     icon: trending-up
     capabilities: >-
       Coordinates buyer demand, capturer supply, conversion, and retention. Sets experiment priorities using ICE
-      scoring. Synthesizes analytics plus supply-side and demand-side intelligence into growth strategy. Read skill
-      file at ops/paperclip/skills/growth-lead.md before every routine.
+      scoring. Synthesizes analytics plus supply-side and demand-side intelligence into growth strategy. Read skill file
+      at ops/paperclip/skills/growth-lead.md before every routine.
     adapter:
       type: hermes_local
       config:
@@ -498,6 +509,8 @@ agents:
             - exact-site-messaging
             - exact-site-cro-research
             - writing-plans
+            - hermes-kb-workflow
+            - meeting-action-extractor
     budgetMonthlyCents: 3000
   conversion-agent:
     role: engineer
@@ -556,6 +569,8 @@ agents:
             - analytics-tracking
             - investigate
             - writing-plans
+            - product-marketing-context
+            - growth-experiment-engine
     budgetMonthlyCents: 2000
   investor-relations-agent:
     role: engineer
@@ -569,7 +584,8 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/investor-relations-agent/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/investor-relations-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
@@ -580,6 +596,8 @@ agents:
             - exact-site-messaging
             - writing-plans
             - retro
+            - truthful-quality-gate
+            - humanizer
     budgetMonthlyCents: 2000
   community-updates-agent:
     role: engineer
@@ -594,7 +612,8 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/community-updates-agent/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/community-updates-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
@@ -604,6 +623,8 @@ agents:
             - product-marketing-context
             - exact-site-messaging
             - retro
+            - truthful-quality-gate
+            - humanizer
     budgetMonthlyCents: 2000
   metrics-reporter:
     role: engineer
@@ -617,7 +638,8 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/metrics-reporter/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/metrics-reporter/AGENTS.md
         timeoutSec: 1200
         paperclipSkillSync:
           desiredSkills:
@@ -641,7 +663,8 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/workspace-digest-publisher/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/workspace-digest-publisher/AGENTS.md
         timeoutSec: 1500
         paperclipSkillSync:
           desiredSkills:
@@ -665,7 +688,8 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/market-intel-agent/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/market-intel-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
@@ -676,6 +700,7 @@ agents:
             - exact-site-jtbd-research
             - exact-site-positioning
             - writing-plans
+            - hermes-kb-workflow
     budgetMonthlyCents: 2000
   supply-intel-agent:
     role: engineer
@@ -690,7 +715,8 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/supply-intel-agent/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/supply-intel-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
@@ -701,6 +727,8 @@ agents:
             - exact-site-jtbd-research
             - exact-site-positioning
             - writing-plans
+            - hermes-kb-workflow
+            - supply-marketplace-research
     budgetMonthlyCents: 2000
   capturer-growth-agent:
     role: engineer
@@ -714,7 +742,8 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/capturer-growth-agent/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/capturer-growth-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
@@ -724,6 +753,7 @@ agents:
             - product-marketing-context
             - analytics-tracking
             - writing-plans
+            - capturer-growth-operations
     budgetMonthlyCents: 2500
   city-launch-agent:
     role: engineer
@@ -731,14 +761,15 @@ agents:
     capabilities: >-
       Maintains city-specific launch plans for Blueprint's capturer marketplace using the generic playbook plus
       supply-intel findings. Starts with Austin and San Francisco. Read skill file at
-      ops/paperclip/skills/city-launch-agent.md and steering file at
-      ops/paperclip/programs/city-launch-agent-program.md before every routine.
+      ops/paperclip/skills/city-launch-agent.md and steering file at ops/paperclip/programs/city-launch-agent-program.md
+      before every routine.
     adapter:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/city-launch-agent/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/city-launch-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
@@ -747,6 +778,7 @@ agents:
             - find-skills
             - product-marketing-context
             - analytics-tracking
+            - city-launch-operations
     budgetMonthlyCents: 2500
   demand-intel-agent:
     role: engineer
@@ -761,7 +793,8 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/demand-intel-agent/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/demand-intel-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
@@ -772,6 +805,8 @@ agents:
             - exact-site-jtbd-research
             - exact-site-positioning
             - writing-plans
+            - hermes-kb-workflow
+            - robot-team-demand-research
     budgetMonthlyCents: 2000
   robot-team-growth-agent:
     role: engineer
@@ -786,7 +821,8 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/robot-team-growth-agent/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/robot-team-growth-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
@@ -807,15 +843,15 @@ agents:
     icon: handshake
     capabilities: >-
       Maintains Blueprint's optional site-operator lane for access, rights/privacy boundaries, and commercialization
-      planning without making it universal. Read skill file at
-      ops/paperclip/skills/site-operator-partnership-agent.md and steering file at
-      ops/paperclip/programs/site-operator-partnership-agent-program.md before every routine.
+      planning without making it universal. Read skill file at ops/paperclip/skills/site-operator-partnership-agent.md
+      and steering file at ops/paperclip/programs/site-operator-partnership-agent-program.md before every routine.
     adapter:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/site-operator-partnership-agent/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/site-operator-partnership-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
@@ -824,13 +860,15 @@ agents:
             - find-skills
             - product-marketing-context
             - writing-plans
+            - site-operator-partnership-operations
     budgetMonthlyCents: 2000
   beta-launch-commander:
     role: engineer
     icon: rocket
     capabilities: >-
       Cross-repo release orchestrator for Blueprint beta. Runs preflight checks across Capture, Pipeline, and WebApp.
-      Produces go/no-go recommendations with evidence. Coordinates freeze, rollback, and incident response during releases.
+      Produces go/no-go recommendations with evidence. Coordinates freeze, rollback, and incident response during
+      releases.
     adapter:
       type: codex_local
       config:
@@ -861,7 +899,8 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/buyer-solutions-agent/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/buyer-solutions-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
@@ -871,6 +910,10 @@ agents:
             - product-marketing-context
             - agent-browser
             - writing-plans
+            - hermes-kb-workflow
+            - webapp-repo-operations
+            - truthful-quality-gate
+            - buyer-package-framing
     budgetMonthlyCents: 3000
   solutions-engineering-agent:
     role: engineer
@@ -886,7 +929,8 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/solutions-engineering-agent/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/solutions-engineering-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
@@ -900,6 +944,9 @@ agents:
             - review
             - writing-plans
             - verification-before-completion
+            - hermes-kb-workflow
+            - webapp-repo-operations
+            - buyer-package-framing
     budgetMonthlyCents: 2600
   rights-provenance-agent:
     role: engineer
@@ -924,15 +971,16 @@ agents:
     icon: lock
     capabilities: >-
       Drafts Blueprint's buyer-facing security, architecture, data-handling, and procurement responses from real repo
-      and system evidence. Keeps enterprise review work moving without making legal, compliance, or certification
-      claims Blueprint cannot support. Read skill file at ops/paperclip/skills/security-procurement-agent.md and
-      steering file at ops/paperclip/programs/security-procurement-agent-program.md before every routine.
+      and system evidence. Keeps enterprise review work moving without making legal, compliance, or certification claims
+      Blueprint cannot support. Read skill file at ops/paperclip/skills/security-procurement-agent.md and steering file
+      at ops/paperclip/programs/security-procurement-agent-program.md before every routine.
     adapter:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/security-procurement-agent/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/security-procurement-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
@@ -948,14 +996,15 @@ agents:
     icon: heart
     capabilities: >-
       Owns capturer activation and retention. Guides approved capturers through first capture, translates QA feedback
-      into actionable recapture instructions, monitors activity patterns, and identifies systemic platform issues
-      from individual capturer struggles.
+      into actionable recapture instructions, monitors activity patterns, and identifies systemic platform issues from
+      individual capturer struggles.
     adapter:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/BlueprintCapture
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/capturer-success-agent/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/capturer-success-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
@@ -964,6 +1013,7 @@ agents:
             - find-skills
             - analytics-tracking
             - product-marketing-context
+            - capture-repo-operations
     budgetMonthlyCents: 2500
   city-demand-agent:
     role: engineer
@@ -971,14 +1021,15 @@ agents:
     capabilities: >-
       Maintains city-specific buyer demand plans for Blueprint's robot-team motion using the generic playbook plus
       demand-intel findings. Starts with Austin and San Francisco. Read skill file at
-      ops/paperclip/skills/city-demand-agent.md and steering file at
-      ops/paperclip/programs/city-demand-agent-program.md before every routine.
+      ops/paperclip/skills/city-demand-agent.md and steering file at ops/paperclip/programs/city-demand-agent-program.md
+      before every routine.
     adapter:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/city-demand-agent/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/city-demand-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
@@ -988,20 +1039,22 @@ agents:
             - product-marketing-context
             - analytics-tracking
             - page-cro
+            - city-demand-operations
     budgetMonthlyCents: 2500
   site-catalog-agent:
     role: engineer
     icon: package
     capabilities: >-
       Product listing manager for Blueprint's site-world catalog. Creates and maintains accurate, discoverable listings
-      when packages clear QA and rights. Ensures descriptions match reality, categories are useful, and the catalog
-      has no stale or fabricated entries.
+      when packages clear QA and rights. Ensures descriptions match reality, categories are useful, and the catalog has
+      no stale or fabricated entries.
     adapter:
       type: hermes_local
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/site-catalog-agent/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/site-catalog-agent/AGENTS.md
         timeoutSec: 1200
         paperclipSkillSync:
           desiredSkills:
@@ -1010,6 +1063,7 @@ agents:
             - find-skills
             - product-marketing-context
             - agent-browser
+            - webapp-repo-operations
     budgetMonthlyCents: 2000
   outbound-sales-agent:
     role: engineer
@@ -1023,7 +1077,8 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/outbound-sales-agent/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/outbound-sales-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
@@ -1051,7 +1106,8 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/buyer-success-agent/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/buyer-success-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
@@ -1061,6 +1117,7 @@ agents:
             - product-marketing-context
             - analytics-tracking
             - agent-browser
+            - webapp-repo-operations
     budgetMonthlyCents: 2500
   revenue-ops-pricing-agent:
     role: engineer
@@ -1076,7 +1133,8 @@ agents:
       config:
         cwd: /Users/nijelhunt_1/workspace/Blueprint-WebApp
         modelReasoningEffort: medium
-        instructionsFilePath: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/revenue-ops-pricing-agent/AGENTS.md
+        instructionsFilePath: >-
+          /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/revenue-ops-pricing-agent/AGENTS.md
         timeoutSec: 1800
         paperclipSkillSync:
           desiredSkills:
@@ -1086,13 +1144,17 @@ agents:
             - analytics-tracking
             - stripe-best-practices
             - writing-plans
+            - product-marketing-context
+            - truthful-quality-gate
+            - buyer-package-framing
     budgetMonthlyCents: 2400
   docs-agent:
     role: engineer
     icon: book-open
     capabilities: >-
       Cross-repo documentation owner. Monitors code changes across all 3 repos and keeps capture guides, API docs,
-      onboarding materials, and internal platform docs in sync with reality. Each update is minimal and accuracy-focused.
+      onboarding materials, and internal platform docs in sync with reality. Each update is minimal and
+      accuracy-focused.
     adapter:
       type: codex_local
       config:
@@ -1140,8 +1202,8 @@ projects:
       workspaceStrategy:
         type: git_worktree
         baseRef: main
-        branchTemplate: "{{issue.identifier}}-{{slug}}"
-        worktreeParentDir: ".paperclip/worktrees"
+        branchTemplate: '{{issue.identifier}}-{{slug}}'
+        worktreeParentDir: .paperclip/worktrees
     workspaces:
       blueprint-webapp:
         name: Blueprint-WebApp
@@ -1503,7 +1565,7 @@ routines:
     catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
-        cronExpression: "25 9,16 * * 1-5"
+        cronExpression: 25 9,16 * * 1-5
         timezone: America/New_York
   cto-cross-repo-triage:
     priority: high
@@ -1586,7 +1648,7 @@ routines:
     catchUpPolicy: enqueue_missed_with_cap
     triggers:
       - kind: schedule
-        cronExpression: "45 10,15 * * 1-5"
+        cronExpression: 45 10,15 * * 1-5
         timezone: America/New_York
   capture-qa-daily:
     agent: capture-qa-agent

@@ -55,6 +55,7 @@ npm run lint:hermes-kb
 When you are a KB reader:
 
 - use `knowledge/compiled/` and `knowledge/reports/` for background context and reuse
+- when you need Blueprint-managed Notion context, use the Blueprint automation Notion tool path first (`notion-search-pages`, `notion-fetch-page`, deterministic report writers, or other maintained plugin tools)
 - verify execution state in Paperclip before acting
 - verify policy, rights, pricing, provenance, package, and runtime truth in the canonical system before acting
 - treat missing or stale KB pages as a repair signal, not permission to guess
@@ -64,5 +65,6 @@ When you are a KB reader:
 - Prefer updating an existing page over creating a duplicate topic page.
 - Keep raw sources close to their original form.
 - Keep authority boundaries explicit in every compiled page and report.
+- Do not scrape `https://www.notion.so`, call private Notion `/api/v3` routes, or depend on `token_v2` cookies from agent runs when a supported Blueprint tool or maintained API path exists.
 - If a run touches a sensitive truth domain, link to the canonical system instead of summarizing it as settled KB fact.
 - Do not add KB write paths for `rights-provenance-agent`, `capture-qa-agent`, `capture-codex`, or `pipeline-codex`.

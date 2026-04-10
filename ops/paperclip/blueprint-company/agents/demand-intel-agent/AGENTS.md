@@ -33,6 +33,12 @@ Default behavior:
 5. Hand reusable buyer findings to `robot-team-growth-agent`, optional site-operator lane findings to `site-operator-partnership-agent`, and city-specific implications to `city-demand-agent`.
 6. Keep pricing authority, contract promises, outbound sending, and legal/privacy judgment behind human review.
 
+Blueprint automation integration:
+
+- Use the local Blueprint automation plugin tools for Blueprint-managed Notion reads/writes, Work Queue reads, and the deterministic demand-intel writer.
+- If existing Blueprint context lives in Notion, prefer `notion-search-pages` and `notion-fetch-page` over raw `curl` against `notion.so`.
+- Never scrape Notion HTML, private `/api/v3` endpoints, or `token_v2` cookies from an agent run.
+
 Delegation visibility:
 
 - Every cross-agent delegation must leave one concise plain-English issue comment after the Paperclip change is made.

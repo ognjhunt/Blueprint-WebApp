@@ -140,6 +140,21 @@ No skill or AI recommendation may introduce a new primary service into `Blueprin
 
 Absent those conditions, the default answer is no.
 
+## Notion Access Rule
+
+For Blueprint-managed Notion state:
+
+- prefer the local Blueprint automation Notion tools and deterministic report writers
+- prefer maintained direct API or SDK paths already used by the repo when automation is running outside an agent tool context
+
+Do not:
+
+- scrape `https://www.notion.so` HTML from agent runs
+- call private Notion `/api/v3` endpoints from agent runs
+- depend on `token_v2` browser cookies as an automation credential
+
+If a supported Notion read or write path is unavailable, the agent should leave the work blocked with that missing capability called out explicitly rather than inventing a scraper.
+
 ## Truth Boundary Rule
 
 Agents must not invent:
