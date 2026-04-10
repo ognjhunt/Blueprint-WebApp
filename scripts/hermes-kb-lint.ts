@@ -25,6 +25,15 @@ const requiredIndexFiles = [
 const allowedAuthority = new Set(["canonical", "derived", "draft"]);
 const allowedSourceSystems = new Set(["paperclip", "notion", "repo", "web", "drive"]);
 const allowedSensitivity = new Set(["public", "internal", "restricted"]);
+const allowedPageKinds = new Set([
+  "buyer_dossier",
+  "market_entity",
+  "city_brief",
+  "proof_pattern",
+  "doctrine_claim",
+  "support_playbook",
+]);
+const allowedReviewStatus = new Set(["active", "watch", "stale", "blocked"]);
 
 type LintError = {
   file: string;
@@ -39,6 +48,13 @@ type FrontmatterShape = {
   owner?: unknown;
   sensitivity?: unknown;
   confidence?: unknown;
+  page_kind?: unknown;
+  subject_key?: unknown;
+  canonical_refs?: unknown;
+  freshness_sla_days?: unknown;
+  last_signal_at?: unknown;
+  review_status?: unknown;
+  entity_tags?: unknown;
 };
 
 async function exists(targetPath: string) {
@@ -180,6 +196,137 @@ function validateFrontmatter(file: string, frontmatter: FrontmatterShape, errors
       message: "Frontmatter `confidence` must be a number between 0 and 1.",
     });
   }
+
+  if (
+    frontmatter.page_kind !== undefined
+    && (!isNonEmptyString(frontmatter.page_kind) || !allowedPageKinds.has(frontmatter.page_kind))
+  ) {
+    errors.push({
+      file,
+      message:
+        "Frontmatter `page_kind` must be one of buyer_dossier, market_entity, city_brief, proof_pattern, doctrine_claim, or support_playbook when present.",
+    });
+  }
+
+  if (
+    (frontmatter.page_kind === "buyer_dossier"
+      || frontmatter.page_kind === "market_entity"
+      || frontmatter.page_kind === "city_brief")
+    && !isNonEmptyString(frontmatter.subject_key)
+  ) {
+    errors.push({
+      file,
+      message: "Frontmatter `subject_key` is required for dossier-style pages.",
+    });
+  }
+
+  if (
+    frontmatter.canonical_refs !== undefined
+    && (
+      !Array.isArray(frontmatter.canonical_refs)
+      || frontmatter.canonical_refs.some(
+        (entry) =>
+          !entry
+          || typeof entry !== "object"
+          || !isNonEmptyString((entry as { system?: unknown }).system)
+          || !isNonEmptyString((entry as { ref?: unknown }).ref),
+      )
+    )
+  ) {
+    errors.push({
+      file,
+      message:
+        "Frontmatter `canonical_refs` must be an array of { system, ref } objects when present.",
+    });
+  }
+
+  if (
+    frontmatter.freshness_sla_days !== undefined
+    && (
+      typeof frontmatter.freshness_sla_days !== "number"
+      || Number.isNaN(frontmatter.freshness_sla_days)
+      || frontmatter.freshness_sla_days < 1
+    )
+  ) {
+    errors.push({
+      file,
+      message: "Frontmatter `freshness_sla_days` must be a positive number when present.",
+    });
+  }
+
+  if (frontmatter.last_signal_at !== undefined && !isIsoDate(frontmatter.last_signal_at)) {
+    errors.push({
+      file,
+      message: "Frontmatter `last_signal_at` must be an ISO date in YYYY-MM-DD format when present.",
+    });
+  }
+
+  if (
+    frontmatter.review_status !== undefined
+    && (!isNonEmptyString(frontmatter.review_status) || !allowedReviewStatus.has(frontmatter.review_status))
+  ) {
+    errors.push({
+      file,
+      message:
+        "Frontmatter `review_status` must be one of active, watch, stale, or blocked when present.",
+    });
+  }
+
+  if (
+    frontmatter.entity_tags !== undefined
+    && (
+      !Array.isArray(frontmatter.entity_tags)
+      || frontmatter.entity_tags.some((entry) => !isNonEmptyString(entry))
+    )
+  ) {
+    errors.push({
+      file,
+      message: "Frontmatter `entity_tags` must be an array of strings when present.",
+    });
+  }
+}
+
+function requiredSectionsForPageKind(pageKind: unknown) {
+  if (
+    pageKind === "buyer_dossier" ||
+    pageKind === "market_entity" ||
+    pageKind === "city_brief"
+  ) {
+    return [
+      "## Summary",
+      "## Current State",
+      "## Evidence",
+      "## Signals",
+      "## Implications For Blueprint",
+      "## Open Questions",
+      "## Canonical Links",
+      "## Authority Boundary",
+    ];
+  }
+
+  if (
+    pageKind === "proof_pattern" ||
+    pageKind === "doctrine_claim" ||
+    pageKind === "support_playbook"
+  ) {
+    return [
+      "## Summary",
+      "## Pattern",
+      "## Evidence",
+      "## Failure Modes",
+      "## Implications For Blueprint",
+      "## Open Questions",
+      "## Authority Boundary",
+    ];
+  }
+
+  return [
+    "## Summary",
+    "## Evidence",
+    "## Implications For Blueprint",
+    "## Open Questions",
+    "## Authority Boundary",
+  ];
 }
 
 function shouldSkipPage(file: string) {
@@ -239,18 +386,7 @@ async function main() {
     }
 
     validateFrontmatter(rel, parsed.data, errors);
-    validateRequiredSections(
-      rel,
-      parsed.body,
-      [
-        "## Summary",
-        "## Evidence",
-        "## Implications For Blueprint",
-        "## Open Questions",
-        "## Authority Boundary",
-      ],
-      errors,
-    );
+    validateRequiredSections(rel, parsed.body, requiredSectionsForPageKind(parsed.data.page_kind), errors);
   }
 
   for (const file of reportFiles) {

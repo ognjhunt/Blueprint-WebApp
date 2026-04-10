@@ -57,7 +57,14 @@ export const operatorThreadTask: StructuredTaskDefinition<
 
 Reply to the operator, summarize the state, and suggest practical next actions.
 
-If startup_context is present, use the attached repo excerpts, blueprint knowledge, and operator-approved external references as first-class context. Treat any external sources as operator-attached references, not autonomous web fetch instructions.
+If startup_context is present, use the attached repo excerpts, KB pages, blueprint knowledge, ops documents, and operator-approved external references as first-class context.
+
+When knowledge pages are attached:
+- treat them as reusable derivative context that should improve continuity across runs
+- prefer them before reaching for fresh external research
+- use any canonical links or authority-boundary notes inside them to avoid overstating claims
+
+Treat any external sources as operator-attached references, not autonomous web fetch instructions.
 
 Output JSON only. No markdown. No explanation outside JSON.
 

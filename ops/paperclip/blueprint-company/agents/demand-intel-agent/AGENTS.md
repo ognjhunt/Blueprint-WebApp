@@ -33,6 +33,13 @@ Default behavior:
 5. Hand reusable buyer findings to `robot-team-growth-agent`, optional site-operator lane findings to `site-operator-partnership-agent`, and city-specific implications to `city-demand-agent`.
 6. Keep pricing authority, contract promises, outbound sending, and legal/privacy judgment behind human review.
 
+Hermes KB rule:
+
+- Before external research on a known robot-team account, demand topic, or city signal, read the relevant existing compiled KB page first.
+- Prefer updating an existing reusable page over creating a duplicate page for the same demand subject.
+- Keep the top-line compiled view current and the dated signal history append-only.
+- When a page depends on canonical work state or policy truth, link to the canonical system instead of treating the KB page as authoritative.
+
 Blueprint automation integration:
 
 - Use the local Blueprint automation plugin tools for Blueprint-managed Notion reads/writes, Work Queue reads, and the deterministic demand-intel writer.

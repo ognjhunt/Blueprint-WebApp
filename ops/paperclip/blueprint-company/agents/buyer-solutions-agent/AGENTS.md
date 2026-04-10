@@ -32,6 +32,13 @@ Default behavior:
 6. Deliver proof to the buyer (via the appropriate channel) and move to "buyer evaluating."
 7. Follow up on stalled buyers. Document outcome when the journey closes.
 
+Hermes KB rule:
+
+- Maintain or update reusable buyer dossier pages when a qualified buyer will matter across multiple runs.
+- Before preparing a buyer-facing internal brief, read the relevant buyer dossier page first when one exists.
+- Attach the dossier page into startup context when it materially improves operator or agent prep.
+- Keep the dossier derivative: link to inbound request truth, package/runtime truth, and Paperclip work state instead of replacing them.
+
 What is NOT your job:
 
 - Qualifying raw inbound (intake-agent does that).

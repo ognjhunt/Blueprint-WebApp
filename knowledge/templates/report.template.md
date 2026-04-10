@@ -7,6 +7,7 @@ last_verified_at: 2026-04-03
 owner: blueprint-chief-of-staff
 sensitivity: internal
 confidence: 0.65
+{{OPTIONAL_FRONTMATTER_BLOCK}}
 ---
 
 # Report Title

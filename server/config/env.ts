@@ -195,6 +195,7 @@ const envSchema = z
     BLUEPRINT_PHASE2_SUPPORT_ENABLED: z.string().trim().optional(),
     BLUEPRINT_PHASE2_PAYOUT_ENABLED: z.string().trim().optional(),
     BLUEPRINT_PAPERCLIP_HERMES_MODEL: z.string().trim().optional(),
+    BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS: z.string().trim().optional(),
     BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL: z.string().trim().optional(),
     BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL: z.string().trim().optional(),
     BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS: z.string().trim().optional(),

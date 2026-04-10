@@ -332,6 +332,26 @@ describe("quota fallback helpers", () => {
     });
   });
 
+  it("replaces an invalid Hermes free-model id with the first valid ladder step", () => {
+    expect(
+      buildNextHermesFallbackAdapterConfig({
+        cwd: "/tmp/project",
+        model: "nvidia/nemotron-3-super:free",
+        [HERMES_MODEL_LADDER_CONFIG_KEY]: [
+          "nvidia/nemotron-3-super:free",
+          "arcee-ai/trinity-large-preview:free",
+          "openai/gpt-oss-120b:free",
+        ],
+      }),
+    ).toEqual({
+      cwd: "/tmp/project",
+      model: "arcee-ai/trinity-large-preview:free",
+      [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
+      modelReasoningEffort: "medium",
+      timeoutSec: 1800,
+    });
+  });
+
   it("detects shared OpenRouter free-pool rate limits", () => {
     expect(
       isSharedOpenRouterFreePoolRateLimitFailure("HTTP 429: Rate limit exceeded: free-models-per-min."),

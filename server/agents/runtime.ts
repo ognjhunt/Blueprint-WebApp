@@ -158,6 +158,7 @@ function normalizeStartupContextMetadata(value: unknown) {
   return {
     startupPackIds: mergeStringArrays(record.startupPackIds as string[] | undefined),
     repoDocPaths: mergeStringArrays(record.repoDocPaths as string[] | undefined),
+    knowledgePagePaths: mergeStringArrays(record.knowledgePagePaths as string[] | undefined),
     blueprintIds: mergeStringArrays(record.blueprintIds as string[] | undefined),
     documentIds: mergeStringArrays(record.documentIds as string[] | undefined),
     externalSources: Array.isArray(record.externalSources)
@@ -177,6 +178,7 @@ function mergeStartupContextMetadata(...values: Array<unknown>) {
   return values.reduce<{
     startupPackIds: string[];
     repoDocPaths: string[];
+    knowledgePagePaths: string[];
     blueprintIds: string[];
     documentIds: string[];
     externalSources: Array<Record<string, unknown>>;
@@ -189,6 +191,7 @@ function mergeStartupContextMetadata(...values: Array<unknown>) {
       return {
         startupPackIds: mergeStringArrays(acc.startupPackIds, next.startupPackIds),
         repoDocPaths: mergeStringArrays(acc.repoDocPaths, next.repoDocPaths),
+        knowledgePagePaths: mergeStringArrays(acc.knowledgePagePaths, next.knowledgePagePaths),
         blueprintIds: mergeStringArrays(acc.blueprintIds, next.blueprintIds),
         documentIds: mergeStringArrays(acc.documentIds, next.documentIds),
         externalSources: [...acc.externalSources, ...next.externalSources],
@@ -200,6 +203,7 @@ function mergeStartupContextMetadata(...values: Array<unknown>) {
     {
       startupPackIds: [] as string[],
       repoDocPaths: [] as string[],
+      knowledgePagePaths: [] as string[],
       blueprintIds: [] as string[],
       documentIds: [] as string[],
       externalSources: [] as Array<Record<string, unknown>>,
@@ -443,6 +447,7 @@ function buildContextReferenceLines(session: PersistedAgentSession) {
 
   const lines: string[] = [];
   const repoDocs = normalizeStringList(startupContext.repoDocPaths, 6);
+  const knowledgePagePaths = normalizeStringList(startupContext.knowledgePagePaths, 6);
   const blueprintIds = normalizeStringList(startupContext.blueprintIds, 6);
   const documentIds = normalizeStringList(startupContext.documentIds, 6);
   const startupPackIds = normalizeStringList(startupContext.startupPackIds, 6);
@@ -465,6 +470,9 @@ function buildContextReferenceLines(session: PersistedAgentSession) {
   }
   if (repoDocs.length > 0) {
     lines.push(`- repo docs: ${repoDocs.join(", ")}`);
+  }
+  if (knowledgePagePaths.length > 0) {
+    lines.push(`- KB pages: ${knowledgePagePaths.join(", ")}`);
   }
   if (blueprintIds.length > 0) {
     lines.push(`- blueprints: ${blueprintIds.join(", ")}`);
@@ -1757,6 +1765,10 @@ export async function sendAgentSessionMessage(params: {
         repo_doc_count:
           Array.isArray((startupContext as Record<string, unknown>).repo_docs)
             ? ((startupContext as Record<string, unknown>).repo_docs as unknown[]).length
+            : 0,
+        knowledge_page_count:
+          Array.isArray((startupContext as Record<string, unknown>).knowledge_pages)
+            ? ((startupContext as Record<string, unknown>).knowledge_pages as unknown[]).length
             : 0,
         blueprint_context_count:
           Array.isArray((startupContext as Record<string, unknown>).blueprint_contexts)

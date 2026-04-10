@@ -10,8 +10,11 @@ Run the daily robot-team demand research loop.
 Each run must:
 
 - read `ops/paperclip/programs/demand-intel-agent-program.md`
+- read the most relevant existing page in `knowledge/compiled/demand-intel/` before starting fresh external research on the same subject
 - investigate recent robot-team, autonomy, simulation/data, and systems-integrator demand signals
 - capture reusable source context in `knowledge/raw/web/<date>/...` and update the relevant page in `knowledge/compiled/demand-intel/` before publishing the mirrored operator-facing artifact
+- prefer updating an existing reusable page over creating a duplicate page for the same subject
+- keep the compiled summary current and append dated signal updates instead of silently rewriting the page with no trail
 - convert findings into Blueprint-relevant implications instead of broad market commentary
 - create or update Paperclip issues for `robot-team-growth-agent`, `site-operator-partnership-agent`, `city-demand-agent`, or `growth-lead` when action is justified
 - leave explicit notes about what is evidence-backed, what is inferred, and what is still missing

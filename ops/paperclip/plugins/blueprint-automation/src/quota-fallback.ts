@@ -394,6 +394,7 @@ export function buildNextHermesFallbackAdapterConfig(
   const routableCurrent =
     currentModel
     && !isIncompatibleHermesFreeRoutingModel(currentModel)
+    && !isDisallowedHermesFallbackModel(currentModel)
     && (allowPaid || isHermesFreeRoutingModel(currentModel))
       ? currentModel
       : null;

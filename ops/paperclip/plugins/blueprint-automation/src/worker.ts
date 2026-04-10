@@ -114,6 +114,7 @@ import {
   buildHermesFallbackAdapterConfig,
   extractLogicalSucceededRunFailure,
   isFreshSessionRetryableFailure,
+  isDisallowedHermesFallbackModel,
   isIncompatibleHermesFreeRoutingModel,
   isModelNotFoundFailure,
   syncExecutionPolicyToAdapter,
@@ -502,6 +503,7 @@ type MarketingCapabilitiesConfig = {
 };
 
 type BlueprintAutomationConfig = {
+  companyId?: string;
   companyName?: string;
   githubOwner?: string;
   githubTokenRef?: string;
@@ -535,6 +537,13 @@ type HeartbeatRunRecord = {
   createdAt?: string | null;
   id: string;
   status?: string | null;
+};
+
+type HeartbeatRunDetail = HeartbeatRunRecord & {
+  error?: string | null;
+  finishedAt?: string | null;
+  startedAt?: string | null;
+  updatedAt?: string | null;
 };
 
 type SourceMappingData = {
@@ -1490,6 +1499,7 @@ function normalizeConfig(rawConfig: Record<string, unknown>): BlueprintAutomatio
     : {};
 
   return {
+    companyId: asString(rawConfig.companyId) ?? asString(process.env.BLUEPRINT_PAPERCLIP_COMPANY_ID),
     companyName: asString(rawConfig.companyName) ?? DEFAULT_COMPANY_NAME,
     githubOwner: asString(rawConfig.githubOwner) ?? "ognjhunt",
     githubTokenRef: asString(rawConfig.githubTokenRef),
@@ -2205,6 +2215,107 @@ async function cancelIssueExecutionRunIfNeeded(
   return true;
 }
 
+function boundIssueIdFromRunContext(
+  context: Record<string, unknown> | null | undefined,
+): string | null {
+  const taskId = asString(context?.taskId);
+  if (taskId) return taskId;
+  return asString(context?.issueId);
+}
+
+function isTerminalHeartbeatRunStatus(status: string | null | undefined) {
+  const normalized = (status ?? "").trim().toLowerCase();
+  return normalized === "failed"
+    || normalized === "cancelled"
+    || normalized === "timed_out"
+    || normalized === "succeeded";
+}
+
+async function recoverIssueExecutionLockIfNeeded(
+  ctx: PluginContext,
+  companyId: string,
+  issue: Pick<Issue, "id" | "identifier" | "title" | "executionRunId" | "updatedAt">,
+  options?: {
+    staleAfterMs?: number;
+    commentPrefix?: string;
+  },
+) {
+  if (!issue.executionRunId) {
+    return { recovered: false, reason: null as string | null };
+  }
+
+  const run = await fetchPaperclipApiJson<HeartbeatRunDetail>(`/api/heartbeat-runs/${issue.executionRunId}`).catch(() => null);
+  const runIssues = await fetchPaperclipApiJson<Array<{ issueId?: string | null }>>(
+    `/api/heartbeat-runs/${issue.executionRunId}/issues`,
+  ).catch(() => []);
+
+  const boundIssueId = boundIssueIdFromRunContext(run?.contextSnapshot ?? null);
+  const linkedIssueIds = new Set(
+    runIssues
+      .map((entry) => asString(entry.issueId))
+      .filter((value): value is string => Boolean(value)),
+  );
+  const staleAfterMs = Math.max(5 * 60 * 1000, options?.staleAfterMs ?? (15 * 60 * 1000));
+  const issueUpdatedAtMs = Date.parse(asString(issue.updatedAt) ?? "");
+  const runUpdatedAtMs = Date.parse(asString(run?.updatedAt ?? run?.startedAt ?? run?.createdAt) ?? "");
+  const newestActivityMs = Math.max(
+    Number.isFinite(issueUpdatedAtMs) ? issueUpdatedAtMs : Number.NEGATIVE_INFINITY,
+    Number.isFinite(runUpdatedAtMs) ? runUpdatedAtMs : Number.NEGATIVE_INFINITY,
+  );
+  const isStaleRunningLock =
+    Boolean(run)
+    && !isTerminalHeartbeatRunStatus(run.status)
+    && Number.isFinite(newestActivityMs)
+    && (Date.now() - newestActivityMs) >= staleAfterMs;
+  const isForeignLock =
+    Boolean(boundIssueId && boundIssueId !== issue.id)
+    || (linkedIssueIds.size > 0 && !linkedIssueIds.has(issue.id));
+  const shouldRecover =
+    !run
+    || isTerminalHeartbeatRunStatus(run.status)
+    || isForeignLock
+    || isStaleRunningLock;
+
+  if (!shouldRecover) {
+    return { recovered: false, reason: null as string | null };
+  }
+
+  if (run) {
+    await fetchPaperclipApiJson(`/api/heartbeat-runs/${issue.executionRunId}/cancel`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }).catch(() => null);
+  }
+
+  const reason = !run
+    ? "missing execution run record"
+    : isForeignLock
+      ? `execution run is bound to ${boundIssueId ?? "a different issue"}`
+      : isTerminalHeartbeatRunStatus(run.status)
+        ? `execution run is already terminal (${run.status})`
+        : `execution run went stale without fresh activity for ${Math.round(staleAfterMs / 60000)} minutes`;
+
+  await ctx.issues.createComment(
+    issue.id,
+    [
+      options?.commentPrefix ?? "Automation cleared a stale execution lock before the next step.",
+      `- Issue: ${issue.identifier ?? issue.id} (${issue.title})`,
+      `- Cleared run: ${issue.executionRunId}`,
+      `- Reason: ${reason}`,
+    ].join("\n"),
+    companyId,
+  ).catch(() => undefined);
+
+  await appendRecentEvent(ctx, companyId, {
+    kind: "execution-lock-recovered",
+    title: `Recovered stale execution lock for ${issue.title}`,
+    issueId: issue.id,
+    detail: `${issue.executionRunId}: ${reason}`,
+  });
+
+  return { recovered: true, reason };
+}
+
 function parseCronField(field: string, min: number, max: number) {
   if (field === "*") {
     return Array.from({ length: max - min + 1 }, (_, index) => min + index);
@@ -2391,17 +2502,34 @@ function buildLogicalSucceededRunFailurePayload(
   };
 }
 
-async function findCompany(ctx: PluginContext, companyName?: string): Promise<Company> {
+async function findCompany(
+  ctx: PluginContext,
+  companyName?: string,
+  companyId?: string | null,
+): Promise<Company> {
   const companies = await ctx.companies.list({ limit: 100, offset: 0 });
+  const normalizedId = (companyId ?? process.env.BLUEPRINT_PAPERCLIP_COMPANY_ID ?? "").trim();
+  if (normalizedId) {
+    const byId = companies.find((entry) => entry.id === normalizedId);
+    if (!byId) {
+      throw new Error(`Blueprint company not found for id: ${normalizedId}`);
+    }
+    return byId;
+  }
   const target = (companyName ?? DEFAULT_COMPANY_NAME).trim().toLowerCase();
-  const company = companies.find((entry) => {
+  const matches = companies.filter((entry) => {
     const record = entry as unknown as Record<string, unknown>;
     return normalizedCandidates(record).includes(target);
   });
-  if (!company) {
+  if (matches.length === 0) {
     throw new Error(`Blueprint company not found: ${companyName ?? DEFAULT_COMPANY_NAME}`);
   }
-  return company;
+  if (matches.length > 1) {
+    throw new Error(
+      `Blueprint company name is ambiguous: ${companyName ?? DEFAULT_COMPANY_NAME}. Set BLUEPRINT_PAPERCLIP_COMPANY_ID to pin the org harness to one company.`,
+    );
+  }
+  return matches[0]!;
 }
 
 async function listProjects(ctx: PluginContext, companyId: string) {
@@ -3182,6 +3310,9 @@ async function wakeAssignedAgent(
   if (!issueNeedsExecution(issue.status)) {
     return null;
   }
+  await recoverIssueExecutionLockIfNeeded(ctx, companyId, issue, {
+    commentPrefix: "Automation cleared a stale execution lock before dispatching this issue again.",
+  }).catch(() => undefined);
   const dispatchedAt = nowIso();
 
   const dispatchState =
@@ -3337,14 +3468,19 @@ async function healAgentExecutionTopology(
     if (agent.adapterType === "hermes_local") {
       const cfg = asRecord(agent.adapterConfig) ?? {};
       const modelStr = typeof cfg.model === "string" ? cfg.model.trim() : "";
-      if (modelStr && isIncompatibleHermesFreeRoutingModel(modelStr)) {
+      if (
+        modelStr
+        && (isIncompatibleHermesFreeRoutingModel(modelStr) || isDisallowedHermesFallbackModel(modelStr))
+      ) {
         await ctx.agents.update(
           agent.id,
           { adapterConfig: buildHermesFallbackAdapterConfig(cfg) },
           companyId,
         );
         await ctx.agents.resetRuntimeSession(agent.id, companyId);
-        repaired.push(`${agent.urlKey}:hermes_local:repaired-codex-claude-model-leak`);
+        repaired.push(
+          `${agent.urlKey}:hermes_local:repaired-invalid-model:${modelStr}`,
+        );
         continue;
       }
     }
@@ -4227,6 +4363,13 @@ async function maybeCreateBlockedIssueFollowUp(
 ) {
   const issue = await ctx.issues.get(issueId, companyId);
   if (!issue || issue.status !== "blocked") {
+    return null;
+  }
+
+  const executionRecovered = await recoverIssueExecutionLockIfNeeded(ctx, companyId, issue, {
+    commentPrefix: "Automation cleared a stale execution lock instead of creating another unblock child.",
+  }).catch(() => ({ recovered: false, reason: null as string | null }));
+  if (executionRecovered.recovered) {
     return null;
   }
 
@@ -6213,10 +6356,14 @@ async function postSlackActivity(
     return;
   }
 
+  const companyLabel = config.companyId
+    ? `${config.companyName ?? DEFAULT_COMPANY_NAME} (${config.companyId})`
+    : (config.companyName ?? DEFAULT_COMPANY_NAME);
+
   await postSlackDigest(targets, {
     channel: input.channel,
     title: input.title,
-    sections: [{ heading: "Update", items: input.summary }],
+    sections: [{ heading: "Update", items: [`Company: ${companyLabel}`, ...input.summary] }],
   });
 }
 
@@ -6939,6 +7086,13 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
       assigneeAgentId: currentIssue.assigneeAgentId ?? null,
     }
     : null;
+
+  if (currentIssue) {
+    await recoverIssueExecutionLockIfNeeded(ctx, input.companyId, currentIssue, {
+      commentPrefix: "Automation cleared a stale execution lock before refreshing this managed issue.",
+    }).catch(() => undefined);
+    currentIssue = await ctx.issues.get(currentIssue.id, input.companyId).catch(() => currentIssue);
+  }
 
   if (currentIssue) {
     const nextStatus =
@@ -10696,7 +10850,7 @@ async function syncGithubWorkflowRun(
     sourceId,
     title: `${repoConfig.projectName} CI failure: ${workflowName}`,
     description:
-      `GitHub Actions reported ${conclusion} for ${workflowName} on branch ${branch}. Keep this issue narrowly focused on monitoring the workflow state until a succeeding run clears it. Open a separate engineering follow-up if repo work is required.`,
+      `GitHub Actions reported ${conclusion} for ${workflowName} on branch ${branch}. Do one fast recovered-yet check first; if no newer successful ${repoConfig.defaultBranch} run exists, inspect the failing step/log class and either create or refresh the concrete engineering unblock issue in the same heartbeat. Do not leave this as monitor-only while the failure is still active.`,
     projectName: repoConfig.projectName,
     assignee: repoConfig.ciWatchAgent ?? repoConfig.implementationAgent,
     priority: "high",

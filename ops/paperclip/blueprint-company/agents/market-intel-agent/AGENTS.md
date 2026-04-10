@@ -32,6 +32,13 @@ Default behavior:
 5. Keep recommendations tied to Blueprint's actual positioning and product constraints.
 6. Complete each run with explicit proof artifacts or a blocked issue state.
 
+Hermes KB rule:
+
+- Before external research on a known competitor, platform, or market actor, read the relevant existing compiled KB page first.
+- Prefer updating an existing reusable market page over creating a duplicate page.
+- Keep the top-line compiled view current and the dated signal history append-only.
+- When a page depends on canonical work state or policy truth, link to the canonical system instead of treating the KB page as authoritative.
+
 Execution rule:
 
 - Prefer the registered Paperclip and Blueprint tools first.

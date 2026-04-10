@@ -15,6 +15,15 @@ const indexesRoot = path.join(knowledgeRoot, "indexes");
 const allowedSourceSystems = new Set(["paperclip", "notion", "repo", "web", "drive"]);
 const allowedAuthority = new Set(["canonical", "derived", "draft"]);
 const allowedSensitivity = new Set(["public", "internal", "restricted"]);
+const allowedPageKinds = new Set([
+  "buyer_dossier",
+  "market_entity",
+  "city_brief",
+  "proof_pattern",
+  "doctrine_claim",
+  "support_playbook",
+]);
+const allowedReviewStatus = new Set(["active", "watch", "stale", "blocked"]);
 
 function parseArgs(argv: string[]): ParsedArgs {
   let command: Command | null = null;
@@ -104,6 +113,164 @@ function quoteYamlString(value: string) {
 
 function buildSourceUrlsYaml(items: string[]) {
   return items.map((item) => `  - ${quoteYamlString(item)}`).join("\n");
+}
+
+function buildSimpleYamlList(items: string[], indent = "  ") {
+  return items.map((item) => `${indent}- ${quoteYamlString(item)}`).join("\n");
+}
+
+function parseCanonicalRefs(flags: Map<string, string[]>) {
+  const systems = getMany(flags, "canonical-ref-system");
+  const refs = getMany(flags, "canonical-ref");
+  if (systems.length !== refs.length) {
+    throw new Error(
+      "Canonical refs must provide matching counts for --canonical-ref-system and --canonical-ref.",
+    );
+  }
+  return systems.map((system, index) => ({ system, ref: refs[index] }));
+}
+
+function buildOptionalFrontmatterBlock(params: {
+  pageKind?: string;
+  subjectKey?: string;
+  canonicalRefs?: Array<{ system: string; ref: string }>;
+  freshnessSlaDays?: string;
+  lastSignalAt?: string;
+  reviewStatus?: string;
+  entityTags?: string[];
+}) {
+  const lines: string[] = [];
+
+  if (params.pageKind) {
+    lines.push(`page_kind: ${params.pageKind}`);
+  }
+  if (params.subjectKey) {
+    lines.push(`subject_key: ${quoteYamlString(params.subjectKey)}`);
+  }
+  if (params.canonicalRefs && params.canonicalRefs.length > 0) {
+    lines.push("canonical_refs:");
+    for (const canonicalRef of params.canonicalRefs) {
+      lines.push(`  - system: ${quoteYamlString(canonicalRef.system)}`);
+      lines.push(`    ref: ${quoteYamlString(canonicalRef.ref)}`);
+    }
+  }
+  if (params.freshnessSlaDays) {
+    lines.push(`freshness_sla_days: ${params.freshnessSlaDays}`);
+  }
+  if (params.lastSignalAt) {
+    lines.push(`last_signal_at: ${params.lastSignalAt}`);
+  }
+  if (params.reviewStatus) {
+    lines.push(`review_status: ${params.reviewStatus}`);
+  }
+  if (params.entityTags && params.entityTags.length > 0) {
+    lines.push("entity_tags:");
+    lines.push(buildSimpleYamlList(params.entityTags));
+  }
+
+  return lines.length > 0 ? `${lines.join("\n")}\n` : "";
+}
+
+function buildCanonicalLinksBlock(canonicalRefs: Array<{ system: string; ref: string }>) {
+  if (canonicalRefs.length === 0) {
+    return "- Link the canonical system(s) that own the truth for this subject";
+  }
+
+  return canonicalRefs
+    .map((canonicalRef) => `- ${canonicalRef.system}: ${canonicalRef.ref}`)
+    .join("\n");
+}
+
+function buildCompiledBodyStructure(
+  pageKind: string | undefined,
+  openQuestionsBlock: string,
+  canonicalLinksBlock: string,
+) {
+  if (
+    pageKind === "buyer_dossier" ||
+    pageKind === "market_entity" ||
+    pageKind === "city_brief"
+  ) {
+    return `## Current State
+
+- Current reusable state of play
+
+## Evidence
+
+- Source-backed claim with locator
+- Source-backed claim with locator
+
+## Signals
+
+- \`YYYY-MM-DD\`: what changed and why it matters
+
+## Implications For Blueprint
+
+- What this changes for packaging, GTM, buyer enablement, or ops
+- What should not be inferred beyond the evidence
+
+## Open Questions
+
+${openQuestionsBlock}
+
+## Canonical Links
+
+${canonicalLinksBlock}
+
+## Authority Boundary
+
+This page is a derived Hermes KB artifact. It is not authoritative for work state, approvals, rights/privacy decisions, pricing/legal commitments, capture provenance, or package/runtime truth. Check the linked canonical systems before acting.`;
+  }
+
+  if (
+    pageKind === "proof_pattern" ||
+    pageKind === "doctrine_claim" ||
+    pageKind === "support_playbook"
+  ) {
+    return `## Pattern
+
+- Describe the reusable pattern or claim boundary
+
+## Evidence
+
+- Source-backed claim with locator
+- Source-backed claim with locator
+
+## Failure Modes
+
+- Where this pattern breaks or becomes misleading
+
+## Implications For Blueprint
+
+- What this changes for packaging, GTM, buyer enablement, or ops
+- What should not be inferred beyond the evidence
+
+## Open Questions
+
+${openQuestionsBlock}
+
+## Authority Boundary
+
+This page is a derived Hermes KB artifact. It is not authoritative for work state, approvals, rights/privacy decisions, pricing/legal commitments, capture provenance, or package/runtime truth. Check the linked canonical systems before acting.`;
+  }
+
+  return `## Evidence
+
+- Source-backed claim with locator
+- Source-backed claim with locator
+
+## Implications For Blueprint
+
+- What this changes for packaging, GTM, buyer enablement, or ops
+- What should not be inferred beyond the evidence
+
+## Open Questions
+
+${openQuestionsBlock}
+
+## Authority Boundary
+
+This page is a derived Hermes KB artifact. It is not authoritative for work state, approvals, rights/privacy decisions, pricing/legal commitments, capture provenance, or package/runtime truth. Check the linked canonical systems before acting.`;
 }
 
 function applyTemplate(template: string, replacements: Record<string, string>) {
@@ -303,13 +470,55 @@ async function scaffoldCompiledPage(flags: Map<string, string[]>, dryRun: boolea
   const staleReason = getFirst(flags, "stale-reason").trim();
   const lastVerifiedAt = getFirst(flags, "last-verified-at").trim() || todayIsoDate();
   requireIsoDate(lastVerifiedAt, "last-verified-at");
+  const pageKind = getFirst(flags, "page-kind").trim() || undefined;
+  if (pageKind) {
+    assertEnum(pageKind, allowedPageKinds, "page-kind");
+  }
+  const subjectKey = getFirst(flags, "subject-key").trim();
+  const freshnessSlaDays = getFirst(flags, "freshness-sla-days").trim();
+  const lastSignalAt = getFirst(flags, "last-signal-at").trim();
+  if (lastSignalAt) {
+    requireIsoDate(lastSignalAt, "last-signal-at");
+  }
+  const reviewStatus = getFirst(flags, "review-status").trim();
+  if (reviewStatus) {
+    assertEnum(reviewStatus, allowedReviewStatus, "review-status");
+  }
+  const entityTags = getMany(flags, "entity-tag");
+  const canonicalRefs = parseCanonicalRefs(flags);
+
+  if (
+    (pageKind === "buyer_dossier" || pageKind === "market_entity" || pageKind === "city_brief")
+    && !subjectKey
+  ) {
+    throw new Error("Dossier-style compiled pages require --subject-key.");
+  }
 
   const pagePath = path.join(knowledgeRoot, "compiled", category, `${slug}.md`);
   if (await fileExists(pagePath)) {
     throw new Error(`Compiled page already exists: ${toRepoRelative(pagePath)}`);
   }
 
-  const template = await readTemplate("compiled-page.template.md");
+  const template = pageKind
+    ? await readTemplate(
+        pageKind === "buyer_dossier"
+          ? "buyer-dossier.template.md"
+          : pageKind === "market_entity"
+            ? "market-entity.template.md"
+            : pageKind === "city_brief"
+              ? "city-brief.template.md"
+              : pageKind === "proof_pattern"
+                ? "proof-pattern.template.md"
+                : pageKind === "doctrine_claim"
+                  ? "doctrine-claim.template.md"
+                  : "compiled-page.template.md",
+      )
+    : await readTemplate("compiled-page.template.md");
+  const openQuestionsBlock = renderBulletList(
+    openQuestions,
+    "What remains unresolved and what evidence would change confidence",
+  );
+  const canonicalLinksBlock = buildCanonicalLinksBlock(canonicalRefs);
   const content = applyTemplate(template, {
     AUTHORITY: authority,
     SOURCE_SYSTEM: sourceSystem,
@@ -318,11 +527,20 @@ async function scaffoldCompiledPage(flags: Map<string, string[]>, dryRun: boolea
     OWNER: owner,
     SENSITIVITY: sensitivity,
     CONFIDENCE: numericConfidence.toString(),
+    SUBJECT_KEY: quoteYamlString(subjectKey || slug),
+    OPTIONAL_FRONTMATTER_BLOCK: buildOptionalFrontmatterBlock({
+      pageKind,
+      subjectKey: subjectKey || undefined,
+      canonicalRefs,
+      freshnessSlaDays: freshnessSlaDays || undefined,
+      lastSignalAt: lastSignalAt || undefined,
+      reviewStatus: reviewStatus || undefined,
+      entityTags,
+    }),
     TITLE: title,
-    OPEN_QUESTIONS_BLOCK: renderBulletList(
-      openQuestions,
-      "What remains unresolved and what evidence would change confidence",
-    ),
+    OPEN_QUESTIONS_BLOCK: openQuestionsBlock,
+    CANONICAL_LINKS_BLOCK: canonicalLinksBlock,
+    BODY_STRUCTURE: buildCompiledBodyStructure(pageKind, openQuestionsBlock, canonicalLinksBlock),
   });
 
   await ensureParentDir(pagePath, dryRun);
@@ -429,6 +647,22 @@ async function scaffoldReport(flags: Map<string, string[]>, dryRun: boolean) {
   if (sourceUrls.length === 0) {
     throw new Error("Provide at least one --source-url or --source-locator.");
   }
+  const pageKind = getFirst(flags, "page-kind").trim() || undefined;
+  if (pageKind) {
+    assertEnum(pageKind, allowedPageKinds, "page-kind");
+  }
+  const subjectKey = getFirst(flags, "subject-key").trim();
+  const freshnessSlaDays = getFirst(flags, "freshness-sla-days").trim();
+  const lastSignalAt = getFirst(flags, "last-signal-at").trim();
+  if (lastSignalAt) {
+    requireIsoDate(lastSignalAt, "last-signal-at");
+  }
+  const reviewStatus = getFirst(flags, "review-status").trim();
+  if (reviewStatus) {
+    assertEnum(reviewStatus, allowedReviewStatus, "review-status");
+  }
+  const entityTags = getMany(flags, "entity-tag");
+  const canonicalRefs = parseCanonicalRefs(flags);
 
   const recommendedFollowUp = getMany(flags, "recommended-follow-up");
   const linkedPages = getMany(flags, "linked-page");
@@ -453,6 +687,15 @@ async function scaffoldReport(flags: Map<string, string[]>, dryRun: boolean) {
     OWNER: owner,
     SENSITIVITY: sensitivity,
     CONFIDENCE: numericConfidence.toString(),
+    OPTIONAL_FRONTMATTER_BLOCK: buildOptionalFrontmatterBlock({
+      pageKind,
+      subjectKey: subjectKey || undefined,
+      canonicalRefs,
+      freshnessSlaDays: freshnessSlaDays || undefined,
+      lastSignalAt: lastSignalAt || undefined,
+      reviewStatus: reviewStatus || undefined,
+      entityTags,
+    }),
     TITLE: title,
     RECOMMENDED_FOLLOW_UP_BLOCK: renderBulletList(
       recommendedFollowUp,
@@ -504,6 +747,14 @@ Commands:
     [--related-page <repo-relative-path>] (repeatable)
     [--contradiction <text>] (repeatable)
     [--stale-reason <text>]
+    [--page-kind <buyer_dossier|market_entity|city_brief|proof_pattern|doctrine_claim|support_playbook>]
+    [--subject-key <stable-key>]
+    [--canonical-ref-system <system>] (repeatable, pair with --canonical-ref)
+    [--canonical-ref <locator>] (repeatable, pair with --canonical-ref-system)
+    [--freshness-sla-days <number>]
+    [--last-signal-at <YYYY-MM-DD>]
+    [--review-status <active|watch|stale|blocked>]
+    [--entity-tag <tag>] (repeatable)
 
   report
     --category <reports subfolder>
@@ -519,6 +770,14 @@ Commands:
     [--report-date <YYYY-MM-DD>]
     [--recommended-follow-up <text>] (repeatable)
     [--linked-page <repo-relative-path>] (repeatable)
+    [--page-kind <buyer_dossier|market_entity|city_brief|proof_pattern|doctrine_claim|support_playbook>]
+    [--subject-key <stable-key>]
+    [--canonical-ref-system <system>] (repeatable, pair with --canonical-ref)
+    [--canonical-ref <locator>] (repeatable, pair with --canonical-ref-system)
+    [--freshness-sla-days <number>]
+    [--last-signal-at <YYYY-MM-DD>]
+    [--review-status <active|watch|stale|blocked>]
+    [--entity-tag <tag>] (repeatable)
 
 Global:
   --dry-run

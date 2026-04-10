@@ -91,6 +91,9 @@ function normalizeSession(session: unknown) {
         repoDocPaths: Array.isArray(startupContext.repoDocPaths)
           ? startupContext.repoDocPaths
           : [],
+        knowledgePagePaths: Array.isArray(startupContext.knowledgePagePaths)
+          ? startupContext.knowledgePagePaths
+          : [],
         blueprintIds: Array.isArray(startupContext.blueprintIds)
           ? startupContext.blueprintIds
           : [],
@@ -185,6 +188,8 @@ function normalizeStartupPack(pack: unknown) {
     name: value.name,
     description: typeof value.description === "string" ? value.description : "",
     repoDocPaths: Array.isArray(value.repo_doc_paths) ? value.repo_doc_paths : [],
+    knowledgePagePaths:
+      Array.isArray(value.knowledge_page_paths) ? value.knowledge_page_paths : [],
     blueprintIds: Array.isArray(value.blueprint_ids) ? value.blueprint_ids : [],
     documentIds: Array.isArray(value.document_ids) ? value.document_ids : [],
     externalSources: Array.isArray(value.external_sources) ? value.external_sources : [],
@@ -373,6 +378,7 @@ const createStartupPackSchema = z.object({
   name: z.string().min(1).max(160),
   description: z.string().max(600).optional(),
   repoDocPaths: z.array(z.string().min(1).max(300)).optional(),
+  knowledgePagePaths: z.array(z.string().min(1).max(500)).optional(),
   blueprintIds: z.array(z.string().min(1).max(160)).optional(),
   documentIds: z.array(z.string().min(1).max(160)).optional(),
   externalSources: z.array(startupPackSourceSchema).optional(),
@@ -768,6 +774,7 @@ router.post("/startup-packs", requireAdminRole, async (req: Request, res: Respon
       name: payload.name,
       description: payload.description,
       repo_doc_paths: payload.repoDocPaths,
+      knowledge_page_paths: payload.knowledgePagePaths,
       blueprint_ids: payload.blueprintIds,
       document_ids: payload.documentIds,
       external_sources: payload.externalSources,
@@ -802,6 +809,7 @@ router.patch("/startup-packs/:id", requireAdminRole, async (req: Request, res: R
       name: payload.name,
       description: payload.description,
       repo_doc_paths: payload.repoDocPaths,
+      knowledge_page_paths: payload.knowledgePagePaths,
       blueprint_ids: payload.blueprintIds,
       document_ids: payload.documentIds,
       external_sources: payload.externalSources,

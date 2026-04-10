@@ -31,6 +31,10 @@ export function verifyDispatchWake(input: {
   if (
     input.issueExecutionRunId?.trim()
     && input.issueExecutionAgentNameKey?.trim() === input.expectedAssigneeKey
+    && input.runtimeSession
+    && input.runtimeSession.agentKey === input.expectedAssigneeKey
+    && !NON_ACTIONABLE_RUNTIME_SESSION_STATUSES.has(input.runtimeSession.status)
+    && toTimestamp(input.runtimeSession.updatedAt) >= toTimestamp(input.dispatchedAt)
   ) {
     return { verified: true, evidence: "issue_execution_lock" as const };
   }

@@ -33,6 +33,36 @@ The Hermes KB is not allowed to become the source of truth for:
 
 If a KB page discusses any of the forbidden categories, it must link out to the authoritative system and explicitly say that the KB page is derivative context only.
 
+## Brain-First Lookup Protocol
+
+Before external research on buyers, companies, competitors, cities, objections, or GTM patterns:
+
+1. Search the existing KB first.
+2. Read the most relevant compiled page before starting new web research.
+3. Check `knowledge/indexes/contradictions.md` and `knowledge/indexes/stale-pages.md` when the topic may be disputed or stale.
+4. Only then call external web search, APIs, or workspace tools for missing evidence.
+
+This is a hard workflow rule, not a style preference.
+
+If a compiled page already exists for the subject, the default action is to update it.
+Do not create a new page just because the current run has a new date.
+
+## Page Archetypes
+
+Blueprint should use KB pages that match the company and product, not a generic personal memex taxonomy.
+
+Supported reusable compiled-page archetypes:
+
+- `buyer_dossier`
+- `market_entity`
+- `city_brief`
+- `proof_pattern`
+- `doctrine_claim`
+- `support_playbook`
+
+These archetypes remain derivative context only.
+They do not replace canonical operational systems.
+
 ## Directory Layout
 
 ```text
@@ -92,6 +122,7 @@ This is the reusable wiki.
 - Pages summarize and connect source evidence.
 - Pages must cite source locators and maintain explicit authority boundaries.
 - Pages should be stable enough to reuse across future runs.
+- Prefer Blueprint-native archetypes over broad generic entity taxonomies.
 
 ### `knowledge/reports/`
 
@@ -146,15 +177,64 @@ confidence: 0.76
 - `confidence`
   - Decimal between `0` and `1`.
 
+### Optional reusable-page fields
+
+Compiled pages and reports may also include:
+
+```yaml
+page_kind: buyer_dossier
+subject_key: acme-robotics
+canonical_refs:
+  - system: paperclip
+    ref: "issue://1234"
+freshness_sla_days: 14
+last_signal_at: 2026-04-10
+review_status: active
+entity_tags:
+  - hosted-review
+  - robot-team
+```
+
+- `page_kind`
+  - Blueprint-native reusable page archetype.
+- `subject_key`
+  - Stable identifier used to avoid duplicate dossier pages.
+- `canonical_refs`
+  - Pointers to real canonical systems such as Paperclip, Notion, or repo docs.
+- `freshness_sla_days`
+  - Target review window for the owning agent.
+- `last_signal_at`
+  - Most recent meaningful evidence update reflected on the page.
+- `review_status`
+  - One of `active`, `watch`, `stale`, or `blocked`.
+- `entity_tags`
+  - Lightweight tags for routing and attachment.
+
 ### Required sections
 
 Compiled pages must contain:
 
 - `## Summary`
-- `## Evidence`
-- `## Implications For Blueprint`
-- `## Open Questions`
-- `## Authority Boundary`
+- default shape when `page_kind` is absent:
+  - `## Evidence`
+  - `## Implications For Blueprint`
+  - `## Open Questions`
+  - `## Authority Boundary`
+- dossier-style shape when `page_kind` is `buyer_dossier`, `market_entity`, or `city_brief`:
+  - `## Current State`
+  - `## Evidence`
+  - `## Signals`
+  - `## Implications For Blueprint`
+  - `## Open Questions`
+  - `## Canonical Links`
+  - `## Authority Boundary`
+- pattern-style shape when `page_kind` is `proof_pattern`, `doctrine_claim`, or `support_playbook`:
+  - `## Pattern`
+  - `## Evidence`
+  - `## Failure Modes`
+  - `## Implications For Blueprint`
+  - `## Open Questions`
+  - `## Authority Boundary`
 
 Reports must contain:
 
@@ -163,6 +243,16 @@ Reports must contain:
 - `## Recommended Follow-up`
 - `## Linked KB Pages`
 - `## Authority Boundary`
+
+## Compiled Truth And Signals
+
+Blueprint KB pages should keep the reusable summary current and the dated signal trail append-only.
+
+- The upper sections are the current synthesized view.
+- `## Signals` is the append-only record of meaningful changes, observations, or updates when a dossier-style page uses that section.
+- When a page does not have a dedicated `## Signals` section, dated source-backed changes should still be captured in evidence and linked indexes.
+
+Do not silently overwrite a durable claim without leaving a source-backed trail showing what changed and why.
 
 ## Ingest Flow
 
@@ -199,6 +289,12 @@ Hermes writes or updates a page in `knowledge/compiled/` when:
 
 Hermes should prefer updating an existing page over creating duplicates.
 
+When a subject already has a dossier or reusable page:
+
+- update the existing page first
+- append the new signal
+- only create a new report if the run also needs a dated one-off artifact
+
 ### 4. Emit reports
 
 When a run produces a task-specific artifact, write it to `knowledge/reports/`.
@@ -213,6 +309,38 @@ After any substantial page addition or rewrite, Hermes updates:
 - `stale-pages.md` when a page is due for review
 - `contradictions.md` if evidence conflicts
 - `backlinks.md` when a new cross-page relationship matters
+
+## Background Hygiene Loop
+
+The KB should be maintained as a background support layer for recurring research lanes.
+
+At minimum, the maintenance loop should:
+
+- review pages that crossed their freshness SLA
+- record unresolved contradictions in `knowledge/indexes/contradictions.md`
+- promote reusable findings from recent reports into existing compiled pages
+- update backlinks when a page becomes operationally relevant across multiple lanes
+- mark blocked pages when canonical evidence is missing
+
+This is the Blueprint equivalent of the "dream cycle," but it remains derivative and same-stack.
+
+## Session Attachment Rule
+
+When a KB page materially informs:
+
+- a buyer-prep session
+- a market or demand research session
+- a support, procurement, or enablement session
+
+attach that KB page into startup context instead of pasting a fresh freeform summary into operator notes.
+
+Startup context should carry:
+
+- repo docs for canonical doctrine
+- ops documents for extracted source artifacts
+- selected KB pages for reusable derivative context
+
+This keeps the KB reusable without making it canonical.
 
 ### 6. Respect human gates
 
@@ -251,6 +379,7 @@ Supported commands:
   - accepts repeated source locators and optional open questions
 - `compiled-page`
   - creates `knowledge/compiled/<category>/<slug>.md`
+  - supports Blueprint-native page archetypes and optional canonical refs / freshness metadata
   - updates backlinks, open questions, contradictions, and stale-page cleanup based on the flags provided
 - `report`
   - creates `knowledge/reports/<category>/<YYYY-MM-DD>-<slug>.md`
