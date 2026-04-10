@@ -21,6 +21,7 @@
     "ingest:hermes-kb": "tsx scripts/hermes-kb-ingest.ts",
     "lint:hermes-kb": "tsx scripts/hermes-kb-lint.ts",
     "notion:sync:growth-studio": "tsx scripts/notion-sync-growth-studio.ts",
+    "paperclip:sweep:run-failures": "tsx scripts/paperclip/sweep-agent-run-failures.ts",
     "test:coverage": "vitest run --coverage --exclude client/tests/build-output.test.ts",
     "test:build-output": "vitest run client/tests/build-output.test.ts",
     "test:e2e": "playwright test",

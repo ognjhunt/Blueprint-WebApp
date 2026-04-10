@@ -24,6 +24,7 @@ Main entrypoints:
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/README.md`: canonical employee-kit contract for all Blueprint agents
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/validate-agent-kits.sh`: repo-side validator for the mandatory four-file agent kit
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/verify-blueprint-paperclip.sh`: run environment checks against the imported local adapters
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/sweep-agent-run-failures.ts`: cluster recent failed or stalled heartbeat runs into shared failure families so fixes can land once for many agents
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/smoke-blueprint-paperclip-automation.sh`: end-to-end smoke for issue creation, dedupe, blocker follow-up, and resolution
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/install-blueprint-paperclip-launchagent.sh`: install macOS LaunchAgents for the long-lived server and a slower maintenance sweep
 
@@ -101,3 +102,9 @@ Hermes-backed Blueprint agents are expected to use Codex OAuth only on this host
 
 - `hermes model` → choose the Codex provider
 - pin auxiliary/compression paths to Codex in `~/.hermes/config.yaml` if you want strict no-OpenRouter behavior
+
+Run-family triage workflow:
+
+- use `npm run paperclip:sweep:run-failures -- --markdown` to inspect the latest clustered failure families across agents
+- use `npm run paperclip:sweep:run-failures -- --json` when another script or dashboard should consume the grouped output
+- prefer fixing the top shared signatures first instead of investigating single runs one by one
