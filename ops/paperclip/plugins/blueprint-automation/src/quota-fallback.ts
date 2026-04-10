@@ -37,9 +37,11 @@ export type WorkspaceAdapterCooldownState = Record<string, WorkspaceAdapterCoold
 export const DEFAULT_HERMES_FALLBACK_MODEL = "arcee-ai/trinity-large-preview:free";
 export const DEFAULT_HERMES_FALLBACK_MODELS = [
   "arcee-ai/trinity-large-preview:free",
-  "openrouter/free",
-  "nvidia/nemotron-3-super:free",
   "openai/gpt-oss-120b:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "z-ai/glm-4.5-air:free",
+  "minimax/minimax-m2.5:free",
+  "qwen/qwen3-coder:free",
 ] as const;
 export const HERMES_MODEL_LADDER_CONFIG_KEY = "blueprintHermesModelLadder";
 export const FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY = "blueprintFallbackOriginAdapterType";
@@ -72,7 +74,9 @@ const PROVIDER_TIMEOUT_RE =
 const PROCESS_LOSS_RE =
   /(?:process lost --|child pid .* no longer running|server may have restarted)/i;
 const DISALLOWED_HERMES_FALLBACK_MODEL_RE =
-  /^(?:(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
+  /^(?:openrouter\/free|(?:openrouter\/)?nvidia\/nemotron-3-super(?::free)?|(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
+const OPENROUTER_SHARED_FREE_POOL_LIMIT_RE =
+  /free-models-per-(?:min|day(?:-high-balance)?)/i;
 const TERMINAL_LOGICAL_FAILURE_PATTERNS = [
   /api call failed after \d+ retries:\s*(http \d+:[^\n]+)/i,
   /final error:\s*(http \d+:[^\n]+)/i,
@@ -102,6 +106,11 @@ export function isQuotaOrRateLimitFailure(message: string | null | undefined): b
 export function isProviderCreditFailure(message: string | null | undefined): boolean {
   if (!message) return false;
   return PROVIDER_CREDIT_RE.test(message);
+}
+
+export function isSharedOpenRouterFreePoolRateLimitFailure(message: string | null | undefined): boolean {
+  if (!message) return false;
+  return OPENROUTER_SHARED_FREE_POOL_LIMIT_RE.test(message);
 }
 
 export function isModelNotFoundFailure(message: string | null | undefined): boolean {
@@ -420,11 +429,13 @@ export function buildLocalQuotaFallbackDescriptor(input: {
   currentAdapterConfig: Record<string, unknown> | null | undefined;
   desiredAdapterType?: string | null;
   desiredAdapterConfig?: Record<string, unknown> | null | undefined;
+  failureReason?: string | null;
 }): LocalQuotaFallbackDescriptor | null {
   const currentAdapterType = input.currentAdapterType;
   const currentAdapterConfig = input.currentAdapterConfig ?? {};
   const desiredAdapterType = input.desiredAdapterType ?? null;
   const desiredAdapterConfig = input.desiredAdapterConfig ?? currentAdapterConfig;
+  const failureReason = input.failureReason ?? null;
   const originAdapterType =
     asTrimmedString(currentAdapterConfig[FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY])
     ?? (desiredAdapterType === "hermes_local" ? "hermes_local" : null);
@@ -464,6 +475,20 @@ export function buildLocalQuotaFallbackDescriptor(input: {
   }
 
   if (currentAdapterType === "hermes_local") {
+    if (isSharedOpenRouterFreePoolRateLimitFailure(failureReason)) {
+      return {
+        adapterType: "codex_local",
+        reason: "quota_fallback_to_codex_local_after_shared_openrouter_free_pool_limit",
+        adapterConfig: withFallbackOrigin(
+          buildCodexFallbackAdapterConfig(desiredAdapterConfig, {
+            model: "gpt-5.4-mini",
+            modelReasoningEffort: "medium",
+          }),
+          "hermes_local",
+        ),
+      };
+    }
+
     const nextHermesConfig = buildNextHermesFallbackAdapterConfig(currentAdapterConfig);
     if (nextHermesConfig) {
       return {

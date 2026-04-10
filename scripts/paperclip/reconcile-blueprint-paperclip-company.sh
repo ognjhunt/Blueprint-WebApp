@@ -69,7 +69,7 @@ const fallbackCodexReasoningEffort =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT ?? "medium";
 const DEFAULT_HERMES_MODEL = "arcee-ai/trinity-large-preview:free";
 const DISALLOWED_HERMES_MODEL_RE =
-  /^(?:(?:anthropic\/)?claude(?:[-/].*)?|(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
+  /^(?:(?:anthropic\/)?claude(?:[-/].*)?|openrouter\/free|(?:openrouter\/)?nvidia\/nemotron-3-super(?::free)?|(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
 const hermesPrimaryModel = sanitizeHermesModel(
   process.env.BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL,
   DEFAULT_HERMES_MODEL,
@@ -86,12 +86,11 @@ const hermesFreeModels = normalizeHermesModelList([
   ...parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS),
   hermesFallbackModel,
   DEFAULT_HERMES_MODEL,
+  "openai/gpt-oss-120b:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
   "z-ai/glm-4.5-air:free",
   "minimax/minimax-m2.5:free",
-  "openai/gpt-oss-120b:free",
   "qwen/qwen3-coder:free",
-  "openrouter/free",
 ]);
 const hermesPaidModels = normalizeHermesModelList([
   ...parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_PAID_MODELS),

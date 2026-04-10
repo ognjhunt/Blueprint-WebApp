@@ -19,6 +19,7 @@ import {
   isProviderCreditFailure,
   isProviderTimeoutFailure,
   isQuotaOrRateLimitFailure,
+  isSharedOpenRouterFreePoolRateLimitFailure,
   parseQuotaResetAt,
   resolveHermesFallbackModels,
   resolveQuotaCooldownUntil,
@@ -201,7 +202,7 @@ describe("quota fallback helpers", () => {
     expect(resolved[0]).toBe(DEFAULT_HERMES_FALLBACK_MODEL);
     expect(resolved).not.toContain("openrouter/qwen/qwen3.6-plus:free");
     expect(resolved).not.toContain("qwen/qwen3.6-plus:free");
-    expect(resolved).toContain("openrouter/free");
+    expect(resolved).not.toContain("openrouter/free");
     const config = buildHermesFallbackAdapterConfig({
       cwd: "/tmp/project",
       model: "qwen/qwen3.6-plus:free",
@@ -236,6 +237,25 @@ describe("quota fallback helpers", () => {
     expect(config[HERMES_MODEL_LADDER_CONFIG_KEY]).not.toContain("stepfun/step-3.5-flash:free");
   });
 
+  it("rejects the openrouter/free alias and invalid nvidia fallback ids", () => {
+    vi.stubEnv(
+      "BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS",
+      [
+        "openrouter/free",
+        "nvidia/nemotron-3-super:free",
+        "arcee-ai/trinity-large-preview:free",
+        "openai/gpt-oss-120b:free",
+      ].join(","),
+    );
+
+    expect(isDisallowedHermesFallbackModel("openrouter/free")).toBe(true);
+    expect(isDisallowedHermesFallbackModel("nvidia/nemotron-3-super:free")).toBe(true);
+
+    const resolved = resolveHermesFallbackModels({ cwd: "/tmp/project" });
+    expect(resolved).not.toContain("openrouter/free");
+    expect(resolved).not.toContain("nvidia/nemotron-3-super:free");
+  });
+
   it("resolves a deterministic hermes free-model ladder", () => {
     expect(
       resolveHermesFallbackModels({
@@ -252,13 +272,13 @@ describe("quota fallback helpers", () => {
         model: "arcee-ai/trinity-large-preview:free",
         [HERMES_MODEL_LADDER_CONFIG_KEY]: [
           "arcee-ai/trinity-large-preview:free",
-          "openrouter/free",
-          "nvidia/nemotron-3-super:free",
+          "openai/gpt-oss-120b:free",
+          "nvidia/nemotron-3-super-120b-a12b:free",
         ],
       }),
     ).toEqual({
       cwd: "/tmp/project",
-      model: "openrouter/free",
+      model: "openai/gpt-oss-120b:free",
       [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
       modelReasoningEffort: "medium",
       timeoutSec: 1800,
@@ -273,7 +293,7 @@ describe("quota fallback helpers", () => {
         [HERMES_MODEL_LADDER_CONFIG_KEY]: [
           "gpt-5.4-mini",
           "arcee-ai/trinity-large-preview:free",
-          "openrouter/free",
+          "openai/gpt-oss-120b:free",
         ],
       }),
     ).toEqual({
@@ -282,6 +302,46 @@ describe("quota fallback helpers", () => {
       [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
       modelReasoningEffort: "medium",
       timeoutSec: 1800,
+    });
+  });
+
+  it("detects shared OpenRouter free-pool rate limits", () => {
+    expect(
+      isSharedOpenRouterFreePoolRateLimitFailure("HTTP 429: Rate limit exceeded: free-models-per-min."),
+    ).toBe(true);
+    expect(
+      isSharedOpenRouterFreePoolRateLimitFailure("HTTP 429: Rate limit exceeded: free-models-per-day-high-balance."),
+    ).toBe(true);
+    expect(
+      isSharedOpenRouterFreePoolRateLimitFailure("HTTP 429: Too Many Requests."),
+    ).toBe(false);
+  });
+
+  it("moves hermes directly to codex when the shared OpenRouter free pool is exhausted", () => {
+    expect(
+      buildLocalQuotaFallbackDescriptor({
+        currentAdapterType: "hermes_local",
+        currentAdapterConfig: {
+          cwd: "/tmp/project",
+          model: "arcee-ai/trinity-large-preview:free",
+          [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
+        },
+        desiredAdapterType: "hermes_local",
+        desiredAdapterConfig: {
+          cwd: "/tmp/project",
+        },
+        failureReason: "HTTP 429: Rate limit exceeded: free-models-per-min.",
+      }),
+    ).toEqual({
+      adapterType: "codex_local",
+      reason: "quota_fallback_to_codex_local_after_shared_openrouter_free_pool_limit",
+      adapterConfig: {
+        cwd: "/tmp/project",
+        model: "gpt-5.4-mini",
+        modelReasoningEffort: "medium",
+        dangerouslyBypassApprovalsAndSandbox: true,
+        [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: "hermes_local",
+      },
     });
   });
 

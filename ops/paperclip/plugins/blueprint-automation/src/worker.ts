@@ -1311,12 +1311,14 @@ function buildQuotaFallbackDescriptor(
     adapterType: string;
     adapterConfig: Record<string, unknown> | null | undefined;
   } | null,
+  failureReason?: string | null,
 ) {
   return buildLocalQuotaFallbackDescriptor({
     currentAdapterType: adapterType,
     currentAdapterConfig: asRecord(adapterConfig),
     desiredAdapterType: desired?.adapterType ?? null,
     desiredAdapterConfig: asRecord(desired?.adapterConfig),
+    failureReason,
   });
 }
 
@@ -6387,6 +6389,7 @@ async function handleAgentRunFailureQuotaFallback(
       agent.adapterType,
       asRecord(agent.adapterConfig),
       desired,
+      payload.error,
     );
   if (!fallback) {
     await markAttempt(
@@ -6436,6 +6439,7 @@ async function handleAgentRunFailureQuotaFallback(
         target.adapterType,
         asRecord(target.adapterConfig),
         targetAgent ? buildDesiredAdapterDescriptor(targetAgent) : null,
+        payload.error,
       );
       if (!targetFallback) {
         continue;
