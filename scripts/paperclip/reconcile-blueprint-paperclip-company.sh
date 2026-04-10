@@ -95,8 +95,6 @@ const hermesFreeModels = normalizeHermesModelList([
 ]);
 const hermesPaidModels = normalizeHermesModelList([
   ...parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_PAID_MODELS),
-  "z-ai/glm-5.1",
-  "arcee-ai/trinity-large-thinking",
 ]);
 const hermesModelLadder = normalizeHermesModelList([
   ...hermesFreeModels,

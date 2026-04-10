@@ -190,7 +190,7 @@ describe("quota fallback helpers", () => {
         "openrouter/qwen/qwen3.6-plus:free",
         "qwen/qwen3.6-plus:free",
         "arcee-ai/trinity-large-preview:free",
-        "z-ai/glm-5.1",
+        "openrouter/free",
       ].join(","),
     );
 
@@ -201,7 +201,7 @@ describe("quota fallback helpers", () => {
     expect(resolved[0]).toBe(DEFAULT_HERMES_FALLBACK_MODEL);
     expect(resolved).not.toContain("openrouter/qwen/qwen3.6-plus:free");
     expect(resolved).not.toContain("qwen/qwen3.6-plus:free");
-    expect(resolved).toContain("z-ai/glm-5.1");
+    expect(resolved).toContain("openrouter/free");
     const config = buildHermesFallbackAdapterConfig({
       cwd: "/tmp/project",
       model: "qwen/qwen3.6-plus:free",

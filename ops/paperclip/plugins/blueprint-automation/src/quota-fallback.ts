@@ -40,8 +40,6 @@ export const DEFAULT_HERMES_FALLBACK_MODELS = [
   "openrouter/free",
   "nvidia/nemotron-3-super:free",
   "openai/gpt-oss-120b:free",
-  "arcee-ai/trinity-large-thinking",
-  "z-ai/glm-5.1",
 ] as const;
 export const HERMES_MODEL_LADDER_CONFIG_KEY = "blueprintHermesModelLadder";
 export const FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY = "blueprintFallbackOriginAdapterType";
