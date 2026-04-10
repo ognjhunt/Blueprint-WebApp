@@ -50,8 +50,12 @@ All review findings, blockers, monitor-only concerns, handoffs, and validation e
 
 Paperclip fallback rule:
 
+- Safe Paperclip read fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain`
+- Safe issue-context fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --heartbeat-context --issue-id "$PAPERCLIP_TASK_ID" --plain`
 - If `blueprint-resolve-work-item`, `blueprint-manager-state`, or related Blueprint automation tools are gated, unavailable, or permission-denied, stop testing the gated path and switch immediately to the local Paperclip API via `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/paperclip-api.sh`.
 - Resolve the healthy API URL first, then use direct `/api/issues/*` and `/api/agents/me/inbox-lite` for issue reads, comments, checkout, and status updates.
+- If `PAPERCLIP_TASK_ID`, `PAPERCLIP_WAKE_REASON`, or another issue-bound wake context is present, treat that issue as the sole execution scope for the run.
+- Do not widen issue-bound review runs into backlog discovery, manager-state discovery, or company-scoped issue scans unless the assigned issue is explicitly about routing, backlog, or manager health.
 - Do not spend the run on a second discovery pass once the automation-safe tool lane is known to be blocked.
 
 Workflow usage:

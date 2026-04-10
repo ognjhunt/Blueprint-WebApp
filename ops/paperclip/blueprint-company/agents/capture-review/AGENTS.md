@@ -56,6 +56,14 @@ Delegation visibility rule:
 
 All review findings, rollout concerns, compatibility risks, monitor-only follow-ups, and escalations must be reflected in Paperclip issues, not left as narrative-only commentary.
 
+Paperclip runtime safety:
+
+- Safe Paperclip read fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain`
+- Safe issue-context fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --heartbeat-context --issue-id "$PAPERCLIP_TASK_ID" --plain`
+- If `PAPERCLIP_TASK_ID`, `PAPERCLIP_WAKE_REASON`, or another issue-bound wake context is present, treat that issue as the sole execution scope for the run.
+- Do not widen issue-bound review runs into backlog discovery, manager-state discovery, or company-scoped issue scans unless the assigned issue is explicitly about routing, backlog, or manager health.
+- If a safe Paperclip read fallback fails, stop and report the failure instead of widening into a second discovery pass.
+
 gstack workflow integration:
 
 - Use `/review` on every implementation PR or completed issue to run staff-engineer-level code review with auto-fixes.
