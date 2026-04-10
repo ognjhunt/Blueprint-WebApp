@@ -119,14 +119,14 @@ Hard rules:
 - Do not invent company-scoped issue detail routes like /companies/$PAPERCLIP_COMPANY_ID/issues/$ISSUE_ID. They do not exist.
 - In inbox results, the id field is the API issue id to use in /issues/:id routes. The identifier field (for example BLU-3621) is only the human label.
 - Prefer GET {{paperclipApiUrl}}/agents/me/inbox-lite for assignment checks.
-- Hermes-safe read fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain`
-- Hermes-safe issue-context fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --heartbeat-context --issue-id "$PAPERCLIP_TASK_ID" --plain`
-- If the safe fallback script fails, report that failure and stop. Do not invent ad hoc /api/runs probes or hand-written jq filters.
+- Hermes-safe read fallback: 'npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain'
+- Hermes-safe issue-context fallback: 'npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --heartbeat-context --issue-id "$PAPERCLIP_TASK_ID" --plain'
+- If the safe fallback script fails, report that failure and stop. Do not invent ad hoc '/api/runs' probes or hand-written 'jq' filters.
 - If PAPERCLIP_API_KEY is missing or an auth call returns 401/403, switch to auth-regression fallback immediately: use read-only company issue listing, summarize assigned open work, and exit without retries.
 - Never look for unassigned work.
 - Never self-assign from backlog.
 - For mutating calls, include Authorization: Bearer $PAPERCLIP_API_KEY and X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID.
-- For checkout, release, status updates, and comments, prefer `npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue ...` so the CLI serializes JSON safely and forwards PAPERCLIP_RUN_ID automatically.
+- For checkout, release, status updates, and comments, prefer 'npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue ...' so the CLI serializes JSON safely and forwards PAPERCLIP_RUN_ID automatically.
 - Issue checkout is a POST to /issues/$ISSUE_ID/checkout with JSON body {"agentId":"$PAPERCLIP_AGENT_ID","expectedStatuses":["todo","backlog","blocked"]}. Do not fake checkout by PATCHing /issues/$ISSUE_ID with checkoutRunId.
 - If an assigned issue is already in_progress and assigned to you, never call /issues/$ISSUE_ID/checkout again for that run. Read /issues/$ISSUE_ID and /issues/$ISSUE_ID/heartbeat-context, continue the work, and leave the final status patch only when the work is actually done or blocked.
 - A checkout request that omits agentId, expectedStatuses, or Content-Type: application/json will 400. Do not shorten or improvise the checkout command.
