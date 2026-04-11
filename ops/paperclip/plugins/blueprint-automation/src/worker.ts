@@ -6294,13 +6294,13 @@ function buildNotionQueueAliasMap(
   return aliases;
 }
 
-function makeTraceBlock(input: UpsertManagedIssueInput) {
+function makeTraceBlock(input: UpsertManagedIssueInput, resolvedAssignee?: string) {
   const lines = [
     "## Automation Trace",
     `- Source type: ${input.sourceType}`,
     `- Source id: ${input.sourceId}`,
     `- Project: ${input.projectName}`,
-    `- Assignee: ${input.assignee}`,
+    `- Assignee: ${resolvedAssignee ?? input.assignee}`,
   ];
   if (input.signalUrl) {
     lines.push(`- URL: ${input.signalUrl}`);
@@ -7169,7 +7169,7 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
       currentIssue.id,
       {
         title: input.title,
-        description: makeTraceBlock(input),
+        description: makeTraceBlock(input, assigneeResolution.selectedKey),
         status: nextStatus,
         priority: desiredPriority,
         assigneeAgentId: assignee.id,
@@ -7189,7 +7189,7 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
       projectId: project.id,
       parentId: input.parentIssueId,
       title: input.title,
-      description: makeTraceBlock(input),
+      description: makeTraceBlock(input, assigneeResolution.selectedKey),
       status: desiredStatus,
       priority: desiredPriority,
       assigneeAgentId: assignee.id,
