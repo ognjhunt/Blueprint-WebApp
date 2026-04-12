@@ -61,9 +61,9 @@ agents:
     role: engineer
     icon: book-open
     capabilities: >-
-      Reconciles Blueprint's Notion workspace after producer agents create artifacts. Verifies placement, repairs
-      metadata and relations, dedupes safe duplicates, flags stale pages, and escalates ambiguous Notion drift through
-      Paperclip plus manager-visible Slack. Only auto-mutates Blueprint-managed pages and known Hub surfaces.
+      Sole owner of Blueprint Notion hygiene. Repairs event-driven drift, enforces deterministic idempotency, and keeps
+      broad sweeps paused until duplicate and stale-page rules are stable. Only auto-mutates Blueprint-managed pages and
+      known Hub surfaces.
     adapter:
       type: hermes_local
       config:
@@ -86,9 +86,9 @@ agents:
     role: engineer
     icon: database
     capabilities: >-
-      Notion-facing Paperclip/Hermes pilot that reconciles Blueprint Hub metadata across Work Queue, Knowledge, Skills,
-      and Agents. Repairs clear relation drift, flags stale doctrine surfaces, mirrors each run into Blueprint Agent
-      Runs, and leaves ambiguous cleanup decisions visible instead of silently guessing.
+      Paused legacy compatibility shim for the former Notion Reconciler pilot. All active Notion reconciliation now
+      belongs to notion-manager-agent. Keep only for backward-compatible issue and action handling until old references
+      are retired.
     adapter:
       type: hermes_local
       config:
@@ -488,9 +488,9 @@ agents:
     role: cto
     icon: trending-up
     capabilities: >-
-      Coordinates buyer demand, capturer supply, conversion, and retention. Sets experiment priorities using ICE
-      scoring. Synthesizes analytics plus supply-side and demand-side intelligence into growth strategy. Read skill file
-      at ops/paperclip/skills/growth-lead.md before every routine.
+      Coordinates a reduced growth core: analytics, conversion, market intelligence, demand intelligence, and one
+      city-demand loop. Keeps all other growth lanes paused or event-driven until evidence justifies restart. Read
+      skill file at ops/paperclip/skills/growth-lead.md before every routine.
     adapter:
       type: hermes_local
       config:
@@ -552,10 +552,9 @@ agents:
     role: engineer
     icon: bar-chart
     capabilities: >-
-      Pulls, aggregates, and interprets all measurable signals. Detects anomalies, produces daily/weekly reports,
-      answers ad-hoc metric queries. Must investigate first, then call the Blueprint analytics-report writer with
-      structured findings, then patch the current issue to done or blocked using the returned proof comment. Read skill
-      file at ops/paperclip/skills/analytics-agent.md before every routine.
+      Owns Blueprint's KPI contract across Firestore, Stripe, PostHog/GA4, and Paperclip. Detects anomalies, publishes
+      decision-grade reports, and escalates blocked metrics instead of inventing them. Read skill file at
+      ops/paperclip/skills/analytics-agent.md before every routine.
     adapter:
       type: hermes_local
       config:
@@ -632,9 +631,9 @@ agents:
     role: engineer
     icon: target
     capabilities: >-
-      Notion-facing Paperclip/Hermes pilot that turns truthful analytics, Growth Studio, Work Queue, and Knowledge
-      signals into recurring internal metrics reports. Writes Blueprint Knowledge artifacts, optional Work Queue
-      breadcrumbs, and mirrors run status into Blueprint Agent Runs.
+      Paused legacy compatibility shim for the former Metrics Reporter pilot. All active recurring KPI and internal
+      metrics reporting now belongs to analytics-agent. Keep only for backward-compatible issue and action handling
+      until old references are retired.
     adapter:
       type: hermes_local
       config:
@@ -894,8 +893,9 @@ agents:
     role: engineer
     icon: briefcase
     capabilities: >-
-      Owns the buyer journey from qualified inbound to proof-ready. Interprets messy buyer requests, tracks through
-      capture matching, packaging, and proof delivery. Acts as the buyer's dedicated account manager backed by evidence.
+      Single commercial journey owner from qualified inbound to proof-ready commercial motion. Interprets messy buyer
+      requests, tracks through capture matching, packaging, and proof delivery, and keeps pricing or technical support
+      inside one buyer thread.
     adapter:
       type: hermes_local
       config:
@@ -1100,9 +1100,8 @@ agents:
     role: engineer
     icon: star
     capabilities: >-
-      Customer success manager for post-delivery buyer relationships. Monitors hosted session usage, runs onboarding
-      check-ins, collects feedback, identifies expansion opportunities, and detects churn risk. Ensures buyers get
-      enough value that leaving does not make sense.
+      Lightweight post-delivery buyer support lane. Operates event-driven on support, onboarding, feedback, and churn
+      signals until active buyer volume is high enough to justify a standing cadence.
     adapter:
       type: hermes_local
       config:
@@ -1126,9 +1125,8 @@ agents:
     icon: calculator
     capabilities: >-
       Owns pricing system hygiene across packaging, quote support, discount guardrails, and revenue-ops analysis.
-      Connects buyer demand, usage, catalog supply, and delivery cost signals into draft pricebook updates and
-      commercial recommendations without making live pricing or contract commitments. Read skill file at
-      ops/paperclip/skills/revenue-ops-pricing-agent.md and steering file at
+      Contributes inside buyer-solutions threads without taking over buyer ownership or making live pricing or contract
+      commitments. Read skill file at ops/paperclip/skills/revenue-ops-pricing-agent.md and steering file at
       ops/paperclip/programs/revenue-ops-pricing-agent-program.md before every routine.
     adapter:
       type: hermes_local
@@ -1439,6 +1437,10 @@ tasks:
     status: done
     priority: high
     projectWorkspaceKey: blueprint-webapp
+  buyer-solutions-active-pipeline-review:
+    status: active
+    priority: high
+    projectWorkspaceKey: blueprint-webapp
   security-procurement-agent-bootstrap:
     status: done
     priority: high
@@ -1464,19 +1466,19 @@ tasks:
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   community-updates-weekly:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-webapp
   ship-broadcast-refresh:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-webapp
   ship-broadcast-approval-refresh:
-    status: active
+    status: paused
     priority: medium
     projectWorkspaceKey: blueprint-webapp
   content-feedback-refresh:
-    status: active
+    status: paused
     priority: medium
     projectWorkspaceKey: blueprint-webapp
   supply-intel-daily:
@@ -1484,11 +1486,11 @@ tasks:
     priority: medium
     projectWorkspaceKey: blueprint-executive-ops
   supply-intel-weekly:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   capturer-growth-weekly:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-webapp
   capturer-growth-refresh:
@@ -1496,11 +1498,11 @@ tasks:
     priority: medium
     projectWorkspaceKey: blueprint-webapp
   city-launch-weekly:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   city-launch-refresh:
-    status: active
+    status: paused
     priority: medium
     projectWorkspaceKey: blueprint-executive-ops
   demand-intel-daily:
@@ -1512,7 +1514,7 @@ tasks:
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   robot-team-growth-weekly:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-webapp
   robot-team-growth-refresh:
@@ -1520,7 +1522,7 @@ tasks:
     priority: medium
     projectWorkspaceKey: blueprint-webapp
   site-operator-partnership-weekly:
-    status: active
+    status: paused
     priority: medium
     projectWorkspaceKey: blueprint-executive-ops
   site-operator-partnership-refresh:
@@ -1544,7 +1546,7 @@ tasks:
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   revenue-ops-pricing-weekly:
-    status: active
+    status: paused
     priority: high
     projectWorkspaceKey: blueprint-executive-ops
   docs-agent-sweep:
@@ -1821,6 +1823,7 @@ routines:
         timezone: America/New_York
   community-updates-weekly:
     agent: community-updates-agent
+    status: paused
     priority: high
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: enqueue_missed_with_cap
@@ -1860,6 +1863,7 @@ routines:
         timezone: America/New_York
   ship-broadcast-refresh:
     agent: community-updates-agent
+    status: paused
     priority: high
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: enqueue_missed_with_cap
@@ -1869,6 +1873,7 @@ routines:
         timezone: America/New_York
   ship-broadcast-approval-refresh:
     agent: growth-lead
+    status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: enqueue_missed_with_cap
@@ -1878,6 +1883,7 @@ routines:
         timezone: America/New_York
   content-feedback-refresh:
     agent: growth-lead
+    status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: enqueue_missed_with_cap
@@ -1896,6 +1902,7 @@ routines:
         timezone: America/New_York
   market-intel-daily:
     agent: market-intel-agent
+    status: paused
     priority: medium
     concurrencyPolicy: always_enqueue
     catchUpPolicy: enqueue_missed_with_cap
@@ -1924,6 +1931,7 @@ routines:
         timezone: America/New_York
   supply-intel-weekly:
     agent: supply-intel-agent
+    status: paused
     priority: high
     concurrencyPolicy: always_enqueue
     catchUpPolicy: enqueue_missed_with_cap
@@ -1933,6 +1941,7 @@ routines:
         timezone: America/New_York
   capturer-growth-weekly:
     agent: capturer-growth-agent
+    status: paused
     priority: high
     concurrencyPolicy: always_enqueue
     catchUpPolicy: enqueue_missed_with_cap
@@ -1952,6 +1961,7 @@ routines:
         timezone: America/New_York
   city-launch-weekly:
     agent: city-launch-agent
+    status: paused
     priority: high
     concurrencyPolicy: always_enqueue
     catchUpPolicy: enqueue_missed_with_cap
@@ -1961,7 +1971,7 @@ routines:
         timezone: America/New_York
   city-launch-refresh:
     agent: city-launch-agent
-    status: active
+    status: paused
     priority: medium
     concurrencyPolicy: always_enqueue
     catchUpPolicy: enqueue_missed_with_cap
@@ -1990,6 +2000,7 @@ routines:
         timezone: America/New_York
   robot-team-growth-weekly:
     agent: robot-team-growth-agent
+    status: paused
     priority: high
     concurrencyPolicy: always_enqueue
     catchUpPolicy: enqueue_missed_with_cap
@@ -2009,6 +2020,7 @@ routines:
         timezone: America/New_York
   site-operator-partnership-weekly:
     agent: site-operator-partnership-agent
+    status: paused
     priority: medium
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: enqueue_missed_with_cap
@@ -2045,6 +2057,15 @@ routines:
       - kind: schedule
         cronExpression: 15 13 * * 4
         timezone: America/New_York
+  buyer-solutions-active-pipeline-review:
+    agent: buyer-solutions-agent
+    priority: high
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: enqueue_missed_with_cap
+    triggers:
+      - kind: schedule
+        cronExpression: 15 10 * * 1-5
+        timezone: America/New_York
   solutions-engineering-active-delivery-review:
     agent: solutions-engineering-agent
     priority: high
@@ -2065,6 +2086,7 @@ routines:
         timezone: America/New_York
   revenue-ops-pricing-weekly:
     agent: revenue-ops-pricing-agent
+    status: paused
     priority: high
     concurrencyPolicy: coalesce_if_active
     catchUpPolicy: enqueue_missed_with_cap

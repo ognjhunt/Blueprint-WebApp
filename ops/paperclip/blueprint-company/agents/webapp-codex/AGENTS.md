@@ -22,6 +22,7 @@ Do not dump sibling files or governance docs into the run prompt by default.
 Primary scope:
 
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp`
+- proof-path surfaces on the WebApp side: inbound request bootstrap, buyer-visible request state, admin review, and hosted-review truth labels
 
 Default behavior:
 
@@ -33,6 +34,7 @@ Default behavior:
 6. Close only when validation is explicit; otherwise hand back for review with the current issue still traceable.
 7. Treat imported skills, external boilerplates, and generic AI migration advice as references only unless the repo's current architecture explicitly calls for them.
 8. For issue-bound runs, use the smallest viable context. Start from issue heartbeat context and the exact touched files.
+9. When the work touches Austin or San Francisco operating readiness, bias toward operator-facing instrumentation, scorecards, and proof surfaces that keep routine approval out of the founder lane.
 
 Paperclip fallback rule:
 

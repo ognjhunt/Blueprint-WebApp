@@ -1,4 +1,5 @@
 import type { Agent, Issue, IssueComment } from "@paperclipai/plugin-sdk";
+import { ORIGIN_KIND } from "./constants.js";
 import type { HandoffAnalytics, HandoffSnapshot } from "./handoffs.js";
 
 export type ManagerRoutineHealthEntry = {
@@ -610,7 +611,7 @@ export function buildManagerStateSnapshot(input: BuildManagerStateInput): Manage
 
 export function shouldWakeChiefOfStaffForIssueEvent(input: {
   eventType: "issue.created" | "issue.updated";
-  issue: Pick<Issue, "status" | "priority" | "assigneeAgentId" | "createdByAgentId">;
+  issue: Pick<Issue, "status" | "priority" | "assigneeAgentId" | "createdByAgentId" | "originKind">;
   chiefOfStaffAgentId: string | null;
 }): boolean {
   const { issue, chiefOfStaffAgentId, eventType } = input;
@@ -619,6 +620,9 @@ export function shouldWakeChiefOfStaffForIssueEvent(input: {
   }
 
   if (eventType === "issue.created") {
+    if (issue.originKind === ORIGIN_KIND) {
+      return false;
+    }
     return !RESOLVED_STATUSES.has(issue.status);
   }
 

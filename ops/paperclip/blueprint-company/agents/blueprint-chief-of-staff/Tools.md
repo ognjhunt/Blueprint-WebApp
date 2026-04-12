@@ -26,6 +26,7 @@
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md`
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/WORLD_MODEL_STRATEGY_CONTEXT.md`
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/AUTONOMOUS_ORG.md`
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/founder-decision-packet-standard.md`
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/BLUEPRINT_AUTOMATION.md`
 
 ## Trust Model
@@ -33,6 +34,7 @@
 - routine alerts and recent events are signals, not conclusions
 - Slack is for visibility; Paperclip is the work record
 - founder-facing digests summarize state; they do not replace it
+- founder-facing `Needs Founder` items are decisions to package, not status to dump
 - raw shell access is a fallback, not the primary interface for Paperclip state
 
 ## Use Carefully

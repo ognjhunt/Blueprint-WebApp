@@ -108,8 +108,21 @@ These remain working hypotheses, not confirmed demand.
 - intake tags for BARA, proof-led event, founder intro, partner referral, and buyer-matchmaking sources
 - SF-ready proof-pack and hosted-review templates that inherit the reusable robot-team structure while making stack compatibility and async artifact review explicit
 - an ops handoff checklist for same-day hosted review assembly and artifact-led buyer follow-up on buyer-matchmaking and partner-led intros
-- a clean human handoff for pricing, contracts, procurement, commercialization, and sensitive access questions
+- a clean standard-commercial handoff to `buyer-solutions-agent` plus the designated human commercial owner, with founder review reserved for non-standard asks
 - clearer operator-lane escalation paths only for sensitive facility cases that actually surface
+
+## Operating Ownership Split
+- Founder-only: SF demand does not escalate unless the ask changes whether SF should run, changes the spend envelope, changes public posture, introduces non-standard commercial commitments, or creates a rights/privacy/commercialization exception
+- Human operator-owned:
+  - `growth-lead` owns SF source policy and referral mechanics inside approved guardrails
+  - `ops-lead` owns the SF proof-ops checklist, sensitive-site trust process, and multi-stakeholder escalation path
+  - designated human commercial owner owns standard pricing and procurement handling after proof review
+- Agent-prepared / autonomous:
+  - `buyer-solutions-agent` owns standard buyer progression
+  - `revenue-ops-pricing-agent` prepares standard quote guidance
+  - `analytics-agent`, `notion-manager-agent`, and `webapp-codex` keep SF reporting and operator views decision-ready
+  - `rights-provenance-agent` prepares routine rights/privacy packets for human review when needed
+- Exception-only escalation: founder sees only non-standard commercial asks, rights/privacy/commercialization exceptions, or city-posture changes
 
 ## Measurement Plan
 - track SF-sourced buyer demand separately from generic inbound
@@ -120,6 +133,7 @@ These remain working hypotheses, not confirmed demand.
 ## Immediate Next Actions
 1. give `intake-agent` an SF routing task for source tagging, exact-site versus adjacent-site classification, and cluster classification across BARA, proof-led events, founder intros, and partner referrals
 2. give `ops-lead` an SF-specific proof-ops task for same-day proof-pack assembly, hosted-review readiness, and artifact-led follow-up on buyer-matchmaking and partner-led intros
-3. give `finance-support-agent` an SF commercial handoff task for pricing, procurement, invoice, and partner-terms questions that surface after proof review
-4. give `site-operator-partnership-agent` an SF operator-lane task for sensitive or high-value facilities and commercialization-boundary review
-5. keep `conversion-agent` and `analytics-agent` on the inherited generic robot-team queue in [BLU-170](/BLU/issues/BLU-170) and [BLU-190](/BLU/issues/BLU-190) unless the shared proof system changes materially again
+3. give `buyer-solutions-agent` plus the designated human commercial owner an SF standard-commercial handoff task for pricing, procurement, invoice, and partner-term questions that surface after proof review
+4. give `revenue-ops-pricing-agent` an SF quote-band and exception-threshold task so routine commercial work stays out of the founder lane
+5. give `site-operator-partnership-agent` an SF operator-lane task for sensitive or high-value facilities and commercialization-boundary review
+6. keep `conversion-agent` and `analytics-agent` on the inherited generic robot-team queue in [BLU-170](/BLU/issues/BLU-170) and [BLU-190](/BLU/issues/BLU-190) unless the shared proof system changes materially again

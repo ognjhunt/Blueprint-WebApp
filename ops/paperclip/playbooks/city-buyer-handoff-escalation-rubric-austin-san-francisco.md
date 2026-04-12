@@ -17,7 +17,8 @@ Keep a request in normal buyer follow-up until there is evidence that the motion
 Use the smallest truthful lane:
 - `intake-agent`: buyer-safe follow-up, source tagging, and proof-path classification
 - `ops-lead`: proof-pack assembly readiness, hosted-review coordination, mixed-lane ownership, and missing-owner escalation
-- `finance-support-agent`: billing, pricing, contract, procurement, refund, dispute, or invoice-adjacent routing
+- `buyer-solutions-agent` + designated human commercial owner: standard buyer-thread commercial handling inside approved quote bands
+- `revenue-ops-pricing-agent`: quote guidance, package-band checks, and exception detection for the human commercial owner
 - optional operator lane / `field-ops-agent`: access, permissions, operator coordination, rights, privacy, or commercialization-boundary friction
 - engineering via Paperclip issue: product bugs affecting proof-pack pages, hosted review, artifact access, or billing UI
 
@@ -37,11 +38,13 @@ Route to `ops-lead` when any of the following becomes true:
 - multiple internal lanes may need to act within one business day
 - the buyer asks for exact-site or adjacent-site evidence packaging that is not yet cleanly assembled
 
-### Move To `finance-support-agent`
-Route to `finance-support-agent` when the thread moves beyond proof review and into:
-- billing mechanics, invoice flow, payment timing, refund policy, dispute handling
-- pricing, discounting, volume terms, custom packaging, procurement, or contract routing
-- requests for a human commercial owner after proof review
+### Move To Standard Commercial Handling
+Route to `buyer-solutions-agent` plus the designated human commercial owner when the thread moves beyond proof review and into:
+- standard pricing, invoice flow, procurement routing, or approved quote handling
+- a normal commercial handoff after proof review
+- questions that need `revenue-ops-pricing-agent` support but still fit the approved package and quote bands
+
+Route to founder only when the commercial ask is non-standard: discounts outside guardrails, custom packaging beyond precedent, contract deviations, or commitments that change company posture
 
 ### Move To Operator / Access Routing
 Route to the optional operator lane or `field-ops-agent` when:
@@ -71,7 +74,7 @@ Austin should be treated as a relationship-driven market where not every introdu
 - operator-governed facility questions appear alongside proof follow-up
 - the team needs to separate what Blueprint can show now from what requires more capture, packaging, or approvals
 
-### Route Austin To `finance-support-agent` When
+### Route Austin To Standard Commercial Handling When
 - the intro quickly turns into pilot budget, invoice, pricing, discount, or procurement questions
 - a founder or partner wants commercial follow-up packaged for a named human owner
 
@@ -97,7 +100,7 @@ San Francisco should be treated as the denser buyer-matchmaking market, which me
 - repeated SF channel activity creates ambiguity about whether the motion is still product evaluation or now operational coordination
 - the request mixes proof-path questions with access planning, delivery coordination, or partner handoff expectations
 
-### Route San Francisco To `finance-support-agent` When
+### Route San Francisco To Standard Commercial Handling When
 - proof review is successful and the next questions are pricing, contract, procurement, invoice, or commercial packaging
 - a buyer-matchmaking or partner thread needs a buyer-safe commercial handoff package without making commitments
 

@@ -4804,27 +4804,6 @@ async function createDelegatedFollowUpIssue(
       `Priority: ${formatIssuePriority(followUp.priority) ?? followUp.priority}`,
     ],
   }).catch(() => undefined);
-  await wakeChiefOfStaff(ctx, companyId, config, {
-    reason: "delegation_follow_up_created",
-    idempotencyKey: `chief-of-staff:delegation-follow-up:${followUp.id}`,
-    payload: {
-      signalType: "delegation_follow_up_created",
-      issueId: followUp.id,
-      parentIssueId: input.parentIssueId,
-      assignee: assigneeResolution.selectedKey,
-      projectName: input.projectName,
-    },
-    title: "Chief of Staff wakeup from delegation follow-up",
-    detail: `${followUp.title} (${followUp.id}) was delegated to ${assigneeResolution.selectedKey}.`,
-    slackChannel: "#paperclip-manager",
-    slackTitle: "Manager update: work was delegated",
-    slackSummary: [
-      `What happened: A chief-owned backlog thread was delegated to ${formatAgentName(assigneeResolution.selectedKey)} for execution.`,
-      `Task: ${followUp.title}`,
-      `Project: ${input.projectName}`,
-    ],
-    suppressSlackIfSameTargetAsChannel: slackChannelForAgent(assigneeResolution.selectedKey),
-  }).catch(() => undefined);
   return followUp;
 }
 
@@ -9154,18 +9133,19 @@ async function buildMetricsReporterOutputProof(
   companyId: string,
   params: Record<string, unknown>,
 ): Promise<MetricsReporterOutputProof> {
+  const owningAgentKey = "analytics-agent";
   const cadence = asString(params.cadence) === "weekly" ? "weekly" : "daily";
   const generatedAt = nowIso();
   const reportDate = formatDateInTimeZone(new Date(generatedAt), "America/New_York");
-  const title = `Metrics Reporter ${cadence === "weekly" ? "Weekly" : "Daily"} Report - ${reportDate}`;
+  const title = `Analytics Internal Metrics ${cadence === "weekly" ? "Weekly" : "Daily"} Report - ${reportDate}`;
   const triggerSource = asString(params.issueId) ? "Task Assignment" : "Manual";
   const runMirror = await startPilotAgentRunMirror(ctx, config, companyId, {
-    agentKey: "metrics-reporter",
+    agentKey: owningAgentKey,
     title,
     triggerSource,
     issueId: asString(params.issueId),
     startedAt: generatedAt,
-    notes: `Cadence: ${cadence}`,
+    notes: `Cadence: ${cadence}. Legacy metrics-reporter action executed under analytics-agent ownership.`,
   });
   const notionClient = runMirror?.notionClient ?? null;
   const { report, validationErrors } = normalizeMetricsReporterStructuredReport(params, cadence);
@@ -9218,8 +9198,8 @@ async function buildMetricsReporterOutputProof(
         params,
         generatedAt,
         title,
-        defaultCategory: "metrics-reporter",
-        owner: "metrics-reporter",
+        defaultCategory: owningAgentKey,
+        owner: owningAgentKey,
         summary: report.headline,
         evidence: [
           ...report.executiveSummary,
@@ -9245,7 +9225,7 @@ async function buildMetricsReporterOutputProof(
           content: reportLines.join("\n"),
           sourceOfTruth: "Repo",
           canonicalSource: result.kbArtifact?.path,
-          agentSurfaces: ["Metrics Reporter"],
+          agentSurfaces: ["Analytics Agent"],
           lifecycleStage: "Done",
         },
         { archiveDuplicates: true },
@@ -9310,13 +9290,13 @@ async function buildMetricsReporterOutputProof(
     companyId,
     `metrics-reporter-${cadence}`,
     `Metrics Reporter ${cadence.charAt(0).toUpperCase()}${cadence.slice(1)}`,
-    "metrics-reporter",
+    owningAgentKey,
     result.outcome,
     result.failureReason,
     asString(params.issueId),
   );
-  await trackAgentRun(ctx, companyId, "metrics-reporter");
-  await updatePhaseMetrics(ctx, companyId, "metrics-reporter", result.outcome);
+  await trackAgentRun(ctx, companyId, owningAgentKey);
+  await updatePhaseMetrics(ctx, companyId, owningAgentKey, result.outcome);
   await finalizePilotAgentRunMirror(runMirror, {
     status: result.outcome === "done" ? "Done" : "Blocked",
     startedAt: generatedAt,
@@ -9327,7 +9307,7 @@ async function buildMetricsReporterOutputProof(
     outputDocPageUrl: result.notion?.knowledgePageUrl,
     artifactUrl: firstHttpUrl([result.notion?.knowledgePageUrl, ...report.growthStudioLinks]),
     errorSummary: result.outcome === "blocked" ? result.failureReason : undefined,
-    notes: `Highlights: ${report.metricHighlights.length}; anomalies: ${report.anomalies.length}; follow-ups: ${report.recommendedFollowUps.length}.`,
+    notes: `Legacy metrics-reporter shim under analytics-agent ownership. Highlights: ${report.metricHighlights.length}; anomalies: ${report.anomalies.length}; follow-ups: ${report.recommendedFollowUps.length}.`,
   });
 
   return result;
@@ -9527,6 +9507,7 @@ async function recordNotionReconcilerRun(
   companyId: string,
   params: Record<string, unknown>,
 ): Promise<NotionReconcilerRunProof> {
+  const owningAgentKey = "notion-manager-agent";
   const mode = asString(params.mode) === "weekly"
     ? "weekly"
     : asString(params.mode) === "manual"
@@ -9534,15 +9515,15 @@ async function recordNotionReconcilerRun(
       : "daily";
   const generatedAt = nowIso();
   const reportDate = formatDateInTimeZone(new Date(generatedAt), "America/New_York");
-  const title = `Notion Reconciler ${mode === "weekly" ? "Weekly" : mode === "manual" ? "Manual" : "Daily"} Run - ${reportDate}`;
+  const title = `Notion Manager ${mode === "weekly" ? "Weekly" : mode === "manual" ? "Manual" : "Daily"} Reconcile Run - ${reportDate}`;
   const triggerSource = asString(params.issueId) ? "Task Assignment" : "Manual";
   const runMirror = await startPilotAgentRunMirror(ctx, config, companyId, {
-    agentKey: "notion-reconciler",
+    agentKey: owningAgentKey,
     title,
     triggerSource,
     issueId: asString(params.issueId),
     startedAt: generatedAt,
-    notes: `Mode: ${mode}`,
+    notes: `Mode: ${mode}. Legacy notion-reconciler action executed under notion-manager-agent ownership.`,
   });
 
   const summary = asString(params.summary) ?? "";
@@ -9588,13 +9569,13 @@ async function recordNotionReconcilerRun(
     companyId,
     mode === "weekly" ? "notion-reconciler-weekly" : "notion-reconciler-daily",
     mode === "weekly" ? "Notion Reconciler Weekly" : mode === "manual" ? "Notion Reconciler Manual" : "Notion Reconciler Daily",
-    "notion-reconciler",
+    owningAgentKey,
     result.outcome,
     result.failureReason,
     asString(params.issueId),
   );
-  await trackAgentRun(ctx, companyId, "notion-reconciler");
-  await updatePhaseMetrics(ctx, companyId, "notion-reconciler", result.outcome);
+  await trackAgentRun(ctx, companyId, owningAgentKey);
+  await updatePhaseMetrics(ctx, companyId, owningAgentKey, result.outcome);
   await finalizePilotAgentRunMirror(runMirror, {
     status: result.outcome === "done" ? "Done" : "Blocked",
     startedAt: generatedAt,
@@ -9604,7 +9585,7 @@ async function recordNotionReconcilerRun(
     artifactUrl: firstHttpUrl(touchedPages),
     errorSummary: result.outcome === "blocked" ? result.failureReason : undefined,
     requiresHumanReview: escalations.length > 0 || result.outcome === "blocked",
-    notes: `metadata=${counts.metadataCleanups}; stale=${counts.staleFlags}; doctrine=${counts.doctrineRepairs}; relations=${counts.relationRepairs}; duplicates=${counts.duplicatesArchived}.`,
+    notes: `Legacy notion-reconciler shim under notion-manager-agent ownership. metadata=${counts.metadataCleanups}; stale=${counts.staleFlags}; doctrine=${counts.doctrineRepairs}; relations=${counts.relationRepairs}; duplicates=${counts.duplicatesArchived}.`,
   });
 
   return result;
@@ -10042,7 +10023,7 @@ async function buildAnalyticsOutputProof(
     ),
     configuredSourceStatus(
       "GA4 measurement feed",
-      Boolean(process.env.VITE_GA_MEASUREMENT_ID),
+      Boolean(process.env.VITE_GA_MEASUREMENT_ID || process.env.VITE_FIREBASE_MEASUREMENT_ID),
       "GA4 measurement ID is present in the runtime environment.",
       "GA4 measurement ID is not present in the Paperclip runtime environment.",
     ),
@@ -10425,27 +10406,6 @@ async function createFollowUpIssue(
       `Project: ${input.projectName}`,
       `Priority: ${formatIssuePriority(followUp.priority) ?? followUp.priority}`,
     ],
-  }).catch(() => undefined);
-  await wakeChiefOfStaff(ctx, companyId, config, {
-    reason: "blocker_follow_up_created",
-    idempotencyKey: `chief-of-staff:blocker-follow-up:${followUp.id}`,
-    payload: {
-      signalType: "blocker_follow_up_created",
-      issueId: followUp.id,
-      parentIssueId: input.parentIssueId,
-      assignee: assigneeResolution.selectedKey,
-      projectName: input.projectName,
-    },
-    title: "Chief of Staff wakeup from blocker follow-up",
-    detail: `${followUp.title} (${followUp.id}) was delegated to ${assigneeResolution.selectedKey}.`,
-    slackChannel: "#paperclip-manager",
-    slackTitle: "Manager update: blocked work was delegated",
-    slackSummary: [
-      `What happened: A blocked task was handed to ${formatAgentName(assigneeResolution.selectedKey)} for follow-through.`,
-      `Task: ${followUp.title}`,
-      `Project: ${input.projectName}`,
-    ],
-    suppressSlackIfSameTargetAsChannel: slackChannelForAgent(assigneeResolution.selectedKey),
   }).catch(() => undefined);
   if (assigneeResolution.rerouted) {
     await ctx.issues.createComment(

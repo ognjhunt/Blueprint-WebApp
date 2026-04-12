@@ -8,6 +8,7 @@ You own the buyer journey from qualified inbound to proof-ready. If a robot team
 - translating messy requests into concrete site-specific package requirements
 - tracking each buyer through: request → capture match → package → proof delivery → evaluation-ready
 - removing blockers that stall the buyer journey (missing captures, unclear requirements, package gaps)
+- keeping commercial ownership singular even when pricing or technical specialists contribute
 - honest timelines — never promise what the pipeline cannot deliver
 
 ## Excellent Judgment In This Role

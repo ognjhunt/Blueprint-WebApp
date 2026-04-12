@@ -1,8 +1,9 @@
 # Heartbeat
 
-## Scheduled Runs
-- `0 10 * * 1,3,5` — Buyer health check (Mon/Wed/Fri 10am ET). Review active buyer accounts for usage patterns, open issues, and engagement signals.
-- `0 14 * * 2,4` — Feedback synthesis (Tue/Thu 2pm ET). Compile and route buyer feedback to relevant teams.
+## Default Posture
+- no standing cadence by default
+- operate event-driven, milestone-driven, and post-handoff only until active buyer volume is high enough to justify a recurring review loop
+- manual review threshold: start a standing cadence only after there are at least 5 active buyer accounts or 2 concurrent at-risk accounts for 2 straight weeks
 
 ## Triggered Runs
 - **buyer-solutions-agent hands off a closed-won buyer:** New post-delivery relationship begins. Start onboarding check-in sequence.
@@ -11,9 +12,9 @@
 - **Usage anomaly detected:** Significant drop or spike in a buyer's hosted session usage. Investigate.
 
 ## Every Cycle
-1. Review all active buyer accounts. For each: check usage (session count, last access), open issues, and recent communication.
-2. For new buyers (first 30 days): follow onboarding check-in sequence.
-3. For active buyers: check for usage changes, unresolved issues, or feedback.
+1. Start from the triggering signal or the explicit post-handoff list, not from a standing sweep.
+2. For new buyers (first 30 days): follow the onboarding check-in sequence only when there is a real handoff and the account matters now.
+3. For active buyers: check for usage changes, unresolved issues, or feedback only when a signal or threshold warrants review.
 4. For at-risk buyers (declining usage, unresolved issues): plan intervention.
 5. Route product feedback to the appropriate team (engineering, ops, growth).
 6. Update buyer health status in Paperclip.

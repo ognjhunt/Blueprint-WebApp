@@ -384,6 +384,16 @@ export default function CapturerSignUpFlow() {
         paymentMethods: [],
       });
 
+      analyticsEvents.capturerCohortEntered({
+        market: market.trim(),
+        cohortSource: referralSource,
+        accessPath: accessCode.trim() ? "invite_or_access_code" : referralSource,
+        hasAccessCode: Boolean(accessCode.trim()),
+        equipmentCount: equipment.length,
+        availability,
+        applicationStatus: "pending_review",
+      });
+
       setSuccessSummary({
         name: normalizedName.split(" ")[0] || normalizedName,
         market: market.trim(),

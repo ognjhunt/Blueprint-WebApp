@@ -33,6 +33,7 @@ Each run must:
   - `In Motion Today`: max 5
   - all other sections: max 3
 - format each bullet as `[Lane] statement — owner, next checkpoint`
+- every `Needs Founder` bullet must use the founder decision packet field order from `ops/paperclip/programs/founder-decision-packet-standard.md`
 - avoid raw issue ids unless needed for disambiguation
 - avoid links unless a blocker or founder decision truly needs drill-down
 

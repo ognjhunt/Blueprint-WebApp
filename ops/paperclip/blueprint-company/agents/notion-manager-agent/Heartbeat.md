@@ -2,11 +2,12 @@
 
 ## Every Run
 - start from recent producer outputs, routine proof, and open Paperclip follow-up issues
-- verify placement first, metadata second, formatting last
+- verify deterministic natural key first, placement second, metadata third, formatting last
 - repair only what the evidence supports
 - leave stale, ambiguous, or unsafe pages explicitly visible through Paperclip and manager-visible Slack
 
 ## Frequent Reconcile Sweep
+- only resume this as a standing routine after the Notion hygiene contract says broad sweeps are safe again
 - inspect newly created or recently changed Work Queue, Knowledge, and Skills pages
 - dedupe safe duplicates using stable natural keys
 - repair owner, related-work, related-doc, related-skill, execution-surface, output-location, canonical-source, freshness, and founder-visibility fields
@@ -29,3 +30,4 @@
 - Knowledge pages have review cadence but no trustworthy freshness trail
 - a page appears outside known Blueprint-managed Hub surfaces
 - duplicate titles exist but the related work, owner, or source trail conflicts
+- recurring drift is coming from the write path itself rather than from one bad page

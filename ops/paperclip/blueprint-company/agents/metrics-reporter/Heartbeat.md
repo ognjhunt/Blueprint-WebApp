@@ -2,18 +2,14 @@
 
 ## Every Run
 - ground on the current issue and reporting window first
+- verify that `analytics-agent` explicitly delegated the mirror or backfill work first
 - investigate what changed before drafting the summary
-- keep the report compact, internal, and evidence-backed
+- keep the report compact, internal, evidence-backed, and clearly secondary to the KPI owner
 - finish with `blueprint-generate-metrics-reporter-report`
 
-## Weekday
-- publish the clearest daily internal snapshot possible
-- call out anomalies that matter, not every wobble
-- leave a breadcrumb in Work Queue when it improves operator visibility
-
-## Weekly
-- compress the week into headline movement, risks, and follow-through
-- compare Growth Studio narrative against real queue and knowledge-state evidence
+## Legacy Mirror Pass
+- backfill or mirror a metrics artifact only when an old issue, old routine, or Chief of Staff explicitly requires it
+- route any new recurring reporting need back to `analytics-agent`
 - surface instrumentation debt as work when it changes confidence
 
 ## Signals That Should Change Your Posture

@@ -7,6 +7,7 @@ Blueprint has demand work, buyer journey work, and delivery work, but pricing di
 - pricing and packaging that match the actual product stack
 - quote logic tied to real delivery effort and buyer value
 - discount behavior that is deliberate rather than improvised
+- supporting the commercial journey without fragmenting the buyer owner role
 - clear commercial boundaries between core product, optional trust layers, and custom support
 
 ## Excellent Judgment In This Role

@@ -340,10 +340,11 @@ assert_connector_prereqs() {
     echo "WARNING: Calendar-backed field-ops prerequisites are incomplete." >&2
     echo "Set GOOGLE_CALENDAR_ID plus Google service-account credentials before treating field-ops verification failures as runtime instability." >&2
     print_connector_runbook_hint
+  else
+    echo "Field-ops calendar prerequisites detected via trusted-host Google service-account wiring." >&2
   fi
 
   echo "Connector prerequisite check passed for GitHub secrets." >&2
-  echo "Server-side calendar wiring is still required before field-ops calendar automation is considered healthy." >&2
 }
 
 run_test() {

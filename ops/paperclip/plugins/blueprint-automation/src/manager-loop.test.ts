@@ -333,4 +333,34 @@ describe("manager loop helpers", () => {
       }),
     ).toBe(false);
   });
+
+  it("suppresses generic create wakes for automation-created issues but still wakes on later updates", () => {
+    expect(
+      shouldWakeChiefOfStaffForIssueEvent({
+        eventType: "issue.created",
+        chiefOfStaffAgentId: "chief-1",
+        issue: {
+          status: "todo",
+          priority: "high",
+          assigneeAgentId: "ops-lead",
+          createdByAgentId: "ops-lead",
+          originKind: "blueprint_automation",
+        } as any,
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldWakeChiefOfStaffForIssueEvent({
+        eventType: "issue.updated",
+        chiefOfStaffAgentId: "chief-1",
+        issue: {
+          status: "blocked",
+          priority: "high",
+          assigneeAgentId: "ops-lead",
+          createdByAgentId: "ops-lead",
+          originKind: "blueprint_automation",
+        } as any,
+      }),
+    ).toBe(true);
+  });
 });

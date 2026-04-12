@@ -9,6 +9,7 @@ Run the frequent Blueprint Notion reconciliation sweep.
 
 Each run must:
 
+- confirm the Notion hygiene contract still permits targeted sweep work before touching broad workspace state
 - inspect newly created or recently changed Blueprint-managed Notion artifacts
 - when a mirrored research artifact has a repo KB source, reconcile the Notion page against the repo `knowledge/` artifact instead of treating the Notion copy as authoritative
 - reconcile Work Queue, Knowledge, and Skills pages to the correct Hub surface

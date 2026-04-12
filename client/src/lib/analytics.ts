@@ -396,6 +396,111 @@ export const analyticsEvents = {
   pilotExchangeChartView: (chartId: string) =>
     trackEvent("pilot_exchange_chart_view", { chart_id: chartId }),
 
+  capturerCohortEntered: (properties: {
+    market: string;
+    cohortSource: string;
+    accessPath: string;
+    hasAccessCode: boolean;
+    equipmentCount: number;
+    availability: string;
+    applicationStatus: string;
+  }) =>
+    trackEvent("capturer_cohort_entered", {
+      market: properties.market,
+      cohort_source: properties.cohortSource,
+      access_path: properties.accessPath,
+      has_access_code: properties.hasAccessCode,
+      equipment_count: properties.equipmentCount,
+      availability: properties.availability,
+      application_status: properties.applicationStatus,
+    }),
+
+  capturerTrustPacketVerified: (properties: {
+    market: string;
+    cohortSource: string;
+    identityOutcome: string;
+    authorizationOutcome: string;
+    duplicateIntegrityOutcome: string;
+    locationDeviceOutcome: string;
+    policyAcknowledgementOutcome: string;
+  }) =>
+    trackEvent("capturer_trust_packet_verified", {
+      market: properties.market,
+      cohort_source: properties.cohortSource,
+      identity_outcome: properties.identityOutcome,
+      authorization_outcome: properties.authorizationOutcome,
+      duplicate_integrity_outcome: properties.duplicateIntegrityOutcome,
+      location_device_outcome: properties.locationDeviceOutcome,
+      policy_acknowledgement_outcome: properties.policyAcknowledgementOutcome,
+    }),
+
+  capturerApproved: (properties: {
+    market: string;
+    cohortSource: string;
+    approvalOwnerType: string;
+    approvedLane: string;
+    laneRestrictionCount: number;
+  }) =>
+    trackEvent("capturer_approved", {
+      market: properties.market,
+      cohort_source: properties.cohortSource,
+      approval_owner_type: properties.approvalOwnerType,
+      approved_lane: properties.approvedLane,
+      lane_restriction_count: properties.laneRestrictionCount,
+    }),
+
+  capturerFirstCaptureSubmitted: (properties: {
+    market: string;
+    cohortSource: string;
+    captureSubmissionSource: string;
+    captureContext: string;
+  }) =>
+    trackEvent("capturer_first_capture_submitted", {
+      market: properties.market,
+      cohort_source: properties.cohortSource,
+      capture_submission_source: properties.captureSubmissionSource,
+      capture_context: properties.captureContext,
+    }),
+
+  capturerFirstCapturePassed: (properties: {
+    market: string;
+    cohortSource: string;
+    captureQualityTier: string;
+    coachingRequired: boolean;
+  }) =>
+    trackEvent("capturer_first_capture_passed", {
+      market: properties.market,
+      cohort_source: properties.cohortSource,
+      capture_quality_tier: properties.captureQualityTier,
+      coaching_required: properties.coachingRequired,
+    }),
+
+  capturerRepeatReady: (properties: {
+    market: string;
+    cohortSource: string;
+    tierName: string;
+    firstPassCount: number;
+  }) =>
+    trackEvent("capturer_repeat_ready", {
+      market: properties.market,
+      cohort_source: properties.cohortSource,
+      tier_name: properties.tierName,
+      first_pass_count: properties.firstPassCount,
+    }),
+
+  capturerReferralToPassedCapture: (properties: {
+    market: string;
+    cohortSource: string;
+    referralSource: string;
+    referralActivationPath: string;
+  }) =>
+    trackEvent("capturer_referral_to_passed_capture", {
+      market: properties.market,
+      cohort_source: properties.cohortSource,
+      referral_source: properties.referralSource,
+      referral_activation_path: properties.referralActivationPath,
+    }),
+
   capturerSignupStarted: () =>
     trackEvent("capturer_signup_started"),
 

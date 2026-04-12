@@ -28,11 +28,12 @@ This program turns demand-intel findings into Blueprint-specific guidance that c
   - `analytics-agent`
   - `intake-agent`
   - `ops-lead`
-  - `finance-support-agent`
+  - `buyer-solutions-agent`
+  - `revenue-ops-pricing-agent`
   - `city-demand-agent`
 
 ## Current Priorities
-1. Keep the generic robot-team playbook aligned with the live proof-path, intake, ops, and finance-routing surfaces that now exist in the repo.
+1. Keep the generic robot-team playbook aligned with the live proof-path, intake, ops, standard-commercial-routing, and finance/billing surfaces that now exist in the repo.
 2. Make sure buyer entry flows and follow-up materials lead with exact-site package value rather than qualification-first framing.
 3. Keep city-specific demand planning inherited from the generic playbook without overstating Austin or San Francisco channel confidence before live tagged demand exists.
 4. Define what must be measured during buyer demand work:

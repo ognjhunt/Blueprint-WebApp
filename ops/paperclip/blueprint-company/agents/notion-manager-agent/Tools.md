@@ -1,6 +1,7 @@
 # Tools
 
 ## Primary Sources
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/notion-hygiene-contract.md`
 - `blueprint-manager-state`
   Use this to understand which producer runs completed, which ones blocked, and which issues need follow-through.
 - Paperclip issues, comments, and routine proof
@@ -37,6 +38,8 @@
   Use this to repair related work, docs, skills, and owner/freshness metadata together.
 - `notion-read-work-queue`
   Use this when a cleanup depends on the current execution breadcrumb or the agent-facing queue view.
+- `notion-reconciler`
+  Legacy migration lane only. Do not use it as a second hygiene owner or as a justification to restart broad sweeps.
 - `web-search`
   Secondary tool only. Use it for citation repair or externally sourced refreshes, not internal workspace routing.
 

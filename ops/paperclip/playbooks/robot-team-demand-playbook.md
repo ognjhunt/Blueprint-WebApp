@@ -33,7 +33,7 @@ These can matter, but they are not the center of the playbook:
 3. 24-hour proof-path triage
 4. proof-pack review
 5. hosted-session demo or exact-site artifact review
-6. commercial scoping and human-gated questions
+6. standard commercial handling inside approved guardrails, plus human-gated exception routing
 7. buyer activation or package purchase
 8. usage feedback, renewal, or adjacent site expansion
 
@@ -71,9 +71,9 @@ These can matter, but they are not the center of the playbook:
 ## Reusable Segment and Channel Matrix
 | Buyer role | Site / workflow need | Channel fit | Proof requirement | Evidence level | Human dependencies |
 | --- | --- | --- | --- | --- | --- |
-| autonomy or perception lead | evaluate an exact site before deployment or model tuning | founder intros, robotics builder networks, technical community events | exact-site proof pack plus hosted review within 24 hours | ready now | human only for pricing, rights exceptions, and deeper scope questions |
-| deployment or operations lead | remote review before field travel, rollout planning, or intervention prep | partner referrals, operations communities, deployment-heavy intros | hosted review path, artifact handoff checklist, recency and site coverage summary | ready now | human for site access, delivery commitments, and rollout coordination |
-| systems integrator or industrial data partner | fit Blueprint output into an existing customer stack | stack-adjacent partners and implementation relationships | compatibility statement, artifact export expectations, and explicit gap labeling | partial | human for integration scoping, commercials, and partner terms |
+| autonomy or perception lead | evaluate an exact site before deployment or model tuning | founder intros, robotics builder networks, technical community events | exact-site proof pack plus hosted review within 24 hours | ready now | designated human commercial owner only for standard pricing/progression; founder only for non-standard commitments and rights exceptions |
+| deployment or operations lead | remote review before field travel, rollout planning, or intervention prep | partner referrals, operations communities, deployment-heavy intros | hosted review path, artifact handoff checklist, recency and site coverage summary | ready now | human for site access, delivery commitments, and rollout coordination; founder only for irreversible exceptions |
+| systems integrator or industrial data partner | fit Blueprint output into an existing customer stack | stack-adjacent partners and implementation relationships | compatibility statement, artifact export expectations, and explicit gap labeling | partial | designated human commercial owner for standard commercials; founder for partner-term or non-standard scope commitments |
 | simulation or data platform owner | consume exact-site artifacts inside an existing data workflow | developer-native channels, docs, partner introductions | standardized artifact structure, provenance, and what would require extra packaging | partial | human for delivery scope and any custom export commitments |
 
 ## Proof Pack Requirements
@@ -190,7 +190,7 @@ Robot-team buyers should be able to understand:
 - provenance, rights, privacy, and recency labeling
 - compatibility-oriented messaging that explains how current Blueprint output can fit into existing workflows
 - ops-side hosted-review and artifact handoff checklist
-- finance-support routing guidance that cleanly separates technical proof follow-up from human-only commercial decisions
+- standard buyer-solutions plus human-commercial-owner routing that cleanly separates technical proof follow-up from human-only commercial decisions
 
 ### Blocked
 - public proof-pack pages or contact flows that still over-weight qualification-first framing
@@ -214,6 +214,9 @@ Robot-team buyers should be able to understand:
 - time to human commercial handoff
 - ops load created by each buyer segment
 
+Repo-ready analytics requirements, current coverage, and reporting views are documented in
+[docs/robot-team-proof-motion-analytics-requirements-2026-04-10.md](/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/robot-team-proof-motion-analytics-requirements-2026-04-10.md).
+
 ## Funnel Instrumentation Map
 | Stage | Required event or state | Why it matters |
 | --- | --- | --- |
@@ -236,7 +239,8 @@ Authoritative storage for proof-path milestones lives in `inboundRequests.ops.pr
 | `analytics-agent` | instrument the funnel events in this playbook and publish stage definitions for reporting | growth can see time-to-proof, hosted-review conversion, and stall reasons by buyer segment and source |
 | `intake-agent` | classify inbound robot-team requests by buyer role, exact-site need, and proof-path outcome | intake can route serious requests into exact-site, adjacent-site, or scoped follow-up lanes without ambiguous qualification-only framing |
 | `ops-lead` | define the operational checklist for proof-pack assembly, hosted review readiness, and human escalation triggers | ops can support the proof motion without ad hoc delivery behavior |
-| `finance-support-agent` | define the human-gated commercial questions that should be separated from technical proof follow-up | pricing, contract, billing, and dispute questions stop contaminating the technical proof motion |
+| `buyer-solutions-agent` + designated human commercial owner | define the standard commercial handoff that should stay separate from technical proof follow-up | standard pricing, quote, and procurement handling stop contaminating the technical proof motion while founder review stays sparse |
+| `revenue-ops-pricing-agent` | define approved quote bands, package logic, and exception thresholds for the human commercial owner | pricing guidance stays truthful to the real product and exposes non-standard asks early |
 | `city-demand-agent` | inherit this proof-pack and hosted-review standard into Austin and San Francisco demand plans | city plans customize channels and clusters without rewriting the reusable buyer proof system |
 
 ## City Inheritance Rules
@@ -252,5 +256,6 @@ Cities should customize:
 - `analytics-agent`: instrumentation and funnel reporting
 - `intake-agent`: inbound classification and missing-info handling
 - `ops-lead`: delivery and operational coordination when demand becomes real work
-- `finance-support-agent`: human-gated billing, dispute, and commercial support routing documented in [robot-team-finance-support-routing-playbook.md](/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/robot-team-finance-support-routing-playbook.md)
+- `buyer-solutions-agent` + designated human commercial owner: standard quote, procurement, and buyer-thread commercial routing
+- `revenue-ops-pricing-agent`: standard pricing guidance and exception detection
 - `city-demand-agent`: city-specific adaptation

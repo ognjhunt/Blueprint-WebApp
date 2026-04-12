@@ -23,7 +23,8 @@ Maintain Blueprint's optional third lane for site operators without making that 
 - generate issue-ready action items for:
   - `ops-lead`
   - `intake-agent`
-  - `finance-support-agent`
+  - `buyer-solutions-agent`
+  - `revenue-ops-pricing-agent`
   - `city-demand-agent`
 
 ## Current Priorities

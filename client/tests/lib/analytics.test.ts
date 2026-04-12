@@ -98,6 +98,133 @@ describe("analytics contract", () => {
     expect(payload.properties).not.toHaveProperty("full_name");
   });
 
+  it("emits the capturer funnel milestones with aggregate, non-PII properties", async () => {
+    analyticsEvents.capturerCohortEntered({
+      market: "Raleigh-Durham, NC",
+      cohortSource: "search",
+      accessPath: "search",
+      hasAccessCode: false,
+      equipmentCount: 1,
+      availability: "flexible",
+      applicationStatus: "pending_review",
+    });
+    analyticsEvents.capturerTrustPacketVerified({
+      market: "Raleigh-Durham, NC",
+      cohortSource: "search",
+      identityOutcome: "pass",
+      authorizationOutcome: "not_required",
+      duplicateIntegrityOutcome: "pass",
+      locationDeviceOutcome: "pass",
+      policyAcknowledgementOutcome: "pass",
+    });
+    analyticsEvents.capturerApproved({
+      market: "Raleigh-Durham, NC",
+      cohortSource: "search",
+      approvalOwnerType: "human",
+      approvedLane: "capturer_beta",
+      laneRestrictionCount: 1,
+    });
+    analyticsEvents.capturerFirstCaptureSubmitted({
+      market: "Raleigh-Durham, NC",
+      cohortSource: "search",
+      captureSubmissionSource: "approved_path",
+      captureContext: "first_assignment",
+    });
+    analyticsEvents.capturerFirstCapturePassed({
+      market: "Raleigh-Durham, NC",
+      cohortSource: "search",
+      captureQualityTier: "pass",
+      coachingRequired: false,
+    });
+    analyticsEvents.capturerRepeatReady({
+      market: "Raleigh-Durham, NC",
+      cohortSource: "search",
+      tierName: "repeat_ready",
+      firstPassCount: 1,
+    });
+    analyticsEvents.capturerReferralToPassedCapture({
+      market: "Raleigh-Durham, NC",
+      cohortSource: "search",
+      referralSource: "friend",
+      referralActivationPath: "first_passed_capture",
+    });
+
+    await flushAnalytics();
+
+    expect(fetchMock).toHaveBeenCalledTimes(7);
+
+    expect(parseAnalyticsPayload(0)).toMatchObject({
+      event: "capturer_cohort_entered",
+      properties: {
+        market: "Raleigh-Durham, NC",
+        cohort_source: "search",
+        access_path: "search",
+        has_access_code: false,
+        equipment_count: 1,
+        availability: "flexible",
+        application_status: "pending_review",
+      },
+    });
+    expect(parseAnalyticsPayload(1)).toMatchObject({
+      event: "capturer_trust_packet_verified",
+      properties: {
+        market: "Raleigh-Durham, NC",
+        cohort_source: "search",
+        identity_outcome: "pass",
+        authorization_outcome: "not_required",
+        duplicate_integrity_outcome: "pass",
+        location_device_outcome: "pass",
+        policy_acknowledgement_outcome: "pass",
+      },
+    });
+    expect(parseAnalyticsPayload(2)).toMatchObject({
+      event: "capturer_approved",
+      properties: {
+        market: "Raleigh-Durham, NC",
+        cohort_source: "search",
+        approval_owner_type: "human",
+        approved_lane: "capturer_beta",
+        lane_restriction_count: 1,
+      },
+    });
+    expect(parseAnalyticsPayload(3)).toMatchObject({
+      event: "capturer_first_capture_submitted",
+      properties: {
+        market: "Raleigh-Durham, NC",
+        cohort_source: "search",
+        capture_submission_source: "approved_path",
+        capture_context: "first_assignment",
+      },
+    });
+    expect(parseAnalyticsPayload(4)).toMatchObject({
+      event: "capturer_first_capture_passed",
+      properties: {
+        market: "Raleigh-Durham, NC",
+        cohort_source: "search",
+        capture_quality_tier: "pass",
+        coaching_required: false,
+      },
+    });
+    expect(parseAnalyticsPayload(5)).toMatchObject({
+      event: "capturer_repeat_ready",
+      properties: {
+        market: "Raleigh-Durham, NC",
+        cohort_source: "search",
+        tier_name: "repeat_ready",
+        first_pass_count: 1,
+      },
+    });
+    expect(parseAnalyticsPayload(6)).toMatchObject({
+      event: "capturer_referral_to_passed_capture",
+      properties: {
+        market: "Raleigh-Durham, NC",
+        cohort_source: "search",
+        referral_source: "friend",
+        referral_activation_path: "first_passed_capture",
+      },
+    });
+  });
+
   it("flattens demand attribution on business signup start without nested payloads", async () => {
     analyticsEvents.businessSignupStarted({
       defaultRequestedLane: "deeper_evaluation",

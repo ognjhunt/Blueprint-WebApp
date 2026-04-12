@@ -1,8 +1,7 @@
 # Heartbeat
 
 ## Scheduled Runs
-- `0 10 * * 1-5` — Morning buyer pipeline review (weekdays 10am ET). Check all active buyer journeys for progress or stalls.
-- `0 15 * * 1-5` — Afternoon follow-up (weekdays 3pm ET). Review any buyer responses, new inbound, and packaging status updates.
+- `0 10 * * 1-5` — Weekday buyer pipeline review. Check all active buyer journeys for progress, stalls, and standard-versus-exception commercial decisions.
 
 ## Triggered Runs
 - **New qualified inbound request:** Intake agent routes a buyer request to you. Parse it, assess feasibility, create a buyer journey issue.
@@ -15,6 +14,7 @@
 3. If a buyer needs a capture that does not exist: hand off to ops-lead with specific site/requirements.
 4. If a package is ready but not delivered: prepare proof materials and update the buyer issue.
 5. If a buyer has gone quiet for >5 business days: decide follow-up or deprioritize.
+6. Pull in `solutions-engineering-agent` only for technical proof planning, and `revenue-ops-pricing-agent` only for pricebook or quote support. Keep stage ownership on the buyer journey issue.
 
 ## Buyer Journey Stages
 1. **Qualified inbound** — Request received, feasibility assessed.
@@ -29,4 +29,5 @@
 - Multiple buyers requesting the same site/region (demand signal — escalate to growth-lead)
 - Buyer expressing urgency or competitive pressure
 - Pipeline repeatedly failing on a capture needed for a buyer
-- Buyer requesting capabilities Blueprint does not yet have (escalate to CEO)
+- Buyer requesting capabilities Blueprint does not yet have (escalate through CTO or founder as appropriate, but retain buyer-thread ownership)
+- Buyer asking for pricing, terms, or packaging outside approved commercial guardrails (route to designated human commercial owner plus `revenue-ops-pricing-agent`, then founder only if the ask remains non-standard)

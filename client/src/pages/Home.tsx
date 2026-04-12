@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { SEO } from "@/components/SEO";
 import { OfferComparison } from "@/components/site/OfferComparison";
 import { ProofModule } from "@/components/site/ProofModule";
@@ -13,21 +12,13 @@ import {
   worldModelDefinition,
 } from "@/data/marketingDefinitions";
 import { publicDemoHref, publicDemoLabel } from "@/lib/marketingProof";
-import { analyticsEvents } from "@/lib/analytics";
-import { resolveExperimentVariant } from "@/lib/experiments";
 import { ArrowRight, CheckCircle2, Mail } from "lucide-react";
 
 const heroSignals = [
-  "Start from one real customer facility instead of a generic sim scene.",
-  "Choose the site package when your team wants all the data in its own stack.",
-  "Choose hosted evaluation when your team wants Blueprint to run the site now.",
-];
-
-const speedLedSignals = [
-  "24-hour scoping on the exact customer facility and workflow lane.",
-  "48-hour evidence packaging with capture provenance kept intact.",
-  "72-hour hosted review delivery for the same real site your team cares about.",
-  "One fixed-SLA path instead of a vague multi-week services process.",
+  "Fine-tune policies against the real geometry, occlusions, and workflow constraints that matter at deployment.",
+  "Generate site-specific training data and controlled variations from the same capture record.",
+  "Compare checkpoints on one exact environment so regressions show up before travel and deployment week.",
+  "Use hosted evaluation when your team wants Blueprint to run the exact site and export results without moving files first.",
 ];
 
 const definitionCards = [
@@ -77,31 +68,10 @@ function DotPattern() {
 }
 
 export default function Home() {
-  const [heroVariant, setHeroVariant] = useState<"proof_led" | "speed_led">("proof_led");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    void resolveExperimentVariant("home_hero_variant", ["proof_led", "speed_led"]).then(
-      (variant) => {
-        if (cancelled) {
-          return;
-        }
-        const resolved = variant === "speed_led" ? "speed_led" : "proof_led";
-        setHeroVariant(resolved);
-        analyticsEvents.experimentExposure("home_hero_variant", resolved, "page_load");
-      },
-    );
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   return (
     <>
       <SEO
-        title="Blueprint | Train Your Robot On The Exact Customer Site"
+        title="Blueprint | Bring The Exact Deployment Site Into Your Robot Workflow"
         description="Blueprint helps robot teams buy site packages and hosted evaluation on exact customer facilities, built from real indoor capture."
         canonical="/"
       />
@@ -115,34 +85,22 @@ export default function Home() {
               <p className="inline-flex rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
                 For Robot Teams
               </p>
-              {heroVariant === "speed_led" ? (
-                <>
-                  <h1 className="mt-5 text-[3.3rem] font-semibold tracking-tight text-slate-950 sm:text-[4.2rem] sm:leading-[0.95]">
-                    Your robot trains on the real customer site in 72 hours.
-                  </h1>
-                  <p className="mt-4 max-w-3xl text-[1.05rem] leading-8 text-slate-600">
-                    Blueprint captures the exact facility, packages the site evidence cleanly,
-                    and delivers a hosted review path without breaking capture provenance.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <h1 className="mt-5 text-[3.3rem] font-semibold tracking-tight text-slate-950 sm:text-[4.2rem] sm:leading-[0.95]">
-                    Train your robot on the exact customer site before you visit.
-                  </h1>
-                  <p className="mt-4 max-w-3xl text-[1.05rem] leading-8 text-slate-600">
-                    Blueprint captures real customer facilities and turns them into digital environments
-                    your team can test against before showing up.
-                  </p>
-                </>
-              )}
+              <h1 className="mt-5 text-[3.3rem] font-semibold tracking-tight text-slate-950 sm:text-[4.2rem] sm:leading-[0.95]">
+                Bring the exact deployment site into your robot workflow before the first site visit.
+              </h1>
+              <p className="mt-4 max-w-3xl text-[1.05rem] leading-8 text-slate-600">
+                Blueprint turns one real facility into a site-specific world model your team can
+                train on, fine-tune against, and use for exact-site data generation before the
+                expensive fieldwork starts.
+              </p>
               <p className="mt-4 max-w-3xl rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm leading-7 text-slate-700">
-                <span className="font-semibold text-slate-900">Plain-English version:</span> a
-                world model is a site-specific digital environment built from real capture of one
-                facility and one workflow lane.
+                <span className="font-semibold text-slate-900">What teams are buying:</span> one
+                site-specific digital environment built from real capture of one facility and one
+                workflow lane, with the package path and hosted path tied back to the same source
+                record.
               </p>
               <div className="mt-5 grid gap-2.5">
-                {(heroVariant === "speed_led" ? speedLedSignals : heroSignals).map((item) => (
+                {heroSignals.map((item) => (
                   <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
                     <span>{item}</span>

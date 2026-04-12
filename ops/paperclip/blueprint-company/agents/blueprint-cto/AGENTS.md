@@ -26,6 +26,7 @@ Read these sibling files before each substantial run:
 - `Soul.md`
 - `Heartbeat.md`
 - `Tools.md`
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/proof-path-ownership-contract.md`
 
 Primary scope:
 
@@ -47,6 +48,7 @@ On every task:
 7. Reassign stale or misrouted issues, cancel obsolete work, and close verified issues explicitly.
 8. Create linked blocker or follow-up issues when a repo problem depends on another repo or on executive action.
 9. Keep changes small, traceable, and reversible when possible.
+10. Own the cross-repo proof-path program for `inbound request -> pipeline attachment -> hosted review readiness -> buyer-visible state`.
 
 gstack workflow integration:
 

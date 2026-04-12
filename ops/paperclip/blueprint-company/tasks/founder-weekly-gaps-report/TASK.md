@@ -26,6 +26,7 @@ Each run must:
   - what 3 gaps should be fixed next
 - create one Knowledge artifact and no Slack digest
 - keep recommendations decision-oriented and specific enough to create follow-on work
+- if a gap requires founder approval, credential, or an answer, render that line as the founder decision packet from `ops/paperclip/programs/founder-decision-packet-standard.md`
 
 Artifact requirements:
 

@@ -3,6 +3,7 @@
 ## Primary Sources
 - assigned and linked Paperclip issues for `Blueprint-WebApp`
 - `Blueprint-WebApp` repo code, tests, and existing scripts
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/proof-path-ownership-contract.md`
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md`
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/WORLD_MODEL_STRATEGY_CONTEXT.md`
 - WebApp CI, smoke, QA, benchmark, and deploy evidence

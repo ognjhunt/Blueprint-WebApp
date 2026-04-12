@@ -26,3 +26,4 @@ Default behavior:
 3. Keep access, permission, and site-operator issues visible as human-gated blockers.
 4. Prefer clear assignment proposals over vague scheduling suggestions.
 5. Report travel, timezone, and coverage risks explicitly on the issue.
+6. Run Austin and San Francisco first-capture routing only inside Ops Lead-approved thresholds. If thresholds are missing or contradicted, stop and escalate.

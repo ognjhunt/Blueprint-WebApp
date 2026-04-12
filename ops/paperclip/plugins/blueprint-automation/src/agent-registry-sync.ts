@@ -41,6 +41,11 @@ const PILOT_AGENT_KEYS = new Set([
   "workspace-digest-publisher",
 ]);
 
+const LEGACY_MERGE_TARGETS: Record<string, string> = {
+  "notion-reconciler": "notion-manager-agent",
+  "metrics-reporter": "analytics-agent",
+};
+
 const LEGACY_AGENT_ALIASES: Record<string, string> = {
   "capture-claude": "capture-review",
   "documentation-agent": "docs-agent",
@@ -412,6 +417,9 @@ function derivePrimaryRuntime(
 }
 
 function deriveRegistryStatus(key: string, liveAgent: LiveAgentRecord | undefined): AgentRegistryEntry["status"] {
+  if (LEGACY_MERGE_TARGETS[key]) {
+    return "Paused";
+  }
   if (PILOT_AGENT_KEYS.has(key)) {
     return "Pilot";
   }
@@ -647,6 +655,9 @@ function deriveRoutineLines(
 
   if (aliasTargetKey) {
     lines.push(`Legacy live agent: repo metadata is sourced from ${aliasTargetKey} until the live alias is retired.`);
+  }
+  if (LEGACY_MERGE_TARGETS[key]) {
+    lines.push(`Legacy merge: active ownership now belongs to ${LEGACY_MERGE_TARGETS[key]}. Keep this page paused until the legacy row is retired.`);
   }
 
   return lines;

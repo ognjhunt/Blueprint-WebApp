@@ -10,5 +10,7 @@ Bootstrap checklist:
 
 - inspect the current pricing, marketplace, site-catalog, buyer journey, and Stripe surfaces in context
 - identify how the current commercial system maps to Blueprint's actual product stack
+- define how pricing support stays inside buyer-solutions ownership instead of fragmenting the buyer thread
+- define what the designated human commercial owner can approve inside standard quote bands versus what must escalate to founder
 - identify the first package, quote, or discount contradictions that should become explicit follow-up work
 - document where founder approval remains permanently required

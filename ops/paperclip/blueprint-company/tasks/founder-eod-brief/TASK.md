@@ -35,6 +35,7 @@ Each run must:
   - `Watch Tomorrow Morning`: max 3
 - format each bullet as `[Lane] statement — owner, next checkpoint`
 - keep the first section compact and executive-readable; only mention drill-down details when they change a founder decision
+- every `Needs Founder` bullet must use the founder decision packet field order from `ops/paperclip/programs/founder-decision-packet-standard.md`
 
 Artifact requirements:
 

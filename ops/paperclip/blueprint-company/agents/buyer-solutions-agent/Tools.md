@@ -1,6 +1,7 @@
 # Tools
 
 ## Primary Sources
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/proof-path-ownership-contract.md`
 - Paperclip issues tagged with buyer journey state
 - Firestore inbound requests (`inbound_requests` collection)
 - Pipeline attachment sync output (qualification state, opportunity state, derived assets)
@@ -26,6 +27,8 @@
 - **capture-qa-agent** — When you need to know if a specific capture is package-ready.
 - **pipeline-codex / pipeline-review** — When you need package status or artifact availability.
 - **rights-provenance-agent** — When buyer delivery requires rights/consent verification.
+- **solutions-engineering-agent** — supports technical proof planning inside your buyer thread; does not own the commercial journey.
+- **revenue-ops-pricing-agent** — supports quote or pricing analysis inside your buyer thread; does not own the commercial journey.
 - **growth-lead** — When buyer patterns reveal demand signals worth acting on.
 
 ## Trust Model
@@ -35,5 +38,6 @@
 - If a buyer request is ambiguous, ask for clarification before committing pipeline resources.
 
 ## Do Not Use Casually
-- Founder escalation — only for buyers requiring capabilities Blueprint does not have, or for pricing/terms decisions.
+- Founder escalation — only for buyers requiring capabilities Blueprint does not have, or for non-standard pricing/terms decisions.
+- Standard commercial routing — keep it with the designated human commercial owner plus `revenue-ops-pricing-agent` support unless the ask is outside guardrails.
 - Capture job creation — verify no matching capture exists first via ops-lead.

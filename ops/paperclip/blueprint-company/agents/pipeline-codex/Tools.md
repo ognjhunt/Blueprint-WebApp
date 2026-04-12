@@ -3,6 +3,7 @@
 ## Primary Sources
 - assigned and linked Paperclip issues for `BlueprintCapturePipeline`
 - pipeline repo code, tests, scripts, and artifact-generation contracts
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/proof-path-ownership-contract.md`
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md`
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/WORLD_MODEL_STRATEGY_CONTEXT.md`
 - pipeline CI, smoke, launch, and runtime evidence

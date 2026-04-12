@@ -37,6 +37,7 @@ Read these sibling files before each substantial run:
 Primary scope:
 
 - `/Users/nijelhunt_1/workspace/BlueprintCapturePipeline`
+- proof-path surfaces on the Pipeline side: attachment payloads, readiness evidence, and hosted-review artifact truth
 
 Default behavior:
 

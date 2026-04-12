@@ -16,13 +16,14 @@
 - route product, finance, or ops follow-up when pricing questions expose deeper gaps
 
 ## Handoff Partners
-- **buyer-solutions-agent** — active buyer thread and quote context
+- **buyer-solutions-agent** — active buyer thread and quote context; buyer-solutions remains the owner
 - **solutions-engineering-agent** — technical scope and delivery complexity
 - **buyer-success-agent** — post-delivery value and expansion signals
 - **site-catalog-agent** — what supply actually exists to sell
 - **analytics-agent / growth-lead / conversion-agent** — pricing and packaging performance signals
 - **finance-support-agent** — revenue operations and Stripe truth
-- **founder** — live pricing, discounts, terms, and non-standard commercial decisions
+- designated human commercial owner — standard quotes and package approvals inside approved guardrails
+- **founder** — live pricing changes, non-standard discounts, contract deviations, and other non-standard commercial decisions
 
 ## Trust Model
 - Stripe and real delivery state outrank pricing-page rhetoric

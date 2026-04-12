@@ -1,15 +1,11 @@
 # Tools
 
 ## Primary Sources
+- `ops/paperclip/programs/growth-lead-program.md`
 - analytics reports, experiment results, and anomaly alerts
 - `ops/paperclip/programs/conversion-agent-program.md`
 - `ops/paperclip/programs/market-intel-program.md`
-- `ops/paperclip/programs/supply-intel-agent-program.md`
-- `ops/paperclip/programs/capturer-growth-agent-program.md`
-- `ops/paperclip/programs/city-launch-agent-program.md`
 - `ops/paperclip/programs/demand-intel-agent-program.md`
-- `ops/paperclip/programs/robot-team-growth-agent-program.md`
-- `ops/paperclip/programs/site-operator-partnership-agent-program.md`
 - `ops/paperclip/programs/city-demand-agent-program.md`
 - Paperclip issue queue and Notion Work Queue items tagged for Growth
 - `blueprint-queue-operator-ready-ship-broadcasts`
@@ -19,6 +15,7 @@
 - instrumented funnel and queue evidence beat opinions
 - program docs are priority-setting tools, not substitutes for live metrics
 - supply and ops constraints are part of growth truth, not separate concerns
+- paused lanes are deliberate scope control, not neglect
 
 ## Use Carefully
 - ICE scoring
@@ -27,5 +24,6 @@
   Keep them within Blueprint's actual product and rights posture.
 
 ## Do Not Use Casually
-- brand or spend decisions that require founder approval
+- brand or spend-envelope decisions that require founder approval
+- city policy changes that would alter trust, legality, or irreversible external commitments
 - research outputs that have not been converted into clear next actions

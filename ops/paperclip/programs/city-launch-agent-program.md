@@ -6,17 +6,27 @@ Use the generic capturer-growth playbook plus Blueprint's existing supply, deman
 ## Current Queue
 1. Austin, TX
 2. San Francisco, CA
-3. Chicago, IL
-4. Los Angeles, CA
-5. New York, NY
-6. Boston, MA
-7. Seattle, WA
-8. Atlanta, GA
+
+## Deferred Cities
+- Chicago, IL
+- Los Angeles, CA
+- New York, NY
+- Boston, MA
+- Seattle, WA
+- Atlanta, GA
 
 Selection rule:
 - pick the next city whose guide is missing or stale
-- prefer cities already supported by current Blueprint research
+- do not expand beyond Austin and San Francisco in recurring work
+- treat deferred cities as archive/background only until a new evidence packet exists
 - do not rotate just for novelty; choose the next city where a guide would improve real planning clarity
+
+Evidence gate for reopening a deferred city:
+- one new exact-site proof signal tied to that city, or
+- one new qualified local anchor demand/supply signal tied to that city, or
+- one explicit founder request after reviewing a bounded decision packet
+
+Absent one of those, do not reopen deferred-city planning and do not create founder-facing review work about it.
 
 ## Required City Guide Structure
 For every city guide, maintain:
@@ -30,6 +40,11 @@ For every city guide, maintain:
 - measurement plan
 - launch readiness score
 - immediate next actions
+- a four-layer operating split:
+  - founder-only
+  - human operator-owned
+  - agent-prepared / autonomous
+  - exception-only escalation
 
 ## Initial Readiness Dimensions
 Score each city 1-5 on:
@@ -54,9 +69,16 @@ Score each city 1-5 on:
 - No paid-spend approval
 - No legal interpretation
 - No promises on city-level demand or earnings
+- No founder-facing routine approval work for invite issuance, referral execution, intake rubric approval, first-capture thresholds, trust-kit creation, analytics validation, or proof-pack quality confirmation when written operator guardrails already exist
 
 ## Operating Rule
 The city-launch agent does not invent a launch. It translates reusable strategy into city-specific plans and makes dependencies explicit, one city at a time.
+
+Required ownership split in Austin and San Francisco:
+- Founder-only: city go/no-go, gated-versus-expand decisions, new spend envelopes, posture-changing public claims, non-standard commercial commitments, policy-level rights/privacy exceptions
+- Human operator-owned: Growth Lead for channel/referral/source posture; Ops Lead for intake rubric, activation thresholds, trust kit, and launch-readiness checklist; designated human commercial owner for standard commercial handling inside approved bands
+- Agent-prepared / autonomous: city-launch-agent, intake-agent, field-ops-agent, analytics-agent, notion-manager-agent, webapp-codex, buyer-solutions-agent, and revenue-ops-pricing-agent prepare evidence and packets inside the human-owned guardrails
+- Exception-only escalation: founder sees only the bounded packet for city posture changes or irreversible exceptions
 
 ## Weekly Run Log
 
@@ -64,5 +86,5 @@ The city-launch agent does not invent a launch. It translates reusable strategy 
 - Refreshed Austin and San Francisco playbooks with latest findings
 - Incorporated April 5 agent bootstrap completions as new downstream capacity
 - Incorporated growth-lead weekly review analytics gap findings
-- No new city guides published this run (Austin and SF still first in queue, Chicago already has a guide)
+- No new city guides published this run (Austin and SF still first in queue; Chicago remains deferred)
 - Key block: analytics instrumentation not deployed — city expansion cannot be evidence-based

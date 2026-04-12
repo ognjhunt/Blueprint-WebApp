@@ -161,4 +161,37 @@ describe("chief of staff founder report", () => {
     expect(report.content).not.toContain("BLU-14");
     expect(report.content).toContain("Validate inbound request exchange lifecycle surfaces");
   });
+
+  it("renders founder decision packets from issue descriptions and falls back when fields are missing", () => {
+    const issues: Issue[] = [
+      {
+        id: "chicago-1",
+        identifier: "BLU-20",
+        title: "Review Chicago city launch guide and decide launch posture",
+        status: "blocked",
+        priority: "high",
+        assigneeAgentId: "ops",
+        updatedAt: "2026-04-01T20:00:00.000Z",
+        description: [
+          "## Why This Is Open",
+          "Chicago remains in planning and keeps reappearing in founder-facing work.",
+          "",
+          "## Decision Needed",
+          "- Confirm Chicago stays deferred until Austin proof exists.",
+          "",
+          "## Suggested Owner",
+          "- Growth Lead",
+        ].join("\n"),
+      },
+    ];
+
+    const report = buildReport("morning", "2026-04-01", issues, assignees);
+
+    expect(report.content).toContain("### Review Chicago city launch guide and decide launch posture");
+    expect(report.content).toContain("Why decision is needed now: Chicago remains in planning");
+    expect(report.content).toContain("Recommended answer: Defer Chicago. Keep it plan-only until Austin proof exists or a new Chicago anchor signal changes the evidence.");
+    expect(report.content).toContain("Exact approval or info needed: - Confirm Chicago stays deferred until Austin proof exists.");
+    expect(report.content).toContain("Who executes immediately after approval: Ops Lead");
+    expect(report.content).toContain("Alternatives: Missing alternatives — packet incomplete.");
+  });
 });
