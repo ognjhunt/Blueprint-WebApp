@@ -2,7 +2,7 @@
 
 - city: Austin, TX
 - city_slug: austin-tx
-- generated_at: 2026-04-12T02:23:39.441Z
+- generated_at: 2026-04-12T21:25:17.888Z
 - status: hypothesis-ranked targeting ledger, not a claim that every site is already accessible
 
 ## Purpose

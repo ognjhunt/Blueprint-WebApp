@@ -175,6 +175,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/admin/submissions/:requestId", layout: "protected", component: AdminLeads },
   { path: "/admin/growth-ops-scorecard", layout: "protected", component: AdminGrowthOpsScorecard },
   { path: "/admin/city-launch/austin", layout: "protected", component: AdminAustinLaunchScorecard },
+  { path: "/admin/city-launch/:citySlug", layout: "protected", component: AdminAustinLaunchScorecard },
   { path: "/admin/growth-studio", layout: "protected", component: AdminGrowthStudio },
 
   // Dashboard

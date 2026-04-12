@@ -3,6 +3,10 @@ import path from "node:path";
 
 let bootstrapped = false;
 
+function isTruthy(value: string | undefined) {
+  return ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase());
+}
+
 function stripWrappingQuotes(value: string) {
   const trimmed = value.trim();
   if (
@@ -50,6 +54,10 @@ export function bootstrapLocalEnv() {
   bootstrapped = true;
 
   if (process.env.NODE_ENV === "test" || process.env.VITEST === "true") {
+    return;
+  }
+
+  if (isTruthy(process.env.BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP)) {
     return;
   }
 

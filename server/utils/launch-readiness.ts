@@ -68,6 +68,10 @@ export function buildLaunchReadinessSnapshot() {
   const emailTransport = getEmailTransportStatus();
   const agentRuntime = getAgentRuntimeConnectionMetadata();
   const growthIntegrations = buildGrowthIntegrationSummary();
+  const fieldEncryptionReady = Boolean(
+    process.env.FIELD_ENCRYPTION_MASTER_KEY?.trim()
+    || process.env.FIELD_ENCRYPTION_KMS_KEY_NAME?.trim(),
+  );
   const automationFlags = {
     waitlist: isAutomationLaneEnabled("BLUEPRINT_WAITLIST_AUTOMATION_ENABLED"),
     inbound: isAutomationLaneEnabled("BLUEPRINT_INBOUND_AUTOMATION_ENABLED"),
@@ -184,6 +188,7 @@ export function buildLaunchReadinessSnapshot() {
   const checks = {
     server: true,
     firebaseAdmin: firebaseAdminReady,
+    fieldEncryption: fieldEncryptionReady,
     redis: redisReady,
     stripe: stripeReady,
     email: emailReady,
@@ -199,6 +204,13 @@ export function buildLaunchReadinessSnapshot() {
       detail: firebaseAdminReady
         ? "Firebase Admin auth and firestore are configured."
         : "Firebase Admin auth/firestore is unavailable.",
+    },
+    fieldEncryption: {
+      required: true,
+      ready: fieldEncryptionReady,
+      detail: fieldEncryptionReady
+        ? "Inbound request field encryption is configured."
+        : "Inbound request storage requires FIELD_ENCRYPTION_MASTER_KEY or FIELD_ENCRYPTION_KMS_KEY_NAME.",
     },
     redis: {
       required: redisRequired,

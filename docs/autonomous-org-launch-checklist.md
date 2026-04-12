@@ -1,6 +1,6 @@
 # Autonomous Org Launch Checklist
 
-Last audited: 2026-04-02
+Last audited: 2026-04-12
 
 This checklist is the execution-order runbook for deciding whether Blueprint's Hermes/Paperclip autonomous organization is ready for public alpha launch.
 
@@ -29,20 +29,27 @@ Good enough only when all of these are true:
 
 ## Current Status
 
-Observed on 2026-04-02:
+Observed on 2026-04-12:
 
-- Completed: `npm run alpha:check`
-  Result: passed with `557` assertions and `0` skipped.
-- Completed: `bash scripts/paperclip/validate-agent-kits.sh`
-  Result: passed.
-- Completed: local Paperclip API spot-check
-  Result: company record resolved, `blueprint.automation` plugin exists, `436` routines found, `40` active.
-- Blocked: `npm run alpha:preflight`
-  Result: missing production env/secrets and required autonomous-lane enables.
-- Blocked: `npm run smoke:agent`
-  Result: Firebase Admin not configured and no primary structured agent runtime provider configured.
-- Blocked: `bash scripts/paperclip/verify-blueprint-paperclip.sh`
-  Result: GitHub prereq envs are present, but calendar-backed field-ops prerequisites and manual connector re-auth are still outstanding.
+- Completed: targeted city-launch and autonomy verification
+  Result: city-launch planning and execution harnesses, autonomy scheduler, autonomous outbound, and creative factory tests are passing in-repo.
+- Completed: `npm run check`
+  Result: passing.
+- Completed: `npm run smoke:agent`
+  Result: passed locally against `codex_local` with `gpt-5.4-mini`.
+- Completed with waivers: `npm run alpha:preflight`
+  Result: passes in `local_test` mode, but only because Stripe and research-outbound requirements are waived in this workspace.
+- Completed: generic city launcher architecture
+  Result: the WebApp now supports generic city launch packet generation, Paperclip issue-tree dispatch, machine-readable budget policy, and canonical city ledgers for prospects, buyer targets, first touches, and spend.
+- Still blocked for public autonomous alpha: production credentials, connectors, and live-service wiring
+  Result: public launch still requires production Stripe, research-outbound credentials, Redis, connector health, and real operator-backed field execution.
+
+Human-gate packet rule:
+
+- When a launch blocker is truly human-gated, use `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/human-blocker-packet-standard.md`.
+- Default fast escalation channel: Slack DM to `Nijel Hunt`.
+- Default durable escalation channel: email to `ohstnhunt@gmail.com`.
+- Record the human response in the owning issue, report, or run artifact, then continue execution immediately.
 
 ## Checklist
 
@@ -54,6 +61,10 @@ Observed on 2026-04-02:
   Evidence: run `bash scripts/paperclip/validate-agent-kits.sh`
   Pass condition: `Agent kit validation passed.`
 
+- [x] Local production-mode smoke path exists
+  Evidence: run `npm run smoke:launch:local`
+  Pass condition: the built webapp can pass launch smoke locally under the documented local smoke profile without requiring full live Stripe or research-outbound credentials.
+
 - [x] Local Paperclip company and plugin exist
   Evidence: `GET /api/companies`, `GET /api/plugins`, plugin dashboard returns successfully
   Pass condition: company `Blueprint Autonomous Operations` exists and plugin `blueprint.automation` is installed and `ready`.
@@ -61,6 +72,10 @@ Observed on 2026-04-02:
 - [ ] Firebase Admin is live for production
   Required env: `FIREBASE_SERVICE_ACCOUNT_JSON` or `GOOGLE_APPLICATION_CREDENTIALS`
   Why it blocks launch: buyer checkout auth, entitlements, pipeline attachment sync, queue persistence, and Firestore-backed automations depend on it.
+
+- [ ] Field encryption is live for production
+  Required env: `FIELD_ENCRYPTION_MASTER_KEY` or `FIELD_ENCRYPTION_KMS_KEY_NAME`
+  Why it blocks launch: inbound request storage encrypts contact and request fields before writing to Firestore, so buyer intake can fail even when broader readiness appears healthy.
 
 - [ ] One structured automation provider is live
   Required runtime: local Codex OAuth, or one of `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `ACP_HARNESS_URL`
@@ -130,6 +145,16 @@ Observed on 2026-04-02:
   Evidence: run `npm run smoke:agent`
   Pass condition: smoke task completes successfully with the configured provider.
 
+- [x] Generic city launcher is implemented in-repo
+  Evidence:
+  - `server/utils/cityLaunchExecutionHarness.ts`
+  - `server/utils/cityLaunchLedgers.ts`
+  - `server/utils/cityLaunchScorecard.ts`
+  Pass condition:
+  - any city can produce a launch packet
+  - the harness can create the routed Paperclip issue tree
+  - scorecards can read canonical outreach and spend ledgers
+
 - [ ] Paperclip verification passes with smoke enabled
   Evidence: run `bash scripts/paperclip/verify-blueprint-paperclip.sh --smoke`
   Pass condition: shared instance, plugin, routines, adapter probes, and plugin smoke checks all pass.
@@ -154,7 +179,13 @@ npm run smoke:agent
 bash scripts/paperclip/verify-blueprint-paperclip.sh --smoke
 ```
 
+When the target environment is a local workspace instead of a deployed service, use `npm run smoke:launch:local` as the local parity gate and reserve `npm run smoke:launch` for preview or production targets.
+
 If any one of those fails, the autonomous organization is still in assisted-launch mode rather than public autonomous-alpha mode.
+
+Additional rule:
+
+- Do not widen beyond one active city until one city has real proof-ready listings, hosted reviews, and onboarded capturers recorded in the canonical city ledgers.
 
 ## Render Import Files
 

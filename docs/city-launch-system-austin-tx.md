@@ -1,24 +1,34 @@
 # Austin, TX Launch System
 
 - city: Austin, TX
-- status: draft_pending_founder_approval
+- status: founder_approved_activation_ready
 - doctrine: capture-first, world-model-product-first, Exact-Site Hosted Review wedge
 
 ## Objective
 
 Turn the Austin planning artifacts into an executable company harness that can run the supply loop and the demand loop with minimal founder involvement after bounded founder approval.
 
+## Machine-Readable Budget Policy
+
+- budget_tier: low_budget
+- total_envelope_usd: 2500
+- operator_auto_approve_usd: 500
+- allow_paid_acquisition: true
+- allow_referral_rewards: false
+- allow_travel_reimbursement: true
+- founder_approval_required_above_usd: 500
+
 ## What The Org Will Do
 
 1. Generate and critique the Austin plan through the existing Gemini Deep Research harness.
 2. Convert the compact Austin city-launch and city-demand playbooks into a single Austin operating system with explicit tasks, owners, thresholds, and handoff rules.
-3. Wake the paused Austin-relevant lanes only through the founder-approved city activation path, instead of letting the growth tree sprawl open again.
-4. Measure the city through Austin-specific supply and proof-motion metrics so operators can see whether the city is actually becoming operationally real.
+3. Materialize the live Paperclip issue tree for the city launch so work is routable instead of staying trapped in artifacts.
+4. Measure the city through Austin-specific supply, demand, spend, and proof-motion metrics so operators can see whether the city is actually becoming operationally real.
 
 ## Founder-Only Decisions
 
 - Austin go / no-go and the decision to keep the city gated or expand it.
-- Any spend envelope beyond the already-approved bounded Austin posture.
+- Any spend envelope beyond the approved Austin low budget policy.
 - Any public statement that changes company posture or overstates Austin readiness.
 - Any rights/privacy exception or non-standard commercial commitment that would set precedent.
 
@@ -41,7 +51,7 @@ Turn the Austin planning artifacts into an executable company harness that can r
 
 - Approve Austin, TX as an active city-launch activation and keep non-active cities deferred unless a new evidence packet exists.
 - Approve the bounded Austin launch posture: gated cohort pilot, Exact-Site Hosted Review wedge, no public city-live claims.
-- Approve the bounded spend posture: zero-budget only, low-budget envelope, or explicit funded envelope.
+- Approve the bounded spend posture for Austin: Low Budget with a total envelope up to $2,500.
 - Approve any Austin source-policy exceptions beyond the current bounded channel stack.
 - Approve any rights/privacy/commercialization exception that would set precedent or create an irreversible external commitment.
 - Approve any non-standard commercial terms outside the standard Austin quote bands prepared by revenue-ops-pricing-agent and the designated human commercial owner.
@@ -54,6 +64,14 @@ Turn the Austin planning artifacts into an executable company harness that can r
 - At least one clean Austin proof pack with hosted-review path and rights/provenance clearance.
 - Austin buyer target list and proof-led outbound package.
 - Austin scorecard working from live repo truth sources.
+
+## Expansion Guard
+
+- widening_allowed: false
+- At least one proof-ready city asset must exist before widening.
+- At least one hosted review must run end to end before widening.
+- At least three approved capturers are required before widening.
+- At least two capturers must reach onboarded status before widening.
 
 ## Execution Bundle
 
@@ -93,18 +111,21 @@ Turn the Austin planning artifacts into an executable company harness that can r
 ## How Stalls Stay Visible
 
 - If supply stalls, the scorecard must show whether the break is at source quality, signup, approval, first capture, QA, or proof-ready listing conversion.
-- If demand stalls, the scorecard must show whether the break is at inbound, proof-pack delivery, hosted-review start, follow-up, or human commercial handoff.
+- If demand stalls, the scorecard must show whether the break is at target research, first touch, proof-pack delivery, hosted-review start, follow-up, or human commercial handoff.
+- If spend drifts, the budget ledger must show whether the spend was within policy and who approved it.
 - If a routine metric is not instrumented yet, the scorecard must say it is not tracked rather than pretending the work is healthy.
 - If the target ledger is stale or misaligned, city-demand-agent owns the reprioritization instead of letting capture work fan out randomly.
 
 ## Source Artifacts
 
 - docs/city-launch-deep-research-harness-2026-04-11.md
+- docs/generic-autonomous-city-launcher-2026-04-12.md
 - ops/paperclip/programs/city-launch-agent-program.md
 - ops/paperclip/programs/city-demand-agent-program.md
 - ops/paperclip/playbooks/capturer-supply-playbook.md
 - ops/paperclip/playbooks/robot-team-demand-playbook.md
 - ops/paperclip/reports/city-demand-bootstrap-2026-04-06.md
+- ops/paperclip/reports/city-demand-bootstrap-2026-04-12.md
 - ops/paperclip/playbooks/capturer-trust-packet-stage-gate-standard.md
 - ops/paperclip/playbooks/field-ops-first-assignment-site-facing-trust-gate.md
 - docs/robot-team-proof-motion-analytics-requirements-2026-04-10.md
@@ -116,4 +137,4 @@ Turn the Austin planning artifacts into an executable company harness that can r
 
 ## Determination
 
-Existing agents are sufficient with instruction, task, and orchestration changes. No new Austin-specific agent is required in this repo because every required capability already maps to an existing lane: planning, sourcing, intake, field ops, QA, rights/provenance, proof delivery, outbound, buyer ownership, pricing support, analytics, Notion hygiene, and release gating.
+Existing agents are sufficient with instruction, task, and orchestration changes. No new Austin-specific permanent agent is required because the launcher now routes work into the existing city, ops, growth, buyer, and measurement lanes through a live issue tree.

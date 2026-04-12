@@ -19,12 +19,12 @@ describe("Home", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Train your robot on the exact customer site before you visit\./i,
+        name: /Bring the exact deployment site into your robot workflow\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Blueprint captures real customer facilities and turns them into digital environments your team can test against before showing up\./i,
+        /Blueprint turns one real facility into a site-specific world model your team can train on/i,
       ),
     ).toBeInTheDocument();
     expect(
@@ -40,7 +40,7 @@ describe("Home", () => {
       "/world-models/siteworld-f5fd54898cfb",
     );
     expect(
-      screen.getByText(/a world model is a site-specific digital environment/i),
+      screen.getByText(/one site-specific digital environment built from real capture of one facility/i),
     ).toBeInTheDocument();
     expect(screen.getByText(/Prefer email\? Send a short brief\./i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Three things Blueprint sells\./i })).toBeInTheDocument();

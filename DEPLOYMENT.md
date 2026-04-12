@@ -69,6 +69,15 @@ Provide one of the following, or run on Cloud Run / Cloud Functions with an atta
 Launch-critical note:
 - Buyer checkout auth, marketplace entitlements, pipeline attachment sync, creator ledgers, and inbound request persistence all depend on Firebase Admin being live in production.
 
+### Field Encryption (server)
+- one of:
+  - `FIELD_ENCRYPTION_MASTER_KEY`
+  - `FIELD_ENCRYPTION_KMS_KEY_NAME`
+
+Launch-critical note:
+- Inbound request persistence encrypts contact and request fields before storage.
+- If neither field-encryption env is configured, `/api/inbound-request` can fail even when `/health/ready` would otherwise look healthy.
+
 ### Contact + Signup Links
 - `VITE_PUBLIC_APP_URL` (canonical public origin used for generated links)
 - `VITE_GOOGLE_CLIENT_ID`

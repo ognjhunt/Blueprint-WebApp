@@ -17,7 +17,7 @@ describe("ForRobotIntegrators", () => {
 
     expect(screen.getByText(/^For Robot Teams$/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Train on the exact site before your team visits it\./i }),
+      screen.getByRole("heading", { name: /Bring the exact deployment site into your robot workflow\./i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Blueprint turns real customer facilities into site-specific world models\./i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What teams train and ship with this\./i })).toBeInTheDocument();
@@ -26,7 +26,9 @@ describe("ForRobotIntegrators", () => {
     expect(screen.getByText(/Share one environment/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What you get/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What to expect/i })).toBeInTheDocument();
-    expect(screen.getByText(/Real-site world models your team can train on and export data from\./i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Real-site world models your team can train on, fine-tune against, and export data from\./i),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Explore world models/i })).toHaveAttribute(
       "href",
       "/world-models",

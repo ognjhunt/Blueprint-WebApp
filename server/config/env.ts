@@ -14,6 +14,8 @@ const envSchema = z
     PORT: z.coerce.number().int().positive().default(5000),
     STRIPE_SECRET_KEY: z.string().trim().min(1).optional(),
     STRIPE_CONNECT_ACCOUNT_ID: z.string().trim().min(1).optional(),
+    FIELD_ENCRYPTION_MASTER_KEY: z.string().trim().optional(),
+    FIELD_ENCRYPTION_KMS_KEY_NAME: z.string().trim().optional(),
     PAPERCLIP_OPS_STRIPE_WEBHOOK_URL: z.string().trim().url().optional(),
     PAPERCLIP_OPS_FIRESTORE_WEBHOOK_URL: z.string().trim().url().optional(),
     PAPERCLIP_OPS_FIRESTORE_RELAY_SECRET: z.string().trim().optional(),

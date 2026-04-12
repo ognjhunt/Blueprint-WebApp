@@ -31,6 +31,7 @@ HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-arcee-ai/tri
 FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES:-0}"
 HERMES_INSTRUCTIONS_FILE="/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md"
 AGENT_KIT_VALIDATOR="${SCRIPT_DIR}/validate-agent-kits.sh"
+DISALLOWED_HERMES_MODEL_RE='^(openrouter/free|(?:openrouter/)?nvidia/nemotron-3-super(?::free)?|(?:openrouter/)?(?:qwen/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter/)?stepfun/step-3\.5-flash(?::free)?)$'
 
 for arg in "$@"; do
   if [ "$arg" = "--smoke" ]; then
@@ -74,6 +75,63 @@ plugin_json() {
 plugin_config_json() {
   local plugin_id="$1"
   fetch_api_json "/api/plugins/${plugin_id}/config"
+}
+
+is_truthy() {
+  [[ "${1:-}" =~ ^(1|true|yes)$ ]]
+}
+
+is_free_model() {
+  [[ "${1:-}" == *:free ]]
+}
+
+is_disallowed_hermes_model() {
+  [[ "${1:-}" =~ $DISALLOWED_HERMES_MODEL_RE ]]
+}
+
+validate_free_only_runtime_env() {
+  local failures=()
+  local model=""
+
+  if ! is_truthy "${BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS:-0}"; then
+    for model in \
+      "${BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL:-}" \
+      "${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-}"; do
+      if [ -n "$model" ] && ! is_free_model "$model"; then
+        failures+=("Hermes model must stay free-only when BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS=0: ${model}")
+      fi
+      if [ -n "$model" ] && is_disallowed_hermes_model "$model"; then
+        failures+=("Hermes model is deprecated/disallowed and must be removed: ${model}")
+      fi
+    done
+
+    IFS=',' read -r -a hermes_models <<< "${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS:-}"
+    for model in "${hermes_models[@]}"; do
+      model="${model//[[:space:]]/}"
+      [ -n "$model" ] || continue
+      if ! is_free_model "$model"; then
+        failures+=("Hermes fallback ladder must stay free-only when BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS=0: ${model}")
+      fi
+      if is_disallowed_hermes_model "$model"; then
+        failures+=("Hermes fallback ladder contains a deprecated/disallowed model: ${model}")
+      fi
+    done
+  fi
+
+  if ! is_truthy "${BLUEPRINT_PAPERCLIP_OPENCODE_ALLOW_PAID_MODELS:-0}"; then
+    for model in \
+      "${BLUEPRINT_PAPERCLIP_OPENCODE_PRIMARY_MODEL:-}" \
+      "${BLUEPRINT_PAPERCLIP_OPENCODE_FALLBACK_MODEL:-}"; do
+      if [ -n "$model" ] && ! is_free_model "$model"; then
+        failures+=("OpenCode model must stay free-only when BLUEPRINT_PAPERCLIP_OPENCODE_ALLOW_PAID_MODELS=0: ${model}")
+      fi
+    done
+  fi
+
+  if [ "${#failures[@]}" -gt 0 ]; then
+    printf 'Verification failed: %s\n' "${failures[@]}" >&2
+    return 1
+  fi
 }
 
 require_routines() {
@@ -467,6 +525,7 @@ hermes_oauth_only_probe_ok() {
 main() {
   "$AGENT_KIT_VALIDATOR"
   assert_founder_report_guardrails
+  validate_free_only_runtime_env
   paperclip_health
   local company
   company="$(company_json)"
@@ -514,6 +573,11 @@ main() {
         process.stdin.on("end",()=>{
           const rows = JSON.parse(data);
           const failures = [];
+          const allowPaidHermes = /^(1|true|yes)$/i.test(process.env.BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS ?? "");
+          const allowPaidOpenCode = /^(1|true|yes)$/i.test(process.env.BLUEPRINT_PAPERCLIP_OPENCODE_ALLOW_PAID_MODELS ?? "");
+          const disallowedHermesModelRe = /^(openrouter\/free|(?:openrouter\/)?nvidia\/nemotron-3-super(?::free)?|(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
+          const isFreeModel = (value) => typeof value === "string" && value.trim().toLowerCase().endsWith(":free");
+          const toPerAdapterConfig = (row) => row.runtimeConfig?.executionPolicy?.perAdapterConfig ?? {};
           for (const row of rows) {
             if (row.adapterType !== "hermes_local") continue;
             const policy = row.runtimeConfig?.executionPolicy ?? {};
@@ -521,6 +585,36 @@ main() {
             const compatible = Array.isArray(policy.compatibleAdapterTypes) ? policy.compatibleAdapterTypes : [];
             if (preferred.includes("claude_local") || compatible.includes("claude_local")) {
               failures.push(`${row.name || row.id}: hermes execution policy still exposes claude_local`);
+            }
+            const hermesConfig = toPerAdapterConfig(row).hermes_local ?? {};
+            const hermesModel = typeof hermesConfig.model === "string" ? hermesConfig.model.trim() : "";
+            if (hermesModel && (!allowPaidHermes && !isFreeModel(hermesModel))) {
+              failures.push(`${row.name || row.id}: hermes runtime model is paid even though paid Hermes models are disabled (${hermesModel})`);
+            }
+            if (hermesModel && disallowedHermesModelRe.test(hermesModel)) {
+              failures.push(`${row.name || row.id}: hermes runtime model is deprecated/disallowed (${hermesModel})`);
+            }
+            const hermesLadder = Array.isArray(hermesConfig.blueprintHermesModelLadder)
+              ? hermesConfig.blueprintHermesModelLadder
+              : [];
+            for (const model of hermesLadder) {
+              if (typeof model !== "string" || model.trim().length === 0) continue;
+              if (!allowPaidHermes && !isFreeModel(model)) {
+                failures.push(`${row.name || row.id}: hermes runtime ladder still contains a paid model (${model})`);
+              }
+              if (disallowedHermesModelRe.test(model)) {
+                failures.push(`${row.name || row.id}: hermes runtime ladder still contains a deprecated/disallowed model (${model})`);
+              }
+            }
+
+            const opencodeConfig = toPerAdapterConfig(row).opencode_local ?? {};
+            const opencodeModel = typeof opencodeConfig.model === "string" ? opencodeConfig.model.trim() : "";
+            if (opencodeModel && !allowPaidOpenCode && !isFreeModel(opencodeModel)) {
+              failures.push(`${row.name || row.id}: opencode runtime model is paid even though paid OpenCode models are disabled (${opencodeModel})`);
+            }
+            const opencodeFallback = typeof opencodeConfig.fallbackModel === "string" ? opencodeConfig.fallbackModel.trim() : "";
+            if (opencodeFallback && !allowPaidOpenCode && !isFreeModel(opencodeFallback)) {
+              failures.push(`${row.name || row.id}: opencode fallback model is paid even though paid OpenCode models are disabled (${opencodeFallback})`);
             }
           }
           process.stdout.write(failures.join("\n"));

@@ -1,5 +1,7 @@
 # City Demand Agent Bootstrap — Inspection Report
 
+> Historical bootstrap snapshot only. Superseded by `city-demand-bootstrap-2026-04-12.md`, which reflects the generic city launcher and the move from planning-only city packets to routed city execution bundles.
+
 **Date:** 2026-04-06
 **Author:** blueprint-chief-of-staff (BLU-112)
 **Status:** Complete

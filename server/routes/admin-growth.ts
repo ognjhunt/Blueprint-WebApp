@@ -22,6 +22,18 @@ import {
   summarizeRecentContentOutcomeReviews,
 } from "../utils/content-ops";
 import { parseGsUri } from "../utils/pipeline-dashboard";
+import {
+  readCurrentCityLaunchActivation,
+  runCityLaunchExecutionHarness,
+} from "../utils/cityLaunchExecutionHarness";
+import {
+  readCityLaunchActivation,
+  recordCityLaunchBudgetEvent,
+  recordCityLaunchTouch,
+  summarizeCityLaunchLedgers,
+  upsertCityLaunchBuyerTarget,
+  upsertCityLaunchProspect,
+} from "../utils/cityLaunchLedgers";
 
 const router = Router();
 
@@ -46,6 +58,11 @@ async function operatorEmail(res: Response) {
 
 function normalizeString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeNumber(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 async function maybeCreateSignedStorageUrl(uri: string | null) {
@@ -387,6 +404,216 @@ router.post("/automation/creative/run", requireOps, async (_req, res) => {
     return res.status(500).json({
       error: error instanceof Error ? error.message : "Failed to run creative factory",
     });
+  }
+});
+
+router.post("/city-launch/activate", requireOps, async (req, res) => {
+  try {
+    const city = normalizeString(req.body?.city);
+    if (!city) {
+      return res.status(400).json({ error: "city is required" });
+    }
+
+    const rawBudgetTier = normalizeString(req.body?.budgetTier);
+    const budgetTier =
+      rawBudgetTier === "zero_budget" || rawBudgetTier === "low_budget" || rawBudgetTier === "funded"
+        ? rawBudgetTier
+        : undefined;
+
+    const result = await runCityLaunchExecutionHarness({
+      city,
+      founderApproved: req.body?.founderApproved === true,
+      budgetTier,
+      budgetMaxUsd: normalizeNumber(req.body?.budgetMaxUsd) ?? undefined,
+      operatorAutoApproveUsd:
+        normalizeNumber(req.body?.operatorAutoApproveUsd) ?? undefined,
+      dispatchIssues: req.body?.dispatchIssues !== false,
+    });
+
+    return res.status(201).json({ ok: true, result });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to activate city launch harness");
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : "Failed to activate city launch harness",
+    });
+  }
+});
+
+router.get("/city-launch/activation", requireOps, async (req, res) => {
+  try {
+    const city = normalizeString(req.query.city) || "Austin, TX";
+    return res.json({
+      ok: true,
+      activation: await readCurrentCityLaunchActivation(city),
+      ledgers: await summarizeCityLaunchLedgers(city),
+    });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to read city launch activation");
+    return res.status(500).json({ error: "Failed to read city launch activation" });
+  }
+});
+
+router.post("/city-launch/ledgers/prospects", requireOps, async (req, res) => {
+  try {
+    const city = normalizeString(req.body?.city);
+    const sourceBucket = normalizeString(req.body?.sourceBucket);
+    const channel = normalizeString(req.body?.channel);
+    const name = normalizeString(req.body?.name);
+    const status = normalizeString(req.body?.status);
+    if (!city || !sourceBucket || !channel || !name || !status) {
+      return res.status(400).json({
+        error: "city, sourceBucket, channel, name, and status are required",
+      });
+    }
+    const prospect = await upsertCityLaunchProspect({
+      id: normalizeString(req.body?.id) || undefined,
+      city,
+      launchId: normalizeString(req.body?.launchId) || null,
+      sourceBucket,
+      channel,
+      name,
+      email: normalizeString(req.body?.email) || null,
+      status:
+        status as
+          | "identified"
+          | "contacted"
+          | "responded"
+          | "qualified"
+          | "approved"
+          | "onboarded"
+          | "capturing"
+          | "inactive",
+      ownerAgent: normalizeString(req.body?.ownerAgent) || null,
+      notes: normalizeString(req.body?.notes) || null,
+      firstContactedAt: normalizeString(req.body?.firstContactedAt) || null,
+      lastContactedAt: normalizeString(req.body?.lastContactedAt) || null,
+    });
+    return res.status(201).json({ ok: true, prospect });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to upsert city launch prospect");
+    return res.status(500).json({ error: "Failed to upsert city launch prospect" });
+  }
+});
+
+router.post("/city-launch/ledgers/buyer-targets", requireOps, async (req, res) => {
+  try {
+    const city = normalizeString(req.body?.city);
+    const companyName = normalizeString(req.body?.companyName);
+    const status = normalizeString(req.body?.status);
+    if (!city || !companyName || !status) {
+      return res.status(400).json({
+        error: "city, companyName, and status are required",
+      });
+    }
+    const buyerTarget = await upsertCityLaunchBuyerTarget({
+      id: normalizeString(req.body?.id) || undefined,
+      city,
+      launchId: normalizeString(req.body?.launchId) || null,
+      companyName,
+      contactName: normalizeString(req.body?.contactName) || null,
+      status:
+        status as
+          | "identified"
+          | "researched"
+          | "queued"
+          | "contacted"
+          | "engaged"
+          | "hosted_review"
+          | "commercial_handoff"
+          | "closed_won"
+          | "closed_lost",
+      workflowFit: normalizeString(req.body?.workflowFit) || null,
+      proofPath: normalizeString(req.body?.proofPath) || null,
+      ownerAgent: normalizeString(req.body?.ownerAgent) || null,
+    });
+    return res.status(201).json({ ok: true, buyerTarget });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to upsert city launch buyer target");
+    return res.status(500).json({ error: "Failed to upsert city launch buyer target" });
+  }
+});
+
+router.post("/city-launch/ledgers/touches", requireOps, async (req, res) => {
+  try {
+    const city = normalizeString(req.body?.city);
+    const referenceType = normalizeString(req.body?.referenceType);
+    const touchType = normalizeString(req.body?.touchType);
+    const channel = normalizeString(req.body?.channel);
+    const status = normalizeString(req.body?.status);
+    if (!city || !referenceType || !touchType || !channel || !status) {
+      return res.status(400).json({
+        error: "city, referenceType, touchType, channel, and status are required",
+      });
+    }
+    const touch = await recordCityLaunchTouch({
+      city,
+      launchId: normalizeString(req.body?.launchId) || null,
+      referenceType: referenceType as "prospect" | "buyer_target" | "general",
+      referenceId: normalizeString(req.body?.referenceId) || null,
+      touchType:
+        touchType as
+          | "first_touch"
+          | "follow_up"
+          | "approval_request"
+          | "intro"
+          | "operator_send",
+      channel,
+      status: status as "draft" | "queued" | "sent" | "delivered" | "replied" | "failed",
+      campaignId: normalizeString(req.body?.campaignId) || null,
+      issueId: normalizeString(req.body?.issueId) || null,
+    });
+    return res.status(201).json({ ok: true, touch });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to record city launch touch");
+    return res.status(500).json({ error: "Failed to record city launch touch" });
+  }
+});
+
+router.post("/city-launch/ledgers/budget-events", requireOps, async (req, res) => {
+  try {
+    const city = normalizeString(req.body?.city);
+    const category = normalizeString(req.body?.category);
+    const amountUsd = normalizeNumber(req.body?.amountUsd);
+    if (!city || !category || amountUsd === null) {
+      return res.status(400).json({
+        error: "city, category, and amountUsd are required",
+      });
+    }
+    const budgetEvent = await recordCityLaunchBudgetEvent({
+      city,
+      launchId: normalizeString(req.body?.launchId) || null,
+      category:
+        category as
+          | "creative"
+          | "outbound"
+          | "community"
+          | "field_ops"
+          | "travel"
+          | "tools"
+          | "other",
+      amountUsd,
+      note: normalizeString(req.body?.note) || null,
+      approvedByRole: normalizeString(req.body?.approvedByRole) || null,
+      withinPolicy: req.body?.withinPolicy !== false,
+    });
+    return res.status(201).json({ ok: true, budgetEvent });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to record city launch budget event");
+    return res.status(500).json({ error: "Failed to record city launch budget event" });
+  }
+});
+
+router.get("/city-launch/ledgers", requireOps, async (req, res) => {
+  try {
+    const city = normalizeString(req.query.city) || "Austin, TX";
+    return res.json({
+      ok: true,
+      activation: await readCityLaunchActivation(city),
+      summary: await summarizeCityLaunchLedgers(city),
+    });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to summarize city launch ledgers");
+    return res.status(500).json({ error: "Failed to summarize city launch ledgers" });
   }
 });
 

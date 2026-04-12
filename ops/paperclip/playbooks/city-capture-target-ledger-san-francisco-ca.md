@@ -2,7 +2,7 @@
 
 - city: San Francisco, CA
 - city_slug: san-francisco-ca
-- generated_at: 2026-04-12T02:23:47.057Z
+- generated_at: 2026-04-12T15:56:45.005Z
 - status: hypothesis-ranked targeting ledger, not a claim that every site is already accessible
 
 ## Purpose

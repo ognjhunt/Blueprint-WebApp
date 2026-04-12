@@ -2,7 +2,12 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { normalizeDemandCity } from "../../client/src/lib/cityDemandMessaging";
 import { decryptInboundRequestForAdmin } from "./field-encryption";
 import type { InboundRequest, InboundRequestStored } from "../types/inbound-request";
-import { resolveFocusCityProfile, slugifyCityName } from "./cityLaunchProfiles";
+import { buildCityLaunchWideningGuard } from "./cityLaunchPolicy";
+import { resolveCityLaunchProfile, slugifyCityName } from "./cityLaunchProfiles";
+import {
+  readCityLaunchActivation,
+  summarizeCityLaunchLedgers,
+} from "./cityLaunchLedgers";
 
 type TrackedMetric = {
   key: string;
@@ -23,6 +28,19 @@ export type CityLaunchScorecard = {
   generatedAt: string;
   supply: TrackedMetric[];
   demand: TrackedMetric[];
+  budget: {
+    tier: string | null;
+    totalRecordedSpendUsd: number;
+    withinPolicySpendUsd: number;
+    outsidePolicySpendUsd: number;
+  };
+  activation: {
+    founderApproved: boolean;
+    status: string | null;
+    wideningAllowed: boolean;
+    wideningReasons: string[];
+    rootIssueId: string | null;
+  };
   warnings: string[];
   dataSources: string[];
 };
@@ -136,13 +154,15 @@ export async function collectCityLaunchScorecard(city: string): Promise<CityLaun
   if (!db) {
     throw new Error("Database not available");
   }
-  const profile = resolveFocusCityProfile(city);
+  const profile = resolveCityLaunchProfile(city);
   const citySlug = slugifyCityName(profile.city);
 
-  const [waitlistSnapshot, usersSnapshot, inboundRequests] = await Promise.all([
+  const [waitlistSnapshot, usersSnapshot, inboundRequests, ledgerSummary, activation] = await Promise.all([
     db.collection("waitlistSubmissions").limit(1500).get(),
     db.collection("users").limit(2000).get(),
     decryptInboundRequests(),
+    summarizeCityLaunchLedgers(profile.city),
+    readCityLaunchActivation(profile.city),
   ]);
 
   const supplySignalEmails = new Set<string>();
@@ -238,9 +258,16 @@ export async function collectCityLaunchScorecard(city: string): Promise<CityLaun
     return Boolean(extractProofPathTimestamp(proofPath, "human_commercial_handoff_at"));
   }).length;
 
+  const wideningGuard = buildCityLaunchWideningGuard({
+    proofReadyListings,
+    hostedReviewsStarted,
+    approvedCapturers,
+    onboardedCapturers: ledgerSummary.onboardedCapturers,
+  });
+
   const warnings = [
-    "Prospects contacted, named buyer targets researched, and first touches sent are still not directly instrumented from repo truth sources. The harness flags them as not tracked instead of inferring them.",
     `${profile.shortLabel} proof-ready listing count is derived from city-matching inbound requests with proof-pack or hosted-review readiness, because published marketplace inventory does not yet carry an explicit city field.`,
+    ...wideningGuard.reasons,
   ];
 
   return {
@@ -253,11 +280,10 @@ export async function collectCityLaunchScorecard(city: string): Promise<CityLaun
       buildMetric({
         key: "supply_prospects_contacted",
         label: `Curated ${profile.shortLabel} supply prospects contacted`,
-        actual: null,
+        actual: ledgerSummary.trackedSupplyProspectsContacted,
         targetMin: 25,
         targetMax: 50,
-        tracked: false,
-        note: "Not yet tracked from a canonical repo-side outreach log.",
+        note: "Tracked from the canonical city launch prospect ledger.",
       }),
       buildMetric({
         key: "raw_supply_signups",
@@ -300,20 +326,18 @@ export async function collectCityLaunchScorecard(city: string): Promise<CityLaun
       buildMetric({
         key: "named_targets_researched",
         label: `Named ${profile.shortLabel} robot-company targets researched`,
-        actual: null,
+        actual: ledgerSummary.trackedBuyerTargetsResearched,
         targetMin: 20,
         targetMax: 40,
-        tracked: false,
-        note: "Not yet sourced from a canonical repo-side target ledger.",
+        note: "Tracked from the canonical city launch buyer-target ledger.",
       }),
       buildMetric({
         key: "tailored_first_touches",
         label: `Tailored ${profile.shortLabel} first touches sent`,
-        actual: null,
+        actual: ledgerSummary.trackedFirstTouchesSent,
         targetMin: 10,
         targetMax: 20,
-        tracked: false,
-        note: "Not yet sourced from a canonical repo-side outbound ledger.",
+        note: "Tracked from the canonical city launch touch ledger.",
       }),
       buildMetric({
         key: "live_buyer_conversations",
@@ -352,12 +376,26 @@ export async function collectCityLaunchScorecard(city: string): Promise<CityLaun
         targetMax: 3,
       }),
     ],
+    budget: {
+      tier: activation?.budgetTier || null,
+      totalRecordedSpendUsd: ledgerSummary.totalRecordedSpendUsd,
+      withinPolicySpendUsd: ledgerSummary.withinPolicySpendUsd,
+      outsidePolicySpendUsd: ledgerSummary.outsidePolicySpendUsd,
+    },
+    activation: {
+      founderApproved: activation?.founderApproved === true,
+      status: activation?.status || null,
+      wideningAllowed: wideningGuard.wideningAllowed,
+      wideningReasons: wideningGuard.reasons,
+      rootIssueId: activation?.rootIssueId || null,
+    },
     warnings,
     dataSources: [
       "waitlistSubmissions",
       "users",
       "inboundRequests",
       "inboundRequests.ops.proof_path",
+      ...ledgerSummary.dataSources,
     ],
   };
 }

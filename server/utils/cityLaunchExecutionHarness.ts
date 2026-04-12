@@ -12,10 +12,28 @@ import {
   renderCityCaptureTargetLedgerMarkdown,
 } from "./cityCaptureTargetLedger";
 import {
+  readCityLaunchActivation,
+  summarizeCityLaunchLedgers,
+  writeCityLaunchActivation,
+  type CityLaunchActivationStatus,
+} from "./cityLaunchLedgers";
+import {
+  buildCityLaunchBudgetPolicy,
+  buildCityLaunchWideningGuard,
+  type CityLaunchBudgetPolicy,
+  type CityLaunchBudgetTier,
+} from "./cityLaunchPolicy";
+import {
+  resolveCityLaunchProfile,
   resolveFocusCityProfile,
   slugifyCityName,
-  type FocusCityProfile,
+  type CityLaunchProfile,
 } from "./cityLaunchProfiles";
+import {
+  createPaperclipIssueComment,
+  upsertPaperclipIssue,
+  type PaperclipIssueRecord,
+} from "./paperclip";
 
 const REPO_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -27,13 +45,17 @@ const DEFAULT_REPORTS_ROOT = path.join(
   "ops/paperclip/reports/city-launch-execution",
 );
 
+const CITY_LAUNCH_PROJECT_NAME = "blueprint-webapp";
+
 const STATIC_SOURCE_PATHS = [
   "docs/city-launch-deep-research-harness-2026-04-11.md",
+  "docs/generic-autonomous-city-launcher-2026-04-12.md",
   "ops/paperclip/programs/city-launch-agent-program.md",
   "ops/paperclip/programs/city-demand-agent-program.md",
   "ops/paperclip/playbooks/capturer-supply-playbook.md",
   "ops/paperclip/playbooks/robot-team-demand-playbook.md",
   "ops/paperclip/reports/city-demand-bootstrap-2026-04-06.md",
+  "ops/paperclip/reports/city-demand-bootstrap-2026-04-12.md",
   "ops/paperclip/playbooks/capturer-trust-packet-stage-gate-standard.md",
   "ops/paperclip/playbooks/field-ops-first-assignment-site-facing-trust-gate.md",
   "docs/robot-team-proof-motion-analytics-requirements-2026-04-10.md",
@@ -58,12 +80,29 @@ export type CityLaunchTask = {
   humanGate: string | null;
 };
 
+export type CityLaunchTaskDispatch = {
+  key: string;
+  owner: string;
+  issueId: string;
+  identifier: string | null;
+  created: boolean;
+  status: string;
+};
+
 export type CityLaunchExecutionResult = {
   city: string;
   citySlug: string;
   status: CityLaunchExecutionStatus;
+  budgetTier: CityLaunchBudgetTier;
+  budgetPolicy: CityLaunchBudgetPolicy;
   startedAt: string;
   completedAt: string;
+  activationStatus: CityLaunchActivationStatus;
+  wideningGuard: {
+    mode: "single_city_until_proven";
+    wideningAllowed: boolean;
+    reasons: string[];
+  };
   artifacts: {
     runDirectory: string;
     manifestPath: string;
@@ -85,6 +124,13 @@ export type CityLaunchExecutionResult = {
     workQueuePageId?: string;
     workQueuePageUrl?: string;
   };
+  paperclip?: {
+    rootIssueId: string | null;
+    rootIssueIdentifier: string | null;
+    createdRootIssue: boolean;
+    dispatched: CityLaunchTaskDispatch[];
+    error?: string | null;
+  };
 };
 
 type ReadSourceArtifact = {
@@ -96,15 +142,15 @@ function timestampForFile(date = new Date()) {
   return date.toISOString().replaceAll(":", "-");
 }
 
-function buildCanonicalSystemDocPath(profile: FocusCityProfile) {
+function buildCanonicalSystemDocPath(profile: CityLaunchProfile) {
   return path.join(REPO_ROOT, profile.systemDocPath);
 }
 
-function buildCanonicalIssueBundlePath(profile: FocusCityProfile) {
+function buildCanonicalIssueBundlePath(profile: CityLaunchProfile) {
   return path.join(REPO_ROOT, profile.issueBundlePath);
 }
 
-function buildCanonicalTargetLedgerPath(profile: FocusCityProfile) {
+function buildCanonicalTargetLedgerPath(profile: CityLaunchProfile) {
   return path.join(REPO_ROOT, profile.targetLedgerPath);
 }
 
@@ -113,7 +159,7 @@ async function writeTextArtifact(filePath: string, content: string) {
   await fs.writeFile(filePath, content, "utf8");
 }
 
-async function listSourceArtifacts(profile: FocusCityProfile) {
+async function listSourceArtifacts(profile: CityLaunchProfile) {
   const sourcePaths = [
     ...STATIC_SOURCE_PATHS,
     profile.launchPlaybookPath,
@@ -134,18 +180,22 @@ async function listSourceArtifacts(profile: FocusCityProfile) {
   return artifacts.filter((artifact) => artifact.exists);
 }
 
-function buildFounderApprovals(profile: FocusCityProfile) {
+function buildFounderApprovals(profile: CityLaunchProfile, budgetPolicy: CityLaunchBudgetPolicy) {
+  const spendLine = budgetPolicy.maxTotalApprovedUsd > 0
+    ? `Approve the bounded spend posture for ${profile.shortLabel}: ${budgetPolicy.label} with a total envelope up to $${budgetPolicy.maxTotalApprovedUsd.toLocaleString()}.`
+    : `Approve the bounded spend posture for ${profile.shortLabel}: ${budgetPolicy.label} with no paid acquisition, referral, or discretionary travel spend.`;
+
   return [
     `Approve ${profile.city} as an active city-launch activation and keep non-active cities deferred unless a new evidence packet exists.`,
     `Approve the bounded ${profile.shortLabel} launch posture: gated cohort pilot, Exact-Site Hosted Review wedge, no public city-live claims.`,
-    "Approve the bounded spend posture: zero-budget only, low-budget envelope, or explicit funded envelope.",
+    spendLine,
     `Approve any ${profile.shortLabel} source-policy exceptions beyond the current bounded channel stack.`,
     "Approve any rights/privacy/commercialization exception that would set precedent or create an irreversible external commitment.",
     `Approve any non-standard commercial terms outside the standard ${profile.shortLabel} quote bands prepared by revenue-ops-pricing-agent and the designated human commercial owner.`,
   ];
 }
 
-export function buildCityExecutionTasks(profile: FocusCityProfile): CityLaunchTask[] {
+export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchTask[] {
   return [
     {
       key: "city-target-ledger",
@@ -288,10 +338,7 @@ export function buildCityExecutionTasks(profile: FocusCityProfile): CityLaunchTa
       owner: "capture-qa-agent",
       humanOwner: "Ops Lead",
       purpose: `Ensure ${profile.shortLabel} proof assets are real, clean, and ready for buyer proof work.`,
-      inputs: [
-        "pipeline artifacts",
-        "capture QA evidence",
-      ],
+      inputs: ["pipeline artifacts", "capture QA evidence"],
       dependencies: ["first-capture-routing"],
       doneWhen: [
         `${profile.shortLabel} captures receive PASS, BORDERLINE, or FAIL with explicit evidence.`,
@@ -382,10 +429,7 @@ export function buildCityExecutionTasks(profile: FocusCityProfile): CityLaunchTa
       owner: "outbound-sales-agent",
       humanOwner: "Growth Lead",
       purpose: `Convert named ${profile.shortLabel} targets into serious proof conversations without dragging the founder into routine work.`,
-      inputs: [
-        "approved outbound package",
-        `${profile.shortLabel} buyer target list`,
-      ],
+      inputs: ["approved outbound package", `${profile.shortLabel} buyer target list`],
       dependencies: ["outbound-package"],
       doneWhen: [
         `5-8 ${profile.shortLabel} buyer conversations are active with explicit next steps.`,
@@ -422,7 +466,7 @@ export function buildCityExecutionTasks(profile: FocusCityProfile): CityLaunchTa
       inputs: [
         "growth_events",
         "inboundRequests.ops.proof_path",
-        "capturer records",
+        "city launch ledgers",
         `published ${profile.shortLabel} proof assets`,
       ],
       dependencies: ["supply-qualification", "proof-pack-listings", "outbound-execution"],
@@ -458,11 +502,7 @@ export function buildCityExecutionTasks(profile: FocusCityProfile): CityLaunchTa
       owner: "beta-launch-commander",
       humanOwner: "CTO",
       purpose: `Confirm the software/runtime surfaces needed by the ${profile.shortLabel} launch are safe before switch-on.`,
-      inputs: [
-        "alpha:check",
-        "alpha:preflight",
-        `${profile.shortLabel} launch system doc`,
-      ],
+      inputs: ["alpha:check", "alpha:preflight", `${profile.shortLabel} launch system doc`],
       dependencies: ["city-scorecard"],
       doneWhen: [
         `${profile.shortLabel} switch-on review returns GO, CONDITIONAL GO, or HOLD with evidence.`,
@@ -473,7 +513,7 @@ export function buildCityExecutionTasks(profile: FocusCityProfile): CityLaunchTa
   ];
 }
 
-function buildTaskMarkdown(profile: FocusCityProfile, tasks: CityLaunchTask[]) {
+function buildTaskMarkdown(profile: CityLaunchProfile, tasks: CityLaunchTask[]) {
   const lines: string[] = [
     `# ${profile.city} Launch Issue Bundle`,
     "",
@@ -506,16 +546,18 @@ function buildTaskMarkdown(profile: FocusCityProfile, tasks: CityLaunchTask[]) {
 }
 
 function buildSystemDocMarkdown(input: {
-  profile: FocusCityProfile;
+  profile: CityLaunchProfile;
   status: CityLaunchExecutionStatus;
+  budgetPolicy: CityLaunchBudgetPolicy;
   founderApprovals: string[];
   sourceArtifacts: ReadSourceArtifact[];
   tasks: CityLaunchTask[];
+  wideningGuard: { wideningAllowed: boolean; reasons: string[] };
 }) {
   const { profile } = input;
   const founderOnly = [
     `${profile.shortLabel} go / no-go and the decision to keep the city gated or expand it.`,
-    `Any spend envelope beyond the already-approved bounded ${profile.shortLabel} posture.`,
+    `Any spend envelope beyond the approved ${profile.shortLabel} ${input.budgetPolicy.label.toLowerCase()} policy.`,
     `Any public statement that changes company posture or overstates ${profile.shortLabel} readiness.`,
     "Any rights/privacy exception or non-standard commercial commitment that would set precedent.",
   ];
@@ -561,12 +603,22 @@ function buildSystemDocMarkdown(input: {
     "",
     `Turn the ${profile.shortLabel} planning artifacts into an executable company harness that can run the supply loop and the demand loop with minimal founder involvement after bounded founder approval.`,
     "",
+    "## Machine-Readable Budget Policy",
+    "",
+    `- budget_tier: ${input.budgetPolicy.tier}`,
+    `- total_envelope_usd: ${input.budgetPolicy.maxTotalApprovedUsd}`,
+    `- operator_auto_approve_usd: ${input.budgetPolicy.operatorAutoApproveUsd}`,
+    `- allow_paid_acquisition: ${input.budgetPolicy.allowPaidAcquisition}`,
+    `- allow_referral_rewards: ${input.budgetPolicy.allowReferralRewards}`,
+    `- allow_travel_reimbursement: ${input.budgetPolicy.allowTravelReimbursement}`,
+    `- founder_approval_required_above_usd: ${input.budgetPolicy.founderApprovalRequiredAboveUsd}`,
+    "",
     "## What The Org Will Do",
     "",
     `1. Generate and critique the ${profile.shortLabel} plan through the existing Gemini Deep Research harness.`,
     `2. Convert the compact ${profile.shortLabel} city-launch and city-demand playbooks into a single ${profile.shortLabel} operating system with explicit tasks, owners, thresholds, and handoff rules.`,
-    `3. Wake the paused ${profile.shortLabel}-relevant lanes only through the founder-approved city activation path, instead of letting the growth tree sprawl open again.`,
-    `4. Measure the city through ${profile.shortLabel}-specific supply and proof-motion metrics so operators can see whether the city is actually becoming operationally real.`,
+    `3. Materialize the live Paperclip issue tree for the city launch so work is routable instead of staying trapped in artifacts.`,
+    `4. Measure the city through ${profile.shortLabel}-specific supply, demand, spend, and proof-motion metrics so operators can see whether the city is actually becoming operationally real.`,
     "",
     "## Founder-Only Decisions",
     "",
@@ -593,6 +645,13 @@ function buildSystemDocMarkdown(input: {
     `- ${profile.shortLabel} buyer target list and proof-led outbound package.`,
     `- ${profile.shortLabel} scorecard working from live repo truth sources.`,
     "",
+    "## Expansion Guard",
+    "",
+    `- widening_allowed: ${input.wideningGuard.wideningAllowed}`,
+    ...(input.wideningGuard.reasons.length > 0
+      ? input.wideningGuard.reasons.map((item) => `- ${item}`)
+      : ["- This city has met the minimum proof threshold to consider widening."]),
+    "",
     "## Execution Bundle",
     "",
     ...input.tasks.map((task) =>
@@ -606,7 +665,8 @@ function buildSystemDocMarkdown(input: {
     "## How Stalls Stay Visible",
     "",
     "- If supply stalls, the scorecard must show whether the break is at source quality, signup, approval, first capture, QA, or proof-ready listing conversion.",
-    "- If demand stalls, the scorecard must show whether the break is at inbound, proof-pack delivery, hosted-review start, follow-up, or human commercial handoff.",
+    "- If demand stalls, the scorecard must show whether the break is at target research, first touch, proof-pack delivery, hosted-review start, follow-up, or human commercial handoff.",
+    "- If spend drifts, the budget ledger must show whether the spend was within policy and who approved it.",
     "- If a routine metric is not instrumented yet, the scorecard must say it is not tracked rather than pretending the work is healthy.",
     "- If the target ledger is stale or misaligned, city-demand-agent owns the reprioritization instead of letting capture work fan out randomly.",
     "",
@@ -616,7 +676,7 @@ function buildSystemDocMarkdown(input: {
     "",
     "## Determination",
     "",
-    `Existing agents are sufficient with instruction, task, and orchestration changes. No new ${profile.shortLabel}-specific agent is required in this repo because every required capability already maps to an existing lane: planning, sourcing, intake, field ops, QA, rights/provenance, proof delivery, outbound, buyer ownership, pricing support, analytics, Notion hygiene, and release gating.`,
+    `Existing agents are sufficient with instruction, task, and orchestration changes. No new ${profile.shortLabel}-specific permanent agent is required because the launcher now routes work into the existing city, ops, growth, buyer, and measurement lanes through a live issue tree.`,
   ].join("\n");
 }
 
@@ -625,7 +685,7 @@ function getNotionToken() {
 }
 
 async function syncExecutionArtifactsToNotion(input: {
-  profile: FocusCityProfile;
+  profile: CityLaunchProfile;
   status: CityLaunchExecutionStatus;
   canonicalSystemDocPath: string;
   systemDocText: string;
@@ -687,12 +747,159 @@ async function syncExecutionArtifactsToNotion(input: {
   };
 }
 
+function taskIssueDescription(input: {
+  profile: CityLaunchProfile;
+  task: CityLaunchTask;
+  budgetPolicy: CityLaunchBudgetPolicy;
+  artifactPaths: {
+    canonicalSystemDocPath: string;
+    canonicalIssueBundlePath: string;
+    canonicalTargetLedgerPath: string;
+  };
+}) {
+  return [
+    `# ${input.task.title}`,
+    "",
+    `City: ${input.profile.city}`,
+    `Phase: ${input.task.phase}`,
+    `Agent owner: ${input.task.owner}`,
+    `Human owner: ${input.task.humanOwner ?? "none"}`,
+    "",
+    "## Purpose",
+    "",
+    input.task.purpose,
+    "",
+    "## Dependencies",
+    "",
+    ...(input.task.dependencies.length > 0
+      ? input.task.dependencies.map((entry) => `- ${entry}`)
+      : ["- none"]),
+    "",
+    "## Inputs",
+    "",
+    ...input.task.inputs.map((entry) => `- ${entry}`),
+    "",
+    "## Done When",
+    "",
+    ...input.task.doneWhen.map((entry) => `- ${entry}`),
+    "",
+    "## Human Gate",
+    "",
+    input.task.humanGate || "none",
+    "",
+    "## Machine-Readable Budget Policy",
+    "",
+    `- budget_tier: ${input.budgetPolicy.tier}`,
+    `- total_envelope_usd: ${input.budgetPolicy.maxTotalApprovedUsd}`,
+    `- operator_auto_approve_usd: ${input.budgetPolicy.operatorAutoApproveUsd}`,
+    "",
+    "## Canonical Artifacts",
+    "",
+    `- launch system: ${input.artifactPaths.canonicalSystemDocPath}`,
+    `- execution issue bundle: ${input.artifactPaths.canonicalIssueBundlePath}`,
+    `- target ledger: ${input.artifactPaths.canonicalTargetLedgerPath}`,
+  ].join("\n");
+}
+
+async function dispatchCityLaunchIssueTree(input: {
+  profile: CityLaunchProfile;
+  tasks: CityLaunchTask[];
+  founderApproved: boolean;
+  budgetPolicy: CityLaunchBudgetPolicy;
+  artifactPaths: {
+    canonicalSystemDocPath: string;
+    canonicalIssueBundlePath: string;
+    canonicalTargetLedgerPath: string;
+  };
+}) {
+  const issueStatus = input.founderApproved ? "todo" : "backlog";
+  const rootDescription = [
+    `# Launch ${input.profile.city}`,
+    "",
+    `This is the root issue for the generic autonomous city launcher in ${input.profile.city}.`,
+    "",
+    `- founder_approved: ${input.founderApproved}`,
+    `- budget_tier: ${input.budgetPolicy.tier}`,
+    `- execution_bundle: ${input.artifactPaths.canonicalIssueBundlePath}`,
+    `- launch_system: ${input.artifactPaths.canonicalSystemDocPath}`,
+    `- target_ledger: ${input.artifactPaths.canonicalTargetLedgerPath}`,
+    "",
+    "Route all child issues under this root so the city launch can be reviewed and executed as one bounded operating program.",
+  ].join("\n");
+
+  const root = await upsertPaperclipIssue({
+    projectName: CITY_LAUNCH_PROJECT_NAME,
+    assigneeKey: "growth-lead",
+    title: `Launch ${input.profile.city} as a bounded city program`,
+    description: rootDescription,
+    priority: input.founderApproved ? "high" : "medium",
+    status: issueStatus,
+    originKind: "city_launch_activation",
+    originId: input.profile.key,
+  });
+
+  const dispatched: CityLaunchTaskDispatch[] = [];
+
+  for (const task of input.tasks) {
+    const issue = await upsertPaperclipIssue({
+      projectName: CITY_LAUNCH_PROJECT_NAME,
+      assigneeKey: task.owner,
+      title: task.title,
+      description: taskIssueDescription({
+        profile: input.profile,
+        task,
+        budgetPolicy: input.budgetPolicy,
+        artifactPaths: input.artifactPaths,
+      }),
+      priority:
+        task.phase === "founder-gates" || task.phase === "measurement" ? "high" : "medium",
+      status: issueStatus,
+      originKind: "city_launch_task",
+      originId: `${input.profile.key}:${task.key}`,
+      parentId: root.issue.id,
+    });
+    dispatched.push({
+      key: task.key,
+      owner: task.owner,
+      issueId: issue.issue.id,
+      identifier: issue.issue.identifier || null,
+      created: issue.created,
+      status: issue.issue.status,
+    });
+  }
+
+  await createPaperclipIssueComment(
+    root.issue.id,
+    [
+      `City launch issue tree refreshed for ${input.profile.city}.`,
+      `Founder-approved activation: ${input.founderApproved}`,
+      `Task issues routed: ${dispatched.length}`,
+      `Canonical bundle: ${input.artifactPaths.canonicalIssueBundlePath}`,
+    ].join("\n"),
+  ).catch(() => undefined);
+
+  return {
+    rootIssue: root.issue,
+    createdRootIssue: root.created,
+    dispatched,
+  };
+}
+
 export async function runCityLaunchExecutionHarness(input: {
   city: string;
   founderApproved?: boolean;
   reportsRoot?: string;
+  budgetTier?: CityLaunchBudgetTier;
+  budgetMaxUsd?: number;
+  operatorAutoApproveUsd?: number;
+  dispatchIssues?: boolean;
 }) {
-  const profile = resolveFocusCityProfile(input.city);
+  const budgetPolicy = buildCityLaunchBudgetPolicy({
+    tier: input.budgetTier,
+    maxTotalApprovedUsd: input.budgetMaxUsd,
+    operatorAutoApproveUsd: input.operatorAutoApproveUsd,
+  });
+  const profile = resolveCityLaunchProfile(input.city, budgetPolicy.tier);
   const status: CityLaunchExecutionStatus = input?.founderApproved
     ? "founder_approved_activation_ready"
     : "draft_pending_founder_approval";
@@ -711,16 +918,25 @@ export async function runCityLaunchExecutionHarness(input: {
   const canonicalIssueBundlePath = buildCanonicalIssueBundlePath(profile);
   const canonicalTargetLedgerPath = buildCanonicalTargetLedgerPath(profile);
   const tasks = buildCityExecutionTasks(profile);
-  const founderApprovals = buildFounderApprovals(profile);
+  const founderApprovals = buildFounderApprovals(profile, budgetPolicy);
   const sourceArtifacts = await listSourceArtifacts(profile);
   const targetLedger = buildCityCaptureTargetLedger(profile);
   const targetLedgerMarkdown = renderCityCaptureTargetLedgerMarkdown(targetLedger);
+  const ledgerSummary = await summarizeCityLaunchLedgers(profile.city);
+  const wideningGuard = buildCityLaunchWideningGuard({
+    proofReadyListings: 0,
+    hostedReviewsStarted: 0,
+    approvedCapturers: 0,
+    onboardedCapturers: ledgerSummary.onboardedCapturers,
+  });
   const systemDocText = buildSystemDocMarkdown({
     profile,
     status,
+    budgetPolicy,
     founderApprovals,
     sourceArtifacts,
     tasks,
+    wideningGuard,
   });
   const issueBundleText = buildTaskMarkdown(profile, tasks);
   const approvalsText = [
@@ -743,8 +959,12 @@ export async function runCityLaunchExecutionHarness(input: {
     city: profile.city,
     citySlug: profile.key,
     status,
+    budgetTier: budgetPolicy.tier,
+    budgetPolicy,
     startedAt: startedAt.toISOString(),
     completedAt: new Date().toISOString(),
+    activationStatus: input.founderApproved ? "activation_ready" : "planning",
+    wideningGuard,
     artifacts: {
       runDirectory,
       manifestPath,
@@ -774,6 +994,49 @@ export async function runCityLaunchExecutionHarness(input: {
     result.artifacts.notionWorkQueuePageUrl = notion.workQueuePageUrl;
   }
 
+  if (input.dispatchIssues !== false) {
+    try {
+      const dispatch = await dispatchCityLaunchIssueTree({
+        profile,
+        tasks,
+        founderApproved: Boolean(input.founderApproved),
+        budgetPolicy,
+        artifactPaths: {
+          canonicalSystemDocPath,
+          canonicalIssueBundlePath,
+          canonicalTargetLedgerPath,
+        },
+      });
+      result.paperclip = {
+        rootIssueId: dispatch.rootIssue.id,
+        rootIssueIdentifier: dispatch.rootIssue.identifier || null,
+        createdRootIssue: dispatch.createdRootIssue,
+        dispatched: dispatch.dispatched,
+      };
+    } catch (error) {
+      result.paperclip = {
+        rootIssueId: null,
+        rootIssueIdentifier: null,
+        createdRootIssue: false,
+        dispatched: [],
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  await writeCityLaunchActivation({
+    city: profile.city,
+    budgetTier: budgetPolicy.tier,
+    budgetPolicy,
+    founderApproved: Boolean(input.founderApproved),
+    status: result.activationStatus,
+    rootIssueId: result.paperclip?.rootIssueId || null,
+    taskIssueIds: Object.fromEntries(
+      (result.paperclip?.dispatched || []).map((entry) => [entry.key, entry.issueId]),
+    ),
+    wideningGuard,
+  }).catch(() => null);
+
   await writeTextArtifact(manifestPath, JSON.stringify(result, null, 2));
   return result;
 }
@@ -781,14 +1044,20 @@ export async function runCityLaunchExecutionHarness(input: {
 export async function runAustinLaunchExecutionHarness(input?: {
   founderApproved?: boolean;
   reportsRoot?: string;
+  budgetTier?: CityLaunchBudgetTier;
 }) {
   return runCityLaunchExecutionHarness({
     city: "Austin, TX",
     founderApproved: input?.founderApproved,
     reportsRoot: input?.reportsRoot,
+    budgetTier: input?.budgetTier,
   });
 }
 
 export function buildAustinExecutionTasks() {
   return buildCityExecutionTasks(resolveFocusCityProfile("Austin, TX"));
+}
+
+export async function readCurrentCityLaunchActivation(city: string) {
+  return await readCityLaunchActivation(city);
 }

@@ -16,6 +16,10 @@ function getFlagValue(args: string[], flag: string) {
 async function main() {
   const args = process.argv.slice(2);
   const city = getFlagValue(args, "--city") || "Austin, TX";
+  const budgetTier =
+    getFlagValue(args, "--budget-tier") || undefined;
+  const budgetMaxUsdValue = getFlagValue(args, "--budget-max-usd");
+  const operatorAutoApproveUsdValue = getFlagValue(args, "--operator-auto-approve-usd");
 
   const reportsRoot =
     getFlagValue(args, "--reports-root")
@@ -28,6 +32,14 @@ async function main() {
     city,
     founderApproved: hasFlag(args, "--founder-approved"),
     reportsRoot,
+    budgetTier:
+      budgetTier === "zero_budget" || budgetTier === "low_budget" || budgetTier === "funded"
+        ? budgetTier
+        : undefined,
+    budgetMaxUsd: budgetMaxUsdValue ? Number(budgetMaxUsdValue) : undefined,
+    operatorAutoApproveUsd: operatorAutoApproveUsdValue
+      ? Number(operatorAutoApproveUsdValue)
+      : undefined,
   });
 
   console.log(
@@ -36,12 +48,15 @@ async function main() {
         ok: true,
         city: result.city,
         status: result.status,
+        budgetTier: result.budgetTier,
         canonicalSystemDocPath: result.artifacts.canonicalSystemDocPath,
         canonicalIssueBundlePath: result.artifacts.canonicalIssueBundlePath,
         canonicalTargetLedgerPath: result.artifacts.canonicalTargetLedgerPath,
         runDirectory: result.artifacts.runDirectory,
         notionKnowledgePageUrl: result.notion?.knowledgePageUrl || null,
         notionWorkQueuePageUrl: result.notion?.workQueuePageUrl || null,
+        paperclipRootIssueId: result.paperclip?.rootIssueId || null,
+        dispatchedIssueCount: result.paperclip?.dispatched.length || 0,
       },
       null,
       2,

@@ -116,6 +116,11 @@ requireCheck(
 );
 
 requireCheck(
+  Boolean(envValue("FIELD_ENCRYPTION_MASTER_KEY", "FIELD_ENCRYPTION_KMS_KEY_NAME")),
+  "Inbound request storage requires FIELD_ENCRYPTION_MASTER_KEY or FIELD_ENCRYPTION_KMS_KEY_NAME.",
+);
+
+requireCheck(
   hasCodexLocalProvider() || Boolean(envValue("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "ACP_HARNESS_URL")),
   "One structured automation provider is required for alpha launch. Configure local Codex OAuth or set OPENAI_API_KEY, ANTHROPIC_API_KEY, or ACP_HARNESS_URL.",
 );

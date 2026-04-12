@@ -1,4 +1,4 @@
-import type { FocusCityProfile, FocusCityKey } from "./cityLaunchProfiles";
+import type { CityLaunchProfile, FocusCityKey } from "./cityLaunchProfiles";
 
 type WorkflowFocus = {
   key: string;
@@ -268,9 +268,109 @@ const TARGET_LEDGER_PROFILES: Record<FocusCityKey, () => TargetLedgerProfile> = 
   "san-francisco-ca": sanFranciscoProfile,
 };
 
-export function buildCityCaptureTargetLedger(profile: FocusCityProfile): CityCaptureTargetLedger {
-  const profileBuilder = TARGET_LEDGER_PROFILES[profile.key];
-  const built = profileBuilder();
+function genericCityProfile(profile: CityLaunchProfile): TargetLedgerProfile {
+  const cityLabel = profile.shortLabel;
+  const workflows: WorkflowFocus[] = [
+    {
+      key: "warehouse_fulfillment",
+      label: "Warehouse / fulfillment / 3PL",
+      whyNow: `${cityLabel} should start from commercially real logistics and warehouse workflows before widening into lower-signal site types.`,
+      priority: "tier_1",
+    },
+    {
+      key: "advanced_manufacturing",
+      label: "Advanced manufacturing / intralogistics",
+      whyNow: `${cityLabel} should prioritize repeatable manufacturing and material-movement workflows that benefit from exact-site hosted review.`,
+      priority: "tier_1",
+    },
+    {
+      key: "industrial_inspection",
+      label: "Industrial inspection",
+      whyNow: "Inspection remains a live 2026 robotics workflow and produces strong site-specific proof value.",
+      priority: "tier_2",
+    },
+  ];
+
+  const immediateTop25: TargetEntry[] = [
+    [`${cityLabel} airport and cargo corridor`, "cargo / logistics cluster", `${cityLabel} airport district`, "cargo handling, parcel flow, warehouse adjacency", "High-value logistics proof lane", "operator and tenant mapping", "medium", "Generic launch template target"],
+    [`${cityLabel} primary warehouse belt`, "warehouse / logistics", `${cityLabel} industrial belt`, "warehouse AMR, fulfillment, material handling", "Direct fit for exact-site hosted review", "tenant mapping and source policy routing", "medium", "Generic launch template target"],
+    [`${cityLabel} advanced manufacturing corridor`, "advanced manufacturing", `${cityLabel} manufacturing zone`, "manufacturing intralogistics, mobile handling", "High-value manufacturing proof lane", "operator-lane introductions and tenant mapping", "medium", "Generic launch template target"],
+    [`${cityLabel} light-industrial infill sites`, "light industrial", `${cityLabel} secondary industrial corridors`, "inspection, warehouse support, field robotics", "Useful adjacent-site proof inventory", "cluster-first prospecting", "medium", "Generic launch template target"],
+    [`${cityLabel} regional logistics expansion nodes`, "warehouse / 3PL", `${cityLabel} regional logistics ring`, "storage, parcel, distribution", "Strong next-wave warehouse lane", "cluster-first outreach", "medium", "Generic launch template target"],
+  ].flatMap((seed, index) =>
+    Array.from({ length: 5 }, (_, offset) => ({
+      rank: index * 5 + offset + 1,
+      name: offset === 0 ? seed[0] : `${seed[0]} cluster ${offset + 1}`,
+      type: seed[1],
+      corridor: seed[2],
+      workflowFit: seed[3],
+      exactSiteValue: seed[4],
+      accessApproach: seed[5],
+      confidence: seed[6] as "high" | "medium",
+      sourceNote: seed[7],
+    })),
+  );
+
+  const next100Buckets: BucketEntry[] = [
+    {
+      bucket: `${cityLabel} warehouse and fulfillment corridors`,
+      targetCount: 40,
+      rationale: "Primary exact-site launch wedge for commercially real robotics workflows.",
+    },
+    {
+      bucket: `${cityLabel} advanced manufacturing and supplier sites`,
+      targetCount: 25,
+      rationale: "High-value manufacturing lane once the first logistics proof assets exist.",
+    },
+    {
+      bucket: `${cityLabel} airport, port, and cargo-adjacent facilities`,
+      targetCount: 20,
+      rationale: "Good constrained-operations lane for logistics and inspection buyers.",
+    },
+    {
+      bucket: `${cityLabel} light industrial and field-service environments`,
+      targetCount: 15,
+      rationale: "Secondary adjacent-site lane for broader coverage after the first proof packs are live.",
+    },
+  ];
+
+  const longUniverseBuckets: BucketEntry[] = [
+    {
+      bucket: `${cityLabel} warehouse, fulfillment, and 3PL sites`,
+      targetCount: 400,
+      rationale: "Largest near-term exact-site demand lane for technical robotics buyers.",
+    },
+    {
+      bucket: `${cityLabel} advanced manufacturing and intralogistics sites`,
+      targetCount: 250,
+      rationale: "High-value manufacturing environments that benefit from strong provenance and hosted review.",
+    },
+    {
+      bucket: `${cityLabel} industrial inspection and constrained operations sites`,
+      targetCount: 150,
+      rationale: "Inspection and constrained-site environments produce differentiated proof assets.",
+    },
+  ];
+
+  const sources: SourceEntry[] = [
+    {
+      label: `${cityLabel} launch system`,
+      url: profile.systemDocPath,
+      note: "Canonical city launch system document generated by the generic launcher.",
+    },
+    {
+      label: `${cityLabel} launch playbook`,
+      url: profile.launchPlaybookPath,
+      note: "City-specific playbook path reserved by the generic launcher.",
+    },
+  ];
+
+  return { workflows, immediateTop25, next100Buckets, longUniverseBuckets, sources };
+}
+
+export function buildCityCaptureTargetLedger(profile: CityLaunchProfile): CityCaptureTargetLedger {
+  const profileBuilder = TARGET_LEDGER_PROFILES[profile.key as FocusCityKey];
+  const built = profileBuilder ? profileBuilder() : genericCityProfile(profile);
   return {
     city: profile.city,
     citySlug: profile.key,
