@@ -86,7 +86,7 @@ export default function Home() {
                 For Robot Teams
               </p>
               <h1 className="mt-5 text-[3.3rem] font-semibold tracking-tight text-slate-950 sm:text-[4.2rem] sm:leading-[0.95]">
-                Bring the exact deployment site into your robot workflow before the first site visit.
+                Bring the exact deployment site into your robot workflow.
               </h1>
               <p className="mt-4 max-w-3xl text-[1.05rem] leading-8 text-slate-600">
                 Blueprint turns one real facility into a site-specific world model your team can
