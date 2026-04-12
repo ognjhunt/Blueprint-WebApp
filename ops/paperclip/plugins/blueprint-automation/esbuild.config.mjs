@@ -15,6 +15,8 @@ const workerCtx = await esbuild.context({
     "firebase-admin/app",
     "firebase-admin/firestore",
     "firebase-admin/*",
+    "https-proxy-agent",
+    "uuid",
   ],
 });
 // Override manifest to bundle constants into it (default is bundle: false)
