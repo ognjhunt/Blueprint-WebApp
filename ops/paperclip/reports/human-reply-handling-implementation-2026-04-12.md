@@ -68,11 +68,34 @@ Observed on 2026-04-12:
 - That means the existing Gmail connector path is explicitly disallowed for org-facing reply watching under the repo contract.
 - No verified human reply was visible in that thread during this run.
 
+Follow-up verification completed later on 2026-04-12:
+
+- Gmail OAuth was configured for `ohstnhunt@gmail.com`.
+- The watcher successfully authenticated as `ohstnhunt@gmail.com` and passed `users/me/profile`.
+- A real reply was sent to `ohstnhunt@gmail.com` with blocker id `bpb-prod-live-smoke-2026-04-12`.
+- The watcher recorded the reply in durable state with:
+  - `last_human_reply_event_id: email:19d83eb4eb3a78e2`
+  - `last_classification: credential_env_confirmation`
+  - `last_resolution: resolved_input`
+  - `last_routed_owner: webapp-codex`
+  - `status: routed`
+
+This confirms the missing operational capability is now live for Gmail-based blocker replies.
+
+It also proved the intended resume workflow end to end:
+
+1. the reply landed in `ohstnhunt@gmail.com`
+2. the watcher correlated it to blocker id `bpb-prod-live-smoke-2026-04-12`
+3. the system classified it as `credential_env_confirmation`
+4. the execution lane resumed automatically
+5. the production live-write smoke was rerun after the reply
+6. after the field-encryption env fix, the rerun returned `201`
+
 ## Remaining Blockers
 
-1. Configure Gmail OAuth for `ohstnhunt@gmail.com` so the email watcher can run live.
-2. Configure a real inbound Slack read path if Slack replies should also resume work automatically.
-3. After the approved Gmail watcher is configured, register the current production blocker thread with its blocker id and rerun the watcher against that thread.
+1. Configure a real inbound Slack read path if Slack replies should also resume work automatically.
+2. Rotate the Gmail and Slack secrets that were exposed during setup and update Render with the rotated values.
+3. Keep the blocker-thread registration step wired into future outbound blocker sends so manual registration is not needed for the next human-gated incident.
 
 ## Validation
 

@@ -77,11 +77,67 @@ Most likely cause:
 
 If that env is already present, the next best evidence is the production log for requestId `prod-live-smoke-5daf1be6-d93d-468c-abbe-fc517c7408b0`.
 
+## Reply Handling Follow-Through
+
+Later on 2026-04-12:
+
+1. The Gmail reply watcher was configured for `ohstnhunt@gmail.com`.
+2. A real blocker reply was received and recorded with blocker id `bpb-prod-live-smoke-2026-04-12`.
+3. The reply classified as `credential_env_confirmation` and routed execution back to `webapp-codex`.
+4. A fresh tagged production rerun was executed.
+
+Fresh rerun evidence:
+
+- request id: `prod-live-smoke-rerun-29aec639-3ca1-4322-8470-99537b559f09`
+- tag: `human-reply-rerun-2026-04-12T23:00:59.259Z`
+- result: `500`
+
+Conclusion:
+
+- The reply-ingestion and execution-resume path now works.
+- The production inbound write path was still failing after the claimed field-encryption change, so the blocker moved from “unseen human reply” to “confirmed unresolved production failure requiring direct env diagnosis.”
+
+## Root Cause Confirmed
+
+Production diagnosis on 2026-04-12 confirmed the exact failing synchronous step:
+
+- `encryptInboundRequestForStorage(...)`
+- specifically `getLocalMasterKey()` in `server/utils/field-encryption.ts`
+
+Why:
+
+- the live Render service `srv-d4vnmk3e5dus73aiohk0` did not have either:
+  - `FIELD_ENCRYPTION_MASTER_KEY`
+  - `FIELD_ENCRYPTION_KMS_KEY_NAME`
+- replaying the same failing request id still returned `500`, which showed the route was failing before the main Firestore write
+- after setting a valid 32-byte base64 `FIELD_ENCRYPTION_MASTER_KEY`, readiness flipped to show `fieldEncryption: true`
+
+## Fix Applied
+
+1. Generated a valid 32-byte base64 `FIELD_ENCRYPTION_MASTER_KEY`.
+2. Set it on the production Render service `srv-d4vnmk3e5dus73aiohk0`.
+3. Forced a Render deploy so the service picked up the new key.
+
+## Successful Verification
+
+Fresh tagged rerun after the key fix:
+
+- request id: `prod-live-smoke-post-key-dbf0d64b-11b6-448a-bafa-92f12ab2bcb4`
+- tag: `field-key-rerun-2026-04-12T23:10:46.077Z`
+- result: `201`
+
+Live readiness at the same time:
+
+- `/health/ready` returned `200`
+- `launchChecks.fieldEncryption.ready` returned `true`
+
+This clears the production inbound write blocker.
+
 ## Next Action
 
-1. Get a human response on the blocker packet or direct env/log access for the production service.
-2. After that reply, rerun the production live-write smoke.
-3. If the production write path returns `201`, the remaining active work is the unrelated city-launch/admin-growth branch already in progress.
+1. Treat the production inbound write path as restored.
+2. Keep the new field-encryption key documented only through secret-management surfaces, not repo files or chat history.
+3. Rotate the Gmail and Slack secrets that were exposed during setup and update Render with the rotated values.
 
 ## Durable Artifacts
 

@@ -52,6 +52,7 @@ import {
 } from "../utils/agent-graduation";
 import { requireAdminRole } from "../middleware/requireAdminRole";
 import { resolveAccessContext } from "../utils/access-control";
+import { dispatchHumanBlocker } from "../utils/human-blocker-dispatch";
 
 const router = Router();
 
@@ -407,6 +408,36 @@ const updateOpsDocumentSchema = createOpsDocumentSchema
 
 const runtimeSmokeTestSchema = z.object({
   model: z.string().min(1).max(200).optional(),
+});
+
+const humanBlockerPacketSchema = z.object({
+  blockerId: z.string().min(1).max(200).optional(),
+  title: z.string().min(1).max(240),
+  summary: z.string().min(1).max(2000),
+  recommendedAnswer: z.string().min(1).max(2000),
+  exactResponseNeeded: z.string().min(1).max(2000),
+  whyBlocked: z.string().min(1).max(3000),
+  alternatives: z.array(z.string().min(1).max(2000)).min(1).max(5),
+  risk: z.string().min(1).max(2000),
+  executionOwner: z.string().min(1).max(120),
+  immediateNextAction: z.string().min(1).max(2000),
+  deadline: z.string().min(1).max(240),
+  evidence: z.array(z.string().min(1).max(2000)).min(1).max(12),
+  nonScope: z.string().min(1).max(2000),
+});
+
+const dispatchHumanBlockerSchema = z.object({
+  packet: humanBlockerPacketSchema,
+  blocker_kind: z.enum(["technical", "ops_commercial"]),
+  email_target: z.string().email().optional(),
+  mirror_to_slack: z.boolean().optional(),
+  slack_webhook_url: z.string().url().optional(),
+  routing_owner: z.string().max(120).optional(),
+  execution_owner: z.string().max(120).optional(),
+  escalation_owner: z.string().max(120).optional(),
+  report_paths: z.array(z.string().min(1).max(500)).optional(),
+  paperclip_issue_id: z.string().max(200).optional(),
+  ops_work_item_id: z.string().max(200).optional(),
 });
 
 router.post("/sessions", requireAdminRole, async (req: Request, res: Response) => {
@@ -895,6 +926,25 @@ router.post("/documents", requireAdminRole, async (req: Request, res: Response) 
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to create ops document";
+    return res.status(400).json({ ok: false, error: message });
+  }
+});
+
+router.post("/human-blockers", requireAdminRole, async (req: Request, res: Response) => {
+  try {
+    const payload = dispatchHumanBlockerSchema.parse(req.body ?? {});
+    const actor = await resolveAccessContext(res);
+    const result = await dispatchHumanBlocker({
+      ...payload,
+      actor: {
+        uid: actor.uid,
+        email: actor.email,
+      },
+    });
+    return res.status(201).json({ ok: true, result });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to dispatch human blocker";
     return res.status(400).json({ ok: false, error: message });
   }
 });

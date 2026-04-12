@@ -1,4 +1,5 @@
 import { recordExternalGapReport } from "./gap-closure";
+import { resolveHumanBlockerAwaitingReply } from "./human-blocker-dispatch";
 import {
   classifyHumanReply,
   extractHumanBlockerIdFromText,
@@ -162,6 +163,10 @@ async function ingestHumanReplyMessage(params: {
     suggested_owner: suggestedOwner,
   });
 
+  if (decision.resolution === "resolved_input") {
+    await resolveHumanBlockerAwaitingReply(params.thread.blocker_id).catch(() => false);
+  }
+
   return {
     processed: true,
     blocker_id: params.thread.blocker_id,
@@ -251,4 +256,3 @@ export async function runHumanReplyEmailWatcher(params?: { limit?: number }) {
     reason: null,
   };
 }
-
