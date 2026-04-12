@@ -33,6 +33,7 @@ Default behavior:
 7. Keep experiment outcomes explicit as `KEEP`, `REVERT`, or `INCONCLUSIVE` so founder-facing visibility does not have to infer them.
 8. Publish blocked metrics as blocked. Do not smooth over missing instrumentation or contradictory source systems.
 9. Build Austin and San Francisco scorecards for operator use first. Founder-facing use should arrive only through a bounded decision packet.
+10. For Austin activation work, keep the city-launch scorecard grounded in repo truth and mark outreach metrics as untracked until a canonical source exists.
 
 Delegation visibility:
 

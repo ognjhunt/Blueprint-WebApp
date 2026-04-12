@@ -1,0 +1,28 @@
+{
+  "city": "Austin, TX",
+  "citySlug": "austin-tx",
+  "status": "draft_pending_founder_approval",
+  "startedAt": "2026-04-12T02:23:39.439Z",
+  "completedAt": "2026-04-12T02:23:39.446Z",
+  "artifacts": {
+    "runDirectory": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/austin-tx/2026-04-12T02-23-39.439Z",
+    "manifestPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/austin-tx/2026-04-12T02-23-39.439Z/manifest.json",
+    "systemDocPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/austin-tx/2026-04-12T02-23-39.439Z/city-launch-system-austin-tx.md",
+    "issueBundlePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/austin-tx/2026-04-12T02-23-39.439Z/city-launch-issue-bundle-austin-tx.md",
+    "issueBundleJsonPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/austin-tx/2026-04-12T02-23-39.439Z/city-launch-issue-bundle-austin-tx.json",
+    "targetLedgerPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/austin-tx/2026-04-12T02-23-39.439Z/city-capture-target-ledger-austin-tx.md",
+    "targetLedgerJsonPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/austin-tx/2026-04-12T02-23-39.439Z/city-capture-target-ledger-austin-tx.json",
+    "approvalsPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/austin-tx/2026-04-12T02-23-39.439Z/founder-approvals.md",
+    "canonicalSystemDocPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/city-launch-system-austin-tx.md",
+    "canonicalIssueBundlePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-austin-tx-execution-issue-bundle.md",
+    "canonicalTargetLedgerPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-capture-target-ledger-austin-tx.md",
+    "notionKnowledgePageUrl": "https://www.notion.so/Austin-TX-Launch-System-34080154161d81e29798d97fce6b7f4b",
+    "notionWorkQueuePageUrl": "https://www.notion.so/Review-Austin-TX-launch-harness-34080154161d8148ada9c2c53ca04c50"
+  },
+  "notion": {
+    "knowledgePageId": "34080154-161d-81e2-9798-d97fce6b7f4b",
+    "knowledgePageUrl": "https://www.notion.so/Austin-TX-Launch-System-34080154161d81e29798d97fce6b7f4b",
+    "workQueuePageId": "34080154-161d-8148-ada9-c2c53ca04c50",
+    "workQueuePageUrl": "https://www.notion.so/Review-Austin-TX-launch-harness-34080154161d8148ada9c2c53ca04c50"
+  }
+}

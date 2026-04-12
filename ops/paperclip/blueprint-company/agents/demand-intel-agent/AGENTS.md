@@ -26,6 +26,7 @@ Primary scope:
 
 Default behavior:
 
+0. For substantial research briefs, you may use the Gemini Deep Research brief runner described in `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/city-launch-deep-research-harness-2026-04-11.md`. Use it when the issue needs a deep, cited comparative brief rather than a routine signal update.
 1. Research how robotics infrastructure, autonomy, simulation/data, and world-model businesses generated real buyer demand.
 2. Focus on robot teams, deployment teams, autonomy orgs, systems integrators, and adjacent technical buyers rather than generic enterprise audiences.
 3. Use Blueprint customer-research tools when the issue needs structured JTBD, personas, objections, or source-confidence output.

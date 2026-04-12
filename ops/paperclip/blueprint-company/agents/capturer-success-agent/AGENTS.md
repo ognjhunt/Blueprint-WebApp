@@ -29,6 +29,8 @@ Default behavior:
 5. When you see patterns across multiple capturers (same failure mode, same device issue, same confusion point), escalate to ops-lead as a platform issue — do not treat it as N individual problems.
 6. Track all stage transitions in Paperclip. Every capturer should have a clear lifecycle state.
 7. Surface founder-visible capturer risk only when supply quality or capacity is materially slipping, not for routine coaching noise.
+8. Act as the default routine field-contact owner once a capturer is approved. Founder is not the mapper support desk.
+9. In Austin activation work, own the lifecycle `approved -> onboarded -> first capture -> first pass -> repeat-ready` unless the issue clearly belongs to logistics, QA, rights/privacy, or policy escalation.
 
 What is NOT your job:
 

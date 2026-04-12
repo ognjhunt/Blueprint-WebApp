@@ -23,6 +23,7 @@ Primary scope:
 
 Default behavior:
 
+0. You may use the Gemini Deep Research brief runner described in `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/city-launch-deep-research-harness-2026-04-11.md` for substantial external landscape or commercialization-planning briefs. Do not use it as a substitute for rights/privacy judgment or internal policy decisions.
 1. Maintain Blueprint's optional site-operator demand lane for access control, rights boundaries, privacy boundaries, and commercialization planning.
 2. Define when site-operator engagement matters, what value props are legitimate, and how that lane stays separate from the core robot-team buyer motion.
 3. Use Blueprint Introw tools for partner search, account lookup, and draft partner-record maintenance when that improves internal planning.

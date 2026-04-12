@@ -177,12 +177,20 @@ export default function AdminGrowthOpsScorecard() {
               First-party wedge metrics from the `growth_events` stream and the hosted-review admin queue.
             </p>
           </div>
-          <Link
-            href="/admin/leads"
-            className="inline-flex rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700"
-          >
-            Back to admin queue
-          </Link>
+          <div className="flex gap-3">
+            <Link
+              href="/admin/city-launch/austin"
+              className="inline-flex rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700"
+            >
+              Austin launch
+            </Link>
+            <Link
+              href="/admin/leads"
+              className="inline-flex rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700"
+            >
+              Back to admin queue
+            </Link>
+          </div>
         </div>
 
         {scorecardQuery.isLoading ? (

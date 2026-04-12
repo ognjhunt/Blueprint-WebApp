@@ -46,6 +46,10 @@ Founder escalation from Growth Lead is reserved for:
 - any paused lane above
   Wake only when Growth Lead opens a concrete Paperclip issue with a reason the core cannot absorb.
 
+Focused-city activation exception:
+- after founder approval of the bounded launch posture for the current focus city, Growth Lead may wake `supply-intel-agent`, `capturer-growth-agent`, `city-launch-agent`, `robot-team-growth-agent`, and `site-operator-partnership-agent` only through the city activation bundle in `ops/paperclip/programs/city-launch-activation-program.md`
+- the exception is scoped to the current focus city only and does not reopen the broader city tree
+
 ## Operating Rule
 Before starting or restarting any paused lane, Growth Lead must answer:
 1. What live decision or revenue path does this lane unblock now?

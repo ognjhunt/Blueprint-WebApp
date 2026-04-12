@@ -46,6 +46,8 @@ import { buildGrowthIntegrationSummary } from "../utils/provider-status";
 import { getAgentRuntimeConnectionMetadata } from "../agents/runtime-connectivity";
 import { isAutomationLaneEnabled, isTruthyEnvValue } from "../config/env";
 import { buildLaunchReadinessSnapshot } from "../utils/launch-readiness";
+import { logGrowthEvent } from "../utils/growth-events";
+import { collectCityLaunchScorecard } from "../utils/cityLaunchScorecard";
 
 const router = Router();
 
@@ -71,6 +73,14 @@ const PROOF_PATH_STAGE_TO_FIELD: Record<ProofPathMilestoneKey, keyof ProofPathMi
   artifact_handoff_delivered: "artifact_handoff_delivered_at",
   artifact_handoff_accepted: "artifact_handoff_accepted_at",
   human_commercial_handoff: "human_commercial_handoff_at",
+};
+
+const PROOF_PATH_STAGE_TO_EVENT: Partial<Record<ProofPathMilestoneKey, string>> = {
+  proof_pack_delivered: "proof_pack_delivered",
+  hosted_review_ready: "hosted_review_ready",
+  hosted_review_started: "hosted_review_started",
+  hosted_review_follow_up: "hosted_review_follow_up_sent",
+  human_commercial_handoff: "human_commercial_handoff_started",
 };
 
 const QUALIFIED_ROBOT_TEAM_STATES = new Set<QualificationState>([
@@ -130,6 +140,23 @@ function normalizeOpsAutomationEnvelope(raw: unknown): OpsAutomationEnvelope | u
     last_error: typeof value.last_error === "string" ? value.last_error : null,
     last_attempt_at: normalizeTimestamp(value.last_attempt_at),
     processed_at: normalizeTimestamp(value.processed_at),
+  };
+}
+
+function buildDemandAttributionForEvent(request: {
+  context?: {
+    demandCity?: string | null;
+    buyerChannelSource?: string | null;
+    buyerChannelSourceCaptureMode?: string | null;
+    utm?: unknown;
+  } | null;
+}) {
+  return {
+    demandCity: request.context?.demandCity || null,
+    buyerChannelSource: request.context?.buyerChannelSource || null,
+    buyerChannelSourceCaptureMode:
+      request.context?.buyerChannelSourceCaptureMode || null,
+    utm: request.context?.utm || {},
   };
 }
 
@@ -1493,6 +1520,59 @@ router.patch(
       // Update status
       await docRef.update(updatePayload);
 
+      if (previousData.request.buyerType === "robot_team") {
+        const exactSiteClassification =
+          previousData.request.proofPathPreference === "exact_site_required"
+            ? "exact_site"
+            : previousData.request.proofPathPreference === "adjacent_site_acceptable"
+              ? "adjacent_site"
+              : "needs_guidance";
+
+        await logGrowthEvent({
+          event: "robot_team_fit_checked",
+          source: "server:admin_leads_status",
+          properties: {
+            request_id: requestId,
+            city: previousData.context?.demandCity || null,
+            qualification_state,
+            opportunity_state: nextOpportunityState,
+            exact_site_classification: exactSiteClassification,
+            adjacent_site_allowed:
+              previousData.request.proofPathPreference === "adjacent_site_acceptable",
+            proof_path_preference: previousData.request.proofPathPreference || "unknown",
+          },
+          attribution: buildDemandAttributionForEvent(previousData),
+          user: {
+            uid: user.uid || null,
+            email: user.email || null,
+          },
+        }).catch(() => null);
+
+        if (shouldStampQualifiedRobotTeam) {
+          await logGrowthEvent({
+            event: "proof_path_assigned",
+            source: "server:admin_leads_status",
+            properties: {
+              request_id: requestId,
+              city: previousData.context?.demandCity || null,
+              outcome:
+                exactSiteClassification === "exact_site"
+                  ? "exact_site"
+                  : exactSiteClassification === "adjacent_site"
+                    ? "adjacent_site"
+                    : "scoped_follow_up",
+              assigned_by: user.email || "unknown",
+              buyer_segment: previousData.contact?.roleTitle || null,
+            },
+            attribution: buildDemandAttributionForEvent(previousData),
+            user: {
+              uid: user.uid || null,
+              email: user.email || null,
+            },
+          }).catch(() => null);
+        }
+      }
+
       if (previousData.status !== qualification_state) {
         await db
           .collection("stats")
@@ -1575,6 +1655,11 @@ router.patch("/:requestId/ops", requireAdmin, async (req: Request, res: Response
     }
 
     const existing = (doc.data() as Record<string, unknown>) || {};
+    const previousData = normalizeDecryptedRequest(
+      (await decryptInboundRequestForAdmin(
+        doc.data() as InboundRequestStored,
+      )) as InboundRequest,
+    );
     const ops = (existing.ops as Record<string, unknown> | undefined) || {};
     const currentProofPath =
       ops.proof_path && typeof ops.proof_path === "object"
@@ -1625,6 +1710,64 @@ router.patch("/:requestId/ops", requireAdmin, async (req: Request, res: Response
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
+    if (previousData.request.buyerType === "robot_team") {
+      if (proof_path_stage) {
+        await logGrowthEvent({
+          event: "proof_path_stage_updated",
+          source: "server:admin_leads_ops",
+          properties: {
+            request_id: requestId,
+            city: previousData.context?.demandCity || null,
+            stage: proof_path_stage,
+            action: proof_path_stage_action === "clear" ? "clear" : "stamp",
+          },
+          attribution: buildDemandAttributionForEvent(previousData),
+          user: {
+            uid: user.uid || null,
+            email: user.email || null,
+          },
+        }).catch(() => null);
+
+        const stageEvent = PROOF_PATH_STAGE_TO_EVENT[proof_path_stage];
+        if (stageEvent && proof_path_stage_action !== "clear") {
+          await logGrowthEvent({
+            event: stageEvent,
+            source: "server:admin_leads_ops",
+            properties: {
+              request_id: requestId,
+              city: previousData.context?.demandCity || null,
+              buyer_segment: previousData.contact?.roleTitle || null,
+              hosted_mode:
+                proof_path_stage.startsWith("hosted_review") ? "review_link" : null,
+            },
+            attribution: buildDemandAttributionForEvent(previousData),
+            user: {
+              uid: user.uid || null,
+              email: user.email || null,
+            },
+          }).catch(() => null);
+        }
+      }
+
+      if (quote_status === "buyer_ready") {
+        await logGrowthEvent({
+          event: "human_commercial_handoff_started",
+          source: "server:admin_leads_ops",
+          properties: {
+            request_id: requestId,
+            city: previousData.context?.demandCity || null,
+            handoff_reason: "buyer_ready",
+            buyer_segment: previousData.contact?.roleTitle || null,
+          },
+          attribution: buildDemandAttributionForEvent(previousData),
+          user: {
+            uid: user.uid || null,
+            email: user.email || null,
+          },
+        }).catch(() => null);
+      }
+    }
+
     if (note?.trim()) {
       await docRef.collection("notes").add({
         content: await encryptFieldValue(note.trim()),
@@ -1655,6 +1798,11 @@ router.post("/:requestId/review-link", requireAdmin, async (req: Request, res: R
     }
 
     const current = (doc.data() as Record<string, unknown>) || {};
+    const previousData = normalizeDecryptedRequest(
+      (await decryptInboundRequestForAdmin(
+        doc.data() as InboundRequestStored,
+      )) as InboundRequest,
+    );
     const currentOps =
       current.ops && typeof current.ops === "object"
         ? (current.ops as Record<string, unknown>)
@@ -1681,6 +1829,26 @@ router.post("/:requestId/review-link", requireAdmin, async (req: Request, res: R
       },
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+
+    if (previousData.request.buyerType === "robot_team") {
+      const user = res.locals.firebaseUser!;
+      await logGrowthEvent({
+        event: "hosted_review_ready",
+        source: "server:admin_leads_review_link",
+        properties: {
+          request_id: requestId,
+          city: previousData.context?.demandCity || null,
+          hosted_mode: "review_link",
+          review_path: "buyer_review_url",
+          buyer_segment: previousData.contact?.roleTitle || null,
+        },
+        attribution: buildDemandAttributionForEvent(previousData),
+        user: {
+          uid: user.uid || null,
+          email: user.email || null,
+        },
+      }).catch(() => null);
+    }
 
     return res.json({ ok: true, buyer_review_url });
   } catch (error) {
@@ -2198,6 +2366,19 @@ router.get("/growth-scorecard", requireAdmin, async (req: Request, res: Response
   } catch (error) {
     logger.error({ error }, "Error fetching growth scorecard");
     return res.status(500).json({ error: "Failed to fetch growth scorecard" });
+  }
+});
+
+router.get("/city-launch-scorecard", requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const city =
+      typeof _req.query.city === "string" && _req.query.city.trim().length > 0
+        ? _req.query.city
+        : "Austin, TX";
+    return res.json(await collectCityLaunchScorecard(city));
+  } catch (error) {
+    logger.error({ error }, "Error fetching city-launch scorecard");
+    return res.status(500).json({ error: "Failed to fetch city-launch scorecard" });
   }
 });
 

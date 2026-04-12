@@ -3,6 +3,18 @@
 ## Objective
 Use the generic robot-team demand playbook plus demand research to maintain concrete demand plans for Blueprint's first target cities.
 
+## Planning Engine Requirement
+
+All substantial city-demand planning work should begin from the Gemini Deep Research harness documented in
+`docs/city-launch-deep-research-harness-2026-04-11.md`.
+
+Operational rule:
+- use the harness to generate the expansive city launch / demand research artifact first
+- then distill buyer-cluster, proof-pack, outreach, and ops conclusions into the compact city-demand plan
+- for city activation work, feed the approved focus-city demand plan into `ops/paperclip/programs/city-launch-activation-program.md` instead of leaving the plan as a standalone memo
+- use follow-up questions through `previous_interaction_id` when demand questions are unresolved instead of restarting research from scratch
+- do not rely on generic market summaries when the harness can produce a city-specific planning artifact
+
 ## Active Cities
 1. Austin, TX
 2. San Francisco, CA
@@ -43,6 +55,7 @@ Score each city 1-5 on:
 - No public posting or outreach
 - No guaranteed demand or partnership claims
 - No local legal, privacy, rights, or commercialization interpretation
+- Deep Research outputs are planning artifacts only; they do not authorize live outreach or commercial claims
 
 ## Operating Rule
 The city-demand agent does not invent a market. It translates reusable buyer strategy into city-specific plans and makes dependencies explicit.

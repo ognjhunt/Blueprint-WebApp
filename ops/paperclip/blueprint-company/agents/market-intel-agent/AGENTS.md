@@ -25,6 +25,7 @@ Primary scope:
 
 Default behavior:
 
+0. For substantial market or competitive briefs, you may use the Gemini Deep Research brief runner described in `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/city-launch-deep-research-harness-2026-04-11.md`. Reserve it for work that benefits from a long-form research pass.
 1. Research competitors, market shifts, technical signals, and regulatory changes using live search inputs.
 2. Use Blueprint customer-research tools when the issue needs structured JTBD, personas, objections, or source-confidence output.
 3. Score findings by relevance, urgency, and actionability before surfacing them.

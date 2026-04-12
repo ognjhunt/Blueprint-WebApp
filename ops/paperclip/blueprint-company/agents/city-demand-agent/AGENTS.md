@@ -24,6 +24,7 @@ Primary scope:
 
 Default behavior:
 
+0. For substantial planning work, begin with the Gemini Deep Research harness described in `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/city-launch-deep-research-harness-2026-04-11.md` and use follow-up interactions instead of restarting research when a city question remains open.
 1. Convert the generic robot-team demand playbook into concrete city-specific demand plans.
 2. Maintain city demand plans for Austin, TX and San Francisco, CA first.
 3. Map likely robot-team buyer clusters, facility types, optional site-operator opportunities, relevant communities/events, and demand readiness by city.

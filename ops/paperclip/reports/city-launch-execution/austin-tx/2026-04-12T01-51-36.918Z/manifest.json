@@ -1,0 +1,25 @@
+{
+  "city": "Austin, TX",
+  "citySlug": "austin-tx",
+  "status": "draft_pending_founder_approval",
+  "startedAt": "2026-04-12T01:51:36.918Z",
+  "completedAt": "2026-04-12T01:51:36.927Z",
+  "artifacts": {
+    "runDirectory": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/austin-tx/2026-04-12T01-51-36.918Z",
+    "manifestPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/austin-tx/2026-04-12T01-51-36.918Z/manifest.json",
+    "systemDocPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/austin-tx/2026-04-12T01-51-36.918Z/austin-launch-system.md",
+    "issueBundlePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/austin-tx/2026-04-12T01-51-36.918Z/austin-launch-issue-bundle.md",
+    "issueBundleJsonPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/austin-tx/2026-04-12T01-51-36.918Z/austin-launch-issue-bundle.json",
+    "approvalsPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/austin-tx/2026-04-12T01-51-36.918Z/founder-approvals.md",
+    "canonicalSystemDocPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/austin-launch-system-2026-04-11.md",
+    "canonicalIssueBundlePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-austin-tx-execution-issue-bundle.md",
+    "notionKnowledgePageUrl": "https://www.notion.so/Austin-Launch-System-34080154161d815d9e13c25cb2a4458e",
+    "notionWorkQueuePageUrl": "https://www.notion.so/Review-Austin-launch-harness-34080154161d81798ae3d40c715f5d2f"
+  },
+  "notion": {
+    "knowledgePageId": "34080154-161d-815d-9e13-c25cb2a4458e",
+    "knowledgePageUrl": "https://www.notion.so/Austin-Launch-System-34080154161d815d9e13c25cb2a4458e",
+    "workQueuePageId": "34080154-161d-8179-8ae3-d40c715f5d2f",
+    "workQueuePageUrl": "https://www.notion.so/Review-Austin-launch-harness-34080154161d81798ae3d40c715f5d2f"
+  }
+}

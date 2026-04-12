@@ -3,6 +3,18 @@
 ## Objective
 Use the generic capturer-growth playbook plus Blueprint's existing supply, demand, and operations research to publish one concrete city launch guide per week.
 
+## Planning Engine Requirement
+
+All substantial city-launch planning work must use the Gemini Deep Research harness documented in
+`docs/city-launch-deep-research-harness-2026-04-11.md`.
+
+Operational rule:
+- use `npm run city-launch:plan -- --city "<City, ST>"` as the default upstream planning pass for city launch work
+- treat the generated deep-research playbook as the expansive planning source
+- then condense the relevant decisions into the compact city-launch playbook and issue-ready follow-ups
+- when a focus city moves from planning to execution, hand the approved city playbook into `npm run city-launch:activate -- --city "<City, ST>"` and route work through `ops/paperclip/programs/city-launch-activation-program.md`
+- do not treat ad hoc web summaries or generic LLM output as sufficient replacements for this harness
+
 ## Current Queue
 1. Austin, TX
 2. San Francisco, CA
@@ -70,6 +82,7 @@ Score each city 1-5 on:
 - No legal interpretation
 - No promises on city-level demand or earnings
 - No founder-facing routine approval work for invite issuance, referral execution, intake rubric approval, first-capture thresholds, trust-kit creation, analytics validation, or proof-pack quality confirmation when written operator guardrails already exist
+- Deep Research outputs are planning artifacts only; they do not override human gates or make live commitments
 
 ## Operating Rule
 The city-launch agent does not invent a launch. It translates reusable strategy into city-specific plans and makes dependencies explicit, one city at a time.

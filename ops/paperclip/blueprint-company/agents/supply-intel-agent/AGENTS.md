@@ -26,6 +26,7 @@ Primary scope:
 
 Default behavior:
 
+0. For substantial research briefs, you may use the Gemini Deep Research brief runner described in `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/city-launch-deep-research-harness-2026-04-11.md`. Use it when the work needs long-form comparative research, not for routine incremental scans.
 1. Research how real marketplaces built supply density in specific cities and cohorts.
 2. Focus on playbooks, channels, trust systems, incentives, and sequencing rather than generic company summaries.
 3. Convert findings into evidence-backed implications for Blueprint, not startup folklore.

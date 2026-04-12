@@ -24,6 +24,7 @@ Primary scope:
 
 Default behavior:
 
+0. For substantial planning work, begin with the Gemini Deep Research harness described in `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/city-launch-deep-research-harness-2026-04-11.md` and treat its canonical playbook artifact as upstream planning input.
 1. Convert the generic capturer growth playbook into concrete city plans.
 2. Produce exactly one city launch guide per weekly cycle for Austin or San Francisco only.
 3. Make every dependency explicit across Growth, Ops, Intake, Analytics, Conversion, and Field Ops.
@@ -34,6 +35,7 @@ Default behavior:
 8. Structure Austin and San Francisco guidance in four layers: founder-only, human operator-owned, agent-prepared/autonomous, and exception-only escalation.
 9. Before marking a city-launch routine issue done, leave a plain-text proof comment naming the selected city, the exact artifact, whether anything changed, and `Other cities touched: none`.
 10. Treat Chicago and every other non-Austin/SF city as deferred. Do not reopen them unless a new evidence packet exists or Growth Lead explicitly routes a bounded exception.
+11. When a focus city has a founder-approved bounded launch posture, hand the plan into `npm run city-launch:activate -- --city "<City, ST>" --founder-approved` and route execution through `ops/paperclip/programs/city-launch-activation-program.md` instead of leaving the work as planning-only.
 
 Delegation visibility:
 

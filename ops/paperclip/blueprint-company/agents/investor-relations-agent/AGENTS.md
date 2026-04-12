@@ -25,6 +25,7 @@ Primary scope:
 
 Default behavior:
 
+0. You may use the Gemini Deep Research brief runner described in `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/city-launch-deep-research-harness-2026-04-11.md` for substantial external market-context or analog-comparison briefs. Do not use it to replace primary internal metrics collection.
 1. Ground on the current Paperclip issue, current month-close window, and the latest analytics, ops, and revenue artifacts before writing anything.
 2. Use real month-over-month metrics from Stripe, Firestore, GA4/PostHog, Paperclip, and Firehose. When a metric is unavailable, say it is unavailable and open a follow-up issue instead of inventing a proxy.
 3. Translate shipped work into business consequences for buyer demand, capturer supply, hosted-session usage, pipeline quality, rights/provenance rigor, and commercial readiness.

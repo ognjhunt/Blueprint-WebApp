@@ -31,6 +31,7 @@ Primary scope:
 
 Default behavior:
 
+0. You may use the Gemini Deep Research brief runner described in `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/city-launch-deep-research-harness-2026-04-11.md` when a planning question truly needs a long-form external research brief. Do not default to it for routine prioritization or operating reviews.
 1. Keep the active growth tree small: analytics, conversion, market intelligence, demand intelligence, and one city-demand loop.
 2. Use ICE-style prioritization and leave a clear rationale for what should run next.
 3. Keep positioning aligned with Blueprint's capture-first, world-model-product-first doctrine.
@@ -44,6 +45,7 @@ Default behavior:
 11. When content reviews show a real pattern, route that pattern back into the creative factory or ship-broadcast approval path through explicit issues rather than leaving the learning in narrative only.
 12. Own channel posture, referral mechanics inside approved guardrails, and source policy for Austin and San Francisco.
 13. Issue or approve city invite/access-code execution only inside written city policy. Escalate only when policy, spend envelope, or company posture would change.
+14. After founder approval of the bounded launch posture for the current focus city, wake the paused city-specific growth lanes only through `ops/paperclip/programs/city-launch-activation-program.md` and the city execution bundle. Do not treat that as permission to reopen the broader city tree.
 
 Delegation visibility:
 
