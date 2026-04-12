@@ -109,6 +109,11 @@ Human reply path:
 - The approved durable email identity is `ohstnhunt@gmail.com`.
 - Do not treat a Gmail or Slack connector bound to `hlfabhunt@gmail.com` as a valid org-facing reply watcher.
 - Slack Events API request URL for this repo should be `https://tryblueprint.io/api/slack/events` after the route is deployed.
+- Gmail OAuth is not production-grade unless the mailbox resolves to `ohstnhunt@gmail.com` and the Google OAuth publishing state is explicitly confirmed as `production`.
+- Slack replies are resumable only when the bot can actually see the conversation:
+  - DMs require `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOW_DMS=1`
+  - channel replies require the bot to be present and the channel id to be listed in `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOWED_CHANNELS`
+  - root-channel replies fail closed
 
 ## 5. Product Flow Gate
 

@@ -43,6 +43,14 @@ Slack:
 
 - Slack replies are valid only when they land in a Blueprint-managed Slack identity or thread with a real inbound read path.
 - Outbound-only Slack incoming webhooks are not a valid reply watcher. They can send alerts, but they cannot observe replies.
+- Slack reply watching for this repo now means:
+  - the Events API route is live at `https://tryblueprint.io/api/slack/events`
+  - `SLACK_SIGNING_SECRET` and `SLACK_BOT_TOKEN` are configured
+  - the bot is actually present in the DM or channel thread that receives the reply
+  - the conversation is explicitly enabled by repo config:
+    - DMs only when `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOW_DMS=1`
+    - channel replies only when the channel id is listed in `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOWED_CHANNELS`
+  - channel replies must be thread replies, not root-channel messages
 
 ## Correlation Contract
 
@@ -140,5 +148,7 @@ Email:
 
 Slack:
 
-- The repo currently has outbound webhook support only.
-- Slack reply watching stays blocked until a real inbound Slack credential path exists and feeds the normalized human-reply ingest route.
+- The repo has a live inbound Events API route, but Slack is resumable only for conversations the bot can actually see.
+- A Slack mirror is not operationally valid by itself. If the bot is not in the DM or thread, the reply will never reach the watcher.
+- DMs and allowlisted channel threads are supported; root-channel replies fail closed.
+- If Slack visibility is uncertain, email to `ohstnhunt@gmail.com` remains the durable source of truth.

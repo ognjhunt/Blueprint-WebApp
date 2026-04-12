@@ -14,6 +14,12 @@ type GmailReplyWatchStatus = {
   reason: string | null;
 };
 
+export type GmailOAuthDurabilityStatus = GmailReplyWatchStatus & {
+  oauth_publishing_status: "unknown" | "testing" | "production";
+  production_ready: boolean;
+  risk: "missing_config" | "wrong_mailbox" | "testing_only" | "unknown_oauth_state" | null;
+};
+
 export type GmailReplyMessage = {
   channel: HumanReplyChannel;
   external_message_id: string;
@@ -30,12 +36,19 @@ function trimValue(value: string | null | undefined) {
 }
 
 function getGmailOAuthConfig() {
+  const oauthPublishingStatus = trimValue(
+    process.env.BLUEPRINT_HUMAN_REPLY_GMAIL_OAUTH_PUBLISHING_STATUS,
+  ).toLowerCase();
   return {
     clientId: trimValue(process.env.BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID),
     clientSecret: trimValue(process.env.BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET),
     refreshToken: trimValue(process.env.BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN),
     approvedEmail:
       trimValue(process.env.BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL) || APPROVED_HUMAN_REPLY_EMAIL,
+    oauthPublishingStatus:
+      oauthPublishingStatus === "testing" || oauthPublishingStatus === "production"
+        ? (oauthPublishingStatus as "testing" | "production")
+        : ("unknown" as const),
   };
 }
 
@@ -159,6 +172,49 @@ export async function getHumanReplyGmailStatus(): Promise<GmailReplyWatchStatus>
     approved_identity: config.approvedEmail,
     mailbox_email: mailboxEmail,
     reason: null,
+  };
+}
+
+export async function getHumanReplyGmailDurabilityStatus(): Promise<GmailOAuthDurabilityStatus> {
+  const config = getGmailOAuthConfig();
+  const base = await getHumanReplyGmailStatus();
+
+  if (!base.configured) {
+    return {
+      ...base,
+      oauth_publishing_status: config.oauthPublishingStatus,
+      production_ready: false,
+      risk: base.mailbox_email ? "wrong_mailbox" : "missing_config",
+    };
+  }
+
+  if (config.oauthPublishingStatus === "testing") {
+    return {
+      ...base,
+      oauth_publishing_status: config.oauthPublishingStatus,
+      production_ready: false,
+      risk: "testing_only",
+      reason:
+        "Gmail OAuth mailbox is valid, but BLUEPRINT_HUMAN_REPLY_GMAIL_OAUTH_PUBLISHING_STATUS is testing.",
+    };
+  }
+
+  if (config.oauthPublishingStatus !== "production") {
+    return {
+      ...base,
+      oauth_publishing_status: config.oauthPublishingStatus,
+      production_ready: false,
+      risk: "unknown_oauth_state",
+      reason:
+        "Gmail OAuth mailbox is valid, but OAuth publishing state is unknown. Confirm the Google OAuth app is in Production.",
+    };
+  }
+
+  return {
+    ...base,
+    oauth_publishing_status: config.oauthPublishingStatus,
+    production_ready: true,
+    risk: null,
   };
 }
 

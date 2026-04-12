@@ -54,9 +54,12 @@ Email:
 
 Slack:
 
-- The repo still has outbound Slack webhook delivery only.
-- Slack reply watching remains blocked until a real inbound Slack credential path exists.
-- The normalized ingest route is ready for that future source, but the upstream watcher is not live yet.
+- The inbound Events API route is live at `https://tryblueprint.io/api/slack/events`.
+- Slack replies are resumable only when the bot can actually see the conversation:
+  - DM support requires `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOW_DMS=1`
+  - channel support requires the channel id in `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOWED_CHANNELS`
+  - channel replies must be thread replies, not root posts
+- Incoming webhook mirrors remain send-only. If the bot is not in the DM or thread, Slack still fails closed and email remains the durable path.
 
 ## Real Current Blocker Check
 
@@ -94,8 +97,9 @@ It also proved the intended resume workflow end to end:
 ## Remaining Blockers
 
 1. Configure a real inbound Slack read path if Slack replies should also resume work automatically.
-2. Rotate the Gmail and Slack secrets that were exposed during setup and update Render with the rotated values.
-3. Keep the blocker-thread registration step wired into future outbound blocker sends so manual registration is not needed for the next human-gated incident.
+2. Record the Gmail OAuth publishing state explicitly as `testing` or `production`; unknown state must continue to fail closed for production-grade autonomy claims.
+3. Rotate the Gmail and Slack secrets that were exposed during setup and update Render with the rotated values.
+4. Keep the blocker-thread registration step wired into future outbound blocker sends so manual registration is not needed for the next human-gated incident.
 
 ## Validation
 

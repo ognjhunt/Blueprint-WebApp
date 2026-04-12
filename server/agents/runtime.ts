@@ -15,6 +15,10 @@ import { resolveStartupContext } from "./knowledge";
 import { recordOpsActionLog } from "./ops-action-logs";
 import { recordRuntimeEvent, listRuntimeEvents } from "./runtime-events";
 import {
+  dispatchRuntimeApprovalHumanBlocker,
+  safelyDispatchHumanBlocker,
+} from "../utils/human-blocker-autonomy";
+import {
   mergeApprovalPolicy,
   mergeSessionPolicy,
   mergeToolPolicy,
@@ -1245,6 +1249,16 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
         sensitive_actions: normalizedTask.approval_policy.sensitive_actions,
       },
     });
+
+    await safelyDispatchHumanBlocker("runtime.approval_required", () =>
+      dispatchRuntimeApprovalHumanBlocker({
+        runId,
+        task,
+        approvalReason: approval.reason,
+        sessionId: options?.sessionId || normalizedTask.session_id || null,
+        sessionKey: normalizedTask.session_key || null,
+      }),
+    );
 
     return pendingResult;
   }

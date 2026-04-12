@@ -3,6 +3,7 @@ import { Request, Response, Router } from "express";
 import { z } from "zod";
 
 import { logger } from "../logger";
+import { evaluateSlackHumanReplySurface } from "../utils/human-reply-slack";
 import { ingestHumanReplyPayload } from "../utils/human-reply-worker";
 
 const router = Router();
@@ -81,12 +82,22 @@ async function maybeIngestSlackReply(
 
   const text = String(event.text || "");
   const channel = String(event.channel || "").trim();
+  const channelType = String(event.channel_type || "").trim() || null;
   const ts = String(event.ts || "").trim();
   const threadTs = String(event.thread_ts || "").trim();
   const user = String(event.user || "").trim();
 
   if (!channel || !ts || !text) {
     return { ingested: false, reason: "missing_message_fields" as const };
+  }
+
+  const surface = evaluateSlackHumanReplySurface({
+    channel,
+    channelType,
+    threadTs: threadTs || null,
+  });
+  if (!surface.accepted) {
+    return { ingested: false, reason: surface.reason };
   }
 
   const ingestResult = await ingestHumanReplyPayload({

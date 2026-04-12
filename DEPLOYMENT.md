@@ -164,11 +164,15 @@ REDIS_URL=rediss://default:<token>@active-phoenix-39183.upstash.io:6379
   `BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID`
   `BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET`
   `BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN`
+  `BLUEPRINT_HUMAN_REPLY_GMAIL_OAUTH_PUBLISHING_STATUS`
   `BLUEPRINT_HUMAN_REPLY_GMAIL_QUERY`
   `BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_ENABLED=1`
   `BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_INTERVAL_MS`
   `BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_BATCH_SIZE`
   `BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_STARTUP_DELAY_MS`
+- Optional Slack human-reply watcher policy:
+  `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOW_DMS=1`
+  `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOWED_CHANNELS`
 - Optional Notion operational mirror:
   `NOTION_API_KEY` or `NOTION_API_TOKEN`
   `NOTION_GROWTH_STUDIO_SHIP_BROADCAST_DB_ID`
@@ -181,6 +185,8 @@ Important:
 - For the Growth Studio mirror vars above, use the Notion data source UUIDs for each database, not the outer database page UUIDs.
 - The Growth Studio sync path can be run by scheduler, by `POST /api/admin/growth/notion/sync`, or from the shell with `npm run notion:sync:growth-studio`.
 - The human-reply Gmail watcher is valid only when the authenticated mailbox is the approved org-facing identity `ohstnhunt@gmail.com`. If Gmail OAuth resolves to another mailbox, the watcher must fail closed.
+- `BLUEPRINT_HUMAN_REPLY_GMAIL_OAUTH_PUBLISHING_STATUS` is a manual mirror of the Google OAuth consent-screen publishing state. If it is unset, treat Gmail OAuth durability as unknown rather than production-grade.
+- Slack reply watching is operationally valid only for conversations the bot can actually see. DMs require `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOW_DMS=1`. Channel replies require the bot to be present and the channel id to be listed in `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOWED_CHANNELS`. Root-channel replies should fail closed.
 
 ### Creative Pipeline
 - Google image generation:

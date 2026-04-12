@@ -4,9 +4,14 @@ import { createServer, type Server } from "http";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const ingestHumanReplyPayload = vi.hoisted(() => vi.fn());
+const evaluateSlackHumanReplySurface = vi.hoisted(() => vi.fn());
 
 vi.mock("../utils/human-reply-worker", () => ({
   ingestHumanReplyPayload,
+}));
+
+vi.mock("../utils/human-reply-slack", () => ({
+  evaluateSlackHumanReplySurface,
 }));
 
 async function startServer(): Promise<{ server: Server; baseUrl: string }> {
@@ -45,6 +50,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
   vi.resetModules();
   ingestHumanReplyPayload.mockReset();
+  evaluateSlackHumanReplySurface.mockReset();
 });
 
 describe("slack events route", () => {
@@ -71,6 +77,10 @@ describe("slack events route", () => {
   });
 
   it("forwards human reply candidate messages into the reply ingest pipeline", async () => {
+    evaluateSlackHumanReplySurface.mockReturnValue({
+      accepted: true,
+      reason: "dm_allowed",
+    });
     ingestHumanReplyPayload.mockResolvedValue({
       processed: true,
       blocker_id: "blocker-1",
@@ -109,6 +119,46 @@ describe("slack events route", () => {
         body: "I added FIELD_ENCRYPTION_MASTER_KEY",
         received_at: new Date(1712960000 * 1000).toISOString(),
       });
+      expect(evaluateSlackHumanReplySurface).toHaveBeenCalledWith({
+        channel: "D123",
+        channelType: null,
+        threadTs: "1712960000.000100",
+      });
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("fails closed for root channel replies outside the allowed Slack surfaces", async () => {
+    evaluateSlackHumanReplySurface.mockReturnValue({
+      accepted: false,
+      reason: "root_channel_not_supported",
+    });
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/api/slack/events`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "event_callback",
+          event_id: "Ev124",
+          event_time: 1712960001,
+          event: {
+            type: "message",
+            channel: "Callowed",
+            channel_type: "channel",
+            user: "U123",
+            text: "approved",
+            ts: "1712960001.000200",
+          },
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(ingestHumanReplyPayload).not.toHaveBeenCalled();
     } finally {
       await stopServer(server);
     }

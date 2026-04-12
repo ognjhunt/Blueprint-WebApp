@@ -2,6 +2,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const runOpenAIResponsesTask = vi.hoisted(() => vi.fn());
+const dispatchRuntimeApprovalHumanBlocker = vi.hoisted(() => vi.fn());
+const safelyDispatchHumanBlocker = vi.hoisted(() =>
+  vi.fn(async (_label: string, dispatcher: () => Promise<unknown>) => dispatcher()),
+);
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   default: {
@@ -20,8 +24,15 @@ vi.mock("../agents/adapters/openai-responses", () => ({
   runOpenAIResponsesTask,
 }));
 
+vi.mock("../utils/human-blocker-autonomy", () => ({
+  dispatchRuntimeApprovalHumanBlocker,
+  safelyDispatchHumanBlocker,
+}));
+
 afterEach(() => {
   runOpenAIResponsesTask.mockReset();
+  dispatchRuntimeApprovalHumanBlocker.mockReset();
+  safelyDispatchHumanBlocker.mockClear();
   vi.resetModules();
 });
 
@@ -43,6 +54,14 @@ describe("alpha automation runtime autonomy", () => {
     expect(result.status).toBe("pending_approval");
     expect(result.requires_approval).toBe(true);
     expect(runOpenAIResponsesTask).not.toHaveBeenCalled();
+    expect(dispatchRuntimeApprovalHumanBlocker).toHaveBeenCalledWith(
+      expect.objectContaining({
+        task: expect.objectContaining({
+          kind: "payout_exception_triage",
+        }),
+        approvalReason: expect.any(String),
+      }),
+    );
   });
 
   it("keeps payout triage executable while marking the result for human review", async () => {
@@ -106,5 +125,12 @@ describe("alpha automation runtime autonomy", () => {
 
     expect(result.status).toBe("pending_approval");
     expect(runOpenAIResponsesTask).not.toHaveBeenCalled();
+    expect(dispatchRuntimeApprovalHumanBlocker).toHaveBeenCalledWith(
+      expect.objectContaining({
+        task: expect.objectContaining({
+          kind: "operator_thread",
+        }),
+      }),
+    );
   });
 });

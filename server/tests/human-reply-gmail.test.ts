@@ -80,4 +80,48 @@ describe("human reply gmail status", () => {
     expect(status.mailbox_email).toBe("ohstnhunt@gmail.com");
     expect(status.reason).toBeNull();
   });
+
+  it("treats oauth publishing state as unknown unless explicitly marked production", async () => {
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID", "client-id");
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET", "client-secret");
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN", "refresh-token");
+    getProfileMock.mockResolvedValue({
+      data: { emailAddress: "ohstnhunt@gmail.com" },
+    });
+
+    const { getHumanReplyGmailDurabilityStatus } = await import("../utils/human-reply-gmail");
+    const status = await getHumanReplyGmailDurabilityStatus();
+
+    expect(status.production_ready).toBe(false);
+    expect(status.oauth_publishing_status).toBe("unknown");
+    expect(status.risk).toBe("unknown_oauth_state");
+  });
+
+  it("marks testing oauth state as risky and production state as ready", async () => {
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID", "client-id");
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET", "client-secret");
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN", "refresh-token");
+    getProfileMock.mockResolvedValue({
+      data: { emailAddress: "ohstnhunt@gmail.com" },
+    });
+
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_OAUTH_PUBLISHING_STATUS", "testing");
+    let module = await import("../utils/human-reply-gmail");
+    let status = await module.getHumanReplyGmailDurabilityStatus();
+    expect(status.production_ready).toBe(false);
+    expect(status.risk).toBe("testing_only");
+
+    vi.resetModules();
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID", "client-id");
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET", "client-secret");
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN", "refresh-token");
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_OAUTH_PUBLISHING_STATUS", "production");
+    getProfileMock.mockResolvedValue({
+      data: { emailAddress: "ohstnhunt@gmail.com" },
+    });
+    module = await import("../utils/human-reply-gmail");
+    status = await module.getHumanReplyGmailDurabilityStatus();
+    expect(status.production_ready).toBe(true);
+    expect(status.risk).toBeNull();
+  });
 });
