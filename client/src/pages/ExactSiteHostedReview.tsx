@@ -1,26 +1,6 @@
-import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { SEO } from "@/components/SEO";
-import { analyticsEvents } from "@/components/Analytics";
-import { resolveExperimentVariant } from "@/lib/experiments";
 import { VoiceConcierge } from "@/components/site/VoiceConcierge";
-
-const EXPERIMENT_KEY = "exact_site_hosted_review_hero_v1";
-
-const heroVariants = {
-  proof_first: {
-    eyebrow: "Exact-Site Hosted Review",
-    title: "Review one real site before your robot team travels.",
-    body:
-      "Blueprint captures one facility, packages the exact-site world-model artifacts, and gives your team a hosted review path tied to that same site. The point is to answer one deployment question earlier, not to pretend the site is solved.",
-  },
-  speed_first: {
-    eyebrow: "Exact-Site Hosted Review",
-    title: "A faster way to narrow the real site question.",
-    body:
-      "Use Blueprint when your team needs one exact facility, one workflow lane, and one grounded review path. The deliverable is a package-plus-hosted-review motion with truthful provenance and explicit human gates.",
-  },
-} as const;
 
 const proofPoints = [
   "One specific facility, not a generic synthetic environment.",
@@ -30,32 +10,6 @@ const proofPoints = [
 ];
 
 export default function ExactSiteHostedReview() {
-  const [resolvedVariant, setResolvedVariant] = useState<keyof typeof heroVariants | null>(null);
-  const variant = resolvedVariant || "proof_first";
-
-  useEffect(() => {
-    let cancelled = false;
-    void resolveExperimentVariant(EXPERIMENT_KEY, ["proof_first", "speed_first"]).then((nextVariant) => {
-      if (!cancelled) {
-        setResolvedVariant((nextVariant as keyof typeof heroVariants) || "proof_first");
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const hero = heroVariants[variant] || heroVariants.proof_first;
-
-  useEffect(() => {
-    if (!resolvedVariant) {
-      return;
-    }
-    analyticsEvents.experimentExposure(EXPERIMENT_KEY, variant, "exact_site_hosted_review");
-    analyticsEvents.exactSiteReviewView(variant);
-  }, [resolvedVariant, variant]);
-
   return (
     <>
       <SEO
@@ -70,13 +24,15 @@ export default function ExactSiteHostedReview() {
             <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-zinc-500">
-                  {hero.eyebrow}
+                  Exact-Site Hosted Review
                 </p>
                 <h1 className="mt-6 max-w-4xl text-5xl font-semibold tracking-tight text-zinc-950 sm:text-6xl">
-                  {hero.title}
+                  Run the exact site before your robot team travels.
                 </h1>
                 <p className="mt-6 max-w-3xl text-lg leading-8 text-zinc-700">
-                  {hero.body}
+                  Use Blueprint when your team wants runtime evidence on one exact facility and one
+                  workflow lane. The hosted review stays tied to the same capture-backed package so
+                  policy checks, failure review, and exports all stay grounded to the real site.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <Link

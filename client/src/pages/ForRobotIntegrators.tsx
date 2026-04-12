@@ -40,10 +40,10 @@ const useCaseCards = [
 ];
 
 const includedItems = [
-  "A hosted world model of one real site and workflow",
+  "A site-specific world model of one real site and workflow",
   "Resettable runs on the same site so checkpoints are easier to compare",
   "Scenario changes and rollout exports for debugging, tuning, or data work",
-  "A simple browser path for remote review and customer demos",
+  "Package and hosted paths tied back to the same source capture record",
 ];
 
 export default function ForRobotIntegrators() {
@@ -144,7 +144,7 @@ export default function ForRobotIntegrators() {
     <>
       <SEO
         title="For Robot Teams | Blueprint"
-        description="Blueprint helps robot teams buy site-specific world models for tuning, evaluation, and hosted access built from real indoor capture."
+        description="Blueprint helps robot teams buy site-specific world models for tuning, exact-site data generation, and hosted access built from real indoor capture."
         canonical="/for-robot-teams"
       />
 
@@ -161,12 +161,12 @@ export default function ForRobotIntegrators() {
                 For Robot Teams
               </span>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Train on the exact site before your team visits it.
+                Bring the exact deployment site into your robot workflow.
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
                 Blueprint turns real customer facilities into site-specific world models. Use them
-                to evaluate policies, generate training data, fine-tune against the actual layout,
-                and compare releases — all before anyone books travel.
+                to fine-tune against the actual layout, generate exact-site training data, compare
+                releases, and run hosted checks before anyone books travel.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -192,7 +192,7 @@ export default function ForRobotIntegrators() {
             >
               <p className="text-sm font-semibold text-slate-900">What this is</p>
               <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                Real-site world models your team can train on and export data from.
+                Real-site world models your team can train on, fine-tune against, and export data from.
               </p>
               <p className="mt-5 text-sm font-semibold text-slate-900">What it helps with</p>
               <ul className="mt-3 space-y-2 text-sm text-slate-600">

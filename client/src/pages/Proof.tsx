@@ -21,7 +21,7 @@ const proofRoutes = [
   {
     title: "Results",
     body:
-      "Review concrete examples of how teams used exact-site data for policy evaluation, fine-tuning, and deployment prep.",
+      "Review concrete examples of how teams used exact-site data for policy training, fine-tuning, and deployment prep.",
     href: "/case-studies",
     cta: "Review results",
   },
@@ -63,7 +63,7 @@ export default function Proof() {
     <>
       <SEO
         title="Proof | Blueprint"
-        description="Use Blueprint's proof hub to inspect the public demo listing, see how the product works, review sample deliverables, and read concrete results."
+        description="Use Blueprint's proof hub to inspect the public demo listing, see how the product works, review sample deliverables, and read concrete exact-site training results."
         canonical="/proof"
       />
 
@@ -74,11 +74,11 @@ export default function Proof() {
               Proof Hub
             </p>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-              See what you can train on before you commit.
+              See the exact-site asset before you commit.
             </h1>
             <p className="mt-4 text-lg leading-8 text-slate-600">
               Start with the public demo listing, then check how the product works, what your team
-              gets, and how others have used it for evaluation and deployment prep.
+              gets, and how others have used it for training, fine-tuning, and deployment prep.
             </p>
           </header>
 
@@ -144,7 +144,8 @@ export default function Proof() {
                 <h2 className="text-2xl font-semibold text-slate-900">Public listing</h2>
                 <p className="mt-3 text-sm leading-7 text-slate-600">
                   Confirm the site, workflow, and physical context before deciding whether you need
-                  the site package for your training pipeline or a hosted evaluation.
+                  the site package for training and fine-tuning or a hosted evaluation for runtime
+                  checks on the same site.
                 </p>
               </div>
             </article>
@@ -159,7 +160,7 @@ export default function Proof() {
                 <h2 className="text-2xl font-semibold text-slate-900">Hosted evaluation</h2>
                 <p className="mt-3 text-sm leading-7 text-slate-600">
                   Run policies on the same site, compare releases, review failure cases, and export
-                  training data and evaluation results.
+                  exact-site training data and evaluation results.
                 </p>
               </div>
             </article>
