@@ -529,6 +529,7 @@ type AgentRunFailurePayload = {
   taskId: string | null;
   taskKey: string | null;
   error: string | null;
+  errorCode: string | null;
 };
 
 type HeartbeatRunRecord = {
@@ -1310,7 +1311,18 @@ function parseAgentRunFailurePayload(value: unknown): AgentRunFailurePayload {
     taskId: asString(payload.taskId) ?? null,
     taskKey: asString(payload.taskKey) ?? null,
     error: asString(payload.error) ?? null,
+    errorCode: asString(payload.errorCode) ?? null,
   };
+}
+
+function isToolRuntimeFailure(errorCode: string | null | undefined, error: string | null | undefined) {
+  if (errorCode === "tool_runtime_unavailable") return true;
+  const message = (error ?? "").trim();
+  return /(?:CreateProcess .*No such file or directory|Failed to create unified exec process|exec_command failed|write_stdin failed: stdin is closed|rerun exec_command with tty=true to keep stdin open)/i.test(message);
+}
+
+function shouldForceFreshSessionForAutomationWake(reason: string) {
+  return reason === "fresh_session_retry_after_context_failure";
 }
 
 function buildQuotaFallbackDescriptor(
@@ -3453,7 +3465,6 @@ async function wakeAssignedAgent(
       dispatchReason: input.reason,
     },
     idempotencyKey: `managed-issue-dispatch:${issue.id}:${signature}`,
-    forceFreshSession: issue.status === "todo" || issue.status === "backlog" || agent.status === "error",
   });
 
   const [refreshedIssue, runtimeSession] = await Promise.all([
@@ -6521,6 +6532,9 @@ async function handleAgentRunFailureQuotaFallback(
   if (!payload.agentId || !payload.runId || !payload.error) {
     return;
   }
+  if (isToolRuntimeFailure(payload.errorCode, payload.error)) {
+    return;
+  }
   if (!isQuotaOrRateLimitFailure(payload.error) && !isModelNotFoundFailure(payload.error)) {
     return;
   }
@@ -6693,7 +6707,7 @@ async function handleAgentRunFailureQuotaFallback(
         reason: fallback.reason,
         payload: wakePayload,
         idempotencyKey: `quota-fallback:${payload.runId}`,
-        forceFreshSession: true,
+        forceFreshSession: shouldForceFreshSessionForAutomationWake(fallback.reason),
       },
     );
 
@@ -6763,6 +6777,9 @@ async function handleAgentRunFailureFreshSessionRetry(
   if (!payload.agentId || !payload.runId || !payload.error) {
     return;
   }
+  if (isToolRuntimeFailure(payload.errorCode, payload.error)) {
+    return;
+  }
   if (
     isQuotaOrRateLimitFailure(payload.error)
     || isModelNotFoundFailure(payload.error)
@@ -6824,7 +6841,7 @@ async function handleAgentRunFailureFreshSessionRetry(
       reason: "fresh_session_retry_after_context_failure",
       payload: wakePayload,
       idempotencyKey: `fresh-session-retry:${payload.runId}`,
-      forceFreshSession: true,
+      forceFreshSession: shouldForceFreshSessionForAutomationWake("fresh_session_retry_after_context_failure"),
     });
 
     await markAttempt(
@@ -6885,6 +6902,9 @@ async function handleAgentRunFailureRuntimeFallback(
 ) {
   const payload = parseAgentRunFailurePayload(event.payload);
   if (!payload.agentId || !payload.runId || !payload.error) {
+    return;
+  }
+  if (isToolRuntimeFailure(payload.errorCode, payload.error)) {
     return;
   }
   if (!isProviderTimeoutFailure(payload.error) && !isProcessLossFailure(payload.error)) {
@@ -7017,7 +7037,11 @@ async function handleAgentRunFailureRuntimeFallback(
         : "runtime_timeout_fallback_retry",
       payload: wakePayload,
       idempotencyKey: `runtime-fallback:${payload.runId}`,
-      forceFreshSession: true,
+      forceFreshSession: shouldForceFreshSessionForAutomationWake(
+        isProcessLossFailure(payload.error)
+          ? "runtime_process_loss_fallback_retry"
+          : "runtime_timeout_fallback_retry",
+      ),
     });
 
     await markAttempt(
