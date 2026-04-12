@@ -24,7 +24,10 @@
   "license": "MIT",
   "dependencies": {
     "@notionhq/client": "^5.15.0",
-    "@paperclipai/plugin-sdk": "file:../../../../../paperclip/packages/plugins/sdk"
+    "@paperclipai/plugin-sdk": "file:../../../../../paperclip/packages/plugins/sdk",
+    "https-proxy-agent": "^7.0.6",
+    "js-yaml": "^4.1.0",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@types/node": "^24.6.0",
