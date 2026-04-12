@@ -14,6 +14,7 @@ const runExperimentAutorollout = vi.hoisted(() => vi.fn());
 const runAutonomousResearchOutboundLoop = vi.hoisted(() => vi.fn());
 const runCreativeAssetFactoryLoop = vi.hoisted(() => vi.fn());
 const runGapClosureLoop = vi.hoisted(() => vi.fn());
+const runHumanReplyEmailWatcher = vi.hoisted(() => vi.fn());
 const sendSlackMessage = vi.hoisted(() => vi.fn());
 const workerFailureAlertState = vi.hoisted(() => new Map<string, string>());
 const maybeAlertOnWorkerStatusTransition = vi.hoisted(() =>
@@ -133,6 +134,10 @@ vi.mock("../utils/gap-closure", () => ({
   runGapClosureLoop,
 }));
 
+vi.mock("../utils/human-reply-worker", () => ({
+  runHumanReplyEmailWatcher,
+}));
+
 vi.mock("../utils/slack", () => ({
   sendSlackMessage,
 }));
@@ -155,6 +160,12 @@ beforeEach(() => {
     processedCount: 1,
     failedCount: 0,
     activeFindingCount: 0,
+  });
+  runHumanReplyEmailWatcher.mockResolvedValue({
+    processedCount: 0,
+    failedCount: 0,
+    blockedCount: 0,
+    reason: null,
   });
   sendSlackMessage.mockResolvedValue({ sent: true });
 });
@@ -219,6 +230,20 @@ describe("ops automation scheduler", () => {
     await vi.advanceTimersByTimeAsync(60_000);
 
     expect(runGapClosureLoop).toHaveBeenCalledWith({ limit: 100 });
+
+    stop();
+  });
+
+  it("runs the human reply gmail watcher when enabled", async () => {
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_ENABLED", "1");
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_STARTUP_DELAY_MS", "0");
+
+    const { startOpsAutomationScheduler } = await import("../utils/opsAutomationScheduler");
+    const stop = startOpsAutomationScheduler();
+
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(runHumanReplyEmailWatcher).toHaveBeenCalledWith({ limit: 25 });
 
     stop();
   });

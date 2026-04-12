@@ -47,6 +47,7 @@ Observed on 2026-04-12:
 Human-gate packet rule:
 
 - When a launch blocker is truly human-gated, use `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/human-blocker-packet-standard.md`.
+- Use `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/human-reply-handling-contract.md` for watcher ownership and execution handoff after the human reply lands.
 - Default fast escalation channel: Slack DM to `Nijel Hunt`.
 - Default durable escalation channel: email to `ohstnhunt@gmail.com`.
 - Record the human response in the owning issue, report, or run artifact, then continue execution immediately.
@@ -110,6 +111,11 @@ Human-gate packet rule:
   - `SLACK_WEBHOOK_URL`
   - email transport via SendGrid or SMTP
   Why it blocks launch: post-signup scheduling, sheet updates, and ops notifications are part of the live automation path.
+
+- [ ] Human-reply watcher path is truthful for production human gates
+  Required for durable email watcher: `BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID`, `BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET`, `BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN`
+  Required identity: authenticated Gmail mailbox must equal `ohstnhunt@gmail.com`
+  Why it blocks autonomous follow-through: a blocker packet is not agent-resumable unless the human reply can be observed and routed back into the owning lane.
 
 - [ ] Research outbound path is wired if that lane is enabled
   Required env:

@@ -28,5 +28,7 @@ describe("city launch planning harness", () => {
     expect(prompt).toContain("single operator-ready city launch playbook");
     expect(prompt).toContain("Human vs agent ownership model");
     expect(prompt).toContain("What not to say publicly yet");
+    expect(prompt).toContain("Structured launch data appendix");
+    expect(prompt).toContain("```city-launch-records");
   });
 });

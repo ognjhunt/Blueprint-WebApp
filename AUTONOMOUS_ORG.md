@@ -130,6 +130,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 - Cross-agent follow-through decisions
 - Founder decision packets with one recommendation, one exact ask, one deadline, and one follow-through owner
 - Slack-visible manager wakeups and task-routing activity
+- Human-reply watcher ownership for blocker packets, including correlation, reply classification, and delegated execution handoff
 
 **Human gates:** Strategy, budget, rights/privacy, commercialization commitments, legal, policy, and other irreversible high-risk decisions.
 
@@ -147,7 +148,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 | **Model** | Claude |
 | **Status** | Live in Paperclip package |
 
-**Purpose:** Technical decisions, cross-repo coordination, architecture review. Routes non-technical ops issues to Ops Lead.
+**Purpose:** Technical decisions, cross-repo coordination, architecture review. Routes non-technical ops issues to Ops Lead and reviews technical blocker replies when the human response changes diagnosis or raises a platform-contract question.
 
 **Triggers:**
 - `30 8 * * 1-5` — Morning triage (8:30am ET)
@@ -348,6 +349,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Priority assignments → Paperclip issues for specialist agents
 - Escalations → CEO agent
 - Weekly ops trend summary → CEO + Growth Lead
+- Resumed execution ownership for non-technical human replies unless a narrower buyer, rights, or commercial lane already owns the thread
 
 **Human gates:** Ops Lead is itself the routine human operator lane for launch-readiness ops. Founder escalation is only for spend, policy, rights/privacy, legal, or other irreversible exceptions.
 

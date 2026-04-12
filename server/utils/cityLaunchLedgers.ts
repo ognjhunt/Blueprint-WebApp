@@ -14,6 +14,16 @@ export type CityLaunchActivationStatus =
   | "proof_live"
   | "growth_live";
 
+export type CityLaunchResearchProvenance = {
+  sourceType: "deep_research_playbook";
+  artifactPath: string;
+  sourceKey: string;
+  sourceUrls: string[];
+  parsedAtIso: string;
+  explicitFields: string[];
+  inferredFields: string[];
+};
+
 export type CityLaunchProspectStatus =
   | "identified"
   | "contacted"
@@ -88,6 +98,14 @@ export type CityLaunchProspectRecord = {
   notes: string | null;
   firstContactedAt: string | null;
   lastContactedAt: string | null;
+  siteAddress: string | null;
+  locationSummary: string | null;
+  lat: number | null;
+  lng: number | null;
+  siteCategory: string | null;
+  workflowFit: string | null;
+  priorityNote: string | null;
+  researchProvenance: CityLaunchResearchProvenance | null;
   createdAtIso: string;
   updatedAtIso: string;
 };
@@ -103,6 +121,9 @@ export type CityLaunchBuyerTargetRecord = {
   workflowFit: string | null;
   proofPath: string | null;
   ownerAgent: string | null;
+  notes: string | null;
+  sourceBucket: string | null;
+  researchProvenance: CityLaunchResearchProvenance | null;
   createdAtIso: string;
   updatedAtIso: string;
 };
@@ -119,6 +140,8 @@ export type CityLaunchTouchRecord = {
   status: CityLaunchTouchStatus;
   campaignId: string | null;
   issueId: string | null;
+  notes: string | null;
+  researchProvenance: CityLaunchResearchProvenance | null;
   createdAtIso: string;
   updatedAtIso: string;
 };
@@ -133,6 +156,8 @@ export type CityLaunchBudgetEventRecord = {
   note: string | null;
   approvedByRole: string | null;
   withinPolicy: boolean;
+  eventType: "actual" | "recommended";
+  researchProvenance: CityLaunchResearchProvenance | null;
   createdAtIso: string;
 };
 
@@ -144,6 +169,7 @@ export type CityLaunchLedgerSummary = {
   totalRecordedSpendUsd: number;
   withinPolicySpendUsd: number;
   outsidePolicySpendUsd: number;
+  recommendedSpendUsd: number;
   wideningGuard: CityLaunchWideningGuard;
   dataSources: string[];
 };
@@ -155,6 +181,38 @@ const COLLECTIONS = {
   touches: "cityLaunchTouches",
   budgetEvents: "cityLaunchBudgetEvents",
 } as const;
+
+const PROSPECT_STATUS_RANK: Record<CityLaunchProspectStatus, number> = {
+  inactive: 0,
+  identified: 1,
+  contacted: 2,
+  responded: 3,
+  qualified: 4,
+  approved: 5,
+  onboarded: 6,
+  capturing: 7,
+};
+
+const BUYER_TARGET_STATUS_RANK: Record<CityLaunchBuyerTargetStatus, number> = {
+  identified: 1,
+  researched: 2,
+  queued: 3,
+  contacted: 4,
+  engaged: 5,
+  hosted_review: 6,
+  commercial_handoff: 7,
+  closed_won: 8,
+  closed_lost: 8,
+};
+
+const TOUCH_STATUS_RANK: Record<CityLaunchTouchStatus, number> = {
+  failed: 0,
+  draft: 1,
+  queued: 2,
+  sent: 3,
+  delivered: 4,
+  replied: 5,
+};
 
 function nowIso() {
   return new Date().toISOString();
@@ -184,6 +242,66 @@ function withCity<T extends { city: string }>(record: T) {
   };
 }
 
+function asString(value: unknown) {
+  return typeof value === "string" ? value : null;
+}
+
+function asNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function mergeString(existing: string | null | undefined, incoming: string | null | undefined) {
+  const next = String(incoming || "").trim();
+  if (next) {
+    return next;
+  }
+  const prior = String(existing || "").trim();
+  return prior || null;
+}
+
+function mergeNotes(existing: string | null | undefined, incoming: string | null | undefined) {
+  const prior = String(existing || "").trim();
+  const next = String(incoming || "").trim();
+  if (!prior) {
+    return next || null;
+  }
+  if (!next || next === prior) {
+    return prior;
+  }
+  return `${prior}\n\n${next}`;
+}
+
+function mergeIsoEarliest(existing: string | null | undefined, incoming: string | null | undefined) {
+  if (!existing) {
+    return incoming ?? null;
+  }
+  if (!incoming) {
+    return existing;
+  }
+  return new Date(existing).getTime() <= new Date(incoming).getTime() ? existing : incoming;
+}
+
+function mergeIsoLatest(existing: string | null | undefined, incoming: string | null | undefined) {
+  if (!existing) {
+    return incoming ?? null;
+  }
+  if (!incoming) {
+    return existing;
+  }
+  return new Date(existing).getTime() >= new Date(incoming).getTime() ? existing : incoming;
+}
+
+function mergeRankedStatus<T extends string>(
+  existing: T | null | undefined,
+  incoming: T,
+  ranking: Record<T, number>,
+) {
+  if (!existing) {
+    return incoming;
+  }
+  return (ranking[existing] ?? 0) >= (ranking[incoming] ?? 0) ? existing : incoming;
+}
+
 export async function writeCityLaunchActivation(input: {
   city: string;
   budgetTier: CityLaunchBudgetTier;
@@ -199,6 +317,7 @@ export async function writeCityLaunchActivation(input: {
   }
 
   const base = normalizedCity(input.city);
+  const timestamp = nowIso();
   const payload: CityLaunchActivationRecord = {
     ...base,
     budgetTier: input.budgetTier,
@@ -209,8 +328,8 @@ export async function writeCityLaunchActivation(input: {
     taskIssueIds: input.taskIssueIds,
     machineReadablePolicyVersion: "2026-04-12.1",
     wideningGuard: input.wideningGuard,
-    createdAtIso: nowIso(),
-    updatedAtIso: nowIso(),
+    createdAtIso: timestamp,
+    updatedAtIso: timestamp,
   };
 
   await db.collection(COLLECTIONS.activations).doc(base.citySlug).set(
@@ -236,37 +355,59 @@ export async function readCityLaunchActivation(city: string) {
   return doc.data() as CityLaunchActivationRecord;
 }
 
-export async function upsertCityLaunchProspect(input: Omit<CityLaunchProspectRecord, "id" | "citySlug" | "createdAtIso" | "updatedAtIso"> & {
-  id?: string | null;
-}) {
+export async function listCityLaunchActivations() {
+  if (!db) {
+    return [] as CityLaunchActivationRecord[];
+  }
+  const snapshot = await db.collection(COLLECTIONS.activations).limit(100).get();
+  return snapshot.docs.map((doc) => doc.data() as CityLaunchActivationRecord);
+}
+
+export async function upsertCityLaunchProspect(
+  input: Omit<CityLaunchProspectRecord, "id" | "citySlug" | "createdAtIso" | "updatedAtIso"> & {
+    id?: string | null;
+  },
+) {
   if (!db) {
     throw new Error("Database not available");
   }
   const record = withCity(input);
   const id = normalizeId(input.id, `prospect_${record.citySlug}`);
-  const createdAtIso = nowIso();
+  const ref = db.collection(COLLECTIONS.prospects).doc(id);
+  const existingDoc = await ref.get();
+  const existing = existingDoc.exists ? (existingDoc.data() as Partial<CityLaunchProspectRecord>) : null;
+  const createdAtIso = existing?.createdAtIso || nowIso();
+  const updatedAtIso = nowIso();
   const payload: CityLaunchProspectRecord = {
     id,
     city: record.city,
     citySlug: record.citySlug,
-    launchId: input.launchId ?? null,
+    launchId: mergeString(existing?.launchId, input.launchId ?? null),
     sourceBucket: input.sourceBucket,
     channel: input.channel,
     name: input.name,
-    email: input.email ?? null,
-    status: input.status,
-    ownerAgent: input.ownerAgent ?? null,
-    notes: input.notes ?? null,
-    firstContactedAt: input.firstContactedAt ?? null,
-    lastContactedAt: input.lastContactedAt ?? null,
+    email: mergeString(existing?.email, input.email ?? null),
+    status: mergeRankedStatus(existing?.status, input.status, PROSPECT_STATUS_RANK),
+    ownerAgent: mergeString(existing?.ownerAgent, input.ownerAgent ?? null),
+    notes: mergeNotes(existing?.notes, input.notes ?? null),
+    firstContactedAt: mergeIsoEarliest(existing?.firstContactedAt, input.firstContactedAt ?? null),
+    lastContactedAt: mergeIsoLatest(existing?.lastContactedAt, input.lastContactedAt ?? null),
+    siteAddress: mergeString(existing?.siteAddress, input.siteAddress ?? null),
+    locationSummary: mergeString(existing?.locationSummary, input.locationSummary ?? null),
+    lat: asNumber(input.lat) ?? asNumber(existing?.lat) ?? null,
+    lng: asNumber(input.lng) ?? asNumber(existing?.lng) ?? null,
+    siteCategory: mergeString(existing?.siteCategory, input.siteCategory ?? null),
+    workflowFit: mergeString(existing?.workflowFit, input.workflowFit ?? null),
+    priorityNote: mergeNotes(existing?.priorityNote, input.priorityNote ?? null),
+    researchProvenance: input.researchProvenance ?? existing?.researchProvenance ?? null,
     createdAtIso,
-    updatedAtIso: createdAtIso,
+    updatedAtIso,
   };
-  await db.collection(COLLECTIONS.prospects).doc(id).set(
+  await ref.set(
     {
       ...payload,
       updated_at: serverTimestamp(),
-      created_at: serverTimestamp(),
+      created_at: existing ? undefined : serverTimestamp(),
     },
     { merge: true },
   );
@@ -283,26 +424,33 @@ export async function upsertCityLaunchBuyerTarget(
   }
   const record = withCity(input);
   const id = normalizeId(input.id, `buyer_target_${record.citySlug}`);
-  const createdAtIso = nowIso();
+  const ref = db.collection(COLLECTIONS.buyerTargets).doc(id);
+  const existingDoc = await ref.get();
+  const existing = existingDoc.exists ? (existingDoc.data() as Partial<CityLaunchBuyerTargetRecord>) : null;
+  const createdAtIso = existing?.createdAtIso || nowIso();
+  const updatedAtIso = nowIso();
   const payload: CityLaunchBuyerTargetRecord = {
     id,
     city: record.city,
     citySlug: record.citySlug,
-    launchId: input.launchId ?? null,
+    launchId: mergeString(existing?.launchId, input.launchId ?? null),
     companyName: input.companyName,
-    contactName: input.contactName ?? null,
-    status: input.status,
-    workflowFit: input.workflowFit ?? null,
-    proofPath: input.proofPath ?? null,
-    ownerAgent: input.ownerAgent ?? null,
+    contactName: mergeString(existing?.contactName, input.contactName ?? null),
+    status: mergeRankedStatus(existing?.status, input.status, BUYER_TARGET_STATUS_RANK),
+    workflowFit: mergeString(existing?.workflowFit, input.workflowFit ?? null),
+    proofPath: mergeString(existing?.proofPath, input.proofPath ?? null),
+    ownerAgent: mergeString(existing?.ownerAgent, input.ownerAgent ?? null),
+    notes: mergeNotes(existing?.notes, input.notes ?? null),
+    sourceBucket: mergeString(existing?.sourceBucket, input.sourceBucket ?? null),
+    researchProvenance: input.researchProvenance ?? existing?.researchProvenance ?? null,
     createdAtIso,
-    updatedAtIso: createdAtIso,
+    updatedAtIso,
   };
-  await db.collection(COLLECTIONS.buyerTargets).doc(id).set(
+  await ref.set(
     {
       ...payload,
       updated_at: serverTimestamp(),
-      created_at: serverTimestamp(),
+      created_at: existing ? undefined : serverTimestamp(),
     },
     { merge: true },
   );
@@ -310,62 +458,84 @@ export async function upsertCityLaunchBuyerTarget(
 }
 
 export async function recordCityLaunchTouch(
-  input: Omit<CityLaunchTouchRecord, "citySlug" | "createdAtIso" | "updatedAtIso" | "id">,
+  input: Omit<CityLaunchTouchRecord, "citySlug" | "createdAtIso" | "updatedAtIso" | "id"> & {
+    id?: string | null;
+  },
 ) {
   if (!db) {
     throw new Error("Database not available");
   }
   const record = withCity(input);
-  const createdAtIso = nowIso();
-  const ref = db.collection(COLLECTIONS.touches).doc();
+  const ref = input.id
+    ? db.collection(COLLECTIONS.touches).doc(normalizeId(input.id, `touch_${record.citySlug}`))
+    : db.collection(COLLECTIONS.touches).doc();
+  const existingDoc = await ref.get();
+  const existing = existingDoc.exists ? (existingDoc.data() as Partial<CityLaunchTouchRecord>) : null;
+  const createdAtIso = existing?.createdAtIso || nowIso();
+  const updatedAtIso = nowIso();
   const payload: CityLaunchTouchRecord = {
     id: ref.id,
     city: record.city,
     citySlug: record.citySlug,
-    launchId: input.launchId ?? null,
+    launchId: mergeString(existing?.launchId, input.launchId ?? null),
     referenceType: input.referenceType,
-    referenceId: input.referenceId ?? null,
+    referenceId: mergeString(existing?.referenceId, input.referenceId ?? null),
     touchType: input.touchType,
     channel: input.channel,
-    status: input.status,
-    campaignId: input.campaignId ?? null,
-    issueId: input.issueId ?? null,
+    status: mergeRankedStatus(existing?.status, input.status, TOUCH_STATUS_RANK),
+    campaignId: mergeString(existing?.campaignId, input.campaignId ?? null),
+    issueId: mergeString(existing?.issueId, input.issueId ?? null),
+    notes: mergeNotes(existing?.notes, input.notes ?? null),
+    researchProvenance: input.researchProvenance ?? existing?.researchProvenance ?? null,
     createdAtIso,
-    updatedAtIso: createdAtIso,
+    updatedAtIso,
   };
-  await ref.set({
-    ...payload,
-    updated_at: serverTimestamp(),
-    created_at: serverTimestamp(),
-  });
+  await ref.set(
+    {
+      ...payload,
+      updated_at: serverTimestamp(),
+      created_at: existing ? undefined : serverTimestamp(),
+    },
+    { merge: true },
+  );
   return payload;
 }
 
 export async function recordCityLaunchBudgetEvent(
-  input: Omit<CityLaunchBudgetEventRecord, "citySlug" | "createdAtIso" | "id">,
+  input: Omit<CityLaunchBudgetEventRecord, "citySlug" | "createdAtIso" | "id"> & {
+    id?: string | null;
+  },
 ) {
   if (!db) {
     throw new Error("Database not available");
   }
   const record = withCity(input);
-  const createdAtIso = nowIso();
-  const ref = db.collection(COLLECTIONS.budgetEvents).doc();
+  const ref = input.id
+    ? db.collection(COLLECTIONS.budgetEvents).doc(normalizeId(input.id, `budget_${record.citySlug}`))
+    : db.collection(COLLECTIONS.budgetEvents).doc();
+  const existingDoc = await ref.get();
+  const existing = existingDoc.exists ? (existingDoc.data() as Partial<CityLaunchBudgetEventRecord>) : null;
   const payload: CityLaunchBudgetEventRecord = {
     id: ref.id,
     city: record.city,
     citySlug: record.citySlug,
-    launchId: input.launchId ?? null,
+    launchId: mergeString(existing?.launchId, input.launchId ?? null),
     category: input.category,
     amountUsd: input.amountUsd,
-    note: input.note ?? null,
-    approvedByRole: input.approvedByRole ?? null,
+    note: mergeNotes(existing?.note, input.note ?? null),
+    approvedByRole: mergeString(existing?.approvedByRole, input.approvedByRole ?? null),
     withinPolicy: input.withinPolicy,
-    createdAtIso,
+    eventType: input.eventType || existing?.eventType || "actual",
+    researchProvenance: input.researchProvenance ?? existing?.researchProvenance ?? null,
+    createdAtIso: existing?.createdAtIso || nowIso(),
   };
-  await ref.set({
-    ...payload,
-    created_at: serverTimestamp(),
-  });
+  await ref.set(
+    {
+      ...payload,
+      created_at: existing ? undefined : serverTimestamp(),
+    },
+    { merge: true },
+  );
   return payload;
 }
 
@@ -379,6 +549,42 @@ async function listByCity<T>(collectionName: string, citySlug: string) {
     .limit(1000)
     .get();
   return snapshot.docs.map((doc) => doc.data() as T);
+}
+
+export async function listCityLaunchProspects(
+  city: string,
+  options?: { statuses?: CityLaunchProspectStatus[] },
+) {
+  const { citySlug } = normalizedCity(city);
+  const prospects = await listByCity<CityLaunchProspectRecord>(COLLECTIONS.prospects, citySlug);
+  if (!options?.statuses?.length) {
+    return prospects;
+  }
+  const allowed = new Set(options.statuses);
+  return prospects.filter((record) => allowed.has(record.status));
+}
+
+export async function listCityLaunchBuyerTargets(
+  city: string,
+  options?: { statuses?: CityLaunchBuyerTargetStatus[] },
+) {
+  const { citySlug } = normalizedCity(city);
+  const buyerTargets = await listByCity<CityLaunchBuyerTargetRecord>(COLLECTIONS.buyerTargets, citySlug);
+  if (!options?.statuses?.length) {
+    return buyerTargets;
+  }
+  const allowed = new Set(options.statuses);
+  return buyerTargets.filter((record) => allowed.has(record.status));
+}
+
+export async function listCityLaunchTouches(city: string) {
+  const { citySlug } = normalizedCity(city);
+  return listByCity<CityLaunchTouchRecord>(COLLECTIONS.touches, citySlug);
+}
+
+export async function listCityLaunchBudgetEvents(city: string) {
+  const { citySlug } = normalizedCity(city);
+  return listByCity<CityLaunchBudgetEventRecord>(COLLECTIONS.budgetEvents, citySlug);
 }
 
 export async function summarizeCityLaunchLedgers(city: string) {
@@ -416,13 +622,17 @@ export async function summarizeCityLaunchLedgers(city: string) {
       entry.touchType === "first_touch"
       && ["sent", "delivered", "replied"].includes(entry.status),
   ).length;
-  const totalRecordedSpendUsd = budgetEvents.reduce((sum, entry) => sum + entry.amountUsd, 0);
-  const withinPolicySpendUsd = budgetEvents
+
+  const actualBudgetEvents = budgetEvents.filter((entry) => entry.eventType !== "recommended");
+  const recommendedBudgetEvents = budgetEvents.filter((entry) => entry.eventType === "recommended");
+  const totalRecordedSpendUsd = actualBudgetEvents.reduce((sum, entry) => sum + entry.amountUsd, 0);
+  const withinPolicySpendUsd = actualBudgetEvents
     .filter((entry) => entry.withinPolicy)
     .reduce((sum, entry) => sum + entry.amountUsd, 0);
-  const outsidePolicySpendUsd = budgetEvents
+  const outsidePolicySpendUsd = actualBudgetEvents
     .filter((entry) => !entry.withinPolicy)
     .reduce((sum, entry) => sum + entry.amountUsd, 0);
+  const recommendedSpendUsd = recommendedBudgetEvents.reduce((sum, entry) => sum + entry.amountUsd, 0);
 
   const wideningGuard = buildCityLaunchWideningGuard({
     proofReadyListings: 0,
@@ -441,6 +651,7 @@ export async function summarizeCityLaunchLedgers(city: string) {
     totalRecordedSpendUsd,
     withinPolicySpendUsd,
     outsidePolicySpendUsd,
+    recommendedSpendUsd,
     wideningGuard,
     dataSources: [
       COLLECTIONS.prospects,

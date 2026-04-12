@@ -62,6 +62,7 @@ describe("city launch execution harness", () => {
       totalRecordedSpendUsd: 0,
       withinPolicySpendUsd: 0,
       outsidePolicySpendUsd: 0,
+      recommendedSpendUsd: 0,
       wideningGuard: { mode: "single_city_until_proven", wideningAllowed: false, reasons: [] },
       dataSources: [],
     });
@@ -115,6 +116,7 @@ describe("city launch execution harness", () => {
       totalRecordedSpendUsd: 0,
       withinPolicySpendUsd: 0,
       outsidePolicySpendUsd: 0,
+      recommendedSpendUsd: 0,
       wideningGuard: { mode: "single_city_until_proven", wideningAllowed: false, reasons: [] },
       dataSources: [],
     });

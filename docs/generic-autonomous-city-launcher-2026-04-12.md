@@ -43,6 +43,7 @@ The org should only widen once one city has actual proof.
   - buyer targets
   - touches
   - budget events
+- research materialization audit artifact showing what deep-research records were written
 - city scorecard with tracked outreach and spend metrics
 
 ## Human Gates
@@ -77,6 +78,9 @@ Widening should stay blocked until the active city has:
 - `server/utils/cityLaunchProfiles.ts`
 - `server/utils/cityLaunchPolicy.ts`
 - `server/utils/cityLaunchLedgers.ts`
+- `server/utils/cityLaunchResearchParser.ts`
+- `server/utils/cityLaunchResearchMaterializer.ts`
+- `server/utils/cityLaunchCaptureTargets.ts`
 - `server/utils/cityLaunchScorecard.ts`
 - `server/routes/admin-growth.ts`
 - `server/routes/admin-leads.ts`

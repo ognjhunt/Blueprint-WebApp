@@ -1,4 +1,10 @@
+import {
+  buildHumanBlockerSubjectTag,
+  renderHumanBlockerCorrelationSection,
+} from "./human-reply-routing";
+
 export type HumanBlockerPacket = {
+  blockerId?: string;
   title: string;
   summary: string;
   recommendedAnswer: string;
@@ -26,8 +32,9 @@ function paragraph(value: string) {
   return escapeHtml(value).replaceAll("\n", "<br />");
 }
 
-export function renderHumanBlockerPacketEmailSubject(title: string) {
-  return `[Blueprint Blocker] ${title}`;
+export function renderHumanBlockerPacketEmailSubject(title: string, blockerId?: string) {
+  const correlation = blockerId ? ` ${buildHumanBlockerSubjectTag(blockerId)}` : "";
+  return `[Blueprint Blocker]${correlation} ${title}`.replace(/\s+/g, " ").trim();
 }
 
 export function renderHumanBlockerPacketText(packet: HumanBlockerPacket) {
@@ -41,6 +48,9 @@ export function renderHumanBlockerPacketText(packet: HumanBlockerPacket) {
       : "- None recorded.";
 
   return [
+    ...(packet.blockerId
+      ? [renderHumanBlockerCorrelationSection(packet.blockerId), ""]
+      : []),
     `Summary`,
     packet.summary,
     "",
@@ -83,6 +93,9 @@ export function renderHumanBlockerPacketSlack(packet: HumanBlockerPacket) {
       : "- None recorded.";
 
   return [
+    ...(packet.blockerId
+      ? [`*Correlation:* ${buildHumanBlockerSubjectTag(packet.blockerId)} · \`${packet.blockerId}\``, ""]
+      : []),
     `*Blocked:* ${packet.title}`,
     "",
     `*Summary:* ${packet.summary}`,
@@ -120,6 +133,13 @@ export function renderHumanBlockerPacketHtml(packet: HumanBlockerPacket) {
 
   return [
     `<div style="font-family:Arial,Helvetica,sans-serif;color:#111827;line-height:1.55;font-size:14px;">`,
+    ...(packet.blockerId
+      ? [
+          `<p style="margin:0 0 16px;"><strong>Correlation</strong><br />${paragraph(
+            `Blocker id: ${packet.blockerId}\nReply tag: ${buildHumanBlockerSubjectTag(packet.blockerId)}`,
+          )}</p>`,
+        ]
+      : []),
     `<p style="margin:0 0 16px;"><strong>Summary</strong><br />${paragraph(packet.summary)}</p>`,
     `<p style="margin:0 0 16px;"><strong>Recommended Answer</strong><br />${paragraph(packet.recommendedAnswer)}</p>`,
     `<p style="margin:0 0 16px;"><strong>What I Need From You</strong><br />${paragraph(packet.exactResponseNeeded)}</p>`,

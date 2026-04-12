@@ -10,6 +10,7 @@ import {
 } from "../utils/human-blocker-packet";
 
 const packet: HumanBlockerPacket = {
+  blockerId: "bpb-prod-live-smoke",
   title: "Production inbound write smoke returned 500 on tryblueprint.io",
   summary: "Production readiness is green, but the buyer inbound write path returned 500.",
   recommendedAnswer:
@@ -37,13 +38,15 @@ const packet: HumanBlockerPacket = {
 
 describe("human blocker packet renderers", () => {
   it("builds the standard email subject", () => {
-    expect(renderHumanBlockerPacketEmailSubject(packet.title)).toBe(
-      "[Blueprint Blocker] Production inbound write smoke returned 500 on tryblueprint.io",
+    expect(renderHumanBlockerPacketEmailSubject(packet.title, packet.blockerId)).toBe(
+      "[Blueprint Blocker] [Blueprint Blocker ID: bpb-prod-live-smoke] Production inbound write smoke returned 500 on tryblueprint.io",
     );
   });
 
   it("renders readable plain text", () => {
     const text = renderHumanBlockerPacketText(packet);
+    expect(text).toContain("Correlation");
+    expect(text).toContain("bpb-prod-live-smoke");
     expect(text).toContain("Summary");
     expect(text).toContain("What I Need From You");
     expect(text).toContain("- Owner: webapp-codex");
@@ -52,6 +55,7 @@ describe("human blocker packet renderers", () => {
 
   it("renders readable slack markdown", () => {
     const slack = renderHumanBlockerPacketSlack(packet);
+    expect(slack).toContain("*Correlation:*");
     expect(slack).toContain("*Blocked:* Production inbound write smoke returned 500 on tryblueprint.io");
     expect(slack).toContain("*What I need from you:*");
     expect(slack).toContain("- *Owner:* webapp-codex");
@@ -59,6 +63,7 @@ describe("human blocker packet renderers", () => {
 
   it("renders structured html", () => {
     const html = renderHumanBlockerPacketHtml(packet);
+    expect(html).toContain("<strong>Correlation</strong>");
     expect(html).toContain("<strong>Summary</strong>");
     expect(html).toContain("<strong>What I Need From You</strong>");
     expect(html).toContain("<ol");

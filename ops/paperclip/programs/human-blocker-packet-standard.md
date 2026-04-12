@@ -27,6 +27,7 @@ Do not create a blocker packet for routine work already inside documented guardr
 Hard rules:
 
 - one blocker per packet
+- one durable blocker id per packet
 - one recommended answer per packet
 - one exact ask per packet
 - one named execution owner after reply
@@ -38,6 +39,9 @@ Required field order:
 
 1. Blocker Title
 - one-line name for the blocked decision
+
+1a. Blocker Id
+- stable correlation id carried into email subject/body, Slack body, Firestore thread state, and the owning report or issue when available
 
 2. Why This Is Blocked
 - what is blocked
@@ -86,5 +90,6 @@ Email identity rule:
 Resume rule:
 
 - once the human replies, record the answer in the owning issue/report/run artifact
+- write the blocker id into the packet so the reply watcher can correlate the answer back to the right blocker thread
 - continue immediately with the named next action
 - do not reopen the same blocker unless the answer is still ambiguous against the current evidence

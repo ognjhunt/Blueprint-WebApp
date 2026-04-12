@@ -17,6 +17,7 @@ import {
   writeCityLaunchActivation,
   type CityLaunchActivationStatus,
 } from "./cityLaunchLedgers";
+import { materializeCityLaunchResearch } from "./cityLaunchResearchMaterializer";
 import {
   buildCityLaunchBudgetPolicy,
   buildCityLaunchWideningGuard,
@@ -112,6 +113,8 @@ export type CityLaunchExecutionResult = {
     targetLedgerPath: string;
     targetLedgerJsonPath: string;
     approvalsPath: string;
+    researchMaterializationPath?: string;
+    researchMaterializationMarkdownPath?: string;
     canonicalSystemDocPath: string;
     canonicalIssueBundlePath: string;
     canonicalTargetLedgerPath: string;
@@ -130,6 +133,15 @@ export type CityLaunchExecutionResult = {
     createdRootIssue: boolean;
     dispatched: CityLaunchTaskDispatch[];
     error?: string | null;
+  };
+  researchMaterialization?: {
+    status: "materialized" | "missing_artifact" | "empty" | "failed";
+    sourceArtifactPath: string | null;
+    prospectsUpserted: number;
+    buyerTargetsUpserted: number;
+    touchesRecorded: number;
+    budgetRecommendationsRecorded: number;
+    warnings: string[];
   };
 };
 
@@ -913,6 +925,10 @@ export async function runCityLaunchExecutionHarness(input: {
   const targetLedgerPath = path.join(runDirectory, `city-capture-target-ledger-${profile.key}.md`);
   const targetLedgerJsonPath = path.join(runDirectory, `city-capture-target-ledger-${profile.key}.json`);
   const approvalsPath = path.join(runDirectory, "founder-approvals.md");
+  const researchMaterializationPath = path.join(
+    runDirectory,
+    `city-launch-research-materialization-${profile.key}.json`,
+  );
   const manifestPath = path.join(runDirectory, "manifest.json");
   const canonicalSystemDocPath = buildCanonicalSystemDocPath(profile);
   const canonicalIssueBundlePath = buildCanonicalIssueBundlePath(profile);
@@ -974,6 +990,8 @@ export async function runCityLaunchExecutionHarness(input: {
       targetLedgerPath,
       targetLedgerJsonPath,
       approvalsPath,
+      researchMaterializationPath,
+      researchMaterializationMarkdownPath: researchMaterializationPath.replace(/\.json$/i, ".md"),
       canonicalSystemDocPath,
       canonicalIssueBundlePath,
       canonicalTargetLedgerPath,
@@ -1036,6 +1054,22 @@ export async function runCityLaunchExecutionHarness(input: {
     ),
     wideningGuard,
   }).catch(() => null);
+
+  const researchMaterialization = await materializeCityLaunchResearch({
+    city: profile.city,
+    launchId: result.paperclip?.rootIssueId || null,
+    budgetPolicy,
+    outputPath: researchMaterializationPath,
+  });
+  result.researchMaterialization = {
+    status: researchMaterialization.status,
+    sourceArtifactPath: researchMaterialization.sourceArtifactPath,
+    prospectsUpserted: researchMaterialization.prospectsUpserted,
+    buyerTargetsUpserted: researchMaterialization.buyerTargetsUpserted,
+    touchesRecorded: researchMaterialization.touchesRecorded,
+    budgetRecommendationsRecorded: researchMaterialization.budgetRecommendationsRecorded,
+    warnings: researchMaterialization.warnings,
+  };
 
   await writeTextArtifact(manifestPath, JSON.stringify(result, null, 2));
   return result;

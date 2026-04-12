@@ -103,6 +103,13 @@ Live write policy:
 - Prefer a preview/sandbox target over production whenever possible.
 - If production write smoke is truly required, define a cleanup owner and use a clearly tagged smoke identity.
 
+Human reply path:
+
+- For true human-gated launch blockers, pair the blocker packet with the reply-handling contract in [human-reply-handling-contract.md](/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/human-reply-handling-contract.md).
+- The approved durable email identity is `ohstnhunt@gmail.com`.
+- Do not treat a Gmail or Slack connector bound to `hlfabhunt@gmail.com` as a valid org-facing reply watcher.
+- Slack Events API request URL for this repo should be `https://tryblueprint.io/api/slack/events` after the route is deployed.
+
 ## 5. Product Flow Gate
 
 These are the minimum truthful product flows for alpha:

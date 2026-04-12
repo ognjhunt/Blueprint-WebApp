@@ -27,6 +27,10 @@ import {
   runCityLaunchExecutionHarness,
 } from "../utils/cityLaunchExecutionHarness";
 import {
+  listCityLaunchBudgetEvents,
+  listCityLaunchBuyerTargets,
+  listCityLaunchProspects,
+  listCityLaunchTouches,
   readCityLaunchActivation,
   recordCityLaunchBudgetEvent,
   recordCityLaunchTouch,
@@ -487,6 +491,14 @@ router.post("/city-launch/ledgers/prospects", requireOps, async (req, res) => {
       notes: normalizeString(req.body?.notes) || null,
       firstContactedAt: normalizeString(req.body?.firstContactedAt) || null,
       lastContactedAt: normalizeString(req.body?.lastContactedAt) || null,
+      siteAddress: normalizeString(req.body?.siteAddress) || null,
+      locationSummary: normalizeString(req.body?.locationSummary) || null,
+      lat: normalizeNumber(req.body?.lat),
+      lng: normalizeNumber(req.body?.lng),
+      siteCategory: normalizeString(req.body?.siteCategory) || null,
+      workflowFit: normalizeString(req.body?.workflowFit) || null,
+      priorityNote: normalizeString(req.body?.priorityNote) || null,
+      researchProvenance: null,
     });
     return res.status(201).json({ ok: true, prospect });
   } catch (error) {
@@ -525,6 +537,9 @@ router.post("/city-launch/ledgers/buyer-targets", requireOps, async (req, res) =
       workflowFit: normalizeString(req.body?.workflowFit) || null,
       proofPath: normalizeString(req.body?.proofPath) || null,
       ownerAgent: normalizeString(req.body?.ownerAgent) || null,
+      notes: normalizeString(req.body?.notes) || null,
+      sourceBucket: normalizeString(req.body?.sourceBucket) || null,
+      researchProvenance: null,
     });
     return res.status(201).json({ ok: true, buyerTarget });
   } catch (error) {
@@ -561,6 +576,8 @@ router.post("/city-launch/ledgers/touches", requireOps, async (req, res) => {
       status: status as "draft" | "queued" | "sent" | "delivered" | "replied" | "failed",
       campaignId: normalizeString(req.body?.campaignId) || null,
       issueId: normalizeString(req.body?.issueId) || null,
+      notes: normalizeString(req.body?.notes) || null,
+      researchProvenance: null,
     });
     return res.status(201).json({ ok: true, touch });
   } catch (error) {
@@ -595,6 +612,8 @@ router.post("/city-launch/ledgers/budget-events", requireOps, async (req, res) =
       note: normalizeString(req.body?.note) || null,
       approvedByRole: normalizeString(req.body?.approvedByRole) || null,
       withinPolicy: req.body?.withinPolicy !== false,
+      eventType: req.body?.eventType === "recommended" ? "recommended" : "actual",
+      researchProvenance: null,
     });
     return res.status(201).json({ ok: true, budgetEvent });
   } catch (error) {
@@ -614,6 +633,23 @@ router.get("/city-launch/ledgers", requireOps, async (req, res) => {
   } catch (error) {
     logger.error({ err: error }, "Failed to summarize city launch ledgers");
     return res.status(500).json({ error: "Failed to summarize city launch ledgers" });
+  }
+});
+
+router.get("/city-launch/records", requireOps, async (req, res) => {
+  try {
+    const city = normalizeString(req.query.city) || "Austin, TX";
+    return res.json({
+      ok: true,
+      activation: await readCityLaunchActivation(city),
+      prospects: await listCityLaunchProspects(city),
+      buyerTargets: await listCityLaunchBuyerTargets(city),
+      touches: await listCityLaunchTouches(city),
+      budgetEvents: await listCityLaunchBudgetEvents(city),
+    });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to list city launch records");
+    return res.status(500).json({ error: "Failed to list city launch records" });
   }
 });
 

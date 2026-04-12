@@ -66,6 +66,14 @@ It also writes the latest canonical deep-research playbook to:
 
 This deep-research playbook is the expansive research source. The existing city launch and city demand playbooks remain the compact operator-facing summary artifacts until those lanes intentionally adopt a wider format.
 
+The final synthesized playbook must also include a machine-readable structured appendix at the end of the document. The current harness prompt requires a fenced `city-launch-records` JSON block so downstream parser/materializer code can extract:
+
+- researched capture-location candidates
+- buyer target candidates
+- first-touch candidates
+- optional budget recommendations
+- provenance fields that preserve explicit vs inferred data
+
 When `NOTION_API_TOKEN` or `NOTION_API_KEY` is configured, the harness also mirrors:
 
 - the final playbook into the Blueprint Knowledge database in Notion

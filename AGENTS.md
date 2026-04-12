@@ -51,9 +51,11 @@ Before making changes, read:
 ## Human Gates
 
 - When a blocker is truly human-gated, use the standard packet in `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/human-blocker-packet-standard.md`.
+- Follow `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/human-reply-handling-contract.md` for watcher ownership, correlation, and resume handoff after the human replies.
 - Default fast path: Slack DM to `Nijel Hunt`.
 - Default durable path: email to `ohstnhunt@gmail.com`.
 - Disallowed org identity: `hlfabhunt@gmail.com` must never be used for org-facing drafts, sends, or escalation routing.
+- Every blocker packet should carry a durable blocker id so reply correlation can survive email threads, Slack threads, and report handoffs.
 - Resume execution immediately after the human reply is recorded in the owning issue, report, or run artifact.
 
 ## CI Issues
