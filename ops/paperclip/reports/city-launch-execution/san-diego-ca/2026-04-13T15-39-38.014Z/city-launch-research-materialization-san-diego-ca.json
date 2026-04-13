@@ -1,0 +1,14 @@
+{
+  "status": "failed",
+  "city": "San Diego, CA",
+  "citySlug": "san-diego-ca",
+  "sourceArtifactPath": "ops/paperclip/playbooks/city-launch-san-diego-ca-deep-research.md",
+  "parsed": null,
+  "prospectsUpserted": 0,
+  "buyerTargetsUpserted": 0,
+  "touchesRecorded": 0,
+  "budgetRecommendationsRecorded": 0,
+  "warnings": [
+    "Value for argument \"data\" is not a valid Firestore document. Cannot use \"undefined\" as a Firestore value (found in field \"created_at\"). If you want to ignore undefined values, enable `ignoreUndefinedProperties`."
+  ]
+}

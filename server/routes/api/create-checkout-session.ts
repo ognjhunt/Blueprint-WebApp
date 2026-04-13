@@ -18,6 +18,7 @@ import {
   createBuyerOrderDraft,
   markBuyerOrderCheckoutFailure,
 } from "../../utils/accounting";
+import { stripeAvailable } from "../../constants/stripe";
 
 type PaymentSessionType = "onboarding" | "legacy-hourly" | "marketplace";
 

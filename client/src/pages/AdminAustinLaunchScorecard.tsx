@@ -34,6 +34,27 @@ type CityLaunchScorecardResponse = {
     wideningAllowed: boolean;
     wideningReasons: string[];
     rootIssueId: string | null;
+    cityThesis: string | null;
+    primarySiteLane: string | null;
+    primaryWorkflowLane: string | null;
+    primaryBuyerProofPath: string | null;
+    lawfulAccessModes: string[];
+    validationBlockers: Array<{
+      key: string;
+      summary: string;
+      severity: string;
+      validationRequired: boolean;
+      ownerLane: string | null;
+    }>;
+    metricsDependencies: Array<{
+      key: string;
+      kind: string;
+      status: "required_not_tracked" | "tracked_not_verified" | "verified";
+      actualCount: number;
+      ownerLane: string | null;
+      notes: string | null;
+    }>;
+    sourceActivationPayloadPath: string | null;
   };
   warnings: string[];
   dataSources: string[];
@@ -358,6 +379,69 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
+              <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  Activation Payload
+                </p>
+                <div className="mt-4 space-y-3 text-sm text-zinc-700">
+                  <div>
+                    <span className="font-medium text-zinc-900">City thesis:</span>{" "}
+                    {scorecard.activation.cityThesis || "Missing"}
+                  </div>
+                  <div>
+                    <span className="font-medium text-zinc-900">Primary site lane:</span>{" "}
+                    {scorecard.activation.primarySiteLane || "Missing"}
+                  </div>
+                  <div>
+                    <span className="font-medium text-zinc-900">Primary workflow lane:</span>{" "}
+                    {scorecard.activation.primaryWorkflowLane || "Missing"}
+                  </div>
+                  <div>
+                    <span className="font-medium text-zinc-900">Primary proof path:</span>{" "}
+                    {scorecard.activation.primaryBuyerProofPath || "Missing"}
+                  </div>
+                  <div>
+                    <span className="font-medium text-zinc-900">Lawful access modes:</span>{" "}
+                    {scorecard.activation.lawfulAccessModes.length > 0
+                      ? scorecard.activation.lawfulAccessModes.join(", ")
+                      : "Missing"}
+                  </div>
+                  <div>
+                    <span className="font-medium text-zinc-900">Activation payload source:</span>{" "}
+                    {scorecard.activation.sourceActivationPayloadPath || "Unavailable"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  Validation Blockers
+                </p>
+                <div className="mt-4 space-y-3">
+                  {scorecard.activation.validationBlockers.length > 0 ? (
+                    scorecard.activation.validationBlockers.map((blocker) => (
+                      <div
+                        key={blocker.key}
+                        className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+                      >
+                        <div className="font-medium">
+                          {blocker.severity.toUpperCase()} · {blocker.summary}
+                        </div>
+                        <div className="mt-1 text-xs opacity-80">
+                          owner: {blocker.ownerLane || "none"} · validation required: {blocker.validationRequired ? "yes" : "no"}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+                      No activation-payload validation blockers recorded.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
               <section className="space-y-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
@@ -389,6 +473,34 @@ export default function AdminAustinLaunchScorecard({ params }: Props) {
                   ))}
                 </div>
               </section>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                Metrics Readiness
+              </p>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {scorecard.activation.metricsDependencies.map((dependency) => (
+                  <div
+                    key={dependency.key}
+                    className={`rounded-xl border px-4 py-3 text-sm ${
+                      dependency.status === "verified"
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                        : dependency.status === "tracked_not_verified"
+                          ? "border-amber-200 bg-amber-50 text-amber-900"
+                          : "border-rose-200 bg-rose-50 text-rose-900"
+                    }`}
+                  >
+                    <div className="font-medium">{dependency.key}</div>
+                    <div className="mt-1 text-xs opacity-80">
+                      status: {dependency.status} · count: {dependency.actualCount} · owner: {dependency.ownerLane || "none"}
+                    </div>
+                    {dependency.notes ? (
+                      <div className="mt-2 text-xs opacity-80">{dependency.notes}</div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="rounded-2xl border border-zinc-200 bg-white p-6">

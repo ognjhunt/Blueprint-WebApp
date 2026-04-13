@@ -8,6 +8,9 @@ import {
   readCityLaunchActivation,
   summarizeCityLaunchLedgers,
 } from "./cityLaunchLedgers";
+import { resolveCityLaunchPlanningState } from "./cityLaunchPlanningState";
+import { loadAndParseCityLaunchResearchArtifact } from "./cityLaunchResearchParser";
+import type { CityLaunchMetricDependencyStatus } from "./cityLaunchDoctrine";
 
 type TrackedMetric = {
   key: string;
@@ -40,6 +43,27 @@ export type CityLaunchScorecard = {
     wideningAllowed: boolean;
     wideningReasons: string[];
     rootIssueId: string | null;
+    cityThesis: string | null;
+    primarySiteLane: string | null;
+    primaryWorkflowLane: string | null;
+    primaryBuyerProofPath: string | null;
+    lawfulAccessModes: string[];
+    validationBlockers: Array<{
+      key: string;
+      summary: string;
+      severity: string;
+      validationRequired: boolean;
+      ownerLane: string | null;
+    }>;
+    metricsDependencies: Array<{
+      key: string;
+      kind: string;
+      status: CityLaunchMetricDependencyStatus;
+      actualCount: number;
+      ownerLane: string | null;
+      notes: string | null;
+    }>;
+    sourceActivationPayloadPath: string | null;
   };
   warnings: string[];
   dataSources: string[];
@@ -72,6 +96,8 @@ function buildMetric(input: {
   if (tracked) {
     if (input.actual === null) {
       status = "blocked";
+    } else if (input.targetMax !== null && input.actual > input.targetMax) {
+      status = input.targetMax === 0 ? "blocked" : "at_risk";
     } else if (input.actual >= input.targetMin) {
       status = "on_track";
     } else if (input.actual > 0) {
@@ -95,9 +121,12 @@ function buildMetric(input: {
 
 function textMatchesCity(citySlug: string, value: string | null | undefined) {
   const normalized = normalizeToken(value);
-  return citySlug.includes("san-francisco")
-    ? normalized.includes("san francisco") || normalized.includes("bay area") || normalized.includes("sf")
-    : normalized.includes("austin");
+  const cityLabel = normalizeToken(citySlug.replace(/-/g, " "));
+  const shortLabel = cityLabel.replace(/\s+[a-z]{2}$/, "");
+  return normalized.includes(cityLabel)
+    || normalized.includes(shortLabel)
+    || (citySlug.includes("san-francisco")
+      && (normalized.includes("bay area") || normalized.includes("sf")));
 }
 
 function extractProofPathTimestamp(
@@ -138,6 +167,76 @@ async function decryptInboundRequests() {
   return records.filter((record): record is DecryptedInbound => Boolean(record));
 }
 
+async function loadCompletedResearch(city: string) {
+  const planningState = await resolveCityLaunchPlanningState({ city });
+  if (!planningState.completedArtifactPath) {
+    return null;
+  }
+  try {
+    return await loadAndParseCityLaunchResearchArtifact({
+      city,
+      artifactPath: planningState.completedArtifactPath,
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function loadGrowthEvents() {
+  if (!db) {
+    return [] as Array<Record<string, unknown>>;
+  }
+
+  const snapshot = await db
+    .collection("growth_events")
+    .orderBy("created_at", "desc")
+    .limit(4000)
+    .get();
+
+  return snapshot.docs.map((doc) => doc.data() as Record<string, unknown>);
+}
+
+function eventMatchesCity(profileCitySlug: string, event: Record<string, unknown>) {
+  const properties =
+    event.properties && typeof event.properties === "object"
+      ? (event.properties as Record<string, unknown>)
+      : {};
+  const attribution =
+    event.attribution && typeof event.attribution === "object"
+      ? (event.attribution as Record<string, unknown>)
+      : {};
+  const cityValue =
+    typeof properties.city === "string"
+      ? properties.city
+      : typeof attribution.demandCity === "string"
+        ? attribution.demandCity
+        : null;
+  return textMatchesCity(profileCitySlug, cityValue);
+}
+
+function countEvent(
+  events: Array<Record<string, unknown>>,
+  citySlug: string,
+  eventName: string,
+) {
+  return events.filter((event) => {
+    const name = typeof event.event === "string" ? event.event : "";
+    return name === eventName && eventMatchesCity(citySlug, event);
+  }).length;
+}
+
+function buildMetricDependencyStatus(input: {
+  dependency: {
+    status: CityLaunchMetricDependencyStatus;
+  };
+  actualCount: number;
+}) {
+  if (input.actualCount > 0) {
+    return "verified" satisfies CityLaunchMetricDependencyStatus;
+  }
+  return input.dependency.status;
+}
+
 function requestMatchesCity(citySlug: string, request: DecryptedInbound) {
   const demandCity = normalizeDemandCity(request.context?.demandCity || null);
   if (
@@ -157,12 +256,14 @@ export async function collectCityLaunchScorecard(city: string): Promise<CityLaun
   const profile = resolveCityLaunchProfile(city);
   const citySlug = slugifyCityName(profile.city);
 
-  const [waitlistSnapshot, usersSnapshot, inboundRequests, ledgerSummary, activation] = await Promise.all([
+  const [waitlistSnapshot, usersSnapshot, inboundRequests, ledgerSummary, activation, research, growthEvents] = await Promise.all([
     db.collection("waitlistSubmissions").limit(1500).get(),
     db.collection("users").limit(2000).get(),
     decryptInboundRequests(),
     summarizeCityLaunchLedgers(profile.city),
     readCityLaunchActivation(profile.city),
+    loadCompletedResearch(profile.city),
+    loadGrowthEvents(),
   ]);
 
   const supplySignalEmails = new Set<string>();
@@ -222,6 +323,7 @@ export async function collectCityLaunchScorecard(city: string): Promise<CityLaun
     (request) => request.request?.buyerType === "robot_team" && requestMatchesCity(citySlug, request),
   );
   const citySiteRequests = inboundRequests.filter((request) => requestMatchesCity(citySlug, request));
+  const activationPayload = research?.activationPayload || null;
 
   const qualifiedConversations = cityRobotTeamRequests.filter((request) =>
     ["qualified_ready", "qualified_risky"].includes(request.qualification_state || ""),
@@ -258,15 +360,89 @@ export async function collectCityLaunchScorecard(city: string): Promise<CityLaun
     return Boolean(extractProofPathTimestamp(proofPath, "human_commercial_handoff_at"));
   }).length;
 
+  const eventCounts = {
+    robot_team_inbound_captured: countEvent(growthEvents, citySlug, "robot_team_inbound_captured"),
+    exact_site_request_created: countEvent(growthEvents, citySlug, "exact_site_request_created"),
+    proof_path_assigned: countEvent(growthEvents, citySlug, "proof_path_assigned"),
+    proof_pack_delivered: countEvent(growthEvents, citySlug, "proof_pack_delivered"),
+    hosted_review_ready: countEvent(growthEvents, citySlug, "hosted_review_ready"),
+    hosted_review_started: countEvent(growthEvents, citySlug, "hosted_review_started"),
+    hosted_review_follow_up_sent: countEvent(growthEvents, citySlug, "hosted_review_follow_up_sent"),
+    human_commercial_handoff_started: countEvent(growthEvents, citySlug, "human_commercial_handoff_started"),
+    proof_motion_stalled: countEvent(growthEvents, citySlug, "proof_motion_stalled"),
+    deeper_review_requested: countEvent(growthEvents, citySlug, "deeper_review_requested"),
+  };
+
+  const metricDependencies = (activationPayload?.metricsDependencies || []).map((dependency) => {
+    const actualCount =
+      dependency.kind === "event"
+        ? countEvent(growthEvents, citySlug, dependency.key)
+        : dependency.key === "first_lawful_access_path"
+          ? citySiteRequests.some((request) =>
+              Boolean(request.request?.siteName || request.request?.siteLocation),
+            )
+            ? 1
+            : 0
+          : dependency.key === "first_approved_capturer"
+            ? approvedCapturers > 0
+              ? 1
+              : 0
+            : dependency.key === "first_completed_capture"
+              ? firstCapturesCompleted > 0
+                ? 1
+                : 0
+              : dependency.key === "first_qa_passed_capture"
+                ? qaPassedCaptures > 0
+                  ? 1
+                  : 0
+                : dependency.key === "first_rights_cleared_proof_asset"
+                  ? proofReadyListings > 0
+                    ? 1
+                    : 0
+                  : dependency.key === "first_proof_pack_delivery"
+                    ? proofPacksDelivered > 0
+                      ? 1
+                      : 0
+                    : dependency.key === "first_hosted_review"
+                      ? hostedReviewsStarted > 0
+                        ? 1
+                        : 0
+                      : dependency.key === "first_human_commercial_handoff"
+                        ? commercialHandoffs > 0
+                          ? 1
+                          : 0
+                        : 0;
+
+    return {
+      key: dependency.key,
+      kind: dependency.kind,
+      status: buildMetricDependencyStatus({ dependency, actualCount }),
+      actualCount,
+      ownerLane: dependency.ownerLane,
+      notes: dependency.notes,
+    };
+  });
+
+  const unresolvedMetricReasons = metricDependencies
+    .filter((dependency) => dependency.status !== "verified")
+    .map((dependency) => `${dependency.key} is ${dependency.status}.`);
+
   const wideningGuard = buildCityLaunchWideningGuard({
     proofReadyListings,
     hostedReviewsStarted,
     approvedCapturers,
     onboardedCapturers: ledgerSummary.onboardedCapturers,
+    metricsReady: unresolvedMetricReasons.length === 0,
+    metricBlockers: unresolvedMetricReasons,
   });
 
   const warnings = [
     `${profile.shortLabel} proof-ready listing count is derived from city-matching inbound requests with proof-pack or hosted-review readiness, because published marketplace inventory does not yet carry an explicit city field.`,
+    ...(activationPayload
+      ? activationPayload.validationBlockers
+          .filter((blocker) => blocker.validationRequired)
+          .map((blocker) => `Validation required: ${blocker.summary}`)
+      : ["No activation payload is available yet for this city."]),
     ...wideningGuard.reasons,
   ];
 
@@ -289,7 +465,7 @@ export async function collectCityLaunchScorecard(city: string): Promise<CityLaun
         key: "raw_supply_signups",
         label: `${profile.shortLabel} source-tagged signups or applications`,
         actual: supplySignalEmails.size,
-        targetMin: 100,
+        targetMin: 1,
         targetMax: null,
         note: "Deduped across waitlist submissions and capturer user records by email.",
       }),
@@ -297,83 +473,84 @@ export async function collectCityLaunchScorecard(city: string): Promise<CityLaun
         key: "approved_capturers",
         label: `Approved ${profile.shortLabel} capturers`,
         actual: approvedCapturers,
-        targetMin: 10,
-        targetMax: 20,
+        targetMin: 1,
+        targetMax: null,
       }),
       buildMetric({
         key: "first_captures_completed",
         label: `${profile.shortLabel} first captures completed`,
         actual: firstCapturesCompleted,
-        targetMin: 5,
-        targetMax: 10,
+        targetMin: 1,
+        targetMax: null,
       }),
       buildMetric({
         key: "qa_passed_captures",
         label: `${profile.shortLabel} QA-passed captures`,
         actual: qaPassedCaptures,
-        targetMin: 3,
-        targetMax: 5,
+        targetMin: 1,
+        targetMax: null,
       }),
       buildMetric({
         key: "proof_ready_listings",
         label: `${profile.shortLabel} proof-ready listings or proof packs`,
         actual: proofReadyListings,
         targetMin: 1,
-        targetMax: 2,
+        targetMax: null,
       }),
     ],
     demand: [
       buildMetric({
-        key: "named_targets_researched",
-        label: `Named ${profile.shortLabel} robot-company targets researched`,
-        actual: ledgerSummary.trackedBuyerTargetsResearched,
-        targetMin: 20,
-        targetMax: 40,
-        note: "Tracked from the canonical city launch buyer-target ledger.",
+        key: "robot_team_inbound_captured",
+        label: `${profile.shortLabel} robot-team inbound captured`,
+        actual: eventCounts.robot_team_inbound_captured,
+        targetMin: 1,
+        targetMax: null,
+        note: "Tracked from growth_events.",
       }),
       buildMetric({
-        key: "tailored_first_touches",
-        label: `Tailored ${profile.shortLabel} first touches sent`,
-        actual: ledgerSummary.trackedFirstTouchesSent,
-        targetMin: 10,
-        targetMax: 20,
-        note: "Tracked from the canonical city launch touch ledger.",
-      }),
-      buildMetric({
-        key: "live_buyer_conversations",
-        label: `${profile.shortLabel} live buyer conversations`,
-        actual: qualifiedConversations,
-        targetMin: 5,
-        targetMax: 8,
-        note: `Computed from ${profile.shortLabel} robot-team requests in qualified states.`,
+        key: "proof_path_assigned",
+        label: `${profile.shortLabel} proof paths assigned`,
+        actual: eventCounts.proof_path_assigned,
+        targetMin: 1,
+        targetMax: null,
+        note: "Tracked from growth_events plus proof-path routing.",
       }),
       buildMetric({
         key: "proof_packs_delivered",
         label: `${profile.shortLabel} proof packs delivered`,
-        actual: proofPacksDelivered,
+        actual: Math.max(proofPacksDelivered, eventCounts.proof_pack_delivered),
         targetMin: 1,
-        targetMax: 2,
+        targetMax: null,
+        note: "Combines proof-path milestone state with growth_events.",
       }),
       buildMetric({
         key: "hosted_reviews_started",
         label: `${profile.shortLabel} hosted proof reviews started`,
-        actual: hostedReviewsStarted,
-        targetMin: 2,
-        targetMax: 3,
+        actual: Math.max(hostedReviewsStarted, eventCounts.hosted_review_started),
+        targetMin: 1,
+        targetMax: null,
       }),
       buildMetric({
         key: "hosted_follow_ups_sent",
         label: `${profile.shortLabel} hosted-review follow-ups sent`,
-        actual: hostedFollowUps,
-        targetMin: 2,
-        targetMax: 3,
+        actual: Math.max(hostedFollowUps, eventCounts.hosted_review_follow_up_sent),
+        targetMin: 1,
+        targetMax: null,
       }),
       buildMetric({
         key: "human_commercial_handoffs",
         label: `${profile.shortLabel} standard-commercial handoffs`,
-        actual: commercialHandoffs,
+        actual: Math.max(commercialHandoffs, eventCounts.human_commercial_handoff_started),
         targetMin: 1,
-        targetMax: 3,
+        targetMax: null,
+      }),
+      buildMetric({
+        key: "proof_motion_stalls",
+        label: `${profile.shortLabel} proof-motion stalls logged`,
+        actual: eventCounts.proof_motion_stalled,
+        targetMin: 0,
+        targetMax: 0,
+        note: "Zero is best. Higher counts indicate blocked proof motion.",
       }),
     ],
     budget: {
@@ -388,9 +565,25 @@ export async function collectCityLaunchScorecard(city: string): Promise<CityLaun
       wideningAllowed: wideningGuard.wideningAllowed,
       wideningReasons: wideningGuard.reasons,
       rootIssueId: activation?.rootIssueId || null,
+      cityThesis: activationPayload?.cityThesis || null,
+      primarySiteLane: activationPayload?.primarySiteLane || null,
+      primaryWorkflowLane: activationPayload?.primaryWorkflowLane || null,
+      primaryBuyerProofPath: activationPayload?.primaryBuyerProofPath || null,
+      lawfulAccessModes: activationPayload?.lawfulAccessModes || [],
+      validationBlockers:
+        activationPayload?.validationBlockers.map((blocker) => ({
+          key: blocker.key,
+          summary: blocker.summary,
+          severity: blocker.severity,
+          validationRequired: blocker.validationRequired,
+          ownerLane: blocker.ownerLane,
+        })) || [],
+      metricsDependencies: metricDependencies,
+      sourceActivationPayloadPath: research?.artifactPath || null,
     },
     warnings,
     dataSources: [
+      "growth_events",
       "waitlistSubmissions",
       "users",
       "inboundRequests",

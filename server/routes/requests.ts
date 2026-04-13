@@ -2,11 +2,13 @@ import { Request, Response, Router } from "express";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { decryptInboundRequestForAdmin } from "../utils/field-encryption";
 import type { InboundRequest, InboundRequestStored } from "../types/inbound-request";
+import admin from "../../client/src/lib/firebaseAdmin";
 import {
   getRequestReviewCookieName,
   verifyRequestReviewToken,
 } from "../utils/request-review-auth";
 import { parseCookies } from "../utils/hosted-session-ui-auth";
+import { logGrowthEvent } from "../utils/growth-events";
 
 const router = Router();
 
@@ -86,6 +88,43 @@ router.get("/:requestId", async (req: Request, res: Response) => {
     const decrypted = (await decryptInboundRequestForAdmin(
       doc.data() as InboundRequestStored
     )) as unknown as InboundRequest;
+
+    if (
+      decrypted.request?.buyerType === "robot_team"
+      && !normalizeTimestamp(decrypted.ops?.proof_path?.hosted_review_started_at)
+    ) {
+      await db.collection("inboundRequests").doc(req.params.requestId).update({
+        "ops.proof_path.hosted_review_started_at":
+          admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      await logGrowthEvent({
+        event: "hosted_review_started",
+        source: "server:request_console",
+        properties: {
+          request_id: req.params.requestId,
+          city: decrypted.context?.demandCity || null,
+          buyer_segment: decrypted.contact?.roleTitle || null,
+          hosted_mode: "buyer_review_console",
+        },
+        attribution: {
+          demandCity: decrypted.context?.demandCity || null,
+          buyerChannelSource: decrypted.context?.buyerChannelSource || null,
+          buyerChannelSourceCaptureMode:
+            decrypted.context?.buyerChannelSourceCaptureMode || null,
+          utm: decrypted.context?.utm || {},
+        },
+        user: {
+          email: decrypted.contact?.email || null,
+        },
+      }).catch(() => null);
+
+      if (decrypted.ops?.proof_path && typeof decrypted.ops.proof_path === "object") {
+        decrypted.ops.proof_path.hosted_review_started_at =
+          new Date().toISOString() as never;
+      }
+    }
 
     return res.json({
       requestId: decrypted.requestId,

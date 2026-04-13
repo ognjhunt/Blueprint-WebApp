@@ -9,6 +9,7 @@ type PaperclipProject = {
   id: string;
   name: string;
   slug?: string | null;
+  urlKey?: string | null;
 };
 
 type PaperclipAgent = {
@@ -127,7 +128,8 @@ export async function resolvePaperclipProjectId(projectName: string) {
     },
   );
   const match = projects.find((entry) => {
-    const names = [entry.name, entry.slug || ""].map((value) => value.trim().toLowerCase());
+    const names = [entry.name, entry.slug || "", entry.urlKey || ""]
+      .map((value) => value.trim().toLowerCase());
     return names.includes(cacheKey);
   });
   if (!match) {

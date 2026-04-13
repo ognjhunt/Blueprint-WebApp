@@ -27,6 +27,7 @@ The current authoritative sources are:
 - `client/src/pages/ExactSiteHostedReview.tsx` for exact-site review view events
 - `client/src/pages/AdminLeads.tsx` for proof-path milestone updates from ops and review-link actions
 - `server/routes/admin-leads.ts` for reporting over growth events and queue state
+- `docs/proof-motion-tags.md` for the canonical buyer-target, proof-pack, and hosted-review tag vocabulary
 
 ## Existing Coverage
 
@@ -204,3 +205,8 @@ This requirement is met when:
 - reporting views are defined in terms of existing repo data sources
 - no new primary service is introduced
 - the distinction between event capture and proof-path milestone truth remains explicit
+
+## Autonomy Gate
+
+City-launch automation should not be treated as governance-ready until the required proof-motion events above are tracked end to end or explicitly marked blocked in the activation payload.
+If these events are missing, the city may still plan, but widening and autonomous launch-health claims should stay blocked.

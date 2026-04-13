@@ -1571,6 +1571,33 @@ router.patch(
             },
           }).catch(() => null);
         }
+
+        if (
+          ["needs_more_evidence", "needs_refresh", "not_ready_yet"].includes(
+            qualification_state,
+          )
+        ) {
+          await logGrowthEvent({
+            event: "proof_motion_stalled",
+            source: "server:admin_leads_status",
+            properties: {
+              request_id: requestId,
+              city: previousData.context?.demandCity || null,
+              blocker_reason: qualification_state,
+              blocker_detail:
+                previousData.request.knownBlockers
+                || previousData.request.humanGateTopics
+                || previousData.request.operatingConstraints
+                || null,
+              buyer_segment: previousData.contact?.roleTitle || null,
+            },
+            attribution: buildDemandAttributionForEvent(previousData),
+            user: {
+              uid: user.uid || null,
+              email: user.email || null,
+            },
+          }).catch(() => null);
+        }
       }
 
       if (previousData.status !== qualification_state) {

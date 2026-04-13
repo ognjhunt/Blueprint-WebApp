@@ -1,0 +1,421 @@
+{
+  "city": "Austin, TX",
+  "city_slug": "austin-tx",
+  "generated_at": "2026-04-13T16:57:19.000Z",
+  "mode": "curated_city_profile",
+  "workflow_priorities": [
+    {
+      "key": "warehouse_fulfillment",
+      "label": "Warehouse / fulfillment / 3PL",
+      "whyNow": "Still the clearest real robot workflow lane for exact-site hosted review, brownfield automation, and case-handling proof.",
+      "priority": "tier_1"
+    },
+    {
+      "key": "advanced_manufacturing_intralogistics",
+      "label": "Advanced manufacturing / intralogistics",
+      "whyNow": "Austin has strong advanced manufacturing density, and 2026 robot demand remains grounded in repetitive movement, handling, and plant-floor workflows.",
+      "priority": "tier_1"
+    },
+    {
+      "key": "industrial_inspection",
+      "label": "Industrial inspection",
+      "whyNow": "Inspection robots remain active in industrial environments and can map cleanly to exact-site review and recency-sensitive site assets.",
+      "priority": "tier_2"
+    },
+    {
+      "key": "semiconductor_support",
+      "label": "Semiconductor and clean manufacturing support environments",
+      "whyNow": "Central Texas semiconductor growth creates high-value, constrained, site-specific environments, though access friction is higher.",
+      "priority": "tier_2"
+    },
+    {
+      "key": "cargo_logistics",
+      "label": "Cargo / airport-adjacent logistics",
+      "whyNow": "Important for warehouse and logistics buyers, but usually secondary to larger inland warehouse and manufacturing facilities.",
+      "priority": "tier_3"
+    }
+  ],
+  "priority_proof_targets": [
+    {
+      "rank": 1,
+      "name": "Tesla Gigafactory Texas",
+      "type": "advanced manufacturing",
+      "corridor": "Del Valle / SH-130",
+      "workflowFit": "manufacturing intralogistics, mobile handling, material movement",
+      "exactSiteValue": "Very high. Strong exact-site proof value for manufacturing and supply-chain robotics buyers.",
+      "accessApproach": "operator-lane or founder/operator introduction; not open capture-first by default",
+      "confidence": "high",
+      "sourceNote": "Official Tesla Austin manufacturing footprint."
+    },
+    {
+      "rank": 2,
+      "name": "Kyle 35 Logistics Park",
+      "type": "warehouse / logistics campus",
+      "corridor": "Kyle / I-35",
+      "workflowFit": "warehouse autonomy, handling, inventory movement, logistics support",
+      "exactSiteValue": "Very high. Directly tied to Tesla support logistics and warehouse-style workflows.",
+      "accessApproach": "operator-lane and logistics tenant mapping",
+      "confidence": "high",
+      "sourceNote": "Official regional development references show Tesla expansion in the park."
+    },
+    {
+      "rank": 3,
+      "name": "Austin Hills Commerce Center",
+      "type": "industrial commerce center",
+      "corridor": "Northeast Austin / SH-130",
+      "workflowFit": "warehouse, manufacturing, distribution",
+      "exactSiteValue": "High. Good brownfield-style industrial proof environment.",
+      "accessApproach": "property / tenant identification, then targeted outreach",
+      "confidence": "high",
+      "sourceNote": "Opportunity Austin real-estate inventory."
+    },
+    {
+      "rank": 4,
+      "name": "Crossroads Logistics Center",
+      "type": "distribution complex",
+      "corridor": "Northeast Austin / Parmer Lane",
+      "workflowFit": "warehouse, logistics, AMR proof",
+      "exactSiteValue": "High. Strong fit for exact-site warehouse review workflows.",
+      "accessApproach": "tenant identification and broker/property routing",
+      "confidence": "high",
+      "sourceNote": "Opportunity Austin real-estate inventory."
+    },
+    {
+      "rank": 5,
+      "name": "Samsung Austin Semiconductor campus",
+      "type": "semiconductor manufacturing",
+      "corridor": "North Austin",
+      "workflowFit": "manufacturing support, inspection, internal logistics",
+      "exactSiteValue": "High but access-constrained. Valuable for premium proof if obtainable.",
+      "accessApproach": "operator-lane only",
+      "confidence": "high",
+      "sourceNote": "Official Samsung Texas manufacturing footprint."
+    },
+    {
+      "rank": 6,
+      "name": "Samsung Taylor fab",
+      "type": "advanced semiconductor manufacturing",
+      "corridor": "Taylor",
+      "workflowFit": "manufacturing, facility logistics, inspection",
+      "exactSiteValue": "High but highly constrained. Better as a strategic operator-lane target than an early open capture target.",
+      "accessApproach": "operator-lane only",
+      "confidence": "high",
+      "sourceNote": "Official Samsung Taylor fab materials."
+    },
+    {
+      "rank": 7,
+      "name": "Taylor Mustang Creek Industrial Park",
+      "type": "industrial park",
+      "corridor": "Taylor",
+      "workflowFit": "warehouse / manufacturing support environments",
+      "exactSiteValue": "Medium-high. Good cluster for adjacent exact-site manufacturing/logistics targets.",
+      "accessApproach": "cluster-first tenant mapping",
+      "confidence": "high",
+      "sourceNote": "Official Taylor economic development inventory."
+    },
+    {
+      "rank": 8,
+      "name": "Taylor Walnut Creek Commercial Park",
+      "type": "industrial / commercial park",
+      "corridor": "Taylor",
+      "workflowFit": "light industrial and manufacturing-adjacent workflows",
+      "exactSiteValue": "Medium-high. Strong follow-on target around the Samsung orbit.",
+      "accessApproach": "cluster-first tenant mapping",
+      "confidence": "high",
+      "sourceNote": "Official Taylor economic development inventory."
+    },
+    {
+      "rank": 9,
+      "name": "Georgetown Logistics Park",
+      "type": "warehouse logistics park",
+      "corridor": "Georgetown / SH-130",
+      "workflowFit": "warehouse automation, handling, distribution",
+      "exactSiteValue": "High. Strong warehouse target with regional manufacturing adjacency.",
+      "accessApproach": "tenant mapping and logistics outreach",
+      "confidence": "high",
+      "sourceNote": "Official and regional industrial development references."
+    },
+    {
+      "rank": 10,
+      "name": "Austin-Bergstrom cargo and logistics zone",
+      "type": "cargo / logistics cluster",
+      "corridor": "ABIA / Southeast Austin",
+      "workflowFit": "logistics, cargo handling, warehouse adjacency",
+      "exactSiteValue": "Medium-high. Valuable for logistics buyers, though more fragmented.",
+      "accessApproach": "cluster-first operator and tenant mapping",
+      "confidence": "medium",
+      "sourceNote": "Regional logistics and airport adjacency thesis."
+    },
+    {
+      "rank": 11,
+      "name": "Del Valle industrial belt near Tesla",
+      "type": "industrial cluster",
+      "corridor": "Del Valle / SH-130",
+      "workflowFit": "manufacturing support, warehouse logistics, inspection",
+      "exactSiteValue": "High. Strong buyer-relevant orbit around Tesla.",
+      "accessApproach": "cluster-first tenant mapping",
+      "confidence": "high",
+      "sourceNote": "Tesla orbit and Austin industrial growth references."
+    },
+    {
+      "rank": 12,
+      "name": "Parmer Lane / TX-130 distribution buildings",
+      "type": "warehouse cluster",
+      "corridor": "Northeast Austin",
+      "workflowFit": "warehouse robotics, pallet movement, fulfillment",
+      "exactSiteValue": "High. Good early wedge for warehouse proof packs.",
+      "accessApproach": "tenant and broker identification",
+      "confidence": "high",
+      "sourceNote": "Crossroads and adjacent industrial inventory."
+    },
+    {
+      "rank": 13,
+      "name": "Round Rock logistics and distribution corridor",
+      "type": "logistics cluster",
+      "corridor": "Round Rock",
+      "workflowFit": "warehouse, inventory movement, distribution",
+      "exactSiteValue": "Medium-high. Good next-wave warehouse density.",
+      "accessApproach": "cluster-first tenant mapping",
+      "confidence": "medium",
+      "sourceNote": "Regional employer and logistics density signals."
+    },
+    {
+      "rank": 14,
+      "name": "Pflugerville industrial warehouse cluster",
+      "type": "light industrial / warehouse",
+      "corridor": "Pflugerville",
+      "workflowFit": "warehouse AMR, industrial inspection, material handling",
+      "exactSiteValue": "Medium-high. Useful for scaled warehouse capture coverage.",
+      "accessApproach": "tenant mapping",
+      "confidence": "medium",
+      "sourceNote": "Regional industrial footprint around Austin northeast corridors."
+    },
+    {
+      "rank": 15,
+      "name": "Buda logistics sites",
+      "type": "warehouse / 3PL",
+      "corridor": "Buda / I-35",
+      "workflowFit": "warehouse, fulfillment, trucking support",
+      "exactSiteValue": "Medium-high. Strong adjacency to Kyle logistics and 3PL workflows.",
+      "accessApproach": "cluster-first outreach",
+      "confidence": "medium",
+      "sourceNote": "I-35 south logistics corridor thesis."
+    },
+    {
+      "rank": 16,
+      "name": "Amazon regional delivery / fulfillment facilities in metro Austin",
+      "type": "delivery station / fulfillment",
+      "corridor": "Austin metro",
+      "workflowFit": "warehouse handling, delivery logistics, conveyor / storage review",
+      "exactSiteValue": "High if obtainable; good reference lane for fulfillment robotics buyers.",
+      "accessApproach": "operator-lane or adjacent-site comparison target",
+      "confidence": "medium",
+      "sourceNote": "Austin Chamber major employers map references Amazon delivery operations."
+    },
+    {
+      "rank": 17,
+      "name": "Arrive Logistics operating facilities",
+      "type": "logistics operations",
+      "corridor": "Austin metro",
+      "workflowFit": "freight and logistics operations, warehouse-adjacent workflows",
+      "exactSiteValue": "Medium. More useful as a logistics demand cluster than a first proof asset.",
+      "accessApproach": "demand-led account mapping",
+      "confidence": "medium",
+      "sourceNote": "Austin Chamber major employers map."
+    },
+    {
+      "rank": 18,
+      "name": "Foreign Trade Zone 183-adjacent facilities",
+      "type": "import / export logistics",
+      "corridor": "Austin region",
+      "workflowFit": "logistics, warehousing, customs-sensitive operations",
+      "exactSiteValue": "Medium-high. Good for logistics and inspection buyers.",
+      "accessApproach": "cluster-first site selection",
+      "confidence": "medium",
+      "sourceNote": "Opportunity Austin FTZ 183 information."
+    },
+    {
+      "rank": 19,
+      "name": "Bastrop advanced manufacturing cluster",
+      "type": "advanced manufacturing",
+      "corridor": "Bastrop",
+      "workflowFit": "manufacturing, aerospace components, inspection",
+      "exactSiteValue": "Medium-high. Strong secondary manufacturing lane.",
+      "accessApproach": "operator-lane and cluster mapping",
+      "confidence": "medium",
+      "sourceNote": "Acutronic regional manufacturing expansion."
+    },
+    {
+      "rank": 20,
+      "name": "Northeast Austin light-industrial infill warehouses",
+      "type": "light industrial",
+      "corridor": "Northeast Austin",
+      "workflowFit": "warehouse, inspection, mobile handling",
+      "exactSiteValue": "Medium. Useful for broad adjacent-site proof inventory.",
+      "accessApproach": "broader tenant discovery",
+      "confidence": "medium",
+      "sourceNote": "Opportunity Austin industrial inventory."
+    },
+    {
+      "rank": 21,
+      "name": "South Austin / Kyle tenant warehouses supporting Tesla orbit",
+      "type": "support logistics",
+      "corridor": "Kyle / South Austin",
+      "workflowFit": "material movement, storage, fulfillment",
+      "exactSiteValue": "Medium-high. Strong next-wave supply-chain orbit.",
+      "accessApproach": "cluster-first tenant mapping",
+      "confidence": "medium",
+      "sourceNote": "Regional development and Tesla logistics expansion signals."
+    },
+    {
+      "rank": 22,
+      "name": "Clean manufacturing support facilities around Samsung orbit",
+      "type": "manufacturing support",
+      "corridor": "North Austin / Taylor",
+      "workflowFit": "inspection, internal logistics, constrained facility support",
+      "exactSiteValue": "Medium-high. Good premium exact-site lane if access is possible.",
+      "accessApproach": "operator-lane",
+      "confidence": "medium",
+      "sourceNote": "Samsung Austin + Taylor ecosystem expansion."
+    },
+    {
+      "rank": 23,
+      "name": "Austin Regional Manufacturing Association member facilities",
+      "type": "manufacturing cluster",
+      "corridor": "Austin metro",
+      "workflowFit": "manufacturing and industrial support",
+      "exactSiteValue": "Medium. Useful as a discovery pool for candidate exact-site targets.",
+      "accessApproach": "association-led demand and operator discovery",
+      "confidence": "medium",
+      "sourceNote": "Austin Chamber ARMA directory."
+    },
+    {
+      "rank": 24,
+      "name": "Kuehne+Nagel Austin logistics operations",
+      "type": "logistics operator footprint",
+      "corridor": "Austin metro",
+      "workflowFit": "supply-chain and warehousing operations",
+      "exactSiteValue": "Medium. More valuable as a logistics demand cluster and site-discovery lead.",
+      "accessApproach": "operator and customer network mapping",
+      "confidence": "medium",
+      "sourceNote": "Austin Chamber Kuehne+Nagel Austin profile."
+    },
+    {
+      "rank": 25,
+      "name": "Industrial distributor and field-service branches serving Austin manufacturing",
+      "type": "light industrial support",
+      "corridor": "Austin metro",
+      "workflowFit": "warehouse, inventory, service logistics",
+      "exactSiteValue": "Medium. Good fallback lane when high-security manufacturing access is slow.",
+      "accessApproach": "open-cluster discovery and referrals",
+      "confidence": "medium",
+      "sourceNote": "Austin Chamber industrial/logistics business profiles."
+    }
+  ],
+  "queued_lawful_access_buckets": [
+    {
+      "label": "Tesla / SH-130 manufacturing and logistics orbit",
+      "activation_rule": "after first rights-cleared proof asset",
+      "rationale": "Highest-value exact-site manufacturing and warehouse lane around Giga Texas and its support sites."
+    },
+    {
+      "label": "Kyle / Buda / South I-35 logistics corridor",
+      "activation_rule": "after first rights-cleared proof asset",
+      "rationale": "Best warehouse and 3PL density immediately south of Austin."
+    },
+    {
+      "label": "Northeast Austin / Parmer / TX-130 warehouses",
+      "activation_rule": "after first rights-cleared proof asset",
+      "rationale": "Strong warehouse AMR and fulfillment fit with lower access friction than flagship manufacturing sites."
+    },
+    {
+      "label": "Taylor semiconductor and industrial ecosystem",
+      "activation_rule": "after first rights-cleared proof asset",
+      "rationale": "High-value manufacturing and inspection lane with Samsung-led gravity."
+    },
+    {
+      "label": "Round Rock / Georgetown logistics and distribution",
+      "activation_rule": "after first rights-cleared proof asset",
+      "rationale": "Good next-wave warehouse coverage and manufacturing adjacency."
+    },
+    {
+      "label": "Bastrop advanced manufacturing and aerospace support",
+      "activation_rule": "after first rights-cleared proof asset",
+      "rationale": "Secondary manufacturing lane with interesting inspection and constrained-site value."
+    },
+    {
+      "label": "ABIA cargo, airport-adjacent logistics, and FTZ-linked facilities",
+      "activation_rule": "after first rights-cleared proof asset",
+      "rationale": "Selective logistics and inspection targets that can round out proof coverage."
+    }
+  ],
+  "discovery_lanes": [
+    {
+      "label": "Warehouse / fulfillment / 3PL sites across the Austin-Kyle-Buda-Georgetown arc",
+      "rationale": "Largest near-term robot-site opportunity set for exact-site hosted review."
+    },
+    {
+      "label": "Advanced manufacturing and industrial intralogistics facilities",
+      "rationale": "High-value manufacturing environments around Tesla, Samsung, and related suppliers."
+    },
+    {
+      "label": "Industrial inspection environments",
+      "rationale": "Inspection workflows remain active in 2026 and map well to site-specific proof packs."
+    },
+    {
+      "label": "Semiconductor and clean-manufacturing support environments",
+      "rationale": "Smaller but strategically valuable exact-site lane with higher access friction."
+    },
+    {
+      "label": "Cargo, import/export, and airport-adjacent logistics facilities",
+      "rationale": "Useful secondary logistics lane for broader warehouse and operations buyers."
+    },
+    {
+      "label": "Aerospace, defense, and advanced components manufacturing",
+      "rationale": "Good secondary lane for manufacturing and inspection buyers in Central Texas."
+    }
+  ],
+  "warnings": [],
+  "sources": [
+    {
+      "label": "Tesla Giga Texas",
+      "url": "https://www.tesla.com/giga-texas",
+      "note": "Official manufacturing hub in Austin with over 10 million square feet of factory floor."
+    },
+    {
+      "label": "Opportunity Austin real estate overview",
+      "url": "https://opportunityaustin.com/economic-development/real-estate/",
+      "note": "Official regional development page naming Austin Hills Commerce Center and Crossroads Logistics Center."
+    },
+    {
+      "label": "Opportunity Austin new and expanded companies",
+      "url": "https://opportunityaustin.com/wp-content/uploads/2025/03/NewAndExpanded.pdf",
+      "note": "Shows Tesla expansion in Kyle Logistics Park and current regional industrial growth."
+    },
+    {
+      "label": "Samsung Austin + Taylor manufacturing footprint",
+      "url": "https://semiconductor.samsung.com/sas/company/taylor/",
+      "note": "Official Samsung Texas footprint including Austin expansion and Taylor advanced fabs."
+    },
+    {
+      "label": "Samsung manufacturing sites",
+      "url": "https://semiconductor.samsung.com/foundry/manufacturing/manufacturing-sites/",
+      "note": "Official Austin and Taylor manufacturing site references."
+    },
+    {
+      "label": "ANYbotics + Yokogawa inspection partnership",
+      "url": "https://www.anybotics.com/news/yokogawa-and-anybotics-to-integrate-oprex-robot-management-core-software-with-anymal-robotic-inspection-solutions/",
+      "note": "Supports industrial inspection as an active 2026 robot workflow priority."
+    },
+    {
+      "label": "Agility commercial deployment with Toyota",
+      "url": "https://www.agilityrobotics.com/content/agility-robotics-announces-commercial-agreement-with-toyota-motor-manufacturing-canada",
+      "note": "Supports logistics, manufacturing, and supply-chain workflows as active humanoid deployment lanes."
+    },
+    {
+      "label": "Path Robotics + HII shipbuilding physical AI",
+      "url": "https://www.path-robotics.com/news/hii-path-robotics-physical-ai-shipbuilding-mou",
+      "note": "Supports repetitive manufacturing and industrial automation workflows as current demand lanes."
+    }
+  ]
+}

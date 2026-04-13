@@ -1,137 +1,44 @@
 # Austin, TX — Blueprint City Demand Plan
 
 ## Status
-- phase: planning
+- phase: activation_ready
 - owner: city-demand-agent
-- last-human-demand-decision: not approved
-- latest-refresh: 2026-03-30
-- confidence: medium
-
-## Why Austin
-- evidence-backed: Texas Robotics already operates as a relationship-driven access point through symposium networking, research partnerships, and industry affiliate ties.
-- evidence-backed: BLU-150 found Austin is more plausibly a founder-led and university-linked robotics market than a dense generic commercialization market.
-- inferred: Austin is still a good test city for exact-site proof-led demand before Blueprint has scaled outbound, but that remains a planning hypothesis rather than a validated pipeline fact.
+- latest-refresh: 2026-04-13
+- planning-state: not started
+- confidence: low
 
 ## City Demand Thesis
-Austin is still best treated as a relationship-driven demand market where qualified robotics conversations are more likely to come from Texas Robotics, founder introductions, and industrial or university ties than from broad event volume or generic AI positioning.
+Austin demand should stay proof-led: qualify real robot-team interest, classify exact-site versus adjacent-site fit inside one business day, and route serious threads into hosted review with clear artifact handoff and human-gated exceptions.
 
 ## What Changed This Pass
-- evidence-backed: the strongest Austin-relevant signal from BLU-150 is channel structure, not direct buyer conversion proof
-- evidence-backed: the weekly demand-intel synthesis points to rapid proof review, standardized hosted artifacts, and provenance clarity as the requirements for serious follow-up
-- evidence-backed: the city-launch work in this repo now uses explicit access-source routing and remains gated, so Austin demand planning should stay narrow and operator-owned rather than widening into public city language
-- inherited: Austin now explicitly inherits the reusable proof-pack structure, hosted-review standard, artifact handoff checklist, and buyer follow-up expectation from `robot-team-demand-playbook.md`
-- inferred: the generic robot-team proof-path and funnel work are already represented in [BLU-170](/BLU/issues/BLU-170) and [BLU-190](/BLU/issues/BLU-190), so this city pass should focus on city-specific routing and escalation gaps instead of duplicating the base proof system
-- inferred: Austin should lead with small numbers of high-trust conversations, not a city-wide awareness motion
+- evidence-backed: the city launcher now generates the compact demand playbook during activation so downstream tasks have a real canonical reference.
+- evidence-backed: city demand instrumentation is pinned to the platform event model rather than custom city-specific events.
+- warning: no research-backed buyer target list has been materialized yet.
 
-## Likely Buyer Clusters
-- primary: robot autonomy and deployment teams reachable through founder introductions, Texas Robotics, and university-linked networks
-- primary: industrial automation, warehouse, and logistics teams that need exact-site variation proof before a pilot or rollout
-- secondary: systems integrators coordinating robotics deployments in mixed industrial or commercial facilities
-- secondary: technical operators who can evaluate hosted exact-site review without requiring a mature enterprise procurement layer on day one
+## Required Proof Motion
+- serious robot-team demand must hit 24-hour proof-path triage
+- classify every serious thread as exact_site, adjacent_site, or scoped_follow_up before promising a review surface
+- default to proof-pack plus hosted review, with artifact handoff expectations attached
+- keep pricing, rights, privacy, and commercialization exceptions out of the technical proof lane until humans are needed
 
-## Relevant Facility Hypotheses
-- industrial and light manufacturing facilities where inspection, autonomy, or deployment teams need exact-site review
-- warehouse and logistics environments where layout specificity and recency matter
-- university-linked test and demo environments if they create credible robot-team introductions
+## Instrumentation Standard
+| Stage | Event or state | Why it matters |
+|---|---|---|
+| demand signal | `robot_team_inbound_captured` with source, city, buyer role, and requested lane | separates real robot-team demand from generic awareness |
+| proof-path triage | `proof_path_assigned` with outcome: exact_site, adjacent_site, scoped_follow_up | shows whether the city has truthful proof scope |
+| proof delivery | `proof_pack_delivered` and `hosted_review_ready` | measures time-to-proof and whether a technical review surface exists |
+| hosted review | `hosted_review_started` and `hosted_review_follow_up_sent` | measures whether proof actually converts into technical review |
 
-These remain working hypotheses, not confirmed demand.
+## Metrics Dependencies
 
-## Evidence-Backed Channel Anchors
-- Texas Robotics industry affiliate, symposium, and research-partnership surfaces
-- founder-led introductions into deployment-heavy robotics and industrial teams
-- university and technical builder networks with robotics adjacency
+- No machine-readable metrics dependency payload is available yet.
 
-## City-Specific Channel Inferences
-- local industrial and logistics circles are worth testing only when they connect back to exact-site proof review, not as generic ops-market outreach
-- Austin should not assume a dense buyer-matchmaking environment comparable to Bay Area robotics networks
-
-## Optional Site-Operator Opportunity Lane
-- operator-secondary: private industrial, logistics, or controlled-access facilities where access governance or recurring updates become material
-- operator-relevant but still secondary: sensitive or high-friction facilities where rights, privacy, or commercialization questions appear only after a real buyer motion exists
-- any commercialization language still needs human review before it leaves planning form
-
-## Queue Status
-- Generic robot-team proof-path work is already covered in [BLU-170](/BLU/issues/BLU-170) and [BLU-190](/BLU/issues/BLU-190)
-- Austin-specific demand follow-up should start with intake, ops, finance-support, and optional operator-lane routing rather than duplicating those generic issues
-
-## Proof-Pack Expectations
-- Austin inherits the shared proof-pack order from `robot-team-demand-playbook.md`: buyer context, site evidence, review-now, artifact handoff, and gap/escalation
-- exact-site and facility-type relevance should lead before any broader world-model framing
-- hosted review remains the default technical evaluation surface, with artifact review available on the same proof path
-- provenance, recency, privacy, rights, and consent boundaries need to stay attached to the proof pack and hosted review
-- Blueprint should label what exists now versus what still requires capture, packaging, integration, or human approvals
-- the default follow-up after a serious review should be the shared artifact-led recap within one business day, not a generic sales note
-
-## Austin-Specific Proof Deltas
-- referral source matters more here than in San Francisco, so the buyer-context block should name whether the motion came from Texas Robotics, a founder intro, a university contact, or an industrial partner
-- industrial and logistics buyers are likely to care early about facility type, site coverage boundaries, and recency, so those fields should be obvious before deeper hosted review
-- university-linked environments can support demand discovery, but any proof pack built from them must stay clearly labeled as adjacent-site unless the workflow and facility match the buyer's deployment reality
-- Austin should keep the proof path narrow: same-day or 24-hour proof review for a few high-trust conversations is more important than scaling top-of-funnel proof volume
-
-## Austin-Specific Proof Gaps
-- no Austin-ready proof-pack template currently forces referral-source labeling, facility-type specificity, and exact-site versus adjacent-site classification in one place
-- no ops-owned Austin checklist yet exists for turning a Texas Robotics or founder intro into a same-day hosted review plus artifact-led follow-up
-- no Austin-specific measurement currently tracks the full inherited proof motion from `proof_pack_delivered` to `hosted_review_started` to `hosted_review_follow_up_sent`
-- no explicit growth guidance yet defines which Austin buyer clusters should receive adjacent-site proof versus exact-site-only follow-up
-
-## Provisional Readiness Scorecard
-- likely robot-team density: 3/5
-- exact-site proof fit: 4/5
-- access and commercialization opportunity: 3/5
-- instrumentation readiness: 2/5
-- operational follow-through readiness: 2/5
-- strategic importance: 4/5
-
-## Score Rationale
-- likely robot-team density remains 3/5 because Austin has plausible cluster access but no evidence yet of repeated buyer pull
-- exact-site proof fit stays 4/5 because the city is still better suited to proof-led technical conversations than brand-led demand
-- access and commercialization opportunity stays 3/5 because Texas Robotics and founder intros help, but no repeatable buyer channel has been validated
-- instrumentation and ops remain 2/5 because Blueprint still lacks city-specific funnel measurement and a mature buyer handoff path
-
-## Risks
-- founder-network demand may look stronger than repeatable city demand
-- Austin-specific relationship access could create conversations faster than Blueprint can instrument or compare them
-- industrial buyer interest may stall if the 24-hour proof path and hosted review surface are not standardized
-- operator-governed facilities may trigger access questions before Blueprint has a clean escalation path
-
-## Missing Data
-- which Austin buyer clusters convert from proof review to serious follow-up
-- which industrial and logistics facility types show the strongest exact-site pull
-- whether Texas Robotics and founder intros put deployment buyers in the room, or mostly peers and adjacent partners
-- how much trust hosted exact-site review can earn before buyers ask for deeper commercial or integration workflows
-
-## Dependencies
-- city-specific buyer copy that frames Austin as a relationship-driven exact-site market, not a mass-demand market
-- Austin-tagged attribution and demand instrumentation across signup, contact, proof-review, and hosted-session steps
-- intake tags for Texas Robotics, founder intro, university, industrial partner, and logistics/warehouse demand sources
-- Austin-ready proof-pack and hosted-review templates that inherit the reusable robot-team structure without rewriting it city by city
-- an ops handoff checklist for same-day hosted review assembly and artifact-led buyer follow-up on relationship-driven intros
-- a clean standard-commercial handoff to `buyer-solutions-agent` plus the designated human commercial owner, with founder review reserved for non-standard asks
-- operator-lane escalation guidance only for controlled-access industrial sites that actually generate demand
-
-## Operating Ownership Split
-- Founder-only: Austin demand does not escalate unless the ask changes city posture, spend envelope, public claims, non-standard commercial terms, or rights/privacy/commercialization policy
-- Human operator-owned:
-  - `growth-lead` owns Austin source policy and referral mechanics inside approved guardrails
-  - `ops-lead` owns the Austin proof-ops checklist, trust process, and sensitive-access escalation path
-  - designated human commercial owner owns standard pricing and procurement handling after proof review
-- Agent-prepared / autonomous:
-  - `buyer-solutions-agent` owns standard buyer progression
-  - `revenue-ops-pricing-agent` prepares standard quote guidance
-  - `analytics-agent`, `notion-manager-agent`, and `webapp-codex` keep Austin reporting and operator views decision-ready
-  - `rights-provenance-agent` prepares routine rights/privacy packets for human review when needed
-- Exception-only escalation: founder sees only non-standard commercial asks, rights/privacy/commercialization exceptions, or city-posture changes
-
-## Measurement Plan
-- track Austin-sourced buyer demand separately from generic inbound
-- measure proof-pack delivery to hosted review start to hosted-session follow-up for Austin-tagged traffic and introductions
-- capture source tags for Texas Robotics, founder intro, university, and industrial/logistics partner channels
-- log whether requests are robot-team, integrator, or operator-governed before handoff
+## Sensitive-Lane Constraints
+- if a buyer sits in defense, aerospace, export-controlled, or air-gapped environments, require explicit human review before assuming the standard hosted-review path is acceptable
+- do not imply that Blueprint can serve sensitive or controlled-access environments over a standard cloud runtime without buyer-specific confirmation
+- operator-governed facilities and rights-sensitive exact-site requests should route through `rights-provenance-agent` plus human review
 
 ## Immediate Next Actions
-1. give `intake-agent` an Austin routing task for source tagging, exact-site versus adjacent-site classification, and cluster classification across Texas Robotics, founder-intro, university, and industrial channels
-2. give `ops-lead` an Austin-specific proof-ops task for same-day proof-pack assembly, hosted-review readiness, and artifact-led follow-up on relationship-driven intros
-3. give `buyer-solutions-agent` plus the designated human commercial owner an Austin standard-commercial handoff task for pricing, procurement, and contract questions that surface after proof review
-4. give `revenue-ops-pricing-agent` an Austin quote-band and exception-threshold task so routine commercial work stays out of the founder lane
-5. give `site-operator-partnership-agent` an Austin operator-lane task for controlled-access industrial sites and commercialization-boundary review
-6. keep `conversion-agent` and `analytics-agent` on the inherited generic robot-team queue in [BLU-170](/BLU/issues/BLU-170) and [BLU-190](/BLU/issues/BLU-190) unless the shared proof system changes materially again
+1. materialize the research-backed buyer targets and first-touch candidates as soon as deep research completes
+2. keep `buyer-solutions-agent` and `revenue-ops-pricing-agent` on standard commercial prep while founders stay out of routine proof motion
+3. block city-specific outbound scale until proof packs and hosted reviews are real, not just planned

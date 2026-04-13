@@ -1,0 +1,14 @@
+{
+  "status": "missing_artifact",
+  "city": "San Diego, CA",
+  "citySlug": "san-diego-ca",
+  "sourceArtifactPath": null,
+  "parsed": null,
+  "prospectsUpserted": 0,
+  "buyerTargetsUpserted": 0,
+  "touchesRecorded": 0,
+  "budgetRecommendationsRecorded": 0,
+  "warnings": [
+    "No deep-research playbook was found for this city."
+  ]
+}

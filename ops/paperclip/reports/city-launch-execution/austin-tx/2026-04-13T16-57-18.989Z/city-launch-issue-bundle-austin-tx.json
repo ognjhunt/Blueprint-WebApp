@@ -1,0 +1,355 @@
+{
+  "machine_policy_version": "2026-04-13.city-launch-doctrine.v1",
+  "city": "Austin, TX",
+  "city_slug": "austin-tx",
+  "source_activation_payload_path": null,
+  "tasks": [
+    {
+      "key": "city-target-ledger",
+      "title": "Maintain the Austin capture target ledger",
+      "phase": "founder_gates",
+      "owner_lane": "city-demand-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Rank which Austin sites and site clusters should be captured first based on current robot workflow focus, buyer value, and access realism.",
+      "dependencies": [],
+      "done_when": [
+        "The Austin target ledger names the first proof candidates, queued lawful-access buckets, and longer-horizon discovery lanes.",
+        "Capture priorities stay tied to current robot workflow demand and lawful access realism instead of generic city coverage."
+      ],
+      "metrics_dependencies": [
+        "first_lawful_access_path"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "growth-source-policy",
+      "title": "Lock Austin source policy and invite/access-code posture",
+      "phase": "founder_gates",
+      "owner_lane": "growth-lead",
+      "human_lane": "growth-lead",
+      "purpose": "Keep Austin sourcing narrow, truthful, and off the founder lane for routine approvals.",
+      "dependencies": [],
+      "done_when": [
+        "Austin source policy names allowed channels, disallowed channels, referral rules, and who may issue invites or access codes.",
+        "Routine invite/access-code decisions stay with Growth Lead and Ops Lead inside written guardrails."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "ops-rubric-thresholds",
+      "title": "Publish Austin intake rubric, trust kit, and first-capture thresholds",
+      "phase": "founder_gates",
+      "owner_lane": "ops-lead",
+      "human_lane": "ops-lead",
+      "purpose": "Give Intake, Field Ops, QA, and Rights lanes explicit Austin rules so they can run without founder review.",
+      "dependencies": [
+        "growth-source-policy"
+      ],
+      "done_when": [
+        "Austin rubric covers source quality, access-path truth, equipment/device fit, trust-packet minimums, and approval outcomes.",
+        "Austin first-capture thresholds and trust-kit checklist exist in one operator packet."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "supply-prospects",
+      "title": "Build the Austin capturer prospect list and post package",
+      "phase": "supply",
+      "owner_lane": "capturer-growth-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Generate the first Austin supply wave without widening into generic gig-market posture.",
+      "dependencies": [
+        "city-target-ledger",
+        "growth-source-policy"
+      ],
+      "done_when": [
+        "A curated first-wave Austin prospect set is named with source bucket, rationale, lawful access posture, and next move.",
+        "Any copy stays draft-first and preserves no-guarantee capture language."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "supply-qualification",
+      "title": "Route Austin applicants into qualification and approval",
+      "phase": "supply",
+      "owner_lane": "intake-agent",
+      "human_lane": "ops-lead",
+      "purpose": "Classify Austin applicants using the approved rubric instead of ad hoc founder review.",
+      "dependencies": [
+        "ops-rubric-thresholds"
+      ],
+      "done_when": [
+        "Austin applicants are tagged by source bucket, approval state, and missing-trust evidence.",
+        "Exceptions are blocked with explicit missing facts instead of silently held."
+      ],
+      "metrics_dependencies": [
+        "first_approved_capturer"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "capturer-activation-success",
+      "title": "Own approved Austin capturers through onboarding and repeat-ready",
+      "phase": "supply",
+      "owner_lane": "capturer-success-agent",
+      "human_lane": "ops-lead",
+      "purpose": "Give every approved Austin mapper one routine relationship owner from approval through onboarding, first pass, and repeat-readiness so the founder is not the default support lane.",
+      "dependencies": [
+        "ops-rubric-thresholds",
+        "supply-qualification"
+      ],
+      "done_when": [
+        "Each approved Austin capturer has a named lifecycle owner for approved -> onboarded -> first capture -> first pass -> repeat-ready.",
+        "Routine mapper questions, support, and coaching stay with capturer-success-agent unless they become logistics, QA, rights, privacy, or policy exceptions."
+      ],
+      "metrics_dependencies": [
+        "first_approved_capturer",
+        "first_completed_capture"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "first-capture-routing",
+      "title": "Assign Austin first captures, reminders, and site-facing trust prep",
+      "phase": "supply",
+      "owner_lane": "field-ops-agent",
+      "human_lane": "ops-lead",
+      "purpose": "Turn approved Austin capturers into real first captures inside bounded thresholds.",
+      "dependencies": [
+        "supply-qualification",
+        "capturer-activation-success"
+      ],
+      "done_when": [
+        "Approved Austin capturers receive assignment, reminder, and site-facing trust steps through the existing field-ops lane.",
+        "Travel, timing, and access blockers are explicit on the issue and visible in the admin queue."
+      ],
+      "metrics_dependencies": [
+        "first_completed_capture"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "capture-qa",
+      "title": "QA Austin first captures and route recapture decisions",
+      "phase": "proof_assets",
+      "owner_lane": "capture-qa-agent",
+      "human_lane": "ops-lead",
+      "purpose": "Ensure Austin proof assets are real, clean, and ready for buyer proof work.",
+      "dependencies": [
+        "first-capture-routing"
+      ],
+      "done_when": [
+        "Austin captures receive PASS, BORDERLINE, or FAIL with explicit evidence.",
+        "Recapture instructions are attached when the first pass is not proof-ready."
+      ],
+      "metrics_dependencies": [
+        "first_qa_passed_capture"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "rights-clearance",
+      "title": "Clear rights, provenance, and privacy on Austin proof assets",
+      "phase": "proof_assets",
+      "owner_lane": "rights-provenance-agent",
+      "human_lane": "designated-human-rights-reviewer",
+      "purpose": "Make Austin proof packs releasable without weakening trust boundaries.",
+      "dependencies": [
+        "capture-qa"
+      ],
+      "done_when": [
+        "Each Austin proof asset is marked CLEARED, BLOCKED, or NEEDS-REVIEW with evidence citations.",
+        "Policy-setting exceptions route to the human reviewer and founder only when precedent changes."
+      ],
+      "metrics_dependencies": [
+        "first_rights_cleared_proof_asset"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "proof-pack-listings",
+      "title": "Assemble Austin proof packs and publish 1-2 proof-ready listings",
+      "phase": "proof_assets",
+      "owner_lane": "buyer-solutions-agent",
+      "human_lane": "ops-lead",
+      "purpose": "Turn Austin captures into concrete exact-site proof assets with a hosted-review path.",
+      "dependencies": [
+        "city-target-ledger",
+        "rights-clearance"
+      ],
+      "done_when": [
+        "At least one Austin proof-ready listing or equivalent proof pack exists with exact-site versus adjacent-site labeling.",
+        "Each proof pack includes provenance, coverage boundaries, hosted-review path, and next-step guidance."
+      ],
+      "metrics_dependencies": [
+        "proof_pack_delivered",
+        "first_proof_pack_delivery"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "buyer-target-research",
+      "title": "Research Austin robot-company target accounts and buyer clusters",
+      "phase": "demand",
+      "owner_lane": "demand-intel-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Build a real Austin demand list that matches the proof assets Blueprint can actually show.",
+      "dependencies": [
+        "proof-pack-listings"
+      ],
+      "done_when": [
+        "A named Austin buyer target set is researched with facility/workflow fit and proof-path notes.",
+        "Exact-site versus adjacent-site proof rules are explicit per target."
+      ],
+      "metrics_dependencies": [
+        "robot_team_inbound_captured",
+        "proof_path_assigned"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "outbound-package",
+      "title": "Prepare Austin proof-led outbound package and first touches",
+      "phase": "demand",
+      "owner_lane": "robot-team-growth-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Make outbound specific to Austin proof assets and hosted review instead of generic AI messaging.",
+      "dependencies": [
+        "buyer-target-research"
+      ],
+      "done_when": [
+        "Austin outbound templates lead with one site, one workflow lane, proof-led CTA, and hosted-review next step.",
+        "First proof-led touches are queued for operator approval or event-driven send."
+      ],
+      "metrics_dependencies": [
+        "proof_path_assigned"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "outbound-execution",
+      "title": "Run Austin outbound and move serious buyers into hosted review",
+      "phase": "demand",
+      "owner_lane": "outbound-sales-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Convert named Austin targets into serious proof conversations without dragging the founder into routine work.",
+      "dependencies": [
+        "outbound-package"
+      ],
+      "done_when": [
+        "Austin buyer conversations are active with explicit next steps.",
+        "At least one hosted proof review is run end to end or clearly blocked with named reasons."
+      ],
+      "metrics_dependencies": [
+        "hosted_review_ready",
+        "hosted_review_started",
+        "hosted_review_follow_up_sent",
+        "proof_motion_stalled",
+        "first_hosted_review"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "buyer-thread-commercial",
+      "title": "Keep Austin buyer threads inside standard commercial handling",
+      "phase": "commercial",
+      "owner_lane": "revenue-ops-pricing-agent",
+      "human_lane": "designated-human-commercial-owner",
+      "purpose": "Prevent routine pricing and packaging questions from escalating to founder review.",
+      "dependencies": [
+        "outbound-execution"
+      ],
+      "done_when": [
+        "Standard Austin quote bands, discount guardrails, and handoff thresholds are documented and used.",
+        "Only non-standard commitments escalate above the designated human commercial owner."
+      ],
+      "metrics_dependencies": [
+        "human_commercial_handoff_started",
+        "first_human_commercial_handoff"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "city-scorecard",
+      "title": "Publish the Austin launch scorecard and blocker view",
+      "phase": "measurement",
+      "owner_lane": "analytics-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Make Austin progress measurable and reviewable without relying on narrative updates.",
+      "dependencies": [
+        "supply-qualification",
+        "proof-pack-listings",
+        "outbound-execution"
+      ],
+      "done_when": [
+        "Austin scorecard reports supply and demand progress against the launch thresholds.",
+        "Missing instrumentation is surfaced as blocked instead of smoothed over."
+      ],
+      "metrics_dependencies": [
+        "robot_team_inbound_captured",
+        "proof_path_assigned",
+        "proof_pack_delivered",
+        "hosted_review_ready",
+        "hosted_review_started",
+        "hosted_review_follow_up_sent",
+        "human_commercial_handoff_started",
+        "proof_motion_stalled"
+      ],
+      "validation_required": true,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "notion-breadcrumbs",
+      "title": "Mirror Austin execution artifacts into Notion Knowledge and Work Queue",
+      "phase": "measurement",
+      "owner_lane": "notion-manager-agent",
+      "human_lane": "chief-of-staff",
+      "purpose": "Keep the Austin launch runnable and inspectable for humans outside the repo.",
+      "dependencies": [
+        "city-scorecard"
+      ],
+      "done_when": [
+        "Austin execution system doc is mirrored into Notion Knowledge.",
+        "A Work Queue breadcrumb exists for the current Austin activation state and next human gate."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "switch-on-review",
+      "title": "Run the Austin switch-on review before activation",
+      "phase": "measurement",
+      "owner_lane": "beta-launch-commander",
+      "human_lane": "cto",
+      "purpose": "Confirm the software/runtime surfaces needed by the Austin launch are safe before switch-on.",
+      "dependencies": [
+        "city-scorecard"
+      ],
+      "done_when": [
+        "Austin switch-on review returns GO, CONDITIONAL GO, or HOLD with evidence.",
+        "Any software/runtime blocker is routed to the right engineering lane before launch activation."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    }
+  ]
+}

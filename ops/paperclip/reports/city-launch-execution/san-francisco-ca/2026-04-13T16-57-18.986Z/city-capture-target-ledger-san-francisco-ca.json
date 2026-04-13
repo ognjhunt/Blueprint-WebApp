@@ -1,0 +1,402 @@
+{
+  "city": "San Francisco, CA",
+  "city_slug": "san-francisco-ca",
+  "generated_at": "2026-04-13T16:57:18.997Z",
+  "mode": "curated_city_profile",
+  "workflow_priorities": [
+    {
+      "key": "warehouse_fulfillment",
+      "label": "Warehouse / fulfillment / parcel / 3PL",
+      "whyNow": "Bay Area robot teams still care about brownfield warehouse and parcel environments, especially when proof needs to be technically inspectable fast.",
+      "priority": "tier_1"
+    },
+    {
+      "key": "advanced_manufacturing",
+      "label": "Advanced manufacturing / electronics / robotics production",
+      "whyNow": "The Bay Area keeps a denser robotics and advanced manufacturing ecosystem than Austin, which makes manufacturing-adjacent exact-site proof strategically important.",
+      "priority": "tier_1"
+    },
+    {
+      "key": "industrial_inspection",
+      "label": "Industrial inspection and utility environments",
+      "whyNow": "Inspection remains a live workflow category for technical robot teams and gives strong exact-site review value.",
+      "priority": "tier_2"
+    },
+    {
+      "key": "port_cargo_logistics",
+      "label": "Port, cargo, and airport logistics",
+      "whyNow": "Oakland and SFO-adjacent logistics environments are strong exact-site and adjacent-site proof lanes for logistics robotics buyers.",
+      "priority": "tier_2"
+    },
+    {
+      "key": "lab_and_demo_facilities",
+      "label": "Labs, demo facilities, and technical pilot environments",
+      "whyNow": "Useful for high-trust buyer discovery, but lower priority than commercially real logistics and manufacturing sites.",
+      "priority": "tier_3"
+    }
+  ],
+  "priority_proof_targets": [
+    {
+      "rank": 1,
+      "name": "Oakland airport logistics corridor",
+      "type": "cargo / logistics cluster",
+      "corridor": "Oakland",
+      "workflowFit": "parcel, cargo, warehouse, handling",
+      "exactSiteValue": "Very high. Strong Bay Area logistics proof lane.",
+      "accessApproach": "operator and tenant mapping",
+      "confidence": "high",
+      "sourceNote": "Bay Area cargo and warehouse corridor with strong workflow relevance."
+    },
+    {
+      "rank": 2,
+      "name": "Port of Oakland support logistics facilities",
+      "type": "port / logistics",
+      "corridor": "Oakland",
+      "workflowFit": "yard logistics, cargo handling, warehouse adjacency",
+      "exactSiteValue": "High. Valuable for logistics and inspection buyers.",
+      "accessApproach": "operator-lane and adjacent-site packaging",
+      "confidence": "high",
+      "sourceNote": "Strong logistics workflow density."
+    },
+    {
+      "rank": 3,
+      "name": "Fremont manufacturing and supplier corridor",
+      "type": "advanced manufacturing",
+      "corridor": "Fremont",
+      "workflowFit": "manufacturing, internal logistics, mobile handling",
+      "exactSiteValue": "High. Strong exact-site manufacturing value.",
+      "accessApproach": "tenant and supplier mapping",
+      "confidence": "high",
+      "sourceNote": "Bay Area manufacturing density with high robotics relevance."
+    },
+    {
+      "rank": 4,
+      "name": "Milpitas electronics and robotics industrial belt",
+      "type": "advanced manufacturing",
+      "corridor": "Milpitas",
+      "workflowFit": "electronics, components, warehouse support",
+      "exactSiteValue": "High. Strong buyer relevance for robotics and manufacturing teams.",
+      "accessApproach": "tenant mapping",
+      "confidence": "high",
+      "sourceNote": "Dense industrial and robotics-adjacent corridor."
+    },
+    {
+      "rank": 5,
+      "name": "South San Francisco industrial and warehouse corridor",
+      "type": "warehouse / light industrial",
+      "corridor": "South San Francisco",
+      "workflowFit": "warehouse, biotech support logistics, inspection",
+      "exactSiteValue": "High. Good exact-site and adjacent-site proof coverage.",
+      "accessApproach": "tenant mapping",
+      "confidence": "high",
+      "sourceNote": "Dense industrial belt with lower friction than premium flagship sites."
+    },
+    {
+      "rank": 6,
+      "name": "San Leandro distribution and light manufacturing belt",
+      "type": "warehouse / manufacturing",
+      "corridor": "San Leandro",
+      "workflowFit": "warehouse automation, material handling, inspection",
+      "exactSiteValue": "High. Good brownfield operations lane.",
+      "accessApproach": "tenant mapping",
+      "confidence": "high",
+      "sourceNote": "East Bay industrial density."
+    },
+    {
+      "rank": 7,
+      "name": "Hayward industrial parks",
+      "type": "warehouse / industrial",
+      "corridor": "Hayward",
+      "workflowFit": "warehouse, pallet handling, mobile robotics",
+      "exactSiteValue": "High. Strong operations and logistics lane.",
+      "accessApproach": "tenant mapping",
+      "confidence": "high",
+      "sourceNote": "East Bay warehouse density."
+    },
+    {
+      "rank": 8,
+      "name": "Livermore / Tri-Valley warehouse cluster",
+      "type": "warehouse / logistics",
+      "corridor": "Livermore",
+      "workflowFit": "warehouse, 3PL, parcel, storage",
+      "exactSiteValue": "Medium-high. Strong scalable warehouse coverage.",
+      "accessApproach": "tenant mapping",
+      "confidence": "medium",
+      "sourceNote": "Good next-wave warehouse bucket."
+    },
+    {
+      "rank": 9,
+      "name": "Union City warehouse belt",
+      "type": "warehouse / logistics",
+      "corridor": "Union City",
+      "workflowFit": "warehouse, material movement, fulfillment",
+      "exactSiteValue": "Medium-high. Good fulfillment lane.",
+      "accessApproach": "tenant mapping",
+      "confidence": "medium",
+      "sourceNote": "East Bay logistics density."
+    },
+    {
+      "rank": 10,
+      "name": "Santa Clara / San Jose advanced manufacturing sites",
+      "type": "advanced manufacturing",
+      "corridor": "South Bay",
+      "workflowFit": "electronics, robotics production, internal logistics",
+      "exactSiteValue": "Medium-high. Strong strategic value with higher access work.",
+      "accessApproach": "operator-lane and tenant mapping",
+      "confidence": "medium",
+      "sourceNote": "Dense technical manufacturing ecosystem."
+    },
+    {
+      "rank": 11,
+      "name": "Mountain View / Palo Alto robotics demo and lab environments",
+      "type": "lab / pilot environment",
+      "corridor": "Peninsula",
+      "workflowFit": "robot testing, demos, buyer discovery",
+      "exactSiteValue": "Medium. Better for demand discovery than first proof assets.",
+      "accessApproach": "founder and partner introductions",
+      "confidence": "medium",
+      "sourceNote": "High-density robot buyer ecosystem."
+    },
+    {
+      "rank": 12,
+      "name": "Redwood City industrial and port-adjacent sites",
+      "type": "industrial / logistics",
+      "corridor": "Peninsula",
+      "workflowFit": "warehouse, handling, maritime adjacency",
+      "exactSiteValue": "Medium-high. Good mixed logistics and industrial lane.",
+      "accessApproach": "tenant mapping",
+      "confidence": "medium",
+      "sourceNote": "Useful for Bay logistics proof diversity."
+    },
+    {
+      "rank": 13,
+      "name": "Richmond industrial shoreline facilities",
+      "type": "industrial / inspection",
+      "corridor": "Richmond",
+      "workflowFit": "inspection, industrial mobility, logistics",
+      "exactSiteValue": "Medium-high. Good inspection and industrial lane.",
+      "accessApproach": "operator-lane and site mapping",
+      "confidence": "medium",
+      "sourceNote": "Strong inspection-style environments."
+    },
+    {
+      "rank": 14,
+      "name": "Concord / Martinez industrial corridor",
+      "type": "industrial / logistics",
+      "corridor": "East Bay",
+      "workflowFit": "warehouse, yard, inspection, plant support",
+      "exactSiteValue": "Medium-high. Useful secondary industrial lane.",
+      "accessApproach": "cluster mapping",
+      "confidence": "medium",
+      "sourceNote": "Broader industrial Bay Area coverage."
+    },
+    {
+      "rank": 15,
+      "name": "Vacaville / Fairfield logistics corridor",
+      "type": "warehouse / logistics",
+      "corridor": "North Bay / I-80",
+      "workflowFit": "warehouse, parcel, storage",
+      "exactSiteValue": "Medium-high. Good scaled warehouse lane.",
+      "accessApproach": "tenant mapping",
+      "confidence": "medium",
+      "sourceNote": "Good next-wave warehouse lane."
+    },
+    {
+      "rank": 16,
+      "name": "San Jose airport-adjacent cargo and logistics sites",
+      "type": "cargo / logistics",
+      "corridor": "San Jose",
+      "workflowFit": "cargo, parcel, warehouse, support logistics",
+      "exactSiteValue": "Medium-high. Good airport logistics lane.",
+      "accessApproach": "cluster mapping",
+      "confidence": "medium",
+      "sourceNote": "Airport-adjacent workflow value."
+    },
+    {
+      "rank": 17,
+      "name": "SFO cargo and support facilities",
+      "type": "cargo / logistics",
+      "corridor": "SFO / Peninsula",
+      "workflowFit": "cargo, material handling, constrained operations",
+      "exactSiteValue": "Medium-high. Useful premium logistics lane.",
+      "accessApproach": "operator-lane and adjacent-site packaging",
+      "confidence": "medium",
+      "sourceNote": "Strong workflow relevance but higher access complexity."
+    },
+    {
+      "rank": 18,
+      "name": "Alameda naval / industrial reuse sites",
+      "type": "industrial / inspection",
+      "corridor": "Alameda",
+      "workflowFit": "inspection, field robotics, constrained sites",
+      "exactSiteValue": "Medium. Good secondary inspection lane.",
+      "accessApproach": "operator-lane and partner discovery",
+      "confidence": "medium",
+      "sourceNote": "Interesting exact-site environments."
+    },
+    {
+      "rank": 19,
+      "name": "Berkeley / Emeryville light industrial labs and pilot sites",
+      "type": "lab / pilot",
+      "corridor": "East Bay",
+      "workflowFit": "robotics pilot work, technical reviews",
+      "exactSiteValue": "Medium. Good buyer-discovery support lane.",
+      "accessApproach": "founder and partner introductions",
+      "confidence": "medium",
+      "sourceNote": "Dense technical audience but less commercial site realism."
+    },
+    {
+      "rank": 20,
+      "name": "Sunnyvale warehouse and industrial infill",
+      "type": "warehouse / industrial",
+      "corridor": "Sunnyvale",
+      "workflowFit": "warehouse, electronics support logistics",
+      "exactSiteValue": "Medium. Good adjacent-site proof lane.",
+      "accessApproach": "tenant mapping",
+      "confidence": "medium",
+      "sourceNote": "South Bay operations density."
+    },
+    {
+      "rank": 21,
+      "name": "Pleasanton / Dublin logistics sites",
+      "type": "warehouse / logistics",
+      "corridor": "Tri-Valley",
+      "workflowFit": "warehouse, parcel, storage, 3PL",
+      "exactSiteValue": "Medium. Good next-wave logistics coverage.",
+      "accessApproach": "tenant mapping",
+      "confidence": "medium",
+      "sourceNote": "Scalable warehouse lane."
+    },
+    {
+      "rank": 22,
+      "name": "Santa Rosa industrial and warehouse belt",
+      "type": "warehouse / industrial",
+      "corridor": "North Bay",
+      "workflowFit": "warehouse, field service, inspection",
+      "exactSiteValue": "Medium. Secondary Bay coverage lane.",
+      "accessApproach": "cluster mapping",
+      "confidence": "medium",
+      "sourceNote": "Useful later expansion."
+    },
+    {
+      "rank": 23,
+      "name": "Napa / Solano industrial support sites",
+      "type": "industrial support",
+      "corridor": "North Bay",
+      "workflowFit": "light industrial, inspection, warehouse support",
+      "exactSiteValue": "Medium. Secondary industrial lane.",
+      "accessApproach": "cluster mapping",
+      "confidence": "medium",
+      "sourceNote": "Good adjacent-site fallback."
+    },
+    {
+      "rank": 24,
+      "name": "Robotics integrator customer sites reached through BARA-style networks",
+      "type": "distributed customer sites",
+      "corridor": "Bay Area",
+      "workflowFit": "real deployments across manufacturing and logistics",
+      "exactSiteValue": "High if surfaced. Better as named account-linked sites than blind city sweep.",
+      "accessApproach": "demand-led account mapping",
+      "confidence": "medium",
+      "sourceNote": "Directly ties the capture ledger to active buyer threads."
+    },
+    {
+      "rank": 25,
+      "name": "Partner-introduced exact-site facilities from Bay Area deployment teams",
+      "type": "distributed exact sites",
+      "corridor": "Bay Area",
+      "workflowFit": "site-specific proof work for active buyers",
+      "exactSiteValue": "Very high when present. These should jump the queue.",
+      "accessApproach": "buyer-thread-led routing",
+      "confidence": "medium",
+      "sourceNote": "Should outrank broad prospecting whenever a real buyer thread exists."
+    }
+  ],
+  "queued_lawful_access_buckets": [
+    {
+      "label": "East Bay warehouse and industrial belt",
+      "activation_rule": "after first rights-cleared proof asset",
+      "rationale": "Best scalable logistics and brownfield industrial lane."
+    },
+    {
+      "label": "South Bay advanced manufacturing and supplier corridors",
+      "activation_rule": "after first rights-cleared proof asset",
+      "rationale": "Highest strategic manufacturing value for robot teams."
+    },
+    {
+      "label": "Oakland / port / airport-adjacent logistics",
+      "activation_rule": "after first rights-cleared proof asset",
+      "rationale": "Strong logistics and cargo workflows with clear buyer relevance."
+    },
+    {
+      "label": "Peninsula industrial and support logistics sites",
+      "activation_rule": "after first rights-cleared proof asset",
+      "rationale": "Good exact-site and adjacent-site proof diversity."
+    },
+    {
+      "label": "Tri-Valley warehouse / 3PL / parcel sites",
+      "activation_rule": "after first rights-cleared proof asset",
+      "rationale": "Good next-wave warehouse coverage."
+    },
+    {
+      "label": "North Bay industrial and field-service sites",
+      "activation_rule": "after first rights-cleared proof asset",
+      "rationale": "Secondary coverage for inspection and warehouse workflows."
+    }
+  ],
+  "discovery_lanes": [
+    {
+      "label": "Bay Area warehouse / parcel / 3PL facilities",
+      "rationale": "Largest near-term robot-site universe in the region."
+    },
+    {
+      "label": "Advanced manufacturing / electronics / robotics production",
+      "rationale": "Strategically valuable exact-site manufacturing environments."
+    },
+    {
+      "label": "Industrial inspection and utility-adjacent environments",
+      "rationale": "Strong inspection workflow category for exact-site review."
+    },
+    {
+      "label": "Port, cargo, and airport logistics environments",
+      "rationale": "High-value logistics and constrained operations lane."
+    },
+    {
+      "label": "Labs, pilot sites, and demo environments",
+      "rationale": "Useful for buyer discovery but secondary to commercially real operations sites."
+    }
+  ],
+  "warnings": [],
+  "sources": [
+    {
+      "label": "San Francisco Chamber local economy overview",
+      "url": "https://sfchamber.com/resource/san-francisco-by-the-numbers/",
+      "note": "Supports local economy framing and dense business environment."
+    },
+    {
+      "label": "Port of Oakland",
+      "url": "https://www.portofoakland.com/",
+      "note": "Official port and logistics system surface."
+    },
+    {
+      "label": "SFO cargo",
+      "url": "https://www.flysfo.com/business-at-sfo/cargo",
+      "note": "Official SFO cargo and logistics surface."
+    },
+    {
+      "label": "BARA",
+      "url": "https://barobotics.org/",
+      "note": "Bay Area Robotics Alliance ecosystem signal for buyer and partner density."
+    },
+    {
+      "label": "ANYbotics + Yokogawa inspection partnership",
+      "url": "https://www.anybotics.com/news/yokogawa-and-anybotics-to-integrate-oprex-robot-management-core-software-with-anymal-robotic-inspection-solutions/",
+      "note": "Supports industrial inspection as an active 2026 robot workflow priority."
+    },
+    {
+      "label": "Agility commercial deployment with Toyota",
+      "url": "https://www.agilityrobotics.com/content/agility-robotics-announces-commercial-agreement-with-toyota-motor-manufacturing-canada",
+      "note": "Supports manufacturing and logistics as active humanoid deployment lanes."
+    }
+  ]
+}

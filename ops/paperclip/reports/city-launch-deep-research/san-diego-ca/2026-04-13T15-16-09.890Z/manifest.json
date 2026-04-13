@@ -1,0 +1,53 @@
+{
+  "city": "San Diego, CA",
+  "citySlug": "san-diego-ca",
+  "startedAt": "2026-04-13T15:16:09.890Z",
+  "completedAt": "2026-04-13T15:31:15.432Z",
+  "artifacts": {
+    "runDirectory": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-diego-ca/2026-04-13T15-16-09.890Z",
+    "manifestPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-diego-ca/2026-04-13T15-16-09.890Z/manifest.json",
+    "initialResearchPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-diego-ca/2026-04-13T15-16-09.890Z/01-initial-research.md",
+    "finalPlaybookPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-diego-ca/2026-04-13T15-16-09.890Z/99-final-playbook.md",
+    "canonicalPlaybookPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-diego-ca-deep-research.md",
+    "stageArtifacts": [
+      "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-diego-ca/2026-04-13T15-16-09.890Z/01-initial-research.md",
+      "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-diego-ca/2026-04-13T15-16-09.890Z/10-critique-round-1.md",
+      "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-diego-ca/2026-04-13T15-16-09.890Z/20-follow-up-research-round-1.md",
+      "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-diego-ca/2026-04-13T15-16-09.890Z/99-final-playbook.md"
+    ],
+    "notionKnowledgePageUrl": "https://www.notion.so/City-Launch-Deep-Research-Playbook-San-Diego-CA-34180154161d813490e4fb9499595588",
+    "notionWorkQueuePageUrl": "https://www.notion.so/Review-city-launch-deep-research-playbook-San-Diego-CA-34180154161d81eb9be2db275f340268"
+  },
+  "stages": [
+    {
+      "key": "initial_research",
+      "interactionId": "v1_Chd1Z2pkYVlyNUljbXhqTWNQX3JHRGtBSRIXdWdqZGFZcjVJY214ak1jUF9yR0RrQUk",
+      "status": "completed",
+      "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-diego-ca/2026-04-13T15-16-09.890Z/01-initial-research.md"
+    },
+    {
+      "key": "critique_round_1",
+      "interactionId": "v1_Chd1Z2pkYVlyNUljbXhqTWNQX3JHRGtBSRIXVndyZGFmRE1MNmZGcXRzUHRwdWs4UTA",
+      "status": "completed",
+      "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-diego-ca/2026-04-13T15-16-09.890Z/10-critique-round-1.md"
+    },
+    {
+      "key": "follow_up_research_round_1",
+      "interactionId": "v1_ChdXQXJkYWVYMU9mRE1xdHNQdEtqajJBOBIXV0FyZGFlWDFPZkRNcXRzUHRLamoyQTg",
+      "status": "completed",
+      "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-diego-ca/2026-04-13T15-16-09.890Z/20-follow-up-research-round-1.md"
+    },
+    {
+      "key": "final_playbook",
+      "interactionId": "v1_ChdXQXJkYWVYMU9mRE1xdHNQdEtqajJBOBIXUWd6ZGFkUDlMTWl2cXRzUHBmenJrUTg",
+      "status": "completed",
+      "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-diego-ca/2026-04-13T15-16-09.890Z/99-final-playbook.md"
+    }
+  ],
+  "notion": {
+    "knowledgePageId": "34180154-161d-8134-90e4-fb9499595588",
+    "knowledgePageUrl": "https://www.notion.so/City-Launch-Deep-Research-Playbook-San-Diego-CA-34180154161d813490e4fb9499595588",
+    "workQueuePageId": "34180154-161d-81eb-9be2-db275f340268",
+    "workQueuePageUrl": "https://www.notion.so/Review-city-launch-deep-research-playbook-San-Diego-CA-34180154161d81eb9be2db275f340268"
+  }
+}

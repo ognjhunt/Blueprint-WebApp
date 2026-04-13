@@ -1,0 +1,338 @@
+{
+  "status": "materialized",
+  "city": "San Diego, CA",
+  "citySlug": "san-diego-ca",
+  "sourceArtifactPath": "ops/paperclip/playbooks/city-launch-san-diego-ca-deep-research.md",
+  "parsed": {
+    "city": "San Diego, CA",
+    "citySlug": "san-diego-ca",
+    "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-diego-ca-deep-research.md",
+    "schemaVersion": "2026-04-12.city-launch-research.v1",
+    "generatedAtIso": "2026-04-12T00:00:00.000Z",
+    "captureCandidates": [
+      {
+        "stableKey": "prospect_san-diego-ca_industrial-warehouse-otay-business-park-logistics-center-otay-mesa-submarket-san-diego-ca",
+        "name": "Otay Business Park Logistics Center",
+        "sourceBucket": "industrial_warehouse",
+        "channel": "cre_proptech_trade",
+        "status": "identified",
+        "siteAddress": "Otay Mesa Submarket, San Diego, CA",
+        "locationSummary": "1.8 million-square-foot Otay Business Park complex",
+        "lat": 32.553,
+        "lng": -116.938,
+        "siteCategory": "warehouse",
+        "workflowFit": "commercial AMR navigation, palletizing, warehouse autonomy",
+        "priorityNote": "Primary target for exact-site wedge for Brain Corp via digital-twin barter.",
+        "sourceUrls": [
+          "https://elevation-land.com",
+          "https://cbre.com"
+        ],
+        "explicitFields": [
+          "name",
+          "source_bucket",
+          "channel",
+          "status",
+          "location_summary",
+          "site_category",
+          "workflow_fit",
+          "priority_note"
+        ],
+        "inferredFields": [
+          "site_address",
+          "lat",
+          "lng"
+        ],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-diego-ca-deep-research.md",
+          "sourceKey": "capture_location_candidates[0]",
+          "sourceUrls": [
+            "https://elevation-land.com",
+            "https://cbre.com"
+          ],
+          "parsedAtIso": "2026-04-13T15:40:28.656Z",
+          "explicitFields": [
+            "name",
+            "source_bucket",
+            "channel",
+            "status",
+            "location_summary",
+            "site_category",
+            "workflow_fit",
+            "priority_note"
+          ],
+          "inferredFields": [
+            "site_address",
+            "lat",
+            "lng"
+          ]
+        }
+      },
+      {
+        "stableKey": "prospect_san-diego-ca_laboratory-space-sorrento-valley-biotech-facility-sorrento-valley-san-diego-ca",
+        "name": "Sorrento Valley Biotech Facility",
+        "sourceBucket": "laboratory_space",
+        "channel": "cre_proptech_trade",
+        "status": "identified",
+        "siteAddress": "Sorrento Valley, San Diego, CA",
+        "locationSummary": "Complex multi-room lab space",
+        "lat": 32.898,
+        "lng": -117.195,
+        "siteCategory": "biotech_lab",
+        "workflowFit": "tight-corridor mapping, dynamic environment obstacle avoidance",
+        "priorityNote": "Secondary target to demonstrate multi-room complexity.",
+        "sourceUrls": [
+          "https://sandiegobusiness.org"
+        ],
+        "explicitFields": [
+          "name",
+          "source_bucket",
+          "channel",
+          "status",
+          "location_summary",
+          "site_category",
+          "workflow_fit",
+          "priority_note"
+        ],
+        "inferredFields": [
+          "site_address",
+          "lat",
+          "lng"
+        ],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-diego-ca-deep-research.md",
+          "sourceKey": "capture_location_candidates[1]",
+          "sourceUrls": [
+            "https://sandiegobusiness.org"
+          ],
+          "parsedAtIso": "2026-04-13T15:40:28.656Z",
+          "explicitFields": [
+            "name",
+            "source_bucket",
+            "channel",
+            "status",
+            "location_summary",
+            "site_category",
+            "workflow_fit",
+            "priority_note"
+          ],
+          "inferredFields": [
+            "site_address",
+            "lat",
+            "lng"
+          ]
+        }
+      }
+    ],
+    "buyerTargets": [
+      {
+        "stableKey": "buyer_target_san-diego-ca_brain-corp-amr-navigation-in-retail-and-warehouse-environments",
+        "companyName": "Brain Corp",
+        "contactName": "VP of Autonomy / Perception Lead",
+        "status": "researched",
+        "workflowFit": "AMR navigation in retail and warehouse environments",
+        "proofPath": "hosted_review",
+        "notes": "Target requires ROS 2 native architecture and Gazebo compatible (.world/.sdf) formats.",
+        "sourceBucket": "warehouse_robotics",
+        "sourceUrls": [
+          "https://braincorp.com",
+          "https://github.com"
+        ],
+        "explicitFields": [
+          "company_name",
+          "status",
+          "workflow_fit",
+          "proof_path",
+          "notes",
+          "source_bucket"
+        ],
+        "inferredFields": [
+          "contact_name"
+        ],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-diego-ca-deep-research.md",
+          "sourceKey": "buyer_target_candidates[0]",
+          "sourceUrls": [
+            "https://braincorp.com",
+            "https://github.com"
+          ],
+          "parsedAtIso": "2026-04-13T15:40:28.656Z",
+          "explicitFields": [
+            "company_name",
+            "status",
+            "workflow_fit",
+            "proof_path",
+            "notes",
+            "source_bucket"
+          ],
+          "inferredFields": [
+            "contact_name"
+          ]
+        }
+      },
+      {
+        "stableKey": "buyer_target_san-diego-ca_shield-ai-gps-denied-indoor-drone-autonomy-v-bat-nova",
+        "companyName": "Shield AI",
+        "contactName": "Director of Simulation",
+        "status": "researched",
+        "workflowFit": "GPS-denied indoor drone autonomy (V-BAT/Nova)",
+        "proofPath": "secure_containerized_delivery",
+        "notes": "Must comply with ITAR and A-GRA constraints. Stack relies on Hivemind, EdgeOS (C++17), and AWS ECR. Do not use standard public cloud wedge.",
+        "sourceBucket": "defense_aerospace",
+        "sourceUrls": [
+          "https://shield.ai",
+          "https://amazon.com"
+        ],
+        "explicitFields": [
+          "company_name",
+          "status",
+          "workflow_fit",
+          "proof_path",
+          "notes",
+          "source_bucket"
+        ],
+        "inferredFields": [
+          "contact_name"
+        ],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-diego-ca-deep-research.md",
+          "sourceKey": "buyer_target_candidates[1]",
+          "sourceUrls": [
+            "https://shield.ai",
+            "https://amazon.com"
+          ],
+          "parsedAtIso": "2026-04-13T15:40:28.656Z",
+          "explicitFields": [
+            "company_name",
+            "status",
+            "workflow_fit",
+            "proof_path",
+            "notes",
+            "source_bucket"
+          ],
+          "inferredFields": [
+            "contact_name"
+          ]
+        }
+      }
+    ],
+    "firstTouches": [
+      {
+        "stableKey": "touch_san-diego-ca_buyer-target-brain-corp-email-first-touch",
+        "referenceType": "buyer_target",
+        "referenceName": "Brain Corp",
+        "channel": "email",
+        "touchType": "first_touch",
+        "status": "queued",
+        "campaignId": null,
+        "issueId": null,
+        "notes": "Send 4-Block Proof Pack featuring Otay Mesa exact-site model with Gazebo integration checklist.",
+        "sourceUrls": [],
+        "explicitFields": [
+          "reference_type",
+          "reference_name",
+          "channel",
+          "touch_type",
+          "status",
+          "notes"
+        ],
+        "inferredFields": [
+          "campaign_id",
+          "issue_id"
+        ],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-diego-ca-deep-research.md",
+          "sourceKey": "first_touch_candidates[0]",
+          "sourceUrls": [],
+          "parsedAtIso": "2026-04-13T15:40:28.656Z",
+          "explicitFields": [
+            "reference_type",
+            "reference_name",
+            "channel",
+            "touch_type",
+            "status",
+            "notes"
+          ],
+          "inferredFields": [
+            "campaign_id",
+            "issue_id"
+          ]
+        }
+      }
+    ],
+    "budgetRecommendations": [
+      {
+        "stableKey": "budget_san-diego-ca_other-1500-estimated-day-rate-for-contracting-elite-aec-surveyors-e-g-nv5-gis-surveyors-for-single-site-industrial-capture",
+        "category": "other",
+        "amountUsd": 1500,
+        "note": "Estimated day rate for contracting elite AEC surveyors (e.g., NV5, GIS Surveyors) for single-site industrial capture.",
+        "sourceUrls": [
+          "https://nv5.com",
+          "https://gissurveyors.com"
+        ],
+        "explicitFields": [
+          "category",
+          "note"
+        ],
+        "inferredFields": [
+          "amount_usd"
+        ],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-diego-ca-deep-research.md",
+          "sourceKey": "budget_recommendations[0]",
+          "sourceUrls": [
+            "https://nv5.com",
+            "https://gissurveyors.com"
+          ],
+          "parsedAtIso": "2026-04-13T15:40:28.656Z",
+          "explicitFields": [
+            "category",
+            "note"
+          ],
+          "inferredFields": [
+            "amount_usd"
+          ]
+        }
+      },
+      {
+        "stableKey": "budget_san-diego-ca_other-500-estimated-cloud-compute-cost-for-generating-the-high-fidelity-proptech-digital-twin-used-as-the-barter-item-for-phase-0-site-acquisition",
+        "category": "other",
+        "amountUsd": 500,
+        "note": "Estimated cloud compute cost for generating the high-fidelity PropTech digital twin used as the barter item for Phase 0 site acquisition.",
+        "sourceUrls": [],
+        "explicitFields": [
+          "category",
+          "note"
+        ],
+        "inferredFields": [
+          "amount_usd"
+        ],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-diego-ca-deep-research.md",
+          "sourceKey": "budget_recommendations[1]",
+          "sourceUrls": [],
+          "parsedAtIso": "2026-04-13T15:40:28.656Z",
+          "explicitFields": [
+            "category",
+            "note"
+          ],
+          "inferredFields": [
+            "amount_usd"
+          ]
+        }
+      }
+    ],
+    "warnings": []
+  },
+  "prospectsUpserted": 2,
+  "buyerTargetsUpserted": 2,
+  "touchesRecorded": 1,
+  "budgetRecommendationsRecorded": 2,
+  "warnings": []
+}

@@ -5,7 +5,26 @@ import {
   type CityLaunchBudgetTier,
   type CityLaunchWideningGuard,
 } from "./cityLaunchPolicy";
+import { CITY_LAUNCH_MACHINE_POLICY_VERSION } from "./cityLaunchDoctrine";
 import { slugifyCityName } from "./cityLaunchProfiles";
+import type {
+  CityLaunchBudgetCategory,
+  CityLaunchBuyerProofPath,
+  CityLaunchBuyerTargetStatus,
+  CityLaunchProspectStatus,
+  CityLaunchTouchStatus,
+  CityLaunchTouchType,
+} from "./cityLaunchResearchContracts";
+import { isCityLaunchBuyerProofPath } from "./cityLaunchResearchContracts";
+
+export type {
+  CityLaunchBudgetCategory,
+  CityLaunchBuyerProofPath,
+  CityLaunchBuyerTargetStatus,
+  CityLaunchProspectStatus,
+  CityLaunchTouchStatus,
+  CityLaunchTouchType,
+} from "./cityLaunchResearchContracts";
 
 export type CityLaunchActivationStatus =
   | "planning"
@@ -23,51 +42,6 @@ export type CityLaunchResearchProvenance = {
   explicitFields: string[];
   inferredFields: string[];
 };
-
-export type CityLaunchProspectStatus =
-  | "identified"
-  | "contacted"
-  | "responded"
-  | "qualified"
-  | "approved"
-  | "onboarded"
-  | "capturing"
-  | "inactive";
-
-export type CityLaunchBuyerTargetStatus =
-  | "identified"
-  | "researched"
-  | "queued"
-  | "contacted"
-  | "engaged"
-  | "hosted_review"
-  | "commercial_handoff"
-  | "closed_won"
-  | "closed_lost";
-
-export type CityLaunchTouchStatus =
-  | "draft"
-  | "queued"
-  | "sent"
-  | "delivered"
-  | "replied"
-  | "failed";
-
-export type CityLaunchTouchType =
-  | "first_touch"
-  | "follow_up"
-  | "approval_request"
-  | "intro"
-  | "operator_send";
-
-export type CityLaunchBudgetCategory =
-  | "creative"
-  | "outbound"
-  | "community"
-  | "field_ops"
-  | "travel"
-  | "tools"
-  | "other";
 
 export type CityLaunchActivationRecord = {
   city: string;
@@ -119,7 +93,7 @@ export type CityLaunchBuyerTargetRecord = {
   contactName: string | null;
   status: CityLaunchBuyerTargetStatus;
   workflowFit: string | null;
-  proofPath: string | null;
+  proofPath: CityLaunchBuyerProofPath | null;
   ownerAgent: string | null;
   notes: string | null;
   sourceBucket: string | null;
@@ -259,6 +233,19 @@ function mergeString(existing: string | null | undefined, incoming: string | nul
   return prior || null;
 }
 
+function mergeBuyerProofPath(
+  existing: CityLaunchBuyerProofPath | null | undefined,
+  incoming: CityLaunchBuyerProofPath | null | undefined,
+) {
+  if (isCityLaunchBuyerProofPath(incoming)) {
+    return incoming;
+  }
+  if (isCityLaunchBuyerProofPath(existing)) {
+    return existing;
+  }
+  return null;
+}
+
 function mergeNotes(existing: string | null | undefined, incoming: string | null | undefined) {
   const prior = String(existing || "").trim();
   const next = String(incoming || "").trim();
@@ -326,7 +313,7 @@ export async function writeCityLaunchActivation(input: {
     status: input.status,
     rootIssueId: input.rootIssueId,
     taskIssueIds: input.taskIssueIds,
-    machineReadablePolicyVersion: "2026-04-12.1",
+    machineReadablePolicyVersion: CITY_LAUNCH_MACHINE_POLICY_VERSION,
     wideningGuard: input.wideningGuard,
     createdAtIso: timestamp,
     updatedAtIso: timestamp,
@@ -407,7 +394,7 @@ export async function upsertCityLaunchProspect(
     {
       ...payload,
       updated_at: serverTimestamp(),
-      created_at: existing ? undefined : serverTimestamp(),
+      ...(!existing ? { created_at: serverTimestamp() } : {}),
     },
     { merge: true },
   );
@@ -438,7 +425,7 @@ export async function upsertCityLaunchBuyerTarget(
     contactName: mergeString(existing?.contactName, input.contactName ?? null),
     status: mergeRankedStatus(existing?.status, input.status, BUYER_TARGET_STATUS_RANK),
     workflowFit: mergeString(existing?.workflowFit, input.workflowFit ?? null),
-    proofPath: mergeString(existing?.proofPath, input.proofPath ?? null),
+    proofPath: mergeBuyerProofPath(existing?.proofPath, input.proofPath ?? null),
     ownerAgent: mergeString(existing?.ownerAgent, input.ownerAgent ?? null),
     notes: mergeNotes(existing?.notes, input.notes ?? null),
     sourceBucket: mergeString(existing?.sourceBucket, input.sourceBucket ?? null),
@@ -450,7 +437,7 @@ export async function upsertCityLaunchBuyerTarget(
     {
       ...payload,
       updated_at: serverTimestamp(),
-      created_at: existing ? undefined : serverTimestamp(),
+      ...(!existing ? { created_at: serverTimestamp() } : {}),
     },
     { merge: true },
   );
@@ -494,7 +481,7 @@ export async function recordCityLaunchTouch(
     {
       ...payload,
       updated_at: serverTimestamp(),
-      created_at: existing ? undefined : serverTimestamp(),
+      ...(!existing ? { created_at: serverTimestamp() } : {}),
     },
     { merge: true },
   );
@@ -532,7 +519,7 @@ export async function recordCityLaunchBudgetEvent(
   await ref.set(
     {
       ...payload,
-      created_at: existing ? undefined : serverTimestamp(),
+      ...(!existing ? { created_at: serverTimestamp() } : {}),
     },
     { merge: true },
   );

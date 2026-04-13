@@ -94,6 +94,8 @@ export function buildCityLaunchWideningGuard(input: {
   hostedReviewsStarted: number;
   approvedCapturers: number;
   onboardedCapturers: number;
+  metricsReady?: boolean;
+  metricBlockers?: string[];
 }) {
   const reasons: string[] = [];
 
@@ -108,6 +110,13 @@ export function buildCityLaunchWideningGuard(input: {
   }
   if (input.onboardedCapturers < 2) {
     reasons.push("At least two capturers must reach onboarded status before widening.");
+  }
+  if (input.metricsReady === false) {
+    reasons.push(
+      ...(input.metricBlockers?.length
+        ? input.metricBlockers
+        : ["Required proof-motion analytics are not yet tracked and verified end to end."]),
+    );
   }
 
   return {

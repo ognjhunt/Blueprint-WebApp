@@ -1,0 +1,353 @@
+{
+  "city": "Seattle, WA",
+  "citySlug": "seattle-wa",
+  "generatedAt": "2026-04-13T14:22:01.003Z",
+  "workflows": [
+    {
+      "key": "warehouse_fulfillment",
+      "label": "Warehouse / fulfillment / 3PL",
+      "whyNow": "Seattle should start from commercially real logistics and warehouse workflows before widening into lower-signal site types.",
+      "priority": "tier_1"
+    },
+    {
+      "key": "advanced_manufacturing",
+      "label": "Advanced manufacturing / intralogistics",
+      "whyNow": "Seattle should prioritize repeatable manufacturing and material-movement workflows that benefit from exact-site hosted review.",
+      "priority": "tier_1"
+    },
+    {
+      "key": "industrial_inspection",
+      "label": "Industrial inspection",
+      "whyNow": "Inspection remains a live 2026 robotics workflow and produces strong site-specific proof value.",
+      "priority": "tier_2"
+    }
+  ],
+  "immediateTop25": [
+    {
+      "rank": 1,
+      "name": "Seattle airport and cargo corridor",
+      "type": "cargo / logistics cluster",
+      "corridor": "Seattle airport district",
+      "workflowFit": "cargo handling, parcel flow, warehouse adjacency",
+      "exactSiteValue": "High-value logistics proof lane",
+      "accessApproach": "operator and tenant mapping",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 2,
+      "name": "Seattle airport and cargo corridor cluster 2",
+      "type": "cargo / logistics cluster",
+      "corridor": "Seattle airport district",
+      "workflowFit": "cargo handling, parcel flow, warehouse adjacency",
+      "exactSiteValue": "High-value logistics proof lane",
+      "accessApproach": "operator and tenant mapping",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 3,
+      "name": "Seattle airport and cargo corridor cluster 3",
+      "type": "cargo / logistics cluster",
+      "corridor": "Seattle airport district",
+      "workflowFit": "cargo handling, parcel flow, warehouse adjacency",
+      "exactSiteValue": "High-value logistics proof lane",
+      "accessApproach": "operator and tenant mapping",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 4,
+      "name": "Seattle airport and cargo corridor cluster 4",
+      "type": "cargo / logistics cluster",
+      "corridor": "Seattle airport district",
+      "workflowFit": "cargo handling, parcel flow, warehouse adjacency",
+      "exactSiteValue": "High-value logistics proof lane",
+      "accessApproach": "operator and tenant mapping",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 5,
+      "name": "Seattle airport and cargo corridor cluster 5",
+      "type": "cargo / logistics cluster",
+      "corridor": "Seattle airport district",
+      "workflowFit": "cargo handling, parcel flow, warehouse adjacency",
+      "exactSiteValue": "High-value logistics proof lane",
+      "accessApproach": "operator and tenant mapping",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 6,
+      "name": "Seattle primary warehouse belt",
+      "type": "warehouse / logistics",
+      "corridor": "Seattle industrial belt",
+      "workflowFit": "warehouse AMR, fulfillment, material handling",
+      "exactSiteValue": "Direct fit for exact-site hosted review",
+      "accessApproach": "tenant mapping and source policy routing",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 7,
+      "name": "Seattle primary warehouse belt cluster 2",
+      "type": "warehouse / logistics",
+      "corridor": "Seattle industrial belt",
+      "workflowFit": "warehouse AMR, fulfillment, material handling",
+      "exactSiteValue": "Direct fit for exact-site hosted review",
+      "accessApproach": "tenant mapping and source policy routing",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 8,
+      "name": "Seattle primary warehouse belt cluster 3",
+      "type": "warehouse / logistics",
+      "corridor": "Seattle industrial belt",
+      "workflowFit": "warehouse AMR, fulfillment, material handling",
+      "exactSiteValue": "Direct fit for exact-site hosted review",
+      "accessApproach": "tenant mapping and source policy routing",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 9,
+      "name": "Seattle primary warehouse belt cluster 4",
+      "type": "warehouse / logistics",
+      "corridor": "Seattle industrial belt",
+      "workflowFit": "warehouse AMR, fulfillment, material handling",
+      "exactSiteValue": "Direct fit for exact-site hosted review",
+      "accessApproach": "tenant mapping and source policy routing",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 10,
+      "name": "Seattle primary warehouse belt cluster 5",
+      "type": "warehouse / logistics",
+      "corridor": "Seattle industrial belt",
+      "workflowFit": "warehouse AMR, fulfillment, material handling",
+      "exactSiteValue": "Direct fit for exact-site hosted review",
+      "accessApproach": "tenant mapping and source policy routing",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 11,
+      "name": "Seattle advanced manufacturing corridor",
+      "type": "advanced manufacturing",
+      "corridor": "Seattle manufacturing zone",
+      "workflowFit": "manufacturing intralogistics, mobile handling",
+      "exactSiteValue": "High-value manufacturing proof lane",
+      "accessApproach": "operator-lane introductions and tenant mapping",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 12,
+      "name": "Seattle advanced manufacturing corridor cluster 2",
+      "type": "advanced manufacturing",
+      "corridor": "Seattle manufacturing zone",
+      "workflowFit": "manufacturing intralogistics, mobile handling",
+      "exactSiteValue": "High-value manufacturing proof lane",
+      "accessApproach": "operator-lane introductions and tenant mapping",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 13,
+      "name": "Seattle advanced manufacturing corridor cluster 3",
+      "type": "advanced manufacturing",
+      "corridor": "Seattle manufacturing zone",
+      "workflowFit": "manufacturing intralogistics, mobile handling",
+      "exactSiteValue": "High-value manufacturing proof lane",
+      "accessApproach": "operator-lane introductions and tenant mapping",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 14,
+      "name": "Seattle advanced manufacturing corridor cluster 4",
+      "type": "advanced manufacturing",
+      "corridor": "Seattle manufacturing zone",
+      "workflowFit": "manufacturing intralogistics, mobile handling",
+      "exactSiteValue": "High-value manufacturing proof lane",
+      "accessApproach": "operator-lane introductions and tenant mapping",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 15,
+      "name": "Seattle advanced manufacturing corridor cluster 5",
+      "type": "advanced manufacturing",
+      "corridor": "Seattle manufacturing zone",
+      "workflowFit": "manufacturing intralogistics, mobile handling",
+      "exactSiteValue": "High-value manufacturing proof lane",
+      "accessApproach": "operator-lane introductions and tenant mapping",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 16,
+      "name": "Seattle light-industrial infill sites",
+      "type": "light industrial",
+      "corridor": "Seattle secondary industrial corridors",
+      "workflowFit": "inspection, warehouse support, field robotics",
+      "exactSiteValue": "Useful adjacent-site proof inventory",
+      "accessApproach": "cluster-first prospecting",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 17,
+      "name": "Seattle light-industrial infill sites cluster 2",
+      "type": "light industrial",
+      "corridor": "Seattle secondary industrial corridors",
+      "workflowFit": "inspection, warehouse support, field robotics",
+      "exactSiteValue": "Useful adjacent-site proof inventory",
+      "accessApproach": "cluster-first prospecting",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 18,
+      "name": "Seattle light-industrial infill sites cluster 3",
+      "type": "light industrial",
+      "corridor": "Seattle secondary industrial corridors",
+      "workflowFit": "inspection, warehouse support, field robotics",
+      "exactSiteValue": "Useful adjacent-site proof inventory",
+      "accessApproach": "cluster-first prospecting",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 19,
+      "name": "Seattle light-industrial infill sites cluster 4",
+      "type": "light industrial",
+      "corridor": "Seattle secondary industrial corridors",
+      "workflowFit": "inspection, warehouse support, field robotics",
+      "exactSiteValue": "Useful adjacent-site proof inventory",
+      "accessApproach": "cluster-first prospecting",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 20,
+      "name": "Seattle light-industrial infill sites cluster 5",
+      "type": "light industrial",
+      "corridor": "Seattle secondary industrial corridors",
+      "workflowFit": "inspection, warehouse support, field robotics",
+      "exactSiteValue": "Useful adjacent-site proof inventory",
+      "accessApproach": "cluster-first prospecting",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 21,
+      "name": "Seattle regional logistics expansion nodes",
+      "type": "warehouse / 3PL",
+      "corridor": "Seattle regional logistics ring",
+      "workflowFit": "storage, parcel, distribution",
+      "exactSiteValue": "Strong next-wave warehouse lane",
+      "accessApproach": "cluster-first outreach",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 22,
+      "name": "Seattle regional logistics expansion nodes cluster 2",
+      "type": "warehouse / 3PL",
+      "corridor": "Seattle regional logistics ring",
+      "workflowFit": "storage, parcel, distribution",
+      "exactSiteValue": "Strong next-wave warehouse lane",
+      "accessApproach": "cluster-first outreach",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 23,
+      "name": "Seattle regional logistics expansion nodes cluster 3",
+      "type": "warehouse / 3PL",
+      "corridor": "Seattle regional logistics ring",
+      "workflowFit": "storage, parcel, distribution",
+      "exactSiteValue": "Strong next-wave warehouse lane",
+      "accessApproach": "cluster-first outreach",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 24,
+      "name": "Seattle regional logistics expansion nodes cluster 4",
+      "type": "warehouse / 3PL",
+      "corridor": "Seattle regional logistics ring",
+      "workflowFit": "storage, parcel, distribution",
+      "exactSiteValue": "Strong next-wave warehouse lane",
+      "accessApproach": "cluster-first outreach",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    },
+    {
+      "rank": 25,
+      "name": "Seattle regional logistics expansion nodes cluster 5",
+      "type": "warehouse / 3PL",
+      "corridor": "Seattle regional logistics ring",
+      "workflowFit": "storage, parcel, distribution",
+      "exactSiteValue": "Strong next-wave warehouse lane",
+      "accessApproach": "cluster-first outreach",
+      "confidence": "medium",
+      "sourceNote": "Generic launch template target"
+    }
+  ],
+  "next100Buckets": [
+    {
+      "bucket": "Seattle warehouse and fulfillment corridors",
+      "targetCount": 40,
+      "rationale": "Primary exact-site launch wedge for commercially real robotics workflows."
+    },
+    {
+      "bucket": "Seattle advanced manufacturing and supplier sites",
+      "targetCount": 25,
+      "rationale": "High-value manufacturing lane once the first logistics proof assets exist."
+    },
+    {
+      "bucket": "Seattle airport, port, and cargo-adjacent facilities",
+      "targetCount": 20,
+      "rationale": "Good constrained-operations lane for logistics and inspection buyers."
+    },
+    {
+      "bucket": "Seattle light industrial and field-service environments",
+      "targetCount": 15,
+      "rationale": "Secondary adjacent-site lane for broader coverage after the first proof packs are live."
+    }
+  ],
+  "longUniverseBuckets": [
+    {
+      "bucket": "Seattle warehouse, fulfillment, and 3PL sites",
+      "targetCount": 400,
+      "rationale": "Largest near-term exact-site demand lane for technical robotics buyers."
+    },
+    {
+      "bucket": "Seattle advanced manufacturing and intralogistics sites",
+      "targetCount": 250,
+      "rationale": "High-value manufacturing environments that benefit from strong provenance and hosted review."
+    },
+    {
+      "bucket": "Seattle industrial inspection and constrained operations sites",
+      "targetCount": 150,
+      "rationale": "Inspection and constrained-site environments produce differentiated proof assets."
+    }
+  ],
+  "sources": [
+    {
+      "label": "Seattle launch system",
+      "url": "docs/city-launch-system-seattle-wa.md",
+      "note": "Canonical city launch system document generated by the generic launcher."
+    },
+    {
+      "label": "Seattle launch playbook",
+      "url": "ops/paperclip/playbooks/city-launch-seattle-wa.md",
+      "note": "City-specific playbook path reserved by the generic launcher."
+    }
+  ]
+}

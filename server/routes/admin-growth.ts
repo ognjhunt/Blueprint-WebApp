@@ -38,6 +38,7 @@ import {
   upsertCityLaunchBuyerTarget,
   upsertCityLaunchProspect,
 } from "../utils/cityLaunchLedgers";
+import { isCityLaunchBuyerProofPath } from "../utils/cityLaunchResearchContracts";
 
 const router = Router();
 
@@ -535,7 +536,9 @@ router.post("/city-launch/ledgers/buyer-targets", requireOps, async (req, res) =
           | "closed_won"
           | "closed_lost",
       workflowFit: normalizeString(req.body?.workflowFit) || null,
-      proofPath: normalizeString(req.body?.proofPath) || null,
+      proofPath: isCityLaunchBuyerProofPath(normalizeString(req.body?.proofPath) || null)
+        ? normalizeString(req.body?.proofPath) as "exact_site" | "adjacent_site" | "scoped_follow_up"
+        : null,
       ownerAgent: normalizeString(req.body?.ownerAgent) || null,
       notes: normalizeString(req.body?.notes) || null,
       sourceBucket: normalizeString(req.body?.sourceBucket) || null,

@@ -743,6 +743,65 @@ export const analyticsEvents = {
       requested_lane_count: properties.requestedLaneCount,
       ...buildDemandAttributionEventParams(properties.demandAttribution),
     }),
+
+  robotTeamInboundCaptured: (properties: {
+    city?: string;
+    buyerRole?: string;
+    requestedLane?: string;
+    demandAttribution?: DemandAttribution;
+  }) =>
+    trackEvent("robot_team_inbound_captured", {
+      city: properties.city,
+      buyer_role: properties.buyerRole,
+      requested_lane: properties.requestedLane,
+      ...buildDemandAttributionEventParams(properties.demandAttribution),
+    }),
+
+  exactSiteRequestCreated: (properties: {
+    city?: string;
+    siteRequestType?: string;
+    demandAttribution?: DemandAttribution;
+  }) =>
+    trackEvent("exact_site_request_created", {
+      city: properties.city,
+      site_request_type: properties.siteRequestType,
+      ...buildDemandAttributionEventParams(properties.demandAttribution),
+    }),
+
+  deeperReviewRequested: (properties: {
+    city?: string;
+    blockerType?: string;
+    demandAttribution?: DemandAttribution;
+  }) =>
+    trackEvent("deeper_review_requested", {
+      city: properties.city,
+      blocker_type: properties.blockerType,
+      ...buildDemandAttributionEventParams(properties.demandAttribution),
+    }),
+
+  hostedReviewStarted: (properties: {
+    city?: string;
+    hostedMode?: string;
+    demandAttribution?: DemandAttribution;
+  }) =>
+    trackEvent("hosted_review_started", {
+      city: properties.city,
+      hosted_mode: properties.hostedMode,
+      ...buildDemandAttributionEventParams(properties.demandAttribution),
+    }),
+
+  proofMotionStalled: (properties: {
+    city?: string;
+    blockerReason?: string;
+    blockerDetail?: string;
+    demandAttribution?: DemandAttribution;
+  }) =>
+    trackEvent("proof_motion_stalled", {
+      city: properties.city,
+      blocker_reason: properties.blockerReason,
+      blocker_detail: properties.blockerDetail,
+      ...buildDemandAttributionEventParams(properties.demandAttribution),
+    }),
 };
 
 export { getAnalyticsSessionId, getOrCreateExperimentAnonymousId, getSafeErrorType };

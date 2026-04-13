@@ -1,0 +1,91 @@
+{
+  "city": "San Diego, CA",
+  "citySlug": "san-diego-ca",
+  "generatedAt": "2026-04-13T15:39:38.020Z",
+  "mode": "deep_research_records",
+  "workflows": [
+    {
+      "key": "warehouse",
+      "label": "Warehouse",
+      "whyNow": "Primary target for exact-site wedge for Brain Corp via digital-twin barter.",
+      "priority": "tier_1"
+    },
+    {
+      "key": "biotech_lab",
+      "label": "Biotech Lab",
+      "whyNow": "Secondary target to demonstrate multi-room complexity.",
+      "priority": "tier_1"
+    }
+  ],
+  "immediateTop25": [
+    {
+      "rank": 1,
+      "name": "Otay Business Park Logistics Center",
+      "type": "warehouse",
+      "corridor": "1.8 million-square-foot Otay Business Park complex",
+      "workflowFit": "commercial AMR navigation, palletizing, warehouse autonomy",
+      "exactSiteValue": "Primary target for exact-site wedge for Brain Corp via digital-twin barter.",
+      "accessApproach": "cre_proptech_trade",
+      "confidence": "high",
+      "sourceNote": "https://elevation-land.com"
+    },
+    {
+      "rank": 2,
+      "name": "Sorrento Valley Biotech Facility",
+      "type": "biotech_lab",
+      "corridor": "Complex multi-room lab space",
+      "workflowFit": "tight-corridor mapping, dynamic environment obstacle avoidance",
+      "exactSiteValue": "Secondary target to demonstrate multi-room complexity.",
+      "accessApproach": "cre_proptech_trade",
+      "confidence": "high",
+      "sourceNote": "https://sandiegobusiness.org"
+    }
+  ],
+  "next100Buckets": [
+    {
+      "bucket": "Industrial Warehouse",
+      "targetCount": 5,
+      "rationale": "Expand only after the first research-backed proof assets and rights-cleared reviews exist."
+    },
+    {
+      "bucket": "Laboratory Space",
+      "targetCount": 5,
+      "rationale": "Expand only after the first research-backed proof assets and rights-cleared reviews exist."
+    }
+  ],
+  "longUniverseBuckets": [
+    {
+      "bucket": "Industrial Warehouse",
+      "targetCount": 25,
+      "rationale": "Long-universe estimate inferred from the research-backed target mix. Validate locally before treating it as a coverage plan."
+    },
+    {
+      "bucket": "Laboratory Space",
+      "targetCount": 25,
+      "rationale": "Long-universe estimate inferred from the research-backed target mix. Validate locally before treating it as a coverage plan."
+    }
+  ],
+  "sources": [
+    {
+      "label": "San Diego deep research playbook",
+      "url": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-diego-ca-deep-research.md",
+      "note": "Latest completed deep-research artifact with structured launch records."
+    },
+    {
+      "label": "Research citation 1",
+      "url": "https://elevation-land.com",
+      "note": "Cited source carried through the structured deep-research appendix."
+    },
+    {
+      "label": "Research citation 2",
+      "url": "https://cbre.com",
+      "note": "Cited source carried through the structured deep-research appendix."
+    },
+    {
+      "label": "Research citation 3",
+      "url": "https://sandiegobusiness.org",
+      "note": "Cited source carried through the structured deep-research appendix."
+    }
+  ],
+  "warnings": []
+}

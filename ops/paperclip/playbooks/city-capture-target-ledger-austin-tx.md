@@ -2,7 +2,8 @@
 
 - city: Austin, TX
 - city_slug: austin-tx
-- generated_at: 2026-04-13T04:40:48.188Z
+- generated_at: 2026-04-13T17:22:13.163Z
+- mode: curated_city_profile
 - status: hypothesis-ranked targeting ledger, not a claim that every site is already accessible
 
 ## Purpose
@@ -10,9 +11,9 @@
 Turn current robot workflow and buyer-demand priors into a ranked capture target ledger so the org knows which sites and site clusters should be pursued first.
 
 This ledger is intentionally split into:
-- immediate top 25 targets for real execution now
-- next 100 target buckets for expansion after the first proof assets exist
-- a long 300-1000 site universe model so city expansion does not become random
+- priority proof targets for real execution now
+- queued lawful-access buckets for expansion after the first proof assets exist
+- longer-horizon discovery lanes so city expansion does not become random
 
 ## Workflow Priorities
 
@@ -22,7 +23,7 @@ This ledger is intentionally split into:
 - Semiconductor and clean manufacturing support environments (tier_2): Central Texas semiconductor growth creates high-value, constrained, site-specific environments, though access friction is higher.
 - Cargo / airport-adjacent logistics (tier_3): Important for warehouse and logistics buyers, but usually secondary to larger inland warehouse and manufacturing facilities.
 
-## Immediate Top 25
+## Priority Proof Targets
 
 | Rank | Target | Type | Corridor | Workflow fit | Confidence | Access approach |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -52,34 +53,34 @@ This ledger is intentionally split into:
 | 24 | Kuehne+Nagel Austin logistics operations | logistics operator footprint | Austin metro | supply-chain and warehousing operations | medium | operator and customer network mapping |
 | 25 | Industrial distributor and field-service branches serving Austin manufacturing | light industrial support | Austin metro | warehouse, inventory, service logistics | medium | open-cluster discovery and referrals |
 
-## Next 100 Expansion Buckets
+## Queued Lawful-Access Buckets
 
-| Bucket | Target count | Rationale |
-| --- | ---: | --- |
-| Tesla / SH-130 manufacturing and logistics orbit | 20 | Highest-value exact-site manufacturing and warehouse lane around Giga Texas and its support sites. |
-| Kyle / Buda / South I-35 logistics corridor | 20 | Best warehouse and 3PL density immediately south of Austin. |
-| Northeast Austin / Parmer / TX-130 warehouses | 20 | Strong warehouse AMR and fulfillment fit with lower access friction than flagship manufacturing sites. |
-| Taylor semiconductor and industrial ecosystem | 15 | High-value manufacturing and inspection lane with Samsung-led gravity. |
-| Round Rock / Georgetown logistics and distribution | 10 | Good next-wave warehouse coverage and manufacturing adjacency. |
-| Bastrop advanced manufacturing and aerospace support | 10 | Secondary manufacturing lane with interesting inspection and constrained-site value. |
-| ABIA cargo, airport-adjacent logistics, and FTZ-linked facilities | 5 | Selective logistics and inspection targets that can round out proof coverage. |
+| Bucket | Activation rule | Rationale |
+| --- | --- | --- |
+| Tesla / SH-130 manufacturing and logistics orbit | after first rights-cleared proof asset | Highest-value exact-site manufacturing and warehouse lane around Giga Texas and its support sites. |
+| Kyle / Buda / South I-35 logistics corridor | after first rights-cleared proof asset | Best warehouse and 3PL density immediately south of Austin. |
+| Northeast Austin / Parmer / TX-130 warehouses | after first rights-cleared proof asset | Strong warehouse AMR and fulfillment fit with lower access friction than flagship manufacturing sites. |
+| Taylor semiconductor and industrial ecosystem | after first rights-cleared proof asset | High-value manufacturing and inspection lane with Samsung-led gravity. |
+| Round Rock / Georgetown logistics and distribution | after first rights-cleared proof asset | Good next-wave warehouse coverage and manufacturing adjacency. |
+| Bastrop advanced manufacturing and aerospace support | after first rights-cleared proof asset | Secondary manufacturing lane with interesting inspection and constrained-site value. |
+| ABIA cargo, airport-adjacent logistics, and FTZ-linked facilities | after first rights-cleared proof asset | Selective logistics and inspection targets that can round out proof coverage. |
 
-## Long 300-1000 Universe Model
+## Longer-Horizon Discovery Lanes
 
-| Universe bucket | Target count | Rationale |
-| --- | ---: | --- |
-| Warehouse / fulfillment / 3PL sites across the Austin-Kyle-Buda-Georgetown arc | 350 | Largest near-term robot-site opportunity set for exact-site hosted review. |
-| Advanced manufacturing and industrial intralogistics facilities | 250 | High-value manufacturing environments around Tesla, Samsung, and related suppliers. |
-| Industrial inspection environments | 150 | Inspection workflows remain active in 2026 and map well to site-specific proof packs. |
-| Semiconductor and clean-manufacturing support environments | 100 | Smaller but strategically valuable exact-site lane with higher access friction. |
-| Cargo, import/export, and airport-adjacent logistics facilities | 75 | Useful secondary logistics lane for broader warehouse and operations buyers. |
-| Aerospace, defense, and advanced components manufacturing | 75 | Good secondary lane for manufacturing and inspection buyers in Central Texas. |
+| Discovery lane | Rationale |
+| --- | --- |
+| Warehouse / fulfillment / 3PL sites across the Austin-Kyle-Buda-Georgetown arc | Largest near-term robot-site opportunity set for exact-site hosted review. |
+| Advanced manufacturing and industrial intralogistics facilities | High-value manufacturing environments around Tesla, Samsung, and related suppliers. |
+| Industrial inspection environments | Inspection workflows remain active in 2026 and map well to site-specific proof packs. |
+| Semiconductor and clean-manufacturing support environments | Smaller but strategically valuable exact-site lane with higher access friction. |
+| Cargo, import/export, and airport-adjacent logistics facilities | Useful secondary logistics lane for broader warehouse and operations buyers. |
+| Aerospace, defense, and advanced components manufacturing | Good secondary lane for manufacturing and inspection buyers in Central Texas. |
 
 ## Operating Rules
 
-- The immediate top 25 should drive real capture pursuit first.
-- The next 100 should stay as a queued expansion map until at least one clean proof pack is rights-cleared.
-- The long universe is a discovery frame, not a promise that Blueprint should touch every site soon.
+- The priority proof targets should drive real capture pursuit first.
+- The queued lawful-access buckets should stay dormant until at least one clean proof pack is rights-cleared.
+- The longer-horizon discovery lanes are a discovery frame, not a promise that Blueprint should touch every site soon.
 - High-security or rights-sensitive flagship sites should route through the operator lane, not generic capture outreach.
 - Buyer-thread-linked exact sites should outrank general prospecting whenever a real robot-team request exists.
 
@@ -93,3 +94,7 @@ This ledger is intentionally split into:
 - [ANYbotics + Yokogawa inspection partnership](https://www.anybotics.com/news/yokogawa-and-anybotics-to-integrate-oprex-robot-management-core-software-with-anymal-robotic-inspection-solutions/) — Supports industrial inspection as an active 2026 robot workflow priority.
 - [Agility commercial deployment with Toyota](https://www.agilityrobotics.com/content/agility-robotics-announces-commercial-agreement-with-toyota-motor-manufacturing-canada) — Supports logistics, manufacturing, and supply-chain workflows as active humanoid deployment lanes.
 - [Path Robotics + HII shipbuilding physical AI](https://www.path-robotics.com/news/hii-path-robotics-physical-ai-shipbuilding-mou) — Supports repetitive manufacturing and industrial automation workflows as current demand lanes.
+
+## Warnings
+
+- none

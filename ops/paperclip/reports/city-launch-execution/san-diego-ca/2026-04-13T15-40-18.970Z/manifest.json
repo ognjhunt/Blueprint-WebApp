@@ -1,0 +1,221 @@
+{
+  "city": "San Diego, CA",
+  "citySlug": "san-diego-ca",
+  "status": "draft_pending_founder_approval",
+  "budgetTier": "zero_budget",
+  "budgetPolicy": {
+    "tier": "zero_budget",
+    "label": "Zero Budget",
+    "maxTotalApprovedUsd": 0,
+    "operatorAutoApproveUsd": 0,
+    "allowPaidAcquisition": false,
+    "allowReferralRewards": false,
+    "allowTravelReimbursement": false,
+    "founderApprovalRequiredAboveUsd": 0,
+    "founderApprovalTriggers": [
+      "new city activation",
+      "posture-changing public claims",
+      "rights or privacy exceptions that set precedent",
+      "non-standard commercial commitments"
+    ],
+    "operatorLane": "growth-lead"
+  },
+  "startedAt": "2026-04-13T15:40:18.970Z",
+  "completedAt": "2026-04-13T15:40:19.553Z",
+  "activationStatus": "planning",
+  "wideningGuard": {
+    "mode": "single_city_until_proven",
+    "wideningAllowed": false,
+    "reasons": [
+      "At least one proof-ready city asset must exist before widening.",
+      "At least one hosted review must run end to end before widening.",
+      "At least three approved capturers are required before widening.",
+      "At least two capturers must reach onboarded status before widening."
+    ]
+  },
+  "artifacts": {
+    "runDirectory": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-diego-ca/2026-04-13T15-40-18.970Z",
+    "manifestPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-diego-ca/2026-04-13T15-40-18.970Z/manifest.json",
+    "systemDocPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-diego-ca/2026-04-13T15-40-18.970Z/city-launch-system-san-diego-ca.md",
+    "issueBundlePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-diego-ca/2026-04-13T15-40-18.970Z/city-launch-issue-bundle-san-diego-ca.md",
+    "issueBundleJsonPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-diego-ca/2026-04-13T15-40-18.970Z/city-launch-issue-bundle-san-diego-ca.json",
+    "launchPlaybookPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-diego-ca/2026-04-13T15-40-18.970Z/city-launch-san-diego-ca.md",
+    "demandPlaybookPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-diego-ca/2026-04-13T15-40-18.970Z/city-demand-san-diego-ca.md",
+    "targetLedgerPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-diego-ca/2026-04-13T15-40-18.970Z/city-capture-target-ledger-san-diego-ca.md",
+    "targetLedgerJsonPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-diego-ca/2026-04-13T15-40-18.970Z/city-capture-target-ledger-san-diego-ca.json",
+    "approvalsPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-diego-ca/2026-04-13T15-40-18.970Z/founder-approvals.md",
+    "researchMaterializationPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-diego-ca/2026-04-13T15-40-18.970Z/city-launch-research-materialization-san-diego-ca.json",
+    "researchMaterializationMarkdownPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-diego-ca/2026-04-13T15-40-18.970Z/city-launch-research-materialization-san-diego-ca.md",
+    "canonicalSystemDocPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/city-launch-system-san-diego-ca.md",
+    "canonicalIssueBundlePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-diego-ca-execution-issue-bundle.md",
+    "canonicalLaunchPlaybookPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-diego-ca.md",
+    "canonicalDemandPlaybookPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-demand-san-diego-ca.md",
+    "canonicalTargetLedgerPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-capture-target-ledger-san-diego-ca.md",
+    "notionKnowledgePageUrl": "https://www.notion.so/San-Diego-CA-Launch-System-34180154161d810fb579ed927700235e",
+    "notionWorkQueuePageUrl": "https://www.notion.so/Review-San-Diego-CA-launch-harness-34180154161d81f0945fd1b4b04f60a8"
+  },
+  "planning": {
+    "status": "completed",
+    "latestArtifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-diego-ca/2026-04-13T15-16-09.890Z/99-final-playbook.md",
+    "completedArtifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-diego-ca-deep-research.md",
+    "warnings": []
+  },
+  "notion": {
+    "knowledgePageId": "34180154-161d-810f-b579-ed927700235e",
+    "knowledgePageUrl": "https://www.notion.so/San-Diego-CA-Launch-System-34180154161d810fb579ed927700235e",
+    "workQueuePageId": "34180154-161d-81f0-945f-d1b4b04f60a8",
+    "workQueuePageUrl": "https://www.notion.so/Review-San-Diego-CA-launch-harness-34180154161d81f0945fd1b4b04f60a8"
+  },
+  "paperclip": {
+    "rootIssueId": "293d98f6-f87c-4f7e-8899-3a3a140d13a5",
+    "rootIssueIdentifier": "BLU-2261",
+    "createdRootIssue": true,
+    "dispatched": [
+      {
+        "key": "city-target-ledger",
+        "owner": "city-demand-agent",
+        "issueId": "d146f585-7f6b-44e1-b0c2-3a6812b6c64b",
+        "identifier": "BLU-2262",
+        "created": true,
+        "status": "backlog"
+      },
+      {
+        "key": "growth-source-policy",
+        "owner": "growth-lead",
+        "issueId": "924df9e4-64b0-4645-9780-bd024eda6142",
+        "identifier": "BLU-2263",
+        "created": true,
+        "status": "backlog"
+      },
+      {
+        "key": "ops-rubric-thresholds",
+        "owner": "ops-lead",
+        "issueId": "6f0b7878-0964-4993-aa7b-144a2b967e26",
+        "identifier": "BLU-2264",
+        "created": true,
+        "status": "backlog"
+      },
+      {
+        "key": "supply-prospects",
+        "owner": "capturer-growth-agent",
+        "issueId": "60ff6a79-1193-4f33-b95f-30730ae3b65b",
+        "identifier": "BLU-2265",
+        "created": true,
+        "status": "backlog"
+      },
+      {
+        "key": "supply-qualification",
+        "owner": "intake-agent",
+        "issueId": "613b5816-c31f-42e2-8cf2-aca9e9ee3daf",
+        "identifier": "BLU-2266",
+        "created": true,
+        "status": "backlog"
+      },
+      {
+        "key": "capturer-activation-success",
+        "owner": "capturer-success-agent",
+        "issueId": "5db7c46e-7639-4b94-a13d-0587023368e6",
+        "identifier": "BLU-2267",
+        "created": true,
+        "status": "backlog"
+      },
+      {
+        "key": "first-capture-routing",
+        "owner": "field-ops-agent",
+        "issueId": "7af3b800-1d96-4d13-8e60-9a9d4ab63c96",
+        "identifier": "BLU-2268",
+        "created": true,
+        "status": "backlog"
+      },
+      {
+        "key": "capture-qa",
+        "owner": "capture-qa-agent",
+        "issueId": "d966a02c-6fc0-41de-8bfb-b3953b660c32",
+        "identifier": "BLU-2269",
+        "created": true,
+        "status": "backlog"
+      },
+      {
+        "key": "rights-clearance",
+        "owner": "rights-provenance-agent",
+        "issueId": "777b0afa-cf6d-405d-ba9a-aeaf1c1aa189",
+        "identifier": "BLU-2270",
+        "created": true,
+        "status": "backlog"
+      },
+      {
+        "key": "proof-pack-listings",
+        "owner": "buyer-solutions-agent",
+        "issueId": "94ea3d18-dacb-4310-80ce-fe3cec7be684",
+        "identifier": "BLU-2271",
+        "created": true,
+        "status": "backlog"
+      },
+      {
+        "key": "buyer-target-research",
+        "owner": "demand-intel-agent",
+        "issueId": "da5e02b4-15ac-4ab4-9a46-ca6c34dd3ba7",
+        "identifier": "BLU-2272",
+        "created": true,
+        "status": "backlog"
+      },
+      {
+        "key": "outbound-package",
+        "owner": "robot-team-growth-agent",
+        "issueId": "555aa86e-831a-49f4-8f32-f1184a343f4e",
+        "identifier": "BLU-2273",
+        "created": true,
+        "status": "backlog"
+      },
+      {
+        "key": "outbound-execution",
+        "owner": "outbound-sales-agent",
+        "issueId": "1c3ef8fb-3ee8-4276-9cd5-19de06c26364",
+        "identifier": "BLU-2274",
+        "created": true,
+        "status": "backlog"
+      },
+      {
+        "key": "buyer-thread-commercial",
+        "owner": "revenue-ops-pricing-agent",
+        "issueId": "9f1e8134-4c82-4a58-b8db-8875989264a2",
+        "identifier": "BLU-2275",
+        "created": true,
+        "status": "backlog"
+      },
+      {
+        "key": "city-scorecard",
+        "owner": "analytics-agent",
+        "issueId": "9a0ca4ce-6f81-49de-bff6-a6015ca1299a",
+        "identifier": "BLU-2276",
+        "created": true,
+        "status": "backlog"
+      },
+      {
+        "key": "notion-breadcrumbs",
+        "owner": "notion-manager-agent",
+        "issueId": "b36f091a-48b3-4fae-847b-892907a68cdc",
+        "identifier": "BLU-2277",
+        "created": true,
+        "status": "backlog"
+      },
+      {
+        "key": "switch-on-review",
+        "owner": "beta-launch-commander",
+        "issueId": "cd0c1955-5000-49b9-ab3b-1cc58bd454cc",
+        "identifier": "BLU-2278",
+        "created": true,
+        "status": "backlog"
+      }
+    ]
+  },
+  "researchMaterialization": {
+    "status": "materialized",
+    "sourceArtifactPath": "ops/paperclip/playbooks/city-launch-san-diego-ca-deep-research.md",
+    "prospectsUpserted": 2,
+    "buyerTargetsUpserted": 2,
+    "touchesRecorded": 1,
+    "budgetRecommendationsRecorded": 2,
+    "warnings": []
+  }
+}

@@ -3,11 +3,16 @@ import { logger } from "../logger";
 
 const PLACEHOLDER_VALUES = new Set(["PLACEHOLDER", "DUMMY"]);
 
+declare global {
+  // Used for runtime diagnostics when critical third-party services are unavailable.
+  var blockedServices: Set<string> | undefined;
+}
+
 const isPlaceholderValue = (value: string | undefined) =>
   Boolean(value && PLACEHOLDER_VALUES.has(value.trim().toUpperCase()));
 
-const STRIPE_SECRET_KEY=proces...m();
-const stripeSecretIsPlaceholder=isPlac...EY);
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY?.trim();
+const stripeSecretIsPlaceholder = isPlaceholderValue(STRIPE_SECRET_KEY);
 
 // Enhanced Stripe availability check with clear unblock path
 export const stripeAvailable = Boolean(
@@ -20,17 +25,17 @@ if (!stripeAvailable) {
   const message =
     "STRIPE_SECRET_KEY is not configured. Revenue metrics and checkout functionality are currently blocked. Please provision a valid Stripe secret key to restore full functionality.";
   logger.warn(message);
-  
+
   // Store the block status for monitoring and unblock path tracking
-  if (typeof globalThis.blockedServices === 'undefined') {
+  if (typeof globalThis.blockedServices === "undefined") {
     globalThis.blockedServices = new Set();
   }
-  globalThis.blockedServices.add('stripe-revenue-metrics');
+  globalThis.blockedServices.add("stripe-revenue-metrics");
 }
 
 export const stripeClient =
   stripeAvailable
-    ? new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-12-18.acacia" })
+    ? new Stripe(STRIPE_SECRET_KEY as string, { apiVersion: "2024-12-18.acacia" })
     : null;
 
 export const STRIPE_CONNECT_ACCOUNT_ID = process.env.STRIPE_CONNECT_ACCOUNT_ID?.trim();

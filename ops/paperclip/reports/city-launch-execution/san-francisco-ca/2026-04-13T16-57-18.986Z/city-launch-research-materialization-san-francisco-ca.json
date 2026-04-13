@@ -1,0 +1,16 @@
+{
+  "status": "missing_artifact",
+  "city": "San Francisco, CA",
+  "citySlug": "san-francisco-ca",
+  "sourceArtifactPath": null,
+  "parsed": null,
+  "activationPayloadPresent": false,
+  "activationIssueSeeds": 0,
+  "prospectsUpserted": 0,
+  "buyerTargetsUpserted": 0,
+  "touchesRecorded": 0,
+  "budgetRecommendationsRecorded": 0,
+  "warnings": [
+    "No deep-research playbook was found for this city."
+  ]
+}

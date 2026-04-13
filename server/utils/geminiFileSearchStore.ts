@@ -550,8 +550,10 @@ export async function buildCityLaunchFileSearchStore(
       repoRelativePath,
       citySlug,
     });
-    upload.replacedDocumentNames.push(...replacedDocumentNames);
-    result.uploadedDocuments.push(upload);
+    result.uploadedDocuments.push({
+      ...upload,
+      replacedDocumentNames: [...upload.replacedDocumentNames, ...replacedDocumentNames],
+    });
   }
 
   return result;

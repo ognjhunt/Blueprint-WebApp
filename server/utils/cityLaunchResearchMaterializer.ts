@@ -8,6 +8,7 @@ import {
   upsertCityLaunchProspect,
 } from "./cityLaunchLedgers";
 import type { CityLaunchBudgetPolicy } from "./cityLaunchPolicy";
+import { resolveCityLaunchPlanningState } from "./cityLaunchPlanningState";
 import { slugifyCityName } from "./cityLaunchProfiles";
 import {
   loadAndParseCityLaunchResearchArtifact,
@@ -29,11 +30,13 @@ function toRepoRelative(filePath: string) {
 }
 
 export type CityLaunchResearchMaterializationResult = {
-  status: "materialized" | "missing_artifact" | "empty" | "failed";
+  status: "materialized" | "planning_in_progress" | "missing_artifact" | "empty" | "failed";
   city: string;
   citySlug: string;
   sourceArtifactPath: string | null;
   parsed: CityLaunchResearchParseResult | null;
+  activationPayloadPresent: boolean;
+  activationIssueSeeds: number;
   prospectsUpserted: number;
   buyerTargetsUpserted: number;
   touchesRecorded: number;
@@ -51,6 +54,11 @@ async function fileExists(filePath: string) {
 }
 
 export async function resolveCityLaunchResearchArtifactPath(city: string) {
+  const planningState = await resolveCityLaunchPlanningState({ city });
+  if (planningState.completedArtifactPath) {
+    return planningState.completedArtifactPath;
+  }
+
   const citySlug = slugifyCityName(city);
   const canonicalPlaybookPath = path.join(
     REPO_ROOT,
@@ -90,6 +98,8 @@ function renderMaterializationMarkdown(result: CityLaunchResearchMaterialization
     `- status: ${result.status}`,
     `- city_slug: ${result.citySlug}`,
     `- source_artifact: ${result.sourceArtifactPath || "none"}`,
+    `- activation_payload_present: ${result.activationPayloadPresent}`,
+    `- activation_issue_seeds: ${result.activationIssueSeeds}`,
     `- prospects_upserted: ${result.prospectsUpserted}`,
     `- buyer_targets_upserted: ${result.buyerTargetsUpserted}`,
     `- touches_recorded: ${result.touchesRecorded}`,
@@ -112,20 +122,36 @@ export async function materializeCityLaunchResearch(input: {
 }) {
   const city = input.city.trim();
   const citySlug = slugifyCityName(city);
+  const planningState = await resolveCityLaunchPlanningState({ city });
   const sourceArtifactPath = input.artifactPath || (await resolveCityLaunchResearchArtifactPath(city));
 
   if (!sourceArtifactPath) {
+    const status = planningState.status === "in_progress"
+      ? "planning_in_progress"
+      : "missing_artifact";
+    const warnings = planningState.status === "in_progress"
+      ? [
+          "City-launch planning is still in progress; no completed deep-research playbook is available to materialize yet.",
+          ...(planningState.latestArtifactPath
+            ? [`Latest partial artifact: ${toRepoRelative(planningState.latestArtifactPath)}`]
+            : []),
+        ]
+      : ["No deep-research playbook was found for this city."];
     const result = {
-      status: "missing_artifact",
+      status,
       city,
       citySlug,
-      sourceArtifactPath: null,
+      sourceArtifactPath: planningState.latestArtifactPath
+        ? toRepoRelative(planningState.latestArtifactPath)
+        : null,
       parsed: null,
+      activationPayloadPresent: false,
+      activationIssueSeeds: 0,
       prospectsUpserted: 0,
       buyerTargetsUpserted: 0,
       touchesRecorded: 0,
       budgetRecommendationsRecorded: 0,
-      warnings: ["No deep-research playbook was found for this city."],
+      warnings,
     } satisfies CityLaunchResearchMaterializationResult;
 
     if (input.outputPath) {
@@ -146,6 +172,39 @@ export async function materializeCityLaunchResearch(input: {
       city,
       artifactPath: sourceArtifactPath,
     });
+
+    if (parsed.errors.length > 0) {
+      const warnings = [
+        ...parsed.warnings,
+        ...parsed.errors.map((error) => `Contract violation: ${error}`),
+      ];
+      const result = {
+        status: "failed",
+        city,
+        citySlug,
+        sourceArtifactPath: toRepoRelative(sourceArtifactPath),
+        parsed,
+        activationPayloadPresent: Boolean(parsed.activationPayload),
+        activationIssueSeeds: parsed.activationPayload?.issueSeeds.length || 0,
+        prospectsUpserted: 0,
+        buyerTargetsUpserted: 0,
+        touchesRecorded: 0,
+        budgetRecommendationsRecorded: 0,
+        warnings,
+      } satisfies CityLaunchResearchMaterializationResult;
+
+      if (input.outputPath) {
+        await fs.mkdir(path.dirname(input.outputPath), { recursive: true });
+        await fs.writeFile(input.outputPath, JSON.stringify(result, null, 2), "utf8");
+        await fs.writeFile(
+          input.outputPath.replace(/\.json$/i, ".md"),
+          renderMaterializationMarkdown(result),
+          "utf8",
+        );
+      }
+
+      return result;
+    }
 
     const prospectIdsByName = new Map<string, string>();
     const buyerIdsByName = new Map<string, string>();
@@ -261,6 +320,12 @@ export async function materializeCityLaunchResearch(input: {
       && budgetRecommendationsRecorded === 0
         ? "empty"
         : "materialized";
+    const warnings = [...parsed.warnings];
+    if (planningState.status === "refresh_in_progress") {
+      warnings.push(
+        "A newer deep-research refresh is still in progress. Materialized the latest completed playbook.",
+      );
+    }
 
     const result = {
       status,
@@ -268,11 +333,13 @@ export async function materializeCityLaunchResearch(input: {
       citySlug,
       sourceArtifactPath: toRepoRelative(sourceArtifactPath),
       parsed,
+      activationPayloadPresent: Boolean(parsed.activationPayload),
+      activationIssueSeeds: parsed.activationPayload?.issueSeeds.length || 0,
       prospectsUpserted,
       buyerTargetsUpserted,
       touchesRecorded,
       budgetRecommendationsRecorded,
-      warnings: parsed.warnings,
+      warnings,
     } satisfies CityLaunchResearchMaterializationResult;
 
     if (input.outputPath) {
@@ -293,6 +360,8 @@ export async function materializeCityLaunchResearch(input: {
       citySlug,
       sourceArtifactPath: toRepoRelative(sourceArtifactPath),
       parsed: null,
+      activationPayloadPresent: false,
+      activationIssueSeeds: 0,
       prospectsUpserted: 0,
       buyerTargetsUpserted: 0,
       touchesRecorded: 0,

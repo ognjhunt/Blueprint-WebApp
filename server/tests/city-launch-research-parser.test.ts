@@ -4,6 +4,10 @@ import {
   CITY_LAUNCH_RESEARCH_SCHEMA_VERSION,
   parseCityLaunchResearchArtifact,
 } from "../utils/cityLaunchResearchParser";
+import {
+  CITY_LAUNCH_ACTIVATION_PAYLOAD_SCHEMA_VERSION,
+  CITY_LAUNCH_MACHINE_POLICY_VERSION,
+} from "../utils/cityLaunchDoctrine";
 
 describe("city launch research parser", () => {
   it("extracts structured launch records from the deep-research appendix", () => {
@@ -40,6 +44,7 @@ describe("city launch research parser", () => {
               company_name: "Warehouse Robotics Co",
               status: "researched",
               workflow_fit: "dock handoff",
+              proof_path: "exact_site",
               notes: "Current warehouse autonomy fit.",
               source_bucket: "warehouse_robotics",
               source_urls: ["https://example.com/buyer"],
@@ -75,6 +80,122 @@ describe("city launch research parser", () => {
         2,
       ),
       "```",
+      "",
+      "```city-launch-activation-payload",
+      JSON.stringify(
+        {
+          schema_version: CITY_LAUNCH_ACTIVATION_PAYLOAD_SCHEMA_VERSION,
+          machine_policy_version: CITY_LAUNCH_MACHINE_POLICY_VERSION,
+          city: "Austin, TX",
+          city_slug: "austin-tx",
+          city_thesis: "Run one proof-led warehouse wedge.",
+          primary_site_lane: "industrial_warehouse",
+          primary_workflow_lane: "dock handoff",
+          primary_buyer_proof_path: "exact_site",
+          lawful_access_modes: ["buyer_requested_site", "site_operator_intro"],
+          preferred_lawful_access_mode: "buyer_requested_site",
+          rights_path: {
+            summary: "Private controlled interiors require explicit authorization.",
+            private_controlled_interiors_require_authorization: true,
+            validation_required: false,
+            source_urls: ["https://example.com/rights"],
+          },
+          validation_blockers: [
+            {
+              key: "stack-fit",
+              summary: "Verify export compatibility.",
+              severity: "high",
+              owner_lane: "buyer-solutions-agent",
+              validation_required: true,
+              source_urls: [],
+            },
+          ],
+          required_approvals: [
+            { lane: "founder", reason: "go/no-go" },
+          ],
+          owner_lanes: [
+            "city-launch-agent",
+            "buyer-solutions-agent",
+            "analytics-agent",
+          ],
+          issue_seeds: [
+            {
+              key: "lock-access",
+              title: "Lock lawful access",
+              phase: "founder_gates",
+              owner_lane: "city-launch-agent",
+              human_lane: "growth-lead",
+              summary: "Pick the first lawful access mode.",
+              dependency_keys: [],
+              success_criteria: ["Lawful access path is named."],
+              metrics_dependencies: ["first_lawful_access_path"],
+              validation_required: false,
+            },
+          ],
+          metrics_dependencies: [
+            {
+              key: "robot_team_inbound_captured",
+              kind: "event",
+              status: "required_not_tracked",
+              owner_lane: "analytics-agent",
+            },
+            {
+              key: "proof_path_assigned",
+              kind: "event",
+              status: "required_not_tracked",
+              owner_lane: "analytics-agent",
+            },
+            {
+              key: "proof_pack_delivered",
+              kind: "event",
+              status: "required_not_tracked",
+              owner_lane: "analytics-agent",
+            },
+            {
+              key: "hosted_review_ready",
+              kind: "event",
+              status: "required_not_tracked",
+              owner_lane: "analytics-agent",
+            },
+            {
+              key: "hosted_review_started",
+              kind: "event",
+              status: "required_not_tracked",
+              owner_lane: "analytics-agent",
+            },
+            {
+              key: "hosted_review_follow_up_sent",
+              kind: "event",
+              status: "required_not_tracked",
+              owner_lane: "analytics-agent",
+            },
+            {
+              key: "human_commercial_handoff_started",
+              kind: "event",
+              status: "required_not_tracked",
+              owner_lane: "analytics-agent",
+            },
+            {
+              key: "proof_motion_stalled",
+              kind: "event",
+              status: "required_not_tracked",
+              owner_lane: "analytics-agent",
+            },
+          ],
+          named_claims: [
+            {
+              subject: "Warehouse Robotics Co",
+              claim_type: "company",
+              claim: "Warehouse Robotics Co is a named buyer target.",
+              validation_required: false,
+              source_urls: ["https://example.com/buyer"],
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+      "```",
     ].join("\n");
 
     const result = parseCityLaunchResearchArtifact({
@@ -94,9 +215,13 @@ describe("city launch research parser", () => {
       }),
     });
     expect(result.buyerTargets[0]?.companyName).toBe("Warehouse Robotics Co");
+    expect(result.buyerTargets[0]?.proofPath).toBe("exact_site");
     expect(result.firstTouches[0]?.referenceName).toBe("Warehouse Robotics Co");
     expect(result.budgetRecommendations[0]?.amountUsd).toBe(250);
+    expect(result.activationPayload?.cityThesis).toBe("Run one proof-led warehouse wedge.");
+    expect(result.activationPayload?.issueSeeds[0]?.ownerLane).toBe("city-launch-agent");
     expect(result.warnings).toEqual([]);
+    expect(result.errors).toEqual([]);
   });
 
   it("returns a warning when the structured appendix is absent", () => {
@@ -108,5 +233,54 @@ describe("city launch research parser", () => {
 
     expect(result.captureCandidates).toEqual([]);
     expect(result.warnings[0]).toContain("No structured city-launch research appendix");
+    expect(result.errors).toEqual([]);
+    expect(result.activationPayload).toBeNull();
+  });
+
+  it("flags unsupported proof-path and budget enums instead of coercing them", () => {
+    const markdown = [
+      "# Austin, TX Launch Playbook",
+      "",
+      "```city-launch-records",
+      JSON.stringify(
+        {
+          schema_version: CITY_LAUNCH_RESEARCH_SCHEMA_VERSION,
+          generated_at: "2026-04-12T12:00:00.000Z",
+          buyer_target_candidates: [
+            {
+              company_name: "Warehouse Robotics Co",
+              status: "researched",
+              proof_path: "hosted_review",
+              source_urls: ["https://example.com/buyer"],
+              explicit_fields: ["company_name"],
+              inferred_fields: [],
+            },
+          ],
+          budget_recommendations: [
+            {
+              category: "proptech_processing",
+              amount_usd: 250,
+              source_urls: ["https://example.com/budget"],
+              explicit_fields: ["category", "amount_usd"],
+              inferred_fields: [],
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+      "```",
+    ].join("\n");
+
+    const result = parseCityLaunchResearchArtifact({
+      city: "Austin, TX",
+      artifactPath: "/tmp/city-launch-austin.md",
+      markdown,
+    });
+
+    expect(result.buyerTargets).toHaveLength(0);
+    expect(result.budgetRecommendations).toHaveLength(0);
+    expect(result.errors.join("\n")).toContain('unsupported "proof_path" value "hosted_review"');
+    expect(result.errors.join("\n")).toContain('unsupported "category" value "proptech_processing"');
   });
 });

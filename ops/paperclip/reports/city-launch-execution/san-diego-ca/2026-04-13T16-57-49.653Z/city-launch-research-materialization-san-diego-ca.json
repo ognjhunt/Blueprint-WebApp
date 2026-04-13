@@ -1,0 +1,199 @@
+{
+  "status": "failed",
+  "city": "San Diego, CA",
+  "citySlug": "san-diego-ca",
+  "sourceArtifactPath": "ops/paperclip/playbooks/city-launch-san-diego-ca-deep-research.md",
+  "parsed": {
+    "city": "San Diego, CA",
+    "citySlug": "san-diego-ca",
+    "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-diego-ca-deep-research.md",
+    "schemaVersion": "2026-04-12.city-launch-research.v1",
+    "generatedAtIso": "2026-04-12T00:00:00.000Z",
+    "captureCandidates": [
+      {
+        "stableKey": "prospect_san-diego-ca_industrial-warehouse-otay-business-park-logistics-center-otay-mesa-submarket-san-diego-ca",
+        "name": "Otay Business Park Logistics Center",
+        "sourceBucket": "industrial_warehouse",
+        "channel": "cre_proptech_trade",
+        "status": "identified",
+        "siteAddress": "Otay Mesa Submarket, San Diego, CA",
+        "locationSummary": "1.8 million-square-foot Otay Business Park complex",
+        "lat": 32.553,
+        "lng": -116.938,
+        "siteCategory": "warehouse",
+        "workflowFit": "commercial AMR navigation, palletizing, warehouse autonomy",
+        "priorityNote": "Primary target for exact-site wedge for Brain Corp via digital-twin barter.",
+        "sourceUrls": [
+          "https://elevation-land.com",
+          "https://cbre.com"
+        ],
+        "explicitFields": [
+          "name",
+          "source_bucket",
+          "channel",
+          "status",
+          "location_summary",
+          "site_category",
+          "workflow_fit",
+          "priority_note"
+        ],
+        "inferredFields": [
+          "site_address",
+          "lat",
+          "lng"
+        ],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-diego-ca-deep-research.md",
+          "sourceKey": "capture_location_candidates[0]",
+          "sourceUrls": [
+            "https://elevation-land.com",
+            "https://cbre.com"
+          ],
+          "parsedAtIso": "2026-04-13T16:57:56.980Z",
+          "explicitFields": [
+            "name",
+            "source_bucket",
+            "channel",
+            "status",
+            "location_summary",
+            "site_category",
+            "workflow_fit",
+            "priority_note"
+          ],
+          "inferredFields": [
+            "site_address",
+            "lat",
+            "lng"
+          ]
+        }
+      },
+      {
+        "stableKey": "prospect_san-diego-ca_laboratory-space-sorrento-valley-biotech-facility-sorrento-valley-san-diego-ca",
+        "name": "Sorrento Valley Biotech Facility",
+        "sourceBucket": "laboratory_space",
+        "channel": "cre_proptech_trade",
+        "status": "identified",
+        "siteAddress": "Sorrento Valley, San Diego, CA",
+        "locationSummary": "Complex multi-room lab space",
+        "lat": 32.898,
+        "lng": -117.195,
+        "siteCategory": "biotech_lab",
+        "workflowFit": "tight-corridor mapping, dynamic environment obstacle avoidance",
+        "priorityNote": "Secondary target to demonstrate multi-room complexity.",
+        "sourceUrls": [
+          "https://sandiegobusiness.org"
+        ],
+        "explicitFields": [
+          "name",
+          "source_bucket",
+          "channel",
+          "status",
+          "location_summary",
+          "site_category",
+          "workflow_fit",
+          "priority_note"
+        ],
+        "inferredFields": [
+          "site_address",
+          "lat",
+          "lng"
+        ],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-diego-ca-deep-research.md",
+          "sourceKey": "capture_location_candidates[1]",
+          "sourceUrls": [
+            "https://sandiegobusiness.org"
+          ],
+          "parsedAtIso": "2026-04-13T16:57:56.980Z",
+          "explicitFields": [
+            "name",
+            "source_bucket",
+            "channel",
+            "status",
+            "location_summary",
+            "site_category",
+            "workflow_fit",
+            "priority_note"
+          ],
+          "inferredFields": [
+            "site_address",
+            "lat",
+            "lng"
+          ]
+        }
+      }
+    ],
+    "buyerTargets": [],
+    "firstTouches": [
+      {
+        "stableKey": "touch_san-diego-ca_buyer-target-brain-corp-email-first-touch",
+        "referenceType": "buyer_target",
+        "referenceName": "Brain Corp",
+        "channel": "email",
+        "touchType": "first_touch",
+        "status": "queued",
+        "campaignId": null,
+        "issueId": null,
+        "notes": "Send 4-Block Proof Pack featuring Otay Mesa exact-site model with Gazebo integration checklist.",
+        "sourceUrls": [],
+        "explicitFields": [
+          "reference_type",
+          "reference_name",
+          "channel",
+          "touch_type",
+          "status",
+          "notes"
+        ],
+        "inferredFields": [
+          "campaign_id",
+          "issue_id"
+        ],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-diego-ca-deep-research.md",
+          "sourceKey": "first_touch_candidates[0]",
+          "sourceUrls": [],
+          "parsedAtIso": "2026-04-13T16:57:56.980Z",
+          "explicitFields": [
+            "reference_type",
+            "reference_name",
+            "channel",
+            "touch_type",
+            "status",
+            "notes"
+          ],
+          "inferredFields": [
+            "campaign_id",
+            "issue_id"
+          ]
+        }
+      }
+    ],
+    "budgetRecommendations": [],
+    "activationPayload": null,
+    "warnings": [
+      "No machine-readable city-launch activation payload was found. Refresh the deep-research playbook with the current harness prompt before activation."
+    ],
+    "errors": [
+      "buyer_target_candidates[0] uses unsupported \"proof_path\" value \"hosted_review\". Allowed values: \"exact_site\", \"adjacent_site\", \"scoped_follow_up\".",
+      "buyer_target_candidates[1] uses unsupported \"proof_path\" value \"secure_containerized_delivery\". Allowed values: \"exact_site\", \"adjacent_site\", \"scoped_follow_up\".",
+      "budget_recommendations[0] uses unsupported \"category\" value \"supply_bounties\". Allowed values: \"creative\", \"outbound\", \"community\", \"field_ops\", \"travel\", \"tools\", \"other\".",
+      "budget_recommendations[1] uses unsupported \"category\" value \"proptech_processing\". Allowed values: \"creative\", \"outbound\", \"community\", \"field_ops\", \"travel\", \"tools\", \"other\"."
+    ]
+  },
+  "activationPayloadPresent": false,
+  "activationIssueSeeds": 0,
+  "prospectsUpserted": 0,
+  "buyerTargetsUpserted": 0,
+  "touchesRecorded": 0,
+  "budgetRecommendationsRecorded": 0,
+  "warnings": [
+    "No machine-readable city-launch activation payload was found. Refresh the deep-research playbook with the current harness prompt before activation.",
+    "Contract violation: buyer_target_candidates[0] uses unsupported \"proof_path\" value \"hosted_review\". Allowed values: \"exact_site\", \"adjacent_site\", \"scoped_follow_up\".",
+    "Contract violation: buyer_target_candidates[1] uses unsupported \"proof_path\" value \"secure_containerized_delivery\". Allowed values: \"exact_site\", \"adjacent_site\", \"scoped_follow_up\".",
+    "Contract violation: budget_recommendations[0] uses unsupported \"category\" value \"supply_bounties\". Allowed values: \"creative\", \"outbound\", \"community\", \"field_ops\", \"travel\", \"tools\", \"other\".",
+    "Contract violation: budget_recommendations[1] uses unsupported \"category\" value \"proptech_processing\". Allowed values: \"creative\", \"outbound\", \"community\", \"field_ops\", \"travel\", \"tools\", \"other\"."
+  ]
+}

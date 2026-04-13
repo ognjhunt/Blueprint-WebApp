@@ -1,4 +1,6 @@
 import type { CityLaunchProfile, FocusCityKey } from "./cityLaunchProfiles";
+import type { CityLaunchPlanningState } from "./cityLaunchPlanningState";
+import type { CityLaunchResearchParseResult } from "./cityLaunchResearchParser";
 
 type WorkflowFocus = {
   key: string;
@@ -35,11 +37,13 @@ export type CityCaptureTargetLedger = {
   city: string;
   citySlug: string;
   generatedAt: string;
+  mode: "curated_city_profile" | "deep_research_records" | "planning_placeholder";
   workflows: WorkflowFocus[];
   immediateTop25: TargetEntry[];
   next100Buckets: BucketEntry[];
   longUniverseBuckets: BucketEntry[];
   sources: SourceEntry[];
+  warnings: string[];
 };
 
 type TargetLedgerProfile = {
@@ -209,7 +213,7 @@ function sanFranciscoProfile(): TargetLedgerProfile {
     ["Redwood City industrial and port-adjacent sites","industrial / logistics","Peninsula","warehouse, handling, maritime adjacency","Medium-high. Good mixed logistics and industrial lane.","tenant mapping","medium","Useful for Bay logistics proof diversity."],
     ["Richmond industrial shoreline facilities","industrial / inspection","Richmond","inspection, industrial mobility, logistics","Medium-high. Good inspection and industrial lane.","operator-lane and site mapping","medium","Strong inspection-style environments."],
     ["Concord / Martinez industrial corridor","industrial / logistics","East Bay","warehouse, yard, inspection, plant support","Medium-high. Useful secondary industrial lane.","cluster mapping","medium","Broader industrial Bay Area coverage."],
-    ["Vacaville / Fairfield logistics corridor","warehouse / logistics","North Bay / I-80","warehouse, parcel, storage","Medium-high. Good scaled warehouse lane.","tenant mapping","medium","Good next 100 bucket."],
+    ["Vacaville / Fairfield logistics corridor","warehouse / logistics","North Bay / I-80","warehouse, parcel, storage","Medium-high. Good scaled warehouse lane.","tenant mapping","medium","Good next-wave warehouse lane."],
     ["San Jose airport-adjacent cargo and logistics sites","cargo / logistics","San Jose","cargo, parcel, warehouse, support logistics","Medium-high. Good airport logistics lane.","cluster mapping","medium","Airport-adjacent workflow value."],
     ["SFO cargo and support facilities","cargo / logistics","SFO / Peninsula","cargo, material handling, constrained operations","Medium-high. Useful premium logistics lane.","operator-lane and adjacent-site packaging","medium","Strong workflow relevance but higher access complexity."],
     ["Alameda naval / industrial reuse sites","industrial / inspection","Alameda","inspection, field robotics, constrained sites","Medium. Good secondary inspection lane.","operator-lane and partner discovery","medium","Interesting exact-site environments."],
@@ -291,25 +295,7 @@ function genericCityProfile(profile: CityLaunchProfile): TargetLedgerProfile {
     },
   ];
 
-  const immediateTop25: TargetEntry[] = [
-    [`${cityLabel} airport and cargo corridor`, "cargo / logistics cluster", `${cityLabel} airport district`, "cargo handling, parcel flow, warehouse adjacency", "High-value logistics proof lane", "operator and tenant mapping", "medium", "Generic launch template target"],
-    [`${cityLabel} primary warehouse belt`, "warehouse / logistics", `${cityLabel} industrial belt`, "warehouse AMR, fulfillment, material handling", "Direct fit for exact-site hosted review", "tenant mapping and source policy routing", "medium", "Generic launch template target"],
-    [`${cityLabel} advanced manufacturing corridor`, "advanced manufacturing", `${cityLabel} manufacturing zone`, "manufacturing intralogistics, mobile handling", "High-value manufacturing proof lane", "operator-lane introductions and tenant mapping", "medium", "Generic launch template target"],
-    [`${cityLabel} light-industrial infill sites`, "light industrial", `${cityLabel} secondary industrial corridors`, "inspection, warehouse support, field robotics", "Useful adjacent-site proof inventory", "cluster-first prospecting", "medium", "Generic launch template target"],
-    [`${cityLabel} regional logistics expansion nodes`, "warehouse / 3PL", `${cityLabel} regional logistics ring`, "storage, parcel, distribution", "Strong next-wave warehouse lane", "cluster-first outreach", "medium", "Generic launch template target"],
-  ].flatMap((seed, index) =>
-    Array.from({ length: 5 }, (_, offset) => ({
-      rank: index * 5 + offset + 1,
-      name: offset === 0 ? seed[0] : `${seed[0]} cluster ${offset + 1}`,
-      type: seed[1],
-      corridor: seed[2],
-      workflowFit: seed[3],
-      exactSiteValue: seed[4],
-      accessApproach: seed[5],
-      confidence: seed[6] as "high" | "medium",
-      sourceNote: seed[7],
-    })),
-  );
+  const immediateTop25: TargetEntry[] = [];
 
   const next100Buckets: BucketEntry[] = [
     {
@@ -368,14 +354,169 @@ function genericCityProfile(profile: CityLaunchProfile): TargetLedgerProfile {
   return { workflows, immediateTop25, next100Buckets, longUniverseBuckets, sources };
 }
 
-export function buildCityCaptureTargetLedger(profile: CityLaunchProfile): CityCaptureTargetLedger {
-  const profileBuilder = TARGET_LEDGER_PROFILES[profile.key as FocusCityKey];
+function humanizeSourceBucket(value: string | null | undefined) {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return "Research-backed site candidate";
+  }
+  return normalized
+    .split(/[_-]+/g)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function buildResearchBackedProfile(input: {
+  profile: CityLaunchProfile;
+  research: CityLaunchResearchParseResult;
+  planningState?: CityLaunchPlanningState | null;
+}) {
+  const workflowsByKey = new Map<string, WorkflowFocus>();
+  for (const candidate of input.research.captureCandidates) {
+    const key = candidate.siteCategory
+      || candidate.sourceBucket
+      || candidate.workflowFit
+      || "research_candidate";
+    if (workflowsByKey.has(key)) {
+      continue;
+    }
+    workflowsByKey.set(key, {
+      key,
+      label: humanizeSourceBucket(candidate.siteCategory || candidate.sourceBucket),
+      whyNow:
+        candidate.priorityNote
+        || candidate.workflowFit
+        || "Named site candidate pulled from the latest deep-research appendix.",
+      priority: workflowsByKey.size < 2 ? "tier_1" : "tier_2",
+    });
+  }
+
+  const workflows = workflowsByKey.size > 0
+    ? [...workflowsByKey.values()].slice(0, 5)
+    : genericCityProfile(input.profile).workflows;
+
+  const immediateTop25 = input.research.captureCandidates
+    .slice(0, 25)
+    .map((candidate, index) => ({
+      rank: index + 1,
+      name: candidate.name,
+      type: candidate.siteCategory || humanizeSourceBucket(candidate.sourceBucket),
+      corridor: candidate.locationSummary || candidate.siteAddress || input.profile.city,
+      workflowFit:
+        candidate.workflowFit
+        || candidate.priorityNote
+        || "Research-backed workflow fit pending tighter operator review.",
+      exactSiteValue:
+        candidate.priorityNote
+        || "Research-backed exact-site candidate extracted from the deep-research appendix.",
+      accessApproach: candidate.channel,
+      confidence:
+        candidate.siteAddress && candidate.sourceUrls.length > 0
+          ? "high"
+          : "medium",
+      sourceNote: candidate.sourceUrls[0] || "Structured deep-research appendix",
+    } satisfies TargetEntry));
+
+  const bucketCounts = new Map<string, number>();
+  for (const candidate of input.research.captureCandidates) {
+    const key = humanizeSourceBucket(candidate.sourceBucket || candidate.siteCategory);
+    bucketCounts.set(key, (bucketCounts.get(key) || 0) + 1);
+  }
+
+  const next100Buckets = [...bucketCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([bucket, count]) => ({
+      bucket,
+      targetCount: Math.max(count, Math.min(count * 5, 25)),
+      rationale: "Expand only after the first research-backed proof assets and rights-cleared reviews exist.",
+    }));
+
+  const longUniverseBuckets = [...bucketCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([bucket, count]) => ({
+      bucket,
+      targetCount: Math.max(count * 10, 25),
+      rationale: "Long-universe estimate inferred from the research-backed target mix. Validate locally before treating it as a coverage plan.",
+    }));
+
+  const sourceUrls = new Set<string>();
+  for (const candidate of input.research.captureCandidates) {
+    for (const sourceUrl of candidate.sourceUrls) {
+      sourceUrls.add(sourceUrl);
+    }
+  }
+
+  const sources: SourceEntry[] = [
+    {
+      label: `${input.profile.shortLabel} deep research playbook`,
+      url: input.research.artifactPath,
+      note: "Latest completed deep-research artifact with structured launch records.",
+    },
+    ...[...sourceUrls].slice(0, 8).map((sourceUrl, index) => ({
+      label: `Research citation ${index + 1}`,
+      url: sourceUrl,
+      note: "Cited source carried through the structured deep-research appendix.",
+    })),
+  ];
+
+  const warnings = [...input.research.warnings];
+  if (input.planningState?.status === "refresh_in_progress") {
+    warnings.push("A newer research refresh is still running; this ledger reflects the latest completed records.");
+  }
+
+  return {
+    workflows,
+    immediateTop25,
+    next100Buckets:
+      next100Buckets.length > 0 ? next100Buckets : genericCityProfile(input.profile).next100Buckets,
+    longUniverseBuckets:
+      longUniverseBuckets.length > 0
+        ? longUniverseBuckets
+        : genericCityProfile(input.profile).longUniverseBuckets,
+    sources,
+    warnings,
+  };
+}
+
+export function buildCityCaptureTargetLedger(input: {
+  profile: CityLaunchProfile;
+  research?: CityLaunchResearchParseResult | null;
+  planningState?: CityLaunchPlanningState | null;
+}): CityCaptureTargetLedger {
+  const { profile, research, planningState } = input;
+  const profileBuilder = Object.prototype.hasOwnProperty.call(TARGET_LEDGER_PROFILES, profile.key)
+    ? TARGET_LEDGER_PROFILES[profile.key as FocusCityKey]
+    : null;
+  if (research && research.captureCandidates.length > 0) {
+    const built = buildResearchBackedProfile({ profile, research, planningState });
+    return {
+      city: profile.city,
+      citySlug: profile.key,
+      generatedAt: new Date().toISOString(),
+      mode: "deep_research_records",
+      ...built,
+    };
+  }
+
   const built = profileBuilder ? profileBuilder() : genericCityProfile(profile);
+  const warnings: string[] = [];
+  if (!profileBuilder) {
+    warnings.push(
+      "No research-backed named targets are available yet. Complete or materialize deep research before using this ledger for real capture pursuit.",
+    );
+    if (planningState?.latestArtifactPath) {
+      warnings.push(`Latest planning artifact: ${planningState.latestArtifactPath}`);
+    }
+  }
   return {
     city: profile.city,
     citySlug: profile.key,
     generatedAt: new Date().toISOString(),
+    mode: profileBuilder ? "curated_city_profile" : "planning_placeholder",
     ...built,
+    warnings,
   };
 }
 
@@ -387,11 +528,11 @@ export function renderCityCaptureTargetLedgerMarkdown(
   ).join("\n");
 
   const next100Rows = ledger.next100Buckets.map((entry) =>
-    `| ${entry.bucket} | ${entry.targetCount} | ${entry.rationale} |`,
+    `| ${entry.bucket} | after first rights-cleared proof asset | ${entry.rationale} |`,
   ).join("\n");
 
   const longRows = ledger.longUniverseBuckets.map((entry) =>
-    `| ${entry.bucket} | ${entry.targetCount} | ${entry.rationale} |`,
+    `| ${entry.bucket} | ${entry.rationale} |`,
   ).join("\n");
 
   return [
@@ -400,6 +541,7 @@ export function renderCityCaptureTargetLedgerMarkdown(
     `- city: ${ledger.city}`,
     `- city_slug: ${ledger.citySlug}`,
     `- generated_at: ${ledger.generatedAt}`,
+    `- mode: ${ledger.mode}`,
     "- status: hypothesis-ranked targeting ledger, not a claim that every site is already accessible",
     "",
     "## Purpose",
@@ -407,9 +549,9 @@ export function renderCityCaptureTargetLedgerMarkdown(
     "Turn current robot workflow and buyer-demand priors into a ranked capture target ledger so the org knows which sites and site clusters should be pursued first.",
     "",
     "This ledger is intentionally split into:",
-    "- immediate top 25 targets for real execution now",
-    "- next 100 target buckets for expansion after the first proof assets exist",
-    "- a long 300-1000 site universe model so city expansion does not become random",
+    "- priority proof targets for real execution now",
+    "- queued lawful-access buckets for expansion after the first proof assets exist",
+    "- longer-horizon discovery lanes so city expansion does not become random",
     "",
     "## Workflow Priorities",
     "",
@@ -417,29 +559,37 @@ export function renderCityCaptureTargetLedgerMarkdown(
       `- ${workflow.label} (${workflow.priority}): ${workflow.whyNow}`,
     ),
     "",
-    "## Immediate Top 25",
+    "## Priority Proof Targets",
     "",
-    "| Rank | Target | Type | Corridor | Workflow fit | Confidence | Access approach |",
-    "| --- | --- | --- | --- | --- | --- | --- |",
-    immediateRows,
+    ...(ledger.immediateTop25.length > 0
+      ? [
+          "| Rank | Target | Type | Corridor | Workflow fit | Confidence | Access approach |",
+          "| --- | --- | --- | --- | --- | --- | --- |",
+          immediateRows,
+        ]
+      : [
+          "No research-backed named targets are available yet.",
+          "",
+          "Complete or materialize deep research before treating this city as ready for named-site capture pursuit.",
+        ]),
     "",
-    "## Next 100 Expansion Buckets",
+    "## Queued Lawful-Access Buckets",
     "",
-    "| Bucket | Target count | Rationale |",
-    "| --- | ---: | --- |",
+    "| Bucket | Activation rule | Rationale |",
+    "| --- | --- | --- |",
     next100Rows,
     "",
-    "## Long 300-1000 Universe Model",
+    "## Longer-Horizon Discovery Lanes",
     "",
-    "| Universe bucket | Target count | Rationale |",
-    "| --- | ---: | --- |",
+    "| Discovery lane | Rationale |",
+    "| --- | --- |",
     longRows,
     "",
     "## Operating Rules",
     "",
-    "- The immediate top 25 should drive real capture pursuit first.",
-    "- The next 100 should stay as a queued expansion map until at least one clean proof pack is rights-cleared.",
-    "- The long universe is a discovery frame, not a promise that Blueprint should touch every site soon.",
+    "- The priority proof targets should drive real capture pursuit first.",
+    "- The queued lawful-access buckets should stay dormant until at least one clean proof pack is rights-cleared.",
+    "- The longer-horizon discovery lanes are a discovery frame, not a promise that Blueprint should touch every site soon.",
     "- High-security or rights-sensitive flagship sites should route through the operator lane, not generic capture outreach.",
     "- Buyer-thread-linked exact sites should outrank general prospecting whenever a real robot-team request exists.",
     "",
@@ -448,5 +598,11 @@ export function renderCityCaptureTargetLedgerMarkdown(
     ...ledger.sources.map((source) =>
       `- [${source.label}](${source.url}) — ${source.note}`,
     ),
+    "",
+    "## Warnings",
+    "",
+    ...(ledger.warnings.length > 0
+      ? ledger.warnings.map((warning) => `- ${warning}`)
+      : ["- none"]),
   ].join("\n");
 }

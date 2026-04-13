@@ -35,6 +35,7 @@ The org should only widen once one city has actual proof.
 
 - canonical city launch system doc
 - canonical execution issue bundle
+- canonical activation payload
 - canonical target ledger
 - routed Paperclip root issue plus child task issues
 - activation record in Firestore
@@ -79,6 +80,7 @@ Widening should stay blocked until the active city has:
 - `server/utils/cityLaunchPolicy.ts`
 - `server/utils/cityLaunchLedgers.ts`
 - `server/utils/cityLaunchResearchParser.ts`
+- `server/utils/cityLaunchDoctrine.ts`
 - `server/utils/cityLaunchResearchMaterializer.ts`
 - `server/utils/cityLaunchCaptureTargets.ts`
 - `server/utils/cityLaunchScorecard.ts`

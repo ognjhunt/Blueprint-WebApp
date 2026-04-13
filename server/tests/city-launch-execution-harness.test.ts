@@ -9,6 +9,8 @@ const createPaperclipIssueComment = vi.hoisted(() => vi.fn());
 const summarizeCityLaunchLedgers = vi.hoisted(() => vi.fn());
 const writeCityLaunchActivation = vi.hoisted(() => vi.fn());
 const readCityLaunchActivation = vi.hoisted(() => vi.fn());
+const resolveCityLaunchPlanningState = vi.hoisted(() => vi.fn());
+const loadAndParseCityLaunchResearchArtifact = vi.hoisted(() => vi.fn());
 
 vi.mock("../utils/paperclip", () => ({
   upsertPaperclipIssue,
@@ -21,12 +23,39 @@ vi.mock("../utils/cityLaunchLedgers", () => ({
   readCityLaunchActivation,
 }));
 
+vi.mock("../utils/cityLaunchPlanningState", () => ({
+  resolveCityLaunchPlanningState,
+}));
+
+vi.mock("../utils/cityLaunchResearchParser", async () => {
+  const actual = await vi.importActual("../utils/cityLaunchResearchParser");
+  return {
+    ...actual,
+    loadAndParseCityLaunchResearchArtifact,
+  };
+});
+
 const tempDirs: string[] = [];
 
 beforeEach(() => {
   writeCityLaunchActivation.mockResolvedValue(null);
   readCityLaunchActivation.mockResolvedValue(null);
   createPaperclipIssueComment.mockResolvedValue({ ok: true });
+  resolveCityLaunchPlanningState.mockImplementation(async ({ city }: { city: string }) => ({
+    city,
+    citySlug: city.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""),
+    status: "not_started",
+    reportsRoot: "/tmp/city-launch",
+    cityReportsRoot: "/tmp/city-launch/city",
+    canonicalPlaybookPath: "/tmp/city-launch/canonical.md",
+    runDirectory: null,
+    manifestPath: null,
+    latestArtifactPath: null,
+    completedArtifactPath: null,
+    latestRunTimestamp: null,
+    warnings: ["No city-launch planning artifacts were found for this city."],
+  }));
+  loadAndParseCityLaunchResearchArtifact.mockResolvedValue(null);
 });
 
 afterEach(async () => {
@@ -42,7 +71,7 @@ describe("city launch execution harness", () => {
   it("reuses existing agent lanes for Austin execution", async () => {
     const { buildAustinExecutionTasks } = await import("../utils/cityLaunchExecutionHarness");
     const tasks = buildAustinExecutionTasks();
-    const owners = new Set(tasks.map((task) => task.owner));
+    const owners = new Set(tasks.map((task) => task.ownerLane));
 
     expect(owners.has("growth-lead")).toBe(true);
     expect(owners.has("ops-lead")).toBe(true);
@@ -99,11 +128,16 @@ describe("city launch execution harness", () => {
 
     const systemDoc = await fs.readFile(result.artifacts.systemDocPath, "utf8");
     const issueBundle = await fs.readFile(result.artifacts.issueBundlePath, "utf8");
+    const launchPlaybook = await fs.readFile(result.artifacts.launchPlaybookPath, "utf8");
+    const demandPlaybook = await fs.readFile(result.artifacts.demandPlaybookPath, "utf8");
     const targetLedger = await fs.readFile(result.artifacts.targetLedgerPath, "utf8");
 
     expect(systemDoc).toContain("Austin, TX Launch System");
     expect(systemDoc).toContain("Machine-Readable Budget Policy");
+    expect(systemDoc).toContain("Activation Payload Highlights");
     expect(issueBundle).toContain("Austin, TX Launch Issue Bundle");
+    expect(launchPlaybook).toContain("Austin, TX — Blueprint City Launch Plan");
+    expect(demandPlaybook).toContain("Austin, TX — Blueprint City Demand Plan");
     expect(targetLedger).toContain("Austin, TX Capture Target Ledger");
   });
 
@@ -138,11 +172,21 @@ describe("city launch execution harness", () => {
     });
 
     const systemDoc = await fs.readFile(result.artifacts.systemDocPath, "utf8");
+    const launchPlaybook = await fs.readFile(result.artifacts.launchPlaybookPath, "utf8");
+    const demandPlaybook = await fs.readFile(result.artifacts.demandPlaybookPath, "utf8");
     const targetLedger = await fs.readFile(result.artifacts.targetLedgerPath, "utf8");
 
     expect(result.citySlug).toBe("chicago-il");
     expect(systemDoc).toContain("Chicago, IL Launch System");
+    expect(launchPlaybook).toContain("Chicago, IL — Blueprint City Launch Plan");
+    expect(demandPlaybook).toContain("proof_path_assigned");
     expect(targetLedger).toContain("Chicago, IL Capture Target Ledger");
+    expect(targetLedger).toContain("Priority Proof Targets");
+    expect(targetLedger).toContain("Queued Lawful-Access Buckets");
+    expect(targetLedger).toContain("No research-backed named targets are available yet.");
     expect(result.paperclip?.rootIssueIdentifier).toBe("BLU-1");
+    expect(result.wideningGuard.reasons.join("\n")).toContain(
+      "Required proof-motion analytics contract is missing from the activation payload.",
+    );
   });
 });

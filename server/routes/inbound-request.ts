@@ -960,6 +960,55 @@ router.post("/", async (req: Request, res: Response) => {
           email: emailLower,
         },
       }).catch(() => null);
+
+      if (proofPathPreference === "exact_site_required") {
+        await logGrowthEvent({
+          event: "exact_site_request_created",
+          source: "server:inbound_request",
+          properties: {
+            request_id: payload.requestId,
+            city: demandAttribution.demandCity || null,
+            site_request_type: "exact_site_required",
+            buyer_segment: payload.roleTitle?.trim() || null,
+          },
+          attribution: {
+            demandCity: demandAttribution.demandCity,
+            buyerChannelSource: demandAttribution.buyerChannelSource,
+            buyerChannelSourceCaptureMode:
+              demandAttribution.buyerChannelSourceCaptureMode,
+            utm: payload.context?.utm || {},
+          },
+          user: {
+            email: emailLower,
+          },
+        }).catch(() => null);
+      }
+
+      if (requestedLanes.includes("deeper_evaluation")) {
+        await logGrowthEvent({
+          event: "deeper_review_requested",
+          source: "server:inbound_request",
+          properties: {
+            request_id: payload.requestId,
+            city: demandAttribution.demandCity || null,
+            blocker_type:
+              payload.humanGateTopics?.trim()
+              || payload.privacySecurityConstraints?.trim()
+              || "deeper_evaluation_requested",
+            buyer_segment: payload.roleTitle?.trim() || null,
+          },
+          attribution: {
+            demandCity: demandAttribution.demandCity,
+            buyerChannelSource: demandAttribution.buyerChannelSource,
+            buyerChannelSourceCaptureMode:
+              demandAttribution.buyerChannelSourceCaptureMode,
+            utm: payload.context?.utm || {},
+          },
+          user: {
+            email: emailLower,
+          },
+        }).catch(() => null);
+      }
     }
 
     logger.info(

@@ -109,7 +109,7 @@ Operational rule:
 Ask a follow-up question against the last completed interaction:
 
 ```bash
-npm run city-launch:plan -- --mode followup --city "Austin, TX" --interaction "<interaction-id>" --question "Expand the first-100 capturer activation plan and tighten the Austin trust-kit requirements."
+npm run city-launch:plan -- --mode followup --city "Austin, TX" --interaction "<interaction-id>" --question "Tighten the lawful access decision tree, activation payload issue seeds, and Austin trust-kit requirements."
 ```
 
 ## Artifacts
@@ -131,6 +131,15 @@ The final synthesized playbook must also include a machine-readable structured a
 - first-touch candidates
 - optional budget recommendations
 - provenance fields that preserve explicit vs inferred data
+
+The final synthesized playbook must also include a fenced `city-launch-activation-payload` JSON block.
+That payload is the control-plane artifact for:
+
+- city thesis and wedge routing
+- lawful access modes
+- required approvals and validation blockers
+- issue seeds mapped to named Paperclip lanes
+- metrics dependencies that must be tracked before autonomous governance is trusted
 
 When `NOTION_API_TOKEN` or `NOTION_API_KEY` is configured, the harness also mirrors:
 

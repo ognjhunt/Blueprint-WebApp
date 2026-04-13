@@ -20,7 +20,29 @@ import {
   buildDeepResearchTools,
   resolveDeepResearchFileSearchStoreNames,
 } from "./deepResearchFileSearch";
-import { CITY_LAUNCH_RESEARCH_SCHEMA_VERSION } from "./cityLaunchResearchParser";
+import {
+  CITY_LAUNCH_RESEARCH_SCHEMA_VERSION,
+  parseCityLaunchResearchArtifact,
+} from "./cityLaunchResearchParser";
+import {
+  CITY_LAUNCH_ACTIVATION_PAYLOAD_SCHEMA_VERSION,
+  CITY_LAUNCH_CONTROL_PLANE_RULES,
+  CITY_LAUNCH_LAWFUL_ACCESS_MODE_VALUES,
+  CITY_LAUNCH_MACHINE_POLICY_VERSION,
+  CITY_LAUNCH_REQUIRED_METRIC_DEPENDENCY_KEYS,
+  CITY_LAUNCH_REQUIRED_PROOF_MOTION_MILESTONES,
+} from "./cityLaunchDoctrine";
+import {
+  CITY_LAUNCH_APPROVED_ANALYTICS_EVENTS,
+  CITY_LAUNCH_APPROVED_ANALYTICS_REFERENCES,
+  CITY_LAUNCH_BANNED_MESSAGING_PATTERNS,
+  CITY_LAUNCH_BUDGET_CATEGORY_VALUES,
+  CITY_LAUNCH_BUYER_PROOF_PATH_VALUES,
+  CITY_LAUNCH_BUYER_TARGET_STATUS_VALUES,
+  CITY_LAUNCH_PROSPECT_STATUS_VALUES,
+  CITY_LAUNCH_TOUCH_STATUS_VALUES,
+  CITY_LAUNCH_TOUCH_TYPE_VALUES,
+} from "./cityLaunchResearchContracts";
 
 const REPO_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -41,6 +63,8 @@ const DEFAULT_CONTEXT_FILES = [
   "ops/paperclip/playbooks/robot-team-demand-playbook.md",
   "ops/paperclip/programs/city-launch-agent-program.md",
   "ops/paperclip/programs/city-demand-agent-program.md",
+  "server/utils/cityLaunchDoctrine.ts",
+  "server/utils/cityLaunchResearchContracts.ts",
 ];
 
 export interface CityLaunchHarnessRunOptions {
@@ -60,7 +84,9 @@ export interface CityLaunchHarnessArtifacts {
   manifestPath: string;
   initialResearchPath: string;
   finalPlaybookPath: string;
+  activationPayloadPath: string;
   canonicalPlaybookPath: string;
+  canonicalActivationPayloadPath: string;
   stageArtifacts: string[];
   notionKnowledgePageUrl?: string;
   notionWorkQueuePageUrl?: string;
@@ -69,6 +95,7 @@ export interface CityLaunchHarnessArtifacts {
 export interface CityLaunchHarnessResult {
   city: string;
   citySlug: string;
+  status: "in_progress" | "completed";
   startedAt: string;
   completedAt: string;
   artifacts: CityLaunchHarnessArtifacts;
@@ -86,6 +113,12 @@ export interface CityLaunchHarnessResult {
   };
 }
 
+export interface CityLaunchPlaybookValidationResult {
+  ok: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
 export function slugifyCityName(city: string) {
   return city
     .trim()
@@ -100,6 +133,135 @@ function trimContext(text: string, maxChars = 20_000) {
     return normalized;
   }
   return `${normalized.slice(0, maxChars)}\n\n[Truncated for prompt budget]`;
+}
+
+function renderAllowedValues(values: readonly string[]) {
+  return values.map((value) => `\`${value}\``).join(", ");
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function hasHeading(markdown: string, heading: string) {
+  return new RegExp(`^##+\\s+${escapeRegExp(heading)}\\s*$`, "im").test(markdown);
+}
+
+function extractSection(markdown: string, heading: string) {
+  const pattern = new RegExp(
+    `^##+\\s+${escapeRegExp(heading)}\\s*\\n([\\s\\S]*?)(?=^##+\\s+|$)`,
+    "im",
+  );
+  return pattern.exec(markdown)?.[1] || "";
+}
+
+export function validateCityLaunchPlaybookMarkdown(input: {
+  city: string;
+  markdown: string;
+}) {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const requiredHeadings = [
+    "Truth constraints",
+    "Evidence-backed claims",
+    "Inferred claims",
+    "Hypotheses needing validation",
+    "What Must Be Validated Before Live Outreach",
+    "What not to say publicly yet",
+    "Instrumentation spec",
+    "Machine-readable activation payload",
+    "Structured launch data appendix",
+  ];
+
+  for (const heading of requiredHeadings) {
+    if (!hasHeading(input.markdown, heading)) {
+      errors.push(`Missing required section heading: "${heading}".`);
+    }
+  }
+
+  if (!/verify before outreach|validation required/i.test(input.markdown)) {
+    errors.push(
+      'The playbook must explicitly label buyer-stack, delivery, security, or partner assumptions as "verify before outreach" or "validation required".',
+    );
+  }
+
+  for (const entry of CITY_LAUNCH_BANNED_MESSAGING_PATTERNS) {
+    if (entry.pattern.test(input.markdown)) {
+      errors.push(`Manipulative or posture-drifting language detected: ${entry.reason}`);
+    }
+  }
+
+  const instrumentationSection = extractSection(input.markdown, "Instrumentation spec");
+  if (!instrumentationSection.trim()) {
+    errors.push('The "Instrumentation spec" section is required.');
+  } else {
+    const tokenMatches = [...instrumentationSection.matchAll(/`([^`]+)`/g)]
+      .map((match) => match[1]?.trim())
+      .filter((token): token is string => Boolean(token))
+      .filter((token) => token.includes("_") || token.includes("."));
+    const unexpectedTokens = [...new Set(tokenMatches)].filter(
+      (token) => !CITY_LAUNCH_APPROVED_ANALYTICS_REFERENCES.includes(
+        token as (typeof CITY_LAUNCH_APPROVED_ANALYTICS_REFERENCES)[number],
+      ),
+    );
+
+    if (unexpectedTokens.length > 0) {
+      errors.push(
+        `Instrumentation section includes unsupported analytics vocabulary: ${unexpectedTokens.join(", ")}.`,
+      );
+    }
+  }
+
+  const parsed = parseCityLaunchResearchArtifact({
+    city: input.city,
+    artifactPath: `/tmp/${slugifyCityName(input.city)}-validation.md`,
+    markdown: input.markdown,
+  });
+
+  for (const warning of parsed.warnings) {
+    if (
+      /No structured city-launch research appendix/i.test(warning)
+      || /schema_version did not match/i.test(warning)
+      || /could not be parsed as valid JSON/i.test(warning)
+    ) {
+      errors.push(warning);
+    } else {
+      warnings.push(warning);
+    }
+  }
+
+  for (const error of parsed.errors) {
+    errors.push(error);
+  }
+
+  if (!parsed.activationPayload) {
+    errors.push(
+      `The playbook must include a valid machine-readable activation payload using schema "${CITY_LAUNCH_ACTIVATION_PAYLOAD_SCHEMA_VERSION}".`,
+    );
+  } else {
+    const metrics = parsed.activationPayload.metricsDependencies.map((entry) => entry.key);
+    for (const requiredMetric of CITY_LAUNCH_REQUIRED_METRIC_DEPENDENCY_KEYS) {
+      if (!metrics.includes(requiredMetric)) {
+        errors.push(
+          `Activation payload is missing required metrics_dependencies key "${requiredMetric}".`,
+        );
+      }
+    }
+    if (parsed.activationPayload.issueSeeds.length === 0) {
+      errors.push("Activation payload must include issue_seeds mapped to named lanes.");
+    }
+    if (parsed.activationPayload.namedClaims.length === 0) {
+      errors.push(
+        "Activation payload must include named_claims for company, stack, or delivery assertions.",
+      );
+    }
+  }
+
+  return {
+    ok: errors.length === 0,
+    errors,
+    warnings,
+  } satisfies CityLaunchPlaybookValidationResult;
 }
 
 async function readRepoFile(relativePath: string) {
@@ -132,7 +294,7 @@ async function loadPlanningContext(citySlug: string) {
     .join("\n\n");
 }
 
-function buildResearchPrompt(input: {
+export function buildResearchPrompt(input: {
   city: string;
   region?: string | null;
   similarCompanies: string[];
@@ -140,41 +302,72 @@ function buildResearchPrompt(input: {
 }) {
   const marketComparables = input.similarCompanies.join(", ");
   return [
-    `You are Blueprint's city launch research director.`,
+    `You are Blueprint's city proof-motion research director.`,
     ``,
-    `Objective: produce the most expansive, detailed, operator-ready city launch playbook possible for ${input.city}${input.region ? `, ${input.region}` : ""}.`,
-    `This is not a generic startup memo. Build a launch system that humans and agents can execute.`,
+    `Objective: produce the most expansive, detailed, operator-safe Blueprint city proof-motion architecture possible for ${input.city}${input.region ? `, ${input.region}` : ""}.`,
+    `This is not a generic startup memo or city marketplace launcher. Build one city-specific, truthful proof-motion system that humans and agents can execute without drifting from repo contracts or product truth.`,
     ``,
     `Blueprint doctrine and operating context:`,
     `- capture-first and world-model-product-first`,
-    `- Exact-Site Hosted Review is the active wedge`,
+    `- ${CITY_LAUNCH_CONTROL_PLANE_RULES.priorityWedge.label} is the active wedge`,
+    `- optimize for one narrow commercial wedge at a time: one site lane, one workflow lane, one buyer proof path`,
+    `- treat city launch as a coordinated proof-motion buildout, not a broad marketplace coverage exercise`,
+    `- anchor all recommendations to BlueprintCapture -> BlueprintCapturePipeline -> Blueprint-WebApp plus Paperclip, Hermes, and named operator/agent lanes`,
     `- do not invent traction, sites, rights, providers, or readiness states`,
     `- keep rights, privacy, provenance, hosted-session truth, and human gates explicit`,
     `- city launch planning must stay useful in 2026 with AI agents and human operators working together`,
+    `- private industrial or controlled-access interior capture requires explicit operator authorization before dispatching capturers`,
+    `- do not suggest proactive capture of private facilities without consent, trespass-like tactics, or public-bounty mechanics for private interiors`,
+    `- use only repo-approved analytics vocabulary with city/source tags instead of inventing city-specific event schemas`,
+    `- cap early supply plans to a small, rights-cleared cohort until the first proof assets and hosted reviews exist`,
+    `- treat defense, export-controlled, or air-gapped review requirements as explicit constraints, not footnotes`,
+    `- do not assume public-cloud compatibility, security posture, or delivery readiness for defense, aerospace, or regulated buyers`,
+    `- do not use manipulative, hypey, deceptive, or posture-changing language`,
+    `- do not imply unstated rights, site access, partner, integration, buyer-stack, or approval assumptions`,
+    ``,
+    `Anti-pattern bans:`,
+    `- no invented telemetry event names`,
+    `- no manipulative scarcity or exclusivity framing`,
+    `- no scaling supply before proof-ready assets and hosted reviews are real`,
+    `- no unstated rights/access assumptions`,
+    `- no treating defense, export-control, air-gap, or public-cloud compatibility as assumed`,
     ``,
     `Research brief:`,
-    `1. Study city-launch mechanics used by analogous companies such as ${marketComparables}.`,
-    `2. Identify the transferable patterns behind how those companies seeded supply, demand, trust, operations, referral loops, and city sequencing.`,
-    `3. Separate what transfers cleanly to Blueprint from what does not, given Blueprint is a capture-first, exact-site world-model product rather than rideshare or delivery.`,
-    `4. Translate that into a Blueprint-specific launch playbook for ${input.city}.`,
-    `5. Explicitly account for the 2026 AI era: agent-assisted planning, agent-prepared outbound, operator review lanes, instrumentation, and workflow automation.`,
-    `6. Bias toward first-principles and concrete operating mechanics instead of generic growth advice.`,
+    `1. Build Blueprint city proof-motion architecture for ${input.city}.`,
+    `2. Identify one narrow wedge inside the city: one site lane, one workflow lane, one buyer proof path, and one realistic first proof motion.`,
+    `3. Research lawful access and capture feasibility, capturer supply lanes, site-operator incentives where relevant, buyer clusters, proof-pack requirements, hosted-review requirements, and city-specific blockers to truthful proof motion.`,
+    `4. Use analogous companies such as ${marketComparables} only as a secondary sanity check. Extract what Blueprint should copy, adapt, or reject; do not let marketplace analogies become the organizing frame.`,
+    `5. Explicitly account for the 2026 AI era: agent-assisted planning, agent-prepared outbound, operator review lanes, instrumentation, bounded automation, and workflow orchestration through the current org.`,
+    `6. Bias toward first-principles and concrete operating mechanics instead of generic growth or marketplace advice.`,
     ``,
     `Required deliverable shape:`,
     `- Executive summary`,
-    `- City thesis and why now`,
-    `- Analog comparison table: Uber / DoorDash / Instacart / Airbnb / one robotics-infra analog`,
+    `- Truth constraints`,
+    `- City proof-motion thesis`,
+    `- Why this city now for Blueprint`,
+    `- Narrow wedge definition`,
+    `- Analog sanity check: Uber / DoorDash / Airbnb / one robotics-infra analog as a secondary comparison section only`,
     `- What Blueprint should copy, adapt, reject`,
-    `- Supply-side launch design: first 25, first 100, first 250 capturers`,
-    `- Demand-side launch design: first 10, first 25, first 50 robot-team conversations`,
-    `- Proof-asset design: what exact proof packs, hosted reviews, and site assets must exist before scale`,
-    `- Human and agent operating model by lane`,
-    `- Funnel instrumentation and launch gates`,
+    `- Evidence-backed claims`,
+    `- Inferred claims`,
+    `- Hypotheses needing validation`,
+    `- Lawful capture supply acquisition system: capturer profile, source channels, access paths, and first lawful capture mechanics using only these access modes where applicable: ${renderAllowedValues(CITY_LAUNCH_LAWFUL_ACCESS_MODE_VALUES)}`,
+    `- Rights / provenance / privacy clearance system: trust packet, rights stamps, operator review, and pipeline stop conditions`,
+    `- Proof-asset system: first proof-ready sites, proof-pack requirements, hosted-review prerequisites, and artifact formats`,
+    `- Buyer proof-path routing system using only exact_site, adjacent_site, scoped_follow_up vocabulary`,
+    `- Hosted-review conversion system: review readiness, follow-up triggers, stall reasons, and human commercial handoff conditions`,
+    `- Human vs agent operating model split by founder-only, human operator-owned, agent-prepared/autonomous, and exception-only escalation`,
+    `- Instrumentation and scorecard spec using canonical proof-motion analytics plus inboundRequests.ops.proof_path milestones`,
+    `- Budget policy and approval thresholds`,
+    `- Daily / weekly operating cadence`,
     `- Weekly execution plan for the first 12 weeks`,
-    `- Outreach playbooks, referral loops, and city-specific channel strategy`,
+    `- Go / hold / no-go gates for activation and widening`,
+    `- Outreach playbooks and city-specific channel strategy tied to the Exact-Site Hosted Review wedge`,
     `- Ops readiness checklist and failure modes`,
-    `- Spend tiers: zero-budget, low-budget, and funded`,
+    `- Budget-aware bounded activation options: zero-budget, low-budget, and funded`,
+    `- What Must Be Validated Before Live Outreach`,
     `- Research gaps and what must be validated locally before any public-beta claim`,
+    `- Machine-readable activation payload`,
     ``,
     `Formatting requirements:`,
     `- write in Markdown`,
@@ -182,6 +375,13 @@ function buildResearchPrompt(input: {
     `- cite specific sources throughout`,
     `- call out unsupported assumptions explicitly instead of smoothing them over`,
     `- if data is missing, say it is missing`,
+    `- label each meaningful claim as evidence-backed, inferred, or hypothesis-level`,
+    `- explicitly mark buyer stack, integration, delivery, legal, security, and partner assumptions as "verify before outreach" unless directly supported`,
+    `- separate settled operating facts from leading hypotheses so a human can see what is activation-ready versus validation-required`,
+    `- if you mention telemetry, use only approved repo vocabulary: ${renderAllowedValues(CITY_LAUNCH_APPROVED_ANALYTICS_EVENTS)} plus \`inboundRequests.ops.proof_path\` milestones`,
+    `- do not universalize site-operator intake as the only lawful path; choose between ${renderAllowedValues(CITY_LAUNCH_LAWFUL_ACCESS_MODE_VALUES)} and explain when private controlled interiors require explicit authorization`,
+    `- include a machine-readable activation payload fence using \`\`\`city-launch-activation-payload with schema "${CITY_LAUNCH_ACTIVATION_PAYLOAD_SCHEMA_VERSION}" and machine_policy_version "${CITY_LAUNCH_MACHINE_POLICY_VERSION}"`,
+    `- do not ask for citywide liquidity, broad supply-demand balance, first 100/250 capturer scale, or generic community-seeding as the core launch frame`,
     ``,
     `Repo context to ground the work:`,
     input.context,
@@ -190,45 +390,70 @@ function buildResearchPrompt(input: {
 
 export function buildCritiquePrompt(previousResearch: string) {
   return [
-    `You are Blueprint's launch-strategy critique agent.`,
-    `Review the previous city launch research dossier with a hostile-but-accurate operating lens.`,
+    `You are Blueprint's city proof-motion critique agent.`,
+    `Review the previous Blueprint city proof-motion research dossier with a hostile-but-accurate operating lens.`,
     ``,
     `Your job is to find where the research is still generic, unsupported, operationally thin, or mismatched to Blueprint doctrine.`,
     `Be especially strict about:`,
-    `- fake transfer from Uber / DoorDash-style patterns that do not fit Blueprint`,
+    `- marketplace transfer errors from Uber / DoorDash-style patterns that do not fit Blueprint`,
+    `- any framing that treats the work as a generic city marketplace launcher instead of a city proof-motion system`,
+    `- citywide expansion or liquidity language appearing before proof assets, proof paths, and hosted reviews are real`,
     `- weak treatment of rights, provenance, privacy, or hosted proof`,
+    `- unsupported access assumptions or missing site-operator acquisition before private interior capture`,
+    `- invented city-specific telemetry instead of the platform event model`,
+    `- proof-path vocabulary that conflicts with exact_site, adjacent_site, or scoped_follow_up`,
+    `- use of analytics event names outside the approved repo vocabulary`,
+    `- contradictory telemetry guidance such as claiming "no custom telemetry" while inventing new event names`,
+    `- manipulative, hypey, scarcity-driven, or posture-changing messaging`,
+    `- claims that skip rights, provenance, ops, or review gates and therefore sound settled when they are really hypotheses or inferences`,
+    `- buyer stack, integration, delivery, security, or partner assumptions missing a "verify before outreach" label`,
+    `- scaling supply volume before the first proof-ready sites, proof-pack deliveries, and hosted reviews exist`,
+    `- unaddressed defense, ITAR, export-control, or air-gapped review constraints`,
     `- missing city-specific channel and trust mechanics`,
     `- missing operator-vs-agent ownership splits`,
-    `- missing instrumentation and go/no-go thresholds`,
+    `- missing instrumentation, activation gates, widening gates, or go/no-go thresholds`,
     `- outreach plans that assume volume before proof`,
+    `- parser/materializer enum mismatches, unsupported appendix values, or vocabulary drift from current repo contracts`,
+    `- missing machine-readable activation payloads, missing lane mappings, or missing validation-required named claims`,
+    `- recommendations that cannot safely be delegated to agent lanes after normal human review`,
     ``,
     `Return Markdown with exactly these sections:`,
     `1. Fatal gaps`,
     `2. Unsupported or weak analogies`,
-    `3. Missing local evidence`,
-    `4. Missing operating mechanics`,
-    `5. Follow-up research questions`,
-    `6. Required playbook revisions`,
+    `3. Manipulative or posture-drifting language`,
+    `4. Missing validation-required labels`,
+    `5. Contract mismatches and unsafe structured output`,
+    `6. Missing local evidence`,
+    `7. Missing operating mechanics`,
+    `8. Follow-up research questions`,
+    `9. Required playbook revisions`,
     ``,
     `Previous research dossier:`,
     previousResearch,
   ].join("\n");
 }
 
-function buildFollowUpResearchPrompt(input: {
+export function buildFollowUpResearchPrompt(input: {
   city: string;
   critique: string;
   priorResearch: string;
 }) {
   return [
-    `Continue the city launch research for ${input.city}.`,
-    `You are resolving critique findings from a prior research pass.`,
+    `Continue the Blueprint city proof-motion research for ${input.city}.`,
+    `You are resolving critique findings from a prior city proof-motion research pass.`,
     ``,
     `Instructions:`,
-    `- focus only on the unresolved gaps and critiques below`,
+    `- focus only on the unresolved Blueprint proof-motion gaps and critiques below`,
     `- add new evidence and tighter operating detail`,
     `- do not repeat unchanged background unless needed for clarity`,
     `- keep citations and call out uncertainty explicitly`,
+    `- preserve the distinction between evidence-backed claims, inferred claims, and hypotheses needing validation`,
+    `- resolve lawful access path evidence, rights/provenance mechanics, buyer proof-path fit, hosted-review readiness, commercial handoff readiness, and company-specific validation gaps before adding new surface area`,
+    `- keep buyer-stack, integration, delivery, security, rights, and partner assumptions marked "verify before outreach" unless directly supported`,
+    `- keep the machine-readable activation payload aligned with the prose so issue seeds, required approvals, metrics dependencies, and named claims can be delegated safely`,
+    `- do not introduce new analytics event names beyond approved repo vocabulary`,
+    `- do not drift into generic marketplace framing, citywide liquidity logic, or capturer volume milestones as the core output`,
+    `- do not use manipulative or scarcity-driven language`,
     ``,
     `Prior research summary:`,
     input.priorResearch,
@@ -245,25 +470,40 @@ export function buildSynthesisPrompt(input: {
 }) {
   return [
     `You are Blueprint's launch playbook synthesizer.`,
-    `Turn the accumulated research and critique outputs into a single operator-ready city launch playbook for ${input.city}.`,
+    `Turn the accumulated research and critique outputs into a single operator-ready Blueprint city proof-motion playbook for ${input.city}.`,
     ``,
     `The playbook must be usable by both humans and agents.`,
-    `It must be more specific and more operational than a strategy memo.`,
+    `It must be more specific and more operational than a strategy memo, safe to delegate against after normal human review, compact enough to route from, and expansive enough to support city activation.`,
     ``,
     `Required sections:`,
     `- Executive summary`,
-    `- Blueprint-specific launch doctrine for this city`,
+    `- Truth constraints`,
+    `- City proof-motion thesis`,
+    `- Why this city now for Blueprint`,
+    `- Narrow wedge definition`,
+    `- Analog sanity check`,
     `- What analogous companies teach us and what they do not`,
-    `- Supply launch system`,
-    `- Demand and outreach system`,
+    `- What Blueprint should copy, adapt, reject`,
+    `- Evidence-backed claims`,
+    `- Inferred claims`,
+    `- Hypotheses needing validation`,
+    `- Lawful capture supply acquisition system`,
+    `- Rights / provenance / privacy clearance system`,
     `- Proof-asset system`,
-    `- Human vs agent ownership model`,
+    `- Buyer proof-path routing system`,
+    `- Hosted-review conversion system`,
+    `- Human vs agent operating model`,
     `- Instrumentation spec`,
+    `- Budget policy and approval thresholds`,
+    `- Daily / weekly operating cadence`,
+    `- Site-operator acquisition and rights path`,
+    `- What Must Be Validated Before Live Outreach`,
     `- 12-week execution schedule`,
-    `- Go / no-go criteria for public beta`,
+    `- Go / hold / no-go gates for activation and widening`,
     `- Checklists`,
     `- Sample prompts for agents`,
     `- Open research gaps`,
+    `- Machine-readable activation payload`,
     `- Structured launch data appendix`,
     ``,
     `Formatting rules:`,
@@ -272,9 +512,182 @@ export function buildSynthesisPrompt(input: {
     `- include a "What not to say publicly yet" section`,
     `- include tables and numbered steps where useful`,
     `- preserve uncertainty labels`,
+    `- organize the document as a Blueprint city proof-motion launcher, not a generic marketplace launch plan`,
+    `- keep analogous companies as a secondary sanity-check section only, not the main narrative frame`,
+    `- do not introduce city-specific analytics event names; use only approved repo analytics vocabulary with a city/source tag`,
+    `- make the lawful access decision explicit before any private indoor capture motion`,
+    `- if the city includes defense, aerospace, or other export-controlled buyers, add an explicit constraint section covering hosted-review limits and air-gapped review needs`,
+    `- do not scale beyond a small vetted capturer cohort until the first proof assets and hosted reviews are real`,
+    `- do not ask for generic liquidity metrics, broad supply-demand balance language, or first 100/250 capturer scale milestones`,
+    `- use proof-motion milestones instead: first lawful site-operator access paths, first approved capturers with trust clearance, first completed captures, first QA-passed captures, first rights-cleared proof assets, first proof-pack deliveries, first hosted-review-ready assets, first hosted-review starts, and first human commercial handoffs`,
+    `- explicitly label buyer stack, integration, delivery, security, partner, and compliance assumptions as "verify before outreach" unless directly supported`,
+    `- do not use manipulative, exclusivity, fake urgency, or posture-changing language`,
+    `- do not claim "no custom telemetry" while introducing new event names; distinguish current repo events, approved missing proof-motion events, and \`inboundRequests.ops.proof_path\` milestones explicitly`,
+    `- align the result with the current city-launch execution docs and activation program, and distinguish activation gates vs widening gates vs outreach gates`,
+    `- include a fenced \`\`\`city-launch-activation-payload block that acts as the control-plane artifact for activation, issue routing, approvals, and metrics blockers`,
     `- end the document with a fenced JSON block using \`\`\`city-launch-records`,
     `- the JSON block must parse cleanly and use schema_version "${CITY_LAUNCH_RESEARCH_SCHEMA_VERSION}"`,
     `- only include entries supported by the research; if a field is inferred, list it under inferred_fields instead of presenting it as ground truth`,
+    `- activation payload schema_version must be "${CITY_LAUNCH_ACTIVATION_PAYLOAD_SCHEMA_VERSION}"`,
+    `- activation payload machine_policy_version must be "${CITY_LAUNCH_MACHINE_POLICY_VERSION}"`,
+    `- activation payload lawful_access_modes must use only: ${renderAllowedValues(CITY_LAUNCH_LAWFUL_ACCESS_MODE_VALUES)}`,
+    `- activation payload owner_lanes must use only: ${renderAllowedValues(CITY_LAUNCH_CONTROL_PLANE_RULES.agentLanes)}`,
+    `- activation payload required_approvals lanes must use only: ${renderAllowedValues(CITY_LAUNCH_CONTROL_PLANE_RULES.approvalLanes)}`,
+    `- activation payload issue_seeds human_lane values must use only: ${renderAllowedValues(CITY_LAUNCH_CONTROL_PLANE_RULES.humanLanes)}`,
+    `- activation payload issue_seeds must map every recommended action to named lanes from the current autonomous org and activation program`,
+    `- activation payload named_claims must include every named company, stack, or delivery claim and each claim must either carry source_urls or set validation_required=true`,
+    `- activation payload metrics_dependencies must cover: ${renderAllowedValues(CITY_LAUNCH_REQUIRED_METRIC_DEPENDENCY_KEYS)}`,
+    `- activation payload may also track proof milestones such as: ${renderAllowedValues(CITY_LAUNCH_REQUIRED_PROOF_MOTION_MILESTONES)}`,
+    `- allowed capture status values: ${renderAllowedValues(CITY_LAUNCH_PROSPECT_STATUS_VALUES)}`,
+    `- allowed buyer target status values: ${renderAllowedValues(CITY_LAUNCH_BUYER_TARGET_STATUS_VALUES)}`,
+    `- allowed buyer target proof_path values: ${renderAllowedValues(CITY_LAUNCH_BUYER_PROOF_PATH_VALUES)}`,
+    `- allowed first touch type values: ${renderAllowedValues(CITY_LAUNCH_TOUCH_TYPE_VALUES)}`,
+    `- allowed first touch status values: ${renderAllowedValues(CITY_LAUNCH_TOUCH_STATUS_VALUES)}`,
+    `- allowed budget category values: ${renderAllowedValues(CITY_LAUNCH_BUDGET_CATEGORY_VALUES)}`,
+    `- if a value is unsupported or unknown, omit it or set it to null rather than inventing a new enum`,
+    `- approved analytics references for the instrumentation section: ${renderAllowedValues(CITY_LAUNCH_APPROVED_ANALYTICS_REFERENCES)}`,
+    ``,
+    `Machine-readable activation payload schema:`,
+    "```json",
+    JSON.stringify(
+      {
+        schema_version: CITY_LAUNCH_ACTIVATION_PAYLOAD_SCHEMA_VERSION,
+        machine_policy_version: CITY_LAUNCH_MACHINE_POLICY_VERSION,
+        city: input.city,
+        city_slug: slugifyCityName(input.city),
+        city_thesis:
+          "One narrow exact-site hosted review motion tied to one real workflow lane and one truthful buyer proof path.",
+        primary_site_lane: "industrial_warehouse",
+        primary_workflow_lane: "dock handoff and pallet movement",
+        primary_buyer_proof_path: "exact_site",
+        lawful_access_modes: ["buyer_requested_site", "site_operator_intro"],
+        preferred_lawful_access_mode: "buyer_requested_site",
+        rights_path: {
+          summary:
+            "Use the lawful access mode per target. Private controlled interiors require explicit authorization before capture dispatch.",
+          private_controlled_interiors_require_authorization: true,
+          validation_required: false,
+          source_urls: ["https://example.com/rights"],
+        },
+        validation_blockers: [
+          {
+            key: "buyer_stack_fit",
+            summary: "Verify target export format compatibility before live outreach.",
+            severity: "high",
+            owner_lane: "buyer-solutions-agent",
+            validation_required: true,
+            source_urls: [],
+          },
+        ],
+        required_approvals: [
+          {
+            lane: "founder",
+            reason: "New city activation and spend posture remain founder-gated.",
+          },
+        ],
+        owner_lanes: [
+          "city-launch-agent",
+          "ops-lead",
+          "growth-lead",
+          "buyer-solutions-agent",
+          "analytics-agent",
+        ],
+        issue_seeds: [
+          {
+            key: "lawful-access-path",
+            title: "Lock the first lawful access path",
+            phase: "founder_gates",
+            owner_lane: "city-launch-agent",
+            human_lane: "growth-lead",
+            summary:
+              "Pick the first lawful access mode and block private controlled interiors until authorization is explicit.",
+            dependency_keys: [],
+            success_criteria: [
+              "First lawful access path is named and documented.",
+            ],
+            metrics_dependencies: ["first_lawful_access_path"],
+            validation_required: false,
+          },
+        ],
+        metrics_dependencies: [
+          {
+            key: "robot_team_inbound_captured",
+            kind: "event",
+            status: "required_not_tracked",
+            owner_lane: "analytics-agent",
+            notes: "Implement before expecting autonomous governance.",
+          },
+          {
+            key: "proof_path_assigned",
+            kind: "event",
+            status: "required_not_tracked",
+            owner_lane: "analytics-agent",
+            notes: "Implement before expecting autonomous governance.",
+          },
+          {
+            key: "proof_pack_delivered",
+            kind: "event",
+            status: "required_not_tracked",
+            owner_lane: "analytics-agent",
+            notes: "Implement before expecting autonomous governance.",
+          },
+          {
+            key: "hosted_review_ready",
+            kind: "event",
+            status: "required_not_tracked",
+            owner_lane: "analytics-agent",
+            notes: "Implement before expecting autonomous governance.",
+          },
+          {
+            key: "hosted_review_started",
+            kind: "event",
+            status: "required_not_tracked",
+            owner_lane: "analytics-agent",
+            notes: "Implement before expecting autonomous governance.",
+          },
+          {
+            key: "hosted_review_follow_up_sent",
+            kind: "event",
+            status: "required_not_tracked",
+            owner_lane: "analytics-agent",
+            notes: "Implement before expecting autonomous governance.",
+          },
+          {
+            key: "human_commercial_handoff_started",
+            kind: "event",
+            status: "required_not_tracked",
+            owner_lane: "analytics-agent",
+            notes: "Implement before expecting autonomous governance.",
+          },
+          {
+            key: "proof_motion_stalled",
+            kind: "event",
+            status: "required_not_tracked",
+            owner_lane: "analytics-agent",
+            notes: "Implement before expecting autonomous governance.",
+          },
+        ],
+        named_claims: [
+          {
+            subject: "Example Robotics",
+            claim_type: "company",
+            claim: "Example Robotics is a credible named buyer target for this city wedge.",
+            validation_required: false,
+            source_urls: ["https://example.com/buyer"],
+          },
+          {
+            subject: "ROS 2 / Gazebo",
+            claim_type: "stack",
+            claim: "The proof path should support ROS 2 / Gazebo-compatible artifacts.",
+            validation_required: true,
+            source_urls: [],
+          },
+        ],
+      },
+      null,
+      2,
+    ),
+    "```",
     ``,
     `Structured launch data schema:`,
     "```json",
@@ -306,7 +719,7 @@ export function buildSynthesisPrompt(input: {
             contact_name: "Jane Doe",
             status: "researched",
             workflow_fit: "warehouse autonomy",
-            proof_path: "hosted_review",
+            proof_path: "exact_site",
             notes: "Cited buyer fit from current robotics deployment work.",
             source_bucket: "warehouse_robotics",
             source_urls: ["https://example.com"],
@@ -353,9 +766,51 @@ export function buildSynthesisPrompt(input: {
   ].join("\n");
 }
 
+function renderValidationReport(result: CityLaunchPlaybookValidationResult) {
+  return [
+    "# Final Playbook Validation",
+    "",
+    `- ok: ${result.ok}`,
+    "",
+    "## Errors",
+    "",
+    ...(result.errors.length > 0 ? result.errors.map((error) => `- ${error}`) : ["- none"]),
+    "",
+    "## Warnings",
+    "",
+    ...(result.warnings.length > 0 ? result.warnings.map((warning) => `- ${warning}`) : ["- none"]),
+  ].join("\n");
+}
+
 async function writeTextArtifact(filePath: string, content: string) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, content, "utf8");
+}
+
+async function writePlanningManifest(input: {
+  city: string;
+  citySlug: string;
+  status: "in_progress" | "completed";
+  startedAt: string;
+  completedAt: string;
+  manifestPath: string;
+  artifacts: CityLaunchHarnessArtifacts;
+  stages: CityLaunchHarnessResult["stages"];
+  notion?: CityLaunchHarnessResult["notion"];
+}) {
+  const payload: CityLaunchHarnessResult = {
+    city: input.city,
+    citySlug: input.citySlug,
+    status: input.status,
+    startedAt: input.startedAt,
+    completedAt: input.completedAt,
+    artifacts: input.artifacts,
+    stages: input.stages,
+    ...(input.notion ? { notion: input.notion } : {}),
+  };
+
+  await writeTextArtifact(input.manifestPath, JSON.stringify(payload, null, 2));
+  return payload;
 }
 
 function timestampForFile(date = new Date()) {
@@ -366,6 +821,13 @@ function buildCanonicalPlaybookPath(citySlug: string) {
   return path.join(
     REPO_ROOT,
     `ops/paperclip/playbooks/city-launch-${citySlug}-deep-research.md`,
+  );
+}
+
+function buildCanonicalActivationPayloadPath(citySlug: string) {
+  return path.join(
+    REPO_ROOT,
+    `ops/paperclip/playbooks/city-launch-${citySlug}-activation-payload.json`,
   );
 }
 
@@ -473,7 +935,10 @@ export async function runCityLaunchPlanningHarness(
   const runDirectory = path.join(reportsRoot, citySlug, runTimestamp);
   const initialResearchPath = path.join(runDirectory, "01-initial-research.md");
   const finalPlaybookPath = path.join(runDirectory, "99-final-playbook.md");
+  const validationArtifactPath = path.join(runDirectory, "98-final-playbook-validation.md");
+  const activationPayloadPath = path.join(runDirectory, "97-activation-payload.json");
   const canonicalPlaybookPath = buildCanonicalPlaybookPath(citySlug);
+  const canonicalActivationPayloadPath = buildCanonicalActivationPayloadPath(citySlug);
   const manifestPath = path.join(runDirectory, "manifest.json");
   const stageArtifacts: string[] = [];
   const stages: CityLaunchHarnessResult["stages"] = [];
@@ -493,6 +958,28 @@ export async function runCityLaunchPlanningHarness(
   const context = await loadPlanningContext(citySlug);
   let latestResearchText = "";
   const critiqueOutputs: string[] = [];
+  const startedAtIso = startedAt.toISOString();
+  const baseArtifacts: CityLaunchHarnessArtifacts = {
+    runDirectory,
+    manifestPath,
+    initialResearchPath,
+    finalPlaybookPath,
+    activationPayloadPath,
+    canonicalPlaybookPath,
+    canonicalActivationPayloadPath,
+    stageArtifacts,
+  };
+
+  await writePlanningManifest({
+    city,
+    citySlug,
+    status: "in_progress",
+    startedAt: startedAtIso,
+    completedAt: startedAtIso,
+    manifestPath,
+    artifacts: baseArtifacts,
+    stages,
+  });
 
   const initialResearchPrompt = buildResearchPrompt({
     city,
@@ -528,6 +1015,16 @@ export async function runCityLaunchPlanningHarness(
     status: initialResearchComplete.status,
     artifactPath: initialResearchPath,
   });
+  await writePlanningManifest({
+    city,
+    citySlug,
+    status: "in_progress",
+    startedAt: startedAtIso,
+    completedAt: new Date().toISOString(),
+    manifestPath,
+    artifacts: baseArtifacts,
+    stages,
+  });
 
   for (let round = 1; round <= critiqueRounds; round += 1) {
     const critiquePrompt = buildCritiquePrompt(latestResearchText);
@@ -554,6 +1051,16 @@ export async function runCityLaunchPlanningHarness(
       interactionId: critique.id,
       status: critique.status,
       artifactPath: critiqueArtifactPath,
+    });
+    await writePlanningManifest({
+      city,
+      citySlug,
+      status: "in_progress",
+      startedAt: startedAtIso,
+      completedAt: new Date().toISOString(),
+      manifestPath,
+      artifacts: baseArtifacts,
+      stages,
     });
 
     const followUpPrompt = buildFollowUpResearchPrompt({
@@ -590,6 +1097,16 @@ export async function runCityLaunchPlanningHarness(
       status: followUpResearchComplete.status,
       artifactPath: followUpArtifactPath,
     });
+    await writePlanningManifest({
+      city,
+      citySlug,
+      status: "in_progress",
+      startedAt: startedAtIso,
+      completedAt: new Date().toISOString(),
+      manifestPath,
+      artifacts: baseArtifacts,
+      stages,
+    });
   }
 
   const synthesisPrompt = buildSynthesisPrompt({
@@ -609,7 +1126,37 @@ export async function runCityLaunchPlanningHarness(
     interaction: finalSynthesis,
     prompt: synthesisPrompt,
   });
+  const validation = validateCityLaunchPlaybookMarkdown({
+    city,
+    markdown: finalPlaybookText,
+  });
+  const parsedPlaybook = parseCityLaunchResearchArtifact({
+    city,
+    artifactPath: finalPlaybookPath,
+    markdown: finalPlaybookText,
+  });
+  await writeTextArtifact(
+    validationArtifactPath,
+    renderValidationReport(validation),
+  );
+  if (!validation.ok) {
+    throw new Error(
+      `Final city launch playbook failed validation: ${validation.errors.join(" | ")}`,
+    );
+  }
+  if (!parsedPlaybook.activationPayload) {
+    throw new Error("Final city launch playbook is missing a valid activation payload.");
+  }
   await writeTextArtifact(canonicalPlaybookPath, finalPlaybookText);
+  await writeTextArtifact(
+    activationPayloadPath,
+    JSON.stringify(parsedPlaybook.activationPayload, null, 2),
+  );
+  await writeTextArtifact(
+    canonicalActivationPayloadPath,
+    JSON.stringify(parsedPlaybook.activationPayload, null, 2),
+  );
+  stageArtifacts.push(activationPayloadPath);
   stageArtifacts.push(finalPlaybookPath);
   stages.push({
     key: "final_playbook",
@@ -621,16 +1168,10 @@ export async function runCityLaunchPlanningHarness(
   const result: CityLaunchHarnessResult = {
     city,
     citySlug,
-    startedAt: startedAt.toISOString(),
+    status: "completed",
+    startedAt: startedAtIso,
     completedAt: new Date().toISOString(),
-    artifacts: {
-      runDirectory,
-      manifestPath,
-      initialResearchPath,
-      finalPlaybookPath,
-      canonicalPlaybookPath,
-      stageArtifacts,
-    },
+    artifacts: baseArtifacts,
     stages,
   };
 
@@ -656,7 +1197,17 @@ export async function runCityLaunchPlanningHarness(
     );
   }
 
-  await writeTextArtifact(manifestPath, JSON.stringify(result, null, 2));
+  await writePlanningManifest({
+    city,
+    citySlug,
+    status: "completed",
+    startedAt: result.startedAt,
+    completedAt: result.completedAt,
+    manifestPath,
+    artifacts: result.artifacts,
+    stages,
+    notion: result.notion,
+  });
   logger.info(
     { city, citySlug, canonicalPlaybookPath },
     "Completed city launch Deep Research harness",
