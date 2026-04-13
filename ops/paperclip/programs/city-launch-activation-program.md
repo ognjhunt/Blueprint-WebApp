@@ -18,6 +18,27 @@ Do not activate this program until the founder approves:
 
 Before approval, the harness may prepare artifacts and issue bundles, but the org stays in planning mode.
 
+## Autonomy-First Execution Rule
+
+After founder approval, activate every named city lane at once.
+
+Do not treat the following as reasons to leave lanes idle:
+
+- missing source policy packet
+- missing ops rubric / trust kit / first-capture thresholds
+- missing lawful-access confirmation
+- missing proof-motion telemetry
+- missing proof-ready assets or hosted reviews
+
+Those are completion dependencies, not start dependencies.
+
+Execution rule:
+
+- every lane must execute all reversible research, drafting, implementation, routing, and internal/external preparation immediately
+- lanes stop only at irreversible human gates, external counterparty confirmations, or the absence of a real live signal needed to mark the task complete
+- do not fake lawful access, proof assets, hosted reviews, rights clearance, spend approvals, public claims, or non-standard commercial commitments
+- do not wait for a different lane's packet to exist before starting the best available approach for the current lane
+
 ## Required Repo Artifacts
 
 - `docs/city-launch-system-<city-slug>.md`

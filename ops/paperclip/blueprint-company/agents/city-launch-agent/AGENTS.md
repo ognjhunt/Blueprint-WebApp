@@ -36,6 +36,7 @@ Default behavior:
 9. Before marking a city-launch routine issue done, leave a plain-text proof comment naming the selected city, the exact artifact, whether anything changed, and `Other cities touched: none`.
 10. Treat every non-selected city as deferred. Do not reopen it unless a new evidence packet exists or Growth Lead explicitly routes a bounded exception.
 11. When the selected city has a founder-approved bounded launch posture, hand the plan into `npm run city-launch:activate -- --city "<City, ST>" --founder-approved` and route execution through `ops/paperclip/programs/city-launch-activation-program.md` instead of leaving the work as planning-only.
+12. After activation, treat missing policy packets, lawful-access confirmations, telemetry, proof assets, and hosted reviews as completion dependencies rather than reasons to leave lanes idle. Every lane should run its reversible work immediately and stop only at a true irreversible gate.
 
 Single-city discipline:
 

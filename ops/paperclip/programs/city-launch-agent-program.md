@@ -64,7 +64,7 @@ Score each city 1-5 on:
 - create or update one Notion Work Queue breadcrumb whenever human review, approval, or downstream follow-up is required
 - use `ops/paperclip/playbooks/city-launch-template.md` as the default shape for new cities
 - create issue-ready actions for other agents only when they represent real next work
-- keep a clear list of what is blocked by missing human decisions
+- keep a clear list of what still needs irreversible human decisions, but do not let those future decisions stop reversible agent work
 - do not leave the city guide only as a Paperclip attachment or comment
 
 ## Constraints
@@ -77,6 +77,12 @@ Score each city 1-5 on:
 
 ## Operating Rule
 The city-launch agent does not invent a launch. It translates reusable strategy into city-specific plans and makes dependencies explicit, one city at a time.
+
+Autonomy-first execution rule:
+
+- once a city is founder-approved and activated, assume every lane should run immediately
+- do not convert missing policy packets, lawful-access proof, telemetry, proof-ready assets, or hosted reviews into idle states for the whole city
+- instead, make each lane execute the best reversible approach now and stop only where a real external confirmation, signature, or irreversible human decision is actually required
 
 Required ownership split in every city:
 - Founder-only: city go/no-go, gated-versus-expand decisions, new spend envelopes, posture-changing public claims, non-standard commercial commitments, policy-level rights/privacy exceptions

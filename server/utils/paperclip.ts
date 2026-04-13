@@ -74,10 +74,16 @@ function buildHeaders(includeJson = false) {
   return headers;
 }
 
-async function fetchPaperclipJson<T>(pathname: string, init?: RequestInit): Promise<T> {
+async function fetchPaperclipJson<T>(
+  pathname: string,
+  init?: RequestInit & { timeoutMs?: number },
+): Promise<T> {
+  const timeoutMs = Math.max(1_000, init?.timeoutMs ?? 8_000);
+  const { timeoutMs: _timeoutMs, ...requestInit } = init || {};
   const response = await fetch(`${paperclipApiUrl()}${pathname}`, {
-    ...init,
-    headers: init?.headers || buildHeaders(Boolean(init?.body)),
+    ...requestInit,
+    headers: requestInit?.headers || buildHeaders(Boolean(requestInit?.body)),
+    signal: requestInit?.signal ?? AbortSignal.timeout(timeoutMs),
   });
 
   if (!response.ok) {
@@ -103,6 +109,7 @@ export async function resolvePaperclipCompanyId() {
 
   const companies = await fetchPaperclipJson<PaperclipCompany[]>("/api/companies", {
     headers: buildHeaders(),
+    timeoutMs: 5_000,
   });
   const match = companies.find((entry) => entry.name === companyName());
   cachedCompanyId = match?.id || null;
@@ -125,6 +132,7 @@ export async function resolvePaperclipProjectId(projectName: string) {
     `/api/companies/${companyId}/projects`,
     {
       headers: buildHeaders(),
+      timeoutMs: 5_000,
     },
   );
   const match = projects.find((entry) => {
@@ -155,6 +163,7 @@ export async function resolvePaperclipAgentId(agentKey: string) {
     `/api/companies/${companyId}/agents`,
     {
       headers: buildHeaders(),
+      timeoutMs: 5_000,
     },
   );
   const match = agents.find((entry) => {
@@ -197,6 +206,7 @@ export async function listPaperclipIssues(params: {
     `/api/companies/${params.companyId}/issues${suffix}`,
     {
       headers: buildHeaders(),
+      timeoutMs: 6_000,
     },
   );
 }
@@ -204,6 +214,7 @@ export async function listPaperclipIssues(params: {
 export async function getPaperclipIssue(issueId: string) {
   return await fetchPaperclipJson<PaperclipIssueRecord>(`/api/issues/${issueId}`, {
     headers: buildHeaders(),
+    timeoutMs: 6_000,
   });
 }
 
@@ -218,6 +229,7 @@ export async function updatePaperclipIssue(
     method: "PATCH",
     headers: buildHeaders(true),
     body: JSON.stringify(input),
+    timeoutMs: 8_000,
   });
 }
 
@@ -268,6 +280,7 @@ export async function upsertPaperclipIssue(input: {
         assigneeAgentId,
         parentId: input.parentId ?? null,
       }),
+      timeoutMs: 8_000,
     });
     return {
       companyId,
@@ -294,6 +307,7 @@ export async function upsertPaperclipIssue(input: {
         originKind: input.originKind,
         originId: input.originId,
       }),
+      timeoutMs: 8_000,
     },
   );
   return {
@@ -310,6 +324,7 @@ export async function createPaperclipIssueComment(issueId: string, body: string)
     method: "POST",
     headers: buildHeaders(true),
     body: JSON.stringify({ body }),
+    timeoutMs: 4_000,
   });
 }
 

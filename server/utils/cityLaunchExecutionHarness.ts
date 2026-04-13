@@ -109,6 +109,12 @@ export type CityLaunchTaskDispatch = {
   identifier: string | null;
   created: boolean;
   status: string;
+  executionState:
+    | "ready_to_execute"
+    | "execute_until_human_gate"
+    | "execute_until_external_confirmation"
+    | "execute_until_live_signal";
+  executionReason: string;
   wakeStatus?: string | null;
   wakeRunId?: string | null;
   wakeError?: string | null;
@@ -973,8 +979,8 @@ function buildSystemDocMarkdown(input: {
   const agentPrepared = [
     `city-launch-agent keeps the ${profile.shortLabel} plan and dependency map current.`,
     `city-demand-agent maintains the ${profile.shortLabel} target ledger so the capture queue stays tied to real robot workflow demand.`,
-    `capturer-growth-agent, intake-agent, capturer-success-agent, field-ops-agent, capture-qa-agent, and rights-provenance-agent run the supply loop inside the ${profile.shortLabel} policy packet.`,
-    `demand-intel-agent, robot-team-growth-agent, outbound-sales-agent, buyer-solutions-agent, and revenue-ops-pricing-agent run the demand loop inside the proof-led ${profile.shortLabel} wedge.`,
+    `capturer-growth-agent, intake-agent, capturer-success-agent, field-ops-agent, capture-qa-agent, and rights-provenance-agent run the supply loop continuously, producing drafts, packets, routing, and prep work even before the first real-world confirmations arrive.`,
+    `demand-intel-agent, robot-team-growth-agent, outbound-sales-agent, buyer-solutions-agent, and revenue-ops-pricing-agent run the demand loop continuously, packaging truthful proof motion and only pausing at irreversible claim, rights, spend, or non-standard commercial gates.`,
     `analytics-agent and notion-manager-agent keep ${profile.shortLabel} measurable, reviewable, and mirrored into the operator surfaces.`,
   ];
 
@@ -1001,7 +1007,7 @@ function buildSystemDocMarkdown(input: {
     "",
     "## Objective",
     "",
-    `Turn the ${profile.shortLabel} planning artifacts into an executable company harness that can run the supply loop and the demand loop with minimal founder involvement after bounded founder approval.`,
+    `Turn the ${profile.shortLabel} planning artifacts into an executable company harness that runs the supply loop and demand loop in one autonomy-first sweep after bounded founder approval.`,
     "",
     "## Machine-Readable Budget Policy",
     "",
@@ -1020,6 +1026,7 @@ function buildSystemDocMarkdown(input: {
     `3. Materialize the live Paperclip issue tree for the city launch so work is routable instead of staying trapped in artifacts.`,
     `4. Measure the city through ${profile.shortLabel}-specific supply, demand, spend, and proof-motion metrics so operators can see whether the city is actually becoming operationally real.`,
     `5. Treat the machine-readable activation payload as the control-plane artifact for validation blockers, lane mapping, and metrics readiness.`,
+    `6. After activation, every lane should execute all reversible work immediately and stop only at irreversible human gates, external counterparty confirmations, or the lack of a real live signal needed to mark completion.`,
     "",
     "## Planning State",
     "",
@@ -1044,15 +1051,15 @@ function buildSystemDocMarkdown(input: {
     "",
     ...input.founderApprovals.map((item) => `- ${item}`),
     "",
-    `## ${profile.shortLabel} Switch-On Requirements`,
+    `## ${profile.shortLabel} Completion Requirements`,
     "",
-    `- Founder-approved ${profile.shortLabel} posture and bounded source policy.`,
-    `- ${profile.shortLabel} capture target ledger with first proof candidates, queued lawful-access buckets, and longer-horizon discovery lanes.`,
-    `- ${profile.shortLabel} ops packet: intake rubric, trust kit, first-capture thresholds, and launch-readiness checklist.`,
-    `- At least one clean ${profile.shortLabel} proof pack with hosted-review path and rights/provenance clearance.`,
-    `- ${profile.shortLabel} buyer target list and proof-led outbound package.`,
-    `- ${profile.shortLabel} scorecard working from live repo truth sources.`,
-    `- Machine-readable activation payload with validation blockers, issue seeds, named claims, and metrics dependencies.`,
+    `- Founder-approved ${profile.shortLabel} posture remains required to activate the city.`,
+    `- ${profile.shortLabel} capture target ledger with first proof candidates, queued lawful-access buckets, and longer-horizon discovery lanes is required to mark the city operationally real, but not required to begin execution.`,
+    `- ${profile.shortLabel} ops packet: intake rubric, trust kit, first-capture thresholds, and launch-readiness checklist is a completion dependency, not a reason to leave execution lanes idle.`,
+    `- At least one clean ${profile.shortLabel} proof pack with hosted-review path and rights/provenance clearance is required before claiming the city is live.`,
+    `- ${profile.shortLabel} buyer target list and proof-led outbound package are completion requirements for launch quality, not start gates for agent work.`,
+    `- ${profile.shortLabel} scorecard working from live repo truth sources is required before widening or health claims.`,
+    `- Machine-readable activation payload with validation blockers, issue seeds, named claims, and metrics dependencies remains the control-plane source of truth.`,
     "",
     "## Activation Payload Highlights",
     "",
@@ -1181,6 +1188,12 @@ async function syncExecutionArtifactsToNotion(input: {
 function taskIssueDescription(input: {
   profile: CityLaunchProfile;
   task: CityLaunchTask;
+  executionState:
+    | "ready_to_execute"
+    | "execute_until_human_gate"
+    | "execute_until_external_confirmation"
+    | "execute_until_live_signal";
+  executionReason: string;
   budgetPolicy: CityLaunchBudgetPolicy;
   artifactPaths: {
     canonicalSystemDocPath: string;
@@ -1221,6 +1234,12 @@ function taskIssueDescription(input: {
       ? input.task.metricsDependencies.map((entry) => `- ${entry}`)
       : ["- none"]),
     "",
+    "## Activation Routing Status",
+    "",
+    `- execution_state: ${input.executionState}`,
+    `- activation_reason: ${input.executionReason}`,
+    "- autonomy_rule: Execute all reversible research, drafting, implementation, routing, and internal/external preparation immediately. Stop only at irreversible human gates, external counterparty confirmations, or the absence of a real live signal required to mark the lane complete.",
+    "",
     "## Validation Required",
     "",
     input.task.validationRequired ? "true" : "false",
@@ -1244,6 +1263,110 @@ function taskIssueDescription(input: {
   ].join("\n");
 }
 
+function assessCityLaunchTaskExecution(task: CityLaunchTask): {
+  executionState: CityLaunchTaskDispatch["executionState"];
+  executionReason: string;
+} {
+  switch (task.key) {
+    case "city-target-ledger":
+    case "growth-source-policy":
+    case "ops-rubric-thresholds":
+    case "buyer-target-research":
+    case "city-scorecard":
+    case "notion-breadcrumbs":
+    case "switch-on-review":
+      return {
+        executionState: "ready_to_execute",
+        executionReason:
+          "This lane should start immediately and complete all reversible research, drafting, implementation, and internal routing work without waiting on another lane to be manually cleared first.",
+      };
+    case "supply-prospects":
+    case "outbound-package":
+    case "outbound-execution":
+    case "buyer-thread-commercial":
+      return {
+        executionState: "execute_until_human_gate",
+        executionReason:
+          "This lane should execute now, build the best truthful approach, and only stop at the first irreversible external send, public-claim boundary, or non-standard commercial commitment.",
+      };
+    case "supply-qualification":
+    case "capturer-activation-success":
+    case "first-capture-routing":
+    case "capture-qa":
+    case "rights-clearance":
+    case "proof-pack-listings":
+    case "lawful-access-path":
+      return {
+        executionState: "execute_until_external_confirmation",
+        executionReason:
+          "This lane should run now and push through research, packetization, routing, drafting, and prep work until it reaches the first real external confirmation, signature, applicant, capture artifact, or buyer response needed to complete the lane.",
+      };
+    default:
+      return {
+        executionState: "ready_to_execute",
+        executionReason:
+          "This lane should execute now; completion may still depend on external facts, but activation should not leave it idle.",
+      };
+  }
+}
+
+function paperclipIssueLink(identifier: string | null | undefined) {
+  const normalized = String(identifier || "").trim();
+  if (!normalized) {
+    return null;
+  }
+  const prefix = normalized.split("-")[0]?.trim();
+  if (!prefix) {
+    return null;
+  }
+  return `[${normalized}](/${prefix}/issues/${normalized})`;
+}
+
+function renderDispatchLink(dispatch: Pick<CityLaunchTaskDispatch, "identifier" | "key">) {
+  const link = paperclipIssueLink(dispatch.identifier);
+  return link ? `${link} (${dispatch.key})` : dispatch.key;
+}
+
+function buildCityLaunchRootBlockerSummaryComment(input: {
+  profile: CityLaunchProfile;
+  dispatched: CityLaunchTaskDispatch[];
+}) {
+  const grouped = {
+    ready_to_execute: input.dispatched.filter((entry) => entry.executionState === "ready_to_execute"),
+    execute_until_human_gate: input.dispatched.filter(
+      (entry) => entry.executionState === "execute_until_human_gate",
+    ),
+    execute_until_external_confirmation: input.dispatched.filter(
+      (entry) => entry.executionState === "execute_until_external_confirmation",
+    ),
+    execute_until_live_signal: input.dispatched.filter(
+      (entry) => entry.executionState === "execute_until_live_signal",
+    ),
+  };
+
+  const formatGroup = (entries: CityLaunchTaskDispatch[]) =>
+    entries.length > 0
+      ? entries.map((entry) => `  - ${renderDispatchLink(entry)}: ${entry.executionReason}`)
+      : ["  - none"];
+
+  return [
+    `Autonomy-first execution summary for ${input.profile.city}.`,
+    "Activation should not leave lanes idle just because the city still lacks final proof, telemetry, or external confirmations.",
+    "",
+    `- Execute immediately (${grouped.ready_to_execute.length}):`,
+    ...formatGroup(grouped.ready_to_execute),
+    `- Execute until a human gate is truly required (${grouped.execute_until_human_gate.length}):`,
+    ...formatGroup(grouped.execute_until_human_gate),
+    `- Execute until an external confirmation or real-world counterpart is required (${grouped.execute_until_external_confirmation.length}):`,
+    ...formatGroup(grouped.execute_until_external_confirmation),
+    `- Execute until a live signal exists to mark completion (${grouped.execute_until_live_signal.length}):`,
+    ...formatGroup(grouped.execute_until_live_signal),
+    "",
+    "The remaining constraints are completion gates, not activation gates: do not fake lawful access, proof assets, hosted reviews, rights clearance, spend approvals, public claims, or non-standard commitments.",
+    "All lanes should still run now and push as far as they can with research, packet drafting, implementation, routing, and truthful prep work in one continuous sweep.",
+  ].join("\n");
+}
+
 function buildTaskKickoffComment(input: {
   profile: CityLaunchProfile;
   task: CityLaunchTask;
@@ -1253,8 +1376,8 @@ function buildTaskKickoffComment(input: {
   return [
     `Routing ${input.task.ownerLane} to pick up ${input.task.title} for ${input.profile.city}.`,
     `Issue: ${input.identifier || input.issueId}`,
-    `Why now: city-launch:activate created the bounded execution tree and this lane owns the next concrete step.`,
-    `Next move: start from this issue, follow the listed dependencies, and leave proof-bearing progress or blocker evidence here.`,
+    `Why now: city-launch:activate created the bounded execution tree and this lane should run immediately in autonomy-first mode.`,
+    `Next move: start from this issue, push through all reversible work now, and leave proof-bearing progress or the first true irreversible gate here.`,
   ].join("\n");
 }
 
@@ -1280,7 +1403,7 @@ async function wakeCityLaunchTaskOwner(input: {
       issueId: input.issue.id,
       identifier: input.issueIdentifier,
     }),
-  );
+  ).catch(() => undefined);
 
   const wakeResult = await wakePaperclipAgent({
     agentId: input.assigneeAgentId,
@@ -1328,7 +1451,7 @@ async function dispatchCityLaunchIssueTree(input: {
     canonicalActivationPayloadPath: string;
   };
 }) {
-  const issueStatus = input.founderApproved ? "todo" : "backlog";
+  const rootIssueStatus = input.founderApproved ? "todo" : "backlog";
   const rootDescription = [
     `# Launch ${input.profile.city}`,
     "",
@@ -1350,7 +1473,7 @@ async function dispatchCityLaunchIssueTree(input: {
     title: `Launch ${input.profile.city} as a bounded city program`,
     description: rootDescription,
     priority: input.founderApproved ? "high" : "medium",
-    status: issueStatus,
+    status: rootIssueStatus,
     originKind: "city_launch_activation",
     originId: input.profile.key,
   });
@@ -1358,6 +1481,8 @@ async function dispatchCityLaunchIssueTree(input: {
   const dispatched: CityLaunchTaskDispatch[] = [];
 
   for (const task of input.tasks) {
+    const executionAssessment = assessCityLaunchTaskExecution(task);
+    const issueStatus = input.founderApproved ? "todo" : "backlog";
     const issue = await upsertPaperclipIssue({
       projectName: CITY_LAUNCH_PROJECT_NAME,
       assigneeKey: task.ownerLane,
@@ -1365,6 +1490,8 @@ async function dispatchCityLaunchIssueTree(input: {
       description: taskIssueDescription({
         profile: input.profile,
         task,
+        executionState: executionAssessment.executionState,
+        executionReason: executionAssessment.executionReason,
         budgetPolicy: input.budgetPolicy,
         artifactPaths: input.artifactPaths,
       }),
@@ -1382,24 +1509,30 @@ async function dispatchCityLaunchIssueTree(input: {
       identifier: issue.issue.identifier || null,
       created: issue.created,
       status: issue.issue.status,
+      executionState: executionAssessment.executionState,
+      executionReason: executionAssessment.executionReason,
       wakeStatus: null,
       wakeRunId: null,
       wakeError: null,
     };
-    try {
-      const wake = await wakeCityLaunchTaskOwner({
-        assigneeAgentId: issue.assigneeAgentId,
-        companyId: issue.companyId,
-        profile: input.profile,
-        task,
-        issue: issue.issue,
-        issueIdentifier: issue.issue.identifier || null,
-        artifactPaths: input.artifactPaths,
-      });
-      dispatchRecord.wakeStatus = wake.wakeStatus;
-      dispatchRecord.wakeRunId = wake.wakeRunId;
-    } catch (error) {
-      dispatchRecord.wakeError = error instanceof Error ? error.message : String(error);
+    if (input.founderApproved) {
+      try {
+        const wake = await wakeCityLaunchTaskOwner({
+          assigneeAgentId: issue.assigneeAgentId,
+          companyId: issue.companyId,
+          profile: input.profile,
+          task,
+          issue: issue.issue,
+          issueIdentifier: issue.issue.identifier || null,
+          artifactPaths: input.artifactPaths,
+        });
+        dispatchRecord.wakeStatus = wake.wakeStatus;
+        dispatchRecord.wakeRunId = wake.wakeRunId;
+      } catch (error) {
+        dispatchRecord.wakeError = error instanceof Error ? error.message : String(error);
+      }
+    } else {
+      dispatchRecord.wakeStatus = "skipped";
     }
     dispatched.push(dispatchRecord);
   }
@@ -1410,9 +1543,17 @@ async function dispatchCityLaunchIssueTree(input: {
       `City launch issue tree refreshed for ${input.profile.city}.`,
       `Founder-approved activation: ${input.founderApproved}`,
       `Task issues routed: ${dispatched.length}`,
-      `Task wakeups attempted: ${dispatched.length}`,
+      `Task wakeups attempted: ${dispatched.filter((entry) => entry.wakeStatus !== "skipped").length}`,
       `Canonical bundle: ${input.artifactPaths.canonicalIssueBundlePath}`,
     ].join("\n"),
+  ).catch(() => undefined);
+
+  await createPaperclipIssueComment(
+    root.issue.id,
+    buildCityLaunchRootBlockerSummaryComment({
+      profile: input.profile,
+      dispatched,
+    }),
   ).catch(() => undefined);
 
   return {

@@ -136,6 +136,9 @@ describe("city launch execution harness", () => {
     expect(
       result.paperclip?.dispatched.every((entry) => entry.wakeStatus === "queued"),
     ).toBe(true);
+    expect(
+      result.paperclip?.dispatched.length,
+    ).toBeGreaterThan(5);
 
     const systemDoc = await fs.readFile(result.artifacts.systemDocPath, "utf8");
     const issueBundle = await fs.readFile(result.artifacts.issueBundlePath, "utf8");
@@ -198,7 +201,7 @@ describe("city launch execution harness", () => {
     expect(targetLedger).toContain("Queued Lawful-Access Buckets");
     expect(targetLedger).toContain("No research-backed named targets are available yet.");
     expect(result.paperclip?.rootIssueIdentifier).toBe("BLU-1");
-    expect(wakePaperclipAgent).toHaveBeenCalled();
+    expect(wakePaperclipAgent).not.toHaveBeenCalled();
     expect(result.wideningGuard.reasons.join("\n")).toContain(
       "Required proof-motion analytics contract is missing from the activation payload.",
     );

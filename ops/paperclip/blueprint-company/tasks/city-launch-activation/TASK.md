@@ -12,8 +12,10 @@ Each run must:
 - verify the founder-approved city posture exists and is still bounded to the selected city
 - refresh the execution harness artifacts with `npm run city-launch:activate -- --city "<City, ST>" --founder-approved`
 - route the issue bundle into the named city lanes without creating duplicate ownership or dragging routine work back to the founder
+- wake all named city lanes in autonomy-first mode so they execute reversible work immediately instead of waiting for other packets to be manually completed first
 - leave one Work Queue breadcrumb and one Notion Knowledge mirror tied to the current city activation state
 - keep any blocked metric or missing artifact explicit instead of marking the city as activated by narrative only
+- treat policy packets, lawful access, telemetry, proof assets, and hosted reviews as completion gates rather than activation-time idle states
 
 Do not:
 

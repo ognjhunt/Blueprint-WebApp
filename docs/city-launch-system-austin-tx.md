@@ -7,7 +7,7 @@
 
 ## Objective
 
-Turn the Austin planning artifacts into an executable company harness that can run the supply loop and the demand loop with minimal founder involvement after bounded founder approval.
+Turn the Austin planning artifacts into an executable company harness that runs the supply loop and demand loop in one autonomy-first sweep after bounded founder approval.
 
 ## Machine-Readable Budget Policy
 
@@ -26,6 +26,7 @@ Turn the Austin planning artifacts into an executable company harness that can r
 3. Materialize the live Paperclip issue tree for the city launch so work is routable instead of staying trapped in artifacts.
 4. Measure the city through Austin-specific supply, demand, spend, and proof-motion metrics so operators can see whether the city is actually becoming operationally real.
 5. Treat the machine-readable activation payload as the control-plane artifact for validation blockers, lane mapping, and metrics readiness.
+6. After activation, every lane should execute all reversible work immediately and stop only at irreversible human gates, external counterparty confirmations, or the lack of a real live signal needed to mark completion.
 
 ## Planning State
 
@@ -52,8 +53,8 @@ Turn the Austin planning artifacts into an executable company harness that can r
 
 - city-launch-agent keeps the Austin plan and dependency map current.
 - city-demand-agent maintains the Austin target ledger so the capture queue stays tied to real robot workflow demand.
-- capturer-growth-agent, intake-agent, capturer-success-agent, field-ops-agent, capture-qa-agent, and rights-provenance-agent run the supply loop inside the Austin policy packet.
-- demand-intel-agent, robot-team-growth-agent, outbound-sales-agent, buyer-solutions-agent, and revenue-ops-pricing-agent run the demand loop inside the proof-led Austin wedge.
+- capturer-growth-agent, intake-agent, capturer-success-agent, field-ops-agent, capture-qa-agent, and rights-provenance-agent run the supply loop continuously, producing drafts, packets, routing, and prep work even before the first real-world confirmations arrive.
+- demand-intel-agent, robot-team-growth-agent, outbound-sales-agent, buyer-solutions-agent, and revenue-ops-pricing-agent run the demand loop continuously, packaging truthful proof motion and only pausing at irreversible claim, rights, spend, or non-standard commercial gates.
 - analytics-agent and notion-manager-agent keep Austin measurable, reviewable, and mirrored into the operator surfaces.
 
 ## Founder Approvals Required Before Activation
@@ -65,15 +66,15 @@ Turn the Austin planning artifacts into an executable company harness that can r
 - Approve any rights/privacy/commercialization exception that would set precedent or create an irreversible external commitment.
 - Approve any non-standard commercial terms outside the standard Austin quote bands prepared by revenue-ops-pricing-agent and the designated human commercial owner.
 
-## Austin Switch-On Requirements
+## Austin Completion Requirements
 
-- Founder-approved Austin posture and bounded source policy.
-- Austin capture target ledger with first proof candidates, queued lawful-access buckets, and longer-horizon discovery lanes.
-- Austin ops packet: intake rubric, trust kit, first-capture thresholds, and launch-readiness checklist.
-- At least one clean Austin proof pack with hosted-review path and rights/provenance clearance.
-- Austin buyer target list and proof-led outbound package.
-- Austin scorecard working from live repo truth sources.
-- Machine-readable activation payload with validation blockers, issue seeds, named claims, and metrics dependencies.
+- Founder-approved Austin posture remains required to activate the city.
+- Austin capture target ledger with first proof candidates, queued lawful-access buckets, and longer-horizon discovery lanes is required to mark the city operationally real, but not required to begin execution.
+- Austin ops packet: intake rubric, trust kit, first-capture thresholds, and launch-readiness checklist is a completion dependency, not a reason to leave execution lanes idle.
+- At least one clean Austin proof pack with hosted-review path and rights/provenance clearance is required before claiming the city is live.
+- Austin buyer target list and proof-led outbound package are completion requirements for launch quality, not start gates for agent work.
+- Austin scorecard working from live repo truth sources is required before widening or health claims.
+- Machine-readable activation payload with validation blockers, issue seeds, named claims, and metrics dependencies remains the control-plane source of truth.
 
 ## Activation Payload Highlights
 
