@@ -136,6 +136,19 @@ function normalizeWhitespace(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
 
+function hasActualRunsProbe(sourceText: string) {
+  const commandEncodedProbe =
+    /"type":"command_execution","command":"[\s\S]{0,1200}?(?:\/api\/runs\b|recent runs\b)[\s\S]{0,1200}?","aggregated_output":/i;
+  const shellProbe =
+    /(?:^|\n)\s*(?:curl|wget|fetch|paperclip_api_request)\b[^\n]{0,400}\/api\/runs\b/i;
+  const httpVerbProbe = /\bGET\s+\/api\/runs\b/i;
+  return (
+    commandEncodedProbe.test(sourceText)
+    || httpVerbProbe.test(sourceText)
+    || shellProbe.test(sourceText)
+  );
+}
+
 function normalizeForSignature(value: string) {
   return normalizeWhitespace(value)
     .toLowerCase()
@@ -275,7 +288,7 @@ export function classifyFailureSignature(input: {
     (rawText.includes("jq: error") || rawText.includes(" is not defined at <top-level>") || rawText.includes("[exit 3]"))
     && rawText.includes("jq")
   ) {
-    if (rawText.includes("/api/runs") || rawText.includes("recent runs")) {
+    if (hasActualRunsProbe(sourceText)) {
       return {
         key: issueBound ? "paperclip_runs_probe_invalid_jq_issue_bound" : "paperclip_runs_probe_invalid_jq",
         title: issueBound
@@ -295,7 +308,7 @@ export function classifyFailureSignature(input: {
     };
   }
 
-  if (rawText.includes("/api/runs")) {
+  if (hasActualRunsProbe(sourceText)) {
     return {
       key: issueBound ? "paperclip_runs_probe_issue_bound" : "paperclip_runs_probe",
       title: issueBound

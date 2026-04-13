@@ -18,7 +18,7 @@ describe("sweep agent run failures", () => {
         error: null,
       },
       logText: `
-        curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "http://127.0.0.1:3100/api/runs?agentId=abc&limit=5" | jq '.sort_by| .[-5:] | .[] | {id: .id}'
+        {"type":"item.started","item":{"id":"item_1","type":"command_execution","command":"curl -fsS -H \\"Authorization: Bearer $PAPERCLIP_API_KEY\\" \\"http://127.0.0.1:3100/api/runs?agentId=abc&limit=5\\" | jq '.sort_by| .[-5:] | .[] | {id: .id}'","aggregated_output":"","exit_code":null,"status":"in_progress"}}
         jq: error: sort_by/0 is not defined at <top-level>, line 1:
       `,
     });
@@ -51,7 +51,7 @@ describe("sweep agent run failures", () => {
         status: "failed",
         contextSnapshot: { issueId: "issue-1" },
       },
-      logText: `curl http://127.0.0.1:3100/api/runs?agentId=abc | jq '.sort_by' [exit 3]`,
+      logText: `{"type":"item.started","item":{"id":"item_1","type":"command_execution","command":"curl http://127.0.0.1:3100/api/runs?agentId=abc | jq '.sort_by'","aggregated_output":"","exit_code":null,"status":"in_progress"}} [exit 3]`,
     });
 
     const clusters = clusterRunFailures([
@@ -89,6 +89,24 @@ describe("sweep agent run failures", () => {
     expect(clusters[0]?.agentKeys).toContain("notion-reconciler");
     expect(clusters[0]?.issueIdentifiers).toContain("BLU-3619");
     expect(clusters[0]?.issueIdentifiers).toContain("BLU-3620");
+  });
+
+  it("does not misclassify source-file mentions of /api/runs as live probing", () => {
+    const signature = classifyFailureSignature({
+      run: {
+        id: "run-doc-mention",
+        agentId: "agent-doc",
+        companyId: "company-1",
+        status: "failed",
+        contextSnapshot: { issueId: "issue-1" },
+      },
+      logText: `
+        {"type":"item.completed","item":{"id":"item_1","type":"command_execution","command":"sed -n '1,120p' scripts/paperclip/sweep-agent-run-failures.test.ts","aggregated_output":"scripts/paperclip/sweep-agent-run-failures.test.ts:21: curl -fsS -H \\"Authorization: Bearer $PAPERCLIP_API_KEY\\" \\"http://127.0.0.1:3100/api/runs?agentId=abc&limit=5\\" | jq '.sort_by| .[-5:] | .[] | {id: .id}'","exit_code":0,"status":"completed"}}
+      `,
+    });
+
+    expect(signature.key).not.toBe("paperclip_runs_probe_issue_bound");
+    expect(signature.key).not.toBe("paperclip_runs_probe_invalid_jq_issue_bound");
   });
 
   it("classifies provider timeouts and process loss into actionable runtime families", () => {
