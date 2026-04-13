@@ -16,6 +16,10 @@ import {
   pollGeminiInteractionUntilComplete,
   type GeminiInteraction,
 } from "./geminiInteractions";
+import {
+  buildDeepResearchTools,
+  resolveDeepResearchFileSearchStoreNames,
+} from "./deepResearchFileSearch";
 import { CITY_LAUNCH_RESEARCH_SCHEMA_VERSION } from "./cityLaunchResearchParser";
 
 const REPO_ROOT = path.resolve(
@@ -44,6 +48,7 @@ export interface CityLaunchHarnessRunOptions {
   citySlug?: string;
   region?: string | null;
   similarCompanies?: string[];
+  fileSearchStoreNames?: string[];
   critiqueRounds?: number;
   pollIntervalMs?: number;
   timeoutMs?: number;
@@ -475,6 +480,15 @@ export async function runCityLaunchPlanningHarness(
   const similarCompanies = options.similarCompanies?.length
     ? options.similarCompanies
     : ["Uber", "DoorDash", "Instacart", "Airbnb", "Lime"];
+  const deepResearchTools = buildDeepResearchTools(
+    resolveDeepResearchFileSearchStoreNames({
+      explicitStoreNames: options.fileSearchStoreNames,
+      envKeys: [
+        "BLUEPRINT_CITY_LAUNCH_FILE_SEARCH_STORE",
+        "BLUEPRINT_DEEP_RESEARCH_FILE_SEARCH_STORE",
+      ],
+    }),
+  );
   const critiqueRounds = Math.max(1, options.critiqueRounds ?? 1);
   const context = await loadPlanningContext(citySlug);
   let latestResearchText = "";
@@ -494,6 +508,7 @@ export async function runCityLaunchPlanningHarness(
     agent: GEMINI_DEEP_RESEARCH_AGENT,
     background: true,
     store: true,
+    tools: deepResearchTools,
   });
   const initialResearchComplete = await pollGeminiInteractionUntilComplete({
     interactionId: initialResearch.id,
@@ -551,6 +566,7 @@ export async function runCityLaunchPlanningHarness(
       agent: GEMINI_DEEP_RESEARCH_AGENT,
       background: true,
       store: true,
+      tools: deepResearchTools,
     });
     const followUpResearchComplete = await pollGeminiInteractionUntilComplete({
       interactionId: followUpResearch.id,

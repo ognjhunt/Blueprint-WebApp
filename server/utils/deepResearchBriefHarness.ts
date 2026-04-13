@@ -16,6 +16,10 @@ import {
   pollGeminiInteractionUntilComplete,
   type GeminiInteraction,
 } from "./geminiInteractions";
+import {
+  buildDeepResearchTools,
+  resolveDeepResearchFileSearchStoreNames,
+} from "./deepResearchFileSearch";
 
 const REPO_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -33,6 +37,7 @@ export interface DeepResearchBriefOptions {
   owner?: string | null;
   businessLane?: "Executive" | "Ops" | "Growth" | "Buyer" | "Capturer" | "Experiment" | "Risk";
   system?: "Cross-System" | "WebApp" | "Capture" | "Pipeline" | "Validation";
+  fileSearchStoreNames?: string[];
   critiqueRounds?: number;
   reportsRoot?: string;
   slug?: string;
@@ -262,6 +267,11 @@ export async function runDeepResearchBrief(
   const runDirectory = path.join(reportsRoot, slug, timestampForFile(startedAt));
   const stages: DeepResearchBriefResult["stages"] = [];
   const critiqueRounds = Math.max(1, options.critiqueRounds ?? 1);
+  const deepResearchTools = buildDeepResearchTools(
+    resolveDeepResearchFileSearchStoreNames({
+      explicitStoreNames: options.fileSearchStoreNames,
+    }),
+  );
 
   logger.info({ title, slug }, "Starting generic Deep Research brief");
 
@@ -271,6 +281,7 @@ export async function runDeepResearchBrief(
     agent: GEMINI_DEEP_RESEARCH_AGENT,
     background: true,
     store: true,
+    tools: deepResearchTools,
   });
   const initialComplete = await pollGeminiInteractionUntilComplete({
     interactionId: initialInteraction.id,
@@ -324,6 +335,7 @@ export async function runDeepResearchBrief(
       agent: GEMINI_DEEP_RESEARCH_AGENT,
       background: true,
       store: true,
+      tools: deepResearchTools,
     });
     const followUpComplete = await pollGeminiInteractionUntilComplete({
       interactionId: followUpInteraction.id,

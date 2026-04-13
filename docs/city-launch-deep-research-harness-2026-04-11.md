@@ -45,8 +45,66 @@ Useful flags:
 - `--critique-rounds 2`
 - `--region "Texas"`
 - `--similar-companies "Uber,DoorDash,Instacart,Airbnb,Lime"`
+- `--file-search-store "fileSearchStores/blueprint-city-launch"`
 - `--poll-interval-ms 10000`
 - `--timeout-ms 1200000`
+
+Optional internal grounding:
+
+- By default Deep Research uses public-web tools only.
+- To add a small curated Blueprint document store, pass `--file-search-store`.
+- The value may be a single File Search store name or a comma-separated list of store names.
+- Keep this narrow and curated. Do not index the whole repo by default.
+- You can also set `BLUEPRINT_CITY_LAUNCH_FILE_SEARCH_STORE` to make a default store automatic for `city-launch:plan`.
+- For all Gemini Deep Research brief runs across the org, you can set `BLUEPRINT_DEEP_RESEARCH_FILE_SEARCH_STORE`.
+
+Build a narrow curated File Search store for city-launch docs:
+
+```bash
+npm run city-launch:file-search-store -- --display-name "blueprint-city-launch"
+```
+
+Include existing city-specific artifacts when helpful:
+
+```bash
+npm run city-launch:file-search-store -- --display-name "blueprint-city-launch" --city "Austin, TX"
+```
+
+Inspect the curated document set without uploading:
+
+```bash
+npm run city-launch:file-search-store -- --city "Austin, TX" --dry-run
+```
+
+The builder prints the actual `storeName` resource. Use that value in `--file-search-store` for Deep Research runs.
+
+Default the planning harness to a store via env:
+
+```bash
+export BLUEPRINT_CITY_LAUNCH_FILE_SEARCH_STORE="fileSearchStores/blueprintcitylaunch-kp7lbdr92tfb"
+```
+
+CLI flags still win over the env default when both are provided.
+
+Default all generic Deep Research brief runs to a store via env:
+
+```bash
+export BLUEPRINT_DEEP_RESEARCH_FILE_SEARCH_STORE="fileSearchStores/blueprintcitylaunch-kp7lbdr92tfb"
+```
+
+Paperclip agents that use `npm run deep-research:brief` can then inherit the same store automatically.
+
+Refresh the research grounding store on demand:
+
+```bash
+npm run research-grounding:refresh -- --city "Austin, TX"
+```
+
+Operational rule:
+
+- `research-grounding:refresh` is the explicit maintenance command that Paperclip agents may call when they need fresher internal grounding before a Gemini Deep Research run.
+- It does not run automatically before every research pass.
+- If `BLUEPRINT_CITY_LAUNCH_FILE_SEARCH_STORE` or `BLUEPRINT_DEEP_RESEARCH_FILE_SEARCH_STORE` is set, the refresh command will update that existing store by default.
 
 Ask a follow-up question against the last completed interaction:
 

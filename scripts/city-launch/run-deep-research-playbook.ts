@@ -13,6 +13,20 @@ function getFlagValue(args: string[], flag: string) {
   return args[index + 1] || null;
 }
 
+function getCsvFlagValues(args: string[], flag: string) {
+  const rawValue = getFlagValue(args, flag);
+  if (!rawValue) {
+    return undefined;
+  }
+
+  const values = rawValue
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return values.length > 0 ? values : undefined;
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const mode = getFlagValue(args, "--mode") || "run";
@@ -78,10 +92,12 @@ async function main() {
         .map((value) => value.trim())
         .filter(Boolean)
     : undefined;
+  const fileSearchStoreNames = getCsvFlagValues(args, "--file-search-store");
 
   const result = await runCityLaunchPlanningHarness({
     city,
     region,
+    fileSearchStoreNames,
     critiqueRounds: Number.isFinite(critiqueRounds) ? critiqueRounds : 1,
     pollIntervalMs: Number.isFinite(pollIntervalMs) ? pollIntervalMs : 10_000,
     timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : 20 * 60 * 1000,

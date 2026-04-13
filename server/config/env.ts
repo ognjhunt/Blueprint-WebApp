@@ -33,6 +33,8 @@ const envSchema = z
     BLUEPRINT_PRESENTATION_DEMO_STOP_URL_TEMPLATE: z.string().trim().optional(),
     BLUEPRINT_PRESENTATION_DEMO_TTL_SECONDS: z.coerce.number().int().positive().optional(),
     BLUEPRINT_PRESENTATION_DEMO_STARTUP_DELAY_MS: z.coerce.number().int().nonnegative().optional(),
+    BLUEPRINT_CITY_LAUNCH_FILE_SEARCH_STORE: z.string().trim().optional(),
+    BLUEPRINT_DEEP_RESEARCH_FILE_SEARCH_STORE: z.string().trim().optional(),
     BLUEPRINT_HOSTED_DEMO_RUNTIME_BASE_URL: z.string().trim().url().optional(),
     BLUEPRINT_HOSTED_DEMO_RUNTIME_WEBSOCKET_BASE_URL: z.string().trim().url().optional(),
     WORLDLABS_API_KEY: z.string().trim().optional(),

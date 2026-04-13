@@ -11,6 +11,20 @@ function getFlagValue(args: string[], flag: string) {
   return args[index + 1] || null;
 }
 
+function getCsvFlagValues(args: string[], flag: string) {
+  const rawValue = getFlagValue(args, flag);
+  if (!rawValue) {
+    return undefined;
+  }
+
+  const values = rawValue
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return values.length > 0 ? values : undefined;
+}
+
 async function readBrief(args: string[]) {
   const brief = getFlagValue(args, "--brief");
   if (brief) {
@@ -51,6 +65,7 @@ async function main() {
     | "Validation"
     | null;
   const critiqueRounds = Number(getFlagValue(args, "--critique-rounds") || "1");
+  const fileSearchStoreNames = getCsvFlagValues(args, "--file-search-store");
 
   const result = await runDeepResearchBrief({
     title,
@@ -58,6 +73,7 @@ async function main() {
     owner,
     businessLane: businessLane || undefined,
     system: system || undefined,
+    fileSearchStoreNames,
     critiqueRounds: Number.isFinite(critiqueRounds) ? critiqueRounds : 1,
   });
 
