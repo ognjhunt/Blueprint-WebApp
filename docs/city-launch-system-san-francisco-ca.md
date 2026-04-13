@@ -1,0 +1,119 @@
+# San Francisco, CA Launch System
+
+- city: San Francisco, CA
+- status: draft_pending_founder_approval
+- doctrine: capture-first, world-model-product-first, Exact-Site Hosted Review wedge
+
+## Objective
+
+Turn the San Francisco planning artifacts into an executable company harness that can run the supply loop and the demand loop with minimal founder involvement after bounded founder approval.
+
+## What The Org Will Do
+
+1. Generate and critique the San Francisco plan through the existing Gemini Deep Research harness.
+2. Convert the compact San Francisco city-launch and city-demand playbooks into a single San Francisco operating system with explicit tasks, owners, thresholds, and handoff rules.
+3. Wake the paused San Francisco-relevant lanes only through the founder-approved city activation path, instead of letting the growth tree sprawl open again.
+4. Measure the city through San Francisco-specific supply and proof-motion metrics so operators can see whether the city is actually becoming operationally real.
+
+## Founder-Only Decisions
+
+- San Francisco go / no-go and the decision to keep the city gated or expand it.
+- Any spend envelope beyond the already-approved bounded San Francisco posture.
+- Any public statement that changes company posture or overstates San Francisco readiness.
+- Any rights/privacy exception or non-standard commercial commitment that would set precedent.
+
+## Human Operator-Owned Decisions
+
+- Growth Lead owns San Francisco source policy, referral posture, and invite/access-code issuance inside approved guardrails.
+- Ops Lead owns the San Francisco intake rubric, trust kit, first-capture thresholds, and launch-readiness checklist.
+- The designated human commercial owner owns standard quotes inside approved bands.
+- The designated human rights reviewer owns sensitive but non-precedent rights/privacy calls prepared by rights-provenance-agent.
+
+## Agent-Prepared / Autonomous Work
+
+- city-launch-agent keeps the San Francisco plan and dependency map current.
+- city-demand-agent maintains the San Francisco target ledger so the capture queue stays tied to real robot workflow demand.
+- capturer-growth-agent, intake-agent, capturer-success-agent, field-ops-agent, capture-qa-agent, and rights-provenance-agent run the supply loop inside the San Francisco policy packet.
+- demand-intel-agent, robot-team-growth-agent, outbound-sales-agent, buyer-solutions-agent, and revenue-ops-pricing-agent run the demand loop inside the proof-led San Francisco wedge.
+- analytics-agent and notion-manager-agent keep San Francisco measurable, reviewable, and mirrored into the operator surfaces.
+
+## Founder Approvals Required Before Activation
+
+- Approve San Francisco, CA as an active city-launch activation and keep non-active cities deferred unless a new evidence packet exists.
+- Approve the bounded San Francisco launch posture: gated cohort pilot, Exact-Site Hosted Review wedge, no public city-live claims.
+- Approve the bounded spend posture: zero-budget only, low-budget envelope, or explicit funded envelope.
+- Approve any San Francisco source-policy exceptions beyond the current bounded channel stack.
+- Approve any rights/privacy/commercialization exception that would set precedent or create an irreversible external commitment.
+- Approve any non-standard commercial terms outside the standard San Francisco quote bands prepared by revenue-ops-pricing-agent and the designated human commercial owner.
+
+## San Francisco Switch-On Requirements
+
+- Founder-approved San Francisco posture and bounded source policy.
+- San Francisco capture target ledger with immediate top 25, next 100, and long-universe buckets.
+- San Francisco ops packet: intake rubric, trust kit, first-capture thresholds, and launch-readiness checklist.
+- At least one clean San Francisco proof pack with hosted-review path and rights/provenance clearance.
+- San Francisco buyer target list and proof-led outbound package.
+- San Francisco scorecard working from live repo truth sources.
+
+## Execution Bundle
+
+- Maintain the San Francisco capture target ledger: city-demand-agent owns execution, Growth Lead is the human lane, and the task closes only when The San Francisco target ledger names the immediate top 25, the next 100 expansion buckets, and the long 300-1000 site universe model..
+- Lock San Francisco source policy and invite/access-code posture: growth-lead owns execution, Growth Lead is the human lane, and the task closes only when San Francisco source policy names allowed channels, disallowed channels, referral rules, and who may issue invites or access codes..
+- Publish San Francisco intake rubric, trust kit, and first-capture thresholds: ops-lead owns execution, Ops Lead is the human lane, and the task closes only when San Francisco rubric covers source quality, access-path truth, equipment/device fit, trust-packet minimums, and approval outcomes..
+- Build the San Francisco capturer prospect list and post package: capturer-growth-agent owns execution, Growth Lead is the human lane, and the task closes only when 25-50 curated San Francisco prospects are named with source bucket, rationale, and next move, or the org explicitly switches to the broader 100-signup path..
+- Route San Francisco applicants into qualification and approval: intake-agent owns execution, Ops Lead is the human lane, and the task closes only when San Francisco applicants are tagged by source bucket, approval state, and missing-trust evidence..
+- Own approved San Francisco capturers through onboarding and repeat-ready: capturer-success-agent owns execution, Ops Lead is the human lane, and the task closes only when Each approved San Francisco capturer has a named lifecycle owner for approved -> onboarded -> first capture -> first pass -> repeat-ready..
+- Assign San Francisco first captures, reminders, and site-facing trust prep: field-ops-agent owns execution, Ops Lead is the human lane, and the task closes only when Approved San Francisco capturers receive assignment, reminder, and site-facing trust steps through the existing field-ops lane..
+- QA San Francisco first captures and route recapture decisions: capture-qa-agent owns execution, Ops Lead is the human lane, and the task closes only when San Francisco captures receive PASS, BORDERLINE, or FAIL with explicit evidence..
+- Clear rights, provenance, and privacy on San Francisco proof assets: rights-provenance-agent owns execution, Designated human rights reviewer is the human lane, and the task closes only when Each San Francisco proof asset is marked CLEARED, BLOCKED, or NEEDS-REVIEW with evidence citations..
+- Assemble San Francisco proof packs and publish 1-2 proof-ready listings: buyer-solutions-agent owns execution, Ops Lead is the human lane, and the task closes only when At least 1-2 San Francisco proof-ready listings or equivalent proof packs exist with exact-site versus adjacent-site labeling..
+- Research San Francisco robot-company target accounts and buyer clusters: demand-intel-agent owns execution, Growth Lead is the human lane, and the task closes only when 20-40 named San Francisco-relevant robot-company targets are researched with facility/workflow fit and proof-path notes..
+- Prepare San Francisco proof-led outbound package and first touches: robot-team-growth-agent owns execution, Growth Lead is the human lane, and the task closes only when San Francisco outbound templates lead with one site, one workflow lane, proof-led CTA, and hosted-review next step..
+- Run San Francisco outbound and move serious buyers into hosted review: outbound-sales-agent owns execution, Growth Lead is the human lane, and the task closes only when 5-8 San Francisco buyer conversations are active with explicit next steps..
+- Keep San Francisco buyer threads inside standard commercial handling: revenue-ops-pricing-agent owns execution, Designated human commercial owner is the human lane, and the task closes only when Standard San Francisco quote bands, discount guardrails, and handoff thresholds are documented and used..
+- Publish the San Francisco launch scorecard and blocker view: analytics-agent owns execution, Growth Lead is the human lane, and the task closes only when San Francisco scorecard reports supply and demand progress against the launch thresholds..
+- Mirror San Francisco execution artifacts into Notion Knowledge and Work Queue: notion-manager-agent owns execution, Chief of Staff is the human lane, and the task closes only when San Francisco execution system doc is mirrored into Notion Knowledge..
+- Run the San Francisco switch-on review before activation: beta-launch-commander owns execution, CTO is the human lane, and the task closes only when San Francisco switch-on review returns GO, CONDITIONAL GO, or HOLD with evidence..
+
+## Launch Targets
+
+| Loop | Metric | Target |
+| --- | --- | --- |
+| Supply | Curated San Francisco supply prospects contacted | 25-50 |
+| Supply | Raw San Francisco supply signups if broader funnel is used | 100 |
+| Supply | Approved San Francisco capturers | 10-20 |
+| Supply | First captures completed | 5-10 |
+| Supply | QA-passed captures | 3-5 |
+| Supply | San Francisco proof-ready listings / proof packs | 1-2 |
+| Demand | Named robot-company targets researched | 20-40 |
+| Demand | Tailored first touches sent | 10-20 |
+| Demand | Live buyer conversations | 5-8 |
+| Demand | Hosted proof reviews run end to end | 2-3 |
+
+## How Stalls Stay Visible
+
+- If supply stalls, the scorecard must show whether the break is at source quality, signup, approval, first capture, QA, or proof-ready listing conversion.
+- If demand stalls, the scorecard must show whether the break is at inbound, proof-pack delivery, hosted-review start, follow-up, or human commercial handoff.
+- If a routine metric is not instrumented yet, the scorecard must say it is not tracked rather than pretending the work is healthy.
+- If the target ledger is stale or misaligned, city-demand-agent owns the reprioritization instead of letting capture work fan out randomly.
+
+## Source Artifacts
+
+- docs/city-launch-deep-research-harness-2026-04-11.md
+- ops/paperclip/programs/city-launch-agent-program.md
+- ops/paperclip/programs/city-demand-agent-program.md
+- ops/paperclip/playbooks/capturer-supply-playbook.md
+- ops/paperclip/playbooks/robot-team-demand-playbook.md
+- ops/paperclip/reports/city-demand-bootstrap-2026-04-06.md
+- ops/paperclip/playbooks/capturer-trust-packet-stage-gate-standard.md
+- ops/paperclip/playbooks/field-ops-first-assignment-site-facing-trust-gate.md
+- docs/robot-team-proof-motion-analytics-requirements-2026-04-10.md
+- ops/paperclip/programs/city-launch-activation-program.md
+- ops/paperclip/blueprint-company/tasks/city-launch-activation/TASK.md
+- ops/paperclip/playbooks/city-launch-san-francisco-ca.md
+- ops/paperclip/playbooks/city-demand-san-francisco-ca.md
+- ops/paperclip/playbooks/city-capture-target-ledger-san-francisco-ca.md
+
+## Determination
+
+Existing agents are sufficient with instruction, task, and orchestration changes. No new San Francisco-specific agent is required in this repo because every required capability already maps to an existing lane: planning, sourcing, intake, field ops, QA, rights/provenance, proof delivery, outbound, buyer ownership, pricing support, analytics, Notion hygiene, and release gating.

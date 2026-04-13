@@ -52,6 +52,7 @@ import {
 } from "../utils/agent-graduation";
 import { requireAdminRole } from "../middleware/requireAdminRole";
 import { resolveAccessContext } from "../utils/access-control";
+import { dispatchHumanBlocker } from "../utils/human-blocker-dispatch";
 
 const router = Router();
 
@@ -90,6 +91,9 @@ function normalizeSession(session: unknown) {
           : [],
         repoDocPaths: Array.isArray(startupContext.repoDocPaths)
           ? startupContext.repoDocPaths
+          : [],
+        knowledgePagePaths: Array.isArray(startupContext.knowledgePagePaths)
+          ? startupContext.knowledgePagePaths
           : [],
         blueprintIds: Array.isArray(startupContext.blueprintIds)
           ? startupContext.blueprintIds
@@ -185,6 +189,8 @@ function normalizeStartupPack(pack: unknown) {
     name: value.name,
     description: typeof value.description === "string" ? value.description : "",
     repoDocPaths: Array.isArray(value.repo_doc_paths) ? value.repo_doc_paths : [],
+    knowledgePagePaths:
+      Array.isArray(value.knowledge_page_paths) ? value.knowledge_page_paths : [],
     blueprintIds: Array.isArray(value.blueprint_ids) ? value.blueprint_ids : [],
     documentIds: Array.isArray(value.document_ids) ? value.document_ids : [],
     externalSources: Array.isArray(value.external_sources) ? value.external_sources : [],
@@ -373,6 +379,7 @@ const createStartupPackSchema = z.object({
   name: z.string().min(1).max(160),
   description: z.string().max(600).optional(),
   repoDocPaths: z.array(z.string().min(1).max(300)).optional(),
+  knowledgePagePaths: z.array(z.string().min(1).max(500)).optional(),
   blueprintIds: z.array(z.string().min(1).max(160)).optional(),
   documentIds: z.array(z.string().min(1).max(160)).optional(),
   externalSources: z.array(startupPackSourceSchema).optional(),
@@ -401,6 +408,44 @@ const updateOpsDocumentSchema = createOpsDocumentSchema
 
 const runtimeSmokeTestSchema = z.object({
   model: z.string().min(1).max(200).optional(),
+});
+
+const humanBlockerPacketSchema = z.object({
+  blockerId: z.string().min(1).max(200).optional(),
+  title: z.string().min(1).max(240),
+  summary: z.string().min(1).max(2000),
+  recommendedAnswer: z.string().min(1).max(2000),
+  exactResponseNeeded: z.string().min(1).max(2000),
+  whyBlocked: z.string().min(1).max(3000),
+  alternatives: z.array(z.string().min(1).max(2000)).min(1).max(5),
+  risk: z.string().min(1).max(2000),
+  executionOwner: z.string().min(1).max(120),
+  immediateNextAction: z.string().min(1).max(2000),
+  deadline: z.string().min(1).max(240),
+  evidence: z.array(z.string().min(1).max(2000)).min(1).max(12),
+  nonScope: z.string().min(1).max(2000),
+});
+
+const dispatchHumanBlockerSchema = z.object({
+  delivery_mode: z.enum(["send_now", "review_required", "send_saved_draft"]).optional(),
+  dispatch_id: z.string().max(200).optional(),
+  packet: humanBlockerPacketSchema.optional(),
+  blocker_kind: z.enum(["technical", "ops_commercial"]).optional(),
+  email_target: z.string().email().optional(),
+  mirror_to_slack: z.boolean().optional(),
+  slack_webhook_url: z.string().url().optional(),
+  routing_owner: z.string().max(120).optional(),
+  execution_owner: z.string().max(120).optional(),
+  escalation_owner: z.string().max(120).optional(),
+  review_owner: z.string().max(120).optional(),
+  sender_owner: z.string().max(120).optional(),
+  report_paths: z.array(z.string().min(1).max(500)).optional(),
+  paperclip_issue_id: z.string().max(200).optional(),
+  ops_work_item_id: z.string().max(200).optional(),
+  reviewed_by: z.object({
+    uid: z.string().max(200).optional(),
+    email: z.string().max(500).optional(),
+  }).optional(),
 });
 
 router.post("/sessions", requireAdminRole, async (req: Request, res: Response) => {
@@ -768,6 +813,7 @@ router.post("/startup-packs", requireAdminRole, async (req: Request, res: Respon
       name: payload.name,
       description: payload.description,
       repo_doc_paths: payload.repoDocPaths,
+      knowledge_page_paths: payload.knowledgePagePaths,
       blueprint_ids: payload.blueprintIds,
       document_ids: payload.documentIds,
       external_sources: payload.externalSources,
@@ -802,6 +848,7 @@ router.patch("/startup-packs/:id", requireAdminRole, async (req: Request, res: R
       name: payload.name,
       description: payload.description,
       repo_doc_paths: payload.repoDocPaths,
+      knowledge_page_paths: payload.knowledgePagePaths,
       blueprint_ids: payload.blueprintIds,
       document_ids: payload.documentIds,
       external_sources: payload.externalSources,
@@ -887,6 +934,25 @@ router.post("/documents", requireAdminRole, async (req: Request, res: Response) 
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to create ops document";
+    return res.status(400).json({ ok: false, error: message });
+  }
+});
+
+router.post("/human-blockers", requireAdminRole, async (req: Request, res: Response) => {
+  try {
+    const payload = dispatchHumanBlockerSchema.parse(req.body ?? {});
+    const actor = await resolveAccessContext(res);
+    const result = await dispatchHumanBlocker({
+      ...payload,
+      actor: {
+        uid: actor.uid,
+        email: actor.email,
+      },
+    });
+    return res.status(201).json({ ok: true, result });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to dispatch human blocker";
     return res.status(400).json({ ok: false, error: message });
   }
 });

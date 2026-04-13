@@ -24,6 +24,12 @@ const env = validateEnv();
 const app = express();
 const isProduction = process.env.NODE_ENV === "production";
 
+function captureRawBody(req: Request & { rawBody?: string }, _res: Response, buf: Buffer) {
+  if (buf.length > 0) {
+    req.rawBody = buf.toString("utf8");
+  }
+}
+
 function derivePostHogAssetHost(host: string | undefined | null) {
   const value = String(host || "").trim();
   if (!value) {
@@ -138,7 +144,7 @@ app.post(
   express.raw({ type: "application/json", limit: defaultBodyLimit }),
   stripeWebhookHandler,
 );
-app.use(express.json({ limit: defaultBodyLimit }));
+app.use(express.json({ limit: defaultBodyLimit, verify: captureRawBody }));
 app.use(express.urlencoded({ extended: false, limit: defaultBodyLimit }));
 
 const cspDirectives = [

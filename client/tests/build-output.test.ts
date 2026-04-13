@@ -1,8 +1,25 @@
 import fs from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { execFileSync } from "node:child_process";
+import { beforeAll, describe, expect, it } from "vitest";
+
+function ensureBuildOutput() {
+  const sitemapPath = path.resolve(process.cwd(), "dist/public/sitemap.xml");
+  if (fs.existsSync(sitemapPath)) {
+    return;
+  }
+  execFileSync("npm", ["run", "build"], {
+    cwd: process.cwd(),
+    stdio: "inherit",
+    env: process.env,
+  });
+}
 
 describe("build output", () => {
+  beforeAll(() => {
+    ensureBuildOutput();
+  }, 120000);
+
   it("ships prerendered world-model slug pages", () => {
     expect(
       fs.existsSync(

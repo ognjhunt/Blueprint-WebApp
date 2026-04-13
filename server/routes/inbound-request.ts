@@ -14,6 +14,7 @@ import { encryptInboundRequestForStorage } from "../utils/field-encryption";
 import { createRequestReviewToken } from "../utils/request-review-auth";
 import { createSlaTracker } from "../utils/sla-enforcement";
 import { runInboundQualificationForRequest } from "../agents";
+import { logGrowthEvent } from "../utils/growth-events";
 import {
   HELP_WITH_OPTIONS,
   LEGACY_HELP_WITH_TO_LANE,
@@ -935,6 +936,31 @@ router.post("/", async (req: Request, res: Response) => {
         },
         { merge: true }
       );
+
+    if (buyerType === "robot_team") {
+      await logGrowthEvent({
+        event: "robot_team_inbound_captured",
+        source: "server:inbound_request",
+        properties: {
+          request_id: payload.requestId,
+          city: demandAttribution.demandCity || null,
+          buyer_role: payload.roleTitle?.trim() || null,
+          requested_lane: requestedLanes[0] || null,
+          requested_lane_count: requestedLanes.length,
+          proof_path_preference: proofPathPreference,
+        },
+        attribution: {
+          demandCity: demandAttribution.demandCity,
+          buyerChannelSource: demandAttribution.buyerChannelSource,
+          buyerChannelSourceCaptureMode:
+            demandAttribution.buyerChannelSourceCaptureMode,
+          utm: payload.context?.utm || {},
+        },
+        user: {
+          email: emailLower,
+        },
+      }).catch(() => null);
+    }
 
     logger.info(
       {

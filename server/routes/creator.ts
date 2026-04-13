@@ -4,6 +4,7 @@ import {
   listCreatorPayouts,
   mapCreatorPayoutStatusForLedger,
 } from "../utils/accounting";
+import { buildCityLaunchCaptureTargetFeed } from "../utils/cityLaunchCaptureTargets";
 import { creatorIdFromRequest } from "../utils/creatorIdentity";
 
 const router = Router();
@@ -28,6 +29,11 @@ function toIso(value: unknown) {
     return raw.toISOString();
   }
   return raw.toDate?.()?.toISOString?.() || null;
+}
+
+function toNumber(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 router.use((req: Request, res: Response, next) => {
@@ -367,6 +373,29 @@ router.put("/notifications/preferences", async (req: Request, res: Response) => 
     );
 
   return res.json(payload);
+});
+
+router.get("/city-launch/targets", async (req: Request, res: Response) => {
+  const lat = toNumber(req.query.lat);
+  const lng = toNumber(req.query.lng);
+  if (lat === null || lng === null) {
+    return res.status(400).json({ error: "lat and lng are required" });
+  }
+
+  const radiusMeters = Math.min(
+    Math.max(toNumber(req.query.radius_m) ?? 16_093, 100),
+    80_467,
+  );
+  const limit = Math.min(Math.max(Math.trunc(toNumber(req.query.limit) ?? 12), 1), 50);
+
+  return res.json(
+    await buildCityLaunchCaptureTargetFeed({
+      lat,
+      lng,
+      radiusMeters,
+      limit,
+    }),
+  );
 });
 
 router.get("/qc", async (req: Request, res: Response) => {

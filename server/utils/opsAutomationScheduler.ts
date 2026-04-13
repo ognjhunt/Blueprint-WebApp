@@ -23,6 +23,7 @@ import { runNotionBidirectionalSync } from "./notion-sync";
 import { runGraduationEvaluation } from "./agent-graduation";
 import { runOnboardingWorker } from "./buyer-onboarding";
 import { runGapClosureLoop } from "./gap-closure";
+import { runHumanReplyEmailWatcher } from "./human-reply-worker";
 
 const WORKER_STATUS_COLLECTION = "opsAutomationWorkerStatus";
 
@@ -301,6 +302,18 @@ const workers: WorkerDefinition[] = [
     maxBatchSize: 500,
     defaultStartupDelayMs: 95 * 1000,
     run: ({ limit }) => runGapClosureLoop({ limit }),
+  },
+  {
+    key: "human_reply_email",
+    enabledEnv: "BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_ENABLED",
+    intervalEnv: "BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_INTERVAL_MS",
+    batchEnv: "BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_BATCH_SIZE",
+    startupDelayEnv: "BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_STARTUP_DELAY_MS",
+    defaultIntervalMs: 5 * 60 * 1000,
+    defaultBatchSize: 25,
+    maxBatchSize: 100,
+    defaultStartupDelayMs: 100 * 1000,
+    run: ({ limit }) => runHumanReplyEmailWatcher({ limit }),
   },
 ];
 

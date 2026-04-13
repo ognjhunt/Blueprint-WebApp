@@ -9,6 +9,8 @@
   `waitlistSubmissions`, `inboundRequests`, `contactRequests`, `capture_jobs`, `creatorPayouts`
 - Paperclip issue queue plus Blueprint automation outputs
 - Notion Work Queue and Slack digest surfaces for operator visibility
+- `blueprint-dispatch-human-blocker`
+  Use this for true human gates that need a founder or operator packet instead of a passive blocked issue. Run the final packet copy through [$humanizer](/Users/nijelhunt_1/.agents/skills/humanizer/SKILL.md) first.
 
 ## Trust Model
 - Firestore record state is the ground truth for queue health

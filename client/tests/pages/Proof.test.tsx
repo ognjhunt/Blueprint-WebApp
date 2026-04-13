@@ -21,7 +21,7 @@ describe("Proof page", () => {
     render(<Proof />);
 
     expect(
-      screen.getByRole("heading", { name: /See what you can train on before you commit\./i }),
+      screen.getByRole("heading", { name: /See the exact-site asset before you commit\./i }),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Austin, TX/i)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Contact Blueprint/i })).toHaveAttribute(

@@ -4,6 +4,10 @@ import { google } from "googleapis";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { getEmailTransportStatus, sendEmail } from "./email";
+import {
+  dispatchPostSignupHumanBlocker,
+  safelyDispatchHumanBlocker,
+} from "./human-blocker-autonomy";
 import { sendSlackMessage } from "./slack";
 import type {
   PostSignupSchedulingOutput,
@@ -528,6 +532,16 @@ async function runLedgeredPostSignupAction(params: {
   }
 
   if (existingLedger?.data.status === "pending_approval") {
+    await safelyDispatchHumanBlocker("post_signup.pending_approval", () =>
+      dispatchPostSignupHumanBlocker({
+        sourceCollection: params.sourceCollection,
+        sourceDocId: params.sourceDocId,
+        actionType: params.actionType,
+        approvalReason: existingLedger.data.approval_reason,
+        ledgerId: existingLedger.id,
+        idempotencyKey,
+      }),
+    );
     return blockedForHumanReview(
       "Post-signup direct actions are waiting for human approval.",
       idempotencyKey,
@@ -573,6 +587,17 @@ async function runLedgeredPostSignupAction(params: {
         approval_reason: params.humanReviewReason || "requires_human_review",
       });
     }
+
+    await safelyDispatchHumanBlocker("post_signup.requires_human_review", () =>
+      dispatchPostSignupHumanBlocker({
+        sourceCollection: params.sourceCollection,
+        sourceDocId: params.sourceDocId,
+        actionType: params.actionType,
+        approvalReason: params.humanReviewReason || "requires_human_review",
+        ledgerId: ledgerId || existingLedger?.id || null,
+        idempotencyKey,
+      }),
+    );
 
     return blockedForHumanReview(
       "Post-signup direct actions require human review before execution.",

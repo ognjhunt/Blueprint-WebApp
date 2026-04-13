@@ -12,8 +12,10 @@
   Do not replace these with `curl | python` or any other pipe-to-interpreter localhost probe.
 - `blueprint-scan-work`
   Use this only when the run is actionable or the queue is stale enough that a scan will change ownership, proof, or closure state.
-- `blueprint-upsert-work-item`, `blueprint-report-blocker`, `blueprint-resolve-work-item`
+- `blueprint-upsert-work-item`, `blueprint-report-blocker`, `blueprint-dispatch-human-blocker`, `blueprint-resolve-work-item`
   Use these to keep work state accurate without creating duplicate automation records.
+- `blueprint-dispatch-human-blocker`
+  Use this when a true human gate should become a standard blocker packet. Queue chief-of-staff review when another lane needs send approval; use the same tool again to send the reviewed packet.
 - `notion-upsert-knowledge`
   Use this for founder-facing recurring artifacts such as the weekday brief, Friday recap, and weekly gaps report.
 - `npm exec tsx -- scripts/paperclip/chief-of-staff-founder-report.ts --issue-id <current-issue-id>`
@@ -26,6 +28,7 @@
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md`
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/WORLD_MODEL_STRATEGY_CONTEXT.md`
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/AUTONOMOUS_ORG.md`
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/founder-decision-packet-standard.md`
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/BLUEPRINT_AUTOMATION.md`
 
 ## Trust Model
@@ -33,6 +36,7 @@
 - routine alerts and recent events are signals, not conclusions
 - Slack is for visibility; Paperclip is the work record
 - founder-facing digests summarize state; they do not replace it
+- founder-facing `Needs Founder` items are decisions to package, not status to dump
 - raw shell access is a fallback, not the primary interface for Paperclip state
 
 ## Use Carefully

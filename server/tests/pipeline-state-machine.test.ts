@@ -143,13 +143,37 @@ describe("stampProofPathMilestones", () => {
     expect(result.stampedThisSync).toContain("proof_pack_delivered_at");
   });
 
-  it("stamps hosted_review_ready when preview_manifest is available", () => {
+  it("does not stamp hosted_review_ready when preview_manifest exists without runtime evidence", () => {
     const arts = makeArtifacts(["preview_manifest_uri"]);
     const result = stampProofPathMilestones({
       currentProofPath: emptyProofPath(),
       artifacts: arts,
     });
+    expect(result.stampedThisSync).not.toContain("hosted_review_ready_at");
+  });
+
+  it("stamps hosted_review_ready when preview_manifest and runtime access exist", () => {
+    const arts = makeArtifacts(["preview_manifest_uri", "worldlabs_launch_url"]);
+    const result = stampProofPathMilestones({
+      currentProofPath: emptyProofPath(),
+      artifacts: arts,
+    });
     expect(result.stampedThisSync).toContain("hosted_review_ready_at");
+  });
+
+  it("does not stamp hosted_review_ready when preview_manifest lacks runtime access, even with a generated preview asset", () => {
+    const arts = makeArtifacts(["preview_manifest_uri"]);
+    const result = stampProofPathMilestones({
+      currentProofPath: emptyProofPath(),
+      artifacts: arts,
+      derivedAssets: {
+        preview_simulation: {
+          status: "generated",
+          generated_at: "2026-04-11T00:00:00.000Z",
+        },
+      } as any,
+    });
+    expect(result.stampedThisSync).not.toContain("hosted_review_ready_at");
   });
 
   it("stamps artifact_handoff_delivered when handoff URI is available", () => {

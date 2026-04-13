@@ -14,6 +14,7 @@ type Issue = {
   status: string;
   priority: string;
   assigneeAgentId?: string | null;
+  description?: string | null;
   completedAt?: string | null;
   updatedAt?: string | null;
   createdAt?: string | null;
@@ -223,6 +224,109 @@ function founderBullet(issue: Issue, assigneeNameById: Map<string, string>) {
   return `- [${laneLabel(issue)}] ${issueDisplayTitle(issue)} — ${owner}, ${checkpoint(issue)}`;
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function extractPacketValue(description: string | null | undefined, labels: string[]) {
+  if (!description) return null;
+  const source = description.replace(/\r\n/g, "\n");
+
+  for (const label of labels) {
+    const headingMatch = source.match(
+      new RegExp(`^##\\s+${escapeRegExp(label)}\\s*$\\n([\\s\\S]*?)(?=^##\\s+|\\Z)`, "im"),
+    );
+    if (headingMatch?.[1]) {
+      return headingMatch[1].trim().replace(/\n+/g, " ");
+    }
+
+    const inlineMatch = source.match(
+      new RegExp(`^(?:[-*]\\s*)?${escapeRegExp(label)}\\s*:\\s*(.+)$`, "im"),
+    );
+    if (inlineMatch?.[1]) {
+      return inlineMatch[1].trim();
+    }
+  }
+
+  return null;
+}
+
+function fallbackFounderWhyNow(issue: Issue) {
+  if (issue.status === "blocked") {
+    return "Execution is blocked on a founder-gated decision or missing founder input.";
+  }
+  if (issue.priority === "critical") {
+    return "This is the highest-priority founder-gated item still open.";
+  }
+  if (issue.priority === "high") {
+    return "This is an active founder-gated item that will keep creating queue noise until it is answered.";
+  }
+  return "This item is still flagged for founder attention and needs a bounded answer or deferral.";
+}
+
+function fallbackFounderRecommendation(issue: Issue) {
+  const normalized = issue.title.toLowerCase();
+  if (normalized.includes("chicago") && normalized.includes("launch")) {
+    return "Defer Chicago. Keep it plan-only until Austin proof exists or a new Chicago anchor signal changes the evidence.";
+  }
+  if (/(rights|privacy|legal|security)/i.test(issue.title)) {
+    return "Do not approve by default. Require the named reviewer and the explicit risk boundary first.";
+  }
+  if (/(pricing|discount|terms|contract|commercial)/i.test(issue.title)) {
+    return "Do not approve by default. Require one bounded commercial recommendation with downside and named executor.";
+  }
+  if (/(credential|access|token|api key)/i.test(issue.title)) {
+    return "Provide the missing credential or explicitly deny it so the queue can move.";
+  }
+  return "Missing structured recommendation — send this back to Chief of Staff as an incomplete founder packet.";
+}
+
+function founderDecisionPacket(issue: Issue, assigneeNameById: Map<string, string>) {
+  const owner = issue.assigneeAgentId ? (assigneeNameById.get(issue.assigneeAgentId) ?? issue.assigneeAgentId) : "unassigned";
+  const whyNow = extractPacketValue(issue.description, [
+    "Why Decision Is Needed Now",
+    "Why This Is Open",
+    "Why now",
+  ]) ?? fallbackFounderWhyNow(issue);
+  const recommendedAnswer = extractPacketValue(issue.description, [
+    "Recommended Answer",
+    "Recommended answer",
+  ]) ?? fallbackFounderRecommendation(issue);
+  const alternatives = extractPacketValue(issue.description, ["Alternatives", "Alternative"])
+    ?? "Missing alternatives — packet incomplete.";
+  const downside = extractPacketValue(issue.description, [
+    "Downside / Risk",
+    "Downside",
+    "Risk",
+    "Risks",
+  ]) ?? "Missing downside/risk — packet incomplete.";
+  const approvalNeeded = extractPacketValue(issue.description, [
+    "Exact Approval Or Info Needed",
+    "Approval Needed",
+    "Decision Needed",
+  ]) ?? "Approve, defer, or return for a completed packet.";
+  const immediateExecutor = extractPacketValue(issue.description, [
+    "Immediate Executor",
+    "Who Executes Immediately After Approval",
+    "Suggested Owner",
+  ]) ?? owner;
+  const byWhen = extractPacketValue(issue.description, [
+    "By When",
+    "Deadline",
+  ]) ?? checkpoint(issue);
+
+  return [
+    `### ${issueDisplayTitle(issue)}`,
+    `- Why decision is needed now: ${whyNow}`,
+    `- Recommended answer: ${recommendedAnswer}`,
+    `- Alternatives: ${alternatives}`,
+    `- Downside / risk: ${downside}`,
+    `- Exact approval or info needed: ${approvalNeeded}`,
+    `- Who executes immediately after approval: ${immediateExecutor}`,
+    `- By when: ${byWhen}`,
+  ].join("\n");
+}
+
 function section(title: string, lines: string[]) {
   return `## ${title}\n${lines.length > 0 ? lines.join("\n") : "- None."}`;
 }
@@ -230,7 +334,7 @@ function section(title: string, lines: string[]) {
 function founderWatchlist(issues: Issue[]) {
   return issues.filter((issue) => {
     if (issue.status === "blocked" && ["high", "critical"].includes(issue.priority)) return true;
-    return /founder|payment|payout|rights|privacy|legal|contract|security/i.test(issue.title);
+    return /founder|payment|payout|rights|privacy|legal|contract|security|decide|approve|defer|launch posture/i.test(issue.title);
   });
 }
 
@@ -299,6 +403,10 @@ function sectionIssues(candidates: Issue[], limit: number, usedFingerprints: Set
   return takeDistinctIssues(candidates, limit, usedFingerprints);
 }
 
+function founderSectionIssues(candidates: Issue[], limit: number) {
+  return uniqueBySignal(candidates).slice(0, limit);
+}
+
 export function buildReport(kind: FounderReportKind, date: string, issues: Issue[], assigneeNameById: Map<string, string>): FounderReport {
   const referenceTime = reportCutoff(date) ?? new Date();
   const open = issues.filter((issue) => !["done", "cancelled"].includes(issue.status));
@@ -329,7 +437,7 @@ export function buildReport(kind: FounderReportKind, date: string, issues: Issue
           section("Material Progress", sectionIssues(done, 10, usedFingerprints).map((issue) => issueLine(issue, assigneeNameById))),
           section("Still Open", sectionIssues(active, 10, usedFingerprints).map((issue) => issueLine(issue, assigneeNameById))),
           section("Blocked", sectionIssues(blocked, 8, usedFingerprints).map((issue) => issueLine(issue, assigneeNameById))),
-          section("Needs Founder", sectionIssues(founder, 8, usedFingerprints).map((issue) => issueLine(issue, assigneeNameById))),
+          section("Needs Founder", founderSectionIssues(founder, 8).map((issue) => founderDecisionPacket(issue, assigneeNameById))),
         ].join("\n\n"),
         shouldPostSlackDigest: false,
       };
@@ -341,7 +449,7 @@ export function buildReport(kind: FounderReportKind, date: string, issues: Issue
           section("Done Today", sectionIssues(recentDone, 5, usedFingerprints).map((issue) => founderBullet(issue, assigneeNameById))),
           section("Slipped", sectionIssues(slipped, 3, usedFingerprints).map((issue) => founderBullet(issue, assigneeNameById))),
           section("Blocked Tonight", sectionIssues(blocked, 3, usedFingerprints).map((issue) => founderBullet(issue, assigneeNameById))),
-          section("Needs Founder", sectionIssues(founder, 3, usedFingerprints).map((issue) => founderBullet(issue, assigneeNameById))),
+          section("Needs Founder", founderSectionIssues(founder, 3).map((issue) => founderDecisionPacket(issue, assigneeNameById))),
           section("Watch Tomorrow Morning", sectionIssues(topOpenIssues(open), 3, usedFingerprints).map((issue) => founderBullet(issue, assigneeNameById))),
         ].join("\n\n"),
         shouldPostSlackDigest: true,
@@ -380,7 +488,7 @@ export function buildReport(kind: FounderReportKind, date: string, issues: Issue
           section("Done Yesterday", sectionIssues(recentDone, 3, usedFingerprints).map((issue) => founderBullet(issue, assigneeNameById))),
           section("In Motion Today", sectionIssues(topOpenIssues(active), 5, usedFingerprints).map((issue) => founderBullet(issue, assigneeNameById))),
           section("Blocked", sectionIssues(blocked, 3, usedFingerprints).map((issue) => founderBullet(issue, assigneeNameById))),
-          section("Needs Founder", sectionIssues(founder, 3, usedFingerprints).map((issue) => founderBullet(issue, assigneeNameById))),
+          section("Needs Founder", founderSectionIssues(founder, 3).map((issue) => founderDecisionPacket(issue, assigneeNameById))),
           section("Top Risks", sectionIssues(founder, 3, usedFingerprints).map((issue) => founderBullet(issue, assigneeNameById))),
           section("Top Opportunities", sectionIssues(topOpenIssues(open), 3, usedFingerprints).map((issue) => founderBullet(issue, assigneeNameById))),
         ].join("\n\n"),

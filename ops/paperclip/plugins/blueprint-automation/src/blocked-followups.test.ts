@@ -178,6 +178,25 @@ describe("blocked issue follow-up planning", () => {
     ).toBeNull();
   });
 
+  it("escalates a generic unblock issue owned by CI watch into implementation work", () => {
+    const plan = planBlockedIssueFollowUp(
+      {
+        title: "Unblock blueprint-webapp CI failure: CI",
+        status: "blocked",
+        projectName: "blueprint-webapp",
+        currentAssignee: "webapp-ci-watch",
+        blockerSummary: "Watcher confirmed the failure is real and needs a repo change.",
+      },
+      ROUTING_CONFIG,
+    );
+
+    expect(plan).toMatchObject({
+      title: "Implement unblock path for blueprint-webapp CI failure: CI",
+      projectName: "blueprint-webapp",
+      assignee: "webapp-codex",
+    });
+  });
+
   it("identifies blocker follow-up families by normalized base title", () => {
     expect(isBlockedFollowUpTitle("Review unblock path for Fix analytics verification runtime env audit")).toBe(true);
     expect(

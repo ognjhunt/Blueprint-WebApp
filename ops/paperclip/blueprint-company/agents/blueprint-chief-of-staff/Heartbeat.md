@@ -19,6 +19,8 @@
 - for recurring founder report routine issues, jump straight to `npm exec tsx -- scripts/paperclip/chief-of-staff-founder-report.ts --issue-id <current-issue-id>` before doing any generic queue discovery
 - do not probe Paperclip routes, collect extra context, or narrate before that script runs
 - if the wake arrives without a usable bound issue id, treat that as a routing failure and stop. Do not fall back to inbox scanning for founder-report work.
+- every founder decision item must be rendered as the standard decision packet, not as a vague escalation bullet
+- if a `Needs Founder` item lacks a recommendation, exact ask, deadline, owner, or immediate next action, it is not ready for founder attention yet
 - publish the weekday founder brief once ops, growth, and analytics signals are fresh enough to summarize cleanly
 - publish the Friday operating recap and weekly gaps report as separate artifacts
 - keep exec alerts sparse, high-signal, and decision-oriented

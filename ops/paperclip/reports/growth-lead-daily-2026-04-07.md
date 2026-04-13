@@ -1,5 +1,7 @@
 # Growth Lead Daily Status — 2026-04-07
 
+> Historical snapshot only. Superseded by `growth-lead-daily-2026-04-12.md`, which reflects the generic city launcher, live issue-tree dispatch, and canonical city ledgers.
+
 ## Overview
 Tuesday check-in. No new analytics snapshot available (BLU-1583 still overdue). Last market intel digest is from 4/4. Weekly review completed 4/6. No new commits since April 6.
 

@@ -267,9 +267,10 @@ export function stampProofPathMilestones(args: {
   stampIfApplicable(
     "hosted_review_ready_at",
     !!proofPath.hosted_review_ready_at,
-    hasArtifact(args.artifacts, "preview_manifest_uri") ||
-    hasArtifact(args.artifacts, "worldlabs_launch_url") ||
-    getDerivedAssetStatus(args.derivedAssets, "preview_simulation") === "generated"
+    checkHostedReviewReadiness({
+      artifacts: args.artifacts,
+      derivedAssets: args.derivedAssets,
+    }).ready
   );
 
   stampIfApplicable(

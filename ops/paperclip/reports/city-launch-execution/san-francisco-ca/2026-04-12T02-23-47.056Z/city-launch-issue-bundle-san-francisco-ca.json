@@ -1,0 +1,361 @@
+[
+  {
+    "key": "city-target-ledger",
+    "phase": "founder-gates",
+    "title": "Maintain the San Francisco capture target ledger",
+    "owner": "city-demand-agent",
+    "humanOwner": "Growth Lead",
+    "purpose": "Rank which San Francisco sites and site clusters should be captured first based on current robot workflow focus, buyer value, and access realism.",
+    "inputs": [
+      "ops/paperclip/playbooks/city-demand-san-francisco-ca.md",
+      "robot-team-demand-playbook.md",
+      "San Francisco capture target ledger"
+    ],
+    "dependencies": [],
+    "doneWhen": [
+      "The San Francisco target ledger names the immediate top 25, the next 100 expansion buckets, and the long 300-1000 site universe model.",
+      "Capture priorities stay tied to current robot workflow demand instead of generic city coverage."
+    ],
+    "humanGate": "Escalate only when a target requires a sensitive operator-lane, rights/privacy exception, or posture-changing outbound motion."
+  },
+  {
+    "key": "growth-source-policy",
+    "phase": "founder-gates",
+    "title": "Lock San Francisco source policy and invite/access-code posture",
+    "owner": "growth-lead",
+    "humanOwner": "Growth Lead",
+    "purpose": "Keep San Francisco sourcing narrow, truthful, and off the founder lane for routine approvals.",
+    "inputs": [
+      "ops/paperclip/playbooks/city-launch-san-francisco-ca.md",
+      "capturer-supply-playbook.md",
+      "founder-approved San Francisco launch posture"
+    ],
+    "dependencies": [],
+    "doneWhen": [
+      "San Francisco source policy names allowed channels, disallowed channels, referral rules, and who may issue invites or access codes.",
+      "Routine invite/access-code decisions stay with Growth Lead and Ops Lead inside written guardrails."
+    ],
+    "humanGate": "Founder approval only if the policy expands spend, public posture, or channel scope beyond the bounded San Francisco pilot."
+  },
+  {
+    "key": "ops-rubric-thresholds",
+    "phase": "founder-gates",
+    "title": "Publish San Francisco intake rubric, trust kit, and first-capture thresholds",
+    "owner": "ops-lead",
+    "humanOwner": "Ops Lead",
+    "purpose": "Give Intake, Field Ops, QA, and Rights lanes explicit San Francisco rules so they can run without founder review.",
+    "inputs": [
+      "ops/paperclip/playbooks/city-launch-san-francisco-ca.md",
+      "capturer-trust-packet-stage-gate-standard.md",
+      "field-ops-first-assignment-site-facing-trust-gate.md"
+    ],
+    "dependencies": [
+      "growth-source-policy"
+    ],
+    "doneWhen": [
+      "San Francisco rubric covers source quality, access-path truth, equipment/device fit, trust-packet minimums, and approval outcomes.",
+      "San Francisco first-capture thresholds and trust-kit checklist exist in one operator packet."
+    ],
+    "humanGate": null
+  },
+  {
+    "key": "supply-prospects",
+    "phase": "supply",
+    "title": "Build the San Francisco capturer prospect list and post package",
+    "owner": "capturer-growth-agent",
+    "humanOwner": "Growth Lead",
+    "purpose": "Generate the first San Francisco supply wave without widening into generic gig-market posture.",
+    "inputs": [
+      "capturer-supply-playbook.md",
+      "ops/paperclip/playbooks/city-launch-san-francisco-ca.md",
+      "San Francisco source policy"
+    ],
+    "dependencies": [
+      "city-target-ledger",
+      "growth-source-policy"
+    ],
+    "doneWhen": [
+      "25-50 curated San Francisco prospects are named with source bucket, rationale, and next move, or the org explicitly switches to the broader 100-signup path.",
+      "Any post copy stays draft-first and preserves no-guarantee capture language."
+    ],
+    "humanGate": "Human review before any public posting or channel expansion beyond the written San Francisco source policy."
+  },
+  {
+    "key": "supply-qualification",
+    "phase": "supply",
+    "title": "Route San Francisco applicants into qualification and approval",
+    "owner": "intake-agent",
+    "humanOwner": "Ops Lead",
+    "purpose": "Classify San Francisco applicants using the approved rubric instead of ad hoc founder review.",
+    "inputs": [
+      "San Francisco intake rubric",
+      "waitlistSubmissions",
+      "capturer signup records"
+    ],
+    "dependencies": [
+      "ops-rubric-thresholds"
+    ],
+    "doneWhen": [
+      "San Francisco applicants are tagged by source bucket, approval state, and missing-trust evidence.",
+      "Exceptions are blocked with explicit missing facts instead of silently held."
+    ],
+    "humanGate": "Escalate only when the rubric is ambiguous or the application raises rights/privacy/trust exceptions."
+  },
+  {
+    "key": "capturer-activation-success",
+    "phase": "supply",
+    "title": "Own approved San Francisco capturers through onboarding and repeat-ready",
+    "owner": "capturer-success-agent",
+    "humanOwner": "Ops Lead",
+    "purpose": "Give every approved San Francisco mapper one routine relationship owner from approval through onboarding, first pass, and repeat-readiness so the founder is not the default support lane.",
+    "inputs": [
+      "San Francisco intake rubric",
+      "San Francisco trust kit",
+      "field assignment and reminder state",
+      "capture QA evidence"
+    ],
+    "dependencies": [
+      "ops-rubric-thresholds",
+      "supply-qualification"
+    ],
+    "doneWhen": [
+      "Each approved San Francisco capturer has a named lifecycle owner for approved -> onboarded -> first capture -> first pass -> repeat-ready.",
+      "Routine mapper questions, support, and coaching stay with capturer-success-agent unless they become logistics, QA, rights, privacy, or policy exceptions."
+    ],
+    "humanGate": "Escalate only when routine support exposes a threshold, rights, privacy, payout, or policy exception."
+  },
+  {
+    "key": "first-capture-routing",
+    "phase": "supply",
+    "title": "Assign San Francisco first captures, reminders, and site-facing trust prep",
+    "owner": "field-ops-agent",
+    "humanOwner": "Ops Lead",
+    "purpose": "Turn approved San Francisco capturers into real first captures inside bounded thresholds.",
+    "inputs": [
+      "San Francisco first-capture thresholds",
+      "capture_jobs",
+      "field-ops-first-assignment-site-facing-trust-gate.md"
+    ],
+    "dependencies": [
+      "supply-qualification",
+      "capturer-activation-success"
+    ],
+    "doneWhen": [
+      "Approved San Francisco capturers receive assignment, reminder, and site-facing trust steps through the existing field-ops lane.",
+      "Travel, timing, and access blockers are explicit on the issue and visible in the admin queue."
+    ],
+    "humanGate": "Escalate only for missing site access, ambiguous permissions, or threshold exceptions."
+  },
+  {
+    "key": "capture-qa",
+    "phase": "proof-assets",
+    "title": "QA San Francisco first captures and route recapture decisions",
+    "owner": "capture-qa-agent",
+    "humanOwner": "Ops Lead",
+    "purpose": "Ensure San Francisco proof assets are real, clean, and ready for buyer proof work.",
+    "inputs": [
+      "pipeline artifacts",
+      "capture QA evidence"
+    ],
+    "dependencies": [
+      "first-capture-routing"
+    ],
+    "doneWhen": [
+      "San Francisco captures receive PASS, BORDERLINE, or FAIL with explicit evidence.",
+      "Recapture instructions are attached when the first pass is not proof-ready."
+    ],
+    "humanGate": null
+  },
+  {
+    "key": "rights-clearance",
+    "phase": "proof-assets",
+    "title": "Clear rights, provenance, and privacy on San Francisco proof assets",
+    "owner": "rights-provenance-agent",
+    "humanOwner": "Designated human rights reviewer",
+    "purpose": "Make San Francisco proof packs releasable without weakening trust boundaries.",
+    "inputs": [
+      "pipeline compliance artifacts",
+      "site-facing trust evidence",
+      "rights/provenance checklist"
+    ],
+    "dependencies": [
+      "capture-qa"
+    ],
+    "doneWhen": [
+      "Each San Francisco proof asset is marked CLEARED, BLOCKED, or NEEDS-REVIEW with evidence citations.",
+      "Policy-setting exceptions route to the human reviewer and founder only when precedent changes."
+    ],
+    "humanGate": "Human rights review for sensitive or precedent-setting privacy, rights, or commercialization questions."
+  },
+  {
+    "key": "proof-pack-listings",
+    "phase": "proof-assets",
+    "title": "Assemble San Francisco proof packs and publish 1-2 proof-ready listings",
+    "owner": "buyer-solutions-agent",
+    "humanOwner": "Ops Lead",
+    "purpose": "Turn San Francisco captures into concrete exact-site proof assets with a hosted-review path.",
+    "inputs": [
+      "CLEARED San Francisco proof assets",
+      "robot-team-demand-playbook.md",
+      "proof-path-ownership-contract.md"
+    ],
+    "dependencies": [
+      "city-target-ledger",
+      "rights-clearance"
+    ],
+    "doneWhen": [
+      "At least 1-2 San Francisco proof-ready listings or equivalent proof packs exist with exact-site versus adjacent-site labeling.",
+      "Each proof pack includes provenance, coverage boundaries, hosted-review path, and next-step guidance."
+    ],
+    "humanGate": "Escalate only when a buyer-visible claim would outrun the underlying evidence or commercial scope."
+  },
+  {
+    "key": "buyer-target-research",
+    "phase": "demand",
+    "title": "Research San Francisco robot-company target accounts and buyer clusters",
+    "owner": "demand-intel-agent",
+    "humanOwner": "Growth Lead",
+    "purpose": "Build a real San Francisco demand list that matches the proof assets Blueprint can actually show.",
+    "inputs": [
+      "ops/paperclip/playbooks/city-demand-san-francisco-ca.md",
+      "robot-team-demand-playbook.md",
+      "San Francisco proof-ready listings"
+    ],
+    "dependencies": [
+      "proof-pack-listings"
+    ],
+    "doneWhen": [
+      "20-40 named San Francisco-relevant robot-company targets are researched with facility/workflow fit and proof-path notes.",
+      "Exact-site versus adjacent-site proof rules are explicit per target."
+    ],
+    "humanGate": null
+  },
+  {
+    "key": "outbound-package",
+    "phase": "demand",
+    "title": "Prepare San Francisco proof-led outbound package and first touches",
+    "owner": "robot-team-growth-agent",
+    "humanOwner": "Growth Lead",
+    "purpose": "Make outbound specific to San Francisco proof assets and hosted review instead of generic AI messaging.",
+    "inputs": [
+      "buyer-target-research",
+      "San Francisco proof packs",
+      "standard commercial handoff rules"
+    ],
+    "dependencies": [
+      "buyer-target-research"
+    ],
+    "doneWhen": [
+      "San Francisco outbound templates lead with one site, one workflow lane, proof-led CTA, and hosted-review next step.",
+      "10-20 tailored first touches are queued for operator approval or event-driven send."
+    ],
+    "humanGate": "Human review before any live send."
+  },
+  {
+    "key": "outbound-execution",
+    "phase": "demand",
+    "title": "Run San Francisco outbound and move serious buyers into hosted review",
+    "owner": "outbound-sales-agent",
+    "humanOwner": "Growth Lead",
+    "purpose": "Convert named San Francisco targets into serious proof conversations without dragging the founder into routine work.",
+    "inputs": [
+      "approved outbound package",
+      "San Francisco buyer target list"
+    ],
+    "dependencies": [
+      "outbound-package"
+    ],
+    "doneWhen": [
+      "5-8 San Francisco buyer conversations are active with explicit next steps.",
+      "2-3 hosted proof reviews are run end to end or clearly blocked with named reasons."
+    ],
+    "humanGate": "Escalate only for posture changes, non-standard terms, or sensitive rights/privacy questions."
+  },
+  {
+    "key": "buyer-thread-commercial",
+    "phase": "commercial",
+    "title": "Keep San Francisco buyer threads inside standard commercial handling",
+    "owner": "revenue-ops-pricing-agent",
+    "humanOwner": "Designated human commercial owner",
+    "purpose": "Prevent routine pricing and packaging questions from escalating to founder review.",
+    "inputs": [
+      "San Francisco buyer conversations",
+      "San Francisco proof packs",
+      "revenue-ops-pricing-agent-program.md"
+    ],
+    "dependencies": [
+      "outbound-execution"
+    ],
+    "doneWhen": [
+      "Standard San Francisco quote bands, discount guardrails, and handoff thresholds are documented and used.",
+      "Only non-standard commitments escalate above the designated human commercial owner."
+    ],
+    "humanGate": "Human commercial owner approval for standard quotes; founder approval only for non-standard commitments."
+  },
+  {
+    "key": "city-scorecard",
+    "phase": "measurement",
+    "title": "Publish the San Francisco launch scorecard and blocker view",
+    "owner": "analytics-agent",
+    "humanOwner": "Growth Lead",
+    "purpose": "Make San Francisco progress measurable and reviewable without relying on narrative updates.",
+    "inputs": [
+      "growth_events",
+      "inboundRequests.ops.proof_path",
+      "capturer records",
+      "published San Francisco proof assets"
+    ],
+    "dependencies": [
+      "supply-qualification",
+      "proof-pack-listings",
+      "outbound-execution"
+    ],
+    "doneWhen": [
+      "San Francisco scorecard reports supply and demand progress against the launch thresholds.",
+      "Missing instrumentation is surfaced as blocked instead of smoothed over."
+    ],
+    "humanGate": null
+  },
+  {
+    "key": "notion-breadcrumbs",
+    "phase": "measurement",
+    "title": "Mirror San Francisco execution artifacts into Notion Knowledge and Work Queue",
+    "owner": "notion-manager-agent",
+    "humanOwner": "Chief of Staff",
+    "purpose": "Keep the San Francisco launch runnable and inspectable for humans outside the repo.",
+    "inputs": [
+      "San Francisco launch system doc",
+      "San Francisco issue bundle",
+      "San Francisco scorecard"
+    ],
+    "dependencies": [
+      "city-scorecard"
+    ],
+    "doneWhen": [
+      "San Francisco execution system doc is mirrored into Notion Knowledge.",
+      "A Work Queue breadcrumb exists for the current San Francisco activation state and next human gate."
+    ],
+    "humanGate": "Escalate only for ambiguous Notion identity or rights-sensitive content movement."
+  },
+  {
+    "key": "switch-on-review",
+    "phase": "measurement",
+    "title": "Run the San Francisco switch-on review before activation",
+    "owner": "beta-launch-commander",
+    "humanOwner": "CTO",
+    "purpose": "Confirm the software/runtime surfaces needed by the San Francisco launch are safe before switch-on.",
+    "inputs": [
+      "alpha:check",
+      "alpha:preflight",
+      "San Francisco launch system doc"
+    ],
+    "dependencies": [
+      "city-scorecard"
+    ],
+    "doneWhen": [
+      "San Francisco switch-on review returns GO, CONDITIONAL GO, or HOLD with evidence.",
+      "Any software/runtime blocker is routed to the right engineering lane before launch activation."
+    ],
+    "humanGate": "CTO review on release safety; founder only if compliance or rights evidence is ambiguous."
+  }
+]

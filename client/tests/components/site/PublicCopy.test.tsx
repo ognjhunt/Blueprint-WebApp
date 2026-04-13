@@ -31,7 +31,7 @@ describe("public capture and world-model copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Train your robot on the exact customer site before you visit\./i,
+        name: /Bring the exact deployment site into your robot workflow\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /View sample listing/i }).length).toBeGreaterThan(0);
@@ -47,7 +47,6 @@ describe("public capture and world-model copy", () => {
 
     expect(container).not.toHaveTextContent(/adapter weights/i);
     expect(container).not.toHaveTextContent(/LoRA/i);
-    expect(container).not.toHaveTextContent(/fine-tune/i);
     expect(container).not.toHaveTextContent(/100\+ hours of training video/i);
     expect(container).not.toHaveTextContent(/no 3D conversion/i);
   });

@@ -10,13 +10,13 @@ source_urls:
 last_verified_at: "2026-04-05"
 owner: blueprint-ops-lead
 sensitivity: internal
-confidence: 0.95
+last_verified_at: "2026-04-10"
 source_hashes:
-  PLATFORM_CONTEXT.md: "1f7104c08b21"
-  WORLD_MODEL_STRATEGY_CONTEXT.md: "924e7ed32f17"
-  AUTONOMOUS_ORG.md: "a1594d9d40d5"
-  DEPLOYMENT.md: "61ba253ba5f8"
-  AGENTS.md: "eaffe2a2abfb"
+  PLATFORM_CONTEXT.md: "5069227c9a272d57a02d68eda25d7667ee25fde3"
+  WORLD_MODEL_STRATEGY_CONTEXT.md: "15e20534964c106d1062b300505180397eb6f9b4"
+  AUTONOMOUS_ORG.md: "d7c0aa339f38d4ab2a3d070094e043940874da81"
+  DEPLOYMENT.md: "a46b105406f2bfc8217de512b23684dbc8d8bcd3"
+  AGENTS.md: "eacfbd52566f2f474f36d010ecbd7eec4b59f063"
 ---
 
 # Core System Framing — Repo-Authoritative Doc Mirror

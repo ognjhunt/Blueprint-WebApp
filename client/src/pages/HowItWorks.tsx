@@ -23,7 +23,7 @@ const loopSteps = [
   {
     title: "Run, score, and compare",
     description:
-      "Hosted evaluation gives teams reruns, metrics, failure review, and release comparison on the same site instead of across disconnected demos.",
+      "Teams can rerun policies, inspect failures, compare checkpoints, and decide what to export back into training on the same exact environment.",
     icon: BarChart3,
   },
   {
@@ -42,8 +42,8 @@ const comparisonRows = [
   },
   {
     title: "Exact site only",
-    bestFor: "Reviewing the real place and checking basic fit",
-    weakOn: "Edge-case probing if the environment stays static",
+    bestFor: "Grounding to the real geometry and checking basic fit",
+    weakOn: "Fine-tuning and edge-case probing if the environment stays static",
   },
   {
     title: "Exact site plus controlled variation (Blueprint)",
@@ -54,14 +54,14 @@ const comparisonRows = [
 
 const useCaseCards = [
   {
-    title: "Pre-deployment evals",
+    title: "Pre-deployment training",
     body:
-      "Run the real task on the real site before the first travel-heavy customer week starts.",
+      "Use the real site as the training anchor before the first travel-heavy customer week starts.",
   },
   {
-    title: "Policy adaptation",
+    title: "Policy fine-tuning",
     body:
-      "Use site-grounded exports to adjust the stack around the place the robot actually needs to work.",
+      "Adapt the stack around the place the robot actually needs to work instead of tuning against a generic scene.",
   },
   {
     title: "Regression checks",
@@ -258,7 +258,7 @@ export default function HowItWorks() {
     <>
       <SEO
         title="How It Works | Blueprint"
-        description="Why site-grounded world models improve robot evaluation: anchor to the exact site, branch controlled variations, and export the results back into the stack."
+        description="Why site-grounded world models improve robot training: anchor to the exact site, branch controlled variations, and export the results back into the stack."
         canonical="/how-it-works"
       />
 
@@ -272,11 +272,12 @@ export default function HowItWorks() {
                 How It Works
               </div>
               <h1 className="mt-6 text-5xl font-bold tracking-tight text-slate-950 sm:text-6xl">
-                Policies trained on exact sites consistently outperform generic simulation.
+                Exact-site world models beat generic simulation when deployment gets specific.
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-relaxed text-slate-600">
                 Blueprint starts from one real customer site and adds controlled variation around
-                it. Research like{" "}
+                it for fine-tuning, exact-site data generation, and checkpoint comparison. Research
+                like{" "}
                 <a
                   href="https://arxiv.org/abs/2308.14711"
                   target="_blank"
@@ -285,9 +286,8 @@ export default function HowItWorks() {
                 >
                   MIT's RialTo
                 </a>{" "}
-                helps explain why that matters: training on reconstructed target environments tends
-                to beat training on generic scenes when the deployment question depends on one exact
-                facility.
+                helps explain why that matters: target-environment training tends to beat generic
+                scenes when the deployment question depends on one exact facility.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <a

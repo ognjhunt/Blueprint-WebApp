@@ -61,6 +61,16 @@ function baseBlockedTitle(title: string) {
     .replace(/^unblock\s+/i, "");
 }
 
+function blockedFollowUpKind(title: string) {
+  const trimmed = title.trim();
+  if (/^implement unblock path for\s+/i.test(trimmed)) return "implement";
+  if (/^review unblock path for\s+/i.test(trimmed)) return "review";
+  if (/^route unblock path for\s+/i.test(trimmed)) return "route";
+  if (/^escalate unblock path for\s+/i.test(trimmed)) return "escalate";
+  if (/^unblock\s+/i.test(trimmed)) return "generic";
+  return null;
+}
+
 const HUMAN_GATED_BLOCKED_RE = [
   /founder approval required/i,
   /founder-gated/i,
@@ -82,7 +92,8 @@ export function isHumanGatedBlockedIssue(input: BlockedIssueContext) {
 }
 
 export function isBlockedFollowUpTitle(title: string) {
-  return baseBlockedTitle(title) !== title.trim();
+  const kind = blockedFollowUpKind(title);
+  return kind === "implement" || kind === "review" || kind === "route" || kind === "escalate";
 }
 
 export function blockedFollowUpFamilyKey(title: string) {

@@ -9,6 +9,8 @@ Blueprint now has three layers working together inside Paperclip:
    - safe queue fetch: `npm exec tsx -- scripts/paperclip/chief-of-staff-snapshot.ts --assigned-open --plain`
    - safe single-issue check: `npm exec tsx -- scripts/paperclip/chief-of-staff-snapshot.ts --issue-id "$PAPERCLIP_TASK_ID" --plain`
    - safe open-queue check: `npm exec tsx -- scripts/paperclip/chief-of-staff-snapshot.ts --open --limit 25 --plain`
+   - org-wide safe Paperclip read fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain`
+   - org-wide safe issue-context fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --heartbeat-context --issue-id "$PAPERCLIP_TASK_ID" --plain`
    - avoid `curl | python` and other pipe-to-interpreter localhost reads for Paperclip state
 3. A Blueprint-specific plugin at `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/plugins/blueprint-automation`.
 4. Bootstrap, configure, verify, and smoke scripts that provision the plugin, secret refs, and automation checks on a persistent trusted host.
@@ -33,7 +35,7 @@ The automation loop is deliberately grounded in real repo state and truthful pro
 - `blueprint-executive-ops` is the cross-repo / operator project for executive and blocker work.
 - `*-codex` agents stay on `codex_local` for implementation work.
 - `blueprint-chief-of-staff`, `notion-manager-agent`, `revenue-ops-pricing-agent`, `ops-lead`, `growth-lead`, `analytics-agent`, `investor-relations-agent`, `community-updates-agent`, `market-intel-agent`, `supply-intel-agent`, `capturer-growth-agent`, `city-launch-agent`, `demand-intel-agent`, `robot-team-growth-agent`, `site-operator-partnership-agent`, `city-demand-agent`, `buyer-solutions-agent`, `solutions-engineering-agent`, `security-procurement-agent`, `capturer-success-agent`, `site-catalog-agent`, `outbound-sales-agent`, and `buyer-success-agent` run on `hermes_local`.
-- Hermes-backed research/copilot agents are configured to use OpenRouter as the primary provider on this host, with Codex available as fallback when the free lane is unavailable.
+- Hermes-backed research/copilot agents are configured to use a free-only OpenRouter ladder on this host, with Codex available as fallback when no approved free model is available.
 - `blueprint-ceo`, `blueprint-cto`, and the `*-claude` review agents are now controlled by `BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE`, which supports `claude`, `codex`, and `auto`.
 - In `auto`, reconcile probes the Claude adapter and flips only the executive/review lane to `codex_local` when Claude is unavailable, then flips back on a later maintenance pass when Claude is healthy again.
 - For immediate operator control, run `scripts/paperclip/switch-blueprint-paperclip-lanes.sh auto|claude|codex`.
@@ -88,6 +90,12 @@ It provides:
   - posts the founder Slack digest directly when an exec webhook is present
 - deterministic non-founder routing fallback at `npm exec tsx -- scripts/paperclip/chief-of-staff-issue-router.ts`
   - routes obvious Notion, city-launch, finance/support, security/procurement, and repo-drift issues without relying on Hermes narration quality
+- deterministic org-wide Paperclip read fallback at `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts`
+  - gives agents a read-only path for inbox-lite, direct issue reads, and heartbeat-context without hand-written `jq` filters
+  - the intended use is "fallback for Paperclip reads", not "invent new discovery passes"
+- board-safe triage snapshot access:
+  - `scripts/paperclip/chief-of-staff-snapshot.ts` now prefers the plugin action route `/api/plugins/blueprint.automation/actions/manager-state` when the company issue list is board-gated
+  - use that route, with `X-Paperclip-Run-Id`, for CTO and manager triage scans before falling back to manual issue-list reads
 - event-driven Notion drift issue creation through the existing Notion tool wrappers
   - producer writes now create or resolve `notion-drift` Paperclip issues for unresolved duplicate-page drift and stale metadata drift
   - this is the intended replacement path while the old Notion sweep routines remain paused

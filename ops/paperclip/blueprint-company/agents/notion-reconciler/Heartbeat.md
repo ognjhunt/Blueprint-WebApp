@@ -2,19 +2,15 @@
 
 ## Every Run
 - ground on the current Paperclip issue first
-- inspect Work Queue, Knowledge, Skills, and Agents before mutating anything
+- confirm the issue is an explicit legacy cleanup or migration issue before doing anything else
+- inspect only the surfaces required for that delegated repair
 - repair placement, metadata, relations, and stale flags in that order
 - finish by calling `blueprint-record-notion-reconciler-run`
 
-## Daily
-- scan recently changed Blueprint-managed pages for missing owner, latest-run, related-doc, or related-skill metadata
-- flag stale doctrine mirrors and knowledge pages that look overdue
-- repair low-risk relation drift and duplicate clutter
-
-## Weekly
-- inspect the whole Blueprint Hub shape for orphaned pages, broken relations, or pilot-agent registry drift
-- verify Agent Runs still point back to the right agent rows and output docs
-- note recurring repair patterns that should become plugin logic instead of repeated manual sweeps
+## Manual Legacy Pass
+- repair historical Agent Runs or registry rows when `notion-manager-agent` delegated the migration
+- clean up explicitly named legacy pages that still block the main hygiene owner
+- note any recurring repair pattern that should be fixed in the main write path instead of repeated here
 
 ## Signals That Should Change Your Posture
 - the same metadata drift keeps recurring

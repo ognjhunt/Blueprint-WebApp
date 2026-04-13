@@ -13,6 +13,10 @@ import {
   createGoogleCalendarEvent,
   updateGoogleCalendarEvent,
 } from "../utils/google-calendar";
+import {
+  dispatchActionApprovalHumanBlocker,
+  safelyDispatchHumanBlocker,
+} from "../utils/human-blocker-autonomy";
 import { sendSlackMessage } from "../utils/slack";
 import { logger } from "../logger";
 
@@ -163,6 +167,16 @@ export async function executeAction(
         state: "pending_approval",
         approvalReason: `content_validation_failed: ${validation.reason}`,
       });
+      await safelyDispatchHumanBlocker("action.content_validation_failed", () =>
+        dispatchActionApprovalHumanBlocker({
+          lane: safetyPolicy.lane,
+          sourceCollection,
+          sourceDocId,
+          actionType,
+          approvalReason: `content_validation_failed: ${validation.reason}`,
+          ledgerDocId,
+        }),
+      );
       return {
         state: "pending_approval",
         tier: 3,
@@ -198,6 +212,16 @@ export async function executeAction(
         state: "pending_approval",
         approvalReason: `daily_cap_exceeded: ${todayCount}/${safetyPolicy.maxDailyAutoSends}`,
       });
+      await safelyDispatchHumanBlocker("action.daily_cap_exceeded", () =>
+        dispatchActionApprovalHumanBlocker({
+          lane: safetyPolicy.lane,
+          sourceCollection,
+          sourceDocId,
+          actionType,
+          approvalReason: `daily_cap_exceeded: ${todayCount}/${safetyPolicy.maxDailyAutoSends}`,
+          ledgerDocId,
+        }),
+      );
       return { state: "pending_approval", tier: 3, ledgerDocId };
     }
   }
@@ -228,6 +252,16 @@ export async function executeAction(
       state: "pending_approval",
       approvalReason: "requires_human_review",
     });
+    await safelyDispatchHumanBlocker("action.requires_human_review", () =>
+      dispatchActionApprovalHumanBlocker({
+        lane: safetyPolicy.lane,
+        sourceCollection,
+        sourceDocId,
+        actionType,
+        approvalReason: "requires_human_review",
+        ledgerDocId,
+      }),
+    );
     return { state: "pending_approval", tier, ledgerDocId };
   }
 

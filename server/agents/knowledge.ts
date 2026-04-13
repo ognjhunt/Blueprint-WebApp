@@ -10,6 +10,7 @@ import { getStartupPacksByIds, listStartupPacks } from "./startup-packs";
 import type {
   CreativeContextReference,
   ExternalKnowledgeSource,
+  KnowledgePageReference,
   StartupContextMetadata,
   StartupPackRecord,
 } from "./types";
@@ -29,6 +30,12 @@ function normalizeMetadata(metadata?: Record<string, unknown>): StartupContextMe
       : [],
     repoDocPaths: Array.isArray(startupContext.repoDocPaths)
       ? startupContext.repoDocPaths
+          .filter((value): value is string => typeof value === "string")
+          .map((value) => value.trim())
+          .filter(Boolean)
+      : [],
+    knowledgePagePaths: Array.isArray(startupContext.knowledgePagePaths)
+      ? startupContext.knowledgePagePaths
           .filter((value): value is string => typeof value === "string")
           .map((value) => value.trim())
           .filter(Boolean)
@@ -211,6 +218,83 @@ async function readRepoDocExcerpt(
   }
 }
 
+function parseFrontmatterScalar(frontmatterRaw: string, key: string) {
+  const match = frontmatterRaw.match(new RegExp(`^${key}:\\s*(.+)$`, "m"));
+  if (!match) {
+    return undefined;
+  }
+  return match[1].trim().replace(/^"(.*)"$/, "$1").replace(/^'(.*)'$/, "$1");
+}
+
+async function readKnowledgePage(
+  relativePagePath: string,
+  options?: {
+    compact?: boolean;
+  },
+) {
+  const workspaceRoot = process.cwd();
+  const absolutePath = path.join(workspaceRoot, relativePagePath);
+  try {
+    const content = await fs.readFile(absolutePath, "utf8");
+    const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+    const frontmatterRaw = frontmatterMatch?.[1] || "";
+    const body = (frontmatterMatch?.[2] || content).trim();
+    const titleMatch = body.match(/^#\s+(.+)$/m);
+    const title = titleMatch?.[1]?.trim() || path.basename(relativePagePath, ".md");
+    const excerptBody = body.replace(/^#\s+.+\n?/, "").trim();
+    const maxLength = options?.compact ? 900 : 2200;
+
+    return {
+      path: relativePagePath,
+      title,
+      page_kind: parseFrontmatterScalar(frontmatterRaw, "page_kind"),
+      owner: parseFrontmatterScalar(frontmatterRaw, "owner"),
+      authority: parseFrontmatterScalar(frontmatterRaw, "authority"),
+      review_status: parseFrontmatterScalar(frontmatterRaw, "review_status"),
+      last_verified_at: parseFrontmatterScalar(frontmatterRaw, "last_verified_at") || null,
+      excerpt: excerptBody.slice(0, maxLength).trim(),
+    };
+  } catch {
+    return {
+      path: relativePagePath,
+      title: relativePagePath,
+      page_kind: undefined,
+      owner: undefined,
+      authority: undefined,
+      review_status: undefined,
+      last_verified_at: null,
+      excerpt: "Unable to read this KB page in the current environment.",
+    };
+  }
+}
+
+async function listKnowledgePages() {
+  const compiledRoot = path.join(process.cwd(), "knowledge", "compiled");
+  const reportsRoot = path.join(process.cwd(), "knowledge", "reports");
+
+  const [compiledPages, reportPages] = await Promise.all([
+    walkMarkdownFiles(compiledRoot).catch(() => []),
+    walkMarkdownFiles(reportsRoot).catch(() => []),
+  ]);
+
+  const kbPagePaths = [
+    ...compiledPages.map((entry) => `knowledge/compiled/${entry}`),
+    ...reportPages.map((entry) => `knowledge/reports/${entry}`),
+  ].filter((entry) => !entry.endsWith("/README.md"));
+
+  const pages = await Promise.all(kbPagePaths.map((pagePath) => readKnowledgePage(pagePath, { compact: true })));
+
+  return pages.map<KnowledgePageReference>((page) => ({
+    path: page.path,
+    title: page.title,
+    page_kind: page.page_kind,
+    owner: page.owner,
+    authority: page.authority,
+    review_status: page.review_status,
+    last_verified_at: page.last_verified_at,
+  }));
+}
+
 function normalizeKnowledgeSources(value: unknown): KnowledgeSource[] {
   if (!Array.isArray(value)) {
     return [];
@@ -276,6 +360,7 @@ export async function getStartupContextOptions() {
   const docs = await walkMarkdownFiles(docsDir).then((entries) =>
     entries.map((entry) => `docs/${entry}`),
   );
+  const knowledgePages = await listKnowledgePages().catch(() => []);
 
   let blueprints: Array<{ id: string; name: string }> = [];
   if (db) {
@@ -373,6 +458,7 @@ export async function getStartupContextOptions() {
       name: pack.name,
       description: pack.description || "",
       repoDocPaths: pack.repo_doc_paths || [],
+      knowledgePagePaths: pack.knowledge_page_paths || [],
       blueprintIds: pack.blueprint_ids || [],
       documentIds: pack.document_ids || [],
       externalSources: pack.external_sources || [],
@@ -399,6 +485,15 @@ export async function getStartupContextOptions() {
             : null,
     })),
     recentCreativeRuns,
+    knowledgePages: knowledgePages.map((page) => ({
+      path: page.path,
+      title: page.title,
+      pageKind: page.page_kind,
+      owner: page.owner,
+      authority: page.authority,
+      reviewStatus: page.review_status,
+      lastVerifiedAt: page.last_verified_at || null,
+    })),
     externalSourceTypes: [
       "notion_reference",
       "google_drive_reference",
@@ -419,6 +514,10 @@ export async function resolveStartupContext(
   const mergedRepoDocPaths = dedupeStringValues([
     ...startupPacks.flatMap((pack) => pack.repo_doc_paths || []),
     ...(normalized.repoDocPaths || []),
+  ]);
+  const mergedKnowledgePagePaths = dedupeStringValues([
+    ...startupPacks.flatMap((pack) => pack.knowledge_page_paths || []),
+    ...(normalized.knowledgePagePaths || []),
   ]);
   const mergedBlueprintIds = dedupeStringValues([
     ...startupPacks.flatMap((pack) => pack.blueprint_ids || []),
@@ -446,6 +545,11 @@ export async function resolveStartupContext(
       .slice(0, compact ? 4 : 8)
       .map((docPath) => readRepoDocExcerpt(docPath, { compact })),
   );
+  const knowledgePages = await Promise.all(
+    mergedKnowledgePagePaths
+      .slice(0, compact ? 4 : 8)
+      .map((pagePath) => readKnowledgePage(pagePath, { compact })),
+  );
   const attachedDocuments = await getOpsDocumentsByIds(
     mergedDocumentIds.slice(0, compact ? 4 : 10),
   );
@@ -461,6 +565,7 @@ export async function resolveStartupContext(
     mode: compact ? "interactive_operator_attached_compact" : "interactive_operator_attached",
     operator_notes: mergedOperatorNotes,
     repo_docs: repoDocs,
+    knowledge_pages: knowledgePages,
     blueprint_contexts: blueprintContexts,
     attached_documents: attachedDocuments.map((document) => ({
       id: document.id,

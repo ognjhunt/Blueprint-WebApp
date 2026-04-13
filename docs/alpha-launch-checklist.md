@@ -37,6 +37,8 @@ For Render import specifically, start with [render.required.env.example](/Users/
 
 - [ ] Firebase Admin configured
   Required: `FIREBASE_SERVICE_ACCOUNT_JSON` or `GOOGLE_APPLICATION_CREDENTIALS`
+- [ ] Field encryption configured
+  Required: `FIELD_ENCRYPTION_MASTER_KEY` or `FIELD_ENCRYPTION_KMS_KEY_NAME`
 - [ ] Agent runtime configured
   Required: `OPENAI_API_KEY`
   Optional: `OPENAI_DEFAULT_MODEL` and per-lane `OPENAI_*_MODEL` overrides
@@ -72,6 +74,7 @@ Release rule:
 Run these against the deployed alpha environment:
 
 - [ ] `npm run smoke:launch`
+- [ ] or use a preview/sandbox target for `npm run smoke:launch` when you need full write-path verification without creating production artifacts
 - [ ] `npm run smoke:agent`
 - [ ] `curl -i https://<alpha-domain>/health`
 - [ ] `curl -i https://<alpha-domain>/health/ready`
@@ -83,6 +86,34 @@ Must verify:
 - [ ] Inbound request creation succeeds end to end
 - [ ] Post-signup workflow succeeds end to end with real integrations
 - [ ] Readiness stays `200` with launch-critical services enabled
+
+Local parity note:
+
+- `npm run smoke:launch:local` is the preferred local production-mode smoke path.
+- It starts the built server on a clean local port and disables the known live-only local blockers for Stripe and autonomous research outbound, so the smoke can validate the webapp runtime without requiring full paid-production credentials in the local workspace.
+- Do not treat `smoke:launch:local` as a replacement for deployed smoke. It is a local parity gate, not a public launch gate.
+
+Live write policy:
+
+- `npm run smoke:launch` now blocks write-path smoke against non-local targets unless `ALPHA_SMOKE_ALLOW_LIVE_WRITE=1` is set.
+- For non-local write smoke, provide explicit values for:
+  - `ALPHA_SMOKE_EMAIL`
+  - `ALPHA_SMOKE_COMPANY`
+  - `ALPHA_SMOKE_SITE_NAME`
+- Prefer a preview/sandbox target over production whenever possible.
+- If production write smoke is truly required, define a cleanup owner and use a clearly tagged smoke identity.
+
+Human reply path:
+
+- For true human-gated launch blockers, pair the blocker packet with the reply-handling contract in [human-reply-handling-contract.md](/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/human-reply-handling-contract.md).
+- The approved durable email identity is `ohstnhunt@gmail.com`.
+- Do not treat a Gmail or Slack connector bound to `hlfabhunt@gmail.com` as a valid org-facing reply watcher.
+- Slack Events API request URL for this repo should be `https://tryblueprint.io/api/slack/events` after the route is deployed.
+- Gmail OAuth is not production-grade unless the mailbox resolves to `ohstnhunt@gmail.com` and the Google OAuth publishing state is explicitly confirmed as `production`.
+- Slack replies are resumable only when the bot can actually see the conversation:
+  - DMs require `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOW_DMS=1`
+  - channel replies require the bot to be present and the channel id to be listed in `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOWED_CHANNELS`
+  - root-channel replies fail closed
 
 ## 5. Product Flow Gate
 

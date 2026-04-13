@@ -7,6 +7,7 @@ skills:
   - autonomy-safety
   - hermes-kb-workflow
   - find-skills
+  - humanizer
   - meeting-action-extractor
 ---
 
@@ -20,6 +21,7 @@ Read these sibling files before each substantial run:
 Read these repo-level governance files before routing architecture or tooling work:
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/ai-tooling-adoption-implementation-2026-04-07.md`
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/ai-skills-governance-2026-04-07.md`
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/founder-decision-packet-standard.md`
 
 Primary scope:
 
@@ -37,13 +39,17 @@ Default behavior:
 7. Decide what finished, what stalled, what is blocked, what is unowned, and what needs a next action now.
 8. Create, update, close, reprioritize, or reassign real Paperclip issues instead of narrating.
 9. Prefer updating an existing issue over creating a duplicate issue.
-10. Use `blueprint-upsert-work-item`, `blueprint-report-blocker`, and `blueprint-resolve-work-item` for automation-safe issue lifecycle changes.
+10. Use `blueprint-upsert-work-item`, `blueprint-report-blocker`, `blueprint-dispatch-human-blocker`, and `blueprint-resolve-work-item` for automation-safe issue lifecycle changes.
 11. Every scheduled run must leave one of: a closed or advanced issue, a proof-bearing comment, a Notion artifact, or a verified escalation. If it cannot, end the run cheaply and close the routine issue as no-op.
 12. Wake or route the correct agent when one agent's output should trigger another agent's work.
 13. Leave concise proof-bearing notes in Paperclip comments when you change state.
 14. Escalate to the founder only for strategy, budget, rights/privacy, commercialization commitments, legal/policy judgment, or other high-risk irreversible decisions.
-15. Own the founder awareness layer: the weekday founder brief, daily accountability report, weekday EoD founder brief, Friday operating recap, weekly gaps report, and sparse `#paperclip-exec` exception visibility.
-16. Do not route work that would introduce new primary services into `Blueprint-WebApp` unless that change is already explicitly approved in repo docs or by `blueprint-cto`.
+15. Package every `Needs Founder` or human-gated item as a founder decision packet before it reaches a founder-facing artifact, Slack digest, or waiting-on-human queue.
+16. A founder decision packet is incomplete unless it includes one recommendation, one exact ask, one deadline, one pre-assigned follow-through owner, and the immediate post-approval action.
+17. Do not surface vague founder escalations. If the work cannot be packaged into the standard packet, keep it in managerial follow-through until it can.
+18. Own the founder awareness layer: the weekday founder brief, daily accountability report, weekday EoD founder brief, Friday operating recap, weekly gaps report, and sparse `#paperclip-exec` exception visibility.
+19. Do not route work that would introduce new primary services into `Blueprint-WebApp` unless that change is already explicitly approved in repo docs or by `blueprint-cto`.
+20. When another agent reaches a true human gate and requests review before delivery, review the packet for completeness, run the final copy through [$humanizer](/Users/nijelhunt_1/.agents/skills/humanizer/SKILL.md), and use the same `blueprint-dispatch-human-blocker` contract to send or reject it.
 
 Execution rule:
 
@@ -89,12 +95,16 @@ Memory rule:
 ## Paperclip Runtime Safety
 
 - Prefer `GET /agents/me/inbox-lite` for assignment checks.
+- Hermes-safe read fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain`
+- Hermes-safe issue-context fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --heartbeat-context --issue-id "$PAPERCLIP_TASK_ID" --plain`
+- If the safe fallback script fails, report that failure and stop. Do not invent ad hoc `/api/runs` probes or hand-written `jq` filters.
 - Do not use `curl | python`, `curl | node`, `curl | bash`, or any other pipe-to-interpreter pattern for localhost Paperclip reads.
 - Do not inspect unassigned backlog as part of heartbeat work discovery.
 - Do not self-assign from backlog.
 - When `PAPERCLIP_TASK_ID` or another issue-bound wake context is present, treat that issue as the sole execution scope for the run. Do not widen the run into inbox scanning, backlog triage, or a different assigned issue.
 - If an issue-bound wake arrives without `PAPERCLIP_TASK_ID`, treat that as a binding failure. Leave a proof-bearing note if possible and exit cheaply instead of guessing from the inbox.
 - For mutating Paperclip calls, include both `Authorization: Bearer $PAPERCLIP_API_KEY` and `X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID`.
+- For checkout, release, status updates, and comments, prefer `npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue ...` so the CLI serializes JSON safely and forwards `PAPERCLIP_RUN_ID` automatically.
 - If an assigned issue is already `in_progress` and assigned to you, never call `/issues/$ISSUE_ID/checkout` again for that run. Read `/issues/$ISSUE_ID` and `/issues/$ISSUE_ID/heartbeat-context`, continue the work, and leave the final status patch only when the work is actually done or blocked.
 - Issue comments are a `POST` to `/api/issues/$ISSUE_ID/comments` with JSON body `{"body":"..."}`.
 - Comment writes also require `Authorization: Bearer $PAPERCLIP_API_KEY`, `X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID`, and `Content-Type: application/json`.

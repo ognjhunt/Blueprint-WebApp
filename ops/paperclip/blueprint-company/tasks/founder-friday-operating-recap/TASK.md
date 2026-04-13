@@ -30,6 +30,7 @@ Each run must:
   - `Shipped`: max 5
   - all other sections: max 3
 - keep every bullet concrete, owner-clear, and grounded in real work or real metrics
+- if the recap includes a founder decision or permission request, render that line as the founder decision packet from `ops/paperclip/programs/founder-decision-packet-standard.md`
 
 Artifact requirements:
 

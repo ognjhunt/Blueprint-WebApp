@@ -10,6 +10,10 @@ const sendSlackMessage = vi.hoisted(() => vi.fn());
 const calendarInsert = vi.hoisted(() => vi.fn());
 const sheetsGet = vi.hoisted(() => vi.fn());
 const sheetsUpdate = vi.hoisted(() => vi.fn());
+const dispatchPostSignupHumanBlocker = vi.hoisted(() => vi.fn());
+const safelyDispatchHumanBlocker = vi.hoisted(() =>
+  vi.fn(async (_label: string, dispatcher: () => Promise<unknown>) => dispatcher()),
+);
 const dbState = vi.hoisted(() => {
   const stores: Record<string, Map<string, Record<string, unknown>>> = {
     action_ledger: new Map(),
@@ -120,6 +124,11 @@ vi.mock("../utils/slack", () => ({
   sendSlackMessage,
 }));
 
+vi.mock("../utils/human-blocker-autonomy", () => ({
+  dispatchPostSignupHumanBlocker,
+  safelyDispatchHumanBlocker,
+}));
+
 vi.mock("googleapis", () => ({
   google: {
     auth: {
@@ -168,6 +177,8 @@ afterEach(() => {
   calendarInsert.mockReset();
   sheetsGet.mockReset();
   sheetsUpdate.mockReset();
+  dispatchPostSignupHumanBlocker.mockReset();
+  safelyDispatchHumanBlocker.mockClear();
   dbState.clear();
   vi.resetModules();
 });
@@ -345,6 +356,14 @@ describe("post signup direct actions", () => {
     expect(sheetsUpdate).not.toHaveBeenCalled();
     expect(dbState.stores.action_ledger.size).toBe(4);
     expect(Array.from(dbState.stores.action_ledger.values()).every((doc) => doc.status === "pending_approval")).toBe(true);
+    expect(dispatchPostSignupHumanBlocker).toHaveBeenCalledTimes(4);
+    expect(dispatchPostSignupHumanBlocker).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceCollection: "blueprints",
+        sourceDocId: "bp-review",
+        approvalReason: "post_signup_requires_human_review",
+      }),
+    );
   });
 
   it("reuses the same action ledger on replay instead of sending twice", async () => {

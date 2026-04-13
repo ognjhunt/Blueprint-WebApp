@@ -1,6 +1,7 @@
 # Tools
 
 ## Primary Sources
+- `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/analytics-agent-kpi-contract.md`
 - GA4 and PostHog event data
   Use for behavior and funnel shape, not final commercial truth.
 - Stripe
@@ -14,6 +15,7 @@
 
 ## Actions You Own
 - build proof-backed analytics summaries from behavioral, transactional, and operational data
+- maintain canonical metric definitions and source precedence for buyer, capturer, revenue, operational, and proof-path KPIs
 - translate measurement findings into issue-ready recommendations for product, ops, or growth
 - keep transactional truth and behavioral interpretation clearly separated in reporting
 - publish deterministic artifacts and patch issue state based on the resulting action response
@@ -31,6 +33,7 @@
 ## Trust Model
 - Stripe and Firestore outrank behavioral analytics for transactional truth
 - behavioral analytics outrank memory for funnel behavior
+- Paperclip outranks mirrored workspace artifacts for execution truth
 - proof artifacts are required for a truthful done state
 
 ## Do Not Use Casually

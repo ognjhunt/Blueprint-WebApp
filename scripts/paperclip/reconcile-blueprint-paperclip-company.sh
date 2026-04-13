@@ -68,8 +68,11 @@ const fallbackCodexModel =
 const fallbackCodexReasoningEffort =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT ?? "medium";
 const DEFAULT_HERMES_MODEL = "arcee-ai/trinity-large-preview:free";
+const allowPaidHermesModels = /^(1|true|yes)$/i.test(
+  process.env.BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS ?? "",
+);
 const DISALLOWED_HERMES_MODEL_RE =
-  /^(?:anthropic\/)?claude(?:[-/].*)?$/i;
+  /^(?:(?:anthropic\/)?claude(?:[-/].*)?|openrouter\/free|(?:openrouter\/)?nvidia\/nemotron-3-super(?::free)?|(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
 const hermesPrimaryModel = sanitizeHermesModel(
   process.env.BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL,
   DEFAULT_HERMES_MODEL,
@@ -86,17 +89,14 @@ const hermesFreeModels = normalizeHermesModelList([
   ...parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS),
   hermesFallbackModel,
   DEFAULT_HERMES_MODEL,
+  "openai/gpt-oss-120b:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
   "z-ai/glm-4.5-air:free",
   "minimax/minimax-m2.5:free",
-  "openai/gpt-oss-120b:free",
   "qwen/qwen3-coder:free",
-  "openrouter/free",
 ]);
 const hermesPaidModels = normalizeHermesModelList([
-  ...parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_PAID_MODELS),
-  "z-ai/glm-5.1",
-  "arcee-ai/trinity-large-thinking",
+  ...(allowPaidHermesModels ? parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_PAID_MODELS) : []),
 ]);
 const hermesModelLadder = normalizeHermesModelList([
   ...hermesFreeModels,
@@ -119,10 +119,15 @@ Hard rules:
 - Do not invent company-scoped issue detail routes like /companies/$PAPERCLIP_COMPANY_ID/issues/$ISSUE_ID. They do not exist.
 - In inbox results, the id field is the API issue id to use in /issues/:id routes. The identifier field (for example BLU-3621) is only the human label.
 - Prefer GET {{paperclipApiUrl}}/agents/me/inbox-lite for assignment checks.
-- If PAPERCLIP_API_KEY is missing or an auth call returns 401/403, switch to auth-regression fallback immediately: use read-only company issue listing, summarize assigned open work, and exit without retries.
+- Hermes-safe read fallback: 'npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain'
+- Hermes-safe issue-context fallback: 'npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --heartbeat-context --issue-id "$PAPERCLIP_TASK_ID" --plain'
+- If PAPERCLIP_API_KEY is missing on this trusted host and PAPERCLIP_TASK_ID is present, stop using auth-backed curl and switch to 'npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue get|checkout|update|comment "$PAPERCLIP_TASK_ID" ...' for the bound issue.
+- If the safe fallback script fails, report that failure and stop. Do not invent ad hoc '/api/runs' probes or hand-written 'jq' filters.
+- If PAPERCLIP_API_KEY is missing or an auth call returns 401/403, stop retrying auth-backed curl. For issue-bound wakes, use the trusted-host CLI fallback for that exact issue. For unbound wakes, use read-only company issue listing, summarize assigned open work, and exit without retries.
 - Never look for unassigned work.
 - Never self-assign from backlog.
 - For mutating calls, include Authorization: Bearer $PAPERCLIP_API_KEY and X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID.
+- For checkout, release, status updates, and comments, prefer 'npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue ...' so the CLI serializes JSON safely and forwards PAPERCLIP_RUN_ID automatically.
 - Issue checkout is a POST to /issues/$ISSUE_ID/checkout with JSON body {"agentId":"$PAPERCLIP_AGENT_ID","expectedStatuses":["todo","backlog","blocked"]}. Do not fake checkout by PATCHing /issues/$ISSUE_ID with checkoutRunId.
 - If an assigned issue is already in_progress and assigned to you, never call /issues/$ISSUE_ID/checkout again for that run. Read /issues/$ISSUE_ID and /issues/$ISSUE_ID/heartbeat-context, continue the work, and leave the final status patch only when the work is actually done or blocked.
 - A checkout request that omits agentId, expectedStatuses, or Content-Type: application/json will 400. Do not shorten or improvise the checkout command.
@@ -133,16 +138,34 @@ Hard rules:
 
 Mandatory preflight (run first on every wake):
 1. Check whether PAPERCLIP_API_KEY is present and non-empty.
-2. If PAPERCLIP_API_KEY is missing/empty, do not call authenticated routes (/agents/me/*, /issues/*/checkout, PATCH issue routes).
-3. Instead, run read-only fallback immediately:
+2. If PAPERCLIP_API_KEY is missing/empty and PAPERCLIP_TASK_ID is present, do not call authenticated curl routes. Switch immediately to the trusted-host CLI fallback for that exact issue:
+   - Read the bound issue:
+     npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue get "$PAPERCLIP_TASK_ID" --json
+   - If the issue status is todo, backlog, or blocked, use the exact checkout command:
+     npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue checkout "$PAPERCLIP_TASK_ID" --agent-id "$PAPERCLIP_AGENT_ID"
+   - Continue the work on that exact issue only, and finish with the Paperclip CLI issue comment/update commands instead of auth-backed curl.
+3. If PAPERCLIP_API_KEY is missing/empty and PAPERCLIP_TASK_ID is not present, do not call authenticated routes (/agents/me/*, /issues/*/checkout, PATCH issue routes).
+4. Instead, run read-only fallback immediately:
    curl -fsS "{{paperclipApiUrl}}/companies/$PAPERCLIP_COMPANY_ID/issues"
-4. From that response, summarize only issues where assigneeAgentId equals $PAPERCLIP_AGENT_ID and status is not done/cancelled.
-5. Exit after the brief proof-bearing summary. Do not retry auth calls in this run.
+5. From that response, summarize only issues where assigneeAgentId equals $PAPERCLIP_AGENT_ID and status is not done/cancelled.
+6. Exit after the brief proof-bearing summary. Do not retry auth calls in this run.
 
 {{#taskId}}
 Assigned task:
 - Issue ID: {{taskId}}
 - Title: {{taskTitle}}
+
+If PAPERCLIP_API_KEY is missing/empty, do not use the auth-backed curl steps below. Start with the trusted-host CLI fallback for this exact issue instead:
+1. Read issue metadata:
+   npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue get "{{taskId}}" --json
+2. If the current issue status is todo, backlog, or blocked, use the exact checkout command:
+   npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue checkout "{{taskId}}" --agent-id "$PAPERCLIP_AGENT_ID"
+3. Continue the work on this exact issue only, and finish with:
+   - Comment:
+     npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue comment "{{taskId}}" --body "What changed, what you verified, and any remaining blocker."
+   - Status update:
+     npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue update "{{taskId}}" --status done --comment "What changed, how you verified it, and any remaining risk."
+4. Only use the auth-backed curl steps below when PAPERCLIP_API_KEY is present.
 
 Start with:
 1. Read issue metadata:
@@ -153,12 +176,12 @@ Start with:
    bash -lc 'curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/issues/{{taskId}}/comments/{{commentId}}"'
 4. Checkout rules:
    - If the current issue status is todo, backlog, or blocked, use the exact checkout command:
-     bash -lc 'curl -fsS -X POST "{{paperclipApiUrl}}/issues/{{taskId}}/checkout" -H "Authorization: Bearer $PAPERCLIP_API_KEY" -H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID" -H "Content-Type: application/json" -d "{\"agentId\":\"$PAPERCLIP_AGENT_ID\",\"expectedStatuses\":[\"todo\",\"backlog\",\"blocked\"]}"'
+     bash -lc 'npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue checkout "{{taskId}}" --agent-id "$PAPERCLIP_AGENT_ID"'
    - If the current issue is already in_progress and assigned to you, never call /issues/{{taskId}}/checkout again for that run. Read /heartbeat-context and continue the work.
 
 After doing the work:
 - Mark done with a proof-bearing comment:
-  bash -lc 'curl -fsS -X PATCH "{{paperclipApiUrl}}/issues/{{taskId}}" -H "Authorization: Bearer $PAPERCLIP_API_KEY" -H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID" -H "Content-Type: application/json" -d "{\"status\":\"done\",\"comment\":\"What changed, how you verified it, and any remaining risk.\"}"'
+  bash -lc 'npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue update "{{taskId}}" --status done --comment "What changed, how you verified it, and any remaining risk."'
 - If blocked, patch the issue to status blocked with a blocker comment before exiting.
 {{/taskId}}
 
@@ -181,7 +204,7 @@ Heartbeat wake:
      bash -lc 'curl -fsS -H "Authorization: Bearer $PAPERCLIP_API_KEY" "{{paperclipApiUrl}}/issues/$ISSUE_ID/heartbeat-context"'
 6. Checkout rules:
    - If the selected issue status is todo, backlog, or blocked, copy this exact checkout command and only replace ISSUE_ID:
-     bash -lc 'ISSUE_ID="$ISSUE_ID"; curl -fsS -X POST "{{paperclipApiUrl}}/issues/$ISSUE_ID/checkout" -H "Authorization: Bearer $PAPERCLIP_API_KEY" -H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID" -H "Content-Type: application/json" --data "{\"agentId\":\"$PAPERCLIP_AGENT_ID\",\"expectedStatuses\":[\"todo\",\"backlog\",\"blocked\"]}"'
+     bash -lc 'ISSUE_ID="$ISSUE_ID"; npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue checkout "$ISSUE_ID" --agent-id "$PAPERCLIP_AGENT_ID"'
    - If the selected issue is already in_progress and assigned to you, do not PATCH it just to simulate checkout. Read /heartbeat-context and continue the work.
 7. If step 2 fails with 401/403, run auth-regression fallback instead of retrying:
    - Read-only issue listing:
@@ -195,11 +218,16 @@ const HERMES_SAFETY_BUNDLE_SECTION = `
 ## Paperclip Runtime Safety
 
 - Prefer \`GET /agents/me/inbox-lite\` for assignment checks.
-- If \`/agents/me/inbox-lite\` returns \`401\` or \`403\`, switch to read-only \`GET /companies/$PAPERCLIP_COMPANY_ID/issues\`, filter by \`assigneeAgentId=$PAPERCLIP_AGENT_ID\`, summarize, and exit without retries.
+- Hermes-safe read fallback: \`npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain\`
+- Hermes-safe issue-context fallback: \`npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --heartbeat-context --issue-id "$PAPERCLIP_TASK_ID" --plain\`
+- If \`PAPERCLIP_API_KEY\` is missing on this trusted host and \`PAPERCLIP_TASK_ID\` is present, switch to \`npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue get|checkout|update|comment "$PAPERCLIP_TASK_ID" ...\` instead of auth-backed \`curl\`.
+- If the safe fallback script fails, report that failure and stop. Do not invent ad hoc \`/api/runs\` probes or hand-written \`jq\` filters.
+- If \`/agents/me/inbox-lite\` returns \`401\` or \`403\`, stop retrying auth-backed \`curl\`. For issue-bound wakes, use the trusted-host CLI fallback for that exact issue. For unbound wakes, switch to read-only \`GET /companies/$PAPERCLIP_COMPANY_ID/issues\`, filter by \`assigneeAgentId=$PAPERCLIP_AGENT_ID\`, summarize, and exit without retries.
 - Do not use \`curl | python\`, \`curl | node\`, \`curl | bash\`, or any other pipe-to-interpreter pattern for localhost Paperclip reads.
 - Do not inspect unassigned backlog as part of heartbeat work discovery.
 - Do not self-assign from backlog.
 - For mutating Paperclip calls, include both \`Authorization: Bearer $PAPERCLIP_API_KEY\` and \`X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID\`.
+- For checkout, release, status updates, and comments, prefer \`npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue ...\` so the CLI serializes JSON safely and forwards \`PAPERCLIP_RUN_ID\` automatically.
 - If an assigned issue is already \`in_progress\` and assigned to you, never call \`/issues/$ISSUE_ID/checkout\` again for that run. Read \`/issues/$ISSUE_ID\` and \`/issues/$ISSUE_ID/heartbeat-context\`, continue the work, and leave the final status patch only when the work is actually done or blocked.
 - Issue comments are a \`POST\` to \`/issues/$ISSUE_ID/comments\` with JSON body \`{"body":"..."}\`.
 - Comment writes also require \`Authorization: Bearer $PAPERCLIP_API_KEY\`, \`X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID\`, and \`Content-Type: application/json\`.
@@ -259,12 +287,16 @@ function isDisallowedHermesModel(value) {
   return typeof value === "string" && DISALLOWED_HERMES_MODEL_RE.test(value.trim());
 }
 
+function isHermesFreeModel(value) {
+  return typeof value === "string" && value.trim().toLowerCase().endsWith(":free");
+}
+
 function sanitizeHermesModel(value, fallback) {
   if (typeof value !== "string") {
     return fallback;
   }
   const trimmed = value.trim();
-  if (!trimmed || isDisallowedHermesModel(trimmed)) {
+  if (!trimmed || isDisallowedHermesModel(trimmed) || (!allowPaidHermesModels && !isHermesFreeModel(trimmed))) {
     return fallback;
   }
   return trimmed;
@@ -272,7 +304,12 @@ function sanitizeHermesModel(value, fallback) {
 
 function normalizeHermesModelList(values) {
   return normalizeModelList(
-    values.filter((value) => typeof value === "string" && !isDisallowedHermesModel(value)),
+    values.filter(
+      (value) =>
+        typeof value === "string"
+        && !isDisallowedHermesModel(value)
+        && (allowPaidHermesModels || isHermesFreeModel(value)),
+    ),
   );
 }
 
@@ -797,12 +834,10 @@ function buildCodexAdapterConfig(adapterConfig) {
 
 function buildHermesAdapterConfig(adapterConfig) {
   const next = { ...(adapterConfig ?? {}) };
-  const configuredModel =
-    typeof adapterConfig?.model === "string"
-      && adapterConfig.model.trim().length > 0
-      && !isDisallowedHermesModel(adapterConfig.model)
-      ? adapterConfig.model.trim()
-      : "";
+  const configuredModel = sanitizeHermesModel(
+    typeof adapterConfig?.model === "string" ? adapterConfig.model : "",
+    "",
+  );
   const ladder = normalizeHermesModelList([
     ...(configuredModel.length > 0 && configuredModel !== legacyHermesModel ? [configuredModel] : []),
     ...parseModelList(adapterConfig?.[HERMES_MODEL_LADDER_CONFIG_KEY]),
@@ -984,7 +1019,7 @@ function fallbackAdapterFor(desired) {
   };
 }
 
-function buildExecutionPolicyForAgent(agentConfig) {
+function buildExecutionPolicyForAgent(agentConfig, requestedMode) {
   const authoredAdapterType = agentConfig?.adapter?.type;
   const authoredAdapterConfig = agentConfig?.adapter?.config ?? {};
   if (!authoredAdapterType || !authoredAdapterConfig) {
@@ -1006,6 +1041,15 @@ function buildExecutionPolicyForAgent(agentConfig) {
           authoredAdapterConfig,
         )?.adapterConfig ?? undefined,
   };
+
+  if (requestedMode === "codex") {
+    return {
+      mode: "prefer_available",
+      compatibleAdapterTypes: ["codex_local", "hermes_local", "claude_local"],
+      preferredAdapterTypes: ["codex_local", "hermes_local", "claude_local"],
+      perAdapterConfig,
+    };
+  }
 
   if (authoredAdapterType === "claude_local") {
     return {
@@ -1050,6 +1094,13 @@ function chooseAdapterForAgent(desired, requestedMode, workspaceAvailability) {
 
   // hermes_local: probe hermes, then fall back to the paid local adapters
   if (desired.adapterType === "hermes_local") {
+    if (requestedMode === "codex") {
+      const codex = {
+        adapterType: "codex_local",
+        adapterConfig: buildCodexAdapterConfig(desired.adapterConfig),
+      };
+      if (workspaceAvailability?.codex_local?.status === "pass") return codex;
+    }
     const hermesStatus = workspaceAvailability?.hermes_local?.status;
     if (hermesStatus === "pass") return desired;
     const codex = {
@@ -1205,7 +1256,7 @@ for (const [agentKey, desired] of Object.entries(desiredAgents)) {
     ? existingRuntimeConfig
     : {
       ...existingRuntimeConfig,
-      executionPolicy: buildExecutionPolicyForAgent(yamlAgentConfig),
+      executionPolicy: buildExecutionPolicyForAgent(yamlAgentConfig, effectiveRequestedMode),
     };
   if (!preserveFixedLiveAdapter) {
     delete nextRuntimeConfig.executionProfile;
@@ -1319,7 +1370,13 @@ async function syncAgentInstructions(agent, sourcePath) {
   if (agent.adapterType === "hermes_local") {
     for (const file of bundleFiles) {
       if (file.path !== "AGENTS.md") continue;
-      if (file.content.includes("## Paperclip Runtime Safety")) continue;
+      if (file.content.includes("## Paperclip Runtime Safety")) {
+        file.content = file.content.replace(
+          /\n## Paperclip Runtime Safety[\s\S]*$/m,
+          `${HERMES_SAFETY_BUNDLE_SECTION}\n`,
+        );
+        continue;
+      }
       file.content = `${file.content.trimEnd()}${HERMES_SAFETY_BUNDLE_SECTION}\n`;
     }
   }

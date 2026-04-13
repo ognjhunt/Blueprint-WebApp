@@ -28,6 +28,10 @@ import type {
   AgentTaskKind,
 } from "./types";
 import { isPhase2LaneEnabled } from "../config/env";
+import {
+  dispatchWorkflowHumanReviewBlocker,
+  safelyDispatchHumanBlocker,
+} from "../utils/human-blocker-autonomy";
 
 type WaitlistSubmissionRecord = {
   id: string;
@@ -737,11 +741,12 @@ export async function runWaitlistAutomationLoop(params?: {
       if (result.status !== "completed" || !result.output) {
         throw new Error(result.error || "Waitlist automation did not complete");
       }
+      const output = result.output;
 
       const automationStatus = normalizeAutomationStatus(
-        result.output.automation_status,
+        output.automation_status,
       );
-      const { nextStatus, specs } = buildWaitlistActionSpecs(submission, result.output);
+      const { nextStatus, specs } = buildWaitlistActionSpecs(submission, output);
       const phase2DraftPatch = makeWorkflowDraftStatePatch({
         existingOpsAutomation: submission.ops_automation || {},
         lane: "waitlist",
@@ -810,18 +815,32 @@ export async function runWaitlistAutomationLoop(params?: {
           sourceCollection: "waitlistSubmissions",
           sourceDocId: submission.id,
           lane: "waitlist",
-          draftOutput: result.output,
+          draftOutput: output,
           existingOpsAutomation: {
             ...(submission.ops_automation || {}),
             ...phase2DraftPatch,
             status: automationStatus,
-            recommended_path: result.output.recommended_queue,
-            rationale: result.output.rationale,
-            market_summary: result.output.market_summary,
-            draft_email: result.output.draft_email,
+            recommended_path: output.recommended_queue,
+            rationale: output.rationale,
+            market_summary: output.market_summary,
+            draft_email: output.draft_email,
           },
           actions: specs,
         });
+      } else if (output.requires_human_review) {
+        await safelyDispatchHumanBlocker("workflow.waitlist.requires_human_review", () =>
+          dispatchWorkflowHumanReviewBlocker({
+            lane: "waitlist",
+            sourceCollection: "waitlistSubmissions",
+            sourceDocId: submission.id,
+            recommendedPath: output.recommended_queue,
+            nextAction: output.rationale || "Review the waitlist recommendation and decide the next operator action.",
+            confidence: output.confidence,
+            blockReasonCode: output.automation_status === "blocked" ? "automation_blocked" : null,
+            rationale: output.rationale,
+            summary: output.market_summary,
+          }),
+        );
       }
 
       results.push({
@@ -960,11 +979,12 @@ export async function runInboundQualificationForRequest(
 
     throw new Error(result.error || "Inbound qualification failed");
   }
+  const output = result.output;
 
   const automationStatus = normalizeAutomationStatus(
-    result.output.automation_status,
+    output.automation_status,
   );
-  const { routingStatus, specs } = buildInboundActionSpecs(request, result.output);
+  const { routingStatus, specs } = buildInboundActionSpecs(request, output);
   const phase2DraftPatch = makeWorkflowDraftStatePatch({
     existingOpsAutomation: (request.ops_automation || {}) as Record<string, unknown>,
     lane: "inbound",
@@ -1016,32 +1036,44 @@ export async function runInboundQualificationForRequest(
       sourceCollection: "inboundRequests",
       sourceDocId: request.requestId,
       lane: "inbound",
-      draftOutput: result.output,
+      draftOutput: output,
       existingOpsAutomation: {
         ...(request.ops_automation || {}),
         ...phase2DraftPatch,
         status: automationStatus,
-        recommended_path: result.output.qualification_state_recommendation,
+        recommended_path: output.qualification_state_recommendation,
         provider: result.provider,
         runtime: result.runtime,
         model: result.model,
         tool_mode: result.tool_mode,
         execution_id: `${request.requestId}:${Date.now()}`,
         session_key: `inbound:${request.requestId}`,
-        qualification_state_recommendation:
-          result.output.qualification_state_recommendation,
-        opportunity_state_recommendation:
-          result.output.opportunity_state_recommendation,
-        missing_information: result.output.missing_information,
-        internal_summary: result.output.internal_summary,
-        buyer_follow_up: result.output.buyer_follow_up,
-        rationale: result.output.rationale,
+        qualification_state_recommendation: output.qualification_state_recommendation,
+        opportunity_state_recommendation: output.opportunity_state_recommendation,
+        missing_information: output.missing_information,
+        internal_summary: output.internal_summary,
+        buyer_follow_up: output.buyer_follow_up,
+        rationale: output.rationale,
         last_error: null,
         last_attempt_at: admin.firestore.FieldValue.serverTimestamp(),
         processed_at: admin.firestore.FieldValue.serverTimestamp(),
       },
       actions: specs,
     });
+  } else if (output.requires_human_review) {
+    await safelyDispatchHumanBlocker("workflow.inbound.requires_human_review", () =>
+      dispatchWorkflowHumanReviewBlocker({
+        lane: "inbound",
+        sourceCollection: "inboundRequests",
+        sourceDocId: request.requestId,
+        recommendedPath: output.qualification_state_recommendation,
+        nextAction: output.internal_summary || "Review the inbound qualification result and choose the next operator path.",
+        confidence: output.confidence,
+        blockReasonCode: output.automation_status === "blocked" ? "automation_blocked" : null,
+        rationale: output.rationale,
+        summary: output.internal_summary,
+      }),
+    );
   }
 
   return result.output;
@@ -1264,6 +1296,20 @@ export async function runSupportTriageLoop(params?: { limit?: number }) {
           },
           actions: specs,
         });
+      } else if (result.output.requires_human_review) {
+        await safelyDispatchHumanBlocker("workflow.support.requires_human_review", () =>
+          dispatchWorkflowHumanReviewBlocker({
+            lane: "support",
+            sourceCollection: "contactRequests",
+            sourceDocId: doc.id,
+            recommendedPath: result.output.category,
+            nextAction: result.output.suggested_response || "Review the support item and decide the next operator response.",
+            confidence: result.output.confidence,
+            blockReasonCode: result.output.automation_status === "blocked" ? "automation_blocked" : null,
+            rationale: result.output.rationale,
+            summary: result.output.internal_summary,
+          }),
+        );
       }
 
       processedCount += 1;
@@ -1415,6 +1461,20 @@ export async function runPayoutExceptionTriageLoop(params?: { limit?: number }) 
           },
           actions: specs,
         });
+      } else if (result.output.requires_human_review) {
+        await safelyDispatchHumanBlocker("workflow.payout.requires_human_review", () =>
+          dispatchWorkflowHumanReviewBlocker({
+            lane: "payout",
+            sourceCollection: "creatorPayouts",
+            sourceDocId: doc.id,
+            recommendedPath: result.output.disposition,
+            nextAction: result.output.next_action,
+            confidence: result.output.confidence,
+            blockReasonCode: result.output.block_reason_code,
+            rationale: result.output.rationale,
+            summary: result.output.internal_summary,
+          }),
+        );
       }
 
       processedCount += 1;
@@ -1564,6 +1624,22 @@ export async function runPreviewDiagnosisLoop(params?: { limit?: number }) {
         taskOverrides: buildPreviewDiagnosisBrowserShadowTaskOverrides(),
         primaryResult: result,
       });
+
+      if (result.output.requires_human_review) {
+        await safelyDispatchHumanBlocker("workflow.preview.requires_human_review", () =>
+          dispatchWorkflowHumanReviewBlocker({
+            lane: "preview",
+            sourceCollection: "inboundRequests",
+            sourceDocId: doc.id,
+            recommendedPath: result.output.disposition,
+            nextAction: result.output.next_action,
+            confidence: result.output.confidence,
+            blockReasonCode: result.output.block_reason_code,
+            rationale: result.output.rationale,
+            summary: result.output.internal_summary,
+          }),
+        );
+      }
 
       processedCount += 1;
     } catch (error) {

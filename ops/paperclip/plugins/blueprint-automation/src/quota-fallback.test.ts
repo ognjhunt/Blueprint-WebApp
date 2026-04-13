@@ -8,13 +8,18 @@ import {
   buildQuotaFallbackRetryRecord,
   DEFAULT_HERMES_FALLBACK_MODEL,
   DEFAULT_HERMES_FALLBACK_MODELS,
+  extractLogicalSucceededRunFailure,
   FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY,
   HERMES_MODEL_LADDER_CONFIG_KEY,
   getWorkspaceAdapterCooldownKey,
   isDisallowedHermesFallbackModel,
   isFreshSessionRetryableFailure,
   isIncompatibleHermesFreeRoutingModel,
+  isProcessLossFailure,
+  isProviderCreditFailure,
+  isProviderTimeoutFailure,
   isQuotaOrRateLimitFailure,
+  isSharedOpenRouterFreePoolRateLimitFailure,
   parseQuotaResetAt,
   resolveHermesFallbackModels,
   resolveQuotaCooldownUntil,
@@ -29,6 +34,7 @@ describe("quota fallback helpers", () => {
       "BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS",
       DEFAULT_HERMES_FALLBACK_MODELS.join(","),
     );
+    vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS", "0");
   });
 
   afterEach(() => {
@@ -39,7 +45,40 @@ describe("quota fallback helpers", () => {
     expect(isQuotaOrRateLimitFailure("Claude run failed: subtype=success: You've hit your limit · resets 8pm (UTC)")).toBe(true);
     expect(isQuotaOrRateLimitFailure("429 RESOURCE_EXHAUSTED: You exceeded your current quota and billing details.")).toBe(true);
     expect(isQuotaOrRateLimitFailure("rate limit exceeded")).toBe(true);
+    expect(isQuotaOrRateLimitFailure("HTTP 402: Insufficient credits. Add more using https://openrouter.ai/settings/credits")).toBe(true);
     expect(isQuotaOrRateLimitFailure("adapter exited with code 1")).toBe(false);
+  });
+
+  it("detects provider credit and spend-limit failures", () => {
+    expect(isProviderCreditFailure("HTTP 402: Insufficient credits. Add more using https://openrouter.ai/settings/credits")).toBe(true);
+    expect(isProviderCreditFailure("API key USD spend limit exceeded.")).toBe(true);
+    expect(isProviderCreditFailure("HTTP 429: Rate limit exceeded: free-models-per-min.")).toBe(false);
+  });
+
+  it("extracts terminal logical-failure text from succeeded-run logs", () => {
+    expect(
+      extractLogicalSucceededRunFailure(
+        `
+          [hermes] Starting Hermes Agent
+          Final error: HTTP 429: Rate limit exceeded: free-models-per-min.
+          API call failed after 3 retries: HTTP 429: Rate limit exceeded: free-models-per-min.
+          [hermes] Exit code: 0, timed out: false
+        `,
+      ),
+    ).toContain("HTTP 429: Rate limit exceeded: free-models-per-min.");
+
+    expect(
+      extractLogicalSucceededRunFailure(
+        `
+          [hermes] Starting Hermes Agent
+          HTTP 404: No endpoints found for stepfun/step-3.5-flash:free.
+          Non-retryable client error (HTTP 404). Aborting.
+          [hermes] Exit code: 0, timed out: false
+        `,
+      ),
+    ).toContain("HTTP 404: No endpoints found for stepfun/step-3.5-flash:free.");
+
+    expect(extractLogicalSucceededRunFailure("[hermes] Exit code: 0, timed out: false")).toBeNull();
   });
 
   it("detects fresh-session retryable context and output-limit failures", () => {
@@ -54,6 +93,20 @@ describe("quota fallback helpers", () => {
       ),
     ).toBe(true);
     expect(isFreshSessionRetryableFailure("Process lost -- child pid 2156045 is no longer running")).toBe(false);
+  });
+
+  it("detects recoverable provider timeouts and process-loss failures", () => {
+    expect(
+      isProviderTimeoutFailure(
+        "Hermes timed out while running arcee-ai/trinity-large-preview:free via openrouter.",
+      ),
+    ).toBe(true);
+    expect(isProviderTimeoutFailure("Timed out")).toBe(true);
+    expect(isProviderTimeoutFailure("429 RESOURCE_EXHAUSTED")).toBe(false);
+
+    expect(isProcessLossFailure("Process lost -- child pid 2156045 is no longer running")).toBe(true);
+    expect(isProcessLossFailure("Process lost -- server may have restarted")).toBe(true);
+    expect(isProcessLossFailure("Timed out")).toBe(false);
   });
 
   it("builds a codex adapter config from a claude config", () => {
@@ -139,7 +192,7 @@ describe("quota fallback helpers", () => {
         "openrouter/qwen/qwen3.6-plus:free",
         "qwen/qwen3.6-plus:free",
         "arcee-ai/trinity-large-preview:free",
-        "z-ai/glm-5.1",
+        "openrouter/free",
       ].join(","),
     );
 
@@ -150,7 +203,7 @@ describe("quota fallback helpers", () => {
     expect(resolved[0]).toBe(DEFAULT_HERMES_FALLBACK_MODEL);
     expect(resolved).not.toContain("openrouter/qwen/qwen3.6-plus:free");
     expect(resolved).not.toContain("qwen/qwen3.6-plus:free");
-    expect(resolved).toContain("z-ai/glm-5.1");
+    expect(resolved).not.toContain("openrouter/free");
     const config = buildHermesFallbackAdapterConfig({
       cwd: "/tmp/project",
       model: "qwen/qwen3.6-plus:free",
@@ -163,6 +216,47 @@ describe("quota fallback helpers", () => {
     expect(config.timeoutSec).toBe(1800);
   });
 
+  it("rejects removed stepfun free-model ids even when env drift reintroduces them", () => {
+    vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL", "stepfun/step-3.5-flash:free");
+    vi.stubEnv(
+      "BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS",
+      [
+        "stepfun/step-3.5-flash:free",
+        "arcee-ai/trinity-large-preview:free",
+        "openrouter/free",
+      ].join(","),
+    );
+
+    expect(isDisallowedHermesFallbackModel("stepfun/step-3.5-flash:free")).toBe(true);
+    const resolved = resolveHermesFallbackModels({ cwd: "/tmp/project" });
+    expect(resolved).not.toContain("stepfun/step-3.5-flash:free");
+    const config = buildHermesFallbackAdapterConfig({
+      cwd: "/tmp/project",
+      model: "stepfun/step-3.5-flash:free",
+    });
+    expect(config.model).toBe(DEFAULT_HERMES_FALLBACK_MODEL);
+    expect(config[HERMES_MODEL_LADDER_CONFIG_KEY]).not.toContain("stepfun/step-3.5-flash:free");
+  });
+
+  it("rejects the openrouter/free alias and invalid nvidia fallback ids", () => {
+    vi.stubEnv(
+      "BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS",
+      [
+        "openrouter/free",
+        "nvidia/nemotron-3-super:free",
+        "arcee-ai/trinity-large-preview:free",
+        "openai/gpt-oss-120b:free",
+      ].join(","),
+    );
+
+    expect(isDisallowedHermesFallbackModel("openrouter/free")).toBe(true);
+    expect(isDisallowedHermesFallbackModel("nvidia/nemotron-3-super:free")).toBe(true);
+
+    const resolved = resolveHermesFallbackModels({ cwd: "/tmp/project" });
+    expect(resolved).not.toContain("openrouter/free");
+    expect(resolved).not.toContain("nvidia/nemotron-3-super:free");
+  });
+
   it("resolves a deterministic hermes free-model ladder", () => {
     expect(
       resolveHermesFallbackModels({
@@ -172,6 +266,32 @@ describe("quota fallback helpers", () => {
     ).toEqual([...DEFAULT_HERMES_FALLBACK_MODELS]);
   });
 
+  it("filters paid openrouter models unless explicitly re-enabled", () => {
+    vi.stubEnv(
+      "BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS",
+      [
+        "arcee-ai/trinity-large-preview:free",
+        "arcee-ai/trinity-large-thinking",
+        "z-ai/glm-5.1",
+        "qwen/qwen3-coder:free",
+      ].join(","),
+    );
+
+    expect(resolveHermesFallbackModels({ cwd: "/tmp/project" })).toEqual([
+      "arcee-ai/trinity-large-preview:free",
+      "qwen/qwen3-coder:free",
+      "openai/gpt-oss-120b:free",
+      "nvidia/nemotron-3-super-120b-a12b:free",
+      "z-ai/glm-4.5-air:free",
+      "minimax/minimax-m2.5:free",
+    ]);
+
+    vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS", "1");
+
+    expect(resolveHermesFallbackModels({ cwd: "/tmp/project" })).toContain("arcee-ai/trinity-large-thinking");
+    expect(resolveHermesFallbackModels({ cwd: "/tmp/project" })).toContain("z-ai/glm-5.1");
+  });
+
   it("advances hermes to the next free model before changing adapters", () => {
     expect(
       buildNextHermesFallbackAdapterConfig({
@@ -179,13 +299,13 @@ describe("quota fallback helpers", () => {
         model: "arcee-ai/trinity-large-preview:free",
         [HERMES_MODEL_LADDER_CONFIG_KEY]: [
           "arcee-ai/trinity-large-preview:free",
-          "openrouter/free",
-          "stepfun/step-3.5-flash:free",
+          "openai/gpt-oss-120b:free",
+          "nvidia/nemotron-3-super-120b-a12b:free",
         ],
       }),
     ).toEqual({
       cwd: "/tmp/project",
-      model: "openrouter/free",
+      model: "openai/gpt-oss-120b:free",
       [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
       modelReasoningEffort: "medium",
       timeoutSec: 1800,
@@ -200,7 +320,7 @@ describe("quota fallback helpers", () => {
         [HERMES_MODEL_LADDER_CONFIG_KEY]: [
           "gpt-5.4-mini",
           "arcee-ai/trinity-large-preview:free",
-          "openrouter/free",
+          "openai/gpt-oss-120b:free",
         ],
       }),
     ).toEqual({
@@ -209,6 +329,98 @@ describe("quota fallback helpers", () => {
       [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
       modelReasoningEffort: "medium",
       timeoutSec: 1800,
+    });
+  });
+
+  it("replaces an invalid Hermes free-model id with the first valid ladder step", () => {
+    expect(
+      buildNextHermesFallbackAdapterConfig({
+        cwd: "/tmp/project",
+        model: "nvidia/nemotron-3-super:free",
+        [HERMES_MODEL_LADDER_CONFIG_KEY]: [
+          "nvidia/nemotron-3-super:free",
+          "arcee-ai/trinity-large-preview:free",
+          "openai/gpt-oss-120b:free",
+        ],
+      }),
+    ).toEqual({
+      cwd: "/tmp/project",
+      model: "arcee-ai/trinity-large-preview:free",
+      [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
+      modelReasoningEffort: "medium",
+      timeoutSec: 1800,
+    });
+  });
+
+  it("detects shared OpenRouter free-pool rate limits", () => {
+    expect(
+      isSharedOpenRouterFreePoolRateLimitFailure("HTTP 429: Rate limit exceeded: free-models-per-min."),
+    ).toBe(true);
+    expect(
+      isSharedOpenRouterFreePoolRateLimitFailure("HTTP 429: Rate limit exceeded: free-models-per-day-high-balance."),
+    ).toBe(true);
+    expect(
+      isSharedOpenRouterFreePoolRateLimitFailure(
+        "HTTP 429: Rate limit exceeded: limit_rpm/qwen/qwen3-coder-480b-a35b-07-25/a9bbd882. High demand for qwen/qwen3-coder:free on OpenRouter - limited to 8 requests per minute. Please retry shortly.",
+      ),
+    ).toBe(true);
+    expect(
+      isSharedOpenRouterFreePoolRateLimitFailure("HTTP 429: Too Many Requests."),
+    ).toBe(false);
+  });
+
+  it("moves hermes directly to codex when the shared OpenRouter free pool is exhausted", () => {
+    expect(
+      buildLocalQuotaFallbackDescriptor({
+        currentAdapterType: "hermes_local",
+        currentAdapterConfig: {
+          cwd: "/tmp/project",
+          model: "arcee-ai/trinity-large-preview:free",
+          [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
+        },
+        desiredAdapterType: "hermes_local",
+        desiredAdapterConfig: {
+          cwd: "/tmp/project",
+        },
+        failureReason: "HTTP 429: Rate limit exceeded: free-models-per-min.",
+      }),
+    ).toEqual({
+      adapterType: "codex_local",
+      reason: "quota_fallback_to_codex_local_after_shared_openrouter_free_pool_limit",
+      adapterConfig: {
+        cwd: "/tmp/project",
+        model: "gpt-5.4-mini",
+        modelReasoningEffort: "medium",
+        dangerouslyBypassApprovalsAndSandbox: true,
+        [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: "hermes_local",
+      },
+    });
+
+    expect(
+      buildLocalQuotaFallbackDescriptor({
+        currentAdapterType: "hermes_local",
+        currentAdapterConfig: {
+          cwd: "/tmp/project",
+          model: "qwen/qwen3-coder:free",
+          [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
+        },
+        desiredAdapterType: "hermes_local",
+        desiredAdapterConfig: {
+          cwd: "/tmp/project",
+        },
+        failureReason:
+          "HTTP 429: Rate limit exceeded: limit_rpm/qwen/qwen3-coder-480b-a35b-07-25/a9bbd882. High demand for qwen/qwen3-coder:free on OpenRouter - limited to 8 requests per minute. Please retry shortly.",
+      }),
+    ).toEqual({
+      adapterType: "codex_local",
+      reason: "quota_fallback_to_codex_local_after_shared_openrouter_free_pool_limit",
+      adapterConfig: {
+        cwd: "/tmp/project",
+        model: "gpt-5.4-mini",
+        modelReasoningEffort: "medium",
+        dangerouslyBypassApprovalsAndSandbox: true,
+        [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: "hermes_local",
+      },
     });
   });
 

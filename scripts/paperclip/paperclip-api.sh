@@ -5,6 +5,36 @@ paperclip_api_health() {
   curl -fsS "${api_url}/api/health" >/dev/null 2>&1
 }
 
+paperclip_api_request() {
+  local method="${1:-GET}"
+  local path="${2:-}"
+  local body="${3:-}"
+  local api_url="${4:-${PAPERCLIP_API_URL:-http://127.0.0.1:3100}}"
+  local resolved_api_url=""
+  local -a curl_args=()
+
+  if [ -z "$path" ]; then
+    echo "paperclip_api_request requires a path like /api/issues/<id>" >&2
+    return 1
+  fi
+
+  resolved_api_url="$(paperclip_resolve_api_url "$api_url")" || resolved_api_url="$api_url"
+
+  curl_args=(curl -fsS -X "$method")
+  if [ -n "${PAPERCLIP_API_KEY:-}" ]; then
+    curl_args+=(-H "Authorization: Bearer ${PAPERCLIP_API_KEY}")
+  fi
+  if [[ "$method" != "GET" && "$method" != "HEAD" ]] && [ -n "${PAPERCLIP_RUN_ID:-}" ]; then
+    curl_args+=(-H "X-Paperclip-Run-Id: ${PAPERCLIP_RUN_ID}")
+  fi
+  if [ -n "$body" ]; then
+    curl_args+=(-H "Content-Type: application/json" --data-binary "$body")
+  fi
+  curl_args+=("${resolved_api_url}${path}")
+
+  "${curl_args[@]}"
+}
+
 paperclip_listen_pids_for_home() {
   local paperclip_home="$1"
   local pattern="(paperclipai run --data-dir ${paperclip_home}|cli/src/index.ts run --data-dir ${paperclip_home})"
@@ -101,7 +131,7 @@ paperclip_api_fetch_json() {
   resolved_api_url="$(paperclip_resolve_api_url "$api_url")" || resolved_api_url="$api_url"
 
   for ((attempt = 1; attempt <= attempts; attempt += 1)); do
-    if response="$(curl -fsS "${resolved_api_url}${path}" 2>&1)"; then
+    if response="$(paperclip_api_request GET "$path" "" "$resolved_api_url" 2>&1)"; then
       if [ -n "$response" ]; then
         printf '%s' "$response"
         return 0
@@ -118,6 +148,23 @@ paperclip_api_fetch_json() {
 
   echo "$error_message" >&2
   return 1
+}
+
+paperclip_api_usage() {
+  cat <<'EOF'
+Usage:
+  bash scripts/paperclip/paperclip-api.sh METHOD /api/path [json-body]
+
+Examples:
+  bash scripts/paperclip/paperclip-api.sh GET /api/health
+  bash scripts/paperclip/paperclip-api.sh GET "/api/issues/$PAPERCLIP_TASK_ID"
+  bash scripts/paperclip/paperclip-api.sh POST "/api/issues/$PAPERCLIP_TASK_ID/comments" '{"body":"status update"}'
+
+Environment:
+  PAPERCLIP_API_URL  Optional explicit base URL. Auto-resolved when omitted or unhealthy.
+  PAPERCLIP_API_KEY  Optional bearer token for authenticated reads/mutations.
+  PAPERCLIP_RUN_ID   Included automatically on non-GET/HEAD requests when present.
+EOF
 }
 
 paperclip_wait_for_plugin_worker_running() {
@@ -181,3 +228,23 @@ paperclip_require_external_postgres() {
   echo "DATABASE_URL is required for the shared Blueprint Paperclip instance. Set DATABASE_URL or disable BLUEPRINT_PAPERCLIP_REQUIRE_EXTERNAL_POSTGRES for isolated local testing." >&2
   return 1
 }
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  set -euo pipefail
+
+  method="${1:-}"
+  path="${2:-}"
+  body="${3:-}"
+
+  if [ -z "$method" ] || [ "$method" = "--help" ] || [ "$method" = "-h" ]; then
+    paperclip_api_usage
+    exit 0
+  fi
+
+  if [ -z "$path" ]; then
+    paperclip_api_usage >&2
+    exit 1
+  fi
+
+  paperclip_api_request "$method" "$path" "$body"
+fi

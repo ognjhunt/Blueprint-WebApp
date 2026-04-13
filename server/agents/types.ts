@@ -128,12 +128,23 @@ export interface CreativeContextReference {
 export interface StartupContextMetadata {
   startupPackIds?: string[];
   repoDocPaths?: string[];
+  knowledgePagePaths?: string[];
   blueprintIds?: string[];
   documentIds?: string[];
   externalSources?: ExternalKnowledgeSource[];
   creativeContexts?: CreativeContextReference[];
   operatorNotes?: string;
   targetHarness?: HarnessTarget;
+}
+
+export interface KnowledgePageReference {
+  path: string;
+  title: string;
+  page_kind?: string;
+  owner?: string;
+  authority?: string;
+  review_status?: string;
+  last_verified_at?: string | null;
 }
 
 export interface AgentTask<TInput = unknown> {
@@ -252,6 +263,7 @@ export interface StartupPackRecord {
   name: string;
   description?: string;
   repo_doc_paths: string[];
+  knowledge_page_paths?: string[];
   blueprint_ids: string[];
   document_ids: string[];
   external_sources: ExternalKnowledgeSource[];

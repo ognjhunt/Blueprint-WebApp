@@ -37,12 +37,11 @@ export type WorkspaceAdapterCooldownState = Record<string, WorkspaceAdapterCoold
 export const DEFAULT_HERMES_FALLBACK_MODEL = "arcee-ai/trinity-large-preview:free";
 export const DEFAULT_HERMES_FALLBACK_MODELS = [
   "arcee-ai/trinity-large-preview:free",
-  "openrouter/free",
-  "stepfun/step-3.5-flash:free",
-  "nvidia/nemotron-3-super:free",
   "openai/gpt-oss-120b:free",
-  "arcee-ai/trinity-large-thinking",
-  "z-ai/glm-5.1",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "z-ai/glm-4.5-air:free",
+  "minimax/minimax-m2.5:free",
+  "qwen/qwen3-coder:free",
 ] as const;
 export const HERMES_MODEL_LADDER_CONFIG_KEY = "blueprintHermesModelLadder";
 export const FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY = "blueprintFallbackOriginAdapterType";
@@ -64,12 +63,26 @@ export type LocalQuotaFallbackDescriptor = {
 };
 
 const QUOTA_OR_RATE_LIMIT_RE =
-  /(?:resource_exhausted|quota|rate[-\s]?limit|too many requests|\b429\b|billing details|you['’]ve hit your limit|hit your limit|limit[^.\n]*reset)/i;
+  /(?:resource_exhausted|quota|rate[-\s]?limit|too many requests|\b429\b|\b402\b|billing details|insufficient credits|spend(?:ing)? limit exceeded|you['’]ve hit your limit|hit your limit|limit[^.\n]*reset)/i;
+const PROVIDER_CREDIT_RE =
+  /(?:\b402\b|insufficient credits|api key usd spend limit exceeded|usd spend(?:ing)? limit exceeded|spend(?:ing)? limit exceeded)/i;
 const MODEL_NOT_FOUND_RE = /model.*not.*found|model.*404|invalid.*model|unknown.*model|gpt-5-4-mini|http.*404|not_found_error/i;
 const FRESH_SESSION_RETRYABLE_RE =
   /(?:context window|ran out of room|clear earlier history|start a new thread|max[_ ]output[_ ]tokens|incomplete response returned|stream disconnected before completion)/i;
+const PROVIDER_TIMEOUT_RE =
+  /(?:timed out while running|^\s*timed out\s*$|provider=.*openrouter|via openrouter|request timed out|deadline exceeded)/i;
+const PROCESS_LOSS_RE =
+  /(?:process lost --|child pid .* no longer running|server may have restarted)/i;
 const DISALLOWED_HERMES_FALLBACK_MODEL_RE =
-  /^(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?$/i;
+  /^(?:openrouter\/free|(?:openrouter\/)?nvidia\/nemotron-3-super(?::free)?|(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
+const OPENROUTER_SHARED_FREE_POOL_LIMIT_RE =
+  /(?:free-models-per-(?:min|day(?:-high-balance)?)|limit_rpm\/[^\s]+|high demand for [^.\n]+:free on openrouter|limited to \d+ requests per minute)/i;
+const TERMINAL_LOGICAL_FAILURE_PATTERNS = [
+  /api call failed after \d+ retries:\s*(http \d+:[^\n]+)/i,
+  /final error:\s*(http \d+:[^\n]+)/i,
+  /http 404:\s*no endpoints found for[^\n]+/i,
+  /rate limit exceeded:[^\n]+/i,
+] as const;
 const MONTH_INDEX: Record<string, number> = {
   jan: 0,
   feb: 1,
@@ -90,6 +103,16 @@ export function isQuotaOrRateLimitFailure(message: string | null | undefined): b
   return QUOTA_OR_RATE_LIMIT_RE.test(message);
 }
 
+export function isProviderCreditFailure(message: string | null | undefined): boolean {
+  if (!message) return false;
+  return PROVIDER_CREDIT_RE.test(message);
+}
+
+export function isSharedOpenRouterFreePoolRateLimitFailure(message: string | null | undefined): boolean {
+  if (!message) return false;
+  return OPENROUTER_SHARED_FREE_POOL_LIMIT_RE.test(message);
+}
+
 export function isModelNotFoundFailure(message: string | null | undefined): boolean {
   if (!message) return false;
   return MODEL_NOT_FOUND_RE.test(message);
@@ -100,10 +123,50 @@ export function isFreshSessionRetryableFailure(message: string | null | undefine
   return FRESH_SESSION_RETRYABLE_RE.test(message);
 }
 
+export function isProviderTimeoutFailure(message: string | null | undefined): boolean {
+  if (!message) return false;
+  return PROVIDER_TIMEOUT_RE.test(message);
+}
+
+export function isProcessLossFailure(message: string | null | undefined): boolean {
+  if (!message) return false;
+  return PROCESS_LOSS_RE.test(message);
+}
+
+export function extractLogicalSucceededRunFailure(message: string | null | undefined): string | null {
+  if (!message) return null;
+  const normalized = message.replace(/\s+/g, " ").trim();
+  if (!normalized) return null;
+
+  for (const pattern of TERMINAL_LOGICAL_FAILURE_PATTERNS) {
+    const match = normalized.match(pattern);
+    if (!match) continue;
+    const candidate = (match[1] ?? match[0] ?? "").replace(/\s+/g, " ").trim();
+    if (isQuotaOrRateLimitFailure(candidate) || isModelNotFoundFailure(candidate)) {
+      return candidate;
+    }
+  }
+
+  if (isQuotaOrRateLimitFailure(normalized) || isModelNotFoundFailure(normalized)) {
+    return normalized.slice(0, 400);
+  }
+
+  return null;
+}
+
 function asTrimmedString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function arePaidHermesModelsAllowed(): boolean {
+  return /^(1|true|yes)$/i.test(process.env.BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS ?? "");
+}
+
+function isHermesFreeRoutingModel(model: string | null | undefined): boolean {
+  const trimmed = (model ?? "").trim().toLowerCase();
+  return trimmed.endsWith(":free");
 }
 
 function normalizeModelList(values: Iterable<string>): string[] {
@@ -187,8 +250,12 @@ export function isDisallowedHermesFallbackModel(model: string | null | undefined
 }
 
 function filterCompatibleHermesLadderModels(models: string[]): string[] {
+  const allowPaid = arePaidHermesModelsAllowed();
   return models.filter(
-    (id) => !isIncompatibleHermesFreeRoutingModel(id) && !isDisallowedHermesFallbackModel(id),
+    (id) =>
+      !isIncompatibleHermesFreeRoutingModel(id)
+      && !isDisallowedHermesFallbackModel(id)
+      && (allowPaid || isHermesFreeRoutingModel(id)),
   );
 }
 
@@ -198,6 +265,7 @@ export function resolveHermesFallbackModels(
     includeCurrentModel?: boolean;
   },
 ): string[] {
+  const allowPaid = arePaidHermesModelsAllowed();
   const includeCurrentModel = options?.includeCurrentModel !== false;
   const currentModel = asTrimmedString(adapterConfig?.model);
   const configuredLadder = filterCompatibleHermesLadderModels(
@@ -211,13 +279,15 @@ export function resolveHermesFallbackModels(
     singleEnvRaw
       && !isIncompatibleHermesFreeRoutingModel(singleEnvRaw)
       && !isDisallowedHermesFallbackModel(singleEnvRaw)
+      && (allowPaid || isHermesFreeRoutingModel(singleEnvRaw))
       ? singleEnvRaw
       : null;
 
   const includeCurrent =
     includeCurrentModel
     && currentModel
-    && !isIncompatibleHermesFreeRoutingModel(currentModel);
+    && !isIncompatibleHermesFreeRoutingModel(currentModel)
+    && (allowPaid || isHermesFreeRoutingModel(currentModel));
 
   return normalizeModelList([
     ...(includeCurrent ? [currentModel] : []),
@@ -273,6 +343,7 @@ export function buildHermesFallbackAdapterConfig(
     cwd?: string;
   },
 ): Record<string, unknown> {
+  const allowPaid = arePaidHermesModelsAllowed();
   const next = { ...(adapterConfig ?? {}) };
   delete next.dangerouslySkipPermissions;
   delete next.dangerouslyBypassApprovalsAndSandbox;
@@ -283,6 +354,7 @@ export function buildHermesFallbackAdapterConfig(
     optionModel
       && !isIncompatibleHermesFreeRoutingModel(optionModel)
       && !isDisallowedHermesFallbackModel(optionModel)
+      && (allowPaid || isHermesFreeRoutingModel(optionModel))
       ? optionModel
       : null;
   const envFallback = asTrimmedString(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL);
@@ -290,6 +362,7 @@ export function buildHermesFallbackAdapterConfig(
     envFallback
       && !isIncompatibleHermesFreeRoutingModel(envFallback)
       && !isDisallowedHermesFallbackModel(envFallback)
+      && (allowPaid || isHermesFreeRoutingModel(envFallback))
       ? envFallback
       : null;
   const model =
@@ -311,6 +384,7 @@ export function buildHermesFallbackAdapterConfig(
 export function buildNextHermesFallbackAdapterConfig(
   adapterConfig: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> | null {
+  const allowPaid = arePaidHermesModelsAllowed();
   const currentModel = asTrimmedString(adapterConfig?.model);
   const ladder = resolveHermesFallbackModels(adapterConfig, { includeCurrentModel: false });
   if (ladder.length === 0) {
@@ -318,7 +392,12 @@ export function buildNextHermesFallbackAdapterConfig(
   }
 
   const routableCurrent =
-    currentModel && !isIncompatibleHermesFreeRoutingModel(currentModel) ? currentModel : null;
+    currentModel
+    && !isIncompatibleHermesFreeRoutingModel(currentModel)
+    && !isDisallowedHermesFallbackModel(currentModel)
+    && (allowPaid || isHermesFreeRoutingModel(currentModel))
+      ? currentModel
+      : null;
   const currentIndex = routableCurrent ? ladder.indexOf(routableCurrent) : -1;
   const nextModel = currentIndex >= 0 ? ladder[currentIndex + 1] : ladder[0];
   if (!nextModel || nextModel === currentModel) {
@@ -375,11 +454,13 @@ export function buildLocalQuotaFallbackDescriptor(input: {
   currentAdapterConfig: Record<string, unknown> | null | undefined;
   desiredAdapterType?: string | null;
   desiredAdapterConfig?: Record<string, unknown> | null | undefined;
+  failureReason?: string | null;
 }): LocalQuotaFallbackDescriptor | null {
   const currentAdapterType = input.currentAdapterType;
   const currentAdapterConfig = input.currentAdapterConfig ?? {};
   const desiredAdapterType = input.desiredAdapterType ?? null;
   const desiredAdapterConfig = input.desiredAdapterConfig ?? currentAdapterConfig;
+  const failureReason = input.failureReason ?? null;
   const originAdapterType =
     asTrimmedString(currentAdapterConfig[FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY])
     ?? (desiredAdapterType === "hermes_local" ? "hermes_local" : null);
@@ -419,6 +500,20 @@ export function buildLocalQuotaFallbackDescriptor(input: {
   }
 
   if (currentAdapterType === "hermes_local") {
+    if (isSharedOpenRouterFreePoolRateLimitFailure(failureReason)) {
+      return {
+        adapterType: "codex_local",
+        reason: "quota_fallback_to_codex_local_after_shared_openrouter_free_pool_limit",
+        adapterConfig: withFallbackOrigin(
+          buildCodexFallbackAdapterConfig(desiredAdapterConfig, {
+            model: "gpt-5.4-mini",
+            modelReasoningEffort: "medium",
+          }),
+          "hermes_local",
+        ),
+      };
+    }
+
     const nextHermesConfig = buildNextHermesFallbackAdapterConfig(currentAdapterConfig);
     if (nextHermesConfig) {
       return {

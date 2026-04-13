@@ -13,13 +13,13 @@
   Use for the final Notion Knowledge write, optional Work Queue breadcrumb, and Agent Runs mirror.
 
 ## Actions You Own
-- daily and weekly internal metrics summaries
-- anomaly and gap reporting tied to specific follow-through
-- keeping Notion Knowledge metrics artifacts current and legible
+- explicitly delegated legacy metrics mirrors and backfills
+- anomaly and gap reporting tied to specific follow-through when the legacy artifact still matters
+- keeping old Notion Knowledge metrics artifacts legible while the main KPI owner remains `analytics-agent`
 
 ## Handoff Partners
 - **analytics-agent** — when deeper cross-system measurement analysis is needed first
-- **growth-lead** — when the report changes growth prioritization
+- **growth-lead** — only when the delegated legacy artifact changes growth prioritization
 - **workspace-digest-publisher** — when a metrics finding should shape the weekly workspace digest
 - **notion-reconciler** — when the report artifacts themselves drift or stale out in Notion
 

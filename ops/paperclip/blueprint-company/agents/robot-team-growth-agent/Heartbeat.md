@@ -11,7 +11,7 @@
 
 ## Midweek
 - fold in funnel, buyer-feedback, hosted-session, and ops signals from real demand flow
-- tighten the next actions for `conversion-agent`, `analytics-agent`, `intake-agent`, `ops-lead`, `finance-support-agent`, and `city-demand-agent`
+- tighten the next actions for `conversion-agent`, `analytics-agent`, `intake-agent`, `ops-lead`, `buyer-solutions-agent`, `revenue-ops-pricing-agent`, and `city-demand-agent`
 
 ## Signals That Should Change Your Posture
 - robot teams understand the product only after seeing exact-site proof

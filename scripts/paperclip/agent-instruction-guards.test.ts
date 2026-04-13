@@ -10,6 +10,12 @@ const bindingFailureLine =
 const closeoutPatchLine = "Close issues only with `PATCH /api/issues/$ISSUE_ID`.";
 const closeoutStatusesLine = "Valid terminal statuses are `done` and `blocked` only.";
 const closeoutCompletedLine = 'Never send `status: "completed"`.';
+const preferredCliLine =
+  "For checkout, release, status updates, and comments, prefer `npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue ...` so the CLI serializes JSON safely and forwards `PAPERCLIP_RUN_ID` automatically.";
+const missingJwtCliFallbackLine =
+  'If PAPERCLIP_API_KEY is missing on this trusted host and PAPERCLIP_TASK_ID is present, stop using auth-backed curl and switch to \'npm --prefix /Users/nijelhunt_1/workspace/paperclip run --silent paperclipai -- issue get|checkout|update|comment "$PAPERCLIP_TASK_ID" ...\' for the bound issue.';
+const noLocalhostProbeBeforePaperclipLine =
+  "On issue-bound runs, before probing any localhost web-app port such as `3000`, first use the injected `PAPERCLIP_API_URL` or the safe heartbeat snapshot fallback to resolve the bound issue context.";
 
 async function collectAgentInstructionFiles(root: string): Promise<string[]> {
   const entries = await fs.readdir(root, { withFileTypes: true });
@@ -47,10 +53,18 @@ describe("Blueprint Paperclip agent instruction guards", () => {
         expect(content, `${file} is missing the raw closeout patch guard`).toContain(closeoutPatchLine);
         expect(content, `${file} is missing the raw closeout status guard`).toContain(closeoutStatusesLine);
         expect(content, `${file} is missing the invalid completed-status guard`).toContain(closeoutCompletedLine);
+        expect(content, `${file} is missing the Paperclip CLI mutation guard`).toContain(preferredCliLine);
       }
     }
 
     expect(directPaperclipAgents.length).toBeGreaterThan(0);
+  });
+
+  it("keeps the no-JWT trusted-host CLI fallback in the shared Hermes reconcile template", async () => {
+    const reconcilePath = path.resolve("scripts/paperclip/reconcile-blueprint-paperclip-company.sh");
+    const content = await fs.readFile(reconcilePath, "utf8");
+
+    expect(content).toContain(missingJwtCliFallbackLine);
   });
 
   it("keeps the chief of staff heartbeat pinned to the assigned issue on issue_assigned wakes", async () => {
@@ -60,5 +74,19 @@ describe("Blueprint Paperclip agent instruction guards", () => {
     const content = await fs.readFile(heartbeatPath, "utf8");
 
     expect(content).toContain("issue assigned: start from `PAPERCLIP_TASK_ID` as the sole execution scope.");
+  });
+
+  it("keeps WebApp Codex and Review issue-bound wakes pinned to Paperclip before localhost probes", async () => {
+    const guardedFiles = [
+      path.resolve("ops/paperclip/blueprint-company/agents/webapp-codex/AGENTS.md"),
+      path.resolve("ops/paperclip/blueprint-company/agents/webapp-review/AGENTS.md"),
+    ];
+
+    for (const file of guardedFiles) {
+      const content = await fs.readFile(file, "utf8");
+      expect(content, `${file} is missing the Paperclip-before-localhost guard`).toContain(
+        noLocalhostProbeBeforePaperclipLine,
+      );
+    }
   });
 });

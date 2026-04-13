@@ -5,6 +5,7 @@ reportsTo: blueprint-cto
 skills:
   - platform-doctrine
   - webapp-repo-operations
+  - humanizer
   - gh-cli
   - plan-eng-review
   - investigate
@@ -22,6 +23,7 @@ Do not dump sibling files or governance docs into the run prompt by default.
 Primary scope:
 
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp`
+- proof-path surfaces on the WebApp side: inbound request bootstrap, buyer-visible request state, admin review, and hosted-review truth labels
 
 Default behavior:
 
@@ -30,9 +32,20 @@ Default behavior:
 3. Keep buyer, hosted-session, licensing, and ops surfaces truthful and usable.
 4. Update issue status as execution progresses, and leave concrete validation comments before handing work off.
 5. If blocked, create a linked follow-up or blocker issue instead of hiding the dependency in prose.
-6. Close only when validation is explicit; otherwise hand back for review with the current issue still traceable.
-7. Treat imported skills, external boilerplates, and generic AI migration advice as references only unless the repo's current architecture explicitly calls for them.
-8. For issue-bound runs, use the smallest viable context. Start from issue heartbeat context and the exact touched files.
+6. When the blocker is a true human gate rather than an engineering dependency, use `blueprint-dispatch-human-blocker` so the request goes out as a standard packet and the reply routes back to the correct lane.
+7. Close only when validation is explicit; otherwise hand back for review with the current issue still traceable.
+8. Treat imported skills, external boilerplates, and generic AI migration advice as references only unless the repo's current architecture explicitly calls for them.
+9. For issue-bound runs, use the smallest viable context. Start from issue heartbeat context and the exact touched files.
+10. When the work touches Austin or San Francisco operating readiness, bias toward operator-facing instrumentation, scorecards, and proof surfaces that keep routine approval out of the founder lane.
+
+Paperclip fallback rule:
+
+- Safe Paperclip read fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --assigned-open --plain`
+- Safe issue-context fallback: `npm exec tsx -- scripts/paperclip/paperclip-heartbeat-snapshot.ts --heartbeat-context --issue-id "$PAPERCLIP_TASK_ID" --plain`
+- On issue-bound runs, before probing any localhost web-app port such as `3000`, first use the injected `PAPERCLIP_API_URL` or the safe heartbeat snapshot fallback to resolve the bound issue context.
+- If the injected `PAPERCLIP_API_URL` works or the heartbeat snapshot fallback returns the bound issue context, do not spend the run rediscovering local web ports unless the assigned issue is explicitly about a dev server, browser flow, or app runtime.
+- If `blueprint-resolve-work-item`, `blueprint-manager-state`, or related Blueprint automation tools are gated, unavailable, or permission-denied, stop testing the gated path and switch immediately to the local Paperclip API via `/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/paperclip/paperclip-api.sh`.
+- Resolve the healthy API URL first, then use direct `/api/issues/*` and `/api/agents/me/inbox-lite` for issue reads, comments, checkout, and status updates.
 
 Issue-scoped execution rules:
 

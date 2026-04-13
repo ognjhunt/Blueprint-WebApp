@@ -16,6 +16,28 @@ type Routine = {
   triggers?: Array<{ kind?: string | null; enabled?: boolean | null }>;
 };
 
+type ManagerStateSnapshot = {
+  summary: {
+    openIssueCount: number;
+    blockedIssueCount: number;
+    staleIssueCount: number;
+    recentlyCompletedCount: number;
+    unassignedIssueCount: number;
+    routineAlertCount: number;
+    managedOpenIssueCount: number;
+    activeAgentCount: number;
+    openHandoffCount: number;
+    stuckHandoffCount: number;
+  };
+  openIssues: Issue[];
+  blockedIssues: Issue[];
+  staleIssues: Issue[];
+  recentlyCompletedIssues: Issue[];
+  unassignedIssues: Issue[];
+  managedOpenIssues: Issue[];
+  nextActionHints: string[];
+};
+
 const PAPERCLIP_API_URL = process.env.PAPERCLIP_API_URL ?? "http://127.0.0.1:3100";
 const COMPANY_NAME = process.env.COMPANY_NAME ?? "Blueprint Autonomous Operations";
 const CHIEF_OF_STAFF_AGENT_KEY = "blueprint-chief-of-staff";
@@ -52,6 +74,16 @@ function buildHeaders() {
   return headers;
 }
 
+function buildBoardSafeHeaders() {
+  const headers = new Headers();
+  headers.set("Content-Type", "application/json");
+  const runId = process.env.PAPERCLIP_RUN_ID;
+  if (runId) {
+    headers.set("X-Paperclip-Run-Id", runId);
+  }
+  return headers;
+}
+
 function formatIssueLine(issue: Issue) {
   const identifier = issue.identifier ?? issue.id;
   const status = issue.status.padStart(12);
@@ -67,6 +99,40 @@ async function fetchJson<T>(path: string): Promise<T> {
     throw new Error(`${response.status} ${response.statusText} for ${path}`);
   }
   return response.json() as Promise<T>;
+}
+
+async function fetchManagerState(companyId: string): Promise<ManagerStateSnapshot | null> {
+  const response = await fetch(`${PAPERCLIP_API_URL}/api/plugins/blueprint.automation/actions/manager-state`, {
+    method: "POST",
+    headers: buildBoardSafeHeaders(),
+    body: JSON.stringify({
+      companyId,
+      params: {
+        companyId,
+      },
+    }),
+  });
+
+  if (response.status === 401 || response.status === 403) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error(`${response.status} ${response.statusText} for /api/plugins/blueprint.automation/actions/manager-state`);
+  }
+
+  const payload = await response.json() as { data?: ManagerStateSnapshot };
+  return payload.data ?? null;
+}
+
+async function fetchCompanyOpenIssues(companyId: string): Promise<Issue[]> {
+  const issues = await fetchJson<Issue[]>(`/api/companies/${companyId}/issues`);
+  return issues.filter((issue) => !["done", "cancelled"].includes(issue.status));
+}
+
+function isBoardAccessError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.startsWith("401 ") || message.startsWith("403 ");
 }
 
 function buildListPayload(issues: Issue[], kind: "assigned_open" | "open", limit: number, agentId?: string | null) {
@@ -85,6 +151,31 @@ function buildListPayload(issues: Issue[], kind: "assigned_open" | "open", limit
       assigneeAgentId: issue.assigneeAgentId ?? null,
       updatedAt: issue.updatedAt ?? null,
     })),
+  };
+}
+
+function buildManagerSnapshotPayload(snapshot: ManagerStateSnapshot, kind: "assigned_open" | "open", limit: number, agentId?: string | null) {
+  const issues = kind === "assigned_open" && agentId
+    ? snapshot.openIssues.filter((issue) => issue.assigneeAgentId === agentId)
+    : snapshot.openIssues;
+
+  return {
+    generatedAt: new Date().toISOString(),
+    kind,
+    limit,
+    agentId: agentId ?? null,
+    count: issues.length,
+    summary: snapshot.summary,
+    issues: issues.slice(0, limit).map((issue) => ({
+      id: issue.id,
+      identifier: issue.identifier ?? null,
+      title: issue.title,
+      status: issue.status,
+      priority: issue.priority,
+      assigneeAgentId: issue.assigneeAgentId ?? null,
+      updatedAt: issue.updatedAt ?? null,
+    })),
+    nextActionHints: snapshot.nextActionHints.slice(0, limit),
   };
 }
 
@@ -158,17 +249,30 @@ async function main() {
   }
 
   if (assignedOpen || openOnly) {
-    const issues = await fetchJson<Issue[]>(`/api/companies/${company.id}/issues`);
-    const openIssues = issues.filter((issue) => !["done", "cancelled"].includes(issue.status));
+    const managerState = await fetchManagerState(company.id);
+    const issues = managerState?.openIssues ?? await fetchCompanyOpenIssues(company.id).catch((error: unknown) => {
+      if (isBoardAccessError(error)) {
+        throw new Error("Board-safe manager-state fallback unavailable after board-gated company issue list read.");
+      }
+      throw error;
+    });
 
     if (assignedOpen) {
       const agentId = args.get("agent-id") ?? PAPERCLIP_AGENT_ID;
       if (!agentId) {
         throw new Error("--agent-id is required when PAPERCLIP_AGENT_ID is unavailable");
       }
-      const assignedIssues = openIssues.filter((issue) => issue.assigneeAgentId === agentId);
+      const assignedIssues = issues.filter((issue) => issue.assigneeAgentId === agentId);
       if (json || !plain) {
-        console.log(JSON.stringify(buildListPayload(assignedIssues, "assigned_open", limit, agentId), null, 2));
+        console.log(
+          JSON.stringify(
+            managerState
+              ? buildManagerSnapshotPayload(managerState, "assigned_open", limit, agentId)
+              : buildListPayload(assignedIssues, "assigned_open", limit, agentId),
+            null,
+            2,
+          ),
+        );
         return;
       }
       printIssueList(`Assigned open issues for ${agentId}`, assignedIssues, limit);
@@ -176,16 +280,25 @@ async function main() {
     }
 
     if (json || !plain) {
-      console.log(JSON.stringify(buildListPayload(openIssues, "open", limit), null, 2));
+      console.log(
+        JSON.stringify(
+          managerState ? buildManagerSnapshotPayload(managerState, "open", limit) : buildListPayload(issues, "open", limit),
+          null,
+          2,
+        ),
+      );
       return;
     }
-    printIssueList(`Open issues in ${company.name}`, openIssues, limit);
+    printIssueList(`Open issues in ${company.name}`, issues, limit);
     return;
   }
 
+  const managerState = await fetchManagerState(company.id);
   const [agents, issues, routines] = await Promise.all([
     fetchJson<Array<{ id: string; urlKey?: string | null; name?: string | null }>>(`/api/companies/${company.id}/agents`),
-    fetchJson<Issue[]>(`/api/companies/${company.id}/issues`),
+    managerState
+      ? Promise.resolve(managerState.openIssues)
+      : fetchCompanyOpenIssues(company.id),
     fetchJson<Routine[]>(`/api/companies/${company.id}/routines`),
   ]);
 

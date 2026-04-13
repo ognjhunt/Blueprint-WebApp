@@ -18,7 +18,7 @@ The city should answer a different question from Austin: once Blueprint has a cr
 - evidence-backed: structured signup analytics exist in code, but San Francisco-specific city and referral cuts still need deployment and end-to-end validation.
 - evidence-backed: growth-lead weekly review (April 6) flagged the analytics gap as a critical cross-stack risk — SF expansion decisions are even more analytics-dependent than Austin's due to the higher bar and lower tolerance for noise.
 - inferred: the transition from bootstrap to execution means SF-specific work items (proof-first copy, high-bar intake rubric, trust pack) now have named agent owners who can act once gated on human approvals.
-- inferred: San Francisco still needs a human decision on who can issue access codes and how tightly they are distributed, so it remains a high-bar gated cohort rather than a public recruiting market.
+- inferred: San Francisco no longer needs founder involvement for routine referral, invite, rubric, threshold, or trust-pack decisions once the operator guardrails are written; the remaining founder decision is whether SF starts at all.
 
 ## Why San Francisco Now
 - the city has dense robotics, autonomy, simulation, and world-model-adjacent talent
@@ -64,42 +64,47 @@ The city should answer a different question from Austin: once Blueprint has a cr
 | legal/compliance clarity | 2/5 | Incentive language, referral rules, and local interpretation remain human-gated |
 | strategic importance | 5/5 | The city is strategically valuable, but importance should not be confused with readiness |
 
-## Dependency Map
-| Function | What must exist before San Francisco expands | Current state |
-|---|---|---|
-| Growth | a clear Bay Area cohort thesis and referral-first posture | missing explicit SF cohort boundaries and human-approved referral rules |
-| Conversion | SF-specific source-aware entry path and sharper proof language for selective contributors | capturer signup now collects access source in the current worktree, but SF-specific proof language, source taxonomy, and deployment validation are still missing |
-| Analytics | city and source instrumentation from first touch through approval and first capture | structured signup events now exist in the current worktree, but SF city and referral cuts are still not validated end to end |
-| Intake | higher-bar SF approval rubric with source trust, access routing, and responsiveness standards | current waitlist intake in [server/routes/waitlist.ts](/Users/nijelhunt_1/workspace/Blueprint-WebApp/server/routes/waitlist.ts) stores market and device context, but not a city-specific high-bar workflow or access-source triage |
-| Field Ops | clear rules for when SF contributor quality justifies assignment into real captures | field-ops automation exists in [server/utils/field-ops-automation.ts](/Users/nijelhunt_1/workspace/Blueprint-WebApp/server/utils/field-ops-automation.ts), but no Bay Area-specific activation thresholds or load assumptions exist |
-| Ops | higher-touch trust kit for selective contributors and sensitive site-access cases | partial admin tooling exists; no SF-specific trust pack or sensitive-site escalation guidance is written down |
+## San Francisco Operating Model
+
+### Founder-only
+- decide whether San Francisco starts at all
+- approve any new SF spend envelope
+- approve any public claim that would change Blueprint's company posture
+- approve any non-standard pricing, contract, or commercialization commitment
+- decide any rights, privacy, or policy exception that would change trust, legality, or irreversible external commitments
+
+### Human operator-owned
+- `growth-lead`: owns SF referral-first channel posture, source policy, and invite/access-code rules inside written guardrails
+- `growth-lead` or `ops-lead`: may issue SF invites or access codes inside the written SF cohort policy
+- `ops-lead`: owns the SF high-bar intake rubric, first-capture activation thresholds, sensitive-site trust process, and launch-readiness ops checklist
+- designated human commercial owner: handles standard SF buyer progression and standard quote approvals inside the tighter approved SF price bands with `buyer-solutions-agent` and `revenue-ops-pricing-agent` support
+
+### Agent-prepared / autonomous
+- `city-launch-agent`: maintains the SF plan, dependency map, and operator-ready decision packet inputs
+- `conversion-agent`: ships SF proof-first, source-aware entry copy without generic gig framing
+- `analytics-agent` plus `webapp-codex`: validate SF referral, source, approval, first-capture, and repeat-capture instrumentation end to end
+- `intake-agent`: classifies SF applicants using the Ops Lead-approved high-bar rubric and flags exceptions instead of inventing approvals
+- `field-ops-agent`: runs assignment, reminder, and escalation logic inside the SF activation thresholds
+- `notion-manager-agent`: keeps SF launch-readiness and operator views current so founder-facing surfaces only carry true city or policy exceptions
+
+### Exception-only escalation
+- rights, privacy, consent, or commercialization ambiguity routes to `rights-provenance-agent` plus a designated human reviewer; founder sees only precedent-breaking exceptions
+- pricing, contract, or packaging outside approved SF bands routes to designated human commercial owner plus `revenue-ops-pricing-agent`; founder sees only non-standard commitments
+- SF should not hit Founder OS for routine referral approval inside policy, invite issuance, rubric approval, threshold tuning, trust-pack updates, analytics validation, or standard buyer motions
 
 ## Near-Term Experiments
 1. Do not test San Francisco top-of-funnel volume yet; test whether referral-first and access-code seeded sourcing can produce credible high-trust applicants after Austin establishes the baseline instrumentation.
 2. Validate whether proof-first Bay Area copy can improve applicant quality without implying broader live-market availability.
 3. Compare robotics-community sourcing versus trusted operator introductions only after referral and source tagging are validated.
 
-## Staffing / Ops Implications
-- San Francisco should assume a higher review burden per approved contributor than Austin because selective contributors, access routing, and sensitive facilities will expose weak process faster.
-- Intake and ops should expect more exception handling around proof, legitimacy, and operator-facing reassurance before Bay Area routing becomes repeatable.
-- Field ops should treat San Francisco as a later-stage cohort with stricter assignment criteria, not as overflow volume when Austin is constrained.
-
 ## Issue-Ready Work Queue
 | Owner | Proposed issue | Why now | Done when |
 |---|---|---|---|
-| conversion-agent | Add SF proof-first cohort path with access-source routing | San Francisco needs sharper proof and less generic signup framing than Austin | SF entry path exists with source-aware copy, no gig-style positioning, and explicit access routing |
-| analytics-agent | Define SF launch scorecard with referral, access-source, and trust-source cuts | SF should only expand if proof and trust are measurable by cohort | Baseline SF funnel can be segmented by referral, access source, community source, approval, first capture, and repeat capture |
-| intake-agent | Create SF high-bar approval rubric | Selective Bay Area outreach requires explicit screening expectations | Intake can classify SF applicants by source trust, access route, device fit, responsiveness, and review priority |
-| field-ops-agent | Define Bay Area first-capture assignment criteria | SF contributor expectations and facility sensitivity will punish sloppy routing | Ops has written rules for assignment, reminder cadence, and escalation before Bay Area activation expands |
-| ops-lead | Build SF contributor trust pack for sensitive site access | Bay Area contributors and sites will require stronger legitimacy signals earlier | Internal materials exist for approved-contributor status, contact path, and operator-facing reassurance |
-| growth-lead | Approve SF referral-only or invite-only posture, access-code distribution, and any incentive language | No agent should widen SF acquisition without a human decision | Human decision recorded on referral rules, invite-only scope, access-code distribution, and whether SF remains behind Austin |
-
-## Human Gates
-- approve Bay Area referral mechanics and any incentive language
-- approve any Bay Area invite or access-code issuance policy
-- approve any public San Francisco recruiting or paid spend
-- approve any local legal or compliance interpretation
-- make the actual San Francisco launch or no-launch call
+| `growth-lead` | Publish SF cohort policy covering referral rules, source guardrails, and invite/access-code issuance | SF routine access decisions should not require founder review once the city is approved to run | SF policy names who may issue invites, what referrals qualify, and when SF stays referral-first |
+| `ops-lead` | Approve SF high-bar intake rubric, Bay Area thresholds, sensitive-site trust process, and readiness checklist | SF routine launch ops need a named operator lane before any cohort starts | Operator packet exists for rubric, threshold, trust process, and readiness ownership |
+| `conversion-agent` | Add SF proof-first cohort path with access-source routing | SF needs sharper proof and less generic signup framing than Austin | SF entry path exists with source-aware copy, no gig-style positioning, and explicit access routing |
+| `analytics-agent` + `webapp-codex` | Build and verify SF launch scorecard for referral/source -> approval -> first capture | SF should only start if proof and trust are measurable by cohort | Baseline SF funnel can be segmented by referral, access source, community source, approval, first capture, and repeat capture |
+| `buyer-solutions-agent` + designated human commercial owner | Define SF standard buyer-thread handling and quote handoff inside tighter boundaries | Standard SF commercial handling should not jump straight to founder review | SF buyer threads stay in standard handling unless pricing, rights, contract, or policy exceptions appear |
 
 ## Sequencing Recommendation
 San Francisco should remain second, not because it lacks value, but because it is less forgiving. Run it only after Austin establishes a trustworthy baseline for cohort tagging, approval logic, first-capture activation, access discipline, and no-hype contributor messaging.

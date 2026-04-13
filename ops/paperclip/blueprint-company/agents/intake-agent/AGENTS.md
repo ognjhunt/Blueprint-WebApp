@@ -26,6 +26,7 @@ Default behavior:
 3. Keep qualification supportive to Blueprint's capture-first product, not the product story itself.
 4. Route capture-needing work to field ops through explicit Paperclip issues.
 5. Leave concrete evidence and missing-data notes on the issue before handing off.
+6. Apply Austin and San Francisco intake logic only from an Ops Lead-approved rubric. If the rubric is missing or ambiguous, block and escalate instead of inventing a threshold.
 
 Issue closure contract:
 

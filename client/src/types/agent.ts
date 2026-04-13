@@ -24,6 +24,7 @@ export type AgentRunStatus =
 export type StartupContextMetadata = {
   startupPackIds?: string[];
   repoDocPaths?: string[];
+  knowledgePagePaths?: string[];
   blueprintIds?: string[];
   documentIds?: string[];
   externalSources?: Array<{
@@ -43,6 +44,16 @@ export type StartupContextMetadata = {
   operatorNotes?: string;
   targetHarness?: HarnessTarget;
 };
+
+export interface KnowledgePageReference {
+  path: string;
+  title: string;
+  pageKind?: string;
+  owner?: string;
+  authority?: string;
+  reviewStatus?: string;
+  lastVerifiedAt?: string | null;
+}
 
 export type OutcomeContract = {
   objective: string;
@@ -140,6 +151,7 @@ export interface AgentRunRecord {
 export interface AgentContextOptionsResponse {
   ok: boolean;
   repoDocs: string[];
+  knowledgePages: KnowledgePageReference[];
   blueprints: Array<{ id: string; name: string }>;
   opsDocuments: OpsDocumentRecord[];
   startupPacks: StartupPackRecord[];
@@ -161,6 +173,7 @@ export interface StartupPackRecord {
   name: string;
   description: string;
   repoDocPaths: string[];
+  knowledgePagePaths: string[];
   blueprintIds: string[];
   documentIds: string[];
   externalSources: Array<{

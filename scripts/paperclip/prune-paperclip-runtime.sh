@@ -8,6 +8,7 @@ PAPERCLIP_HOST="${PAPERCLIP_HOST:-127.0.0.1}"
 RUN_LOG_RETENTION_DAYS="${RUN_LOG_RETENTION_DAYS:-7}"
 SESSION_RETENTION_DAYS="${SESSION_RETENTION_DAYS:-7}"
 KEEP_LATEST_BACKUPS="${KEEP_LATEST_BACKUPS:-1}"
+BACKUP_TMP_RETENTION_MINUTES="${BACKUP_TMP_RETENTION_MINUTES:-180}"
 INSTANCE_ID="${PAPERCLIP_INSTANCE_ID:-default}"
 RUNTIME_LOG_PATH="${RUNTIME_LOG_PATH:-$PAPERCLIP_HOME_DIR/logs/paperclip-runtime.log}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -86,6 +87,33 @@ prune_backups() {
   printf '%s' "$deleted"
 }
 
+prune_stale_backup_temps() {
+  local backup_dir="$1"
+  local retention_minutes="$2"
+  local tmp_file=""
+  local deleted_count=0
+  local file_path=""
+
+  if [ ! -d "$backup_dir" ]; then
+    printf '0'
+    return 0
+  fi
+
+  tmp_file="$(mktemp)"
+  find "$backup_dir" -maxdepth 1 -type f -name 'paperclip-*.sql.tmp' -mmin +"$retention_minutes" -print > "$tmp_file"
+  deleted_count="$(wc -l < "$tmp_file" | tr -d ' ')"
+
+  if [ "$deleted_count" != "0" ]; then
+    while IFS= read -r file_path; do
+      [ -n "$file_path" ] || continue
+      rm -f "$file_path"
+    done < "$tmp_file"
+  fi
+
+  rm -f "$tmp_file"
+  printf '%s' "$deleted_count"
+}
+
 stop_paperclip() {
   pkill -f "paperclipai run --data-dir ${PAPERCLIP_HOME_DIR}" 2>/dev/null || true
   pkill -f "cli/src/index.ts run --data-dir ${PAPERCLIP_HOME_DIR}" 2>/dev/null || true
@@ -120,7 +148,7 @@ main() {
   local run_log_dir="$PAPERCLIP_HOME_DIR/instances/$INSTANCE_ID/data/run-logs"
   local company_dir="$PAPERCLIP_HOME_DIR/instances/$INSTANCE_ID/companies"
   local before_backups before_run_logs before_sessions after_backups after_run_logs after_sessions
-  local deleted_backups deleted_run_logs deleted_sessions
+  local deleted_backups deleted_backup_temps deleted_run_logs deleted_sessions
   local api_url=""
   local count=0
   local session_dir=""
@@ -131,6 +159,7 @@ main() {
   log "before prune: backups=$before_backups run_logs=$before_run_logs companies=$before_sessions"
 
   deleted_backups="$(prune_backups "$backup_dir" "$KEEP_LATEST_BACKUPS")"
+  deleted_backup_temps="$(prune_stale_backup_temps "$backup_dir" "$BACKUP_TMP_RETENTION_MINUTES")"
   deleted_run_logs="$(prune_old_files "$run_log_dir" "$RUN_LOG_RETENTION_DAYS")"
 
   deleted_sessions=0
@@ -146,7 +175,7 @@ main() {
   after_run_logs="$(measure_path "$run_log_dir")"
   after_sessions="$(measure_path "$company_dir")"
   log "after prune: backups=$after_backups run_logs=$after_run_logs companies=$after_sessions"
-  log "deleted files: backups=$deleted_backups run_logs=$deleted_run_logs sessions=$deleted_sessions"
+  log "deleted files: backups=$deleted_backups backup_temps=$deleted_backup_temps run_logs=$deleted_run_logs sessions=$deleted_sessions"
 
   stop_paperclip
   start_paperclip

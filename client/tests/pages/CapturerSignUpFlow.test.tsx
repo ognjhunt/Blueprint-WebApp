@@ -12,6 +12,7 @@ const analyticsEventsMock = vi.hoisted(() => ({
   capturerSignupSubmitted: vi.fn(),
   capturerSignupCompleted: vi.fn(),
   capturerSignupFailed: vi.fn(),
+  capturerCohortEntered: vi.fn(),
 }));
 
 vi.mock("wouter", () => ({
@@ -123,6 +124,15 @@ describe("CapturerSignUpFlow analytics", () => {
       equipmentCount: 1,
       availability: "flexible",
       referralSource: "search",
+    });
+    expect(analyticsEventsMock.capturerCohortEntered).toHaveBeenCalledWith({
+      market: "Raleigh-Durham, NC",
+      cohortSource: "search",
+      accessPath: "search",
+      hasAccessCode: false,
+      equipmentCount: 1,
+      availability: "flexible",
+      applicationStatus: "pending_review",
     });
     expect(analyticsEventsMock.capturerSignupCompleted).toHaveBeenCalledWith({
       authMethod: "password",

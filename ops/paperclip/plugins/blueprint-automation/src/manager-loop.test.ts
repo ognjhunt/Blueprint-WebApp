@@ -116,6 +116,12 @@ describe("manager loop helpers", () => {
     expect(snapshot.summary.stuckHandoffCount).toBe(0);
     expect(snapshot.handoffSummary.avgLatencyHours).toBeNull();
     expect(snapshot.dailyAccountability.agentsRan).toEqual([]);
+    expect(snapshot.openIssues).toHaveLength(3);
+    expect(snapshot.openIssues.map((issue) => issue.id)).toEqual([
+      "iss-blocked",
+      "iss-stale",
+      "iss-unassigned",
+    ]);
     expect(snapshot.blockedIssues.map((issue) => issue.id)).toContain("iss-blocked");
     expect(snapshot.staleIssues.map((issue) => issue.id)).toContain("iss-stale");
     expect(snapshot.unassignedIssues.map((issue) => issue.id)).toContain("iss-unassigned");
@@ -326,5 +332,35 @@ describe("manager loop helpers", () => {
         } as any,
       }),
     ).toBe(false);
+  });
+
+  it("suppresses generic create wakes for automation-created issues but still wakes on later updates", () => {
+    expect(
+      shouldWakeChiefOfStaffForIssueEvent({
+        eventType: "issue.created",
+        chiefOfStaffAgentId: "chief-1",
+        issue: {
+          status: "todo",
+          priority: "high",
+          assigneeAgentId: "ops-lead",
+          createdByAgentId: "ops-lead",
+          originKind: "blueprint_automation",
+        } as any,
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldWakeChiefOfStaffForIssueEvent({
+        eventType: "issue.updated",
+        chiefOfStaffAgentId: "chief-1",
+        issue: {
+          status: "blocked",
+          priority: "high",
+          assigneeAgentId: "ops-lead",
+          createdByAgentId: "ops-lead",
+          originKind: "blueprint_automation",
+        } as any,
+      }),
+    ).toBe(true);
   });
 });

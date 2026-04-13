@@ -21,6 +21,8 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 - Paperclip is the execution and ownership record; Notion is the workspace, knowledge, review, and operator-visibility surface; repo files are the definitional source of truth
 - Autoresearch-pattern loops drive continuous optimization (adapted from [Karpathy's autoresearch](https://github.com/karpathy/autoresearch))
 - Growth should stay anchored to one narrow commercial wedge at a time. The current priority wedge is **Exact-Site Hosted Review**: one real site, one workflow lane, one package-plus-hosted-review path, with explicit human gates on pricing, policy, rights, and irreversible commitments.
+- Founder scope stays narrow: irreversible or company-level decisions only. Routine launch, commercial, and ops approvals belong in named operator lanes with agents preparing evidence, packets, and exception routing.
+- Named operator lanes in the current model: Growth Lead for channel/referral/source posture, Ops Lead for intake/threshold/trust-kit readiness, designated human commercial owner for standard quotes inside approved bands, and designated human rights reviewer for sensitive trust cases.
 
 ---
 
@@ -61,10 +63,10 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 
 | Department | Lead | Agents | Focus |
 |-----------|------|--------|-------|
-| **Executive** | CEO | CEO, Chief of Staff, CTO, Investor Relations, Notion Manager, Revenue Ops & Pricing | Strategy, priorities, continuous cross-dept coordination, workspace stewardship, and commercial system discipline |
+| **Executive** | CEO | CEO, Chief of Staff, CTO, Investor Relations, Notion Manager, Revenue Ops & Pricing, legacy Notion Reconciler | Strategy, priorities, decision packaging, workspace stewardship, and commercial system discipline |
 | **Engineering** | CTO | 6 agents (impl + review per repo) + Beta Launch Commander + Docs Agent | Code implementation, review, release orchestration, and documentation |
 | **Ops** | Ops Lead | 12 agents | Product operations lifecycle, buyer solutions, technical enablement, rights/trust, enterprise review, capturer success, catalog, and buyer success |
-| **Growth** | Growth Lead | 13 agents | Buyer demand, capturer supply, city planning, outbound sales, conversion, retention, intelligence, and community publishing |
+| **Growth** | Growth Lead | 13 defined lanes, 5 active core lanes | Analytics, conversion, market/demand intelligence, one city-demand loop, and explicit pause control over all non-core growth work |
 
 ---
 
@@ -114,7 +116,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 | **Model** | Hermes (OpenRouter Arcee free primary, Arcee/Z.ai ladder before Codex fallback) |
 | **Status** | Live in Paperclip package |
 
-**Purpose:** Runs the continuous 24/7 managerial loop. Watches issue state, routine health, queue changes, and agent activity; decides what finished, what stalled, and what needs a next action; and routes or closes work in Paperclip.
+**Purpose:** Runs the continuous managerial loop. Watches issue state, routine health, queue changes, and agent activity; decides what finished, what stalled, and what needs a next action; routes or closes work in Paperclip; and packages every founder or human gate as a standard decision packet instead of a vague escalation.
 
 **Triggers:**
 - `*/5 * * * *` — Continuous manager loop
@@ -126,7 +128,9 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 - Concrete Paperclip issue creation/update/closure
 - Delegations and blocker follow-up issues
 - Cross-agent follow-through decisions
+- Founder decision packets with one recommendation, one exact ask, one deadline, and one follow-through owner
 - Slack-visible manager wakeups and task-routing activity
+- Human-reply watcher ownership for blocker packets, including correlation, reply classification, and delegated execution handoff
 
 **Human gates:** Strategy, budget, rights/privacy, commercialization commitments, legal, policy, and other irreversible high-risk decisions.
 
@@ -144,7 +148,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 | **Model** | Claude |
 | **Status** | Live in Paperclip package |
 
-**Purpose:** Technical decisions, cross-repo coordination, architecture review. Routes non-technical ops issues to Ops Lead.
+**Purpose:** Technical decisions, cross-repo coordination, architecture review. Routes non-technical ops issues to Ops Lead and reviews technical blocker replies when the human response changes diagnosis or raises a platform-contract question.
 
 **Triggers:**
 - `30 8 * * 1-5` — Morning triage (8:30am ET)
@@ -209,13 +213,12 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 | **Model** | Hermes (OpenRouter Arcee free primary, Arcee/Z.ai ladder before Codex fallback) |
 | **Status** | New |
 
-**Purpose:** Reconciles Blueprint's Notion workspace after producer agents create artifacts. Keeps Work Queue, Knowledge, Skills, and linked Hub surfaces correctly placed, properly related, visibly fresh, and safely deduped without replacing Paperclip as the execution record.
+**Purpose:** Sole owner of Blueprint's Notion hygiene. Keeps Work Queue, Knowledge, Skills, and linked Hub surfaces correctly placed, properly related, visibly fresh, and safely deduped without replacing Paperclip as the execution record.
 
 **Triggers:**
-- Frequent recurring reconcile sweep for newly created or recently changed Blueprint-managed pages
-- Daily stale-page audit
-- Weekly workspace-structure sweep
-- Event: Chief of Staff, Ops Lead, Growth Lead, or any producer issue flags duplicate, stale, or misplaced Notion state
+- Event-driven drift repair for duplicate, stale, or misplaced Blueprint-managed pages
+- Manual or targeted reconciliation when Chief of Staff, Ops Lead, Growth Lead, or a producer issue flags Notion state that the write path could not repair safely
+- Broad recurring sweeps stay paused until idempotency and drift rules are stable
 
 **Inputs:**
 - Paperclip issues, routine proof, and producer comments
@@ -239,16 +242,15 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 | Field | Value |
 |-------|-------|
 | **Department** | Executive |
-| **Reports to** | Chief of Staff |
+| **Reports to** | Notion Manager Agent |
 | **Model** | Hermes (Paperclip execution truth, Notion visibility mirror) |
-| **Status** | Pilot |
+| **Status** | Paused legacy shim |
 
-**Purpose:** Runs the new Notion-facing pilot reconcile loop against Blueprint Hub command databases. Repairs clear metadata drift, stale flags, doctrine status, and relation links across Work Queue, Knowledge, Skills, Agents, and Agent Runs without treating Notion as execution truth.
+**Purpose:** Legacy compatibility shim for the former Notion-facing pilot reconcile loop. Active ownership has been merged into `notion-manager-agent`; this lane remains paused only so old references can be retired safely without silent breakage.
 
 **Triggers:**
-- Weekday daily reconcile sweep
-- Weekly structure sweep
-- Event: manual wake from Chief of Staff, Notion Manager Agent, or a follow-up issue about Blueprint Hub drift
+- None by default. Historical routines remain paused.
+- Event: legacy manual wake or old follow-up issue that still points at `notion-reconciler`
 
 **Inputs:**
 - Blueprint Work Queue, Knowledge, Skills, Agents, and Agent Runs databases
@@ -256,9 +258,8 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 - `ops/paperclip/blueprint-company/agents/notion-reconciler/AGENTS.md`
 
 **Outputs:**
-- repaired Notion metadata and relations on Blueprint-managed pages
-- explicit stale/doctrine flags where the truth is clear
-- run-level visibility row in Blueprint Agent Runs
+- redirect note pointing legacy work to `notion-manager-agent`
+- backward-compatible run mirror only when an old action still uses the legacy recorder
 - blocked follow-up comment when the cleanup is unsafe or ambiguous
 
 **Human gates:** Ambiguous page identity, unsafe move/archive decisions, and rights/privacy-sensitive cleanup.
@@ -276,11 +277,11 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 | **Model** | Hermes (OpenRouter Arcee free primary, Arcee/Z.ai ladder before Codex fallback) |
 | **Status** | New |
 
-**Purpose:** Maintains Blueprint's pricing and commercial system discipline. Connects buyer demand, site-catalog supply, usage, and delivery-cost signals into draft pricebook updates, package guidance, quote support, and discount guardrails without making live commercial commitments.
+**Purpose:** Maintains Blueprint's pricing and commercial system discipline. Connects buyer demand, site-catalog supply, usage, and delivery-cost signals into draft pricebook updates, package guidance, quote support, and discount guardrails without taking over buyer-thread ownership or making live commercial commitments. The designated human commercial owner uses this lane for standard quote decisions inside approved bands.
 
 **Triggers:**
-- `30 10 * * 2` — Weekly pricing review (Tuesday 10:30am ET)
-- Event: founder, chief-of-staff, buyer-solutions-agent, or growth-lead requests quote or package guidance
+- Event: designated human commercial owner, chief-of-staff, buyer-solutions-agent, or growth-lead requests quote or package guidance
+- Standing weekly pricing review remains paused until buyer volume or pricing-system drift justifies it
 
 **Inputs:**
 - Stripe revenue and checkout state
@@ -331,7 +332,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Hermes (OpenRouter Arcee free primary, Arcee/Z.ai ladder before Codex fallback) |
 | **Status** | New |
 
-**Purpose:** Coordinates all product operations. Routes work between intake, QA, scheduling, and finance agents. Produces daily ops summary. Escalates blockers to CEO.
+**Purpose:** Coordinates all product operations. Routes work between intake, QA, scheduling, and finance agents. Produces daily ops summary. Owns routine city-launch ops guardrails: intake rubric approval, first-capture thresholds, trust kit, and launch-readiness checklist for Austin and San Francisco. Escalates only true exceptions to CEO/founder lanes.
 
 **Triggers:**
 - `30 8 * * 1-5` — Morning ops review (8:30am ET)
@@ -348,8 +349,9 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Priority assignments → Paperclip issues for specialist agents
 - Escalations → CEO agent
 - Weekly ops trend summary → CEO + Growth Lead
+- Resumed execution ownership for non-technical human replies unless a narrower buyer, rights, or commercial lane already owns the thread
 
-**Human gates:** None (coordination/routing role).
+**Human gates:** Ops Lead is itself the routine human operator lane for launch-readiness ops. Founder escalation is only for spend, policy, rights/privacy, legal, or other irreversible exceptions.
 
 **External needs:** Firestore read, Notion API, Slack webhook.
 
@@ -373,7 +375,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Claude |
 | **Status** | New |
 
-**Purpose:** Processes capturer applications (waitlist) and buyer inbound requests. Classifies by intent, scores readiness, detects missing info, drafts responses, and auto-executes low-risk follow-up where policy allows.
+**Purpose:** Processes capturer applications (waitlist) and buyer inbound requests. Classifies by intent, scores readiness, detects missing info, drafts responses, and prepares operator-ready invite or follow-up recommendations inside approved policy. Routine invite or access-code issuance remains human-operated.
 
 **Triggers:**
 - Webhook: Firestore onCreate on waitlist and inbound_requests collections
@@ -388,7 +390,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 **Outputs:**
 - Classification label + priority score on each record
 - Draft invite/reject/follow-up messages
-- Auto-sent low-risk follow-up and invite flows routed through the action ledger
+- Operator-ready invite or access recommendation packets routed to Growth Lead / Ops Lead inside approved city policy
 - Missing-info flags with specific questions
 - Updates to Notion Work Queue
 
@@ -403,8 +405,8 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | Phase | Behavior | Criteria to advance |
 |-------|----------|-------------------|
 | 1 | Classify + score only; human sends all messages | 2 weeks, classification accuracy >90% |
-| 2 | Auto-send low-risk follow-up and invite flows; human reviews rejections and sensitive cases | Shipped in WebApp |
-| 3 | Expand auto-invite authority only if policy and outcomes justify it | Founder sign-off |
+| 2 | Auto-send low-risk follow-up only; Growth Lead / Ops Lead issue invites and access decisions inside policy | Shipped in WebApp |
+| 3 | Expand operator-approved invite execution only if policy and outcomes justify it | Ops Lead + Growth Lead sign-off |
 
 **Skill file:** `ops/paperclip/skills/intake-agent.md`
 
@@ -464,7 +466,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Claude |
 | **Status** | New |
 
-**Purpose:** Coordinates capture scheduling — capturer assignment, standard communications, reminder sequencing, simple reschedules, and site-access tracking.
+**Purpose:** Coordinates capture scheduling — capturer assignment, standard communications, reminder sequencing, simple reschedules, and site-access tracking. Executes first-capture activation only inside Ops Lead-approved thresholds.
 
 **Triggers:**
 - Event: Intake agent qualifies a request needing capture
@@ -498,7 +500,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 |-------|----------|-------------------|
 | 1 | Proposes schedule + match; human confirms and sends | 2 weeks, proposals accepted >85% |
 | 2 | Auto-assigns heuristically, auto-sends standard reminders/comms, auto-executes same-day simple reschedules | Shipped in WebApp |
-| 3 | Expand beyond heuristic dispatch only with stronger external availability/travel data | Founder sign-off |
+| 3 | Expand beyond heuristic dispatch only with stronger external availability/travel data and written thresholds | Ops Lead sign-off |
 
 **Skill file:** `ops/paperclip/skills/field-ops-agent.md`
 
@@ -608,7 +610,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Hermes (OpenRouter Arcee free primary, Arcee/Z.ai ladder before Codex fallback) |
 | **Status** | New |
 
-**Purpose:** Owns the buyer journey from qualified inbound to proof-ready. Interprets messy buyer requests, translates them into concrete package requirements, tracks through capture matching and packaging, and delivers proof for buyer evaluation.
+**Purpose:** Single commercial journey owner from qualified inbound to proof-ready commercial motion. Interprets messy buyer requests, translates them into concrete package requirements, tracks through capture matching and packaging, and delivers proof for buyer evaluation without letting pricing or technical specialists fragment ownership.
 
 **Why this is an agent (not just CRM automation):** Buyer requests are natural language from diverse robot teams with unclear site details, proof expectations, and timelines. Someone has to interpret, prioritize, and route — that is judgment work, not form processing.
 
@@ -618,8 +620,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Intake agent routes a qualified buyer request
 - Pipeline attachment sync produces artifacts for an active buyer
 - Buyer responds to outreach
-- `0 10 * * 1-5` — Morning buyer pipeline review
-- `0 15 * * 1-5` — Afternoon follow-up
+- `15 10 * * 1-5` — Weekday buyer pipeline review
 
 **Inputs:**
 - Firestore inbound requests
@@ -635,16 +636,17 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Journey stage transitions and outcome documentation
 
 **Human gates:**
-- Pricing, terms, contract negotiation
+- Standard quotes and package approvals route to the designated human commercial owner
+- Non-standard pricing, terms, or contract negotiation route to founder
 - Promises about capabilities Blueprint does not yet have
-- Any external buyer-facing communication beyond status updates
+- Any external buyer-facing communication that would create a non-standard commitment
 
 **Graduation path:**
 | Phase | Behavior | Criteria to advance |
 |-------|----------|-------------------|
 | 1 | Tracks and recommends; human handles all buyer communication | 5 buyer journeys tracked end-to-end |
-| 2 | Sends routine status updates autonomously; human approves proof delivery and commercial conversations | 3 successful proof deliveries |
-| 3 | Manages routine buyer journeys autonomously; human reviews only commercial and capability-gap conversations | Founder sign-off |
+| 2 | Sends routine status updates and proof delivery autonomously; designated human commercial owner handles standard commercial conversations | 3 successful proof deliveries |
+| 3 | Manages routine buyer journeys autonomously; human reviews only non-standard commercial and capability-gap conversations | Founder sign-off |
 
 ---
 
@@ -657,7 +659,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Hermes (OpenRouter Arcee free primary, Arcee/Z.ai ladder before Codex fallback) |
 | **Status** | New |
 
-**Purpose:** Owns technical buyer enablement from proof-ready to implementation-ready. Converts buyer stack questions, hosted-session requirements, export expectations, and deployment readiness into explicit evaluation plans and integration checklists grounded in the product and artifacts that already exist.
+**Purpose:** Owns technical buyer enablement inside the buyer-solutions thread from proof-ready to implementation-ready. Converts buyer stack questions, hosted-session requirements, export expectations, and deployment readiness into explicit evaluation plans and integration checklists grounded in the product and artifacts that already exist.
 
 **Why this is an agent (not just product docs):** Technical buyers do not only need a proof pack. They need someone to connect a real site package and hosted review path to their stack, eval workflow, and implementation plan. That requires judgment across buyer context, current product behavior, and artifact reality.
 
@@ -718,7 +720,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 **Outputs:**
 - CLEARED / BLOCKED / NEEDS-REVIEW decisions with evidence citations
 - Specific unblock actions for BLOCKED items
-- Founder escalation summaries for NEEDS-REVIEW cases
+- Designated-human-reviewer escalation summaries for NEEDS-REVIEW cases
 - Rights clearance attached to Paperclip issues
 
 **Human gates:**
@@ -726,7 +728,8 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Regulatory gray areas
 - Expanding commercialization scope beyond original grant
 - Any case where the right answer is genuinely unclear
-- ALL rights decisions are permanently human-gated (never fully autonomous)
+- Designated human reviewer handles sensitive rights/privacy judgments; founder review is reserved for precedent-setting or policy-changing exceptions
+- ALL rights decisions remain permanently human-gated (never fully autonomous)
 
 **Graduation path:**
 | Phase | Behavior | Criteria to advance |
@@ -842,7 +845,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Hermes (OpenRouter Arcee free primary, Arcee/Z.ai ladder before Codex fallback) |
 | **Status** | New |
 
-**Purpose:** Coordinates buyer demand, capturer supply, conversion, retention, and city planning. Sets experiment priorities using ICE scoring. Synthesizes analytics, market intelligence, supply intelligence, capturer growth planning, city launch planning, demand intelligence, robot-team growth planning, site-operator lane planning, and city demand planning into growth strategy.
+**Purpose:** Coordinates a smaller active growth core: analytics, conversion, market intelligence, demand intelligence, and one city-demand loop. Sets experiment priorities using ICE scoring. Owns routine channel posture, referral mechanics, source policy, and city invite posture inside approved guardrails. Everything else in growth stays paused or event-driven unless evidence justifies restart.
 
 **Triggers:**
 - `0 9 * * 1-5` — Daily review of overnight analytics + agent reports
@@ -853,29 +856,19 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Analytics agent daily/weekly reports
 - Conversion Optimizer experiment results
 - Market Intel research digests
-- Supply Intel research digests
-- Capturer Growth playbook updates
-- City Launch city-plan updates
 - Demand Intel research digests
-- Robot Team Growth playbook updates
-- Site Operator Partnership updates
 - City Demand city-plan updates
 - Notion Work Queue (Growth-tagged items)
 
 **Outputs:**
 - Weekly growth summary → CEO + Notion
 - Experiment priority queue → Conversion Optimizer
-- Research briefs → Market Intelligence agent
-- Marketplace-supply research priorities → Supply Intelligence agent
-- Generic capturer playbook priorities → Capturer Growth agent
-- City sequencing priorities → City Launch agent
-- Robot-team demand research priorities → Demand Intelligence agent
-- Generic robot-team demand priorities → Robot Team Growth agent
-- Site-operator lane priorities → Site Operator Partnership agent
+- Research briefs → Market Intelligence and Demand Intelligence agents
 - Buyer-city sequencing priorities → City Demand agent
+- Explicit pause or restart decisions for non-core growth lanes
 - Funnel health dashboard updates → Notion
 
-**Human gates:** None (coordination role).
+**Human gates:** Growth Lead is itself the routine human operator lane for channel/referral/source policy. Founder escalation is only for spend envelopes, posture-changing public claims, or policy changes with irreversible external effect.
 
 **External needs:** Notion API, Slack webhook, analytics platform read.
 
@@ -967,7 +960,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Hermes (OpenRouter Arcee free primary, Arcee/Z.ai ladder before Codex fallback) |
 | **Status** | New |
 
-**Purpose:** Adapts Blueprint's generic capturer growth playbook to specific cities. Starts with Austin, TX and San Francisco, CA.
+**Purpose:** Adapts Blueprint's generic capturer growth playbook to specific cities. Starts with Austin, TX and San Francisco, CA. Every city guide must make the split explicit between founder-only work, human operator-owned work, agent-prepared work, and exception-only escalation.
 
 **Triggers:**
 - `30 11 * * 1` — Weekly city planning (Monday 11:30am ET)
@@ -985,7 +978,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Weekly city scorecards and readiness status
 - Cross-agent action queues for web, analytics, ops, intake, and field readiness
 
-**Human gates:** Final city launch decision, spend, public posting, compensation claims, and local legal/compliance interpretation.
+**Human gates:** Final city launch / no-launch decision, new spend envelopes, posture-changing public claims, and local legal/compliance interpretation. Routine invite/referral/rubric/threshold/trust-kit decisions belong to named operators.
 
 **Skill file:** `ops/paperclip/skills/city-launch-agent.md`
 **Steering file:** `ops/paperclip/programs/city-launch-agent-program.md`
@@ -1051,7 +1044,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 **Outputs:**
 - Generic robot-team demand playbook
 - Proof-pack and hosted-session guidance
-- Execution queue for Conversion, Analytics, Intake, Ops, Finance Support, and City Demand
+- Execution queue for Conversion, Analytics, Intake, Ops, standard commercial handling, and City Demand
 
 **Human gates:** Spend, discounts, pricing, contracts, outreach sends, and claims beyond current product truth.
 
@@ -1085,7 +1078,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 **Outputs:**
 - Optional site-operator playbook
 - Internal conversation frameworks for access and commercialization
-- Execution queue for Ops, Intake, Finance Support, and City Demand
+- Execution queue for Ops, Intake, standard commercial handling, and City Demand
 
 **Human gates:** Permission judgments, legal/privacy/rights interpretation, pricing, contracts, revenue-share commitments, and external outreach.
 
@@ -1120,9 +1113,9 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 **Outputs:**
 - City-specific demand plans
 - Weekly city scorecards and readiness status
-- Cross-agent action queues for web, analytics, intake, ops, finance, and site-operator follow-up
+- Cross-agent action queues for web, analytics, intake, ops, standard commercial handling, and site-operator follow-up
 
-**Human gates:** Public posting, outreach, city-live claims, guaranteed demand or partnership claims, pricing or contract commitments, and local legal/privacy/rights/commercialization interpretation.
+**Human gates:** Public posting, outreach, city-live claims, guaranteed demand or partnership claims, non-standard pricing or contract commitments, and local legal/privacy/rights/commercialization interpretation. Standard buyer progression and standard quotes should stay out of founder review.
 
 **Skill file:** `ops/paperclip/skills/city-demand-agent.md`
 **Steering file:** `ops/paperclip/programs/city-demand-agent-program.md`
@@ -1200,7 +1193,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Hermes (OpenRouter Arcee free primary, Arcee/Z.ai ladder before Codex fallback) |
 | **Status** | New |
 
-**Purpose:** Pulls, aggregates, and interprets all measurable signals across the platform. Detects anomalies. Produces daily/weekly reports. Answers ad-hoc metric queries from other agents.
+**Purpose:** KPI contract owner across Firestore, Stripe, PostHog/GA4, and Paperclip. Pulls, aggregates, and interprets measurable signals, detects anomalies, publishes daily/weekly reports, and keeps blocked metrics visible instead of inventing them.
 
 **Triggers:**
 - `0 6 * * *` — Daily 6am ET metrics pull + anomaly detection
@@ -1253,16 +1246,15 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | Field | Value |
 |-------|-------|
 | **Department** | Growth |
-| **Reports to** | Growth Lead |
+| **Reports to** | Analytics Agent |
 | **Model** | Hermes (Paperclip execution truth, Notion visibility mirror) |
-| **Status** | Pilot |
+| **Status** | Paused legacy shim |
 
-**Purpose:** Produces recurring internal metrics reports for the new Notion-facing pilot lane. Reads analytics, Growth Studio, Work Queue, and Knowledge context, then writes proof-backed report pages into Blueprint Knowledge with optional Work Queue breadcrumbs and Agent Runs visibility.
+**Purpose:** Legacy compatibility shim for the former Notion-facing metrics pilot. Active ownership of recurring KPI and internal metrics reporting has been merged into `analytics-agent`.
 
 **Triggers:**
-- Weekday daily metrics recap
-- Weekly internal metrics roundup
-- Event: manual wake from Growth Lead or Chief of Staff
+- None by default. Historical routines remain paused.
+- Event: legacy manual wake or old follow-up issue that still points at `metrics-reporter`
 
 **Inputs:**
 - analytics sources and Growth Studio mirrors
@@ -1270,9 +1262,8 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - `ops/paperclip/blueprint-company/agents/metrics-reporter/AGENTS.md`
 
 **Outputs:**
-- recurring metrics report pages in Blueprint Knowledge
-- optional Work Queue breadcrumb items
-- run-level visibility row in Blueprint Agent Runs
+- redirect note pointing legacy work to `analytics-agent`
+- backward-compatible report/run mirror only when an old action still uses the legacy reporter
 
 **Human gates:** External reuse of material claims still requires human review.
 
@@ -1482,8 +1473,8 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Outreach pattern reports to growth-lead
 
 **Human gates:**
-- All outreach in Phase 1 (founder approves before sending)
-- Any pricing or capability commitments — always founder
+- Standard outreach approval sits with Growth Lead inside approved posture; founder review is reserved for posture-changing, high-risk, or relationship-sensitive exceptions
+- Any pricing or capability commitments outside approved commercial guardrails — founder
 - Companies with existing relationships — coordinate through buyer-solutions-agent first
 
 **Outreach rules (non-negotiable):**
@@ -1495,8 +1486,8 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 **Graduation path:**
 | Phase | Behavior | Criteria to advance |
 |-------|----------|-------------------|
-| 1 | Researches and drafts; founder approves all sends | 20 drafts, quality and accuracy validated |
-| 2 | Sends first touch autonomously; founder approves follow-ups and handoffs | >20% response rate over 30 outreaches |
+| 1 | Researches and drafts; Growth Lead approves standard sends | 20 drafts, quality and accuracy validated |
+| 2 | Sends first touch autonomously; Growth Lead reviews follow-ups and handoffs, founder sees only sensitive exceptions | >20% response rate over 30 outreaches |
 | 3 | Manages outreach pipeline autonomously; founder reviews handoffs and escalations | Founder sign-off |
 
 ---
@@ -1510,7 +1501,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Hermes (OpenRouter Arcee free primary, Arcee/Z.ai ladder before Codex fallback) |
 | **Status** | New |
 
-**Purpose:** Customer success manager for Blueprint's robot team buyers post-delivery. Monitors hosted session usage, runs structured onboarding check-ins, collects and routes feedback, identifies expansion opportunities, and detects churn risk before it becomes churn.
+**Purpose:** Lightweight post-delivery buyer support lane. Handles onboarding, support, feedback, expansion signals, and churn risk after handoff, but stays event-driven until buyer volume is high enough to justify a standing cadence.
 
 **Why this is an agent (not just analytics dashboards):** Usage dashboards tell you what happened. This agent interprets what it means — a buyer who stops logging in needs a follow-up, not a report. A buyer who asks about a second site needs a handoff to buyer-solutions, not a FAQ link. Pattern recognition plus relationship continuity is judgment work.
 
@@ -1519,8 +1510,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Hosted session error or degraded performance affecting active buyers
 - Buyer submits support request or feedback
 - Usage anomaly detected (significant drop or spike)
-- `0 10 * * 1,3,5` — Buyer health check
-- `0 14 * * 2,4` — Feedback synthesis
+- manual milestone review once active-buyer thresholds justify a standing cadence
 
 **Inputs:**
 - Firestore: site-world sessions, buyer accounts, access entitlements, usage events
@@ -1537,15 +1527,15 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Churn reason reports and patterns to growth-lead
 
 **Human gates:**
-- All buyer communication in Phase 1 (founder approves before sending)
-- Contract or pricing discussions — always founder
-- Rights/privacy concerns from buyers — always escalate to rights-provenance-agent + founder
+- Routine buyer communication follows the active buyer-success policy
+- Contract or pricing discussions route to the designated human commercial owner for standard cases and founder only for non-standard exceptions
+- Rights/privacy concerns from buyers escalate to `rights-provenance-agent` plus the designated human reviewer; founder only for precedent-setting exceptions
 
 **Graduation path:**
 | Phase | Behavior | Criteria to advance |
 |-------|----------|-------------------|
-| 1 | Monitors and drafts; founder approves all communication | 5 buyers tracked through 30-day cycle |
-| 2 | Sends routine check-ins and support acknowledgments autonomously; founder reviews feedback routing and escalations | Buyer satisfaction signals positive |
+| 1 | Monitors and drafts; Ops Lead approves routine communication policy | 5 buyers tracked through 30-day cycle |
+| 2 | Sends routine check-ins and support acknowledgments autonomously; Ops Lead reviews feedback routing and escalations | Buyer satisfaction signals positive |
 | 3 | Manages buyer relationships autonomously; founder reviews expansion handoffs, churn cases, and rights escalations | Founder sign-off |
 
 ---

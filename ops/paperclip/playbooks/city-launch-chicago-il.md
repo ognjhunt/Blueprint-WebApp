@@ -3,20 +3,23 @@
 ## Status
 - phase: planning
 - owner: city-launch-agent
-- last-reviewed: 2026-04-08
+- last-reviewed: 2026-04-10
 - recommended-posture: gated cohort pilot, not public launch
 - last-human-launch-decision: not approved
+- review-outcome: posture unchanged — Chicago remains planning-only until Austin validates gated-cohort model
 
 ## Launch Thesis
 Chicago is a large, economically diverse market with deep industrial, logistics, and construction sectors that could benefit from Blueprint's capture-first world model products. However, compared to Austin, Chicago's trust graph is less dense for early cohort seeding, its robotics community is more institutional than founder-driven, and its commercial real estate and construction markets operate through entrenched brokerage and contractor networks that may not be as receptive to a new spatial data startup without significant relationship-based introduction.
 
 Chicago should serve as a strategic second-city candidate only after Austin validates the gated-cohort model, or in response to unsolicited demand from a qualified Chicago anchor contact.
 
-## What Changed This Pass
-- evidence-backed: the broader Blueprint launch stack now has more downstream owner capacity than it did at the previous Chicago review, after the April 5 bootstraps completed across growth, supply, analytics, conversion, intake, ops, and adjacent support lanes.
-- evidence-backed: the capturer signup flow now requires an explicit access-source choice and supports invite/access-code routing in the current worktree, which gives Chicago a more truthful future entry control if the city ever moves beyond planning.
+## What Changed This Pass (2026-04-10 review)
+- evidence-backed: Austin remains in planning phase with no validated gated-cohort activation, no first-capture quality signals, and analytics instrumentation still at 2/5. No material change to the Austin dependency that gates Chicago.
+- evidence-backed: the broader Blueprint launch stack has more downstream owner capacity after the April 5 bootstraps, but no city-specific execution has occurred for Chicago or Austin since last review.
+- evidence-backed: the capturer signup flow requires an explicit access-source choice and supports invite/access-code routing in the current worktree, which gives Chicago a more truthful future entry control if the city ever moves beyond planning.
 - evidence-backed: structured capturer and buyer signup analytics events exist in code, but Chicago-specific city and market cuts still need deployment and end-to-end validation before launch decisions can rely on them.
-- inferred: none of the new execution capacity changes the city posture yet; Chicago still remains a planning-only candidate until Austin proves the gated-cohort model.
+- inferred: none of the new execution capacity changes the city posture; Chicago remains a planning-only candidate until Austin proves the gated-cohort model.
+- decision: posture unchanged. Chicago readiness score remains 14/30 with no dimension improvement since last review.
 
 ## Why Chicago (Not Yet as First City)
 - evidence-backed: the city-launch proof framework (capturer signup with access-source routing, structured analytics events) exists but has not been validated end-to-end in any city yet

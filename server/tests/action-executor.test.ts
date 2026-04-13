@@ -13,6 +13,10 @@ import type {
 
 const mockSendEmail = vi.hoisted(() => vi.fn().mockResolvedValue({ sent: true }));
 const mockSendSlackMessage = vi.hoisted(() => vi.fn().mockResolvedValue({ sent: true }));
+const dispatchActionApprovalHumanBlocker = vi.hoisted(() => vi.fn());
+const safelyDispatchHumanBlocker = vi.hoisted(() =>
+  vi.fn(async (_label: string, dispatcher: () => Promise<unknown>) => dispatcher()),
+);
 
 // Firestore mock infrastructure
 const mockDocSet = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
@@ -66,6 +70,11 @@ vi.mock("../utils/email", () => ({
 
 vi.mock("../utils/slack", () => ({
   sendSlackMessage: mockSendSlackMessage,
+}));
+
+vi.mock("../utils/human-blocker-autonomy", () => ({
+  dispatchActionApprovalHumanBlocker,
+  safelyDispatchHumanBlocker,
 }));
 
 vi.mock("../logger", () => ({
@@ -235,6 +244,15 @@ describe("executeAction", () => {
     expect(result.tier).toBe(3);
     expect(mockDocSet).toHaveBeenCalled();
     expect(mockSendEmail).not.toHaveBeenCalled();
+    expect(dispatchActionApprovalHumanBlocker).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lane: "test_lane",
+        sourceCollection: "waitlistSubmissions",
+        sourceDocId: "sub-123",
+        actionType: "send_email",
+        approvalReason: "requires_human_review",
+      }),
+    );
   });
 
   it("auto-approves and executes tier 1 draft", async () => {

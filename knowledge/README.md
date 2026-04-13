@@ -11,6 +11,19 @@ It is intentionally hybrid:
 
 Read [`docs/hermes-kb-design.md`](/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/hermes-kb-design.md) for the full contract.
 
+## What This Is Not
+
+- not a second company database
+- not a replacement for Paperclip, Firestore, or Notion
+- not a generic personal CRM or founder memex
+
+## Best Use
+
+- buyer and account preparation
+- market and demand research continuity
+- support and procurement context reuse
+- doctrine-safe proof-path and hosted-review playbook compounding
+
 Before editing KB pages:
 
 1. Read [`knowledge/AGENTS.md`](/Users/nijelhunt_1/workspace/Blueprint-WebApp/knowledge/AGENTS.md).
@@ -22,4 +35,5 @@ Scaffolding commands:
 - `npm run ingest:hermes-kb -- --help`
 - `npm run ingest:hermes-kb -- raw-source --source-system web --title "Example source" --source-url https://example.com --captured-at 2026-04-07`
 - `npm run ingest:hermes-kb -- compiled-page --category demand-intel --title "Example page" --owner demand-intel-agent --source-system web --source-url https://example.com`
+- `npm run ingest:hermes-kb -- compiled-page --category buyer-dossiers --page-kind buyer_dossier --subject-key acme-robotics --title "Acme Robotics buyer dossier" --owner buyer-solutions-agent --source-system web --source-url https://example.com`
 - `npm run ingest:hermes-kb -- report --category account-research --title "Example account memo" --owner buyer-solutions-agent --source-system web --source-url https://example.com`

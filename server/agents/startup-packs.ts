@@ -147,6 +147,7 @@ export async function createStartupPack(params: {
   name: string;
   description?: string;
   repo_doc_paths?: string[];
+  knowledge_page_paths?: string[];
   blueprint_ids?: string[];
   document_ids?: string[];
   external_sources?: ExternalKnowledgeSource[];
@@ -167,6 +168,7 @@ export async function createStartupPack(params: {
     name: params.name.trim(),
     description: params.description?.trim() || "",
     repo_doc_paths: normalizeStringArray(params.repo_doc_paths),
+    knowledge_page_paths: normalizeStringArray(params.knowledge_page_paths),
     blueprint_ids: normalizeStringArray(params.blueprint_ids),
     document_ids: normalizeStringArray(params.document_ids),
     external_sources: normalizeExternalSources(params.external_sources),
@@ -209,6 +211,7 @@ export async function updateStartupPack(
     name?: string;
     description?: string;
     repo_doc_paths?: string[];
+    knowledge_page_paths?: string[];
     blueprint_ids?: string[];
     document_ids?: string[];
     external_sources?: ExternalKnowledgeSource[];
@@ -241,6 +244,9 @@ export async function updateStartupPack(
         : {}),
       ...(params.repo_doc_paths !== undefined
         ? { repo_doc_paths: normalizeStringArray(params.repo_doc_paths) }
+        : {}),
+      ...(params.knowledge_page_paths !== undefined
+        ? { knowledge_page_paths: normalizeStringArray(params.knowledge_page_paths) }
         : {}),
       ...(params.blueprint_ids !== undefined
         ? { blueprint_ids: normalizeStringArray(params.blueprint_ids) }

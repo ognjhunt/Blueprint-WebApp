@@ -1,0 +1,28 @@
+{
+  "city": "San Francisco, CA",
+  "citySlug": "san-francisco-ca",
+  "status": "draft_pending_founder_approval",
+  "startedAt": "2026-04-12T02:23:47.056Z",
+  "completedAt": "2026-04-12T02:23:47.063Z",
+  "artifacts": {
+    "runDirectory": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-francisco-ca/2026-04-12T02-23-47.056Z",
+    "manifestPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-francisco-ca/2026-04-12T02-23-47.056Z/manifest.json",
+    "systemDocPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-francisco-ca/2026-04-12T02-23-47.056Z/city-launch-system-san-francisco-ca.md",
+    "issueBundlePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-francisco-ca/2026-04-12T02-23-47.056Z/city-launch-issue-bundle-san-francisco-ca.md",
+    "issueBundleJsonPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-francisco-ca/2026-04-12T02-23-47.056Z/city-launch-issue-bundle-san-francisco-ca.json",
+    "targetLedgerPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-francisco-ca/2026-04-12T02-23-47.056Z/city-capture-target-ledger-san-francisco-ca.md",
+    "targetLedgerJsonPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-francisco-ca/2026-04-12T02-23-47.056Z/city-capture-target-ledger-san-francisco-ca.json",
+    "approvalsPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-francisco-ca/2026-04-12T02-23-47.056Z/founder-approvals.md",
+    "canonicalSystemDocPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/city-launch-system-san-francisco-ca.md",
+    "canonicalIssueBundlePath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-francisco-ca-execution-issue-bundle.md",
+    "canonicalTargetLedgerPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-capture-target-ledger-san-francisco-ca.md",
+    "notionKnowledgePageUrl": "https://www.notion.so/San-Francisco-CA-Launch-System-34080154161d8177bc4becea0fc2151b",
+    "notionWorkQueuePageUrl": "https://www.notion.so/Review-San-Francisco-CA-launch-harness-34080154161d8140b022cced8d027d2a"
+  },
+  "notion": {
+    "knowledgePageId": "34080154-161d-8177-bc4b-ecea0fc2151b",
+    "knowledgePageUrl": "https://www.notion.so/San-Francisco-CA-Launch-System-34080154161d8177bc4becea0fc2151b",
+    "workQueuePageId": "34080154-161d-8140-b022-cced8d027d2a",
+    "workQueuePageUrl": "https://www.notion.so/Review-San-Francisco-CA-launch-harness-34080154161d8140b022cced8d027d2a"
+  }
+}

@@ -82,6 +82,11 @@ function parseLineList(value: string) {
     .filter(Boolean);
 }
 
+function matchesLooseText(value: string, patterns: string[]) {
+  const normalized = value.toLowerCase();
+  return patterns.some((pattern) => normalized.includes(pattern));
+}
+
 function statusColor(status: AgentRunRecord["status"]) {
   switch (status) {
     case "completed":
@@ -212,6 +217,12 @@ type OpenClawSmokeTestResponse = {
   error?: string;
 };
 
+type KnowledgePageRecommendation = {
+  path: string;
+  title: string;
+  reason: string;
+};
+
 export default function AdminAgentConsole() {
   const queryClient = useQueryClient();
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -244,6 +255,7 @@ export default function AdminAgentConsole() {
   const [operatorNotes, setOperatorNotes] = useState("");
   const [selectedStartupPackIds, setSelectedStartupPackIds] = useState<string[]>([]);
   const [selectedRepoDocs, setSelectedRepoDocs] = useState<string[]>([]);
+  const [selectedKnowledgePagePaths, setSelectedKnowledgePagePaths] = useState<string[]>([]);
   const [selectedBlueprintIds, setSelectedBlueprintIds] = useState<string[]>([]);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
   const [selectedCreativeRunIds, setSelectedCreativeRunIds] = useState<string[]>([]);
@@ -424,6 +436,7 @@ export default function AdminAgentConsole() {
           startupContext: {
             startupPackIds: selectedStartupPackIds,
             repoDocPaths: selectedRepoDocs,
+            knowledgePagePaths: selectedKnowledgePagePaths,
             blueprintIds: selectedBlueprintIds,
             documentIds: selectedDocumentIds,
             externalSources: parseExternalSources(externalSourcesText),
@@ -465,6 +478,7 @@ export default function AdminAgentConsole() {
         name: startupPackName,
         description: startupPackDescription,
         repoDocPaths: selectedRepoDocs,
+        knowledgePagePaths: selectedKnowledgePagePaths,
         blueprintIds: selectedBlueprintIds,
         documentIds: selectedDocumentIds,
         externalSources: parseExternalSources(externalSourcesText),
@@ -870,6 +884,7 @@ export default function AdminAgentConsole() {
   });
 
   const availableRepoDocs = contextOptionsQuery.data?.repoDocs || [];
+  const availableKnowledgePages = contextOptionsQuery.data?.knowledgePages || [];
   const availableBlueprints = contextOptionsQuery.data?.blueprints || [];
   const availableOpsDocuments = contextOptionsQuery.data?.opsDocuments || [];
   const availableStartupPacks = contextOptionsQuery.data?.startupPacks || [];
@@ -921,6 +936,125 @@ export default function AdminAgentConsole() {
       ),
     [availableOpsDocuments],
   );
+  const knowledgePageLabelByPath = useMemo(
+    () =>
+      new Map(
+        availableKnowledgePages.map((page) => [
+          page.path,
+          `${page.title}${page.pageKind ? ` · ${page.pageKind}` : ""}`,
+        ]),
+      ),
+    [availableKnowledgePages],
+  );
+  const recommendedKnowledgePages = useMemo<KnowledgePageRecommendation[]>(() => {
+    const selectedStartupPacks = availableStartupPacks.filter((pack) =>
+      selectedStartupPackIds.includes(pack.id),
+    );
+    const startupPackKnowledgePaths = new Set(
+      selectedStartupPacks.flatMap((pack) => pack.knowledgePagePaths || []),
+    );
+    const contextText = [title, operatorNotes, message]
+      .filter(Boolean)
+      .join(" \n ")
+      .toLowerCase();
+
+    const scored = availableKnowledgePages
+      .map((page) => {
+        let score = 0;
+        const reasons: string[] = [];
+
+        if (startupPackKnowledgePaths.has(page.path)) {
+          score += 6;
+          reasons.push("included in a selected startup pack");
+        }
+
+        if (selectedBlueprintIds.length > 0 && page.pageKind === "buyer_dossier") {
+          score += 4;
+          reasons.push("buyer dossier matches attached blueprint context");
+        }
+
+        if (taskKind === "operator_thread" && page.pageKind === "proof_pattern") {
+          score += 3;
+          reasons.push("proof-pattern context fits operator sessions");
+        }
+
+        if (taskKind === "external_harness_thread" && page.pageKind === "doctrine_claim") {
+          score += 3;
+          reasons.push("doctrine guidance helps bounded implementation work");
+        }
+
+        if (taskKind === "support_triage" && page.pageKind === "support_playbook") {
+          score += 4;
+          reasons.push("support playbook fits support triage");
+        }
+
+        if (
+          page.pageKind === "support_playbook" &&
+          matchesLooseText(contextText, ["support", "procurement", "security", "objection"])
+        ) {
+          score += 3;
+          reasons.push("operator notes mention support or procurement topics");
+        }
+
+        if (
+          page.pageKind === "proof_pattern" &&
+          matchesLooseText(contextText, ["hosted review", "proof", "demo", "package", "exact-site"])
+        ) {
+          score += 3;
+          reasons.push("operator notes mention proof or hosted-review work");
+        }
+
+        if (
+          page.pageKind === "doctrine_claim" &&
+          matchesLooseText(contextText, ["claim", "positioning", "wording", "doctrine"])
+        ) {
+          score += 3;
+          reasons.push("operator notes mention doctrine or claim-shaping");
+        }
+
+        if (
+          page.pageKind === "city_brief" &&
+          matchesLooseText(contextText, ["city", "region", "launch", "market"])
+        ) {
+          score += 2;
+          reasons.push("operator notes mention city or launch context");
+        }
+
+        if (
+          page.pageKind === "market_entity" &&
+          matchesLooseText(contextText, ["competitor", "market", "platform", "vendor"])
+        ) {
+          score += 2;
+          reasons.push("operator notes mention market or competitor context");
+        }
+
+        return {
+          page,
+          score,
+          reasons,
+        };
+      })
+      .filter((entry) => entry.score > 0 && !selectedKnowledgePagePaths.includes(entry.page.path))
+      .sort((left, right) => right.score - left.score || left.page.title.localeCompare(right.page.title))
+      .slice(0, 6)
+      .map((entry) => ({
+        path: entry.page.path,
+        title: entry.page.title,
+        reason: entry.reasons[0] || "relevant to the current context",
+      }));
+
+    return scored;
+  }, [
+    availableKnowledgePages,
+    availableStartupPacks,
+    message,
+    operatorNotes,
+    selectedBlueprintIds,
+    selectedKnowledgePagePaths,
+    selectedStartupPackIds,
+    taskKind,
+    title,
+  ]);
   const latestRun = runs[0] || null;
   const latestRunNeedsFreshThread = isContextWindowFailure(latestRun?.error);
   const workflowPhase = selectedSession?.metadata?.workflow?.phase;
@@ -1110,6 +1244,7 @@ export default function AdminAgentConsole() {
                             setStartupPackName(pack.name);
                             setStartupPackDescription(pack.description || "");
                             setSelectedRepoDocs(pack.repoDocPaths || []);
+                            setSelectedKnowledgePagePaths(pack.knowledgePagePaths || []);
                             setSelectedBlueprintIds(pack.blueprintIds || []);
                             setSelectedDocumentIds(pack.documentIds || []);
                             setSelectedCreativeRunIds(
@@ -1155,6 +1290,87 @@ export default function AdminAgentConsole() {
                       <span>{docPath}</span>
                     </label>
                   ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-zinc-200 p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  Attach KB pages
+                </p>
+                {recommendedKnowledgePages.length > 0 ? (
+                  <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50/70 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                        Recommended
+                      </p>
+                      <button
+                        type="button"
+                        className="text-xs text-emerald-700 underline"
+                        onClick={() =>
+                          setSelectedKnowledgePagePaths((current) => [
+                            ...current,
+                            ...recommendedKnowledgePages
+                              .map((page) => page.path)
+                              .filter((pagePath) => !current.includes(pagePath)),
+                          ])
+                        }
+                      >
+                        Add all
+                      </button>
+                    </div>
+                    <div className="mt-2 space-y-2">
+                      {recommendedKnowledgePages.map((page) => (
+                        <div
+                          key={page.path}
+                          className="flex items-start justify-between gap-3 text-sm text-zinc-700"
+                        >
+                          <div>
+                            <p className="font-medium text-zinc-900">{page.title}</p>
+                            <p className="text-xs text-zinc-500">{page.reason}</p>
+                          </div>
+                          <button
+                            type="button"
+                            className="text-xs text-emerald-700 underline"
+                            onClick={() =>
+                              setSelectedKnowledgePagePaths((current) =>
+                                current.includes(page.path) ? current : [...current, page.path],
+                              )
+                            }
+                          >
+                            Add
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                <div className="mt-2 max-h-40 space-y-2 overflow-y-auto">
+                  {availableKnowledgePages.length === 0 ? (
+                    <p className="text-sm text-zinc-500">No KB pages available yet.</p>
+                  ) : (
+                    availableKnowledgePages.map((page) => (
+                      <label key={page.path} className="flex items-start gap-2 text-sm text-zinc-700">
+                        <input
+                          type="checkbox"
+                          checked={selectedKnowledgePagePaths.includes(page.path)}
+                          onChange={() =>
+                            setSelectedKnowledgePagePaths((current) =>
+                              current.includes(page.path)
+                                ? current.filter((value) => value !== page.path)
+                                : [...current, page.path],
+                            )
+                          }
+                        />
+                        <span>
+                          {page.title}
+                          {page.pageKind ? (
+                            <span className="ml-1 text-xs text-zinc-400">{page.pageKind}</span>
+                          ) : null}
+                          <span className="block text-xs text-zinc-500">{page.path}</span>
+                        </span>
+                      </label>
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -1307,6 +1523,7 @@ export default function AdminAgentConsole() {
                         setEditingStartupPackId(null);
                         setStartupPackName("");
                         setStartupPackDescription("");
+                        setSelectedKnowledgePagePaths([]);
                       }}
                     >
                       Clear edit
@@ -1976,6 +2193,12 @@ export default function AdminAgentConsole() {
                       Repo docs:{" "}
                       {(selectedSession.metadata?.startupContext?.repoDocPaths || []).join(", ") ||
                         "None"}
+                    </p>
+                    <p>
+                      KB pages:{" "}
+                      {(selectedSession.metadata?.startupContext?.knowledgePagePaths || [])
+                        .map((pagePath) => knowledgePageLabelByPath.get(pagePath) || pagePath)
+                        .join(", ") || "None"}
                     </p>
                     <p>
                       Blueprints:{" "}

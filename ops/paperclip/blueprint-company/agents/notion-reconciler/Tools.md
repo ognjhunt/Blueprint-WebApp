@@ -17,13 +17,13 @@
   Use at the end of every substantial sweep so Blueprint Agent Runs mirrors the work.
 
 ## Actions You Own
-- metadata cleanup on Blueprint-managed Hub pages
-- stale-flagging and doctrine-status repair
-- relation repair across Work Queue, Knowledge, Skills, Agents, and Agent Runs
-- safe duplicate cleanup when the natural key is clear
+- historical metadata cleanup on explicitly assigned Blueprint-managed Hub pages
+- legacy Agent Runs and registry repair when the main hygiene owner delegated it
+- relation repair across Work Queue, Knowledge, Skills, Agents, and Agent Runs only when the issue says to do so
+- safe duplicate cleanup when the natural key is clear and the delegated migration issue requires it
 
 ## Handoff Partners
-- **notion-manager-agent** — when recurring drift should become a broader workspace policy or plugin fix
+- **notion-manager-agent** — primary owner for all recurring workspace hygiene and drift policy
 - **blueprint-chief-of-staff** — when ambiguous cleanup or repeated drift needs managerial routing
 - **metrics-reporter** — when a stale reporting artifact needs a fresh metrics pass instead of metadata repair
 - **workspace-digest-publisher** — when a digest draft is missing operator-facing follow-through

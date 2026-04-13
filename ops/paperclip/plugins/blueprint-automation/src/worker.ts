@@ -98,9 +98,13 @@ import {
   buildClaudeFallbackAdapterConfig,
   buildCodexFallbackAdapterConfig,
   buildQuotaFallbackRetryRecord,
+  FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY,
   getLocalAdapterWorkspaceKey,
   getWorkspaceAdapterCooldownKey,
   isQuotaOrRateLimitFailure,
+  isProviderCreditFailure,
+  isProcessLossFailure,
+  isProviderTimeoutFailure,
   resolveQuotaCooldownUntil,
   selectWorkspaceQuotaFallbackTargets,
   type LocalQuotaFallbackAdapterType,
@@ -108,7 +112,9 @@ import {
   type WorkspaceAdapterCooldownRecord,
   type WorkspaceAdapterCooldownState,
   buildHermesFallbackAdapterConfig,
+  extractLogicalSucceededRunFailure,
   isFreshSessionRetryableFailure,
+  isDisallowedHermesFallbackModel,
   isIncompatibleHermesFreeRoutingModel,
   isModelNotFoundFailure,
   syncExecutionPolicyToAdapter,
@@ -134,6 +140,11 @@ import {
   type CityLaunchRoutineType,
   type CityLaunchStoredSelection,
 } from "./city-launch-proof.js";
+import {
+  findStaleRunningHeartbeatRun,
+  getHeartbeatRunTaskKey,
+  type HeartbeatRunLike,
+} from "./chief-of-staff-run-recovery.js";
 import {
   buildAgentRunFailureSlackCopy,
   buildAgentConversationSlackCopy,
@@ -263,6 +274,12 @@ const CODEX_FALLBACK_REASONING_EFFORT =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT || "medium";
 const WORKSPACE_QUOTA_COOLDOWN_MS =
   Number(process.env.BLUEPRINT_PAPERCLIP_WORKSPACE_QUOTA_COOLDOWN_MS || "") || 6 * 60 * 60 * 1000;
+const LOGICAL_SUCCEEDED_RUN_RECOVERY_INTERVAL_MS =
+  Number(process.env.BLUEPRINT_PAPERCLIP_LOGICAL_SUCCEEDED_RUN_RECOVERY_INTERVAL_MS || "") || 2 * 60 * 1000;
+const LOGICAL_SUCCEEDED_RUN_LOOKBACK_MS =
+  Number(process.env.BLUEPRINT_PAPERCLIP_LOGICAL_SUCCEEDED_RUN_LOOKBACK_MS || "") || 2 * 60 * 60 * 1000;
+const LOGICAL_SUCCEEDED_RUN_SCAN_LIMIT =
+  Number(process.env.BLUEPRINT_PAPERCLIP_LOGICAL_SUCCEEDED_RUN_SCAN_LIMIT || "") || 80;
 const ENTITY_TYPES = {
   sourceMapping: "source-mapping",
 } as const;
@@ -486,6 +503,7 @@ type MarketingCapabilitiesConfig = {
 };
 
 type BlueprintAutomationConfig = {
+  companyId?: string;
   companyName?: string;
   githubOwner?: string;
   githubTokenRef?: string;
@@ -511,6 +529,22 @@ type AgentRunFailurePayload = {
   taskId: string | null;
   taskKey: string | null;
   error: string | null;
+  errorCode: string | null;
+};
+
+type HeartbeatRunRecord = {
+  agentId: string;
+  contextSnapshot?: Record<string, unknown> | null;
+  createdAt?: string | null;
+  id: string;
+  status?: string | null;
+};
+
+type HeartbeatRunDetail = HeartbeatRunRecord & {
+  error?: string | null;
+  finishedAt?: string | null;
+  startedAt?: string | null;
+  updatedAt?: string | null;
 };
 
 type SourceMappingData = {
@@ -1101,6 +1135,7 @@ let toolRegistrationStarted = false;
 let toolRegistrationReady = false;
 let toolRegistrationError: string | null = null;
 let startupMaintenancePromise: Promise<void> | null = null;
+let logicalSucceededRunRecoveryStarted = false;
 const PAPERCLIP_COMPANY_CONFIG_PATH = new URL("../../../blueprint-company/.paperclip.yaml", import.meta.url);
 let cachedPaperclipYamlConfig: { mtimeMs: number; config: PaperclipYamlConfig | null } | undefined;
 
@@ -1276,7 +1311,18 @@ function parseAgentRunFailurePayload(value: unknown): AgentRunFailurePayload {
     taskId: asString(payload.taskId) ?? null,
     taskKey: asString(payload.taskKey) ?? null,
     error: asString(payload.error) ?? null,
+    errorCode: asString(payload.errorCode) ?? null,
   };
+}
+
+function isToolRuntimeFailure(errorCode: string | null | undefined, error: string | null | undefined) {
+  if (errorCode === "tool_runtime_unavailable") return true;
+  const message = (error ?? "").trim();
+  return /(?:CreateProcess .*No such file or directory|Failed to create unified exec process|exec_command failed|write_stdin failed: stdin is closed|rerun exec_command with tty=true to keep stdin open)/i.test(message);
+}
+
+function shouldForceFreshSessionForAutomationWake(reason: string) {
+  return reason === "fresh_session_retry_after_context_failure";
 }
 
 function buildQuotaFallbackDescriptor(
@@ -1286,12 +1332,33 @@ function buildQuotaFallbackDescriptor(
     adapterType: string;
     adapterConfig: Record<string, unknown> | null | undefined;
   } | null,
+  failureReason?: string | null,
 ) {
+  if (isOrgForcedCodexMode()) {
+    if (adapterType === "codex_local") {
+      return null;
+    }
+    if (adapterType === "claude_local" || adapterType === "hermes_local") {
+      return {
+        adapterType: "codex_local",
+        reason: "org_forced_codex_mode",
+        adapterConfig: buildCodexFallbackAdapterConfig(
+          asRecord(desired?.adapterConfig) ?? asRecord(adapterConfig),
+          {
+            model: "gpt-5.4-mini",
+            modelReasoningEffort: "medium",
+          },
+        ),
+      };
+    }
+  }
+
   return buildLocalQuotaFallbackDescriptor({
     currentAdapterType: adapterType,
     currentAdapterConfig: asRecord(adapterConfig),
     desiredAdapterType: desired?.adapterType ?? null,
     desiredAdapterConfig: asRecord(desired?.adapterConfig),
+    failureReason,
   });
 }
 
@@ -1299,6 +1366,7 @@ function buildDesiredAdapterDescriptor(agent: Agent): {
   adapterType: LocalQuotaFallbackAdapterType;
   adapterConfig: Record<string, unknown>;
 } | null {
+  const requestedMode = (process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE ?? "").trim().toLowerCase();
   const configuredAgent = getConfiguredAgent(agent.urlKey);
   const configuredAdapterType = configuredAgent?.adapter?.type;
   const configuredAdapterConfig = asRecord(configuredAgent?.adapter?.config);
@@ -1311,10 +1379,24 @@ function buildDesiredAdapterDescriptor(agent: Agent): {
     return null;
   }
 
+  if (requestedMode === "codex") {
+    return {
+      adapterType: "codex_local",
+      adapterConfig: buildCodexFallbackAdapterConfig(configuredAdapterConfig, {
+        model: "gpt-5.4-mini",
+        modelReasoningEffort: "medium",
+      }),
+    };
+  }
+
   return {
     adapterType: configuredAdapterType,
     adapterConfig: configuredAdapterConfig,
   };
+}
+
+function isOrgForcedCodexMode() {
+  return (process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE ?? "").trim().toLowerCase() === "codex";
 }
 
 function getActiveWorkspaceCooldown(
@@ -1352,6 +1434,27 @@ async function setWorkspaceCooldown(
   await writeState(ctx, companyId, STATE_KEYS.workspaceAdapterCooldowns, nextState);
 }
 
+async function clearWorkspaceCooldownsIfForcedCodexMode(
+  ctx: PluginContext,
+  companyId: string,
+) {
+  if (!isOrgForcedCodexMode()) {
+    return false;
+  }
+  const currentState =
+    await readState<WorkspaceAdapterCooldownState>(ctx, companyId, STATE_KEYS.workspaceAdapterCooldowns) ?? {};
+  if (Object.keys(currentState).length === 0) {
+    return false;
+  }
+  await writeState(ctx, companyId, STATE_KEYS.workspaceAdapterCooldowns, {});
+  await appendRecentEvent(ctx, companyId, {
+    kind: "workspace-cooldowns-cleared",
+    title: "Cleared workspace adapter cooldowns for codex mode",
+    detail: `Removed ${Object.keys(currentState).length} persisted workspace cooldown override(s).`,
+  });
+  return true;
+}
+
 async function enforceWorkspaceAdapterCooldowns(
   ctx: PluginContext,
   companyId: string,
@@ -1386,7 +1489,10 @@ async function enforceWorkspaceAdapterCooldowns(
     const workspaceKey = getLocalAdapterWorkspaceKey(
       asRecord(agent.adapterConfig) ?? desired.adapterConfig,
     );
-    const cooldown = getActiveWorkspaceCooldown(activeState, workspaceKey, desired.adapterType, now);
+    const cooldown =
+      isOrgForcedCodexMode() && desired.adapterType === "codex_local"
+        ? null
+        : getActiveWorkspaceCooldown(activeState, workspaceKey, desired.adapterType, now);
     const targetAdapterType = cooldown?.fallbackAdapterType ?? desired.adapterType;
     const runtimeConfigRecord = asRecord(agent.runtimeConfig);
     const targetRuntimeConfig = syncExecutionPolicyToAdapter(
@@ -1463,6 +1569,7 @@ function normalizeConfig(rawConfig: Record<string, unknown>): BlueprintAutomatio
     : {};
 
   return {
+    companyId: asString(rawConfig.companyId) ?? asString(process.env.BLUEPRINT_PAPERCLIP_COMPANY_ID),
     companyName: asString(rawConfig.companyName) ?? DEFAULT_COMPANY_NAME,
     githubOwner: asString(rawConfig.githubOwner) ?? "ognjhunt",
     githubTokenRef: asString(rawConfig.githubTokenRef),
@@ -1714,6 +1821,128 @@ async function resolveSlackTargets(ctx: PluginContext, config: BlueprintAutomati
     exec: exec ?? undefined,
     engineering: engineering ?? undefined,
     manager: manager ?? undefined,
+  };
+}
+
+function resolveHumanBlockerDispatchBaseUrl() {
+  return firstHttpUrl([
+    asString(process.env.BLUEPRINT_INTERNAL_APP_URL),
+    asString(process.env.APP_URL),
+    asString(process.env.VITE_PUBLIC_APP_URL),
+    "http://127.0.0.1:5000",
+  ]);
+}
+
+function normalizeAgentKey(agentKey: string | null | undefined) {
+  return (agentKey ?? "").trim().toLowerCase();
+}
+
+function isEngineeringAgentKey(agentKey: string | null | undefined) {
+  const normalized = normalizeAgentKey(agentKey);
+  return normalized === "blueprint-cto"
+    || normalized.startsWith("webapp-")
+    || normalized.startsWith("pipeline-")
+    || normalized.startsWith("capture-");
+}
+
+function isOpsAgentKey(agentKey: string | null | undefined) {
+  const normalized = normalizeAgentKey(agentKey);
+  return normalized === "ops-lead"
+    || normalized === "intake-agent"
+    || normalized === "capture-qa-agent"
+    || normalized === "field-ops-agent"
+    || normalized === "finance-support-agent"
+    || normalized === "buyer-solutions-agent"
+    || normalized === "buyer-success-agent"
+    || normalized === "rights-provenance-agent"
+    || normalized === "revenue-ops-pricing-agent"
+    || normalized === "security-procurement-agent"
+    || normalized === "site-catalog-agent"
+    || normalized === "capturer-success-agent"
+    || normalized === "solutions-engineering-agent";
+}
+
+function isGrowthAgentKey(agentKey: string | null | undefined) {
+  const normalized = normalizeAgentKey(agentKey);
+  return normalized === "growth-lead"
+    || normalized === "conversion-agent"
+    || normalized === "analytics-agent"
+    || normalized === "community-updates-agent"
+    || normalized === "market-intel-agent"
+    || normalized === "metrics-reporter"
+    || normalized === "workspace-digest-publisher"
+    || normalized === "capturer-growth-agent"
+    || normalized === "robot-team-growth-agent"
+    || normalized === "site-operator-partnership-agent"
+    || normalized === "city-demand-agent"
+    || normalized === "city-launch-agent"
+    || normalized === "demand-intel-agent"
+    || normalized === "supply-intel-agent";
+}
+
+function inferHumanBlockerKindForOwner(agentKey: string | null | undefined): "technical" | "ops_commercial" {
+  return isEngineeringAgentKey(agentKey) ? "technical" : "ops_commercial";
+}
+
+function selectHumanBlockerSlackWebhook(
+  targets: Awaited<ReturnType<typeof resolveSlackTargets>>,
+  ownerKey: string | null | undefined,
+) {
+  if (isEngineeringAgentKey(ownerKey)) {
+    return targets.engineering ?? targets.exec ?? targets.manager ?? targets.default;
+  }
+  if (isGrowthAgentKey(ownerKey)) {
+    return targets.growth ?? targets.manager ?? targets.default;
+  }
+  if (isOpsAgentKey(ownerKey)) {
+    return targets.ops ?? targets.manager ?? targets.default;
+  }
+  if (normalizeAgentKey(ownerKey) === "blueprint-chief-of-staff") {
+    return targets.manager ?? targets.exec ?? targets.default;
+  }
+  return targets.default;
+}
+
+async function postInternalHumanBlockerDispatch(
+  body: Record<string, unknown>,
+) {
+  const token = asString(process.env.BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN);
+  if (!token) {
+    throw new Error("BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN is not configured.");
+  }
+  const baseUrl = resolveHumanBlockerDispatchBaseUrl();
+  if (!baseUrl) {
+    throw new Error("Could not resolve a base URL for internal human blocker dispatch.");
+  }
+
+  const response = await fetch(
+    `${baseUrl.replace(/\/$/, "")}/api/internal/human-blockers/dispatch`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Blueprint-Human-Reply-Token": token,
+      },
+      body: JSON.stringify(body),
+    },
+  );
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(asString((payload as Record<string, unknown>).error) ?? "Human blocker dispatch failed.");
+  }
+  return payload as {
+    ok: boolean;
+    result: {
+      blocker_id: string;
+      dispatch_id: string;
+      email_sent: boolean;
+      slack_sent: boolean;
+      email_subject?: string;
+      packet_text?: string;
+      delivery_mode?: string;
+      delivery_status?: string;
+    };
   };
 }
 
@@ -2178,6 +2407,107 @@ async function cancelIssueExecutionRunIfNeeded(
   return true;
 }
 
+function boundIssueIdFromRunContext(
+  context: Record<string, unknown> | null | undefined,
+): string | null {
+  const taskId = asString(context?.taskId);
+  if (taskId) return taskId;
+  return asString(context?.issueId);
+}
+
+function isTerminalHeartbeatRunStatus(status: string | null | undefined) {
+  const normalized = (status ?? "").trim().toLowerCase();
+  return normalized === "failed"
+    || normalized === "cancelled"
+    || normalized === "timed_out"
+    || normalized === "succeeded";
+}
+
+async function recoverIssueExecutionLockIfNeeded(
+  ctx: PluginContext,
+  companyId: string,
+  issue: Pick<Issue, "id" | "identifier" | "title" | "executionRunId" | "updatedAt">,
+  options?: {
+    staleAfterMs?: number;
+    commentPrefix?: string;
+  },
+) {
+  if (!issue.executionRunId) {
+    return { recovered: false, reason: null as string | null };
+  }
+
+  const run = await fetchPaperclipApiJson<HeartbeatRunDetail>(`/api/heartbeat-runs/${issue.executionRunId}`).catch(() => null);
+  const runIssues = await fetchPaperclipApiJson<Array<{ issueId?: string | null }>>(
+    `/api/heartbeat-runs/${issue.executionRunId}/issues`,
+  ).catch(() => []);
+
+  const boundIssueId = boundIssueIdFromRunContext(run?.contextSnapshot ?? null);
+  const linkedIssueIds = new Set(
+    runIssues
+      .map((entry) => asString(entry.issueId))
+      .filter((value): value is string => Boolean(value)),
+  );
+  const staleAfterMs = Math.max(5 * 60 * 1000, options?.staleAfterMs ?? (15 * 60 * 1000));
+  const issueUpdatedAtMs = Date.parse(asString(issue.updatedAt) ?? "");
+  const runUpdatedAtMs = Date.parse(asString(run?.updatedAt ?? run?.startedAt ?? run?.createdAt) ?? "");
+  const newestActivityMs = Math.max(
+    Number.isFinite(issueUpdatedAtMs) ? issueUpdatedAtMs : Number.NEGATIVE_INFINITY,
+    Number.isFinite(runUpdatedAtMs) ? runUpdatedAtMs : Number.NEGATIVE_INFINITY,
+  );
+  const isStaleRunningLock =
+    Boolean(run)
+    && !isTerminalHeartbeatRunStatus(run.status)
+    && Number.isFinite(newestActivityMs)
+    && (Date.now() - newestActivityMs) >= staleAfterMs;
+  const isForeignLock =
+    Boolean(boundIssueId && boundIssueId !== issue.id)
+    || (linkedIssueIds.size > 0 && !linkedIssueIds.has(issue.id));
+  const shouldRecover =
+    !run
+    || isTerminalHeartbeatRunStatus(run.status)
+    || isForeignLock
+    || isStaleRunningLock;
+
+  if (!shouldRecover) {
+    return { recovered: false, reason: null as string | null };
+  }
+
+  if (run) {
+    await fetchPaperclipApiJson(`/api/heartbeat-runs/${issue.executionRunId}/cancel`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }).catch(() => null);
+  }
+
+  const reason = !run
+    ? "missing execution run record"
+    : isForeignLock
+      ? `execution run is bound to ${boundIssueId ?? "a different issue"}`
+      : isTerminalHeartbeatRunStatus(run.status)
+        ? `execution run is already terminal (${run.status})`
+        : `execution run went stale without fresh activity for ${Math.round(staleAfterMs / 60000)} minutes`;
+
+  await ctx.issues.createComment(
+    issue.id,
+    [
+      options?.commentPrefix ?? "Automation cleared a stale execution lock before the next step.",
+      `- Issue: ${issue.identifier ?? issue.id} (${issue.title})`,
+      `- Cleared run: ${issue.executionRunId}`,
+      `- Reason: ${reason}`,
+    ].join("\n"),
+    companyId,
+  ).catch(() => undefined);
+
+  await appendRecentEvent(ctx, companyId, {
+    kind: "execution-lock-recovered",
+    title: `Recovered stale execution lock for ${issue.title}`,
+    issueId: issue.id,
+    detail: `${issue.executionRunId}: ${reason}`,
+  });
+
+  return { recovered: true, reason };
+}
+
 function parseCronField(field: string, min: number, max: number) {
   if (field === "*") {
     return Array.from({ length: max - min + 1 }, (_, index) => min + index);
@@ -2319,17 +2649,79 @@ async function fetchPaperclipApiJson<T>(path: string, init?: RequestInit): Promi
   return await response.json() as T;
 }
 
-async function findCompany(ctx: PluginContext, companyName?: string): Promise<Company> {
+function safeDateRank(value: string | null | undefined) {
+  if (!value) return Number.NEGATIVE_INFINITY;
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
+}
+
+async function fetchHeartbeatRuns(companyId: string, limit = LOGICAL_SUCCEEDED_RUN_SCAN_LIMIT) {
+  return await fetchPaperclipApiJson<HeartbeatRunRecord[]>(
+    `/api/companies/${companyId}/heartbeat-runs?limit=${Math.max(1, limit)}`,
+  );
+}
+
+async function fetchHeartbeatRunLog(runId: string, limitBytes = 16384) {
+  try {
+    const payload = await fetchPaperclipApiJson<{ content?: string | null }>(
+      `/api/heartbeat-runs/${runId}/log?offset=0&limitBytes=${Math.max(1024, limitBytes)}`,
+    );
+    return asString(payload.content) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function buildLogicalSucceededRunFailurePayload(
+  run: HeartbeatRunRecord,
+  logText: string,
+): AgentRunFailurePayload | null {
+  if ((asString(run.status) ?? "").trim().toLowerCase() !== "succeeded") {
+    return null;
+  }
+  const error = extractLogicalSucceededRunFailure(logText);
+  if (!error) {
+    return null;
+  }
+  const context = asRecord(run.contextSnapshot);
+  return {
+    agentId: asString(run.agentId) ?? null,
+    runId: asString(run.id) ?? null,
+    issueId: asString(context?.issueId) ?? null,
+    taskId: asString(context?.taskId) ?? null,
+    taskKey: asString(context?.taskKey) ?? null,
+    error,
+  };
+}
+
+async function findCompany(
+  ctx: PluginContext,
+  companyName?: string,
+  companyId?: string | null,
+): Promise<Company> {
   const companies = await ctx.companies.list({ limit: 100, offset: 0 });
+  const normalizedId = (companyId ?? process.env.BLUEPRINT_PAPERCLIP_COMPANY_ID ?? "").trim();
+  if (normalizedId) {
+    const byId = companies.find((entry) => entry.id === normalizedId);
+    if (!byId) {
+      throw new Error(`Blueprint company not found for id: ${normalizedId}`);
+    }
+    return byId;
+  }
   const target = (companyName ?? DEFAULT_COMPANY_NAME).trim().toLowerCase();
-  const company = companies.find((entry) => {
+  const matches = companies.filter((entry) => {
     const record = entry as unknown as Record<string, unknown>;
     return normalizedCandidates(record).includes(target);
   });
-  if (!company) {
+  if (matches.length === 0) {
     throw new Error(`Blueprint company not found: ${companyName ?? DEFAULT_COMPANY_NAME}`);
   }
-  return company;
+  if (matches.length > 1) {
+    throw new Error(
+      `Blueprint company name is ambiguous: ${companyName ?? DEFAULT_COMPANY_NAME}. Set BLUEPRINT_PAPERCLIP_COMPANY_ID to pin the org harness to one company.`,
+    );
+  }
+  return matches[0]!;
 }
 
 async function listProjects(ctx: PluginContext, companyId: string) {
@@ -2916,7 +3308,46 @@ async function postFounderException(
 }
 
 const CHIEF_OF_STAFF_WAKEUP_COOLDOWN_MS = 5 * 60 * 1000;
+const CHIEF_OF_STAFF_STALE_RUNNING_IDLE_MS = 12 * 60 * 1000;
+const CHIEF_OF_STAFF_RUN_RECOVERY_LIMIT = 50;
 const chiefOfStaffLastWakeupByCompany = new Map<string, number>();
+
+async function recoverStaleChiefOfStaffRunIfNeeded(
+  ctx: PluginContext,
+  companyId: string,
+  agent: Agent,
+  issueId?: string,
+) {
+  const runs = await fetchPaperclipApiJson<HeartbeatRunLike[]>(
+    `/api/companies/${companyId}/heartbeat-runs?agentId=${agent.id}&limit=${CHIEF_OF_STAFF_RUN_RECOVERY_LIMIT}`,
+  );
+  const staleRun = findStaleRunningHeartbeatRun(runs, Date.now(), CHIEF_OF_STAFF_STALE_RUNNING_IDLE_MS);
+  if (!staleRun) {
+    return null;
+  }
+
+  await fetchPaperclipApiJson(`/api/heartbeat-runs/${staleRun.run.id}/cancel`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+
+  const taskKey = getHeartbeatRunTaskKey(staleRun.run);
+  if (taskKey) {
+    await ctx.agents.resetRuntimeSession(agent.id, companyId, { taskKey }).catch(() => undefined);
+  } else {
+    await ctx.agents.resetRuntimeSession(agent.id, companyId).catch(() => undefined);
+  }
+
+  const idleMinutes = Math.max(1, Math.round(staleRun.idleMs / (1000 * 60)));
+  await appendRecentEvent(ctx, companyId, {
+    kind: "chief-of-staff-wakeup-skipped",
+    title: "Recovered stale chief-of-staff run before wake",
+    issueId,
+    detail: `Cancelled stale running run ${staleRun.run.id} after ${idleMinutes} minutes without updates, then reset the chief-of-staff runtime session.`,
+  });
+
+  return staleRun.run.id;
+}
 
 async function wakeChiefOfStaff(
   ctx: PluginContext,
@@ -2967,6 +3398,28 @@ async function wakeChiefOfStaff(
     });
     return null;
   }
+
+  await recoverStaleChiefOfStaffRunIfNeeded(
+    ctx,
+    companyId,
+    agent,
+    input.eventIssueId
+      ?? (typeof input.payload.issueId === "string" ? input.payload.issueId : undefined),
+  ).catch(async (error) => {
+    ctx.logger.warn("chief-of-staff stale-run recovery failed", {
+      companyId,
+      agentId: agent.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    await appendRecentEvent(ctx, companyId, {
+      kind: "chief-of-staff-wakeup-skipped",
+      title: `Failed stale-run recovery before chief-of-staff wake: ${input.title}`,
+      issueId:
+        input.eventIssueId
+        ?? (typeof input.payload.issueId === "string" ? input.payload.issueId : undefined),
+      detail: error instanceof Error ? error.message : String(error),
+    });
+  });
 
   await appendRecentEvent(ctx, companyId, {
     kind: "chief-of-staff-wakeup",
@@ -3049,6 +3502,9 @@ async function wakeAssignedAgent(
   if (!issueNeedsExecution(issue.status)) {
     return null;
   }
+  await recoverIssueExecutionLockIfNeeded(ctx, companyId, issue, {
+    commentPrefix: "Automation cleared a stale execution lock before dispatching this issue again.",
+  }).catch(() => undefined);
   const dispatchedAt = nowIso();
 
   const dispatchState =
@@ -3131,7 +3587,6 @@ async function wakeAssignedAgent(
       dispatchReason: input.reason,
     },
     idempotencyKey: `managed-issue-dispatch:${issue.id}:${signature}`,
-    forceFreshSession: issue.status === "todo" || issue.status === "backlog" || agent.status === "error",
   });
 
   const [refreshedIssue, runtimeSession] = await Promise.all([
@@ -3204,14 +3659,19 @@ async function healAgentExecutionTopology(
     if (agent.adapterType === "hermes_local") {
       const cfg = asRecord(agent.adapterConfig) ?? {};
       const modelStr = typeof cfg.model === "string" ? cfg.model.trim() : "";
-      if (modelStr && isIncompatibleHermesFreeRoutingModel(modelStr)) {
+      if (
+        modelStr
+        && (isIncompatibleHermesFreeRoutingModel(modelStr) || isDisallowedHermesFallbackModel(modelStr))
+      ) {
         await ctx.agents.update(
           agent.id,
           { adapterConfig: buildHermesFallbackAdapterConfig(cfg) },
           companyId,
         );
         await ctx.agents.resetRuntimeSession(agent.id, companyId);
-        repaired.push(`${agent.urlKey}:hermes_local:repaired-codex-claude-model-leak`);
+        repaired.push(
+          `${agent.urlKey}:hermes_local:repaired-invalid-model:${modelStr}`,
+        );
         continue;
       }
     }
@@ -3286,6 +3746,7 @@ function ensureStartupMaintenance(ctx: PluginContext) {
           const config = await getConfig(ctx);
           const company = await findCompany(ctx, config.companyName);
           await syncDoctrineMemoryStore(ctx, company.id);
+          await clearWorkspaceCooldownsIfForcedCodexMode(ctx, company.id);
           await enforceWorkspaceAdapterCooldowns(ctx, company.id);
           await healAgentExecutionTopology(ctx, company.id);
           await syncAgentRuntimeMetadata(ctx, company.id);
@@ -3304,6 +3765,58 @@ function ensureStartupMaintenance(ctx: PluginContext) {
   });
 
   return startupMaintenancePromise;
+}
+
+async function recoverLogicalSucceededRunFailures(
+  ctx: PluginContext,
+  companyId: string,
+) {
+  const runs = await fetchHeartbeatRuns(companyId, LOGICAL_SUCCEEDED_RUN_SCAN_LIMIT).catch(() => []);
+  const cutoff = Date.now() - LOGICAL_SUCCEEDED_RUN_LOOKBACK_MS;
+  const recentSucceededRuns = (Array.isArray(runs) ? runs : [])
+    .filter((run) => (asString(run.status) ?? "").trim().toLowerCase() === "succeeded")
+    .filter((run) => safeDateRank(run.createdAt) >= cutoff)
+    .sort((left, right) => safeDateRank(right.createdAt) - safeDateRank(left.createdAt));
+
+  for (const run of recentSucceededRuns) {
+    const logText = await fetchHeartbeatRunLog(run.id);
+    const payload = buildLogicalSucceededRunFailurePayload(run, logText);
+    if (!payload?.agentId || !payload.runId || !payload.error) {
+      continue;
+    }
+    await handleAgentRunFailureQuotaFallback(ctx, {
+      companyId,
+      payload,
+    });
+  }
+}
+
+function ensureLogicalSucceededRunRecovery(ctx: PluginContext) {
+  if (logicalSucceededRunRecoveryStarted) {
+    return;
+  }
+  logicalSucceededRunRecoveryStarted = true;
+
+  const runRecovery = async () => {
+    try {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      await recoverLogicalSucceededRunFailures(ctx, company.id);
+    } catch (error) {
+      ctx.logger.warn("logical succeeded-run recovery failed", {
+        meta: {
+          stack: error instanceof Error ? error.stack : undefined,
+        },
+      });
+    }
+  };
+
+  setTimeout(() => {
+    void runRecovery();
+  }, 0);
+  setInterval(() => {
+    void runRecovery();
+  }, LOGICAL_SUCCEEDED_RUN_RECOVERY_INTERVAL_MS);
 }
 
 async function rerouteUnavailableIssueOwners(
@@ -4045,6 +4558,13 @@ async function maybeCreateBlockedIssueFollowUp(
     return null;
   }
 
+  const executionRecovered = await recoverIssueExecutionLockIfNeeded(ctx, companyId, issue, {
+    commentPrefix: "Automation cleared a stale execution lock instead of creating another unblock child.",
+  }).catch(() => ({ recovered: false, reason: null as string | null }));
+  if (executionRecovered.recovered) {
+    return null;
+  }
+
   const [config, issues, agents, projects, comments] = await Promise.all([
     getConfig(ctx),
     listAllIssues(ctx, companyId),
@@ -4416,27 +4936,6 @@ async function createDelegatedFollowUpIssue(
       `Project: ${input.projectName}`,
       `Priority: ${formatIssuePriority(followUp.priority) ?? followUp.priority}`,
     ],
-  }).catch(() => undefined);
-  await wakeChiefOfStaff(ctx, companyId, config, {
-    reason: "delegation_follow_up_created",
-    idempotencyKey: `chief-of-staff:delegation-follow-up:${followUp.id}`,
-    payload: {
-      signalType: "delegation_follow_up_created",
-      issueId: followUp.id,
-      parentIssueId: input.parentIssueId,
-      assignee: assigneeResolution.selectedKey,
-      projectName: input.projectName,
-    },
-    title: "Chief of Staff wakeup from delegation follow-up",
-    detail: `${followUp.title} (${followUp.id}) was delegated to ${assigneeResolution.selectedKey}.`,
-    slackChannel: "#paperclip-manager",
-    slackTitle: "Manager update: work was delegated",
-    slackSummary: [
-      `What happened: A chief-owned backlog thread was delegated to ${formatAgentName(assigneeResolution.selectedKey)} for execution.`,
-      `Task: ${followUp.title}`,
-      `Project: ${input.projectName}`,
-    ],
-    suppressSlackIfSameTargetAsChannel: slackChannelForAgent(assigneeResolution.selectedKey),
   }).catch(() => undefined);
   return followUp;
 }
@@ -5907,13 +6406,13 @@ function buildNotionQueueAliasMap(
   return aliases;
 }
 
-function makeTraceBlock(input: UpsertManagedIssueInput) {
+function makeTraceBlock(input: UpsertManagedIssueInput, resolvedAssignee?: string) {
   const lines = [
     "## Automation Trace",
     `- Source type: ${input.sourceType}`,
     `- Source id: ${input.sourceId}`,
     `- Project: ${input.projectName}`,
-    `- Assignee: ${input.assignee}`,
+    `- Assignee: ${resolvedAssignee ?? input.assignee}`,
   ];
   if (input.signalUrl) {
     lines.push(`- URL: ${input.signalUrl}`);
@@ -6028,10 +6527,14 @@ async function postSlackActivity(
     return;
   }
 
+  const companyLabel = config.companyId
+    ? `${config.companyName ?? DEFAULT_COMPANY_NAME} (${config.companyId})`
+    : (config.companyName ?? DEFAULT_COMPANY_NAME);
+
   await postSlackDigest(targets, {
     channel: input.channel,
     title: input.title,
-    sections: [{ heading: "Update", items: input.summary }],
+    sections: [{ heading: "Update", items: [`Company: ${companyLabel}`, ...input.summary] }],
   });
 }
 
@@ -6151,6 +6654,9 @@ async function handleAgentRunFailureQuotaFallback(
   if (!payload.agentId || !payload.runId || !payload.error) {
     return;
   }
+  if (isToolRuntimeFailure(payload.errorCode, payload.error)) {
+    return;
+  }
   if (!isQuotaOrRateLimitFailure(payload.error) && !isModelNotFoundFailure(payload.error)) {
     return;
   }
@@ -6186,11 +6692,26 @@ async function handleAgentRunFailureQuotaFallback(
   }
 
   const desired = buildDesiredAdapterDescriptor(agent);
-  const fallback = buildQuotaFallbackDescriptor(
-    agent.adapterType,
-    asRecord(agent.adapterConfig),
-    desired,
-  );
+  const providerCreditFailure =
+    agent.adapterType === "hermes_local" && isProviderCreditFailure(payload.error);
+  const fallback = providerCreditFailure
+    ? {
+      adapterType: "codex_local" as const,
+      reason: "quota_fallback_to_codex_local_after_provider_credit_failure",
+      adapterConfig: {
+        ...buildCodexFallbackAdapterConfig(asRecord(desired?.adapterConfig) ?? asRecord(agent.adapterConfig), {
+          model: "gpt-5.4-mini",
+          modelReasoningEffort: "medium",
+        }),
+        [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: "hermes_local",
+      },
+    }
+    : buildQuotaFallbackDescriptor(
+      agent.adapterType,
+      asRecord(agent.adapterConfig),
+      desired,
+      payload.error,
+    );
   if (!fallback) {
     await markAttempt(
       buildQuotaFallbackRetryRecord({
@@ -6239,6 +6760,7 @@ async function handleAgentRunFailureQuotaFallback(
         target.adapterType,
         asRecord(target.adapterConfig),
         targetAgent ? buildDesiredAdapterDescriptor(targetAgent) : null,
+        payload.error,
       );
       if (!targetFallback) {
         continue;
@@ -6307,7 +6829,7 @@ async function handleAgentRunFailureQuotaFallback(
         reason: fallback.reason,
         payload: wakePayload,
         idempotencyKey: `quota-fallback:${payload.runId}`,
-        forceFreshSession: true,
+        forceFreshSession: shouldForceFreshSessionForAutomationWake(fallback.reason),
       },
     );
 
@@ -6377,6 +6899,9 @@ async function handleAgentRunFailureFreshSessionRetry(
   if (!payload.agentId || !payload.runId || !payload.error) {
     return;
   }
+  if (isToolRuntimeFailure(payload.errorCode, payload.error)) {
+    return;
+  }
   if (
     isQuotaOrRateLimitFailure(payload.error)
     || isModelNotFoundFailure(payload.error)
@@ -6438,7 +6963,7 @@ async function handleAgentRunFailureFreshSessionRetry(
       reason: "fresh_session_retry_after_context_failure",
       payload: wakePayload,
       idempotencyKey: `fresh-session-retry:${payload.runId}`,
-      forceFreshSession: true,
+      forceFreshSession: shouldForceFreshSessionForAutomationWake("fresh_session_retry_after_context_failure"),
     });
 
     await markAttempt(
@@ -6493,6 +7018,213 @@ async function handleAgentRunFailureFreshSessionRetry(
   }
 }
 
+async function handleAgentRunFailureRuntimeFallback(
+  ctx: PluginContext,
+  event: { companyId: string; payload: unknown },
+) {
+  const payload = parseAgentRunFailurePayload(event.payload);
+  if (!payload.agentId || !payload.runId || !payload.error) {
+    return;
+  }
+  if (isToolRuntimeFailure(payload.errorCode, payload.error)) {
+    return;
+  }
+  if (!isProviderTimeoutFailure(payload.error) && !isProcessLossFailure(payload.error)) {
+    return;
+  }
+
+  const existingState =
+    await readState<QuotaFallbackRetryState>(ctx, event.companyId, STATE_KEYS.runtimeFailureRetries) ?? {};
+  if (existingState[payload.runId]) {
+    return;
+  }
+
+  const markAttempt = async (record: ReturnType<typeof buildQuotaFallbackRetryRecord>) => {
+    await writeState(ctx, event.companyId, STATE_KEYS.runtimeFailureRetries, {
+      ...existingState,
+      [payload.runId as string]: record,
+    });
+  };
+
+  const agent = await ctx.agents.get(payload.agentId, event.companyId).catch(() => null);
+  if (!agent || agent.adapterType !== "hermes_local") {
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "skipped",
+        agentId: payload.agentId,
+        issueId: payload.issueId,
+        taskKey: payload.taskKey ?? payload.taskId,
+        reason: "runtime_failure_fallback_skipped",
+        note: !agent ? "Agent not found." : `Adapter ${agent.adapterType} is not hermes_local.`,
+      }),
+    );
+    return;
+  }
+
+  const desired = buildDesiredAdapterDescriptor(agent);
+  const fallback = buildQuotaFallbackDescriptor(
+    agent.adapterType,
+    asRecord(agent.adapterConfig),
+    desired,
+  );
+  if (!fallback) {
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "skipped",
+        agentId: agent.id,
+        issueId: payload.issueId,
+        taskKey: payload.taskKey ?? payload.taskId,
+        reason: "runtime_failure_fallback_skipped",
+        note: "No configured runtime fallback for hermes_local.",
+      }),
+    );
+    return;
+  }
+
+  const retryTaskKey =
+    payload.taskKey ??
+    payload.taskId ??
+    payload.issueId ??
+    `runtime-fallback:${agent.id}:${payload.runId}`;
+  const cooldownUntil = resolveQuotaCooldownUntil(payload.error, {
+    defaultCooldownMs: 2 * 60 * 60 * 1000,
+  });
+
+  try {
+    const allAgents = await listAgents(ctx, event.companyId).catch(() => []);
+    const workspaceTargets = selectWorkspaceQuotaFallbackTargets(
+      {
+        id: agent.id,
+        adapterType: agent.adapterType,
+        adapterConfig: asRecord(agent.adapterConfig),
+      },
+      allAgents.map((entry) => ({
+        id: entry.id,
+        adapterType: entry.adapterType,
+        adapterConfig: asRecord(entry.adapterConfig),
+      })),
+    );
+
+    for (const target of workspaceTargets) {
+      await ctx.agents.update(
+        target.id,
+        {
+          adapterType: fallback.adapterType,
+          adapterConfig: fallback.adapterConfig,
+        },
+        event.companyId,
+      );
+      await ctx.agents.resetRuntimeSession(
+        target.id,
+        event.companyId,
+        target.id === agent.id
+          ? {
+            taskKey: retryTaskKey,
+          }
+          : undefined,
+      ).catch(() => undefined);
+    }
+
+    const workspaceKey = getLocalAdapterWorkspaceKey(asRecord(agent.adapterConfig));
+    if (workspaceKey && fallback.adapterType !== agent.adapterType) {
+      await setWorkspaceCooldown(ctx, event.companyId, {
+        workspaceKey,
+        unavailableAdapterType: agent.adapterType,
+        fallbackAdapterType: fallback.adapterType,
+        cooldownUntil,
+        recordedAt: nowIso(),
+        reason: isProcessLossFailure(payload.error)
+          ? "runtime_process_loss_fallback"
+          : "runtime_timeout_fallback",
+        sourceRunId: payload.runId,
+        sourceAgentId: agent.id,
+        note: payload.error,
+      });
+    }
+
+    const wakePayload: Record<string, unknown> = {
+      retryOfRunId: payload.runId,
+      taskKey: retryTaskKey,
+    };
+    if (payload.issueId) wakePayload.issueId = payload.issueId;
+    if (payload.taskId) wakePayload.taskId = payload.taskId;
+
+    const wakeResult = await ctx.agents.wakeup(agent.id, event.companyId, {
+      source: "automation",
+      triggerDetail: "system",
+      reason: isProcessLossFailure(payload.error)
+        ? "runtime_process_loss_fallback_retry"
+        : "runtime_timeout_fallback_retry",
+      payload: wakePayload,
+      idempotencyKey: `runtime-fallback:${payload.runId}`,
+      forceFreshSession: shouldForceFreshSessionForAutomationWake(
+        isProcessLossFailure(payload.error)
+          ? "runtime_process_loss_fallback_retry"
+          : "runtime_timeout_fallback_retry",
+      ),
+    });
+
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "retried",
+        agentId: agent.id,
+        issueId: payload.issueId,
+        taskKey: retryTaskKey,
+        reason: isProcessLossFailure(payload.error)
+          ? "runtime_process_loss_fallback_retry"
+          : "runtime_timeout_fallback_retry",
+        fallbackAdapterType: fallback.adapterType,
+        wakeupRunId: asString(wakeResult?.runId) ?? null,
+        note: payload.error,
+      }),
+    );
+
+    await appendRecentEvent(ctx, event.companyId, {
+      kind: "runtime-fallback-retry",
+      title: `Retried ${agent.name} on ${fallback.adapterType} after Hermes runtime failure`,
+      issueId: payload.issueId ?? undefined,
+      detail: payload.issueId
+        ? `Issue ${payload.issueId} retried from failed run ${payload.runId}; switched ${workspaceTargets.length} same-workspace agent(s) to ${fallback.adapterType}${fallback.adapterType !== agent.adapterType ? ` until ${cooldownUntil}` : ""}.`
+        : `Task ${retryTaskKey} retried from failed run ${payload.runId}; switched ${workspaceTargets.length} same-workspace agent(s) to ${fallback.adapterType}${fallback.adapterType !== agent.adapterType ? ` until ${cooldownUntil}` : ""}.`,
+    });
+
+    if (payload.issueId) {
+      const fallbackLabel =
+        fallback.adapterType === "hermes_local"
+          ? `hermes_local (${asString(fallback.adapterConfig.model) ?? "next ladder model"})`
+          : fallback.adapterType;
+      await ctx.issues.createComment(
+        payload.issueId,
+        `Detected a Hermes runtime failure on run ${payload.runId}. Switched ${agent.name} and ${Math.max(workspaceTargets.length - 1, 0)} same-workspace peer(s) to ${fallbackLabel}${fallback.adapterType !== agent.adapterType ? ` until ${cooldownUntil}` : ""}, then requeued the work once on a fresh session.`,
+        event.companyId,
+      ).catch(() => undefined);
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    await markAttempt(
+      buildQuotaFallbackRetryRecord({
+        attemptedAt: nowIso(),
+        status: "failed",
+        agentId: agent.id,
+        issueId: payload.issueId,
+        taskKey: retryTaskKey,
+        reason: "runtime_failure_fallback_failed",
+        note: errorMessage,
+      }),
+    );
+
+    await appendRecentEvent(ctx, event.companyId, {
+      kind: "runtime-fallback-error",
+      title: `Runtime fallback failed for ${agent.name}`,
+      issueId: payload.issueId ?? undefined,
+      detail: errorMessage,
+    });
+  }
+}
+
 async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueInput) {
   const fingerprint = makeFingerprint(input.sourceType, input.sourceId);
   const project = await resolveProject(ctx, input.companyId, input.projectName);
@@ -6540,6 +7272,13 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
     : null;
 
   if (currentIssue) {
+    await recoverIssueExecutionLockIfNeeded(ctx, input.companyId, currentIssue, {
+      commentPrefix: "Automation cleared a stale execution lock before refreshing this managed issue.",
+    }).catch(() => undefined);
+    currentIssue = await ctx.issues.get(currentIssue.id, input.companyId).catch(() => currentIssue);
+  }
+
+  if (currentIssue) {
     const nextStatus =
       currentIssue.status === "done" || currentIssue.status === "cancelled"
         ? desiredStatus
@@ -6555,7 +7294,7 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
       currentIssue.id,
       {
         title: input.title,
-        description: makeTraceBlock(input),
+        description: makeTraceBlock(input, assigneeResolution.selectedKey),
         status: nextStatus,
         priority: desiredPriority,
         assigneeAgentId: assignee.id,
@@ -6575,7 +7314,7 @@ async function upsertManagedIssue(ctx: PluginContext, input: UpsertManagedIssueI
       projectId: project.id,
       parentId: input.parentIssueId,
       title: input.title,
-      description: makeTraceBlock(input),
+      description: makeTraceBlock(input, assigneeResolution.selectedKey),
       status: desiredStatus,
       priority: desiredPriority,
       assigneeAgentId: assignee.id,
@@ -8540,18 +9279,19 @@ async function buildMetricsReporterOutputProof(
   companyId: string,
   params: Record<string, unknown>,
 ): Promise<MetricsReporterOutputProof> {
+  const owningAgentKey = "analytics-agent";
   const cadence = asString(params.cadence) === "weekly" ? "weekly" : "daily";
   const generatedAt = nowIso();
   const reportDate = formatDateInTimeZone(new Date(generatedAt), "America/New_York");
-  const title = `Metrics Reporter ${cadence === "weekly" ? "Weekly" : "Daily"} Report - ${reportDate}`;
+  const title = `Analytics Internal Metrics ${cadence === "weekly" ? "Weekly" : "Daily"} Report - ${reportDate}`;
   const triggerSource = asString(params.issueId) ? "Task Assignment" : "Manual";
   const runMirror = await startPilotAgentRunMirror(ctx, config, companyId, {
-    agentKey: "metrics-reporter",
+    agentKey: owningAgentKey,
     title,
     triggerSource,
     issueId: asString(params.issueId),
     startedAt: generatedAt,
-    notes: `Cadence: ${cadence}`,
+    notes: `Cadence: ${cadence}. Legacy metrics-reporter action executed under analytics-agent ownership.`,
   });
   const notionClient = runMirror?.notionClient ?? null;
   const { report, validationErrors } = normalizeMetricsReporterStructuredReport(params, cadence);
@@ -8604,8 +9344,8 @@ async function buildMetricsReporterOutputProof(
         params,
         generatedAt,
         title,
-        defaultCategory: "metrics-reporter",
-        owner: "metrics-reporter",
+        defaultCategory: owningAgentKey,
+        owner: owningAgentKey,
         summary: report.headline,
         evidence: [
           ...report.executiveSummary,
@@ -8631,7 +9371,7 @@ async function buildMetricsReporterOutputProof(
           content: reportLines.join("\n"),
           sourceOfTruth: "Repo",
           canonicalSource: result.kbArtifact?.path,
-          agentSurfaces: ["Metrics Reporter"],
+          agentSurfaces: ["Analytics Agent"],
           lifecycleStage: "Done",
         },
         { archiveDuplicates: true },
@@ -8696,13 +9436,13 @@ async function buildMetricsReporterOutputProof(
     companyId,
     `metrics-reporter-${cadence}`,
     `Metrics Reporter ${cadence.charAt(0).toUpperCase()}${cadence.slice(1)}`,
-    "metrics-reporter",
+    owningAgentKey,
     result.outcome,
     result.failureReason,
     asString(params.issueId),
   );
-  await trackAgentRun(ctx, companyId, "metrics-reporter");
-  await updatePhaseMetrics(ctx, companyId, "metrics-reporter", result.outcome);
+  await trackAgentRun(ctx, companyId, owningAgentKey);
+  await updatePhaseMetrics(ctx, companyId, owningAgentKey, result.outcome);
   await finalizePilotAgentRunMirror(runMirror, {
     status: result.outcome === "done" ? "Done" : "Blocked",
     startedAt: generatedAt,
@@ -8713,7 +9453,7 @@ async function buildMetricsReporterOutputProof(
     outputDocPageUrl: result.notion?.knowledgePageUrl,
     artifactUrl: firstHttpUrl([result.notion?.knowledgePageUrl, ...report.growthStudioLinks]),
     errorSummary: result.outcome === "blocked" ? result.failureReason : undefined,
-    notes: `Highlights: ${report.metricHighlights.length}; anomalies: ${report.anomalies.length}; follow-ups: ${report.recommendedFollowUps.length}.`,
+    notes: `Legacy metrics-reporter shim under analytics-agent ownership. Highlights: ${report.metricHighlights.length}; anomalies: ${report.anomalies.length}; follow-ups: ${report.recommendedFollowUps.length}.`,
   });
 
   return result;
@@ -8913,6 +9653,7 @@ async function recordNotionReconcilerRun(
   companyId: string,
   params: Record<string, unknown>,
 ): Promise<NotionReconcilerRunProof> {
+  const owningAgentKey = "notion-manager-agent";
   const mode = asString(params.mode) === "weekly"
     ? "weekly"
     : asString(params.mode) === "manual"
@@ -8920,15 +9661,15 @@ async function recordNotionReconcilerRun(
       : "daily";
   const generatedAt = nowIso();
   const reportDate = formatDateInTimeZone(new Date(generatedAt), "America/New_York");
-  const title = `Notion Reconciler ${mode === "weekly" ? "Weekly" : mode === "manual" ? "Manual" : "Daily"} Run - ${reportDate}`;
+  const title = `Notion Manager ${mode === "weekly" ? "Weekly" : mode === "manual" ? "Manual" : "Daily"} Reconcile Run - ${reportDate}`;
   const triggerSource = asString(params.issueId) ? "Task Assignment" : "Manual";
   const runMirror = await startPilotAgentRunMirror(ctx, config, companyId, {
-    agentKey: "notion-reconciler",
+    agentKey: owningAgentKey,
     title,
     triggerSource,
     issueId: asString(params.issueId),
     startedAt: generatedAt,
-    notes: `Mode: ${mode}`,
+    notes: `Mode: ${mode}. Legacy notion-reconciler action executed under notion-manager-agent ownership.`,
   });
 
   const summary = asString(params.summary) ?? "";
@@ -8974,13 +9715,13 @@ async function recordNotionReconcilerRun(
     companyId,
     mode === "weekly" ? "notion-reconciler-weekly" : "notion-reconciler-daily",
     mode === "weekly" ? "Notion Reconciler Weekly" : mode === "manual" ? "Notion Reconciler Manual" : "Notion Reconciler Daily",
-    "notion-reconciler",
+    owningAgentKey,
     result.outcome,
     result.failureReason,
     asString(params.issueId),
   );
-  await trackAgentRun(ctx, companyId, "notion-reconciler");
-  await updatePhaseMetrics(ctx, companyId, "notion-reconciler", result.outcome);
+  await trackAgentRun(ctx, companyId, owningAgentKey);
+  await updatePhaseMetrics(ctx, companyId, owningAgentKey, result.outcome);
   await finalizePilotAgentRunMirror(runMirror, {
     status: result.outcome === "done" ? "Done" : "Blocked",
     startedAt: generatedAt,
@@ -8990,7 +9731,7 @@ async function recordNotionReconcilerRun(
     artifactUrl: firstHttpUrl(touchedPages),
     errorSummary: result.outcome === "blocked" ? result.failureReason : undefined,
     requiresHumanReview: escalations.length > 0 || result.outcome === "blocked",
-    notes: `metadata=${counts.metadataCleanups}; stale=${counts.staleFlags}; doctrine=${counts.doctrineRepairs}; relations=${counts.relationRepairs}; duplicates=${counts.duplicatesArchived}.`,
+    notes: `Legacy notion-reconciler shim under notion-manager-agent ownership. metadata=${counts.metadataCleanups}; stale=${counts.staleFlags}; doctrine=${counts.doctrineRepairs}; relations=${counts.relationRepairs}; duplicates=${counts.duplicatesArchived}.`,
   });
 
   return result;
@@ -9428,7 +10169,7 @@ async function buildAnalyticsOutputProof(
     ),
     configuredSourceStatus(
       "GA4 measurement feed",
-      Boolean(process.env.VITE_GA_MEASUREMENT_ID),
+      Boolean(process.env.VITE_GA_MEASUREMENT_ID || process.env.VITE_FIREBASE_MEASUREMENT_ID),
       "GA4 measurement ID is present in the runtime environment.",
       "GA4 measurement ID is not present in the Paperclip runtime environment.",
     ),
@@ -9811,27 +10552,6 @@ async function createFollowUpIssue(
       `Project: ${input.projectName}`,
       `Priority: ${formatIssuePriority(followUp.priority) ?? followUp.priority}`,
     ],
-  }).catch(() => undefined);
-  await wakeChiefOfStaff(ctx, companyId, config, {
-    reason: "blocker_follow_up_created",
-    idempotencyKey: `chief-of-staff:blocker-follow-up:${followUp.id}`,
-    payload: {
-      signalType: "blocker_follow_up_created",
-      issueId: followUp.id,
-      parentIssueId: input.parentIssueId,
-      assignee: assigneeResolution.selectedKey,
-      projectName: input.projectName,
-    },
-    title: "Chief of Staff wakeup from blocker follow-up",
-    detail: `${followUp.title} (${followUp.id}) was delegated to ${assigneeResolution.selectedKey}.`,
-    slackChannel: "#paperclip-manager",
-    slackTitle: "Manager update: blocked work was delegated",
-    slackSummary: [
-      `What happened: A blocked task was handed to ${formatAgentName(assigneeResolution.selectedKey)} for follow-through.`,
-      `Task: ${followUp.title}`,
-      `Project: ${input.projectName}`,
-    ],
-    suppressSlackIfSameTargetAsChannel: slackChannelForAgent(assigneeResolution.selectedKey),
   }).catch(() => undefined);
   if (assigneeResolution.rerouted) {
     await ctx.issues.createComment(
@@ -10295,7 +11015,7 @@ async function syncGithubWorkflowRun(
     sourceId,
     title: `${repoConfig.projectName} CI failure: ${workflowName}`,
     description:
-      `GitHub Actions reported ${conclusion} for ${workflowName} on branch ${branch}. Keep this issue narrowly focused on monitoring the workflow state until a succeeding run clears it. Open a separate engineering follow-up if repo work is required.`,
+      `GitHub Actions reported ${conclusion} for ${workflowName} on branch ${branch}. Do one fast recovered-yet check first; if no newer successful ${repoConfig.defaultBranch} run exists, inspect the failing step/log class and either create or refresh the concrete engineering unblock issue in the same heartbeat. Do not leave this as monitor-only while the failure is still active.`,
     projectName: repoConfig.projectName,
     assignee: repoConfig.ciWatchAgent ?? repoConfig.implementationAgent,
     priority: "high",
@@ -11945,6 +12665,235 @@ async function registerToolHandlers(ctx: PluginContext) {
       return {
         content: `Created blocker follow-up issue ${followUp.id}.`,
         data: followUp,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.dispatchHumanBlocker,
+    {
+      displayName: "Blueprint Dispatch Human Blocker",
+      description: "Queue or send a standard human-blocker packet for a true human gate.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          issueId: { type: "string" },
+          title: { type: "string" },
+          summary: { type: "string" },
+          recommendedAnswer: { type: "string" },
+          exactResponseNeeded: { type: "string" },
+          whyBlocked: { type: "string" },
+          alternatives: { type: "array", items: { type: "string" } },
+          risk: { type: "string" },
+          immediateNextAction: { type: "string" },
+          deadline: { type: "string" },
+          evidence: { type: "array", items: { type: "string" } },
+          nonScope: { type: "string" },
+          blockerKind: { type: "string", enum: ["technical", "ops_commercial"] },
+          executionOwner: { type: "string" },
+          routingOwner: { type: "string" },
+          escalationOwner: { type: "string" },
+          reviewRequired: { type: "boolean" },
+          reviewOwner: { type: "string" },
+          senderOwner: { type: "string" },
+          emailTarget: { type: "string" },
+          mirrorToSlack: { type: "boolean" },
+          reportPaths: { type: "array", items: { type: "string" } },
+          deliveryMode: { type: "string", enum: ["send_now", "review_required", "send_saved_draft"] },
+          dispatchId: { type: "string" },
+        },
+        required: ["issueId"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      const issueId = asString((params as Record<string, unknown>).issueId);
+      if (!issueId) {
+        throw new Error("issueId is required.");
+      }
+
+      const issue = await ctx.issues.get(issueId, company.id).catch(() => null);
+      if (!issue) {
+        throw new Error(`Issue ${issueId} was not found.`);
+      }
+
+      const assigneeAgent = issue.assigneeAgentId
+        ? await ctx.agents.get(issue.assigneeAgentId, company.id).catch(() => null)
+        : null;
+      const assigneeKey = preferredAgentChannelKey(assigneeAgent);
+      const routingOwner = asString((params as Record<string, unknown>).routingOwner) ?? getChiefOfStaffAgentKey(config);
+      const executionOwner =
+        asString((params as Record<string, unknown>).executionOwner)
+        ?? assigneeKey
+        ?? routingOwner;
+      const blockerKindRaw = asString((params as Record<string, unknown>).blockerKind);
+      const blockerKind =
+        blockerKindRaw === "technical" || blockerKindRaw === "ops_commercial"
+          ? blockerKindRaw
+          : inferHumanBlockerKindForOwner(executionOwner);
+      const requestedDeliveryMode = asString((params as Record<string, unknown>).deliveryMode);
+      const reviewRequired =
+        (params as Record<string, unknown>).reviewRequired === true
+        || requestedDeliveryMode === "review_required";
+      const reviewOwner =
+        asString((params as Record<string, unknown>).reviewOwner)
+        ?? (reviewRequired ? getChiefOfStaffAgentKey(config) : null);
+      const senderOwner =
+        asString((params as Record<string, unknown>).senderOwner)
+        ?? (reviewRequired ? reviewOwner : executionOwner);
+      const reportPaths = Array.isArray((params as Record<string, unknown>).reportPaths)
+        ? ((params as Record<string, unknown>).reportPaths as unknown[])
+            .filter((value): value is string => typeof value === "string")
+            .map((value) => value.trim())
+            .filter(Boolean)
+        : [];
+
+      const deliveryMode =
+        requestedDeliveryMode === "send_saved_draft"
+          ? "send_saved_draft"
+          : reviewRequired
+            ? "review_required"
+            : "send_now";
+      if (deliveryMode !== "send_saved_draft") {
+        const requiredTextFields = [
+          "title",
+          "summary",
+          "recommendedAnswer",
+          "exactResponseNeeded",
+          "whyBlocked",
+          "risk",
+          "immediateNextAction",
+          "deadline",
+          "nonScope",
+        ];
+        for (const key of requiredTextFields) {
+          if (!asString((params as Record<string, unknown>)[key])) {
+            throw new Error(`${key} is required when sending or queueing a new human-blocker packet.`);
+          }
+        }
+        const alternatives = (params as Record<string, unknown>).alternatives;
+        const evidence = (params as Record<string, unknown>).evidence;
+        if (!Array.isArray(alternatives) || alternatives.length === 0) {
+          throw new Error("alternatives must contain at least one option when sending or queueing a new human-blocker packet.");
+        }
+        if (!Array.isArray(evidence) || evidence.length === 0) {
+          throw new Error("evidence must contain at least one item when sending or queueing a new human-blocker packet.");
+        }
+      }
+      const mirrorToSlack = (params as Record<string, unknown>).mirrorToSlack === true;
+      const slackTargets = mirrorToSlack ? await resolveSlackTargets(ctx, config) : null;
+      const slackWebhookUrl = mirrorToSlack
+        ? selectHumanBlockerSlackWebhook(slackTargets!, reviewRequired ? reviewOwner : executionOwner)
+        : undefined;
+
+      const payload: Record<string, unknown> = {
+        delivery_mode: deliveryMode,
+        dispatch_id: asString((params as Record<string, unknown>).dispatchId) ?? undefined,
+        blocker_kind: deliveryMode === "send_saved_draft" ? undefined : blockerKind,
+        packet: deliveryMode === "send_saved_draft"
+          ? undefined
+          : {
+              title: asString((params as Record<string, unknown>).title) ?? "Blueprint human blocker",
+              summary: asString((params as Record<string, unknown>).summary) ?? "",
+              recommendedAnswer: asString((params as Record<string, unknown>).recommendedAnswer) ?? "",
+              exactResponseNeeded: asString((params as Record<string, unknown>).exactResponseNeeded) ?? "",
+              whyBlocked: asString((params as Record<string, unknown>).whyBlocked) ?? "",
+              alternatives: Array.isArray((params as Record<string, unknown>).alternatives)
+                ? ((params as Record<string, unknown>).alternatives as unknown[])
+                    .filter((value): value is string => typeof value === "string")
+                    .map((value) => value.trim())
+                    .filter(Boolean)
+                : [],
+              risk: asString((params as Record<string, unknown>).risk) ?? "",
+              executionOwner,
+              immediateNextAction: asString((params as Record<string, unknown>).immediateNextAction) ?? "",
+              deadline: asString((params as Record<string, unknown>).deadline) ?? "",
+              evidence: Array.isArray((params as Record<string, unknown>).evidence)
+                ? ((params as Record<string, unknown>).evidence as unknown[])
+                    .filter((value): value is string => typeof value === "string")
+                    .map((value) => value.trim())
+                    .filter(Boolean)
+                : [],
+              nonScope: asString((params as Record<string, unknown>).nonScope) ?? "",
+            },
+        email_target: asString((params as Record<string, unknown>).emailTarget) ?? undefined,
+        mirror_to_slack: mirrorToSlack,
+        slack_webhook_url: slackWebhookUrl,
+        routing_owner: routingOwner,
+        execution_owner: executionOwner,
+        escalation_owner: asString((params as Record<string, unknown>).escalationOwner) ?? undefined,
+        review_owner: reviewOwner ?? undefined,
+        sender_owner: senderOwner ?? undefined,
+        report_paths: reportPaths,
+        paperclip_issue_id: issue.id,
+      };
+
+      const dispatch = await postInternalHumanBlockerDispatch(payload);
+      const result = dispatch.result;
+
+      let reviewIssueId: string | null = null;
+      if (reviewRequired && deliveryMode === "review_required" && reviewOwner) {
+        const reviewIssue = await createFollowUpIssue(ctx, company.id, {
+          parentIssueId: issue.id,
+          title: `Review human-blocker packet for ${issue.title}`,
+          description: [
+            `A true human gate was reached and the blocker packet is queued for review before delivery.`,
+            ``,
+            `- Blocker id: ${result.blocker_id}`,
+            `- Dispatch id: ${result.dispatch_id}`,
+            `- Requested by issue: ${issue.id}`,
+            `- Execution owner after reply: ${executionOwner}`,
+            `- Routing owner: ${routingOwner}`,
+            `- Sender owner after review: ${senderOwner}`,
+            ``,
+            `## Packet`,
+            result.packet_text ?? "Packet text unavailable.",
+          ].join("\n"),
+          projectName: EXECUTIVE_OPS_PROJECT,
+          assignee: reviewOwner,
+          priority: "high",
+          allowHumanGatedParentFollowUp: true,
+        });
+        reviewIssueId = reviewIssue.id;
+      }
+
+      const commentLines = reviewRequired && deliveryMode === "review_required"
+        ? [
+            `Queued human-blocker packet \`${result.blocker_id}\` for review before delivery.`,
+            `- Dispatch id: \`${result.dispatch_id}\``,
+            reviewIssueId ? `- Review issue: \`${reviewIssueId}\`` : null,
+            `- Review owner: \`${reviewOwner}\``,
+            `- Execution owner after reply: \`${executionOwner}\``,
+          ]
+        : [
+            `Dispatched human-blocker packet \`${result.blocker_id}\`.`,
+            `- Dispatch id: \`${result.dispatch_id}\``,
+            result.email_subject ? `- Subject: ${result.email_subject}` : null,
+            `- Email sent: ${result.email_sent ? "yes" : "no"}`,
+            `- Slack mirrored: ${result.slack_sent ? "yes" : mirrorToSlack ? "attempted but not sent" : "no"}`,
+            `- Execution owner after reply: \`${executionOwner}\``,
+          ];
+      await ctx.issues.createComment(issue.id, commentLines.filter(Boolean).join("\n"), company.id);
+
+      return {
+        content: reviewRequired && deliveryMode === "review_required"
+          ? `Queued human-blocker packet ${result.blocker_id} for review${reviewIssueId ? ` in issue ${reviewIssueId}` : ""}.`
+          : `Dispatched human-blocker packet ${result.blocker_id}.`,
+        data: {
+          issueId: issue.id,
+          blockerId: result.blocker_id,
+          dispatchId: result.dispatch_id,
+          reviewIssueId,
+          executionOwner,
+          routingOwner,
+          reviewOwner,
+          senderOwner,
+          deliveryMode: result.delivery_mode,
+          deliveryStatus: result.delivery_status,
+          emailSent: result.email_sent,
+          slackSent: result.slack_sent,
+        },
       };
     },
   );
@@ -14265,6 +15214,18 @@ const plugin: PaperclipPlugin = definePlugin({
         });
       }
       try {
+        await handleAgentRunFailureRuntimeFallback(ctx, event);
+      } catch (error) {
+        ctx.logger.warn("agent.run.failed runtime fallback handler failed", {
+          meta: {
+            companyId: event.companyId,
+            eventId: event.eventId,
+            runId: asString(asRecord(event.payload)?.runId) ?? null,
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
+      }
+      try {
         await handleAgentRunFailureFreshSessionRetry(ctx, event);
       } catch (error) {
         ctx.logger.warn("agent.run.failed fresh-session retry handler failed", {
@@ -14537,6 +15498,7 @@ const plugin: PaperclipPlugin = definePlugin({
     });
     setTimeout(() => {
       void ensureStartupMaintenance(ctx);
+      ensureLogicalSucceededRunRecovery(ctx);
     }, 0);
   },
 

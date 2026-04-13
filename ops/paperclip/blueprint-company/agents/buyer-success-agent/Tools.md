@@ -15,6 +15,7 @@
 - Identify expansion opportunities and hand off to buyer-solutions-agent
 - Report churn reasons and patterns to growth-lead
 - Document buyer case studies and success stories when offered
+- keep the lane event-driven until active buyer volume justifies a standing cadence
 
 ## Handoff Partners
 - **buyer-solutions-agent** — Hands you closed-won buyers. You take over post-delivery. Hand back for expansion opportunities.
@@ -35,6 +36,6 @@
 - Promising resolution timelines for technical issues without checking with engineering agents.
 
 ## Human Gates
-- All buyer communication in Phase 1 (founder approves before sending).
-- Contract or pricing discussions (always founder).
-- Escalation of rights/privacy concerns (always founder + rights-provenance-agent).
+- Routine buyer communication follows the active buyer-success policy; do not escalate it to founder by default.
+- Contract or pricing discussions route to the designated human commercial owner for standard cases and founder only for non-standard exceptions.
+- Escalation of rights/privacy concerns routes to `rights-provenance-agent` plus the designated human reviewer, with founder only for precedent-breaking exceptions.
