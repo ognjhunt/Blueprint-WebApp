@@ -118,6 +118,7 @@ import {
   isIncompatibleHermesFreeRoutingModel,
   isModelNotFoundFailure,
   syncExecutionPolicyToAdapter,
+  upsertWorkspaceAdapterCooldownState,
 } from "./quota-fallback.js";
 import {
   buildRoutineHealthAlertSignature,
@@ -1427,10 +1428,7 @@ async function setWorkspaceCooldown(
 ) {
   const state =
     await readState<WorkspaceAdapterCooldownState>(ctx, companyId, STATE_KEYS.workspaceAdapterCooldowns) ?? {};
-  const nextState = {
-    ...state,
-    [getWorkspaceAdapterCooldownKey(record.workspaceKey, record.unavailableAdapterType)]: record,
-  };
+  const nextState = upsertWorkspaceAdapterCooldownState(state, record);
   await writeState(ctx, companyId, STATE_KEYS.workspaceAdapterCooldowns, nextState);
 }
 

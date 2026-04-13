@@ -605,6 +605,23 @@ export function getWorkspaceAdapterCooldownKey(
   return `${workspaceKey}::${unavailableAdapterType}`;
 }
 
+export function upsertWorkspaceAdapterCooldownState(
+  state: WorkspaceAdapterCooldownState,
+  record: WorkspaceAdapterCooldownRecord,
+): WorkspaceAdapterCooldownState {
+  const nextState: WorkspaceAdapterCooldownState = {};
+
+  for (const [key, value] of Object.entries(state)) {
+    if (value.workspaceKey === record.workspaceKey) {
+      continue;
+    }
+    nextState[key] = value;
+  }
+
+  nextState[getWorkspaceAdapterCooldownKey(record.workspaceKey, record.unavailableAdapterType)] = record;
+  return nextState;
+}
+
 export function parseQuotaResetAt(message: string | null | undefined, now = new Date()): string | null {
   if (!message) return null;
 

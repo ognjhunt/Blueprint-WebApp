@@ -25,6 +25,7 @@ import {
   resolveQuotaCooldownUntil,
   selectWorkspaceQuotaFallbackTargets,
   syncExecutionPolicyToAdapter,
+  upsertWorkspaceAdapterCooldownState,
 } from "./quota-fallback.js";
 
 describe("quota fallback helpers", () => {
@@ -578,6 +579,56 @@ describe("quota fallback helpers", () => {
     expect(getWorkspaceAdapterCooldownKey("/tmp/webapp", "claude_local")).toBe(
       "/tmp/webapp::claude_local",
     );
+  });
+
+  it("replaces conflicting cooldown directions for the same workspace", () => {
+    expect(
+      upsertWorkspaceAdapterCooldownState(
+        {
+          "/tmp/webapp::codex_local": {
+            workspaceKey: "/tmp/webapp",
+            unavailableAdapterType: "codex_local",
+            fallbackAdapterType: "hermes_local",
+            cooldownUntil: "2026-04-13T08:30:00.000Z",
+            recordedAt: "2026-04-13T06:30:00.000Z",
+            reason: "quota_fallback_to_hermes_free",
+          },
+          "/tmp/capture::hermes_local": {
+            workspaceKey: "/tmp/capture",
+            unavailableAdapterType: "hermes_local",
+            fallbackAdapterType: "codex_local",
+            cooldownUntil: "2026-04-13T08:45:00.000Z",
+            recordedAt: "2026-04-13T06:45:00.000Z",
+            reason: "quota_fallback_to_codex_local_after_shared_openrouter_free_pool_limit",
+          },
+        },
+        {
+          workspaceKey: "/tmp/webapp",
+          unavailableAdapterType: "hermes_local",
+          fallbackAdapterType: "codex_local",
+          cooldownUntil: "2026-04-13T09:00:00.000Z",
+          recordedAt: "2026-04-13T07:00:00.000Z",
+          reason: "quota_fallback_to_codex_local_after_shared_openrouter_free_pool_limit",
+        },
+      ),
+    ).toEqual({
+      "/tmp/capture::hermes_local": {
+        workspaceKey: "/tmp/capture",
+        unavailableAdapterType: "hermes_local",
+        fallbackAdapterType: "codex_local",
+        cooldownUntil: "2026-04-13T08:45:00.000Z",
+        recordedAt: "2026-04-13T06:45:00.000Z",
+        reason: "quota_fallback_to_codex_local_after_shared_openrouter_free_pool_limit",
+      },
+      "/tmp/webapp::hermes_local": {
+        workspaceKey: "/tmp/webapp",
+        unavailableAdapterType: "hermes_local",
+        fallbackAdapterType: "codex_local",
+        cooldownUntil: "2026-04-13T09:00:00.000Z",
+        recordedAt: "2026-04-13T07:00:00.000Z",
+        reason: "quota_fallback_to_codex_local_after_shared_openrouter_free_pool_limit",
+      },
+    });
   });
 
   it("syncs execution policy order to the active adapter", () => {
