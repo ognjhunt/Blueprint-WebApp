@@ -216,7 +216,7 @@ export default async function handler(req: Request, res: Response) {
 
   try {
     // Check Stripe availability before proceeding
-    if (!stripeAvailable) {
+    if (!stripeSecretKey) {
       return res.status(503).json({
         error: "Stripe revenue metrics are currently blocked due to missing configuration. Please provision a valid Stripe secret key to restore checkout functionality.",
         unblockPath: "Contact Blueprint CTO to provision STRIPE_SECRET_KEY in the Paperclip runtime",
