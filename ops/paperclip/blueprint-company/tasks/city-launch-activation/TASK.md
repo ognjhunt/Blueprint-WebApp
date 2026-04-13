@@ -16,6 +16,9 @@ Each run must:
 - leave one Work Queue breadcrumb and one Notion Knowledge mirror tied to the current city activation state
 - keep any blocked metric or missing artifact explicit instead of marking the city as activated by narrative only
 - treat policy packets, lawful access, telemetry, proof assets, and hosted reviews as completion gates rather than activation-time idle states
+- require the source policy to separate private controlled interiors from public, non-controlled commercial locations so bounded online community sourcing is enabled only for the latter
+- require supply prospecting to push the first policy-compliant invite, reply, or applicant signal into the live intake path instead of stopping at list drafting alone
+- require external-confirmation lanes to stay open or blocked when only a draft packet exists and the real signature, applicant, reply, or artifact is still missing
 
 Do not:
 

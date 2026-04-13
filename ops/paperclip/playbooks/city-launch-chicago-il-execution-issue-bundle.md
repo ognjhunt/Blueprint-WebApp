@@ -28,7 +28,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - phase: founder_gates
 - agent owner: growth-lead
 - human owner: growth-lead
-- purpose: Keep Chicago sourcing narrow, truthful, and off the founder lane for routine approvals.
+- purpose: Keep Chicago sourcing narrow, truthful, and off the founder lane for routine approvals while explicitly distinguishing private controlled interiors from public, non-controlled commercial capture.
 - human gate: Founder approval only if the policy expands spend, public posture, or channel scope beyond the bounded Chicago pilot.
 - dependencies: none
 - metrics dependencies: none
@@ -40,6 +40,8 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
   - founder-approved Chicago launch posture
 - done when:
   - Chicago source policy names allowed channels, disallowed channels, referral rules, and who may issue invites or access codes.
+  - Chicago source policy makes public, non-controlled commercial community sourcing explicit while keeping private controlled interiors on stricter lawful-access paths.
+  - Chicago source policy names the online habitats for the public commercial lane instead of leaving community sourcing abstract.
   - Routine invite/access-code decisions stay with Growth Lead and Ops Lead inside written guardrails.
 
 ## Publish Chicago intake rubric, trust kit, and first-capture thresholds
@@ -68,7 +70,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - phase: supply
 - agent owner: capturer-growth-agent
 - human owner: growth-lead
-- purpose: Generate the first Chicago supply wave without widening into generic gig-market posture.
+- purpose: Generate the first Chicago curated professional supply wave for private controlled interiors and buyer-linked exact-site paths, then push the first real prospect or invite response into the live intake path without widening into generic gig-market posture.
 - human gate: Human review before any public posting or channel expansion beyond the written Chicago source policy.
 - dependencies: city-target-ledger, growth-source-policy
 - metrics dependencies: none
@@ -78,9 +80,34 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
   - capturer-supply-playbook.md
   - ops/paperclip/playbooks/city-launch-chicago-il.md
   - Chicago source policy
+  - live capturer intake path
 - done when:
-  - A curated first-wave Chicago prospect set is named with source bucket, rationale, lawful access posture, and next move.
+  - A curated first-wave Chicago professional prospect set is named with source bucket, rationale, lawful access posture, and next move.
+  - At least one real Chicago invite, reply, or applicant signal is landed in the live intake path with source bucket and next owner recorded.
   - Any copy stays draft-first and preserves no-guarantee capture language.
+
+## Run Chicago public-commercial community sourcing
+
+- key: public-commercial-community-sourcing
+- phase: supply
+- agent owner: capturer-growth-agent
+- human owner: growth-lead
+- purpose: Open a bounded online-community sourcing lane for public, non-controlled commercial locations such as groceries, retail stores, and similar walk-in sites, and turn that lane into real intake signals.
+- human gate: Human review before the first live community post in a new channel, or when the copy risks blurring public commercial capture with private controlled-interior access.
+- dependencies: growth-source-policy
+- metrics dependencies: none
+- validation required: false
+- source: default_task_bundle
+- inputs:
+  - capturer-supply-playbook.md
+  - ops/paperclip/playbooks/city-launch-chicago-il.md
+  - Chicago source policy
+  - public-area-only capture brief
+  - live capturer intake path
+- done when:
+  - Chicago public-commercial sourcing names the online communities, channels, and posting brief for public, non-controlled commercial capture.
+  - At least one live Chicago community-sourced invite, reply, or applicant signal is landed in the intake path with source bucket and public-commercial posture recorded.
+  - The lane stays explicitly limited to lawful public areas and preserves privacy, signage, and provenance rules.
 
 ## Route Chicago applicants into qualification and approval
 
@@ -88,7 +115,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - phase: supply
 - agent owner: intake-agent
 - human owner: ops-lead
-- purpose: Classify Chicago applicants using the approved rubric instead of ad hoc founder review.
+- purpose: Classify Chicago applicants using the approved rubric instead of ad hoc founder review, and resume immediately once the first live invite or applicant signal lands.
 - human gate: Escalate only when the rubric is ambiguous or the application raises rights/privacy/trust exceptions.
 - dependencies: ops-rubric-thresholds
 - metrics dependencies: first_approved_capturer
@@ -98,9 +125,11 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
   - Chicago intake rubric
   - waitlistSubmissions
   - capturer signup records
+  - capturer invite replies / live intake responses
 - done when:
   - Chicago applicants are tagged by source bucket, approval state, and missing-trust evidence.
   - Exceptions are blocked with explicit missing facts instead of silently held.
+  - If no live applicant signal exists yet, the lane is left blocked as a missing live signal rather than quietly waiting.
 
 ## Own approved Chicago capturers through onboarding and repeat-ready
 

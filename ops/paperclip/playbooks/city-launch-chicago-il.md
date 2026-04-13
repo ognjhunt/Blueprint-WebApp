@@ -27,7 +27,9 @@ Chicago should launch only as a bounded, proof-led city program: create rights-c
 - Choose the lawful access mode per target from: buyer_requested_site, site_operator_intro, capturer_existing_lawful_access, public_non_controlled_site.
 - Private controlled interiors require explicit authorization before dispatching capturers.
 - Keep the first active capturer cohort capped at roughly 5-10 vetted surveying, AEC, industrial inspection, or commercial mapping operators until the first 3-5 proof-ready sites exist.
-- Do not run paid acquisition, public bounty, or generic gig-worker motions for private interiors.
+- Do not run public bounty, generic gig-worker, or broad community sourcing for private controlled interiors.
+- For public, non-controlled commercial locations such as groceries, retail stores, and similar walk-in sites, allow bounded online community sourcing when the brief constrains capture to lawful public areas and preserves privacy, signage, and provenance rules.
+- For that public commercial lane, find everyday capturers where they already are online: local city/community groups, neighborhood forums, retail and shopping communities, creator communities, and lightweight campus or gig networks that do not imply private-interior access.
 - Keep public posture at Exact-Site Hosted Review wedge only; no city-live or readiness claims until proof is real.
 - Preferred first lawful access mode is still validation-required.
 
@@ -35,6 +37,7 @@ Chicago should launch only as a bounded, proof-led city program: create rights-c
 - site-authorized surveying, AEC scanning, industrial inspection, or commercial mapping operator
 - comfortable with repeatable indoor walkthrough capture and explicit rights / privacy boundaries
 - able to document access path and site-operator authority without ambiguity
+- for public, non-controlled commercial locations, everyday capturers sourced from online communities may participate when they can follow a public-area-only brief and explicit privacy/signage rules
 
 ## Ranked Channel Stack
 | Rank | Channel | Why it fits | Trust mechanism | Current posture |
@@ -43,7 +46,7 @@ Chicago should launch only as a bounded, proof-led city program: create rights-c
 | 2 | buyer-linked exact-site requests | strongest proof-led capture path | buyer thread plus operator approval | start here |
 | 3 | local surveying / AEC / industrial inspection firms | best early supply quality | professional credentials plus first-capture review | curated only |
 | 4 | high-trust mapper referrals | useful after first proof assets exist | referral guardrails plus completion history | hold until proof exists |
-| 5 | broad community or public channels | easiest to create noise and rights risk | weak | do not use yet |
+| 5 | online community capture for public, non-controlled commercial sites | enables everyday capturers to source groceries, retail, and similar walk-in locations through the communities they already use online | public-area-only brief plus privacy/signage guardrails | enable in bounded form |
 
 ## Rights Path
 

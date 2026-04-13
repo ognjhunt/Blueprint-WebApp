@@ -63,6 +63,11 @@ Remain operator-owned:
 - trust kit and first-capture thresholds
 - standard quotes inside approved bands
 
+Source-policy rule:
+- private controlled interiors stay on operator introductions, buyer-linked requests, and curated professional supply
+- public, non-controlled commercial locations such as groceries, retail stores, and similar walk-in sites may use bounded online/community sourcing, as long as the capture brief is public-area-only and preserves privacy, signage, and provenance rules
+- for that public commercial lane, the sourcing plan should name where those everyday capturers already are online: local city/community groups, neighborhood forums, retail/shopping communities, creator communities, and lightweight campus or gig networks that do not imply private-interior access
+
 ## Expansion Guard
 
 The launcher keeps a single-city-until-proven rule.

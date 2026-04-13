@@ -341,7 +341,9 @@ function buildCompactLaunchPlaybookMarkdown(input: {
     `- Choose the lawful access mode per target from: ${(input.activationPayload?.lawfulAccessModes || []).join(", ") || "buyer_requested_site, site_operator_intro, capturer_existing_lawful_access, public_non_controlled_site"}.`,
     "- Private controlled interiors require explicit authorization before dispatching capturers.",
     "- Keep the first active capturer cohort capped at roughly 5-10 vetted surveying, AEC, industrial inspection, or commercial mapping operators until the first 3-5 proof-ready sites exist.",
-    "- Do not run paid acquisition, public bounty, or generic gig-worker motions for private interiors.",
+    "- Do not run public bounty, generic gig-worker, or broad community sourcing for private controlled interiors.",
+    "- For public, non-controlled commercial locations such as groceries, retail stores, and similar walk-in sites, allow bounded online community sourcing when the brief constrains capture to lawful public areas and preserves privacy, signage, and provenance rules.",
+    "- For that public commercial lane, find everyday capturers where they already are online: local city/community groups, neighborhood forums, retail and shopping communities, creator communities, and lightweight campus or gig networks that do not imply private-interior access.",
     "- Keep public posture at Exact-Site Hosted Review wedge only; no city-live or readiness claims until proof is real.",
     input.activationPayload?.preferredLawfulAccessMode
       ? `- Preferred first lawful access mode: ${input.activationPayload.preferredLawfulAccessMode}.`
@@ -351,6 +353,7 @@ function buildCompactLaunchPlaybookMarkdown(input: {
     "- site-authorized surveying, AEC scanning, industrial inspection, or commercial mapping operator",
     "- comfortable with repeatable indoor walkthrough capture and explicit rights / privacy boundaries",
     "- able to document access path and site-operator authority without ambiguity",
+    "- for public, non-controlled commercial locations, everyday capturers sourced from online communities may participate when they can follow a public-area-only brief and explicit privacy/signage rules",
     "",
     "## Ranked Channel Stack",
     "| Rank | Channel | Why it fits | Trust mechanism | Current posture |",
@@ -359,7 +362,7 @@ function buildCompactLaunchPlaybookMarkdown(input: {
     "| 2 | buyer-linked exact-site requests | strongest proof-led capture path | buyer thread plus operator approval | start here |",
     "| 3 | local surveying / AEC / industrial inspection firms | best early supply quality | professional credentials plus first-capture review | curated only |",
     "| 4 | high-trust mapper referrals | useful after first proof assets exist | referral guardrails plus completion history | hold until proof exists |",
-    "| 5 | broad community or public channels | easiest to create noise and rights risk | weak | do not use yet |",
+    "| 5 | online community capture for public, non-controlled commercial sites | enables everyday capturers to source groceries, retail, and similar walk-in locations through the communities they already use online | public-area-only brief plus privacy/signage guardrails | enable in bounded form |",
     "",
     "## Rights Path",
     "",
@@ -493,7 +496,7 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
       title: `Lock ${profile.shortLabel} source policy and invite/access-code posture`,
       ownerLane: "growth-lead",
       humanLane: "growth-lead",
-      purpose: `Keep ${profile.shortLabel} sourcing narrow, truthful, and off the founder lane for routine approvals.`,
+      purpose: `Keep ${profile.shortLabel} sourcing narrow, truthful, and off the founder lane for routine approvals while explicitly distinguishing private controlled interiors from public, non-controlled commercial capture.`,
       inputs: [
         profile.launchPlaybookPath,
         "capturer-supply-playbook.md",
@@ -502,6 +505,8 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
       dependencies: [],
       doneWhen: [
         `${profile.shortLabel} source policy names allowed channels, disallowed channels, referral rules, and who may issue invites or access codes.`,
+        `${profile.shortLabel} source policy makes public, non-controlled commercial community sourcing explicit while keeping private controlled interiors on stricter lawful-access paths.`,
+        `${profile.shortLabel} source policy names the online habitats for the public commercial lane instead of leaving community sourcing abstract.`,
         "Routine invite/access-code decisions stay with Growth Lead and Ops Lead inside written guardrails.",
       ],
       humanGate: `Founder approval only if the policy expands spend, public posture, or channel scope beyond the bounded ${profile.shortLabel} pilot.`,
@@ -537,18 +542,46 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
       title: `Build the ${profile.shortLabel} capturer prospect list and post package`,
       ownerLane: "capturer-growth-agent",
       humanLane: "growth-lead",
-      purpose: `Generate the first ${profile.shortLabel} supply wave without widening into generic gig-market posture.`,
+      purpose: `Generate the first ${profile.shortLabel} curated professional supply wave for private controlled interiors and buyer-linked exact-site paths, then push the first real prospect or invite response into the live intake path without widening into generic gig-market posture.`,
       inputs: [
         "capturer-supply-playbook.md",
         profile.launchPlaybookPath,
         `${profile.shortLabel} source policy`,
+        "live capturer intake path",
       ],
       dependencies: ["city-target-ledger", "growth-source-policy"],
       doneWhen: [
-        `A curated first-wave ${profile.shortLabel} prospect set is named with source bucket, rationale, lawful access posture, and next move.`,
+        `A curated first-wave ${profile.shortLabel} professional prospect set is named with source bucket, rationale, lawful access posture, and next move.`,
+        `At least one real ${profile.shortLabel} invite, reply, or applicant signal is landed in the live intake path with source bucket and next owner recorded.`,
         "Any copy stays draft-first and preserves no-guarantee capture language.",
       ],
       humanGate: `Human review before any public posting or channel expansion beyond the written ${profile.shortLabel} source policy.`,
+      metricsDependencies: [],
+      validationRequired: false,
+      source: "default_task_bundle",
+    },
+    {
+      key: "public-commercial-community-sourcing",
+      phase: "supply",
+      title: `Run ${profile.shortLabel} public-commercial community sourcing`,
+      ownerLane: "capturer-growth-agent",
+      humanLane: "growth-lead",
+      purpose: `Open a bounded online-community sourcing lane for public, non-controlled commercial locations such as groceries, retail stores, and similar walk-in sites, and turn that lane into real intake signals.`,
+      inputs: [
+        "capturer-supply-playbook.md",
+        profile.launchPlaybookPath,
+        `${profile.shortLabel} source policy`,
+        "public-area-only capture brief",
+        "live capturer intake path",
+      ],
+      dependencies: ["growth-source-policy"],
+      doneWhen: [
+        `${profile.shortLabel} public-commercial sourcing names the online communities, channels, and posting brief for public, non-controlled commercial capture.`,
+        `At least one live ${profile.shortLabel} community-sourced invite, reply, or applicant signal is landed in the intake path with source bucket and public-commercial posture recorded.`,
+        "The lane stays explicitly limited to lawful public areas and preserves privacy, signage, and provenance rules.",
+      ],
+      humanGate:
+        "Human review before the first live community post in a new channel, or when the copy risks blurring public commercial capture with private controlled-interior access.",
       metricsDependencies: [],
       validationRequired: false,
       source: "default_task_bundle",
@@ -559,16 +592,18 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
       title: `Route ${profile.shortLabel} applicants into qualification and approval`,
       ownerLane: "intake-agent",
       humanLane: "ops-lead",
-      purpose: `Classify ${profile.shortLabel} applicants using the approved rubric instead of ad hoc founder review.`,
+      purpose: `Classify ${profile.shortLabel} applicants using the approved rubric instead of ad hoc founder review, and resume immediately once the first live invite or applicant signal lands.`,
       inputs: [
         `${profile.shortLabel} intake rubric`,
         "waitlistSubmissions",
         "capturer signup records",
+        "capturer invite replies / live intake responses",
       ],
       dependencies: ["ops-rubric-thresholds"],
       doneWhen: [
         `${profile.shortLabel} applicants are tagged by source bucket, approval state, and missing-trust evidence.`,
         "Exceptions are blocked with explicit missing facts instead of silently held.",
+        "If no live applicant signal exists yet, the lane is left blocked as a missing live signal rather than quietly waiting.",
       ],
       humanGate: "Escalate only when the rubric is ambiguous or the application raises rights/privacy/trust exceptions.",
       metricsDependencies: ["first_approved_capturer"],
@@ -1239,6 +1274,16 @@ function taskIssueDescription(input: {
     `- execution_state: ${input.executionState}`,
     `- activation_reason: ${input.executionReason}`,
     "- autonomy_rule: Execute all reversible research, drafting, implementation, routing, and internal/external preparation immediately. Stop only at irreversible human gates, external counterparty confirmations, or the absence of a real live signal required to mark the lane complete.",
+    ...(input.executionState === "execute_until_external_confirmation"
+      ? [
+          "- completion_rule: Draft packets, routed reviews, and internal prep are progress only. Do not mark this issue done until the required external confirmation, signature, applicant, reply, or artifact actually exists.",
+        ]
+      : []),
+    ...(input.executionState === "execute_until_live_signal"
+      ? [
+          "- completion_rule: Internal setup is not completion. Leave the issue open or blocked until the required live signal exists in the canonical path.",
+        ]
+      : []),
     "",
     "## Validation Required",
     "",
@@ -1281,6 +1326,7 @@ function assessCityLaunchTaskExecution(task: CityLaunchTask): {
           "This lane should start immediately and complete all reversible research, drafting, implementation, and internal routing work without waiting on another lane to be manually cleared first.",
       };
     case "supply-prospects":
+    case "public-commercial-community-sourcing":
     case "outbound-package":
     case "outbound-execution":
     case "buyer-thread-commercial":
@@ -1378,6 +1424,26 @@ function buildTaskKickoffComment(input: {
     `Issue: ${input.identifier || input.issueId}`,
     `Why now: city-launch:activate created the bounded execution tree and this lane should run immediately in autonomy-first mode.`,
     `Next move: start from this issue, push through all reversible work now, and leave proof-bearing progress or the first true irreversible gate here.`,
+    ...(input.task.key === "supply-prospects"
+      ? [
+          "Do not stop at list drafting alone: use the prepared prospect package and source policy to create the first real invite, reply, or applicant signal and land it in the live intake path.",
+        ]
+      : []),
+    ...(input.task.key === "public-commercial-community-sourcing"
+      ? [
+          "Name the online communities for public commercial capture, prepare the public-area-only brief, and turn the lane into the first real community-sourced intake signal without drifting into private-interior sourcing.",
+        ]
+      : []),
+    ...(input.task.key === "supply-qualification"
+      ? [
+          "Resume immediately when the first live invite or applicant signal lands, then tag source bucket, approval state, and missing-trust evidence.",
+        ]
+      : []),
+    ...(input.task.key === "lawful-access-path"
+      ? [
+          "If the packet is only drafted and the signatures are still pending, leave the issue open or blocked rather than marking it done.",
+        ]
+      : []),
   ].join("\n");
 }
 

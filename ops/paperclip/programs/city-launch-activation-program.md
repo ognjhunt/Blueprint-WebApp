@@ -36,6 +36,9 @@ Execution rule:
 
 - every lane must execute all reversible research, drafting, implementation, routing, and internal/external preparation immediately
 - lanes stop only at irreversible human gates, external counterparty confirmations, or the absence of a real live signal needed to mark the task complete
+- city source policy must distinguish private controlled interiors from public, non-controlled commercial locations; broad online/community sourcing is disallowed for the former but allowed in bounded form for the latter
+- supply prospecting does not count as complete when a list exists but no real response exists; use the prepared prospect package and approved source policy to generate the first real invite, reply, or applicant signal and land it in the live intake path immediately
+- when a lane is classified `execute_until_external_confirmation`, draft packets and routed reviews are progress only; if the required signature, applicant, buyer reply, or artifact does not exist yet, leave the issue open or blocked instead of marking it done
 - do not fake lawful access, proof assets, hosted reviews, rights clearance, spend approvals, public claims, or non-standard commercial commitments
 - do not wait for a different lane's packet to exist before starting the best available approach for the current lane
 

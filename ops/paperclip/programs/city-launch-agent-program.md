@@ -83,6 +83,9 @@ Autonomy-first execution rule:
 - once a city is founder-approved and activated, assume every lane should run immediately
 - do not convert missing policy packets, lawful-access proof, telemetry, proof-ready assets, or hosted reviews into idle states for the whole city
 - instead, make each lane execute the best reversible approach now and stop only where a real external confirmation, signature, or irreversible human decision is actually required
+- city planning and source policy must distinguish private controlled interiors from public, non-controlled commercial locations; the first stay on operator / buyer-linked / professional channels, while the second may use bounded online community sourcing
+- do not treat a prospect list as completed supply execution if no live intake signal exists yet; the first policy-compliant invite, reply, or applicant record must be pushed into the live intake path
+- do not mark lawful-access or other external-confirmation lanes done when only a draft packet exists; if signatures or counterpart confirmation are still pending, leave the issue open or blocked with that dependency named explicitly
 
 Required ownership split in every city:
 - Founder-only: city go/no-go, gated-versus-expand decisions, new spend envelopes, posture-changing public claims, non-standard commercial commitments, policy-level rights/privacy exceptions
