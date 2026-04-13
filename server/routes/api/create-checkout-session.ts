@@ -158,7 +158,9 @@ const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
 
 function getStripeClient() {
   if (!stripeSecretKey) {
-    throw new Error("STRIPE_SECRET_KEY environment variable is required");
+    throw new Error(
+      "STRIPE_SECRET_KEY environment variable is required. Revenue metrics are currently blocked. Please provision a valid Stripe secret key to restore full functionality."
+    );
   }
 
   return new Stripe(stripeSecretKey);
@@ -213,6 +215,16 @@ export default async function handler(req: Request, res: Response) {
   }
 
   try {
+    // Check Stripe availability before proceeding
+    if (!stripeAvailable) {
+      return res.status(503).json({
+        error: "Stripe revenue metrics are currently blocked due to missing configuration. Please provision a valid Stripe secret key to restore checkout functionality.",
+        unblockPath: "Contact Blueprint CTO to provision STRIPE_SECRET_KEY in the Paperclip runtime",
+        status: "blocked",
+        affectedFeatures: ["revenue-metrics", "checkout", "payments"]
+      });
+    }
+
     const stripe = getStripeClient();
 
     const body = (req.body || {}) as CheckoutRequestBody;

@@ -151,6 +151,7 @@ REDIS_URL=rediss://default:<token>@active-phoenix-39183.upstash.io:6379
   `VITE_PUBLIC_POSTHOG_HOST`
 - Optional GA4 override:
   `VITE_GA_MEASUREMENT_ID`
+  `VITE_FIREBASE_MEASUREMENT_ID` as the documented fallback alias when the GA-specific key is not set
 - Optional first-party growth event mirror:
   `BLUEPRINT_ANALYTICS_INGEST_ENABLED=1`
 - Optional SendGrid email delivery:

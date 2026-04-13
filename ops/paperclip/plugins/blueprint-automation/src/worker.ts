@@ -489,6 +489,9 @@ type SecretRefsConfig = {
   searchApiProviderRef?: string;
   firehoseApiTokenRef?: string;
   introwApiTokenRef?: string;
+  stripeSecretKeyRef?: string;
+  stripeConnectAccountIdRef?: string;
+  stripeWebhookSecretRef?: string;
 };
 
 type ManagementConfig = {
@@ -1714,6 +1717,9 @@ function normalizeConfig(rawConfig: Record<string, unknown>): BlueprintAutomatio
       searchApiProviderRef: asString(secrets.searchApiProviderRef) ?? asString(secrets.searchApiProvider),
       firehoseApiTokenRef: asString(secrets.firehoseApiTokenRef) ?? asString(secrets.firehoseApiToken),
       introwApiTokenRef: asString(secrets.introwApiTokenRef) ?? asString(secrets.introwApiToken),
+      stripeSecretKeyRef: asString(secrets.stripeSecretKeyRef) ?? asString(secrets.stripeSecretKey),
+      stripeConnectAccountIdRef: asString(secrets.stripeConnectAccountIdRef) ?? asString(secrets.stripeConnectAccountId),
+      stripeWebhookSecretRef: asString(secrets.stripeWebhookSecretRef) ?? asString(secrets.stripeWebhookSecret),
     },
     marketingCapabilities: {
       firehoseBaseUrl: asString(marketingCapabilities.firehoseBaseUrl),
@@ -10240,6 +10246,11 @@ async function buildAnalyticsOutputProof(
     config.secrets?.slackGrowthWebhookUrlRef,
     "SLACK_GROWTH_WEBHOOK_URL",
   );
+  const stripeSecretKey = await resolveOptionalSecret(
+    ctx,
+    config.secrets?.stripeSecretKeyRef,
+    "STRIPE_SECRET_KEY",
+  );
 
   const dataAvailability = [
     configuredSourceStatus(
@@ -10257,13 +10268,13 @@ async function buildAnalyticsOutputProof(
     configuredSourceStatus(
       "GA4 measurement feed",
       Boolean(process.env.VITE_GA_MEASUREMENT_ID || process.env.VITE_FIREBASE_MEASUREMENT_ID),
-      "GA4 measurement ID is present in the runtime environment.",
-      "GA4 measurement ID is not present in the Paperclip runtime environment.",
+      "GA measurement ID is present in the runtime environment via the GA or Firebase alias.",
+      "GA measurement ID is not present in the Paperclip runtime environment, and no Firebase fallback alias is set.",
     ),
     configuredSourceStatus(
       "Stripe revenue feed",
-      Boolean(process.env.STRIPE_SECRET_KEY),
-      "Stripe secret key is present in the runtime environment.",
+      Boolean(stripeSecretKey),
+      "Stripe secret key is present in the runtime environment or a resolved Paperclip secret ref.",
       "Stripe secret key is not present in the Paperclip runtime environment.",
     ),
     configuredSourceStatus(

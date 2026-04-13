@@ -147,6 +147,9 @@ The bootstrap, configure, verify, smoke, and LaunchAgent flows all read that fil
 - `BLUEPRINT_PAPERCLIP_CI_SHARED_SECRET`
 - `BLUEPRINT_PAPERCLIP_INTAKE_SHARED_SECRET`
 - `BLUEPRINT_PAPERCLIP_NOTIFICATION_WEBHOOK_URL`
+- `STRIPE_SECRET_KEY`
+- `STRIPE_CONNECT_ACCOUNT_ID`
+- `STRIPE_WEBHOOK_SECRET`
 - `NOTION_API_TOKEN`
 - `SLACK_OPS_WEBHOOK_URL`
 - `SLACK_GROWTH_WEBHOOK_URL`
@@ -169,6 +172,7 @@ The bootstrap, configure, verify, smoke, and LaunchAgent flows all read that fil
 - If a secret value is present, `configure-blueprint-paperclip-plugin.sh` creates or rotates a Paperclip company secret.
 - The plugin config stores only the Paperclip secret UUID reference, not the plaintext secret.
 - The plugin resolves the secret at execution time via `ctx.secrets.resolve(...)`.
+- Stripe runtime secrets are handled the same way when they are present in the host env file.
 
 This is materially better than relying on random shell state, while still fitting Paperclip’s current self-hosted architecture.
 

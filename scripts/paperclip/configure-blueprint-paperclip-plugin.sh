@@ -162,6 +162,9 @@ write_plugin_config() {
   local search_api_provider_id="${15:-}"
   local firehose_api_token_id="${16:-}"
   local introw_api_token_id="${17:-}"
+  local stripe_secret_key_id="${18:-}"
+  local stripe_connect_account_id="${19:-}"
+  local stripe_webhook_secret_id="${20:-}"
 
   local payload
   payload="$(
@@ -186,15 +189,18 @@ write_plugin_config() {
       template.secrets.searchApiProviderRef = process.argv[16] || "";
       template.secrets.firehoseApiTokenRef = process.argv[17] || "";
       template.secrets.introwApiTokenRef = process.argv[18] || "";
+      template.secrets.stripeSecretKeyRef = process.argv[19] || "";
+      template.secrets.stripeConnectAccountIdRef = process.argv[20] || "";
+      template.secrets.stripeWebhookSecretRef = process.argv[21] || "";
       template.marketingCapabilities = template.marketingCapabilities || {};
-      template.marketingCapabilities.firehoseBaseUrl = process.argv[19] || template.marketingCapabilities.firehoseBaseUrl || "";
-      template.marketingCapabilities.introwBaseUrl = process.argv[20] || template.marketingCapabilities.introwBaseUrl || "";
-      template.marketingCapabilities.firehoseDefaultTopics = (process.argv[21] || "").split(",").map((value) => value.trim()).filter(Boolean);
-      template.marketingCapabilities.firehoseMaxSignalsPerRead = process.argv[22] ? Number(process.argv[22]) : template.marketingCapabilities.firehoseMaxSignalsPerRead || 20;
-      template.marketingCapabilities.introwDefaultWorkspace = process.argv[23] || template.marketingCapabilities.introwDefaultWorkspace || "";
+      template.marketingCapabilities.firehoseBaseUrl = process.argv[22] || template.marketingCapabilities.firehoseBaseUrl || "";
+      template.marketingCapabilities.introwBaseUrl = process.argv[23] || template.marketingCapabilities.introwBaseUrl || "";
+      template.marketingCapabilities.firehoseDefaultTopics = (process.argv[24] || "").split(",").map((value) => value.trim()).filter(Boolean);
+      template.marketingCapabilities.firehoseMaxSignalsPerRead = process.argv[25] ? Number(process.argv[25]) : template.marketingCapabilities.firehoseMaxSignalsPerRead || 20;
+      template.marketingCapabilities.introwDefaultWorkspace = process.argv[26] || template.marketingCapabilities.introwDefaultWorkspace || "";
       template.enableOutboundNotifications = Boolean(process.argv[8]);
       process.stdout.write(JSON.stringify({configJson: template}));
-    ' "$CONFIG_TEMPLATE" "$COMPANY_NAME" "${BLUEPRINT_PAPERCLIP_GITHUB_OWNER:-}" "$github_token_id" "$github_webhook_secret_id" "$ci_secret_id" "$intake_secret_id" "$notification_webhook_id" "$notion_token_id" "$slack_ops_webhook_id" "$slack_growth_webhook_id" "$slack_exec_webhook_id" "$slack_engineering_webhook_id" "$slack_manager_webhook_id" "$search_api_key_id" "$search_api_provider_id" "$firehose_api_token_id" "$introw_api_token_id" "${BLUEPRINT_PAPERCLIP_FIREHOSE_BASE_URL:-}" "${BLUEPRINT_PAPERCLIP_INTROW_BASE_URL:-}" "${BLUEPRINT_PAPERCLIP_FIREHOSE_DEFAULT_TOPICS:-}" "${BLUEPRINT_PAPERCLIP_FIREHOSE_MAX_SIGNALS_PER_READ:-}" "${BLUEPRINT_PAPERCLIP_INTROW_DEFAULT_WORKSPACE:-}"
+    ' "$CONFIG_TEMPLATE" "$COMPANY_NAME" "${BLUEPRINT_PAPERCLIP_GITHUB_OWNER:-}" "$github_token_id" "$github_webhook_secret_id" "$ci_secret_id" "$intake_secret_id" "$notification_webhook_id" "$notion_token_id" "$slack_ops_webhook_id" "$slack_growth_webhook_id" "$slack_exec_webhook_id" "$slack_engineering_webhook_id" "$slack_manager_webhook_id" "$search_api_key_id" "$search_api_provider_id" "$firehose_api_token_id" "$introw_api_token_id" "$stripe_secret_key_id" "$stripe_connect_account_id" "$stripe_webhook_secret_id" "${BLUEPRINT_PAPERCLIP_FIREHOSE_BASE_URL:-}" "${BLUEPRINT_PAPERCLIP_INTROW_BASE_URL:-}" "${BLUEPRINT_PAPERCLIP_FIREHOSE_DEFAULT_TOPICS:-}" "${BLUEPRINT_PAPERCLIP_FIREHOSE_MAX_SIGNALS_PER_READ:-}" "${BLUEPRINT_PAPERCLIP_INTROW_DEFAULT_WORKSPACE:-}"
   )"
 
   curl -fsS -X POST \
@@ -229,6 +235,9 @@ main() {
   local search_api_provider_id
   local firehose_api_token_id
   local introw_api_token_id
+  local stripe_secret_key_id
+  local stripe_connect_account_id
+  local stripe_webhook_secret_id
 
   github_token_id="$(upsert_secret_from_env "$company" "github-token" "BLUEPRINT_PAPERCLIP_GITHUB_TOKEN")"
   github_webhook_secret_id="$(upsert_secret_from_env "$company" "github-webhook-secret" "BLUEPRINT_PAPERCLIP_GITHUB_WEBHOOK_SECRET")"
@@ -245,6 +254,9 @@ main() {
   search_api_provider_id="$(upsert_secret_from_env "$company" "search-api-provider" "SEARCH_API_PROVIDER")"
   firehose_api_token_id="$(upsert_secret_from_env "$company" "firehose-api-token" "FIREHOSE_API_TOKEN")"
   introw_api_token_id="$(upsert_secret_from_env "$company" "introw-api-token" "INTROW_API_TOKEN")"
+  stripe_secret_key_id="$(upsert_secret_from_env "$company" "stripe-secret-key" "STRIPE_SECRET_KEY")"
+  stripe_connect_account_id="$(upsert_secret_from_env "$company" "stripe-connect-account-id" "STRIPE_CONNECT_ACCOUNT_ID")"
+  stripe_webhook_secret_id="$(upsert_secret_from_env "$company" "stripe-webhook-secret" "STRIPE_WEBHOOK_SECRET")"
 
   write_plugin_config \
     "$company" \
@@ -263,7 +275,10 @@ main() {
     "$search_api_key_id" \
     "$search_api_provider_id" \
     "$firehose_api_token_id" \
-    "$introw_api_token_id"
+    "$introw_api_token_id" \
+    "$stripe_secret_key_id" \
+    "$stripe_connect_account_id" \
+    "$stripe_webhook_secret_id"
 
   curl -fsS "${PAPERCLIP_API_URL}/api/plugins/${plugin}/health" >/dev/null
 

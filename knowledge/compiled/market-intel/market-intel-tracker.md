@@ -14,7 +14,7 @@ source_urls:
   - "https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai"
   - "https://digital-strategy.ec.europa.eu/en/faqs/navigating-ai-act"
   - "https://cppa.ca.gov/announcements/2025/20250923.html"
-last_verified_at: 2026-04-10
+last_verified_at: 2026-04-13
 owner: market-intel-agent
 sensitivity: internal
 confidence: 0.78
@@ -46,6 +46,13 @@ Blueprint's current market baseline is shifting in four directions at once: capt
 - WorldStereo shows a newer technical bridge between controllable video generation and explicit 3D geometric memory, which keeps reconstruction backends moving toward productizable scene capture primitives.
 - EU AI Act and California privacy rules continue to harden documentation and traceability expectations for AI systems and data pipelines.
 
+### 2026-04-13
+
+- Polycam's capture surface is still pushing lower-friction commodity-device scanning into the mainstream, reinforcing the expectation that capture should start on ordinary hardware.
+- World Labs continues to sell world models as a programmable platform surface, which keeps the API-shaped category signal intact.
+- NVIDIA's March 16 physical-AI announcement sharpens the platform expectation around world models, synthetic data, and simulation for robotics.
+- EU and California compliance materials continue to make provenance, consent, and traceability part of the product contract, not an afterthought.
+
 ## Strategic Read
 
 - The strongest near-term moat for Blueprint remains real-site capture quality, provenance-safe packaging, and buyer workflow, not model ownership.
@@ -57,6 +64,8 @@ Blueprint's current market baseline is shifting in four directions at once: capt
 
 - [Market Intel Daily Digest - 2026-04-10](../../reports/market-intel/2026-04-10-market-intel-daily-digest-2026-04-10.md)
 - [Raw source note - 2026-04-10](../../raw/web/2026-04-10/market-intel-sources.md)
+- [Market Intel Daily Digest - 2026-04-13](../../reports/market-intel/2026-04-13-market-intel-daily-digest-2026-04-13.md)
+- [Raw source note - 2026-04-13](../../raw/web/2026-04-13/market-intel-sources.md)
 
 ## Authority Boundary
 

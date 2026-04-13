@@ -67,7 +67,10 @@
     "searchApiKeyRef": "SEARCH_API_KEY",
     "searchApiProviderRef": "SEARCH_API_PROVIDER",
     "firehoseApiTokenRef": "FIREHOSE_API_TOKEN",
-    "introwApiTokenRef": "INTROW_API_TOKEN"
+    "introwApiTokenRef": "INTROW_API_TOKEN",
+    "stripeSecretKeyRef": "STRIPE_SECRET_KEY",
+    "stripeConnectAccountIdRef": "STRIPE_CONNECT_ACCOUNT_ID",
+    "stripeWebhookSecretRef": "STRIPE_WEBHOOK_SECRET"
   },
   "marketingCapabilities": {
     "firehoseBaseUrl": "https://marketing.example.com/firehose",
