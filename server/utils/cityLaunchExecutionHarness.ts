@@ -491,6 +491,31 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
       source: "default_task_bundle",
     },
     {
+      key: "parallel-lawful-access-queue",
+      phase: "founder_gates",
+      title: `Maintain the ${profile.shortLabel} parallel lawful-access queue`,
+      ownerLane: "city-demand-agent",
+      humanLane: "growth-lead",
+      purpose: `Keep a multi-site lawful-access queue active so ${profile.shortLabel} warehouse and facility work does not stall on a single signature path.`,
+      inputs: [
+        profile.targetLedgerPath,
+        profile.launchPlaybookPath,
+        "buyer-linked exact-site requests",
+        "site access path notes",
+      ],
+      dependencies: ["city-target-ledger"],
+      doneWhen: [
+        `${profile.shortLabel} keeps 3-5 named lawful-access candidates or buyer-linked fallback sites queued in parallel, with one current next step per candidate.`,
+        "If one warehouse stalls, another named access path is ready without restarting city planning from zero.",
+        "Each queued candidate names the current access posture, likely owner/operator/tenant path, and whether the next move belongs to buyer thread, operator intro, or existing lawful access.",
+      ],
+      humanGate:
+        "Escalate only when the next candidate requires a posture-changing operator motion, a rights/privacy exception, or founder review on a new precedent.",
+      metricsDependencies: ["first_lawful_access_path"],
+      validationRequired: false,
+      source: "default_task_bundle",
+    },
+    {
       key: "growth-source-policy",
       phase: "founder_gates",
       title: `Lock ${profile.shortLabel} source policy and invite/access-code posture`,
@@ -511,6 +536,31 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
       ],
       humanGate: `Founder approval only if the policy expands spend, public posture, or channel scope beyond the bounded ${profile.shortLabel} pilot.`,
       metricsDependencies: [],
+      validationRequired: false,
+      source: "default_task_bundle",
+    },
+    {
+      key: "site-operator-partnership",
+      phase: "founder_gates",
+      title: `Run ${profile.shortLabel} site-operator partnership routing`,
+      ownerLane: "site-operator-partnership-agent",
+      humanLane: "growth-lead",
+      purpose: `Prepare the operator-side access path for ${profile.shortLabel} warehouses and facilities by identifying contacts, operator value props, approval sequence, and escalation boundaries before the city waits on a single site.`,
+      inputs: [
+        "ops/paperclip/playbooks/site-operator-access-and-commercialization-playbook.md",
+        profile.launchPlaybookPath,
+        profile.targetLedgerPath,
+        "parallel lawful-access queue",
+      ],
+      dependencies: ["parallel-lawful-access-queue", "growth-source-policy"],
+      doneWhen: [
+        `${profile.shortLabel} operator-lane packet identifies likely owner/operator/tenant contacts, operator-side value props, and the exact approval sequence for the highest-priority warehouse/facility candidates.`,
+        "The first operator-outreach draft or intro packet is ready for human review instead of being invented ad hoc at the moment of blockage.",
+        "Open questions and escalation boundaries are explicit before live operator outreach begins.",
+      ],
+      humanGate:
+        "Human review before the first live operator outreach, and immediate escalation for commercialization, legal, privacy, consent, or non-standard access questions.",
+      metricsDependencies: ["first_lawful_access_path"],
       validationRequired: false,
       source: "default_task_bundle",
     },
@@ -1013,7 +1063,8 @@ function buildSystemDocMarkdown(input: {
 
   const agentPrepared = [
     `city-launch-agent keeps the ${profile.shortLabel} plan and dependency map current.`,
-    `city-demand-agent maintains the ${profile.shortLabel} target ledger so the capture queue stays tied to real robot workflow demand.`,
+    `city-demand-agent maintains the ${profile.shortLabel} target ledger and parallel lawful-access queue so the capture queue stays tied to real robot workflow demand without stalling on one facility.`,
+    `site-operator-partnership-agent prepares operator-lane contact maps, value props, and approval sequences for warehouse/facility access paths before the city waits on a single signature thread.`,
     `capturer-growth-agent, intake-agent, capturer-success-agent, field-ops-agent, capture-qa-agent, and rights-provenance-agent run the supply loop continuously, producing drafts, packets, routing, and prep work even before the first real-world confirmations arrive.`,
     `demand-intel-agent, robot-team-growth-agent, outbound-sales-agent, buyer-solutions-agent, and revenue-ops-pricing-agent run the demand loop continuously, packaging truthful proof motion and only pausing at irreversible claim, rights, spend, or non-standard commercial gates.`,
     `analytics-agent and notion-manager-agent keep ${profile.shortLabel} measurable, reviewable, and mirrored into the operator surfaces.`,
@@ -1314,7 +1365,9 @@ function assessCityLaunchTaskExecution(task: CityLaunchTask): {
 } {
   switch (task.key) {
     case "city-target-ledger":
+    case "parallel-lawful-access-queue":
     case "growth-source-policy":
+    case "site-operator-partnership":
     case "ops-rubric-thresholds":
     case "buyer-target-research":
     case "city-scorecard":
@@ -1427,6 +1480,16 @@ function buildTaskKickoffComment(input: {
     ...(input.task.key === "supply-prospects"
       ? [
           "Do not stop at list drafting alone: use the prepared prospect package and source policy to create the first real invite, reply, or applicant signal and land it in the live intake path.",
+        ]
+      : []),
+    ...(input.task.key === "parallel-lawful-access-queue"
+      ? [
+          "Do not wait on one warehouse: keep multiple named access paths warm so the city can switch targets without restarting planning.",
+        ]
+      : []),
+    ...(input.task.key === "site-operator-partnership"
+      ? [
+          "Prepare the operator contact map, value prop, and approval sequence now so lawful-access work is ready for review before the city hits a single-site dead end.",
         ]
       : []),
     ...(input.task.key === "public-commercial-community-sourcing"

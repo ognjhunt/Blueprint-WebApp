@@ -22,6 +22,28 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
   - The Chicago target ledger names the first proof candidates, queued lawful-access buckets, and longer-horizon discovery lanes.
   - Capture priorities stay tied to current robot workflow demand and lawful access realism instead of generic city coverage.
 
+## Maintain the Chicago parallel lawful-access queue
+
+- key: parallel-lawful-access-queue
+- phase: founder_gates
+- agent owner: city-demand-agent
+- human owner: growth-lead
+- purpose: Keep a multi-site lawful-access queue active so Chicago warehouse and facility work does not stall on a single signature path.
+- human gate: Escalate only when the next candidate requires a posture-changing operator motion, a rights/privacy exception, or founder review on a new precedent.
+- dependencies: city-target-ledger
+- metrics dependencies: first_lawful_access_path
+- validation required: false
+- source: default_task_bundle
+- inputs:
+  - ops/paperclip/playbooks/city-capture-target-ledger-chicago-il.md
+  - ops/paperclip/playbooks/city-launch-chicago-il.md
+  - buyer-linked exact-site requests
+  - site access path notes
+- done when:
+  - Chicago keeps 3-5 named lawful-access candidates or buyer-linked fallback sites queued in parallel, with one current next step per candidate.
+  - If one warehouse stalls, another named access path is ready without restarting city planning from zero.
+  - Each queued candidate names the current access posture, likely owner/operator/tenant path, and whether the next move belongs to buyer thread, operator intro, or existing lawful access.
+
 ## Lock Chicago source policy and invite/access-code posture
 
 - key: growth-source-policy
@@ -43,6 +65,28 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
   - Chicago source policy makes public, non-controlled commercial community sourcing explicit while keeping private controlled interiors on stricter lawful-access paths.
   - Chicago source policy names the online habitats for the public commercial lane instead of leaving community sourcing abstract.
   - Routine invite/access-code decisions stay with Growth Lead and Ops Lead inside written guardrails.
+
+## Run Chicago site-operator partnership routing
+
+- key: site-operator-partnership
+- phase: founder_gates
+- agent owner: site-operator-partnership-agent
+- human owner: growth-lead
+- purpose: Prepare the operator-side access path for Chicago warehouses and facilities by identifying contacts, operator value props, approval sequence, and escalation boundaries before the city waits on a single site.
+- human gate: Human review before the first live operator outreach, and immediate escalation for commercialization, legal, privacy, consent, or non-standard access questions.
+- dependencies: parallel-lawful-access-queue, growth-source-policy
+- metrics dependencies: first_lawful_access_path
+- validation required: false
+- source: default_task_bundle
+- inputs:
+  - ops/paperclip/playbooks/site-operator-access-and-commercialization-playbook.md
+  - ops/paperclip/playbooks/city-launch-chicago-il.md
+  - ops/paperclip/playbooks/city-capture-target-ledger-chicago-il.md
+  - parallel lawful-access queue
+- done when:
+  - Chicago operator-lane packet identifies likely owner/operator/tenant contacts, operator-side value props, and the exact approval sequence for the highest-priority warehouse/facility candidates.
+  - The first operator-outreach draft or intro packet is ready for human review instead of being invented ad hoc at the moment of blockage.
+  - Open questions and escalation boundaries are explicit before live operator outreach begins.
 
 ## Publish Chicago intake rubric, trust kit, and first-capture thresholds
 

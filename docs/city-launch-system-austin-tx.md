@@ -52,7 +52,8 @@ Turn the Austin planning artifacts into an executable company harness that runs 
 ## Agent-Prepared / Autonomous Work
 
 - city-launch-agent keeps the Austin plan and dependency map current.
-- city-demand-agent maintains the Austin target ledger so the capture queue stays tied to real robot workflow demand.
+- city-demand-agent maintains the Austin target ledger and parallel lawful-access queue so the capture queue stays tied to real robot workflow demand without stalling on one facility.
+- site-operator-partnership-agent prepares operator-lane contact maps, value props, and approval sequences for warehouse/facility access paths before the city waits on a single signature thread.
 - capturer-growth-agent, intake-agent, capturer-success-agent, field-ops-agent, capture-qa-agent, and rights-provenance-agent run the supply loop continuously, producing drafts, packets, routing, and prep work even before the first real-world confirmations arrive.
 - demand-intel-agent, robot-team-growth-agent, outbound-sales-agent, buyer-solutions-agent, and revenue-ops-pricing-agent run the demand loop continuously, packaging truthful proof motion and only pausing at irreversible claim, rights, spend, or non-standard commercial gates.
 - analytics-agent and notion-manager-agent keep Austin measurable, reviewable, and mirrored into the operator surfaces.
@@ -96,7 +97,9 @@ Turn the Austin planning artifacts into an executable company harness that runs 
 ## Execution Bundle
 
 - Maintain the Austin capture target ledger: city-demand-agent owns execution, Growth Lead is the human lane, and the task closes only when The Austin target ledger names the first proof candidates, queued lawful-access buckets, and longer-horizon discovery lanes..
+- Maintain the Austin parallel lawful-access queue: city-demand-agent owns execution, Growth Lead is the human lane, and the task closes only when Austin keeps 3-5 named lawful-access candidates or buyer-linked fallback sites queued in parallel, with one current next step per candidate..
 - Lock Austin source policy and invite/access-code posture: Growth Lead owns execution, Growth Lead is the human lane, and the task closes only when Austin source policy names allowed channels, disallowed channels, referral rules, and who may issue invites or access codes..
+- Run Austin site-operator partnership routing: site-operator-partnership-agent owns execution, Growth Lead is the human lane, and the task closes only when Austin operator-lane packet identifies likely owner/operator/tenant contacts, operator-side value props, and the exact approval sequence for the highest-priority warehouse/facility candidates..
 - Publish Austin intake rubric, trust kit, and first-capture thresholds: Ops Lead owns execution, Ops Lead is the human lane, and the task closes only when Austin rubric covers source quality, access-path truth, equipment/device fit, trust-packet minimums, and approval outcomes..
 - Build the Austin capturer prospect list and post package: capturer-growth-agent owns execution, Growth Lead is the human lane, and the task closes only when A curated first-wave Austin professional prospect set is named with source bucket, rationale, lawful access posture, and next move..
 - Run Austin public-commercial community sourcing: capturer-growth-agent owns execution, Growth Lead is the human lane, and the task closes only when Austin public-commercial sourcing names the online communities, channels, and posting brief for public, non-controlled commercial capture..
