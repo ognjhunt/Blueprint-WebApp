@@ -119,6 +119,42 @@ export interface CityLaunchPlaybookValidationResult {
   warnings: string[];
 }
 
+export function buildPlaybookRepairPrompt(input: {
+  city: string;
+  previousPlaybook: string;
+  validationErrors: string[];
+  validationWarnings?: string[];
+}) {
+  const warningLines = (input.validationWarnings || []).length > 0
+    ? input.validationWarnings!.map((warning) => `- ${warning}`)
+    : ["- none"];
+
+  return [
+    `You are repairing a Blueprint city proof-motion playbook for ${input.city}.`,
+    `Return a full corrected Markdown playbook, not a diff.`,
+    ``,
+    `Hard requirements:`,
+    `- preserve the Blueprint proof-motion framing and the city-specific substance that is still valid`,
+    `- fix every validation error listed below`,
+    `- keep the exact section headings "## Machine-readable activation payload" and "## Structured launch data appendix"`,
+    `- include a valid \`\`\`city-launch-activation-payload fence under the first heading`,
+    `- include a valid \`\`\`city-launch-records fence under the second heading`,
+    `- do not emit placeholder URLs such as example.com`,
+    `- if a source URL is unknown, leave source_urls empty and keep validation_required=true where appropriate`,
+    `- keep unsupported claims labeled verify-before-outreach rather than turning hypotheses into facts`,
+    `- output Markdown only`,
+    ``,
+    `Validation errors to fix:`,
+    ...input.validationErrors.map((error) => `- ${error}`),
+    ``,
+    `Validation warnings to preserve or improve on:`,
+    ...warningLines,
+    ``,
+    `Previous playbook to repair:`,
+    input.previousPlaybook,
+  ].join("\n");
+}
+
 export function slugifyCityName(city: string) {
   return city
     .trim()
@@ -161,6 +197,11 @@ export function validateCityLaunchPlaybookMarkdown(input: {
 }) {
   const errors: string[] = [];
   const warnings: string[] = [];
+  const placeholderUrlMatches = [
+    ...input.markdown.matchAll(/https?:\/\/example\.com(?:\/[^\s`"')]+)?/gi),
+  ]
+    .map((match) => match[0])
+    .filter((value): value is string => Boolean(value));
   const requiredHeadings = [
     "Truth constraints",
     "Evidence-backed claims",
@@ -177,6 +218,12 @@ export function validateCityLaunchPlaybookMarkdown(input: {
     if (!hasHeading(input.markdown, heading)) {
       errors.push(`Missing required section heading: "${heading}".`);
     }
+  }
+
+  if (placeholderUrlMatches.length > 0) {
+    errors.push(
+      `Structured playbook includes placeholder source URLs: ${[...new Set(placeholderUrlMatches)].join(", ")}.`,
+    );
   }
 
   if (!/verify before outreach|validation required/i.test(input.markdown)) {
@@ -514,6 +561,8 @@ export function buildSynthesisPrompt(input: {
     `- preserve uncertainty labels`,
     `- organize the document as a Blueprint city proof-motion launcher, not a generic marketplace launch plan`,
     `- keep analogous companies as a secondary sanity-check section only, not the main narrative frame`,
+    `- use the exact heading text "## Machine-readable activation payload" immediately before the \`\`\`city-launch-activation-payload fence`,
+    `- use the exact heading text "## Structured launch data appendix" immediately before the \`\`\`city-launch-records fence`,
     `- do not introduce city-specific analytics event names; use only approved repo analytics vocabulary with a city/source tag`,
     `- make the lawful access decision explicit before any private indoor capture motion`,
     `- if the city includes defense, aerospace, or other export-controlled buyers, add an explicit constraint section covering hosted-review limits and air-gapped review needs`,
@@ -524,6 +573,8 @@ export function buildSynthesisPrompt(input: {
     `- do not use manipulative, exclusivity, fake urgency, or posture-changing language`,
     `- do not claim "no custom telemetry" while introducing new event names; distinguish current repo events, approved missing proof-motion events, and \`inboundRequests.ops.proof_path\` milestones explicitly`,
     `- align the result with the current city-launch execution docs and activation program, and distinguish activation gates vs widening gates vs outreach gates`,
+    `- never copy placeholder schema values such as Example Robotics, Example warehouse, or example.com from the schema examples below into the final playbook`,
+    `- if a source URL is unknown, use an empty array and keep the claim validation-required; never emit placeholder URLs`,
     `- include a fenced \`\`\`city-launch-activation-payload block that acts as the control-plane artifact for activation, issue routing, approvals, and metrics blockers`,
     `- end the document with a fenced JSON block using \`\`\`city-launch-records`,
     `- the JSON block must parse cleanly and use schema_version "${CITY_LAUNCH_RESEARCH_SCHEMA_VERSION}"`,
@@ -669,14 +720,14 @@ export function buildSynthesisPrompt(input: {
         ],
         named_claims: [
           {
-            subject: "Example Robotics",
+            subject: "<researched-company>",
             claim_type: "company",
-            claim: "Example Robotics is a credible named buyer target for this city wedge.",
-            validation_required: false,
-            source_urls: ["https://example.com/buyer"],
+            claim: "Replace with a researched named buyer target or set validation_required=true with empty source_urls.",
+            validation_required: true,
+            source_urls: [],
           },
           {
-            subject: "ROS 2 / Gazebo",
+            subject: "<stack-or-delivery-claim>",
             claim_type: "stack",
             claim: "The proof path should support ROS 2 / Gazebo-compatible artifacts.",
             validation_required: true,
@@ -697,32 +748,32 @@ export function buildSynthesisPrompt(input: {
         generated_at: "2026-04-12T00:00:00.000Z",
         capture_location_candidates: [
           {
-            name: "Example warehouse",
+            name: "<researched-site>",
             source_bucket: "industrial_warehouse",
             channel: "operator_intro",
             status: "identified",
-            site_address: "123 Example St, Austin, TX",
-            location_summary: "Del Valle logistics corridor",
+            site_address: "<researched-site-address>",
+            location_summary: "<researched-site-summary>",
             lat: 30.0,
             lng: -97.0,
             site_category: "warehouse",
             workflow_fit: "dock handoff and pallet movement",
             priority_note: "Strong early exact-site capture wedge.",
-            source_urls: ["https://example.com"],
+            source_urls: [],
             explicit_fields: ["name", "site_address", "source_bucket"],
             inferred_fields: ["lat", "lng"],
           },
         ],
         buyer_target_candidates: [
           {
-            company_name: "Example Robotics",
+            company_name: "<researched-company>",
             contact_name: "Jane Doe",
             status: "researched",
             workflow_fit: "warehouse autonomy",
             proof_path: "exact_site",
             notes: "Cited buyer fit from current robotics deployment work.",
             source_bucket: "warehouse_robotics",
-            source_urls: ["https://example.com"],
+            source_urls: [],
             explicit_fields: ["company_name", "workflow_fit"],
             inferred_fields: [],
           },
@@ -730,14 +781,14 @@ export function buildSynthesisPrompt(input: {
         first_touch_candidates: [
           {
             reference_type: "buyer_target",
-            reference_name: "Example Robotics",
+            reference_name: "<researched-company>",
             channel: "email",
             touch_type: "first_touch",
             status: "queued",
             campaign_id: null,
             issue_id: null,
             notes: "Reference a cited warehouse proof path.",
-            source_urls: ["https://example.com"],
+            source_urls: [],
             explicit_fields: ["reference_name", "channel"],
             inferred_fields: [],
           },
@@ -747,7 +798,7 @@ export function buildSynthesisPrompt(input: {
             category: "outbound",
             amount_usd: 250,
             note: "Explicit recommendation from the final playbook.",
-            source_urls: ["https://example.com"],
+            source_urls: [],
             explicit_fields: ["category", "amount_usd"],
             inferred_fields: [],
           },
@@ -918,6 +969,27 @@ async function persistInteractionArtifact(input: {
 
   await writeTextArtifact(input.artifactPath, content);
   return text;
+}
+
+function validateAndParsePlaybook(input: {
+  city: string;
+  artifactPath: string;
+  markdown: string;
+}) {
+  const validation = validateCityLaunchPlaybookMarkdown({
+    city: input.city,
+    markdown: input.markdown,
+  });
+  const parsedPlaybook = parseCityLaunchResearchArtifact({
+    city: input.city,
+    artifactPath: input.artifactPath,
+    markdown: input.markdown,
+  });
+
+  return {
+    validation,
+    parsedPlaybook,
+  };
 }
 
 export async function runCityLaunchPlanningHarness(
@@ -1120,21 +1192,77 @@ export async function runCityLaunchPlanningHarness(
     previousInteractionId: stages[stages.length - 1]?.interactionId,
     store: true,
   });
+  let validatedPlaybookArtifactPath = finalPlaybookPath;
   const finalPlaybookText = await persistInteractionArtifact({
     artifactPath: finalPlaybookPath,
     title: `${city} Final Launch Playbook`,
     interaction: finalSynthesis,
     prompt: synthesisPrompt,
   });
-  const validation = validateCityLaunchPlaybookMarkdown({
-    city,
-    markdown: finalPlaybookText,
-  });
-  const parsedPlaybook = parseCityLaunchResearchArtifact({
+  let validatedPlaybookText = finalPlaybookText;
+  let validatedInteractionId = finalSynthesis.id;
+  let {
+    validation,
+    parsedPlaybook,
+  } = validateAndParsePlaybook({
     city,
     artifactPath: finalPlaybookPath,
-    markdown: finalPlaybookText,
+    markdown: validatedPlaybookText,
   });
+
+  for (let repairRound = 1; !validation.ok && repairRound <= 2; repairRound += 1) {
+    const repairPrompt = buildPlaybookRepairPrompt({
+      city,
+      previousPlaybook: validatedPlaybookText,
+      validationErrors: validation.errors,
+      validationWarnings: validation.warnings,
+    });
+    const repairInteraction = await createGeminiInteraction({
+      input: repairPrompt,
+      model: GEMINI_PLANNING_MODEL,
+      previousInteractionId: validatedInteractionId,
+      store: true,
+    });
+    const repairArtifactPath = path.join(
+      runDirectory,
+      `99-final-playbook-repair-round-${repairRound}.md`,
+    );
+    validatedPlaybookArtifactPath = repairArtifactPath;
+    validatedPlaybookText = await persistInteractionArtifact({
+      artifactPath: repairArtifactPath,
+      title: `${city} Final Playbook Repair Round ${repairRound}`,
+      interaction: repairInteraction,
+      prompt: repairPrompt,
+    });
+    validatedInteractionId = repairInteraction.id;
+    stageArtifacts.push(repairArtifactPath);
+    stages.push({
+      key: `final_playbook_repair_round_${repairRound}`,
+      interactionId: repairInteraction.id,
+      status: repairInteraction.status,
+      artifactPath: repairArtifactPath,
+    });
+    await writePlanningManifest({
+      city,
+      citySlug,
+      status: "in_progress",
+      startedAt: startedAtIso,
+      completedAt: new Date().toISOString(),
+      manifestPath,
+      artifacts: baseArtifacts,
+      stages,
+    });
+
+    ({
+      validation,
+      parsedPlaybook,
+    } = validateAndParsePlaybook({
+      city,
+      artifactPath: repairArtifactPath,
+      markdown: validatedPlaybookText,
+    }));
+  }
+
   await writeTextArtifact(
     validationArtifactPath,
     renderValidationReport(validation),
@@ -1147,7 +1275,10 @@ export async function runCityLaunchPlanningHarness(
   if (!parsedPlaybook.activationPayload) {
     throw new Error("Final city launch playbook is missing a valid activation payload.");
   }
-  await writeTextArtifact(canonicalPlaybookPath, finalPlaybookText);
+  if (validatedPlaybookArtifactPath !== finalPlaybookPath) {
+    await fs.copyFile(validatedPlaybookArtifactPath, finalPlaybookPath);
+  }
+  await writeTextArtifact(canonicalPlaybookPath, validatedPlaybookText);
   await writeTextArtifact(
     activationPayloadPath,
     JSON.stringify(parsedPlaybook.activationPayload, null, 2),
@@ -1160,8 +1291,8 @@ export async function runCityLaunchPlanningHarness(
   stageArtifacts.push(finalPlaybookPath);
   stages.push({
     key: "final_playbook",
-    interactionId: finalSynthesis.id,
-    status: finalSynthesis.status,
+    interactionId: validatedInteractionId,
+    status: "completed",
     artifactPath: finalPlaybookPath,
   });
 

@@ -4,6 +4,7 @@ import {
   buildResearchPrompt,
   buildCritiquePrompt,
   buildFollowUpResearchPrompt,
+  buildPlaybookRepairPrompt,
   buildSynthesisPrompt,
   slugifyCityName,
   validateCityLaunchPlaybookMarkdown,
@@ -82,6 +83,26 @@ describe("city launch planning harness", () => {
     expect(prompt).toContain("do not drift into generic marketplace framing");
   });
 
+  it("builds a repair prompt that asks for a full corrected playbook", () => {
+    const prompt = buildPlaybookRepairPrompt({
+      city: "Sacramento, CA",
+      previousPlaybook: "# Broken playbook",
+      validationErrors: [
+        'Missing required section heading: "Machine-readable activation payload".',
+        "Structured playbook includes placeholder source URLs: https://example.com.",
+      ],
+      validationWarnings: ["warning one"],
+    });
+
+    expect(prompt).toContain("repairing a Blueprint city proof-motion playbook for Sacramento, CA");
+    expect(prompt).toContain("Return a full corrected Markdown playbook, not a diff.");
+    expect(prompt).toContain('keep the exact section headings "## Machine-readable activation payload"');
+    expect(prompt).toContain("do not emit placeholder URLs such as example.com");
+    expect(prompt).toContain("Validation errors to fix:");
+    expect(prompt).toContain("warning one");
+    expect(prompt).toContain("# Broken playbook");
+  });
+
   it("builds an optional file search tool config for deep research", () => {
     expect(buildDeepResearchTools()).toBeUndefined();
     expect(buildDeepResearchTools(["  "])).toBeUndefined();
@@ -154,6 +175,8 @@ describe("city launch planning harness", () => {
     expect(prompt).not.toContain("first 25, first 100, first 250 capturers");
     expect(prompt).toContain("```city-launch-activation-payload");
     expect(prompt).toContain("```city-launch-records");
+    expect(prompt).toContain('exact heading text "## Machine-readable activation payload"');
+    expect(prompt).toContain("never emit placeholder URLs");
   });
 
   it("rejects synthesized playbooks that drift on telemetry, messaging, or appendix contracts", () => {
@@ -271,6 +294,7 @@ describe("city launch planning harness", () => {
     expect(result.errors.join("\n")).toContain("unsupported analytics vocabulary");
     expect(result.errors.join("\n")).toContain('Missing required section heading: "What Must Be Validated Before Live Outreach"');
     expect(result.errors.join("\n")).toContain('unsupported "proof_path" value "hosted_review"');
+    expect(result.errors.join("\n")).toContain("Structured playbook includes placeholder source URLs");
     expect(result.errors.join("\n")).toContain(
       'Activation payload is missing required metrics_dependencies key "proof_path_assigned"',
     );

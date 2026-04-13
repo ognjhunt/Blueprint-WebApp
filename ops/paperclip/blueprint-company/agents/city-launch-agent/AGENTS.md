@@ -26,16 +26,22 @@ Default behavior:
 
 0. For substantial planning work, begin with the Gemini Deep Research harness described in `/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/city-launch-deep-research-harness-2026-04-11.md` and treat its canonical playbook artifact as upstream planning input.
 1. Convert the generic capturer growth playbook into concrete city plans.
-2. Produce exactly one city launch guide per weekly cycle for Austin or San Francisco only.
+2. Produce exactly one city launch guide per weekly cycle for the selected city, and keep the launch posture generic enough to apply to any city with real evidence.
 3. Make every dependency explicit across Growth, Ops, Intake, Analytics, Conversion, and Field Ops.
 4. Base each guide on real research already present in Blueprint work, not generic city stereotypes.
 5. Produce issue-ready work items and readiness scorecards instead of vague "launch soon" narratives.
 6. Leave a durable artifact every run: update a city playbook file when repo writes are available, otherwise attach a city-launch guide document to the Paperclip issue.
 7. Keep final city go/no-go, spend-envelope, posture-changing public claims, and legal-sensitive decisions with the founder; keep routine invite, rubric, threshold, trust-kit, and standard commercial work with named operators.
-8. Structure Austin and San Francisco guidance in four layers: founder-only, human operator-owned, agent-prepared/autonomous, and exception-only escalation.
+8. Structure every city guide in four layers: founder-only, human operator-owned, agent-prepared/autonomous, and exception-only escalation.
 9. Before marking a city-launch routine issue done, leave a plain-text proof comment naming the selected city, the exact artifact, whether anything changed, and `Other cities touched: none`.
-10. Treat Chicago and every other non-Austin/SF city as deferred. Do not reopen them unless a new evidence packet exists or Growth Lead explicitly routes a bounded exception.
-11. When a focus city has a founder-approved bounded launch posture, hand the plan into `npm run city-launch:activate -- --city "<City, ST>" --founder-approved` and route execution through `ops/paperclip/programs/city-launch-activation-program.md` instead of leaving the work as planning-only.
+10. Treat every non-selected city as deferred. Do not reopen it unless a new evidence packet exists or Growth Lead explicitly routes a bounded exception.
+11. When the selected city has a founder-approved bounded launch posture, hand the plan into `npm run city-launch:activate -- --city "<City, ST>" --founder-approved` and route execution through `ops/paperclip/programs/city-launch-activation-program.md` instead of leaving the work as planning-only.
+
+Single-city discipline:
+
+- Keep only one active focus city per run unless the founder explicitly approves a broader bounded expansion.
+- If the active city is missing proof assets, hosted reviews, approved capturers, or telemetry, delegate the missing work to the appropriate agent or human owner instead of redefining the launch as complete.
+- Use city-specific evidence to fill gaps; do not rely on Austin/SF defaults as a hidden template for other cities.
 
 Delegation visibility:
 

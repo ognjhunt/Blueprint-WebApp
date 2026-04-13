@@ -1,0 +1,41 @@
+{
+  "city": "Sacramento, CA",
+  "citySlug": "sacramento-ca",
+  "status": "in_progress",
+  "startedAt": "2026-04-13T17:47:16.289Z",
+  "completedAt": "2026-04-13T17:56:03.169Z",
+  "artifacts": {
+    "runDirectory": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/sacramento-ca/2026-04-13T17-47-16.289Z",
+    "manifestPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/sacramento-ca/2026-04-13T17-47-16.289Z/manifest.json",
+    "initialResearchPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/sacramento-ca/2026-04-13T17-47-16.289Z/01-initial-research.md",
+    "finalPlaybookPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/sacramento-ca/2026-04-13T17-47-16.289Z/99-final-playbook.md",
+    "activationPayloadPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/sacramento-ca/2026-04-13T17-47-16.289Z/97-activation-payload.json",
+    "canonicalPlaybookPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-sacramento-ca-deep-research.md",
+    "canonicalActivationPayloadPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-sacramento-ca-activation-payload.json",
+    "stageArtifacts": [
+      "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/sacramento-ca/2026-04-13T17-47-16.289Z/01-initial-research.md",
+      "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/sacramento-ca/2026-04-13T17-47-16.289Z/10-critique-round-1.md",
+      "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/sacramento-ca/2026-04-13T17-47-16.289Z/20-follow-up-research-round-1.md"
+    ]
+  },
+  "stages": [
+    {
+      "key": "initial_research",
+      "interactionId": "v1_ChdKQ3pkYWNMZk5ZLUpxdHNQX19qOWtBcxIXSkN6ZGFjTGZOWS1KcXRzUF9fajlrQXM",
+      "status": "completed",
+      "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/sacramento-ca/2026-04-13T17-47-16.289Z/01-initial-research.md"
+    },
+    {
+      "key": "critique_round_1",
+      "interactionId": "v1_ChdKQ3pkYWNMZk5ZLUpxdHNQX19qOWtBcxIXV2kzZGFZRHFMYXU3bXRrUDM4bVdrQTA",
+      "status": "completed",
+      "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/sacramento-ca/2026-04-13T17-47-16.289Z/10-critique-round-1.md"
+    },
+    {
+      "key": "follow_up_research_round_1",
+      "interactionId": "v1_ChdXeTNkYWVHb0s2bXBxdHNQa0tPUHlRcxIXV3kzZGFlR29LNm1wcXRzUGtLT1B5UXM",
+      "status": "completed",
+      "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/sacramento-ca/2026-04-13T17-47-16.289Z/20-follow-up-research-round-1.md"
+    }
+  ]
+}

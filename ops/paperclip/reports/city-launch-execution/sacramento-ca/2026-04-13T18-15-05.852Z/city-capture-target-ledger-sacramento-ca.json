@@ -1,0 +1,48 @@
+{
+  "city": "Sacramento, CA",
+  "city_slug": "sacramento-ca",
+  "generated_at": "2026-04-13T18:15:05.867Z",
+  "mode": "deep_research_records",
+  "workflow_priorities": [
+    {
+      "key": "warehouse",
+      "label": "Warehouse",
+      "whyNow": "Crucial exact-site validation target before tackling extreme cold modules.",
+      "priority": "tier_1"
+    }
+  ],
+  "priority_proof_targets": [
+    {
+      "rank": 1,
+      "name": "US Cold Storage - Ambient Module",
+      "type": "warehouse",
+      "corridor": "Initial ambient/cross-dock multi-tenant logistics space, avoiding deep-freeze limits.",
+      "workflowFit": "dock handoff and pallet movement",
+      "exactSiteValue": "Crucial exact-site validation target before tackling extreme cold modules.",
+      "accessApproach": "operator_intro",
+      "confidence": "medium",
+      "sourceNote": "Structured deep-research appendix"
+    }
+  ],
+  "queued_lawful_access_buckets": [
+    {
+      "label": "Industrial Warehouse",
+      "activation_rule": "after first rights-cleared proof asset",
+      "rationale": "Expand only after the first research-backed proof assets and rights-cleared reviews exist."
+    }
+  ],
+  "discovery_lanes": [
+    {
+      "label": "Industrial Warehouse",
+      "rationale": "Long-universe estimate inferred from the research-backed target mix. Validate locally before treating it as a coverage plan."
+    }
+  ],
+  "warnings": [],
+  "sources": [
+    {
+      "label": "Sacramento deep research playbook",
+      "url": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-sacramento-ca-deep-research.md",
+      "note": "Latest completed deep-research artifact with structured launch records."
+    }
+  ]
+}

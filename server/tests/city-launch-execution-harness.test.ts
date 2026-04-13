@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const upsertPaperclipIssue = vi.hoisted(() => vi.fn());
 const createPaperclipIssueComment = vi.hoisted(() => vi.fn());
+const wakePaperclipAgent = vi.hoisted(() => vi.fn());
 const summarizeCityLaunchLedgers = vi.hoisted(() => vi.fn());
 const writeCityLaunchActivation = vi.hoisted(() => vi.fn());
 const readCityLaunchActivation = vi.hoisted(() => vi.fn());
@@ -15,6 +16,7 @@ const loadAndParseCityLaunchResearchArtifact = vi.hoisted(() => vi.fn());
 vi.mock("../utils/paperclip", () => ({
   upsertPaperclipIssue,
   createPaperclipIssueComment,
+  wakePaperclipAgent,
 }));
 
 vi.mock("../utils/cityLaunchLedgers", () => ({
@@ -41,6 +43,7 @@ beforeEach(() => {
   writeCityLaunchActivation.mockResolvedValue(null);
   readCityLaunchActivation.mockResolvedValue(null);
   createPaperclipIssueComment.mockResolvedValue({ ok: true });
+  wakePaperclipAgent.mockResolvedValue({ status: "queued", runId: "run-1" });
   resolveCityLaunchPlanningState.mockImplementation(async ({ city }: { city: string }) => ({
     city,
     citySlug: city.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""),
@@ -98,10 +101,14 @@ describe("city launch execution harness", () => {
     upsertPaperclipIssue
       .mockResolvedValueOnce({
         created: true,
+        companyId: "company-1",
+        assigneeAgentId: "agent-growth-lead",
         issue: { id: "root-1", identifier: "BLU-ROOT", status: "todo" },
       })
       .mockImplementation(async (_input: unknown) => ({
         created: true,
+        companyId: "company-1",
+        assigneeAgentId: `agent-${upsertPaperclipIssue.mock.calls.length}`,
         issue: {
           id: `task-${upsertPaperclipIssue.mock.calls.length}`,
           identifier: `BLU-${upsertPaperclipIssue.mock.calls.length}`,
@@ -125,6 +132,10 @@ describe("city launch execution harness", () => {
     expect(result.paperclip?.rootIssueId).toBe("root-1");
     expect((result.paperclip?.dispatched.length || 0) > 5).toBe(true);
     expect(writeCityLaunchActivation).toHaveBeenCalled();
+    expect(wakePaperclipAgent).toHaveBeenCalled();
+    expect(
+      result.paperclip?.dispatched.every((entry) => entry.wakeStatus === "queued"),
+    ).toBe(true);
 
     const systemDoc = await fs.readFile(result.artifacts.systemDocPath, "utf8");
     const issueBundle = await fs.readFile(result.artifacts.issueBundlePath, "utf8");
@@ -156,6 +167,8 @@ describe("city launch execution harness", () => {
     });
     upsertPaperclipIssue.mockResolvedValue({
       created: true,
+      companyId: "company-1",
+      assigneeAgentId: "agent-1",
       issue: { id: "issue-1", identifier: "BLU-1", status: "backlog" },
     });
 
@@ -185,6 +198,7 @@ describe("city launch execution harness", () => {
     expect(targetLedger).toContain("Queued Lawful-Access Buckets");
     expect(targetLedger).toContain("No research-backed named targets are available yet.");
     expect(result.paperclip?.rootIssueIdentifier).toBe("BLU-1");
+    expect(wakePaperclipAgent).toHaveBeenCalled();
     expect(result.wideningGuard.reasons.join("\n")).toContain(
       "Required proof-motion analytics contract is missing from the activation payload.",
     );

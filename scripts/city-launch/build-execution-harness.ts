@@ -62,6 +62,10 @@ async function main() {
         notionWorkQueuePageUrl: result.notion?.workQueuePageUrl || null,
         paperclipRootIssueId: result.paperclip?.rootIssueId || null,
         dispatchedIssueCount: result.paperclip?.dispatched.length || 0,
+        wokenIssueCount:
+          result.paperclip?.dispatched.filter((entry) => entry.wakeStatus && entry.wakeStatus !== "skipped").length || 0,
+        wakeFailureCount:
+          result.paperclip?.dispatched.filter((entry) => entry.wakeError).length || 0,
         researchMaterializationStatus: result.researchMaterialization?.status || null,
         researchMaterializationSource: result.researchMaterialization?.sourceArtifactPath || null,
         prospectsUpserted: result.researchMaterialization?.prospectsUpserted || 0,

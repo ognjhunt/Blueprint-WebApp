@@ -1,0 +1,17 @@
+{
+  "status": "planning_in_progress",
+  "city": "San Jose, CA",
+  "citySlug": "san-jose-ca",
+  "sourceArtifactPath": "ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-13T17-38-45.838Z/01-initial-research.md",
+  "parsed": null,
+  "activationPayloadPresent": false,
+  "activationIssueSeeds": 0,
+  "prospectsUpserted": 0,
+  "buyerTargetsUpserted": 0,
+  "touchesRecorded": 0,
+  "budgetRecommendationsRecorded": 0,
+  "warnings": [
+    "City-launch planning is still in progress; no completed deep-research playbook is available to materialize yet.",
+    "Latest partial artifact: ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-13T17-38-45.838Z/01-initial-research.md"
+  ]
+}

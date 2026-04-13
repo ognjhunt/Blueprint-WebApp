@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "2026-04-13.city-launch-activation-payload.v1",
+  "machinePolicyVersion": "2026-04-13.city-launch-doctrine.v1",
+  "city": "Sacramento, CA",
+  "citySlug": "sacramento-ca",
+  "cityThesis": "One narrow exact-site hosted review motion targeting AMR integrators executing digital-twin simulations in multi-tenant 3PL logistics environments.",
+  "primarySiteLane": "industrial_warehouse",
+  "primaryWorkflowLane": "dock handoff and pallet movement",
+  "primaryBuyerProofPath": "exact_site",
+  "lawfulAccessModes": [
+    "buyer_requested_site",
+    "site_operator_intro",
+    "capturer_existing_lawful_access"
+  ],
+  "preferredLawfulAccessMode": "buyer_requested_site",
+  "rightsPath": {
+    "summary": "Implement a 3-Tier multi-tenant consent packet (Property Owner, Facility Operator, Inventory Tenant) before authorizing capture dispatch.",
+    "privateControlledInteriorsRequireAuthorization": true,
+    "validationRequired": true,
+    "sourceUrls": []
+  },
+  "validationBlockers": [
+    {
+      "key": "buyer_stack_fit",
+      "summary": "Verify exact-site artifact compatibility with NVIDIA Omniverse and iWAREHOUSE before live outreach.",
+      "severity": "high",
+      "ownerLane": "buyer-solutions-agent",
+      "validationRequired": true,
+      "sourceUrls": []
+    },
+    {
+      "key": "air_gapped_delivery_constraint",
+      "summary": "Verify if export-controlled or dual-use industrial buyers mandate air-gapped delivery over Blueprint-WebApp.",
+      "severity": "high",
+      "ownerLane": "ops-lead",
+      "validationRequired": true,
+      "sourceUrls": []
+    }
+  ],
+  "requiredApprovals": [
+    {
+      "lane": "founder",
+      "reason": "New city activation and ITAR/Defense proximity exceptions require founder gate."
+    },
+    {
+      "lane": "ops-lead",
+      "reason": "Dispatch into industrial 3PLs requires COI, thermal limit, and 3-Tier Consent verification."
+    },
+    {
+      "lane": "designated-human-rights-reviewer",
+      "reason": "Requires manual verification of proprietary multi-tenant IP scrub before artifact materialization."
+    }
+  ],
+  "ownerLanes": [
+    "city-launch-agent",
+    "ops-lead",
+    "growth-lead",
+    "intake-agent",
+    "rights-provenance-agent",
+    "buyer-solutions-agent",
+    "analytics-agent"
+  ],
+  "issueSeeds": [
+    {
+      "key": "lawful-access-path",
+      "title": "Lock the first multi-tenant lawful access path",
+      "phase": "founder_gates",
+      "ownerLane": "city-launch-agent",
+      "humanLane": "ops-lead",
+      "summary": "Secure the first complete 3-Tier Consent packet for an ambient-temperature McClellan Park industrial module.",
+      "dependencyKeys": [],
+      "successCriteria": [
+        "First lawful access path is signed by owner, operator, and tenant."
+      ],
+      "metricsDependencies": [
+        "first_lawful_access_path"
+      ],
+      "validationRequired": true
+    }
+  ],
+  "metricsDependencies": [
+    {
+      "key": "robot_team_inbound_captured",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Ensure intake parsing matches specific integrator demand."
+    },
+    {
+      "key": "proof_path_assigned",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Track distribution between exact_site, adjacent_site, and scoped_follow_up."
+    },
+    {
+      "key": "proof_pack_delivered",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Establish baseline pipeline processing time for feature-sparse industrial spaces."
+    },
+    {
+      "key": "hosted_review_ready",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Triggered post human-rights-review."
+    },
+    {
+      "key": "hosted_review_started",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Verifies technical engagement from the simulation engineer."
+    },
+    {
+      "key": "hosted_review_follow_up_sent",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Automated technical spec transmission."
+    },
+    {
+      "key": "human_commercial_handoff_started",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Marks successful technical proof."
+    },
+    {
+      "key": "proof_motion_stalled",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Crucial for identifying air-gap blockers or stack ingestion failures."
+    }
+  ],
+  "namedClaims": [
+    {
+      "subject": "Raymond West",
+      "claimType": "company",
+      "claim": "Integrator actively deploying Cyngn DriveMod Tuggers and utilizing iWAREHOUSE.",
+      "validationRequired": true,
+      "sourceUrls": []
+    },
+    {
+      "subject": "NVIDIA Omniverse / iWAREHOUSE",
+      "claimType": "stack",
+      "claim": "The exported spatial artifact must be seamlessly ingested into NVIDIA digital-twin tools or proprietary layout systems.",
+      "validationRequired": true,
+      "sourceUrls": []
+    },
+    {
+      "subject": "Air-Gapped Delivery",
+      "claimType": "delivery",
+      "claim": "Defense-adjacent industrial environments (McClellan) may strictly require on-premise artifact delivery over web SaaS.",
+      "validationRequired": true,
+      "sourceUrls": []
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 # City Launch Planning — Current Focus
 
 ## Objective
-Use the generic capturer-growth playbook plus Blueprint's existing supply, demand, and operations research to publish one concrete city launch guide per week.
+Use the generic capturer-growth playbook plus Blueprint's existing supply, demand, and operations research to publish one concrete city launch guide per week for the selected city.
 
 ## Planning Engine Requirement
 
@@ -12,28 +12,19 @@ Operational rule:
 - use `npm run city-launch:plan -- --city "<City, ST>"` as the default upstream planning pass for city launch work
 - treat the generated deep-research playbook as the expansive planning source
 - then condense the relevant decisions into the compact city-launch playbook and issue-ready follow-ups
-- when a focus city moves from planning to execution, hand the approved city playbook into `npm run city-launch:activate -- --city "<City, ST>"` and route work through `ops/paperclip/programs/city-launch-activation-program.md`
+- when the selected city moves from planning to execution, hand the approved city playbook into `npm run city-launch:activate -- --city "<City, ST>"` and route work through `ops/paperclip/programs/city-launch-activation-program.md`
 - do not treat ad hoc web summaries or generic LLM output as sufficient replacements for this harness
 
-## Current Queue
-1. Austin, TX
-2. San Francisco, CA
-
-## Deferred Cities
-- Chicago, IL
-- Los Angeles, CA
-- New York, NY
-- Boston, MA
-- Seattle, WA
-- Atlanta, GA
+## City Selection
+Only one city is active at a time.
 
 Selection rule:
-- pick the next city whose guide is missing or stale
-- do not expand beyond Austin and San Francisco in recurring work
-- treat deferred cities as archive/background only until a new evidence packet exists
+- pick the next city whose guide is missing or stale and whose evidence packet is strongest
+- do not start a second city in the same cycle unless the current city has been handed off for execution or explicitly closed
+- treat all non-selected cities as deferred/background only until a new evidence packet exists
 - do not rotate just for novelty; choose the next city where a guide would improve real planning clarity
 
-Evidence gate for reopening a deferred city:
+Deferred-city reopening requires one of:
 - one new exact-site proof signal tied to that city, or
 - one new qualified local anchor demand/supply signal tied to that city, or
 - one explicit founder request after reviewing a bounded decision packet
@@ -87,7 +78,7 @@ Score each city 1-5 on:
 ## Operating Rule
 The city-launch agent does not invent a launch. It translates reusable strategy into city-specific plans and makes dependencies explicit, one city at a time.
 
-Required ownership split in Austin and San Francisco:
+Required ownership split in every city:
 - Founder-only: city go/no-go, gated-versus-expand decisions, new spend envelopes, posture-changing public claims, non-standard commercial commitments, policy-level rights/privacy exceptions
 - Human operator-owned: Growth Lead for channel/referral/source posture; Ops Lead for intake rubric, activation thresholds, trust kit, and launch-readiness checklist; designated human commercial owner for standard commercial handling inside approved bands
 - Agent-prepared / autonomous: city-launch-agent, intake-agent, field-ops-agent, analytics-agent, notion-manager-agent, webapp-codex, buyer-solutions-agent, and revenue-ops-pricing-agent prepare evidence and packets inside the human-owned guardrails
@@ -96,8 +87,8 @@ Required ownership split in Austin and San Francisco:
 ## Weekly Run Log
 
 ### 2026-04-06
-- Refreshed Austin and San Francisco playbooks with latest findings
+- Refreshed current city playbooks with latest findings
 - Incorporated April 5 agent bootstrap completions as new downstream capacity
 - Incorporated growth-lead weekly review analytics gap findings
-- No new city guides published this run (Austin and SF still first in queue; Chicago remains deferred)
+- No new city guides published this run (current city still first in queue; Chicago remains deferred)
 - Key block: analytics instrumentation not deployed — city expansion cannot be evidence-based

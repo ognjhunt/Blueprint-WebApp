@@ -39,6 +39,7 @@ import {
 import {
   createPaperclipIssueComment,
   upsertPaperclipIssue,
+  wakePaperclipAgent,
   type PaperclipIssueRecord,
 } from "./paperclip";
 import {
@@ -108,6 +109,9 @@ export type CityLaunchTaskDispatch = {
   identifier: string | null;
   created: boolean;
   status: string;
+  wakeStatus?: string | null;
+  wakeRunId?: string | null;
+  wakeError?: string | null;
 };
 
 export type CityLaunchExecutionResult = {
@@ -1240,6 +1244,78 @@ function taskIssueDescription(input: {
   ].join("\n");
 }
 
+function buildTaskKickoffComment(input: {
+  profile: CityLaunchProfile;
+  task: CityLaunchTask;
+  issueId: string;
+  identifier: string | null;
+}) {
+  return [
+    `Routing ${input.task.ownerLane} to pick up ${input.task.title} for ${input.profile.city}.`,
+    `Issue: ${input.identifier || input.issueId}`,
+    `Why now: city-launch:activate created the bounded execution tree and this lane owns the next concrete step.`,
+    `Next move: start from this issue, follow the listed dependencies, and leave proof-bearing progress or blocker evidence here.`,
+  ].join("\n");
+}
+
+async function wakeCityLaunchTaskOwner(input: {
+  assigneeAgentId: string;
+  companyId: string;
+  profile: CityLaunchProfile;
+  task: CityLaunchTask;
+  issue: PaperclipIssueRecord;
+  issueIdentifier: string | null;
+  artifactPaths: {
+    canonicalSystemDocPath: string;
+    canonicalIssueBundlePath: string;
+    canonicalTargetLedgerPath: string;
+    canonicalActivationPayloadPath: string;
+  };
+}) {
+  await createPaperclipIssueComment(
+    input.issue.id,
+    buildTaskKickoffComment({
+      profile: input.profile,
+      task: input.task,
+      issueId: input.issue.id,
+      identifier: input.issueIdentifier,
+    }),
+  );
+
+  const wakeResult = await wakePaperclipAgent({
+    agentId: input.assigneeAgentId,
+    companyId: input.companyId,
+    reason: `city-launch-activate:${input.profile.key}:${input.task.key}`,
+    idempotencyKey: `city-launch-activate:${input.profile.key}:${input.task.key}:${input.issue.id}`,
+    payload: {
+      source: "city_launch_activate",
+      city: input.profile.city,
+      citySlug: input.profile.key,
+      issueId: input.issue.id,
+      issueIdentifier: input.issueIdentifier,
+      taskKey: input.task.key,
+      taskTitle: input.task.title,
+      ownerLane: input.task.ownerLane,
+      humanLane: input.task.humanLane,
+      phase: input.task.phase,
+      validationRequired: input.task.validationRequired,
+      dependencies: input.task.dependencies,
+      canonicalSystemDocPath: input.artifactPaths.canonicalSystemDocPath,
+      canonicalIssueBundlePath: input.artifactPaths.canonicalIssueBundlePath,
+      canonicalTargetLedgerPath: input.artifactPaths.canonicalTargetLedgerPath,
+      canonicalActivationPayloadPath: input.artifactPaths.canonicalActivationPayloadPath,
+    },
+  });
+
+  return {
+    wakeStatus: wakeResult?.status || null,
+    wakeRunId:
+      "runId" in wakeResult && typeof wakeResult.runId === "string"
+        ? wakeResult.runId
+        : null,
+  };
+}
+
 async function dispatchCityLaunchIssueTree(input: {
   profile: CityLaunchProfile;
   tasks: CityLaunchTask[];
@@ -1299,14 +1375,33 @@ async function dispatchCityLaunchIssueTree(input: {
       originId: `${input.profile.key}:${task.key}`,
       parentId: root.issue.id,
     });
-    dispatched.push({
+    const dispatchRecord: CityLaunchTaskDispatch = {
       key: task.key,
       ownerLane: task.ownerLane,
       issueId: issue.issue.id,
       identifier: issue.issue.identifier || null,
       created: issue.created,
       status: issue.issue.status,
-    });
+      wakeStatus: null,
+      wakeRunId: null,
+      wakeError: null,
+    };
+    try {
+      const wake = await wakeCityLaunchTaskOwner({
+        assigneeAgentId: issue.assigneeAgentId,
+        companyId: issue.companyId,
+        profile: input.profile,
+        task,
+        issue: issue.issue,
+        issueIdentifier: issue.issue.identifier || null,
+        artifactPaths: input.artifactPaths,
+      });
+      dispatchRecord.wakeStatus = wake.wakeStatus;
+      dispatchRecord.wakeRunId = wake.wakeRunId;
+    } catch (error) {
+      dispatchRecord.wakeError = error instanceof Error ? error.message : String(error);
+    }
+    dispatched.push(dispatchRecord);
   }
 
   await createPaperclipIssueComment(
@@ -1315,6 +1410,7 @@ async function dispatchCityLaunchIssueTree(input: {
       `City launch issue tree refreshed for ${input.profile.city}.`,
       `Founder-approved activation: ${input.founderApproved}`,
       `Task issues routed: ${dispatched.length}`,
+      `Task wakeups attempted: ${dispatched.length}`,
       `Canonical bundle: ${input.artifactPaths.canonicalIssueBundlePath}`,
     ].join("\n"),
   ).catch(() => undefined);

@@ -338,16 +338,19 @@ export async function wakePaperclipAgent(input: {
   reason?: string | null;
   payload?: Record<string, unknown> | null;
   idempotencyKey?: string | null;
+  timeoutMs?: number | null;
 }) {
   const scope =
     input.companyId
     || await resolvePaperclipCompanyId()
     || undefined;
+  const timeoutMs = Math.max(1_000, input.timeoutMs ?? 10_000);
   return await fetchPaperclipJson<PaperclipWakeupResult | { status: "skipped" }>(
     `/api/agents/${encodeURIComponent(input.agentId)}/wakeup${scope ? `?companyId=${encodeURIComponent(scope)}` : ""}`,
     {
       method: "POST",
       headers: buildHeaders(true),
+      signal: AbortSignal.timeout(timeoutMs),
       body: JSON.stringify({
         source: "automation",
         triggerDetail: "system",
