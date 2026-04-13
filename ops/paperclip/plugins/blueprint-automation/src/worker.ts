@@ -6842,11 +6842,16 @@ async function handleAgentRunFailureQuotaFallback(
       }
 
       try {
+        const targetRuntimeConfig = syncExecutionPolicyToAdapter(
+          asRecord(targetAgent?.runtimeConfig),
+          targetFallback.adapterType,
+        );
         await ctx.agents.update(
           target.id,
           {
             adapterType: targetFallback.adapterType,
             adapterConfig: targetFallback.adapterConfig,
+            runtimeConfig: targetRuntimeConfig,
           },
           event.companyId,
         );
@@ -7182,12 +7187,19 @@ async function handleAgentRunFailureRuntimeFallback(
       })),
     );
 
+    const agentById = new Map(allAgents.map((entry) => [entry.id, entry]));
     for (const target of workspaceTargets) {
+      const targetAgent = target.id === agent.id ? agent : agentById.get(target.id) ?? null;
+      const targetRuntimeConfig = syncExecutionPolicyToAdapter(
+        asRecord(targetAgent?.runtimeConfig),
+        fallback.adapterType,
+      );
       await ctx.agents.update(
         target.id,
         {
           adapterType: fallback.adapterType,
           adapterConfig: fallback.adapterConfig,
+          runtimeConfig: targetRuntimeConfig,
         },
         event.companyId,
       );
