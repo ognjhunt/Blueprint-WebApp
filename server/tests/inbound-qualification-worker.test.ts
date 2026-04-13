@@ -32,9 +32,14 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   authAdmin: null,
 }));
 
-vi.mock("../config/env", () => ({
-  isPhase2LaneEnabled: () => true,
-}));
+vi.mock("../config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../config/env")>();
+
+  return {
+    ...actual,
+    isPhase2LaneEnabled: () => true,
+  };
+});
 
 vi.mock("../agents/runtime", () => ({
   runAgentTask,

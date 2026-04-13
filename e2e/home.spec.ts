@@ -5,7 +5,7 @@ test('homepage leads with capture and world models', async ({ page }) => {
 
   await expect(
     page.getByRole('heading', {
-      name: /Train your robot on the exact customer site before you visit\.|Your robot trains on the real customer site in 72 hours\./i,
+      name: /Three things Blueprint sells\./i,
     }),
   ).toBeVisible();
   const nav = page.getByRole('banner').getByRole('navigation');

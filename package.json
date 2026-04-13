@@ -15,6 +15,7 @@
     "autoagent:build-harbor": "tsx scripts/autoagent/build-harbor-tasks.ts --overwrite",
     "autoagent:seed": "tsx scripts/autoagent/seed-canonical-cases.ts",
     "autoagent:run": "tsx scripts/autoagent/run-pipeline.ts",
+    "paperclip:backfill-legacy-inbound-request-states": "tsx scripts/paperclip/backfill-legacy-inbound-request-states.ts",
     "smoke:launch": "node scripts/launch-smoke.mjs",
     "audit:assets": "tsx scripts/audit-assets.ts",
     "graphify:pilot:webapp-architecture": "bash scripts/graphify/run-webapp-architecture-pilot.sh",

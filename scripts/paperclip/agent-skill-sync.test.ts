@@ -32,6 +32,24 @@ function parseFrontmatter(content: string): AgentFrontmatter {
   return (yaml.load(match[1]) as AgentFrontmatter | undefined) ?? {};
 }
 
+async function resolveInstructionsPath(agentKey: string, instructionsFilePath: string) {
+  try {
+    await fs.access(instructionsFilePath);
+    return instructionsFilePath;
+  } catch {
+    // Fall through to the repo-local agent file when the config stores an
+    // absolute path from another workspace.
+  }
+
+  const localAgentPath = path.resolve("ops/paperclip/blueprint-company/agents", agentKey, "AGENTS.md");
+  try {
+    await fs.access(localAgentPath);
+    return localAgentPath;
+  } catch {
+    return instructionsFilePath;
+  }
+}
+
 describe("Blueprint Paperclip skill sync", () => {
   it("keeps .paperclip skill sync aligned with each agent's declared frontmatter skills", async () => {
     const companyPath = path.resolve("ops/paperclip/blueprint-company/.paperclip.yaml");
@@ -45,7 +63,7 @@ describe("Blueprint Paperclip skill sync", () => {
       const config = agent.adapter?.config;
       if (!config?.instructionsFilePath) continue;
 
-      const instructionsPath = path.resolve(config.instructionsFilePath);
+      const instructionsPath = await resolveInstructionsPath(agentKey, config.instructionsFilePath);
       const instructions = await fs.readFile(instructionsPath, "utf8");
       const frontmatter = parseFrontmatter(instructions);
       const declaredSkills = normalizeStringArray(frontmatter.skills);

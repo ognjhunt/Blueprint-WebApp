@@ -3,7 +3,7 @@
 ## Status
 - phase: planning
 - owner: city-launch-agent
-- last-reviewed: 2026-04-06
+- last-reviewed: 2026-04-12
 - recommended-posture: gated cohort pilot, not public launch
 - last-human-launch-decision: not approved
 
@@ -19,6 +19,11 @@ Austin should be used to answer one question first: can Blueprint recruit and ac
 - evidence-backed: growth-lead weekly review (April 6) flagged the analytics gap (BLU-1583, BLU-1580, BLU-1581 still todo) as a critical risk — city expansion cannot be evidence-based until analytics is live.
 - inferred: the Bootstrap phase is largely complete; the system is transitioning from setup to execution. Austin remains the first-city candidate but now has more downstream agent capacity to absorb city-specific work items.
 - inferred: Austin still needs a human decision on who can issue invites or access codes, so the city remains a gated pilot rather than a public recruiting motion.
+
+## First Concrete Gaps
+- Austin still lacks validated end-to-end city and market analytics cuts, so approval-to-first-capture measurement is not yet credible enough for city-level supply claims.
+- Austin still lacks a named access-code owner and written first-cohort activation thresholds, which keeps the gated pilot manual and ad hoc.
+- San Francisco still lacks a proof-first cohort path and referral-only posture that can be tested against Austin's baseline, so it stays second in sequence until Austin proves the mechanics.
 
 ## Why Austin Now
 - founder and operator reach is more likely to convert into trusted introductions than in a noisier market
