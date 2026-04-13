@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { worldModelDefinition } from '../client/src/data/marketingDefinitions';
 
 test('homepage leads with capture and world models', async ({ page }) => {
   await page.goto('/');
@@ -14,5 +15,5 @@ test('homepage leads with capture and world models', async ({ page }) => {
   await expect(nav.getByRole('link', { name: /^About$/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /View sample listing/i }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: /Request hosted evaluation/i }).first()).toBeVisible();
-  await expect(page.getByText(/a world model is a site-specific digital environment/i)).toBeVisible();
+  await expect(page.getByText(worldModelDefinition)).toBeVisible();
 });

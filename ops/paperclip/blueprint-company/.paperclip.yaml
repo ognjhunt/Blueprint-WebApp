@@ -45,6 +45,7 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
+            - humanizer
             - writing-plans
             - cross-repo-operations
             - dispatching-parallel-agents
@@ -154,6 +155,7 @@ agents:
           desiredSkills:
             - platform-doctrine
             - webapp-repo-operations
+            - humanizer
             - gh-cli
             - plan-eng-review
             - investigate
@@ -406,6 +408,7 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
+            - humanizer
             - analytics-tracking
             - writing-plans
             - hermes-kb-workflow
@@ -503,6 +506,7 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
+            - humanizer
             - product-marketing-context
             - analytics-tracking
             - page-cro
@@ -830,6 +834,7 @@ agents:
             - platform-doctrine
             - autonomy-safety
             - find-skills
+            - humanizer
             - product-marketing-context
             - analytics-tracking
             - page-cro
