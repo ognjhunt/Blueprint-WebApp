@@ -449,7 +449,7 @@ async function uploadDocumentToStore(input: {
   storeName: string;
   repoRelativePath: string;
   citySlug?: string | null;
-}) {
+}): Promise<UploadDocumentResult> {
   const absolutePath = path.join(REPO_ROOT, input.repoRelativePath);
   const mimeType = guessMimeType(absolutePath);
   const displayName = toDisplayName(input.repoRelativePath);
@@ -482,7 +482,7 @@ async function uploadDocumentToStore(input: {
     displayName,
     replacedDocumentNames: [],
     operationName: operation.name,
-  } satisfies UploadDocumentResult;
+  };
 }
 
 export async function buildCityLaunchFileSearchStore(

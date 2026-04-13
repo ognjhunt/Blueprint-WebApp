@@ -6,30 +6,17 @@ const PLACEHOLDER_VALUES = new Set(["PLACEHOLDER", "DUMMY"]);
 const isPlaceholderValue = (value: string | undefined) =>
   Boolean(value && PLACEHOLDER_VALUES.has(value.trim().toUpperCase()));
 
-const STRIPE_SECRET_KEY=proces...m();
-const stripeSecretIsPlaceholder=isPlac...EY);
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY?.trim();
+const stripeSecretIsPlaceholder = isPlaceholderValue(STRIPE_SECRET_KEY);
 
-// Enhanced Stripe availability check with clear unblock path
-export const stripeAvailable = Boolean(
-  STRIPE_SECRET_KEY && 
-  !stripeSecretIsPlaceholder &&
-  STRIPE_SECRET_KEY.length > 8 // Basic validation to prevent placeholder values
-);
-
-if (!stripeAvailable) {
+if (!STRIPE_SECRET_KEY || stripeSecretIsPlaceholder) {
   const message =
-    "STRIPE_SECRET_KEY is not configured. Revenue metrics and checkout functionality are currently blocked. Please provision a valid Stripe secret key to restore full functionality.";
+    "STRIPE_SECRET_KEY is not set or is a placeholder. Stripe routes will be unavailable.";
   logger.warn(message);
-  
-  // Store the block status for monitoring and unblock path tracking
-  if (typeof globalThis.blockedServices === 'undefined') {
-    globalThis.blockedServices = new Set();
-  }
-  globalThis.blockedServices.add('stripe-revenue-metrics');
 }
 
 export const stripeClient =
-  stripeAvailable
+  STRIPE_SECRET_KEY && !stripeSecretIsPlaceholder
     ? new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2024-12-18.acacia" })
     : null;
 
