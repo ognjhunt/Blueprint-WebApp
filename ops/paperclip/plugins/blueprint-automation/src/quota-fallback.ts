@@ -622,6 +622,52 @@ export function upsertWorkspaceAdapterCooldownState(
   return nextState;
 }
 
+export function inferFailedLocalAdapterType(input: {
+  currentAdapterType: string | null | undefined;
+  error?: string | null | undefined;
+  wakeReason?: string | null | undefined;
+  resultJson?: Record<string, unknown> | null | undefined;
+}): LocalQuotaFallbackAdapterType | null {
+  const wakeReason = (input.wakeReason ?? "").trim().toLowerCase();
+  if (wakeReason === "quota_fallback_to_hermes_free" || wakeReason === "quota_fallback_to_next_hermes_free_model") {
+    return "hermes_local";
+  }
+  if (
+    wakeReason === "quota_fallback_to_codex_local"
+    || wakeReason === "quota_fallback_to_codex_local_after_provider_credit_failure"
+    || wakeReason === "quota_fallback_to_codex_local_after_shared_openrouter_free_pool_limit"
+  ) {
+    return "codex_local";
+  }
+
+  const resultJson = input.resultJson ?? null;
+  const attemptedModels = Array.isArray(resultJson?.attempted_models) ? resultJson.attempted_models : [];
+  const failedAttempts = Array.isArray(resultJson?.failed_attempts) ? resultJson.failed_attempts : [];
+  if (attemptedModels.length > 0 || failedAttempts.length > 0) {
+    return "hermes_local";
+  }
+
+  const error = (input.error ?? "").trim();
+  if (error.length > 0) {
+    if (/provider:\s*openrouter/i.test(error) && /model:\s*[^\\n]+:free/i.test(error)) {
+      return "hermes_local";
+    }
+    if (/hermes timed out while running/i.test(error) || /via openrouter/i.test(error)) {
+      return "hermes_local";
+    }
+  }
+
+  if (
+    input.currentAdapterType === "claude_local"
+    || input.currentAdapterType === "codex_local"
+    || input.currentAdapterType === "hermes_local"
+  ) {
+    return input.currentAdapterType;
+  }
+
+  return null;
+}
+
 export function parseQuotaResetAt(message: string | null | undefined, now = new Date()): string | null {
   if (!message) return null;
 

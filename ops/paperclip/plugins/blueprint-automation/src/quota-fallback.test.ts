@@ -12,6 +12,7 @@ import {
   FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY,
   HERMES_MODEL_LADDER_CONFIG_KEY,
   getWorkspaceAdapterCooldownKey,
+  inferFailedLocalAdapterType,
   isDisallowedHermesFallbackModel,
   isFreshSessionRetryableFailure,
   isIncompatibleHermesFreeRoutingModel,
@@ -629,6 +630,40 @@ describe("quota fallback helpers", () => {
         reason: "quota_fallback_to_codex_local_after_shared_openrouter_free_pool_limit",
       },
     });
+  });
+
+  it("infers the failed adapter from fallback wake reasons and hermes result payloads", () => {
+    expect(
+      inferFailedLocalAdapterType({
+        currentAdapterType: "codex_local",
+        wakeReason: "quota_fallback_to_next_hermes_free_model",
+      }),
+    ).toBe("hermes_local");
+
+    expect(
+      inferFailedLocalAdapterType({
+        currentAdapterType: "hermes_local",
+        wakeReason: "quota_fallback_to_codex_local_after_shared_openrouter_free_pool_limit",
+      }),
+    ).toBe("codex_local");
+
+    expect(
+      inferFailedLocalAdapterType({
+        currentAdapterType: "codex_local",
+        error:
+          "⚠️ API call failed (attempt 1/3): RateLimitError [HTTP 429]\n🔌 Provider: openrouter  Model: qwen/qwen3-coder:free",
+        resultJson: {
+          attempted_models: ["openai/gpt-oss-120b:free", "qwen/qwen3-coder:free"],
+        },
+      }),
+    ).toBe("hermes_local");
+
+    expect(
+      inferFailedLocalAdapterType({
+        currentAdapterType: "codex_local",
+        error: "OpenAI 429 rate limit exceeded",
+      }),
+    ).toBe("codex_local");
   });
 
   it("syncs execution policy order to the active adapter", () => {

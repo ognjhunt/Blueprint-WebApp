@@ -113,6 +113,7 @@ import {
   type WorkspaceAdapterCooldownState,
   buildHermesFallbackAdapterConfig,
   extractLogicalSucceededRunFailure,
+  inferFailedLocalAdapterType,
   isFreshSessionRetryableFailure,
   isDisallowedHermesFallbackModel,
   isIncompatibleHermesFreeRoutingModel,
@@ -543,8 +544,12 @@ type HeartbeatRunRecord = {
 
 type HeartbeatRunDetail = HeartbeatRunRecord & {
   error?: string | null;
+  errorCode?: string | null;
   finishedAt?: string | null;
+  resultJson?: Record<string, unknown> | null;
   startedAt?: string | null;
+  stderrExcerpt?: string | null;
+  stdoutExcerpt?: string | null;
   updatedAt?: string | null;
 };
 
@@ -1393,6 +1398,73 @@ function buildDesiredAdapterDescriptor(agent: Agent): {
   return {
     adapterType: configuredAdapterType,
     adapterConfig: configuredAdapterConfig,
+  };
+}
+
+function resolveAdapterConfigForType(
+  agent: Agent,
+  desired: {
+    adapterType: LocalQuotaFallbackAdapterType;
+    adapterConfig: Record<string, unknown>;
+  } | null,
+  adapterType: LocalQuotaFallbackAdapterType | null,
+): Record<string, unknown> | null {
+  if (!adapterType) {
+    return asRecord(agent.adapterConfig) ?? desired?.adapterConfig ?? null;
+  }
+
+  const runtimeConfigRecord = asRecord(agent.runtimeConfig);
+  const executionPolicy = asRecord(runtimeConfigRecord?.executionPolicy);
+  const perAdapterConfig = asRecord(executionPolicy?.perAdapterConfig);
+  const policyConfig = asRecord(perAdapterConfig?.[adapterType]);
+  if (policyConfig) {
+    return policyConfig;
+  }
+
+  if (desired?.adapterType === adapterType) {
+    return desired.adapterConfig;
+  }
+  if (agent.adapterType === adapterType) {
+    return asRecord(agent.adapterConfig) ?? desired?.adapterConfig ?? null;
+  }
+
+  return asRecord(agent.adapterConfig) ?? desired?.adapterConfig ?? null;
+}
+
+async function resolveFailedAdapterSnapshot(
+  agent: Agent,
+  payload: AgentRunFailurePayload,
+  desired: {
+    adapterType: LocalQuotaFallbackAdapterType;
+    adapterConfig: Record<string, unknown>;
+  } | null,
+) {
+  const run = payload.runId
+    ? await fetchPaperclipApiJson<HeartbeatRunDetail>(`/api/heartbeat-runs/${payload.runId}`).catch(() => null)
+    : null;
+  const runContext = asRecord(run?.contextSnapshot);
+  const inferredAdapterType = inferFailedLocalAdapterType({
+    currentAdapterType: agent.adapterType,
+    error: payload.error,
+    wakeReason: asString(runContext?.wakeReason) ?? null,
+    resultJson: asRecord(run?.resultJson),
+  });
+  const failedAdapterType =
+    inferredAdapterType === "claude_local" || inferredAdapterType === "codex_local" || inferredAdapterType === "hermes_local"
+      ? inferredAdapterType
+      : agent.adapterType === "claude_local" || agent.adapterType === "codex_local" || agent.adapterType === "hermes_local"
+        ? agent.adapterType
+        : null;
+  const failedAdapterConfig =
+    resolveAdapterConfigForType(agent, desired, failedAdapterType)
+    ?? asRecord(agent.adapterConfig)
+    ?? desired?.adapterConfig
+    ?? {};
+
+  return {
+    failedAdapterType,
+    failedAdapterConfig,
+    run,
   };
 }
 
@@ -6690,14 +6762,15 @@ async function handleAgentRunFailureQuotaFallback(
   }
 
   const desired = buildDesiredAdapterDescriptor(agent);
+  const failedAdapter = await resolveFailedAdapterSnapshot(agent, payload, desired);
   const providerCreditFailure =
-    agent.adapterType === "hermes_local" && isProviderCreditFailure(payload.error);
+    failedAdapter.failedAdapterType === "hermes_local" && isProviderCreditFailure(payload.error);
   const fallback = providerCreditFailure
     ? {
       adapterType: "codex_local" as const,
       reason: "quota_fallback_to_codex_local_after_provider_credit_failure",
       adapterConfig: {
-        ...buildCodexFallbackAdapterConfig(asRecord(desired?.adapterConfig) ?? asRecord(agent.adapterConfig), {
+        ...buildCodexFallbackAdapterConfig(failedAdapter.failedAdapterConfig, {
           model: "gpt-5.4-mini",
           modelReasoningEffort: "medium",
         }),
@@ -6705,8 +6778,8 @@ async function handleAgentRunFailureQuotaFallback(
       },
     }
     : buildQuotaFallbackDescriptor(
-      agent.adapterType,
-      asRecord(agent.adapterConfig),
+      failedAdapter.failedAdapterType ?? agent.adapterType,
+      failedAdapter.failedAdapterConfig,
       desired,
       payload.error,
     );
@@ -6730,7 +6803,7 @@ async function handleAgentRunFailureQuotaFallback(
     payload.taskId ??
     payload.issueId ??
     `quota-fallback:${agent.id}:${payload.runId}`;
-  const workspaceKey = getLocalAdapterWorkspaceKey(asRecord(agent.adapterConfig));
+  const workspaceKey = getLocalAdapterWorkspaceKey(failedAdapter.failedAdapterConfig);
   const cooldownUntil = resolveQuotaCooldownUntil(payload.error, {
     defaultCooldownMs: WORKSPACE_QUOTA_COOLDOWN_MS,
   });
@@ -6741,8 +6814,8 @@ async function handleAgentRunFailureQuotaFallback(
     const workspaceTargets = selectWorkspaceQuotaFallbackTargets(
       {
         id: agent.id,
-        adapterType: agent.adapterType,
-        adapterConfig: asRecord(agent.adapterConfig),
+        adapterType: failedAdapter.failedAdapterType ?? agent.adapterType,
+        adapterConfig: failedAdapter.failedAdapterConfig,
       },
       allAgents.map((entry) => ({
         id: entry.id,
@@ -6755,8 +6828,12 @@ async function handleAgentRunFailureQuotaFallback(
     for (const target of workspaceTargets) {
       const targetAgent = target.id === agent.id ? agent : agentById.get(target.id) ?? null;
       const targetFallback = buildQuotaFallbackDescriptor(
-        target.adapterType,
-        asRecord(target.adapterConfig),
+        target.id === agent.id
+          ? failedAdapter.failedAdapterType ?? target.adapterType
+          : target.adapterType,
+        target.id === agent.id
+          ? failedAdapter.failedAdapterConfig
+          : asRecord(target.adapterConfig),
         targetAgent ? buildDesiredAdapterDescriptor(targetAgent) : null,
         payload.error,
       );
@@ -6793,14 +6870,14 @@ async function handleAgentRunFailureQuotaFallback(
 
     if (
       workspaceKey
-      && (agent.adapterType === "claude_local" ||
-        agent.adapterType === "codex_local" ||
-        agent.adapterType === "hermes_local")
-      && fallback.adapterType !== agent.adapterType
+      && (failedAdapter.failedAdapterType === "claude_local" ||
+        failedAdapter.failedAdapterType === "codex_local" ||
+        failedAdapter.failedAdapterType === "hermes_local")
+      && fallback.adapterType !== failedAdapter.failedAdapterType
     ) {
       await setWorkspaceCooldown(ctx, event.companyId, {
         workspaceKey,
-        unavailableAdapterType: agent.adapterType,
+        unavailableAdapterType: failedAdapter.failedAdapterType,
         fallbackAdapterType: fallback.adapterType,
         cooldownUntil,
         recordedAt: nowIso(),
@@ -6852,8 +6929,8 @@ async function handleAgentRunFailureQuotaFallback(
       title: `Retried ${agent.name} on ${fallback.adapterType} after quota failure`,
       issueId: payload.issueId ?? undefined,
       detail: payload.issueId
-        ? `Issue ${payload.issueId} retried from failed run ${payload.runId}; switched ${workspaceTargets.length} same-workspace agent(s) to ${fallback.adapterType}${fallback.adapterType !== agent.adapterType ? ` until ${cooldownUntil}` : ""}.`
-        : `Task ${retryTaskKey} retried from failed run ${payload.runId}; switched ${workspaceTargets.length} same-workspace agent(s) to ${fallback.adapterType}${fallback.adapterType !== agent.adapterType ? ` until ${cooldownUntil}` : ""}.`,
+        ? `Issue ${payload.issueId} retried from failed run ${payload.runId}; switched ${workspaceTargets.length} same-workspace agent(s) to ${fallback.adapterType}${fallback.adapterType !== failedAdapter.failedAdapterType ? ` until ${cooldownUntil}` : ""}.`
+        : `Task ${retryTaskKey} retried from failed run ${payload.runId}; switched ${workspaceTargets.length} same-workspace agent(s) to ${fallback.adapterType}${fallback.adapterType !== failedAdapter.failedAdapterType ? ` until ${cooldownUntil}` : ""}.`,
     });
 
     if (payload.issueId) {
@@ -6863,7 +6940,7 @@ async function handleAgentRunFailureQuotaFallback(
           : fallback.adapterType;
       await ctx.issues.createComment(
         payload.issueId,
-        `Detected a ${agent.adapterType} quota/rate-limit failure on run ${payload.runId}. Switched ${agent.name} and ${Math.max(workspaceTargets.length - 1, 0)} same-workspace peer(s) to ${fallbackLabel}${fallback.adapterType !== agent.adapterType ? ` until ${cooldownUntil}` : ""}, then requeued the work once.`,
+        `Detected a ${failedAdapter.failedAdapterType ?? agent.adapterType} quota/rate-limit failure on run ${payload.runId}. Switched ${agent.name} and ${Math.max(workspaceTargets.length - 1, 0)} same-workspace peer(s) to ${fallbackLabel}${fallback.adapterType !== failedAdapter.failedAdapterType ? ` until ${cooldownUntil}` : ""}, then requeued the work once.`,
         event.companyId,
       ).catch(() => undefined);
     }
