@@ -6,6 +6,8 @@ import { logger } from "../logger";
 import { dispatchHumanBlocker } from "./human-blocker-dispatch";
 import type { HumanBlockerKind } from "./human-reply-routing";
 
+const HUMAN_BLOCKER_REVIEW_OWNER = "blueprint-chief-of-staff";
+
 function normalizeText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -109,7 +111,10 @@ export async function dispatchRuntimeApprovalHumanBlocker(params: {
       : "Resume the blocked lane from durable runtime state and complete the queued follow-through.";
 
   return dispatchHumanBlocker({
+    delivery_mode: "review_required",
     blocker_kind: blockerKind,
+    review_owner: HUMAN_BLOCKER_REVIEW_OWNER,
+    sender_owner: HUMAN_BLOCKER_REVIEW_OWNER,
     execution_owner: executionOwner,
     packet: {
       blockerId: blockerId("runtime", [
@@ -166,7 +171,11 @@ export async function dispatchActionApprovalHumanBlocker(params: {
   const executionOwner = executionOwnerForLane(params.lane);
   const blockerKind = humanBlockerKindForLane(params.lane);
   return dispatchHumanBlocker({
+    delivery_mode: "review_required",
     blocker_kind: blockerKind,
+    review_owner: HUMAN_BLOCKER_REVIEW_OWNER,
+    sender_owner: HUMAN_BLOCKER_REVIEW_OWNER,
+    ops_work_item_id: params.ledgerDocId,
     execution_owner: executionOwner,
     packet: {
       blockerId: blockerId("action", [
@@ -217,7 +226,11 @@ export async function dispatchPostSignupHumanBlocker(params: {
     normalizeText(params.approvalReason) || "post_signup_requires_human_review";
 
   return dispatchHumanBlocker({
+    delivery_mode: "review_required",
     blocker_kind: "ops_commercial",
+    review_owner: HUMAN_BLOCKER_REVIEW_OWNER,
+    sender_owner: HUMAN_BLOCKER_REVIEW_OWNER,
+    ops_work_item_id: params.ledgerId || null,
     execution_owner: "ops-lead",
     packet: {
       blockerId: blockerId("post-signup", [
@@ -276,7 +289,10 @@ export async function dispatchWorkflowHumanReviewBlocker(params: {
   const reason = normalizeText(params.blockReasonCode) || "requires_human_review";
 
   return dispatchHumanBlocker({
+    delivery_mode: "review_required",
     blocker_kind: blockerKind,
+    review_owner: HUMAN_BLOCKER_REVIEW_OWNER,
+    sender_owner: HUMAN_BLOCKER_REVIEW_OWNER,
     execution_owner: executionOwner,
     packet: {
       blockerId: blockerId("workflow", [

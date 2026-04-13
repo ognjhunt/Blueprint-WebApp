@@ -1,5 +1,15 @@
 import { recordExternalGapReport } from "./gap-closure";
 import { resolveHumanBlockerAwaitingReply } from "./human-blocker-dispatch";
+import { approveAction } from "../agents/action-executor";
+import {
+  createPaperclipIssueComment,
+  getPaperclipIssue,
+  resolvePaperclipAgentId,
+  resetPaperclipAgentSession,
+  resolvePaperclipCompanyId,
+  updatePaperclipIssue,
+  wakePaperclipAgent,
+} from "./paperclip";
 import {
   classifyHumanReply,
   extractHumanBlockerIdFromText,
@@ -162,6 +172,75 @@ async function ingestHumanReplyMessage(params: {
     severity: decision.resolution === "resolved_input" ? "warn" : "blocker",
     suggested_owner: suggestedOwner,
   });
+
+  if (decision.resolution === "resolved_input") {
+    try {
+      const operatorEmail = params.thread.approved_identity || "ohstnhunt@gmail.com";
+      const replySummary = bodyExcerpt || "(empty reply)";
+      if (
+        decision.classification === "approval"
+        && params.thread.record_of_truth.ops_work_item_id
+      ) {
+        await approveAction(params.thread.record_of_truth.ops_work_item_id, operatorEmail);
+      } else if (params.thread.record_of_truth.paperclip_issue_id) {
+        const companyId = await resolvePaperclipCompanyId();
+        const issueId = params.thread.record_of_truth.paperclip_issue_id;
+        const executionAgentId = await resolvePaperclipAgentId(decision.execution_owner);
+        if (!companyId || !executionAgentId) {
+          throw new Error("Paperclip company or execution agent could not be resolved for human-reply resume.");
+        }
+        const existingIssue = await getPaperclipIssue(issueId).catch(() => null);
+        if (!existingIssue) {
+          throw new Error(`Paperclip issue ${issueId} could not be loaded for human-reply resume.`);
+        }
+        if (existingIssue.assigneeAgentId !== executionAgentId) {
+          await updatePaperclipIssue(issueId, {
+            assigneeAgentId: executionAgentId,
+          });
+        }
+        await createPaperclipIssueComment(
+          issueId,
+          [
+            `Human reply recorded for blocker ${params.thread.blocker_id}.`,
+            `Classification: ${decision.classification}.`,
+            `Reason: ${decision.reason}`,
+            `Reply summary: ${replySummary}`,
+            `Auto-resume: waking ${decision.execution_owner}.`,
+          ].join("\n"),
+        );
+        await resetPaperclipAgentSession(executionAgentId, issueId, companyId).catch(() => undefined);
+        await wakePaperclipAgent({
+          agentId: executionAgentId,
+          companyId,
+          reason: "human_reply_resolved",
+          idempotencyKey: `human-reply:${params.thread.blocker_id}:${replyEvent.id}`,
+          payload: {
+            issueId,
+            taskKey: issueId,
+            blockerId: params.thread.blocker_id,
+            humanReplyEventId: replyEvent.id,
+            classification: decision.classification,
+            resolution: decision.resolution,
+            receivedAt: params.received_at,
+          },
+        });
+      }
+    } catch (error) {
+      await noteHumanReplyThreadBlocker({
+        blocker_id: params.thread.blocker_id,
+        reason: error instanceof Error ? error.message : "Human reply auto-resume failed.",
+      });
+      return {
+        processed: true,
+        blocker_id: params.thread.blocker_id,
+        gap_id: gap.stable_id,
+        classification: decision.classification,
+        resolution: decision.resolution,
+        owner: suggestedOwner,
+        auto_resume_error: error instanceof Error ? error.message : "Human reply auto-resume failed.",
+      };
+    }
+  }
 
   if (decision.resolution === "resolved_input") {
     await resolveHumanBlockerAwaitingReply(params.thread.blocker_id).catch(() => false);

@@ -2,6 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getProfileMock = vi.hoisted(() => vi.fn());
+const listMessagesMock = vi.hoisted(() => vi.fn());
+const getMessageMock = vi.hoisted(() => vi.fn());
 
 vi.mock("googleapis", () => ({
   google: {
@@ -13,6 +15,10 @@ vi.mock("googleapis", () => ({
     gmail: vi.fn(() => ({
       users: {
         getProfile: getProfileMock,
+        messages: {
+          list: listMessagesMock,
+          get: getMessageMock,
+        },
       },
     })),
   },
@@ -21,6 +27,8 @@ vi.mock("googleapis", () => ({
 describe("human reply gmail status", () => {
   beforeEach(() => {
     getProfileMock.mockReset();
+    listMessagesMock.mockReset();
+    getMessageMock.mockReset();
   });
 
   afterEach(() => {
@@ -123,5 +131,27 @@ describe("human reply gmail status", () => {
     status = await module.getHumanReplyGmailDurabilityStatus();
     expect(status.production_ready).toBe(true);
     expect(status.risk).toBeNull();
+  });
+
+  it("defaults the gmail watcher query to sent mail", async () => {
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID", "client-id");
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET", "client-secret");
+    vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN", "refresh-token");
+    getProfileMock.mockResolvedValue({
+      data: { emailAddress: "ohstnhunt@gmail.com" },
+    });
+    listMessagesMock.mockResolvedValue({
+      data: { messages: [] },
+    });
+
+    const { listHumanReplyGmailMessages } = await import("../utils/human-reply-gmail");
+    await listHumanReplyGmailMessages();
+
+    expect(listMessagesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "me",
+        q: "label:sent newer_than:14d",
+      }),
+    );
   });
 });

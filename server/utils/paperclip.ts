@@ -18,6 +18,12 @@ type PaperclipAgent = {
   metadata?: Record<string, unknown> | null;
 };
 
+type PaperclipWakeupResult = {
+  id?: string;
+  status?: string;
+  runId?: string | null;
+};
+
 export type PaperclipIssueRecord = {
   id: string;
   identifier?: string | null;
@@ -36,6 +42,16 @@ const DEFAULT_COMPANY_NAME = "Blueprint Autonomous Operations";
 let cachedCompanyId: string | null | undefined;
 const cachedProjectIds = new Map<string, string>();
 const cachedAgentIds = new Map<string, string>();
+
+function normalizeAgentLookupKey(value: string | null | undefined) {
+  if (typeof value !== "string") return null;
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return normalized.length > 0 ? normalized : null;
+}
 
 function paperclipApiUrl() {
   return (getConfiguredEnvValue("PAPERCLIP_API_URL") || DEFAULT_API_URL).replace(/\/+$/, "");
@@ -122,7 +138,7 @@ export async function resolvePaperclipProjectId(projectName: string) {
 }
 
 export async function resolvePaperclipAgentId(agentKey: string) {
-  const cacheKey = agentKey.trim().toLowerCase();
+  const cacheKey = normalizeAgentLookupKey(agentKey) || agentKey.trim().toLowerCase();
   const cached = cachedAgentIds.get(cacheKey);
   if (cached) {
     return cached;
@@ -148,8 +164,11 @@ export async function resolvePaperclipAgentId(agentKey: string) {
       entry.title || "",
       typeof metadata.agentKey === "string" ? metadata.agentKey : "",
       typeof metadata.slug === "string" ? metadata.slug : "",
+      typeof (entry as Record<string, unknown>).urlKey === "string"
+        ? ((entry as Record<string, unknown>).urlKey as string)
+        : "",
     ]
-      .map((value) => value.trim().toLowerCase())
+      .map((value) => normalizeAgentLookupKey(value) || value.trim().toLowerCase())
       .filter(Boolean);
     return candidates.includes(cacheKey);
   });
@@ -178,6 +197,26 @@ export async function listPaperclipIssues(params: {
       headers: buildHeaders(),
     },
   );
+}
+
+export async function getPaperclipIssue(issueId: string) {
+  return await fetchPaperclipJson<PaperclipIssueRecord>(`/api/issues/${issueId}`, {
+    headers: buildHeaders(),
+  });
+}
+
+export async function updatePaperclipIssue(
+  issueId: string,
+  input: Partial<Pick<PaperclipIssueRecord, "title" | "status" | "priority" | "assigneeAgentId">> & {
+    description?: string | null;
+    parentId?: string | null;
+  },
+) {
+  return await fetchPaperclipJson<PaperclipIssueRecord>(`/api/issues/${issueId}`, {
+    method: "PATCH",
+    headers: buildHeaders(true),
+    body: JSON.stringify(input),
+  });
 }
 
 export async function upsertPaperclipIssue(input: {
@@ -270,4 +309,50 @@ export async function createPaperclipIssueComment(issueId: string, body: string)
     headers: buildHeaders(true),
     body: JSON.stringify({ body }),
   });
+}
+
+export async function resetPaperclipAgentSession(
+  agentId: string,
+  taskKey?: string | null,
+  companyId?: string | null,
+) {
+  const scope =
+    companyId
+    || await resolvePaperclipCompanyId()
+    || undefined;
+  return await fetchPaperclipJson<{ ok?: boolean }>(
+    `/api/agents/${encodeURIComponent(agentId)}/runtime-state/reset-session${scope ? `?companyId=${encodeURIComponent(scope)}` : ""}`,
+    {
+      method: "POST",
+      headers: buildHeaders(true),
+      body: JSON.stringify({ taskKey: taskKey ?? null }),
+    },
+  );
+}
+
+export async function wakePaperclipAgent(input: {
+  agentId: string;
+  companyId?: string | null;
+  reason?: string | null;
+  payload?: Record<string, unknown> | null;
+  idempotencyKey?: string | null;
+}) {
+  const scope =
+    input.companyId
+    || await resolvePaperclipCompanyId()
+    || undefined;
+  return await fetchPaperclipJson<PaperclipWakeupResult | { status: "skipped" }>(
+    `/api/agents/${encodeURIComponent(input.agentId)}/wakeup${scope ? `?companyId=${encodeURIComponent(scope)}` : ""}`,
+    {
+      method: "POST",
+      headers: buildHeaders(true),
+      body: JSON.stringify({
+        source: "automation",
+        triggerDetail: "system",
+        reason: input.reason ?? null,
+        payload: input.payload ?? null,
+        idempotencyKey: input.idempotencyKey ?? null,
+      }),
+    },
+  );
 }

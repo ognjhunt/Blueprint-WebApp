@@ -233,7 +233,7 @@ export async function listHumanReplyGmailMessages(params?: {
     q:
       trimValue(params?.query)
       || trimValue(process.env.BLUEPRINT_HUMAN_REPLY_GMAIL_QUERY)
-      || "newer_than:14d",
+      || "label:sent newer_than:14d",
     maxResults: Math.max(1, Math.min(params?.limit ?? 25, 100)),
   });
 
