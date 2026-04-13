@@ -4,6 +4,7 @@ import {
   clusterRunFailures,
   isLogicalFailureSucceededRun,
   resolveSinceTimestamp,
+  splitRecoveredCandidates,
 } from "./sweep-agent-run-failures.ts";
 
 describe("sweep agent run failures", () => {
@@ -219,5 +220,137 @@ describe("sweep agent run failures", () => {
         now: new Date("2026-04-10T12:00:00.000Z"),
       }),
     ).toBe("2026-04-10T06:00:00.000Z");
+  });
+
+  it("suppresses quota failures that already have a later recovered retry on the same task", () => {
+    const signature = classifyFailureSignature({
+      run: {
+        id: "run-quota-failed",
+        agentId: "agent-1",
+        companyId: "company-1",
+        status: "failed",
+        contextSnapshot: {
+          issueId: "issue-1",
+          taskId: "issue-1",
+          taskKey: "issue-1",
+        },
+      },
+      logText: "API call failed after 3 retries: HTTP 429: Rate limit exceeded: free-models-per-min.",
+    });
+
+    const split = splitRecoveredCandidates(
+      [
+        {
+          run: {
+            id: "run-quota-failed",
+            agentId: "agent-1",
+            companyId: "company-1",
+            status: "failed",
+            createdAt: "2026-04-13T12:00:00.000Z",
+            contextSnapshot: {
+              issueId: "issue-1",
+              taskId: "issue-1",
+              taskKey: "issue-1",
+            },
+          },
+          agent: { id: "agent-1", name: "Ops Lead", urlKey: "ops-lead" },
+          issues: [{ id: "issue-1", identifier: "BLU-1" }],
+          bestText: "HTTP 429: Rate limit exceeded: free-models-per-min.",
+          signature,
+          stalled: false,
+        },
+      ],
+      [
+        {
+          id: "run-quota-failed",
+          agentId: "agent-1",
+          companyId: "company-1",
+          status: "failed",
+          createdAt: "2026-04-13T12:00:00.000Z",
+          contextSnapshot: {
+            issueId: "issue-1",
+            taskId: "issue-1",
+            taskKey: "issue-1",
+          },
+        },
+        {
+          id: "run-quota-retry",
+          agentId: "agent-1",
+          companyId: "company-1",
+          status: "running",
+          createdAt: "2026-04-13T12:05:00.000Z",
+          startedAt: "2026-04-13T12:05:00.000Z",
+          contextSnapshot: {
+            issueId: "issue-1",
+            taskId: "issue-1",
+            taskKey: "issue-1",
+            wakeReason: "quota_fallback_to_codex_local_after_shared_openrouter_free_pool_limit",
+          },
+        },
+      ],
+      20,
+    );
+
+    expect(split.visibleCandidates).toHaveLength(0);
+    expect(split.suppressedRecoveredCandidates).toHaveLength(1);
+  });
+
+  it("keeps quota failures visible when no later recovery run exists", () => {
+    const signature = classifyFailureSignature({
+      run: {
+        id: "run-quota-failed",
+        agentId: "agent-1",
+        companyId: "company-1",
+        status: "failed",
+        contextSnapshot: {
+          issueId: "issue-1",
+          taskId: "issue-1",
+          taskKey: "issue-1",
+        },
+      },
+      logText: "API call failed after 3 retries: HTTP 429: Rate limit exceeded: free-models-per-min.",
+    });
+
+    const split = splitRecoveredCandidates(
+      [
+        {
+          run: {
+            id: "run-quota-failed",
+            agentId: "agent-1",
+            companyId: "company-1",
+            status: "failed",
+            createdAt: "2026-04-13T12:00:00.000Z",
+            contextSnapshot: {
+              issueId: "issue-1",
+              taskId: "issue-1",
+              taskKey: "issue-1",
+            },
+          },
+          agent: { id: "agent-1", name: "Ops Lead", urlKey: "ops-lead" },
+          issues: [{ id: "issue-1", identifier: "BLU-1" }],
+          bestText: "HTTP 429: Rate limit exceeded: free-models-per-min.",
+          signature,
+          stalled: false,
+        },
+      ],
+      [
+        {
+          id: "run-quota-failed",
+          agentId: "agent-1",
+          companyId: "company-1",
+          status: "failed",
+          createdAt: "2026-04-13T12:00:00.000Z",
+          contextSnapshot: {
+            issueId: "issue-1",
+            taskId: "issue-1",
+            taskKey: "issue-1",
+          },
+        },
+      ],
+      20,
+    );
+
+    expect(split.visibleCandidates).toHaveLength(1);
+    expect(split.suppressedRecoveredCandidates).toHaveLength(0);
   });
 });

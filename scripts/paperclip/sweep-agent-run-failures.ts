@@ -564,6 +564,91 @@ function isCandidateRun(run: HeartbeatRunRecord, stalledMinutes: number) {
   return { matches: ageMs > stalledMinutes * 60_000, stalled: ageMs > stalledMinutes * 60_000 };
 }
 
+function isActiveRecoveryRun(run: HeartbeatRunRecord, stalledMinutes: number) {
+  const status = normalizeWhitespace(run.status ?? "").toLowerCase();
+  if (status === "succeeded" || status === "running") {
+    return true;
+  }
+  if (status !== "queued") {
+    return false;
+  }
+
+  const ageMs = Date.now() - Math.max(safeDateRank(run.startedAt), safeDateRank(run.createdAt));
+  return ageMs <= stalledMinutes * 60_000;
+}
+
+function runRecoveryScope(run: HeartbeatRunRecord) {
+  const context = asRecord(run.contextSnapshot);
+  return {
+    taskKey: asString(context?.taskKey),
+    issueId: asString(context?.issueId),
+    taskId: asString(context?.taskId),
+    retryOfRunId: asString(context?.retryOfRunId),
+  };
+}
+
+function hasMatchingRecoveryScope(candidate: HeartbeatRunRecord, laterRun: HeartbeatRunRecord) {
+  const candidateScope = runRecoveryScope(candidate);
+  const laterScope = runRecoveryScope(laterRun);
+
+  if (laterScope.retryOfRunId && laterScope.retryOfRunId === candidate.id) {
+    return true;
+  }
+  if (candidateScope.taskKey && candidateScope.taskKey === laterScope.taskKey) {
+    return true;
+  }
+  if (candidateScope.issueId && candidateScope.issueId === laterScope.issueId) {
+    return true;
+  }
+  if (candidateScope.taskId && candidateScope.taskId === laterScope.taskId) {
+    return true;
+  }
+  return false;
+}
+
+function isRecoverableQuotaFamily(signature: FailureSignature) {
+  return (
+    signature.key === "provider_quota_or_rate_limit"
+    || signature.key === "provider_quota_or_rate_limit_marked_succeeded"
+  );
+}
+
+export function splitRecoveredCandidates(
+  candidates: CandidateRun[],
+  runs: HeartbeatRunRecord[],
+  stalledMinutes: number,
+) {
+  const visibleCandidates: CandidateRun[] = [];
+  const suppressedRecoveredCandidates: CandidateRun[] = [];
+
+  for (const candidate of candidates) {
+    if (!isRecoverableQuotaFamily(candidate.signature)) {
+      visibleCandidates.push(candidate);
+      continue;
+    }
+
+    const candidateCreatedAt = safeDateRank(candidate.run.createdAt);
+    const recovered = runs.some((run) => (
+      run.id !== candidate.run.id
+      && run.agentId === candidate.run.agentId
+      && safeDateRank(run.createdAt) > candidateCreatedAt
+      && isActiveRecoveryRun(run, stalledMinutes)
+      && hasMatchingRecoveryScope(candidate.run, run)
+    ));
+
+    if (recovered) {
+      suppressedRecoveredCandidates.push(candidate);
+    } else {
+      visibleCandidates.push(candidate);
+    }
+  }
+
+  return {
+    visibleCandidates,
+    suppressedRecoveredCandidates,
+  };
+}
+
 async function fetchRunLog(runId: string, maxLogBytes: number) {
   try {
     const payload = await fetchJson<{ content?: string; nextOffset?: number }>(
@@ -588,6 +673,8 @@ function buildMarkdownReport(input: {
   inspectedRuns: number;
   candidateRuns: number;
   clusters: Cluster[];
+  suppressedRecoveredCandidates: number;
+  suppressedRecoveredClusters: Cluster[];
   limit: number;
   stalledMinutes: number;
   since?: string | null;
@@ -597,6 +684,9 @@ function buildMarkdownReport(input: {
   lines.push("");
   lines.push(`- Inspected runs: ${input.inspectedRuns}`);
   lines.push(`- Candidate failed/stalled/logical-failure runs: ${input.candidateRuns}`);
+  if (input.suppressedRecoveredCandidates > 0) {
+    lines.push(`- Suppressed auto-recovered runs: ${input.suppressedRecoveredCandidates}`);
+  }
   lines.push(`- Failure families: ${input.clusters.length}`);
   lines.push(`- Sweep limit: ${input.limit}`);
   lines.push(`- Stalled threshold: ${input.stalledMinutes} minutes`);
@@ -606,7 +696,19 @@ function buildMarkdownReport(input: {
   lines.push("");
 
   if (input.clusters.length === 0) {
-    lines.push("No failed, stalled, or logical-failure runs matched the sweep window.");
+    lines.push("No unrecovered failed, stalled, or logical-failure runs matched the sweep window.");
+    if (input.suppressedRecoveredClusters.length > 0) {
+      lines.push("");
+      lines.push("## Suppressed Recovered Families");
+      lines.push("");
+      lines.push("| Family | Count | Agents | Category | Why suppressed |");
+      lines.push("| --- | ---: | --- | --- | --- |");
+      for (const cluster of input.suppressedRecoveredClusters) {
+        lines.push(
+          `| ${cluster.signature.title} | ${cluster.count} | ${cluster.agentKeys.join(", ")} | ${cluster.signature.category} | Later run on the same task/issue is already running or succeeded |`,
+        );
+      }
+    }
     return lines.join("\n");
   }
 
@@ -637,6 +739,19 @@ function buildMarkdownReport(input: {
     for (const example of cluster.examples) {
       lines.push(
         `  - ${example.runId} | ${example.agent} | ${example.status}${example.issueIdentifiers.length > 0 ? ` | ${example.issueIdentifiers.join(", ")}` : ""} | ${example.bestText}`,
+      );
+    }
+  }
+
+  if (input.suppressedRecoveredClusters.length > 0) {
+    lines.push("");
+    lines.push("## Suppressed Recovered Families");
+    lines.push("");
+    lines.push("| Family | Count | Agents | Category | Why suppressed |");
+    lines.push("| --- | ---: | --- | --- | --- |");
+    for (const cluster of input.suppressedRecoveredClusters) {
+      lines.push(
+        `| ${cluster.signature.title} | ${cluster.count} | ${cluster.agentKeys.join(", ")} | ${cluster.signature.category} | Later run on the same task/issue is already running or succeeded |`,
       );
     }
   }
@@ -706,7 +821,12 @@ async function main() {
     });
   }
 
-  const clusters = clusterRunFailures(candidates);
+  const {
+    visibleCandidates,
+    suppressedRecoveredCandidates,
+  } = splitRecoveredCandidates(candidates, filteredRuns, stalledMinutes);
+  const clusters = clusterRunFailures(visibleCandidates);
+  const suppressedRecoveredClusters = clusterRunFailures(suppressedRecoveredCandidates);
 
   if (json) {
     console.log(JSON.stringify({
@@ -714,10 +834,12 @@ async function main() {
         companyId,
       inspectedRuns: filteredRuns.length,
       candidateRuns: candidates.length,
+      suppressedRecoveredRuns: suppressedRecoveredCandidates.length,
       limit,
       stalledMinutes,
       since,
       clusters,
+      suppressedRecoveredClusters,
     }, null, 2));
     return;
   }
@@ -726,6 +848,8 @@ async function main() {
     inspectedRuns: filteredRuns.length,
     candidateRuns: candidates.length,
     clusters,
+    suppressedRecoveredCandidates: suppressedRecoveredCandidates.length,
+    suppressedRecoveredClusters,
     limit,
     stalledMinutes,
     since,
