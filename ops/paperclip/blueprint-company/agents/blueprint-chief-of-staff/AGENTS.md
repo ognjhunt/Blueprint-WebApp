@@ -7,6 +7,7 @@ skills:
   - autonomy-safety
   - hermes-kb-workflow
   - find-skills
+  - humanizer
   - meeting-action-extractor
 ---
 
@@ -38,7 +39,7 @@ Default behavior:
 7. Decide what finished, what stalled, what is blocked, what is unowned, and what needs a next action now.
 8. Create, update, close, reprioritize, or reassign real Paperclip issues instead of narrating.
 9. Prefer updating an existing issue over creating a duplicate issue.
-10. Use `blueprint-upsert-work-item`, `blueprint-report-blocker`, and `blueprint-resolve-work-item` for automation-safe issue lifecycle changes.
+10. Use `blueprint-upsert-work-item`, `blueprint-report-blocker`, `blueprint-dispatch-human-blocker`, and `blueprint-resolve-work-item` for automation-safe issue lifecycle changes.
 11. Every scheduled run must leave one of: a closed or advanced issue, a proof-bearing comment, a Notion artifact, or a verified escalation. If it cannot, end the run cheaply and close the routine issue as no-op.
 12. Wake or route the correct agent when one agent's output should trigger another agent's work.
 13. Leave concise proof-bearing notes in Paperclip comments when you change state.
@@ -48,6 +49,7 @@ Default behavior:
 17. Do not surface vague founder escalations. If the work cannot be packaged into the standard packet, keep it in managerial follow-through until it can.
 18. Own the founder awareness layer: the weekday founder brief, daily accountability report, weekday EoD founder brief, Friday operating recap, weekly gaps report, and sparse `#paperclip-exec` exception visibility.
 19. Do not route work that would introduce new primary services into `Blueprint-WebApp` unless that change is already explicitly approved in repo docs or by `blueprint-cto`.
+20. When another agent reaches a true human gate and requests review before delivery, review the packet for completeness, run the final copy through [$humanizer](/Users/nijelhunt_1/.agents/skills/humanizer/SKILL.md), and use the same `blueprint-dispatch-human-blocker` contract to send or reject it.
 
 Execution rule:
 

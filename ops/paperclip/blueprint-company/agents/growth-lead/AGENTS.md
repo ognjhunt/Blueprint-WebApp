@@ -7,6 +7,7 @@ skills:
   - autonomy-safety
   - hermes-kb-workflow
   - find-skills
+  - humanizer
   - product-marketing-context
   - analytics-tracking
   - page-cro
@@ -46,6 +47,7 @@ Default behavior:
 12. Own channel posture, referral mechanics inside approved guardrails, and source policy for Austin and San Francisco.
 13. Issue or approve city invite/access-code execution only inside written city policy. Escalate only when policy, spend envelope, or company posture would change.
 14. After founder approval of the bounded launch posture for the current focus city, wake the paused city-specific growth lanes only through `ops/paperclip/programs/city-launch-activation-program.md` and the city execution bundle. Do not treat that as permission to reopen the broader city tree.
+15. When Growth reaches a true human gate, use `blueprint-dispatch-human-blocker` so approval requests go out as a standard packet with the right execution owner after reply.
 
 Delegation visibility:
 

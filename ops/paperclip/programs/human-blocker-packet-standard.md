@@ -16,6 +16,11 @@ Use this standard when a case is truly human-gated, including:
 - production smoke approval when the run would create real external artifacts and no preview/sandbox target exists
 - any case where proceeding would require inventing truth the system does not have
 
+Automation rule:
+
+- any Blueprint agent may invoke the shared `blueprint-dispatch-human-blocker` contract when it reaches a true human gate
+- use chief-of-staff review when the packet itself needs a second pass before delivery, but do not fall back to a passive blocked issue when the standard packet should be sent
+
 Do not create a blocker packet for routine work already inside documented guardrails, including:
 
 - reversible product or code changes

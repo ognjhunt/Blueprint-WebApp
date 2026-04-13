@@ -205,4 +205,105 @@ describe("human blocker dispatch", () => {
     expect(actionKeys).toContain("human.blocker.upsert");
     expect(actionKeys).toContain("human.blocker.dispatch");
   });
+
+  it("queues a human blocker for review without sending it", async () => {
+    sendEmail.mockResolvedValue({ sent: true });
+    sendSlackMessage.mockResolvedValue({ sent: true });
+    recordExternalGapReport.mockResolvedValue({
+      stable_id: "human_blocker:blocker-review",
+      is_new: true,
+    });
+
+    const { dispatchHumanBlocker } = await import("../utils/human-blocker-dispatch");
+    const result = await dispatchHumanBlocker({
+      delivery_mode: "review_required",
+      blocker_kind: "ops_commercial",
+      review_owner: "blueprint-chief-of-staff",
+      sender_owner: "blueprint-chief-of-staff",
+      packet: {
+        blockerId: "blocker-review",
+        title: "Growth send needs founder approval",
+        summary: "A buyer-facing growth send is blocked.",
+        recommendedAnswer: "Approve the bounded send only if it stays inside the current guardrails.",
+        exactResponseNeeded: "Reply approved or revise with exact wording changes.",
+        whyBlocked: "The campaign would otherwise make a founder-gated commitment.",
+        alternatives: ["Reject the send and keep the issue blocked."],
+        risk: "The wrong send could overstate commercial posture.",
+        executionOwner: "growth-lead",
+        immediateNextAction: "Resume the queued send path from the saved issue state.",
+        deadline: "Today",
+        evidence: ["Draft and target list are ready."],
+        nonScope: "No broader pricing or policy change.",
+      },
+    });
+
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(sendSlackMessage).not.toHaveBeenCalled();
+    expect(result.delivery_mode).toBe("review_required");
+    expect(result.delivery_status).toBe("awaiting_review");
+
+    const thread = threadStore.get("blocker-review");
+    expect(thread?.status).toBe("awaiting_review");
+    expect(thread?.review_status).toBe("awaiting_review");
+
+    const dispatch = [...dispatchStore.values()][0];
+    expect(dispatch?.delivery_mode).toBe("review_required");
+    expect(dispatch?.email_sent).toBe(false);
+
+    const actionKeys = [...opsActionLogStore.values()].map(
+      (entry) => entry.action_key,
+    );
+    expect(actionKeys).toContain("human.blocker.queue_review");
+  });
+
+  it("sends a saved draft after review approval", async () => {
+    sendEmail.mockResolvedValue({ sent: true });
+    sendSlackMessage.mockResolvedValue({ sent: true });
+    recordExternalGapReport.mockResolvedValue({
+      stable_id: "human_blocker:blocker-followup",
+      is_new: true,
+    });
+
+    const { dispatchHumanBlocker } = await import("../utils/human-blocker-dispatch");
+    const queued = await dispatchHumanBlocker({
+      delivery_mode: "review_required",
+      blocker_kind: "technical",
+      review_owner: "blueprint-chief-of-staff",
+      sender_owner: "blueprint-chief-of-staff",
+      mirror_to_slack: true,
+      packet: {
+        blockerId: "blocker-followup",
+        title: "Preview diagnosis needs operator confirmation",
+        summary: "A preview-diagnosis rerun needs human confirmation.",
+        recommendedAnswer: "Confirm the environment change, then rerun the preview diagnosis.",
+        exactResponseNeeded: "Reply with approved after checking the fix.",
+        whyBlocked: "The fix requires a human-owned environment boundary.",
+        alternatives: ["Leave the issue blocked until a human confirms the change."],
+        risk: "The rerun could validate against the wrong environment state.",
+        executionOwner: "webapp-codex",
+        immediateNextAction: "Resume the saved preview diagnosis run.",
+        deadline: "Today",
+        evidence: ["Rerun plan prepared."],
+        nonScope: "No broader release approval.",
+      },
+    });
+
+    expect(sendEmail).not.toHaveBeenCalled();
+    const sent = await dispatchHumanBlocker({
+      delivery_mode: "send_saved_draft",
+      dispatch_id: queued.dispatch_id,
+      reviewed_by: {
+        uid: "chief-1",
+        email: "chief@example.com",
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(sent.delivery_mode).toBe("send_now");
+    expect(sent.delivery_status).toBe("sent");
+
+    const thread = threadStore.get("blocker-followup");
+    expect(thread?.status).toBe("awaiting_reply");
+    expect(thread?.review_status).toBe("approved");
+  });
 });

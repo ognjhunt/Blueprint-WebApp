@@ -12,8 +12,10 @@
   Do not replace these with `curl | python` or any other pipe-to-interpreter localhost probe.
 - `blueprint-scan-work`
   Use this only when the run is actionable or the queue is stale enough that a scan will change ownership, proof, or closure state.
-- `blueprint-upsert-work-item`, `blueprint-report-blocker`, `blueprint-resolve-work-item`
+- `blueprint-upsert-work-item`, `blueprint-report-blocker`, `blueprint-dispatch-human-blocker`, `blueprint-resolve-work-item`
   Use these to keep work state accurate without creating duplicate automation records.
+- `blueprint-dispatch-human-blocker`
+  Use this when a true human gate should become a standard blocker packet. Queue chief-of-staff review when another lane needs send approval; use the same tool again to send the reviewed packet.
 - `notion-upsert-knowledge`
   Use this for founder-facing recurring artifacts such as the weekday brief, Friday recap, and weekly gaps report.
 - `npm exec tsx -- scripts/paperclip/chief-of-staff-founder-report.ts --issue-id <current-issue-id>`

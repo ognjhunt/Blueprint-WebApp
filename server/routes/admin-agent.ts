@@ -427,17 +427,25 @@ const humanBlockerPacketSchema = z.object({
 });
 
 const dispatchHumanBlockerSchema = z.object({
-  packet: humanBlockerPacketSchema,
-  blocker_kind: z.enum(["technical", "ops_commercial"]),
+  delivery_mode: z.enum(["send_now", "review_required", "send_saved_draft"]).optional(),
+  dispatch_id: z.string().max(200).optional(),
+  packet: humanBlockerPacketSchema.optional(),
+  blocker_kind: z.enum(["technical", "ops_commercial"]).optional(),
   email_target: z.string().email().optional(),
   mirror_to_slack: z.boolean().optional(),
   slack_webhook_url: z.string().url().optional(),
   routing_owner: z.string().max(120).optional(),
   execution_owner: z.string().max(120).optional(),
   escalation_owner: z.string().max(120).optional(),
+  review_owner: z.string().max(120).optional(),
+  sender_owner: z.string().max(120).optional(),
   report_paths: z.array(z.string().min(1).max(500)).optional(),
   paperclip_issue_id: z.string().max(200).optional(),
   ops_work_item_id: z.string().max(200).optional(),
+  reviewed_by: z.object({
+    uid: z.string().max(200).optional(),
+    email: z.string().max(500).optional(),
+  }).optional(),
 });
 
 router.post("/sessions", requireAdminRole, async (req: Request, res: Response) => {

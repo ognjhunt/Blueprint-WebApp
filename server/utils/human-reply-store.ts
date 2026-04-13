@@ -6,6 +6,7 @@ import { logger } from "../logger";
 import type {
   HumanBlockerCorrelation,
   HumanBlockerKind,
+  HumanBlockerReviewStatus,
   HumanBlockerThreadStatus,
   HumanReplyChannel,
   HumanReplyClassification,
@@ -68,6 +69,11 @@ export type HumanBlockerThreadRecord = {
   routing_owner: string;
   execution_owner: string;
   escalation_owner: string | null;
+  review_owner: string | null;
+  sender_owner: string | null;
+  review_status: HumanBlockerReviewStatus;
+  review_requested_at: string | null;
+  review_completed_at: string | null;
   resume_action: {
     kind: HumanResumeActionKind;
     description: string;
@@ -86,6 +92,7 @@ export type HumanBlockerThreadRecord = {
   last_resolution: HumanReplyResolution | null;
   last_routed_owner: string | null;
   last_resume_requested_at: string | null;
+  last_dispatch_id: string | null;
   blocked_reason: string | null;
   created_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
   updated_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
@@ -129,7 +136,7 @@ export async function listOpenHumanBlockerThreads(limit = 100) {
 
   const snapshot = await db
     .collection(THREAD_COLLECTION)
-    .where("status", "in", ["awaiting_reply", "reply_recorded", "ambiguous", "routed"])
+    .where("status", "in", ["awaiting_review", "awaiting_reply", "reply_recorded", "ambiguous", "routed"])
     .limit(Math.max(1, Math.min(limit, 200)))
     .get();
 
@@ -148,6 +155,11 @@ export async function upsertHumanBlockerThread(input: {
   routing_owner: string;
   execution_owner: string;
   escalation_owner?: string | null;
+  review_owner?: string | null;
+  sender_owner?: string | null;
+  review_status?: HumanBlockerReviewStatus;
+  review_requested_at?: string | null;
+  review_completed_at?: string | null;
   resume_action: {
     kind: HumanResumeActionKind;
     description: string;
@@ -159,6 +171,7 @@ export async function upsertHumanBlockerThread(input: {
     ops_work_item_id?: string | null;
   };
   correlation?: Partial<HumanBlockerCorrelation>;
+  last_dispatch_id?: string | null;
   blocked_reason?: string | null;
 }) {
   if (!db) {
@@ -180,6 +193,20 @@ export async function upsertHumanBlockerThread(input: {
     routing_owner: input.routing_owner.trim(),
     execution_owner: input.execution_owner.trim(),
     escalation_owner: normalizeString(input.escalation_owner) || null,
+    review_owner: normalizeString(input.review_owner) || existing?.review_owner || null,
+    sender_owner: normalizeString(input.sender_owner) || existing?.sender_owner || null,
+    review_status:
+      input.review_status
+      || existing?.review_status
+      || (input.status === "awaiting_review" ? "awaiting_review" : "not_required"),
+    review_requested_at:
+      normalizeString(input.review_requested_at)
+      || existing?.review_requested_at
+      || (input.status === "awaiting_review" ? new Date().toISOString() : null),
+    review_completed_at:
+      normalizeString(input.review_completed_at)
+      || existing?.review_completed_at
+      || null,
     resume_action: {
       kind: input.resume_action.kind,
       description: input.resume_action.description.trim(),
@@ -228,6 +255,8 @@ export async function upsertHumanBlockerThread(input: {
     last_resolution: existing?.last_resolution || null,
     last_routed_owner: existing?.last_routed_owner || null,
     last_resume_requested_at: existing?.last_resume_requested_at || null,
+    last_dispatch_id:
+      normalizeString(input.last_dispatch_id) || existing?.last_dispatch_id || null,
     blocked_reason: normalizeString(input.blocked_reason) || existing?.blocked_reason || null,
     created_at: existing?.created_at || nowTimestamp(),
     updated_at: nowTimestamp(),

@@ -15,12 +15,18 @@ export type HumanReplyClassification =
   | "ambiguous";
 export type HumanReplyResolution = "resolved_input" | "ambiguous_input";
 export type HumanBlockerThreadStatus =
+  | "awaiting_review"
   | "awaiting_reply"
   | "reply_recorded"
   | "ambiguous"
   | "routed"
   | "resolved"
   | "blocked";
+export type HumanBlockerReviewStatus =
+  | "not_required"
+  | "awaiting_review"
+  | "approved"
+  | "rejected";
 export type HumanResumeActionKind =
   | "rerun_launch_smoke"
   | "inspect_logs"

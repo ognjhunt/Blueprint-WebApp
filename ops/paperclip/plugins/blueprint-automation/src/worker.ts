@@ -1824,6 +1824,128 @@ async function resolveSlackTargets(ctx: PluginContext, config: BlueprintAutomati
   };
 }
 
+function resolveHumanBlockerDispatchBaseUrl() {
+  return firstHttpUrl([
+    asString(process.env.BLUEPRINT_INTERNAL_APP_URL),
+    asString(process.env.APP_URL),
+    asString(process.env.VITE_PUBLIC_APP_URL),
+    "http://127.0.0.1:5000",
+  ]);
+}
+
+function normalizeAgentKey(agentKey: string | null | undefined) {
+  return (agentKey ?? "").trim().toLowerCase();
+}
+
+function isEngineeringAgentKey(agentKey: string | null | undefined) {
+  const normalized = normalizeAgentKey(agentKey);
+  return normalized === "blueprint-cto"
+    || normalized.startsWith("webapp-")
+    || normalized.startsWith("pipeline-")
+    || normalized.startsWith("capture-");
+}
+
+function isOpsAgentKey(agentKey: string | null | undefined) {
+  const normalized = normalizeAgentKey(agentKey);
+  return normalized === "ops-lead"
+    || normalized === "intake-agent"
+    || normalized === "capture-qa-agent"
+    || normalized === "field-ops-agent"
+    || normalized === "finance-support-agent"
+    || normalized === "buyer-solutions-agent"
+    || normalized === "buyer-success-agent"
+    || normalized === "rights-provenance-agent"
+    || normalized === "revenue-ops-pricing-agent"
+    || normalized === "security-procurement-agent"
+    || normalized === "site-catalog-agent"
+    || normalized === "capturer-success-agent"
+    || normalized === "solutions-engineering-agent";
+}
+
+function isGrowthAgentKey(agentKey: string | null | undefined) {
+  const normalized = normalizeAgentKey(agentKey);
+  return normalized === "growth-lead"
+    || normalized === "conversion-agent"
+    || normalized === "analytics-agent"
+    || normalized === "community-updates-agent"
+    || normalized === "market-intel-agent"
+    || normalized === "metrics-reporter"
+    || normalized === "workspace-digest-publisher"
+    || normalized === "capturer-growth-agent"
+    || normalized === "robot-team-growth-agent"
+    || normalized === "site-operator-partnership-agent"
+    || normalized === "city-demand-agent"
+    || normalized === "city-launch-agent"
+    || normalized === "demand-intel-agent"
+    || normalized === "supply-intel-agent";
+}
+
+function inferHumanBlockerKindForOwner(agentKey: string | null | undefined): "technical" | "ops_commercial" {
+  return isEngineeringAgentKey(agentKey) ? "technical" : "ops_commercial";
+}
+
+function selectHumanBlockerSlackWebhook(
+  targets: Awaited<ReturnType<typeof resolveSlackTargets>>,
+  ownerKey: string | null | undefined,
+) {
+  if (isEngineeringAgentKey(ownerKey)) {
+    return targets.engineering ?? targets.exec ?? targets.manager ?? targets.default;
+  }
+  if (isGrowthAgentKey(ownerKey)) {
+    return targets.growth ?? targets.manager ?? targets.default;
+  }
+  if (isOpsAgentKey(ownerKey)) {
+    return targets.ops ?? targets.manager ?? targets.default;
+  }
+  if (normalizeAgentKey(ownerKey) === "blueprint-chief-of-staff") {
+    return targets.manager ?? targets.exec ?? targets.default;
+  }
+  return targets.default;
+}
+
+async function postInternalHumanBlockerDispatch(
+  body: Record<string, unknown>,
+) {
+  const token = asString(process.env.BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN);
+  if (!token) {
+    throw new Error("BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN is not configured.");
+  }
+  const baseUrl = resolveHumanBlockerDispatchBaseUrl();
+  if (!baseUrl) {
+    throw new Error("Could not resolve a base URL for internal human blocker dispatch.");
+  }
+
+  const response = await fetch(
+    `${baseUrl.replace(/\/$/, "")}/api/internal/human-blockers/dispatch`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Blueprint-Human-Reply-Token": token,
+      },
+      body: JSON.stringify(body),
+    },
+  );
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(asString((payload as Record<string, unknown>).error) ?? "Human blocker dispatch failed.");
+  }
+  return payload as {
+    ok: boolean;
+    result: {
+      blocker_id: string;
+      dispatch_id: string;
+      email_sent: boolean;
+      slack_sent: boolean;
+      email_subject?: string;
+      packet_text?: string;
+      delivery_mode?: string;
+      delivery_status?: string;
+    };
+  };
+}
+
 async function resolveFirehoseConfig(
   ctx: PluginContext,
   config: BlueprintAutomationConfig,
@@ -12543,6 +12665,235 @@ async function registerToolHandlers(ctx: PluginContext) {
       return {
         content: `Created blocker follow-up issue ${followUp.id}.`,
         data: followUp,
+      };
+    },
+  );
+
+  ctx.tools.register(
+    TOOL_NAMES.dispatchHumanBlocker,
+    {
+      displayName: "Blueprint Dispatch Human Blocker",
+      description: "Queue or send a standard human-blocker packet for a true human gate.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          issueId: { type: "string" },
+          title: { type: "string" },
+          summary: { type: "string" },
+          recommendedAnswer: { type: "string" },
+          exactResponseNeeded: { type: "string" },
+          whyBlocked: { type: "string" },
+          alternatives: { type: "array", items: { type: "string" } },
+          risk: { type: "string" },
+          immediateNextAction: { type: "string" },
+          deadline: { type: "string" },
+          evidence: { type: "array", items: { type: "string" } },
+          nonScope: { type: "string" },
+          blockerKind: { type: "string", enum: ["technical", "ops_commercial"] },
+          executionOwner: { type: "string" },
+          routingOwner: { type: "string" },
+          escalationOwner: { type: "string" },
+          reviewRequired: { type: "boolean" },
+          reviewOwner: { type: "string" },
+          senderOwner: { type: "string" },
+          emailTarget: { type: "string" },
+          mirrorToSlack: { type: "boolean" },
+          reportPaths: { type: "array", items: { type: "string" } },
+          deliveryMode: { type: "string", enum: ["send_now", "review_required", "send_saved_draft"] },
+          dispatchId: { type: "string" },
+        },
+        required: ["issueId"],
+      },
+    },
+    async (params): Promise<ToolResult> => {
+      const config = await getConfig(ctx);
+      const company = await findCompany(ctx, config.companyName);
+      const issueId = asString((params as Record<string, unknown>).issueId);
+      if (!issueId) {
+        throw new Error("issueId is required.");
+      }
+
+      const issue = await ctx.issues.get(issueId, company.id).catch(() => null);
+      if (!issue) {
+        throw new Error(`Issue ${issueId} was not found.`);
+      }
+
+      const assigneeAgent = issue.assigneeAgentId
+        ? await ctx.agents.get(issue.assigneeAgentId, company.id).catch(() => null)
+        : null;
+      const assigneeKey = preferredAgentChannelKey(assigneeAgent);
+      const routingOwner = asString((params as Record<string, unknown>).routingOwner) ?? getChiefOfStaffAgentKey(config);
+      const executionOwner =
+        asString((params as Record<string, unknown>).executionOwner)
+        ?? assigneeKey
+        ?? routingOwner;
+      const blockerKindRaw = asString((params as Record<string, unknown>).blockerKind);
+      const blockerKind =
+        blockerKindRaw === "technical" || blockerKindRaw === "ops_commercial"
+          ? blockerKindRaw
+          : inferHumanBlockerKindForOwner(executionOwner);
+      const requestedDeliveryMode = asString((params as Record<string, unknown>).deliveryMode);
+      const reviewRequired =
+        (params as Record<string, unknown>).reviewRequired === true
+        || requestedDeliveryMode === "review_required";
+      const reviewOwner =
+        asString((params as Record<string, unknown>).reviewOwner)
+        ?? (reviewRequired ? getChiefOfStaffAgentKey(config) : null);
+      const senderOwner =
+        asString((params as Record<string, unknown>).senderOwner)
+        ?? (reviewRequired ? reviewOwner : executionOwner);
+      const reportPaths = Array.isArray((params as Record<string, unknown>).reportPaths)
+        ? ((params as Record<string, unknown>).reportPaths as unknown[])
+            .filter((value): value is string => typeof value === "string")
+            .map((value) => value.trim())
+            .filter(Boolean)
+        : [];
+
+      const deliveryMode =
+        requestedDeliveryMode === "send_saved_draft"
+          ? "send_saved_draft"
+          : reviewRequired
+            ? "review_required"
+            : "send_now";
+      if (deliveryMode !== "send_saved_draft") {
+        const requiredTextFields = [
+          "title",
+          "summary",
+          "recommendedAnswer",
+          "exactResponseNeeded",
+          "whyBlocked",
+          "risk",
+          "immediateNextAction",
+          "deadline",
+          "nonScope",
+        ];
+        for (const key of requiredTextFields) {
+          if (!asString((params as Record<string, unknown>)[key])) {
+            throw new Error(`${key} is required when sending or queueing a new human-blocker packet.`);
+          }
+        }
+        const alternatives = (params as Record<string, unknown>).alternatives;
+        const evidence = (params as Record<string, unknown>).evidence;
+        if (!Array.isArray(alternatives) || alternatives.length === 0) {
+          throw new Error("alternatives must contain at least one option when sending or queueing a new human-blocker packet.");
+        }
+        if (!Array.isArray(evidence) || evidence.length === 0) {
+          throw new Error("evidence must contain at least one item when sending or queueing a new human-blocker packet.");
+        }
+      }
+      const mirrorToSlack = (params as Record<string, unknown>).mirrorToSlack === true;
+      const slackTargets = mirrorToSlack ? await resolveSlackTargets(ctx, config) : null;
+      const slackWebhookUrl = mirrorToSlack
+        ? selectHumanBlockerSlackWebhook(slackTargets!, reviewRequired ? reviewOwner : executionOwner)
+        : undefined;
+
+      const payload: Record<string, unknown> = {
+        delivery_mode: deliveryMode,
+        dispatch_id: asString((params as Record<string, unknown>).dispatchId) ?? undefined,
+        blocker_kind: deliveryMode === "send_saved_draft" ? undefined : blockerKind,
+        packet: deliveryMode === "send_saved_draft"
+          ? undefined
+          : {
+              title: asString((params as Record<string, unknown>).title) ?? "Blueprint human blocker",
+              summary: asString((params as Record<string, unknown>).summary) ?? "",
+              recommendedAnswer: asString((params as Record<string, unknown>).recommendedAnswer) ?? "",
+              exactResponseNeeded: asString((params as Record<string, unknown>).exactResponseNeeded) ?? "",
+              whyBlocked: asString((params as Record<string, unknown>).whyBlocked) ?? "",
+              alternatives: Array.isArray((params as Record<string, unknown>).alternatives)
+                ? ((params as Record<string, unknown>).alternatives as unknown[])
+                    .filter((value): value is string => typeof value === "string")
+                    .map((value) => value.trim())
+                    .filter(Boolean)
+                : [],
+              risk: asString((params as Record<string, unknown>).risk) ?? "",
+              executionOwner,
+              immediateNextAction: asString((params as Record<string, unknown>).immediateNextAction) ?? "",
+              deadline: asString((params as Record<string, unknown>).deadline) ?? "",
+              evidence: Array.isArray((params as Record<string, unknown>).evidence)
+                ? ((params as Record<string, unknown>).evidence as unknown[])
+                    .filter((value): value is string => typeof value === "string")
+                    .map((value) => value.trim())
+                    .filter(Boolean)
+                : [],
+              nonScope: asString((params as Record<string, unknown>).nonScope) ?? "",
+            },
+        email_target: asString((params as Record<string, unknown>).emailTarget) ?? undefined,
+        mirror_to_slack: mirrorToSlack,
+        slack_webhook_url: slackWebhookUrl,
+        routing_owner: routingOwner,
+        execution_owner: executionOwner,
+        escalation_owner: asString((params as Record<string, unknown>).escalationOwner) ?? undefined,
+        review_owner: reviewOwner ?? undefined,
+        sender_owner: senderOwner ?? undefined,
+        report_paths: reportPaths,
+        paperclip_issue_id: issue.id,
+      };
+
+      const dispatch = await postInternalHumanBlockerDispatch(payload);
+      const result = dispatch.result;
+
+      let reviewIssueId: string | null = null;
+      if (reviewRequired && deliveryMode === "review_required" && reviewOwner) {
+        const reviewIssue = await createFollowUpIssue(ctx, company.id, {
+          parentIssueId: issue.id,
+          title: `Review human-blocker packet for ${issue.title}`,
+          description: [
+            `A true human gate was reached and the blocker packet is queued for review before delivery.`,
+            ``,
+            `- Blocker id: ${result.blocker_id}`,
+            `- Dispatch id: ${result.dispatch_id}`,
+            `- Requested by issue: ${issue.id}`,
+            `- Execution owner after reply: ${executionOwner}`,
+            `- Routing owner: ${routingOwner}`,
+            `- Sender owner after review: ${senderOwner}`,
+            ``,
+            `## Packet`,
+            result.packet_text ?? "Packet text unavailable.",
+          ].join("\n"),
+          projectName: EXECUTIVE_OPS_PROJECT,
+          assignee: reviewOwner,
+          priority: "high",
+          allowHumanGatedParentFollowUp: true,
+        });
+        reviewIssueId = reviewIssue.id;
+      }
+
+      const commentLines = reviewRequired && deliveryMode === "review_required"
+        ? [
+            `Queued human-blocker packet \`${result.blocker_id}\` for review before delivery.`,
+            `- Dispatch id: \`${result.dispatch_id}\``,
+            reviewIssueId ? `- Review issue: \`${reviewIssueId}\`` : null,
+            `- Review owner: \`${reviewOwner}\``,
+            `- Execution owner after reply: \`${executionOwner}\``,
+          ]
+        : [
+            `Dispatched human-blocker packet \`${result.blocker_id}\`.`,
+            `- Dispatch id: \`${result.dispatch_id}\``,
+            result.email_subject ? `- Subject: ${result.email_subject}` : null,
+            `- Email sent: ${result.email_sent ? "yes" : "no"}`,
+            `- Slack mirrored: ${result.slack_sent ? "yes" : mirrorToSlack ? "attempted but not sent" : "no"}`,
+            `- Execution owner after reply: \`${executionOwner}\``,
+          ];
+      await ctx.issues.createComment(issue.id, commentLines.filter(Boolean).join("\n"), company.id);
+
+      return {
+        content: reviewRequired && deliveryMode === "review_required"
+          ? `Queued human-blocker packet ${result.blocker_id} for review${reviewIssueId ? ` in issue ${reviewIssueId}` : ""}.`
+          : `Dispatched human-blocker packet ${result.blocker_id}.`,
+        data: {
+          issueId: issue.id,
+          blockerId: result.blocker_id,
+          dispatchId: result.dispatch_id,
+          reviewIssueId,
+          executionOwner,
+          routingOwner,
+          reviewOwner,
+          senderOwner,
+          deliveryMode: result.delivery_mode,
+          deliveryStatus: result.delivery_status,
+          emailSent: result.email_sent,
+          slackSent: result.slack_sent,
+        },
       };
     },
   );

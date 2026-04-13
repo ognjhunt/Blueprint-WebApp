@@ -34,6 +34,7 @@ import requestsRouter from "./routes/requests";
 import marketplaceRouter from "./routes/marketplace";
 import internalPipelineRouter from "./routes/internal-pipeline";
 import internalGapIntakeRouter from "./routes/internal-gap-intake";
+import internalHumanBlockersRouter from "./routes/internal-human-blockers";
 import internalHumanRepliesRouter from "./routes/internal-human-replies";
 import siteWorldsRouter from "./routes/site-worlds";
 import siteWorldSessionsRouter, { publicSiteWorldSessionsRouter } from "./routes/site-world-sessions";
@@ -59,6 +60,7 @@ export function registerRoutes(app: Express) {
   app.use("/api/experiments", experimentsRouter);
   app.use("/api/internal/pipeline", internalPipelineRouter);
   app.use("/api/internal/gap-intake", internalGapIntakeRouter);
+  app.use("/api/internal/human-blockers", internalHumanBlockersRouter);
   app.use("/api/internal/human-replies", internalHumanRepliesRouter);
   app.post("/api/paperclip/ops-firestore-relay", paperclipOpsFirestoreRelayHandler);
   app.use("/api/slack", slackEventsRouter);
