@@ -11,6 +11,6 @@
 | public-commercial-community | everyday capturers in city/community and retail-adjacent communities | small bounded community placements | public-area-only capture brief | reply with candidate public commercial site, public-area posture, and availability | no implication that private interiors are allowed; preserve signage/privacy/provenance rules |
 
 ## Primary Workflow Context
-- primary_site_lane: industrial_warehouse
-- primary_workflow_lane: dock handoff and pallet movement
-- primary_buyer_proof_path: exact_site
+- primary_site_lane: validation required
+- primary_workflow_lane: validation required
+- primary_buyer_proof_path: validation required

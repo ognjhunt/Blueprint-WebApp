@@ -11,13 +11,13 @@ Turn the Austin planning artifacts into an executable company harness that runs 
 
 ## Machine-Readable Budget Policy
 
-- budget_tier: low_budget
-- total_envelope_usd: 2500
-- operator_auto_approve_usd: 500
-- allow_paid_acquisition: true
+- budget_tier: zero_budget
+- total_envelope_usd: 0
+- operator_auto_approve_usd: 0
+- allow_paid_acquisition: false
 - allow_referral_rewards: false
-- allow_travel_reimbursement: true
-- founder_approval_required_above_usd: 500
+- allow_travel_reimbursement: false
+- founder_approval_required_above_usd: 0
 
 ## What The Org Will Do
 
@@ -39,7 +39,7 @@ Turn the Austin planning artifacts into an executable company harness that runs 
 ## Founder-Only Decisions
 
 - Austin go / no-go and the decision to keep the city gated or expand it.
-- Any spend envelope beyond the approved Austin low budget policy.
+- Any spend envelope beyond the approved Austin zero budget policy.
 - Any public statement that changes company posture or overstates Austin readiness.
 - Any rights/privacy exception or non-standard commercial commitment that would set precedent.
 
@@ -64,7 +64,7 @@ Turn the Austin planning artifacts into an executable company harness that runs 
 
 - Approve Austin, TX as an active city-launch activation and keep non-active cities deferred unless a new evidence packet exists.
 - Approve the bounded Austin launch posture: gated cohort pilot, Exact-Site Hosted Review wedge, no public city-live claims.
-- Approve the bounded spend posture for Austin: Low Budget with a total envelope up to $2,500.
+- Approve the bounded spend posture for Austin: Zero Budget with no paid acquisition, referral, or discretionary travel spend.
 - Approve any Austin source-policy exceptions beyond the current bounded channel stack.
 - Approve any rights/privacy/commercialization exception that would set precedent or create an irreversible external commitment.
 - Approve any non-standard commercial terms outside the standard Austin quote bands prepared by revenue-ops-pricing-agent and the designated human commercial owner.

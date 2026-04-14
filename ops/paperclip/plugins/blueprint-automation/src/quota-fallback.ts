@@ -73,6 +73,10 @@ const PROVIDER_TIMEOUT_RE =
   /(?:timed out while running|^\s*timed out\s*$|provider=.*openrouter|via openrouter|request timed out|deadline exceeded)/i;
 const PROCESS_LOSS_RE =
   /(?:process lost --|child pid .* no longer running|server may have restarted)/i;
+const PROVIDER_AUTH_RE =
+  /(?:authorization header is badly formatted|copilot token validation failed|classic personal access tokens \(ghp_\*\) are not supported|token from `gh auth token` is a classic pat|unauthorized|forbidden|auth(?:entication)?(?:orization)?[^.\n]*failed|invalid api key|missing api key|login is required|not logged in)/i;
+const COPILOT_PROVIDER_RE =
+  /(?:provider:\s*copilot|githubcopilot|copilot api|copilot token validation failed|`gh auth token`|github copilot)/i;
 const DISALLOWED_HERMES_FALLBACK_MODEL_RE =
   /^(?:openrouter\/free|(?:openrouter\/)?nvidia\/nemotron-3-super(?::free)?|(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
 const OPENROUTER_SHARED_FREE_POOL_LIMIT_RE =
@@ -131,6 +135,16 @@ export function isProviderTimeoutFailure(message: string | null | undefined): bo
 export function isProcessLossFailure(message: string | null | undefined): boolean {
   if (!message) return false;
   return PROCESS_LOSS_RE.test(message);
+}
+
+export function isProviderAuthFailure(message: string | null | undefined): boolean {
+  if (!message) return false;
+  return PROVIDER_AUTH_RE.test(message);
+}
+
+export function isCopilotProviderAuthFailure(message: string | null | undefined): boolean {
+  if (!message) return false;
+  return PROVIDER_AUTH_RE.test(message) && COPILOT_PROVIDER_RE.test(message);
 }
 
 export function extractLogicalSucceededRunFailure(message: string | null | undefined): string | null {
@@ -373,6 +387,7 @@ export function buildHermesFallbackAdapterConfig(
 
   return {
     ...next,
+    provider: "openrouter",
     model,
     [HERMES_MODEL_LADDER_CONFIG_KEY]: ladder.length > 0 ? ladder : [...DEFAULT_HERMES_FALLBACK_MODELS],
     modelReasoningEffort: next.modelReasoningEffort ?? "medium",
@@ -419,6 +434,22 @@ export function syncExecutionPolicyToAdapter(
     nextRuntimeConfig.executionPolicy && typeof nextRuntimeConfig.executionPolicy === "object"
       ? nextRuntimeConfig.executionPolicy as Record<string, unknown>
       : {};
+  const currentPerAdapterConfig = currentExecutionPolicy.perAdapterConfig
+    && typeof currentExecutionPolicy.perAdapterConfig === "object"
+      ? currentExecutionPolicy.perAdapterConfig as Record<string, unknown>
+      : {};
+  const normalizedPerAdapterConfig = Object.fromEntries(
+    Object.entries(currentPerAdapterConfig)
+      .filter((entry): entry is [string, Record<string, unknown>] =>
+        typeof entry[1] === "object" && entry[1] !== null && !Array.isArray(entry[1]),
+      )
+      .map(([adapterType, config]) => {
+        if (adapterType !== "hermes_local") {
+          return [adapterType, config];
+        }
+        return [adapterType, buildHermesFallbackAdapterConfig(config)];
+      }),
+  );
 
   nextRuntimeConfig.executionPolicy = {
     ...currentExecutionPolicy,
@@ -434,6 +465,9 @@ export function syncExecutionPolicyToAdapter(
       currentExecutionPolicy.preferredAdapterTypes,
       targetAdapterType,
     ),
+    ...(Object.keys(normalizedPerAdapterConfig).length > 0
+      ? { perAdapterConfig: normalizedPerAdapterConfig }
+      : {}),
   };
 
   return nextRuntimeConfig;
@@ -500,6 +534,20 @@ export function buildLocalQuotaFallbackDescriptor(input: {
   }
 
   if (currentAdapterType === "hermes_local") {
+    if (isCopilotProviderAuthFailure(failureReason) || isProviderAuthFailure(failureReason)) {
+      return {
+        adapterType: "codex_local",
+        reason: "quota_fallback_to_codex_local_after_provider_auth_failure",
+        adapterConfig: withFallbackOrigin(
+          buildCodexFallbackAdapterConfig(desiredAdapterConfig, {
+            model: "gpt-5.4-mini",
+            modelReasoningEffort: "medium",
+          }),
+          "hermes_local",
+        ),
+      };
+    }
+
     if (isSharedOpenRouterFreePoolRateLimitFailure(failureReason)) {
       return {
         adapterType: "codex_local",

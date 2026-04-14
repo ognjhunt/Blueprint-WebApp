@@ -149,6 +149,7 @@ Turn the San Diego planning artifacts into an executable company harness that ca
 - ops/paperclip/blueprint-company/tasks/city-launch-activation/TASK.md
 - ops/paperclip/playbooks/city-launch-san-diego-ca.md
 - ops/paperclip/playbooks/city-demand-san-diego-ca.md
+- ops/paperclip/playbooks/city-buyer-handoff-escalation-rubric-san-diego.md
 - ops/paperclip/playbooks/city-capture-target-ledger-san-diego-ca.md
 
 ## Determination

@@ -243,6 +243,89 @@ describe("city launch execution harness", () => {
     expect(cityOpeningExecutionReport).toContain("Austin, TX City-Opening Execution Report");
   });
 
+  it("re-wakes existing founder-approved city-launch issues on rerun", async () => {
+    summarizeCityLaunchLedgers.mockResolvedValue({
+      trackedSupplyProspectsContacted: 0,
+      trackedBuyerTargetsResearched: 0,
+      trackedFirstTouchesSent: 0,
+      onboardedCapturers: 0,
+      totalRecordedSpendUsd: 0,
+      withinPolicySpendUsd: 0,
+      outsidePolicySpendUsd: 0,
+      recommendedSpendUsd: 0,
+      wideningGuard: { mode: "single_city_until_proven", wideningAllowed: false, reasons: [] },
+      dataSources: [],
+    });
+    readCityLaunchActivation.mockResolvedValue({
+      city: "Austin, TX",
+      citySlug: "austin-tx",
+      budgetTier: "zero_budget",
+      budgetPolicy: {
+        tier: "zero_budget",
+        label: "Zero Budget",
+        maxTotalApprovedUsd: 0,
+        operatorAutoApproveUsd: 0,
+        allowPaidAcquisition: false,
+        allowReferralRewards: false,
+        allowTravelReimbursement: false,
+        founderApprovalRequiredAboveUsd: 0,
+        founderApprovalTriggers: [],
+        operatorLane: "growth-lead",
+      },
+      founderApproved: true,
+      status: "activation_ready",
+      rootIssueId: "root-existing",
+      taskIssueIds: {
+        "city-target-ledger": "task-city-target-ledger",
+      },
+      machineReadablePolicyVersion: "2026-04-13.city-launch-doctrine.v1",
+      wideningGuard: { mode: "single_city_until_proven", wideningAllowed: false, reasons: [] },
+      createdAtIso: new Date().toISOString(),
+      updatedAtIso: new Date().toISOString(),
+    });
+    upsertPaperclipIssue.mockImplementation(async (input: unknown) => {
+      const typed = input as {
+        existingIssueId?: string | null;
+        originId: string;
+      };
+      const issueId = typed.existingIssueId
+        || `task-${typed.originId.replace(/[^a-z0-9]+/gi, "-")}`;
+      return {
+        created: false,
+        companyId: "company-1",
+        assigneeAgentId: `agent-${typed.originId}`,
+        issue: {
+          id: issueId,
+          identifier: `BLU-${issueId}`,
+          status: "todo",
+        },
+      };
+    });
+
+    const reportsRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), "existing-city-launch-harness-"),
+    );
+    tempDirs.push(reportsRoot);
+
+    const { runAustinLaunchExecutionHarness } = await import("../utils/cityLaunchExecutionHarness");
+    const result = await runAustinLaunchExecutionHarness({
+      reportsRoot,
+      founderApproved: true,
+      budgetTier: "zero_budget",
+    });
+
+    expect(result.paperclip?.createdRootIssue).toBe(false);
+    expect(result.paperclip?.dispatched.every((entry) => entry.created === false)).toBe(true);
+    expect(result.paperclip?.dispatched.every((entry) => entry.wakeStatus === "queued")).toBe(true);
+    expect(wakePaperclipAgent).toHaveBeenCalled();
+    expect(wakePaperclipAgent).toHaveBeenCalledWith(expect.objectContaining({
+      reason: expect.stringMatching(/^city-launch-activate:austin-tx:city-target-ledger:/),
+      idempotencyKey: expect.stringMatching(
+        /^city-launch-activate:austin-tx:city-target-ledger:task-city-target-ledger:/,
+      ),
+    }));
+  });
+
   it("supports generic cities beyond the original focus-city list", async () => {
     summarizeCityLaunchLedgers.mockResolvedValue({
       trackedSupplyProspectsContacted: 0,

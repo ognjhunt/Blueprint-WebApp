@@ -16,6 +16,8 @@ import {
   isDisallowedHermesFallbackModel,
   isFreshSessionRetryableFailure,
   isIncompatibleHermesFreeRoutingModel,
+  isCopilotProviderAuthFailure,
+  isProviderAuthFailure,
   isProcessLossFailure,
   isProviderCreditFailure,
   isProviderTimeoutFailure,
@@ -55,6 +57,20 @@ describe("quota fallback helpers", () => {
     expect(isProviderCreditFailure("HTTP 402: Insufficient credits. Add more using https://openrouter.ai/settings/credits")).toBe(true);
     expect(isProviderCreditFailure("API key USD spend limit exceeded.")).toBe(true);
     expect(isProviderCreditFailure("HTTP 429: Rate limit exceeded: free-models-per-min.")).toBe(false);
+  });
+
+  it("detects provider auth failures, including Copilot token misroutes", () => {
+    expect(
+      isProviderAuthFailure("HTTP 401: unauthorized: login is required"),
+    ).toBe(true);
+    expect(
+      isCopilotProviderAuthFailure(
+        "Provider: copilot\nError: HTTP 400: bad request: Authorization header is badly formatted\nCopilot token validation failed: Token from `gh auth token` is a classic PAT (ghp_*).",
+      ),
+    ).toBe(true);
+    expect(
+      isCopilotProviderAuthFailure("HTTP 429: Rate limit exceeded: free-models-per-min."),
+    ).toBe(false);
   });
 
   it("extracts terminal logical-failure text from succeeded-run logs", () => {
@@ -157,6 +173,7 @@ describe("quota fallback helpers", () => {
       }),
     ).toEqual({
       cwd: "/tmp/project",
+      provider: "openrouter",
       model: DEFAULT_HERMES_FALLBACK_MODEL,
       [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
       modelReasoningEffort: "medium",
@@ -179,6 +196,7 @@ describe("quota fallback helpers", () => {
       }),
     ).toEqual({
       cwd: "/tmp/capture",
+      provider: "openrouter",
       model: DEFAULT_HERMES_FALLBACK_MODEL,
       [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
       modelReasoningEffort: "medium",
@@ -211,6 +229,7 @@ describe("quota fallback helpers", () => {
       model: "qwen/qwen3.6-plus:free",
     });
     expect(config.cwd).toBe("/tmp/project");
+    expect(config.provider).toBe("openrouter");
     expect(config.model).toBe(DEFAULT_HERMES_FALLBACK_MODEL);
     expect(config[HERMES_MODEL_LADDER_CONFIG_KEY]).not.toContain("openrouter/qwen/qwen3.6-plus:free");
     expect(config[HERMES_MODEL_LADDER_CONFIG_KEY]).not.toContain("qwen/qwen3.6-plus:free");
@@ -236,6 +255,7 @@ describe("quota fallback helpers", () => {
       cwd: "/tmp/project",
       model: "stepfun/step-3.5-flash:free",
     });
+    expect(config.provider).toBe("openrouter");
     expect(config.model).toBe(DEFAULT_HERMES_FALLBACK_MODEL);
     expect(config[HERMES_MODEL_LADDER_CONFIG_KEY]).not.toContain("stepfun/step-3.5-flash:free");
   });
@@ -307,6 +327,7 @@ describe("quota fallback helpers", () => {
       }),
     ).toEqual({
       cwd: "/tmp/project",
+      provider: "openrouter",
       model: "openai/gpt-oss-120b:free",
       [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
       modelReasoningEffort: "medium",
@@ -327,6 +348,7 @@ describe("quota fallback helpers", () => {
       }),
     ).toEqual({
       cwd: "/tmp/project",
+      provider: "openrouter",
       model: "arcee-ai/trinity-large-preview:free",
       [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
       modelReasoningEffort: "medium",
@@ -347,6 +369,7 @@ describe("quota fallback helpers", () => {
       }),
     ).toEqual({
       cwd: "/tmp/project",
+      provider: "openrouter",
       model: "arcee-ai/trinity-large-preview:free",
       [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
       modelReasoningEffort: "medium",
@@ -416,6 +439,34 @@ describe("quota fallback helpers", () => {
     ).toEqual({
       adapterType: "codex_local",
       reason: "quota_fallback_to_codex_local_after_shared_openrouter_free_pool_limit",
+      adapterConfig: {
+        cwd: "/tmp/project",
+        model: "gpt-5.4-mini",
+        modelReasoningEffort: "medium",
+        dangerouslyBypassApprovalsAndSandbox: true,
+        [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: "hermes_local",
+      },
+    });
+  });
+
+  it("moves hermes directly to codex when Hermes is misrouted onto Copilot auth", () => {
+    expect(
+      buildLocalQuotaFallbackDescriptor({
+        currentAdapterType: "hermes_local",
+        currentAdapterConfig: {
+          cwd: "/tmp/project",
+          model: "gpt-5.4-mini",
+        },
+        desiredAdapterType: "hermes_local",
+        desiredAdapterConfig: {
+          cwd: "/tmp/project",
+        },
+        failureReason:
+          "Provider: copilot\nHTTP 400: bad request: Authorization header is badly formatted\nCopilot token validation failed: Token from `gh auth token` is a classic PAT (ghp_*).",
+      }),
+    ).toEqual({
+      adapterType: "codex_local",
+      reason: "quota_fallback_to_codex_local_after_provider_auth_failure",
       adapterConfig: {
         cwd: "/tmp/project",
         model: "gpt-5.4-mini",
@@ -699,6 +750,40 @@ describe("quota fallback helpers", () => {
         mode: "prefer_available",
         preferredAdapterTypes: ["hermes_local", "codex_local"],
         compatibleAdapterTypes: ["hermes_local", "codex_local"],
+      },
+    });
+  });
+
+  it("sanitizes hermes per-adapter overrides back to the OpenRouter ladder", () => {
+    expect(
+      syncExecutionPolicyToAdapter(
+        {
+          executionPolicy: {
+            mode: "prefer_available",
+            preferredAdapterTypes: ["hermes_local", "codex_local"],
+            compatibleAdapterTypes: ["hermes_local", "codex_local"],
+            perAdapterConfig: {
+              hermes_local: { model: "gpt-5.4-mini", provider: "copilot", cwd: "/tmp/webapp" },
+            },
+          },
+        },
+        "hermes_local",
+      ),
+    ).toEqual({
+      executionPolicy: {
+        mode: "prefer_available",
+        preferredAdapterTypes: ["hermes_local", "codex_local"],
+        compatibleAdapterTypes: ["hermes_local", "codex_local"],
+        perAdapterConfig: {
+          hermes_local: {
+            cwd: "/tmp/webapp",
+            provider: "openrouter",
+            model: DEFAULT_HERMES_FALLBACK_MODEL,
+            [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
+            modelReasoningEffort: "medium",
+            timeoutSec: 1800,
+          },
+        },
       },
     });
   });

@@ -2,7 +2,7 @@
 
 - city: Sacramento, CA
 - status: founder_approved_activation_ready
-- planning_state: completed
+- planning_state: not started
 - doctrine: capture-first, world-model-product-first, Exact-Site Hosted Review wedge
 
 ## Objective
@@ -31,9 +31,10 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 
 ## Planning State
 
-- planning_status: completed
-- latest_artifact: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/sacramento-ca/2026-04-13T17-47-16.289Z/99-final-playbook.md
-- completed_playbook: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-sacramento-ca-deep-research.md
+- planning_status: not_started
+- latest_artifact: none
+- completed_playbook: none
+- warning: No city-launch planning artifacts were found for this city.
 
 ## Founder-Only Decisions
 
@@ -81,22 +82,11 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 
 ## Activation Payload Highlights
 
-- city_thesis: One narrow exact-site hosted review motion targeting AMR integrators executing digital-twin simulations in multi-tenant 3PL logistics environments.
-- primary_site_lane: industrial_warehouse
-- primary_workflow_lane: dock handoff and pallet movement
-- primary_buyer_proof_path: exact_site
-- lawful_access_modes: buyer_requested_site, site_operator_intro, capturer_existing_lawful_access
+- No activation payload was available; treat execution posture as incomplete.
 
 ## Metrics Blockers
 
-- robot_team_inbound_captured: required_not_tracked — Ensure intake parsing matches specific integrator demand.
-- proof_path_assigned: required_not_tracked — Track distribution between exact_site, adjacent_site, and scoped_follow_up.
-- proof_pack_delivered: required_not_tracked — Establish baseline pipeline processing time for feature-sparse industrial spaces.
-- hosted_review_ready: required_not_tracked — Triggered post human-rights-review.
-- hosted_review_started: required_not_tracked — Verifies technical engagement from the simulation engineer.
-- hosted_review_follow_up_sent: required_not_tracked — Automated technical spec transmission.
-- human_commercial_handoff_started: required_not_tracked — Marks successful technical proof.
-- proof_motion_stalled: required_not_tracked — Crucial for identifying air-gap blockers or stack ingestion failures.
+- No activation payload metrics contract is available yet.
 
 ## Expansion Guard
 
@@ -105,14 +95,7 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 - At least one hosted review must run end to end before widening.
 - At least three approved capturers are required before widening.
 - At least two capturers must reach onboarded status before widening.
-- robot_team_inbound_captured is required_not_tracked.
-- proof_path_assigned is required_not_tracked.
-- proof_pack_delivered is required_not_tracked.
-- hosted_review_ready is required_not_tracked.
-- hosted_review_started is required_not_tracked.
-- hosted_review_follow_up_sent is required_not_tracked.
-- human_commercial_handoff_started is required_not_tracked.
-- proof_motion_stalled is required_not_tracked.
+- Required proof-motion analytics contract is missing from the activation payload.
 
 ## Execution Bundle
 
@@ -141,7 +124,6 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 - Publish the Sacramento launch scorecard and blocker view: analytics-agent owns execution, Growth Lead is the human lane, and the task closes only when Sacramento scorecard reports supply and demand progress against the launch thresholds..
 - Mirror Sacramento execution artifacts into Notion Knowledge and Work Queue: notion-manager-agent owns execution, Chief of Staff is the human lane, and the task closes only when Sacramento execution system doc is mirrored into Notion Knowledge..
 - Run the Sacramento switch-on review before activation: beta-launch-commander owns execution, CTO is the human lane, and the task closes only when Sacramento switch-on review returns GO, CONDITIONAL GO, or HOLD with evidence..
-- Lock the first multi-tenant lawful access path: city-launch-agent owns execution, Ops Lead is the human lane, and the task closes only when First lawful access path is signed by owner, operator, and tenant..
 
 ## Launch Targets
 
@@ -182,7 +164,6 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 - ops/paperclip/playbooks/city-launch-sacramento-ca.md
 - ops/paperclip/playbooks/city-demand-sacramento-ca.md
 - ops/paperclip/playbooks/city-capture-target-ledger-sacramento-ca.md
-- ops/paperclip/playbooks/city-launch-sacramento-ca-activation-payload.json
 - ops/paperclip/playbooks/city-opening-sacramento-ca-brief.md
 - ops/paperclip/playbooks/city-opening-sacramento-ca-channel-map.md
 - ops/paperclip/playbooks/city-opening-sacramento-ca-first-wave-pack.md

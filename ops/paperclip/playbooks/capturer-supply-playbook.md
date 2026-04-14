@@ -36,6 +36,7 @@ Open discovery should feed gated cohorts, not immediate broad approval. The oper
 | Local photo / video / production freelancer groups | Gated cohort | contributors already used to site visits and media capture can activate faster than generic gig applicants | freelance camera and production operators | medium-high | medium | truthful screening copy, portfolio review, trust packet |
 | Campus technical communities | Gated cohort | school-linked or program-linked cohorts can create higher-trust early density | student builders, labs, clubs, campus creators | medium-high | high | campus relationship owner, access-code logic, approval queue |
 | Local operations and field-service communities | Gated cohort | contributors with field discipline can convert if expectations are explicit | inspectors, survey-support profiles, field-service workers | medium | medium | intake review, policy and rights briefing |
+| Commercial surveying / AEC firms | Gated cohort | exact-site or rights-sensitive capture work is highest-signal when sourced from people who already understand site etiquette, spatial accuracy, and documented consent | licensed surveyors, GIS specialists, AEC field leads | high | high | direct outbound, operator review, access-code or subcontract workflow |
 | Approved-capturer referrals | Gated referral | the best new contributors come from activated capturers, not unqualified social reach | approved capturers and their trusted peers | high | high | referral tracking, milestone verification, human-approved incentive copy |
 | Founder/operator outbound into trusted networks | Gated cohort | direct outreach can seed the first city cohorts before scalable channels are live | known local connectors and community leads | high | medium | operator time, cohort management, approval follow-up |
 | Partner channels with aligned local networks | Gated cohort | aligned institutions can provide trust and density if the workflow is controlled | schools, studios, robotics groups, creator orgs | medium-high | medium | partnership owner, materials, intake stage management |
@@ -47,6 +48,7 @@ Open discovery should feed gated cohorts, not immediate broad approval. The oper
 - Austin and San Francisco should start with cohort-based supply seeding, not citywide open recruiting.
 - Open channels are discovery surfaces only until approval rate, first-capture activation rate, and trust checks are stable.
 - Access codes, invite links, or direct operator review should be the default way to admit early cohorts.
+- Rights-sensitive exact-site work should start with a consent-backed site-access path plus a hard-capped technical cohort; generic gig recruiting stays in discovery until the trust and activation rails are proven.
 - Private or higher-trust work should stay restricted to approved contributors who have passed a first capture and trust review.
 
 ## Messaging Hierarchy
@@ -141,5 +143,5 @@ If these controls are not operational, Blueprint should not widen top-of-funnel 
 - `intake-agent`: signup qualification, trust-packet rules, approval stages, and contributor tier entry rules
 - `analytics-agent`: instrumentation for gated cohorts, trust-packet completion, first passed capture, and referral activation quality
 - `conversion-agent`: landing pages, forms, access-code flows, and truthful recruiting copy
-- `city-launch-agent`: Austin and San Francisco adaptation using gated cohort defaults instead of open-city pushes
+- `city-launch-agent`: city adaptation using gated cohort defaults, especially for rights-sensitive exact-site launches that need a hard-capped technical cohort
 - `ops-lead` / `field-ops-agent`: authorization artifacts, identity workflow, duplicate/content checks, and stage-management operations once supply is real

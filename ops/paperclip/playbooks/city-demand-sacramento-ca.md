@@ -4,8 +4,8 @@
 - phase: activation_ready
 - owner: city-demand-agent
 - latest-refresh: 2026-04-14
-- planning-state: completed
-- confidence: medium
+- planning-state: not started
+- confidence: low
 
 ## City Demand Thesis
 Sacramento demand should stay proof-led: qualify real robot-team interest, classify exact-site versus adjacent-site fit inside one business day, and route serious threads into hosted review with clear artifact handoff and human-gated exceptions.
@@ -13,7 +13,7 @@ Sacramento demand should stay proof-led: qualify real robot-team interest, class
 ## What Changed This Pass
 - evidence-backed: the city launcher now generates the compact demand playbook during activation so downstream tasks have a real canonical reference.
 - evidence-backed: city demand instrumentation is pinned to the platform event model rather than custom city-specific events.
-- evidence-backed: current deep research names buyer targets such as Raymond West.
+- warning: no research-backed buyer target list has been materialized yet.
 
 ## Required Proof Motion
 - serious robot-team demand must hit 24-hour proof-path triage
@@ -31,14 +31,7 @@ Sacramento demand should stay proof-led: qualify real robot-team interest, class
 
 ## Metrics Dependencies
 
-- robot_team_inbound_captured: required_not_tracked — Ensure intake parsing matches specific integrator demand.
-- proof_path_assigned: required_not_tracked — Track distribution between exact_site, adjacent_site, and scoped_follow_up.
-- proof_pack_delivered: required_not_tracked — Establish baseline pipeline processing time for feature-sparse industrial spaces.
-- hosted_review_ready: required_not_tracked — Triggered post human-rights-review.
-- hosted_review_started: required_not_tracked — Verifies technical engagement from the simulation engineer.
-- hosted_review_follow_up_sent: required_not_tracked — Automated technical spec transmission.
-- human_commercial_handoff_started: required_not_tracked — Marks successful technical proof.
-- proof_motion_stalled: required_not_tracked — Crucial for identifying air-gap blockers or stack ingestion failures.
+- No machine-readable metrics dependency payload is available yet.
 
 ## Sensitive-Lane Constraints
 - if a buyer sits in defense, aerospace, export-controlled, or air-gapped environments, require explicit human review before assuming the standard hosted-review path is acceptable

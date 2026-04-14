@@ -42,6 +42,29 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
   - San Diego source policy names allowed channels, disallowed channels, referral rules, and who may issue invites or access codes.
   - Routine invite/access-code decisions stay with Growth Lead and Ops Lead inside written guardrails.
 
+## Run San Diego site-operator partnership routing
+
+- key: site-operator-partnership
+- phase: founder_gates
+- agent owner: site-operator-partnership-agent
+- human owner: growth-lead
+- purpose: Prepare the operator-side access path for San Diego warehouses and facilities by identifying contacts, operator value props, approval sequence, and escalation boundaries before the city waits on a single site.
+- human gate: Human review before the first live operator outreach, and immediate escalation for commercialization, legal, privacy, consent, or non-standard access questions.
+- dependencies: city-target-ledger, growth-source-policy
+- metrics dependencies: first_lawful_access_path
+- validation required: false
+- source: default_task_bundle
+- inputs:
+  - ops/paperclip/playbooks/site-operator-access-and-commercialization-playbook.md
+  - ops/paperclip/playbooks/city-launch-san-diego-ca.md
+  - ops/paperclip/playbooks/city-capture-target-ledger-san-diego-ca.md
+  - San Diego city-opening brief
+  - parallel lawful-access queue
+- done when:
+  - San Diego operator-lane packet identifies likely owner/operator/tenant contacts, operator-side value props, and the exact approval sequence for the highest-priority warehouse/facility candidates.
+  - The first operator-outreach draft or intro packet is ready for human review instead of being invented ad hoc at the moment of blockage.
+  - Open questions and escalation boundaries are explicit before live operator outreach begins.
+
 ## Publish San Diego intake rubric, trust kit, and first-capture thresholds
 
 - key: ops-rubric-thresholds
@@ -237,7 +260,7 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
 - inputs:
   - buyer-target-research
   - San Diego proof packs
-  - standard commercial handoff rules
+  - city-buyer-handoff-escalation-rubric-san-diego.md
 - done when:
   - San Diego outbound templates lead with one site, one workflow lane, proof-led CTA, and hosted-review next step.
   - First proof-led touches are queued for operator approval or event-driven send.

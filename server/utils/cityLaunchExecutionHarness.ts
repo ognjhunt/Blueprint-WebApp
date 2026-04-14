@@ -2380,6 +2380,7 @@ function buildTaskKickoffComment(input: {
 }
 
 async function wakeCityLaunchTaskOwner(input: {
+  activationRunId: string;
   assigneeAgentId: string;
   companyId: string;
   profile: CityLaunchProfile;
@@ -2406,8 +2407,8 @@ async function wakeCityLaunchTaskOwner(input: {
   const wakeResult = await wakePaperclipAgent({
     agentId: input.assigneeAgentId,
     companyId: input.companyId,
-    reason: `city-launch-activate:${input.profile.key}:${input.task.key}`,
-    idempotencyKey: `city-launch-activate:${input.profile.key}:${input.task.key}:${input.issue.id}`,
+    reason: `city-launch-activate:${input.profile.key}:${input.task.key}:${input.activationRunId}`,
+    idempotencyKey: `city-launch-activate:${input.profile.key}:${input.task.key}:${input.issue.id}:${input.activationRunId}`,
     payload: {
       source: "city_launch_activate",
       city: input.profile.city,
@@ -2464,6 +2465,7 @@ async function mapWithConcurrency<T, R>(
 }
 
 async function dispatchCityLaunchIssueTree(input: {
+  activationRunId: string;
   profile: CityLaunchProfile;
   tasks: CityLaunchTask[];
   founderApproved: boolean;
@@ -2564,6 +2566,7 @@ async function dispatchCityLaunchIssueTree(input: {
       if (shouldAttemptWake) {
         try {
           const wake = await wakeCityLaunchTaskOwner({
+            activationRunId: input.activationRunId,
             assigneeAgentId: issue.assigneeAgentId,
             companyId: issue.companyId,
             profile: input.profile,
@@ -2942,12 +2945,14 @@ export async function runCityLaunchExecutionHarness(input: {
   if (input.dispatchIssues !== false) {
     try {
       const dispatch = await dispatchCityLaunchIssueTree({
+        activationRunId: runTimestamp,
         profile,
         tasks,
         founderApproved: Boolean(input.founderApproved),
         budgetPolicy,
         existingRootIssueId: priorActivation?.rootIssueId || null,
         existingTaskIssueIds: priorActivation?.taskIssueIds || {},
+        wakeExistingIssues: Boolean(input.founderApproved),
         rewakeTaskKeys: input.rewakeTaskKeys,
         rewakeOwnerLanes: input.rewakeOwnerLanes,
         artifactPaths: {

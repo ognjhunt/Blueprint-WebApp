@@ -61,6 +61,7 @@ These are hypotheses for planning, not policy.
 ## Current City Signals
 - Austin: keep operator-lane work secondary unless a controlled-access industrial, logistics, or similarly governed facility creates real access friction or recurring update work.
 - San Francisco: treat sensitive, high-value, or partner-led commercialization conversations as earlier operator-lane candidates, but still keep the lane secondary to the robot-team buyer motion.
+- San Diego: keep the lane centered on warehouse, manufacturing, inspection, and other controlled commercial sites where exact-site proof packs and hosted review are already buyer-relevant, but do not treat operator engagement as the default prerequisite for lawful capture or packaging.
 
 These are planning signals, not policy.
 
@@ -78,7 +79,8 @@ The matrix is a routing aid, not a standing claim that operator involvement is m
 - `ops-lead`: update the hosted-review and artifact-handoff checklist so controlled-access or high-sensitivity facilities always carry site type, access state, operator involvement, and human-only gate fields.
 - `intake-agent`: add routing prompts that split buyer evaluation from operator-governed access or commercialization questions and fail closed when rights, privacy, or contract language appears.
 - `buyer-solutions-agent` + designated human commercial owner: add a draft response pattern for pricing, procurement, and revenue-share questions that may follow proof review, while keeping all commitments human-owned.
-- `city-demand-agent`: mirror the Austin and San Francisco signals into city plans by marking which site clusters are operator-secondary versus operator-relevant, and which ones still need human review before any commercialization language is used.
+- `city-demand-agent`: mirror the Austin, San Francisco, and San Diego signals into city plans by marking which site clusters are operator-secondary versus operator-relevant, and which ones still need human review before any commercialization language is used.
+- `site-operator-partnership-agent`: keep the San Diego operator-lane packet focused on owner/operator/tenant contacts, approval sequence, and the first draft-only outreach note before any live operator contact is allowed.
 
 ## Handoffs
 - `growth-lead`: priority and posture decisions

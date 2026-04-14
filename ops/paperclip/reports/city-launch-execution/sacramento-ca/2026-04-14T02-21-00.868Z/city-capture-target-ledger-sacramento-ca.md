@@ -18,24 +18,33 @@ This ledger is intentionally split into:
 ## Workflow Priorities
 
 - Warehouse (tier_1): Crucial exact-site validation target before tackling extreme cold modules.
+- Buyer-thread proof (tier_1): Exact-site validation thread for Raymond West and adjacent warehouse-automation buyers.
+- Autonomy validation (tier_2): Exact-site lab or test-site proof for robotics and autonomy evaluation.
 
 ## Priority Proof Targets
 
 | Rank | Target | Type | Corridor | Workflow fit | Confidence | Access approach |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | US Cold Storage - Ambient Module | warehouse | Initial ambient/cross-dock multi-tenant logistics space, avoiding deep-freeze limits. | dock handoff and pallet movement | medium | operator_intro |
+| 2 | Raymond West | buyer-linked exact-site | Warehouse automation buyer thread with digital-twin simulation relevance. | warehouse autonomy | medium | buyer_thread |
+| 3 | UC Davis AHMCT | autonomy research | Lab / test-site validation surface for autonomy and robotics evaluation. | autonomy validation | medium | exact_site |
 
 ## Queued Lawful-Access Buckets
 
 | Bucket | Activation rule | Rationale |
 | --- | --- | --- |
-| Industrial Warehouse | after first rights-cleared proof asset | Expand only after the first research-backed proof assets and rights-cleared reviews exist. |
+| McClellan Park logistics operators | after first rights-cleared proof asset | Expand via site-operator intros once a proof pack clears rights and provenance. |
+| Industrial automation and robotics integration accounts (SIR Robotics, VC Automation, Axis Robotics) | after first buyer-thread proof pack | Keep the integrator cluster warm without widening the live capture lane too early. |
+| Cyngn autonomy-corridor threads | after warehouse proof and hosted-review readiness | Treat the autonomy corridor as validation support, not the primary Sacramento wedge. |
 
 ## Longer-Horizon Discovery Lanes
 
 | Discovery lane | Rationale |
 | --- | --- |
 | Industrial Warehouse | Long-universe estimate inferred from the research-backed target mix. Validate locally before treating it as a coverage plan. |
+| Industrial Automation and Robotics Integration | Core buyer cluster with multiple Sacramento-region integration accounts. |
+| Autonomy Research and Validation | Useful for lab-style proof packs once the warehouse wedge is stable. |
+| Ag Robotics / Field Robotics Ecosystem | Community and event-density lane, not a substitute for exact-site proof. |
 
 ## Operating Rules
 
@@ -48,6 +57,8 @@ This ledger is intentionally split into:
 ## Sources
 
 - [Sacramento deep research playbook](/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-sacramento-ca-deep-research.md) — Latest completed deep-research artifact with structured launch records.
+- [Sacramento demand intelligence digest](/Users/nijelhunt_1/workspace/Blueprint-WebApp/knowledge/reports/demand-intel/2026-04-13-demand-intel-daily-digest-2026-04-14-sacramento-robot-company-target-accounts-and-buyer-clusters.md) — Adds the Raymond West / UC Davis / Sacramento robotics cluster signals.
+- [Sacramento target accounts compiled dossier](/Users/nijelhunt_1/workspace/Blueprint-WebApp/knowledge/compiled/demand-intel/sacramento-robot-team-targets.md) — Confirms the Sacramento industrial-automation and autonomy-corridor buyer set.
 
 ## Warnings
 
