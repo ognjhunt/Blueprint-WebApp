@@ -139,6 +139,17 @@ export type CityLaunchLedgerSummary = {
   trackedSupplyProspectsContacted: number;
   trackedBuyerTargetsResearched: number;
   trackedFirstTouchesSent: number;
+  trackedCityOpeningChannelAccountsReady: number;
+  trackedCityOpeningChannelAccountsCreated: number;
+  trackedCityOpeningChannelAccountsBlocked: number;
+  trackedCityOpeningSendActionsReady: number;
+  trackedCityOpeningSendActionsSent: number;
+  trackedCityOpeningSendActionsBlocked: number;
+  trackedCityOpeningResponsesRecorded: number;
+  trackedCityOpeningResponsesRouted: number;
+  trackedReplyConversionsQueued: number;
+  trackedReplyConversionsRouted: number;
+  trackedReplyConversionsBlocked: number;
   onboardedCapturers: number;
   totalRecordedSpendUsd: number;
   withinPolicySpendUsd: number;
@@ -148,12 +159,129 @@ export type CityLaunchLedgerSummary = {
   dataSources: string[];
 };
 
+export type CityLaunchChannelAccountStatus =
+  | "planned"
+  | "ready_to_create"
+  | "created"
+  | "blocked";
+
+export type CityLaunchSendApprovalState =
+  | "not_required"
+  | "pending_first_send_approval"
+  | "approved"
+  | "blocked";
+
+export type CityLaunchSendActionStatus =
+  | "draft"
+  | "ready_to_send"
+  | "sent"
+  | "blocked";
+
+export type CityLaunchResponseIngestState =
+  | "awaiting_response"
+  | "response_recorded"
+  | "routed"
+  | "closed";
+
+export type CityLaunchChannelAccountRecord = {
+  id: string;
+  city: string;
+  citySlug: string;
+  launchId: string | null;
+  lane:
+    | "warehouse-facility-direct"
+    | "buyer-linked-site"
+    | "professional-capturer"
+    | "public-commercial-community";
+  channelClass: string;
+  accountLabel: string;
+  ownerAgent: string | null;
+  status: CityLaunchChannelAccountStatus;
+  approvalState: CityLaunchSendApprovalState;
+  notes: string | null;
+  createdAtIso: string;
+  updatedAtIso: string;
+};
+
+export type CityLaunchSendActionRecord = {
+  id: string;
+  city: string;
+  citySlug: string;
+  launchId: string | null;
+  lane:
+    | "warehouse-facility-direct"
+    | "buyer-linked-site"
+    | "professional-capturer"
+    | "public-commercial-community";
+  actionType: "direct_outreach" | "community_post";
+  channelAccountId: string | null;
+  channelLabel: string;
+  targetLabel: string;
+  assetKey: string;
+  ownerAgent: string | null;
+  recipientEmail: string | null;
+  emailSubject: string | null;
+  emailBody: string | null;
+  status: CityLaunchSendActionStatus;
+  approvalState: CityLaunchSendApprovalState;
+  responseIngestState: CityLaunchResponseIngestState;
+  issueId: string | null;
+  notes: string | null;
+  sentAtIso: string | null;
+  firstResponseAtIso: string | null;
+  createdAtIso: string;
+  updatedAtIso: string;
+};
+
+export type CityLaunchReplyConversionStatus =
+  | "queued"
+  | "routed"
+  | "blocked"
+  | "closed";
+
+export type CityLaunchReplyConversionRecord = {
+  id: string;
+  city: string;
+  citySlug: string;
+  launchId: string | null;
+  sendActionId: string;
+  lane:
+    | "warehouse-facility-direct"
+    | "buyer-linked-site"
+    | "professional-capturer"
+    | "public-commercial-community";
+  responseType:
+    | "buyer_reply"
+    | "operator_reply"
+    | "capturer_reply"
+    | "community_reply"
+    | "referral";
+  responseSummary: string;
+  routingTarget:
+    | "site_operator_partnership"
+    | "buyer_target"
+    | "supply_qualification"
+    | "blocked"
+    | "no_fit";
+  nextOwner: string | null;
+  nextFollowUpDueAtIso: string | null;
+  prospectId: string | null;
+  buyerTargetId: string | null;
+  status: CityLaunchReplyConversionStatus;
+  notes: string | null;
+  createdAtIso: string;
+  updatedAtIso: string;
+};
+
 const COLLECTIONS = {
   activations: "cityLaunchActivations",
   prospects: "cityLaunchProspects",
   buyerTargets: "cityLaunchBuyerTargets",
   touches: "cityLaunchTouches",
   budgetEvents: "cityLaunchBudgetEvents",
+  channelAccounts: "cityLaunchChannelAccounts",
+  sendActions: "cityLaunchSendActions",
+  replyConversions: "cityLaunchReplyConversions",
 } as const;
 
 const PROSPECT_STATUS_RANK: Record<CityLaunchProspectStatus, number> = {
@@ -187,6 +315,47 @@ const TOUCH_STATUS_RANK: Record<CityLaunchTouchStatus, number> = {
   delivered: 4,
   replied: 5,
 };
+
+const CHANNEL_ACCOUNT_STATUS_RANK: Record<CityLaunchChannelAccountStatus, number> = {
+  blocked: 0,
+  planned: 1,
+  ready_to_create: 2,
+  created: 3,
+};
+
+const SEND_ACTION_STATUS_RANK: Record<CityLaunchSendActionStatus, number> = {
+  blocked: 0,
+  draft: 1,
+  ready_to_send: 2,
+  sent: 3,
+};
+
+const RESPONSE_INGEST_STATUS_RANK: Record<CityLaunchResponseIngestState, number> = {
+  awaiting_response: 1,
+  response_recorded: 2,
+  routed: 3,
+  closed: 4,
+};
+
+const REPLY_CONVERSION_STATUS_RANK: Record<CityLaunchReplyConversionStatus, number> = {
+  blocked: 0,
+  queued: 1,
+  routed: 2,
+  closed: 3,
+};
+
+function mergeApprovalState(
+  existing: CityLaunchSendApprovalState | null | undefined,
+  incoming: CityLaunchSendApprovalState | null | undefined,
+) {
+  if (!incoming) {
+    return existing || "pending_first_send_approval";
+  }
+  if (incoming === "pending_first_send_approval") {
+    return existing && existing !== "pending_first_send_approval" ? existing : incoming;
+  }
+  return incoming;
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -526,6 +695,147 @@ export async function recordCityLaunchBudgetEvent(
   return payload;
 }
 
+export async function upsertCityLaunchChannelAccount(
+  input: Omit<CityLaunchChannelAccountRecord, "id" | "citySlug" | "createdAtIso" | "updatedAtIso"> & {
+    id?: string | null;
+  },
+) {
+  if (!db) {
+    throw new Error("Database not available");
+  }
+  const record = withCity(input);
+  const id = normalizeId(input.id, `channel_account_${record.citySlug}`);
+  const ref = db.collection(COLLECTIONS.channelAccounts).doc(id);
+  const existingDoc = await ref.get();
+  const existing = existingDoc.exists ? (existingDoc.data() as Partial<CityLaunchChannelAccountRecord>) : null;
+  const createdAtIso = existing?.createdAtIso || nowIso();
+  const updatedAtIso = nowIso();
+  const payload: CityLaunchChannelAccountRecord = {
+    id,
+    city: record.city,
+    citySlug: record.citySlug,
+    launchId: mergeString(existing?.launchId, input.launchId ?? null),
+    lane: input.lane,
+    channelClass: input.channelClass,
+    accountLabel: input.accountLabel,
+    ownerAgent: mergeString(existing?.ownerAgent, input.ownerAgent ?? null),
+    status: mergeRankedStatus(existing?.status, input.status, CHANNEL_ACCOUNT_STATUS_RANK),
+    approvalState: mergeApprovalState(existing?.approvalState, input.approvalState),
+    notes: mergeNotes(existing?.notes, input.notes ?? null),
+    createdAtIso,
+    updatedAtIso,
+  };
+  await ref.set(
+    {
+      ...payload,
+      updated_at: serverTimestamp(),
+      ...(!existing ? { created_at: serverTimestamp() } : {}),
+    },
+    { merge: true },
+  );
+  return payload;
+}
+
+export async function upsertCityLaunchSendAction(
+  input: Omit<CityLaunchSendActionRecord, "id" | "citySlug" | "createdAtIso" | "updatedAtIso"> & {
+    id?: string | null;
+  },
+) {
+  if (!db) {
+    throw new Error("Database not available");
+  }
+  const record = withCity(input);
+  const id = normalizeId(input.id, `send_action_${record.citySlug}`);
+  const ref = db.collection(COLLECTIONS.sendActions).doc(id);
+  const existingDoc = await ref.get();
+  const existing = existingDoc.exists ? (existingDoc.data() as Partial<CityLaunchSendActionRecord>) : null;
+  const createdAtIso = existing?.createdAtIso || nowIso();
+  const updatedAtIso = nowIso();
+  const payload: CityLaunchSendActionRecord = {
+    id,
+    city: record.city,
+    citySlug: record.citySlug,
+    launchId: mergeString(existing?.launchId, input.launchId ?? null),
+    lane: input.lane,
+    actionType: input.actionType,
+    channelAccountId: mergeString(existing?.channelAccountId, input.channelAccountId ?? null),
+    channelLabel: input.channelLabel,
+    targetLabel: input.targetLabel,
+    assetKey: input.assetKey,
+    ownerAgent: mergeString(existing?.ownerAgent, input.ownerAgent ?? null),
+    recipientEmail: mergeString(existing?.recipientEmail, input.recipientEmail ?? null),
+    emailSubject: mergeString(existing?.emailSubject, input.emailSubject ?? null),
+    emailBody: mergeString(existing?.emailBody, input.emailBody ?? null),
+    status: mergeRankedStatus(existing?.status, input.status, SEND_ACTION_STATUS_RANK),
+    approvalState: mergeApprovalState(existing?.approvalState, input.approvalState),
+    responseIngestState: mergeRankedStatus(
+      existing?.responseIngestState,
+      input.responseIngestState,
+      RESPONSE_INGEST_STATUS_RANK,
+    ),
+    issueId: mergeString(existing?.issueId, input.issueId ?? null),
+    notes: mergeNotes(existing?.notes, input.notes ?? null),
+    sentAtIso: mergeIsoLatest(existing?.sentAtIso, input.sentAtIso ?? null),
+    firstResponseAtIso: mergeIsoLatest(existing?.firstResponseAtIso, input.firstResponseAtIso ?? null),
+    createdAtIso,
+    updatedAtIso,
+  };
+  await ref.set(
+    {
+      ...payload,
+      updated_at: serverTimestamp(),
+      ...(!existing ? { created_at: serverTimestamp() } : {}),
+    },
+    { merge: true },
+  );
+  return payload;
+}
+
+export async function upsertCityLaunchReplyConversion(
+  input: Omit<CityLaunchReplyConversionRecord, "id" | "citySlug" | "createdAtIso" | "updatedAtIso"> & {
+    id?: string | null;
+  },
+) {
+  if (!db) {
+    throw new Error("Database not available");
+  }
+  const record = withCity(input);
+  const id = normalizeId(input.id, `reply_conversion_${record.citySlug}`);
+  const ref = db.collection(COLLECTIONS.replyConversions).doc(id);
+  const existingDoc = await ref.get();
+  const existing = existingDoc.exists ? (existingDoc.data() as Partial<CityLaunchReplyConversionRecord>) : null;
+  const createdAtIso = existing?.createdAtIso || nowIso();
+  const updatedAtIso = nowIso();
+  const payload: CityLaunchReplyConversionRecord = {
+    id,
+    city: record.city,
+    citySlug: record.citySlug,
+    launchId: mergeString(existing?.launchId, input.launchId ?? null),
+    sendActionId: input.sendActionId,
+    lane: input.lane,
+    responseType: input.responseType,
+    responseSummary: input.responseSummary,
+    routingTarget: input.routingTarget,
+    nextOwner: mergeString(existing?.nextOwner, input.nextOwner ?? null),
+    nextFollowUpDueAtIso: mergeIsoLatest(existing?.nextFollowUpDueAtIso, input.nextFollowUpDueAtIso ?? null),
+    prospectId: mergeString(existing?.prospectId, input.prospectId ?? null),
+    buyerTargetId: mergeString(existing?.buyerTargetId, input.buyerTargetId ?? null),
+    status: mergeRankedStatus(existing?.status, input.status, REPLY_CONVERSION_STATUS_RANK),
+    notes: mergeNotes(existing?.notes, input.notes ?? null),
+    createdAtIso,
+    updatedAtIso,
+  };
+  await ref.set(
+    {
+      ...payload,
+      updated_at: serverTimestamp(),
+      ...(!existing ? { created_at: serverTimestamp() } : {}),
+    },
+    { merge: true },
+  );
+  return payload;
+}
+
 async function listByCity<T>(collectionName: string, citySlug: string) {
   if (!db) {
     return [] as T[];
@@ -574,14 +884,44 @@ export async function listCityLaunchBudgetEvents(city: string) {
   return listByCity<CityLaunchBudgetEventRecord>(COLLECTIONS.budgetEvents, citySlug);
 }
 
+export async function listCityLaunchChannelAccounts(city: string) {
+  const { citySlug } = normalizedCity(city);
+  return listByCity<CityLaunchChannelAccountRecord>(COLLECTIONS.channelAccounts, citySlug);
+}
+
+export async function listCityLaunchSendActions(city: string) {
+  const { citySlug } = normalizedCity(city);
+  return listByCity<CityLaunchSendActionRecord>(COLLECTIONS.sendActions, citySlug);
+}
+
+export async function listCityLaunchReplyConversions(city: string) {
+  const { citySlug } = normalizedCity(city);
+  return listByCity<CityLaunchReplyConversionRecord>(COLLECTIONS.replyConversions, citySlug);
+}
+
+export async function readCityLaunchChannelAccount(id: string) {
+  if (!db) return null;
+  const doc = await db.collection(COLLECTIONS.channelAccounts).doc(id).get();
+  return doc.exists ? (doc.data() as CityLaunchChannelAccountRecord) : null;
+}
+
+export async function readCityLaunchSendAction(id: string) {
+  if (!db) return null;
+  const doc = await db.collection(COLLECTIONS.sendActions).doc(id).get();
+  return doc.exists ? (doc.data() as CityLaunchSendActionRecord) : null;
+}
+
 export async function summarizeCityLaunchLedgers(city: string) {
   const { citySlug } = normalizedCity(city);
 
-  const [prospects, buyerTargets, touches, budgetEvents] = await Promise.all([
+  const [prospects, buyerTargets, touches, budgetEvents, channelAccounts, sendActions, replyConversions] = await Promise.all([
     listByCity<CityLaunchProspectRecord>(COLLECTIONS.prospects, citySlug),
     listByCity<CityLaunchBuyerTargetRecord>(COLLECTIONS.buyerTargets, citySlug),
     listByCity<CityLaunchTouchRecord>(COLLECTIONS.touches, citySlug),
     listByCity<CityLaunchBudgetEventRecord>(COLLECTIONS.budgetEvents, citySlug),
+    listByCity<CityLaunchChannelAccountRecord>(COLLECTIONS.channelAccounts, citySlug),
+    listByCity<CityLaunchSendActionRecord>(COLLECTIONS.sendActions, citySlug),
+    listByCity<CityLaunchReplyConversionRecord>(COLLECTIONS.replyConversions, citySlug),
   ]);
 
   const trackedSupplyProspectsContacted = prospects.filter((entry) =>
@@ -609,6 +949,41 @@ export async function summarizeCityLaunchLedgers(city: string) {
       entry.touchType === "first_touch"
       && ["sent", "delivered", "replied"].includes(entry.status),
   ).length;
+  const trackedCityOpeningChannelAccountsReady = channelAccounts.filter((entry) =>
+    ["ready_to_create", "created"].includes(entry.status),
+  ).length;
+  const trackedCityOpeningChannelAccountsCreated = channelAccounts.filter((entry) =>
+    entry.status === "created",
+  ).length;
+  const trackedCityOpeningChannelAccountsBlocked = channelAccounts.filter((entry) =>
+    entry.status === "blocked",
+  ).length;
+  const trackedCityOpeningSendActionsReady = sendActions.filter((entry) =>
+    ["ready_to_send", "sent"].includes(entry.status),
+  ).length;
+  const trackedCityOpeningSendActionsSent = sendActions.filter((entry) =>
+    entry.status === "sent",
+  ).length;
+  const trackedCityOpeningSendActionsBlocked = sendActions.filter((entry) =>
+    entry.status === "blocked",
+  ).length;
+  const trackedCityOpeningResponsesRecorded = Math.max(
+    sendActions.filter((entry) =>
+      ["response_recorded", "routed", "closed"].includes(entry.responseIngestState),
+    ).length,
+    replyConversions.length,
+  );
+  const trackedCityOpeningResponsesRouted = Math.max(
+    sendActions.filter((entry) =>
+      ["routed", "closed"].includes(entry.responseIngestState),
+    ).length,
+    replyConversions.filter((entry) => ["routed", "closed"].includes(entry.status)).length,
+  );
+  const trackedReplyConversionsQueued = replyConversions.filter((entry) => entry.status === "queued").length;
+  const trackedReplyConversionsRouted = replyConversions.filter((entry) =>
+    ["routed", "closed"].includes(entry.status),
+  ).length;
+  const trackedReplyConversionsBlocked = replyConversions.filter((entry) => entry.status === "blocked").length;
 
   const actualBudgetEvents = budgetEvents.filter((entry) => entry.eventType !== "recommended");
   const recommendedBudgetEvents = budgetEvents.filter((entry) => entry.eventType === "recommended");
@@ -634,6 +1009,17 @@ export async function summarizeCityLaunchLedgers(city: string) {
     trackedSupplyProspectsContacted,
     trackedBuyerTargetsResearched,
     trackedFirstTouchesSent,
+    trackedCityOpeningChannelAccountsReady,
+    trackedCityOpeningChannelAccountsCreated,
+    trackedCityOpeningChannelAccountsBlocked,
+    trackedCityOpeningSendActionsReady,
+    trackedCityOpeningSendActionsSent,
+    trackedCityOpeningSendActionsBlocked,
+    trackedCityOpeningResponsesRecorded,
+    trackedCityOpeningResponsesRouted,
+    trackedReplyConversionsQueued,
+    trackedReplyConversionsRouted,
+    trackedReplyConversionsBlocked,
     onboardedCapturers,
     totalRecordedSpendUsd,
     withinPolicySpendUsd,
@@ -645,6 +1031,9 @@ export async function summarizeCityLaunchLedgers(city: string) {
       COLLECTIONS.buyerTargets,
       COLLECTIONS.touches,
       COLLECTIONS.budgetEvents,
+      COLLECTIONS.channelAccounts,
+      COLLECTIONS.sendActions,
+      COLLECTIONS.replyConversions,
     ],
   } satisfies CityLaunchLedgerSummary;
 }

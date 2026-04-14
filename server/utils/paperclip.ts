@@ -43,6 +43,115 @@ const DEFAULT_COMPANY_NAME = "Blueprint Autonomous Operations";
 let cachedCompanyId: string | null | undefined;
 const cachedProjectIds = new Map<string, string>();
 const cachedAgentIds = new Map<string, string>();
+const loadedProjectDirectories = new Set<string>();
+const loadedAgentDirectories = new Set<string>();
+const pendingProjectDirectoryLoads = new Map<string, Promise<void>>();
+const pendingAgentDirectoryLoads = new Map<string, Promise<void>>();
+
+function normalizeProjectLookupKey(value: string | null | undefined) {
+  return value?.trim().toLowerCase() || null;
+}
+
+function buildScopedLookupKey(scope: string, value: string | null | undefined) {
+  const normalized = value?.trim();
+  return normalized ? `${scope}:${normalized}` : null;
+}
+
+async function ensurePaperclipProjectDirectoryLoaded(companyId: string) {
+  if (loadedProjectDirectories.has(companyId)) {
+    return;
+  }
+
+  const pending = pendingProjectDirectoryLoads.get(companyId);
+  if (pending) {
+    await pending;
+    return;
+  }
+
+  const loadPromise = (async () => {
+    const projects = await fetchPaperclipJsonWithRetry<PaperclipProject[]>(
+      `/api/companies/${companyId}/projects`,
+      {
+        headers: buildHeaders(),
+        timeoutMs: 12_000,
+        retries: 2,
+      },
+    );
+    for (const entry of projects) {
+      for (const candidate of [entry.name, entry.slug || "", entry.urlKey || ""]) {
+        const scopedKey = buildScopedLookupKey(
+          companyId,
+          normalizeProjectLookupKey(candidate),
+        );
+        if (scopedKey) {
+          cachedProjectIds.set(scopedKey, entry.id);
+        }
+      }
+    }
+    loadedProjectDirectories.add(companyId);
+  })();
+
+  pendingProjectDirectoryLoads.set(companyId, loadPromise);
+  try {
+    await loadPromise;
+  } finally {
+    pendingProjectDirectoryLoads.delete(companyId);
+  }
+}
+
+async function ensurePaperclipAgentDirectoryLoaded(companyId: string) {
+  if (loadedAgentDirectories.has(companyId)) {
+    return;
+  }
+
+  const pending = pendingAgentDirectoryLoads.get(companyId);
+  if (pending) {
+    await pending;
+    return;
+  }
+
+  const loadPromise = (async () => {
+    const agents = await fetchPaperclipJsonWithRetry<PaperclipAgent[]>(
+      `/api/companies/${companyId}/agents`,
+      {
+        headers: buildHeaders(),
+        timeoutMs: 12_000,
+        retries: 2,
+      },
+    );
+    for (const entry of agents) {
+      const metadata = entry.metadata && typeof entry.metadata === "object"
+        ? (entry.metadata as Record<string, unknown>)
+        : {};
+      const candidates = [
+        entry.name,
+        entry.title || "",
+        typeof metadata.agentKey === "string" ? metadata.agentKey : "",
+        typeof metadata.slug === "string" ? metadata.slug : "",
+        typeof (entry as Record<string, unknown>).urlKey === "string"
+          ? ((entry as Record<string, unknown>).urlKey as string)
+          : "",
+      ]
+        .map((value) => normalizeAgentLookupKey(value) || value.trim().toLowerCase())
+        .filter(Boolean);
+
+      for (const candidate of candidates) {
+        const scopedKey = buildScopedLookupKey(companyId, candidate);
+        if (scopedKey) {
+          cachedAgentIds.set(scopedKey, entry.id);
+        }
+      }
+    }
+    loadedAgentDirectories.add(companyId);
+  })();
+
+  pendingAgentDirectoryLoads.set(companyId, loadPromise);
+  try {
+    await loadPromise;
+  } finally {
+    pendingAgentDirectoryLoads.delete(companyId);
+  }
+}
 
 function normalizeAgentLookupKey(value: string | null | undefined) {
   if (typeof value !== "string") return null;
@@ -96,6 +205,36 @@ async function fetchPaperclipJson<T>(
   return response.json() as Promise<T>;
 }
 
+async function fetchPaperclipJsonWithRetry<T>(
+  pathname: string,
+  init?: RequestInit & { timeoutMs?: number; retries?: number },
+): Promise<T> {
+  const retries = Math.max(0, init?.retries ?? 2);
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      return await fetchPaperclipJson<T>(pathname, init);
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      const isRetryable =
+        /aborted due to timeout/i.test(message)
+        || /AbortError/i.test(message)
+        || /fetch failed/i.test(message)
+        || /ECONNRESET/i.test(message)
+        || /ECONNREFUSED/i.test(message)
+        || /socket hang up/i.test(message);
+      if (!isRetryable || attempt >= retries) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
 export async function resolvePaperclipCompanyId() {
   if (cachedCompanyId !== undefined) {
     return cachedCompanyId;
@@ -107,9 +246,10 @@ export async function resolvePaperclipCompanyId() {
     return cachedCompanyId;
   }
 
-  const companies = await fetchPaperclipJson<PaperclipCompany[]>("/api/companies", {
+  const companies = await fetchPaperclipJsonWithRetry<PaperclipCompany[]>("/api/companies", {
     headers: buildHeaders(),
     timeoutMs: 5_000,
+    retries: 2,
   });
   const match = companies.find((entry) => entry.name === companyName());
   cachedCompanyId = match?.id || null;
@@ -117,77 +257,47 @@ export async function resolvePaperclipCompanyId() {
 }
 
 export async function resolvePaperclipProjectId(projectName: string) {
-  const cacheKey = projectName.trim().toLowerCase();
+  const companyId = await resolvePaperclipCompanyId();
+  if (!companyId) {
+    return null;
+  }
+
+  const normalizedProjectName = normalizeProjectLookupKey(projectName);
+  const cacheKey = buildScopedLookupKey(companyId, normalizedProjectName);
+  if (!cacheKey) {
+    return null;
+  }
+
   const cached = cachedProjectIds.get(cacheKey);
   if (cached) {
     return cached;
   }
 
+  await ensurePaperclipProjectDirectoryLoaded(companyId);
+
+  return cachedProjectIds.get(cacheKey) || null;
+}
+
+export async function resolvePaperclipAgentId(agentKey: string) {
   const companyId = await resolvePaperclipCompanyId();
   if (!companyId) {
     return null;
   }
 
-  const projects = await fetchPaperclipJson<PaperclipProject[]>(
-    `/api/companies/${companyId}/projects`,
-    {
-      headers: buildHeaders(),
-      timeoutMs: 5_000,
-    },
-  );
-  const match = projects.find((entry) => {
-    const names = [entry.name, entry.slug || "", entry.urlKey || ""]
-      .map((value) => value.trim().toLowerCase());
-    return names.includes(cacheKey);
-  });
-  if (!match) {
+  const normalizedAgentKey = normalizeAgentLookupKey(agentKey) || agentKey.trim().toLowerCase();
+  const cacheKey = buildScopedLookupKey(companyId, normalizedAgentKey);
+  if (!cacheKey) {
     return null;
   }
-  cachedProjectIds.set(cacheKey, match.id);
-  return match.id;
-}
 
-export async function resolvePaperclipAgentId(agentKey: string) {
-  const cacheKey = normalizeAgentLookupKey(agentKey) || agentKey.trim().toLowerCase();
   const cached = cachedAgentIds.get(cacheKey);
   if (cached) {
     return cached;
   }
 
-  const companyId = await resolvePaperclipCompanyId();
-  if (!companyId) {
-    return null;
-  }
+  await ensurePaperclipAgentDirectoryLoaded(companyId);
 
-  const agents = await fetchPaperclipJson<PaperclipAgent[]>(
-    `/api/companies/${companyId}/agents`,
-    {
-      headers: buildHeaders(),
-      timeoutMs: 5_000,
-    },
-  );
-  const match = agents.find((entry) => {
-    const metadata = entry.metadata && typeof entry.metadata === "object"
-      ? (entry.metadata as Record<string, unknown>)
-      : {};
-    const candidates = [
-      entry.name,
-      entry.title || "",
-      typeof metadata.agentKey === "string" ? metadata.agentKey : "",
-      typeof metadata.slug === "string" ? metadata.slug : "",
-      typeof (entry as Record<string, unknown>).urlKey === "string"
-        ? ((entry as Record<string, unknown>).urlKey as string)
-        : "",
-    ]
-      .map((value) => normalizeAgentLookupKey(value) || value.trim().toLowerCase())
-      .filter(Boolean);
-    return candidates.includes(cacheKey);
-  });
-  if (!match) {
-    return null;
-  }
-  cachedAgentIds.set(cacheKey, match.id);
-  return match.id;
+  return cachedAgentIds.get(cacheKey) || null;
 }
 
 export async function listPaperclipIssues(params: {
@@ -202,19 +312,21 @@ export async function listPaperclipIssues(params: {
   if (params.parentId) searchParams.set("parentId", params.parentId);
   const suffix = searchParams.size > 0 ? `?${searchParams.toString()}` : "";
 
-  return await fetchPaperclipJson<PaperclipIssueRecord[]>(
+  return await fetchPaperclipJsonWithRetry<PaperclipIssueRecord[]>(
     `/api/companies/${params.companyId}/issues${suffix}`,
     {
       headers: buildHeaders(),
-      timeoutMs: 6_000,
+      timeoutMs: 8_000,
+      retries: 2,
     },
   );
 }
 
 export async function getPaperclipIssue(issueId: string) {
-  return await fetchPaperclipJson<PaperclipIssueRecord>(`/api/issues/${issueId}`, {
+  return await fetchPaperclipJsonWithRetry<PaperclipIssueRecord>(`/api/issues/${issueId}`, {
     headers: buildHeaders(),
-    timeoutMs: 6_000,
+    timeoutMs: 8_000,
+    retries: 2,
   });
 }
 
@@ -225,11 +337,12 @@ export async function updatePaperclipIssue(
     parentId?: string | null;
   },
 ) {
-  return await fetchPaperclipJson<PaperclipIssueRecord>(`/api/issues/${issueId}`, {
+  return await fetchPaperclipJsonWithRetry<PaperclipIssueRecord>(`/api/issues/${issueId}`, {
     method: "PATCH",
     headers: buildHeaders(true),
     body: JSON.stringify(input),
-    timeoutMs: 8_000,
+    timeoutMs: 12_000,
+    retries: 2,
   });
 }
 
@@ -243,33 +356,54 @@ export async function upsertPaperclipIssue(input: {
   originKind: string;
   originId: string;
   parentId?: string | null;
+  existingIssueId?: string | null;
 }) {
   const companyId = await resolvePaperclipCompanyId();
   if (!companyId) {
     throw new Error("Blueprint Paperclip company is not configured.");
   }
 
-  const [projectId, assigneeAgentId] = await Promise.all([
-    resolvePaperclipProjectId(input.projectName),
-    resolvePaperclipAgentId(input.assigneeKey),
-  ]);
-
-  if (!projectId) {
-    throw new Error(`Paperclip project not found: ${input.projectName}`);
-  }
+  const assigneeAgentId = await resolvePaperclipAgentId(input.assigneeKey);
   if (!assigneeAgentId) {
     throw new Error(`Paperclip agent not found: ${input.assigneeKey}`);
   }
 
-  const existing = await listPaperclipIssues({
-    companyId,
-    originKind: input.originKind,
-    originId: input.originId,
-  });
-  const issue = existing[0];
+  if (input.existingIssueId) {
+    try {
+      const updated = await updatePaperclipIssue(input.existingIssueId, {
+        title: input.title,
+        description: input.description,
+        priority: input.priority,
+        status: input.status,
+        assigneeAgentId,
+        parentId: input.parentId ?? null,
+      });
+      return {
+        companyId,
+        projectId: null,
+        assigneeAgentId,
+        issue: updated,
+        created: false,
+      };
+    } catch (error) {
+      if (!(error instanceof Error) || !/Paperclip 404\b/.test(error.message)) {
+        throw error;
+      }
+    }
+  }
+
+  let issue: PaperclipIssueRecord | null = null;
+  if (!issue) {
+    const existing = await listPaperclipIssues({
+      companyId,
+      originKind: input.originKind,
+      originId: input.originId,
+    });
+    issue = existing[0] || null;
+  }
 
   if (issue) {
-    const updated = await fetchPaperclipJson<PaperclipIssueRecord>(`/api/issues/${issue.id}`, {
+    const updated = await fetchPaperclipJsonWithRetry<PaperclipIssueRecord>(`/api/issues/${issue.id}`, {
       method: "PATCH",
       headers: buildHeaders(true),
       body: JSON.stringify({
@@ -280,18 +414,24 @@ export async function upsertPaperclipIssue(input: {
         assigneeAgentId,
         parentId: input.parentId ?? null,
       }),
-      timeoutMs: 8_000,
+      timeoutMs: 12_000,
+      retries: 2,
     });
     return {
       companyId,
-      projectId,
+      projectId: null,
       assigneeAgentId,
       issue: updated,
       created: false,
     };
   }
 
-  const created = await fetchPaperclipJson<PaperclipIssueRecord>(
+  const projectId = await resolvePaperclipProjectId(input.projectName);
+  if (!projectId) {
+    throw new Error(`Paperclip project not found: ${input.projectName}`);
+  }
+
+  const created = await fetchPaperclipJsonWithRetry<PaperclipIssueRecord>(
     `/api/companies/${companyId}/issues`,
     {
       method: "POST",
@@ -307,7 +447,8 @@ export async function upsertPaperclipIssue(input: {
         originKind: input.originKind,
         originId: input.originId,
       }),
-      timeoutMs: 8_000,
+      timeoutMs: 12_000,
+      retries: 2,
     },
   );
   return {
@@ -320,11 +461,12 @@ export async function upsertPaperclipIssue(input: {
 }
 
 export async function createPaperclipIssueComment(issueId: string, body: string) {
-  return await fetchPaperclipJson<{ ok?: boolean }>(`/api/issues/${issueId}/comments`, {
+  return await fetchPaperclipJsonWithRetry<{ ok?: boolean }>(`/api/issues/${issueId}/comments`, {
     method: "POST",
     headers: buildHeaders(true),
     body: JSON.stringify({ body }),
-    timeoutMs: 4_000,
+    timeoutMs: 8_000,
+    retries: 2,
   });
 }
 
@@ -360,12 +502,14 @@ export async function wakePaperclipAgent(input: {
     || await resolvePaperclipCompanyId()
     || undefined;
   const timeoutMs = Math.max(1_000, input.timeoutMs ?? 10_000);
-  return await fetchPaperclipJson<PaperclipWakeupResult | { status: "skipped" }>(
+  return await fetchPaperclipJsonWithRetry<PaperclipWakeupResult | { status: "skipped" }>(
     `/api/agents/${encodeURIComponent(input.agentId)}/wakeup${scope ? `?companyId=${encodeURIComponent(scope)}` : ""}`,
     {
       method: "POST",
       headers: buildHeaders(true),
       signal: AbortSignal.timeout(timeoutMs),
+      timeoutMs,
+      retries: 2,
       body: JSON.stringify({
         source: "automation",
         triggerDetail: "system",

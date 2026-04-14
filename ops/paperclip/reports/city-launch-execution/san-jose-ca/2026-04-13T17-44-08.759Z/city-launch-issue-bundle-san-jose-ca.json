@@ -2,7 +2,7 @@
   "machine_policy_version": "2026-04-13.city-launch-doctrine.v1",
   "city": "San Jose, CA",
   "city_slug": "san-jose-ca",
-  "source_activation_payload_path": null,
+  "source_activation_payload_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-activation-payload.json",
   "tasks": [
     {
       "key": "city-target-ledger",

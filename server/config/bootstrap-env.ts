@@ -35,14 +35,18 @@ function parseEnvLine(line: string) {
   };
 }
 
-function loadEnvFile(filePath: string) {
+function loadEnvFile(filePath: string, options?: { overrideExisting?: boolean }) {
   if (!fs.existsSync(filePath)) return;
 
   const contents = fs.readFileSync(filePath, "utf8");
   for (const line of contents.split(/\r?\n/)) {
     const parsed = parseEnvLine(line);
     if (!parsed) continue;
-    if (typeof process.env[parsed.key] === "string" && process.env[parsed.key]?.length) {
+    if (
+      !options?.overrideExisting
+      && typeof process.env[parsed.key] === "string"
+      && process.env[parsed.key]?.length
+    ) {
       continue;
     }
     process.env[parsed.key] = parsed.value;
@@ -62,16 +66,22 @@ export function bootstrapLocalEnv() {
   }
 
   const cwd = process.cwd();
-  const candidates = [
+  const defaultCandidates = [
     process.env.BLUEPRINT_ENV_FILE,
-    process.env.PAPERCLIP_ENV_FILE,
     path.resolve(cwd, ".env"),
-    path.resolve(cwd, ".env.local"),
+  ].filter((value): value is string => Boolean(value && value.trim()));
+  const overridingCandidates = [
+    process.env.PAPERCLIP_ENV_FILE,
     path.resolve(cwd, "../.paperclip-blueprint.env"),
+    path.resolve(cwd, ".env.local"),
   ].filter((value): value is string => Boolean(value && value.trim()));
 
-  for (const candidate of candidates) {
+  for (const candidate of defaultCandidates) {
     loadEnvFile(candidate);
+  }
+
+  for (const candidate of overridingCandidates) {
+    loadEnvFile(candidate, { overrideExisting: true });
   }
 }
 

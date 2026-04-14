@@ -15,8 +15,8 @@ San Jose should launch only as a bounded, proof-led city program: create rights-
 - evidence-backed: the generic city-launch activation harness generated the San Jose system doc, execution issue bundle, target ledger, and compact city playbooks in one run.
 - evidence-backed: the launch harness now tracks planning state explicitly so activation can distinguish "not started" from "research still running".
 - evidence-backed: the compact launch packet uses the standard platform analytics event model rather than inventing city-specific telemetry.
-- evidence-backed: the target ledger mode for this city is `planning_placeholder`. No research-backed named targets are available yet, so the first live capture work should stay blocked until deep research materializes into named sites.
-- warning: No research-backed named targets are available yet. Complete or materialize deep research before using this ledger for real capture pursuit.
+- evidence-backed: the first-wave San Jose buyer shortlist is now materialized in the capture target ledger, but every prospect still needs a live review-posture check before send.
+- warning: The shortlist is enough for bounded outbound prep, but not enough to claim site access, rights clearance, or delivery readiness.
 - warning: Latest planning artifact: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-13T17-38-45.838Z/01-initial-research.md
 
 ## Why This City Now
@@ -30,7 +30,7 @@ San Jose should launch only as a bounded, proof-led city program: create rights-
 - Keep the first active capturer cohort capped at roughly 5-10 vetted surveying, AEC, industrial inspection, or commercial mapping operators until the first 3-5 proof-ready sites exist.
 - Do not run paid acquisition, public bounty, or generic gig-worker motions for private interiors.
 - Keep public posture at Exact-Site Hosted Review wedge only; no city-live or readiness claims until proof is real.
-- Preferred first lawful access mode is still validation-required.
+- Preferred first lawful access mode is `buyer_requested_site`, with `site_operator_intro` as the fallback for operator-led access.
 
 ## Target Capturer Profile
 - site-authorized surveying, AEC scanning, industrial inspection, or commercial mapping operator
@@ -58,7 +58,7 @@ Rights path is still validation-required. Private controlled interiors require e
 
 ## Validation Blockers
 
-- none recorded in the current activation payload
+- The activation payload now tracks rights-clearance, buyer-stack fit, and air-gap blockers; do not treat San Jose as operationally real until those blockers are resolved.
 
 ## Readiness Scorecard
 | Dimension | Score | Rationale |

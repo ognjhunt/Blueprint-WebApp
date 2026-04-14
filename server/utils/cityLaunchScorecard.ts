@@ -30,6 +30,7 @@ export type CityLaunchScorecard = {
   };
   generatedAt: string;
   supply: TrackedMetric[];
+  cityOpening: TrackedMetric[];
   demand: TrackedMetric[];
   budget: {
     tier: string | null;
@@ -140,6 +141,18 @@ function extractProofPathTimestamp(
     return value.toDate().toISOString();
   }
   return null;
+}
+
+function hasAnyProofPathSignal(proofPath: Record<string, unknown> | undefined) {
+  return Boolean(
+    extractProofPathTimestamp(proofPath, "qualified_inbound_at")
+    || extractProofPathTimestamp(proofPath, "exact_site_requested_at")
+    || extractProofPathTimestamp(proofPath, "proof_pack_delivered_at")
+    || extractProofPathTimestamp(proofPath, "hosted_review_ready_at")
+    || extractProofPathTimestamp(proofPath, "hosted_review_started_at")
+    || extractProofPathTimestamp(proofPath, "hosted_review_follow_up_at")
+    || extractProofPathTimestamp(proofPath, "human_commercial_handoff_at"),
+  );
 }
 
 async function decryptInboundRequests() {
@@ -355,6 +368,16 @@ export async function collectCityLaunchScorecard(city: string): Promise<CityLaun
     return Boolean(extractProofPathTimestamp(proofPath, "hosted_review_follow_up_at"));
   }).length;
 
+  const hostedReviewsReady = cityRobotTeamRequests.filter((request) => {
+    const proofPath = request.ops?.proof_path as Record<string, unknown> | undefined;
+    return Boolean(extractProofPathTimestamp(proofPath, "hosted_review_ready_at"));
+  }).length;
+
+  const proofPathsAssigned = cityRobotTeamRequests.filter((request) => {
+    const proofPath = request.ops?.proof_path as Record<string, unknown> | undefined;
+    return hasAnyProofPathSignal(proofPath);
+  }).length;
+
   const commercialHandoffs = cityRobotTeamRequests.filter((request) => {
     const proofPath = request.ops?.proof_path as Record<string, unknown> | undefined;
     return Boolean(extractProofPathTimestamp(proofPath, "human_commercial_handoff_at"));
@@ -373,10 +396,21 @@ export async function collectCityLaunchScorecard(city: string): Promise<CityLaun
     deeper_review_requested: countEvent(growthEvents, citySlug, "deeper_review_requested"),
   };
 
+  const derivedMetricActualCounts: Record<string, number> = {
+    robot_team_inbound_captured: Math.max(eventCounts.robot_team_inbound_captured, cityRobotTeamRequests.length),
+    proof_path_assigned: Math.max(eventCounts.proof_path_assigned, proofPathsAssigned),
+    proof_pack_delivered: Math.max(eventCounts.proof_pack_delivered, proofPacksDelivered),
+    hosted_review_ready: Math.max(eventCounts.hosted_review_ready, hostedReviewsReady),
+    hosted_review_started: Math.max(eventCounts.hosted_review_started, hostedReviewsStarted),
+    hosted_review_follow_up_sent: Math.max(eventCounts.hosted_review_follow_up_sent, hostedFollowUps),
+    human_commercial_handoff_started: Math.max(eventCounts.human_commercial_handoff_started, commercialHandoffs),
+    proof_motion_stalled: eventCounts.proof_motion_stalled,
+  };
+
   const metricDependencies = (activationPayload?.metricsDependencies || []).map((dependency) => {
     const actualCount =
       dependency.kind === "event"
-        ? countEvent(growthEvents, citySlug, dependency.key)
+        ? (derivedMetricActualCounts[dependency.key] ?? countEvent(growthEvents, citySlug, dependency.key))
         : dependency.key === "first_lawful_access_path"
           ? citySiteRequests.some((request) =>
               Boolean(request.request?.siteName || request.request?.siteLocation),
@@ -498,27 +532,104 @@ export async function collectCityLaunchScorecard(city: string): Promise<CityLaun
         targetMax: null,
       }),
     ],
+    cityOpening: [
+      buildMetric({
+        key: "city_opening_channel_accounts_ready",
+        label: `${profile.shortLabel} city-opening channels ready or created`,
+        actual: ledgerSummary.trackedCityOpeningChannelAccountsReady,
+        targetMin: 1,
+        targetMax: null,
+        note: "Tracked from the city-opening channel/account registry.",
+      }),
+      buildMetric({
+        key: "city_opening_channel_accounts_created",
+        label: `${profile.shortLabel} city-opening channels created`,
+        actual: ledgerSummary.trackedCityOpeningChannelAccountsCreated,
+        targetMin: 0,
+        targetMax: null,
+        note: "Created means a real channel/account is marked live in the channel registry.",
+      }),
+      buildMetric({
+        key: "city_opening_actions_ready",
+        label: `${profile.shortLabel} city-opening sends ready`,
+        actual: ledgerSummary.trackedCityOpeningSendActionsReady,
+        targetMin: 1,
+        targetMax: null,
+        note: "Tracked from the city-opening send ledger.",
+      }),
+      buildMetric({
+        key: "city_opening_actions_sent",
+        label: `${profile.shortLabel} city-opening sends marked sent`,
+        actual: ledgerSummary.trackedCityOpeningSendActionsSent,
+        targetMin: 0,
+        targetMax: null,
+      }),
+      buildMetric({
+        key: "city_opening_actions_blocked",
+        label: `${profile.shortLabel} city-opening sends blocked`,
+        actual: ledgerSummary.trackedCityOpeningSendActionsBlocked,
+        targetMin: 0,
+        targetMax: 0,
+        note: "Zero is best. Higher counts indicate execution blockers in live distribution.",
+      }),
+      buildMetric({
+        key: "city_opening_responses_recorded",
+        label: `${profile.shortLabel} city-opening responses recorded`,
+        actual: ledgerSummary.trackedCityOpeningResponsesRecorded,
+        targetMin: 0,
+        targetMax: null,
+      }),
+      buildMetric({
+        key: "city_opening_responses_routed",
+        label: `${profile.shortLabel} city-opening responses routed`,
+        actual: ledgerSummary.trackedCityOpeningResponsesRouted,
+        targetMin: 0,
+        targetMax: null,
+      }),
+      buildMetric({
+        key: "reply_conversions_queued",
+        label: `${profile.shortLabel} reply conversions queued`,
+        actual: ledgerSummary.trackedReplyConversionsQueued,
+        targetMin: 0,
+        targetMax: null,
+      }),
+      buildMetric({
+        key: "reply_conversions_routed",
+        label: `${profile.shortLabel} reply conversions routed`,
+        actual: ledgerSummary.trackedReplyConversionsRouted,
+        targetMin: 0,
+        targetMax: null,
+      }),
+      buildMetric({
+        key: "reply_conversions_blocked",
+        label: `${profile.shortLabel} reply conversions blocked`,
+        actual: ledgerSummary.trackedReplyConversionsBlocked,
+        targetMin: 0,
+        targetMax: 0,
+        note: "Zero is best. Higher counts indicate reply-conversion friction after city-opening responses arrive.",
+      }),
+    ],
     demand: [
       buildMetric({
         key: "robot_team_inbound_captured",
         label: `${profile.shortLabel} robot-team inbound captured`,
-        actual: eventCounts.robot_team_inbound_captured,
+        actual: derivedMetricActualCounts.robot_team_inbound_captured,
         targetMin: 1,
         targetMax: null,
-        note: "Tracked from growth_events.",
+        note: "Verified from growth_events and city-matching inbound request records.",
       }),
       buildMetric({
         key: "proof_path_assigned",
         label: `${profile.shortLabel} proof paths assigned`,
-        actual: eventCounts.proof_path_assigned,
+        actual: derivedMetricActualCounts.proof_path_assigned,
         targetMin: 1,
         targetMax: null,
-        note: "Tracked from growth_events plus proof-path routing.",
+        note: "Combines growth_events with city-matching proof-path milestone state.",
       }),
       buildMetric({
         key: "proof_packs_delivered",
         label: `${profile.shortLabel} proof packs delivered`,
-        actual: Math.max(proofPacksDelivered, eventCounts.proof_pack_delivered),
+        actual: derivedMetricActualCounts.proof_pack_delivered,
         targetMin: 1,
         targetMax: null,
         note: "Combines proof-path milestone state with growth_events.",

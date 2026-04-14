@@ -13,7 +13,7 @@ San Jose demand should stay proof-led: qualify real robot-team interest, classif
 ## What Changed This Pass
 - evidence-backed: the city launcher now generates the compact demand playbook during activation so downstream tasks have a real canonical reference.
 - evidence-backed: city demand instrumentation is pinned to the platform event model rather than custom city-specific events.
-- warning: no research-backed buyer target list has been materialized yet.
+- evidence-backed: a first-wave San Jose buyer shortlist has been materialized in the capture target ledger, but it still needs live review-posture checks before send.
 
 ## Required Proof Motion
 - serious robot-team demand must hit 24-hour proof-path triage
@@ -39,6 +39,6 @@ San Jose demand should stay proof-led: qualify real robot-team interest, classif
 - operator-governed facilities and rights-sensitive exact-site requests should route through `rights-provenance-agent` plus human review
 
 ## Immediate Next Actions
-1. materialize the research-backed buyer targets and first-touch candidates as soon as deep research completes
+1. convert the first-wave buyer shortlist into approval-ready first-touch candidates with a verified review posture before any live send
 2. keep `buyer-solutions-agent` and `revenue-ops-pricing-agent` on standard commercial prep while founders stay out of routine proof motion
 3. block city-specific outbound scale until proof packs and hosted reviews are real, not just planned

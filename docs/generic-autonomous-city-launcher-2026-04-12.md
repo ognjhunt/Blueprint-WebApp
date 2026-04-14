@@ -9,6 +9,7 @@ Status: Active architecture
 Accept a city and a bounded budget posture, then route the launch through the existing Blueprint org so the system can:
 
 - prepare the city packet
+- make city-opening distribution explicit before waiting on replies
 - create the live Paperclip issue tree
 - track sourcing, buyer research, first touches, and spend in canonical ledgers
 - hold human gates on spend, rights, posture, and non-standard commercial terms
@@ -36,6 +37,16 @@ The org should only widen once one city has actual proof.
 - canonical city launch system doc
 - canonical execution issue bundle
 - canonical activation payload
+- city-opening artifacts:
+  - city-opening brief
+  - city channel map
+  - first-wave outreach/posting pack
+  - city-facing CTA / intake path
+  - city-opening response-tracking view
+  - city-opening reply-conversion queue and follow-up cadence rules
+  - city-opening channel/account registry
+  - city-opening send ledger
+  - city-opening execution report
 - canonical target ledger
 - routed Paperclip root issue plus child task issues
 - activation record in Firestore
@@ -67,6 +78,13 @@ Source-policy rule:
 - private controlled interiors stay on operator introductions, buyer-linked requests, and curated professional supply
 - public, non-controlled commercial locations such as groceries, retail stores, and similar walk-in sites may use bounded online/community sourcing, as long as the capture brief is public-area-only and preserves privacy, signage, and provenance rules
 - for that public commercial lane, the sourcing plan should name where those everyday capturers already are online: local city/community groups, neighborhood forums, retail/shopping communities, creator communities, and lightweight campus or gig networks that do not imply private-interior access
+
+City-opening rule:
+- do not assume a city has been opened just because sourcing lanes exist on paper
+- each city must define how warehouse/facility buyers, operators, and integrators will hear about Blueprint, and separately how bounded public-commercial community awareness will happen
+- every city-opening motion must tell people who Blueprint is, what is launching in that city, what spaces are in scope, what is not allowed, and the exact CTA path
+- optimize city-opening work for the first truthful response, not polished branding
+- once real city-opening responses start arriving, the launcher must keep a shared reply-conversion and follow-up cadence lane so replies move into intake, access work, or buyer threads instead of dying in scattered inboxes
 
 ## Expansion Guard
 

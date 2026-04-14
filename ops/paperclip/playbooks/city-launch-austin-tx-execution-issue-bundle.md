@@ -66,6 +66,73 @@ This issue bundle turns the Austin playbook into executable lanes using the curr
   - Austin source policy names the online habitats for the public commercial lane instead of leaving community sourcing abstract.
   - Routine invite/access-code decisions stay with Growth Lead and Ops Lead inside written guardrails.
 
+## Build the Austin city-opening distribution brief and channel map
+
+- key: city-opening-distribution
+- phase: founder_gates
+- agent owner: city-launch-agent
+- human owner: growth-lead
+- purpose: Make Austin city opening explicit before the system expects replies: define who needs to hear about Blueprint in the city, what proof-led message each lane gets, which channels are in scope, what is out of scope, and how replies should route back into Blueprint.
+- human gate: Human review only when the brief would expand channel classes, blur lawful-access boundaries, or make posture-changing public claims.
+- dependencies: city-target-ledger, growth-source-policy
+- metrics dependencies: none
+- validation required: false
+- source: default_task_bundle
+- inputs:
+  - ops/paperclip/playbooks/city-launch-austin-tx.md
+  - ops/paperclip/playbooks/city-demand-austin-tx.md
+  - ops/paperclip/playbooks/city-capture-target-ledger-austin-tx.md
+  - Austin source policy
+- done when:
+  - Austin city-opening brief exists with a warehouse/facility direct-awareness track and a bounded public-commercial community-awareness track.
+  - Austin channel map names the target audience, named channel or channel class, proof posture, exact CTA, and what is allowed versus out of scope for each lane.
+  - Austin distribution brief tells people who Blueprint is, what the city launch is trying to source, what spaces are in scope, what is not allowed, and what counts as a qualified reply.
+  - Austin distribution brief names the CTA path and source-tagging rules needed for later intake and response tracking.
+
+## Publish the Austin city-facing CTA and intake routing path
+
+- key: city-opening-cta-routing
+- phase: founder_gates
+- agent owner: ops-lead
+- human owner: ops-lead
+- purpose: Ensure Austin awareness work routes into a live intake path instead of scattering replies across ad hoc inboxes, notes, or untracked side conversations.
+- human gate: none
+- dependencies: city-opening-distribution, ops-rubric-thresholds
+- metrics dependencies: none
+- validation required: false
+- source: default_task_bundle
+- inputs:
+  - Austin city-opening brief
+  - Austin intake rubric
+  - live capturer intake path
+  - city launch ledgers
+- done when:
+  - Austin warehouse/facility direct-awareness replies and public-commercial community replies both land in a named CTA path with city, lane, source, and owner routing.
+  - Austin CTA path states what Blueprint is asking for, what access or site facts respondents must provide, and what the next review step is.
+  - Responses do not die in personal inboxes or draft docs; they enter the canonical intake queue or ledger path with next-owner visibility.
+
+## Assemble the Austin first-wave outreach and posting pack
+
+- key: city-opening-first-wave-pack
+- phase: supply
+- agent owner: capturer-growth-agent
+- human owner: growth-lead
+- purpose: Turn the Austin city-opening brief into concrete first-wave assets that can create the first responses: direct named outreach for warehouse/facility awareness and small bounded posting packages for public-commercial awareness.
+- human gate: Human review before the first live send or post in any channel, and before any expansion beyond the written city-opening brief.
+- dependencies: city-opening-distribution, city-opening-cta-routing
+- metrics dependencies: none
+- validation required: false
+- source: default_task_bundle
+- inputs:
+  - Austin city-opening brief
+  - Austin channel map
+  - Austin CTA / intake path
+  - ops/paperclip/playbooks/city-capture-target-ledger-austin-tx.md
+- done when:
+  - Austin warehouse/facility first-wave outreach pack names the first buyers, operators, integrators, or facilities to contact, the proof-led message variants, and the next move per target.
+  - Austin public-commercial first-wave posting pack names the first small community placements, the public-area-only brief, and the exact CTA copy for each placement.
+  - Every Austin first-wave asset points to the same truthful CTA path, uses source attribution, and avoids invented traction, blanket permission claims, or fake legal certainty.
+
 ## Run Austin site-operator partnership routing
 
 - key: site-operator-partnership
@@ -74,7 +141,7 @@ This issue bundle turns the Austin playbook into executable lanes using the curr
 - human owner: growth-lead
 - purpose: Prepare the operator-side access path for Austin warehouses and facilities by identifying contacts, operator value props, approval sequence, and escalation boundaries before the city waits on a single site.
 - human gate: Human review before the first live operator outreach, and immediate escalation for commercialization, legal, privacy, consent, or non-standard access questions.
-- dependencies: parallel-lawful-access-queue, growth-source-policy
+- dependencies: parallel-lawful-access-queue, growth-source-policy, city-opening-distribution
 - metrics dependencies: first_lawful_access_path
 - validation required: false
 - source: default_task_bundle
@@ -82,6 +149,7 @@ This issue bundle turns the Austin playbook into executable lanes using the curr
   - ops/paperclip/playbooks/site-operator-access-and-commercialization-playbook.md
   - ops/paperclip/playbooks/city-launch-austin-tx.md
   - ops/paperclip/playbooks/city-capture-target-ledger-austin-tx.md
+  - Austin city-opening brief
   - parallel lawful-access queue
 - done when:
   - Austin operator-lane packet identifies likely owner/operator/tenant contacts, operator-side value props, and the exact approval sequence for the highest-priority warehouse/facility candidates.
@@ -116,7 +184,7 @@ This issue bundle turns the Austin playbook into executable lanes using the curr
 - human owner: growth-lead
 - purpose: Generate the first Austin curated professional supply wave for private controlled interiors and buyer-linked exact-site paths, then push the first real prospect or invite response into the live intake path without widening into generic gig-market posture.
 - human gate: Human review before any public posting or channel expansion beyond the written Austin source policy.
-- dependencies: city-target-ledger, growth-source-policy
+- dependencies: city-target-ledger, growth-source-policy, city-opening-first-wave-pack, city-opening-cta-routing
 - metrics dependencies: none
 - validation required: false
 - source: default_task_bundle
@@ -124,6 +192,8 @@ This issue bundle turns the Austin playbook into executable lanes using the curr
   - capturer-supply-playbook.md
   - ops/paperclip/playbooks/city-launch-austin-tx.md
   - Austin source policy
+  - Austin city-opening brief
+  - Austin first-wave outreach pack
   - live capturer intake path
 - done when:
   - A curated first-wave Austin professional prospect set is named with source bucket, rationale, lawful access posture, and next move.
@@ -138,7 +208,7 @@ This issue bundle turns the Austin playbook into executable lanes using the curr
 - human owner: growth-lead
 - purpose: Open a bounded online-community sourcing lane for public, non-controlled commercial locations such as groceries, retail stores, and similar walk-in sites, and turn that lane into real intake signals.
 - human gate: Human review before the first live community post in a new channel, or when the copy risks blurring public commercial capture with private controlled-interior access.
-- dependencies: growth-source-policy
+- dependencies: growth-source-policy, city-opening-first-wave-pack, city-opening-cta-routing
 - metrics dependencies: none
 - validation required: false
 - source: default_task_bundle
@@ -146,6 +216,8 @@ This issue bundle turns the Austin playbook into executable lanes using the curr
   - capturer-supply-playbook.md
   - ops/paperclip/playbooks/city-launch-austin-tx.md
   - Austin source policy
+  - Austin city-opening brief
+  - Austin first-wave posting pack
   - public-area-only capture brief
   - live capturer intake path
 - done when:
@@ -354,6 +426,52 @@ This issue bundle turns the Austin playbook into executable lanes using the curr
   - Standard Austin quote bands, discount guardrails, and handoff thresholds are documented and used.
   - Only non-standard commitments escalate above the designated human commercial owner.
 
+## Publish Austin city-opening response tracking
+
+- key: city-opening-response-tracking
+- phase: measurement
+- agent owner: analytics-agent
+- human owner: growth-lead
+- purpose: Make Austin city-opening distribution measurable so operators can see which awareness lanes actually create replies before deeper capture or buyer workflows take over.
+- human gate: none
+- dependencies: city-opening-cta-routing, city-opening-first-wave-pack
+- metrics dependencies: none
+- validation required: true
+- source: default_task_bundle
+- inputs:
+  - Austin city-opening brief
+  - Austin CTA / intake path
+  - growth_events
+  - city launch ledgers
+- done when:
+  - Austin response-tracking view shows which warehouse/facility channels and which public-commercial community channels were activated, with asset or message attribution where available.
+  - A real Austin city-opening response is defined and counted only when a reply, applicant, referral, operator callback, or buyer callback is recorded with city, lane, source, and CTA attribution.
+  - Missing attribution or missing visibility is called out explicitly instead of assuming awareness work happened.
+
+## Run the Austin city-opening reply-conversion and follow-up cadence lane
+
+- key: city-opening-reply-conversion
+- phase: supply
+- agent owner: city-launch-agent
+- human owner: growth-lead
+- purpose: Convert live Austin city-opening replies across warehouse/facility and public-commercial channels into routed next steps with explicit follow-up cadence, instead of letting first responses decay across scattered threads.
+- human gate: Escalate only when follow-up would require posture-changing claims, rights/privacy promises, pricing or commercial commitments, legal interpretation, or blanket permission language.
+- dependencies: city-opening-response-tracking, city-opening-cta-routing
+- metrics dependencies: none
+- validation required: false
+- source: default_task_bundle
+- inputs:
+  - Austin city-opening brief
+  - Austin CTA / intake path
+  - Austin response-tracking view
+  - live city-opening replies
+  - city launch ledgers
+- done when:
+  - Austin reply-conversion queue exists with each live response tagged by responder type, channel, current status, next owner, next follow-up due, and downstream handoff target.
+  - Austin follow-up cadence rules define first response, second follow-up, stale-response handling, and the handoff boundary into qualification, site-operator partnership, buyer handling, or no-fit closure.
+  - At least one live Austin city-opening response is moved through the queue into qualification, operator/buyer handoff, blocked-with-reason, or explicit no-fit / closed-lost outcome.
+  - Live responses do not sit unowned after landing; each one has an explicit next step and cadence state.
+
 ## Publish the Austin launch scorecard and blocker view
 
 - key: city-scorecard
@@ -362,7 +480,7 @@ This issue bundle turns the Austin playbook into executable lanes using the curr
 - human owner: growth-lead
 - purpose: Make Austin progress measurable and reviewable without relying on narrative updates.
 - human gate: none
-- dependencies: supply-qualification, proof-pack-listings, outbound-execution
+- dependencies: supply-qualification, proof-pack-listings, outbound-execution, city-opening-response-tracking, city-opening-reply-conversion
 - metrics dependencies: robot_team_inbound_captured, proof_path_assigned, proof_pack_delivered, hosted_review_ready, hosted_review_started, hosted_review_follow_up_sent, human_commercial_handoff_started, proof_motion_stalled
 - validation required: true
 - source: default_task_bundle

@@ -3,7 +3,7 @@
 ## Status
 - phase: activation_ready
 - owner: city-launch-agent
-- last-reviewed: 2026-04-13
+- last-reviewed: 2026-04-14
 - recommended-posture: gated cohort pilot
 - last-human-launch-decision: approved with conditions
 - planning-state: not started
@@ -32,6 +32,23 @@ Austin should launch only as a bounded, proof-led city program: create rights-cl
 - Keep public posture at Exact-Site Hosted Review wedge only; no city-live or readiness claims until proof is real.
 - Preferred first lawful access mode is still validation-required.
 
+## City-Opening Distribution Layer
+- City opening is a first-class launch lane, not an implied side effect of having sourcing or demand tasks on paper.
+- Austin should open with two explicit awareness tracks: warehouse/facility direct awareness to named buyers, operators, and integrators; and bounded public-commercial awareness through many small community placements rather than one broad campaign.
+- Optimize the first wave for first response and truthful routing, not polished branding.
+- Every city-opening asset should say who Blueprint is, what is launching in the city, what spaces are in scope, what is not allowed, and the exact CTA path for replies.
+
+## Required Distribution Artifacts
+- Austin city-opening brief with warehouse/facility and public-commercial awareness split
+- Austin city channel map naming channels, audiences, owners, and message posture
+- Austin first-wave outreach/posting pack with direct outreach variants and bounded community-placement variants
+- Austin CTA / intake path with source tags and next-owner routing
+- Austin response-tracking view showing which channels produced real replies
+- Austin reply-conversion queue and follow-up cadence rules so live responses move into the correct next lane
+- Austin channel/account registry with ready-to-create, created, or blocked state
+- Austin live post/outreach send ledger with ready-to-send, sent, or blocked state plus first-send approval
+- Austin city-opening execution report showing what actually went live versus what is still pending
+
 ## Target Capturer Profile
 - site-authorized surveying, AEC scanning, industrial inspection, or commercial mapping operator
 - comfortable with repeatable indoor walkthrough capture and explicit rights / privacy boundaries
@@ -46,6 +63,23 @@ Austin should launch only as a bounded, proof-led city program: create rights-cl
 | 3 | local surveying / AEC / industrial inspection firms | best early supply quality | professional credentials plus first-capture review | curated only |
 | 4 | high-trust mapper referrals | useful after first proof assets exist | referral guardrails plus completion history | hold until proof exists |
 | 5 | online community capture for public, non-controlled commercial sites | enables everyday capturers to source groceries, retail, and similar walk-in locations through the communities they already use online | public-area-only brief plus privacy/signage guardrails | enable in bounded form |
+
+## Response Signal Standard
+- A real live city-opening signal means a real reply, applicant, referral, operator callback, buyer callback, or community response is recorded in the canonical intake path with city, lane, source, and CTA attribution.
+- Draft copy, saved prospect lists, and unsent channel ideas are preparation, not live response.
+- Warehouse/facility awareness should route into named direct threads with proof-led next steps and access-path truth.
+- Public-commercial awareness should route into bounded public-area capture replies without implying blanket permission for private interiors.
+
+## Reply Conversion Cadence
+- Once replies start arriving, the city-opening lane should own a shared response queue instead of letting different channels drift into scattered inboxes.
+- Each live response should be tagged by responder type, channel, current status, next owner, next follow-up due, and downstream handoff target.
+- Reply conversion should hand warehouse/facility responses into operator/buyer/access work, public-commercial responses into qualification, and ambiguous or weak responses into blocked/no-fit states with named reasons.
+- A live response does not count as converted just because it exists; it counts when it receives a next step, follow-up cadence, and downstream routing decision.
+
+## City-Opening Execution Layer
+- The city-opening execution layer should keep a first-class channel/account registry, a send ledger, and a current execution report.
+- Account creation, send readiness, send approval, sent state, and response ingest should stay visible in canonical artifacts instead of hiding in agent comments.
+- The reply-conversion lane should ingest responses from the send ledger rather than assuming responses will be routed manually.
 
 ## Rights Path
 

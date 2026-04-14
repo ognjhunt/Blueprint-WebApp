@@ -23,10 +23,11 @@ Turn the Austin planning artifacts into an executable company harness that runs 
 
 1. Generate and critique the Austin plan through the existing Gemini Deep Research harness.
 2. Convert the compact Austin city-launch and city-demand playbooks into a single Austin operating system with explicit tasks, owners, thresholds, and handoff rules.
-3. Materialize the live Paperclip issue tree for the city launch so work is routable instead of staying trapped in artifacts.
-4. Measure the city through Austin-specific supply, demand, spend, and proof-motion metrics so operators can see whether the city is actually becoming operationally real.
-5. Treat the machine-readable activation payload as the control-plane artifact for validation blockers, lane mapping, and metrics readiness.
-6. After activation, every lane should execute all reversible work immediately and stop only at irreversible human gates, external counterparty confirmations, or the lack of a real live signal needed to mark completion.
+3. Make city-opening distribution explicit through a city-opening brief, channel map, first-wave outreach/posting pack, exact CTA/intake routing, response tracking, reply-conversion cadence, channel registry, send ledger, and city-opening execution report so the city does not wait for replies from people who were never reached or lose the first replies once they arrive.
+4. Materialize the live Paperclip issue tree for the city launch so work is routable instead of staying trapped in artifacts.
+5. Measure the city through Austin-specific distribution, supply, demand, spend, and proof-motion metrics so operators can see whether the city is actually becoming operationally real.
+6. Treat the machine-readable activation payload as the control-plane artifact for validation blockers, lane mapping, and metrics readiness.
+7. After activation, every lane should execute all reversible work immediately and stop only at irreversible human gates, external counterparty confirmations, or the lack of a real live signal needed to mark completion.
 
 ## Planning State
 
@@ -53,6 +54,7 @@ Turn the Austin planning artifacts into an executable company harness that runs 
 
 - city-launch-agent keeps the Austin plan and dependency map current.
 - city-demand-agent maintains the Austin target ledger and parallel lawful-access queue so the capture queue stays tied to real robot workflow demand without stalling on one facility.
+- city-launch-agent, capturer-growth-agent, ops-lead, and analytics-agent make Austin city-opening distribution explicit through a city-opening brief, channel map, first-wave outreach/posting pack, city-facing CTA path, response-tracking view, reply-conversion cadence lane, channel registry, send ledger, and city-opening execution report before the system assumes the city has heard about Blueprint.
 - site-operator-partnership-agent prepares operator-lane contact maps, value props, and approval sequences for warehouse/facility access paths before the city waits on a single signature thread.
 - capturer-growth-agent, intake-agent, capturer-success-agent, field-ops-agent, capture-qa-agent, and rights-provenance-agent run the supply loop continuously, producing drafts, packets, routing, and prep work even before the first real-world confirmations arrive.
 - demand-intel-agent, robot-team-growth-agent, outbound-sales-agent, buyer-solutions-agent, and revenue-ops-pricing-agent run the demand loop continuously, packaging truthful proof motion and only pausing at irreversible claim, rights, spend, or non-standard commercial gates.
@@ -71,6 +73,7 @@ Turn the Austin planning artifacts into an executable company harness that runs 
 
 - Founder-approved Austin posture remains required to activate the city.
 - Austin capture target ledger with first proof candidates, queued lawful-access buckets, and longer-horizon discovery lanes is required to mark the city operationally real, but not required to begin execution.
+- Austin city-opening brief, channel map, first-wave outreach/posting pack, CTA / intake path, response-tracking view, reply-conversion cadence lane, channel/account registry, send ledger, and city-opening execution report are required to prove the city was actually opened and that early replies are being worked instead of counted and lost.
 - Austin ops packet: intake rubric, trust kit, first-capture thresholds, and launch-readiness checklist is a completion dependency, not a reason to leave execution lanes idle.
 - At least one clean Austin proof pack with hosted-review path and rights/provenance clearance is required before claiming the city is live.
 - Austin buyer target list and proof-led outbound package are completion requirements for launch quality, not start gates for agent work.
@@ -99,6 +102,9 @@ Turn the Austin planning artifacts into an executable company harness that runs 
 - Maintain the Austin capture target ledger: city-demand-agent owns execution, Growth Lead is the human lane, and the task closes only when The Austin target ledger names the first proof candidates, queued lawful-access buckets, and longer-horizon discovery lanes..
 - Maintain the Austin parallel lawful-access queue: city-demand-agent owns execution, Growth Lead is the human lane, and the task closes only when Austin keeps 3-5 named lawful-access candidates or buyer-linked fallback sites queued in parallel, with one current next step per candidate..
 - Lock Austin source policy and invite/access-code posture: Growth Lead owns execution, Growth Lead is the human lane, and the task closes only when Austin source policy names allowed channels, disallowed channels, referral rules, and who may issue invites or access codes..
+- Build the Austin city-opening distribution brief and channel map: city-launch-agent owns execution, Growth Lead is the human lane, and the task closes only when Austin city-opening brief exists with a warehouse/facility direct-awareness track and a bounded public-commercial community-awareness track..
+- Publish the Austin city-facing CTA and intake routing path: Ops Lead owns execution, Ops Lead is the human lane, and the task closes only when Austin warehouse/facility direct-awareness replies and public-commercial community replies both land in a named CTA path with city, lane, source, and owner routing..
+- Assemble the Austin first-wave outreach and posting pack: capturer-growth-agent owns execution, Growth Lead is the human lane, and the task closes only when Austin warehouse/facility first-wave outreach pack names the first buyers, operators, integrators, or facilities to contact, the proof-led message variants, and the next move per target..
 - Run Austin site-operator partnership routing: site-operator-partnership-agent owns execution, Growth Lead is the human lane, and the task closes only when Austin operator-lane packet identifies likely owner/operator/tenant contacts, operator-side value props, and the exact approval sequence for the highest-priority warehouse/facility candidates..
 - Publish Austin intake rubric, trust kit, and first-capture thresholds: Ops Lead owns execution, Ops Lead is the human lane, and the task closes only when Austin rubric covers source quality, access-path truth, equipment/device fit, trust-packet minimums, and approval outcomes..
 - Build the Austin capturer prospect list and post package: capturer-growth-agent owns execution, Growth Lead is the human lane, and the task closes only when A curated first-wave Austin professional prospect set is named with source bucket, rationale, lawful access posture, and next move..
@@ -113,6 +119,8 @@ Turn the Austin planning artifacts into an executable company harness that runs 
 - Prepare Austin proof-led outbound package and first touches: robot-team-growth-agent owns execution, Growth Lead is the human lane, and the task closes only when Austin outbound templates lead with one site, one workflow lane, proof-led CTA, and hosted-review next step..
 - Run Austin outbound and move serious buyers into hosted review: outbound-sales-agent owns execution, Growth Lead is the human lane, and the task closes only when Austin buyer conversations are active with explicit next steps..
 - Keep Austin buyer threads inside standard commercial handling: revenue-ops-pricing-agent owns execution, Designated human commercial owner is the human lane, and the task closes only when Standard Austin quote bands, discount guardrails, and handoff thresholds are documented and used..
+- Publish Austin city-opening response tracking: analytics-agent owns execution, Growth Lead is the human lane, and the task closes only when Austin response-tracking view shows which warehouse/facility channels and which public-commercial community channels were activated, with asset or message attribution where available..
+- Run the Austin city-opening reply-conversion and follow-up cadence lane: city-launch-agent owns execution, Growth Lead is the human lane, and the task closes only when Austin reply-conversion queue exists with each live response tagged by responder type, channel, current status, next owner, next follow-up due, and downstream handoff target..
 - Publish the Austin launch scorecard and blocker view: analytics-agent owns execution, Growth Lead is the human lane, and the task closes only when Austin scorecard reports supply and demand progress against the launch thresholds..
 - Mirror Austin execution artifacts into Notion Knowledge and Work Queue: notion-manager-agent owns execution, Chief of Staff is the human lane, and the task closes only when Austin execution system doc is mirrored into Notion Knowledge..
 - Run the Austin switch-on review before activation: beta-launch-commander owns execution, CTO is the human lane, and the task closes only when Austin switch-on review returns GO, CONDITIONAL GO, or HOLD with evidence..
@@ -156,6 +164,17 @@ Turn the Austin planning artifacts into an executable company harness that runs 
 - ops/paperclip/playbooks/city-launch-austin-tx.md
 - ops/paperclip/playbooks/city-demand-austin-tx.md
 - ops/paperclip/playbooks/city-capture-target-ledger-austin-tx.md
+- ops/paperclip/playbooks/city-opening-austin-tx-brief.md
+- ops/paperclip/playbooks/city-opening-austin-tx-channel-map.md
+- ops/paperclip/playbooks/city-opening-austin-tx-first-wave-pack.md
+- ops/paperclip/playbooks/city-opening-austin-tx-cta-routing.md
+- ops/paperclip/playbooks/city-opening-austin-tx-response-tracking.md
+- ops/paperclip/playbooks/city-opening-austin-tx-reply-conversion.md
+- ops/paperclip/playbooks/city-opening-austin-tx-channel-registry.md
+- ops/paperclip/playbooks/city-opening-austin-tx-send-ledger.md
+- ops/paperclip/playbooks/city-opening-austin-tx-execution-report.md
+- ops/paperclip/playbooks/city-opening-austin-tx-robot-team-contact-list.md
+- ops/paperclip/playbooks/city-opening-austin-tx-site-operator-contact-list.md
 
 ## Determination
 

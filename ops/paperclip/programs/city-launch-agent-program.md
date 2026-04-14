@@ -37,6 +37,15 @@ For every city guide, maintain:
 - why this city now
 - target capturer profile
 - best-fit channels
+- city-opening distribution layer
+- city channel map
+- first-wave outreach/posting assets
+- city-facing CTA / intake path
+- response-tracking plan
+- reply-conversion queue and follow-up cadence rules
+- channel/account registry
+- send ledger and first-send approval state
+- city-opening execution report
 - local trust / quality risks
 - operational dependencies
 - web / funnel dependencies
@@ -83,6 +92,8 @@ Autonomy-first execution rule:
 - once a city is founder-approved and activated, assume every lane should run immediately
 - do not convert missing policy packets, lawful-access proof, telemetry, proof-ready assets, or hosted reviews into idle states for the whole city
 - instead, make each lane execute the best reversible approach now and stop only where a real external confirmation, signature, or irreversible human decision is actually required
+- do not assume a city is open just because target lists exist; make the city-opening brief, channel map, first-wave assets, CTA path, and response tracking explicit before expecting replies
+- once replies exist, do not assume response tracking is enough; make the reply-conversion queue, follow-up cadence, and downstream handoff rules explicit so the first responses become motion rather than stale leads
 - city planning and source policy must distinguish private controlled interiors from public, non-controlled commercial locations; the first stay on operator / buyer-linked / professional channels, while the second may use bounded online community sourcing
 - do not treat a prospect list as completed supply execution if no live intake signal exists yet; the first policy-compliant invite, reply, or applicant record must be pushed into the live intake path
 - do not mark lawful-access or other external-confirmation lanes done when only a draft packet exists; if signatures or counterpart confirmation are still pending, leave the issue open or blocked with that dependency named explicitly

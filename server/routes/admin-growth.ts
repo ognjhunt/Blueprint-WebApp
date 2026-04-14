@@ -29,16 +29,25 @@ import {
 import {
   listCityLaunchBudgetEvents,
   listCityLaunchBuyerTargets,
+  listCityLaunchChannelAccounts,
   listCityLaunchProspects,
+  listCityLaunchReplyConversions,
+  listCityLaunchSendActions,
   listCityLaunchTouches,
+  readCityLaunchChannelAccount,
+  readCityLaunchSendAction,
   readCityLaunchActivation,
   recordCityLaunchBudgetEvent,
   recordCityLaunchTouch,
   summarizeCityLaunchLedgers,
   upsertCityLaunchBuyerTarget,
+  upsertCityLaunchChannelAccount,
   upsertCityLaunchProspect,
+  upsertCityLaunchReplyConversion,
+  upsertCityLaunchSendAction,
 } from "../utils/cityLaunchLedgers";
 import { isCityLaunchBuyerProofPath } from "../utils/cityLaunchResearchContracts";
+import { sendEmail, getEmailTransportStatus } from "../utils/email";
 
 const router = Router();
 
@@ -68,6 +77,16 @@ function normalizeString(value: unknown) {
 function normalizeNumber(value: unknown) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeIsoOrNull(value: unknown) {
+  const normalized = normalizeString(value);
+  if (!normalized) return null;
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+  return parsed.toISOString();
 }
 
 async function maybeCreateSignedStorageUrl(uri: string | null) {
@@ -625,6 +644,465 @@ router.post("/city-launch/ledgers/budget-events", requireOps, async (req, res) =
   }
 });
 
+router.post("/city-launch/ledgers/channel-accounts", requireOps, async (req, res) => {
+  try {
+    const city = normalizeString(req.body?.city);
+    const lane = normalizeString(req.body?.lane);
+    const channelClass = normalizeString(req.body?.channelClass);
+    const accountLabel = normalizeString(req.body?.accountLabel);
+    if (!city || !lane || !channelClass || !accountLabel) {
+      return res.status(400).json({
+        error: "city, lane, channelClass, and accountLabel are required",
+      });
+    }
+
+    const channelAccount = await upsertCityLaunchChannelAccount({
+      id: normalizeString(req.body?.id) || undefined,
+      city,
+      launchId: normalizeString(req.body?.launchId) || null,
+      lane:
+        lane as
+          | "warehouse-facility-direct"
+          | "buyer-linked-site"
+          | "professional-capturer"
+          | "public-commercial-community",
+      channelClass,
+      accountLabel,
+      ownerAgent: normalizeString(req.body?.ownerAgent) || null,
+      status:
+        (normalizeString(req.body?.status) || "planned") as
+          | "planned"
+          | "ready_to_create"
+          | "created"
+          | "blocked",
+      approvalState:
+        (normalizeString(req.body?.approvalState) || "pending_first_send_approval") as
+          | "not_required"
+          | "pending_first_send_approval"
+          | "approved"
+          | "blocked",
+      notes: normalizeString(req.body?.notes) || null,
+    });
+    return res.status(201).json({ ok: true, channelAccount });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to upsert city launch channel account");
+    return res.status(500).json({ error: "Failed to upsert city launch channel account" });
+  }
+});
+
+router.post("/city-launch/ledgers/send-actions", requireOps, async (req, res) => {
+  try {
+    const city = normalizeString(req.body?.city);
+    const lane = normalizeString(req.body?.lane);
+    const actionType = normalizeString(req.body?.actionType);
+    const channelLabel = normalizeString(req.body?.channelLabel);
+    const targetLabel = normalizeString(req.body?.targetLabel);
+    const assetKey = normalizeString(req.body?.assetKey);
+    if (!city || !lane || !actionType || !channelLabel || !targetLabel || !assetKey) {
+      return res.status(400).json({
+        error: "city, lane, actionType, channelLabel, targetLabel, and assetKey are required",
+      });
+    }
+
+    const sendAction = await upsertCityLaunchSendAction({
+      id: normalizeString(req.body?.id) || undefined,
+      city,
+      launchId: normalizeString(req.body?.launchId) || null,
+      lane:
+        lane as
+          | "warehouse-facility-direct"
+          | "buyer-linked-site"
+          | "professional-capturer"
+          | "public-commercial-community",
+      actionType: actionType as "direct_outreach" | "community_post",
+      channelAccountId: normalizeString(req.body?.channelAccountId) || null,
+      channelLabel,
+      targetLabel,
+      assetKey,
+      ownerAgent: normalizeString(req.body?.ownerAgent) || null,
+      recipientEmail: normalizeString(req.body?.recipientEmail) || null,
+      emailSubject: normalizeString(req.body?.emailSubject) || null,
+      emailBody: normalizeString(req.body?.emailBody) || null,
+      status:
+        (normalizeString(req.body?.status) || "draft") as
+          | "draft"
+          | "ready_to_send"
+          | "sent"
+          | "blocked",
+      approvalState:
+        (normalizeString(req.body?.approvalState) || "pending_first_send_approval") as
+          | "not_required"
+          | "pending_first_send_approval"
+          | "approved"
+          | "blocked",
+      responseIngestState:
+        (normalizeString(req.body?.responseIngestState) || "awaiting_response") as
+          | "awaiting_response"
+          | "response_recorded"
+          | "routed"
+          | "closed",
+      issueId: normalizeString(req.body?.issueId) || null,
+      notes: normalizeString(req.body?.notes) || null,
+      sentAtIso: normalizeIsoOrNull(req.body?.sentAtIso),
+      firstResponseAtIso: normalizeIsoOrNull(req.body?.firstResponseAtIso),
+    });
+    return res.status(201).json({ ok: true, sendAction });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to upsert city launch send action");
+    return res.status(500).json({ error: "Failed to upsert city launch send action" });
+  }
+});
+
+router.post("/city-launch/send-actions/:sendActionId/execute-email-send", requireOps, async (req, res) => {
+  try {
+    const sendActionId = normalizeString(req.params.sendActionId);
+    const existing = await readCityLaunchSendAction(sendActionId);
+    if (!existing) {
+      return res.status(404).json({ error: "City launch send action not found" });
+    }
+    if (existing.actionType !== "direct_outreach") {
+      return res.status(400).json({ error: "Only direct_outreach actions can use email execution" });
+    }
+    if (existing.approvalState !== "approved" && existing.approvalState !== "not_required") {
+      return res.status(400).json({ error: "Send action must be approved before email execution" });
+    }
+
+    const recipientEmail = normalizeString(req.body?.recipientEmail) || existing.recipientEmail || "";
+    const emailSubject = normalizeString(req.body?.emailSubject) || existing.emailSubject || "";
+    const emailBody = normalizeString(req.body?.emailBody) || existing.emailBody || "";
+
+    if (!recipientEmail || !emailSubject || !emailBody) {
+      return res.status(400).json({
+        error: "recipientEmail, emailSubject, and emailBody are required to execute an email send",
+      });
+    }
+
+    const emailStatus = getEmailTransportStatus();
+    if (!emailStatus.configured) {
+      return res.status(500).json({ error: "Email transport is not configured" });
+    }
+
+    const result = await sendEmail({
+      to: recipientEmail,
+      subject: emailSubject,
+      text: emailBody,
+      sendGridCategories: ["city_launch", "city_opening", existing.lane],
+      sendGridCustomArgs: {
+        bp_city: existing.citySlug,
+        bp_send_action_id: existing.id,
+        bp_lane: existing.lane,
+      },
+    });
+
+    if (!result.sent) {
+      return res.status(500).json({
+        error: result.error instanceof Error ? result.error.message : "Failed to send email",
+      });
+    }
+
+    const sentAtIso = new Date().toISOString();
+    const sendAction = await upsertCityLaunchSendAction({
+      ...existing,
+      recipientEmail,
+      emailSubject,
+      emailBody,
+      status: "sent",
+      sentAtIso,
+      notes: [
+        existing.notes,
+        `Email executed via ${emailStatus.provider} by ${await operatorEmail(res)} at ${sentAtIso}.`,
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+    });
+
+    const touch = await recordCityLaunchTouch({
+      city: existing.city,
+      launchId: existing.launchId,
+      referenceType: "general",
+      referenceId: null,
+      touchType: "first_touch",
+      channel: "email",
+      status: "sent",
+      campaignId: null,
+      issueId: existing.issueId,
+      notes: `City-opening direct email sent to ${recipientEmail}.`,
+      researchProvenance: null,
+    });
+
+    return res.json({ ok: true, sendAction, touch });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to execute city launch email send");
+    return res.status(500).json({ error: "Failed to execute city launch email send" });
+  }
+});
+
+router.post("/city-launch/channel-accounts/:channelAccountId/mark-created", requireOps, async (req, res) => {
+  try {
+    const channelAccountId = normalizeString(req.params.channelAccountId);
+    const existing = await readCityLaunchChannelAccount(channelAccountId);
+    if (!existing) {
+      return res.status(404).json({ error: "City launch channel account not found" });
+    }
+    const channelAccount = await upsertCityLaunchChannelAccount({
+      ...existing,
+      status: "created",
+      approvalState:
+        normalizeString(req.body?.approvalState) === "approved"
+          ? "approved"
+          : existing.approvalState,
+      notes: [existing.notes, normalizeString(req.body?.note) || "Marked created in admin ops."]
+        .filter(Boolean)
+        .join("\n\n"),
+    });
+    return res.json({ ok: true, channelAccount });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to mark city launch channel account created");
+    return res.status(500).json({ error: "Failed to mark city launch channel account created" });
+  }
+});
+
+router.post("/city-launch/send-actions/:sendActionId/approve-live-send", requireOps, async (req, res) => {
+  try {
+    const sendActionId = normalizeString(req.params.sendActionId);
+    const existing = await readCityLaunchSendAction(sendActionId);
+    if (!existing) {
+      return res.status(404).json({ error: "City launch send action not found" });
+    }
+    const sendAction = await upsertCityLaunchSendAction({
+      ...existing,
+      approvalState: "approved",
+      status: existing.status === "draft" ? "ready_to_send" : existing.status,
+      notes: [
+        existing.notes,
+        `First live send approved by ${await operatorEmail(res)}.`,
+        normalizeString(req.body?.note),
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+    });
+    return res.json({ ok: true, sendAction });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to approve city launch live send");
+    return res.status(500).json({ error: "Failed to approve city launch live send" });
+  }
+});
+
+router.post("/city-launch/send-actions/:sendActionId/mark-sent", requireOps, async (req, res) => {
+  try {
+    const sendActionId = normalizeString(req.params.sendActionId);
+    const existing = await readCityLaunchSendAction(sendActionId);
+    if (!existing) {
+      return res.status(404).json({ error: "City launch send action not found" });
+    }
+    if (existing.approvalState !== "approved" && existing.approvalState !== "not_required") {
+      return res.status(400).json({
+        error: "Send action must be approved before it can be marked sent",
+      });
+    }
+
+    const sentAtIso = normalizeIsoOrNull(req.body?.sentAtIso) || new Date().toISOString();
+    const sendAction = await upsertCityLaunchSendAction({
+      ...existing,
+      status: "sent",
+      approvalState: existing.approvalState,
+      sentAtIso,
+      notes: [
+        existing.notes,
+        `Marked sent by ${await operatorEmail(res)} at ${sentAtIso}.`,
+        normalizeString(req.body?.note),
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+    });
+    return res.json({ ok: true, sendAction });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to mark city launch send action sent");
+    return res.status(500).json({ error: "Failed to mark city launch send action sent" });
+  }
+});
+
+router.post("/city-launch/send-actions/:sendActionId/block", requireOps, async (req, res) => {
+  try {
+    const sendActionId = normalizeString(req.params.sendActionId);
+    const existing = await readCityLaunchSendAction(sendActionId);
+    if (!existing) {
+      return res.status(404).json({ error: "City launch send action not found" });
+    }
+
+    const sendAction = await upsertCityLaunchSendAction({
+      ...existing,
+      status: "blocked",
+      approvalState: normalizeString(req.body?.approvalState) === "blocked" ? "blocked" : existing.approvalState,
+      notes: [
+        existing.notes,
+        normalizeString(req.body?.reason) || "Blocked in admin ops.",
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+    });
+    return res.json({ ok: true, sendAction });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to block city launch send action");
+    return res.status(500).json({ error: "Failed to block city launch send action" });
+  }
+});
+
+router.post("/city-launch/send-actions/:sendActionId/ingest-response", requireOps, async (req, res) => {
+  try {
+    const sendActionId = normalizeString(req.params.sendActionId);
+    const existing = await readCityLaunchSendAction(sendActionId);
+    if (!existing) {
+      return res.status(404).json({ error: "City launch send action not found" });
+    }
+
+    const responseType = normalizeString(req.body?.responseType);
+    const responseSummary = normalizeString(req.body?.responseSummary);
+    const routingTarget = normalizeString(req.body?.routingTarget);
+    if (!responseType || !responseSummary || !routingTarget) {
+      return res.status(400).json({
+        error: "responseType, responseSummary, and routingTarget are required",
+      });
+    }
+
+    let prospectId: string | null = null;
+    let buyerTargetId: string | null = null;
+    if (
+      existing.lane === "professional-capturer"
+      || existing.lane === "public-commercial-community"
+      || routingTarget === "supply_qualification"
+      || routingTarget === "site_operator_partnership"
+    ) {
+      const prospect = await upsertCityLaunchProspect({
+        city: existing.city,
+        launchId: existing.launchId,
+        sourceBucket: existing.lane,
+        channel: existing.channelLabel,
+        name: normalizeString(req.body?.name) || existing.targetLabel,
+        email: normalizeString(req.body?.email) || null,
+        status: normalizeString(req.body?.prospectStatus) === "qualified" ? "qualified" : "responded",
+        ownerAgent:
+          routingTarget === "supply_qualification"
+            ? "intake-agent"
+            : routingTarget === "site_operator_partnership"
+              ? "site-operator-partnership-agent"
+              : existing.ownerAgent,
+        notes: responseSummary,
+        firstContactedAt: existing.sentAtIso,
+        lastContactedAt: new Date().toISOString(),
+        siteAddress: normalizeString(req.body?.siteAddress) || null,
+        locationSummary: normalizeString(req.body?.locationSummary) || null,
+        lat: normalizeNumber(req.body?.lat),
+        lng: normalizeNumber(req.body?.lng),
+        siteCategory: normalizeString(req.body?.siteCategory) || null,
+        workflowFit: normalizeString(req.body?.workflowFit) || null,
+        priorityNote: normalizeString(req.body?.priorityNote) || null,
+        researchProvenance: null,
+      });
+      prospectId = prospect.id;
+    }
+
+    if (
+      existing.lane === "warehouse-facility-direct"
+      || existing.lane === "buyer-linked-site"
+      || routingTarget === "buyer_target"
+    ) {
+      const buyerTarget = await upsertCityLaunchBuyerTarget({
+        city: existing.city,
+        launchId: existing.launchId,
+        companyName: normalizeString(req.body?.companyName) || existing.targetLabel,
+        contactName: normalizeString(req.body?.contactName) || null,
+        status: normalizeString(req.body?.buyerStatus) === "engaged" ? "engaged" : "contacted",
+        workflowFit: normalizeString(req.body?.workflowFit) || null,
+        proofPath: isCityLaunchBuyerProofPath(normalizeString(req.body?.proofPath) || null)
+          ? (normalizeString(req.body?.proofPath) as "exact_site" | "adjacent_site" | "scoped_follow_up")
+          : null,
+        ownerAgent:
+          routingTarget === "buyer_target"
+            ? "buyer-solutions-agent"
+            : existing.ownerAgent,
+        notes: responseSummary,
+        sourceBucket: existing.lane,
+        researchProvenance: null,
+      });
+      buyerTargetId = buyerTarget.id;
+    }
+
+    const responseRecordedAt = normalizeIsoOrNull(req.body?.responseRecordedAt) || new Date().toISOString();
+    const nextFollowUpDueAtIso = normalizeIsoOrNull(req.body?.nextFollowUpDueAt);
+    const replyConversion = await upsertCityLaunchReplyConversion({
+      city: existing.city,
+      launchId: existing.launchId,
+      sendActionId: existing.id,
+      lane: existing.lane,
+      responseType: responseType as "buyer_reply" | "operator_reply" | "capturer_reply" | "community_reply" | "referral",
+      responseSummary,
+      routingTarget: routingTarget as "site_operator_partnership" | "buyer_target" | "supply_qualification" | "blocked" | "no_fit",
+      nextOwner:
+        normalizeString(req.body?.nextOwner)
+        || (routingTarget === "site_operator_partnership"
+          ? "site-operator-partnership-agent"
+          : routingTarget === "buyer_target"
+            ? "buyer-solutions-agent"
+            : routingTarget === "supply_qualification"
+              ? "intake-agent"
+              : existing.ownerAgent),
+      nextFollowUpDueAtIso,
+      prospectId,
+      buyerTargetId,
+      status:
+        routingTarget === "blocked"
+          ? "blocked"
+          : routingTarget === "no_fit"
+            ? "closed"
+            : "routed",
+      notes: normalizeString(req.body?.notes) || null,
+    });
+
+    const sendAction = await upsertCityLaunchSendAction({
+      ...existing,
+      responseIngestState:
+        routingTarget === "blocked" || routingTarget === "no_fit"
+          ? "closed"
+          : "routed",
+      firstResponseAtIso: responseRecordedAt,
+      notes: [
+        existing.notes,
+        `Response ingested by ${await operatorEmail(res)} at ${responseRecordedAt}.`,
+        responseSummary,
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+    });
+
+    const touch = await recordCityLaunchTouch({
+      city: existing.city,
+      launchId: existing.launchId,
+      referenceType: buyerTargetId ? "buyer_target" : prospectId ? "prospect" : "general",
+      referenceId: buyerTargetId || prospectId || null,
+      touchType: "follow_up",
+      channel: existing.channelLabel,
+      status: "replied",
+      campaignId: null,
+      issueId: existing.issueId,
+      notes: responseSummary,
+      researchProvenance: null,
+    });
+
+    return res.status(201).json({
+      ok: true,
+      sendAction,
+      replyConversion,
+      touch,
+      prospectId,
+      buyerTargetId,
+    });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to ingest city launch response");
+    return res.status(500).json({ error: "Failed to ingest city launch response" });
+  }
+});
+
 router.get("/city-launch/ledgers", requireOps, async (req, res) => {
   try {
     const city = normalizeString(req.query.city) || "Austin, TX";
@@ -649,6 +1127,9 @@ router.get("/city-launch/records", requireOps, async (req, res) => {
       buyerTargets: await listCityLaunchBuyerTargets(city),
       touches: await listCityLaunchTouches(city),
       budgetEvents: await listCityLaunchBudgetEvents(city),
+      channelAccounts: await listCityLaunchChannelAccounts(city),
+      sendActions: await listCityLaunchSendActions(city),
+      replyConversions: await listCityLaunchReplyConversions(city),
     });
   } catch (error) {
     logger.error({ err: error }, "Failed to list city launch records");

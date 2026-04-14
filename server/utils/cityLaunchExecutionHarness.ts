@@ -12,10 +12,20 @@ import {
   renderCityCaptureTargetLedgerMarkdown,
 } from "./cityCaptureTargetLedger";
 import {
+  listCityLaunchBuyerTargets,
+  listCityLaunchChannelAccounts,
+  listCityLaunchProspects,
+  listCityLaunchSendActions,
   readCityLaunchActivation,
   summarizeCityLaunchLedgers,
+  upsertCityLaunchChannelAccount,
+  upsertCityLaunchSendAction,
   writeCityLaunchActivation,
   type CityLaunchActivationStatus,
+  type CityLaunchBuyerTargetRecord,
+  type CityLaunchChannelAccountRecord,
+  type CityLaunchProspectRecord,
+  type CityLaunchSendActionRecord,
 } from "./cityLaunchLedgers";
 import { resolveCityLaunchPlanningState, type CityLaunchPlanningState } from "./cityLaunchPlanningState";
 import {
@@ -154,6 +164,30 @@ export type CityLaunchExecutionResult = {
     canonicalDemandPlaybookPath: string;
     canonicalTargetLedgerPath: string;
     canonicalActivationPayloadPath: string;
+    cityOpeningArtifactPack: {
+      run: {
+        briefPath: string;
+        channelMapPath: string;
+        firstWavePackPath: string;
+        ctaRoutingPath: string;
+        responseTrackingPath: string;
+        replyConversionPath: string;
+        channelRegistryPath: string;
+        sendLedgerPath: string;
+        executionReportPath: string;
+      };
+      canonical: {
+        briefPath: string;
+        channelMapPath: string;
+        firstWavePackPath: string;
+        ctaRoutingPath: string;
+        responseTrackingPath: string;
+        replyConversionPath: string;
+        channelRegistryPath: string;
+        sendLedgerPath: string;
+        executionReportPath: string;
+      };
+    };
     notionKnowledgePageUrl?: string;
     notionWorkQueuePageUrl?: string;
   };
@@ -215,6 +249,58 @@ function buildCanonicalDemandPlaybookPath(profile: CityLaunchProfile) {
 function buildCanonicalTargetLedgerPath(profile: CityLaunchProfile) {
   return path.join(REPO_ROOT, profile.targetLedgerPath);
 }
+
+function buildCanonicalCityOpeningArtifactPath(
+  profile: CityLaunchProfile,
+  kind:
+    | "brief"
+    | "channel-map"
+    | "first-wave-pack"
+    | "cta-routing"
+    | "response-tracking"
+    | "reply-conversion"
+    | "channel-registry"
+    | "send-ledger"
+    | "execution-report"
+    | "robot-team-contact-list"
+    | "site-operator-contact-list",
+) {
+  return path.join(
+    REPO_ROOT,
+    "ops/paperclip/playbooks",
+    `city-opening-${profile.key}-${kind}.md`,
+  );
+}
+
+function normalizeComparableText(value: string | null | undefined) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function buyerTargetMatchesSendAction(
+  buyerTarget: CityLaunchBuyerTargetRecord,
+  sendAction: CityLaunchSendActionRecord,
+) {
+  const companyKey = normalizeComparableText(buyerTarget.companyName);
+  if (!companyKey) {
+    return false;
+  }
+
+  const evidenceFields = [
+    sendAction.targetLabel,
+    sendAction.recipientEmail,
+    sendAction.notes,
+  ];
+
+  return evidenceFields.some((field) => normalizeComparableText(field).includes(companyKey));
+}
+
+type SeededCityOpeningExecution = {
+  channelAccounts: CityLaunchChannelAccountRecord[];
+  sendActions: CityLaunchSendActionRecord[];
+};
 
 async function writeTextArtifact(filePath: string, content: string) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
@@ -349,6 +435,23 @@ function buildCompactLaunchPlaybookMarkdown(input: {
       ? `- Preferred first lawful access mode: ${input.activationPayload.preferredLawfulAccessMode}.`
       : "- Preferred first lawful access mode is still validation-required.",
     "",
+    "## City-Opening Distribution Layer",
+    "- City opening is a first-class launch lane, not an implied side effect of having sourcing or demand tasks on paper.",
+    `- ${input.profile.shortLabel} should open with two explicit awareness tracks: warehouse/facility direct awareness to named buyers, operators, and integrators; and bounded public-commercial awareness through many small community placements rather than one broad campaign.`,
+    "- Optimize the first wave for first response and truthful routing, not polished branding.",
+    "- Every city-opening asset should say who Blueprint is, what is launching in the city, what spaces are in scope, what is not allowed, and the exact CTA path for replies.",
+    "",
+    "## Required Distribution Artifacts",
+    `- ${input.profile.shortLabel} city-opening brief with warehouse/facility and public-commercial awareness split`,
+    `- ${input.profile.shortLabel} city channel map naming channels, audiences, owners, and message posture`,
+    `- ${input.profile.shortLabel} first-wave outreach/posting pack with direct outreach variants and bounded community-placement variants`,
+    `- ${input.profile.shortLabel} CTA / intake path with source tags and next-owner routing`,
+    `- ${input.profile.shortLabel} response-tracking view showing which channels produced real replies`,
+    `- ${input.profile.shortLabel} reply-conversion queue and follow-up cadence rules so live responses move into the correct next lane`,
+    `- ${input.profile.shortLabel} channel/account registry with ready-to-create, created, or blocked state`,
+    `- ${input.profile.shortLabel} live post/outreach send ledger with ready-to-send, sent, or blocked state plus first-send approval`,
+    `- ${input.profile.shortLabel} city-opening execution report showing what actually went live versus what is still pending`,
+    "",
     "## Target Capturer Profile",
     "- site-authorized surveying, AEC scanning, industrial inspection, or commercial mapping operator",
     "- comfortable with repeatable indoor walkthrough capture and explicit rights / privacy boundaries",
@@ -363,6 +466,23 @@ function buildCompactLaunchPlaybookMarkdown(input: {
     "| 3 | local surveying / AEC / industrial inspection firms | best early supply quality | professional credentials plus first-capture review | curated only |",
     "| 4 | high-trust mapper referrals | useful after first proof assets exist | referral guardrails plus completion history | hold until proof exists |",
     "| 5 | online community capture for public, non-controlled commercial sites | enables everyday capturers to source groceries, retail, and similar walk-in locations through the communities they already use online | public-area-only brief plus privacy/signage guardrails | enable in bounded form |",
+    "",
+    "## Response Signal Standard",
+    "- A real live city-opening signal means a real reply, applicant, referral, operator callback, buyer callback, or community response is recorded in the canonical intake path with city, lane, source, and CTA attribution.",
+    "- Draft copy, saved prospect lists, and unsent channel ideas are preparation, not live response.",
+    "- Warehouse/facility awareness should route into named direct threads with proof-led next steps and access-path truth.",
+    "- Public-commercial awareness should route into bounded public-area capture replies without implying blanket permission for private interiors.",
+    "",
+    "## Reply Conversion Cadence",
+    "- Once replies start arriving, the city-opening lane should own a shared response queue instead of letting different channels drift into scattered inboxes.",
+    "- Each live response should be tagged by responder type, channel, current status, next owner, next follow-up due, and downstream handoff target.",
+    "- Reply conversion should hand warehouse/facility responses into operator/buyer/access work, public-commercial responses into qualification, and ambiguous or weak responses into blocked/no-fit states with named reasons.",
+    "- A live response does not count as converted just because it exists; it counts when it receives a next step, follow-up cadence, and downstream routing decision.",
+    "",
+    "## City-Opening Execution Layer",
+    "- The city-opening execution layer should keep a first-class channel/account registry, a send ledger, and a current execution report.",
+    "- Account creation, send readiness, send approval, sent state, and response ingest should stay visible in canonical artifacts instead of hiding in agent comments.",
+    "- The reply-conversion lane should ingest responses from the send ledger rather than assuming responses will be routed manually.",
     "",
     "## Rights Path",
     "",
@@ -466,6 +586,567 @@ function buildCompactDemandPlaybookMarkdown(input: {
   ].join("\n");
 }
 
+function buildCityOpeningBriefMarkdown(input: {
+  profile: CityLaunchProfile;
+  research: CityLaunchResearchParseResult | null;
+  activationPayload: ParsedCityLaunchActivationPayload | null;
+}) {
+  const buyerTargets =
+    input.research?.buyerTargets.slice(0, 3).map((entry) => entry.companyName) || [];
+  const captureTargets =
+    input.research?.captureCandidates.slice(0, 3).map((entry) => entry.name) || [];
+
+  return [
+    `# ${input.profile.city} City-Opening Brief`,
+    "",
+    "- status: generated draft artifact",
+    "- purpose: city-opening distribution planning artifact, not evidence of a live send or live reply",
+    "",
+    "## City Opening Goal",
+    `Open ${input.profile.shortLabel} with truthful awareness before expecting replies: make the right people aware that Blueprint is launching a bounded city motion, what spaces are in scope, what is out of scope, and what exact CTA path they should use.`,
+    "",
+    "## Awareness Split",
+    "- Warehouse / facility awareness: direct, named, proof-led outreach to buyers, operators, tenants, integrators, and site-adjacent technical contacts.",
+    "- Public-commercial awareness: many small bounded community placements for public, non-controlled commercial capture with public-area-only framing and explicit privacy/signage guardrails.",
+    "",
+    "## Core Message",
+    "- Who Blueprint is: a capture-first, world-model-product-first company turning real sites into exact-site proof assets and hosted review paths.",
+    `- What is launching in ${input.profile.shortLabel}: one narrow city-opening motion around exact-site hosted review, not a broad public city-launch claim.`,
+    `- What is in scope: ${input.activationPayload?.primarySiteLane || "warehouse and commercial site capture"} with truthful lawful-access posture and bounded public-commercial capture where allowed.`,
+    "- What is out of scope: fake traction claims, blanket permission language, private controlled-interior capture without lawful access, and promises beyond actual proof state.",
+    "- CTA: respond through the tagged city intake path with site type, access posture, contact role, and what kind of follow-up is requested.",
+    "",
+    "## Evidence Anchors Available Now",
+    ...(captureTargets.length > 0
+      ? [`- Example research-backed capture targets: ${captureTargets.join(", ")}.`]
+      : ["- No research-backed capture targets are materialized yet; keep claims narrow and posture-led."]),
+    ...(buyerTargets.length > 0
+      ? [`- Example buyer-side targets already named in research: ${buyerTargets.join(", ")}.`]
+      : ["- No research-backed buyer target set is materialized yet."]),
+    "",
+    "## Usage Rule",
+    "This artifact is a working city-opening brief for operators and agents. It does not mean outreach has been sent, channels have been opened, or live responses already exist.",
+  ].join("\n");
+}
+
+function buildCityOpeningChannelMapMarkdown(input: {
+  profile: CityLaunchProfile;
+  activationPayload: ParsedCityLaunchActivationPayload | null;
+}) {
+  return [
+    `# ${input.profile.city} City Channel Map`,
+    "",
+    "- status: generated draft artifact",
+    "- purpose: channel map for city-opening execution, not proof of account creation or sends",
+    "",
+    "| Lane | Audience | Channel class | Message posture | Exact CTA | Guardrails |",
+    "| --- | --- | --- | --- | --- | --- |",
+    `| warehouse-facility-direct | buyers, operators, integrators, tenants, site-adjacent technical contacts | direct email, direct message, intro request, referral thread | proof-led, named, exact-site posture | reply with site, role, access posture, and interest in follow-up | no blanket permission claims; no fake proof; no non-standard commercial commitments |`,
+    `| buyer-linked-site | existing buyer threads requesting exact-site or adjacent-site review | buyer-linked thread | exact-site hosted-review posture | confirm site/workflow fit and handoff path | rights/privacy and commercial exceptions stay human-gated |`,
+    `| professional-capturer | surveying, AEC, industrial inspection, commercial mapping operators | curated direct outreach | lawful-access and trust-packet posture | apply through tagged intake path with access facts and equipment fit | no generic gig-worker framing for private interiors |`,
+    `| public-commercial-community | everyday capturers in city/community and retail-adjacent communities | small bounded community placements | public-area-only capture brief | reply with candidate public commercial site, public-area posture, and availability | no implication that private interiors are allowed; preserve signage/privacy/provenance rules |`,
+    "",
+    "## Primary Workflow Context",
+    `- primary_site_lane: ${input.activationPayload?.primarySiteLane || "validation required"}`,
+    `- primary_workflow_lane: ${input.activationPayload?.primaryWorkflowLane || "validation required"}`,
+    `- primary_buyer_proof_path: ${input.activationPayload?.primaryBuyerProofPath || "validation required"}`,
+  ].join("\n");
+}
+
+function buildCityOpeningFirstWavePackMarkdown(input: {
+  profile: CityLaunchProfile;
+  research: CityLaunchResearchParseResult | null;
+}) {
+  const buyers =
+    input.research?.buyerTargets.slice(0, 3).map((entry) => entry.companyName) || [];
+  const targets =
+    input.research?.captureCandidates.slice(0, 3).map((entry) => entry.name) || [];
+
+  return [
+    `# ${input.profile.city} City-Opening First-Wave Pack`,
+    "",
+    "- status: generated draft artifact",
+    "- purpose: first-wave asset pack for operator review; not evidence of a live send, post, or account setup",
+    "",
+    "## Warehouse / Facility Direct Awareness",
+    ...(buyers.length > 0
+      ? buyers.map((buyer, index) => `- target ${index + 1}: ${buyer} — use a proof-led intro anchored to one workflow lane and one truthful CTA.`)
+      : ["- no named buyer-side targets are materialized yet; keep this lane in draft preparation only."]),
+    ...(targets.length > 0
+      ? [`- target site anchors currently available: ${targets.join(", ")}.`]
+      : ["- no named site anchors are materialized yet; avoid pretending a target list is complete."]),
+    "",
+    "## Public-Commercial Bounded Placements",
+    "- placement class 1: local city/community groups where public commercial walkthroughs can be discussed without implying private access.",
+    "- placement class 2: retail/shopping and creator-adjacent communities where public-area-only capture briefs are understandable.",
+    "- placement class 3: lightweight campus/gig networks only when the copy stays bounded to public commercial capture.",
+    "",
+    "## Required Copy Rules",
+    "- say who Blueprint is and what exact city-opening motion is underway",
+    "- say what spaces are in scope and what is not allowed",
+    "- point every asset to the same CTA / intake path with source tagging",
+    "- do not imply traction, legal certainty, or permission that does not exist",
+  ].join("\n");
+}
+
+function buildCityOpeningCtaRoutingMarkdown(input: {
+  profile: CityLaunchProfile;
+}) {
+  return [
+    `# ${input.profile.city} City-Opening CTA Routing`,
+    "",
+    "- status: generated draft artifact",
+    "- purpose: canonical response-routing contract for city-opening replies",
+    "",
+    "## CTA Standard",
+    `Every ${input.profile.shortLabel} city-opening asset should route replies into one tagged intake path instead of ad hoc inboxes, side notes, or disconnected DMs.`,
+    "",
+    "## Required Tags",
+    "- city",
+    "- lane: warehouse-facility-direct or public-commercial-community",
+    "- source channel / channel class",
+    "- responder type",
+    "- requested next step",
+    "",
+    "## Minimum Response Fields",
+    "- contact role",
+    "- site or space type",
+    "- whether the respondent has lawful access, operator reach, buyer interest, or only a public-commercial lead",
+    "- what follow-up they want from Blueprint",
+    "",
+    "## Routing Rule",
+    "- warehouse / facility access and operator-side replies route toward site-operator-partnership or buyer-linked handling",
+    "- capturer or public-commercial responses route toward supply qualification",
+    "- unclear or weak responses remain visible as blocked/no-fit rather than disappearing",
+  ].join("\n");
+}
+
+function buildCityOpeningResponseTrackingMarkdown(input: {
+  profile: CityLaunchProfile;
+}) {
+  return [
+    `# ${input.profile.city} City-Opening Response Tracking`,
+    "",
+    "- status: generated draft artifact",
+    "- purpose: measurement contract for city-opening awareness work",
+    "",
+    "## What Counts As A Real Response",
+    "- a reply, applicant, referral, operator callback, buyer callback, or community response recorded with city, lane, source, and CTA attribution",
+    "",
+    "## What Does Not Count",
+    "- draft copy",
+    "- unsent outreach",
+    "- account setup alone",
+    "- a prospect list with no response",
+    "",
+    "## Tracking View Requirements",
+    "- separate warehouse/facility direct awareness from public-commercial community awareness",
+    "- show which channel classes were activated",
+    "- show response counts and attribution gaps",
+    "- make missing instrumentation explicit instead of assuming awareness happened",
+  ].join("\n");
+}
+
+function buildCityOpeningReplyConversionMarkdown(input: {
+  profile: CityLaunchProfile;
+}) {
+  return [
+    `# ${input.profile.city} City-Opening Reply Conversion`,
+    "",
+    "- status: generated draft artifact",
+    "- purpose: shared reply queue and follow-up cadence contract for city-opening responses",
+    "",
+    "## Shared Response Queue Fields",
+    "- responder type",
+    "- channel / source",
+    "- current status",
+    "- next owner",
+    "- next follow-up due",
+    "- downstream handoff target",
+    "- blocked / no-fit reason when applicable",
+    "",
+    "## Follow-Up Cadence",
+    "- first response: acknowledge, classify, and route into the next lane",
+    "- second touch: use when a live response exists but required details or confirmation are still missing",
+    "- stale response handling: mark explicitly stale if the follow-up window passes without movement",
+    "- closure: move into qualification, operator partnership, buyer handling, blocked-with-reason, or no-fit / closed-lost",
+    "",
+    "## Conversion Rule",
+    `A ${input.profile.shortLabel} city-opening response is not converted just because it exists. It is converted when it has an owner, a next step, a follow-up due state, and a downstream routing decision.`,
+  ].join("\n");
+}
+
+function buildCityOpeningExecutionSeed(input: {
+  profile: CityLaunchProfile;
+  launchId: string | null;
+  taskIssueIds: Record<string, string>;
+  research: CityLaunchResearchParseResult | null;
+}) {
+  const citySlug = input.profile.key;
+  const buyerTargets = input.research?.buyerTargets.slice(0, 2) || [];
+  const captureTargets = input.research?.captureCandidates.slice(0, 2) || [];
+  const directWarehouseSubject = `Blueprint Sacramento exact-site warehouse opening`;
+  const directWarehouseBody = [
+    "Blueprint is opening a bounded Sacramento city-launch motion focused on exact-site hosted review for real warehouse workflows.",
+    "",
+    "We are looking for named buyer, operator, and integrator threads where one real site and one real workflow lane can be routed into a truthful proof path.",
+    "",
+    "If there is a relevant Sacramento facility or workflow thread, reply with the site, role, access posture, and whether the next step should be a direct intro or a proof-led follow-up.",
+  ].join("\n");
+  const buyerLinkedSubject = `Blueprint Sacramento exact-site follow-up`;
+  const buyerLinkedBody = [
+    "Blueprint is opening a bounded Sacramento exact-site hosted-review motion.",
+    "",
+    "This follow-up stays narrow: one real site, one workflow lane, one truthful next step into proof review.",
+    "",
+    "Reply with the site/workflow fit and the right owner or operator path if a Sacramento thread should be opened.",
+  ].join("\n");
+  const professionalCapturerSubject = `Blueprint Sacramento professional capture opening`;
+  const professionalCapturerBody = [
+    "Blueprint is opening a bounded Sacramento capture motion and is looking for professional operators who can support lawful-access commercial site capture.",
+    "",
+    "This is not a broad public gig post. We are looking for repeatable, rights-safe operators who can document access posture and follow a narrow capture brief.",
+    "",
+    "Reply with your Sacramento coverage, equipment fit, access posture, and whether you can support warehouse or similar commercial sites.",
+  ].join("\n");
+
+  const channelAccounts: Array<Omit<CityLaunchChannelAccountRecord, "citySlug" | "createdAtIso" | "updatedAtIso">> = [
+    {
+      id: `${citySlug}-channel-warehouse-facility-direct`,
+      city: input.profile.city,
+      launchId: input.launchId,
+      lane: "warehouse-facility-direct",
+      channelClass: "direct_email_or_intro_thread",
+      accountLabel: `${input.profile.shortLabel} warehouse/facility direct outreach lane`,
+      ownerAgent: "city-launch-agent",
+      status: "ready_to_create",
+      approvalState: "pending_first_send_approval",
+      notes: "First live direct outreach remains approval-gated.",
+    },
+    {
+      id: `${citySlug}-channel-buyer-linked-site`,
+      city: input.profile.city,
+      launchId: input.launchId,
+      lane: "buyer-linked-site",
+      channelClass: "buyer_thread_or_intro_request",
+      accountLabel: `${input.profile.shortLabel} buyer-linked site outreach lane`,
+      ownerAgent: "city-launch-agent",
+      status: "ready_to_create",
+      approvalState: "pending_first_send_approval",
+      notes: "Use for named buyer-linked or operator-linked follow-through only.",
+    },
+    {
+      id: `${citySlug}-channel-professional-capturer`,
+      city: input.profile.city,
+      launchId: input.launchId,
+      lane: "professional-capturer",
+      channelClass: "curated_professional_outreach",
+      accountLabel: `${input.profile.shortLabel} professional capturer outreach lane`,
+      ownerAgent: "capturer-growth-agent",
+      status: "ready_to_create",
+      approvalState: "pending_first_send_approval",
+      notes: "Private controlled interiors stay on curated lawful-access posture.",
+    },
+    {
+      id: `${citySlug}-channel-public-commercial-community`,
+      city: input.profile.city,
+      launchId: input.launchId,
+      lane: "public-commercial-community",
+      channelClass: "bounded_community_posting",
+      accountLabel: `${input.profile.shortLabel} public-commercial community lane`,
+      ownerAgent: "capturer-growth-agent",
+      status: "ready_to_create",
+      approvalState: "pending_first_send_approval",
+      notes: "Public-area-only brief; no private-interior permission implications.",
+    },
+  ];
+
+  const sendActions: Array<Omit<CityLaunchSendActionRecord, "citySlug" | "createdAtIso" | "updatedAtIso">> = [
+    {
+      id: `${citySlug}-send-warehouse-direct-1`,
+      city: input.profile.city,
+      launchId: input.launchId,
+      lane: "warehouse-facility-direct",
+      actionType: "direct_outreach",
+      channelAccountId: `${citySlug}-channel-warehouse-facility-direct`,
+      channelLabel: "warehouse/facility direct outreach lane",
+      targetLabel: buyerTargets[0]?.companyName || captureTargets[0]?.name || `${input.profile.shortLabel} named warehouse/facility target`,
+      assetKey: "city-opening-first-wave-pack",
+      ownerAgent: "capturer-growth-agent",
+      recipientEmail: null,
+      emailSubject: directWarehouseSubject,
+      emailBody: directWarehouseBody,
+      status: "ready_to_send",
+      approvalState: "pending_first_send_approval",
+      responseIngestState: "awaiting_response",
+      issueId: input.taskIssueIds["city-opening-first-wave-pack"] || null,
+      notes: "First proof-led direct outreach draft ready for approval.",
+      sentAtIso: null,
+      firstResponseAtIso: null,
+    },
+    {
+      id: `${citySlug}-send-buyer-linked-1`,
+      city: input.profile.city,
+      launchId: input.launchId,
+      lane: "buyer-linked-site",
+      actionType: "direct_outreach",
+      channelAccountId: `${citySlug}-channel-buyer-linked-site`,
+      channelLabel: "buyer-linked site outreach lane",
+      targetLabel: buyerTargets[1]?.companyName || `${input.profile.shortLabel} buyer-linked exact-site thread`,
+      assetKey: "city-opening-first-wave-pack",
+      ownerAgent: "city-launch-agent",
+      recipientEmail: null,
+      emailSubject: buyerLinkedSubject,
+      emailBody: buyerLinkedBody,
+      status: "ready_to_send",
+      approvalState: "pending_first_send_approval",
+      responseIngestState: "awaiting_response",
+      issueId: input.taskIssueIds["city-opening-first-wave-pack"] || null,
+      notes: "Use only when the message stays within exact-site proof posture.",
+      sentAtIso: null,
+      firstResponseAtIso: null,
+    },
+    {
+      id: `${citySlug}-send-professional-capturer-1`,
+      city: input.profile.city,
+      launchId: input.launchId,
+      lane: "professional-capturer",
+      actionType: "direct_outreach",
+      channelAccountId: `${citySlug}-channel-professional-capturer`,
+      channelLabel: "professional capturer outreach lane",
+      targetLabel: captureTargets[0]?.name || `${input.profile.shortLabel} professional capturer first-wave target`,
+      assetKey: "city-opening-first-wave-pack",
+      ownerAgent: "capturer-growth-agent",
+      recipientEmail: null,
+      emailSubject: professionalCapturerSubject,
+      emailBody: professionalCapturerBody,
+      status: "ready_to_send",
+      approvalState: "pending_first_send_approval",
+      responseIngestState: "awaiting_response",
+      issueId: input.taskIssueIds["supply-prospects"] || null,
+      notes: "First curated professional outreach draft ready for approval.",
+      sentAtIso: null,
+      firstResponseAtIso: null,
+    },
+    {
+      id: `${citySlug}-send-public-commercial-community-1`,
+      city: input.profile.city,
+      launchId: input.launchId,
+      lane: "public-commercial-community",
+      actionType: "community_post",
+      channelAccountId: `${citySlug}-channel-public-commercial-community`,
+      channelLabel: "public-commercial community lane",
+      targetLabel: `${input.profile.shortLabel} first bounded public-commercial placement`,
+      assetKey: "city-opening-first-wave-pack",
+      ownerAgent: "capturer-growth-agent",
+      recipientEmail: null,
+      emailSubject: null,
+      emailBody: null,
+      status: "ready_to_send",
+      approvalState: "pending_first_send_approval",
+      responseIngestState: "awaiting_response",
+      issueId: input.taskIssueIds["public-commercial-community-sourcing"] || null,
+      notes: "Community post remains public-area-only and approval-gated for the first live send.",
+      sentAtIso: null,
+      firstResponseAtIso: null,
+    },
+  ];
+
+  return { channelAccounts, sendActions };
+}
+
+async function seedCityOpeningExecutionLedgers(input: {
+  profile: CityLaunchProfile;
+  launchId: string | null;
+  taskIssueIds: Record<string, string>;
+  research: CityLaunchResearchParseResult | null;
+}) {
+  const seed = buildCityOpeningExecutionSeed(input);
+  const [channelAccounts, sendActions] = await Promise.all([
+    Promise.all(seed.channelAccounts.map((entry) => upsertCityLaunchChannelAccount(entry))),
+    Promise.all(seed.sendActions.map((entry) => upsertCityLaunchSendAction(entry))),
+  ]);
+  return {
+    channelAccounts,
+    sendActions,
+  } satisfies SeededCityOpeningExecution;
+}
+
+function renderCityOpeningChannelRegistryMarkdown(input: {
+  profile: CityLaunchProfile;
+  channelAccounts: CityLaunchChannelAccountRecord[];
+}) {
+  return [
+    `# ${input.profile.city} City-Opening Channel Registry`,
+    "",
+    "- status: deterministic execution artifact",
+    "- purpose: canonical registry of city-opening channels/accounts, not proof that each one is already live",
+    "",
+    "| Lane | Channel class | Account label | Status | Approval | Owner | Notes |",
+    "| --- | --- | --- | --- | --- | --- | --- |",
+    ...input.channelAccounts.map((entry) =>
+      `| ${entry.lane} | ${entry.channelClass} | ${entry.accountLabel} | ${entry.status} | ${entry.approvalState} | ${entry.ownerAgent || "none"} | ${(entry.notes || "").replace(/\|/g, "/")} |`,
+    ),
+  ].join("\n");
+}
+
+function renderCityOpeningSendLedgerMarkdown(input: {
+  profile: CityLaunchProfile;
+  sendActions: CityLaunchSendActionRecord[];
+}) {
+  return [
+    `# ${input.profile.city} City-Opening Send Ledger`,
+    "",
+    "- status: deterministic execution artifact",
+    "- purpose: canonical ledger of city-opening outreach/posting actions and their ready/sent/blocked state",
+    "",
+    "| Lane | Action type | Target | Recipient | Status | Approval | Response ingest | Owner | Notes |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    ...input.sendActions.map((entry) =>
+      `| ${entry.lane} | ${entry.actionType} | ${entry.targetLabel} | ${entry.recipientEmail || "missing"} | ${entry.status} | ${entry.approvalState} | ${entry.responseIngestState} | ${entry.ownerAgent || "none"} | ${(entry.notes || "").replace(/\|/g, "/")} |`,
+    ),
+  ].join("\n");
+}
+
+function renderCityOpeningExecutionReportMarkdown(input: {
+  profile: CityLaunchProfile;
+  channelAccounts: CityLaunchChannelAccountRecord[];
+  sendActions: CityLaunchSendActionRecord[];
+}) {
+  const channelsReady = input.channelAccounts.filter((entry) =>
+    ["ready_to_create", "created"].includes(entry.status),
+  ).length;
+  const sendsReady = input.sendActions.filter((entry) =>
+    ["ready_to_send", "sent"].includes(entry.status),
+  ).length;
+  const sendsSent = input.sendActions.filter((entry) => entry.status === "sent").length;
+  const sendsBlocked = input.sendActions.filter((entry) => entry.status === "blocked").length;
+  const responsesRouted = input.sendActions.filter((entry) =>
+    ["routed", "closed"].includes(entry.responseIngestState),
+  ).length;
+  const currentBlockers = input.sendActions.filter((entry) =>
+    entry.status === "blocked" || (entry.actionType === "direct_outreach" && !entry.recipientEmail),
+  );
+
+  return [
+    `# ${input.profile.city} City-Opening Execution Report`,
+    "",
+    "- status: generated execution snapshot",
+    "- purpose: show what is ready, what is live, and what is still blocked in city-opening execution",
+    "",
+    `- channels_ready_or_created: ${channelsReady}`,
+    `- sends_ready_or_sent: ${sendsReady}`,
+    `- sends_marked_sent: ${sendsSent}`,
+    `- sends_blocked: ${sendsBlocked}`,
+    `- responses_routed: ${responsesRouted}`,
+    "",
+    "## Interpretation",
+    "- `ready_to_create` means the channel/account is planned and ready for operator setup, not that it already exists.",
+    "- `ready_to_send` means the outreach/post is prepared and pending the first-live-send approval path.",
+    "- `sent` means a real send/post has been recorded in the send ledger.",
+    "- response ingest stays in the send ledger until the reply-conversion lane routes it onward.",
+    ...(currentBlockers.length > 0
+      ? [
+          "",
+          "## Current blockers",
+          ...currentBlockers.map((entry) => {
+            const reasons = [
+              entry.actionType === "direct_outreach" && !entry.recipientEmail
+                ? "missing real recipient email"
+                : null,
+              entry.notes || null,
+            ]
+              .filter(Boolean)
+              .join(" ");
+            return `- ${entry.id}: ${reasons || "blocked without a recorded reason."}`;
+          }),
+        ]
+      : []),
+  ].join("\n");
+}
+
+function renderRobotTeamContactListMarkdown(input: {
+  profile: CityLaunchProfile;
+  buyerTargets: CityLaunchBuyerTargetRecord[];
+  sendActions: CityLaunchSendActionRecord[];
+}) {
+  const robotTeamSendActions = input.sendActions.filter((entry) =>
+    entry.actionType === "direct_outreach"
+    && ["warehouse-facility-direct", "buyer-linked-site"].includes(entry.lane),
+  );
+  const evidencedContacts = robotTeamSendActions.filter((entry) => entry.recipientEmail);
+  const buyerRows = input.buyerTargets
+    .slice()
+    .sort((left, right) => left.companyName.localeCompare(right.companyName))
+    .map((buyerTarget) => {
+      const matchedSendAction = evidencedContacts.find((entry) =>
+        buyerTargetMatchesSendAction(buyerTarget, entry),
+      );
+      return `| ${buyerTarget.companyName} | ${buyerTarget.workflowFit || "unknown"} | ${buyerTarget.proofPath || "unknown"} | ${matchedSendAction?.recipientEmail || "missing"} | ${(buyerTarget.notes || "").replace(/\|/g, "/")} |`;
+    });
+
+  return [
+    `# ${input.profile.city} Robot-Team Contact List`,
+    "",
+    "- status: generated working contact-finding artifact",
+    "- scope: robot-team buyers, integrators, and technical deployment targets only",
+    "- evidence boundary: repo/live evidence first; no invented emails or roles",
+    "",
+    "## Live recipient evidence already present",
+    ...(evidencedContacts.length > 0
+      ? [
+          "| Target | Recipient email | Lane | Source |",
+          "| --- | --- | --- | --- |",
+          ...evidencedContacts.map((entry) =>
+            `| ${entry.targetLabel} | ${entry.recipientEmail} | ${entry.lane} | live send-action or delivery evidence in the city-launch ledger |`,
+          ),
+        ]
+      : ["- no live robot-team recipient emails are present yet in the city-launch ledger"]),
+    "",
+    "## Current buyer target set",
+    ...(buyerRows.length > 0
+      ? [
+          "| Company | Workflow fit | Proof path | Real recipient email present now | Notes |",
+          "| --- | --- | --- | --- | --- |",
+          ...buyerRows,
+        ]
+      : ["- no city-specific buyer targets are materialized yet"]),
+  ].join("\n");
+}
+
+function renderSiteOperatorContactListMarkdown(input: {
+  profile: CityLaunchProfile;
+  prospects: CityLaunchProspectRecord[];
+}) {
+  const operatorProspects = input.prospects
+    .filter((entry) =>
+      ["operator_intro", "property_owner_path"].includes(entry.channel)
+      || /(operator|owner|tenant|warehouse)/i.test(entry.channel)
+      || /(operator|owner|tenant|pilot-host|lawful-access)/i.test(entry.notes || "")
+      || /(warehouse|property_owner_path)/i.test(entry.siteCategory || ""),
+    )
+    .sort((left, right) => left.name.localeCompare(right.name));
+
+  return [
+    `# ${input.profile.city} Site-Operator And Pilot-Host Contact List`,
+    "",
+    "- status: generated working contact-finding artifact",
+    "- scope: property-owner, logistics-operator, tenant, and pilot-host paths only",
+    "- evidence boundary: repo/live evidence first; no invented emails or permission claims",
+    "",
+    "## Current site-side candidates",
+    ...(operatorProspects.length > 0
+      ? [
+          "| Candidate | Channel | Site address | Real recipient email present now | Workflow fit | Notes |",
+          "| --- | --- | --- | --- | --- | --- |",
+          ...operatorProspects.map((entry) =>
+            `| ${entry.name} | ${entry.channel} | ${entry.siteAddress || "unknown"} | ${entry.email || "missing"} | ${entry.workflowFit || "unknown"} | ${((entry.priorityNote || entry.notes || "")).replace(/\|/g, "/")} |`,
+          ),
+        ]
+      : ["- no site-operator or pilot-host candidates are materialized yet"]),
+  ].join("\n");
+}
+
 export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchTask[] {
   return [
     {
@@ -540,6 +1221,81 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
       source: "default_task_bundle",
     },
     {
+      key: "city-opening-distribution",
+      phase: "founder_gates",
+      title: `Build the ${profile.shortLabel} city-opening distribution brief and channel map`,
+      ownerLane: "city-launch-agent",
+      humanLane: "growth-lead",
+      purpose: `Make ${profile.shortLabel} city opening explicit before the system expects replies: define who needs to hear about Blueprint in the city, what proof-led message each lane gets, which channels are in scope, what is out of scope, and how replies should route back into Blueprint.`,
+      inputs: [
+        profile.launchPlaybookPath,
+        profile.demandPlaybookPath,
+        profile.targetLedgerPath,
+        `${profile.shortLabel} source policy`,
+      ],
+      dependencies: ["city-target-ledger", "growth-source-policy"],
+      doneWhen: [
+        `${profile.shortLabel} city-opening brief exists with a warehouse/facility direct-awareness track and a bounded public-commercial community-awareness track.`,
+        `${profile.shortLabel} channel map names the target audience, named channel or channel class, proof posture, exact CTA, and what is allowed versus out of scope for each lane.`,
+        `${profile.shortLabel} distribution brief tells people who Blueprint is, what the city launch is trying to source, what spaces are in scope, what is not allowed, and what counts as a qualified reply.`,
+        `${profile.shortLabel} distribution brief names the CTA path and source-tagging rules needed for later intake and response tracking.`,
+      ],
+      humanGate:
+        "Human review only when the brief would expand channel classes, blur lawful-access boundaries, or make posture-changing public claims.",
+      metricsDependencies: [],
+      validationRequired: false,
+      source: "default_task_bundle",
+    },
+    {
+      key: "city-opening-cta-routing",
+      phase: "founder_gates",
+      title: `Publish the ${profile.shortLabel} city-facing CTA and intake routing path`,
+      ownerLane: "ops-lead",
+      humanLane: "ops-lead",
+      purpose: `Ensure ${profile.shortLabel} awareness work routes into a live intake path instead of scattering replies across ad hoc inboxes, notes, or untracked side conversations.`,
+      inputs: [
+        `${profile.shortLabel} city-opening brief`,
+        `${profile.shortLabel} intake rubric`,
+        "live capturer intake path",
+        "city launch ledgers",
+      ],
+      dependencies: ["city-opening-distribution", "ops-rubric-thresholds"],
+      doneWhen: [
+        `${profile.shortLabel} warehouse/facility direct-awareness replies and public-commercial community replies both land in a named CTA path with city, lane, source, and owner routing.`,
+        `${profile.shortLabel} CTA path states what Blueprint is asking for, what access or site facts respondents must provide, and what the next review step is.`,
+        "Responses do not die in personal inboxes or draft docs; they enter the canonical intake queue or ledger path with next-owner visibility.",
+      ],
+      humanGate: null,
+      metricsDependencies: [],
+      validationRequired: false,
+      source: "default_task_bundle",
+    },
+    {
+      key: "city-opening-first-wave-pack",
+      phase: "supply",
+      title: `Assemble the ${profile.shortLabel} first-wave outreach and posting pack`,
+      ownerLane: "capturer-growth-agent",
+      humanLane: "growth-lead",
+      purpose: `Turn the ${profile.shortLabel} city-opening brief into concrete first-wave assets that can create the first responses: direct named outreach for warehouse/facility awareness and small bounded posting packages for public-commercial awareness.`,
+      inputs: [
+        `${profile.shortLabel} city-opening brief`,
+        `${profile.shortLabel} channel map`,
+        `${profile.shortLabel} CTA / intake path`,
+        profile.targetLedgerPath,
+      ],
+      dependencies: ["city-opening-distribution", "city-opening-cta-routing"],
+      doneWhen: [
+        `${profile.shortLabel} warehouse/facility first-wave outreach pack names the first buyers, operators, integrators, or facilities to contact, the proof-led message variants, and the next move per target.`,
+        `${profile.shortLabel} public-commercial first-wave posting pack names the first small community placements, the public-area-only brief, and the exact CTA copy for each placement.`,
+        `Every ${profile.shortLabel} first-wave asset points to the same truthful CTA path, uses source attribution, and avoids invented traction, blanket permission claims, or fake legal certainty.`,
+      ],
+      humanGate:
+        "Human review before the first live send or post in any channel, and before any expansion beyond the written city-opening brief.",
+      metricsDependencies: [],
+      validationRequired: false,
+      source: "default_task_bundle",
+    },
+    {
       key: "site-operator-partnership",
       phase: "founder_gates",
       title: `Run ${profile.shortLabel} site-operator partnership routing`,
@@ -550,9 +1306,14 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
         "ops/paperclip/playbooks/site-operator-access-and-commercialization-playbook.md",
         profile.launchPlaybookPath,
         profile.targetLedgerPath,
+        `${profile.shortLabel} city-opening brief`,
         "parallel lawful-access queue",
       ],
-      dependencies: ["parallel-lawful-access-queue", "growth-source-policy"],
+      dependencies: [
+        "parallel-lawful-access-queue",
+        "growth-source-policy",
+        "city-opening-distribution",
+      ],
       doneWhen: [
         `${profile.shortLabel} operator-lane packet identifies likely owner/operator/tenant contacts, operator-side value props, and the exact approval sequence for the highest-priority warehouse/facility candidates.`,
         "The first operator-outreach draft or intro packet is ready for human review instead of being invented ad hoc at the moment of blockage.",
@@ -597,9 +1358,16 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
         "capturer-supply-playbook.md",
         profile.launchPlaybookPath,
         `${profile.shortLabel} source policy`,
+        `${profile.shortLabel} city-opening brief`,
+        `${profile.shortLabel} first-wave outreach pack`,
         "live capturer intake path",
       ],
-      dependencies: ["city-target-ledger", "growth-source-policy"],
+      dependencies: [
+        "city-target-ledger",
+        "growth-source-policy",
+        "city-opening-first-wave-pack",
+        "city-opening-cta-routing",
+      ],
       doneWhen: [
         `A curated first-wave ${profile.shortLabel} professional prospect set is named with source bucket, rationale, lawful access posture, and next move.`,
         `At least one real ${profile.shortLabel} invite, reply, or applicant signal is landed in the live intake path with source bucket and next owner recorded.`,
@@ -621,10 +1389,16 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
         "capturer-supply-playbook.md",
         profile.launchPlaybookPath,
         `${profile.shortLabel} source policy`,
+        `${profile.shortLabel} city-opening brief`,
+        `${profile.shortLabel} first-wave posting pack`,
         "public-area-only capture brief",
         "live capturer intake path",
       ],
-      dependencies: ["growth-source-policy"],
+      dependencies: [
+        "growth-source-policy",
+        "city-opening-first-wave-pack",
+        "city-opening-cta-routing",
+      ],
       doneWhen: [
         `${profile.shortLabel} public-commercial sourcing names the online communities, channels, and posting brief for public, non-controlled commercial capture.`,
         `At least one live ${profile.shortLabel} community-sourced invite, reply, or applicant signal is landed in the intake path with source bucket and public-commercial posture recorded.`,
@@ -861,6 +1635,57 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
       source: "default_task_bundle",
     },
     {
+      key: "city-opening-response-tracking",
+      phase: "measurement",
+      title: `Publish ${profile.shortLabel} city-opening response tracking`,
+      ownerLane: "analytics-agent",
+      humanLane: "growth-lead",
+      purpose: `Make ${profile.shortLabel} city-opening distribution measurable so operators can see which awareness lanes actually create replies before deeper capture or buyer workflows take over.`,
+      inputs: [
+        `${profile.shortLabel} city-opening brief`,
+        `${profile.shortLabel} CTA / intake path`,
+        "growth_events",
+        "city launch ledgers",
+      ],
+      dependencies: ["city-opening-cta-routing", "city-opening-first-wave-pack"],
+      doneWhen: [
+        `${profile.shortLabel} response-tracking view shows which warehouse/facility channels and which public-commercial community channels were activated, with asset or message attribution where available.`,
+        `A real ${profile.shortLabel} city-opening response is defined and counted only when a reply, applicant, referral, operator callback, or buyer callback is recorded with city, lane, source, and CTA attribution.`,
+        "Missing attribution or missing visibility is called out explicitly instead of assuming awareness work happened.",
+      ],
+      humanGate: null,
+      metricsDependencies: [],
+      validationRequired: true,
+      source: "default_task_bundle",
+    },
+    {
+      key: "city-opening-reply-conversion",
+      phase: "supply",
+      title: `Run the ${profile.shortLabel} city-opening reply-conversion and follow-up cadence lane`,
+      ownerLane: "city-launch-agent",
+      humanLane: "growth-lead",
+      purpose: `Convert live ${profile.shortLabel} city-opening replies across warehouse/facility and public-commercial channels into routed next steps with explicit follow-up cadence, instead of letting first responses decay across scattered threads.`,
+      inputs: [
+        `${profile.shortLabel} city-opening brief`,
+        `${profile.shortLabel} CTA / intake path`,
+        `${profile.shortLabel} response-tracking view`,
+        "live city-opening replies",
+        "city launch ledgers",
+      ],
+      dependencies: ["city-opening-response-tracking", "city-opening-cta-routing"],
+      doneWhen: [
+        `${profile.shortLabel} reply-conversion queue exists with each live response tagged by responder type, channel, current status, next owner, next follow-up due, and downstream handoff target.`,
+        `${profile.shortLabel} follow-up cadence rules define first response, second follow-up, stale-response handling, and the handoff boundary into qualification, site-operator partnership, buyer handling, or no-fit closure.`,
+        `At least one live ${profile.shortLabel} city-opening response is moved through the queue into qualification, operator/buyer handoff, blocked-with-reason, or explicit no-fit / closed-lost outcome.`,
+        "Live responses do not sit unowned after landing; each one has an explicit next step and cadence state.",
+      ],
+      humanGate:
+        "Escalate only when follow-up would require posture-changing claims, rights/privacy promises, pricing or commercial commitments, legal interpretation, or blanket permission language.",
+      metricsDependencies: [],
+      validationRequired: false,
+      source: "default_task_bundle",
+    },
+    {
       key: "city-scorecard",
       phase: "measurement",
       title: `Publish the ${profile.shortLabel} launch scorecard and blocker view`,
@@ -873,7 +1698,13 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
         "city launch ledgers",
         `published ${profile.shortLabel} proof assets`,
       ],
-      dependencies: ["supply-qualification", "proof-pack-listings", "outbound-execution"],
+      dependencies: [
+        "supply-qualification",
+        "proof-pack-listings",
+        "outbound-execution",
+        "city-opening-response-tracking",
+        "city-opening-reply-conversion",
+      ],
       doneWhen: [
         `${profile.shortLabel} scorecard reports supply and demand progress against the launch thresholds.`,
         "Missing instrumentation is surfaced as blocked instead of smoothed over.",
@@ -1064,6 +1895,7 @@ function buildSystemDocMarkdown(input: {
   const agentPrepared = [
     `city-launch-agent keeps the ${profile.shortLabel} plan and dependency map current.`,
     `city-demand-agent maintains the ${profile.shortLabel} target ledger and parallel lawful-access queue so the capture queue stays tied to real robot workflow demand without stalling on one facility.`,
+    `city-launch-agent, capturer-growth-agent, ops-lead, and analytics-agent make ${profile.shortLabel} city-opening distribution explicit through a city-opening brief, channel map, first-wave outreach/posting pack, city-facing CTA path, response-tracking view, reply-conversion cadence lane, channel registry, send ledger, and city-opening execution report before the system assumes the city has heard about Blueprint.`,
     `site-operator-partnership-agent prepares operator-lane contact maps, value props, and approval sequences for warehouse/facility access paths before the city waits on a single signature thread.`,
     `capturer-growth-agent, intake-agent, capturer-success-agent, field-ops-agent, capture-qa-agent, and rights-provenance-agent run the supply loop continuously, producing drafts, packets, routing, and prep work even before the first real-world confirmations arrive.`,
     `demand-intel-agent, robot-team-growth-agent, outbound-sales-agent, buyer-solutions-agent, and revenue-ops-pricing-agent run the demand loop continuously, packaging truthful proof motion and only pausing at irreversible claim, rights, spend, or non-standard commercial gates.`,
@@ -1109,10 +1941,11 @@ function buildSystemDocMarkdown(input: {
     "",
     `1. Generate and critique the ${profile.shortLabel} plan through the existing Gemini Deep Research harness.`,
     `2. Convert the compact ${profile.shortLabel} city-launch and city-demand playbooks into a single ${profile.shortLabel} operating system with explicit tasks, owners, thresholds, and handoff rules.`,
-    `3. Materialize the live Paperclip issue tree for the city launch so work is routable instead of staying trapped in artifacts.`,
-    `4. Measure the city through ${profile.shortLabel}-specific supply, demand, spend, and proof-motion metrics so operators can see whether the city is actually becoming operationally real.`,
-    `5. Treat the machine-readable activation payload as the control-plane artifact for validation blockers, lane mapping, and metrics readiness.`,
-    `6. After activation, every lane should execute all reversible work immediately and stop only at irreversible human gates, external counterparty confirmations, or the lack of a real live signal needed to mark completion.`,
+    `3. Make city-opening distribution explicit through a city-opening brief, channel map, first-wave outreach/posting pack, exact CTA/intake routing, response tracking, reply-conversion cadence, channel registry, send ledger, and city-opening execution report so the city does not wait for replies from people who were never reached or lose the first replies once they arrive.`,
+    `4. Materialize the live Paperclip issue tree for the city launch so work is routable instead of staying trapped in artifacts.`,
+    `5. Measure the city through ${profile.shortLabel}-specific distribution, supply, demand, spend, and proof-motion metrics so operators can see whether the city is actually becoming operationally real.`,
+    `6. Treat the machine-readable activation payload as the control-plane artifact for validation blockers, lane mapping, and metrics readiness.`,
+    `7. After activation, every lane should execute all reversible work immediately and stop only at irreversible human gates, external counterparty confirmations, or the lack of a real live signal needed to mark completion.`,
     "",
     "## Planning State",
     "",
@@ -1141,6 +1974,7 @@ function buildSystemDocMarkdown(input: {
     "",
     `- Founder-approved ${profile.shortLabel} posture remains required to activate the city.`,
     `- ${profile.shortLabel} capture target ledger with first proof candidates, queued lawful-access buckets, and longer-horizon discovery lanes is required to mark the city operationally real, but not required to begin execution.`,
+    `- ${profile.shortLabel} city-opening brief, channel map, first-wave outreach/posting pack, CTA / intake path, response-tracking view, reply-conversion cadence lane, channel/account registry, send ledger, and city-opening execution report are required to prove the city was actually opened and that early replies are being worked instead of counted and lost.`,
     `- ${profile.shortLabel} ops packet: intake rubric, trust kit, first-capture thresholds, and launch-readiness checklist is a completion dependency, not a reason to leave execution lanes idle.`,
     `- At least one clean ${profile.shortLabel} proof pack with hosted-review path and rights/provenance clearance is required before claiming the city is live.`,
     `- ${profile.shortLabel} buyer target list and proof-led outbound package are completion requirements for launch quality, not start gates for agent work.`,
@@ -1367,9 +2201,12 @@ function assessCityLaunchTaskExecution(task: CityLaunchTask): {
     case "city-target-ledger":
     case "parallel-lawful-access-queue":
     case "growth-source-policy":
+    case "city-opening-distribution":
+    case "city-opening-cta-routing":
     case "site-operator-partnership":
     case "ops-rubric-thresholds":
     case "buyer-target-research":
+    case "city-opening-response-tracking":
     case "city-scorecard":
     case "notion-breadcrumbs":
     case "switch-on-review":
@@ -1380,6 +2217,7 @@ function assessCityLaunchTaskExecution(task: CityLaunchTask): {
       };
     case "supply-prospects":
     case "public-commercial-community-sourcing":
+    case "city-opening-first-wave-pack":
     case "outbound-package":
     case "outbound-execution":
     case "buyer-thread-commercial":
@@ -1387,6 +2225,12 @@ function assessCityLaunchTaskExecution(task: CityLaunchTask): {
         executionState: "execute_until_human_gate",
         executionReason:
           "This lane should execute now, build the best truthful approach, and only stop at the first irreversible external send, public-claim boundary, or non-standard commercial commitment.",
+      };
+    case "city-opening-reply-conversion":
+      return {
+        executionState: "execute_until_live_signal",
+        executionReason:
+          "This lane should build the queue, cadence rules, and routing logic immediately, then stay open until real city-opening responses exist and are moved through a tracked follow-up path.",
       };
     case "supply-qualification":
     case "capturer-activation-success":
@@ -1492,9 +2336,34 @@ function buildTaskKickoffComment(input: {
           "Prepare the operator contact map, value prop, and approval sequence now so lawful-access work is ready for review before the city hits a single-site dead end.",
         ]
       : []),
+    ...(input.task.key === "city-opening-distribution"
+      ? [
+          "Make the city-opening brief concrete: split warehouse/facility direct awareness from bounded public-commercial awareness, define the channel map, and make the CTA path explicit before the system expects replies.",
+        ]
+      : []),
+    ...(input.task.key === "city-opening-cta-routing"
+      ? [
+          "Do not let city-opening replies die in ad hoc inboxes or notes: publish the exact CTA route, source tags, and next-owner routing into the canonical intake path.",
+        ]
+      : []),
+    ...(input.task.key === "city-opening-first-wave-pack"
+      ? [
+          "Optimize for first response, not polished branding: prepare the named warehouse/facility outreach variants and the first small public-commercial placements, all tied to the same truthful CTA path.",
+        ]
+      : []),
     ...(input.task.key === "public-commercial-community-sourcing"
       ? [
           "Name the online communities for public commercial capture, prepare the public-area-only brief, and turn the lane into the first real community-sourced intake signal without drifting into private-interior sourcing.",
+        ]
+      : []),
+    ...(input.task.key === "city-opening-response-tracking"
+      ? [
+          "Define what counts as a real city-opening response and keep warehouse/facility awareness separate from public-commercial community awareness in the measurement view.",
+        ]
+      : []),
+    ...(input.task.key === "city-opening-reply-conversion"
+      ? [
+          "Build the shared response queue and cadence rules now, then route the first real replies into qualification, operator/buyer handoff, or explicit blocked/no-fit outcomes instead of letting them decay in channel-specific threads.",
         ]
       : []),
     ...(input.task.key === "supply-qualification"
@@ -1568,11 +2437,42 @@ async function wakeCityLaunchTaskOwner(input: {
   };
 }
 
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>,
+) {
+  if (items.length === 0) {
+    return [] as R[];
+  }
+
+  const limit = Math.max(1, Math.min(concurrency, items.length));
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+
+  await Promise.all(
+    Array.from({ length: limit }, async () => {
+      while (cursor < items.length) {
+        const index = cursor;
+        cursor += 1;
+        results[index] = await mapper(items[index], index);
+      }
+    }),
+  );
+
+  return results;
+}
+
 async function dispatchCityLaunchIssueTree(input: {
   profile: CityLaunchProfile;
   tasks: CityLaunchTask[];
   founderApproved: boolean;
   budgetPolicy: CityLaunchBudgetPolicy;
+  existingRootIssueId?: string | null;
+  existingTaskIssueIds?: Record<string, string>;
+  wakeExistingIssues?: boolean;
+  rewakeTaskKeys?: string[];
+  rewakeOwnerLanes?: string[];
   artifactPaths: {
     canonicalSystemDocPath: string;
     canonicalIssueBundlePath: string;
@@ -1580,13 +2480,16 @@ async function dispatchCityLaunchIssueTree(input: {
     canonicalActivationPayloadPath: string;
   };
 }) {
-  const rootIssueStatus = input.founderApproved ? "todo" : "backlog";
+  const founderApproved = input.founderApproved === true;
+  const rewakeTaskKeys = new Set(input.rewakeTaskKeys || []);
+  const rewakeOwnerLanes = new Set(input.rewakeOwnerLanes || []);
+  const rootIssueStatus = founderApproved ? "todo" : "backlog";
   const rootDescription = [
     `# Launch ${input.profile.city}`,
     "",
     `This is the root issue for the generic autonomous city launcher in ${input.profile.city}.`,
     "",
-    `- founder_approved: ${input.founderApproved}`,
+    `- founder_approved: ${founderApproved}`,
     `- budget_tier: ${input.budgetPolicy.tier}`,
     `- execution_bundle: ${input.artifactPaths.canonicalIssueBundlePath}`,
     `- launch_system: ${input.artifactPaths.canonicalSystemDocPath}`,
@@ -1605,74 +2508,87 @@ async function dispatchCityLaunchIssueTree(input: {
     status: rootIssueStatus,
     originKind: "city_launch_activation",
     originId: input.profile.key,
+    existingIssueId: input.existingRootIssueId ?? null,
   });
 
-  const dispatched: CityLaunchTaskDispatch[] = [];
-
-  for (const task of input.tasks) {
-    const executionAssessment = assessCityLaunchTaskExecution(task);
-    const issueStatus = input.founderApproved ? "todo" : "backlog";
-    const issue = await upsertPaperclipIssue({
-      projectName: CITY_LAUNCH_PROJECT_NAME,
-      assigneeKey: task.ownerLane,
-      title: task.title,
-      description: taskIssueDescription({
-        profile: input.profile,
-        task,
-        executionState: executionAssessment.executionState,
-        executionReason: executionAssessment.executionReason,
-        budgetPolicy: input.budgetPolicy,
-        artifactPaths: input.artifactPaths,
-      }),
-      priority:
-        task.phase === "founder_gates" || task.phase === "measurement" ? "high" : "medium",
-      status: issueStatus,
-      originKind: "city_launch_task",
-      originId: `${input.profile.key}:${task.key}`,
-      parentId: root.issue.id,
-    });
-    const dispatchRecord: CityLaunchTaskDispatch = {
-      key: task.key,
-      ownerLane: task.ownerLane,
-      issueId: issue.issue.id,
-      identifier: issue.issue.identifier || null,
-      created: issue.created,
-      status: issue.issue.status,
-      executionState: executionAssessment.executionState,
-      executionReason: executionAssessment.executionReason,
-      wakeStatus: null,
-      wakeRunId: null,
-      wakeError: null,
-    };
-    if (input.founderApproved) {
-      try {
-        const wake = await wakeCityLaunchTaskOwner({
-          assigneeAgentId: issue.assigneeAgentId,
-          companyId: issue.companyId,
+  const dispatched = await mapWithConcurrency(
+    input.tasks,
+    6,
+    async (task) => {
+      const executionAssessment = assessCityLaunchTaskExecution(task);
+      const issueStatus = founderApproved ? "todo" : "backlog";
+      const issue = await upsertPaperclipIssue({
+        projectName: CITY_LAUNCH_PROJECT_NAME,
+        assigneeKey: task.ownerLane,
+        title: task.title,
+        description: taskIssueDescription({
           profile: input.profile,
           task,
-          issue: issue.issue,
-          issueIdentifier: issue.issue.identifier || null,
+          executionState: executionAssessment.executionState,
+          executionReason: executionAssessment.executionReason,
+          budgetPolicy: input.budgetPolicy,
           artifactPaths: input.artifactPaths,
-        });
-        dispatchRecord.wakeStatus = wake.wakeStatus;
-        dispatchRecord.wakeRunId = wake.wakeRunId;
-      } catch (error) {
-        dispatchRecord.wakeError = error instanceof Error ? error.message : String(error);
+        }),
+        priority:
+          task.phase === "founder_gates" || task.phase === "measurement" ? "high" : "medium",
+        status: issueStatus,
+        originKind: "city_launch_task",
+        originId: `${input.profile.key}:${task.key}`,
+        parentId: root.issue.id,
+        existingIssueId: input.existingTaskIssueIds?.[task.key] || null,
+      });
+      const dispatchRecord: CityLaunchTaskDispatch = {
+        key: task.key,
+        ownerLane: task.ownerLane,
+        issueId: issue.issue.id,
+        identifier: issue.issue.identifier || null,
+        created: issue.created,
+        status: issue.issue.status,
+        executionState: executionAssessment.executionState,
+        executionReason: executionAssessment.executionReason,
+        wakeStatus: null,
+        wakeRunId: null,
+        wakeError: null,
+      };
+      const shouldRewakeExistingIssue =
+        input.wakeExistingIssues === true
+        || rewakeTaskKeys.has(task.key)
+        || rewakeOwnerLanes.has(task.ownerLane);
+      const shouldAttemptWake =
+        founderApproved && (issue.created || shouldRewakeExistingIssue);
+      dispatchRecord.wakeStatus = shouldAttemptWake
+        ? "requested"
+        : founderApproved
+          ? "skipped_existing"
+          : "skipped";
+      if (shouldAttemptWake) {
+        try {
+          const wake = await wakeCityLaunchTaskOwner({
+            assigneeAgentId: issue.assigneeAgentId,
+            companyId: issue.companyId,
+            profile: input.profile,
+            task,
+            issue: issue.issue,
+            issueIdentifier: issue.issue.identifier || null,
+            artifactPaths: input.artifactPaths,
+          });
+          dispatchRecord.wakeStatus = wake.wakeStatus || dispatchRecord.wakeStatus;
+          dispatchRecord.wakeRunId = wake.wakeRunId;
+        } catch (error) {
+          dispatchRecord.wakeError = error instanceof Error ? error.message : String(error);
+        }
       }
-    } else {
-      dispatchRecord.wakeStatus = "skipped";
-    }
-    dispatched.push(dispatchRecord);
-  }
+      return dispatchRecord;
+    },
+  );
 
   await createPaperclipIssueComment(
     root.issue.id,
     [
       `City launch issue tree refreshed for ${input.profile.city}.`,
-      `Founder-approved activation: ${input.founderApproved}`,
+      `Founder-approved activation: ${founderApproved}`,
       `Task issues routed: ${dispatched.length}`,
-      `Task wakeups attempted: ${dispatched.filter((entry) => entry.wakeStatus !== "skipped").length}`,
+      `Task wakeups attempted: ${dispatched.filter((entry) => entry.wakeStatus !== "skipped" && entry.wakeStatus !== "skipped_existing").length}`,
       `Canonical bundle: ${input.artifactPaths.canonicalIssueBundlePath}`,
     ].join("\n"),
   ).catch(() => undefined);
@@ -1700,6 +2616,8 @@ export async function runCityLaunchExecutionHarness(input: {
   budgetMaxUsd?: number;
   operatorAutoApproveUsd?: number;
   dispatchIssues?: boolean;
+  rewakeTaskKeys?: string[];
+  rewakeOwnerLanes?: string[];
 }) {
   const budgetPolicy = buildCityLaunchBudgetPolicy({
     tier: input.budgetTier,
@@ -1722,6 +2640,17 @@ export async function runCityLaunchExecutionHarness(input: {
   const targetLedgerPath = path.join(runDirectory, `city-capture-target-ledger-${profile.key}.md`);
   const targetLedgerJsonPath = path.join(runDirectory, `city-capture-target-ledger-${profile.key}.json`);
   const approvalsPath = path.join(runDirectory, "founder-approvals.md");
+  const cityOpeningBriefPath = path.join(runDirectory, `city-opening-${profile.key}-brief.md`);
+  const cityOpeningChannelMapPath = path.join(runDirectory, `city-opening-${profile.key}-channel-map.md`);
+  const cityOpeningFirstWavePackPath = path.join(runDirectory, `city-opening-${profile.key}-first-wave-pack.md`);
+  const cityOpeningCtaRoutingPath = path.join(runDirectory, `city-opening-${profile.key}-cta-routing.md`);
+  const cityOpeningResponseTrackingPath = path.join(runDirectory, `city-opening-${profile.key}-response-tracking.md`);
+  const cityOpeningReplyConversionPath = path.join(runDirectory, `city-opening-${profile.key}-reply-conversion.md`);
+  const cityOpeningChannelRegistryPath = path.join(runDirectory, `city-opening-${profile.key}-channel-registry.md`);
+  const cityOpeningSendLedgerPath = path.join(runDirectory, `city-opening-${profile.key}-send-ledger.md`);
+  const cityOpeningExecutionReportPath = path.join(runDirectory, `city-opening-${profile.key}-execution-report.md`);
+  const cityOpeningRobotTeamContactListPath = path.join(runDirectory, `city-opening-${profile.key}-robot-team-contact-list.md`);
+  const cityOpeningSiteOperatorContactListPath = path.join(runDirectory, `city-opening-${profile.key}-site-operator-contact-list.md`);
   const researchMaterializationPath = path.join(
     runDirectory,
     `city-launch-research-materialization-${profile.key}.json`,
@@ -1732,10 +2661,22 @@ export async function runCityLaunchExecutionHarness(input: {
   const canonicalLaunchPlaybookPath = buildCanonicalLaunchPlaybookPath(profile);
   const canonicalDemandPlaybookPath = buildCanonicalDemandPlaybookPath(profile);
   const canonicalTargetLedgerPath = buildCanonicalTargetLedgerPath(profile);
+  const canonicalCityOpeningBriefPath = buildCanonicalCityOpeningArtifactPath(profile, "brief");
+  const canonicalCityOpeningChannelMapPath = buildCanonicalCityOpeningArtifactPath(profile, "channel-map");
+  const canonicalCityOpeningFirstWavePackPath = buildCanonicalCityOpeningArtifactPath(profile, "first-wave-pack");
+  const canonicalCityOpeningCtaRoutingPath = buildCanonicalCityOpeningArtifactPath(profile, "cta-routing");
+  const canonicalCityOpeningResponseTrackingPath = buildCanonicalCityOpeningArtifactPath(profile, "response-tracking");
+  const canonicalCityOpeningReplyConversionPath = buildCanonicalCityOpeningArtifactPath(profile, "reply-conversion");
+  const canonicalCityOpeningChannelRegistryPath = buildCanonicalCityOpeningArtifactPath(profile, "channel-registry");
+  const canonicalCityOpeningSendLedgerPath = buildCanonicalCityOpeningArtifactPath(profile, "send-ledger");
+  const canonicalCityOpeningExecutionReportPath = buildCanonicalCityOpeningArtifactPath(profile, "execution-report");
+  const canonicalCityOpeningRobotTeamContactListPath = buildCanonicalCityOpeningArtifactPath(profile, "robot-team-contact-list");
+  const canonicalCityOpeningSiteOperatorContactListPath = buildCanonicalCityOpeningArtifactPath(profile, "site-operator-contact-list");
   const canonicalActivationPayloadPath = path.join(
     REPO_ROOT,
     `ops/paperclip/playbooks/city-launch-${profile.key}-activation-payload.json`,
   );
+  const priorActivation = await readCityLaunchActivation(profile.city).catch(() => null);
   const planningState = await resolveCityLaunchPlanningState({ city: profile.city });
   const completedResearch = await maybeLoadCompletedResearch(planningState);
   const tasks = mergeTasksWithActivationPayload(
@@ -1780,10 +2721,38 @@ export async function runCityLaunchExecutionHarness(input: {
     research: completedResearch,
     activationPayload: completedResearch?.activationPayload || null,
   });
+  const cityOpeningBrief = buildCityOpeningBriefMarkdown({
+    profile,
+    research: completedResearch,
+    activationPayload: completedResearch?.activationPayload || null,
+  });
+  const cityOpeningChannelMap = buildCityOpeningChannelMapMarkdown({
+    profile,
+    activationPayload: completedResearch?.activationPayload || null,
+  });
+  const cityOpeningFirstWavePack = buildCityOpeningFirstWavePackMarkdown({
+    profile,
+    research: completedResearch,
+  });
+  const cityOpeningCtaRouting = buildCityOpeningCtaRoutingMarkdown({
+    profile,
+  });
+  const cityOpeningResponseTracking = buildCityOpeningResponseTrackingMarkdown({
+    profile,
+  });
+  const cityOpeningReplyConversion = buildCityOpeningReplyConversionMarkdown({
+    profile,
+  });
 
   await writeTextArtifact(canonicalLaunchPlaybookPath, compactLaunchPlaybook);
   await writeTextArtifact(canonicalDemandPlaybookPath, compactDemandPlaybook);
   await writeTextArtifact(canonicalTargetLedgerPath, targetLedgerMarkdown);
+  await writeTextArtifact(canonicalCityOpeningBriefPath, cityOpeningBrief);
+  await writeTextArtifact(canonicalCityOpeningChannelMapPath, cityOpeningChannelMap);
+  await writeTextArtifact(canonicalCityOpeningFirstWavePackPath, cityOpeningFirstWavePack);
+  await writeTextArtifact(canonicalCityOpeningCtaRoutingPath, cityOpeningCtaRouting);
+  await writeTextArtifact(canonicalCityOpeningResponseTrackingPath, cityOpeningResponseTracking);
+  await writeTextArtifact(canonicalCityOpeningReplyConversionPath, cityOpeningReplyConversion);
   if (completedResearch?.activationPayload) {
     await writeTextArtifact(
       canonicalActivationPayloadPath,
@@ -1795,6 +2764,24 @@ export async function runCityLaunchExecutionHarness(input: {
   if (completedResearch?.activationPayload) {
     sourceArtifacts.push({
       relativePath: path.relative(REPO_ROOT, canonicalActivationPayloadPath).replaceAll(path.sep, "/"),
+      exists: true,
+    });
+  }
+  for (const artifactPath of [
+    canonicalCityOpeningBriefPath,
+    canonicalCityOpeningChannelMapPath,
+    canonicalCityOpeningFirstWavePackPath,
+    canonicalCityOpeningCtaRoutingPath,
+    canonicalCityOpeningResponseTrackingPath,
+    canonicalCityOpeningReplyConversionPath,
+    canonicalCityOpeningChannelRegistryPath,
+    canonicalCityOpeningSendLedgerPath,
+    canonicalCityOpeningExecutionReportPath,
+    canonicalCityOpeningRobotTeamContactListPath,
+    canonicalCityOpeningSiteOperatorContactListPath,
+  ]) {
+    sourceArtifacts.push({
+      relativePath: path.relative(REPO_ROOT, artifactPath).replaceAll(path.sep, "/"),
       exists: true,
     });
   }
@@ -1863,6 +2850,12 @@ export async function runCityLaunchExecutionHarness(input: {
   await writeTextArtifact(targetLedgerPath, targetLedgerMarkdown);
   await writeTextArtifact(targetLedgerJsonPath, JSON.stringify(targetLedgerPayload, null, 2));
   await writeTextArtifact(approvalsPath, approvalsText);
+  await writeTextArtifact(cityOpeningBriefPath, cityOpeningBrief);
+  await writeTextArtifact(cityOpeningChannelMapPath, cityOpeningChannelMap);
+  await writeTextArtifact(cityOpeningFirstWavePackPath, cityOpeningFirstWavePack);
+  await writeTextArtifact(cityOpeningCtaRoutingPath, cityOpeningCtaRouting);
+  await writeTextArtifact(cityOpeningResponseTrackingPath, cityOpeningResponseTracking);
+  await writeTextArtifact(cityOpeningReplyConversionPath, cityOpeningReplyConversion);
   await writeTextArtifact(canonicalSystemDocPath, systemDocText);
   await writeTextArtifact(canonicalIssueBundlePath, issueBundleText);
   await writeTextArtifact(canonicalLaunchPlaybookPath, compactLaunchPlaybook);
@@ -1899,6 +2892,30 @@ export async function runCityLaunchExecutionHarness(input: {
       canonicalDemandPlaybookPath,
       canonicalTargetLedgerPath,
       canonicalActivationPayloadPath,
+      cityOpeningArtifactPack: {
+        run: {
+          briefPath: cityOpeningBriefPath,
+          channelMapPath: cityOpeningChannelMapPath,
+          firstWavePackPath: cityOpeningFirstWavePackPath,
+          ctaRoutingPath: cityOpeningCtaRoutingPath,
+          responseTrackingPath: cityOpeningResponseTrackingPath,
+          replyConversionPath: cityOpeningReplyConversionPath,
+          channelRegistryPath: cityOpeningChannelRegistryPath,
+          sendLedgerPath: cityOpeningSendLedgerPath,
+          executionReportPath: cityOpeningExecutionReportPath,
+        },
+        canonical: {
+          briefPath: canonicalCityOpeningBriefPath,
+          channelMapPath: canonicalCityOpeningChannelMapPath,
+          firstWavePackPath: canonicalCityOpeningFirstWavePackPath,
+          ctaRoutingPath: canonicalCityOpeningCtaRoutingPath,
+          responseTrackingPath: canonicalCityOpeningResponseTrackingPath,
+          replyConversionPath: canonicalCityOpeningReplyConversionPath,
+          channelRegistryPath: canonicalCityOpeningChannelRegistryPath,
+          sendLedgerPath: canonicalCityOpeningSendLedgerPath,
+          executionReportPath: canonicalCityOpeningExecutionReportPath,
+        },
+      },
     },
     planning: {
       status: planningState.status,
@@ -1929,6 +2946,10 @@ export async function runCityLaunchExecutionHarness(input: {
         tasks,
         founderApproved: Boolean(input.founderApproved),
         budgetPolicy,
+        existingRootIssueId: priorActivation?.rootIssueId || null,
+        existingTaskIssueIds: priorActivation?.taskIssueIds || {},
+        rewakeTaskKeys: input.rewakeTaskKeys,
+        rewakeOwnerLanes: input.rewakeOwnerLanes,
         artifactPaths: {
           canonicalSystemDocPath,
           canonicalIssueBundlePath,
@@ -1953,6 +2974,57 @@ export async function runCityLaunchExecutionHarness(input: {
     }
   }
 
+  if (
+    input.founderApproved
+    && input.dispatchIssues !== false
+    && (!result.paperclip?.rootIssueId || (result.paperclip?.dispatched.length || 0) === 0)
+  ) {
+    const dispatchError = result.paperclip?.error
+      || "Founder-approved activation did not create or update the live Paperclip city-launch issue tree.";
+    throw new Error(
+      `City launch activation failed closed for ${profile.city}: ${dispatchError}`,
+    );
+  }
+
+  const taskIssueIds = Object.fromEntries(
+    (result.paperclip?.dispatched || []).map((entry) => [entry.key, entry.issueId]),
+  );
+
+  const seededCityOpeningExecution = await seedCityOpeningExecutionLedgers({
+    profile,
+    launchId: result.paperclip?.rootIssueId || null,
+    taskIssueIds,
+    research: completedResearch,
+  }).catch(() => null);
+
+  const cityOpeningExecution =
+    seededCityOpeningExecution
+    || {
+      channelAccounts: await listCityLaunchChannelAccounts(profile.city).catch(() => []),
+      sendActions: await listCityLaunchSendActions(profile.city).catch(() => []),
+    };
+
+  const cityOpeningChannelRegistry = renderCityOpeningChannelRegistryMarkdown({
+    profile,
+    channelAccounts: cityOpeningExecution.channelAccounts,
+  });
+  const cityOpeningSendLedger = renderCityOpeningSendLedgerMarkdown({
+    profile,
+    sendActions: cityOpeningExecution.sendActions,
+  });
+  const cityOpeningExecutionReport = renderCityOpeningExecutionReportMarkdown({
+    profile,
+    channelAccounts: cityOpeningExecution.channelAccounts,
+    sendActions: cityOpeningExecution.sendActions,
+  });
+
+  await writeTextArtifact(cityOpeningChannelRegistryPath, cityOpeningChannelRegistry);
+  await writeTextArtifact(cityOpeningSendLedgerPath, cityOpeningSendLedger);
+  await writeTextArtifact(cityOpeningExecutionReportPath, cityOpeningExecutionReport);
+  await writeTextArtifact(canonicalCityOpeningChannelRegistryPath, cityOpeningChannelRegistry);
+  await writeTextArtifact(canonicalCityOpeningSendLedgerPath, cityOpeningSendLedger);
+  await writeTextArtifact(canonicalCityOpeningExecutionReportPath, cityOpeningExecutionReport);
+
   await writeCityLaunchActivation({
     city: profile.city,
     budgetTier: budgetPolicy.tier,
@@ -1960,9 +3032,7 @@ export async function runCityLaunchExecutionHarness(input: {
     founderApproved: Boolean(input.founderApproved),
     status: result.activationStatus,
     rootIssueId: result.paperclip?.rootIssueId || null,
-    taskIssueIds: Object.fromEntries(
-      (result.paperclip?.dispatched || []).map((entry) => [entry.key, entry.issueId]),
-    ),
+    taskIssueIds,
     wideningGuard,
   }).catch(() => null);
 
@@ -1981,6 +3051,26 @@ export async function runCityLaunchExecutionHarness(input: {
     budgetRecommendationsRecorded: researchMaterialization.budgetRecommendationsRecorded,
     warnings: researchMaterialization.warnings,
   };
+
+  const [cityBuyerTargets, cityProspects, refreshedSendActions] = await Promise.all([
+    listCityLaunchBuyerTargets(profile.city).catch(() => []),
+    listCityLaunchProspects(profile.city).catch(() => []),
+    listCityLaunchSendActions(profile.city).catch(() => cityOpeningExecution.sendActions),
+  ]);
+  const robotTeamContactList = renderRobotTeamContactListMarkdown({
+    profile,
+    buyerTargets: cityBuyerTargets,
+    sendActions: refreshedSendActions,
+  });
+  const siteOperatorContactList = renderSiteOperatorContactListMarkdown({
+    profile,
+    prospects: cityProspects,
+  });
+
+  await writeTextArtifact(cityOpeningRobotTeamContactListPath, robotTeamContactList);
+  await writeTextArtifact(cityOpeningSiteOperatorContactListPath, siteOperatorContactList);
+  await writeTextArtifact(canonicalCityOpeningRobotTeamContactListPath, robotTeamContactList);
+  await writeTextArtifact(canonicalCityOpeningSiteOperatorContactListPath, siteOperatorContactList);
 
   await writeTextArtifact(manifestPath, JSON.stringify(result, null, 2));
   return result;

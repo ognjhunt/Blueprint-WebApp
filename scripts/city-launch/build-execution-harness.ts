@@ -13,6 +13,17 @@ function getFlagValue(args: string[], flag: string) {
   return args[index + 1] || null;
 }
 
+function getCommaSeparatedFlagValues(args: string[], flag: string) {
+  const raw = getFlagValue(args, flag);
+  if (!raw) {
+    return [];
+  }
+  return raw
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const city = getFlagValue(args, "--city") || "Austin, TX";
@@ -20,6 +31,8 @@ async function main() {
     getFlagValue(args, "--budget-tier") || undefined;
   const budgetMaxUsdValue = getFlagValue(args, "--budget-max-usd");
   const operatorAutoApproveUsdValue = getFlagValue(args, "--operator-auto-approve-usd");
+  const rewakeTaskKeys = getCommaSeparatedFlagValues(args, "--rewake-task-keys");
+  const rewakeOwnerLanes = getCommaSeparatedFlagValues(args, "--rewake-owner-lanes");
 
   const reportsRoot =
     getFlagValue(args, "--reports-root")
@@ -40,6 +53,8 @@ async function main() {
     operatorAutoApproveUsd: operatorAutoApproveUsdValue
       ? Number(operatorAutoApproveUsdValue)
       : undefined,
+    rewakeTaskKeys,
+    rewakeOwnerLanes,
   });
 
   console.log(
@@ -56,6 +71,7 @@ async function main() {
         canonicalDemandPlaybookPath: result.artifacts.canonicalDemandPlaybookPath,
         canonicalTargetLedgerPath: result.artifacts.canonicalTargetLedgerPath,
         canonicalActivationPayloadPath: result.artifacts.canonicalActivationPayloadPath,
+        canonicalCityOpeningArtifactPack: result.artifacts.cityOpeningArtifactPack.canonical,
         sourceActivationPayloadPath: result.artifacts.sourceActivationPayloadPath || null,
         runDirectory: result.artifacts.runDirectory,
         notionKnowledgePageUrl: result.notion?.knowledgePageUrl || null,
@@ -63,7 +79,11 @@ async function main() {
         paperclipRootIssueId: result.paperclip?.rootIssueId || null,
         dispatchedIssueCount: result.paperclip?.dispatched.length || 0,
         wokenIssueCount:
-          result.paperclip?.dispatched.filter((entry) => entry.wakeStatus && entry.wakeStatus !== "skipped").length || 0,
+          result.paperclip?.dispatched.filter((entry) =>
+            entry.wakeStatus
+            && entry.wakeStatus !== "skipped"
+            && entry.wakeStatus !== "skipped_existing",
+          ).length || 0,
         wakeFailureCount:
           result.paperclip?.dispatched.filter((entry) => entry.wakeError).length || 0,
         researchMaterializationStatus: result.researchMaterialization?.status || null,

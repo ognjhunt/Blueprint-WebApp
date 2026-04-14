@@ -1,0 +1,315 @@
+{
+  "status": "materialized",
+  "city": "Sacramento, CA",
+  "citySlug": "sacramento-ca",
+  "sourceArtifactPath": "ops/paperclip/playbooks/city-launch-sacramento-ca-deep-research.md",
+  "parsed": {
+    "city": "Sacramento, CA",
+    "citySlug": "sacramento-ca",
+    "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-sacramento-ca-deep-research.md",
+    "schemaVersion": "2026-04-12.city-launch-research.v1",
+    "generatedAtIso": "2026-04-13T00:00:00.000Z",
+    "captureCandidates": [
+      {
+        "stableKey": "prospect_sacramento-ca_industrial-warehouse-us-cold-storage-ambient-module-mcclellan-park-sacramento-ca",
+        "name": "US Cold Storage - Ambient Module",
+        "sourceBucket": "industrial_warehouse",
+        "channel": "operator_intro",
+        "status": "identified",
+        "siteAddress": "McClellan Park, Sacramento, CA",
+        "locationSummary": "Initial ambient/cross-dock multi-tenant logistics space, avoiding deep-freeze limits.",
+        "lat": null,
+        "lng": null,
+        "siteCategory": "warehouse",
+        "workflowFit": "dock handoff and pallet movement",
+        "priorityNote": "Crucial exact-site validation target before tackling extreme cold modules.",
+        "sourceUrls": [],
+        "explicitFields": [
+          "name",
+          "site_address",
+          "source_bucket",
+          "location_summary"
+        ],
+        "inferredFields": [],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-sacramento-ca-deep-research.md",
+          "sourceKey": "capture_location_candidates[0]",
+          "sourceUrls": [],
+          "parsedAtIso": "2026-04-14T01:34:53.743Z",
+          "explicitFields": [
+            "name",
+            "site_address",
+            "source_bucket",
+            "location_summary"
+          ],
+          "inferredFields": []
+        }
+      }
+    ],
+    "buyerTargets": [
+      {
+        "stableKey": "buyer_target_sacramento-ca_raymond-west-warehouse-autonomy",
+        "companyName": "Raymond West",
+        "contactName": null,
+        "status": "researched",
+        "workflowFit": "warehouse autonomy",
+        "proofPath": "exact_site",
+        "notes": "Active West Coast deployment partner for AMRs; integration workflows rely on digital-twin simulation.",
+        "sourceBucket": "warehouse_robotics",
+        "sourceUrls": [],
+        "explicitFields": [
+          "company_name",
+          "workflow_fit",
+          "proof_path"
+        ],
+        "inferredFields": [],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-sacramento-ca-deep-research.md",
+          "sourceKey": "buyer_target_candidates[0]",
+          "sourceUrls": [],
+          "parsedAtIso": "2026-04-14T01:34:53.744Z",
+          "explicitFields": [
+            "company_name",
+            "workflow_fit",
+            "proof_path"
+          ],
+          "inferredFields": []
+        }
+      }
+    ],
+    "firstTouches": [
+      {
+        "stableKey": "touch_sacramento-ca_buyer-target-raymond-west-email-first-touch",
+        "referenceType": "buyer_target",
+        "referenceName": "Raymond West",
+        "channel": "email",
+        "touchType": "first_touch",
+        "status": "queued",
+        "campaignId": null,
+        "issueId": null,
+        "notes": "Inquire about exact-site spatial validation formats for their iWAREHOUSE/Cyngn simulation workflow.",
+        "sourceUrls": [],
+        "explicitFields": [
+          "reference_name",
+          "channel",
+          "touch_type"
+        ],
+        "inferredFields": [],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-sacramento-ca-deep-research.md",
+          "sourceKey": "first_touch_candidates[0]",
+          "sourceUrls": [],
+          "parsedAtIso": "2026-04-14T01:34:53.744Z",
+          "explicitFields": [
+            "reference_name",
+            "channel",
+            "touch_type"
+          ],
+          "inferredFields": []
+        }
+      }
+    ],
+    "budgetRecommendations": [
+      {
+        "stableKey": "budget_sacramento-ca_field-ops-2500-allocated-for-professional-reality-capture-contractors-possessing-osha-10-and-1m-2m-commercial-general-liability-insurance",
+        "category": "field_ops",
+        "amountUsd": 2500,
+        "note": "Allocated for professional reality-capture contractors possessing OSHA-10 and $1M/$2M commercial general liability insurance.",
+        "sourceUrls": [],
+        "explicitFields": [
+          "category",
+          "amount_usd",
+          "note"
+        ],
+        "inferredFields": [],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-sacramento-ca-deep-research.md",
+          "sourceKey": "budget_recommendations[0]",
+          "sourceUrls": [],
+          "parsedAtIso": "2026-04-14T01:34:53.744Z",
+          "explicitFields": [
+            "category",
+            "amount_usd",
+            "note"
+          ],
+          "inferredFields": []
+        }
+      }
+    ],
+    "activationPayload": {
+      "schemaVersion": "2026-04-13.city-launch-activation-payload.v1",
+      "machinePolicyVersion": "2026-04-13.city-launch-doctrine.v1",
+      "city": "Sacramento, CA",
+      "citySlug": "sacramento-ca",
+      "cityThesis": "One narrow exact-site hosted review motion targeting AMR integrators executing digital-twin simulations in multi-tenant 3PL logistics environments.",
+      "primarySiteLane": "industrial_warehouse",
+      "primaryWorkflowLane": "dock handoff and pallet movement",
+      "primaryBuyerProofPath": "exact_site",
+      "lawfulAccessModes": [
+        "buyer_requested_site",
+        "site_operator_intro",
+        "capturer_existing_lawful_access"
+      ],
+      "preferredLawfulAccessMode": "buyer_requested_site",
+      "rightsPath": {
+        "summary": "Implement a 3-Tier multi-tenant consent packet (Property Owner, Facility Operator, Inventory Tenant) before authorizing capture dispatch.",
+        "privateControlledInteriorsRequireAuthorization": true,
+        "validationRequired": true,
+        "sourceUrls": []
+      },
+      "validationBlockers": [
+        {
+          "key": "buyer_stack_fit",
+          "summary": "Verify exact-site artifact compatibility with NVIDIA Omniverse and iWAREHOUSE before live outreach.",
+          "severity": "high",
+          "ownerLane": "buyer-solutions-agent",
+          "validationRequired": true,
+          "sourceUrls": []
+        },
+        {
+          "key": "air_gapped_delivery_constraint",
+          "summary": "Verify if export-controlled or dual-use industrial buyers mandate air-gapped delivery over Blueprint-WebApp.",
+          "severity": "high",
+          "ownerLane": "ops-lead",
+          "validationRequired": true,
+          "sourceUrls": []
+        }
+      ],
+      "requiredApprovals": [
+        {
+          "lane": "founder",
+          "reason": "New city activation and ITAR/Defense proximity exceptions require founder gate."
+        },
+        {
+          "lane": "ops-lead",
+          "reason": "Dispatch into industrial 3PLs requires COI, thermal limit, and 3-Tier Consent verification."
+        },
+        {
+          "lane": "designated-human-rights-reviewer",
+          "reason": "Requires manual verification of proprietary multi-tenant IP scrub before artifact materialization."
+        }
+      ],
+      "ownerLanes": [
+        "city-launch-agent",
+        "ops-lead",
+        "growth-lead",
+        "intake-agent",
+        "rights-provenance-agent",
+        "buyer-solutions-agent",
+        "analytics-agent"
+      ],
+      "issueSeeds": [
+        {
+          "key": "lawful-access-path",
+          "title": "Lock the first multi-tenant lawful access path",
+          "phase": "founder_gates",
+          "ownerLane": "city-launch-agent",
+          "humanLane": "ops-lead",
+          "summary": "Secure the first complete 3-Tier Consent packet for an ambient-temperature McClellan Park industrial module.",
+          "dependencyKeys": [],
+          "successCriteria": [
+            "First lawful access path is signed by owner, operator, and tenant."
+          ],
+          "metricsDependencies": [
+            "first_lawful_access_path"
+          ],
+          "validationRequired": true
+        }
+      ],
+      "metricsDependencies": [
+        {
+          "key": "robot_team_inbound_captured",
+          "kind": "event",
+          "status": "required_not_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Ensure intake parsing matches specific integrator demand."
+        },
+        {
+          "key": "proof_path_assigned",
+          "kind": "event",
+          "status": "required_not_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Track distribution between exact_site, adjacent_site, and scoped_follow_up."
+        },
+        {
+          "key": "proof_pack_delivered",
+          "kind": "event",
+          "status": "required_not_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Establish baseline pipeline processing time for feature-sparse industrial spaces."
+        },
+        {
+          "key": "hosted_review_ready",
+          "kind": "event",
+          "status": "required_not_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Triggered post human-rights-review."
+        },
+        {
+          "key": "hosted_review_started",
+          "kind": "event",
+          "status": "required_not_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Verifies technical engagement from the simulation engineer."
+        },
+        {
+          "key": "hosted_review_follow_up_sent",
+          "kind": "event",
+          "status": "required_not_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Automated technical spec transmission."
+        },
+        {
+          "key": "human_commercial_handoff_started",
+          "kind": "event",
+          "status": "required_not_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Marks successful technical proof."
+        },
+        {
+          "key": "proof_motion_stalled",
+          "kind": "event",
+          "status": "required_not_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Crucial for identifying air-gap blockers or stack ingestion failures."
+        }
+      ],
+      "namedClaims": [
+        {
+          "subject": "Raymond West",
+          "claimType": "company",
+          "claim": "Integrator actively deploying Cyngn DriveMod Tuggers and utilizing iWAREHOUSE.",
+          "validationRequired": true,
+          "sourceUrls": []
+        },
+        {
+          "subject": "NVIDIA Omniverse / iWAREHOUSE",
+          "claimType": "stack",
+          "claim": "The exported spatial artifact must be seamlessly ingested into NVIDIA digital-twin tools or proprietary layout systems.",
+          "validationRequired": true,
+          "sourceUrls": []
+        },
+        {
+          "subject": "Air-Gapped Delivery",
+          "claimType": "delivery",
+          "claim": "Defense-adjacent industrial environments (McClellan) may strictly require on-premise artifact delivery over web SaaS.",
+          "validationRequired": true,
+          "sourceUrls": []
+        }
+      ]
+    },
+    "warnings": [],
+    "errors": []
+  },
+  "activationPayloadPresent": true,
+  "activationIssueSeeds": 1,
+  "prospectsUpserted": 1,
+  "buyerTargetsUpserted": 1,
+  "touchesRecorded": 1,
+  "budgetRecommendationsRecorded": 1,
+  "warnings": []
+}

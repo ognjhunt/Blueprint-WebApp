@@ -23,9 +23,15 @@ This ledger is intentionally split into:
 
 ## Priority Proof Targets
 
-No research-backed named targets are available yet.
+The first-wave shortlist below is research-backed enough to support bounded outbound prep, but every prospect still needs a live review posture check before send.
 
-Complete or materialize deep research before treating this city as ready for named-site capture pursuit.
+| Prospect | Why it is relevant to San Jose | Right contact | Likely site/workflow need | Suggested proof posture |
+| --- | --- | --- | --- | --- |
+| [Roboteon](https://www.roboteon.com/leadership-team) | San Jose HQ; warehouse robotics platform focused on platform, integration, interoperability, orchestration, simulation, and AI/ML for warehouses and 3PLs. | Gana Govind, Founder & CEO; Dennis Nicholson, SVP Sales; Raj Senguttuvan, SVP Product | Warehouse, 3PL, manufacturing, and distribution workflows where a real site walkthrough or customer-facing hosted review could help validate interoperability and automation value. | `exact_site` if they want a concrete warehouse or 3PL site; otherwise `adjacent_site` for a representative warehouse workflow. |
+| [Applied Intuition](https://www.appliedintuition.com/research) | Their research team is explicitly working on physical AI, world-action foundation model pre-training, robot learning, and grounded multimodal data. | Dr. Wei Zhan, Research Lead | Grounded multimodal data, 4D reconstruction, and site-anchored robot learning problems that benefit from a truthful hosted review instead of generic simulation claims. | `scoped_follow_up` unless they name a specific site or data gap; upgrade to `exact_site` only when the buyer names a concrete facility or workflow. |
+| [Vimaan](https://vimaan.ai/company/) | Silicon Valley warehouse computer-vision company serving 3PLs, brands, and retailers with warehouse inventory tracking and customer-specific product demonstrations. | KG Ganapathi, Founder; `sales@vimaan.ai` / Contact Sales | Warehouse receiving, put-away, cycle counting, order validation, and shipping workflows where site-grounded inventory visibility could be a strong exact-site or adjacent-site fit. | `exact_site` for a named warehouse; `adjacent_site` for a similar warehouse workflow. |
+
+Complete additional deep research before treating the city as ready for broader named-site capture pursuit.
 
 ## Queued Lawful-Access Buckets
 
@@ -59,5 +65,6 @@ Complete or materialize deep research before treating this city as ready for nam
 
 ## Warnings
 
-- No research-backed named targets are available yet. Complete or materialize deep research before using this ledger for real capture pursuit.
+- The shortlist above is enough to support bounded outbound prep, but not enough to claim site access, permissions, stack fit, or delivery readiness.
+- Verify before outreach: exact buyer contact, current evaluation stack, hosted-review appetite, rights/privacy constraints, and whether the prospect wants an exact-site or adjacent-site posture.
 - Latest planning artifact: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-13T17-38-45.838Z/01-initial-research.md

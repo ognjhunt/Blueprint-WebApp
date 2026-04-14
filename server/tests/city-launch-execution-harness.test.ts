@@ -10,6 +10,12 @@ const wakePaperclipAgent = vi.hoisted(() => vi.fn());
 const summarizeCityLaunchLedgers = vi.hoisted(() => vi.fn());
 const writeCityLaunchActivation = vi.hoisted(() => vi.fn());
 const readCityLaunchActivation = vi.hoisted(() => vi.fn());
+const listCityLaunchChannelAccounts = vi.hoisted(() => vi.fn());
+const listCityLaunchSendActions = vi.hoisted(() => vi.fn());
+const listCityLaunchBuyerTargets = vi.hoisted(() => vi.fn());
+const listCityLaunchProspects = vi.hoisted(() => vi.fn());
+const upsertCityLaunchChannelAccount = vi.hoisted(() => vi.fn());
+const upsertCityLaunchSendAction = vi.hoisted(() => vi.fn());
 const resolveCityLaunchPlanningState = vi.hoisted(() => vi.fn());
 const loadAndParseCityLaunchResearchArtifact = vi.hoisted(() => vi.fn());
 
@@ -23,6 +29,12 @@ vi.mock("../utils/cityLaunchLedgers", () => ({
   summarizeCityLaunchLedgers,
   writeCityLaunchActivation,
   readCityLaunchActivation,
+  listCityLaunchChannelAccounts,
+  listCityLaunchSendActions,
+  listCityLaunchBuyerTargets,
+  listCityLaunchProspects,
+  upsertCityLaunchChannelAccount,
+  upsertCityLaunchSendAction,
 }));
 
 vi.mock("../utils/cityLaunchPlanningState", () => ({
@@ -44,6 +56,22 @@ beforeEach(() => {
   readCityLaunchActivation.mockResolvedValue(null);
   createPaperclipIssueComment.mockResolvedValue({ ok: true });
   wakePaperclipAgent.mockResolvedValue({ status: "queued", runId: "run-1" });
+  listCityLaunchChannelAccounts.mockResolvedValue([]);
+  listCityLaunchSendActions.mockResolvedValue([]);
+  listCityLaunchBuyerTargets.mockResolvedValue([]);
+  listCityLaunchProspects.mockResolvedValue([]);
+  upsertCityLaunchChannelAccount.mockImplementation(async (input: unknown) => ({
+    ...(input as Record<string, unknown>),
+    citySlug: "mock-city",
+    createdAtIso: new Date().toISOString(),
+    updatedAtIso: new Date().toISOString(),
+  }));
+  upsertCityLaunchSendAction.mockImplementation(async (input: unknown) => ({
+    ...(input as Record<string, unknown>),
+    citySlug: "mock-city",
+    createdAtIso: new Date().toISOString(),
+    updatedAtIso: new Date().toISOString(),
+  }));
   resolveCityLaunchPlanningState.mockImplementation(async ({ city }: { city: string }) => ({
     city,
     citySlug: city.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""),
@@ -75,13 +103,21 @@ describe("city launch execution harness", () => {
     const { buildAustinExecutionTasks } = await import("../utils/cityLaunchExecutionHarness");
     const tasks = buildAustinExecutionTasks();
     const owners = new Set(tasks.map((task) => task.ownerLane));
+    const keys = new Set(tasks.map((task) => task.key));
 
     expect(owners.has("growth-lead")).toBe(true);
     expect(owners.has("ops-lead")).toBe(true);
+    expect(owners.has("city-launch-agent")).toBe(true);
     expect(owners.has("capturer-growth-agent")).toBe(true);
+    expect(owners.has("analytics-agent")).toBe(true);
     expect(owners.has("capturer-success-agent")).toBe(true);
     expect(owners.has("outbound-sales-agent")).toBe(true);
     expect(owners.has("beta-launch-commander")).toBe(true);
+    expect(keys.has("city-opening-distribution")).toBe(true);
+    expect(keys.has("city-opening-cta-routing")).toBe(true);
+    expect(keys.has("city-opening-first-wave-pack")).toBe(true);
+    expect(keys.has("city-opening-response-tracking")).toBe(true);
+    expect(keys.has("city-opening-reply-conversion")).toBe(true);
     expect([...owners].every((owner) => !owner.includes("austin"))).toBe(true);
   });
 
@@ -145,14 +181,66 @@ describe("city launch execution harness", () => {
     const launchPlaybook = await fs.readFile(result.artifacts.launchPlaybookPath, "utf8");
     const demandPlaybook = await fs.readFile(result.artifacts.demandPlaybookPath, "utf8");
     const targetLedger = await fs.readFile(result.artifacts.targetLedgerPath, "utf8");
+    const cityOpeningBrief = await fs.readFile(
+      result.artifacts.cityOpeningArtifactPack.run.briefPath,
+      "utf8",
+    );
+    const cityOpeningChannelMap = await fs.readFile(
+      result.artifacts.cityOpeningArtifactPack.run.channelMapPath,
+      "utf8",
+    );
+    const cityOpeningFirstWavePack = await fs.readFile(
+      result.artifacts.cityOpeningArtifactPack.run.firstWavePackPath,
+      "utf8",
+    );
+    const cityOpeningCtaRouting = await fs.readFile(
+      result.artifacts.cityOpeningArtifactPack.run.ctaRoutingPath,
+      "utf8",
+    );
+    const cityOpeningResponseTracking = await fs.readFile(
+      result.artifacts.cityOpeningArtifactPack.run.responseTrackingPath,
+      "utf8",
+    );
+    const cityOpeningReplyConversion = await fs.readFile(
+      result.artifacts.cityOpeningArtifactPack.run.replyConversionPath,
+      "utf8",
+    );
+    const cityOpeningChannelRegistry = await fs.readFile(
+      result.artifacts.cityOpeningArtifactPack.run.channelRegistryPath,
+      "utf8",
+    );
+    const cityOpeningSendLedger = await fs.readFile(
+      result.artifacts.cityOpeningArtifactPack.run.sendLedgerPath,
+      "utf8",
+    );
+    const cityOpeningExecutionReport = await fs.readFile(
+      result.artifacts.cityOpeningArtifactPack.run.executionReportPath,
+      "utf8",
+    );
 
     expect(systemDoc).toContain("Austin, TX Launch System");
     expect(systemDoc).toContain("Machine-Readable Budget Policy");
     expect(systemDoc).toContain("Activation Payload Highlights");
+    expect(systemDoc).toContain("city-opening brief, channel map, first-wave outreach/posting pack, CTA / intake path, response-tracking view, reply-conversion cadence lane, channel/account registry, send ledger, and city-opening execution report");
     expect(issueBundle).toContain("Austin, TX Launch Issue Bundle");
+    expect(issueBundle).toContain("Build the Austin city-opening distribution brief and channel map");
+    expect(issueBundle).toContain("Publish Austin city-opening response tracking");
+    expect(issueBundle).toContain("Run the Austin city-opening reply-conversion and follow-up cadence lane");
     expect(launchPlaybook).toContain("Austin, TX — Blueprint City Launch Plan");
+    expect(launchPlaybook).toContain("## City-Opening Distribution Layer");
+    expect(launchPlaybook).toContain("## Response Signal Standard");
+    expect(launchPlaybook).toContain("## Reply Conversion Cadence");
     expect(demandPlaybook).toContain("Austin, TX — Blueprint City Demand Plan");
     expect(targetLedger).toContain("Austin, TX Capture Target Ledger");
+    expect(cityOpeningBrief).toContain("Austin, TX City-Opening Brief");
+    expect(cityOpeningChannelMap).toContain("Austin, TX City Channel Map");
+    expect(cityOpeningFirstWavePack).toContain("Austin, TX City-Opening First-Wave Pack");
+    expect(cityOpeningCtaRouting).toContain("Austin, TX City-Opening CTA Routing");
+    expect(cityOpeningResponseTracking).toContain("Austin, TX City-Opening Response Tracking");
+    expect(cityOpeningReplyConversion).toContain("Austin, TX City-Opening Reply Conversion");
+    expect(cityOpeningChannelRegistry).toContain("Austin, TX City-Opening Channel Registry");
+    expect(cityOpeningSendLedger).toContain("Austin, TX City-Opening Send Ledger");
+    expect(cityOpeningExecutionReport).toContain("Austin, TX City-Opening Execution Report");
   });
 
   it("supports generic cities beyond the original focus-city list", async () => {
@@ -205,5 +293,37 @@ describe("city launch execution harness", () => {
     expect(result.wideningGuard.reasons.join("\n")).toContain(
       "Required proof-motion analytics contract is missing from the activation payload.",
     );
+  });
+
+  it("fails closed on founder-approved activation when the live Paperclip tree is not created or updated", async () => {
+    summarizeCityLaunchLedgers.mockResolvedValue({
+      trackedSupplyProspectsContacted: 0,
+      trackedBuyerTargetsResearched: 0,
+      trackedFirstTouchesSent: 0,
+      onboardedCapturers: 0,
+      totalRecordedSpendUsd: 0,
+      withinPolicySpendUsd: 0,
+      outsidePolicySpendUsd: 0,
+      recommendedSpendUsd: 0,
+      wideningGuard: { mode: "single_city_until_proven", wideningAllowed: false, reasons: [] },
+      dataSources: [],
+    });
+    upsertPaperclipIssue.mockRejectedValue(new Error("Paperclip unavailable"));
+
+    const reportsRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), "founder-approved-fail-closed-"),
+    );
+    tempDirs.push(reportsRoot);
+
+    const { runCityLaunchExecutionHarness } = await import("../utils/cityLaunchExecutionHarness");
+
+    await expect(
+      runCityLaunchExecutionHarness({
+        city: "Sacramento, CA",
+        reportsRoot,
+        founderApproved: true,
+        budgetTier: "zero_budget",
+      }),
+    ).rejects.toThrow(/failed closed/i);
   });
 });
