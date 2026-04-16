@@ -25,14 +25,23 @@ const definitionCards = [
   {
     title: "World model",
     body: worldModelDefinition,
+    imageSrc: "/illustrations/home-world-model-card.png",
+    imageAlt:
+      "Illustration of a site-specific digital environment built from real indoor capture and camera trajectory data.",
   },
   {
     title: "Site package",
     body: sitePackageDefinition,
+    imageSrc: "/illustrations/home-site-package-card.png",
+    imageAlt:
+      "Illustration of a structured site package with walkthrough media, geometry, metadata, and rights artifacts.",
   },
   {
     title: "Hosted evaluation",
     body: hostedEvaluationDefinition,
+    imageSrc: "/illustrations/home-hosted-evaluation-card.png",
+    imageAlt:
+      "Illustration of a hosted evaluation workspace comparing checkpoints on one exact site and exporting results.",
   },
 ];
 
@@ -148,8 +157,19 @@ export default function Home() {
           </div>
           <div className="mt-8 grid gap-4 lg:grid-cols-3">
             {definitionCards.map((item) => (
-              <article key={item.title} className="rounded-2xl border border-slate-200 bg-white p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <article
+                key={item.title}
+                className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5"
+              >
+                <div className="overflow-hidden rounded-[1.1rem] border border-slate-200 bg-slate-50">
+                  <img
+                    src={item.imageSrc}
+                    alt={item.imageAlt}
+                    className="aspect-[16/10] w-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+                <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                   {item.title}
                 </p>
                 <p className="mt-3 text-base leading-7 text-slate-700">{item.body}</p>
