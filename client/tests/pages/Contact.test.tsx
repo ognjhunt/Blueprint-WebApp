@@ -69,7 +69,7 @@ describe("Contact page", () => {
       "href",
       "/world-models",
     );
-    expect(screen.getByRole("link", { name: /How it works/i })).toHaveAttribute("href", "/how-it-works");
+    expect(screen.getByRole("link", { name: /Hosted evaluation/i })).toHaveAttribute("href", "/exact-site-hosted-review");
     expect(screen.getByRole("link", { name: /Sample deliverables/i })).toHaveAttribute("href", "/sample-deliverables");
     expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();

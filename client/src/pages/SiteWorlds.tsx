@@ -27,6 +27,35 @@ function isHostedReady(site: (typeof siteWorldCards)[number]) {
   return Boolean(site.deploymentReadiness?.native_world_model_primary) || Boolean(site.worldLabsPreview?.launchUrl);
 }
 
+function formatFreshness(value?: string | null) {
+  if (!value) return "Refresh state pending";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function getProofDepthLabel(site: (typeof siteWorldCards)[number]) {
+  if (hasPublicDemo(site)) return "Public demo + listing";
+  if (isHostedReady(site)) return "Listing + hosted path";
+  return "Listing only";
+}
+
+function getRightsClassLabel(site: (typeof siteWorldCards)[number]) {
+  const entitlements = site.deploymentReadiness?.rights_and_compliance?.export_entitlements || [];
+  if (entitlements.length > 0) {
+    return entitlements.slice(0, 2).join(", ");
+  }
+  return "Request-specific";
+}
+
+function getRestrictionsLabel(site: (typeof siteWorldCards)[number]) {
+  const consentScope = site.deploymentReadiness?.rights_and_compliance?.consent_scope || [];
+  if (consentScope.length > 0) {
+    return consentScope.slice(0, 2).join(", ");
+  }
+  return "Review on request";
+}
+
 const layerCards = [
   {
     title: "Buy the site package",
@@ -458,6 +487,22 @@ export default function SiteWorlds() {
                           Public demo
                         </span>
                       ) : null}
+                    </div>
+
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {[
+                        ["Proof depth", getProofDepthLabel(site)],
+                        ["Rights class", getRightsClassLabel(site)],
+                        ["Freshness", formatFreshness(site.deploymentReadiness?.freshness_date)],
+                        ["Restrictions", getRestrictionsLabel(site)],
+                      ].map(([label, value]) => (
+                        <div key={label} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                            {label}
+                          </p>
+                          <p className="mt-1 text-sm text-slate-800">{value}</p>
+                        </div>
+                      ))}
                     </div>
 
                     {site.deploymentReadiness?.native_world_model_primary ? (

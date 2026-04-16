@@ -139,6 +139,17 @@ function formatStatusLabel(status: WorldLabsStatus) {
   return WORLDLABS_STATUS_COPY[status].label;
 }
 
+function formatFreshnessLabel(value?: string | null) {
+  if (!value) return "Refresh state pending";
+  const timestamp = new Date(value);
+  if (Number.isNaN(timestamp.getTime())) return value;
+  return timestamp.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 function getArtifactSourceUri(site: PublicSiteWorldRecord | null | undefined, sourceId: string) {
   return (
     site?.artifactExplorer?.sources.find((source) => source.id === sourceId)?.uri ||
@@ -321,6 +332,32 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
       ? `Retention policy: ${site?.deploymentReadiness?.rights_and_compliance?.retention_policy}`
       : null,
   ].filter(Boolean) as string[];
+  const trustSnapshot = [
+    {
+      label: "Proof depth",
+      value: isDemoWalkthrough
+        ? "Public demo + sample artifact layouts"
+        : worldLabsPreview?.launchUrl
+          ? "Listing + hosted path"
+          : "Listing only",
+    },
+    {
+      label: "Rights class",
+      value:
+        site?.deploymentReadiness?.rights_and_compliance?.export_entitlements?.slice(0, 2).join(", ")
+        || "Request-specific",
+    },
+    {
+      label: "Freshness",
+      value: formatFreshnessLabel(site?.deploymentReadiness?.freshness_date),
+    },
+    {
+      label: "Restrictions",
+      value:
+        site?.deploymentReadiness?.rights_and_compliance?.consent_scope?.slice(0, 2).join(", ")
+        || "Review on request",
+    },
+  ];
 
   const runWorldLabsAdminAction = async (action: "generate" | "refresh") => {
     if (!site || !currentUser) {
@@ -779,6 +816,30 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               </div>
             </section>
           ) : null}
+
+          <section className="mt-8 rounded-3xl border border-slate-200 bg-white px-5 py-6 sm:px-7 sm:py-7">
+            <div className="max-w-3xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Trust and access snapshot
+              </p>
+              <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
+                Trust and access snapshot
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                This is the listing-level summary a buyer should be able to scan before purchase: proof depth, rights class, freshness, and restrictions.
+              </p>
+            </div>
+            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {trustSnapshot.map((item) => (
+                <article key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    {item.label}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-800">{item.value}</p>
+                </article>
+              ))}
+            </div>
+          </section>
 
           <section
             id="scene-package"

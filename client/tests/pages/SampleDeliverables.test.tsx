@@ -7,9 +7,9 @@ describe("SampleDeliverables", () => {
     render(<SampleDeliverables />);
 
     expect(screen.getByRole("heading", { name: /What a buyer actually gets\./i })).toBeInTheDocument();
-    expect(screen.getByText(/Sample manifest layout/i)).toBeInTheDocument();
-    expect(screen.getByText(/Sample export bundle/i)).toBeInTheDocument();
-    expect(screen.getByText(/Input\/output contract/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Sample manifest layout/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Sample export bundle/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Input\/output contract/i })).toBeInTheDocument();
     expect(screen.getByText(/Sample artifact layout/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /View sample listing/i })).toHaveAttribute(
       "href",
@@ -17,4 +17,3 @@ describe("SampleDeliverables", () => {
     );
   });
 });
-

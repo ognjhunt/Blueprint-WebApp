@@ -12,11 +12,11 @@ describe("ExactSiteHostedReview", () => {
         name: /Run the exact site before your robot team travels\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/What your team provides/i)).toBeInTheDocument();
-    expect(screen.getByText(/What Blueprint runs and returns/i)).toBeInTheDocument();
-    expect(screen.getByText(/How the hosted loop works/i)).toBeInTheDocument();
-    expect(screen.getByText(/What happens after inquiry/i)).toBeInTheDocument();
-    expect(screen.getByText(/Illustrative product preview/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /What your team provides/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /What Blueprint runs and returns/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /How the hosted loop works/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /What happens after inquiry/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/Illustrative product preview/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: /See a sample hosted flow/i })).toHaveAttribute(
       "href",
       "/sample-deliverables",
@@ -27,4 +27,3 @@ describe("ExactSiteHostedReview", () => {
     );
   });
 });
-

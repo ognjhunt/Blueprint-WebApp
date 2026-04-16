@@ -101,9 +101,9 @@ describe("SiteWorldDetail", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/What hosted evaluation looks like/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Trust and access snapshot/i })).toBeInTheDocument();
-    expect(screen.getByText(/Proof depth/i)).toBeInTheDocument();
-    expect(screen.getByText(/Rights class/i)).toBeInTheDocument();
-    expect(screen.getByText(/Freshness/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Proof depth/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Rights class/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Freshness/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Step 1/i)).toBeInTheDocument();
     expect(screen.getByText(/Pick the site/i)).toBeInTheDocument();
     expect(screen.getByText(/Step 8/i)).toBeInTheDocument();

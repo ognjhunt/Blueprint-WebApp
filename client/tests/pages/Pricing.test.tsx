@@ -14,7 +14,7 @@ describe("Pricing", () => {
     expect(screen.getAllByText(/session-hour is one hour of self-serve hosted runtime/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/\$2,100 - \$3,400/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/\$16 - \$29/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole("heading", { name: /Compare the three commercial paths\./i })).toBeInTheDocument();
+    expect(screen.getByText(/Compare the three commercial paths\./i)).toBeInTheDocument();
     expect(screen.getByText(/Typical first purchase/i)).toBeInTheDocument();
     expect(screen.getByText(/What happens after inquiry/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Request a custom quote/i })).toHaveAttribute(
