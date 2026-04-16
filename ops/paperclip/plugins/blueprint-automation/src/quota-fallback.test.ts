@@ -572,7 +572,18 @@ describe("quota fallback helpers", () => {
     ).toBeNull();
   });
 
-  it("moves hermes directly to codex when Hermes is misrouted onto Copilot auth", () => {
+  it("never allows copilot as a provider in hermes adapter config", () => {
+    const config = buildHermesFallbackAdapterConfig({
+      cwd: "/tmp/project",
+      provider: "copilot",
+      model: "gpt-5.4-mini",
+    });
+    expect(config.provider).toBe("openrouter");
+    expect(config.model).not.toBe("gpt-5.4-mini");
+    expect(config.model).toBe(DEFAULT_HERMES_FALLBACK_MODEL);
+  });
+
+  it("rebuilds hermes onto OpenRouter free models when misrouted onto Copilot auth", () => {
     expect(
       buildLocalQuotaFallbackDescriptor({
         currentAdapterType: "hermes_local",
@@ -588,14 +599,15 @@ describe("quota fallback helpers", () => {
           "Provider: copilot\nHTTP 400: bad request: Authorization header is badly formatted\nCopilot token validation failed: Token from `gh auth token` is a classic PAT (ghp_*).",
       }),
     ).toEqual({
-      adapterType: "codex_local",
-      reason: "quota_fallback_to_codex_local_after_provider_auth_failure",
+      adapterType: "hermes_local",
+      reason: "quota_fallback_to_hermes_openrouter_after_provider_auth_failure",
       adapterConfig: {
         cwd: "/tmp/project",
-        model: "gpt-5.4-mini",
+        provider: "openrouter",
+        model: DEFAULT_HERMES_FALLBACK_MODEL,
+        [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
         modelReasoningEffort: "medium",
-        dangerouslyBypassApprovalsAndSandbox: true,
-        [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: "hermes_local",
+        timeoutSec: 1800,
       },
     });
   });

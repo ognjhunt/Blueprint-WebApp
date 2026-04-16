@@ -1444,7 +1444,8 @@ function resolveAdapterConfigForType(
     return desired.adapterConfig;
   }
   if (agent.adapterType === adapterType) {
-    return asRecord(agent.adapterConfig) ?? desired?.adapterConfig ?? null;
+    const rawConfig = asRecord(agent.adapterConfig) ?? desired?.adapterConfig ?? null;
+    return adapterType === "hermes_local" ? buildHermesFallbackAdapterConfig(rawConfig) : rawConfig;
   }
 
   return asRecord(agent.adapterConfig) ?? desired?.adapterConfig ?? null;
@@ -6799,30 +6800,13 @@ async function handleAgentRunFailureQuotaFallback(
   }
   const providerCreditFailure =
     failedAdapter.failedAdapterType === "hermes_local" && isProviderCreditFailure(payload.error);
-  const fallback = providerCreditFailure
-    ? {
-      adapterType: "codex_local" as const,
-      reason: "quota_fallback_to_codex_local_after_provider_credit_failure",
-      adapterConfig: {
-        ...buildCodexFallbackAdapterConfig(failedAdapter.failedAdapterConfig, {
-          model: "gpt-5.4-mini",
-          modelReasoningEffort: "medium",
-        }),
-        [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: "hermes_local",
-      },
-    }
-    : hermesProviderAuthFailure
-    ? {
-      adapterType: "codex_local" as const,
-      reason: "quota_fallback_to_codex_local_after_provider_auth_failure",
-      adapterConfig: {
-        ...buildCodexFallbackAdapterConfig(failedAdapter.failedAdapterConfig, {
-          model: "gpt-5.4-mini",
-          modelReasoningEffort: "medium",
-        }),
-        [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: "hermes_local",
-      },
-    }
+  const fallback = (hermesProviderAuthFailure || providerCreditFailure)
+    ? buildQuotaFallbackDescriptor(
+      failedAdapter.failedAdapterType ?? agent.adapterType,
+      failedAdapter.failedAdapterConfig,
+      desired,
+      payload.error,
+    )
     : buildQuotaFallbackDescriptor(
       failedAdapter.failedAdapterType ?? agent.adapterType,
       failedAdapter.failedAdapterConfig,

@@ -367,6 +367,7 @@ export function buildHermesFallbackAdapterConfig(
   delete next.dangerouslySkipPermissions;
   delete next.dangerouslyBypassApprovalsAndSandbox;
   delete next.model;
+  delete next.provider;
   const ladder = resolveHermesFallbackModels(adapterConfig, { includeCurrentModel: false });
   const optionModel = asTrimmedString(options?.model as string | undefined);
   const chosen =
@@ -569,6 +570,17 @@ export function buildLocalQuotaFallbackDescriptor(input: {
 
   if (currentAdapterType === "hermes_local") {
     if (isCopilotProviderAuthFailure(failureReason) || isProviderAuthFailure(failureReason)) {
+      const rebuiltHermesConfig = buildHermesFallbackAdapterConfig(desiredAdapterConfig);
+      if (
+        asTrimmedString(rebuiltHermesConfig.provider) === "openrouter"
+        && !isIncompatibleHermesFreeRoutingModel(asTrimmedString(rebuiltHermesConfig.model))
+      ) {
+        return {
+          adapterType: "hermes_local",
+          reason: "quota_fallback_to_hermes_openrouter_after_provider_auth_failure",
+          adapterConfig: rebuiltHermesConfig,
+        };
+      }
       return {
         adapterType: "codex_local",
         reason: "quota_fallback_to_codex_local_after_provider_auth_failure",
@@ -711,7 +723,7 @@ export function inferFailedLocalAdapterType(input: {
   resultJson?: Record<string, unknown> | null | undefined;
 }): LocalQuotaFallbackAdapterType | null {
   const wakeReason = (input.wakeReason ?? "").trim().toLowerCase();
-  if (wakeReason === "quota_fallback_to_hermes_free" || wakeReason === "quota_fallback_to_next_hermes_free_model") {
+  if (wakeReason === "quota_fallback_to_hermes_free" || wakeReason === "quota_fallback_to_next_hermes_free_model" || wakeReason === "quota_fallback_to_hermes_openrouter_after_provider_auth_failure") {
     return "hermes_local";
   }
   if (
