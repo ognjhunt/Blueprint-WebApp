@@ -16,6 +16,7 @@ import {
   isDisallowedHermesFallbackModel,
   isFreshSessionRetryableFailure,
   isIncompatibleHermesFreeRoutingModel,
+  isClaudeProviderAuthFailure,
   isCopilotProviderAuthFailure,
   isProviderAuthFailure,
   isProcessLossFailure,
@@ -59,7 +60,7 @@ describe("quota fallback helpers", () => {
     expect(isProviderCreditFailure("HTTP 429: Rate limit exceeded: free-models-per-min.")).toBe(false);
   });
 
-  it("detects provider auth failures, including Copilot token misroutes", () => {
+  it("detects provider auth failures, including Copilot token misroutes and Claude 401 auth errors", () => {
     expect(
       isProviderAuthFailure("HTTP 401: unauthorized: login is required"),
     ).toBe(true);
@@ -70,6 +71,23 @@ describe("quota fallback helpers", () => {
     ).toBe(true);
     expect(
       isCopilotProviderAuthFailure("HTTP 429: Rate limit exceeded: free-models-per-min."),
+    ).toBe(false);
+
+    expect(
+      isProviderAuthFailure(
+        'Claude run failed: subtype=success: Failed to authenticate. API Error: 401 {"type":"error","error":{"type":"authentication_error","message":"Invalid authentication credentials"}}',
+      ),
+    ).toBe(true);
+    expect(
+      isClaudeProviderAuthFailure(
+        'Claude run failed: subtype=success: Failed to authenticate. API Error: 401 {"type":"error","error":{"type":"authentication_error","message":"Invalid authentication credentials"}}',
+      ),
+    ).toBe(true);
+    expect(
+      isClaudeProviderAuthFailure("HTTP 429: Rate limit exceeded: free-models-per-min."),
+    ).toBe(false);
+    expect(
+      isClaudeProviderAuthFailure("HTTP 401: unauthorized: login is required"),
     ).toBe(false);
   });
 
@@ -447,6 +465,84 @@ describe("quota fallback helpers", () => {
         [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: "hermes_local",
       },
     });
+  });
+
+  it("moves claude_local to hermes free when Claude auth fails", () => {
+    expect(
+      buildLocalQuotaFallbackDescriptor({
+        currentAdapterType: "claude_local",
+        currentAdapterConfig: {
+          cwd: "/tmp/project",
+          model: "claude-sonnet-4-6",
+          dangerouslySkipPermissions: true,
+        },
+        desiredAdapterType: "claude_local",
+        desiredAdapterConfig: {
+          cwd: "/tmp/project",
+        },
+        failureReason:
+          'Claude run failed: subtype=success: Failed to authenticate. API Error: 401 {"type":"error","error":{"type":"authentication_error","message":"Invalid authentication credentials"}}',
+      }),
+    ).toEqual({
+      adapterType: "hermes_local",
+      reason: "quota_fallback_to_hermes_free_after_claude_auth_failure",
+      adapterConfig: {
+        cwd: "/tmp/project",
+        provider: "openrouter",
+        model: DEFAULT_HERMES_FALLBACK_MODEL,
+        [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
+        modelReasoningEffort: "medium",
+        timeoutSec: 1800,
+      },
+    });
+  });
+
+  it("moves codex_local to hermes free when Codex auth fails", () => {
+    expect(
+      buildLocalQuotaFallbackDescriptor({
+        currentAdapterType: "codex_local",
+        currentAdapterConfig: {
+          cwd: "/tmp/project",
+          model: "gpt-5.4-mini",
+          dangerouslyBypassApprovalsAndSandbox: true,
+        },
+        desiredAdapterType: "codex_local",
+        desiredAdapterConfig: {
+          cwd: "/tmp/project",
+        },
+        failureReason: "HTTP 401: unauthorized: login is required",
+      }),
+    ).toEqual({
+      adapterType: "hermes_local",
+      reason: "quota_fallback_to_hermes_free_after_codex_auth_failure",
+      adapterConfig: {
+        cwd: "/tmp/project",
+        provider: "openrouter",
+        model: DEFAULT_HERMES_FALLBACK_MODEL,
+        [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
+        modelReasoningEffort: "medium",
+        timeoutSec: 1800,
+      },
+    });
+  });
+
+  it("does not loop codex_local auth failure back to hermes when origin was hermes", () => {
+    expect(
+      buildLocalQuotaFallbackDescriptor({
+        currentAdapterType: "codex_local",
+        currentAdapterConfig: {
+          cwd: "/tmp/project",
+          model: "gpt-5.4-mini",
+          dangerouslyBypassApprovalsAndSandbox: true,
+          [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: "hermes_local",
+        },
+        desiredAdapterType: "hermes_local",
+        desiredAdapterConfig: {
+          cwd: "/tmp/project",
+        },
+        failureReason: "HTTP 401: unauthorized: login is required",
+      }),
+    ).toBeNull();
   });
 
   it("moves hermes directly to codex when Hermes is misrouted onto Copilot auth", () => {

@@ -6776,10 +6776,16 @@ async function handleAgentRunFailureQuotaFallback(
   const failedAdapter = await resolveFailedAdapterSnapshot(agent, payload, desired);
   const hermesProviderAuthFailure =
     failedAdapter.failedAdapterType === "hermes_local" && isCopilotProviderAuthFailure(payload.error);
+  const localProviderAuthFailure =
+    (failedAdapter.failedAdapterType === "claude_local"
+     || failedAdapter.failedAdapterType === "codex_local"
+     || failedAdapter.failedAdapterType === "hermes_local")
+    && isProviderAuthFailure(payload.error);
   if (
     !isQuotaOrRateLimitFailure(payload.error)
     && !isModelNotFoundFailure(payload.error)
     && !hermesProviderAuthFailure
+    && !localProviderAuthFailure
   ) {
     return;
   }
