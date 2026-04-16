@@ -1,0 +1,53 @@
+<svg width="1600" height="1000" viewBox="0 0 1600 1000" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="1000" rx="42" fill="url(#bg)"/>
+  <rect x="42" y="42" width="1516" height="916" rx="34" fill="#F8FAFC" stroke="#D8E1EC" stroke-width="2"/>
+
+  <rect x="96" y="102" width="1408" height="796" rx="34" fill="#FFFFFF" stroke="#D8E1EC" stroke-width="2"/>
+  <rect x="96" y="102" width="1408" height="78" rx="34" fill="#0F172A"/>
+  <circle cx="150" cy="141" r="9" fill="#38BDF8"/>
+  <circle cx="178" cy="141" r="9" fill="#7DD3FC"/>
+  <circle cx="206" cy="141" r="9" fill="#A5F3FC"/>
+  <text x="252" y="150" fill="#FFFFFF" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="700">Hosted evaluation</text>
+  <text x="1320" y="150" fill="#CBD5E1" font-family="Inter, system-ui, sans-serif" font-size="22" font-weight="600">one exact site</text>
+
+  <rect x="138" y="214" width="928" height="464" rx="26" fill="#E2E8F0"/>
+  <image href="/thumbnails/warehouse-pallet-buffer.png" x="160" y="236" width="884" height="420" preserveAspectRatio="xMidYMid slice"/>
+  <rect x="160" y="236" width="884" height="420" rx="18" fill="url(#imageFade)"/>
+
+  <rect x="1104" y="214" width="310" height="220" rx="26" fill="#F8FAFC" stroke="#D8E1EC" stroke-width="2"/>
+  <text x="1140" y="270" fill="#0F172A" font-family="Inter, system-ui, sans-serif" font-size="26" font-weight="700">Reruns + comparison</text>
+  <rect x="1140" y="294" width="170" height="12" rx="6" fill="#CBD5E1"/>
+  <rect x="1140" y="332" width="110" height="64" rx="16" fill="#DBEAFE"/>
+  <rect x="1264" y="332" width="110" height="64" rx="16" fill="#CCFBF1"/>
+  <text x="1168" y="370" fill="#334155" font-family="Inter, system-ui, sans-serif" font-size="22" font-weight="700">previous</text>
+  <text x="1298" y="370" fill="#334155" font-family="Inter, system-ui, sans-serif" font-size="22" font-weight="700">current</text>
+
+  <rect x="1104" y="458" width="310" height="220" rx="26" fill="#F8FAFC" stroke="#D8E1EC" stroke-width="2"/>
+  <text x="1140" y="514" fill="#0F172A" font-family="Inter, system-ui, sans-serif" font-size="26" font-weight="700">Export outputs</text>
+  <rect x="1140" y="538" width="120" height="12" rx="6" fill="#CBD5E1"/>
+  <rect x="1140" y="582" width="70" height="72" rx="18" fill="#FEE2E2"/>
+  <rect x="1230" y="582" width="70" height="72" rx="18" fill="#DCFCE7"/>
+  <rect x="1320" y="582" width="70" height="72" rx="18" fill="#E2E8F0"/>
+  <text x="1160" y="626" fill="#991B1B" font-family="Inter, system-ui, sans-serif" font-size="24" font-weight="800">PDF</text>
+  <text x="1244" y="626" fill="#166534" font-family="Inter, system-ui, sans-serif" font-size="24" font-weight="800">CSV</text>
+  <text x="1341" y="626" fill="#334155" font-family="Inter, system-ui, sans-serif" font-size="24" font-weight="800">RAW</text>
+
+  <rect x="138" y="714" width="1276" height="130" rx="26" fill="url(#panel)"/>
+  <text x="188" y="770" fill="#0F172A" font-family="Inter, system-ui, sans-serif" font-size="32" font-weight="700">Blueprint operates the runtime</text>
+  <text x="188" y="812" fill="#475569" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="500">Run, rerun, inspect, compare checkpoints, and export results without moving the site bundle into your own stack first.</text>
+
+  <defs>
+    <linearGradient id="bg" x1="44" y1="42" x2="1548" y2="944" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#EFF6FF"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="138" y1="714" x2="1414" y2="844" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#ECFEFF"/>
+    </linearGradient>
+    <linearGradient id="imageFade" x1="160" y1="236" x2="1044" y2="656" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A" stop-opacity="0.03"/>
+      <stop offset="1" stop-color="#0F172A" stop-opacity="0.1"/>
+    </linearGradient>
+  </defs>
+</svg>

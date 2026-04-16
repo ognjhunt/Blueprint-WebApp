@@ -1,0 +1,66 @@
+<svg width="1600" height="1000" viewBox="0 0 1600 1000" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="1000" rx="42" fill="url(#bg)"/>
+  <rect x="42" y="42" width="1516" height="916" rx="34" fill="#F8FAFC" stroke="#D8E1EC" stroke-width="2"/>
+
+  <rect x="90" y="120" width="1420" height="760" rx="36" fill="#FFFFFF" stroke="#D8E1EC" stroke-width="2"/>
+
+  <rect x="136" y="166" width="712" height="420" rx="28" fill="#0F172A"/>
+  <image href="/thumbnails/warehouse-tote-pick-cell.png" x="154" y="184" width="676" height="384" preserveAspectRatio="xMidYMid slice"/>
+  <rect x="154" y="184" width="676" height="384" rx="20" fill="url(#imageFade)"/>
+
+  <rect x="900" y="166" width="464" height="250" rx="28" fill="#F8FAFC" stroke="#D8E1EC" stroke-width="2"/>
+  <text x="938" y="222" fill="#0F172A" font-family="Inter, system-ui, sans-serif" font-size="26" font-weight="700">Site package contents</text>
+  <rect x="938" y="248" width="144" height="14" rx="7" fill="#CBD5E1"/>
+  <g fill="#0F172A" font-family="Inter, system-ui, sans-serif" font-size="24" font-weight="600">
+    <text x="970" y="312">Walkthrough video</text>
+    <text x="970" y="362">Camera poses + timestamps</text>
+    <text x="970" y="412">Depth / geometry when available</text>
+  </g>
+  <g fill="#0F766E">
+    <circle cx="944" cy="304" r="8"/>
+    <circle cx="944" cy="354" r="8"/>
+    <circle cx="944" cy="404" r="8"/>
+  </g>
+
+  <rect x="900" y="444" width="464" height="248" rx="28" fill="#F8FAFC" stroke="#D8E1EC" stroke-width="2"/>
+  <text x="938" y="500" fill="#0F172A" font-family="Inter, system-ui, sans-serif" font-size="26" font-weight="700">Grounding + access materials</text>
+  <rect x="938" y="528" width="176" height="14" rx="7" fill="#CBD5E1"/>
+  <rect x="938" y="570" width="150" height="90" rx="18" fill="#E2E8F0"/>
+  <rect x="1108" y="570" width="104" height="90" rx="18" fill="#CCFBF1"/>
+  <rect x="1230" y="570" width="96" height="90" rx="18" fill="#DBEAFE"/>
+  <g fill="#475569" font-family="Inter, system-ui, sans-serif" font-size="21" font-weight="700">
+    <text x="965" y="620">Manifest</text>
+    <text x="1125" y="620">Rights</text>
+    <text x="1248" y="620">Freshness</text>
+  </g>
+
+  <rect x="136" y="632" width="1228" height="184" rx="28" fill="url(#panel)"/>
+  <text x="184" y="702" fill="#0F172A" font-family="Inter, system-ui, sans-serif" font-size="32" font-weight="700">Run it in your own stack</text>
+  <text x="184" y="748" fill="#475569" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="500">Blueprint delivers the capture-backed bundle so your team can build, adapt, and host the world model itself.</text>
+
+  <g opacity="0.92">
+    <rect x="1160" y="240" width="256" height="256" rx="128" fill="#0F172A"/>
+    <path d="M1220 360L1288 292L1360 364" stroke="#7DD3FC" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M1288 292V438" stroke="#7DD3FC" stroke-width="20" stroke-linecap="round"/>
+    <path d="M1288 438L1360 364" stroke="#A7F3D0" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="1288" cy="292" r="18" fill="#F8FAFC"/>
+    <circle cx="1220" cy="360" r="18" fill="#F8FAFC"/>
+    <circle cx="1360" cy="364" r="18" fill="#F8FAFC"/>
+    <circle cx="1288" cy="438" r="18" fill="#F8FAFC"/>
+  </g>
+
+  <defs>
+    <linearGradient id="bg" x1="52" y1="42" x2="1544" y2="942" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#EEF4FF"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="136" y1="632" x2="1364" y2="816" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#ECFEFF"/>
+    </linearGradient>
+    <linearGradient id="imageFade" x1="154" y1="184" x2="830" y2="568" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#0F172A" stop-opacity="0.12"/>
+    </linearGradient>
+  </defs>
+</svg>

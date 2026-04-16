@@ -22,6 +22,9 @@ const offerCards = [
     href: "/world-models",
     cta: "Explore site packages",
     icon: ScanLine,
+    imageSrc: "/illustrations/offer-site-package-preview.svg",
+    imageAlt:
+      "Illustration of the site package as a capture-backed data bundle with walkthrough frames, geometry artifacts, and rights materials.",
     accent: "bg-slate-950 text-white",
     cardTone: "border-slate-200 bg-white",
     bulletTone: "bg-slate-400",
@@ -39,6 +42,9 @@ const offerCards = [
     href: "/contact?persona=robot-team&interest=evaluation-package",
     cta: "Request hosted evaluation",
     icon: Play,
+    imageSrc: "/illustrations/offer-hosted-evaluation-preview.svg",
+    imageAlt:
+      "Illustration of Blueprint-hosted evaluation on one exact site with reruns, comparison, and export outputs.",
     accent: "border border-slate-300 bg-white text-slate-900",
     cardTone: "border-slate-200 bg-slate-50",
     bulletTone: "bg-slate-500",
@@ -56,6 +62,9 @@ const offerCards = [
     href: "/contact?persona=robot-team&interest=enterprise",
     cta: "Contact Blueprint",
     icon: BriefcaseBusiness,
+    imageSrc: "/illustrations/offer-custom-program-preview.svg",
+    imageAlt:
+      "Illustration of a private custom program with buyer-specific capture scope, exclusive access, and managed model and data work.",
     accent: "border border-slate-300 bg-white text-slate-900",
     cardTone: "border-slate-200 bg-white",
     bulletTone: "bg-slate-400",
@@ -87,9 +96,17 @@ export function OfferComparison({
           return (
             <article
               key={card.title}
-              className={`rounded-2xl border p-6 ${card.cardTone}`}
+              className={`rounded-2xl border p-4 sm:p-5 ${card.cardTone}`}
             >
-              <div className="flex items-center justify-between gap-4">
+              <div className="overflow-hidden rounded-[1.1rem] border border-slate-200 bg-slate-50">
+                <img
+                  src={card.imageSrc}
+                  alt={card.imageAlt}
+                  className="aspect-[16/10] w-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+              <div className="mt-4 flex items-center justify-between gap-4">
                 <div className="rounded-2xl bg-white p-3 text-slate-800 shadow-sm ring-1 ring-slate-200">
                   <Icon className="h-5 w-5" />
                 </div>
