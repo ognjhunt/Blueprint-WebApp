@@ -102,6 +102,7 @@ import {
   getLocalAdapterWorkspaceKey,
   getWorkspaceAdapterCooldownKey,
   isCopilotProviderAuthFailure,
+  isProviderAuthFailure,
   isQuotaOrRateLimitFailure,
   isProviderCreditFailure,
   isProcessLossFailure,
@@ -1400,6 +1401,13 @@ function buildDesiredAdapterDescriptor(agent: Agent): {
   }
 
   if (configuredAdapterType === "hermes_local") {
+    return {
+      adapterType: "hermes_local",
+      adapterConfig: buildHermesFallbackAdapterConfig(configuredAdapterConfig),
+    };
+  }
+
+  if (configuredAdapterType === "claude_local") {
     return {
       adapterType: "hermes_local",
       adapterConfig: buildHermesFallbackAdapterConfig(configuredAdapterConfig),

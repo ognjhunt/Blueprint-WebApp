@@ -46,7 +46,6 @@ export const DEFAULT_HERMES_FALLBACK_MODELS = [
 export const HERMES_MODEL_LADDER_CONFIG_KEY = "blueprintHermesModelLadder";
 export const FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY = "blueprintFallbackOriginAdapterType";
 const LOCAL_EXECUTION_POLICY_ADAPTERS: LocalQuotaFallbackAdapterType[] = [
-  "claude_local",
   "codex_local",
   "hermes_local",
 ];
@@ -218,7 +217,6 @@ function normalizeExecutionPolicyAdapterList(
 
   for (const candidate of [targetAdapterType, ...source, ...defaultAdapters]) {
     if (
-      candidate !== "claude_local" &&
       candidate !== "codex_local" &&
       candidate !== "hermes_local"
     ) {

@@ -819,8 +819,8 @@ describe("quota fallback helpers", () => {
         {
           executionPolicy: {
             mode: "prefer_available",
-            preferredAdapterTypes: ["claude_local", "hermes_local", "codex_local"],
-            compatibleAdapterTypes: ["claude_local", "hermes_local", "codex_local"],
+            preferredAdapterTypes: ["hermes_local", "codex_local"],
+            compatibleAdapterTypes: ["hermes_local", "codex_local"],
             perAdapterConfig: {
               codex_local: { model: "gpt-5.4-mini" },
             },
@@ -831,8 +831,8 @@ describe("quota fallback helpers", () => {
     ).toEqual({
       executionPolicy: {
         mode: "prefer_available",
-        preferredAdapterTypes: ["codex_local", "claude_local", "hermes_local"],
-        compatibleAdapterTypes: ["codex_local", "claude_local", "hermes_local"],
+        preferredAdapterTypes: ["codex_local", "hermes_local"],
+        compatibleAdapterTypes: ["codex_local", "hermes_local"],
         perAdapterConfig: {
           codex_local: { model: "gpt-5.4-mini" },
         },
