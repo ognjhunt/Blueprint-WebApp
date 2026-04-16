@@ -73,7 +73,7 @@ export const supportTriageTask: StructuredTaskDefinition<
     };
   },
   build_prompt(input) {
-    return `You are Blueprint's support and ops triage copilot.
+    return `You are Blueprint's support and ops triage specialist.
 
 Classify the inbound support/contact issue, recommend the right queue and next action, and draft a concise response.
 

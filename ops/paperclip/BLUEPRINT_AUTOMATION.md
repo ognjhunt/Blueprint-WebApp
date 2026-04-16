@@ -22,7 +22,7 @@ The automation loop is deliberately grounded in real repo state and truthful pro
 - issue creation, dedupe, blocker follow-up, and resolution happen as actual Paperclip issues
 - executive routines are instructed to manage issue lifecycle explicitly rather than narrate status
 - chief-of-staff wakeups and major task/delegation changes are mirrored into Slack when webhook targets exist
-- Codex remains the implementation default while Claude stays the executive/review lane and Hermes remains the default low-cost lane for the chief-of-staff plus selected research/copilot/summary agents on this host
+- Codex remains the implementation default while Claude stays the executive/review lane and Hermes remains the default low-cost lane for the chief-of-staff plus selected research/specialist/summary agents on this host
 
 ## Architecture
 
@@ -35,7 +35,7 @@ The automation loop is deliberately grounded in real repo state and truthful pro
 - `blueprint-executive-ops` is the cross-repo / operator project for executive and blocker work.
 - `*-codex` agents stay on `codex_local` for implementation work.
 - `blueprint-chief-of-staff`, `notion-manager-agent`, `revenue-ops-pricing-agent`, `ops-lead`, `growth-lead`, `analytics-agent`, `investor-relations-agent`, `community-updates-agent`, `market-intel-agent`, `supply-intel-agent`, `capturer-growth-agent`, `city-launch-agent`, `demand-intel-agent`, `robot-team-growth-agent`, `site-operator-partnership-agent`, `city-demand-agent`, `buyer-solutions-agent`, `solutions-engineering-agent`, `security-procurement-agent`, `capturer-success-agent`, `site-catalog-agent`, `outbound-sales-agent`, and `buyer-success-agent` run on `hermes_local`.
-- Hermes-backed research/copilot agents are configured to use a free-only OpenRouter ladder on this host, with Codex available as fallback when no approved free model is available.
+- Hermes-backed research/specialist agents are configured to use a free-only OpenRouter ladder on this host, with Codex available as fallback when no approved free model is available.
 - `blueprint-ceo`, `blueprint-cto`, and the `*-claude` review agents are now controlled by `BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE`, which supports `claude`, `codex`, and `auto`.
 - In `auto`, reconcile probes the Claude adapter and flips only the executive/review lane to `codex_local` when Claude is unavailable, then flips back on a later maintenance pass when Claude is healthy again.
 - For immediate operator control, run `scripts/paperclip/switch-blueprint-paperclip-lanes.sh auto|claude|codex`.
@@ -186,7 +186,7 @@ In practice that means:
 
 - executive and review agents stay on Claude when Claude is healthy, then fail over to Codex when Claude is rate-limited or otherwise unavailable
 - implementation agents stay on Codex when Codex is healthy, then fail over to Claude when Codex is unavailable
-- Hermes-backed chief-of-staff, ops, growth, and research/copilot/summary agents stay on Hermes when the local `hermes` CLI is healthy
+- Hermes-backed chief-of-staff, ops, growth, and research/specialist/summary agents stay on Hermes when the local `hermes` CLI is healthy
 
 No Anthropic API-key wiring is required for the Codex/Claude host policy. Hermes research lanes are expected to use OpenRouter first and fall back to Codex on this host.
 

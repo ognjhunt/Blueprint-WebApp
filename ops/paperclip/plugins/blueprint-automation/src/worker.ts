@@ -101,7 +101,6 @@ import {
   FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY,
   getLocalAdapterWorkspaceKey,
   getWorkspaceAdapterCooldownKey,
-  isCopilotProviderAuthFailure,
   isProviderAuthFailure,
   isQuotaOrRateLimitFailure,
   isProviderCreditFailure,
@@ -6784,7 +6783,7 @@ async function handleAgentRunFailureQuotaFallback(
   const desired = buildDesiredAdapterDescriptor(agent);
   const failedAdapter = await resolveFailedAdapterSnapshot(agent, payload, desired);
   const hermesProviderAuthFailure =
-    failedAdapter.failedAdapterType === "hermes_local" && isCopilotProviderAuthFailure(payload.error);
+    failedAdapter.failedAdapterType === "hermes_local" && isProviderAuthFailure(payload.error);
   const localProviderAuthFailure =
     (failedAdapter.failedAdapterType === "claude_local"
      || failedAdapter.failedAdapterType === "codex_local"

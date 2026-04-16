@@ -17,7 +17,6 @@ import {
   isFreshSessionRetryableFailure,
   isIncompatibleHermesFreeRoutingModel,
   isClaudeProviderAuthFailure,
-  isCopilotProviderAuthFailure,
   isProviderAuthFailure,
   isProcessLossFailure,
   isProviderCreditFailure,
@@ -60,17 +59,15 @@ describe("quota fallback helpers", () => {
     expect(isProviderCreditFailure("HTTP 429: Rate limit exceeded: free-models-per-min.")).toBe(false);
   });
 
-  it("detects provider auth failures, including Copilot token misroutes and Claude 401 auth errors", () => {
+  it("detects provider auth failures and Claude 401 auth errors", () => {
     expect(
       isProviderAuthFailure("HTTP 401: unauthorized: login is required"),
     ).toBe(true);
     expect(
-      isCopilotProviderAuthFailure(
-        "Provider: copilot\nError: HTTP 400: bad request: Authorization header is badly formatted\nCopilot token validation failed: Token from `gh auth token` is a classic PAT (ghp_*).",
-      ),
+      isProviderAuthFailure("HTTP 401: forbidden: invalid api key"),
     ).toBe(true);
     expect(
-      isCopilotProviderAuthFailure("HTTP 429: Rate limit exceeded: free-models-per-min."),
+      isProviderAuthFailure("HTTP 429: Rate limit exceeded: free-models-per-min."),
     ).toBe(false);
 
     expect(
@@ -572,10 +569,10 @@ describe("quota fallback helpers", () => {
     ).toBeNull();
   });
 
-  it("never allows copilot as a provider in hermes adapter config", () => {
+  it("never allows non-openrouter providers in hermes adapter config", () => {
     const config = buildHermesFallbackAdapterConfig({
       cwd: "/tmp/project",
-      provider: "copilot",
+      provider: "invalid-provider",
       model: "gpt-5.4-mini",
     });
     expect(config.provider).toBe("openrouter");
@@ -583,7 +580,7 @@ describe("quota fallback helpers", () => {
     expect(config.model).toBe(DEFAULT_HERMES_FALLBACK_MODEL);
   });
 
-  it("rebuilds hermes onto OpenRouter free models when misrouted onto Copilot auth", () => {
+  it("rebuilds hermes onto OpenRouter free models after provider auth failure", () => {
     expect(
       buildLocalQuotaFallbackDescriptor({
         currentAdapterType: "hermes_local",
@@ -595,8 +592,7 @@ describe("quota fallback helpers", () => {
         desiredAdapterConfig: {
           cwd: "/tmp/project",
         },
-        failureReason:
-          "Provider: copilot\nHTTP 400: bad request: Authorization header is badly formatted\nCopilot token validation failed: Token from `gh auth token` is a classic PAT (ghp_*).",
+        failureReason: "HTTP 401: unauthorized: invalid api key",
       }),
     ).toEqual({
       adapterType: "hermes_local",
@@ -909,7 +905,7 @@ describe("quota fallback helpers", () => {
             preferredAdapterTypes: ["hermes_local", "codex_local"],
             compatibleAdapterTypes: ["hermes_local", "codex_local"],
             perAdapterConfig: {
-              hermes_local: { model: "gpt-5.4-mini", provider: "copilot", cwd: "/tmp/webapp" },
+              hermes_local: { model: "gpt-5.4-mini", provider: "invalid-provider", cwd: "/tmp/webapp" },
             },
           },
         },

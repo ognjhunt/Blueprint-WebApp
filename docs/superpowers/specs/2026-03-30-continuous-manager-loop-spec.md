@@ -17,7 +17,7 @@ Today, the system has:
 - strategic CEO/CTO roles
 - ops/growth lead roles
 - specialist agents
-- Hermes installed on the host and wired for selected research/copilot agents
+- Hermes installed on the host and wired for selected research/specialist agents
 
 What it still lacks:
 
@@ -473,7 +473,7 @@ Current ground truth:
 - Paperclip is the orchestration layer and source of truth.
 - Hermes is installed at /Users/nijelhunt_1/.hermes/hermes-agent.
 - Hermes is configured for Codex OAuth only via /Users/nijelhunt_1/.hermes/config.yaml and /Users/nijelhunt_1/.hermes/auth.json.
-- Selected research/copilot agents already use hermes_local in /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/.paperclip.yaml.
+- Selected research/specialist agents already use hermes_local in /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/.paperclip.yaml.
 - Local Paperclip API is at http://127.0.0.1:3100 and the public URL is https://paperclip.tryblueprint.io/.
 
 What I want:

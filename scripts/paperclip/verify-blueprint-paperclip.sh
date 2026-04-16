@@ -695,7 +695,7 @@ main() {
   assert_workspace_ready "BlueprintCapture" "$capture_codex_ok" "$capture_claude"
 
   if should_verify_hermes; then
-    echo "Running Hermes adapter verification for Blueprint-WebApp research/copilot agents..."
+    echo "Running Hermes adapter verification for Blueprint-WebApp research/specialist agents..."
     run_test "$company_id" "Blueprint-WebApp" "hermes_local" "{
       \"adapterConfig\": {
         \"cwd\": \"/Users/nijelhunt_1/workspace/Blueprint-WebApp\",

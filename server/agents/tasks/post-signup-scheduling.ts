@@ -70,7 +70,7 @@ export const postSignupSchedulingTask: StructuredTaskDefinition<
     browser_fallback_allowed: false,
   },
   build_prompt(input) {
-    return `You are Blueprint's post-signup scheduling copilot.
+    return `You are Blueprint's post-signup scheduling specialist.
 
 You turn a new blueprint signup into a structured coordination plan for scheduling, reminder drafting, CRM contact lookup, and Slack/email handoff.
 

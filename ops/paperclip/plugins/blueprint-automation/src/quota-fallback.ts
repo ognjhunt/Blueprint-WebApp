@@ -73,9 +73,7 @@ const PROVIDER_TIMEOUT_RE =
 const PROCESS_LOSS_RE =
   /(?:process lost --|child pid .* no longer running|server may have restarted)/i;
 const PROVIDER_AUTH_RE =
-  /(?:authorization header is badly formatted|copilot token validation failed|classic personal access tokens \(ghp_\*\) are not supported|token from `gh auth token` is a classic pat|unauthorized|forbidden|auth(?:entication)?(?:orization)?[^.\n]*failed|failed to authenticate|invalid api key|invalid authentication credentials|missing api key|login is required|not logged in|authentication_error)/i;
-const COPILOT_PROVIDER_RE =
-  /(?:provider:\s*copilot|githubcopilot|copilot api|copilot token validation failed|`gh auth token`|github copilot)/i;
+  /(?:unauthorized|forbidden|auth(?:entication)?(?:orization)?[^.\n]*failed|failed to authenticate|invalid api key|invalid authentication credentials|missing api key|login is required|not logged in|authentication_error)/i;
 const CLAUDE_PROVIDER_RE =
   /(?:claude run failed.*failed to authenticate|api error: 401.*authentication_error|invalid authentication credentials)/i;
 const DISALLOWED_HERMES_FALLBACK_MODEL_RE =
@@ -141,11 +139,6 @@ export function isProcessLossFailure(message: string | null | undefined): boolea
 export function isProviderAuthFailure(message: string | null | undefined): boolean {
   if (!message) return false;
   return PROVIDER_AUTH_RE.test(message);
-}
-
-export function isCopilotProviderAuthFailure(message: string | null | undefined): boolean {
-  if (!message) return false;
-  return PROVIDER_AUTH_RE.test(message) && COPILOT_PROVIDER_RE.test(message);
 }
 
 export function isClaudeProviderAuthFailure(message: string | null | undefined): boolean {
@@ -569,7 +562,7 @@ export function buildLocalQuotaFallbackDescriptor(input: {
   }
 
   if (currentAdapterType === "hermes_local") {
-    if (isCopilotProviderAuthFailure(failureReason) || isProviderAuthFailure(failureReason)) {
+    if (isProviderAuthFailure(failureReason)) {
       const rebuiltHermesConfig = buildHermesFallbackAdapterConfig(desiredAdapterConfig);
       if (
         asTrimmedString(rebuiltHermesConfig.provider) === "openrouter"

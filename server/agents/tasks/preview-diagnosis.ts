@@ -49,7 +49,7 @@ export const previewDiagnosisTask: StructuredTaskDefinition<
     prefer_direct_api: true,
   },
   build_prompt(input) {
-    return `You are Blueprint's preview diagnosis copilot.
+    return `You are Blueprint's preview diagnosis specialist.
 
 Analyze the preview failure state and decide whether the issue is transient, retryable, or needs escalation.
 

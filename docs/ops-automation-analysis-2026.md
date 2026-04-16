@@ -502,7 +502,7 @@ Preferred execution stack:
    - Draft invite or hold response
    - Push status + next action back into Firestore
 
-2. Inbound request qualification copilot
+2. Inbound request qualification specialist
    - Summarize every `inboundRequest`
    - Recommend `qualification_state`, `opportunity_state`, and `next_step`
    - Draft buyer follow-up questions
@@ -517,7 +517,7 @@ Preferred execution stack:
 
 ### P1: next layer
 
-5. Capture QA / recapture copilot
+5. Capture QA / recapture specialist
 6. Preview-generation retry + diagnosis worker
 7. Support triage agent
 8. Daily ops summary agent across waitlist, qualification, preview, and payout queues

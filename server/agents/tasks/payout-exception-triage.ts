@@ -47,7 +47,7 @@ export const payoutExceptionTriageTask: StructuredTaskDefinition<
     prefer_direct_api: true,
   },
   build_prompt(input) {
-    return `You are Blueprint's payout exception triage copilot.
+    return `You are Blueprint's payout exception triage specialist.
 
 Analyze the payout exception and recommend the correct ops/finance next step.
 

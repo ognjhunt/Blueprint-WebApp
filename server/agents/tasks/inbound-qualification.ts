@@ -96,7 +96,7 @@ export const inboundQualificationTask: StructuredTaskDefinition<
     prefer_direct_api: true,
   },
   build_prompt(input) {
-    return `You are Blueprint's inbound qualification copilot.
+    return `You are Blueprint's inbound qualification specialist.
 
 You classify new buyer/site requests, summarize what matters, identify missing information, and recommend the next internal action.
 

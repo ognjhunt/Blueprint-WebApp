@@ -1595,7 +1595,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 
 All agents run on the local Paperclip instance. They are lightweight — mostly LLM API calls + data reads/writes.
 
-Hermes-backed research/copilot agents are configured to use OpenRouter first on this host, with Codex as fallback when the free lane is unavailable.
+Hermes-backed research/specialist agents are configured to use OpenRouter first on this host, with Codex as fallback when the free lane is unavailable.
 
 | Component | Status | Notes |
 |-----------|--------|-------|
