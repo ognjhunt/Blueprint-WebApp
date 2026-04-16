@@ -23,9 +23,21 @@ This ledger is intentionally split into:
 
 ## Priority Proof Targets
 
-No research-backed named targets are available yet.
+### Current Status: No Research-Backed Named Targets
 
-Complete or materialize deep research before treating this city as ready for named-site capture pursuit.
+No research-backed named targets are available yet. The Sacramento capture target ledger remains in hypothesis-ranked mode pending deep research completion.
+
+### Research Path Forward
+
+To activate named-site capture pursuit for Sacramento:
+1. Complete deep research on Sacramento warehouse, fulfillment, and 3PL corridors
+2. Identify specific high-value sites with confirmed lawful access potential
+3. Validate robot workflow alignment with current Blueprint capabilities
+4. Rank targets by buyer value and access realism
+
+### Interim Focus
+
+While waiting for research completion, maintain the queued lawful-access buckets and longer-horizon discovery lanes as discovery frameworks rather than active capture targets.
 
 ## Queued Lawful-Access Buckets
 
