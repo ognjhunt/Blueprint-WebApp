@@ -5,7 +5,7 @@
 
 The Sacramento metropolitan area serves as a highly specialized theater for Blueprint to test its exact-site industrial models. The region is characterized by a dense concentration of third-party logistics (3PL) infrastructure—anchored by the McClellan Park industrial hub—and a localized presence of advanced material handling systems integrators, specifically those aligned with Raymond West and the KION Group. 
 
-This playbook executes one narrow commercial wedge: **Exact-Site Hosted Review for Industrial Warehouse Automation and Integrators**. The operation targets Autonomous Mobile Robot (AMR) deployment teams and engineers who require spatial ground truth to run digital-twin simulation tests (e.g., NVIDIA Omniverse, iWAREHOUSE) prior to physical hardware deployment. 
+This playbook executes two complementary commercial wedges: **Exact-Site Hosted Review for Industrial Warehouse Automation and Integrators** (permissioned, McClellan Park) and **Public-Site Capture for Retail/Grocery Robot Navigation Validation** (no permission required). The first wedge targets AMR deployment teams requiring spatial ground truth for digital-twin simulation (e.g., NVIDIA Omniverse, iWAREHOUSE). The second wedge targets shelf-scanning and inventory AMR makers who need real-world retail aisle geometry for navigation validation — using public_non_controlled sites that require no consent packet. 
 
 Because McClellan Park houses export-controlled defense contractors and deep-freeze food logistics, this playbook mandates a multi-tier rights clearance protocol, professional/insured reality capture operators, and strict validation of buyer cybersecurity postures (including air-gapped delivery constraints) before any commercial outreach occurs.
 
@@ -36,9 +36,10 @@ Sacramento's dense integration of multi-tenant 3PL logistics infrastructure and 
 
 ## Narrow Wedge Definition
 
-*   **Site Lane:** Industrial 3PL Logistics Interiors (Multi-tenant ambient and dry-storage spaces, transitioning later to extreme cold-storage environments).
-*   **Workflow Lane:** Dock handoff and pallet movement automation simulation.
-*   **Buyer Proof Path:** `exact_site` delivery of a verified 3D point cloud/semantic mesh for layout planning and digital-twin ingestion.
+*   **Site Lane (Permissioned):** Industrial 3PL Logistics Interiors (Multi-tenant ambient and dry-storage spaces, transitioning later to extreme cold-storage environments).
+*   **Site Lane (Public):** Big-box retail, grocery, home improvement, and shopping mall common areas (public_non_controlled — no consent packet required).
+*   **Workflow Lane:** Dock handoff and pallet movement automation simulation (permissioned). Shelf-scanning and aisle navigation robot validation (public).
+*   **Buyer Proof Path:** `exact_site` delivery for industrial buyers. `adjacent_site` for retail AMR makers using public captures.
 
 ## Analog Sanity Check
 
@@ -228,7 +229,8 @@ Given the proximity of aerospace/defense contractors at McClellan Park:
   "lawful_access_modes": [
     "buyer_requested_site",
     "site_operator_intro",
-    "capturer_existing_lawful_access"
+    "capturer_existing_lawful_access",
+    "public_non_controlled_site"
   ],
   "preferred_lawful_access_mode": "buyer_requested_site",
   "rights_path": {
@@ -300,58 +302,58 @@ Given the proximity of aerospace/defense contractors at McClellan Park:
     {
       "key": "robot_team_inbound_captured",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "owner_lane": "analytics-agent",
-      "notes": "Ensure intake parsing matches specific integrator demand."
+      "notes": "Emitted from inbound-request.ts on new robot_team inbound."
     },
     {
       "key": "proof_path_assigned",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "owner_lane": "analytics-agent",
-      "notes": "Track distribution between exact_site, adjacent_site, and scoped_follow_up."
+      "notes": "Emitted from admin-leads when qualification stamps a robot_team."
     },
     {
       "key": "proof_pack_delivered",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "owner_lane": "analytics-agent",
-      "notes": "Establish baseline pipeline processing time for feature-sparse industrial spaces."
+      "notes": "Emitted from pipeline state machine when world_model_outputs >= 2 artifacts."
     },
     {
       "key": "hosted_review_ready",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "owner_lane": "analytics-agent",
-      "notes": "Triggered post human-rights-review."
+      "notes": "Emitted from pipeline state machine when hosted review readiness check passes."
     },
     {
       "key": "hosted_review_started",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "owner_lane": "analytics-agent",
-      "notes": "Verifies technical engagement from the simulation engineer."
+      "notes": "Emitted from pipeline state machine when runtime demo + launch URL exist."
     },
     {
       "key": "hosted_review_follow_up_sent",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "owner_lane": "analytics-agent",
-      "notes": "Automated technical spec transmission."
+      "notes": "Emitted from pipeline state machine when hosted review started + evaluation artifacts present."
     },
     {
       "key": "human_commercial_handoff_started",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "owner_lane": "analytics-agent",
-      "notes": "Marks successful technical proof."
+      "notes": "Emitted from pipeline state machine when opportunity handoff or qualified export present."
     },
     {
       "key": "proof_motion_stalled",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "owner_lane": "analytics-agent",
-      "notes": "Crucial for identifying air-gap blockers or stack ingestion failures."
+      "notes": "Emitted from pipeline state machine when qualification regresses or recapture required."
     }
   ],
   "named_claims": [
@@ -405,6 +407,120 @@ Given the proximity of aerospace/defense contractors at McClellan Park:
         "location_summary"
       ],
       "inferred_fields": []
+    },
+    {
+      "name": "McClellan Park - Building 775 (Light Industrial)",
+      "source_bucket": "industrial_warehouse",
+      "channel": "operator_intro",
+      "status": "identified",
+      "site_address": "775 McClellan Park Rd, McClellan, CA 95652",
+      "location_summary": "Light industrial/warehouse module at McClellan Park, ambient temperature, single-tenant.",
+      "site_category": "warehouse",
+      "workflow_fit": "forklift path planning and inventory navigation",
+      "priority_note": "Simpler consent path than US Cold Storage (single-tenant). Adjacent to defense zones but not overlapping.",
+      "source_urls": [],
+      "explicit_fields": [
+        "name",
+        "site_address",
+        "source_bucket",
+        "location_summary"
+      ],
+      "inferred_fields": []
+    },
+    {
+      "name": "Sacramento Costco - Natomas",
+      "source_bucket": "big_box_retail",
+      "channel": "public_non_controlled",
+      "status": "identified",
+      "site_address": "3631 Truxel Rd, Sacramento, CA 95834",
+      "location_summary": "Warehouse club with wide aisles, high ceilings, pallet inventory on floor. Public walk-in access.",
+      "site_category": "warehouse_club",
+      "workflow_fit": "inventory robot aisle navigation and stock audit",
+      "priority_note": "Tier 1 public_non_controlled site. No permission required. High robot workflow demand signal (inventory AMRs already deployed at Costco nationally).",
+      "source_urls": [],
+      "explicit_fields": [
+        "name",
+        "site_address",
+        "source_bucket",
+        "location_summary"
+      ],
+      "inferred_fields": []
+    },
+    {
+      "name": "Home Depot - Sacramento (Cal Expo)",
+      "source_bucket": "home_improvement_retail",
+      "channel": "public_non_controlled",
+      "status": "identified",
+      "site_address": "4330 Stockton Blvd, Sacramento, CA 95820",
+      "location_summary": "Large home improvement store with wide aisles, forklift traffic zones, pallet racking. Public walk-in access.",
+      "site_category": "home_improvement",
+      "workflow_fit": "forklift + robot co-navigation, pallet movement, inventory",
+      "priority_note": "Tier 1 public_non_controlled site. No permission required. Forklift-robot co-navigation is a high-demand robot workflow.",
+      "source_urls": [],
+      "explicit_fields": [
+        "name",
+        "site_address",
+        "source_bucket",
+        "location_summary"
+      ],
+      "inferred_fields": []
+    },
+    {
+      "name": "Safeway - Alhambra Blvd",
+      "source_bucket": "grocery_retail",
+      "channel": "public_non_controlled",
+      "status": "identified",
+      "site_address": "2770 Alhambra Blvd, Sacramento, CA 95816",
+      "location_summary": "Standard grocery store with shelf aisles, good lighting, regular geometry. Public walk-in access.",
+      "site_category": "grocery",
+      "workflow_fit": "shelf-scanning robot navigation and stock audit",
+      "priority_note": "Tier 1 public_non_controlled site. No permission required. Shelf-scanning robots are the #1 deployed robot workflow nationally.",
+      "source_urls": [],
+      "explicit_fields": [
+        "name",
+        "site_address",
+        "source_bucket",
+        "location_summary"
+      ],
+      "inferred_fields": []
+    },
+    {
+      "name": "Walmart Supercenter - Natomas",
+      "source_bucket": "big_box_retail",
+      "channel": "public_non_controlled",
+      "status": "identified",
+      "site_address": "8270 Delta Shores Cir S, Sacramento, CA 95832",
+      "location_summary": "Large big-box retail with wide aisles, grocery section, and back-of-house warehouse zone. Public walk-in access.",
+      "site_category": "superstore",
+      "workflow_fit": "AMR inventory robots, aisle navigation, stock audit",
+      "priority_note": "Tier 1 public_non_controlled site. No permission required. Walmart has deployed inventory AMRs nationally (Simbe, Bossa Nova).",
+      "source_urls": [],
+      "explicit_fields": [
+        "name",
+        "site_address",
+        "source_bucket",
+        "location_summary"
+      ],
+      "inferred_fields": []
+    },
+    {
+      "name": "Arden Fair Mall - Common Areas",
+      "source_bucket": "shopping_mall",
+      "channel": "public_non_controlled",
+      "status": "identified",
+      "site_address": "1689 Arden Way, Sacramento, CA 95815",
+      "location_summary": "Regional shopping mall common areas with wide corridors, good lighting. Public walk-in access.",
+      "site_category": "shopping_mall",
+      "workflow_fit": "cleaning/monitoring robot floor patrol and wayfinding",
+      "priority_note": "Tier 2 public_non_controlled site. No permission required for common areas. Cleaning robots are an emerging robot workflow.",
+      "source_urls": [],
+      "explicit_fields": [
+        "name",
+        "site_address",
+        "source_bucket",
+        "location_summary"
+      ],
+      "inferred_fields": []
     }
   ],
   "buyer_target_candidates": [
@@ -415,6 +531,51 @@ Given the proximity of aerospace/defense contractors at McClellan Park:
       "proof_path": "exact_site",
       "notes": "Active West Coast deployment partner for AMRs; integration workflows rely on digital-twin simulation.",
       "source_bucket": "warehouse_robotics",
+      "source_urls": [],
+      "explicit_fields": [
+        "company_name",
+        "workflow_fit",
+        "proof_path"
+      ],
+      "inferred_fields": []
+    },
+    {
+      "company_name": "Lineage Logistics",
+      "status": "researched",
+      "workflow_fit": "cold chain warehouse automation",
+      "proof_path": "exact_site",
+      "notes": "One of the largest cold chain 3PL operators globally with Sacramento-area facilities. AMR deployment for dock handoff and temperature-zone navigation.",
+      "source_bucket": "cold_chain_logistics",
+      "source_urls": [],
+      "explicit_fields": [
+        "company_name",
+        "workflow_fit",
+        "proof_path"
+      ],
+      "inferred_fields": []
+    },
+    {
+      "company_name": "Locus Robotics",
+      "status": "researched",
+      "workflow_fit": "warehouse AMR navigation",
+      "proof_path": "adjacent_site",
+      "notes": "AMR maker deploying in 3PL and e-commerce fulfillment. Sacramento/Central Valley distribution centers need spatial validation for robot path planning.",
+      "source_bucket": "warehouse_robotics",
+      "source_urls": [],
+      "explicit_fields": [
+        "company_name",
+        "workflow_fit",
+        "proof_path"
+      ],
+      "inferred_fields": []
+    },
+    {
+      "company_name": "Simbe Robotics",
+      "status": "researched",
+      "workflow_fit": "retail shelf-scanning AMR",
+      "proof_path": "adjacent_site",
+      "notes": "Makes Tally, the shelf-scanning robot deployed in grocery and retail. Sacramento public retail sites provide immediate capture targets for their navigation validation.",
+      "source_bucket": "retail_robotics",
       "source_urls": [],
       "explicit_fields": [
         "company_name",
@@ -434,6 +595,57 @@ Given the proximity of aerospace/defense contractors at McClellan Park:
       "campaign_id": null,
       "issue_id": null,
       "notes": "Inquire about exact-site spatial validation formats for their iWAREHOUSE/Cyngn simulation workflow.",
+      "source_urls": [],
+      "explicit_fields": [
+        "reference_name",
+        "channel",
+        "touch_type"
+      ],
+      "inferred_fields": []
+    },
+    {
+      "reference_type": "buyer_target",
+      "reference_name": "Lineage Logistics",
+      "channel": "email",
+      "touch_type": "first_touch",
+      "status": "queued",
+      "campaign_id": null,
+      "issue_id": null,
+      "notes": "Offer ambient-temperature spatial validation for dock handoff AMR deployment at Sacramento cold chain facilities.",
+      "source_urls": [],
+      "explicit_fields": [
+        "reference_name",
+        "channel",
+        "touch_type"
+      ],
+      "inferred_fields": []
+    },
+    {
+      "reference_type": "buyer_target",
+      "reference_name": "Locus Robotics",
+      "channel": "email",
+      "touch_type": "first_touch",
+      "status": "queued",
+      "campaign_id": null,
+      "issue_id": null,
+      "notes": "Offer adjacent-site spatial models for AMR navigation validation in Sacramento-area 3PL facilities.",
+      "source_urls": [],
+      "explicit_fields": [
+        "reference_name",
+        "channel",
+        "touch_type"
+      ],
+      "inferred_fields": []
+    },
+    {
+      "reference_type": "buyer_target",
+      "reference_name": "Simbe Robotics",
+      "channel": "email",
+      "touch_type": "first_touch",
+      "status": "queued",
+      "campaign_id": null,
+      "issue_id": null,
+      "notes": "Offer public retail site captures for shelf-scanning robot navigation validation. No permission required for capture.",
       "source_urls": [],
       "explicit_fields": [
         "reference_name",

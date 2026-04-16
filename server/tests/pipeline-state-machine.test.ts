@@ -18,6 +18,7 @@ import {
   stampProofPathMilestones,
   computeOpsEnvelopeFromPipeline,
   enrichDeploymentReadinessFromArtifacts,
+  growthEventsForStamps,
 } from "../utils/pipelineStateMachine";
 import type { PipelineArtifacts, ProofPathMilestones } from "../types/inbound-request";
 
@@ -199,6 +200,92 @@ describe("stampProofPathMilestones", () => {
       artifacts: arts,
     });
     expect(result.stampedThisSync).not.toContain("proof_pack_delivered_at");
+  });
+
+  it("stamps hosted_review_follow_up_at when hosted_review_started and evaluation artifacts exist", () => {
+    const arts = makeArtifacts([
+      "preview_manifest_uri",
+      "worldlabs_launch_url",
+      "launch_gate_summary_uri",
+    ]);
+    const started: ProofPathMilestones = {
+      ...emptyProofPath(),
+      hosted_review_started_at: "2026-04-01T00:00:00.000Z" as never,
+    };
+    const result = stampProofPathMilestones({
+      currentProofPath: started,
+      artifacts: arts,
+    });
+    expect(result.stampedThisSync).toContain("hosted_review_follow_up_at");
+  });
+
+  it("does not stamp hosted_review_follow_up_at without hosted_review_started", () => {
+    const arts = makeArtifacts(["launch_gate_summary_uri"]);
+    const result = stampProofPathMilestones({
+      currentProofPath: emptyProofPath(),
+      artifacts: arts,
+    });
+    expect(result.stampedThisSync).not.toContain("hosted_review_follow_up_at");
+  });
+
+  it("stamps human_commercial_handoff_at when opportunity_handoff_uri exists", () => {
+    const arts = makeArtifacts(["opportunity_handoff_uri"]);
+    const result = stampProofPathMilestones({
+      currentProofPath: emptyProofPath(),
+      artifacts: arts,
+    });
+    expect(result.stampedThisSync).toContain("human_commercial_handoff_at");
+  });
+
+  it("stamps human_commercial_handoff_at when qualified_ready with launchable export", () => {
+    const arts = makeArtifacts(["launchable_export_bundle_uri"]);
+    const result = stampProofPathMilestones({
+      currentProofPath: emptyProofPath(),
+      artifacts: arts,
+      qualificationState: "qualified_ready",
+    });
+    expect(result.stampedThisSync).toContain("human_commercial_handoff_at");
+  });
+
+  it("does not stamp human_commercial_handoff_at without handoff or export", () => {
+    const arts = makeArtifacts(["preview_manifest_uri"]);
+    const result = stampProofPathMilestones({
+      currentProofPath: emptyProofPath(),
+      artifacts: arts,
+    });
+    expect(result.stampedThisSync).not.toContain("human_commercial_handoff_at");
+  });
+});
+
+// ── growthEventsForStamps tests ──
+
+describe("growthEventsForStamps", () => {
+  it("maps proof_pack_delivered_at to proof_pack_delivered event", () => {
+    expect(growthEventsForStamps(["proof_pack_delivered_at"])).toEqual(["proof_pack_delivered"]);
+  });
+
+  it("maps hosted_review_ready_at to hosted_review_ready event", () => {
+    expect(growthEventsForStamps(["hosted_review_ready_at"])).toEqual(["hosted_review_ready"]);
+  });
+
+  it("maps hosted_review_started_at to hosted_review_started event", () => {
+    expect(growthEventsForStamps(["hosted_review_started_at"])).toEqual(["hosted_review_started"]);
+  });
+
+  it("maps hosted_review_follow_up_at to hosted_review_follow_up_sent event", () => {
+    expect(growthEventsForStamps(["hosted_review_follow_up_at"])).toEqual(["hosted_review_follow_up_sent"]);
+  });
+
+  it("maps human_commercial_handoff_at to human_commercial_handoff_started event", () => {
+    expect(growthEventsForStamps(["human_commercial_handoff_at"])).toEqual(["human_commercial_handoff_started"]);
+  });
+
+  it("skips milestones with no event mapping", () => {
+    expect(growthEventsForStamps(["qualified_inbound_at", "artifact_handoff_delivered_at"])).toEqual([]);
+  });
+
+  it("returns empty array for empty input", () => {
+    expect(growthEventsForStamps([])).toEqual([]);
   });
 });
 
@@ -398,5 +485,64 @@ describe("computePipelineStateTransition", () => {
 
     expect(transition.opsUpdate.captureStatus).toBe("approved");
     expect(transition.opsUpdate.capturePolicyTier).toBe("approved_capture");
+  });
+
+  it("detects stall when qualification is needs_more_evidence", () => {
+    const transition = computePipelineStateTransition({
+      authoritativeStateUpdate: true,
+      explicitQualificationState: "needs_more_evidence",
+      currentProofPath: emptyProofPath(),
+    });
+    expect(transition.proofMotionStalled).toBe(true);
+    expect(transition.stallReason).toBe("needs_more_evidence");
+  });
+
+  it("detects stall when qualification is needs_refresh", () => {
+    const transition = computePipelineStateTransition({
+      authoritativeStateUpdate: true,
+      explicitQualificationState: "needs_refresh",
+      currentProofPath: emptyProofPath(),
+    });
+    expect(transition.proofMotionStalled).toBe(true);
+    expect(transition.stallReason).toBe("needs_refresh");
+  });
+
+  it("detects stall when qualification is not_ready_yet", () => {
+    const transition = computePipelineStateTransition({
+      authoritativeStateUpdate: true,
+      explicitQualificationState: "not_ready_yet",
+      currentProofPath: emptyProofPath(),
+    });
+    expect(transition.proofMotionStalled).toBe(true);
+    expect(transition.stallReason).toBe("not_ready_yet");
+  });
+
+  it("detects stall when recapture is required", () => {
+    const transition = computePipelineStateTransition({
+      authoritativeStateUpdate: false,
+      deploymentReadiness: { recapture_required: true },
+      currentProofPath: emptyProofPath(),
+    });
+    expect(transition.proofMotionStalled).toBe(true);
+    expect(transition.stallReason).toBe("recapture_required");
+  });
+
+  it("does not flag stall for qualified_ready", () => {
+    const transition = computePipelineStateTransition({
+      authoritativeStateUpdate: true,
+      explicitQualificationState: "qualified_ready",
+      currentProofPath: emptyProofPath(),
+    });
+    expect(transition.proofMotionStalled).toBe(false);
+    expect(transition.stallReason).toBeNull();
+  });
+
+  it("does not flag stall for submitted with no artifacts", () => {
+    const transition = computePipelineStateTransition({
+      authoritativeStateUpdate: false,
+      currentQualificationState: "submitted",
+      currentProofPath: emptyProofPath(),
+    });
+    expect(transition.proofMotionStalled).toBe(false);
   });
 });

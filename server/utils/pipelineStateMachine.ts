@@ -30,6 +30,27 @@ import type {
 } from "../types/inbound-request";
 
 // ────────────────────────────────────────────────
+// Milestone-to-growth-event mapping
+// ────────────────────────────────────────────────
+
+const MILESTONE_TO_GROWTH_EVENT: Partial<Record<keyof ProofPathMilestones, string>> = {
+  proof_pack_delivered_at: "proof_pack_delivered",
+  hosted_review_ready_at: "hosted_review_ready",
+  hosted_review_started_at: "hosted_review_started",
+  hosted_review_follow_up_at: "hosted_review_follow_up_sent",
+  human_commercial_handoff_at: "human_commercial_handoff_started",
+};
+
+export function growthEventsForStamps(stampedThisSync: (keyof ProofPathMilestones)[]): string[] {
+  const events: string[] = [];
+  for (const stamp of stampedThisSync) {
+    const event = MILESTONE_TO_GROWTH_EVENT[stamp];
+    if (event) events.push(event);
+  }
+  return events;
+}
+
+// ────────────────────────────────────────────────
 // Artifact presence detection
 // ────────────────────────────────────────────────
 
@@ -294,6 +315,27 @@ export function stampProofPathMilestones(args: {
     hasArtifact(args.artifacts, "launchable_export_bundle_uri")
   );
 
+  // hosted_review_follow_up_at: stamp when hosted review was started and
+  // a follow-up trigger is present (evaluation artifacts indicate review
+  // progressed far enough to warrant a follow-up nudge)
+  stampIfApplicable(
+    "hosted_review_follow_up_at",
+    !!proofPath.hosted_review_follow_up_at,
+    !!proofPath.hosted_review_started_at &&
+    artifactsInGroup(args.artifacts, CORE_ARTIFACT_GROUPS.evaluation_artifacts) >= 1
+  );
+
+  // human_commercial_handoff_at: stamp when the pipeline determines the
+  // request is ready for commercial handoff (opportunity handoff artifact
+  // present, or qualified with launchable export)
+  stampIfApplicable(
+    "human_commercial_handoff_at",
+    !!proofPath.human_commercial_handoff_at,
+    hasArtifact(args.artifacts, "opportunity_handoff_uri") ||
+    (args.qualificationState === "qualified_ready" &&
+     hasArtifact(args.artifacts, "launchable_export_bundle_uri"))
+  );
+
   return { proofPath, stampedThisSync };
 }
 
@@ -499,6 +541,8 @@ export interface PipelineStateTransition {
   requiresHumanReview: boolean;
   recommendedAction: string;
   artifactCount: { total: number; core: number };
+  proofMotionStalled: boolean;
+  stallReason: string | null;
 }
 
 /**
@@ -603,6 +647,28 @@ export function computePipelineStateTransition(args: {
     recommendedAction = "review_pipeline_artifacts";
   }
 
+  // Stall detection: pipeline has progressed but qualification regressed or blocked
+  let proofMotionStalled = false;
+  let stallReason: string | null = null;
+  const STALL_QUALIFICATION_STATES: readonly string[] = [
+    "needs_more_evidence",
+    "needs_refresh",
+    "not_ready_yet",
+  ];
+  if (STALL_QUALIFICATION_STATES.includes(qualificationState)) {
+    proofMotionStalled = true;
+    stallReason = qualificationState;
+  } else if (opsUpdate.recaptureRequired) {
+    proofMotionStalled = true;
+    stallReason = "recapture_required";
+  } else if (
+    deploymentReadiness?.recapture_required &&
+    !opsUpdate.recaptureRequired
+  ) {
+    proofMotionStalled = true;
+    stallReason = "recapture_required_from_readiness";
+  }
+
   return {
     qualificationState,
     opportunityState,
@@ -615,6 +681,8 @@ export function computePipelineStateTransition(args: {
       total: totalArtifacts,
       core: coreGroupCount,
     },
+    proofMotionStalled,
+    stallReason,
   };
 }
 

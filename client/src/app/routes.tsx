@@ -48,6 +48,7 @@ const Dashboard = lazy(() => import("../pages/Dashboard"));
 const OffWaitlistSignUpFlow = lazy(() => import("../pages/OffWaitlistSignUpFlow"));
 const RequestConsole = lazy(() => import("../pages/RequestConsole"));
 const NotFound = lazy(() => import("../pages/NotFound"));
+const CityLanding = lazy(() => import("../pages/CityLanding"));
 
 // Legacy redirects
 const LegacyPilotExchangeRedirect = () => (
@@ -105,6 +106,9 @@ export const appRoutes: AppRoute[] = [
   // Capture / Earn (new)
   { path: "/capture", layout: "public", component: Capture },
   { path: "/capture-app", layout: "public", component: CaptureAppPlaceholder },
+
+  // City landing pages (auto-generated from city launch profile)
+  { path: "/city/:citySlug", layout: "public", component: CityLanding },
 
   // World Models (renamed from site-worlds)
   { path: "/world-models", layout: "public", component: SiteWorlds },

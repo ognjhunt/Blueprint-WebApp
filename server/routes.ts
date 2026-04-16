@@ -48,6 +48,7 @@ import voiceRouter, {
 import verifyFirebaseToken from "./middleware/verifyFirebaseToken";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
 import marketplaceEntitlementsRouter from "./routes/marketplace-entitlements";
+import cityLaunchRouter from "./routes/city-launch";
 
 export function registerRoutes(app: Express) {
   app.use(appleAssociationRouter);
@@ -166,4 +167,5 @@ export function registerRoutes(app: Express) {
   app.use("/api/qr", csrfProtection, verifyFirebaseToken, qrLinkRouter);
   app.use("/v1/creator", verifyFirebaseToken, creatorRouter);
   app.use("/v1/stripe", csrfProtection, verifyFirebaseToken, stripeAccountRouter);
+  app.use("/api/city-launch", csrfProtection, verifyFirebaseToken, cityLaunchRouter);
 }

@@ -16,7 +16,9 @@ import { ensureCreatorStripeAccountId } from "../utils/stripeConnectAccounts";
 import {
   computePipelineStateTransition,
   checkHostedReviewReadiness,
+  growthEventsForStamps,
 } from "../utils/pipelineStateMachine";
+import { logGrowthEvent } from "../utils/growth-events";
 import type {
   DerivedAssetEntry,
   DerivedAssetsAttachment,
@@ -512,6 +514,48 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       );
     } else {
       await docRef.update(updatePayload);
+    }
+
+    // Emit growth events for newly stamped milestones and stall detection
+    const requestIdForEvent = docRef.id;
+    const cityForEvent =
+      (currentData?.context as Record<string, unknown> | undefined)?.demandCity as string | null ?? null;
+    const buyerSegmentForEvent =
+      ((currentData?.contact as Record<string, unknown> | undefined)?.roleTitle as string | null) ?? null;
+
+    const milestoneEvents = growthEventsForStamps(
+      stateTransition.proofPathUpdate.stampedThisSync
+    );
+    for (const event of milestoneEvents) {
+      await logGrowthEvent({
+        event,
+        source: "server:pipeline_state_machine",
+        properties: {
+          request_id: requestIdForEvent,
+          city: cityForEvent,
+          buyer_segment: buyerSegmentForEvent,
+          pipeline_sync: true,
+        },
+      }).catch((err: unknown) => {
+        logger.warn({ err, event }, "Failed to emit pipeline growth event");
+      });
+    }
+
+    // Emit proof_motion_stalled when pipeline detects a stall
+    if (stateTransition.proofMotionStalled) {
+      await logGrowthEvent({
+        event: "proof_motion_stalled",
+        source: "server:pipeline_state_machine",
+        properties: {
+          request_id: requestIdForEvent,
+          city: cityForEvent,
+          blocker_reason: stateTransition.stallReason,
+          buyer_segment: buyerSegmentForEvent,
+          pipeline_sync: true,
+        },
+      }).catch((err: unknown) => {
+        logger.warn({ err, event: "proof_motion_stalled" }, "Failed to emit pipeline growth event");
+      });
     }
 
     return res.json({

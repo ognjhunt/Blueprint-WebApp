@@ -344,7 +344,7 @@ async function maybeLoadCompletedResearch(planningState: CityLaunchPlanningState
   }
 }
 
-function buildFounderApprovals(profile: CityLaunchProfile, budgetPolicy: CityLaunchBudgetPolicy) {
+export function buildFounderApprovals(profile: CityLaunchProfile, budgetPolicy: CityLaunchBudgetPolicy) {
   const spendLine = budgetPolicy.maxTotalApprovedUsd > 0
     ? `Approve the bounded spend posture for ${profile.shortLabel}: ${budgetPolicy.label} with a total envelope up to $${budgetPolicy.maxTotalApprovedUsd.toLocaleString()}.`
     : `Approve the bounded spend posture for ${profile.shortLabel}: ${budgetPolicy.label} with no paid acquisition, referral, or discretionary travel spend.`;

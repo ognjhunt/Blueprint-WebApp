@@ -3,7 +3,7 @@
 ## Status
 - phase: planning
 - owner: city-launch-agent
-- last-reviewed: 2026-04-14
+- last-reviewed: 2026-04-16
 - recommended-posture: gated cohort pilot, not public launch
 - last-human-launch-decision: not approved
 - planning-state: not started

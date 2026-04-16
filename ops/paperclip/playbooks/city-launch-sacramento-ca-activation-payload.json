@@ -10,7 +10,8 @@
   "lawfulAccessModes": [
     "buyer_requested_site",
     "site_operator_intro",
-    "capturer_existing_lawful_access"
+    "capturer_existing_lawful_access",
+    "public_non_controlled_site"
   ],
   "preferredLawfulAccessMode": "buyer_requested_site",
   "rightsPath": {
@@ -82,58 +83,58 @@
     {
       "key": "robot_team_inbound_captured",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Ensure intake parsing matches specific integrator demand."
+      "notes": "Emitted from inbound-request.ts on new robot_team inbound."
     },
     {
       "key": "proof_path_assigned",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Track distribution between exact_site, adjacent_site, and scoped_follow_up."
+      "notes": "Emitted from admin-leads when qualification stamps a robot_team."
     },
     {
       "key": "proof_pack_delivered",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Establish baseline pipeline processing time for feature-sparse industrial spaces."
+      "notes": "Emitted from pipeline state machine when world_model_outputs >= 2 artifacts."
     },
     {
       "key": "hosted_review_ready",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Triggered post human-rights-review."
+      "notes": "Emitted from pipeline state machine when hosted review readiness check passes."
     },
     {
       "key": "hosted_review_started",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Verifies technical engagement from the simulation engineer."
+      "notes": "Emitted from pipeline state machine when runtime demo + launch URL exist."
     },
     {
       "key": "hosted_review_follow_up_sent",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Automated technical spec transmission."
+      "notes": "Emitted from pipeline state machine when hosted review started + evaluation artifacts present."
     },
     {
       "key": "human_commercial_handoff_started",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Marks successful technical proof."
+      "notes": "Emitted from pipeline state machine when opportunity handoff or qualified export present."
     },
     {
       "key": "proof_motion_stalled",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Crucial for identifying air-gap blockers or stack ingestion failures."
+      "notes": "Emitted from pipeline state machine when qualification regresses or recapture required."
     }
   ],
   "namedClaims": [

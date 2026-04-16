@@ -1,0 +1,20 @@
+# Sacramento, CA Robot-Team Contact List
+
+- status: generated working contact-finding artifact
+- scope: robot-team buyers, integrators, and technical deployment targets only
+- evidence boundary: repo/live evidence first; no invented emails or roles
+
+## Live recipient evidence already present
+| Target | Recipient email | Lane | Source |
+| --- | --- | --- | --- |
+| Sacramento buyer-linked exact-site thread | mbeer@sir-robotics.com | buyer-linked-site | live send-action or delivery evidence in the city-launch ledger |
+| Sacramento named warehouse/facility target | sales@raymondwest.com | warehouse-facility-direct | live send-action or delivery evidence in the city-launch ledger |
+
+## Current buyer target set
+| Company | Workflow fit | Proof path | Real recipient email present now | Notes |
+| --- | --- | --- | --- | --- |
+| Axis Robotics | robotics, automation, machine vision, and test/production work | exact_site | missing | Demand-intel evidence says Axis Robotics is in Orangevale and publicly centers robotics, automation, machine vision, and test/production work. |
+| Cyngn | autonomous industrial vehicles for manufacturing and warehousing facilities | exact_site | missing | Demand-intel evidence says Cyngn roadshow materials explicitly stop in Sacramento and are framed around autonomous industrial vehicles for manufacturing and warehousing facilities. |
+| Raymond West | warehouse autonomy | exact_site | sales@raymondwest.com | Active West Coast deployment partner for AMRs; integration workflows rely on digital-twin simulation. |
+| SIR Robotics | industrial automation and material handling | exact_site | mbeer@sir-robotics.com | Demand-intel evidence says SIR Robotics has a Sacramento office on Luzon Ave and public industrial workflow language for assembly, material handling, finishing, and test. Real Sacramento exact-site-hosted-review delivery telemetry also exists for mbeer@sir-robotics.com in growth_campaign_events. |
+| VC Automation | turnkey automation, robotics, machine safety, and robotic assembly | exact_site | missing | Demand-intel evidence says VC Automation is in West Sacramento and publicly centers turnkey automation, robotics, machine safety, and robotic assembly. |

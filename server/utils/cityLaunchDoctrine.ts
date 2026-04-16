@@ -148,6 +148,7 @@ export type CityLaunchMetricDependencyKind =
 
 export const CITY_LAUNCH_METRIC_DEPENDENCY_STATUS_VALUES = [
   "required_not_tracked",
+  "required_tracked",
   "tracked_not_verified",
   "verified",
 ] as const;

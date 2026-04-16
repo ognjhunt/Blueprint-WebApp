@@ -802,6 +802,158 @@ export const analyticsEvents = {
       blocker_detail: properties.blockerDetail,
       ...buildDemandAttributionEventParams(properties.demandAttribution),
     }),
+
+  // City-launch proof-motion events (8 required metrics)
+  cityLaunchLawfulAccessEstablished: (properties: {
+    city: string;
+    citySlug: string;
+    accessMode: string;
+    siteLabel: string;
+    launchId?: string;
+  }) =>
+    trackEvent("city_launch_lawful_access_established", {
+      city: properties.city,
+      city_slug: properties.citySlug,
+      access_mode: properties.accessMode,
+      site_label: properties.siteLabel,
+      launch_id: properties.launchId,
+    }),
+
+  cityLaunchCapturerApproved: (properties: {
+    city: string;
+    citySlug: string;
+    capturerType: string;
+    launchId?: string;
+  }) =>
+    trackEvent("city_launch_capturer_approved", {
+      city: properties.city,
+      city_slug: properties.citySlug,
+      capturer_type: properties.capturerType,
+      launch_id: properties.launchId,
+    }),
+
+  cityLaunchCaptureCompleted: (properties: {
+    city: string;
+    citySlug: string;
+    siteLabel: string;
+    captureType: string;
+    launchId?: string;
+  }) =>
+    trackEvent("city_launch_capture_completed", {
+      city: properties.city,
+      city_slug: properties.citySlug,
+      site_label: properties.siteLabel,
+      capture_type: properties.captureType,
+      launch_id: properties.launchId,
+    }),
+
+  cityLaunchCaptureQaPassed: (properties: {
+    city: string;
+    citySlug: string;
+    siteLabel: string;
+    launchId?: string;
+  }) =>
+    trackEvent("city_launch_capture_qa_passed", {
+      city: properties.city,
+      city_slug: properties.citySlug,
+      site_label: properties.siteLabel,
+      launch_id: properties.launchId,
+    }),
+
+  cityLaunchProofAssetRightsCleared: (properties: {
+    city: string;
+    citySlug: string;
+    siteLabel: string;
+    rightsPath: string;
+    launchId?: string;
+  }) =>
+    trackEvent("city_launch_proof_asset_rights_cleared", {
+      city: properties.city,
+      city_slug: properties.citySlug,
+      site_label: properties.siteLabel,
+      rights_path: properties.rightsPath,
+      launch_id: properties.launchId,
+    }),
+
+  cityLaunchProofPackDelivered: (properties: {
+    city: string;
+    citySlug: string;
+    buyerLabel: string;
+    siteLabel: string;
+    launchId?: string;
+  }) =>
+    trackEvent("city_launch_proof_pack_delivered", {
+      city: properties.city,
+      city_slug: properties.citySlug,
+      buyer_label: properties.buyerLabel,
+      site_label: properties.siteLabel,
+      launch_id: properties.launchId,
+    }),
+
+  cityLaunchHostedReviewReady: (properties: {
+    city: string;
+    citySlug: string;
+    buyerLabel: string;
+    siteLabel: string;
+    launchId?: string;
+  }) =>
+    trackEvent("city_launch_hosted_review_ready", {
+      city: properties.city,
+      city_slug: properties.citySlug,
+      buyer_label: properties.buyerLabel,
+      site_label: properties.siteLabel,
+      launch_id: properties.launchId,
+    }),
+
+  cityLaunchCommercialHandoff: (properties: {
+    city: string;
+    citySlug: string;
+    buyerLabel: string;
+    handoffType: string;
+    launchId?: string;
+  }) =>
+    trackEvent("city_launch_commercial_handoff", {
+      city: properties.city,
+      city_slug: properties.citySlug,
+      buyer_label: properties.buyerLabel,
+      handoff_type: properties.handoffType,
+      launch_id: properties.launchId,
+    }),
+
+  // City-opening distribution events
+  cityOpeningOutreachSent: (properties: {
+    city: string;
+    citySlug: string;
+    lane: string;
+    actionType: string;
+    channelLabel: string;
+    launchId?: string;
+  }) =>
+    trackEvent("city_opening_outreach_sent", {
+      city: properties.city,
+      city_slug: properties.citySlug,
+      lane: properties.lane,
+      action_type: properties.actionType,
+      channel_label: properties.channelLabel,
+      launch_id: properties.launchId,
+    }),
+
+  cityOpeningResponseReceived: (properties: {
+    city: string;
+    citySlug: string;
+    lane: string;
+    responseType: string;
+    routingTarget: string;
+    launchId?: string;
+  }) =>
+    trackEvent("city_opening_response_received", {
+      city: properties.city,
+      city_slug: properties.citySlug,
+      lane: properties.lane,
+      response_type: properties.responseType,
+      routing_target: properties.routingTarget,
+      launch_id: properties.launchId,
+    }),
 };
 
 export { getAnalyticsSessionId, getOrCreateExperimentAnonymousId, getSafeErrorType };

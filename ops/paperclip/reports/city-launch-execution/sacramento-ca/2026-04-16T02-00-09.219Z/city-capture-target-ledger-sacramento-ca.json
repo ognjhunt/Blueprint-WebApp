@@ -1,0 +1,170 @@
+{
+  "city": "Sacramento, CA",
+  "city_slug": "sacramento-ca",
+  "generated_at": "2026-04-16T02:00:10.332Z",
+  "mode": "deep_research_records",
+  "workflow_priorities": [
+    {
+      "key": "warehouse",
+      "label": "Warehouse",
+      "whyNow": "Crucial exact-site validation target before tackling extreme cold modules.",
+      "priority": "tier_1"
+    },
+    {
+      "key": "warehouse_club",
+      "label": "Warehouse Club",
+      "whyNow": "Tier 1 public_non_controlled site. No permission required. High robot workflow demand signal (inventory AMRs already deployed at Costco nationally).",
+      "priority": "tier_1"
+    },
+    {
+      "key": "home_improvement",
+      "label": "Home Improvement",
+      "whyNow": "Tier 1 public_non_controlled site. No permission required. Forklift-robot co-navigation is a high-demand robot workflow.",
+      "priority": "tier_2"
+    },
+    {
+      "key": "grocery",
+      "label": "Grocery",
+      "whyNow": "Tier 1 public_non_controlled site. No permission required. Shelf-scanning robots are the #1 deployed robot workflow nationally.",
+      "priority": "tier_2"
+    },
+    {
+      "key": "superstore",
+      "label": "Superstore",
+      "whyNow": "Tier 1 public_non_controlled site. No permission required. Walmart has deployed inventory AMRs nationally (Simbe, Bossa Nova).",
+      "priority": "tier_2"
+    }
+  ],
+  "priority_proof_targets": [
+    {
+      "rank": 1,
+      "name": "US Cold Storage - Ambient Module",
+      "type": "warehouse",
+      "corridor": "Initial ambient/cross-dock multi-tenant logistics space, avoiding deep-freeze limits.",
+      "workflowFit": "dock handoff and pallet movement",
+      "exactSiteValue": "Crucial exact-site validation target before tackling extreme cold modules.",
+      "accessApproach": "operator_intro",
+      "confidence": "medium",
+      "sourceNote": "Structured deep-research appendix"
+    },
+    {
+      "rank": 2,
+      "name": "McClellan Park - Building 775 (Light Industrial)",
+      "type": "warehouse",
+      "corridor": "Light industrial/warehouse module at McClellan Park, ambient temperature, single-tenant.",
+      "workflowFit": "forklift path planning and inventory navigation",
+      "exactSiteValue": "Simpler consent path than US Cold Storage (single-tenant). Adjacent to defense zones but not overlapping.",
+      "accessApproach": "operator_intro",
+      "confidence": "medium",
+      "sourceNote": "Structured deep-research appendix"
+    },
+    {
+      "rank": 3,
+      "name": "Sacramento Costco - Natomas",
+      "type": "warehouse_club",
+      "corridor": "Warehouse club with wide aisles, high ceilings, pallet inventory on floor. Public walk-in access.",
+      "workflowFit": "inventory robot aisle navigation and stock audit",
+      "exactSiteValue": "Tier 1 public_non_controlled site. No permission required. High robot workflow demand signal (inventory AMRs already deployed at Costco nationally).",
+      "accessApproach": "public_non_controlled",
+      "confidence": "medium",
+      "sourceNote": "Structured deep-research appendix"
+    },
+    {
+      "rank": 4,
+      "name": "Home Depot - Sacramento (Cal Expo)",
+      "type": "home_improvement",
+      "corridor": "Large home improvement store with wide aisles, forklift traffic zones, pallet racking. Public walk-in access.",
+      "workflowFit": "forklift + robot co-navigation, pallet movement, inventory",
+      "exactSiteValue": "Tier 1 public_non_controlled site. No permission required. Forklift-robot co-navigation is a high-demand robot workflow.",
+      "accessApproach": "public_non_controlled",
+      "confidence": "medium",
+      "sourceNote": "Structured deep-research appendix"
+    },
+    {
+      "rank": 5,
+      "name": "Safeway - Alhambra Blvd",
+      "type": "grocery",
+      "corridor": "Standard grocery store with shelf aisles, good lighting, regular geometry. Public walk-in access.",
+      "workflowFit": "shelf-scanning robot navigation and stock audit",
+      "exactSiteValue": "Tier 1 public_non_controlled site. No permission required. Shelf-scanning robots are the #1 deployed robot workflow nationally.",
+      "accessApproach": "public_non_controlled",
+      "confidence": "medium",
+      "sourceNote": "Structured deep-research appendix"
+    },
+    {
+      "rank": 6,
+      "name": "Walmart Supercenter - Natomas",
+      "type": "superstore",
+      "corridor": "Large big-box retail with wide aisles, grocery section, and back-of-house warehouse zone. Public walk-in access.",
+      "workflowFit": "AMR inventory robots, aisle navigation, stock audit",
+      "exactSiteValue": "Tier 1 public_non_controlled site. No permission required. Walmart has deployed inventory AMRs nationally (Simbe, Bossa Nova).",
+      "accessApproach": "public_non_controlled",
+      "confidence": "medium",
+      "sourceNote": "Structured deep-research appendix"
+    },
+    {
+      "rank": 7,
+      "name": "Arden Fair Mall - Common Areas",
+      "type": "shopping_mall",
+      "corridor": "Regional shopping mall common areas with wide corridors, good lighting. Public walk-in access.",
+      "workflowFit": "cleaning/monitoring robot floor patrol and wayfinding",
+      "exactSiteValue": "Tier 2 public_non_controlled site. No permission required for common areas. Cleaning robots are an emerging robot workflow.",
+      "accessApproach": "public_non_controlled",
+      "confidence": "medium",
+      "sourceNote": "Structured deep-research appendix"
+    }
+  ],
+  "queued_lawful_access_buckets": [
+    {
+      "label": "Industrial Warehouse",
+      "activation_rule": "after first rights-cleared proof asset",
+      "rationale": "Expand only after the first research-backed proof assets and rights-cleared reviews exist."
+    },
+    {
+      "label": "Big Box Retail",
+      "activation_rule": "after first rights-cleared proof asset",
+      "rationale": "Expand only after the first research-backed proof assets and rights-cleared reviews exist."
+    },
+    {
+      "label": "Home Improvement Retail",
+      "activation_rule": "after first rights-cleared proof asset",
+      "rationale": "Expand only after the first research-backed proof assets and rights-cleared reviews exist."
+    },
+    {
+      "label": "Grocery Retail",
+      "activation_rule": "after first rights-cleared proof asset",
+      "rationale": "Expand only after the first research-backed proof assets and rights-cleared reviews exist."
+    },
+    {
+      "label": "Shopping Mall",
+      "activation_rule": "after first rights-cleared proof asset",
+      "rationale": "Expand only after the first research-backed proof assets and rights-cleared reviews exist."
+    }
+  ],
+  "discovery_lanes": [
+    {
+      "label": "Industrial Warehouse",
+      "rationale": "Long-universe estimate inferred from the research-backed target mix. Validate locally before treating it as a coverage plan."
+    },
+    {
+      "label": "Big Box Retail",
+      "rationale": "Long-universe estimate inferred from the research-backed target mix. Validate locally before treating it as a coverage plan."
+    },
+    {
+      "label": "Home Improvement Retail",
+      "rationale": "Long-universe estimate inferred from the research-backed target mix. Validate locally before treating it as a coverage plan."
+    },
+    {
+      "label": "Grocery Retail",
+      "rationale": "Long-universe estimate inferred from the research-backed target mix. Validate locally before treating it as a coverage plan."
+    }
+  ],
+  "warnings": [],
+  "sources": [
+    {
+      "label": "Sacramento deep research playbook",
+      "url": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-sacramento-ca-deep-research.md",
+      "note": "Latest completed deep-research artifact with structured launch records."
+    }
+  ]
+}
