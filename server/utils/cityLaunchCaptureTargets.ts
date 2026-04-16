@@ -1,4 +1,4 @@
-import { listCityLaunchActivations, listCityLaunchProspects } from "./cityLaunchLedgers";
+import { listCityLaunchActivations, listCityLaunchCandidateSignals, listCityLaunchProspects } from "./cityLaunchLedgers";
 
 const ACTIVE_ACTIVATION_STATUSES = new Set<string>([
   "activation_ready",
@@ -63,6 +63,83 @@ export type CityLaunchCaptureTarget = {
     researchBacked: true;
   };
 };
+
+export type CreatorLaunchStatus = {
+  supportedCities: Array<{
+    city: string;
+    stateCode: string;
+    displayName: string;
+    citySlug: string;
+  }>;
+  currentCity: {
+    city: string;
+    stateCode: string | null;
+    displayName: string;
+    citySlug: string | null;
+    isSupported: boolean;
+  } | null;
+};
+
+function splitCityLabel(city: string) {
+  const [name, stateCode] = city.split(",").map((part) => part.trim());
+  return {
+    city: name || city.trim(),
+    stateCode: stateCode || null,
+  };
+}
+
+function normalizeToken(value: string | null | undefined) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ");
+}
+
+export async function buildCreatorLaunchStatus(input: {
+  resolvedCity?: { city: string; stateCode?: string | null } | null;
+}): Promise<CreatorLaunchStatus> {
+  const activations = await listCityLaunchActivations();
+  const supportedCities = activations
+    .filter((activation) =>
+      activation.founderApproved
+      || ACTIVE_ACTIVATION_STATUSES.has(activation.status),
+    )
+    .map((activation) => {
+      const parts = splitCityLabel(activation.city);
+      return {
+        city: parts.city,
+        stateCode: parts.stateCode || "",
+        displayName: activation.city,
+        citySlug: activation.citySlug,
+      };
+    })
+    .sort((left, right) => left.displayName.localeCompare(right.displayName));
+
+  const currentCity = input.resolvedCity
+    ? (() => {
+        const normalizedCity = normalizeToken(input.resolvedCity?.city);
+        const normalizedState = normalizeToken(input.resolvedCity?.stateCode || null);
+        const match = supportedCities.find((city) =>
+          normalizeToken(city.city) === normalizedCity
+          && normalizeToken(city.stateCode) === normalizedState,
+        );
+        return {
+          city: input.resolvedCity.city,
+          stateCode: input.resolvedCity.stateCode || null,
+          displayName: input.resolvedCity.stateCode
+            ? `${input.resolvedCity.city}, ${input.resolvedCity.stateCode}`
+            : input.resolvedCity.city,
+          citySlug: match?.citySlug || null,
+          isSupported: Boolean(match),
+        };
+      })()
+    : null;
+
+  return {
+    supportedCities,
+    currentCity,
+  };
+}
 
 export async function buildCityLaunchCaptureTargetFeed(input: {
   lat: number;
@@ -136,4 +213,32 @@ export async function buildCityLaunchCaptureTargetFeed(input: {
     generatedAt: new Date().toISOString(),
     targets: targets.map((entry) => entry.target),
   };
+}
+
+export async function buildCityLaunchUnderReviewFeed(input: {
+  lat: number;
+  lng: number;
+  radiusMeters: number;
+  limit: number;
+}) {
+  const allowedStatuses = new Set(["queued", "in_review"]);
+  const candidates = await listCityLaunchCandidateSignals({
+    statuses: ["queued", "in_review"],
+  });
+
+  return {
+    generatedAt: new Date().toISOString(),
+    candidates: candidates
+      .filter((candidate) => allowedStatuses.has(candidate.status))
+      .map((candidate) => ({
+        ...candidate,
+        distanceMeters: distanceMetersBetween(
+          { lat: input.lat, lng: input.lng },
+          { lat: candidate.lat, lng: candidate.lng },
+        ),
+      }))
+      .filter((candidate) => candidate.distanceMeters <= input.radiusMeters)
+      .sort((left, right) => left.distanceMeters - right.distanceMeters)
+      .slice(0, input.limit),
+    };
 }

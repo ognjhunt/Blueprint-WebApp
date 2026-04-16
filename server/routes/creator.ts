@@ -4,7 +4,12 @@ import {
   listCreatorPayouts,
   mapCreatorPayoutStatusForLedger,
 } from "../utils/accounting";
-import { buildCityLaunchCaptureTargetFeed } from "../utils/cityLaunchCaptureTargets";
+import {
+  buildCityLaunchCaptureTargetFeed,
+  buildCityLaunchUnderReviewFeed,
+  buildCreatorLaunchStatus,
+} from "../utils/cityLaunchCaptureTargets";
+import { intakeCityLaunchCandidateSignals } from "../utils/cityLaunchLedgers";
 import { creatorIdFromRequest } from "../utils/creatorIdentity";
 
 const router = Router();
@@ -390,6 +395,78 @@ router.get("/city-launch/targets", async (req: Request, res: Response) => {
 
   return res.json(
     await buildCityLaunchCaptureTargetFeed({
+      lat,
+      lng,
+      radiusMeters,
+      limit,
+    }),
+  );
+});
+
+router.get("/launch-status", async (req: Request, res: Response) => {
+  const city = String(req.query.city || "").trim();
+  const stateCode = String(req.query.state_code || "").trim() || null;
+
+  return res.json(
+    await buildCreatorLaunchStatus({
+      resolvedCity: city ? { city, stateCode } : null,
+    }),
+  );
+});
+
+router.post("/city-launch/candidate-signals", async (req: Request, res: Response) => {
+  const creatorId = creatorIdFromRequest(req);
+  if (!creatorId) {
+    return res.status(400).json({ error: "Missing creator id" });
+  }
+
+  const rawCandidates = Array.isArray(req.body?.candidates) ? req.body.candidates : [];
+  const candidates = rawCandidates
+    .map((candidate) => ({
+      creatorId,
+      city: String(candidate?.city || "").trim(),
+      name: String(candidate?.name || "").trim(),
+      address: candidate?.address ? String(candidate.address).trim() : null,
+      lat: Number(candidate?.lat),
+      lng: Number(candidate?.lng),
+      provider: String(candidate?.provider || "unknown").trim(),
+      providerPlaceId: candidate?.provider_place_id ? String(candidate.provider_place_id).trim() : null,
+      types: Array.isArray(candidate?.types) ? candidate.types.map(String) : [],
+      sourceContext: String(candidate?.source_context || "app_open_scan").trim() as
+        | "signup_scan"
+        | "app_open_scan"
+        | "manual_refresh",
+    }))
+    .filter((candidate) =>
+      candidate.city
+      && candidate.name
+      && Number.isFinite(candidate.lat)
+      && Number.isFinite(candidate.lng),
+    );
+
+  if (!candidates.length) {
+    return res.status(400).json({ error: "At least one valid candidate is required" });
+  }
+
+  const result = await intakeCityLaunchCandidateSignals(candidates);
+  return res.status(201).json({ candidates: result });
+});
+
+router.get("/city-launch/review-candidates", async (req: Request, res: Response) => {
+  const lat = toNumber(req.query.lat);
+  const lng = toNumber(req.query.lng);
+  if (lat === null || lng === null) {
+    return res.status(400).json({ error: "lat and lng are required" });
+  }
+
+  const radiusMeters = Math.min(
+    Math.max(toNumber(req.query.radius_m) ?? 16_093, 100),
+    80_467,
+  );
+  const limit = Math.min(Math.max(Math.trunc(toNumber(req.query.limit) ?? 12), 1), 50);
+
+  return res.json(
+    await buildCityLaunchUnderReviewFeed({
       lat,
       lng,
       radiusMeters,

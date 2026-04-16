@@ -276,6 +276,7 @@ export type CityLaunchReplyConversionRecord = {
 const COLLECTIONS = {
   activations: "cityLaunchActivations",
   prospects: "cityLaunchProspects",
+  candidateSignals: "cityLaunchCandidateSignals",
   buyerTargets: "cityLaunchBuyerTargets",
   touches: "cityLaunchTouches",
   budgetEvents: "cityLaunchBudgetEvents",
@@ -344,6 +345,12 @@ const REPLY_CONVERSION_STATUS_RANK: Record<CityLaunchReplyConversionStatus, numb
   closed: 3,
 };
 
+const candidateSignalMemoryStore = new Map<string, CityLaunchCandidateSignalRecord>();
+
+function shouldUseInMemoryCandidateSignalStore() {
+  return !db || process.env.NODE_ENV === "test" || Boolean(process.env.VITEST);
+}
+
 function mergeApprovalState(
   existing: CityLaunchSendApprovalState | null | undefined,
   incoming: CityLaunchSendApprovalState | null | undefined,
@@ -391,6 +398,28 @@ function asString(value: unknown) {
 
 function asNumber(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function slugifySignalToken(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function buildCityLaunchCandidateSignalDedupeKey(input: {
+  city: string;
+  name: string;
+  providerPlaceId?: string | null;
+  lat: number;
+  lng: number;
+}) {
+  const citySlug = slugifyCityName(input.city);
+  if (input.providerPlaceId) {
+    return `${citySlug}:${slugifySignalToken(input.providerPlaceId)}`;
+  }
+  return `${citySlug}:${slugifySignalToken(input.name)}:${input.lat.toFixed(3)}:${input.lng.toFixed(3)}`;
 }
 
 function mergeString(existing: string | null | undefined, incoming: string | null | undefined) {
@@ -517,6 +546,163 @@ export async function listCityLaunchActivations() {
   }
   const snapshot = await db.collection(COLLECTIONS.activations).limit(100).get();
   return snapshot.docs.map((doc) => doc.data() as CityLaunchActivationRecord);
+}
+
+export type CityLaunchCandidateSignalSourceContext =
+  | "signup_scan"
+  | "app_open_scan"
+  | "manual_refresh";
+
+export type CityLaunchCandidateSignalRecord = {
+  id: string;
+  dedupeKey: string;
+  creatorId: string;
+  city: string;
+  citySlug: string;
+  name: string;
+  address: string | null;
+  lat: number;
+  lng: number;
+  provider: string;
+  providerPlaceId: string | null;
+  types: string[];
+  sourceContext: CityLaunchCandidateSignalSourceContext;
+  status: "queued" | "in_review" | "promoted" | "rejected";
+  reviewState: string;
+  seenCount: number;
+  submittedAtIso: string;
+  lastSeenAtIso: string;
+};
+
+function mergeCandidateSignal(
+  existing: CityLaunchCandidateSignalRecord | null,
+  incoming: Omit<CityLaunchCandidateSignalRecord, "id" | "seenCount" | "submittedAtIso" | "lastSeenAtIso">,
+) {
+  const timestamp = nowIso();
+  return {
+    id: existing?.id || `candidate-${slugifySignalToken(incoming.dedupeKey.replace(/:/g, "-"))}`,
+    dedupeKey: incoming.dedupeKey,
+    creatorId: incoming.creatorId,
+    city: incoming.city,
+    citySlug: incoming.citySlug,
+    name: incoming.name,
+    address: incoming.address,
+    lat: incoming.lat,
+    lng: incoming.lng,
+    provider: incoming.provider,
+    providerPlaceId: incoming.providerPlaceId,
+    types: incoming.types,
+    sourceContext: incoming.sourceContext,
+    status: existing?.status && existing.status !== "rejected" ? existing.status : incoming.status,
+    reviewState: existing?.reviewState || incoming.reviewState,
+    seenCount: (existing?.seenCount || 0) + 1,
+    submittedAtIso: existing?.submittedAtIso || timestamp,
+    lastSeenAtIso: timestamp,
+  } satisfies CityLaunchCandidateSignalRecord;
+}
+
+export async function upsertCityLaunchCandidateSignal(
+  input: Omit<CityLaunchCandidateSignalRecord, "id" | "seenCount" | "submittedAtIso" | "lastSeenAtIso">,
+) {
+  const record = mergeCandidateSignal(
+    shouldUseInMemoryCandidateSignalStore() ? candidateSignalMemoryStore.get(input.dedupeKey) || null : null,
+    input,
+  );
+
+  if (shouldUseInMemoryCandidateSignalStore()) {
+    candidateSignalMemoryStore.set(record.dedupeKey, record);
+    return record;
+  }
+
+  const ref = db.collection(COLLECTIONS.candidateSignals).doc(record.id);
+  const existingDoc = await ref.get();
+  const existing = existingDoc.exists
+    ? (existingDoc.data() as CityLaunchCandidateSignalRecord)
+    : null;
+  const merged = mergeCandidateSignal(existing, input);
+  await ref.set(
+    {
+      ...merged,
+      updated_at: serverTimestamp(),
+      ...(!existing ? { created_at: serverTimestamp() } : {}),
+    },
+    { merge: true },
+  );
+  return merged;
+}
+
+export async function intakeCityLaunchCandidateSignals(
+  inputs: Array<{
+    creatorId: string;
+    city: string;
+    name: string;
+    address?: string | null;
+    lat: number;
+    lng: number;
+    provider: string;
+    providerPlaceId?: string | null;
+    types?: string[];
+    sourceContext: CityLaunchCandidateSignalSourceContext;
+  }>,
+) {
+  return Promise.all(
+    inputs.map((input) => {
+      const city = input.city.trim();
+      const dedupeKey = buildCityLaunchCandidateSignalDedupeKey({
+        city,
+        name: input.name,
+        providerPlaceId: input.providerPlaceId,
+        lat: input.lat,
+        lng: input.lng,
+      });
+      return upsertCityLaunchCandidateSignal({
+        dedupeKey,
+        creatorId: input.creatorId,
+        city,
+        citySlug: slugifyCityName(city),
+        name: input.name.trim(),
+        address: input.address?.trim() || null,
+        lat: input.lat,
+        lng: input.lng,
+        provider: input.provider.trim(),
+        providerPlaceId: input.providerPlaceId?.trim() || null,
+        types: input.types || [],
+        sourceContext: input.sourceContext,
+        status: "queued",
+        reviewState: "awaiting_city_review",
+      });
+    }),
+  );
+}
+
+export async function listCityLaunchCandidateSignals(options?: {
+  city?: string;
+  statuses?: Array<CityLaunchCandidateSignalRecord["status"]>;
+}) {
+  const filterStatuses = options?.statuses?.length ? new Set(options.statuses) : null;
+  const filterCitySlug = options?.city ? normalizedCity(options.city).citySlug : null;
+
+  if (shouldUseInMemoryCandidateSignalStore()) {
+    return Array.from(candidateSignalMemoryStore.values()).filter((record) => {
+      if (filterCitySlug && record.citySlug !== filterCitySlug) return false;
+      if (filterStatuses && !filterStatuses.has(record.status)) return false;
+      return true;
+    });
+  }
+
+  let snapshot = await db.collection(COLLECTIONS.candidateSignals).limit(1000).get();
+  let records = snapshot.docs.map((doc) => doc.data() as CityLaunchCandidateSignalRecord);
+  if (filterCitySlug) {
+    records = records.filter((record) => record.citySlug === filterCitySlug);
+  }
+  if (filterStatuses) {
+    records = records.filter((record) => filterStatuses.has(record.status));
+  }
+  return records;
+}
+
+export function __resetCityLaunchCandidateSignalMemoryForTests() {
+  candidateSignalMemoryStore.clear();
 }
 
 export async function upsertCityLaunchProspect(
