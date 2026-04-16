@@ -6,6 +6,7 @@ type HeartbeatRunRecord = {
   createdAt?: string | null;
   error?: string | null;
   errorCode?: string | null;
+  exitCode?: number | null;
   finishedAt?: string | null;
   invocationSource?: string | null;
   resultJson?: Record<string, unknown> | null;
@@ -22,6 +23,7 @@ type AgentRecord = {
   name?: string | null;
   urlKey?: string | null;
   adapterType?: string | null;
+  updatedAt?: string | null;
 };
 
 type IssueRecord = {
@@ -136,6 +138,9 @@ function normalizeWhitespace(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
 
+const TOOL_RUNTIME_FAILURE_RE =
+  /(?:CreateProcess .*No such file or directory|Failed to create unified exec process|exec_command failed|write_stdin failed: stdin is closed|rerun exec_command with tty=true to keep stdin open|Codex lost access to its local exec tooling during the run\.)/i;
+
 function hasActualRunsProbe(sourceText: string) {
   const commandEncodedProbe =
     /"type":"command_execution","command":"[\s\S]{0,1200}?(?:\/api\/runs\b|recent runs\b)[\s\S]{0,1200}?","aggregated_output":/i;
@@ -169,11 +174,37 @@ function compactSnippet(value: string | undefined, maxLength = 220) {
 }
 
 function logicalFailureText(run: HeartbeatRunRecord, logText?: string, bestText?: string) {
+  const resultJson = asRecord(run.resultJson);
   return normalizeWhitespace(
-    [bestText ?? "", logText ?? "", asString(run.error), asString(run.stderrExcerpt), asString(run.stdoutExcerpt)]
+    [
+      bestText ?? "",
+      logText ?? "",
+      asString(run.error),
+      asString(run.stderrExcerpt),
+      asString(run.stdoutExcerpt),
+      asString(resultJson?.stderr),
+      asString(resultJson?.stdout),
+    ]
       .filter(Boolean)
       .join("\n"),
   );
+}
+
+function hasCompletedTurnSignal(text: string) {
+  return /"type":"turn\.completed"/i.test(text) || /\bturn\.completed\b/i.test(text);
+}
+
+function isCompletedTurnToolRuntimeFalseFailure(candidate: CandidateRun) {
+  const status = normalizeWhitespace(candidate.run.status ?? "").toLowerCase();
+  if (status !== "failed") return false;
+  if (candidate.run.exitCode !== 0) return false;
+
+  const sourceText = logicalFailureText(candidate.run, candidate.logText, candidate.bestText);
+  const toolRuntimeFailure =
+    normalizeWhitespace(candidate.run.errorCode ?? "").toLowerCase() === "tool_runtime_unavailable"
+    || TOOL_RUNTIME_FAILURE_RE.test(sourceText);
+
+  return toolRuntimeFailure && hasCompletedTurnSignal(sourceText);
 }
 
 export function isLogicalFailureSucceededRun(input: {
@@ -334,6 +365,19 @@ export function classifyFailureSignature(input: {
       category: "auth_or_env" as const,
       fixLayer: "env bootstrap and auth fallback policy",
       matchedBy: "401/403 or missing Paperclip auth signal",
+    };
+  }
+
+  if (
+    normalizeWhitespace(run.errorCode ?? "").toLowerCase() === "tool_runtime_unavailable"
+    || TOOL_RUNTIME_FAILURE_RE.test(sourceText)
+  ) {
+    return {
+      key: "codex_local_exec_tooling_unavailable",
+      title: "Codex local exec tooling became unavailable during the run",
+      category: "tooling_gap" as const,
+      fixLayer: "Paperclip Codex local adapter result mapping and unified-exec environment checks",
+      matchedBy: "tool_runtime_unavailable or unified-exec failure signal",
     };
   }
 
@@ -613,15 +657,58 @@ function isRecoverableQuotaFamily(signature: FailureSignature) {
   );
 }
 
+function isQuotaFailureStaleAfterAdapterSwitch(
+  candidate: CandidateRun,
+  currentAgent: AgentRecord | undefined,
+  runs: HeartbeatRunRecord[],
+  stalledMinutes: number,
+) {
+  if (!isRecoverableQuotaFamily(candidate.signature)) return false;
+  if (!currentAgent?.adapterType) return false;
+
+  const normalizedAdapterType = normalizeWhitespace(currentAgent.adapterType).toLowerCase();
+  if (normalizedAdapterType === "hermes_local") return false;
+
+  const candidateCreatedAt = safeDateRank(candidate.run.createdAt);
+  if (safeDateRank(currentAgent.updatedAt) < candidateCreatedAt) return false;
+
+  const hasActiveSameScopeRun = runs.some((run) => (
+    run.agentId === candidate.run.agentId
+    && run.id !== candidate.run.id
+    && isActiveRecoveryRun(run, stalledMinutes)
+    && hasMatchingRecoveryScope(candidate.run, run)
+  ));
+
+  return !hasActiveSameScopeRun;
+}
+
 export function splitRecoveredCandidates(
   candidates: CandidateRun[],
   runs: HeartbeatRunRecord[],
   stalledMinutes: number,
+  agentsById?: Map<string, AgentRecord>,
 ) {
   const visibleCandidates: CandidateRun[] = [];
   const suppressedRecoveredCandidates: CandidateRun[] = [];
 
   for (const candidate of candidates) {
+    if (isCompletedTurnToolRuntimeFalseFailure(candidate)) {
+      suppressedRecoveredCandidates.push(candidate);
+      continue;
+    }
+
+    if (
+      isQuotaFailureStaleAfterAdapterSwitch(
+        candidate,
+        agentsById?.get(candidate.run.agentId),
+        runs,
+        stalledMinutes,
+      )
+    ) {
+      suppressedRecoveredCandidates.push(candidate);
+      continue;
+    }
+
     if (!isRecoverableQuotaFamily(candidate.signature)) {
       visibleCandidates.push(candidate);
       continue;
@@ -669,6 +756,14 @@ async function fetchRunIssues(runId: string) {
   }
 }
 
+async function fetchRunDetail(runId: string) {
+  try {
+    return await fetchJson<HeartbeatRunRecord>(`/api/heartbeat-runs/${runId}`);
+  } catch {
+    return null;
+  }
+}
+
 function buildMarkdownReport(input: {
   inspectedRuns: number;
   candidateRuns: number;
@@ -685,7 +780,7 @@ function buildMarkdownReport(input: {
   lines.push(`- Inspected runs: ${input.inspectedRuns}`);
   lines.push(`- Candidate failed/stalled/logical-failure runs: ${input.candidateRuns}`);
   if (input.suppressedRecoveredCandidates > 0) {
-    lines.push(`- Suppressed auto-recovered runs: ${input.suppressedRecoveredCandidates}`);
+    lines.push(`- Suppressed non-actionable runs: ${input.suppressedRecoveredCandidates}`);
   }
   lines.push(`- Failure families: ${input.clusters.length}`);
   lines.push(`- Sweep limit: ${input.limit}`);
@@ -705,7 +800,7 @@ function buildMarkdownReport(input: {
       lines.push("| --- | ---: | --- | --- | --- |");
       for (const cluster of input.suppressedRecoveredClusters) {
         lines.push(
-          `| ${cluster.signature.title} | ${cluster.count} | ${cluster.agentKeys.join(", ")} | ${cluster.signature.category} | Later run on the same task/issue is already running or succeeded |`,
+          `| ${cluster.signature.title} | ${cluster.count} | ${cluster.agentKeys.join(", ")} | ${cluster.signature.category} | Later run recovered the task, or the run completed despite a transient tool fault |`,
         );
       }
     }
@@ -751,7 +846,7 @@ function buildMarkdownReport(input: {
     lines.push("| --- | ---: | --- | --- | --- |");
     for (const cluster of input.suppressedRecoveredClusters) {
       lines.push(
-        `| ${cluster.signature.title} | ${cluster.count} | ${cluster.agentKeys.join(", ")} | ${cluster.signature.category} | Later run on the same task/issue is already running or succeeded |`,
+        `| ${cluster.signature.title} | ${cluster.count} | ${cluster.agentKeys.join(", ")} | ${cluster.signature.category} | Later run recovered the task, or the run completed despite a transient tool fault |`,
       );
     }
   }
@@ -803,20 +898,22 @@ async function main() {
     const status = normalizeWhitespace(run.status ?? "").toLowerCase();
     const shouldInspectSucceededRun = status === "succeeded";
     if (!candidate.matches && !shouldInspectSucceededRun) continue;
-    const [issues, logText] = await Promise.all([
+    const [issues, logText, runDetail] = await Promise.all([
       fetchRunIssues(run.id),
       fetchRunLog(run.id, maxLogBytes),
+      fetchRunDetail(run.id),
     ]);
-    const bestText = bestRunText(run, logText);
-    const logicalSucceededFailure = isLogicalFailureSucceededRun({ run, logText, bestText });
+    const enrichedRun = runDetail ? { ...run, ...runDetail } : run;
+    const bestText = bestRunText(enrichedRun, logText);
+    const logicalSucceededFailure = isLogicalFailureSucceededRun({ run: enrichedRun, logText, bestText });
     if (!candidate.matches && !logicalSucceededFailure) continue;
     candidates.push({
-      run,
-      agent: agentsById.get(run.agentId),
+      run: enrichedRun,
+      agent: agentsById.get(enrichedRun.agentId),
       issues,
       logText,
       bestText,
-      signature: classifyFailureSignature({ run, logText, bestText }),
+      signature: classifyFailureSignature({ run: enrichedRun, logText, bestText }),
       stalled: candidate.stalled && !logicalSucceededFailure,
     });
   }
@@ -824,7 +921,7 @@ async function main() {
   const {
     visibleCandidates,
     suppressedRecoveredCandidates,
-  } = splitRecoveredCandidates(candidates, filteredRuns, stalledMinutes);
+  } = splitRecoveredCandidates(candidates, filteredRuns, stalledMinutes, agentsById);
   const clusters = clusterRunFailures(visibleCandidates);
   const suppressedRecoveredClusters = clusterRunFailures(suppressedRecoveredCandidates);
 

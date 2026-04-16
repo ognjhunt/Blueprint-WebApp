@@ -135,6 +135,26 @@ describe("sweep agent run failures", () => {
     expect(processLossSignature.key).toBe("process_loss_or_service_restart");
   });
 
+  it("classifies Codex local exec tooling loss as a shared tooling family", () => {
+    const signature = classifyFailureSignature({
+      run: {
+        id: "run-tool-runtime",
+        agentId: "agent-tool-runtime",
+        companyId: "company-1",
+        status: "failed",
+        errorCode: "tool_runtime_unavailable",
+        exitCode: 0,
+      },
+      logText: `
+        ERROR codex_core::tools::router: error=exec_command failed for /bin/bash -lc "pwd": CreateProcess { message: "Rejected(\\"Failed to create unified exec process: No such file or directory (os error 2)\\")" }
+        {"type":"turn.completed","usage":{"input_tokens":1,"cached_input_tokens":0,"output_tokens":1}}
+      `,
+    });
+
+    expect(signature.key).toBe("codex_local_exec_tooling_unavailable");
+    expect(signature.category).toBe("tooling_gap");
+  });
+
   it("detects succeeded runs that only contain terminal provider failures", () => {
     const run = {
       id: "run-succeeded-rate-limit",
@@ -289,6 +309,138 @@ describe("sweep agent run failures", () => {
         },
       ],
       20,
+    );
+
+    expect(split.visibleCandidates).toHaveLength(0);
+    expect(split.suppressedRecoveredCandidates).toHaveLength(1);
+  });
+
+  it("suppresses tool-runtime failed runs that still completed the turn cleanly", () => {
+    const signature = classifyFailureSignature({
+      run: {
+        id: "run-tool-runtime-completed",
+        agentId: "agent-tool-runtime",
+        companyId: "company-1",
+        status: "failed",
+        errorCode: "tool_runtime_unavailable",
+        exitCode: 0,
+      },
+      logText: `
+        ERROR codex_core::tools::router: error=exec_command failed for /bin/bash -lc "pwd": CreateProcess { message: "Rejected(\\"Failed to create unified exec process: No such file or directory (os error 2)\\")" }
+        {"type":"item.completed","item":{"type":"agent_message","text":"Completed the work."}}
+        {"type":"turn.completed","usage":{"input_tokens":1,"cached_input_tokens":0,"output_tokens":1}}
+      `,
+    });
+
+    const split = splitRecoveredCandidates(
+      [
+        {
+          run: {
+            id: "run-tool-runtime-completed",
+            agentId: "agent-tool-runtime",
+            companyId: "company-1",
+            status: "failed",
+            createdAt: "2026-04-16T17:00:00.000Z",
+            errorCode: "tool_runtime_unavailable",
+            exitCode: 0,
+          },
+          agent: { id: "agent-tool-runtime", name: "Blueprint CTO", urlKey: "blueprint-cto" },
+          issues: [{ id: "issue-1", identifier: "BLU-1" }],
+          bestText: "Codex lost access to its local exec tooling during the run.",
+          logText: `
+            ERROR codex_core::tools::router: error=exec_command failed for /bin/bash -lc "pwd": CreateProcess { message: "Rejected(\\"Failed to create unified exec process: No such file or directory (os error 2)\\")" }
+            {"type":"item.completed","item":{"type":"agent_message","text":"Completed the work."}}
+            {"type":"turn.completed","usage":{"input_tokens":1,"cached_input_tokens":0,"output_tokens":1}}
+          `,
+          signature,
+          stalled: false,
+        },
+      ],
+      [
+        {
+          id: "run-tool-runtime-completed",
+          agentId: "agent-tool-runtime",
+          companyId: "company-1",
+          status: "failed",
+          createdAt: "2026-04-16T17:00:00.000Z",
+          errorCode: "tool_runtime_unavailable",
+          exitCode: 0,
+        },
+      ],
+      20,
+    );
+
+    expect(split.visibleCandidates).toHaveLength(0);
+    expect(split.suppressedRecoveredCandidates).toHaveLength(1);
+  });
+
+  it("suppresses quota failures after the agent has already been switched off Hermes", () => {
+    const signature = classifyFailureSignature({
+      run: {
+        id: "run-quota-before-switch",
+        agentId: "agent-chief-of-staff",
+        companyId: "company-1",
+        status: "failed",
+        createdAt: "2026-04-16T17:30:30.000Z",
+      },
+      logText: "API call failed after 3 retries: HTTP 429: Rate limit exceeded: free-models-per-min.",
+    });
+
+    const split = splitRecoveredCandidates(
+      [
+        {
+          run: {
+            id: "run-quota-before-switch",
+            agentId: "agent-chief-of-staff",
+            companyId: "company-1",
+            status: "failed",
+            createdAt: "2026-04-16T17:30:30.000Z",
+            contextSnapshot: {
+              issueId: "issue-1",
+              taskId: "issue-1",
+              taskKey: "issue-1",
+            },
+          },
+          agent: {
+            id: "agent-chief-of-staff",
+            name: "Chief of Staff",
+            urlKey: "blueprint-chief-of-staff",
+            adapterType: "codex_local",
+            updatedAt: "2026-04-16T17:36:48.000Z",
+          },
+          issues: [{ id: "issue-1", identifier: "BLU-14" }],
+          bestText: "HTTP 429: Rate limit exceeded: free-models-per-min.",
+          signature,
+          stalled: false,
+        },
+      ],
+      [
+        {
+          id: "run-quota-before-switch",
+          agentId: "agent-chief-of-staff",
+          companyId: "company-1",
+          status: "failed",
+          createdAt: "2026-04-16T17:30:30.000Z",
+          contextSnapshot: {
+            issueId: "issue-1",
+            taskId: "issue-1",
+            taskKey: "issue-1",
+          },
+        },
+      ],
+      20,
+      new Map([
+        [
+          "agent-chief-of-staff",
+          {
+            id: "agent-chief-of-staff",
+            name: "Chief of Staff",
+            urlKey: "blueprint-chief-of-staff",
+            adapterType: "codex_local",
+            updatedAt: "2026-04-16T17:36:48.000Z",
+          },
+        ],
+      ]),
     );
 
     expect(split.visibleCandidates).toHaveLength(0);
