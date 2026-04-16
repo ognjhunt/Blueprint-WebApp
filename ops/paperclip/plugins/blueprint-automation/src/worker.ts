@@ -144,10 +144,13 @@ import {
   type CityLaunchStoredSelection,
 } from "./city-launch-proof.js";
 import {
+  findStaleHeartbeatRuns,
   findStaleRunningHeartbeatRun,
   getHeartbeatRunTaskKey,
+  groupStaleRunsByAgent,
   type HeartbeatRunLike,
-} from "./chief-of-staff-run-recovery.js";
+  type StaleRunEntry,
+} from "./stale-run-recovery.js";
 import {
   buildAgentRunFailureSlackCopy,
   buildAgentConversationSlackCopy,
@@ -3402,7 +3405,65 @@ async function postFounderException(
 const CHIEF_OF_STAFF_WAKEUP_COOLDOWN_MS = 5 * 60 * 1000;
 const CHIEF_OF_STAFF_STALE_RUNNING_IDLE_MS = 12 * 60 * 1000;
 const CHIEF_OF_STAFF_RUN_RECOVERY_LIMIT = 50;
+const STALE_RUN_RECOVERY_IDLE_MS = 20 * 60 * 1000;
+const STALE_RUN_RECOVERY_BATCH_LIMIT = 200;
+const STALE_RUN_RECOVERY_MAX_CANCELS_PER_AGENT = 10;
 const chiefOfStaffLastWakeupByCompany = new Map<string, number>();
+
+async function recoverStaleAgentRuns(
+  ctx: PluginContext,
+  companyId: string,
+): Promise<string[]> {
+  const recovered: string[] = [];
+  const allRuns = await fetchPaperclipApiJson<HeartbeatRunLike[]>(
+    `/api/companies/${companyId}/heartbeat-runs?limit=${STALE_RUN_RECOVERY_BATCH_LIMIT}`,
+  );
+  const staleEntries = findStaleHeartbeatRuns(allRuns, Date.now(), STALE_RUN_RECOVERY_IDLE_MS);
+  if (staleEntries.length === 0) {
+    return recovered;
+  }
+
+  const byAgent = groupStaleRunsByAgent(staleEntries);
+  const agents = await listAgents(ctx, companyId);
+  const agentById = new Map(agents.map((a) => [a.id, a]));
+
+  for (const [agentId, entries] of byAgent) {
+    const agent = agentById.get(agentId);
+    const agentKey = agent?.urlKey ?? agentId;
+    const toCancel = entries.slice(0, STALE_RUN_RECOVERY_MAX_CANCELS_PER_AGENT);
+
+    for (const entry of toCancel) {
+      await fetchPaperclipApiJson(`/api/heartbeat-runs/${entry.run.id}/cancel`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      }).catch(() => undefined);
+
+      const taskKey = getHeartbeatRunTaskKey(entry.run);
+      if (agent) {
+        if (taskKey) {
+          await ctx.agents.resetRuntimeSession(agent.id, companyId, { taskKey }).catch(() => undefined);
+        } else {
+          await ctx.agents.resetRuntimeSession(agent.id, companyId).catch(() => undefined);
+        }
+      }
+
+      const idleMinutes = Math.max(1, Math.round(entry.idleMs / (1000 * 60)));
+      recovered.push(
+        `${agentKey}:${entry.staleKind}:${entry.run.id}:${idleMinutes}m`,
+      );
+    }
+  }
+
+  if (recovered.length > 0) {
+    await appendRecentEvent(ctx, companyId, {
+      kind: "stale-run-recovery",
+      title: "Recovered stale agent runs",
+      detail: `Cancelled ${recovered.length} stale run(s): ${recovered.join(", ")}`,
+    });
+  }
+
+  return recovered;
+}
 
 async function recoverStaleChiefOfStaffRunIfNeeded(
   ctx: PluginContext,
@@ -3814,6 +3875,9 @@ async function healAgentExecutionTopology(
       `${agent.urlKey}:${agent.adapterType}->${desired.adapterType}${runtimeNeedsRecovery ? `:recovered-${agent.status}` : ""}`,
     );
   }
+
+  const staleRecovered = await recoverStaleAgentRuns(ctx, companyId).catch(() => [] as string[]);
+  repaired.push(...staleRecovered);
 
   if (repaired.length > 0) {
     await appendRecentEvent(ctx, companyId, {
