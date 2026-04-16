@@ -227,14 +227,9 @@ if (researchOutboundEnabled) {
 
 const creativeFactoryEnabled = automationFlags.BLUEPRINT_CREATIVE_FACTORY_ENABLED;
 if (creativeFactoryEnabled) {
-  requireCheck(
-    Boolean(envValue("GOOGLE_GENAI_API_KEY", "GEMINI_API_KEY")),
-    "GOOGLE_GENAI_API_KEY or GEMINI_API_KEY is required when the creative factory is enabled.",
-  );
-  requireCheck(Boolean(envValue("RUNWAY_API_KEY")), "RUNWAY_API_KEY is required when the creative factory is enabled.");
   warnCheck(
-    Boolean(envValue("RUNWAY_BASE_URL")),
-    "RUNWAY_BASE_URL is unset; the creative factory will fall back to the default Runway API base URL.",
+    Boolean(envValue("PAPERCLIP_API_URL", "PAPERCLIP_API_KEY")),
+    "Creative factory now routes image-heavy work into Paperclip/Codex follow-up issues. If Paperclip API access is unavailable, the worker will still generate prompt packs but issue handoff may fail.",
   );
 }
 

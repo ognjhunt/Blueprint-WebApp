@@ -1597,6 +1597,15 @@ All agents run on the local Paperclip instance. They are lightweight — mostly 
 
 Hermes-backed research/specialist agents are configured to use OpenRouter first on this host, with Codex as fallback when the free lane is unavailable.
 
+Creative execution routing on this host is narrower than the general model ladder:
+
+- Hermes-backed growth, research, and specialist lanes own planning, text, evidence gathering, and routing by default.
+- `webapp-codex` is the default execution lane for Codex-run brand, marketing, frontend, mockup, and image-heavy work.
+- Hermes lanes must not assume they can directly generate final imagery just because Codex can.
+- Final image execution should use Codex desktop OAuth image generation on `gpt-image-1.5`, not a separate image API.
+- Server-side autonomous workers keep explicit provider APIs for non-image work unless a separate migration changes their execution substrate.
+- Video generation remains on the explicit provider path; current default is OpenRouter video.
+
 | Component | Status | Notes |
 |-----------|--------|-------|
 | Paperclip Server (localhost:3100) | Active | Company package, plugin, and dashboard are live on the local trusted host |
@@ -1618,7 +1627,7 @@ Hermes-backed research/specialist agents are configured to use OpenRouter first 
 | Web Search API | Market Intel | P1 | ~$50/mo | **Configured** |
 | Slack Incoming Webhook | All leads + CEO | P1 | Free | **Configured** |
 | SendGrid / Email API | Intake, Finance/Support, Growth | P1 | Free tier | **Repo wired; account config still needed** |
-| Google image generation | Growth, Community Updates, Robot Team Growth | P1 | Usage-based | **Repo wired; key/model config still needed** |
+| Codex OAuth image generation (`gpt-image-1.5`) | Growth, Community Updates, Robot Team Growth | P1 | Included with Codex lane availability | **Route through `webapp-codex`; no separate image API key path for final assets** |
 | ElevenLabs voice | Support, Growth, Buyer-facing demo booking | P1 | Usage-based | **Repo wired; key/voice config still needed** |
 | Notion API Token | All agents (via plugin) | P0 | Free | **Configured** |
 | Cloudflare Tunnel | Plugin webhook intake | P0 | Free | **Verified** |

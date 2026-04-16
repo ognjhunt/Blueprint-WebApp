@@ -1,7 +1,8 @@
 import { getConfiguredEnvValue, requireConfiguredEnvValue } from "../config/env";
 
-const DEFAULT_RUNWAY_BASE_URL = "https://api.dev.runwayml.com/v1";
-const RUNWAY_API_VERSION = "2024-11-06";
+const DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+const OPENROUTER_VIDEO_API_VERSION = "videos/v1";
+const DEFAULT_OPENROUTER_VIDEO_MODEL = "bytedance/seedance-2.0-fast";
 
 type RunwayTaskStatus =
   | "PENDING"
@@ -22,28 +23,46 @@ export interface RunwayTaskRecord {
   model?: string | null;
 }
 
+function configuredVideoModel() {
+  return (
+    getConfiguredEnvValue(
+      "BLUEPRINT_OPENROUTER_VIDEO_MODEL",
+      "BLUEPRINT_RUNWAY_VIDEO_MODEL",
+    ) || DEFAULT_OPENROUTER_VIDEO_MODEL
+  );
+}
+
 export function getRunwayStatus() {
   return {
-    configured: Boolean(getConfiguredEnvValue("RUNWAY_API_KEY")),
-    baseUrl: getConfiguredEnvValue("RUNWAY_BASE_URL") || DEFAULT_RUNWAY_BASE_URL,
-    version: RUNWAY_API_VERSION,
+    configured: Boolean(getConfiguredEnvValue("OPENROUTER_API_KEY")),
+    baseUrl:
+      getConfiguredEnvValue("OPENROUTER_BASE_URL") || DEFAULT_OPENROUTER_BASE_URL,
+    version: OPENROUTER_VIDEO_API_VERSION,
+    provider: "openrouter",
+    defaultModel: configuredVideoModel(),
   };
 }
 
 function runwayBaseUrl() {
   return (
-    getConfiguredEnvValue("RUNWAY_BASE_URL") ||
-    DEFAULT_RUNWAY_BASE_URL
+    getConfiguredEnvValue("OPENROUTER_BASE_URL") || DEFAULT_OPENROUTER_BASE_URL
   ).replace(/\/+$/, "");
 }
 
 function runwayHeaders() {
-  return {
-    Authorization: `Bearer ${requireConfiguredEnvValue(["RUNWAY_API_KEY"], "Runway video generation")}`,
-    "X-Runway-Version": RUNWAY_API_VERSION,
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${requireConfiguredEnvValue(["OPENROUTER_API_KEY"], "OpenRouter video generation")}`,
     "Content-Type": "application/json",
     Accept: "application/json",
+    "X-Title": "Blueprint-WebApp",
   };
+
+  const publicAppUrl = getConfiguredEnvValue("VITE_PUBLIC_APP_URL");
+  if (publicAppUrl) {
+    headers["HTTP-Referer"] = publicAppUrl;
+  }
+
+  return headers;
 }
 
 async function runwayRequest<T>(path: string, init?: RequestInit): Promise<T> {
@@ -60,12 +79,14 @@ async function runwayRequest<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const message =
-      typeof payload?.error === "string"
-        ? payload.error
-        : typeof payload?.message === "string"
-          ? payload.message
-          : text.slice(0, 300) || "Runway request failed";
-    throw new Error(`Runway ${response.status}: ${message}`);
+      typeof payload?.error?.message === "string"
+        ? payload.error.message
+        : typeof payload?.error === "string"
+          ? payload.error
+          : typeof payload?.message === "string"
+            ? payload.message
+            : text.slice(0, 300) || "OpenRouter video request failed";
+    throw new Error(`OpenRouter ${response.status}: ${message}`);
   }
 
   return payload as T;
@@ -73,6 +94,100 @@ async function runwayRequest<T>(path: string, init?: RequestInit): Promise<T> {
 
 function normalizePromptImage(value: unknown) {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function firstString(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
+function normalizeVideoSizeOrAspectRatio(value: unknown) {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  if (!normalized) {
+    return { size: "1280x720", aspectRatio: null };
+  }
+
+  const exactSizeMatch = normalized.match(/^(\d+)\s*[xX]\s*(\d+)$/);
+  if (exactSizeMatch) {
+    return {
+      size: `${exactSizeMatch[1]}x${exactSizeMatch[2]}`,
+      aspectRatio: null,
+    };
+  }
+
+  const colonMatch = normalized.match(/^(\d+)\s*:\s*(\d+)$/);
+  if (colonMatch) {
+    const left = Number(colonMatch[1]);
+    const right = Number(colonMatch[2]);
+    if (Number.isFinite(left) && Number.isFinite(right)) {
+      if (left > 32 && right > 32) {
+        return {
+          size: `${left}x${right}`,
+          aspectRatio: null,
+        };
+      }
+
+      return {
+        size: null,
+        aspectRatio: `${left}:${right}`,
+      };
+    }
+  }
+
+  return { size: null, aspectRatio: normalized };
+}
+
+function mapRunwayTaskStatus(status: string | null | undefined): RunwayTaskStatus {
+  switch ((status || "").trim().toLowerCase()) {
+    case "pending":
+      return "PENDING";
+    case "in_progress":
+      return "RUNNING";
+    case "completed":
+      return "SUCCEEDED";
+    case "failed":
+      return "FAILED";
+    case "cancelled":
+      return "CANCELLED";
+    default:
+      return ((status || "PENDING").trim().toUpperCase() as RunwayTaskStatus);
+  }
+}
+
+function mapOpenRouterVideoJob(
+  payload: Record<string, unknown>,
+  fallbackModel: string | null,
+): RunwayTaskRecord {
+  const unsignedUrls = Array.isArray(payload.unsigned_urls)
+    ? payload.unsigned_urls.filter(
+        (value): value is string =>
+          typeof value === "string" && value.trim().length > 0,
+      )
+    : [];
+
+  return {
+    id: firstString(payload.id, payload.generation_id) || "",
+    status: mapRunwayTaskStatus(firstString(payload.status)),
+    createdAt: firstString(payload.created_at, payload.createdAt),
+    failure: firstString(
+      payload.error,
+      typeof payload.error === "object" && payload.error
+        ? (payload.error as Record<string, unknown>).message
+        : null,
+      payload.message,
+    ),
+    output: unsignedUrls.length > 0 ? unsignedUrls : null,
+    progress:
+      typeof payload.progress === "number" && Number.isFinite(payload.progress)
+        ? payload.progress
+        : null,
+    model: firstString(payload.model, fallbackModel),
+  };
 }
 
 export async function startRunwayImageToVideoTask(params: {
@@ -85,36 +200,53 @@ export async function startRunwayImageToVideoTask(params: {
 }) {
   const promptText = params.promptText.trim();
   if (!promptText) {
-    throw new Error("Runway video generation requires promptText.");
+    throw new Error("OpenRouter video generation requires promptText.");
   }
 
   const promptImage = normalizePromptImage(params.promptImage);
   if (!promptImage) {
-    throw new Error("Runway video generation requires a proof-led prompt image.");
+    throw new Error("OpenRouter video generation requires a proof-led prompt image.");
   }
 
+  const requestedModel = params.model?.trim() || configuredVideoModel();
+  const normalizedVideo = normalizeVideoSizeOrAspectRatio(params.ratio);
   const payload = {
-    model: params.model?.trim() || "gen4_turbo",
-    promptText,
-    promptImage,
-    ratio: params.ratio?.trim() || "1280:720",
+    model: requestedModel,
+    prompt: promptText,
+    frame_images: [
+      {
+        type: "image_url",
+        image_url: { url: promptImage },
+        frame_type: "first_frame",
+      },
+    ],
+    size: normalizedVideo.size || undefined,
+    aspect_ratio: normalizedVideo.aspectRatio || undefined,
     duration: params.duration ?? 5,
     seed: Number.isFinite(params.seed) ? params.seed : undefined,
+    generate_audio: false,
   };
 
-  return runwayRequest<RunwayTaskRecord>("/image_to_video", {
+  const result = await runwayRequest<Record<string, unknown>>("/videos", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+
+  return mapOpenRouterVideoJob(result, requestedModel);
 }
 
 export async function getRunwayTask(taskId: string) {
   const normalizedTaskId = taskId.trim();
   if (!normalizedTaskId) {
-    throw new Error("Runway task id is required.");
+    throw new Error("OpenRouter video task id is required.");
   }
 
-  return runwayRequest<RunwayTaskRecord>(`/tasks/${encodeURIComponent(normalizedTaskId)}`, {
-    method: "GET",
-  });
+  const result = await runwayRequest<Record<string, unknown>>(
+    `/videos/${encodeURIComponent(normalizedTaskId)}`,
+    {
+      method: "GET",
+    },
+  );
+
+  return mapOpenRouterVideoJob(result, null);
 }

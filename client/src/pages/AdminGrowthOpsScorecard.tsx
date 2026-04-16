@@ -369,7 +369,7 @@ export default function AdminGrowthOpsScorecard() {
                     <p className="font-medium text-zinc-950">Creative</p>
                     <p>Google image: {String(Boolean(scorecard.operatorStatus.providers.googleImage?.configured))}</p>
                     <p>Google image state: {scorecard.operatorStatus.providers.googleImage?.executionState || "unknown"}</p>
-                    <p>Runway: {String(Boolean(scorecard.operatorStatus.providers.runway?.configured))}</p>
+                    <p>OpenRouter video: {String(Boolean(scorecard.operatorStatus.providers.runway?.configured))}</p>
                   </div>
                   <div className="rounded-xl border border-zinc-200 p-4 text-sm text-zinc-700">
                     <p className="font-medium text-zinc-950">Voice and agent runtime</p>

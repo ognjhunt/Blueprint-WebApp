@@ -53,6 +53,16 @@ describe("chief of staff issue router", () => {
     expect(route?.assigneeKey).toBe("solutions-engineering-agent");
   });
 
+  it("does not route cross-repo triage into conversion just because cross contains cro", () => {
+    const route = inferChiefOfStaffRoute({
+      title: "CTO Cross-Repo Triage",
+      status: "todo",
+      project: { name: "Blueprint WebApp (backlog)" },
+    });
+
+    expect(route?.assigneeKey).not.toBe("conversion-agent");
+  });
+
   it("routes bootstrap issues to their owning specialist agents", () => {
     const route = inferChiefOfStaffRoute({
       title: "Investor Relations Agent Bootstrap",

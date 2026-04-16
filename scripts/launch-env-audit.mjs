@@ -201,13 +201,6 @@ const checks = [
       "BLUEPRINT_AUTONOMOUS_RESEARCH_TOPICS",
     ],
   },
-  {
-    label: "Creative factory prerequisites",
-    ok:
-      hasAny("GOOGLE_GENAI_API_KEY", "GEMINI_API_KEY")
-      && Boolean(envValue("RUNWAY_API_KEY")),
-    required: ["GOOGLE_GENAI_API_KEY | GEMINI_API_KEY", "RUNWAY_API_KEY"],
-  },
 ];
 
 const recommendedChecks = [

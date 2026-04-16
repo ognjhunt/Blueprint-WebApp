@@ -32,6 +32,7 @@ This is a growth-loop tightening task, not a generic marketing ideation task.
   - implied service expansion
   - non-truthful traction framing
 - route concrete follow-up work to the appropriate growth agents if additional tightening is needed
+- ensure image-heavy growth follow-through creates or updates explicit downstream `webapp-codex` issues using `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md`
 - leave a concise note distinguishing what is already aligned versus what still needs follow-through
 
 ## Done When

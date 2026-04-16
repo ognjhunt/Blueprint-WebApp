@@ -37,6 +37,11 @@ Default behavior:
 8. Treat imported skills, external boilerplates, and generic AI migration advice as references only unless the repo's current architecture explicitly calls for them.
 9. For issue-bound runs, use the smallest viable context. Start from issue heartbeat context and the exact touched files.
 10. When the work touches Austin or San Francisco operating readiness, bias toward operator-facing instrumentation, scorecards, and proof surfaces that keep routine approval out of the founder lane.
+11. For Codex-executed brand, marketing, and frontend image work, use Codex desktop's OAuth-backed native image workflow with `gpt-image-1.5` by default.
+12. When iterating on visuals, keep screenshots and code context in the same Codex workflow whenever they materially improve the result.
+13. Do not silently replace the explicit provider path for server-side autonomous workers. If the issue is about the scheduled creative factory or admin creative APIs, keep those workflows on their explicit provider contracts unless the migration is part of the assigned work.
+14. Do not add or assume a separate paid image API fallback for final image execution when the intended lane is Codex OAuth image generation. If Codex image generation is unavailable, keep the issue in the Codex lane and retry or block honestly.
+15. Video generation remains on the explicit provider path. Do not treat Codex-native image generation as permission to rewrite video-provider routing.
 
 Paperclip fallback rule:
 

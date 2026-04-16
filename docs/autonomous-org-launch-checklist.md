@@ -138,10 +138,12 @@ Human-gate packet rule:
 
 - [ ] Creative factory path is wired if that lane is enabled
   Required env:
-  - `GOOGLE_GENAI_API_KEY` or `GEMINI_API_KEY`
-  - `RUNWAY_API_KEY`
+  - `OPENROUTER_API_KEY`
   Recommended:
-  - `RUNWAY_BASE_URL`
+  - `OPENROUTER_BASE_URL`
+  Notes:
+  - final image execution should route to `webapp-codex` using Codex desktop OAuth image generation on `gpt-image-1.5`
+  - no separate server-side image API key is required for that final image lane
 
 - [ ] Buyer lifecycle path is wired if that lane is enabled
   Required env:

@@ -1,20 +1,22 @@
 export const primaryNavLinks = [
   { href: "/world-models", label: "World Models" },
-  { href: "/how-it-works", label: "How It Works" },
+  { href: "/exact-site-hosted-review", label: "Hosted Evaluation" },
   { href: "/sample-deliverables", label: "Deliverables" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/faq", label: "FAQ" },
+  { href: "/governance", label: "Governance" },
   { href: "/about", label: "About" },
 ];
 
 export const footerExploreLinks = [
   ...primaryNavLinks,
-  { href: "/faq", label: "FAQ" },
+  { href: "/how-it-works", label: "How It Works" },
   { href: "/contact?persona=robot-team", label: "Contact" },
 ];
 
 export const footerReferenceLinks = [
   { href: "/world-models/siteworld-f5fd54898cfb", label: "Sample Listing" },
-  { href: "/governance", label: "Governance" },
+  { href: "/sample-deliverables", label: "Sample Deliverables" },
 ];
 
 export const footerUtilityLinks = [

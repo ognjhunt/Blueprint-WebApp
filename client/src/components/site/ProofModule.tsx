@@ -1,6 +1,5 @@
-import { sampleArtifactLabel } from "@/data/marketingDefinitions";
-import { proofHighlights, proofReelPosterSrc, proofReelVideoSrc } from "@/lib/marketingProof";
-import { PlayCircle } from "lucide-react";
+import { proofHighlights, proofReelPosterSrc, proofReelVideoSrc, resultHighlights } from "@/lib/marketingProof";
+import { PlayCircle, ShieldCheck } from "lucide-react";
 
 interface ProofModuleProps {
   eyebrow: string;
@@ -56,12 +55,32 @@ export function ProofModule({
               <source src={proofReelVideoSrc} type="video/mp4" />
             </video>
           </div>
-          <div className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            {sampleArtifactLabel}
+          <div className="grid gap-3 sm:grid-cols-3">
+            {resultHighlights.map((item) => (
+              <div
+                key={item.title}
+                className="rounded-2xl border border-slate-200 bg-stone-50 px-4 py-3"
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  {item.outcome}
+                </p>
+                <p className="mt-2 text-sm font-semibold text-slate-900">{item.title}</p>
+                <p className="mt-2 text-xs leading-5 text-slate-600">{item.detail}</p>
+              </div>
+            ))}
           </div>
           <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-stone-50 px-4 py-3">
+            <ShieldCheck className="mt-0.5 h-4 w-4 text-slate-700" />
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-slate-900">What is real vs illustrative</p>
+              <p className="text-sm leading-6 text-slate-600">{caption}</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3">
             <PlayCircle className="mt-0.5 h-4 w-4 text-slate-700" />
-            <p className="text-sm leading-6 text-slate-600">{caption}</p>
+            <p className="text-sm leading-6 text-slate-600">
+              Real listing footage and public sample assets are shown where available. Product-interface callouts are clearly labeled when they are illustrative previews.
+            </p>
           </div>
         </div>
       </div>

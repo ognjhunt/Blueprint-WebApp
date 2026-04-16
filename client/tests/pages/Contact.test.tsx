@@ -73,9 +73,10 @@ describe("Contact page", () => {
     expect(screen.getByRole("link", { name: /Sample deliverables/i })).toHaveAttribute("href", "/sample-deliverables");
     expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("textbox", { name: /Immediate workflow question/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Quick brief/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hosted evaluation scoping/i)).toBeInTheDocument();
+    expect(screen.getByText(/Custom site quote/i)).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /What should Blueprint help your team answer first\?/i })).toBeInTheDocument();
     expect(analyticsEventsMock.contactRequestStarted).toHaveBeenCalledWith({
       persona: "robot_team",
       hostedMode: false,
@@ -97,11 +98,11 @@ describe("Contact page", () => {
     expect(screen.getByDisplayValue("Walk to shelf staging and pick the blue tote")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Unitree G1 with head cam and wrist cam")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Request hosted evaluation/i })).toBeInTheDocument();
+    expect(screen.getByText(/Hosted evaluation scoping/i)).toBeInTheDocument();
 
-    expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Access rules/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Privacy and security notes/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: /Proof path/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: /Existing stack or review workflow/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: /Human-gated topics to raise early/i })).not.toBeInTheDocument();
   });
 
   it("renders Austin-specific buyer guidance when the city param is present", () => {
@@ -161,14 +162,14 @@ describe("Contact page", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Your role/i }), {
       target: { value: "Autonomy lead" },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Immediate workflow question/i }), {
+    fireEvent.change(screen.getByRole("textbox", { name: /What should Blueprint help your team answer first\?/i }), {
       target: { value: "Qualify a tote picking workflow." },
     });
-    fireEvent.change(screen.getByRole("textbox", { name: /Target site type/i }), {
-      target: { value: "Warehouse" },
+    fireEvent.change(screen.getByRole("textbox", { name: /Site or facility/i }), {
+      target: { value: "Warehouse in Chicago" },
     });
-    fireEvent.change(screen.getByRole("combobox", { name: /Proof path/i }), {
-      target: { value: "exact_site_required" },
+    fireEvent.change(screen.getByRole("textbox", { name: /Robot or stack/i }), {
+      target: { value: "Unitree G1" },
     });
 
     fireEvent.click(screen.getByRole("button", { name: /Send a short brief/i }));
@@ -187,7 +188,7 @@ describe("Contact page", () => {
       requestedLane: "deeper_evaluation",
       authenticated: false,
       hasJobTitle: true,
-      hasSiteName: false,
+      hasSiteName: true,
       hasSiteLocation: false,
       hasTaskStatement: true,
       hasOperatingConstraints: false,
@@ -224,12 +225,6 @@ describe("Contact page", () => {
     });
     fireEvent.change(screen.getByRole("textbox", { name: /Your role/i }), {
       target: { value: "Autonomy lead" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /Target site type/i }), {
-      target: { value: "Warehouse" },
-    });
-    fireEvent.change(screen.getByRole("combobox", { name: /Proof path/i }), {
-      target: { value: "exact_site_required" },
     });
     fireEvent.click(screen.getByRole("button", { name: /Request hosted evaluation/i }));
 

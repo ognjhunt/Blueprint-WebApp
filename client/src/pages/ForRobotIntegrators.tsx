@@ -144,7 +144,7 @@ export default function ForRobotIntegrators() {
     <>
       <SEO
         title="For Robot Teams | Blueprint"
-        description="Blueprint helps robot teams buy site-specific world models for tuning, exact-site data generation, and hosted access built from real indoor capture."
+        description="Blueprint helps robot teams test the exact site before deployment with site-specific world models, data packages, and hosted evaluation built from real capture."
         canonical="/for-robot-teams"
       />
 
@@ -161,12 +161,15 @@ export default function ForRobotIntegrators() {
                 For Robot Teams
               </span>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Bring the exact deployment site into your robot workflow.
+                Test the exact site before deployment.
               </h1>
+              <p className="max-w-3xl text-sm font-semibold uppercase tracking-[0.16em] text-slate-600">
+                Shrink the demo-to-deployment gap.
+              </p>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600">
-                Blueprint turns real customer facilities into site-specific world models. Use them
-                to fine-tune against the actual layout, generate exact-site training data, compare
-                releases, and run hosted checks before anyone books travel.
+                Blueprint turns a real facility into a site-specific world model, data package,
+                and hosted test environment so your team can answer deployment questions before
+                site visits, pilot spend, and rollout work begin.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -192,13 +195,14 @@ export default function ForRobotIntegrators() {
             >
               <p className="text-sm font-semibold text-slate-900">What this is</p>
               <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                Real-site world models your team can train on, fine-tune against, and export data from.
+                A site-specific world model, data package, and hosted evaluation path built from
+                real capture of one facility and one workflow lane.
               </p>
               <p className="mt-5 text-sm font-semibold text-slate-900">What it helps with</p>
               <ul className="mt-3 space-y-2 text-sm text-slate-600">
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                  <span>Policy evaluation before the site visit</span>
+                  <span>Earlier answers before site visits and pilot week</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
@@ -206,11 +210,11 @@ export default function ForRobotIntegrators() {
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                  <span>Site-specific synthetic data</span>
+                  <span>Site-specific data and controlled scenario variation</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                  <span>Release comparison and regression checks</span>
+                  <span>Release comparison and regression checks on one exact site</span>
                 </li>
               </ul>
             </motion.div>

@@ -21,6 +21,29 @@ const sampleDecision = [
   "If the team needs runtime evidence instead, it opens hosted evaluation on the same site and exports the results it needs.",
 ];
 
+const sampleManifestRows = [
+  ["site_id", "siteworld-f5fd54898cfb"],
+  ["capture_date", "2026-03-13"],
+  ["proof_depth", "Public listing + sample artifact layouts"],
+  ["rights_class", "Internal evaluation and approved exports only"],
+  ["exports", "rollout_video, raw_bundle, dataset_export"],
+];
+
+const inputOutputContract = [
+  {
+    title: "Input",
+    body: "Site identifier, robot setup, policy/checkpoint reference, scenario selection, and any approved constraints tied to the listing.",
+  },
+  {
+    title: "Runtime",
+    body: "One exact-site session tied to the same capture-backed package, with replayable run review and comparison surfaces.",
+  },
+  {
+    title: "Output",
+    body: "Sample artifact layouts for rollout video, export bundles, run summaries, and raw run references tied to the listing.",
+  },
+];
+
 export default function SampleDeliverables() {
   return (
     <>
@@ -89,6 +112,67 @@ export default function SampleDeliverables() {
                   The hosted side keeps the team on the same site. Reruns, checkpoint
                   comparison, failure review, and exports all happen here.
                 </p>
+                <div className="mt-4 inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Illustrative product preview
+                </div>
+              </div>
+            </article>
+          </section>
+
+          <section className="mt-10 grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+            <article className="rounded-2xl border border-slate-200 bg-white p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Sample manifest layout
+              </p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+                Sample manifest layout
+              </h2>
+              <p className="mt-3 text-sm leading-7 text-slate-600">
+                This is a buyer-readable representative manifest layout showing the fields a serious visitor expects to inspect before purchase.
+              </p>
+              <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
+                {sampleManifestRows.map(([label, value]) => (
+                  <div key={label} className="grid grid-cols-[0.8fr_1.2fr] gap-4 border-t border-slate-200 bg-white px-4 py-3 text-sm first:border-t-0">
+                    <p className="font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</p>
+                    <p className="text-slate-800">{value}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="rounded-2xl border border-slate-200 bg-white p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Sample export bundle
+              </p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+                Sample export bundle
+              </h2>
+              <p className="mt-3 text-sm leading-7 text-slate-600">
+                Representative output cards for the hosted path. These are sample artifact layouts showing how exports are grouped and described to the buyer.
+              </p>
+              <div className="mt-6 grid gap-3 md:grid-cols-3">
+                {[
+                  {
+                    title: "Run summary",
+                    body: "Session metadata, scenario selection, run duration, and checkpoint reference.",
+                  },
+                  {
+                    title: "Rollout video",
+                    body: "Buyer-facing review video tied to one exact site and the selected task lane.",
+                  },
+                  {
+                    title: "Raw bundle",
+                    body: "Reference to the raw run package, export manifest, and listing-specific output notes.",
+                  },
+                ].map((card) => (
+                  <div key={card.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm font-semibold text-slate-900">{card.title}</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">{card.body}</p>
+                    <div className="mt-4 inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                      Sample artifact layout
+                    </div>
+                  </div>
+                ))}
               </div>
             </article>
           </section>
@@ -163,6 +247,23 @@ export default function SampleDeliverables() {
                 For technical buyers. The stable product contract vs. the details that change per
                 listing, so your team knows what to assume and what to verify on the actual site.
               </p>
+            </div>
+
+            <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Input/output contract
+              </p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+                Input/output contract
+              </h2>
+              <div className="mt-5 grid gap-4 md:grid-cols-3">
+                {inputOutputContract.map((item) => (
+                  <article key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                    <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">{item.title}</p>
+                    <p className="mt-3 text-sm leading-7 text-slate-700">{item.body}</p>
+                  </article>
+                ))}
+              </div>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">

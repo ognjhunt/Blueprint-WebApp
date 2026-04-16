@@ -131,7 +131,7 @@ export function inferChiefOfStaffRoute(
   if (
     title.includes("conversion refresh")
     || title.includes("conversion ")
-    || title.includes("cro")
+    || /\bcro\b/.test(title)
     || title.includes("experiment")
   ) {
     return route("conversion-agent", "the issue is a conversion optimization or CRO thread");

@@ -2,6 +2,7 @@
 
 ## Primary Sources
 - assigned and linked Paperclip issues for `Blueprint-WebApp`
+- `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md`
 - `Blueprint-WebApp` repo code, tests, and existing scripts
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/programs/proof-path-ownership-contract.md`
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/PLATFORM_CONTEXT.md`
@@ -22,6 +23,7 @@ Avoid on issue-bound runs:
 
 ## Actions You Own
 - implement concrete WebApp code changes tied to a real issue
+- execute image-heavy brand, marketing, and frontend visual tasks routed through the dedicated WebApp creative-image task template
 - tighten acceptance criteria when an implementation issue is under-specified
 - run the narrowest meaningful validation for the touched surface
 - leave issue comments with what changed, what was verified, and any remaining risk

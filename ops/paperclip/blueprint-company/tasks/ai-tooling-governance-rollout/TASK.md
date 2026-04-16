@@ -43,6 +43,7 @@ The assignee for this task must:
 - use these task templates as the default downstream handoff definitions:
   - `ops/paperclip/blueprint-company/tasks/webapp-ai-governance-follow-through/TASK.md`
   - `ops/paperclip/blueprint-company/tasks/growth-ai-governance-follow-through/TASK.md`
+  - `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md` for image-heavy visual execution handoffs
 - make sure each downstream issue points back to the governing docs
 - leave one concise proof-bearing note describing what was routed, to whom, and why
 - block or escalate any follow-up that would introduce new primary services into `Blueprint-WebApp`

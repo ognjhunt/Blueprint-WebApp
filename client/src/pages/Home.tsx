@@ -80,8 +80,8 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | Bring The Exact Deployment Site Into Your Robot Workflow"
-        description="Blueprint helps robot teams buy site packages and hosted evaluation on exact customer facilities, built from real indoor capture."
+        title="Blueprint | Test The Exact Site Before Deployment"
+        description="Blueprint helps robot teams shrink the demo-to-deployment gap with site-specific world models, data packages, and hosted evaluation built from real indoor capture."
         canonical="/"
       />
 
@@ -95,18 +95,21 @@ export default function Home() {
                 For Robot Teams
               </p>
               <h1 className="mt-5 text-[3.3rem] font-semibold tracking-tight text-slate-950 sm:text-[4.2rem] sm:leading-[0.95]">
-                Bring the exact deployment site into your robot workflow.
+                Test the exact site before deployment.
               </h1>
-              <p className="mt-4 max-w-3xl text-[1.05rem] leading-8 text-slate-600">
-                Blueprint turns one real facility into a site-specific world model your team can
-                train on, fine-tune against, and use for exact-site data generation before the
-                expensive fieldwork starts.
+              <p className="mt-4 max-w-3xl text-base font-semibold uppercase tracking-[0.16em] text-slate-600">
+                Shrink the demo-to-deployment gap.
+              </p>
+              <p className="mt-3 max-w-3xl text-[1.05rem] leading-8 text-slate-600">
+                Blueprint turns a real facility into a site-specific world model, data package,
+                and hosted test environment so your team can answer deployment questions before
+                site visits, pilot spend, and rollout work begin.
               </p>
               <p className="mt-4 max-w-3xl rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm leading-7 text-slate-700">
                 <span className="font-semibold text-slate-900">What teams are buying:</span> one
-                site-specific digital environment built from real capture of one facility and one
-                workflow lane, with the package path and hosted path tied back to the same source
-                record.
+                site-specific world model built from real capture of one facility and one
+                workflow lane, with the data package path and hosted path tied back to the same
+                source record.
               </p>
               <div className="mt-5 grid gap-2.5">
                 {heroSignals.map((item) => (
@@ -128,7 +131,13 @@ export default function Home() {
                   href="/exact-site-hosted-review"
                   className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
                 >
-                  Request hosted evaluation
+                  See hosted evaluation
+                </a>
+                <a
+                  href="/contact?persona=robot-team"
+                  className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-stone-100 px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-stone-200"
+                >
+                  Scope your site
                 </a>
               </div>
               <a
@@ -145,14 +154,13 @@ export default function Home() {
         <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              What Blueprint is
+              Buying paths
             </p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              Three things Blueprint sells.
+              Choose the path that matches the work.
             </h2>
             <p className="mt-4 text-sm leading-7 text-slate-600">
-              Capture the real site, package it cleanly, then let the buyer run its own stack
-              or use Blueprint-hosted runtime.
+              Start with the exact-site proof object, then choose between the package, the hosted evaluation path, or a custom site program.
             </p>
           </div>
           <div className="mt-8 grid gap-4 lg:grid-cols-3">
@@ -190,8 +198,8 @@ export default function Home() {
         <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
           <OfferComparison
             eyebrow="What teams get"
-            title="Start with the path that matches the work."
-            description="Buy the site package if your team wants all the site data in its own stack. Request hosted evaluation if your team wants Blueprint to run the exact site, compare checkpoints, and export results before the real visit."
+            title="Choose the path that matches the work."
+            description="Inspect the package when your team wants the data contract. Use hosted evaluation when your team wants Blueprint to run the exact site first. Use custom scope when the site, rights model, or support layer are private from day one."
           />
         </section>
 
@@ -272,7 +280,7 @@ export default function Home() {
                 Trust and governance
               </p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                Clear enough for a skeptical buyer.
+                What a serious buyer should be able to verify at a glance.
               </h2>
               <ul className="mt-6 space-y-3 text-sm leading-7 text-slate-700">
                 {companyTrustItems.map((item) => (
@@ -282,6 +290,31 @@ export default function Home() {
                   </li>
                 ))}
               </ul>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                {[
+                  {
+                    title: "Proof depth",
+                    body: "Public demo, sample artifact layouts, and listing-specific export availability should be visible before inquiry.",
+                  },
+                  {
+                    title: "Rights class",
+                    body: "Usage, sharing, and export boundaries should be attached to the listing rather than hidden behind a sales call.",
+                  },
+                  {
+                    title: "Freshness",
+                    body: "Capture recency and refresh state should be legible so a buyer knows whether the site is current enough for review.",
+                  },
+                  {
+                    title: "Restrictions",
+                    body: "Redaction, retention, restricted zones, and hosted-access limits should be easy to read.",
+                  },
+                ].map((card) => (
+                  <article key={card.title} className="rounded-2xl border border-slate-200 bg-stone-50 p-4">
+                    <p className="text-sm font-semibold text-slate-900">{card.title}</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">{card.body}</p>
+                  </article>
+                ))}
+              </div>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-stone-50 p-6">
               <p className="text-sm font-semibold text-slate-900">Company references</p>
@@ -295,13 +328,42 @@ export default function Home() {
                   Read about Blueprint
                 </a>
                 <a href="/governance" className="text-sm font-semibold text-slate-900 transition hover:text-slate-700">
-                  Review governance and privacy
+                  Review governance and trust
                 </a>
                 <a href="/sample-deliverables" className="text-sm font-semibold text-slate-900 transition hover:text-slate-700">
                   See deliverables and technical reference
                 </a>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Buying flow
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              How buying works before anyone gets on a plane.
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-slate-600">
+              The goal is not to force a sales call. The goal is to help a serious robot team move from site proof to the right commercial next step quickly and truthfully.
+            </p>
+          </div>
+          <div className="mt-8 grid gap-4 md:grid-cols-4">
+            {[
+              "Inspect the sample listing and trust surfaces.",
+              "Confirm whether the package or hosted path matches the question.",
+              "Send a short brief with the site, robot, and workflow context.",
+              "Move into package access or hosted evaluation with the right scope.",
+            ].map((item, index) => (
+              <article key={item} className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white">
+                  {index + 1}
+                </div>
+                <p className="mt-4 text-sm leading-7 text-slate-700">{item}</p>
+              </article>
+            ))}
           </div>
         </section>
       </div>

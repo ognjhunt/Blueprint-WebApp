@@ -66,27 +66,18 @@ export function Header() {
         </nav>
         <div className="hidden items-center gap-3 xl:flex">
           <a
-            href="/contact?persona=robot-team"
-            className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
-          >
-            Request hosted evaluation
-          </a>
-          <a
             href={publicDemoHref}
-            className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+            className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
           >
             {publicDemoLabel}
           </a>
-          {!currentUser ? (
-            <>
-              <a
-                href="/sign-in"
-                className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
-              >
-                Sign in
-              </a>
-            </>
-          ) : (
+          <a
+            href="/exact-site-hosted-review"
+            className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+          >
+            See hosted evaluation
+          </a>
+          {currentUser ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -120,7 +111,7 @@ export function Header() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          )}
+          ) : null}
         </div>
         <button
           type="button"
@@ -153,23 +144,13 @@ export function Header() {
               {publicDemoLabel}
             </a>
             <a
-              href="/contact?persona=robot-team"
+              href="/exact-site-hosted-review"
               className="inline-flex min-h-11 items-center justify-center rounded-full bg-slate-900 px-4 py-2.5 text-center text-white"
               onClick={() => setOpen(false)}
             >
-              Request hosted evaluation
+              See hosted evaluation
             </a>
-            {!currentUser ? (
-              <>
-                <a
-                  href="/sign-in"
-                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-slate-200 px-4 py-2.5 text-center text-slate-700"
-                  onClick={() => setOpen(false)}
-                >
-                  Sign in
-                </a>
-              </>
-            ) : (
+            {currentUser ? (
               <>
                 <a
                   href="/settings"
@@ -189,7 +170,7 @@ export function Header() {
                   Sign out
                 </button>
               </>
-            )}
+            ) : null}
           </nav>
         </div>
       ) : null}

@@ -3,13 +3,9 @@ import { HTTP_STATUS } from "../constants/http-status";
 import { logger } from "../logger";
 import { renderBlueprintProofReel } from "../utils/creative-execution";
 import { buildCreativeCampaignKit } from "../utils/creative-pipeline";
-import {
-  classifyGoogleCreativeFailure,
-  getGoogleCreativeStatus,
-} from "../utils/provider-status";
+import { getGoogleCreativeStatus } from "../utils/provider-status";
 import { hasAnyRole, resolveAccessContext } from "../utils/access-control";
 import { getRunwayTask, startRunwayImageToVideoTask } from "../utils/runway";
-import { generateGoogleCreativeImages } from "../utils/google-creative";
 
 const router = Router();
 
@@ -81,50 +77,21 @@ router.post("/campaign-kit", requireOps, async (req, res) => {
 });
 
 router.post("/generate-image", requireOps, async (req, res) => {
-  try {
-    const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
-    if (!prompt) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({
-        ok: false,
-        error: "Prompt is required",
-        providerStatus: getGoogleCreativeStatus(),
-      });
-    }
-
-    return res.status(HTTP_STATUS.OK).json(
-      await generateGoogleCreativeImages({
-        prompt,
-        aspectRatio:
-          typeof req.body?.aspectRatio === "string" ? req.body.aspectRatio : null,
-        imageSize:
-          typeof req.body?.imageSize === "string" ? req.body.imageSize : null,
-        thinkingLevel:
-          typeof req.body?.thinkingLevel === "string" ? req.body.thinkingLevel : null,
-        personGeneration:
-          typeof req.body?.personGeneration === "string" ? req.body.personGeneration : null,
-        sampleCount: Number(req.body?.sampleCount || 1),
-      }),
-    );
-  } catch (error) {
-    logger.error({ err: error }, "Failed to generate creative image");
-    const message = error instanceof Error ? error.message : "Failed to generate image";
-    const statusCode =
-      typeof (error as { statusCode?: unknown })?.statusCode === "number"
-        ? Number((error as { statusCode?: number }).statusCode)
-        : 500;
-    const providerStatus =
-      (error as { providerStatus?: unknown })?.providerStatus &&
-      typeof (error as { providerStatus?: unknown }).providerStatus === "object"
-        ? (error as { providerStatus: unknown }).providerStatus
-        : classifyGoogleCreativeFailure(statusCode, message);
-    return res
-      .status(statusCode)
-      .json({
-        ok: false,
-        error: message,
-        providerStatus,
-      });
+  const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
+  if (!prompt) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({
+      ok: false,
+      error: "Prompt is required",
+      providerStatus: getGoogleCreativeStatus(),
+    });
   }
+
+  return res.status(410).json({
+    ok: false,
+    error:
+      "Server-side paid image generation is disabled by policy. Route image-heavy work to webapp-codex and use Codex-native image generation there.",
+    providerStatus: getGoogleCreativeStatus(),
+  });
 });
 
 router.post("/generate-video", requireOps, async (req, res) => {
@@ -162,7 +129,7 @@ router.post("/generate-video", requireOps, async (req, res) => {
       requestedBy: await operatorEmail(res),
     });
   } catch (error) {
-    logger.error({ err: error }, "Failed to start Runway video generation");
+    logger.error({ err: error }, "Failed to start OpenRouter video generation");
     return res.status(500).json({
       ok: false,
       error:
@@ -186,7 +153,7 @@ router.get("/video-tasks/:taskId", requireOps, async (req, res) => {
     const task = await getRunwayTask(taskId);
     return res.status(HTTP_STATUS.OK).json({ ok: true, task });
   } catch (error) {
-    logger.error({ err: error }, "Failed to fetch Runway task status");
+    logger.error({ err: error }, "Failed to fetch OpenRouter video task status");
     return res.status(500).json({
       ok: false,
       error:

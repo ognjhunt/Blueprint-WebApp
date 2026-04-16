@@ -16,8 +16,10 @@ vi.mock("../utils/elevenlabs", () => ({
 vi.mock("../utils/runway", () => ({
   getRunwayStatus: () => ({
     configured: true,
-    baseUrl: "https://api.dev.runwayml.com/v1",
-    version: "2024-11-06",
+    baseUrl: "https://openrouter.ai/api/v1",
+    version: "videos/v1",
+    provider: "openrouter",
+    defaultModel: "bytedance/seedance-2.0-fast",
   }),
 }));
 
@@ -43,9 +45,9 @@ describe("provider-status", () => {
     const { buildGrowthIntegrationSummary } = await import("../utils/provider-status");
     const summary = buildGrowthIntegrationSummary();
 
-    expect(summary.googleImage.configured).toBe(true);
-    expect(summary.googleImage.model).toContain("gemini");
-    expect(summary.googleImage.apiKeySource).toBe("GOOGLE_GENAI_API_KEY");
+    expect(summary.googleImage.configured).toBe(false);
+    expect(summary.googleImage.model).toBe("disabled_by_policy");
+    expect(summary.googleImage.apiKeySource).toBeNull();
     expect(summary.runway.configured).toBe(true);
     expect(summary.elevenlabs.configured).toBe(true);
     expect(summary.analytics.ga4.configured).toBe(true);
@@ -74,7 +76,7 @@ describe("provider-status", () => {
   it("getGoogleCreativeStatus defaults to a gemini model, not imagen", async () => {
     const { getGoogleCreativeStatus } = await import("../utils/provider-status");
     const status = getGoogleCreativeStatus();
-    expect(status.model).toContain("gemini");
-    expect(status.model).not.toContain("imagen");
+    expect(status.model).toBe("disabled_by_policy");
+    expect(status.configured).toBe(false);
   });
 });

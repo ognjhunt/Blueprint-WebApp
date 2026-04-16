@@ -48,6 +48,41 @@ export default function Pricing() {
 
           <OfferComparison className="mt-10" />
 
+          <section className="mt-10 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+            <article className="rounded-2xl border border-slate-200 bg-white p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Typical first purchase
+              </p>
+              <h2 className="mt-2 text-2xl font-bold text-slate-900">
+                Most teams do not need a bespoke program on day one.
+              </h2>
+              <div className="mt-5 grid gap-3">
+                {[
+                  "Package first: when your team wants the site data contract and plans to run its own stack.",
+                  "Hosted evaluation first: when your team wants runtime evidence, reruns, and exports before moving files around.",
+                  "Custom quote first: when the site is private, rights need negotiation, or managed support is part of the job.",
+                ].map((item) => (
+                  <div key={item} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </article>
+            <article className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                What happens after inquiry
+              </p>
+              <h2 className="mt-2 text-2xl font-bold text-slate-900">
+                Pricing is public. Scope is still confirmed on the real site.
+              </h2>
+              <div className="mt-5 space-y-3 text-sm leading-6 text-slate-700">
+                <p>1. Blueprint confirms the exact site, workflow lane, and trust boundaries.</p>
+                <p>2. The reply points you to the package path, hosted evaluation, or a custom quote.</p>
+                <p>3. Commercial follow-through narrows the scope instead of reopening discovery from scratch.</p>
+              </div>
+            </article>
+          </section>
+
           <section className="mt-10 grid gap-4 md:grid-cols-2">
             {pricingNotes.map((note) => (
               <article

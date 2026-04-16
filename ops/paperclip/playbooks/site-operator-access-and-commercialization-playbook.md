@@ -59,9 +59,14 @@ These are hypotheses for planning, not policy.
 - city plans identify site clusters where operator-side coordination is likely to matter
 
 ## Current City Signals
-- Austin: keep operator-lane work secondary unless a controlled-access industrial, logistics, or similarly governed facility creates real access friction or recurring update work.
-- San Francisco: treat sensitive, high-value, or partner-led commercialization conversations as earlier operator-lane candidates, but still keep the lane secondary to the robot-team buyer motion.
-- San Diego: keep the lane centered on warehouse, manufacturing, inspection, and other controlled commercial sites where exact-site proof packs and hosted review are already buyer-relevant, but do not treat operator engagement as the default prerequisite for lawful capture or packaging.
+- Austin: keep operator-lane work secondary unless a controlled-access industrial, logistics, or similarly governed facility creates real access friction or recurring update work. The current Austin launch system still sits in `draft_pending_founder_approval`, so the operator lane should not drift ahead of the buyer motion.
+- San Francisco: treat sensitive, high-value, or partner-led commercialization conversations as earlier operator-lane candidates, but still keep the lane secondary to the robot-team buyer motion. The current San Francisco launch system is still `planning_state: not_started`, so this lane remains speculative until the city has a real evidence packet.
+- San Diego: keep the lane centered on warehouse, manufacturing, inspection, and other controlled commercial sites where exact-site proof packs and hosted review are already buyer-relevant. San Diego planning is complete, so this is the clearest city for concrete operator-lane packaging, but live contact still stays draft-only until human gates clear.
+
+## Weekly Operating Signals
+- If a city is still awaiting founder approval or lacks a completed planning packet, keep operator-lane work as routing guidance only.
+- If a city has completed planning and the site type is controlled-access or operator-managed, the operator lane can own contact mapping, approval sequencing, and draft-only outreach prep.
+- If the commercial question starts to touch pricing, reimbursement, revenue share, contract shape, or procurement, stop treating it as an operator-lane planning question and hand it to the human commercial owner.
 
 These are planning signals, not policy.
 
@@ -79,6 +84,8 @@ The matrix is a routing aid, not a standing claim that operator involvement is m
 - `ops-lead`: update the hosted-review and artifact-handoff checklist so controlled-access or high-sensitivity facilities always carry site type, access state, operator involvement, and human-only gate fields.
 - `intake-agent`: add routing prompts that split buyer evaluation from operator-governed access or commercialization questions and fail closed when rights, privacy, or contract language appears.
 - `buyer-solutions-agent` + designated human commercial owner: add a draft response pattern for pricing, procurement, and revenue-share questions that may follow proof review, while keeping all commitments human-owned.
+- `finance-support-agent`: add a lightweight review hook for billing, reimbursement, and payment-friction questions so operator-lane discussions do not silently become financial commitments.
+- `revenue-ops-pricing-agent`: keep any operator-adjacent pricing, quote bands, or discount language draft-only until a human sets the terms.
 - `city-demand-agent`: mirror the Austin, San Francisco, and San Diego signals into city plans by marking which site clusters are operator-secondary versus operator-relevant, and which ones still need human review before any commercialization language is used.
 - `site-operator-partnership-agent`: keep the San Diego operator-lane packet focused on owner/operator/tenant contacts, approval sequence, and the first draft-only outreach note before any live operator contact is allowed.
 
@@ -87,4 +94,6 @@ The matrix is a routing aid, not a standing claim that operator involvement is m
 - `ops-lead`: operational routing and queue ownership
 - `intake-agent`: inbound question handling
 - `buyer-solutions-agent` + designated human commercial owner: commercial support and human escalation routing
+- `finance-support-agent`: billing, reimbursement, and payment-friction questions
+- `revenue-ops-pricing-agent`: draft pricing support before human approval
 - `city-demand-agent`: city-specific adaptation

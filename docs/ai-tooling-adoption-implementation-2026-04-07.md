@@ -76,6 +76,14 @@ This also follows the repo's own recent conclusions:
 - AI runtime lanes: OpenAI, Anthropic, ACP/OpenClaw paths already modeled in env and runtime code
 - growth and comms: PostHog/GA, SendGrid, existing creative and outbound loops
 
+Creative execution addendum on the trusted host:
+
+- Codex-executed brand, marketing, and frontend image work should use Codex desktop's OAuth-backed native image workflow with `gpt-image-1.5` by default
+- screenshots and code context should stay in the same Codex workflow when iterating on visuals
+- Hermes-backed lanes remain planning, research, copy, and routing lanes unless work is explicitly moved into Codex
+- server-side autonomous workers do not call a separate paid image API for final asset execution; they route image-heavy work into the Codex lane
+- video stays on the explicit provider path
+
 ## Target Outcome By End Of Session
 
 By the end of the session, Blueprint should have a concrete repo-level operating plan for AI tooling adoption that the team can execute immediately without ambiguity and without architectural drift.
@@ -204,6 +212,8 @@ Work:
 - convert shipped work into truthful drafts using current growth, creative, analytics, and Notion/Paperclip paths
 - improve asset-centric tracking and outcome review rather than adding a new "marketing brain"
 - keep all public sends draft-first and approval-gated
+- for image-heavy creative work, route execution to Codex lanes that can use Codex-native image generation; keep Hermes lanes on brief-writing, evidence, and review
+- keep scheduled or server-side creative workers on explicit provider APIs until a separate migration is approved
 
 Acceptance criteria:
 
@@ -332,4 +342,3 @@ Done when:
 - `package.json`
 - `docs/autoagent-adoption-spec-2026-04-04.md`
 - `docs/superpowers/plans/2026-04-04-agentic-marketing-loop-adaptation.md`
-

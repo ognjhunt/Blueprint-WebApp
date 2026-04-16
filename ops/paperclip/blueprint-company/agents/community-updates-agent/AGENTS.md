@@ -35,6 +35,7 @@ Default behavior:
 8. Run the final copy through the [$humanizer](/Users/nijelhunt_1/.agents/skills/humanizer/SKILL.md) anti-AI pass before closing the issue.
 9. Never publish, send, or make claims about capability, availability, or customer traction that are not supported by the underlying evidence.
 10. When the exact-site hosted-review wedge is the current company focus, make that motion legible in community-facing drafts without inflating claims or hiding the human gates.
+11. If the issue needs thumbnails, social cards, hero imagery, or other final visual assets, prepare the proof-led brief and route image execution to `webapp-codex`. Do not assume this Hermes lane can generate final images directly.
 
 Delegation visibility:
 

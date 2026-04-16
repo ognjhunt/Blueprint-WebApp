@@ -1,13 +1,14 @@
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import {
   buildCreativeCampaignKit,
-  type ProductReelImage,
 } from "./creative-pipeline";
-import { generateGoogleCreativeImages } from "./google-creative";
-import { startRunwayImageToVideoTask, type RunwayTaskRecord } from "./runway";
 import { getActiveExperimentRollouts } from "./experiment-ops";
-import { renderProductReel } from "./remotion-render";
 import { summarizeRecentContentOutcomeReviews } from "./content-ops";
+import {
+  createPaperclipIssueComment,
+  upsertPaperclipIssue,
+  wakePaperclipAgent,
+} from "./paperclip";
 
 function normalizeString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -221,8 +222,6 @@ export async function runCreativeAssetFactoryLoop() {
   const researchRun = await latestResearchRun();
   const buyerObjections = await latestBuyerObjections();
   const contentReviewSignals = await latestContentReviewSignals();
-  const runwayVideoModel =
-    normalizeString(process.env.BLUEPRINT_RUNWAY_VIDEO_MODEL) || "gen4_turbo";
   const rolloutVariant = rollouts.exact_site_hosted_review_hero_v1 || null;
   const researchTopic = normalizeString(researchRun?.topic) || null;
   const signalHighlights = Array.isArray(researchRun?.signals)
@@ -254,91 +253,103 @@ export async function runCreativeAssetFactoryLoop() {
   }
 
   const kit = buildCreativeCampaignKit(brief);
-  let imageBatch: Array<{ prompt: string; images: ProductReelImage[] }> = [];
-  let runwayTask: RunwayTaskRecord | null = null;
-  let remotionReel:
+  const handoffDescription = [
+    "Execute one image-heavy creative pass for Blueprint's current Exact-Site Hosted Review wedge.",
+    "",
+    `Run id: ${runId}`,
+    `SKU: ${brief.skuName}`,
+    brief.assetGoal ? `Asset goal: ${brief.assetGoal}` : "",
+    brief.audience ? `Audience: ${brief.audience}` : "",
+    brief.siteType ? `Site type: ${brief.siteType}` : "",
+    brief.workflow ? `Workflow: ${brief.workflow}` : "",
+    rolloutVariant ? `Winning rollout variant: ${rolloutVariant}` : "",
+    researchTopic ? `Research topic: ${researchTopic}` : "",
+    "",
+    "Allowed claims:",
+    ...kit.provenanceGuardrails.map((line) => `- ${line}`),
+    "",
+    "Proof points:",
+    ...brief.proofPoints.map((line) => `- ${line}`),
+    "",
+    "Buyer objections:",
+    ...(buyerObjections.length > 0
+      ? buyerObjections.map((line) => `- ${line}`)
+      : ["- No high-signal objection cluster found in the current lookback window."]),
+    "",
+    "Image prompt variants:",
+    ...kit.prompts.nanoBananaVariants.map((line, index) => `${index + 1}. ${line}`),
+    "",
+    "Video prompt for later downstream use if the image pass succeeds:",
+    kit.prompts.runwayPrompt,
+    "",
+    "Requested next step:",
+    "- Use Codex-native image generation for the visual execution.",
+    "- Keep the output truthful to real Blueprint proof, capture provenance, package, and hosted-review surfaces.",
+    "- Place any project-bound finals in the workspace; otherwise leave a reviewable preview path in the issue.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  let executionHandoff:
     | {
-        status: "rendered" | "failed";
-        output_path: string | null;
-        storage_uri: string | null;
-        duration_seconds: number | null;
-        frames: number | null;
+        issue_id: string | null;
+        created: boolean;
+        assignee: string;
+        status: string;
         error: string | null;
       }
     | null = null;
 
-  for (const prompt of kit.prompts.nanoBananaVariants.slice(0, 3)) {
-    try {
-      const generated = await generateGoogleCreativeImages({
-        prompt,
-        aspectRatio: "16:9",
-        imageSize: "1K",
-        thinkingLevel: "HIGH",
-        sampleCount: 1,
-      });
-      imageBatch.push({
-        prompt,
-        images: generated.images.map((image) => ({
-          mimeType: image.mimeType,
-          dataUrl: image.dataUrl,
-        })),
-      });
-    } catch {
-      // Keep the prompt pack even when provider execution is unavailable.
-    }
-  }
+  try {
+    const handoff = await upsertPaperclipIssue({
+      projectName: "blueprint-webapp",
+      assigneeKey: "webapp-codex",
+      title: `Creative image execution: ${brief.skuName}${researchTopic ? ` — ${researchTopic}` : ""}`,
+      description: handoffDescription,
+      priority: "high",
+      status: "todo",
+      originKind: "creative_factory_run",
+      originId: runId,
+    });
 
-  const firstImage = imageBatch[0]?.images[0]?.dataUrl || null;
-  if (firstImage) {
-    try {
-      const task = await startRunwayImageToVideoTask({
-        promptText: kit.prompts.runwayPrompt,
-        promptImage: firstImage,
-        model: runwayVideoModel,
-        ratio: "1280:720",
-        duration: 5,
-      });
-      runwayTask = task;
-    } catch {
-      runwayTask = null;
-    }
-  }
+    executionHandoff = {
+      issue_id: handoff.issue.id,
+      created: handoff.created,
+      assignee: "webapp-codex",
+      status: handoff.issue.status,
+      error: null,
+    };
 
-  const remotionImages = imageBatch.flatMap((entry) => entry.images).slice(0, 4);
-  if (remotionImages.length > 0) {
-    try {
-      const reel = await renderProductReel({
-        storyboard: kit.remotionStoryboard,
-        images: remotionImages,
-        runwayVideoUrl:
-          Array.isArray(runwayTask?.output) && runwayTask?.output[0]
-            ? typeof runwayTask.output[0] === "string"
-              ? runwayTask.output[0]
-              : normalizeString(runwayTask.output[0]?.url)
-            : null,
-        fps: 30,
-        width: 1280,
-        height: 720,
-        storageObjectPath: `creative-factory/${runId}/product-reel.mp4`,
-      });
-      remotionReel = {
-        status: "rendered",
-        output_path: reel.outputPath,
-        storage_uri: reel.storageUri || null,
-        duration_seconds: reel.durationSeconds,
-        frames: reel.frames,
-        error: null,
-      };
-    } catch (error) {
-      remotionReel = {
-        status: "failed",
-        output_path: null,
-        storage_uri: null,
-        duration_seconds: null,
-        frames: null,
-        error: error instanceof Error ? error.message : "Unknown Remotion render failure",
-      };
+    const commentLines = [
+      "Creative factory generated a prompt pack and routed image-heavy execution to `webapp-codex`.",
+      `Run id: ${runId}`,
+      `Asset goal: ${brief.assetGoal}`,
+      "Paid image APIs are disabled by repo policy for this worker. Use Codex-native image generation in the downstream execution lane.",
+    ];
+    await createPaperclipIssueComment(
+      handoff.issue.id,
+      commentLines.join("\n"),
+    ).catch(() => undefined);
+
+    if (handoff.assigneeAgentId) {
+      await wakePaperclipAgent({
+        agentId: handoff.assigneeAgentId,
+        companyId: handoff.companyId,
+        reason: "creative_image_execution_handoff",
+        payload: {
+          issueId: handoff.issue.id,
+          creativeFactoryRunId: runId,
+        },
+      }).catch(() => undefined);
     }
+  } catch (error) {
+    executionHandoff = {
+      issue_id: null,
+      created: false,
+      assignee: "webapp-codex",
+      status: "failed_to_route",
+      error: error instanceof Error ? error.message : "Unknown Paperclip handoff failure",
+    };
   }
 
   await runRef.set(
@@ -346,13 +357,14 @@ export async function runCreativeAssetFactoryLoop() {
       sku_name: brief.skuName,
       research_topic: researchTopic,
       rollout_variant: rolloutVariant,
-      status: firstImage ? "assets_generated" : "prompt_pack_generated",
+      status: executionHandoff?.issue_id ? "execution_handoff_queued" : "prompt_pack_generated",
       kit,
       buyer_objections: buyerObjections,
       content_review_signals: contentReviewSignals,
-      image_batch: imageBatch,
-      runway_task: runwayTask,
-      remotion_reel: remotionReel,
+      image_batch: [],
+      runway_task: null,
+      remotion_reel: null,
+      execution_handoff: executionHandoff,
       created_at_iso: new Date().toISOString(),
       created_at: admin.firestore.FieldValue.serverTimestamp(),
     },
@@ -360,12 +372,12 @@ export async function runCreativeAssetFactoryLoop() {
   );
 
   return {
-    status: firstImage ? "assets_generated" : "prompt_pack_generated",
+    status: executionHandoff?.issue_id ? "execution_handoff_queued" : "prompt_pack_generated",
     runId,
-    generatedImages: imageBatch.length,
-    runwayTaskId:
-      runwayTask && typeof runwayTask.id === "string" ? runwayTask.id : null,
-    remotionReelPath: remotionReel?.output_path || null,
-    remotionReelUri: remotionReel?.storage_uri || null,
+    generatedImages: 0,
+    runwayTaskId: null,
+    remotionReelPath: null,
+    remotionReelUri: null,
+    executionHandoffIssueId: executionHandoff?.issue_id || null,
   };
 }

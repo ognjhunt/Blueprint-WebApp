@@ -5,25 +5,25 @@ export const publicDemoHref = "/world-models/siteworld-f5fd54898cfb";
 export const publicDemoLabel = "View sample listing";
 
 export const proofHighlights = [
-  "Every artifact starts from real capture of a real facility.",
-  "The site package gives your team everything it needs to run its own stack on that site.",
-  "Hosted evaluation lets you rerun, review failures, and export results without moving files first.",
+  "Real capture proof: the walkthrough reel and listing are grounded to one specific facility.",
+  "Sample artifact layout: package manifests, export bundles, and trust cards are representative layouts unless marked otherwise.",
+  "Illustrative product preview: hosted-evaluation UI panels show the buyer workflow without implying customer outcomes the site cannot prove yet.",
 ];
 
 export const resultHighlights = [
   {
-    title: "Package framing",
-    outcome: "Sample artifact",
-    detail: "Show the capture evidence, spatial artifacts, and trust metadata that ground a buyer's own world model work.",
+    title: "Real capture proof",
+    outcome: "Real listing asset",
+    detail: "Show the walkthrough and facility-grounded evidence that anchor the public sample listing.",
   },
   {
-    title: "Hosted review loop",
-    outcome: "Illustrative preview",
-    detail: "Show how one site moves from setup to rerun to export without claiming customer outcomes the site cannot prove yet.",
+    title: "Hosted product preview",
+    outcome: "Illustrative product preview",
+    detail: "Show how one site moves from setup to run review to export without implying that every illustrated surface is already public product UI.",
   },
   {
     title: "Export bundle",
-    outcome: "Sample artifact",
+    outcome: "Sample artifact layout",
     detail: "Show the kinds of outputs a team reviews after a hosted run: rollout video, metrics, datasets, and raw bundles.",
   },
 ];

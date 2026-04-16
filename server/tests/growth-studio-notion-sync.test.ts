@@ -120,10 +120,15 @@ describe("growth studio notion sync", () => {
           sku_name: "Exact-Site Hosted Review",
           research_topic: "warehouse robotics proof",
           rollout_variant: "v1",
-          status: "assets_generated",
+          status: "execution_handoff_queued",
           created_at_iso: "2026-04-04T15:45:00.000Z",
           buyer_objections: ["How exact is the site coverage?"],
-          image_batch: [{ id: "img_1" }],
+          image_batch: [],
+          execution_handoff: {
+            issue_id: "issue-creative-1",
+            status: "todo",
+            assignee: "webapp-codex",
+          },
           remotion_reel: {
             storage_uri: "gs://bucket/reel.mp4",
           },

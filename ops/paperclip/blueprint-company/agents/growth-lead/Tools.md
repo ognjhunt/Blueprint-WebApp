@@ -2,6 +2,7 @@
 
 ## Primary Sources
 - `ops/paperclip/programs/growth-lead-program.md`
+- `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md`
 - analytics reports, experiment results, and anomaly alerts
 - `ops/paperclip/programs/conversion-agent-program.md`
 - `ops/paperclip/programs/market-intel-program.md`
@@ -24,6 +25,8 @@
   Use it to compare real options, not to give false math to weak ideas.
 - positioning or copy recommendations
   Keep them within Blueprint's actual product and rights posture.
+- image-heavy creative routing
+  When a growth issue needs generated visuals, create or update a `webapp-codex` downstream issue using the dedicated image-execution task template instead of leaving the handoff implicit.
 
 ## Do Not Use Casually
 - brand or spend-envelope decisions that require founder approval

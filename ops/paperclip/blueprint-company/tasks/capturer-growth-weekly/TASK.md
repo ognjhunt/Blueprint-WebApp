@@ -13,6 +13,7 @@ Each run must:
 - ingest new supply-intel findings plus any analytics or ops feedback
 - update Blueprint's generic capturer acquisition playbook
 - create downstream issues for `conversion-agent`, `analytics-agent`, `intake-agent`, `ops-lead`, and `city-launch-agent` where needed
+- create or update a downstream `webapp-codex` issue using `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md` when the weekly output needs image-heavy promo or mockup execution
 - keep all recommendations truthful to current Blueprint capabilities
 
 Human-only boundaries:

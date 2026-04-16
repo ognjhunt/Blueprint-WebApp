@@ -46,6 +46,11 @@ Founder escalation from Growth Lead is reserved for:
 - any paused lane above
   Wake only when Growth Lead opens a concrete Paperclip issue with a reason the core cannot absorb.
 
+Image-heavy execution rule:
+- when a growth issue needs generated imagery, landing-page comps, social cards, thumbnails, hero visuals, or other image-heavy assets, Growth Lead must create or update a concrete downstream issue for `webapp-codex`
+- use `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md` as the default downstream definition
+- the downstream issue must carry the brief, proof links, allowed claims, blocked claims, and target asset placement instead of leaving the handoff implicit in comments
+
 Focused-city activation exception:
 - after founder approval of the bounded launch posture for the current focus city, Growth Lead may wake `supply-intel-agent`, `capturer-growth-agent`, `city-launch-agent`, `robot-team-growth-agent`, and `site-operator-partnership-agent` only through the city activation bundle in `ops/paperclip/programs/city-launch-activation-program.md`
 - the exception is scoped to the current focus city only and does not reopen the broader city tree

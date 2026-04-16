@@ -17,9 +17,14 @@ describe("ForRobotIntegrators", () => {
 
     expect(screen.getByText(/^For Robot Teams$/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Bring the exact deployment site into your robot workflow\./i }),
+      screen.getByRole("heading", { name: /Test the exact site before deployment\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Blueprint turns real customer facilities into site-specific world models\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Shrink the demo-to-deployment gap\./i)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Blueprint turns a real facility into a site-specific world model, data package, and hosted test environment/i,
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What teams train and ship with this\./i })).toBeInTheDocument();
     expect(screen.getByText(/Tune before travel/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Make site-specific data/i).length).toBeGreaterThan(0);
@@ -27,7 +32,7 @@ describe("ForRobotIntegrators", () => {
     expect(screen.getByRole("heading", { name: /What you get/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What to expect/i })).toBeInTheDocument();
     expect(
-      screen.getByText(/Real-site world models your team can train on, fine-tune against, and export data from\./i),
+      screen.getByText(/A site-specific world model, data package, and hosted evaluation path built from real capture/i),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Explore world models/i })).toHaveAttribute(
       "href",

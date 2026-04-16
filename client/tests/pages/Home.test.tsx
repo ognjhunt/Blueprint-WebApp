@@ -12,38 +12,49 @@ vi.mock("@/contexts/AuthContext", () => ({
 }));
 
 describe("Home", () => {
-  it("renders the first-screen explanation and primary CTAs", { timeout: 10000 }, () => {
+  it("renders the first-screen explanation and proof-first CTA order", { timeout: 10000 }, () => {
     window.localStorage.clear();
     render(<Home />);
 
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Bring the exact deployment site into your robot workflow\./i,
+        name: /Test the exact site before deployment\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Blueprint turns one real facility into a site-specific world model your team can train on/i,
+        /Blueprint turns a real facility into a site-specific world model, data package, and hosted test environment/i,
       ),
     ).toBeInTheDocument();
-    expect(
-      screen
-        .getAllByRole("link", { name: /Request hosted evaluation/i })
-        .some(
-          (link) =>
-            link.getAttribute("href") === "/exact-site-hosted-review",
+    expect(screen.getByText(/Shrink the demo-to-deployment gap\./i)).toBeInTheDocument();
+    const ctas = screen.getAllByRole("link").filter((link) =>
+      ["View sample listing", "See hosted evaluation", "Scope your site"].includes(
+        link.textContent?.trim() || "",
       ),
-    ).toBe(true);
+    );
+    expect(ctas.map((link) => link.textContent?.trim())).toEqual([
+      "View sample listing",
+      "See hosted evaluation",
+      "Scope your site",
+    ]);
     expect(screen.getByRole("link", { name: /View sample listing/i })).toHaveAttribute(
       "href",
       "/world-models/siteworld-f5fd54898cfb",
     );
+    expect(screen.getByRole("link", { name: /See hosted evaluation/i })).toHaveAttribute(
+      "href",
+      "/exact-site-hosted-review",
+    );
+    expect(screen.getByRole("link", { name: /Scope your site/i })).toHaveAttribute(
+      "href",
+      "/contact?persona=robot-team",
+    );
     expect(
-      screen.getByText(/one site-specific digital environment built from real capture of one facility/i),
+      screen.getByText(/one site-specific world model built from real capture of one facility/i),
     ).toBeInTheDocument();
     expect(screen.getByText(/Prefer email\? Send a short brief\./i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Three things Blueprint sells\./i })).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: /Choose the path that matches the work\./i }).length).toBeGreaterThan(0);
   });
 
   it("surfaces honest proof, deliverables, and trust", { timeout: 10000 }, () => {
@@ -63,10 +74,16 @@ describe("Home", () => {
         name: /What comes back from hosted evaluation/i,
       }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /What a serious buyer should be able to verify at a glance\./i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /How buying works before anyone gets on a plane\./i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Use one exact site to answer one expensive question earlier\./i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Read about Blueprint/i })).toHaveAttribute(
       "href",
       "/about",
+    );
+    expect(screen.getByRole("link", { name: /Review governance and trust/i })).toHaveAttribute(
+      "href",
+      "/governance",
     );
     expect(
       screen.getByText(/Blueprint sells site-specific packages and hosted access, not deployment guarantees\./i),

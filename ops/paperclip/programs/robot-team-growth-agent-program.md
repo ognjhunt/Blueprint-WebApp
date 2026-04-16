@@ -31,6 +31,11 @@ This program turns demand-intel findings into Blueprint-specific guidance that c
   - `buyer-solutions-agent`
   - `revenue-ops-pricing-agent`
   - `city-demand-agent`
+  - `webapp-codex` when the work needs image-heavy campaign, mockup, or visual asset execution
+
+Image-heavy execution rule:
+- when a buyer-facing output needs generated imagery, campaign comps, or other final visual assets, create or update a downstream `webapp-codex` issue using `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md`
+- include the exact buyer proof, allowed claims, blocked claims, channel, and placement in that handoff issue
 
 ## Current Priorities
 1. Keep the generic robot-team playbook aligned with the live proof-path, intake, ops, standard-commercial-routing, and finance/billing surfaces that now exist in the repo.

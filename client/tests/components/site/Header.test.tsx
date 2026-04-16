@@ -35,29 +35,24 @@ describe("Header", () => {
       "href",
       "/pricing",
     );
+    expect(screen.getByRole("link", { name: /^FAQ$/i })).toHaveAttribute("href", "/faq");
+    expect(screen.getByRole("link", { name: /^Governance$/i })).toHaveAttribute("href", "/governance");
     expect(screen.getByRole("link", { name: /^About$/i })).toHaveAttribute("href", "/about");
     expect(screen.queryByRole("link", { name: /^Capture$/i })).not.toBeInTheDocument();
   });
 
-  it("uses the hosted-evaluation CTA as the primary action", () => {
+  it("uses proof-first utility actions in the header", () => {
     render(<Header />);
 
-    expect(screen.getByRole("link", { name: /Request hosted evaluation/i })).toHaveAttribute(
-      "href",
-      "/contact?persona=robot-team",
-    );
+    const sampleLink = screen.getByRole("link", { name: /View sample listing/i });
+    const hostedLink = screen.getByRole("link", { name: /See hosted evaluation/i });
+    expect(sampleLink).toHaveAttribute("href", "/world-models/siteworld-f5fd54898cfb");
+    expect(hostedLink).toHaveAttribute("href", "/exact-site-hosted-review");
   });
 
-  it("keeps utility links available for capture and auth", () => {
+  it("de-emphasizes auth from the main marketing header", () => {
     render(<Header />);
 
-    expect(screen.getByRole("link", { name: /View sample listing/i })).toHaveAttribute(
-      "href",
-      "/world-models/siteworld-f5fd54898cfb",
-    );
-    expect(screen.getByRole("link", { name: /Sign in/i })).toHaveAttribute(
-      "href",
-      "/sign-in",
-    );
+    expect(screen.queryByRole("link", { name: /Sign in/i })).not.toBeInTheDocument();
   });
 });

@@ -8,14 +8,19 @@ describe("MarketSignalsSection", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Humanoid programs are scaling faster than sites are getting ready\./i,
+        name: /The robot may work\. The site is still the hard part\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Why Blueprint exists/i)).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Humanoids do not fail because the demo was fake\./i,
+        name: /The demo is not the problem\./i,
       }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Robots do not usually fail because the demo was fake\. They fail because the live site is different/i,
+      ),
     ).toBeInTheDocument();
     expect(screen.getByText(/Market trajectory/i)).toBeInTheDocument();
     expect(screen.getAllByText(/RoboFab opens/i)).toHaveLength(2);

@@ -12,6 +12,7 @@ Each run must:
 - inspect recent campaign results, manual content reviews, and structured content outcome reviews
 - identify which proof patterns improved replies, which messages overreached, and which next moves deserve another test
 - create or update downstream issues for `community-updates-agent`, `robot-team-growth-agent`, `conversion-agent`, or `analytics-agent` only when a real learning exists
+- create or update a downstream `webapp-codex` issue using `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md` when a real learning implies new image-heavy creative execution
 - keep the learnings tied to the originating asset key or Paperclip issue rather than narrating them loosely
 - protect Blueprint's capture-first, world-model-product-first doctrine when turning feedback into new briefs or experiments
 

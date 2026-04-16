@@ -137,7 +137,7 @@ export default function SiteWorlds() {
     <>
       <SEO
         title="World Models | Blueprint"
-        description="Browse site-specific world models of real indoor spaces for robot evaluation, site-grounded data generation, and hosted access."
+        description="Train, evaluate, and debug on the exact site before deployment with site-specific world models built from real indoor capture."
         canonical="/world-models"
       />
 
@@ -167,12 +167,17 @@ export default function SiteWorlds() {
                 World Models
               </p>
               <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                Train on exact sites your team needs before deployment.
+                Train, evaluate, and debug on the exact site before deployment.
               </h1>
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-600">
+                Shrink the demo-to-deployment gap.
+              </p>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
-                Each world model is built from real capture of one indoor facility and one
-                workflow lane. Open a listing to see what is in the package, what hosted
-                evaluation can export, and whether a sample is available to inspect.
+                Each Blueprint world model is built from real capture of one facility and one
+                workflow lane, so your team can test on the environment that actually matters
+                instead of guessing from a generic benchmark. Open a listing to see what is in
+                the package, what hosted evaluation can export, and whether a sample is available
+                to inspect.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a

@@ -147,9 +147,10 @@ export function CurrentRobotStateSection() {
         <div className="mt-8 rounded-3xl border border-zinc-200 bg-zinc-950 p-6 text-white shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">What Blueprint does</p>
           <p className="mt-3 max-w-3xl text-base leading-relaxed text-zinc-200">
-            Blueprint checks whether a live site still fits the conditions where a robot can do the
-            job. That means the layout, the handoffs, the safety rules, and the pass bar all have
-            to be explicit before a pilot starts.
+            Robots do not usually fail because the demo was fake. They fail because the live site
+            is different: different layout, different traffic, different handoffs, different
+            safety rules, different pass bar. Blueprint reduces that deployment gap by giving
+            teams a site-specific world model and hosted evaluation path built from real capture.
           </p>
         </div>
 

@@ -31,7 +31,7 @@ describe("public capture and world-model copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Bring the exact deployment site into your robot workflow\./i,
+        name: /Test the exact site before deployment\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /View sample listing/i }).length).toBeGreaterThan(0);

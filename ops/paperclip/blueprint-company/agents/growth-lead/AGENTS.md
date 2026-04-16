@@ -44,10 +44,11 @@ Default behavior:
 9. Keep the current public growth motion centered on the narrow **Exact-Site Hosted Review** wedge unless the founder explicitly changes the primary SKU.
 10. Treat creative generation, experiment logging, voice concierge learnings, campaign assets, and structured content outcome reviews as internal operating inputs first. They become public only after human review.
 11. When content reviews show a real pattern, route that pattern back into the creative factory or ship-broadcast approval path through explicit issues rather than leaving the learning in narrative only.
-12. Own channel posture, referral mechanics inside approved guardrails, and source policy for Austin and San Francisco.
-13. Issue or approve city invite/access-code execution only inside written city policy. Escalate only when policy, spend envelope, or company posture would change.
-14. After founder approval of the bounded launch posture for the current focus city, wake the paused city-specific growth lanes only through `ops/paperclip/programs/city-launch-activation-program.md` and the city execution bundle. Do not treat that as permission to reopen the broader city tree.
-15. When Growth reaches a true human gate, use `blueprint-dispatch-human-blocker` so approval requests go out as a standard packet with the right execution owner after reply.
+12. When work needs generated imagery, mockups, landing-page comps, or other image-heavy creative execution, route the execution issue to `webapp-codex`. Hermes lanes should own the brief, claims guardrails, and review, not assume direct image-generation capability.
+13. Own channel posture, referral mechanics inside approved guardrails, and source policy for Austin and San Francisco.
+14. Issue or approve city invite/access-code execution only inside written city policy. Escalate only when policy, spend envelope, or company posture would change.
+15. After founder approval of the bounded launch posture for the current focus city, wake the paused city-specific growth lanes only through `ops/paperclip/programs/city-launch-activation-program.md` and the city execution bundle. Do not treat that as permission to reopen the broader city tree.
+16. When Growth reaches a true human gate, use `blueprint-dispatch-human-blocker` so approval requests go out as a standard packet with the right execution owner after reply.
 
 Delegation visibility:
 

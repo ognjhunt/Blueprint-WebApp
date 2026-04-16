@@ -47,6 +47,15 @@ Produce Blueprint's weekly community update as a concise, human-sounding draft f
 3. If SendGrid or SMTP is configured, prepare the weekly email draft through the active growth-campaign draft path.
 5. If Slack is configured, post an internal `#growth` draft-ready digest with `slack-post-digest`.
 
+## Visual Handoff Rule
+
+If the update needs thumbnails, social cards, hero imagery, or other final generated visuals:
+
+1. create or update a downstream Paperclip issue for `webapp-codex`
+2. use `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md` as the default downstream definition
+3. include the source evidence, allowed claims, blocked claims, target channel, and desired aspect ratio in the issue body
+4. keep the update issue open or explicitly linked until the image-execution handoff is traceable in Paperclip
+
 ## Human Gates
 - live send or public publish
 - claims about product availability or customer traction that are not backed by the source systems

@@ -144,11 +144,7 @@ export function buildLaunchReadinessSnapshot() {
     );
   const creativeFactoryReady =
     !automationFlags.creativeFactory ||
-    (
-      firebaseAdminReady &&
-      growthIntegrations.googleImage.configured &&
-      growthIntegrations.runway.configured
-    );
+    firebaseAdminReady;
   const buyerLifecycleReady =
     !automationFlags.buyerLifecycle || (firebaseAdminReady && emailTransport.configured);
   const slaWatchdogReady =
@@ -284,8 +280,8 @@ export function buildLaunchReadinessSnapshot() {
       ready: creativeFactoryReady,
       detail: automationFlags.creativeFactory
         ? creativeFactoryReady
-          ? "Creative factory can generate Google image assets and launch Runway proof-video tasks."
-          : "Creative factory is enabled, but it still needs Firebase Admin, Google image generation credentials, and Runway API access to be fully live."
+          ? "Creative factory can generate proof-led prompt packs and route image-heavy execution to webapp-codex without paid image APIs."
+          : "Creative factory is enabled, but Firebase Admin / Firestore is unavailable."
         : "Creative factory is disabled.",
     },
     buyerLifecycle: {

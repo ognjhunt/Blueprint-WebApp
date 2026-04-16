@@ -20,7 +20,7 @@ const offerCards = [
       "Rights, freshness, provenance, and package notes",
     ],
     href: "/world-models",
-    cta: "Explore site packages",
+    cta: "Inspect site packages",
     icon: ScanLine,
     imageSrc: "/illustrations/offer-site-package-preview.svg",
     imageAlt:
@@ -40,7 +40,7 @@ const offerCards = [
       "Raw bundles and dataset exports for tuning and adaptation",
     ],
     href: "/contact?persona=robot-team&interest=evaluation-package",
-    cta: "Request hosted evaluation",
+    cta: "Scope hosted evaluation",
     icon: Play,
     imageSrc: "/illustrations/offer-hosted-evaluation-preview.svg",
     imageAlt:
@@ -55,7 +55,7 @@ const offerCards = [
     description:
       "Use this for custom capture, exclusive training data, or managed evaluation programs around one facility.",
     bullets: [
-      "Custom capture scope",
+      "Custom capture scope and private onboarding",
       "Private or exclusive access",
       "Managed support for high-stakes work",
     ],
@@ -73,8 +73,8 @@ const offerCards = [
 
 export function OfferComparison({
   eyebrow = "What you can buy first",
-  title = "Choose the first step that matches the work.",
-  description = "Start with the site package when your team wants all the data in its own stack. Start with hosted evaluation when your team wants Blueprint to run the site, compare checkpoints, and export results.",
+  title = "Choose the path that matches the work.",
+  description = "Inspect the package path when your team wants the capture-backed data contract. Use hosted evaluation when your team wants Blueprint to run the exact site first. Use custom scope when the site, rights model, or support layer are private from day one.",
   className = "",
 }: OfferComparisonProps) {
   return (
@@ -137,6 +137,43 @@ export function OfferComparison({
             </article>
           );
         })}
+      </div>
+
+      <div className="mt-8 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_60px_-36px_rgba(15,23,42,0.35)]">
+        <div className="border-b border-slate-200 bg-stone-50 px-5 py-4 sm:px-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+            Compare the three commercial paths.
+          </p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+            The same site can support multiple buying motions. The right first step depends on whether your team needs raw site data, runtime evidence, or a private program.
+          </p>
+        </div>
+        <div className="grid gap-px bg-slate-200 lg:grid-cols-[1.05fr_1fr_1fr_1fr]">
+          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-500">Decision point</div>
+          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Site package</div>
+          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Hosted evaluation</div>
+          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Custom site scope</div>
+
+          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Best when</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your team wants the data contract and plans to run its own stack.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Your team wants runtime evidence, reruns, comparison, and exports before moving files around.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">The site is private, the rights model is custom, or the work needs hands-on support and commercial review.</div>
+
+          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Buyer gets first</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Walkthrough media, poses, geometry coverage, manifest, and rights metadata.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A managed runtime session on one exact site with run review and export outputs.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">A scoped program covering capture, packaging, hosted access, and any private operating constraints.</div>
+
+          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Typical first purchase</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">$2,100 - $3,400 per listing depending on the package depth.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">$16 - $29 per session-hour on the public hosted path.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">$50,000+ when the site, support, or rights posture is custom from the start.</div>
+
+          <div className="bg-white px-5 py-4 text-sm font-semibold text-slate-900">Next step</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Inspect a listing, review the manifest and trust card, then request package access for that site.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Review the hosted flow, confirm the robot and workflow question, then submit hosted-eval scoping.</div>
+          <div className="bg-white px-5 py-4 text-sm leading-6 text-slate-600">Send a brief with the facility, rights needs, and commercial constraints so Blueprint can scope the program.</div>
+        </div>
       </div>
     </section>
   );

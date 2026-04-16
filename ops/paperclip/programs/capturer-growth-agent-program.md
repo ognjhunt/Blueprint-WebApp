@@ -29,6 +29,11 @@ This program turns supply-intel findings into Blueprint-specific guidance that c
   - `intake-agent`
   - `ops-lead`
   - `city-launch-agent`
+  - `webapp-codex` when the work needs image-heavy promo, mockup, or visual asset execution
+
+Image-heavy execution rule:
+- when a capturer-facing output needs generated imagery, promo comps, or other final visual assets, create or update a downstream `webapp-codex` issue using `ops/paperclip/blueprint-company/tasks/webapp-creative-image-execution/TASK.md`
+- include the exact proof, allowed claims, blocked claims, channel, and placement in that handoff issue
 
 ## Current Priorities
 1. Build the first truthful generic capturer supply playbook.

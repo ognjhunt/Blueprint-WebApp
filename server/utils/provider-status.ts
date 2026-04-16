@@ -34,15 +34,12 @@ function detectGoogleKeySource(): GoogleCreativeStatus["apiKeySource"] {
 export function getGoogleCreativeStatus(
   overrides?: Partial<Pick<GoogleCreativeStatus, "executionState" | "note" | "lastError">>,
 ): GoogleCreativeStatus {
-  const model =
-    getConfiguredEnvValue("GOOGLE_CREATIVE_IMAGE_MODEL") ||
-    "gemini-3.1-flash-image-preview";
-  const apiKeySource = detectGoogleKeySource();
-  const configured = Boolean(apiKeySource);
-  const executionState = overrides?.executionState || (configured ? "configured_unverified" : "not_configured");
-  const defaultNote = configured
-    ? "Credential is configured, but live image generation still depends on provider quota, billing, and model availability at request time."
-    : "Configure GOOGLE_GENAI_API_KEY or GEMINI_API_KEY to enable Google/Nano Banana image generation.";
+  const model = "disabled_by_policy";
+  const apiKeySource = null;
+  const configured = false;
+  const executionState = overrides?.executionState || "not_configured";
+  const defaultNote =
+    "Paid server-side image generation is disabled by policy. Route image-heavy creative work to Codex execution lanes instead.";
 
   return {
     configured,

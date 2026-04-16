@@ -12,7 +12,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import type {
   BuyerType,
   InboundRequestPayload,
-  ProofPathPreference,
   RequestedLane,
   SubmitInboundRequestResponse,
 } from "@/types/inbound-request";
@@ -81,11 +80,6 @@ export function ContactForm() {
   const [siteName, setSiteName] = useState("");
   const [siteLocation, setSiteLocation] = useState("");
   const [taskStatement, setTaskStatement] = useState("");
-  const [targetSiteType, setTargetSiteType] = useState("");
-  const [proofPathPreference, setProofPathPreference] =
-    useState<ProofPathPreference | "">("");
-  const [existingStackReviewWorkflow, setExistingStackReviewWorkflow] = useState("");
-  const [humanGateTopics, setHumanGateTopics] = useState("");
   const [targetRobotTeam, setTargetRobotTeam] = useState("");
   const [operatingConstraints, setOperatingConstraints] = useState("");
   const [privacySecurityConstraints, setPrivacySecurityConstraints] = useState("");
@@ -192,12 +186,6 @@ export function ContactForm() {
     if (persona === "robot_team" && !jobTitle.trim()) {
       missingFields.push("Your role");
     }
-    if (persona === "robot_team" && !targetSiteType.trim()) {
-      missingFields.push("Target site type");
-    }
-    if (persona === "robot_team" && !proofPathPreference) {
-      missingFields.push("Proof path");
-    }
     if (persona === "site_operator" && !operatingConstraints.trim()) {
       missingFields.push("Access rules");
     }
@@ -249,14 +237,10 @@ export function ContactForm() {
       siteName: siteName.trim(),
       siteLocation: siteLocation.trim(),
       taskStatement: persona === "robot_team" ? taskStatement.trim() : "Operator intake",
-      targetSiteType: persona === "robot_team" ? targetSiteType.trim() || undefined : undefined,
-      proofPathPreference: persona === "robot_team" ? proofPathPreference || undefined : undefined,
-      existingStackReviewWorkflow:
-        persona === "robot_team"
-          ? existingStackReviewWorkflow.trim() || undefined
-          : undefined,
-      humanGateTopics:
-        persona === "robot_team" ? humanGateTopics.trim() || undefined : undefined,
+      targetSiteType: undefined,
+      proofPathPreference: undefined,
+      existingStackReviewWorkflow: undefined,
+      humanGateTopics: undefined,
       operatingConstraints: operatingConstraints.trim() || undefined,
       privacySecurityConstraints: privacySecurityConstraints.trim() || undefined,
       targetRobotTeam: persona === "robot_team" ? targetRobotTeam.trim() || undefined : undefined,
@@ -463,12 +447,12 @@ export function ContactForm() {
           </div>
           <div>
             <label htmlFor="contact-task" className="mb-1 block text-sm font-medium text-zinc-700">
-              Immediate workflow question
+              What should Blueprint help your team answer first?
             </label>
             <textarea
               id="contact-task"
               className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-              placeholder="What exact deployment, review, or package question should Blueprint answer first?*"
+              placeholder="Describe the deployment question, site review, or package need you want answered first.*"
               value={taskStatement}
               onChange={(event) => setTaskStatement(event.target.value)}
             />
@@ -476,107 +460,53 @@ export function ContactForm() {
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label
-                htmlFor="contact-site-type"
+                htmlFor="contact-site-name"
                 className="mb-1 block text-sm font-medium text-zinc-700"
               >
-                Target site type
+                Site or facility
               </label>
               <input
-                id="contact-site-type"
+                id="contact-site-name"
                 className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-                placeholder="Warehouse, retail backroom, hospital floor, factory cell*"
-                value={targetSiteType}
-                onChange={(event) => setTargetSiteType(event.target.value)}
+                placeholder={hostedMode ? "Prefilled from the listing when available" : "Facility name, customer site, or short site label"}
+                value={siteName}
+                onChange={(event) => setSiteName(event.target.value)}
               />
             </div>
             <div>
               <label
-                htmlFor="contact-proof-path"
+                htmlFor="contact-embodiment"
                 className="mb-1 block text-sm font-medium text-zinc-700"
               >
-                Proof path
+                Robot or stack
               </label>
-              <select
-                id="contact-proof-path"
-                className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm"
-                value={proofPathPreference}
-                onChange={(event) =>
-                  setProofPathPreference(event.target.value as ProofPathPreference | "")
-                }
-              >
-                <option value="">Select proof path*</option>
-                <option value="exact_site_required">I need exact-site proof</option>
-                <option value="adjacent_site_acceptable">
-                  A clearly labeled adjacent-site proof is acceptable
-                </option>
-                <option value="need_guidance">I need guidance on the right proof path</option>
-              </select>
+              <input
+                id="contact-embodiment"
+                className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+                placeholder="Robot platform, stack, or policy/checkpoint name"
+                value={targetRobotTeam}
+                onChange={(event) => setTargetRobotTeam(event.target.value)}
+              />
             </div>
           </div>
-          {!hostedMode ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label htmlFor="contact-site-name" className="mb-1 block text-sm font-medium text-zinc-700">
-                  Site name
-                </label>
-                <input
-                  id="contact-site-name"
-                  className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-                  placeholder="Optional site or customer name"
-                  value={siteName}
-                  onChange={(event) => setSiteName(event.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="contact-site-location" className="mb-1 block text-sm font-medium text-zinc-700">Site location</label>
-                <input
-                  id="contact-site-location"
-                  className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-                  placeholder="Optional city, state, or facility address"
-                  value={siteLocation}
-                  onChange={(event) => setSiteLocation(event.target.value)}
-                />
-              </div>
-            </div>
-          ) : null}
           <div>
-            <label htmlFor="contact-embodiment" className="mb-1 block text-sm font-medium text-zinc-700">Robot setup</label>
+            <label htmlFor="contact-site-location" className="mb-1 block text-sm font-medium text-zinc-700">Site location</label>
             <input
-              id="contact-embodiment"
+              id="contact-site-location"
               className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-              placeholder="Optional robot, embodiment, or stack"
-              value={targetRobotTeam}
-              onChange={(event) => setTargetRobotTeam(event.target.value)}
+              placeholder="City, state, facility address, or region"
+              value={siteLocation}
+              onChange={(event) => setSiteLocation(event.target.value)}
             />
           </div>
           <div>
-            <label
-              htmlFor="contact-stack-review"
-              className="mb-1 block text-sm font-medium text-zinc-700"
-            >
-              Existing stack or review workflow
-            </label>
+            <label htmlFor="contact-notes" className="mb-1 block text-sm font-medium text-zinc-700">Optional notes</label>
             <textarea
-              id="contact-stack-review"
+              id="contact-notes"
               className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-              placeholder="How should Blueprint fit into your current simulator, data-review, or deployment workflow?"
-              value={existingStackReviewWorkflow}
-              onChange={(event) => setExistingStackReviewWorkflow(event.target.value)}
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="contact-human-gates"
-              className="mb-1 block text-sm font-medium text-zinc-700"
-            >
-              Human-gated topics to raise early
-            </label>
-            <textarea
-              id="contact-human-gates"
-              className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-              placeholder="Call out any rights, privacy, delivery scope, security, or commercial topics that should be escalated immediately."
-              value={humanGateTopics}
-              onChange={(event) => setHumanGateTopics(event.target.value)}
+              placeholder="Anything useful about timing, constraints, integrations, rights questions, or why this site matters now."
+              value={detailsMessage}
+              onChange={(event) => setDetailsMessage(event.target.value)}
             />
           </div>
         </>
@@ -641,20 +571,18 @@ export function ContactForm() {
         </>
       )}
 
-      <div>
-        <label htmlFor="contact-notes" className="mb-1 block text-sm font-medium text-zinc-700">Notes</label>
-        <textarea
-          id="contact-notes"
-          className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
-          placeholder={
-            persona === "site_operator"
-              ? "Anything else Blueprint should know about the facility or approval path."
-              : "Optional site or workflow notes, timing, or constraints."
-          }
-          value={detailsMessage}
-          onChange={(event) => setDetailsMessage(event.target.value)}
-        />
-      </div>
+      {persona === "site_operator" ? (
+        <div>
+          <label htmlFor="contact-notes" className="mb-1 block text-sm font-medium text-zinc-700">Notes</label>
+          <textarea
+            id="contact-notes"
+            className="min-h-24 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+            placeholder="Anything else Blueprint should know about the facility or approval path."
+            value={detailsMessage}
+            onChange={(event) => setDetailsMessage(event.target.value)}
+          />
+        </div>
+      ) : null}
 
       <div className="hidden">
         <label htmlFor="website">Website</label>

@@ -30,6 +30,7 @@ Default behavior:
 4. Push downstream execution work to `conversion-agent`, `analytics-agent`, `intake-agent`, `ops-lead`, and `city-launch-agent`.
 5. Treat every recommendation as an internal operating proposal until a human approves public-facing execution.
 6. Keep the playbook current as new data and field feedback come in.
+7. When capturer-side work needs generated imagery, promo comps, or other image-heavy assets, prepare the brief and route execution to `webapp-codex`. Do not assume direct image-generation capability in this Hermes lane.
 
 Delegation visibility:
 

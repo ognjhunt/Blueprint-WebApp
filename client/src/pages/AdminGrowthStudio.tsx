@@ -206,6 +206,12 @@ type CreativeRunRecord = {
   rolloutVariant: string | null;
   createdAt: string | null;
   generatedImages: number;
+  executionHandoff: {
+    issueId: string | null;
+    status: string | null;
+    assignee: string | null;
+    error: string | null;
+  } | null;
   buyerObjections: string[];
   remotionReel: {
     status: string | null;
@@ -405,36 +411,21 @@ export default function AdminGrowthStudio() {
   }
 
   async function generateImage() {
-    if (!kit?.prompts.googleImagePrompt) return;
-    setLoadingImage(true);
+    setLoadingImage(false);
+    setImages([]);
+    setImageProviderStatus({
+      configured: false,
+      available: false,
+      model: "disabled_by_policy",
+      executionState: "not_configured",
+      note:
+        "Server-side paid image generation is disabled. Route image-heavy work to webapp-codex and use Codex desktop OAuth image generation on gpt-image-1.5 there.",
+      lastError: null,
+    });
     setError("");
-    setNotice("");
-
-    try {
-      const response = await fetch("/api/admin/creative/generate-image", {
-        method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-        body: JSON.stringify({
-          prompt: kit.prompts.googleImagePrompt,
-          aspectRatio: form.imageAspectRatio,
-          imageSize: form.imageSize,
-          thinkingLevel: form.thinkingLevel,
-          sampleCount: 1,
-        }),
-      });
-      const json = (await response.json()) as ImageGenerationResponse;
-      setImageProviderStatus(json.providerStatus || null);
-      if (!response.ok || !json.ok || !json.images?.length) {
-        throw new Error(json.error || "Failed to generate image");
-      }
-      setImages(json.images || []);
-      setNotice("Google creative image generation succeeded for the current prompt.");
-      analyticsEvents.creativeImageGenerated(form.assetGoal, form.imageAspectRatio);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Failed to generate image");
-    } finally {
-      setLoadingImage(false);
-    }
+    setNotice(
+      "Server-side image generation is disabled by policy. Use the creative factory handoff or a webapp-codex issue for Codex OAuth image execution on gpt-image-1.5.",
+    );
   }
 
   async function refreshRunwayTask(taskId: string) {
@@ -452,7 +443,7 @@ export default function AdminGrowthStudio() {
   async function generateVideo() {
     if (!kit?.prompts.runwayPrompt) return;
     if (!images?.[0]?.dataUrl) {
-      setError("Generate a proof-led image first so the Runway clip stays anchored to real Blueprint evidence.");
+      setError("Generate a proof-led image first so the OpenRouter clip stays anchored to real Blueprint evidence.");
       setNotice("");
       return;
     }
@@ -473,11 +464,11 @@ export default function AdminGrowthStudio() {
       });
       const json = (await response.json()) as RunwayVideoResponse;
       if (!response.ok || !json.ok || !json.task) {
-        throw new Error(json.error || "Failed to start Runway video generation");
+        throw new Error(json.error || "Failed to start OpenRouter video generation");
       }
 
       setRunwayTask(json.task);
-      setNotice(`Runway video task ${json.task.id} started.`);
+      setNotice(`OpenRouter video task ${json.task.id} started.`);
       analyticsEvents.creativeVideoRequested(form.assetGoal, form.videoRatio);
     } catch (requestError) {
       setError(
@@ -959,16 +950,16 @@ export default function AdminGrowthStudio() {
                 className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-5 py-3 text-sm font-medium text-zinc-900 transition hover:border-zinc-400 disabled:opacity-60"
               >
                 <Wand2 className="h-4 w-4" />
-                {loadingVideo ? "Starting video…" : "Start Runway video"}
+                {loadingVideo ? "Starting video…" : "Start OpenRouter video"}
               </button>
               <button
                 type="button"
                 onClick={generateImage}
-                disabled={!kit || loadingImage}
+                disabled={!kit}
                 className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-5 py-3 text-sm font-medium text-zinc-900 transition hover:border-zinc-400 disabled:opacity-60"
               >
                 <Wand2 className="h-4 w-4" />
-                {loadingImage ? "Generating image…" : "Generate proof-led image"}
+                Use Codex Image Lane
               </button>
             </div>
 
@@ -988,7 +979,8 @@ export default function AdminGrowthStudio() {
                 <p>PostHog configured: {String(Boolean(verifyResult.analytics?.posthog?.configured))}</p>
                 <p>SendGrid configured: {String(Boolean(verifyResult.sendgrid?.configured))}</p>
                 <p>SendGrid webhook configured: {String(Boolean(verifyResult.sendgridWebhook?.configured))}</p>
-                <p>Runway configured: {String(Boolean(verifyResult.runway?.configured))}</p>
+                <p>Server-side image generation: disabled by policy</p>
+                <p>OpenRouter video configured: {String(Boolean(verifyResult.runway?.configured))}</p>
                 <p>ElevenLabs configured: {String(Boolean(verifyResult.elevenlabs?.configured))}</p>
                 <p>Telephony configured: {String(Boolean(verifyResult.telephony?.configured))}</p>
                 <p>Research outbound configured: {String(Boolean(verifyResult.researchOutbound?.configured))}</p>
@@ -1105,9 +1097,9 @@ export default function AdminGrowthStudio() {
 
             {runwayTask ? (
               <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-700">
-                <p>Runway task id: {runwayTask.id}</p>
+                <p>OpenRouter task id: {runwayTask.id}</p>
                 <p>Status: {runwayTask.status}</p>
-                <p>Model: {runwayTask.model || "gen4_turbo"}</p>
+                <p>Model: {runwayTask.model || "bytedance/seedance-2.0-fast"}</p>
                 {typeof runwayTask.progress === "number" ? (
                   <p>Progress: {Math.round(runwayTask.progress * 100)}%</p>
                 ) : null}
@@ -1225,6 +1217,17 @@ export default function AdminGrowthStudio() {
                         <p>Generated images: {run.generatedImages}</p>
                         <p>Reel status: {run.remotionReel.status || "none"}</p>
                       </div>
+                      {run.executionHandoff ? (
+                        <div className="mt-3 rounded-xl border border-zinc-200 bg-white p-3 text-xs text-zinc-600">
+                          <p className="font-medium text-zinc-950">Codex execution handoff</p>
+                          <p className="mt-2">Issue: {run.executionHandoff.issueId || "none"}</p>
+                          <p>Status: {run.executionHandoff.status || "unknown"}</p>
+                          <p>Assignee: {run.executionHandoff.assignee || "unknown"}</p>
+                          {run.executionHandoff.error ? (
+                            <p className="mt-2 text-rose-700">{run.executionHandoff.error}</p>
+                          ) : null}
+                        </div>
+                      ) : null}
                       {run.remotionReel.storageUri ? (
                         <div className="mt-3 rounded-xl border border-zinc-200 bg-white p-3">
                           <p className="text-xs font-medium text-zinc-950">Durable reel asset</p>
@@ -1295,12 +1298,12 @@ export default function AdminGrowthStudio() {
                       </ul>
                     </div>
                     <div>
-                      <h2 className="font-semibold text-zinc-950">Runway prompt</h2>
+                      <h2 className="font-semibold text-zinc-950">Video prompt</h2>
                       <pre className="mt-2 whitespace-pre-wrap rounded-2xl bg-zinc-50 p-4 text-xs leading-6">
                         {kit.prompts.runwayPrompt}
                       </pre>
                       <p className="mt-2 text-xs text-zinc-500">
-                        The Runway action can use the first generated proof-led image as the prompt image when one exists.
+                        The OpenRouter action can use the first generated proof-led image as the first frame when one exists.
                       </p>
                     </div>
                   </div>

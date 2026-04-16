@@ -178,8 +178,8 @@ type MarketSignalsSectionProps = {
 
 export function MarketSignalsSection({
   eyebrow = "Why We Exist",
-  title = "Humanoid programs are scaling faster than sites are getting ready.",
-  description = "The demos are real. Production plans are getting real too. Deployment still breaks when a robot has to pass in a live site with different layouts, safety rules, and a real success bar. Blueprint exists to close that gap before pilot budget gets burned.",
+  title = "The robot may work. The site is still the hard part.",
+  description = "Robots do not usually fail because the demo was fake. They fail because the live site is different: different layout, traffic, handoffs, safety rules, and pass bar. Blueprint helps teams inspect that gap earlier, before pilot budget gets burned.",
 }: MarketSignalsSectionProps) {
   return (
     <section className="border-y border-zinc-100 bg-zinc-50/60 py-12 sm:py-16">
@@ -203,12 +203,11 @@ export function MarketSignalsSection({
               Why Blueprint exists
             </p>
             <h3 className="mt-3 text-2xl font-bold tracking-tight text-zinc-950">
-              Humanoids do not fail because the demo was fake.
+              The demo is not the problem.
             </h3>
             <p className="mt-3 text-sm leading-relaxed text-zinc-600">
-              They fail because live sites are variable and unforgiving. As volume rises from
-              pilots toward scale, the bottleneck shifts from robot capability to deployment
-              readiness.
+              The problem is whether the same system still passes once the real site adds
+              variability, workflow constraints, and a real operating threshold.
             </p>
             <div className="mt-6 space-y-3">
               {whyBlueprintExists.map((item) => (

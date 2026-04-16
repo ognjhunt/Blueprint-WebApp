@@ -191,16 +191,12 @@ Important:
 - Slack reply watching is operationally valid only for conversations the bot can actually see. DMs require `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOW_DMS=1`. Channel replies require the bot to be present and the channel id to be listed in `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOWED_CHANNELS`. Root-channel replies should fail closed.
 
 ### Creative Pipeline
-- Google image generation:
-  `GOOGLE_GENAI_API_KEY` or `GEMINI_API_KEY`
-- Optional model override:
-  `GOOGLE_CREATIVE_IMAGE_MODEL`
-- Optional aspect-ratio default:
-  `GOOGLE_CREATIVE_IMAGE_DEFAULT_ASPECT_RATIO`
-- Optional Runway video generation:
-  `RUNWAY_API_KEY`
-  `RUNWAY_BASE_URL`
-  `BLUEPRINT_RUNWAY_VIDEO_MODEL`
+- Codex-executed image generation is the default lane for image-heavy brand, marketing, and frontend work.
+- Server-side autonomous workers no longer use paid image APIs.
+- Optional OpenRouter video generation:
+  `OPENROUTER_API_KEY`
+  `OPENROUTER_BASE_URL`
+  `BLUEPRINT_OPENROUTER_VIDEO_MODEL`
 
 ### Voice Concierge
 - `ELEVENLABS_API_KEY`
@@ -287,7 +283,7 @@ Post-signup automation also requires:
 - Growth telemetry can now mirror experiment exposures, page views, and campaign events into Firestore when `BLUEPRINT_ANALYTICS_INGEST_ENABLED=1`, which gives Paperclip and the analytics agent a first-party event stream even before PostHog/GA4 are fully live.
 - Experiment winners can now roll themselves into production overrides through the first-party event stream when the autorollout worker is enabled.
 - Autonomous research can now turn configured Firehose demand topics into draft outbound campaigns and queue them for human send approval.
-- The creative pipeline now supports both the protected campaign-kit builder and a background creative factory that can continuously generate proof-led prompt packs, images, and optional Runway tasks from live Blueprint signals.
+- The creative pipeline now supports both the protected campaign-kit builder and a background creative factory that generates proof-led prompt packs and routes image-heavy execution to `webapp-codex` without paid image APIs. OpenRouter video remains an explicit provider path.
 - The voice concierge now supports both web voice and Twilio-compatible PSTN intake. Pricing, legal, privacy, rights, contract, and irreversible commitments remain human-gated, and phone handoff can forward to a live operator when configured.
 - Legacy manual deployment scripts were removed; deployment should always run through project scripts.
 - `client/public/robots.txt` must exist at build time and be served in production.

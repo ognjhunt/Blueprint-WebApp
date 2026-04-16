@@ -5,9 +5,9 @@ const creativeFactoryRuns = new Map<string, Record<string, unknown>>();
 const researchRuns: Array<Record<string, unknown>> = [];
 const contactRequests: Array<Record<string, unknown>> = [];
 const getActiveExperimentRollouts = vi.hoisted(() => vi.fn());
-const generateGoogleCreativeImages = vi.hoisted(() => vi.fn());
-const startRunwayImageToVideoTask = vi.hoisted(() => vi.fn());
-const renderProductReel = vi.hoisted(() => vi.fn());
+const upsertPaperclipIssue = vi.hoisted(() => vi.fn());
+const createPaperclipIssueComment = vi.hoisted(() => vi.fn());
+const wakePaperclipAgent = vi.hoisted(() => vi.fn());
 
 function resetState() {
   creativeFactoryRuns.clear();
@@ -114,16 +114,10 @@ vi.mock("../utils/experiment-ops", () => ({
   getActiveExperimentRollouts,
 }));
 
-vi.mock("../utils/google-creative", () => ({
-  generateGoogleCreativeImages,
-}));
-
-vi.mock("../utils/runway", () => ({
-  startRunwayImageToVideoTask,
-}));
-
-vi.mock("../utils/remotion-render", () => ({
-  renderProductReel,
+vi.mock("../utils/paperclip", () => ({
+  upsertPaperclipIssue,
+  createPaperclipIssueComment,
+  wakePaperclipAgent,
 }));
 
 import { runCreativeAssetFactoryLoop } from "../utils/creative-factory";
@@ -150,25 +144,18 @@ beforeEach(() => {
       last_user_message: "What does this cost?",
     },
   });
-  generateGoogleCreativeImages.mockResolvedValue({
-    images: [
-      {
-        mimeType: "image/png",
-        dataUrl: "data:image/png;base64,AAA",
-      },
-    ],
+  upsertPaperclipIssue.mockResolvedValue({
+    companyId: "company-1",
+    projectId: "project-1",
+    assigneeAgentId: "agent-1",
+    created: true,
+    issue: {
+      id: "issue-1",
+      status: "todo",
+    },
   });
-  startRunwayImageToVideoTask.mockResolvedValue({
-    id: "runway-task-1",
-    model: "gen4_turbo",
-    output: ["https://cdn.runway.test/output.mp4"],
-  });
-  renderProductReel.mockResolvedValue({
-    outputPath: "/tmp/product-reel.mp4",
-    storageUri: "gs://blueprint-8c1ca.appspot.com/creative-factory/test-run/product-reel.mp4",
-    durationSeconds: 12,
-    frames: 360,
-  });
+  createPaperclipIssueComment.mockResolvedValue({ ok: true });
+  wakePaperclipAgent.mockResolvedValue({ status: "queued" });
 });
 
 afterEach(() => {
@@ -180,35 +167,38 @@ describe("runCreativeAssetFactoryLoop", () => {
   it("skips when the run already exists", async () => {
     const today = new Date().toISOString().slice(0, 10);
     creativeFactoryRuns.set(`${today}__exact-site-hosted-review-warehouse-robotics`, {
-      status: "assets_generated",
+      status: "execution_handoff_queued",
     });
 
     const result = await runCreativeAssetFactoryLoop();
     expect(result.status).toBe("skipped_existing");
-    expect(generateGoogleCreativeImages).not.toHaveBeenCalled();
+    expect(upsertPaperclipIssue).not.toHaveBeenCalled();
   });
 
-  it("generates assets, records buyer objections, and renders a product reel", async () => {
+  it("queues a codex execution handoff and records buyer objections", async () => {
     const result = await runCreativeAssetFactoryLoop();
 
     expect(result).toMatchObject({
-      status: "assets_generated",
-      generatedImages: 3,
-      runwayTaskId: "runway-task-1",
-      remotionReelPath: "/tmp/product-reel.mp4",
-      remotionReelUri:
-        "gs://blueprint-8c1ca.appspot.com/creative-factory/test-run/product-reel.mp4",
+      status: "execution_handoff_queued",
+      generatedImages: 0,
+      runwayTaskId: null,
+      remotionReelPath: null,
+      executionHandoffIssueId: "issue-1",
     });
-    expect(generateGoogleCreativeImages).toHaveBeenCalledTimes(3);
-    expect(startRunwayImageToVideoTask).toHaveBeenCalledWith(
+    expect(upsertPaperclipIssue).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "gen4_turbo",
+        assigneeKey: "webapp-codex",
+        originKind: "creative_factory_run",
       }),
     );
-    expect(renderProductReel).toHaveBeenCalledWith(
+    expect(createPaperclipIssueComment).toHaveBeenCalledWith(
+      "issue-1",
+      expect.stringContaining("Creative factory generated a prompt pack"),
+    );
+    expect(wakePaperclipAgent).toHaveBeenCalledWith(
       expect.objectContaining({
-        runwayVideoUrl: "https://cdn.runway.test/output.mp4",
-        storyboard: expect.any(Array),
+        agentId: "agent-1",
+        reason: "creative_image_execution_handoff",
       }),
     );
 
@@ -217,57 +207,26 @@ describe("runCreativeAssetFactoryLoop", () => {
       rollout_variant: "proof_first",
       research_topic: "warehouse robotics",
       buyer_objections: expect.arrayContaining(["pricing and commercial clarity"]),
-      remotion_reel: expect.objectContaining({
-        status: "rendered",
-        output_path: "/tmp/product-reel.mp4",
-        storage_uri:
-          "gs://blueprint-8c1ca.appspot.com/creative-factory/test-run/product-reel.mp4",
+      execution_handoff: expect.objectContaining({
+        issue_id: "issue-1",
+        assignee: "webapp-codex",
       }),
     });
     expect((storedRun.kit as Record<string, unknown>).landingPage).toBeTruthy();
   });
 
-  it("respects the Runway model override", async () => {
-    vi.stubEnv("BLUEPRINT_RUNWAY_VIDEO_MODEL", "veo-3.1-fast");
-
-    await runCreativeAssetFactoryLoop();
-
-    expect(startRunwayImageToVideoTask).toHaveBeenCalledWith(
-      expect.objectContaining({
-        model: "veo-3.1-fast",
-      }),
-    );
-  });
-
-  it("continues when image generation fails for all prompts", async () => {
-    generateGoogleCreativeImages.mockRejectedValue(new Error("quota exceeded"));
+  it("continues with a prompt pack when paperclip handoff fails", async () => {
+    upsertPaperclipIssue.mockRejectedValue(new Error("Paperclip 500"));
 
     const result = await runCreativeAssetFactoryLoop();
-
-    expect(result).toMatchObject({
-      status: "prompt_pack_generated",
-      generatedImages: 0,
-      runwayTaskId: null,
-      remotionReelPath: null,
-    });
-    expect(startRunwayImageToVideoTask).not.toHaveBeenCalled();
-    expect(renderProductReel).not.toHaveBeenCalled();
-  });
-
-  it("stores a failed remotion status without failing the run", async () => {
-    renderProductReel.mockRejectedValue(new Error("ffmpeg missing"));
-
-    const result = await runCreativeAssetFactoryLoop();
-
-    expect(result.status).toBe("assets_generated");
+    expect(result.status).toBe("prompt_pack_generated");
     const storedRun = [...creativeFactoryRuns.values()][0];
     expect(storedRun).toMatchObject({
-      remotion_reel: {
-        status: "failed",
-        output_path: null,
-        duration_seconds: null,
-        frames: null,
-        error: "ffmpeg missing",
+      execution_handoff: {
+        issue_id: null,
+        status: "failed_to_route",
+        assignee: "webapp-codex",
+        error: "Paperclip 500",
       },
     });
   });
