@@ -526,6 +526,33 @@ describe("quota fallback helpers", () => {
     });
   });
 
+  it("rotates to next hermes free model when codex credits exhausted and origin was hermes", () => {
+    const result = buildLocalQuotaFallbackDescriptor({
+      currentAdapterType: "codex_local",
+      currentAdapterConfig: {
+        cwd: "/tmp/project",
+        model: "gpt-5.4-mini",
+        dangerouslyBypassApprovalsAndSandbox: true,
+        [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: "hermes_local",
+      },
+      desiredAdapterType: "hermes_local",
+      desiredAdapterConfig: {
+        cwd: "/tmp/project",
+      },
+      failureReason: "You've hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Apr 16th, 2026 1:01 PM.",
+    });
+    expect(result).not.toBeNull();
+    expect(result!.adapterType).toBe("hermes_local");
+    expect(result!.reason).toBe("quota_fallback_to_next_hermes_free_model_after_codex_credit_exhaustion");
+  });
+
+  it("detects codex usage limit as provider credit failure", () => {
+    expect(
+      isProviderCreditFailure("You've hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Apr 16th, 2026 1:01 PM."),
+    ).toBe(true);
+    expect(isProviderCreditFailure("HTTP 429: Rate limit exceeded: free-models-per-min.")).toBe(false);
+  });
+
   it("does not loop codex_local auth failure back to hermes when origin was hermes", () => {
     expect(
       buildLocalQuotaFallbackDescriptor({
@@ -642,7 +669,18 @@ describe("quota fallback helpers", () => {
           cwd: "/tmp/project",
         },
       }),
-    ).toBeNull();
+    ).toEqual({
+      adapterType: "hermes_local",
+      reason: "quota_fallback_to_next_hermes_free_model_after_codex_credit_exhaustion",
+      adapterConfig: {
+        cwd: "/tmp/project",
+        provider: "openrouter",
+        model: "openai/gpt-oss-120b:free",
+        [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
+        modelReasoningEffort: "medium",
+        timeoutSec: 1800,
+      },
+    });
   });
 
   it("normalizes retry record defaults", () => {

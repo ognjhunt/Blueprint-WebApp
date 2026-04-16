@@ -64,7 +64,7 @@ export type LocalQuotaFallbackDescriptor = {
 const QUOTA_OR_RATE_LIMIT_RE =
   /(?:resource_exhausted|quota|rate[-\s]?limit|too many requests|\b429\b|\b402\b|billing details|insufficient credits|spend(?:ing)? limit exceeded|you['’]ve hit your limit|hit your limit|limit[^.\n]*reset)/i;
 const PROVIDER_CREDIT_RE =
-  /(?:\b402\b|insufficient credits|api key usd spend limit exceeded|usd spend(?:ing)? limit exceeded|spend(?:ing)? limit exceeded)/i;
+  /(?:\b402\b|insufficient credits|api key usd spend limit exceeded|usd spend(?:ing)? limit exceeded|spend(?:ing)? limit exceeded|hit your usage limit|hit your limit[^.\n]*purchase)/i;
 const MODEL_NOT_FOUND_RE = /model.*not.*found|model.*404|invalid.*model|unknown.*model|gpt-5-4-mini|http.*404|not_found_error/i;
 const FRESH_SESSION_RETRYABLE_RE =
   /(?:context window|ran out of room|clear earlier history|start a new thread|max[_ ]output[_ ]tokens|incomplete response returned|stream disconnected before completion)/i;
@@ -544,6 +544,19 @@ export function buildLocalQuotaFallbackDescriptor(input: {
     }
 
     if (originAdapterType === "hermes_local") {
+      if (isProviderAuthFailure(failureReason)) {
+        return null;
+      }
+      const nextHermesConfig = buildNextHermesFallbackAdapterConfig(
+        buildHermesFallbackAdapterConfig(desiredAdapterConfig),
+      );
+      if (nextHermesConfig) {
+        return {
+          adapterType: "hermes_local",
+          reason: "quota_fallback_to_next_hermes_free_model_after_codex_credit_exhaustion",
+          adapterConfig: nextHermesConfig,
+        };
+      }
       return null;
     }
 
