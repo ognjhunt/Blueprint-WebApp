@@ -213,6 +213,7 @@ This issue bundle turns the Sacramento playbook into executable lanes using the 
   - Sacramento source policy
   - Sacramento city-opening brief
   - Sacramento first-wave outreach pack
+  - Sacramento capturer prospect list and post package
   - live capturer intake path
 - done when:
   - A curated first-wave Sacramento professional prospect set is named with source bucket, rationale, lawful access posture, and next move.

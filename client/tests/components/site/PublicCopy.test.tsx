@@ -31,25 +31,22 @@ describe("public capture and world-model copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Test the exact site before deployment\./i,
+        name: /Site-specific world models for real facilities\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Inspect a real site/i }).length).toBeGreaterThan(0);
-    expect(
-      screen.getAllByRole("link", { name: /Request hosted evaluation/i }).length,
-    ).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Explore Sites/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Request Access/i }).length).toBeGreaterThan(0);
     expect(container).toHaveTextContent(/world models/i);
-    expect(container).toHaveTextContent(/capture/i);
+    expect(container).toHaveTextContent(/real capture/i);
     expect(container).toHaveTextContent(/robot teams?/i);
-    expect(container).toHaveTextContent(/deliverables/i);
-    expect(container).toHaveTextContent(/what's public now/i);
-    expect(container).toHaveTextContent(/hosted evaluation/i);
-    expect(container).toHaveTextContent(/real-site workflow/i);
+    expect(container).toHaveTextContent(/products/i);
+    expect(container).toHaveTextContent(/proof/i);
+    expect(container).toHaveTextContent(/hosted session/i);
     expect(container).not.toHaveTextContent(/digital twin/i);
     expect(container).not.toHaveTextContent(/SimReady/i);
     expect(container).not.toHaveTextContent(/marketplace/i);
     expect(screen.queryByRole("link", { name: /^Environments$/i })).not.toBeInTheDocument();
-    expect(container).not.toHaveTextContent(/book hosted review/i);
+    expect(container).not.toHaveTextContent(/decision memo/i);
 
     expect(container).not.toHaveTextContent(/adapter weights/i);
     expect(container).not.toHaveTextContent(/LoRA/i);

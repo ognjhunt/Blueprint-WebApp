@@ -18,9 +18,9 @@
 ```text
 Blueprint is opening a bounded Sacramento exact-site hosted-review motion.
 
-Your Sacramento page highlights AGVs, cobots, WMS integration, and dock-and-door systems, which is the kind of warehouse workflow we can ground in a truthful site review.
+Your Sacramento page highlights AGVs, cobots, WMS integration, and dock-and-door systems, which is the kind of warehouse workflow we can ground in one truthful site review.
 
-If there is a Sacramento owner for automation evaluation, reply with the right contact and whether the next step should be a short review on one warehouse lane.
+If there is a Sacramento owner for automation evaluation, reply with the right contact and whether a short review on one warehouse lane is the next step.
 ```
 
 ## Draft 2
@@ -44,15 +44,15 @@ If Sacramento is the right lane, reply with the owner for a short exact-site rev
 
 ## Draft 3
 
-- send_action_id: `sacramento-ca-send-capital-robotics-1`
-- company: `Capital Robotics`
-- recipient_email: `taylor@capitalrobotics.com`
-- source_of_contact: public delivery evidence already present in the city-launch ledger
-- why_now: the current city materials still treat this as a working target, but the Sacramento link should be validated before any send
-- why_this_contact: the thread is useful only if a Sacramento-specific route is confirmed in a live reply or a fresh public contact source
-- relevant_blueprint_angle: parked until a cleaner Sacramento buyer signal appears
+- send_action_id: `sacramento-ca-send-us-cold-storage-ambient-module-1`
+- company: `US Cold Storage - Ambient Module`
+- recipient_email: `missing`
+- source_of_contact: current Sacramento target ledger and the rights-safe operator-intro packet
+- why_now: the ambient module is the current exact-site proof target and should stay parked until a real recipient or operator contact exists
+- why_this_contact: the thread matters only if a Sacramento-specific owner or operator route is confirmed before any send
+- relevant_blueprint_angle: exact-site anchor for dock handoff and pallet movement
 - status: parked
-- subject: `Blueprint Sacramento exact-site follow-up`
+- subject: `Blueprint Sacramento exact-site hosted review for the ambient module`
 
 ```text
 Blueprint is opening a bounded exact-site hosted-review motion.

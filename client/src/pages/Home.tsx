@@ -1,88 +1,93 @@
 import { SEO } from "@/components/SEO";
-import { OfferComparison } from "@/components/site/OfferComparison";
-import { ProofModule } from "@/components/site/ProofModule";
-import { WhenNotToBuyModule } from "@/components/site/WhenNotToBuyModule";
 import {
-  companyTrustItems,
-  hostedEvaluationDefinition,
-  sitePackageDefinition,
-  worldModelDefinition,
-} from "@/data/marketingDefinitions";
-import { publicDemoHref, publicProofAssets } from "@/lib/marketingProof";
-import { ArrowRight, Clock3, ScanSearch, ShieldCheck, Workflow } from "lucide-react";
+  proofReferenceImageSrc,
+  proofReelPosterSrc,
+  publicDemoHref,
+} from "@/lib/marketingProof";
+import { ArrowRight } from "lucide-react";
 
-const definitionCards = [
+const signalPills = [
+  "Real capture provenance",
+  "Site package licensing",
+  "Hosted session access",
+];
+
+const siteCards = [
   {
-    title: "World model",
-    body: worldModelDefinition,
+    eyebrow: "Commercial exemplar",
+    title: "Chicago grocery backroom",
+    detail:
+      "Dock-side tote handoff, aisle replenishment, and shelf staging on one exact site.",
+    href: "/world-models/sw-chi-01",
+    imageSrc: "/illustrations/sw-chi-01-runtime-proof.svg",
+    imageAlt: "Runtime proof view for the Chicago grocery backroom site world.",
   },
   {
-    title: "Site package",
-    body: sitePackageDefinition,
+    eyebrow: "Public sample",
+    title: "Media room walkthrough",
+    detail:
+      "The public listing that shows the site, package framing, and hosted path on one surface.",
+    href: publicDemoHref,
+    imageSrc: proofReelPosterSrc,
+    imageAlt: "Presentation still from the public sample site listing.",
   },
   {
-    title: "Hosted evaluation",
-    body: hostedEvaluationDefinition,
+    eyebrow: "Runtime reference",
+    title: "Hosted view reference",
+    detail:
+      "A buyer-visible runtime still that keeps the hosted path tied to the same facility.",
+    href: publicDemoHref,
+    imageSrc: proofReferenceImageSrc,
+    imageAlt: "Runtime reference still for the public sample site.",
   },
 ];
 
-const workflowSteps = [
+const productCards = [
   {
-    title: "Inspect the proof first",
-    body: "Open the sample listing, runtime still, and deliverables so your team can verify the site, lane, and trust labels before any sales conversation.",
+    title: "Site Package",
+    body:
+      "License the capture-backed site package when your team wants the exact-site product in its own stack.",
+    href: "/pricing",
+    cta: "View package path",
   },
   {
-    title: "Choose the buying path",
-    body: "Decide whether you need the site package, a Blueprint-run hosted evaluation, or a request-scoped program around a private or higher-friction site.",
-  },
-  {
-    title: "Scope one real question",
-    body: "Bring the exact site, the robot setup, and the deployment-fit question that matters before travel, pilot spend, or rollout work starts.",
-  },
-  {
-    title: "Leave with a concrete next step",
-    body: "The output is a package path, hosted evaluation path, or a clearly scoped custom program instead of another vague discovery cycle.",
-  },
-];
-
-const workflowValue = [
-  {
-    title: "Deployment fit",
-    body: "Use one exact site to see whether localization, visibility, reach, traffic, and handoff conditions are worth deeper work before the expensive visit starts.",
-  },
-  {
-    title: "Commercial clarity",
-    body: "Keep pricing, proof depth, freshness, restrictions, and rights attached to the listing so the buyer does not have to infer what is actually ready.",
-  },
-  {
-    title: "Repeatable review",
-    body: "Run the same lane again after autonomy updates so regressions show up on the environment that matters, not on a nearby stand-in.",
-  },
-];
-
-const publicNowCards = [
-  ...publicProofAssets,
-  {
-    title: "Hosted evaluation scoping",
-    label: "Current public path",
+    title: "Hosted Session",
+    body:
+      "Run the site with Blueprint when you need reruns, review, and exports before moving the package.",
     href: "/exact-site-hosted-review",
-    detail: "A dedicated page showing what your team brings, what Blueprint runs, and how hosted evaluation stays tied to the same capture-backed package.",
+    cta: "See hosted path",
   },
 ];
 
-function DotPattern() {
+const trustLines = [
+  "Capture provenance stays attached to the site record.",
+  "Rights, freshness, and restrictions stay visible.",
+  "Package and hosted access stay tied to the same facility.",
+];
+
+const proofTiles = [
+  {
+    title: "Capture provenance",
+    body:
+      "Walkthrough media, timestamps, poses, and source context stay readable instead of disappearing behind a generic demo.",
+  },
+  {
+    title: "Package outputs",
+    body:
+      "The package path keeps the manifest, licensing surface, and export framing concrete before a buyer commits.",
+  },
+  {
+    title: "Hosted session artifacts",
+    body:
+      "The managed path stays grounded to one exact site with reruns, rollouts, and sample artifacts.",
+  },
+];
+
+function SectionLabel({ children }: { children: string }) {
   return (
-    <svg
-      className="absolute inset-0 -z-10 h-full w-full stroke-slate-200 [mask-image:radial-gradient(84%_84%_at_top_right,white,transparent)]"
-      aria-hidden="true"
-    >
-      <defs>
-        <pattern id="home-grid" width={36} height={36} x="50%" y={-1} patternUnits="userSpaceOnUse">
-          <path d="M.5 36V.5H36" fill="none" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" strokeWidth={0} fill="url(#home-grid)" />
-    </svg>
+    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+      {children}
+    </p>
   );
 }
 
@@ -90,330 +95,291 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | Test The Exact Site Before Deployment"
-        description="Blueprint helps robot teams inspect a real facility, choose the right exact-site product path, and answer deployment questions earlier with package and hosted evaluation surfaces grounded in real capture."
+        title="Blueprint | Site-Specific World Models For Real Facilities"
+        description="Blueprint helps robot teams inspect, license, and run exact-site world-model products built from real capture."
         canonical="/"
       />
 
-      <div className="relative min-h-screen overflow-hidden bg-stone-50 text-slate-900">
-        <DotPattern />
+      <div className="overflow-hidden bg-[#f6f1e8] text-slate-950">
+        <section className="relative border-b border-black/10">
+          <div className="absolute inset-x-0 top-0 h-[38rem] bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_42%),radial-gradient(circle_at_80%_12%,_rgba(14,116,144,0.16),_transparent_24%),linear-gradient(180deg,_rgba(255,255,255,0.72),_rgba(246,241,232,0.96))]" />
+          <div className="absolute left-[-6rem] top-24 h-48 w-48 rounded-full bg-[#d6eceb]/65 blur-3xl" />
+          <div className="absolute right-[-8rem] top-16 h-64 w-64 rounded-full bg-[#eadfca] blur-3xl" />
 
-        <section className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(12,74,110,0.1),_transparent_38%),linear-gradient(180deg,_rgba(255,255,255,0.99),_rgba(248,250,252,0.98))]">
-          <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
-            <div className="grid gap-10 lg:grid-cols-[1.08fr_0.92fr] lg:items-end">
-              <div className="max-w-4xl">
-                <p className="inline-flex rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
-                  For Robot Teams
-                </p>
-                <h1 className="mt-5 text-[3.3rem] font-semibold tracking-tight text-slate-950 sm:text-[4.2rem] sm:leading-[0.95]">
-                  Test the exact site before deployment.
+          <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-18 lg:px-8 lg:py-24">
+            <div className="grid gap-10 lg:grid-cols-[0.98fr_1.02fr] lg:items-end">
+              <div className="max-w-3xl">
+                <SectionLabel>Blueprint</SectionLabel>
+                <h1 className="font-editorial mt-5 max-w-3xl text-[3.4rem] leading-[0.93] tracking-[-0.05em] text-slate-950 sm:text-[4.7rem]">
+                  Site-specific world models for real facilities.
                 </h1>
-                <p className="mt-4 max-w-3xl text-[1.08rem] leading-8 text-slate-600">
-                  Blueprint turns one real facility into a site-specific package or hosted evaluation
-                  surface so your team can answer a deployment-fit question before travel, pilot spend,
-                  and rollout work begin.
+                <p className="mt-5 max-w-2xl text-base leading-8 text-slate-700 sm:text-[1.06rem]">
+                  Blueprint helps robot teams inspect, license, and run exact-site
+                  world-model products built from real capture.
                 </p>
-                <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600">
-                  Start with the proof. Stay tied to the same capture-backed source record. Choose the
-                  package path or the Blueprint-run hosted path only after the site itself is legible.
-                </p>
-                <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <a
-                    href={publicDemoHref}
+                    href="/world-models"
                     className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                   >
-                    Inspect a real site
+                    Explore Sites
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                   <a
                     href="/contact?persona=robot-team&interest=evaluation-package"
-                    className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+                    className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white/80 px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-white"
                   >
-                    Request hosted evaluation
+                    Request Access
                   </a>
                 </div>
-                <p className="mt-4 text-sm text-slate-600">
-                  Already know the facility and workflow lane?{" "}
-                  <a href="/book-exact-site-review" className="font-semibold text-slate-900 hover:underline">
-                    Book a scoping call.
-                  </a>
-                </p>
               </div>
 
-              <aside className="rounded-[2rem] border border-slate-200 bg-white/92 p-6 shadow-[0_28px_90px_-56px_rgba(15,23,42,0.5)] backdrop-blur">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  What a buyer should know fast
-                </p>
-                <div className="mt-4 grid gap-3">
-                  {[
-                    "You can inspect a real public sample before contacting anyone.",
-                    "Package and hosted evaluation are different buying motions on the same site.",
-                    "Rights, freshness, restrictions, and export boundaries should stay visible.",
-                    "Blueprint sells earlier site-specific answers, not deployment guarantees.",
-                  ].map((item) => (
-                    <div key={item} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
-                      {item}
-                    </div>
-                  ))}
+              <div className="grid gap-4 lg:grid-cols-[1.08fr_0.72fr]">
+                <article className="group relative overflow-hidden rounded-[2rem] border border-black/10 bg-[#d8d5cd] shadow-[0_30px_80px_-54px_rgba(15,23,42,0.45)]">
+                  <img
+                    src={proofReelPosterSrc}
+                    alt="Presentation still from a Blueprint sample listing."
+                    className="h-full min-h-[26rem] w-full object-cover transition duration-700 group-hover:scale-[1.02]"
+                  />
+                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.02),rgba(15,23,42,0.65))]" />
+                  <div className="absolute inset-x-0 bottom-0 p-6 sm:p-7">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/72">
+                      Public sample listing
+                    </p>
+                    <h2 className="font-editorial mt-3 text-3xl tracking-[-0.04em] text-white">
+                      One exact site. Two buying paths.
+                    </h2>
+                    <p className="mt-3 max-w-md text-sm leading-7 text-white/78">
+                      Start with the listing. Move into the package path or the
+                      hosted path only after the site itself is legible.
+                    </p>
+                  </div>
+                </article>
+
+                <div className="grid gap-4">
+                  <article className="rounded-[1.75rem] border border-black/10 bg-white/80 p-5 shadow-[0_20px_60px_-46px_rgba(15,23,42,0.35)] backdrop-blur-sm">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      Product
+                    </p>
+                    <p className="font-editorial mt-3 text-[2rem] leading-none tracking-[-0.05em] text-slate-950">
+                      Site Package
+                    </p>
+                    <p className="mt-3 text-sm leading-7 text-slate-600">
+                      License the exact-site product for your own stack.
+                    </p>
+                  </article>
+
+                  <article className="rounded-[1.75rem] border border-black/10 bg-slate-950 p-5 text-white shadow-[0_20px_60px_-46px_rgba(15,23,42,0.6)]">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/55">
+                      Product
+                    </p>
+                    <p className="font-editorial mt-3 text-[2rem] leading-none tracking-[-0.05em]">
+                      Hosted Session
+                    </p>
+                    <p className="mt-3 text-sm leading-7 text-white/72">
+                      Run the site with Blueprint before moving the package.
+                    </p>
+                  </article>
                 </div>
-              </aside>
+              </div>
             </div>
           </div>
         </section>
 
-        <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
-          <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              What's public now
+        <section className="border-b border-black/10 bg-white/45 backdrop-blur-sm">
+          <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+            <p className="text-sm font-medium text-slate-800">
+              Built for teams that need the real site before deployment.
             </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              Start with what a serious buyer can inspect today.
-            </h2>
-            <p className="mt-4 text-sm leading-7 text-slate-600">
-              The strongest starting point is not a manifesto. It is the live proof surface: the
-              sample listing, the runtime reference, the sample artifact layout, and the hosted
-              evaluation path that explains the commercial next step.
-            </p>
+            <div className="flex flex-wrap gap-2">
+              {signalPills.map((pill) => (
+                <span
+                  key={pill}
+                  className="rounded-full border border-black/10 bg-white/80 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600"
+                >
+                  {pill}
+                </span>
+              ))}
+            </div>
           </div>
-          <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {publicNowCards.map((asset) => (
+        </section>
+
+        <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+          <div className="max-w-2xl">
+            <SectionLabel>Sites</SectionLabel>
+            <h2 className="font-editorial mt-4 text-4xl tracking-[-0.05em] text-slate-950 sm:text-[3.5rem]">
+              Real places. Real capture. Real buying surfaces.
+            </h2>
+          </div>
+
+          <div className="mobile-snap-row mt-8 md:grid md:grid-cols-3">
+            {siteCards.map((card) => (
               <a
-                key={asset.title}
-                href={asset.href}
-                className="rounded-[1.7rem] border border-slate-200 bg-white p-5 transition hover:border-slate-300 hover:bg-slate-50"
+                key={card.title}
+                href={card.href}
+                aria-label={card.title}
+                className="group relative overflow-hidden rounded-[2rem] border border-black/10 bg-[#d7d2c8] shadow-[0_24px_70px_-56px_rgba(15,23,42,0.55)]"
               >
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  {asset.label}
-                </p>
-                <h3 className="mt-3 text-xl font-semibold text-slate-900">{asset.title}</h3>
-                <p className="mt-3 text-sm leading-6 text-slate-600">{asset.detail}</p>
+                <img
+                  src={card.imageSrc}
+                  alt={card.imageAlt}
+                  className="h-full min-h-[24rem] w-full object-cover transition duration-700 group-hover:scale-[1.03]"
+                />
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.02),rgba(15,23,42,0.72))]" />
+                <div className="absolute inset-x-0 bottom-0 p-5">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/70">
+                    {card.eyebrow}
+                  </p>
+                  <h3 className="font-editorial mt-3 text-[2rem] leading-none tracking-[-0.05em] text-white">
+                    {card.title}
+                  </h3>
+                  <p className="mt-3 max-w-sm text-sm leading-7 text-white/78">
+                    {card.detail}
+                  </p>
+                  <span className="mt-4 inline-flex items-center text-sm font-semibold text-white">
+                    Explore
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </span>
+                </div>
               </a>
             ))}
           </div>
         </section>
 
-        <section className="mx-auto max-w-6xl px-4 py-2 sm:px-6 lg:px-8">
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_20px_70px_-52px_rgba(15,23,42,0.45)] sm:p-8">
-            <div className="max-w-3xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Understand the offer
-              </p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                One site, two main product paths, one trust layer.
+        <section className="border-y border-black/10 bg-white/55">
+          <div className="mx-auto grid max-w-7xl gap-6 px-4 py-14 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-20">
+            <div>
+              <SectionLabel>Products</SectionLabel>
+              <h2 className="font-editorial mt-4 text-4xl tracking-[-0.05em] text-slate-950 sm:text-[3.4rem]">
+                Two ways to work with one exact site.
               </h2>
-            </div>
-            <div className="mt-8 grid gap-4 lg:grid-cols-3">
-              {definitionCards.map((item) => (
-                <article key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    {item.title}
-                  </p>
-                  <p className="mt-3 text-sm leading-7 text-slate-700">{item.body}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
-          <OfferComparison
-            eyebrow="Choose the buying path"
-            title="Buy the site data or run the site with Blueprint."
-            description="The package path is for teams that want the capture-backed data contract in their own stack. Hosted evaluation is for teams that want Blueprint to run the exact site first. Custom scope is for private or more complex commercial situations."
-          />
-        </section>
-
-        <section className="mx-auto max-w-6xl px-4 py-4 sm:px-6 lg:px-8">
-          <ProofModule
-            eyebrow="Visual proof"
-            title="See the real site first, then inspect the product around it."
-            description="The public sample listing is the trust anchor. It proves the site is real, the package is grounded to that site, and the hosted path stays attached to the same facility instead of drifting into generic platform language."
-            caption="Real listing footage and public sample assets are shown where available. Product-interface callouts are labeled when they are illustrative previews rather than public product UI."
-          />
-        </section>
-
-        <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
-          <div className="grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
-            <article className="rounded-[2rem] border border-slate-200 bg-white p-6 sm:p-8">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-slate-100 p-3 text-slate-700">
-                  <Workflow className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    Real-site workflow
-                  </p>
-                  <h2 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">
-                    How a buyer should move through the site.
-                  </h2>
-                </div>
-              </div>
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-                {workflowSteps.map((step, index) => (
-                  <article key={step.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold text-white">
-                      {index + 1}
-                    </div>
-                    <h3 className="mt-4 text-lg font-semibold text-slate-900">{step.title}</h3>
-                    <p className="mt-3 text-sm leading-7 text-slate-600">{step.body}</p>
+              <div className="mt-8 grid gap-4 md:grid-cols-2">
+                {productCards.map((card) => (
+                  <article
+                    key={card.title}
+                    className="rounded-[1.85rem] border border-black/10 bg-[#fbf9f5] p-6"
+                  >
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      {card.title}
+                    </p>
+                    <p className="mt-4 text-sm leading-7 text-slate-700">{card.body}</p>
+                    <a
+                      href={card.href}
+                      className="mt-6 inline-flex items-center text-sm font-semibold text-slate-950"
+                    >
+                      {card.cta}
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </a>
                   </article>
                 ))}
               </div>
-            </article>
+            </div>
 
-            <article className="rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white sm:p-8">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-slate-800 p-3 text-slate-300">
-                  <ScanSearch className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    Why teams use it
-                  </p>
-                  <h2 className="mt-1 text-3xl font-semibold tracking-tight">
-                    Earlier answers on the site that matters.
-                  </h2>
-                </div>
-              </div>
-              <div className="mt-6 grid gap-3">
-                {workflowValue.map((item) => (
-                  <div key={item.title} className="rounded-2xl border border-slate-800 bg-slate-900/90 p-4">
-                    <p className="text-sm font-semibold text-white">{item.title}</p>
-                    <p className="mt-2 text-sm leading-7 text-slate-300">{item.body}</p>
+            <aside className="rounded-[2rem] border border-black/10 bg-slate-950 p-6 text-white shadow-[0_24px_80px_-60px_rgba(15,23,42,0.8)]">
+              <SectionLabel>What stays attached</SectionLabel>
+              <h3 className="font-editorial mt-4 text-3xl tracking-[-0.05em] text-white">
+                The site record should stay readable all the way through.
+              </h3>
+              <div className="mt-6 space-y-3">
+                {trustLines.map((line) => (
+                  <div
+                    key={line}
+                    className="rounded-[1.4rem] border border-white/10 bg-white/5 px-4 py-4 text-sm leading-7 text-white/78"
+                  >
+                    {line}
                   </div>
                 ))}
               </div>
-            </article>
+            </aside>
           </div>
         </section>
 
-        <section className="mx-auto max-w-6xl px-4 py-4 sm:px-6 lg:px-8">
-          <div className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
-            <article className="rounded-[2rem] border border-slate-200 bg-white p-6">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-slate-100 p-3 text-slate-700">
-                  <Clock3 className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    What happens next
-                  </p>
-                  <h2 className="mt-1 text-2xl font-semibold text-slate-900">
-                    A short brief should narrow the path, not restart discovery.
-                  </h2>
-                </div>
+        <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+          <div className="grid gap-6 lg:grid-cols-[1.02fr_0.98fr]">
+            <article className="overflow-hidden rounded-[2.2rem] border border-black/10 bg-[#f0ebe2] shadow-[0_30px_80px_-58px_rgba(15,23,42,0.45)]">
+              <div className="border-b border-black/10 px-6 py-5 sm:px-7">
+                <SectionLabel>Proof</SectionLabel>
+                <h2 className="font-editorial mt-4 text-4xl tracking-[-0.05em] text-slate-950 sm:text-[3.25rem]">
+                  See what a team gets before it commits.
+                </h2>
               </div>
-              <div className="mt-5 space-y-3 text-sm leading-7 text-slate-700">
-                <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                  1. Blueprint reviews the site, workflow lane, and robot context first.
-                </p>
-                <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                  2. The next reply points you to the package path, hosted evaluation path, or the
-                  narrow custom scope that actually matches the site.
-                </p>
-                <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                  3. Rights, privacy, freshness, and restrictions stay explicit rather than getting
-                  buried in vague follow-up language.
-                </p>
-              </div>
-            </article>
 
-            <article className="rounded-[2rem] border border-slate-200 bg-white p-6">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-slate-100 p-3 text-slate-700">
-                  <ShieldCheck className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    Trust surfaces
-                  </p>
-                  <h2 className="mt-1 text-2xl font-semibold text-slate-900">
-                    What should stay visible all the way through.
-                  </h2>
-                </div>
-              </div>
-              <div className="mt-5 grid gap-3">
-                {companyTrustItems.map((item) => (
-                  <div key={item} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-700">
-                    {item}
+              <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
+                <div className="relative min-h-[24rem] overflow-hidden border-b border-black/10 lg:border-b-0 lg:border-r">
+                  <img
+                    src={proofReferenceImageSrc}
+                    alt="Runtime reference still for the Blueprint public sample site."
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.05),rgba(15,23,42,0.58))]" />
+                  <div className="absolute inset-x-0 bottom-0 p-6">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/68">
+                      Public proof surface
+                    </p>
+                    <p className="font-editorial mt-3 text-[2rem] leading-none tracking-[-0.05em] text-white">
+                      One site, shown before the sales motion starts.
+                    </p>
                   </div>
-                ))}
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm leading-7 text-slate-600">
-                  Public proof, sample artifact layouts, and hosted-access boundaries should be
-                  distinguishable at a glance instead of blurred together.
+                </div>
+
+                <div className="flex flex-col justify-between p-6 sm:p-7">
+                  <div className="space-y-3">
+                    {proofTiles.map((tile) => (
+                      <article
+                        key={tile.title}
+                        className="rounded-[1.5rem] border border-black/10 bg-white/75 px-4 py-4"
+                      >
+                        <p className="text-sm font-semibold text-slate-900">{tile.title}</p>
+                        <p className="mt-2 text-sm leading-7 text-slate-600">{tile.body}</p>
+                      </article>
+                    ))}
+                  </div>
+
+                  <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                    <a
+                      href="/sample-deliverables"
+                      className="inline-flex items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                    >
+                      View sample deliverables
+                    </a>
+                    <a
+                      href="/exact-site-hosted-review"
+                      className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-white/80"
+                    >
+                      See hosted review
+                    </a>
+                  </div>
                 </div>
               </div>
             </article>
           </div>
         </section>
 
-        <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_20px_70px_-52px_rgba(15,23,42,0.45)] sm:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Buyer decision memo
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              One commercial-grade listing should carry the full proof loop.
-            </h2>
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
-              {[
-                "The buyer starts with a listing that has real pricing, richer proof cards, and a trust snapshot that is easy to scan.",
-                "It decides whether to start with hosted evaluation or package access before spending time on a field visit or a blind pilot path.",
-                "That is the standard the rest of the catalog should move toward, not just the public sample.",
-              ].map((item, index) => (
-                <article key={item} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold text-white">
-                    {index + 1}
-                  </div>
-                  <p className="mt-4 text-sm leading-7 text-slate-700">{item}</p>
-                </article>
-              ))}
-            </div>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <a
-                href="/world-models/sw-chi-01"
-                className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                Read the commercial exemplar
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </a>
-              <a
-                href="/world-models/siteworld-f5fd54898cfb"
-                className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
-              >
-                Compare it with the public sample
-              </a>
-            </div>
-          </div>
-        </section>
-
-        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
-          <WhenNotToBuyModule />
-        </div>
-
-        <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6 lg:px-8">
-          <div className="rounded-[2rem] border border-slate-200 bg-slate-950 p-8 text-white sm:p-10">
-            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-              Start with the proof path that already exists.
-            </h2>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
-              Inspect the public sample if you are skeptical. Open hosted evaluation if your team
-              needs the managed runtime path. Use contact only after the site and question are real.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <a
-                href={publicDemoHref}
-                className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
-              >
-                Inspect a real site
-              </a>
-              <a
-                href="/exact-site-hosted-review"
-                className="inline-flex items-center justify-center rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-900"
-              >
-                See hosted evaluation
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </a>
+        <section className="pb-16 sm:pb-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="rounded-[2.4rem] border border-black/10 bg-slate-950 px-6 py-10 text-white shadow-[0_34px_90px_-60px_rgba(15,23,42,0.82)] sm:px-10 sm:py-12">
+              <SectionLabel>Start</SectionLabel>
+              <h2 className="font-editorial mt-4 max-w-3xl text-4xl tracking-[-0.05em] text-white sm:text-[3.5rem]">
+                Start with the site that matters.
+              </h2>
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/72">
+                Browse a real listing or open a scoped access request.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <a
+                  href="/world-models"
+                  className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                >
+                  Explore Sites
+                </a>
+                <a
+                  href="/contact?persona=robot-team&interest=evaluation-package"
+                  className="inline-flex items-center justify-center rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
+                >
+                  Request Access
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+              </div>
             </div>
           </div>
         </section>

@@ -46,6 +46,7 @@ Open discovery should feed gated cohorts, not immediate broad approval. The oper
 | Founder/operator outbound into trusted networks | Gated cohort | direct outreach can seed the first city cohorts before scalable channels are live | known local connectors and community leads | high | medium | operator time, cohort management, approval follow-up |
 | Partner channels with aligned local networks | Gated cohort | aligned institutions can provide trust and density if the workflow is controlled | schools, studios, robotics groups, creator orgs | medium-high | medium | partnership owner, materials, intake stage management |
 | City-specific local communities | Open discovery | useful for lead discovery only after intake and trust controls exist | local creator and neighborhood groups | low-medium | medium | moderation, fast follow-up, move leads into gated intake |
+| Public-commercial community lane | Open discovery | bounded online community sourcing can surface contributors for public, non-controlled commercial locations when the brief stays public-area-only | local city/community groups, neighborhood forums, retail and shopping communities, creator communities, lightweight campus or gig networks | low-medium | medium | public-area-only brief, privacy/signage/provenance rules, fast review, intake tagging |
 | Niche field-task platforms | Open discovery | can surface supply pockets but usually with more noise and trust burden | task-platform workers | low-medium | medium | duplicate/content checks, stronger review, limited pilot scope |
 | Event-based recruiting pushes | Gated cohort | time-bounded cohorts can work when intake and onboarding are already standardized | hackathons, meetups, local activations | medium | medium | event coordination, fast stage management, human attendance |
 
@@ -53,6 +54,8 @@ Open discovery should feed gated cohorts, not immediate broad approval. The oper
 - First-wave capturer outreach should stay split between professional capturer sources and bounded public-commercial community sources.
 - The professional lane should prioritize surveying, AEC, industrial inspection, and commercial mapping operators with explicit lawful-access expectations.
 - Public-commercial capture should stay public-area-only and never imply private-interior permission.
+- The public-commercial lane should name its online habitats directly instead of leaving the channel abstract.
+- The allowed habitats are local city/community groups, neighborhood forums, retail and shopping communities, creator communities, and lightweight campus or gig networks.
 - Early city launches can use source buckets and next moves before a fully named contact roster exists, as long as the evidence boundary is explicit.
 - Every first-wave asset should point to the same tagged intake path and preserve no-guarantee language.
 - Sacramento's current professional supply wave should stay anchored to site-authorized surveying and industrial inspection operators, Sacramento civil engineering and land surveying society members, and contractors already working McClellan Park, US Cold Storage, or similar facilities.
@@ -65,6 +68,7 @@ Open discovery should feed gated cohorts, not immediate broad approval. The oper
 - Access codes, invite links, or direct operator review should be the default way to admit early cohorts.
 - Rights-sensitive exact-site work should start with a consent-backed site-access path plus a hard-capped technical cohort; generic gig recruiting stays in discovery until the trust and activation rails are proven.
 - Public community sourcing for capturers should stay bounded to lawful public areas until the local evidence stack proves first-action quality and repeat reliability.
+- Public-commercial posts should never imply blanket permission for private interiors or controlled access.
 - Private or higher-trust work should stay restricted to approved contributors who have passed a first capture and trust review.
 
 ## Messaging Hierarchy
