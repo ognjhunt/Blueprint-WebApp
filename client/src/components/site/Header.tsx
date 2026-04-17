@@ -4,7 +4,6 @@ import { Menu, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { publicDemoHref } from "@/lib/marketingProof";
-import { getCaptureAppPlaceholderUrl } from "@/lib/client-env";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,21 +13,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { headerUtilityLinks, primaryNavLinks } from "./navigation";
 
-function isExternalHref(value: string) {
-  try {
-    const url = new URL(value, "https://tryblueprint.io");
-    return url.origin !== "https://tryblueprint.io";
-  } catch {
-    return false;
-  }
-}
-
 export function Header() {
   const [location, setLocation] = useLocation();
   const [open, setOpen] = useState(false);
   const { currentUser, userData, logout } = useAuth();
-  const captureAppHref = useMemo(() => getCaptureAppPlaceholderUrl(), []);
-  const captureAppIsExternal = useMemo(() => isExternalHref(captureAppHref), [captureAppHref]);
 
   const isActive = useMemo(
     () =>
@@ -106,18 +94,10 @@ export function Header() {
             );
           })}
           <a
-            href={captureAppHref}
-            target={captureAppIsExternal ? "_blank" : undefined}
-            rel={captureAppIsExternal ? "noreferrer noopener" : undefined}
-            className="text-sm font-medium tracking-[-0.01em] text-slate-500 transition hover:text-slate-950"
-          >
-            Open Capture App
-          </a>
-          <a
             href={publicDemoHref}
             className="inline-flex items-center justify-center whitespace-nowrap rounded-[1rem] bg-slate-950 px-4.5 py-2.5 text-[13px] font-semibold leading-none text-white shadow-[0_18px_36px_-24px_rgba(15,23,42,0.85)] transition hover:bg-slate-800"
           >
-            View Sample Site
+            Inspect a real site
           </a>
           {currentUser ? (
             <DropdownMenu>
@@ -200,15 +180,6 @@ export function Header() {
                   {link.label}
                 </a>
               ))}
-              <a
-                href={captureAppHref}
-                target={captureAppIsExternal ? "_blank" : undefined}
-                rel={captureAppIsExternal ? "noreferrer noopener" : undefined}
-                className="flex min-h-11 items-center rounded-xl px-3 py-2 transition hover:bg-slate-50"
-                onClick={() => setOpen(false)}
-              >
-                Open Capture App
-              </a>
             </div>
 
             <a
@@ -216,7 +187,7 @@ export function Header() {
               className="inline-flex min-h-11 items-center justify-center rounded-[1rem] bg-slate-950 px-4 py-2.5 text-center font-semibold text-white"
               onClick={() => setOpen(false)}
             >
-              View Sample Site
+              Inspect a real site
             </a>
 
             {currentUser ? (

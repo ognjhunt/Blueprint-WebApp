@@ -16,6 +16,11 @@ type Routine = {
   triggers?: Array<{ kind?: string | null; enabled?: boolean | null }>;
 };
 
+type Company = {
+  id: string;
+  name: string;
+};
+
 type ManagerStateSnapshot = {
   summary: {
     openIssueCount: number;
@@ -43,6 +48,8 @@ const COMPANY_NAME = process.env.COMPANY_NAME ?? "Blueprint Autonomous Operation
 const CHIEF_OF_STAFF_AGENT_KEY = "blueprint-chief-of-staff";
 const PAPERCLIP_API_KEY = process.env.PAPERCLIP_API_KEY;
 const PAPERCLIP_AGENT_ID = process.env.PAPERCLIP_AGENT_ID;
+const PAPERCLIP_COMPANY_ID = process.env.PAPERCLIP_COMPANY_ID ?? null;
+const PAPERCLIP_TASK_ID = process.env.PAPERCLIP_TASK_ID ?? null;
 
 function parseArgs(argv: string[]) {
   const args = new Map<string, string>();
@@ -76,6 +83,9 @@ function buildHeaders() {
 
 function buildBoardSafeHeaders() {
   const headers = new Headers();
+  if (PAPERCLIP_API_KEY) {
+    headers.set("Authorization", `Bearer ${PAPERCLIP_API_KEY}`);
+  }
   headers.set("Content-Type", "application/json");
   const runId = process.env.PAPERCLIP_RUN_ID;
   if (runId) {
@@ -101,6 +111,27 @@ async function fetchJson<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function resolveCompanyId(issueId?: string | null): Promise<string> {
+  if (PAPERCLIP_COMPANY_ID) {
+    return PAPERCLIP_COMPANY_ID;
+  }
+
+  const resolvedIssueId = issueId ?? PAPERCLIP_TASK_ID;
+  if (resolvedIssueId) {
+    const issue = await fetchJson<{ companyId?: string }>(`/api/issues/${resolvedIssueId}`);
+    if (issue.companyId) {
+      return issue.companyId;
+    }
+  }
+
+  const companies = await fetchJson<Company[]>("/api/companies");
+  const company = companies.find((entry) => entry.name === COMPANY_NAME);
+  if (!company) {
+    throw new Error(`Company not found: ${COMPANY_NAME}`);
+  }
+  return company.id;
+}
+
 async function fetchManagerState(companyId: string): Promise<ManagerStateSnapshot | null> {
   const response = await fetch(`${PAPERCLIP_API_URL}/api/plugins/blueprint.automation/actions/manager-state`, {
     method: "POST",
@@ -113,7 +144,7 @@ async function fetchManagerState(companyId: string): Promise<ManagerStateSnapsho
     }),
   });
 
-  if (response.status === 401 || response.status === 403) {
+  if (response.status === 401 || response.status === 403 || response.status === 502 || response.status === 503 || response.status === 504) {
     return null;
   }
 
@@ -242,15 +273,11 @@ async function main() {
     return;
   }
 
-  const companies = await fetchJson<Array<{ id: string; name: string }>>("/api/companies");
-  const company = companies.find((entry) => entry.name === COMPANY_NAME);
-  if (!company) {
-    throw new Error(`Company not found: ${COMPANY_NAME}`);
-  }
+  const companyId = await resolveCompanyId(issueId);
 
   if (assignedOpen || openOnly) {
-    const managerState = await fetchManagerState(company.id);
-    const issues = managerState?.openIssues ?? await fetchCompanyOpenIssues(company.id).catch((error: unknown) => {
+    const managerState = await fetchManagerState(companyId);
+    const issues = managerState?.openIssues ?? await fetchCompanyOpenIssues(companyId).catch((error: unknown) => {
       if (isBoardAccessError(error)) {
         throw new Error("Board-safe manager-state fallback unavailable after board-gated company issue list read.");
       }
@@ -289,17 +316,17 @@ async function main() {
       );
       return;
     }
-    printIssueList(`Open issues in ${company.name}`, issues, limit);
+    printIssueList(`Open issues in ${COMPANY_NAME}`, issues, limit);
     return;
   }
 
-  const managerState = await fetchManagerState(company.id);
+  const managerState = await fetchManagerState(companyId);
   const [agents, issues, routines] = await Promise.all([
-    fetchJson<Array<{ id: string; urlKey?: string | null; name?: string | null }>>(`/api/companies/${company.id}/agents`),
+    fetchJson<Array<{ id: string; urlKey?: string | null; name?: string | null }>>(`/api/companies/${companyId}/agents`),
     managerState
       ? Promise.resolve(managerState.openIssues)
-      : fetchCompanyOpenIssues(company.id),
-    fetchJson<Routine[]>(`/api/companies/${company.id}/routines`),
+      : fetchCompanyOpenIssues(companyId),
+    fetchJson<Routine[]>(`/api/companies/${companyId}/routines`),
   ]);
 
   const chiefOfStaff = agents.find((agent) => agent.urlKey === CHIEF_OF_STAFF_AGENT_KEY);
@@ -321,7 +348,7 @@ async function main() {
 
   const payload = {
     generatedAt: new Date().toISOString(),
-    companyId: company.id,
+    companyId,
     chiefOfStaffAgentId: chiefOfStaff?.id ?? null,
     counts: {
       openIssues: openIssues.length,

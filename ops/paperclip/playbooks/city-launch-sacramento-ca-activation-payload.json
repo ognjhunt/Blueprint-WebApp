@@ -3,37 +3,28 @@
   "machinePolicyVersion": "2026-04-13.city-launch-doctrine.v1",
   "city": "Sacramento, CA",
   "citySlug": "sacramento-ca",
-  "cityThesis": "One narrow exact-site hosted review motion targeting AMR integrators executing digital-twin simulations in multi-tenant 3PL logistics environments.",
+  "cityThesis": "Run one proof-led warehouse wedge.",
   "primarySiteLane": "industrial_warehouse",
-  "primaryWorkflowLane": "dock handoff and pallet movement",
+  "primaryWorkflowLane": "dock handoff",
   "primaryBuyerProofPath": "exact_site",
   "lawfulAccessModes": [
-    "buyer_requested_site",
-    "site_operator_intro",
-    "capturer_existing_lawful_access",
-    "public_non_controlled_site"
+    "buyer_requested_site"
   ],
   "preferredLawfulAccessMode": "buyer_requested_site",
   "rightsPath": {
-    "summary": "Implement a 3-Tier multi-tenant consent packet (Property Owner, Facility Operator, Inventory Tenant) before authorizing capture dispatch.",
+    "summary": "Private controlled interiors require authorization.",
     "privateControlledInteriorsRequireAuthorization": true,
-    "validationRequired": true,
-    "sourceUrls": []
+    "validationRequired": false,
+    "sourceUrls": [
+      "https://example.com/rights"
+    ]
   },
   "validationBlockers": [
     {
-      "key": "buyer_stack_fit",
-      "summary": "Verify exact-site artifact compatibility with NVIDIA Omniverse and iWAREHOUSE before live outreach.",
+      "key": "lawful-access-path",
+      "summary": "Secure the first complete owner/operator/tenant path for Sacramento private controlled interiors before widening.",
       "severity": "high",
-      "ownerLane": "buyer-solutions-agent",
-      "validationRequired": true,
-      "sourceUrls": []
-    },
-    {
-      "key": "air_gapped_delivery_constraint",
-      "summary": "Verify if export-controlled or dual-use industrial buyers mandate air-gapped delivery over Blueprint-WebApp.",
-      "severity": "high",
-      "ownerLane": "ops-lead",
+      "ownerLane": "site-operator-partnership-agent",
       "validationRequired": true,
       "sourceUrls": []
     }
@@ -41,35 +32,43 @@
   "requiredApprovals": [
     {
       "lane": "founder",
-      "reason": "New city activation and ITAR/Defense proximity exceptions require founder gate."
-    },
-    {
-      "lane": "ops-lead",
-      "reason": "Dispatch into industrial 3PLs requires COI, thermal limit, and 3-Tier Consent verification."
-    },
-    {
-      "lane": "designated-human-rights-reviewer",
-      "reason": "Requires manual verification of proprietary multi-tenant IP scrub before artifact materialization."
+      "reason": "go/no-go"
     }
   ],
   "ownerLanes": [
     "city-launch-agent",
-    "ops-lead",
-    "growth-lead",
-    "intake-agent",
-    "rights-provenance-agent",
-    "buyer-solutions-agent",
+    "capturer-growth-agent",
     "analytics-agent"
   ],
   "issueSeeds": [
     {
+      "key": "city-opening-first-wave-pack",
+      "title": "Assemble first-wave pack",
+      "phase": "supply",
+      "ownerLane": "capturer-growth-agent",
+      "humanLane": "growth-lead",
+      "summary": "Prepare first-wave outreach and posting assets.",
+      "dependencyKeys": [],
+      "successCriteria": [
+        "First-wave pack is ready."
+      ],
+      "metricsDependencies": [
+        "first_lawful_access_path"
+      ],
+      "validationRequired": false
+    },
+    {
       "key": "lawful-access-path",
       "title": "Lock the first multi-tenant lawful access path",
       "phase": "founder_gates",
-      "ownerLane": "city-launch-agent",
-      "humanLane": "ops-lead",
-      "summary": "Secure the first complete 3-Tier Consent packet for an ambient-temperature McClellan Park industrial module.",
-      "dependencyKeys": [],
+      "ownerLane": "site-operator-partnership-agent",
+      "humanLane": "growth-lead",
+      "summary": "Secure the first complete owner/operator/tenant access path for a Sacramento private controlled-interior capture lane.",
+      "dependencyKeys": [
+        "parallel-lawful-access-queue",
+        "city-target-ledger",
+        "growth-source-policy"
+      ],
       "successCriteria": [
         "First lawful access path is signed by owner, operator, and tenant."
       ],
@@ -83,81 +82,69 @@
     {
       "key": "robot_team_inbound_captured",
       "kind": "event",
-      "status": "required_tracked",
+      "status": "required_not_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Emitted from inbound-request.ts on new robot_team inbound."
+      "notes": null
     },
     {
       "key": "proof_path_assigned",
       "kind": "event",
-      "status": "required_tracked",
+      "status": "required_not_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Emitted from admin-leads when qualification stamps a robot_team."
+      "notes": null
     },
     {
       "key": "proof_pack_delivered",
       "kind": "event",
-      "status": "required_tracked",
+      "status": "required_not_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Emitted from pipeline state machine when world_model_outputs >= 2 artifacts."
+      "notes": null
     },
     {
       "key": "hosted_review_ready",
       "kind": "event",
-      "status": "required_tracked",
+      "status": "required_not_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Emitted from pipeline state machine when hosted review readiness check passes."
+      "notes": null
     },
     {
       "key": "hosted_review_started",
       "kind": "event",
-      "status": "required_tracked",
+      "status": "required_not_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Emitted from pipeline state machine when runtime demo + launch URL exist."
+      "notes": null
     },
     {
       "key": "hosted_review_follow_up_sent",
       "kind": "event",
-      "status": "required_tracked",
+      "status": "required_not_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Emitted from pipeline state machine when hosted review started + evaluation artifacts present."
+      "notes": null
     },
     {
       "key": "human_commercial_handoff_started",
       "kind": "event",
-      "status": "required_tracked",
+      "status": "required_not_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Emitted from pipeline state machine when opportunity handoff or qualified export present."
+      "notes": null
     },
     {
       "key": "proof_motion_stalled",
       "kind": "event",
-      "status": "required_tracked",
+      "status": "required_not_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Emitted from pipeline state machine when qualification regresses or recapture required."
+      "notes": null
     }
   ],
   "namedClaims": [
     {
-      "subject": "Raymond West",
+      "subject": "Capital Robotics",
       "claimType": "company",
-      "claim": "Integrator actively deploying Cyngn DriveMod Tuggers and utilizing iWAREHOUSE.",
-      "validationRequired": true,
-      "sourceUrls": []
-    },
-    {
-      "subject": "NVIDIA Omniverse / iWAREHOUSE",
-      "claimType": "stack",
-      "claim": "The exported spatial artifact must be seamlessly ingested into NVIDIA digital-twin tools or proprietary layout systems.",
-      "validationRequired": true,
-      "sourceUrls": []
-    },
-    {
-      "subject": "Air-Gapped Delivery",
-      "claimType": "delivery",
-      "claim": "Defense-adjacent industrial environments (McClellan) may strictly require on-premise artifact delivery over web SaaS.",
-      "validationRequired": true,
-      "sourceUrls": []
+      "claim": "Capital Robotics is a named buyer target.",
+      "validationRequired": false,
+      "sourceUrls": [
+        "https://example.com/buyer"
+      ]
     }
   ]
 }

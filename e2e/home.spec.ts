@@ -6,14 +6,18 @@ test('homepage leads with capture and world models', async ({ page }) => {
 
   await expect(
     page.getByRole('heading', {
-      name: /Three things Blueprint sells\./i,
+      name: /Test the exact site before deployment\./i,
     }),
   ).toBeVisible();
   const nav = page.getByRole('banner').getByRole('navigation');
   await expect(nav.getByRole('link', { name: /^World Models$/i })).toBeVisible();
-  await expect(nav.getByRole('link', { name: /^Deliverables$/i })).toBeVisible();
-  await expect(nav.getByRole('link', { name: /^About$/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /View sample listing/i }).first()).toBeVisible();
+  await expect(nav.getByRole('link', { name: /^Hosted Evaluation$/i })).toBeVisible();
+  await expect(nav.getByRole('link', { name: /^How It Works$/i })).toBeVisible();
+  await expect(nav.getByRole('link', { name: /^Pricing$/i })).toBeVisible();
+  await expect(nav.getByRole('link', { name: /^Trust$/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Inspect a real site/i }).first()).toBeVisible();
   await expect(page.getByRole('link', { name: /Request hosted evaluation/i }).first()).toBeVisible();
+  await expect(page.locator('body')).toContainText("What's public now");
+  await expect(page.getByText(/Hosted evaluation scoping/i)).toBeVisible();
   await expect(page.getByText(worldModelDefinition)).toBeVisible();
 });

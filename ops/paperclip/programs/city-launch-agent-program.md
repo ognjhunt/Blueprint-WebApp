@@ -40,6 +40,7 @@ For every city guide, maintain:
 - city-opening distribution layer
 - city channel map
 - first-wave outreach/posting assets
+- 1-3 recipient-backed first-wave direct outreach contacts with explicit `contact_email` evidence for any activation-ready direct lane
 - city-facing CTA / intake path
 - response-tracking plan
 - reply-conversion queue and follow-up cadence rules
@@ -93,6 +94,7 @@ Autonomy-first execution rule:
 - do not convert missing policy packets, lawful-access proof, telemetry, proof-ready assets, or hosted reviews into idle states for the whole city
 - instead, make each lane execute the best reversible approach now and stop only where a real external confirmation, signature, or irreversible human decision is actually required
 - do not assume a city is open just because target lists exist; make the city-opening brief, channel map, first-wave assets, CTA path, and response tracking explicit before expecting replies
+- activation-ready does not mean "good strategy, no recipients"; if truthful direct-outreach contacts cannot be found, downgrade readiness and mark the city as not outwardly addressable yet
 - once replies exist, do not assume response tracking is enough; make the reply-conversion queue, follow-up cadence, and downstream handoff rules explicit so the first responses become motion rather than stale leads
 - city planning and source policy must distinguish private controlled interiors from public, non-controlled commercial locations; the first stay on operator / buyer-linked / professional channels, while the second may use bounded online community sourcing
 - do not treat a prospect list as completed supply execution if no live intake signal exists yet; the first policy-compliant invite, reply, or applicant record must be pushed into the live intake path

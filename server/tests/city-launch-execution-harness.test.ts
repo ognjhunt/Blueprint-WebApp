@@ -18,6 +18,8 @@ const upsertCityLaunchChannelAccount = vi.hoisted(() => vi.fn());
 const upsertCityLaunchSendAction = vi.hoisted(() => vi.fn());
 const resolveCityLaunchPlanningState = vi.hoisted(() => vi.fn());
 const loadAndParseCityLaunchResearchArtifact = vi.hoisted(() => vi.fn());
+const executeCityLaunchSends = vi.hoisted(() => vi.fn());
+const resolveHistoricalRecipientEvidence = vi.hoisted(() => vi.fn());
 
 vi.mock("../utils/paperclip", () => ({
   upsertPaperclipIssue,
@@ -49,9 +51,93 @@ vi.mock("../utils/cityLaunchResearchParser", async () => {
   };
 });
 
+vi.mock("../utils/cityLaunchRecipientEvidence", () => ({
+  resolveHistoricalRecipientEvidence,
+}));
+
+vi.mock("../utils/cityLaunchSendExecutor", async () => {
+  const actual = await vi.importActual("../utils/cityLaunchSendExecutor");
+  return {
+    ...actual,
+    executeCityLaunchSends,
+  };
+});
+
 const tempDirs: string[] = [];
 
+function completedPlanningState(city: string, citySlug: string) {
+  return {
+    city,
+    citySlug,
+    status: "completed" as const,
+    reportsRoot: "/tmp/city-launch",
+    cityReportsRoot: `/tmp/city-launch/${citySlug}`,
+    canonicalPlaybookPath: `/tmp/city-launch/${citySlug}/canonical.md`,
+    runDirectory: `/tmp/city-launch/${citySlug}/run-1`,
+    manifestPath: `/tmp/city-launch/${citySlug}/run-1/manifest.json`,
+    latestArtifactPath: `/tmp/city-launch/${citySlug}/run-1/99-final-playbook.md`,
+    completedArtifactPath: `/tmp/city-launch/${citySlug}/run-1/99-final-playbook.md`,
+    latestRunTimestamp: "run-1",
+    warnings: [],
+  };
+}
+
+function activationPayload(city: string, citySlug: string) {
+  return {
+    schemaVersion: "2026-04-13.city-launch-activation-payload.v1",
+    machinePolicyVersion: "2026-04-13.city-launch-doctrine.v1",
+    city,
+    citySlug,
+    cityThesis: "Run one proof-led warehouse wedge.",
+    primarySiteLane: "industrial_warehouse" as const,
+    primaryWorkflowLane: "dock handoff",
+    primaryBuyerProofPath: "exact_site" as const,
+    lawfulAccessModes: ["buyer_requested_site" as const],
+    preferredLawfulAccessMode: "buyer_requested_site" as const,
+    rightsPath: {
+      summary: "Private controlled interiors require authorization.",
+      privateControlledInteriorsRequireAuthorization: true,
+      validationRequired: false,
+      sourceUrls: ["https://example.com/rights"],
+    },
+    validationBlockers: [],
+    requiredApprovals: [{ lane: "founder" as const, reason: "go/no-go" }],
+    ownerLanes: ["city-launch-agent", "capturer-growth-agent", "analytics-agent"],
+    issueSeeds: [],
+    metricsDependencies: [
+      { key: "robot_team_inbound_captured" as const, kind: "event" as const, status: "required_not_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "proof_path_assigned" as const, kind: "event" as const, status: "required_not_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "proof_pack_delivered" as const, kind: "event" as const, status: "required_not_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "hosted_review_ready" as const, kind: "event" as const, status: "required_not_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "hosted_review_started" as const, kind: "event" as const, status: "required_not_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "hosted_review_follow_up_sent" as const, kind: "event" as const, status: "required_not_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "human_commercial_handoff_started" as const, kind: "event" as const, status: "required_not_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "proof_motion_stalled" as const, kind: "event" as const, status: "required_not_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+    ],
+    namedClaims: [],
+  };
+}
+
 beforeEach(() => {
+  upsertPaperclipIssue.mockReset();
+  createPaperclipIssueComment.mockReset();
+  wakePaperclipAgent.mockReset();
+  summarizeCityLaunchLedgers.mockReset();
+  writeCityLaunchActivation.mockReset();
+  readCityLaunchActivation.mockReset();
+  listCityLaunchChannelAccounts.mockReset();
+  listCityLaunchSendActions.mockReset();
+  listCityLaunchBuyerTargets.mockReset();
+  listCityLaunchProspects.mockReset();
+  upsertCityLaunchChannelAccount.mockReset();
+  upsertCityLaunchSendAction.mockReset();
+  resolveCityLaunchPlanningState.mockReset();
+  loadAndParseCityLaunchResearchArtifact.mockReset();
+  executeCityLaunchSends.mockReset();
+  resolveHistoricalRecipientEvidence.mockReset();
+  vi.stubEnv("SENDGRID_API_KEY", "sg-key");
+  vi.stubEnv("SENDGRID_FROM_EMAIL", "launches@tryblueprint.io");
+  vi.stubEnv("BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION", "verified");
   writeCityLaunchActivation.mockResolvedValue(null);
   readCityLaunchActivation.mockResolvedValue(null);
   createPaperclipIssueComment.mockResolvedValue({ ok: true });
@@ -87,6 +173,17 @@ beforeEach(() => {
     warnings: ["No city-launch planning artifacts were found for this city."],
   }));
   loadAndParseCityLaunchResearchArtifact.mockResolvedValue(null);
+  resolveHistoricalRecipientEvidence.mockResolvedValue(new Map());
+  executeCityLaunchSends.mockResolvedValue({
+    city: "mock-city",
+    totalEligible: 0,
+    sent: 0,
+    skippedApproval: 0,
+    skippedNoRecipient: 0,
+    skippedAlreadySent: 0,
+    failed: 0,
+    errors: [],
+  });
 });
 
 afterEach(async () => {
@@ -95,10 +192,115 @@ afterEach(async () => {
       fs.rm(dir, { recursive: true, force: true }),
     ),
   );
+  vi.unstubAllEnvs();
   vi.clearAllMocks();
 });
 
 describe("city launch execution harness", () => {
+  it("rejects founder-approved activation when planning is incomplete", async () => {
+    summarizeCityLaunchLedgers.mockResolvedValue({
+      trackedSupplyProspectsContacted: 0,
+      trackedBuyerTargetsResearched: 0,
+      trackedFirstTouchesSent: 0,
+      onboardedCapturers: 0,
+      totalRecordedSpendUsd: 0,
+      withinPolicySpendUsd: 0,
+      outsidePolicySpendUsd: 0,
+      recommendedSpendUsd: 0,
+      wideningGuard: { mode: "single_city_until_proven", wideningAllowed: false, reasons: [] },
+      dataSources: [],
+    });
+    resolveCityLaunchPlanningState.mockResolvedValue({
+      city: "San Jose, CA",
+      citySlug: "san-jose-ca",
+      status: "in_progress",
+      reportsRoot: "/tmp/city-launch",
+      cityReportsRoot: "/tmp/city-launch/san-jose-ca",
+      canonicalPlaybookPath: "/tmp/city-launch/san-jose-ca/canonical.md",
+      runDirectory: "/tmp/city-launch/san-jose-ca/run-1",
+      manifestPath: "/tmp/city-launch/san-jose-ca/run-1/manifest.json",
+      latestArtifactPath: "/tmp/city-launch/san-jose-ca/run-1/01-initial-research.md",
+      completedArtifactPath: null,
+      latestRunTimestamp: "run-1",
+      warnings: ["City-launch planning has partial artifacts but no final playbook yet."],
+    });
+
+    const reportsRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), "incomplete-city-launch-harness-"),
+    );
+    tempDirs.push(reportsRoot);
+
+    const { runCityLaunchExecutionHarness } = await import("../utils/cityLaunchExecutionHarness");
+
+    await expect(
+      runCityLaunchExecutionHarness({
+        city: "San Jose, CA",
+        reportsRoot,
+        founderApproved: true,
+        budgetTier: "zero_budget",
+      }),
+    ).rejects.toThrow(/completed deep-research/i);
+  });
+
+  it("rejects founder-approved activation when the completed playbook lacks an activation payload", async () => {
+    summarizeCityLaunchLedgers.mockResolvedValue({
+      trackedSupplyProspectsContacted: 0,
+      trackedBuyerTargetsResearched: 0,
+      trackedFirstTouchesSent: 0,
+      onboardedCapturers: 0,
+      totalRecordedSpendUsd: 0,
+      withinPolicySpendUsd: 0,
+      outsidePolicySpendUsd: 0,
+      recommendedSpendUsd: 0,
+      wideningGuard: { mode: "single_city_until_proven", wideningAllowed: false, reasons: [] },
+      dataSources: [],
+    });
+    resolveCityLaunchPlanningState.mockResolvedValue({
+      city: "Chicago, IL",
+      citySlug: "chicago-il",
+      status: "completed",
+      reportsRoot: "/tmp/city-launch",
+      cityReportsRoot: "/tmp/city-launch/chicago-il",
+      canonicalPlaybookPath: "/tmp/city-launch/chicago-il/canonical.md",
+      runDirectory: "/tmp/city-launch/chicago-il/run-1",
+      manifestPath: "/tmp/city-launch/chicago-il/run-1/manifest.json",
+      latestArtifactPath: "/tmp/city-launch/chicago-il/run-1/99-final-playbook.md",
+      completedArtifactPath: "/tmp/city-launch/chicago-il/run-1/99-final-playbook.md",
+      latestRunTimestamp: "run-1",
+      warnings: [],
+    });
+    loadAndParseCityLaunchResearchArtifact.mockResolvedValue({
+      city: "Chicago, IL",
+      citySlug: "chicago-il",
+      artifactPath: "/tmp/chicago-playbook.md",
+      schemaVersion: "2026-04-12.city-launch-research.v1",
+      generatedAtIso: "2026-04-17T00:00:00.000Z",
+      warnings: [],
+      errors: [],
+      activationPayload: null,
+      captureCandidates: [],
+      buyerTargets: [],
+      firstTouches: [],
+      budgetRecommendations: [],
+    });
+
+    const reportsRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), "missing-activation-payload-harness-"),
+    );
+    tempDirs.push(reportsRoot);
+
+    const { runCityLaunchExecutionHarness } = await import("../utils/cityLaunchExecutionHarness");
+
+    await expect(
+      runCityLaunchExecutionHarness({
+        city: "Chicago, IL",
+        reportsRoot,
+        founderApproved: true,
+        budgetTier: "zero_budget",
+      }),
+    ).rejects.toThrow(/activation payload/i);
+  });
+
   it("reuses existing agent lanes for Austin execution", async () => {
     const { buildAustinExecutionTasks } = await import("../utils/cityLaunchExecutionHarness");
     const tasks = buildAustinExecutionTasks();
@@ -133,6 +335,51 @@ describe("city launch execution harness", () => {
       recommendedSpendUsd: 0,
       wideningGuard: { mode: "single_city_until_proven", wideningAllowed: false, reasons: [] },
       dataSources: [],
+    });
+    resolveCityLaunchPlanningState.mockResolvedValue(
+      completedPlanningState("Austin, TX", "austin-tx"),
+    );
+    loadAndParseCityLaunchResearchArtifact.mockResolvedValue({
+      city: "Austin, TX",
+      citySlug: "austin-tx",
+      artifactPath: "/tmp/austin-playbook.md",
+      schemaVersion: "2026-04-12.city-launch-research.v1",
+      generatedAtIso: "2026-04-17T00:00:00.000Z",
+      warnings: [],
+      errors: [],
+      activationPayload: activationPayload("Austin, TX", "austin-tx"),
+      captureCandidates: [
+        {
+          stableKey: "prospect_austin-tx_capture_ops",
+          name: "Austin Capture Ops",
+          sourceBucket: "industrial_warehouse",
+          channel: "professional_outreach",
+          status: "qualified",
+          siteAddress: "100 Industrial Way",
+          locationSummary: null,
+          lat: null,
+          lng: null,
+          siteCategory: "warehouse",
+          workflowFit: "dock handoff",
+          priorityNote: null,
+          contactEmail: "ops@austincapture.example.com",
+          sourceUrls: [],
+          explicitFields: ["contact_email"],
+          inferredFields: [],
+          provenance: {
+            sourceType: "deep_research_playbook",
+            artifactPath: "/tmp/austin-playbook.md",
+            sourceKey: "capture_location_candidates[0]",
+            sourceUrls: [],
+            parsedAtIso: "2026-04-17T00:00:00.000Z",
+            explicitFields: ["contact_email"],
+            inferredFields: [],
+          },
+        },
+      ],
+      buyerTargets: [],
+      firstTouches: [],
+      budgetRecommendations: [],
     });
     upsertPaperclipIssue
       .mockResolvedValueOnce({
@@ -255,6 +502,51 @@ describe("city launch execution harness", () => {
       recommendedSpendUsd: 0,
       wideningGuard: { mode: "single_city_until_proven", wideningAllowed: false, reasons: [] },
       dataSources: [],
+    });
+    resolveCityLaunchPlanningState.mockResolvedValue(
+      completedPlanningState("Austin, TX", "austin-tx"),
+    );
+    loadAndParseCityLaunchResearchArtifact.mockResolvedValue({
+      city: "Austin, TX",
+      citySlug: "austin-tx",
+      artifactPath: "/tmp/austin-playbook.md",
+      schemaVersion: "2026-04-12.city-launch-research.v1",
+      generatedAtIso: "2026-04-17T00:00:00.000Z",
+      warnings: [],
+      errors: [],
+      activationPayload: activationPayload("Austin, TX", "austin-tx"),
+      captureCandidates: [
+        {
+          stableKey: "prospect_austin-tx_capture_ops",
+          name: "Austin Capture Ops",
+          sourceBucket: "industrial_warehouse",
+          channel: "professional_outreach",
+          status: "qualified",
+          siteAddress: "100 Industrial Way",
+          locationSummary: null,
+          lat: null,
+          lng: null,
+          siteCategory: "warehouse",
+          workflowFit: "dock handoff",
+          priorityNote: null,
+          contactEmail: "ops@austincapture.example.com",
+          sourceUrls: [],
+          explicitFields: ["contact_email"],
+          inferredFields: [],
+          provenance: {
+            sourceType: "deep_research_playbook",
+            artifactPath: "/tmp/austin-playbook.md",
+            sourceKey: "capture_location_candidates[0]",
+            sourceUrls: [],
+            parsedAtIso: "2026-04-17T00:00:00.000Z",
+            explicitFields: ["contact_email"],
+            inferredFields: [],
+          },
+        },
+      ],
+      buyerTargets: [],
+      firstTouches: [],
+      budgetRecommendations: [],
     });
     readCityLaunchActivation.mockResolvedValue({
       city: "Austin, TX",
@@ -391,6 +683,51 @@ describe("city launch execution harness", () => {
       wideningGuard: { mode: "single_city_until_proven", wideningAllowed: false, reasons: [] },
       dataSources: [],
     });
+    resolveCityLaunchPlanningState.mockResolvedValue(
+      completedPlanningState("Sacramento, CA", "sacramento-ca"),
+    );
+    loadAndParseCityLaunchResearchArtifact.mockResolvedValue({
+      city: "Sacramento, CA",
+      citySlug: "sacramento-ca",
+      artifactPath: "/tmp/sacramento-playbook.md",
+      schemaVersion: "2026-04-12.city-launch-research.v1",
+      generatedAtIso: "2026-04-17T00:00:00.000Z",
+      warnings: [],
+      errors: [],
+      activationPayload: activationPayload("Sacramento, CA", "sacramento-ca"),
+      captureCandidates: [
+        {
+          stableKey: "prospect_sacramento-ca_capture_ops",
+          name: "Sacramento Capture Ops",
+          sourceBucket: "industrial_warehouse",
+          channel: "professional_outreach",
+          status: "qualified",
+          siteAddress: "100 Industrial Way",
+          locationSummary: null,
+          lat: null,
+          lng: null,
+          siteCategory: "warehouse",
+          workflowFit: "dock handoff",
+          priorityNote: null,
+          contactEmail: "ops@saccapture.example.com",
+          sourceUrls: [],
+          explicitFields: ["contact_email"],
+          inferredFields: [],
+          provenance: {
+            sourceType: "deep_research_playbook",
+            artifactPath: "/tmp/sacramento-playbook.md",
+            sourceKey: "capture_location_candidates[0]",
+            sourceUrls: [],
+            parsedAtIso: "2026-04-17T00:00:00.000Z",
+            explicitFields: ["contact_email"],
+            inferredFields: [],
+          },
+        },
+      ],
+      buyerTargets: [],
+      firstTouches: [],
+      budgetRecommendations: [],
+    });
     upsertPaperclipIssue.mockRejectedValue(new Error("Paperclip unavailable"));
 
     const reportsRoot = await fs.mkdtemp(
@@ -408,5 +745,854 @@ describe("city launch execution harness", () => {
         budgetTier: "zero_budget",
       }),
     ).rejects.toThrow(/failed closed/i);
+  });
+
+  it("writes a step-level manifest and error artifact when founder-approved activation crashes mid-run", async () => {
+    summarizeCityLaunchLedgers.mockResolvedValue({
+      trackedSupplyProspectsContacted: 0,
+      trackedBuyerTargetsResearched: 0,
+      trackedFirstTouchesSent: 0,
+      onboardedCapturers: 0,
+      totalRecordedSpendUsd: 0,
+      withinPolicySpendUsd: 0,
+      outsidePolicySpendUsd: 0,
+      recommendedSpendUsd: 0,
+      wideningGuard: { mode: "single_city_until_proven", wideningAllowed: false, reasons: [] },
+      dataSources: [],
+    });
+    resolveCityLaunchPlanningState.mockResolvedValue({
+      city: "Sacramento, CA",
+      citySlug: "sacramento-ca",
+      status: "completed",
+      reportsRoot: "/tmp/city-launch",
+      cityReportsRoot: "/tmp/city-launch/sacramento-ca",
+      canonicalPlaybookPath: "/tmp/city-launch/sacramento-ca/canonical.md",
+      runDirectory: "/tmp/city-launch/sacramento-ca/run-1",
+      manifestPath: "/tmp/city-launch/sacramento-ca/run-1/manifest.json",
+      latestArtifactPath: "/tmp/city-launch/sacramento-ca/run-1/99-final-playbook.md",
+      completedArtifactPath: "/tmp/city-launch/sacramento-ca/run-1/99-final-playbook.md",
+      latestRunTimestamp: "run-1",
+      warnings: [],
+    });
+    loadAndParseCityLaunchResearchArtifact.mockResolvedValue({
+      city: "Sacramento, CA",
+      citySlug: "sacramento-ca",
+      artifactPath: "/tmp/sacramento-playbook.md",
+      schemaVersion: "2026-04-12.city-launch-research.v1",
+      generatedAtIso: "2026-04-17T00:00:00.000Z",
+      warnings: [],
+      errors: [],
+      activationPayload: activationPayload("Sacramento, CA", "sacramento-ca"),
+      captureCandidates: [
+        {
+          stableKey: "prospect_sacramento-ca_capture_ops",
+          name: "Sacramento Capture Ops",
+          sourceBucket: "industrial_warehouse",
+          channel: "professional_outreach",
+          status: "qualified",
+          siteAddress: "100 Industrial Way",
+          locationSummary: null,
+          lat: null,
+          lng: null,
+          siteCategory: "warehouse",
+          workflowFit: "dock handoff",
+          priorityNote: null,
+          contactEmail: "ops@saccapture.example.com",
+          sourceUrls: [],
+          explicitFields: ["contact_email"],
+          inferredFields: [],
+          provenance: {
+            sourceType: "deep_research_playbook",
+            artifactPath: "/tmp/sacramento-playbook.md",
+            sourceKey: "capture_location_candidates[0]",
+            sourceUrls: [],
+            parsedAtIso: "2026-04-17T00:00:00.000Z",
+            explicitFields: ["contact_email"],
+            inferredFields: [],
+          },
+        },
+      ],
+      buyerTargets: [],
+      firstTouches: [],
+      budgetRecommendations: [],
+    });
+    upsertPaperclipIssue.mockRejectedValue(new Error("Paperclip unavailable"));
+
+    const reportsRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), "city-launch-step-error-"),
+    );
+    tempDirs.push(reportsRoot);
+
+    const { runCityLaunchExecutionHarness } = await import("../utils/cityLaunchExecutionHarness");
+
+    await expect(
+      runCityLaunchExecutionHarness({
+        city: "Sacramento, CA",
+        reportsRoot,
+        founderApproved: true,
+        budgetTier: "zero_budget",
+      }),
+    ).rejects.toThrow(/failed closed/i);
+
+    const cityDir = path.join(reportsRoot, "sacramento-ca");
+    const runDirs = await fs.readdir(cityDir);
+    expect(runDirs.length).toBe(1);
+
+    const runDirectory = path.join(cityDir, runDirs[0]);
+    await expect(fs.readFile(path.join(runDirectory, "manifest.json"), "utf8")).resolves.toContain(
+      "\"currentStep\"",
+    );
+    await expect(fs.readFile(path.join(runDirectory, "step-error.json"), "utf8")).resolves.toContain(
+      "Paperclip unavailable",
+    );
+  });
+
+  it("auto-approves and auto-dispatches recipient-backed city-opening sends while excluding manual community posts", async () => {
+    summarizeCityLaunchLedgers.mockResolvedValue({
+      trackedSupplyProspectsContacted: 0,
+      trackedBuyerTargetsResearched: 0,
+      trackedFirstTouchesSent: 0,
+      onboardedCapturers: 0,
+      totalRecordedSpendUsd: 0,
+      withinPolicySpendUsd: 0,
+      outsidePolicySpendUsd: 0,
+      recommendedSpendUsd: 0,
+      wideningGuard: { mode: "single_city_until_proven", wideningAllowed: false, reasons: [] },
+      dataSources: [],
+    });
+    upsertPaperclipIssue
+      .mockResolvedValueOnce({
+        created: true,
+        companyId: "company-1",
+        assigneeAgentId: "agent-growth-lead",
+        issue: { id: "root-1", identifier: "BLU-ROOT", status: "todo" },
+      })
+      .mockImplementation(async (_input: unknown) => ({
+        created: true,
+        companyId: "company-1",
+        assigneeAgentId: `agent-${upsertPaperclipIssue.mock.calls.length}`,
+        issue: {
+          id: `task-${upsertPaperclipIssue.mock.calls.length}`,
+          identifier: `BLU-${upsertPaperclipIssue.mock.calls.length}`,
+          status: "todo",
+        },
+      }));
+    resolveCityLaunchPlanningState.mockResolvedValue({
+      ...completedPlanningState("Chicago, IL", "chicago-il"),
+    });
+    loadAndParseCityLaunchResearchArtifact.mockResolvedValue({
+      city: "Chicago, IL",
+      citySlug: "chicago-il",
+      artifactPath: "/tmp/chicago-playbook.md",
+      schemaVersion: "2026-04-12.city-launch-research.v1",
+      generatedAtIso: "2026-04-17T00:00:00.000Z",
+      warnings: [],
+      errors: [],
+      activationPayload: activationPayload("Chicago, IL", "chicago-il"),
+      captureCandidates: [
+        {
+          stableKey: "prospect_chicago-il-pro-capturer",
+          name: "Chicago Survey Ops",
+          sourceBucket: "industrial_warehouse",
+          channel: "professional_outreach",
+          status: "qualified",
+          siteAddress: "100 Industrial Way",
+          locationSummary: null,
+          lat: null,
+          lng: null,
+          siteCategory: "warehouse",
+          workflowFit: "dock handoff",
+          priorityNote: null,
+          contactEmail: "field@chicagosurveyops.com",
+          sourceUrls: [],
+          explicitFields: ["contact_email"],
+          inferredFields: [],
+          provenance: {
+            sourceType: "deep_research_playbook",
+            artifactPath: "/tmp/chicago-playbook.md",
+            sourceKey: "capture_location_candidates[0]",
+            sourceUrls: [],
+            parsedAtIso: "2026-04-17T00:00:00.000Z",
+            explicitFields: ["contact_email"],
+            inferredFields: [],
+          },
+        },
+      ],
+      buyerTargets: [
+        {
+          stableKey: "buyer_target_chicago-il-midwest-robotics",
+          companyName: "Midwest Robotics",
+          contactName: "Alex Buyer",
+          contactEmail: "alex@midwestrobotics.com",
+          status: "researched",
+          workflowFit: "warehouse autonomy",
+          proofPath: "exact_site",
+          notes: "Strong exact-site fit.",
+          sourceBucket: "warehouse_robotics",
+          sourceUrls: [],
+          explicitFields: ["contact_email"],
+          inferredFields: [],
+          provenance: {
+            sourceType: "deep_research_playbook",
+            artifactPath: "/tmp/chicago-playbook.md",
+            sourceKey: "buyer_target_candidates[0]",
+            sourceUrls: [],
+            parsedAtIso: "2026-04-17T00:00:00.000Z",
+            explicitFields: ["contact_email"],
+            inferredFields: [],
+          },
+        },
+        {
+          stableKey: "buyer_target_chicago-il-lakeshore-amr",
+          companyName: "Lakeshore AMR",
+          contactName: "Jordan Ops",
+          contactEmail: "jordan@lakeshoreamr.com",
+          status: "researched",
+          workflowFit: "warehouse autonomy",
+          proofPath: "exact_site",
+          notes: "Buyer-linked thread.",
+          sourceBucket: "warehouse_robotics",
+          sourceUrls: [],
+          explicitFields: ["contact_email"],
+          inferredFields: [],
+          provenance: {
+            sourceType: "deep_research_playbook",
+            artifactPath: "/tmp/chicago-playbook.md",
+            sourceKey: "buyer_target_candidates[1]",
+            sourceUrls: [],
+            parsedAtIso: "2026-04-17T00:00:00.000Z",
+            explicitFields: ["contact_email"],
+            inferredFields: [],
+          },
+        },
+      ],
+      firstTouches: [],
+      budgetRecommendations: [],
+    });
+    executeCityLaunchSends.mockResolvedValue({
+      city: "Chicago, IL",
+      totalEligible: 3,
+      sent: 2,
+      skippedApproval: 0,
+      skippedNoRecipient: 0,
+      skippedAlreadySent: 0,
+      failed: 0,
+      errors: [],
+    });
+
+    const reportsRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), "auto-send-city-launch-harness-"),
+    );
+    tempDirs.push(reportsRoot);
+
+    const { runCityLaunchExecutionHarness } = await import("../utils/cityLaunchExecutionHarness");
+    const result = await runCityLaunchExecutionHarness({
+      city: "Chicago, IL",
+      reportsRoot,
+      founderApproved: true,
+      budgetTier: "low_budget",
+    });
+
+    expect(
+      upsertCityLaunchSendAction.mock.calls.map((call) => (call[0] as { approvalState?: string }).approvalState),
+    ).toContain("approved");
+    expect(
+      upsertCityLaunchSendAction.mock.calls.some(
+        (call) => (call[0] as { recipientEmail?: string | null }).recipientEmail === "alex@midwestrobotics.com",
+      ),
+    ).toBe(true);
+    expect(
+      upsertCityLaunchSendAction.mock.calls.some(
+        (call) => (call[0] as { recipientEmail?: string | null }).recipientEmail === "jordan@lakeshoreamr.com",
+      ),
+    ).toBe(true);
+    expect(
+      upsertCityLaunchSendAction.mock.calls.some(
+        (call) => (call[0] as { recipientEmail?: string | null }).recipientEmail === "field@chicagosurveyops.com",
+      ),
+    ).toBe(true);
+    expect(
+      upsertCityLaunchSendAction.mock.calls.some(
+        (call) => (call[0] as { actionType?: string }).actionType === "community_post",
+      ),
+    ).toBe(false);
+    expect(executeCityLaunchSends).toHaveBeenCalledWith({
+      city: "Chicago, IL",
+    });
+
+    expect(result.sendExecution).toMatchObject({
+      city: "Chicago, IL",
+      totalEligible: 3,
+      sent: 2,
+    });
+  });
+
+  it("auto-enriches raw playbooks with historical recipient evidence before activation sends", async () => {
+    summarizeCityLaunchLedgers.mockResolvedValue({
+      trackedSupplyProspectsContacted: 0,
+      trackedBuyerTargetsResearched: 0,
+      trackedFirstTouchesSent: 0,
+      onboardedCapturers: 0,
+      totalRecordedSpendUsd: 0,
+      withinPolicySpendUsd: 0,
+      outsidePolicySpendUsd: 0,
+      recommendedSpendUsd: 0,
+      wideningGuard: { mode: "single_city_until_proven", wideningAllowed: false, reasons: [] },
+      dataSources: [],
+    });
+    upsertPaperclipIssue
+      .mockResolvedValueOnce({
+        created: true,
+        companyId: "company-1",
+        assigneeAgentId: "agent-growth-lead",
+        issue: { id: "root-1", identifier: "BLU-ROOT", status: "todo" },
+      })
+      .mockImplementation(async (_input: unknown) => ({
+        created: true,
+        companyId: "company-1",
+        assigneeAgentId: `agent-${upsertPaperclipIssue.mock.calls.length}`,
+        issue: {
+          id: `task-${upsertPaperclipIssue.mock.calls.length}`,
+          identifier: `BLU-${upsertPaperclipIssue.mock.calls.length}`,
+          status: "todo",
+        },
+      }));
+    resolveCityLaunchPlanningState.mockResolvedValue({
+      city: "Sacramento, CA",
+      citySlug: "sacramento-ca",
+      status: "completed",
+      reportsRoot: "/tmp/city-launch",
+      cityReportsRoot: "/tmp/city-launch/sacramento-ca",
+      canonicalPlaybookPath: "/tmp/city-launch/sacramento-ca/canonical.md",
+      runDirectory: "/tmp/city-launch/sacramento-ca/run-1",
+      manifestPath: "/tmp/city-launch/sacramento-ca/run-1/manifest.json",
+      latestArtifactPath: "/tmp/city-launch/sacramento-ca/run-1/99-final-playbook.md",
+      completedArtifactPath: "/tmp/city-launch/sacramento-ca/run-1/99-final-playbook.md",
+      latestRunTimestamp: "run-1",
+      warnings: [],
+    });
+    loadAndParseCityLaunchResearchArtifact.mockResolvedValue({
+      city: "Sacramento, CA",
+      citySlug: "sacramento-ca",
+      artifactPath: "/tmp/sacramento-playbook.md",
+      schemaVersion: "2026-04-12.city-launch-research.v1",
+      generatedAtIso: "2026-04-17T00:00:00.000Z",
+      warnings: [],
+      errors: [],
+      activationPayload: {
+        schemaVersion: "2026-04-13.city-launch-activation-payload.v1",
+        machinePolicyVersion: "2026-04-13.city-launch-doctrine.v1",
+        city: "Sacramento, CA",
+        citySlug: "sacramento-ca",
+        cityThesis: "Run one proof-led warehouse wedge.",
+        primarySiteLane: "industrial_warehouse",
+        primaryWorkflowLane: "dock handoff",
+        primaryBuyerProofPath: "exact_site",
+        lawfulAccessModes: ["buyer_requested_site"],
+        preferredLawfulAccessMode: "buyer_requested_site",
+        rightsPath: {
+          summary: "Private controlled interiors require authorization.",
+          privateControlledInteriorsRequireAuthorization: true,
+          validationRequired: false,
+          sourceUrls: ["https://example.com/rights"],
+        },
+        validationBlockers: [],
+        requiredApprovals: [{ lane: "founder", reason: "go/no-go" }],
+        ownerLanes: ["city-launch-agent", "capturer-growth-agent", "analytics-agent"],
+        issueSeeds: [
+          {
+            key: "city-opening-first-wave-pack",
+            title: "Assemble first-wave pack",
+            phase: "supply",
+            ownerLane: "capturer-growth-agent",
+            humanLane: "growth-lead",
+            summary: "Prepare first-wave outreach and posting assets.",
+            dependencyKeys: [],
+            successCriteria: ["First-wave pack is ready."],
+            metricsDependencies: ["first_lawful_access_path"],
+            validationRequired: false,
+          },
+        ],
+        metricsDependencies: [
+          { key: "robot_team_inbound_captured", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "proof_path_assigned", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "proof_pack_delivered", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "hosted_review_ready", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "hosted_review_started", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "hosted_review_follow_up_sent", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "human_commercial_handoff_started", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "proof_motion_stalled", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
+        ],
+        namedClaims: [
+          {
+            subject: "Capital Robotics",
+            claimType: "company",
+            claim: "Capital Robotics is a named buyer target.",
+            validationRequired: false,
+            sourceUrls: ["https://example.com/buyer"],
+          },
+        ],
+      },
+      captureCandidates: [
+        {
+          stableKey: "prospect_sacramento-ca-northgate-logistics",
+          name: "Northgate Logistics",
+          sourceBucket: "industrial_warehouse",
+          channel: "professional_outreach",
+          status: "qualified",
+          siteAddress: "100 Industrial Way",
+          locationSummary: null,
+          lat: null,
+          lng: null,
+          siteCategory: "warehouse",
+          workflowFit: "dock handoff",
+          priorityNote: null,
+          contactEmail: null,
+          sourceUrls: [],
+          explicitFields: ["name"],
+          inferredFields: [],
+          provenance: {
+            sourceType: "deep_research_playbook",
+            artifactPath: "/tmp/sacramento-playbook.md",
+            sourceKey: "capture_location_candidates[0]",
+            sourceUrls: [],
+            parsedAtIso: "2026-04-17T00:00:00.000Z",
+            explicitFields: ["name"],
+            inferredFields: [],
+          },
+        },
+      ],
+      buyerTargets: [
+        {
+          stableKey: "buyer_target_sacramento-ca-capital-robotics",
+          companyName: "Capital Robotics",
+          contactName: "Taylor Buyer",
+          contactEmail: null,
+          status: "researched",
+          workflowFit: "warehouse autonomy",
+          proofPath: "exact_site",
+          notes: "Named buyer but no direct contact yet.",
+          sourceBucket: "warehouse_robotics",
+          sourceUrls: [],
+          explicitFields: ["company_name"],
+          inferredFields: [],
+          provenance: {
+            sourceType: "deep_research_playbook",
+            artifactPath: "/tmp/sacramento-playbook.md",
+            sourceKey: "buyer_target_candidates[0]",
+            sourceUrls: [],
+            parsedAtIso: "2026-04-17T00:00:00.000Z",
+            explicitFields: ["company_name"],
+            inferredFields: [],
+          },
+        },
+      ],
+      firstTouches: [],
+      budgetRecommendations: [],
+    });
+    resolveHistoricalRecipientEvidence.mockResolvedValue(
+      new Map([
+        [
+          "capitalrobotics",
+          {
+            recipientEmail: "taylor@capitalrobotics.com",
+            source: "Recipient sourced from real growth campaign delivery evidence for Capital Robotics.",
+          },
+        ],
+        [
+          "northgatelogistics",
+          {
+            recipientEmail: "ops@northgatelogistics.com",
+            source: "Recipient sourced from real growth campaign delivery evidence for Northgate Logistics.",
+          },
+        ],
+      ]),
+    );
+    listCityLaunchSendActions.mockImplementation(async () =>
+      upsertCityLaunchSendAction.mock.calls.map((call) => ({
+        ...(call[0] as Record<string, unknown>),
+        citySlug: "sacramento-ca",
+        createdAtIso: new Date().toISOString(),
+        updatedAtIso: new Date().toISOString(),
+      })),
+    );
+    listCityLaunchChannelAccounts.mockImplementation(async () =>
+      upsertCityLaunchChannelAccount.mock.calls.map((call) => ({
+        ...(call[0] as Record<string, unknown>),
+        citySlug: "sacramento-ca",
+        createdAtIso: new Date().toISOString(),
+        updatedAtIso: new Date().toISOString(),
+      })),
+    );
+    executeCityLaunchSends.mockResolvedValue({
+      city: "Sacramento, CA",
+      totalEligible: 2,
+      sent: 2,
+      skippedApproval: 0,
+      skippedNoRecipient: 0,
+      skippedAlreadySent: 0,
+      failed: 0,
+      errors: [],
+    });
+
+    const reportsRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), "enriched-outbound-city-launch-harness-"),
+    );
+    tempDirs.push(reportsRoot);
+
+    const { runCityLaunchExecutionHarness } = await import("../utils/cityLaunchExecutionHarness");
+    const result = await runCityLaunchExecutionHarness({
+      city: "Sacramento, CA",
+      reportsRoot,
+      founderApproved: true,
+      budgetTier: "low_budget",
+    });
+
+    expect(result.outboundReadiness?.status).toBe("ready");
+    expect(
+      upsertCityLaunchSendAction.mock.calls.some(
+        (call) => (call[0] as { recipientEmail?: string | null }).recipientEmail === "taylor@capitalrobotics.com",
+      ),
+    ).toBe(true);
+    expect(
+      upsertCityLaunchSendAction.mock.calls.some(
+        (call) => (call[0] as { recipientEmail?: string | null }).recipientEmail === "ops@northgatelogistics.com",
+      ),
+    ).toBe(true);
+    expect(executeCityLaunchSends).toHaveBeenCalledWith({
+      city: "Sacramento, CA",
+    });
+  });
+
+  it("fails closed when no recipient-backed first-wave contacts can be seeded", async () => {
+    summarizeCityLaunchLedgers.mockResolvedValue({
+      trackedSupplyProspectsContacted: 0,
+      trackedBuyerTargetsResearched: 0,
+      trackedFirstTouchesSent: 0,
+      onboardedCapturers: 0,
+      totalRecordedSpendUsd: 0,
+      withinPolicySpendUsd: 0,
+      outsidePolicySpendUsd: 0,
+      recommendedSpendUsd: 0,
+      wideningGuard: { mode: "single_city_until_proven", wideningAllowed: false, reasons: [] },
+      dataSources: [],
+    });
+    upsertPaperclipIssue
+      .mockResolvedValueOnce({
+        created: true,
+        companyId: "company-1",
+        assigneeAgentId: "agent-growth-lead",
+        issue: { id: "root-1", identifier: "BLU-ROOT", status: "todo" },
+      })
+      .mockImplementation(async (_input: unknown) => ({
+        created: true,
+        companyId: "company-1",
+        assigneeAgentId: `agent-${upsertPaperclipIssue.mock.calls.length}`,
+        issue: {
+          id: `task-${upsertPaperclipIssue.mock.calls.length}`,
+          identifier: `BLU-${upsertPaperclipIssue.mock.calls.length}`,
+          status: "todo",
+        },
+      }));
+    resolveCityLaunchPlanningState.mockResolvedValue({
+      city: "Sacramento, CA",
+      citySlug: "sacramento-ca",
+      status: "completed",
+      reportsRoot: "/tmp/city-launch",
+      cityReportsRoot: "/tmp/city-launch/sacramento-ca",
+      canonicalPlaybookPath: "/tmp/city-launch/sacramento-ca/canonical.md",
+      runDirectory: "/tmp/city-launch/sacramento-ca/run-1",
+      manifestPath: "/tmp/city-launch/sacramento-ca/run-1/manifest.json",
+      latestArtifactPath: "/tmp/city-launch/sacramento-ca/run-1/99-final-playbook.md",
+      completedArtifactPath: "/tmp/city-launch/sacramento-ca/run-1/99-final-playbook.md",
+      latestRunTimestamp: "run-1",
+      warnings: [],
+    });
+    loadAndParseCityLaunchResearchArtifact.mockResolvedValue({
+      city: "Sacramento, CA",
+      citySlug: "sacramento-ca",
+      artifactPath: "/tmp/sacramento-playbook.md",
+      schemaVersion: "2026-04-12.city-launch-research.v1",
+      generatedAtIso: "2026-04-17T00:00:00.000Z",
+      warnings: [],
+      errors: [],
+      activationPayload: activationPayload("Sacramento, CA", "sacramento-ca"),
+      captureCandidates: [
+        {
+          stableKey: "prospect_sacramento-ca-public-commercial-1",
+          name: "Northgate Logistics",
+          sourceBucket: "industrial_warehouse",
+          channel: "professional_outreach",
+          status: "qualified",
+          siteAddress: "100 Industrial Way",
+          locationSummary: null,
+          lat: null,
+          lng: null,
+          siteCategory: "warehouse",
+          workflowFit: "dock handoff",
+          priorityNote: null,
+          contactEmail: null,
+          sourceUrls: [],
+          explicitFields: [],
+          inferredFields: [],
+          provenance: {
+            sourceType: "deep_research_playbook",
+            artifactPath: "/tmp/sacramento-playbook.md",
+            sourceKey: "capture_location_candidates[0]",
+            sourceUrls: [],
+            parsedAtIso: "2026-04-17T00:00:00.000Z",
+            explicitFields: [],
+            inferredFields: [],
+          },
+        },
+      ],
+      buyerTargets: [
+        {
+          stableKey: "buyer_target_sacramento-ca-capital-robotics",
+          companyName: "Capital Robotics",
+          contactName: "Taylor Buyer",
+          contactEmail: null,
+          status: "researched",
+          workflowFit: "warehouse autonomy",
+          proofPath: "exact_site",
+          notes: "Named buyer but no direct contact yet.",
+          sourceBucket: "warehouse_robotics",
+          sourceUrls: [],
+          explicitFields: [],
+          inferredFields: [],
+          provenance: {
+            sourceType: "deep_research_playbook",
+            artifactPath: "/tmp/sacramento-playbook.md",
+            sourceKey: "buyer_target_candidates[0]",
+            sourceUrls: [],
+            parsedAtIso: "2026-04-17T00:00:00.000Z",
+            explicitFields: [],
+            inferredFields: [],
+          },
+        },
+      ],
+      firstTouches: [],
+      budgetRecommendations: [],
+    });
+
+    const reportsRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), "blocked-outbound-city-launch-harness-"),
+    );
+    tempDirs.push(reportsRoot);
+
+    const { runCityLaunchExecutionHarness } = await import("../utils/cityLaunchExecutionHarness");
+
+    await expect(
+      runCityLaunchExecutionHarness({
+        city: "Sacramento, CA",
+        reportsRoot,
+        founderApproved: true,
+        budgetTier: "low_budget",
+      }),
+    ).rejects.toThrow(/recipient-backed first-wave contacts/i);
+    expect(executeCityLaunchSends).not.toHaveBeenCalled();
+  });
+
+  it("keeps buyer-facing sends blocked until a proof-ready asset exists while still dispatching supply-side outbound", async () => {
+    summarizeCityLaunchLedgers.mockResolvedValue({
+      trackedSupplyProspectsContacted: 0,
+      trackedBuyerTargetsResearched: 0,
+      trackedFirstTouchesSent: 0,
+      onboardedCapturers: 0,
+      totalRecordedSpendUsd: 0,
+      withinPolicySpendUsd: 0,
+      outsidePolicySpendUsd: 0,
+      recommendedSpendUsd: 0,
+      wideningGuard: { mode: "single_city_until_proven", wideningAllowed: false, reasons: [] },
+      dataSources: [],
+    });
+    upsertPaperclipIssue
+      .mockResolvedValueOnce({
+        created: true,
+        companyId: "company-1",
+        assigneeAgentId: "agent-growth-lead",
+        issue: { id: "root-1", identifier: "BLU-ROOT", status: "todo" },
+      })
+      .mockImplementation(async (_input: unknown) => ({
+        created: true,
+        companyId: "company-1",
+        assigneeAgentId: `agent-${upsertPaperclipIssue.mock.calls.length}`,
+        issue: {
+          id: `task-${upsertPaperclipIssue.mock.calls.length}`,
+          identifier: `BLU-${upsertPaperclipIssue.mock.calls.length}`,
+          status: "todo",
+        },
+      }));
+    resolveCityLaunchPlanningState.mockResolvedValue({
+      city: "San Jose, CA",
+      citySlug: "san-jose-ca",
+      status: "completed",
+      reportsRoot: "/tmp/city-launch",
+      cityReportsRoot: "/tmp/city-launch/san-jose-ca",
+      canonicalPlaybookPath: "/tmp/city-launch/san-jose-ca/canonical.md",
+      runDirectory: "/tmp/city-launch/san-jose-ca/run-1",
+      manifestPath: "/tmp/city-launch/san-jose-ca/run-1/manifest.json",
+      latestArtifactPath: "/tmp/city-launch/san-jose-ca/run-1/99-final-playbook.md",
+      completedArtifactPath: "/tmp/city-launch/san-jose-ca/run-1/99-final-playbook.md",
+      latestRunTimestamp: "run-1",
+      warnings: [],
+    });
+    loadAndParseCityLaunchResearchArtifact.mockResolvedValue({
+      city: "San Jose, CA",
+      citySlug: "san-jose-ca",
+      artifactPath: "/tmp/san-jose-playbook.md",
+      schemaVersion: "2026-04-12.city-launch-research.v1",
+      generatedAtIso: "2026-04-17T00:00:00.000Z",
+      warnings: [],
+      errors: [],
+      activationPayload: {
+        schemaVersion: "2026-04-13.city-launch-activation-payload.v1",
+        machinePolicyVersion: "2026-04-13.city-launch-doctrine.v1",
+        city: "San Jose, CA",
+        citySlug: "san-jose-ca",
+        cityThesis: "Run one proof-led warehouse wedge.",
+        primarySiteLane: "industrial_warehouse",
+        primaryWorkflowLane: "dock handoff",
+        primaryBuyerProofPath: "exact_site",
+        lawfulAccessModes: ["buyer_requested_site"],
+        preferredLawfulAccessMode: "buyer_requested_site",
+        rightsPath: {
+          summary: "Private controlled interiors require authorization.",
+          privateControlledInteriorsRequireAuthorization: true,
+          validationRequired: false,
+          sourceUrls: ["https://example.com/rights"],
+        },
+        validationBlockers: [],
+        requiredApprovals: [{ lane: "founder", reason: "go/no-go" }],
+        ownerLanes: ["city-launch-agent", "capturer-growth-agent", "analytics-agent"],
+        issueSeeds: [],
+        metricsDependencies: [
+          { key: "robot_team_inbound_captured", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "proof_path_assigned", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "proof_pack_delivered", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "hosted_review_ready", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "hosted_review_started", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "hosted_review_follow_up_sent", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "human_commercial_handoff_started", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "proof_motion_stalled", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
+        ],
+        namedClaims: [],
+      },
+      captureCandidates: [
+        {
+          stableKey: "prospect_san-jose-ca-pro-capturer",
+          name: "Bay Area Capture Ops",
+          sourceBucket: "industrial_warehouse",
+          channel: "professional_outreach",
+          status: "qualified",
+          siteAddress: "100 Industrial Way",
+          locationSummary: null,
+          lat: null,
+          lng: null,
+          siteCategory: "warehouse",
+          workflowFit: "dock handoff",
+          priorityNote: null,
+          contactEmail: "field@bayareacaptureops.com",
+          sourceUrls: [],
+          explicitFields: ["contact_email"],
+          inferredFields: [],
+          provenance: {
+            sourceType: "deep_research_playbook",
+            artifactPath: "/tmp/san-jose-playbook.md",
+            sourceKey: "capture_location_candidates[0]",
+            sourceUrls: [],
+            parsedAtIso: "2026-04-17T00:00:00.000Z",
+            explicitFields: ["contact_email"],
+            inferredFields: [],
+          },
+        },
+      ],
+      buyerTargets: [
+        {
+          stableKey: "buyer_target_san-jose-ca-locus",
+          companyName: "Locus Robotics",
+          contactName: "Alex Buyer",
+          contactEmail: "alex@locus.example.com",
+          status: "researched",
+          workflowFit: "warehouse autonomy",
+          proofPath: "exact_site",
+          notes: "Buyer thread is real but proof is not.",
+          sourceBucket: "warehouse_robotics",
+          sourceUrls: [],
+          explicitFields: ["contact_email"],
+          inferredFields: [],
+          provenance: {
+            sourceType: "deep_research_playbook",
+            artifactPath: "/tmp/san-jose-playbook.md",
+            sourceKey: "buyer_target_candidates[0]",
+            sourceUrls: [],
+            parsedAtIso: "2026-04-17T00:00:00.000Z",
+            explicitFields: ["contact_email"],
+            inferredFields: [],
+          },
+        },
+        {
+          stableKey: "buyer_target_san-jose-ca-applied-intuition",
+          companyName: "Applied Intuition",
+          contactName: "Jordan Buyer",
+          contactEmail: "jordan@applied.example.com",
+          status: "researched",
+          workflowFit: "warehouse autonomy",
+          proofPath: "exact_site",
+          notes: "Second buyer thread.",
+          sourceBucket: "warehouse_robotics",
+          sourceUrls: [],
+          explicitFields: ["contact_email"],
+          inferredFields: [],
+          provenance: {
+            sourceType: "deep_research_playbook",
+            artifactPath: "/tmp/san-jose-playbook.md",
+            sourceKey: "buyer_target_candidates[1]",
+            sourceUrls: [],
+            parsedAtIso: "2026-04-17T00:00:00.000Z",
+            explicitFields: ["contact_email"],
+            inferredFields: [],
+          },
+        },
+      ],
+      firstTouches: [],
+      budgetRecommendations: [],
+    });
+    executeCityLaunchSends.mockResolvedValue({
+      city: "San Jose, CA",
+      totalEligible: 1,
+      sent: 1,
+      skippedApproval: 0,
+      skippedNoRecipient: 0,
+      skippedAlreadySent: 0,
+      failed: 0,
+      errors: [],
+    });
+
+    const reportsRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), "proof-gated-buyer-launch-harness-"),
+    );
+    tempDirs.push(reportsRoot);
+
+    const { runCityLaunchExecutionHarness } = await import("../utils/cityLaunchExecutionHarness");
+    await runCityLaunchExecutionHarness({
+      city: "San Jose, CA",
+      reportsRoot,
+      founderApproved: true,
+      budgetTier: "zero_budget",
+    });
+
+    const buyerFacingActions = upsertCityLaunchSendAction.mock.calls
+      .map((call) => call[0] as { lane?: string; status?: string; notes?: string | null })
+      .filter((entry) =>
+        entry.lane === "warehouse-facility-direct" || entry.lane === "buyer-linked-site",
+      );
+
+    expect(buyerFacingActions.length).toBeGreaterThan(0);
+    expect(buyerFacingActions.every((entry) => entry.status === "blocked")).toBe(true);
+    expect(buyerFacingActions.some((entry) => (entry.notes || "").includes("rights-cleared proof pack"))).toBe(true);
+    expect(executeCityLaunchSends).toHaveBeenCalledWith({
+      city: "San Jose, CA",
+    });
   });
 });

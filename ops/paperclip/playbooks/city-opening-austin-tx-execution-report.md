@@ -3,19 +3,25 @@
 - status: generated execution snapshot
 - purpose: show what is ready, what is live, and what is still blocked in city-opening execution
 
-- channels_ready_or_created: 4
-- sends_ready_or_sent: 4
+- channels_ready_or_created: 0
+- sends_ready_or_sent: 0
 - sends_marked_sent: 0
-- sends_blocked: 0
+- sends_blocked: 10
 - responses_routed: 0
+- outbound_readiness_status: blocked
 
 ## Interpretation
-- `ready_to_create` means the channel/account is planned and ready for operator setup, not that it already exists.
-- `ready_to_send` means the outreach/post is prepared and pending the first-live-send approval path.
+- `ready_to_create` means the channel/account is planned and not yet auto-opened for a launch lane.
+- `ready_to_send` means the outreach is eligible for autonomous dispatch when a real recipient exists and transport is available.
 - `sent` means a real send/post has been recorded in the send ledger.
 - response ingest stays in the send ledger until the reply-conversion lane routes it onward.
 
-## Current blockers
-- austin-tx-send-warehouse-direct-1: missing real recipient email First proof-led direct outreach draft ready for approval.
-- austin-tx-send-buyer-linked-1: missing real recipient email Use only when the message stays within exact-site proof posture.
-- austin-tx-send-professional-capturer-1: missing real recipient email First curated professional outreach draft ready for approval.
+## Outbound readiness
+- direct_outreach_total: 10
+- direct_outreach_recipient_backed: 0
+- email_transport_configured: true
+- city_launch_sender: launches@tryblueprint.io
+- Austin may be activated operationally, but it is not outwardly addressable yet.
+
+### Outbound blockers
+- 10 draft direct-outreach actions are seeded, but all remain blocked pending verified recipients and human approval.

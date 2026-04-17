@@ -81,7 +81,7 @@ export async function dispatchCityLaunchFounderApproval(input: {
     "",
     `Blocker ID: ${blockerId}`,
     "",
-    "After approval, re-run with --founder-approved to activate.",
+    "After approval, Blueprint will activate the city-launch execution harness automatically.",
   ].join("\n");
 
   const emailHtml = [
@@ -98,7 +98,7 @@ export async function dispatchCityLaunchFounderApproval(input: {
     `<p>To <strong>approve</strong>: reply with <code>APPROVE</code> and the item numbers (or <code>ALL</code>).</p>`,
     `<p>To <strong>reject</strong>: reply with <code>REJECT</code> and the item numbers + reasons.</p>`,
     `<p><em>Blocker ID: ${blockerId}</em></p>`,
-    "<p>After approval, re-run with <code>--founder-approved</code> to activate.</p>",
+    "<p>After approval, Blueprint will activate the city-launch execution harness automatically.</p>",
   ].join("\n");
 
   // Send via the standard human-blocker dispatch so the reply-resume system can capture the response
@@ -116,10 +116,20 @@ export async function dispatchCityLaunchFounderApproval(input: {
     ],
     risk: `Without approval, ${profile.city} stays in planning and no supply/demand execution lanes activate.`,
     executionOwner: "city-launch-agent",
-    immediateNextAction: "After approval, re-run city-launch:run with --founder-approved to activate the execution harness and dispatch Paperclip issues.",
+    immediateNextAction: "After approval, Blueprint will auto-activate the execution harness and dispatch the live city-launch issue tree.",
     deadline: "Within 48 hours — execution lanes are waiting on this gate.",
     evidence: approvals,
     nonScope: "This approval does not authorize public city-live claims, precedent-setting rights/privacy exceptions beyond what is listed, or spend beyond the approved envelope.",
+    resumeAction: {
+      kind: "city_launch_activate",
+      description: `Activate ${profile.city} automatically after approval.`,
+      metadata: {
+        city: profile.city,
+        budgetTier: budgetPolicy.tier,
+        budgetMaxUsd: budgetPolicy.maxTotalApprovedUsd,
+        operatorAutoApproveUsd: budgetPolicy.operatorAutoApproveUsd,
+      },
+    },
   };
 
   let emailSent = false;

@@ -42,6 +42,8 @@ Sacramento should be treated as a gated-cohort proof-and-commercialization marke
 - proof review turns into standard pricing, invoice flow, procurement routing, or approved quote handling
 - there is a normal commercial handoff after proof review
 - the buyer asks for quote or package support that still fits the approved package and quote bands
+- the buyer stays inside the standard `Site Package` or `Hosted Evaluation` paths already exposed on the product surface
+- the request can be handled without changing rights, privacy, contract, or revenue-share posture
 
 Route to founder only when the commercial ask is non-standard: discounts outside guardrails, custom packaging beyond precedent, contract deviations, or commitments that change company posture.
 

@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "2026-04-13.city-launch-activation-payload.v1",
+  "machinePolicyVersion": "2026-04-13.city-launch-doctrine.v1",
+  "city": "Austin, TX",
+  "citySlug": "austin-tx",
+  "cityThesis": "Run one proof-led warehouse wedge.",
+  "primarySiteLane": "industrial_warehouse",
+  "primaryWorkflowLane": "dock handoff",
+  "primaryBuyerProofPath": "exact_site",
+  "lawfulAccessModes": [
+    "buyer_requested_site"
+  ],
+  "preferredLawfulAccessMode": "buyer_requested_site",
+  "rightsPath": {
+    "summary": "Private controlled interiors require authorization.",
+    "privateControlledInteriorsRequireAuthorization": true,
+    "validationRequired": false,
+    "sourceUrls": [
+      "https://example.com/rights"
+    ]
+  },
+  "validationBlockers": [],
+  "requiredApprovals": [
+    {
+      "lane": "founder",
+      "reason": "go/no-go"
+    }
+  ],
+  "ownerLanes": [
+    "city-launch-agent",
+    "capturer-growth-agent",
+    "analytics-agent"
+  ],
+  "issueSeeds": [],
+  "metricsDependencies": [
+    {
+      "key": "robot_team_inbound_captured",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "proof_path_assigned",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "proof_pack_delivered",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "hosted_review_ready",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "hosted_review_started",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "hosted_review_follow_up_sent",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "human_commercial_handoff_started",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    },
+    {
+      "key": "proof_motion_stalled",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": null
+    }
+  ],
+  "namedClaims": []
+}

@@ -29,6 +29,13 @@ const sampleManifestRows = [
   ["exports", "rollout_video, raw_bundle, dataset_export"],
 ];
 
+const sampleRightsRows = [
+  ["usage", "Internal evaluation and approved customer review"],
+  ["sharing", "Share within the buyer team and named review parties only"],
+  ["exports", "Export only the listing-approved bundle types shown on the manifest"],
+  ["restrictions", "Restricted zones, privacy redactions, and retention limits stay attached"],
+];
+
 const inputOutputContract = [
   {
     title: "Input",
@@ -140,41 +147,65 @@ export default function SampleDeliverables() {
               </div>
             </article>
 
-            <article className="rounded-2xl border border-slate-200 bg-white p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Sample export bundle
-              </p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-                Sample export bundle
-              </h2>
-              <p className="mt-3 text-sm leading-7 text-slate-600">
-                Representative output cards for the hosted path. These are sample artifact layouts showing how exports are grouped and described to the buyer.
-              </p>
-              <div className="mt-6 grid gap-3 md:grid-cols-3">
-                {[
-                  {
-                    title: "Run summary",
-                    body: "Session metadata, scenario selection, run duration, and checkpoint reference.",
-                  },
-                  {
-                    title: "Rollout video",
-                    body: "Buyer-facing review video tied to one exact site and the selected task lane.",
-                  },
-                  {
-                    title: "Raw bundle",
-                    body: "Reference to the raw run package, export manifest, and listing-specific output notes.",
-                  },
-                ].map((card) => (
-                  <div key={card.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm font-semibold text-slate-900">{card.title}</p>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">{card.body}</p>
-                    <div className="mt-4 inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                      Sample artifact layout
+            <div className="grid gap-4">
+              <article className="rounded-2xl border border-slate-200 bg-white p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Buyer-readable rights sheet
+                </p>
+                <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+                  Buyer-readable rights sheet
+                </h2>
+                <p className="mt-3 text-sm leading-7 text-slate-600">
+                  A buyer should not have to infer commercial usage from raw metadata alone. This
+                  representative layout shows the kind of usage, sharing, export, and restriction
+                  summary that should stay visible next to the listing.
+                </p>
+                <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
+                  {sampleRightsRows.map(([label, value]) => (
+                    <div key={label} className="grid grid-cols-[0.75fr_1.25fr] gap-4 border-t border-slate-200 bg-slate-50 px-4 py-3 text-sm first:border-t-0">
+                      <p className="font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</p>
+                      <p className="text-slate-800">{value}</p>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </article>
+                  ))}
+                </div>
+              </article>
+
+              <article className="rounded-2xl border border-slate-200 bg-white p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Sample export bundle
+                </p>
+                <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+                  Sample export bundle
+                </h2>
+                <p className="mt-3 text-sm leading-7 text-slate-600">
+                  Representative output cards for the hosted path. These are sample artifact layouts showing how exports are grouped and described to the buyer.
+                </p>
+                <div className="mt-6 grid gap-3 md:grid-cols-3">
+                  {[
+                    {
+                      title: "Run summary",
+                      body: "Session metadata, scenario selection, run duration, and checkpoint reference.",
+                    },
+                    {
+                      title: "Rollout video",
+                      body: "Buyer-facing review video tied to one exact site and the selected task lane.",
+                    },
+                    {
+                      title: "Raw bundle",
+                      body: "Reference to the raw run package, export manifest, and listing-specific output notes.",
+                    },
+                  ].map((card) => (
+                    <div key={card.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm font-semibold text-slate-900">{card.title}</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">{card.body}</p>
+                      <div className="mt-4 inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        Sample artifact layout
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            </div>
           </section>
 
           {/* Site package + Hosted evaluation with diagrams */}

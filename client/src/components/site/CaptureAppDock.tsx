@@ -12,20 +12,11 @@ function isExternalHref(value: string) {
   }
 }
 
-function shouldHideDock(pathname: string) {
+function shouldShowDock(pathname: string) {
   return [
+    /^\/capture$/,
     /^\/capture-app$/,
-    /^\/dashboard(?:\/|$)/,
-    /^\/admin(?:\/|$)/,
-    /^\/portal(?:\/|$)/,
-    /^\/settings(?:\/|$)/,
-    /^\/requests(?:\/|$)/,
-    /^\/onboarding(?:\/|$)/,
-    /^\/sign-in$/,
-    /^\/login$/,
-    /^\/signup(?:\/|$)/,
-    /^\/forgot-password$/,
-    /^\/world-models\/[^/]+\/(?:start|workspace)$/,
+    /^\/signup\/capturer$/,
   ].some((pattern) => pattern.test(pathname));
 }
 
@@ -34,7 +25,7 @@ export function CaptureAppDock() {
   const captureAppHref = useMemo(() => getCaptureAppPlaceholderUrl(), []);
   const external = useMemo(() => isExternalHref(captureAppHref), [captureAppHref]);
 
-  if (shouldHideDock(location)) {
+  if (!shouldShowDock(location)) {
     return null;
   }
 

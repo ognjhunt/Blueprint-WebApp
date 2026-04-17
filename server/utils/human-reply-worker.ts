@@ -26,6 +26,8 @@ import {
   recordHumanReplyEvent,
   type HumanBlockerThreadRecord,
 } from "./human-reply-store";
+import { runCityLaunchExecutionHarness } from "./cityLaunchExecutionHarness";
+import type { CityLaunchBudgetTier } from "./cityLaunchPolicy";
 
 function truncate(value: string, max = 280) {
   const normalized = String(value || "").replace(/\s+/g, " ").trim();
@@ -44,6 +46,24 @@ function extractCorrelationId(message: {
     || extractHumanBlockerIdFromText(message.body)
     || null
   );
+}
+
+function asTrimmedString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function asOptionalNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : typeof value === "string" && value.trim() && Number.isFinite(Number(value))
+      ? Number(value)
+      : undefined;
+}
+
+function asBudgetTier(value: unknown): CityLaunchBudgetTier | undefined {
+  return value === "zero_budget" || value === "low_budget" || value === "funded"
+    ? value
+    : undefined;
 }
 
 function findMatchingThread(
@@ -178,6 +198,23 @@ async function ingestHumanReplyMessage(params: {
       const operatorEmail = params.thread.approved_identity || "ohstnhunt@gmail.com";
       const replySummary = bodyExcerpt || "(empty reply)";
       if (
+        decision.classification === "approval"
+        && params.thread.resume_action.kind === "city_launch_activate"
+      ) {
+        const activationMetadata = params.thread.resume_action.metadata || {};
+        const city = asTrimmedString(activationMetadata.city);
+        if (!city) {
+          throw new Error("City launch activation reply is missing a city in resume metadata.");
+        }
+
+        await runCityLaunchExecutionHarness({
+          city,
+          founderApproved: true,
+          budgetTier: asBudgetTier(activationMetadata.budgetTier),
+          budgetMaxUsd: asOptionalNumber(activationMetadata.budgetMaxUsd),
+          operatorAutoApproveUsd: asOptionalNumber(activationMetadata.operatorAutoApproveUsd),
+        });
+      } else if (
         decision.classification === "approval"
         && params.thread.record_of_truth.ops_work_item_id
       ) {

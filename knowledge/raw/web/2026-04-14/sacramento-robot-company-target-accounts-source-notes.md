@@ -8,16 +8,26 @@
 - VC Automation CMTC profile: https://www.cmtc.com/made-in-california-manufacturers/vc-automation
 - Axis Robotics CMTC profile: https://www.cmtc.com/made-in-california-manufacturers/axis-robotics
 - Axis Robotics CMTC archived profile: https://www.cmtc.com/made-in-california-profile-archived/axis-robotics
-- Cyngn roadshow announcement: https://investors.cyngn.com/2023-08-15-Cyngn-Kicks-Off-Autonomous-Vehicle-Roadshow-at-Manufacturing-and-Warehousing-Facilities-Across-America
+- Raymond West Sacramento inVia page: https://www.raymondwest.com/sacramento-ca/material-handling-equipment-supplier/warehouse-automation/invia-robotics
+- Raymond West Sacramento Locus page: https://www.raymondwest.com/sacramento-ca/material-handling-equipment-supplier/warehouse-automation/locus-robotics
+- Raymond West Sacramento robotic palletizers page: https://www.raymondwest.com/sacramento-ca/material-handling-equipment-supplier/warehouse-automation/robotic-palletizers
+- McClellan Park Logistics Center I: https://www.mcclellanpark.com/new-development/mcclellan-logistics-center-i
+- McClellan Park Logistics Center II: https://www.mcclellanpark.com/new-development/mcclellan-logistics-center-ii
+- UC Davis AHMCT core technologies: https://ahmct.ucdavis.edu/ahmct-research-center-core-technologies
+- UC Davis AHMCT facilities: https://ahmct.ucdavis.edu/ahmct-facilities
+- FIRA USA home: https://fira-usa.com/
 - Waymo rides / where we operate: https://waymo.com/rides
 
 ## Capture Notes
 
 - SIR Robotics' public site connects Sacramento to robotic lines and cells for automotive-style processing, handling, finishing, assembly, and palletization.
-- VC Automation's public site and CMTC profile describe turnkey robotics, PLC, machine vision, and safety integrations, with West Sacramento location evidence in the CMTC listing.
+- VC Automation's public site and CMTC profile describe turnkey robotics, PLC, machine vision, safety, and material-handling integrations, with West Sacramento location evidence in the CMTC listing.
 - Axis Robotics' CMTC profile and press material point to Orangevale / Sacramento-region automation work spanning design, prototyping, machine vision, and production/test solutions.
-- Cyngn's roadshow announcement explicitly says the autonomous vehicle roadshow stopped in Sacramento and was aimed at manufacturing and warehousing facilities.
-- Waymo's public rides page lists Sacramento among where it operates, which keeps the local autonomy corridor signal real even though it is not a direct Blueprint buyer.
+- Raymond West's Sacramento warehouse-automation pages show the local channel surface for AMRs, robotic palletizers, and named vendors like inVia and Locus.
+- McClellan Park's industrial listings show the Sacramento warehouse/logistics surface that matters for proof-path and operator-intro routing.
+- UC Davis AHMCT's core technologies and facilities pages show a local autonomy-validation surface with robotics labs, prototyping space, and field-deployable vehicle integration facilities.
+- FIRA USA anchors the Woodland | Sacramento ag-robotics corridor with live demos, growers, OEMs, and research/community density.
+- Waymo's public rides page keeps Sacramento on the regional autonomy map, but its current page placement is better treated as corridor signal than as proof of active local buyer demand.
 
 ## Sensitivity
 
@@ -27,6 +37,7 @@
 
 - The strongest evidence here is first-party or semi-first-party, but the report still infers buyer intent from public positioning and regional presence.
 - These sources support target-account and corridor mapping, not purchase intent or commercial urgency.
+- Waymo should be handled as a corridor signal only because the public page shows Sacramento in the city network, not as a Sacramento-local buyer account.
 
 ## Next KB Destination
 

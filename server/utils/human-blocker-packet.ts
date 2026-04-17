@@ -1,6 +1,7 @@
 import {
   buildHumanBlockerSubjectTag,
   renderHumanBlockerCorrelationSection,
+  type HumanResumeActionKind,
 } from "./human-reply-routing";
 
 export type HumanBlockerPacket = {
@@ -17,6 +18,11 @@ export type HumanBlockerPacket = {
   deadline: string;
   evidence: string[];
   nonScope: string;
+  resumeAction?: {
+    kind: HumanResumeActionKind;
+    description?: string;
+    metadata?: Record<string, unknown>;
+  };
 };
 
 function escapeHtml(value: string) {

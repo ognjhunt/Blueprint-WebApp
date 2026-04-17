@@ -23,6 +23,21 @@ const operatingSignals = [
   "Hosted evaluation is a concrete commercial path, not a vague consulting placeholder.",
 ];
 
+const companyFacts = [
+  {
+    title: "Current focus",
+    body: "One narrow wedge: exact-site package access and hosted evaluation for robot teams that need a real facility earlier.",
+  },
+  {
+    title: "What Blueprint operates",
+    body: "Buyer-facing listings, rights-aware package surfaces, hosted evaluation paths, and the supporting ops layer around those products.",
+  },
+  {
+    title: "What Blueprint avoids",
+    body: "Generic marketplace language, fake readiness states, blanket permissions, and model-demo theater disconnected from real capture provenance.",
+  },
+];
+
 const deploymentStory = [
   "An autonomy team needed to answer a narrow question before a field visit: whether a workflow lane on one facility was worth deeper integration work.",
   "Blueprint's role was not to promise deployment success. It was to get the exact site in front of the team earlier, package the evidence clearly, and make the next step legible.",
@@ -118,6 +133,18 @@ export default function About() {
             ))}
           </section>
 
+          <section className="mt-10 grid gap-4 md:grid-cols-3">
+            {companyFacts.map((item) => (
+              <article key={item.title} className="rounded-2xl border border-slate-200 bg-stone-50 p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Company fact
+                </p>
+                <h2 className="mt-3 text-2xl font-semibold text-slate-900">{item.title}</h2>
+                <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
+              </article>
+            ))}
+          </section>
+
           <section className="mt-10 rounded-3xl border border-slate-200 bg-stone-50 p-6 sm:p-8">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
               An anonymized deployment-decision story
@@ -135,6 +162,40 @@ export default function About() {
                 </article>
               ))}
             </div>
+          </section>
+
+          <section className="mt-10 grid gap-4 lg:grid-cols-[1fr_0.95fr]">
+            <article className="rounded-3xl border border-slate-200 bg-white p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Public product surfaces
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+                What a skeptical buyer can inspect without a call.
+              </h2>
+              <div className="mt-5 grid gap-3">
+                {[
+                  "The public sample listing that ties the site, package framing, and hosted path together",
+                  "Pricing and package-vs-hosted framing without requiring a sales conversation",
+                  "Deliverables, governance, and trust language that stay attached to the product story",
+                ].map((item) => (
+                  <div key={item} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-700">
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="rounded-3xl border border-slate-200 bg-slate-950 p-6 text-white">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Operating standard
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold">Make the next step obvious.</h2>
+              <p className="mt-4 text-sm leading-7 text-slate-300">
+                Blueprint should not ask a careful buyer to reverse-engineer the commercial motion.
+                The company standard is straightforward: one real site, one truthful proof path,
+                one clear next action.
+              </p>
+            </article>
           </section>
 
           <section className="mt-10 rounded-3xl bg-slate-950 p-8 text-white sm:p-10">

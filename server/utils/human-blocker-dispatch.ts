@@ -198,10 +198,13 @@ async function upsertHumanBlockerThreadForDispatch(
     review_status: params.review_status,
     review_completed_at: params.review_status === "approved" ? new Date().toISOString() : null,
     resume_action: {
-      kind: "manual_followup",
-      description: prepared.packet.immediateNextAction,
+      kind: prepared.packet.resumeAction?.kind || "manual_followup",
+      description:
+        normalizeString(prepared.packet.resumeAction?.description)
+        || prepared.packet.immediateNextAction,
       metadata: {
         deadline: prepared.packet.deadline,
+        ...(prepared.packet.resumeAction?.metadata || {}),
       },
     },
     record_of_truth: {

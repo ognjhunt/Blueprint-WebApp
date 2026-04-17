@@ -34,7 +34,7 @@ export type CityLaunchActivationStatus =
   | "growth_live";
 
 export type CityLaunchResearchProvenance = {
-  sourceType: "deep_research_playbook";
+  sourceType: "deep_research_playbook" | "city_launch_contact_enrichment";
   artifactPath: string;
   sourceKey: string;
   sourceUrls: string[];
@@ -91,6 +91,7 @@ export type CityLaunchBuyerTargetRecord = {
   launchId: string | null;
   companyName: string;
   contactName: string | null;
+  contactEmail: string | null;
   status: CityLaunchBuyerTargetStatus;
   workflowFit: string | null;
   proofPath: CityLaunchBuyerProofPath | null;
@@ -763,8 +764,9 @@ export async function upsertCityLaunchProspect(
 }
 
 export async function upsertCityLaunchBuyerTarget(
-  input: Omit<CityLaunchBuyerTargetRecord, "id" | "citySlug" | "createdAtIso" | "updatedAtIso"> & {
+  input: Omit<CityLaunchBuyerTargetRecord, "id" | "citySlug" | "createdAtIso" | "updatedAtIso" | "contactEmail"> & {
     id?: string | null;
+    contactEmail?: string | null;
   },
 ) {
   if (!db) {
@@ -784,6 +786,7 @@ export async function upsertCityLaunchBuyerTarget(
     launchId: mergeString(existing?.launchId, input.launchId ?? null),
     companyName: input.companyName,
     contactName: mergeString(existing?.contactName, input.contactName ?? null),
+    contactEmail: mergeString(existing?.contactEmail, input.contactEmail ?? null),
     status: mergeRankedStatus(existing?.status, input.status, BUYER_TARGET_STATUS_RANK),
     workflowFit: mergeString(existing?.workflowFit, input.workflowFit ?? null),
     proofPath: mergeBuyerProofPath(existing?.proofPath, input.proofPath ?? null),

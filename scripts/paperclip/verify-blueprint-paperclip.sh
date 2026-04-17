@@ -308,16 +308,14 @@ plugin_dashboard() {
   local company_id="$1"
   local attempts="${2:-5}"
   local delay_seconds="${3:-2}"
-  local payload
-  payload="$(node -e 'process.stdout.write(JSON.stringify({companyId:process.argv[1]}));' "$company_id")"
   local result=""
 
   for _ in $(seq 1 "$attempts"); do
     result="$(
-      curl -fsS -X POST \
-        -H "Content-Type: application/json" \
-        -d "$payload" \
-        "${PAPERCLIP_API_URL}/api/plugins/${PLUGIN_KEY}/data/dashboard" 2>/dev/null || true
+      paperclip_api_request POST \
+        "/api/plugins/${PLUGIN_KEY}/data/dashboard" \
+        "$(node -e 'process.stdout.write(JSON.stringify({companyId:process.argv[1]}));' "$company_id")" \
+        "$PAPERCLIP_API_URL" 2>/dev/null || true
     )"
     if [ -n "$result" ]; then
       printf '%s' "$result"

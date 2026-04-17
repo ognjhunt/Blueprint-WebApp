@@ -4,8 +4,9 @@
 - purpose: first-wave asset pack for operator review; not evidence of a live send, post, or account setup
 
 ## Warehouse / Facility Direct Awareness
-- no named buyer-side targets are materialized yet; keep this lane in draft preparation only.
-- no named site anchors are materialized yet; avoid pretending a target list is complete.
+- target 1: Locus Robotics — use a proof-led intro anchored to one workflow lane and one truthful CTA.
+- target 2: Applied Intuition — use a proof-led intro anchored to one workflow lane and one truthful CTA.
+- target site anchors currently available: Bay Area Capture Ops.
 
 ## Public-Commercial Bounded Placements
 - placement class 1: local city/community groups where public commercial walkthroughs can be discussed without implying private access.

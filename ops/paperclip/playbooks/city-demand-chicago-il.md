@@ -1,11 +1,11 @@
 # Chicago, IL — Blueprint City Demand Plan
 
 ## Status
-- phase: planning
+- phase: activation_ready
 - owner: city-demand-agent
 - latest-refresh: 2026-04-17
-- planning-state: not started
-- confidence: low
+- planning-state: completed
+- confidence: medium
 
 ## City Demand Thesis
 Chicago demand should stay proof-led: qualify real robot-team interest, classify exact-site versus adjacent-site fit inside one business day, and route serious threads into hosted review with clear artifact handoff and human-gated exceptions.
@@ -13,7 +13,7 @@ Chicago demand should stay proof-led: qualify real robot-team interest, classify
 ## What Changed This Pass
 - evidence-backed: the city launcher now generates the compact demand playbook during activation so downstream tasks have a real canonical reference.
 - evidence-backed: city demand instrumentation is pinned to the platform event model rather than custom city-specific events.
-- warning: no research-backed buyer target list has been materialized yet.
+- evidence-backed: current deep research names buyer targets such as Midwest Robotics, Lakeshore AMR.
 
 ## Required Proof Motion
 - serious robot-team demand must hit 24-hour proof-path triage
@@ -31,7 +31,14 @@ Chicago demand should stay proof-led: qualify real robot-team interest, classify
 
 ## Metrics Dependencies
 
-- No machine-readable metrics dependency payload is available yet.
+- robot_team_inbound_captured: required_not_tracked
+- proof_path_assigned: required_not_tracked
+- proof_pack_delivered: required_not_tracked
+- hosted_review_ready: required_not_tracked
+- hosted_review_started: required_not_tracked
+- hosted_review_follow_up_sent: required_not_tracked
+- human_commercial_handoff_started: required_not_tracked
+- proof_motion_stalled: required_not_tracked
 
 ## Sensitive-Lane Constraints
 - if a buyer sits in defense, aerospace, export-controlled, or air-gapped environments, require explicit human review before assuming the standard hosted-review path is acceptable

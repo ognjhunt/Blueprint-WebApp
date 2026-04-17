@@ -1,5 +1,6 @@
 import path from "node:path";
 import { runCityLaunchExecutionHarness } from "../../server/utils/cityLaunchExecutionHarness";
+import { resolveCityLaunchFounderApproval } from "../../server/utils/cityLaunchApprovalMode";
 
 function hasFlag(args: string[], flag: string) {
   return args.includes(flag);
@@ -33,6 +34,11 @@ async function main() {
   const operatorAutoApproveUsdValue = getFlagValue(args, "--operator-auto-approve-usd");
   const rewakeTaskKeys = getCommaSeparatedFlagValues(args, "--rewake-task-keys");
   const rewakeOwnerLanes = getCommaSeparatedFlagValues(args, "--rewake-owner-lanes");
+  const founderApproved = resolveCityLaunchFounderApproval({
+    phase: "activate",
+    founderApprovedFlag: hasFlag(args, "--founder-approved"),
+    requireFounderApproval: hasFlag(args, "--require-founder-approval"),
+  });
 
   const reportsRoot =
     getFlagValue(args, "--reports-root")
@@ -43,7 +49,7 @@ async function main() {
 
   const result = await runCityLaunchExecutionHarness({
     city,
-    founderApproved: hasFlag(args, "--founder-approved"),
+    founderApproved,
     reportsRoot,
     budgetTier:
       budgetTier === "zero_budget" || budgetTier === "low_budget" || budgetTier === "funded"

@@ -57,16 +57,14 @@ dashboard_json() {
   local company_id="$1"
   local attempts="${2:-5}"
   local delay_seconds="${3:-2}"
-  local payload
-  payload="$(node -e 'process.stdout.write(JSON.stringify({companyId:process.argv[1],params:{companyId:process.argv[1]}}));' "$company_id")"
   local result=""
 
   for _ in $(seq 1 "$attempts"); do
     result="$(
-      curl -fsS -X POST \
-        -H "Content-Type: application/json" \
-        -d "$payload" \
-        "${PAPERCLIP_SMOKE_URL}/api/plugins/${PLUGIN_KEY}/data/dashboard" 2>/dev/null || true
+      paperclip_api_request POST \
+        "/api/plugins/${PLUGIN_KEY}/data/dashboard" \
+        "$(node -e 'process.stdout.write(JSON.stringify({companyId:process.argv[1],params:{companyId:process.argv[1]}}));' "$company_id")" \
+        "$PAPERCLIP_SMOKE_URL" 2>/dev/null || true
     )"
     if [ -n "$result" ]; then
       printf '%s' "$result"
@@ -80,10 +78,10 @@ dashboard_json() {
 
 manager_state_json() {
   local company_id="$1"
-  curl -fsS -X POST \
-    -H "Content-Type: application/json" \
-    -d "$(node -e 'process.stdout.write(JSON.stringify({companyId:process.argv[1],params:{companyId:process.argv[1]}}));' "$company_id")" \
-    "${PAPERCLIP_SMOKE_URL}/api/plugins/${PLUGIN_KEY}/actions/manager-state"
+  paperclip_api_request POST \
+    "/api/plugins/${PLUGIN_KEY}/actions/manager-state" \
+    "$(node -e 'process.stdout.write(JSON.stringify({companyId:process.argv[1],params:{companyId:process.argv[1]}}));' "$company_id")" \
+    "$PAPERCLIP_SMOKE_URL"
 }
 
 wait_for_manager_wakeup() {

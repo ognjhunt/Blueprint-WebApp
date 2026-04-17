@@ -116,6 +116,23 @@ export default function Contact() {
     "The next reply narrows the package path, hosted evaluation path, or the follow-up question that actually matters.",
     "Rights, privacy, and proof boundaries stay explicit instead of being deferred into vague sales language.",
   ];
+  const fastPaths = [
+    {
+      href: "/book-exact-site-review",
+      label: "Book a scoping call",
+      detail: "Best when the site is already known and your team wants a fast human pass.",
+    },
+    {
+      href: "/exact-site-hosted-review",
+      label: "See hosted evaluation",
+      detail: "Best when your team wants the runtime path explained before it writes a brief.",
+    },
+    {
+      href: "/world-models/siteworld-f5fd54898cfb",
+      label: "Inspect the sample listing",
+      detail: "Best when your team wants to validate the proof style before any outreach.",
+    },
+  ];
   return (
     <>
       <SEO title={seoTitle} description={seoDescription} canonical="/contact" />
@@ -249,6 +266,26 @@ export default function Contact() {
               </ScrollReveal>
 
               <ScrollReveal delay={0.25}>
+                <div className="rounded-2xl border border-slate-200 bg-white p-6">
+                  <h3 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-400">
+                    Fastest Paths
+                  </h3>
+                  <div className="space-y-3">
+                    {fastPaths.map((path) => (
+                      <a
+                        key={path.href}
+                        href={path.href}
+                        className="block rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 transition hover:border-slate-300 hover:bg-white"
+                      >
+                        <p className="text-sm font-semibold text-slate-900">{path.label}</p>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">{path.detail}</p>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              </ScrollReveal>
+
+              <ScrollReveal delay={0.3}>
                 <div className="rounded-2xl border border-slate-200 bg-white p-6">
                   <h3 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-400">
                     Learn More

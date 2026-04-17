@@ -49,6 +49,7 @@ export const CITY_LAUNCH_RESEARCH_SCHEMA_VERSION = "2026-04-12.city-launch-resea
 
 type StructuredCaptureCandidate = {
   name: string;
+  contactEmail: string | null;
   sourceBucket: string;
   channel: string;
   status: CityLaunchProspectStatus;
@@ -67,6 +68,7 @@ type StructuredCaptureCandidate = {
 type StructuredBuyerTarget = {
   companyName: string;
   contactName: string | null;
+  contactEmail: string | null;
   status: CityLaunchBuyerTargetStatus;
   workflowFit: string | null;
   proofPath: CityLaunchBuyerProofPath | null;
@@ -206,6 +208,47 @@ export type CityLaunchResearchParseResult = {
   warnings: string[];
   errors: string[];
 };
+
+export function validateActivationReadyDirectOutreach(input: {
+  city: string;
+  activationPayload: ParsedCityLaunchActivationPayload | null;
+  captureCandidates: ParsedCityLaunchCaptureCandidate[];
+  buyerTargets: ParsedCityLaunchBuyerTarget[];
+  warnings: string[];
+  errors: string[];
+}) {
+  if (!input.activationPayload) {
+    return;
+  }
+
+  const buyerTargetsWithEmail = input.buyerTargets.filter((entry) => Boolean(entry.contactEmail));
+  const captureCandidatesWithEmail = input.captureCandidates.filter((entry) => Boolean(entry.contactEmail));
+  const totalRecipientBackedContacts = buyerTargetsWithEmail.length + captureCandidatesWithEmail.length;
+
+  if (totalRecipientBackedContacts === 0) {
+    input.errors.push(
+      "Activation-ready direct outreach requires 1-3 recipient-backed first-wave contacts with explicit contact_email evidence.",
+    );
+  }
+
+  if (input.buyerTargets.length > 0 && buyerTargetsWithEmail.length === 0) {
+    input.warnings.push(
+      `Activation-ready buyer direct-outreach lanes for ${input.city} have named targets but no explicit contact_email evidence.`,
+    );
+  }
+
+  if (input.captureCandidates.length > 0 && captureCandidatesWithEmail.length === 0) {
+    input.warnings.push(
+      `Activation-ready capturer direct-outreach lanes for ${input.city} have named targets but no explicit contact_email evidence.`,
+    );
+  }
+
+  if (totalRecipientBackedContacts > 3) {
+    input.warnings.push(
+      `Activation-ready first-wave direct outreach for ${input.city} includes ${totalRecipientBackedContacts} recipient-backed contacts. Keep the launch-ready first wave capped to the clearest 1-3 recipients.`,
+    );
+  }
+}
 
 type StructuredArtifactShape = {
   schema_version?: unknown;
@@ -447,6 +490,7 @@ function parseCaptureCandidates(
       return {
         stableKey,
         name,
+        contactEmail: asOptionalString(record.contact_email || record.email),
         sourceBucket,
         channel,
         status,
@@ -469,7 +513,7 @@ function parseCaptureCandidates(
         }),
       } satisfies ParsedCityLaunchCaptureCandidate;
     })
-    .filter((entry): entry is ParsedCityLaunchCaptureCandidate => Boolean(entry));
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
 }
 
 function parseBuyerTargets(
@@ -529,6 +573,7 @@ function parseBuyerTargets(
         stableKey,
         companyName,
         contactName: asOptionalString(record.contact_name),
+        contactEmail: asOptionalString(record.contact_email || record.email),
         status,
         workflowFit: asOptionalString(record.workflow_fit),
         proofPath,
@@ -546,7 +591,7 @@ function parseBuyerTargets(
         }),
       } satisfies ParsedCityLaunchBuyerTarget;
     })
-    .filter((entry): entry is ParsedCityLaunchBuyerTarget => Boolean(entry));
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
 }
 
 function parseFirstTouches(
@@ -634,7 +679,7 @@ function parseFirstTouches(
         }),
       } satisfies ParsedCityLaunchFirstTouch;
     })
-    .filter((entry): entry is ParsedCityLaunchFirstTouch => Boolean(entry));
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
 }
 
 function parseBudgetRecommendations(
@@ -701,7 +746,7 @@ function parseBudgetRecommendations(
         }),
       } satisfies ParsedCityLaunchBudgetRecommendation;
     })
-    .filter((entry): entry is ParsedCityLaunchBudgetRecommendation => Boolean(entry));
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
 }
 
 function parseActivationPayload(
@@ -1168,6 +1213,7 @@ export function parseCityLaunchResearchArtifact(input: {
   city: string;
   artifactPath: string;
   markdown: string;
+  skipActivationReadyDirectOutreachValidation?: boolean;
 }) {
   const city = input.city.trim();
   const citySlug = slugifyCityName(city);
@@ -1233,6 +1279,45 @@ export function parseCityLaunchResearchArtifact(input: {
     warnings,
     errors,
   );
+  const captureCandidates = parseCaptureCandidates(
+    citySlug,
+    input.artifactPath,
+    structured.capture_location_candidates,
+    warnings,
+    errors,
+  );
+  const buyerTargets = parseBuyerTargets(
+    citySlug,
+    input.artifactPath,
+    structured.buyer_target_candidates,
+    warnings,
+    errors,
+  );
+  const firstTouches = parseFirstTouches(
+    citySlug,
+    input.artifactPath,
+    structured.first_touch_candidates,
+    warnings,
+    errors,
+  );
+  const budgetRecommendations = parseBudgetRecommendations(
+    citySlug,
+    input.artifactPath,
+    structured.budget_recommendations,
+    warnings,
+    errors,
+  );
+
+  if (!input.skipActivationReadyDirectOutreachValidation) {
+    validateActivationReadyDirectOutreach({
+      city,
+      activationPayload,
+      captureCandidates,
+      buyerTargets,
+      warnings,
+      errors,
+    });
+  }
 
   return {
     city,
@@ -1240,34 +1325,10 @@ export function parseCityLaunchResearchArtifact(input: {
     artifactPath: path.resolve(input.artifactPath),
     schemaVersion: asString(structured.schema_version) || CITY_LAUNCH_RESEARCH_SCHEMA_VERSION,
     generatedAtIso: asOptionalString(structured.generated_at),
-    captureCandidates: parseCaptureCandidates(
-      citySlug,
-      input.artifactPath,
-      structured.capture_location_candidates,
-      warnings,
-      errors,
-    ),
-    buyerTargets: parseBuyerTargets(
-      citySlug,
-      input.artifactPath,
-      structured.buyer_target_candidates,
-      warnings,
-      errors,
-    ),
-    firstTouches: parseFirstTouches(
-      citySlug,
-      input.artifactPath,
-      structured.first_touch_candidates,
-      warnings,
-      errors,
-    ),
-    budgetRecommendations: parseBudgetRecommendations(
-      citySlug,
-      input.artifactPath,
-      structured.budget_recommendations,
-      warnings,
-      errors,
-    ),
+    captureCandidates,
+    buyerTargets,
+    firstTouches,
+    budgetRecommendations,
     activationPayload,
     warnings,
     errors,
@@ -1277,11 +1338,13 @@ export function parseCityLaunchResearchArtifact(input: {
 export async function loadAndParseCityLaunchResearchArtifact(input: {
   city: string;
   artifactPath: string;
+  skipActivationReadyDirectOutreachValidation?: boolean;
 }) {
   const markdown = await fs.readFile(input.artifactPath, "utf8");
   return parseCityLaunchResearchArtifact({
     city: input.city,
     artifactPath: input.artifactPath,
     markdown,
+    skipActivationReadyDirectOutreachValidation: input.skipActivationReadyDirectOutreachValidation,
   });
 }

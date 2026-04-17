@@ -16,6 +16,7 @@ const updatePaperclipIssue = vi.hoisted(() => vi.fn());
 const createPaperclipIssueComment = vi.hoisted(() => vi.fn());
 const resetPaperclipAgentSession = vi.hoisted(() => vi.fn());
 const wakePaperclipAgent = vi.hoisted(() => vi.fn());
+const runCityLaunchExecutionHarness = vi.hoisted(() => vi.fn());
 
 vi.mock("../utils/human-reply-store", () => ({
   listOpenHumanBlockerThreads,
@@ -47,6 +48,10 @@ vi.mock("../utils/paperclip", () => ({
   wakePaperclipAgent,
 }));
 
+vi.mock("../utils/cityLaunchExecutionHarness", () => ({
+  runCityLaunchExecutionHarness,
+}));
+
 afterEach(() => {
   listOpenHumanBlockerThreads.mockReset();
   getHumanReplyEvent.mockReset();
@@ -63,6 +68,7 @@ afterEach(() => {
   createPaperclipIssueComment.mockReset();
   resetPaperclipAgentSession.mockReset();
   wakePaperclipAgent.mockReset();
+  runCityLaunchExecutionHarness.mockReset();
   vi.resetModules();
 });
 
@@ -191,6 +197,83 @@ describe("human reply worker", () => {
     expect(result).toMatchObject({
       processed: true,
       blocker_id: "blocker-issue",
+      resolution: "resolved_input",
+    });
+  });
+
+  it("auto-activates city launches from approval replies without a manual rerun", async () => {
+    resolveHumanBlockerAwaitingReply.mockResolvedValue(true);
+    listOpenHumanBlockerThreads.mockResolvedValue([
+      {
+        blocker_id: "city-launch-approval-chicago-il-123",
+        title: "Chicago, IL City Launch Approval",
+        blocker_kind: "ops_commercial",
+        routing_owner: "blueprint-chief-of-staff",
+        execution_owner: "city-launch-agent",
+        escalation_owner: null,
+        approved_identity: "ohstnhunt@gmail.com",
+        record_of_truth: {
+          report_paths: [],
+          paperclip_issue_id: null,
+          ops_work_item_id: null,
+        },
+        correlation: {
+          blocker_id: "city-launch-approval-chicago-il-123",
+          outbound_subject:
+            "[Blueprint Blocker] [Blueprint Blocker ID: city-launch-approval-chicago-il-123] Chicago, IL City Launch Approval",
+        },
+        resume_action: {
+          kind: "city_launch_activate",
+          description: "Activate Chicago after approval.",
+          metadata: {
+            city: "Chicago, IL",
+            budgetTier: "low_budget",
+            budgetMaxUsd: 2500,
+            operatorAutoApproveUsd: 500,
+          },
+        },
+      },
+    ]);
+    getHumanReplyEvent.mockResolvedValue(null);
+    recordHumanReplyEvent.mockResolvedValue({
+      id: "email:msg-3",
+    });
+    recordExternalGapReport.mockResolvedValue({
+      stable_id: "human_reply:city-launch-approval-chicago-il-123",
+    });
+    runCityLaunchExecutionHarness.mockResolvedValue({
+      city: "Chicago, IL",
+      paperclip: {
+        rootIssueId: "root-1",
+        dispatched: [],
+      },
+    });
+
+    const { ingestHumanReplyPayload } = await import("../utils/human-reply-worker");
+    const result = await ingestHumanReplyPayload({
+      channel: "email",
+      external_message_id: "msg-3",
+      subject:
+        "[Blueprint Blocker] [Blueprint Blocker ID: city-launch-approval-chicago-il-123] Chicago, IL City Launch Approval",
+      body: "APPROVE ALL",
+      received_at: "2026-04-17T16:30:00.000Z",
+    });
+
+    expect(runCityLaunchExecutionHarness).toHaveBeenCalledWith({
+      city: "Chicago, IL",
+      founderApproved: true,
+      budgetTier: "low_budget",
+      budgetMaxUsd: 2500,
+      operatorAutoApproveUsd: 500,
+    });
+    expect(approveAction).not.toHaveBeenCalled();
+    expect(wakePaperclipAgent).not.toHaveBeenCalled();
+    expect(resolveHumanBlockerAwaitingReply).toHaveBeenCalledWith(
+      "city-launch-approval-chicago-il-123",
+    );
+    expect(result).toMatchObject({
+      processed: true,
+      blocker_id: "city-launch-approval-chicago-il-123",
       resolution: "resolved_input",
     });
   });

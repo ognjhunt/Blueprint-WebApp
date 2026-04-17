@@ -67,6 +67,9 @@ These can matter, but they are not the center of the playbook:
 - The intake contract now captures buyer role, target site type, proof-path preference, existing-stack or review-workflow context, and early human-gated topics, so the first response can distinguish exact-site proof from adjacent-site proof without guessing.
 - The reusable proof motion now has explicit support artifacts in `hosted-review-artifact-handoff-checklist.md` and `robot-team-finance-support-routing-playbook.md`, so hosted review and commercial-routing claims do not need to live as unwritten tribal knowledge.
 - Austin and San Francisco playbooks now inherit this shared proof system, but live intake review still shows no city-tagged buyer-demand evidence for either city. City-specific messaging should stay hypothesis-labeled until tagged traffic is real.
+- Sacramento now has a draft-only outbound first-touch pack anchored to Raymond West on the buyer side and US Cold Storage - McClellan Park on the site-operator side. It is the reusable one-site / one-lane / one-proof-path example, not buyer-ready proof.
+- Sacramento's first-touch pack should keep the proof-led CTA and hosted-review next step, but it stays behind human approval until rights, access, and live-send posture are cleared.
+- San Diego now has a concrete first-wave outbound shape in the launch harness: Otay Business Park Logistics Center anchors the primary AMR lane, Brain Corp is the research-backed buyer target, and a separate guarded defense track for Shield AI must not use the public hosted-review wedge.
 
 ## Reusable Segment and Channel Matrix
 | Buyer role | Site / workflow need | Channel fit | Proof requirement | Evidence level | Human dependencies |
@@ -244,7 +247,8 @@ Authoritative storage for proof-path milestones lives in `inboundRequests.ops.pr
 | `city-demand-agent` | inherit this proof-pack and hosted-review standard into Austin and San Francisco demand plans | city plans customize channels and clusters without rewriting the reusable buyer proof system |
 
 ## City Inheritance Rules
-Austin and San Francisco plans should inherit the same message hierarchy, proof-pack standard, hosted review structure, and human-gate rules from this playbook.
+Austin, San Francisco, and Sacramento plans should inherit the same message hierarchy, proof-pack standard, hosted review structure, and human-gate rules from this playbook.
+Sacramento's current first-touch pack should remain draft-only until human approval confirms live send, rights, and access posture.
 
 Cities should customize:
 - which communities and intros produce qualified demand

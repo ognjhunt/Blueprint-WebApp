@@ -183,7 +183,7 @@ This issue bundle turns the San Jose playbook into executable lanes using the cu
 - agent owner: capturer-growth-agent
 - human owner: growth-lead
 - purpose: Generate the first San Jose curated professional supply wave for private controlled interiors and buyer-linked exact-site paths, then push the first real prospect or invite response into the live intake path without widening into generic gig-market posture.
-- human gate: Human review before any public posting or channel expansion beyond the written San Jose source policy.
+- human gate: Escalate only for rights/privacy exceptions or posture-changing source-policy changes beyond the approved San Jose launch posture.
 - dependencies: city-target-ledger, growth-source-policy, city-opening-first-wave-pack, city-opening-cta-routing
 - metrics dependencies: none
 - validation required: false
@@ -207,7 +207,7 @@ This issue bundle turns the San Jose playbook into executable lanes using the cu
 - agent owner: capturer-growth-agent
 - human owner: growth-lead
 - purpose: Open a bounded online-community sourcing lane for public, non-controlled commercial locations such as groceries, retail stores, and similar walk-in sites, and turn that lane into real intake signals.
-- human gate: Human review before the first live community post in a new channel, or when the copy risks blurring public commercial capture with private controlled-interior access.
+- human gate: none
 - dependencies: growth-source-policy, city-opening-first-wave-pack, city-opening-cta-routing
 - metrics dependencies: none
 - validation required: false
@@ -223,6 +223,7 @@ This issue bundle turns the San Jose playbook into executable lanes using the cu
 - done when:
   - San Jose public-commercial sourcing names the online communities, channels, and posting brief for public, non-controlled commercial capture.
   - At least one live San Jose community-sourced invite, reply, or applicant signal is landed in the intake path with source bucket and public-commercial posture recorded.
+  - If no automated publication connector exists, the lane still produces a complete agent-owned posting pack and does not block the automated launch path.
   - The lane stays explicitly limited to lawful public areas and preserves privacy, signage, and provenance rules.
 
 ## Route San Jose applicants into qualification and approval
@@ -374,7 +375,7 @@ This issue bundle turns the San Jose playbook into executable lanes using the cu
 - agent owner: robot-team-growth-agent
 - human owner: growth-lead
 - purpose: Make outbound specific to San Jose proof assets and hosted review instead of generic AI messaging.
-- human gate: Human review before any live send.
+- human gate: Escalate only for rights/privacy exceptions, posture-changing claims, or non-standard commercial commitments beyond the approved launch posture.
 - dependencies: buyer-target-research
 - metrics dependencies: proof_path_assigned
 - validation required: false
@@ -385,7 +386,7 @@ This issue bundle turns the San Jose playbook into executable lanes using the cu
   - standard commercial handoff rules
 - done when:
   - San Jose outbound templates lead with one site, one workflow lane, proof-led CTA, and hosted-review next step.
-  - First proof-led touches are queued for operator approval or event-driven send.
+  - First proof-led touches are prepared for autonomous dispatch inside the approved launch posture.
 
 ## Run San Jose outbound and move serious buyers into hosted review
 

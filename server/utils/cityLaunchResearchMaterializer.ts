@@ -11,9 +11,10 @@ import type { CityLaunchBudgetPolicy } from "./cityLaunchPolicy";
 import { resolveCityLaunchPlanningState } from "./cityLaunchPlanningState";
 import { slugifyCityName } from "./cityLaunchProfiles";
 import {
-  loadAndParseCityLaunchResearchArtifact,
   type CityLaunchResearchParseResult,
 } from "./cityLaunchResearchParser";
+import { runCityLaunchContactEnrichment } from "./cityLaunchContactEnrichment";
+import { resolveHistoricalRecipientEvidence } from "./cityLaunchRecipientEvidence";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const DEEP_RESEARCH_REPORTS_ROOT = path.join(
@@ -41,6 +42,8 @@ export type CityLaunchResearchMaterializationResult = {
   buyerTargetsUpserted: number;
   touchesRecorded: number;
   budgetRecommendationsRecorded: number;
+  contactEnrichmentStatus?: "enriched" | "no_changes" | "failed";
+  contactEnrichmentArtifactPath?: string | null;
   warnings: string[];
 };
 
@@ -119,7 +122,7 @@ export async function materializeCityLaunchResearch(input: {
   budgetPolicy: CityLaunchBudgetPolicy;
   artifactPath?: string | null;
   outputPath?: string | null;
-}) {
+}): Promise<CityLaunchResearchMaterializationResult> {
   const city = input.city.trim();
   const citySlug = slugifyCityName(city);
   const planningState = await resolveCityLaunchPlanningState({ city });
@@ -168,14 +171,22 @@ export async function materializeCityLaunchResearch(input: {
   }
 
   try {
-    const parsed = await loadAndParseCityLaunchResearchArtifact({
+    const enrichmentOutputPath = input.outputPath?.replace(/\.json$/i, ".contact-enrichment.json");
+    const enrichment = await runCityLaunchContactEnrichment({
       city,
       artifactPath: sourceArtifactPath,
+      outputPath: enrichmentOutputPath,
+      resolveRecipientEvidence: resolveHistoricalRecipientEvidence,
     });
+    const parsed = enrichment.parsed;
+
+    if (!parsed) {
+      throw new Error("Contact enrichment did not return a parsed research artifact.");
+    }
 
     if (parsed.errors.length > 0) {
       const warnings = [
-        ...parsed.warnings,
+        ...enrichment.warnings,
         ...parsed.errors.map((error) => `Contract violation: ${error}`),
       ];
       const result = {
@@ -190,6 +201,8 @@ export async function materializeCityLaunchResearch(input: {
         buyerTargetsUpserted: 0,
         touchesRecorded: 0,
         budgetRecommendationsRecorded: 0,
+        contactEnrichmentStatus: enrichment.status,
+        contactEnrichmentArtifactPath: enrichment.outputPath,
         warnings,
       } satisfies CityLaunchResearchMaterializationResult;
 
@@ -218,7 +231,7 @@ export async function materializeCityLaunchResearch(input: {
         sourceBucket: candidate.sourceBucket,
         channel: candidate.channel,
         name: candidate.name,
-        email: null,
+        email: candidate.contactEmail,
         status: candidate.status,
         ownerAgent: "city-demand-agent",
         notes: null,
@@ -248,6 +261,7 @@ export async function materializeCityLaunchResearch(input: {
         launchId: input.launchId ?? null,
         companyName: buyerTarget.companyName,
         contactName: buyerTarget.contactName,
+        contactEmail: buyerTarget.contactEmail,
         status: buyerTarget.status,
         workflowFit: buyerTarget.workflowFit,
         proofPath: buyerTarget.proofPath,
@@ -339,6 +353,8 @@ export async function materializeCityLaunchResearch(input: {
       buyerTargetsUpserted,
       touchesRecorded,
       budgetRecommendationsRecorded,
+      contactEnrichmentStatus: enrichment.status,
+      contactEnrichmentArtifactPath: enrichment.outputPath,
       warnings,
     } satisfies CityLaunchResearchMaterializationResult;
 

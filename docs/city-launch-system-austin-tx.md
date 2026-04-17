@@ -2,7 +2,7 @@
 
 - city: Austin, TX
 - status: founder_approved_activation_ready
-- planning_state: not started
+- planning_state: completed
 - doctrine: capture-first, world-model-product-first, Exact-Site Hosted Review wedge
 
 ## Objective
@@ -31,10 +31,9 @@ Turn the Austin planning artifacts into an executable company harness that runs 
 
 ## Planning State
 
-- planning_status: not_started
-- latest_artifact: none
-- completed_playbook: none
-- warning: No city-launch planning artifacts were found for this city.
+- planning_status: completed
+- latest_artifact: /tmp/city-launch/austin-tx/run-1/99-final-playbook.md
+- completed_playbook: /tmp/city-launch/austin-tx/run-1/99-final-playbook.md
 
 ## Founder-Only Decisions
 
@@ -82,11 +81,22 @@ Turn the Austin planning artifacts into an executable company harness that runs 
 
 ## Activation Payload Highlights
 
-- No activation payload was available; treat execution posture as incomplete.
+- city_thesis: Run one proof-led warehouse wedge.
+- primary_site_lane: industrial_warehouse
+- primary_workflow_lane: dock handoff
+- primary_buyer_proof_path: exact_site
+- lawful_access_modes: buyer_requested_site
 
 ## Metrics Blockers
 
-- No activation payload metrics contract is available yet.
+- robot_team_inbound_captured: required_not_tracked
+- proof_path_assigned: required_not_tracked
+- proof_pack_delivered: required_not_tracked
+- hosted_review_ready: required_not_tracked
+- hosted_review_started: required_not_tracked
+- hosted_review_follow_up_sent: required_not_tracked
+- human_commercial_handoff_started: required_not_tracked
+- proof_motion_stalled: required_not_tracked
 
 ## Expansion Guard
 
@@ -95,7 +105,14 @@ Turn the Austin planning artifacts into an executable company harness that runs 
 - At least one hosted review must run end to end before widening.
 - At least three approved capturers are required before widening.
 - At least two capturers must reach onboarded status before widening.
-- Required proof-motion analytics contract is missing from the activation payload.
+- robot_team_inbound_captured is required_not_tracked.
+- proof_path_assigned is required_not_tracked.
+- proof_pack_delivered is required_not_tracked.
+- hosted_review_ready is required_not_tracked.
+- hosted_review_started is required_not_tracked.
+- hosted_review_follow_up_sent is required_not_tracked.
+- human_commercial_handoff_started is required_not_tracked.
+- proof_motion_stalled is required_not_tracked.
 
 ## Execution Bundle
 
@@ -164,6 +181,7 @@ Turn the Austin planning artifacts into an executable company harness that runs 
 - ops/paperclip/playbooks/city-launch-austin-tx.md
 - ops/paperclip/playbooks/city-demand-austin-tx.md
 - ops/paperclip/playbooks/city-capture-target-ledger-austin-tx.md
+- ops/paperclip/playbooks/city-launch-austin-tx-activation-payload.json
 - ops/paperclip/playbooks/city-opening-austin-tx-brief.md
 - ops/paperclip/playbooks/city-opening-austin-tx-channel-map.md
 - ops/paperclip/playbooks/city-opening-austin-tx-first-wave-pack.md

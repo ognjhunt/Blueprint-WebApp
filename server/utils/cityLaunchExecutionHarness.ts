@@ -29,11 +29,18 @@ import {
 } from "./cityLaunchLedgers";
 import { resolveCityLaunchPlanningState, type CityLaunchPlanningState } from "./cityLaunchPlanningState";
 import {
-  loadAndParseCityLaunchResearchArtifact,
   type CityLaunchResearchParseResult,
   type ParsedCityLaunchActivationPayload,
 } from "./cityLaunchResearchParser";
+import { runCityLaunchContactEnrichment } from "./cityLaunchContactEnrichment";
 import { materializeCityLaunchResearch } from "./cityLaunchResearchMaterializer";
+import {
+  assessCityLaunchOutboundReadiness,
+  executeCityLaunchSends,
+  type CityLaunchOutboundReadiness,
+  type CityLaunchSendExecutionResult,
+} from "./cityLaunchSendExecutor";
+import { resolveHistoricalRecipientEvidence } from "./cityLaunchRecipientEvidence";
 import {
   buildCityLaunchBudgetPolicy,
   buildCityLaunchWideningGuard,
@@ -157,6 +164,8 @@ export type CityLaunchExecutionResult = {
     approvalsPath: string;
     researchMaterializationPath?: string;
     researchMaterializationMarkdownPath?: string;
+    contactEnrichmentPath?: string;
+    contactEnrichmentMarkdownPath?: string;
     sourceActivationPayloadPath?: string;
     canonicalSystemDocPath: string;
     canonicalIssueBundlePath: string;
@@ -217,8 +226,12 @@ export type CityLaunchExecutionResult = {
     buyerTargetsUpserted: number;
     touchesRecorded: number;
     budgetRecommendationsRecorded: number;
+    contactEnrichmentStatus?: "enriched" | "no_changes" | "failed";
+    contactEnrichmentArtifactPath?: string | null;
     warnings: string[];
   };
+  outboundReadiness?: CityLaunchOutboundReadiness;
+  sendExecution?: CityLaunchSendExecutionResult;
 };
 
 type ReadSourceArtifact = {
@@ -328,17 +341,22 @@ async function listSourceArtifacts(profile: CityLaunchProfile) {
   return artifacts.filter((artifact) => artifact.exists);
 }
 
-async function maybeLoadCompletedResearch(planningState: CityLaunchPlanningState) {
-  if (!planningState.completedArtifactPath) {
+async function maybeLoadCompletedResearch(input: {
+  planningState: CityLaunchPlanningState;
+  contactEnrichmentPath?: string | null;
+}) {
+  if (!input.planningState.completedArtifactPath) {
     return null;
   }
 
   try {
-    const parsed = await loadAndParseCityLaunchResearchArtifact({
-      city: planningState.city,
-      artifactPath: planningState.completedArtifactPath,
+    const enrichment = await runCityLaunchContactEnrichment({
+      city: input.planningState.city,
+      artifactPath: input.planningState.completedArtifactPath,
+      outputPath: input.contactEnrichmentPath ?? null,
+      resolveRecipientEvidence: resolveHistoricalRecipientEvidence,
     });
-    return parsed.errors.length > 0 ? null : parsed;
+    return enrichment.parsed ? enrichment : null;
   } catch {
     return null;
   }
@@ -776,39 +794,86 @@ function buildCityOpeningReplyConversionMarkdown(input: {
   ].join("\n");
 }
 
-function buildCityOpeningExecutionSeed(input: {
+async function buildCityOpeningExecutionSeed(input: {
   profile: CityLaunchProfile;
   launchId: string | null;
   taskIssueIds: Record<string, string>;
   research: CityLaunchResearchParseResult | null;
+  founderApproved: boolean;
 }) {
   const citySlug = input.profile.key;
-  const buyerTargets = input.research?.buyerTargets.slice(0, 2) || [];
-  const captureTargets = input.research?.captureCandidates.slice(0, 2) || [];
-  const directWarehouseSubject = `Blueprint Sacramento exact-site warehouse opening`;
+  const buyerTargets = input.research?.buyerTargets || [];
+  const captureTargets = input.research?.captureCandidates || [];
+  const buyerProofReady = hasVerifiedBuyerProofAsset(input.research);
+  const recipientEvidence = await resolveHistoricalRecipientEvidence({
+    targets: [
+      ...buyerTargets.slice(0, 6).map((entry) => entry.companyName),
+      ...captureTargets.slice(0, 4).map((entry) => entry.name),
+    ],
+  });
+  const approvalState = input.founderApproved ? "approved" : "pending_first_send_approval";
+  const directLaneStatus = input.founderApproved ? "created" : "ready_to_create";
+  const directWarehouseSubject = `Blueprint ${input.profile.shortLabel} exact-site warehouse opening`;
   const directWarehouseBody = [
-    "Blueprint is opening a bounded Sacramento city-launch motion focused on exact-site hosted review for real warehouse workflows.",
+    `Blueprint is opening a bounded ${input.profile.shortLabel} city-launch motion focused on exact-site hosted review for real warehouse workflows.`,
     "",
     "We are looking for named buyer, operator, and integrator threads where one real site and one real workflow lane can be routed into a truthful proof path.",
     "",
-    "If there is a relevant Sacramento facility or workflow thread, reply with the site, role, access posture, and whether the next step should be a direct intro or a proof-led follow-up.",
+    `If there is a relevant ${input.profile.shortLabel} facility or workflow thread, reply with the site, role, access posture, and whether the next step should be a direct intro or a proof-led follow-up.`,
   ].join("\n");
-  const buyerLinkedSubject = `Blueprint Sacramento exact-site follow-up`;
+  const buyerLinkedSubject = `Blueprint ${input.profile.shortLabel} exact-site follow-up`;
   const buyerLinkedBody = [
-    "Blueprint is opening a bounded Sacramento exact-site hosted-review motion.",
+    `Blueprint is opening a bounded ${input.profile.shortLabel} exact-site hosted-review motion.`,
     "",
     "This follow-up stays narrow: one real site, one workflow lane, one truthful next step into proof review.",
     "",
     "Reply with the site/workflow fit and the right owner or operator path if a Sacramento thread should be opened.",
   ].join("\n");
-  const professionalCapturerSubject = `Blueprint Sacramento professional capture opening`;
+  const professionalCapturerSubject = `Blueprint ${input.profile.shortLabel} professional capture opening`;
   const professionalCapturerBody = [
-    "Blueprint is opening a bounded Sacramento capture motion and is looking for professional operators who can support lawful-access commercial site capture.",
+    `Blueprint is opening a bounded ${input.profile.shortLabel} capture motion and is looking for professional operators who can support lawful-access commercial site capture.`,
     "",
     "This is not a broad public gig post. We are looking for repeatable, rights-safe operators who can document access posture and follow a narrow capture brief.",
     "",
-    "Reply with your Sacramento coverage, equipment fit, access posture, and whether you can support warehouse or similar commercial sites.",
+    `Reply with your ${input.profile.shortLabel} coverage, equipment fit, access posture, and whether you can support warehouse or similar commercial sites.`,
   ].join("\n");
+  const recipientBackedBuyerTargets = buyerTargets
+    .map((entry) => ({
+      entry,
+      recipientEmail:
+        entry.contactEmail
+        || recipientEvidence.get(normalizeComparableText(entry.companyName))?.recipientEmail
+        || null,
+      recipientSource:
+        recipientEvidence.get(normalizeComparableText(entry.companyName))?.source || null,
+    }))
+    .filter((entry): entry is typeof entry & { recipientEmail: string } => Boolean(entry.recipientEmail));
+  const recipientBackedCaptureTargets = captureTargets
+    .map((entry) => ({
+      entry,
+      recipientEmail:
+        entry.contactEmail
+        || recipientEvidence.get(normalizeComparableText(entry.name))?.recipientEmail
+        || null,
+      recipientSource:
+        recipientEvidence.get(normalizeComparableText(entry.name))?.source || null,
+    }))
+    .filter((entry): entry is typeof entry & { recipientEmail: string } => Boolean(entry.recipientEmail));
+  const warehouseTarget = recipientBackedBuyerTargets[0] || recipientBackedCaptureTargets[0] || null;
+  const buyerLinkedTarget = recipientBackedBuyerTargets[1] || null;
+  const professionalTarget = recipientBackedCaptureTargets[0] || null;
+  const warehouseTargetIsBuyer = Boolean(
+    warehouseTarget
+    && typeof Reflect.get(warehouseTarget.entry as object, "companyName") === "string",
+  );
+  const warehouseTargetBlockedForProof = warehouseTargetIsBuyer && !buyerProofReady;
+  const warehouseTargetLabel = warehouseTarget
+    ? String(
+        Reflect.get(warehouseTarget.entry as object, "companyName")
+        || Reflect.get(warehouseTarget.entry as object, "name")
+        || "",
+      )
+    : null;
 
   const channelAccounts: Array<Omit<CityLaunchChannelAccountRecord, "citySlug" | "createdAtIso" | "updatedAtIso">> = [
     {
@@ -819,9 +884,11 @@ function buildCityOpeningExecutionSeed(input: {
       channelClass: "direct_email_or_intro_thread",
       accountLabel: `${input.profile.shortLabel} warehouse/facility direct outreach lane`,
       ownerAgent: "city-launch-agent",
-      status: "ready_to_create",
-      approvalState: "pending_first_send_approval",
-      notes: "First live direct outreach remains approval-gated.",
+      status: directLaneStatus,
+      approvalState,
+      notes: input.founderApproved
+        ? "Direct outreach lane is approved for autonomous execution inside the bounded launch posture."
+        : "Direct outreach lane is prepared but not yet activation-approved.",
     },
     {
       id: `${citySlug}-channel-buyer-linked-site`,
@@ -831,8 +898,8 @@ function buildCityOpeningExecutionSeed(input: {
       channelClass: "buyer_thread_or_intro_request",
       accountLabel: `${input.profile.shortLabel} buyer-linked site outreach lane`,
       ownerAgent: "city-launch-agent",
-      status: "ready_to_create",
-      approvalState: "pending_first_send_approval",
+      status: directLaneStatus,
+      approvalState,
       notes: "Use for named buyer-linked or operator-linked follow-through only.",
     },
     {
@@ -843,8 +910,8 @@ function buildCityOpeningExecutionSeed(input: {
       channelClass: "curated_professional_outreach",
       accountLabel: `${input.profile.shortLabel} professional capturer outreach lane`,
       ownerAgent: "capturer-growth-agent",
-      status: "ready_to_create",
-      approvalState: "pending_first_send_approval",
+      status: directLaneStatus,
+      approvalState,
       notes: "Private controlled interiors stay on curated lawful-access posture.",
     },
     {
@@ -855,14 +922,17 @@ function buildCityOpeningExecutionSeed(input: {
       channelClass: "bounded_community_posting",
       accountLabel: `${input.profile.shortLabel} public-commercial community lane`,
       ownerAgent: "capturer-growth-agent",
-      status: "ready_to_create",
-      approvalState: "pending_first_send_approval",
-      notes: "Public-area-only brief; no private-interior permission implications.",
+      status: "created",
+      approvalState: "not_required",
+      notes:
+        "Artifact-only lane; external community publication is excluded from the automated launch path until a publication connector exists.",
     },
   ];
 
-  const sendActions: Array<Omit<CityLaunchSendActionRecord, "citySlug" | "createdAtIso" | "updatedAtIso">> = [
-    {
+  const sendActions: Array<Omit<CityLaunchSendActionRecord, "citySlug" | "createdAtIso" | "updatedAtIso">> = [];
+
+  if (warehouseTarget) {
+    sendActions.push({
       id: `${citySlug}-send-warehouse-direct-1`,
       city: input.profile.city,
       launchId: input.launchId,
@@ -870,21 +940,28 @@ function buildCityOpeningExecutionSeed(input: {
       actionType: "direct_outreach",
       channelAccountId: `${citySlug}-channel-warehouse-facility-direct`,
       channelLabel: "warehouse/facility direct outreach lane",
-      targetLabel: buyerTargets[0]?.companyName || captureTargets[0]?.name || `${input.profile.shortLabel} named warehouse/facility target`,
+      targetLabel: warehouseTargetLabel || `${input.profile.shortLabel} named warehouse/facility target`,
       assetKey: "city-opening-first-wave-pack",
       ownerAgent: "capturer-growth-agent",
-      recipientEmail: null,
+      recipientEmail: warehouseTarget.recipientEmail,
       emailSubject: directWarehouseSubject,
       emailBody: directWarehouseBody,
-      status: "ready_to_send",
-      approvalState: "pending_first_send_approval",
+      status: warehouseTargetBlockedForProof ? "blocked" : "ready_to_send",
+      approvalState,
       responseIngestState: "awaiting_response",
       issueId: input.taskIssueIds["city-opening-first-wave-pack"] || null,
-      notes: "First proof-led direct outreach draft ready for approval.",
+      notes:
+        warehouseTargetBlockedForProof
+          ? `Missing rights-cleared proof pack. ${warehouseTargetLabel || input.profile.shortLabel} first touch is drafted, but it must stay conditional until a proof-ready asset exists.`
+          : warehouseTarget.recipientSource
+            || "First proof-led direct outreach is ready for autonomous dispatch.",
       sentAtIso: null,
       firstResponseAtIso: null,
-    },
-    {
+    });
+  }
+
+  if (buyerLinkedTarget) {
+    sendActions.push({
       id: `${citySlug}-send-buyer-linked-1`,
       city: input.profile.city,
       launchId: input.launchId,
@@ -892,21 +969,30 @@ function buildCityOpeningExecutionSeed(input: {
       actionType: "direct_outreach",
       channelAccountId: `${citySlug}-channel-buyer-linked-site`,
       channelLabel: "buyer-linked site outreach lane",
-      targetLabel: buyerTargets[1]?.companyName || `${input.profile.shortLabel} buyer-linked exact-site thread`,
+      targetLabel:
+        buyerLinkedTarget.entry.companyName
+        || `${input.profile.shortLabel} buyer-linked exact-site thread`,
       assetKey: "city-opening-first-wave-pack",
       ownerAgent: "city-launch-agent",
-      recipientEmail: null,
+      recipientEmail: buyerLinkedTarget.recipientEmail,
       emailSubject: buyerLinkedSubject,
       emailBody: buyerLinkedBody,
-      status: "ready_to_send",
-      approvalState: "pending_first_send_approval",
+      status: buyerProofReady ? "ready_to_send" : "blocked",
+      approvalState,
       responseIngestState: "awaiting_response",
       issueId: input.taskIssueIds["city-opening-first-wave-pack"] || null,
-      notes: "Use only when the message stays within exact-site proof posture.",
+      notes:
+        buyerProofReady
+          ? buyerLinkedTarget.recipientSource
+            || "Use only when the message stays within exact-site proof posture."
+          : `Missing rights-cleared proof pack. ${buyerLinkedTarget.entry.companyName || input.profile.shortLabel} first touch is drafted, but it must stay conditional until a proof-ready asset exists.`,
       sentAtIso: null,
       firstResponseAtIso: null,
-    },
-    {
+    });
+  }
+
+  if (professionalTarget) {
+    sendActions.push({
       id: `${citySlug}-send-professional-capturer-1`,
       city: input.profile.city,
       launchId: input.launchId,
@@ -914,43 +1000,25 @@ function buildCityOpeningExecutionSeed(input: {
       actionType: "direct_outreach",
       channelAccountId: `${citySlug}-channel-professional-capturer`,
       channelLabel: "professional capturer outreach lane",
-      targetLabel: captureTargets[0]?.name || `${input.profile.shortLabel} professional capturer first-wave target`,
+      targetLabel:
+        professionalTarget.entry.name
+        || `${input.profile.shortLabel} professional capturer first-wave target`,
       assetKey: "city-opening-first-wave-pack",
       ownerAgent: "capturer-growth-agent",
-      recipientEmail: null,
+      recipientEmail: professionalTarget.recipientEmail,
       emailSubject: professionalCapturerSubject,
       emailBody: professionalCapturerBody,
       status: "ready_to_send",
-      approvalState: "pending_first_send_approval",
+      approvalState,
       responseIngestState: "awaiting_response",
       issueId: input.taskIssueIds["supply-prospects"] || null,
-      notes: "First curated professional outreach draft ready for approval.",
+      notes:
+        professionalTarget.recipientSource
+        || "First curated professional outreach is ready for autonomous dispatch.",
       sentAtIso: null,
       firstResponseAtIso: null,
-    },
-    {
-      id: `${citySlug}-send-public-commercial-community-1`,
-      city: input.profile.city,
-      launchId: input.launchId,
-      lane: "public-commercial-community",
-      actionType: "community_post",
-      channelAccountId: `${citySlug}-channel-public-commercial-community`,
-      channelLabel: "public-commercial community lane",
-      targetLabel: `${input.profile.shortLabel} first bounded public-commercial placement`,
-      assetKey: "city-opening-first-wave-pack",
-      ownerAgent: "capturer-growth-agent",
-      recipientEmail: null,
-      emailSubject: null,
-      emailBody: null,
-      status: "ready_to_send",
-      approvalState: "pending_first_send_approval",
-      responseIngestState: "awaiting_response",
-      issueId: input.taskIssueIds["public-commercial-community-sourcing"] || null,
-      notes: "Community post remains public-area-only and approval-gated for the first live send.",
-      sentAtIso: null,
-      firstResponseAtIso: null,
-    },
-  ];
+    });
+  }
 
   return { channelAccounts, sendActions };
 }
@@ -960,8 +1028,9 @@ async function seedCityOpeningExecutionLedgers(input: {
   launchId: string | null;
   taskIssueIds: Record<string, string>;
   research: CityLaunchResearchParseResult | null;
+  founderApproved: boolean;
 }) {
-  const seed = buildCityOpeningExecutionSeed(input);
+  const seed = await buildCityOpeningExecutionSeed(input);
   const [channelAccounts, sendActions] = await Promise.all([
     Promise.all(seed.channelAccounts.map((entry) => upsertCityLaunchChannelAccount(entry))),
     Promise.all(seed.sendActions.map((entry) => upsertCityLaunchSendAction(entry))),
@@ -1012,6 +1081,7 @@ function renderCityOpeningExecutionReportMarkdown(input: {
   profile: CityLaunchProfile;
   channelAccounts: CityLaunchChannelAccountRecord[];
   sendActions: CityLaunchSendActionRecord[];
+  outboundReadiness: CityLaunchOutboundReadiness;
 }) {
   const channelsReady = input.channelAccounts.filter((entry) =>
     ["ready_to_create", "created"].includes(entry.status),
@@ -1039,12 +1109,38 @@ function renderCityOpeningExecutionReportMarkdown(input: {
     `- sends_marked_sent: ${sendsSent}`,
     `- sends_blocked: ${sendsBlocked}`,
     `- responses_routed: ${responsesRouted}`,
+    `- outbound_readiness_status: ${input.outboundReadiness.status}`,
     "",
     "## Interpretation",
-    "- `ready_to_create` means the channel/account is planned and ready for operator setup, not that it already exists.",
-    "- `ready_to_send` means the outreach/post is prepared and pending the first-live-send approval path.",
+    "- `ready_to_create` means the channel/account is planned and not yet auto-opened for a launch lane.",
+    "- `ready_to_send` means the outreach is eligible for autonomous dispatch when a real recipient exists and transport is available.",
     "- `sent` means a real send/post has been recorded in the send ledger.",
     "- response ingest stays in the send ledger until the reply-conversion lane routes it onward.",
+    "",
+    "## Outbound readiness",
+    `- direct_outreach_total: ${input.outboundReadiness.directOutreachActions.total}`,
+    `- direct_outreach_recipient_backed: ${input.outboundReadiness.directOutreachActions.recipientBacked}`,
+    `- email_transport_configured: ${input.outboundReadiness.emailTransport.configured}`,
+    `- city_launch_sender: ${input.outboundReadiness.sender.fromEmail || "missing"}`,
+    ...(input.outboundReadiness.status === "blocked"
+      ? [
+          `- ${input.profile.shortLabel} may be activated operationally, but it is not outwardly addressable yet.`,
+        ]
+      : []),
+    ...(input.outboundReadiness.blockers.length > 0
+      ? [
+          "",
+          "### Outbound blockers",
+          ...input.outboundReadiness.blockers.map((blocker) => `- ${blocker}`),
+        ]
+      : []),
+    ...(input.outboundReadiness.warnings.length > 0
+      ? [
+          "",
+          "### Outbound warnings",
+          ...input.outboundReadiness.warnings.map((warning) => `- ${warning}`),
+        ]
+      : []),
     ...(currentBlockers.length > 0
       ? [
           "",
@@ -1145,6 +1241,16 @@ function renderSiteOperatorContactListMarkdown(input: {
         ]
       : ["- no site-operator or pilot-host candidates are materialized yet"]),
   ].join("\n");
+}
+
+function hasVerifiedBuyerProofAsset(research: CityLaunchResearchParseResult | null) {
+  const metrics = research?.activationPayload?.metricsDependencies || [];
+  return metrics.some((entry) =>
+    (entry.key === "proof_pack_delivered"
+      || entry.key === "hosted_review_ready"
+      || entry.key === "hosted_review_started")
+    && entry.status === "verified",
+  );
 }
 
 export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchTask[] {
@@ -1373,7 +1479,7 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
         `At least one real ${profile.shortLabel} invite, reply, or applicant signal is landed in the live intake path with source bucket and next owner recorded.`,
         "Any copy stays draft-first and preserves no-guarantee capture language.",
       ],
-      humanGate: `Human review before any public posting or channel expansion beyond the written ${profile.shortLabel} source policy.`,
+      humanGate: `Escalate only for rights/privacy exceptions or posture-changing source-policy changes beyond the approved ${profile.shortLabel} launch posture.`,
       metricsDependencies: [],
       validationRequired: false,
       source: "default_task_bundle",
@@ -1402,10 +1508,10 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
       doneWhen: [
         `${profile.shortLabel} public-commercial sourcing names the online communities, channels, and posting brief for public, non-controlled commercial capture.`,
         `At least one live ${profile.shortLabel} community-sourced invite, reply, or applicant signal is landed in the intake path with source bucket and public-commercial posture recorded.`,
+        "If no automated publication connector exists, the lane still produces a complete agent-owned posting pack and does not block the automated launch path.",
         "The lane stays explicitly limited to lawful public areas and preserves privacy, signage, and provenance rules.",
       ],
-      humanGate:
-        "Human review before the first live community post in a new channel, or when the copy risks blurring public commercial capture with private controlled-interior access.",
+      humanGate: null,
       metricsDependencies: [],
       validationRequired: false,
       source: "default_task_bundle",
@@ -1578,9 +1684,9 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
       dependencies: ["buyer-target-research"],
       doneWhen: [
         `${profile.shortLabel} outbound templates lead with one site, one workflow lane, proof-led CTA, and hosted-review next step.`,
-        "First proof-led touches are queued for operator approval or event-driven send.",
+        "First proof-led touches are prepared for autonomous dispatch inside the approved launch posture.",
       ],
-      humanGate: "Human review before any live send.",
+      humanGate: "Escalate only for rights/privacy exceptions, posture-changing claims, or non-standard commercial commitments beyond the approved launch posture.",
       metricsDependencies: ["proof_path_assigned"],
       validationRequired: false,
       source: "default_task_bundle",
@@ -2219,12 +2325,17 @@ function assessCityLaunchTaskExecution(task: CityLaunchTask): {
     case "public-commercial-community-sourcing":
     case "city-opening-first-wave-pack":
     case "outbound-package":
+      return {
+        executionState: "ready_to_execute",
+        executionReason:
+          "This lane should execute now and continue through standard automated dispatch inside the approved launch posture without waiting for a routine human approval step.",
+      };
     case "outbound-execution":
     case "buyer-thread-commercial":
       return {
-        executionState: "execute_until_human_gate",
+        executionState: "execute_until_live_signal",
         executionReason:
-          "This lane should execute now, build the best truthful approach, and only stop at the first irreversible external send, public-claim boundary, or non-standard commercial commitment.",
+          "This lane should execute now and remain open until real buyer responses, hosted reviews, or commercial handoffs are recorded, without pausing for routine human approval steps.",
       };
     case "city-opening-reply-conversion":
       return {
@@ -2658,6 +2769,10 @@ export async function runCityLaunchExecutionHarness(input: {
     runDirectory,
     `city-launch-research-materialization-${profile.key}.json`,
   );
+  const contactEnrichmentPath = path.join(
+    runDirectory,
+    `city-launch-contact-enrichment-${profile.key}.json`,
+  );
   const manifestPath = path.join(runDirectory, "manifest.json");
   const canonicalSystemDocPath = buildCanonicalSystemDocPath(profile);
   const canonicalIssueBundlePath = buildCanonicalIssueBundlePath(profile);
@@ -2679,406 +2794,570 @@ export async function runCityLaunchExecutionHarness(input: {
     REPO_ROOT,
     `ops/paperclip/playbooks/city-launch-${profile.key}-activation-payload.json`,
   );
-  const priorActivation = await readCityLaunchActivation(profile.city).catch(() => null);
-  const planningState = await resolveCityLaunchPlanningState({ city: profile.city });
-  const completedResearch = await maybeLoadCompletedResearch(planningState);
-  const tasks = mergeTasksWithActivationPayload(
-    buildCityExecutionTasks(profile),
-    completedResearch?.activationPayload,
-  );
-  const founderApprovals = buildFounderApprovals(profile, budgetPolicy);
-  const targetLedger = buildCityCaptureTargetLedger({
-    profile,
-    research: completedResearch,
-    planningState,
-  });
-  const targetLedgerMarkdown = renderCityCaptureTargetLedgerMarkdown(targetLedger);
-  const ledgerSummary = await summarizeCityLaunchLedgers(profile.city);
-  const metricsBlockers = completedResearch?.activationPayload
-    ? completedResearch.activationPayload.metricsDependencies
-        .filter((entry) => entry.status !== "verified")
-        .map((entry) => `${entry.key} is ${entry.status}.`)
-    : ["Required proof-motion analytics contract is missing from the activation payload."];
-  const wideningGuard = buildCityLaunchWideningGuard({
-    proofReadyListings: 0,
-    hostedReviewsStarted: 0,
-    approvedCapturers: 0,
-    onboardedCapturers: ledgerSummary.onboardedCapturers,
-    metricsReady: metricsBlockers.length === 0,
-    metricBlockers: metricsBlockers,
-  });
-  const compactLaunchPlaybook = buildCompactLaunchPlaybookMarkdown({
-    profile,
-    status,
-    budgetPolicy,
-    planningState,
-    targetLedgerMode: targetLedger.mode,
-    targetLedgerWarnings: targetLedger.warnings,
-    research: completedResearch,
-    activationPayload: completedResearch?.activationPayload || null,
-  });
-  const compactDemandPlaybook = buildCompactDemandPlaybookMarkdown({
-    profile,
-    status,
-    planningState,
-    research: completedResearch,
-    activationPayload: completedResearch?.activationPayload || null,
-  });
-  const cityOpeningBrief = buildCityOpeningBriefMarkdown({
-    profile,
-    research: completedResearch,
-    activationPayload: completedResearch?.activationPayload || null,
-  });
-  const cityOpeningChannelMap = buildCityOpeningChannelMapMarkdown({
-    profile,
-    activationPayload: completedResearch?.activationPayload || null,
-  });
-  const cityOpeningFirstWavePack = buildCityOpeningFirstWavePackMarkdown({
-    profile,
-    research: completedResearch,
-  });
-  const cityOpeningCtaRouting = buildCityOpeningCtaRoutingMarkdown({
-    profile,
-  });
-  const cityOpeningResponseTracking = buildCityOpeningResponseTrackingMarkdown({
-    profile,
-  });
-  const cityOpeningReplyConversion = buildCityOpeningReplyConversionMarkdown({
-    profile,
+  const stepErrorPath = path.join(runDirectory, "step-error.json");
+  const stepHistory: Array<{ step: string; atIso: string; note?: string }> = [];
+  let currentStep = "init";
+
+  const serializeError = (error: unknown) => ({
+    message: error instanceof Error ? error.message : String(error),
+    name: error instanceof Error ? error.name : "Error",
+    stack: error instanceof Error ? error.stack || null : null,
   });
 
-  await writeTextArtifact(canonicalLaunchPlaybookPath, compactLaunchPlaybook);
-  await writeTextArtifact(canonicalDemandPlaybookPath, compactDemandPlaybook);
-  await writeTextArtifact(canonicalTargetLedgerPath, targetLedgerMarkdown);
-  await writeTextArtifact(canonicalCityOpeningBriefPath, cityOpeningBrief);
-  await writeTextArtifact(canonicalCityOpeningChannelMapPath, cityOpeningChannelMap);
-  await writeTextArtifact(canonicalCityOpeningFirstWavePackPath, cityOpeningFirstWavePack);
-  await writeTextArtifact(canonicalCityOpeningCtaRoutingPath, cityOpeningCtaRouting);
-  await writeTextArtifact(canonicalCityOpeningResponseTrackingPath, cityOpeningResponseTracking);
-  await writeTextArtifact(canonicalCityOpeningReplyConversionPath, cityOpeningReplyConversion);
-  if (completedResearch?.activationPayload) {
-    await writeTextArtifact(
-      canonicalActivationPayloadPath,
-      JSON.stringify(completedResearch.activationPayload, null, 2),
-    );
-  }
+  const writeRuntimeManifest = async (
+    finalResult?: CityLaunchExecutionResult,
+    errorDetail?: ReturnType<typeof serializeError> | null,
+  ) => {
+    const payload = finalResult
+      ? {
+          ...finalResult,
+          currentStep,
+          stepHistory,
+          error: errorDetail || null,
+        }
+      : {
+          city: profile.city,
+          citySlug: profile.key,
+          status,
+          founderApproved: Boolean(input.founderApproved),
+          startedAt: startedAt.toISOString(),
+          reportsRoot,
+          runDirectory,
+          manifestPath,
+          currentStep,
+          stepHistory,
+          error: errorDetail || null,
+        };
+    await writeTextArtifact(manifestPath, JSON.stringify(payload, null, 2));
+  };
 
-  const sourceArtifacts = await listSourceArtifacts(profile);
-  if (completedResearch?.activationPayload) {
-    sourceArtifacts.push({
-      relativePath: path.relative(REPO_ROOT, canonicalActivationPayloadPath).replaceAll(path.sep, "/"),
-      exists: true,
+  const advanceStep = async (step: string, note?: string) => {
+    currentStep = step;
+    stepHistory.push({
+      step,
+      atIso: new Date().toISOString(),
+      ...(note ? { note } : {}),
     });
-  }
-  for (const artifactPath of [
-    canonicalCityOpeningBriefPath,
-    canonicalCityOpeningChannelMapPath,
-    canonicalCityOpeningFirstWavePackPath,
-    canonicalCityOpeningCtaRoutingPath,
-    canonicalCityOpeningResponseTrackingPath,
-    canonicalCityOpeningReplyConversionPath,
-    canonicalCityOpeningChannelRegistryPath,
-    canonicalCityOpeningSendLedgerPath,
-    canonicalCityOpeningExecutionReportPath,
-    canonicalCityOpeningRobotTeamContactListPath,
-    canonicalCityOpeningSiteOperatorContactListPath,
-  ]) {
-    sourceArtifacts.push({
-      relativePath: path.relative(REPO_ROOT, artifactPath).replaceAll(path.sep, "/"),
-      exists: true,
+    await writeRuntimeManifest();
+  };
+
+  await writeRuntimeManifest();
+
+  try {
+    await advanceStep("load_activation_state");
+    const priorActivation = await readCityLaunchActivation(profile.city).catch(() => null);
+
+    await advanceStep("resolve_planning_state");
+    const planningState = await resolveCityLaunchPlanningState({ city: profile.city });
+
+    await advanceStep("load_completed_research");
+    const completedResearchEnrichment = await maybeLoadCompletedResearch({
+      planningState,
+      contactEnrichmentPath,
     });
-  }
-  const systemDocText = buildSystemDocMarkdown({
-    profile,
-    status,
-    budgetPolicy,
-    planningState,
-    founderApprovals,
-    sourceArtifacts,
-    tasks,
-    wideningGuard,
-    activationPayload: completedResearch?.activationPayload || null,
-  });
-  const issueBundleText = buildTaskMarkdown(profile, tasks);
-  const approvalsText = [
-    `# ${profile.city} Founder Approval Checklist`,
-    "",
-    ...founderApprovals.map((item, index) => `${index + 1}. ${item}`),
-  ].join("\n");
-  const issueBundlePayload = {
-    machine_policy_version: CITY_LAUNCH_MACHINE_POLICY_VERSION,
-    city: profile.city,
-    city_slug: profile.key,
-    source_activation_payload_path:
-      completedResearch?.activationPayload ? canonicalActivationPayloadPath : null,
-    tasks: tasks.map((task) => ({
-      key: task.key,
-      title: task.title,
-      phase: task.phase,
-      owner_lane: task.ownerLane,
-      human_lane: task.humanLane,
-      purpose: task.purpose,
-      dependencies: task.dependencies,
-      done_when: task.doneWhen,
-      metrics_dependencies: task.metricsDependencies,
-      validation_required: task.validationRequired,
-      source: task.source,
-    })),
-  };
-  const targetLedgerPayload = {
-    city: targetLedger.city,
-    city_slug: targetLedger.citySlug,
-    generated_at: targetLedger.generatedAt,
-    mode: targetLedger.mode,
-    workflow_priorities: targetLedger.workflows,
-    priority_proof_targets: targetLedger.immediateTop25,
-    queued_lawful_access_buckets: targetLedger.next100Buckets.map((entry) => ({
-      label: entry.bucket,
-      activation_rule: "after first rights-cleared proof asset",
-      rationale: entry.rationale,
-    })),
-    discovery_lanes: targetLedger.longUniverseBuckets.map((entry) => ({
-      label: entry.bucket,
-      rationale: entry.rationale,
-    })),
-    warnings: targetLedger.warnings,
-    sources: targetLedger.sources,
-  };
+    const completedResearch = completedResearchEnrichment?.parsed?.errors.length
+      ? null
+      : completedResearchEnrichment?.parsed || null;
 
-  await writeTextArtifact(systemDocPath, systemDocText);
-  await writeTextArtifact(issueBundlePath, issueBundleText);
-  await writeTextArtifact(issueBundleJsonPath, JSON.stringify(issueBundlePayload, null, 2));
-  await writeTextArtifact(launchPlaybookPath, compactLaunchPlaybook);
-  await writeTextArtifact(demandPlaybookPath, compactDemandPlaybook);
-  await writeTextArtifact(targetLedgerPath, targetLedgerMarkdown);
-  await writeTextArtifact(targetLedgerJsonPath, JSON.stringify(targetLedgerPayload, null, 2));
-  await writeTextArtifact(approvalsPath, approvalsText);
-  await writeTextArtifact(cityOpeningBriefPath, cityOpeningBrief);
-  await writeTextArtifact(cityOpeningChannelMapPath, cityOpeningChannelMap);
-  await writeTextArtifact(cityOpeningFirstWavePackPath, cityOpeningFirstWavePack);
-  await writeTextArtifact(cityOpeningCtaRoutingPath, cityOpeningCtaRouting);
-  await writeTextArtifact(cityOpeningResponseTrackingPath, cityOpeningResponseTracking);
-  await writeTextArtifact(cityOpeningReplyConversionPath, cityOpeningReplyConversion);
-  await writeTextArtifact(canonicalSystemDocPath, systemDocText);
-  await writeTextArtifact(canonicalIssueBundlePath, issueBundleText);
-  await writeTextArtifact(canonicalLaunchPlaybookPath, compactLaunchPlaybook);
-  await writeTextArtifact(canonicalDemandPlaybookPath, compactDemandPlaybook);
-
-  const result: CityLaunchExecutionResult = {
-    city: profile.city,
-    citySlug: profile.key,
-    status,
-    budgetTier: budgetPolicy.tier,
-    budgetPolicy,
-    startedAt: startedAt.toISOString(),
-    completedAt: new Date().toISOString(),
-    activationStatus: input.founderApproved ? "activation_ready" : "planning",
-    wideningGuard,
-    artifacts: {
-      runDirectory,
-      manifestPath,
-      systemDocPath,
-      issueBundlePath,
-      issueBundleJsonPath,
-      launchPlaybookPath,
-      demandPlaybookPath,
-      targetLedgerPath,
-      targetLedgerJsonPath,
-      approvalsPath,
-      researchMaterializationPath,
-      researchMaterializationMarkdownPath: researchMaterializationPath.replace(/\.json$/i, ".md"),
-      sourceActivationPayloadPath:
-        completedResearch?.activationPayload ? canonicalActivationPayloadPath : undefined,
-      canonicalSystemDocPath,
-      canonicalIssueBundlePath,
-      canonicalLaunchPlaybookPath,
-      canonicalDemandPlaybookPath,
-      canonicalTargetLedgerPath,
-      canonicalActivationPayloadPath,
-      cityOpeningArtifactPack: {
-        run: {
-          briefPath: cityOpeningBriefPath,
-          channelMapPath: cityOpeningChannelMapPath,
-          firstWavePackPath: cityOpeningFirstWavePackPath,
-          ctaRoutingPath: cityOpeningCtaRoutingPath,
-          responseTrackingPath: cityOpeningResponseTrackingPath,
-          replyConversionPath: cityOpeningReplyConversionPath,
-          channelRegistryPath: cityOpeningChannelRegistryPath,
-          sendLedgerPath: cityOpeningSendLedgerPath,
-          executionReportPath: cityOpeningExecutionReportPath,
-        },
-        canonical: {
-          briefPath: canonicalCityOpeningBriefPath,
-          channelMapPath: canonicalCityOpeningChannelMapPath,
-          firstWavePackPath: canonicalCityOpeningFirstWavePackPath,
-          ctaRoutingPath: canonicalCityOpeningCtaRoutingPath,
-          responseTrackingPath: canonicalCityOpeningResponseTrackingPath,
-          replyConversionPath: canonicalCityOpeningReplyConversionPath,
-          channelRegistryPath: canonicalCityOpeningChannelRegistryPath,
-          sendLedgerPath: canonicalCityOpeningSendLedgerPath,
-          executionReportPath: canonicalCityOpeningExecutionReportPath,
-        },
-      },
-    },
-    planning: {
-      status: planningState.status,
-      latestArtifactPath: planningState.latestArtifactPath,
-      completedArtifactPath: planningState.completedArtifactPath,
-      warnings: planningState.warnings,
-    },
-  };
-
-  const notion = await syncExecutionArtifactsToNotion({
-    profile,
-    status,
-    canonicalSystemDocPath,
-    systemDocText,
-    completedAt: result.completedAt,
-  }).catch(() => null);
-
-  if (notion) {
-    result.notion = notion;
-    result.artifacts.notionKnowledgePageUrl = notion.knowledgePageUrl;
-    result.artifacts.notionWorkQueuePageUrl = notion.workQueuePageUrl;
-  }
-
-  if (input.dispatchIssues !== false) {
-    try {
-      const dispatch = await dispatchCityLaunchIssueTree({
-        activationRunId: runTimestamp,
-        profile,
-        tasks,
-        founderApproved: Boolean(input.founderApproved),
-        budgetPolicy,
-        existingRootIssueId: priorActivation?.rootIssueId || null,
-        existingTaskIssueIds: priorActivation?.taskIssueIds || {},
-        wakeExistingIssues: Boolean(input.founderApproved),
-        rewakeTaskKeys: input.rewakeTaskKeys,
-        rewakeOwnerLanes: input.rewakeOwnerLanes,
-        artifactPaths: {
-          canonicalSystemDocPath,
-          canonicalIssueBundlePath,
-          canonicalTargetLedgerPath,
-          canonicalActivationPayloadPath,
-        },
-      });
-      result.paperclip = {
-        rootIssueId: dispatch.rootIssue.id,
-        rootIssueIdentifier: dispatch.rootIssue.identifier || null,
-        createdRootIssue: dispatch.createdRootIssue,
-        dispatched: dispatch.dispatched,
-      };
-    } catch (error) {
-      result.paperclip = {
-        rootIssueId: null,
-        rootIssueIdentifier: null,
-        createdRootIssue: false,
-        dispatched: [],
-        error: error instanceof Error ? error.message : String(error),
-      };
+    if (input.founderApproved && !planningState.completedArtifactPath) {
+      throw new Error(
+        `${profile.city} founder-approved activation requires a completed deep-research playbook before delegation starts.`,
+      );
     }
-  }
 
-  if (
-    input.founderApproved
-    && input.dispatchIssues !== false
-    && (!result.paperclip?.rootIssueId || (result.paperclip?.dispatched.length || 0) === 0)
-  ) {
-    const dispatchError = result.paperclip?.error
-      || "Founder-approved activation did not create or update the live Paperclip city-launch issue tree.";
-    throw new Error(
-      `City launch activation failed closed for ${profile.city}: ${dispatchError}`,
+    if (
+      input.founderApproved
+      && completedResearchEnrichment?.parsed?.errors.length
+      && completedResearchEnrichment.parsed.errors[0]
+    ) {
+      throw new Error(completedResearchEnrichment.parsed.errors[0]);
+    }
+
+    if (input.founderApproved && !completedResearch?.activationPayload) {
+      throw new Error(
+        `${profile.city} founder-approved activation requires a real activation payload before delegation starts.`,
+      );
+    }
+
+    await advanceStep("build_city_artifacts");
+    const tasks = mergeTasksWithActivationPayload(
+      buildCityExecutionTasks(profile),
+      completedResearch?.activationPayload,
     );
-  }
+    const founderApprovals = buildFounderApprovals(profile, budgetPolicy);
+    const targetLedger = buildCityCaptureTargetLedger({
+      profile,
+      research: completedResearch,
+      planningState,
+    });
+    const targetLedgerMarkdown = renderCityCaptureTargetLedgerMarkdown(targetLedger);
+    const ledgerSummary = await summarizeCityLaunchLedgers(profile.city);
+    const metricsBlockers = completedResearch?.activationPayload
+      ? completedResearch.activationPayload.metricsDependencies
+          .filter((entry) => entry.status !== "verified")
+          .map((entry) => `${entry.key} is ${entry.status}.`)
+      : ["Required proof-motion analytics contract is missing from the activation payload."];
+    const wideningGuard = buildCityLaunchWideningGuard({
+      proofReadyListings: 0,
+      hostedReviewsStarted: 0,
+      approvedCapturers: 0,
+      onboardedCapturers: ledgerSummary.onboardedCapturers,
+      metricsReady: metricsBlockers.length === 0,
+      metricBlockers: metricsBlockers,
+    });
+    const compactLaunchPlaybook = buildCompactLaunchPlaybookMarkdown({
+      profile,
+      status,
+      budgetPolicy,
+      planningState,
+      targetLedgerMode: targetLedger.mode,
+      targetLedgerWarnings: targetLedger.warnings,
+      research: completedResearch,
+      activationPayload: completedResearch?.activationPayload || null,
+    });
+    const compactDemandPlaybook = buildCompactDemandPlaybookMarkdown({
+      profile,
+      status,
+      planningState,
+      research: completedResearch,
+      activationPayload: completedResearch?.activationPayload || null,
+    });
+    const cityOpeningBrief = buildCityOpeningBriefMarkdown({
+      profile,
+      research: completedResearch,
+      activationPayload: completedResearch?.activationPayload || null,
+    });
+    const cityOpeningChannelMap = buildCityOpeningChannelMapMarkdown({
+      profile,
+      activationPayload: completedResearch?.activationPayload || null,
+    });
+    const cityOpeningFirstWavePack = buildCityOpeningFirstWavePackMarkdown({
+      profile,
+      research: completedResearch,
+    });
+    const cityOpeningCtaRouting = buildCityOpeningCtaRoutingMarkdown({
+      profile,
+    });
+    const cityOpeningResponseTracking = buildCityOpeningResponseTrackingMarkdown({
+      profile,
+    });
+    const cityOpeningReplyConversion = buildCityOpeningReplyConversionMarkdown({
+      profile,
+    });
 
-  const taskIssueIds = Object.fromEntries(
-    (result.paperclip?.dispatched || []).map((entry) => [entry.key, entry.issueId]),
-  );
+    await writeTextArtifact(canonicalLaunchPlaybookPath, compactLaunchPlaybook);
+    await writeTextArtifact(canonicalDemandPlaybookPath, compactDemandPlaybook);
+    await writeTextArtifact(canonicalTargetLedgerPath, targetLedgerMarkdown);
+    await writeTextArtifact(canonicalCityOpeningBriefPath, cityOpeningBrief);
+    await writeTextArtifact(canonicalCityOpeningChannelMapPath, cityOpeningChannelMap);
+    await writeTextArtifact(canonicalCityOpeningFirstWavePackPath, cityOpeningFirstWavePack);
+    await writeTextArtifact(canonicalCityOpeningCtaRoutingPath, cityOpeningCtaRouting);
+    await writeTextArtifact(canonicalCityOpeningResponseTrackingPath, cityOpeningResponseTracking);
+    await writeTextArtifact(canonicalCityOpeningReplyConversionPath, cityOpeningReplyConversion);
+    if (completedResearch?.activationPayload) {
+      await writeTextArtifact(
+        canonicalActivationPayloadPath,
+        JSON.stringify(completedResearch.activationPayload, null, 2),
+      );
+    }
 
-  const seededCityOpeningExecution = await seedCityOpeningExecutionLedgers({
-    profile,
-    launchId: result.paperclip?.rootIssueId || null,
-    taskIssueIds,
-    research: completedResearch,
-  }).catch(() => null);
-
-  const cityOpeningExecution =
-    seededCityOpeningExecution
-    || {
-      channelAccounts: await listCityLaunchChannelAccounts(profile.city).catch(() => []),
-      sendActions: await listCityLaunchSendActions(profile.city).catch(() => []),
+    const sourceArtifacts = await listSourceArtifacts(profile);
+    if (completedResearch?.activationPayload) {
+      sourceArtifacts.push({
+        relativePath: path.relative(REPO_ROOT, canonicalActivationPayloadPath).replaceAll(path.sep, "/"),
+        exists: true,
+      });
+    }
+    for (const artifactPath of [
+      canonicalCityOpeningBriefPath,
+      canonicalCityOpeningChannelMapPath,
+      canonicalCityOpeningFirstWavePackPath,
+      canonicalCityOpeningCtaRoutingPath,
+      canonicalCityOpeningResponseTrackingPath,
+      canonicalCityOpeningReplyConversionPath,
+      canonicalCityOpeningChannelRegistryPath,
+      canonicalCityOpeningSendLedgerPath,
+      canonicalCityOpeningExecutionReportPath,
+      canonicalCityOpeningRobotTeamContactListPath,
+      canonicalCityOpeningSiteOperatorContactListPath,
+    ]) {
+      sourceArtifacts.push({
+        relativePath: path.relative(REPO_ROOT, artifactPath).replaceAll(path.sep, "/"),
+        exists: true,
+      });
+    }
+    const systemDocText = buildSystemDocMarkdown({
+      profile,
+      status,
+      budgetPolicy,
+      planningState,
+      founderApprovals,
+      sourceArtifacts,
+      tasks,
+      wideningGuard,
+      activationPayload: completedResearch?.activationPayload || null,
+    });
+    const issueBundleText = buildTaskMarkdown(profile, tasks);
+    const approvalsText = [
+      `# ${profile.city} Founder Approval Checklist`,
+      "",
+      ...founderApprovals.map((item, index) => `${index + 1}. ${item}`),
+    ].join("\n");
+    const issueBundlePayload = {
+      machine_policy_version: CITY_LAUNCH_MACHINE_POLICY_VERSION,
+      city: profile.city,
+      city_slug: profile.key,
+      source_activation_payload_path:
+        completedResearch?.activationPayload ? canonicalActivationPayloadPath : null,
+      tasks: tasks.map((task) => ({
+        key: task.key,
+        title: task.title,
+        phase: task.phase,
+        owner_lane: task.ownerLane,
+        human_lane: task.humanLane,
+        purpose: task.purpose,
+        dependencies: task.dependencies,
+        done_when: task.doneWhen,
+        metrics_dependencies: task.metricsDependencies,
+        validation_required: task.validationRequired,
+        source: task.source,
+      })),
+    };
+    const targetLedgerPayload = {
+      city: targetLedger.city,
+      city_slug: targetLedger.citySlug,
+      generated_at: targetLedger.generatedAt,
+      mode: targetLedger.mode,
+      workflow_priorities: targetLedger.workflows,
+      priority_proof_targets: targetLedger.immediateTop25,
+      queued_lawful_access_buckets: targetLedger.next100Buckets.map((entry) => ({
+        label: entry.bucket,
+        activation_rule: "after first rights-cleared proof asset",
+        rationale: entry.rationale,
+      })),
+      discovery_lanes: targetLedger.longUniverseBuckets.map((entry) => ({
+        label: entry.bucket,
+        rationale: entry.rationale,
+      })),
+      warnings: targetLedger.warnings,
+      sources: targetLedger.sources,
     };
 
-  const cityOpeningChannelRegistry = renderCityOpeningChannelRegistryMarkdown({
-    profile,
-    channelAccounts: cityOpeningExecution.channelAccounts,
-  });
-  const cityOpeningSendLedger = renderCityOpeningSendLedgerMarkdown({
-    profile,
-    sendActions: cityOpeningExecution.sendActions,
-  });
-  const cityOpeningExecutionReport = renderCityOpeningExecutionReportMarkdown({
-    profile,
-    channelAccounts: cityOpeningExecution.channelAccounts,
-    sendActions: cityOpeningExecution.sendActions,
-  });
+    await writeTextArtifact(systemDocPath, systemDocText);
+    await writeTextArtifact(issueBundlePath, issueBundleText);
+    await writeTextArtifact(issueBundleJsonPath, JSON.stringify(issueBundlePayload, null, 2));
+    await writeTextArtifact(launchPlaybookPath, compactLaunchPlaybook);
+    await writeTextArtifact(demandPlaybookPath, compactDemandPlaybook);
+    await writeTextArtifact(targetLedgerPath, targetLedgerMarkdown);
+    await writeTextArtifact(targetLedgerJsonPath, JSON.stringify(targetLedgerPayload, null, 2));
+    await writeTextArtifact(approvalsPath, approvalsText);
+    await writeTextArtifact(cityOpeningBriefPath, cityOpeningBrief);
+    await writeTextArtifact(cityOpeningChannelMapPath, cityOpeningChannelMap);
+    await writeTextArtifact(cityOpeningFirstWavePackPath, cityOpeningFirstWavePack);
+    await writeTextArtifact(cityOpeningCtaRoutingPath, cityOpeningCtaRouting);
+    await writeTextArtifact(cityOpeningResponseTrackingPath, cityOpeningResponseTracking);
+    await writeTextArtifact(cityOpeningReplyConversionPath, cityOpeningReplyConversion);
+    await writeTextArtifact(canonicalSystemDocPath, systemDocText);
+    await writeTextArtifact(canonicalIssueBundlePath, issueBundleText);
+    await writeTextArtifact(canonicalLaunchPlaybookPath, compactLaunchPlaybook);
+    await writeTextArtifact(canonicalDemandPlaybookPath, compactDemandPlaybook);
 
-  await writeTextArtifact(cityOpeningChannelRegistryPath, cityOpeningChannelRegistry);
-  await writeTextArtifact(cityOpeningSendLedgerPath, cityOpeningSendLedger);
-  await writeTextArtifact(cityOpeningExecutionReportPath, cityOpeningExecutionReport);
-  await writeTextArtifact(canonicalCityOpeningChannelRegistryPath, cityOpeningChannelRegistry);
-  await writeTextArtifact(canonicalCityOpeningSendLedgerPath, cityOpeningSendLedger);
-  await writeTextArtifact(canonicalCityOpeningExecutionReportPath, cityOpeningExecutionReport);
+    const result: CityLaunchExecutionResult = {
+      city: profile.city,
+      citySlug: profile.key,
+      status,
+      budgetTier: budgetPolicy.tier,
+      budgetPolicy,
+      startedAt: startedAt.toISOString(),
+      completedAt: new Date().toISOString(),
+      activationStatus: input.founderApproved ? "activation_ready" : "planning",
+      wideningGuard,
+      artifacts: {
+        runDirectory,
+        manifestPath,
+        systemDocPath,
+        issueBundlePath,
+        issueBundleJsonPath,
+        launchPlaybookPath,
+        demandPlaybookPath,
+        targetLedgerPath,
+        targetLedgerJsonPath,
+        approvalsPath,
+        researchMaterializationPath,
+        researchMaterializationMarkdownPath: researchMaterializationPath.replace(/\.json$/i, ".md"),
+        contactEnrichmentPath: completedResearchEnrichment?.outputPath || undefined,
+        contactEnrichmentMarkdownPath: completedResearchEnrichment?.outputMarkdownPath || undefined,
+        sourceActivationPayloadPath:
+          completedResearch?.activationPayload ? canonicalActivationPayloadPath : undefined,
+        canonicalSystemDocPath,
+        canonicalIssueBundlePath,
+        canonicalLaunchPlaybookPath,
+        canonicalDemandPlaybookPath,
+        canonicalTargetLedgerPath,
+        canonicalActivationPayloadPath,
+        cityOpeningArtifactPack: {
+          run: {
+            briefPath: cityOpeningBriefPath,
+            channelMapPath: cityOpeningChannelMapPath,
+            firstWavePackPath: cityOpeningFirstWavePackPath,
+            ctaRoutingPath: cityOpeningCtaRoutingPath,
+            responseTrackingPath: cityOpeningResponseTrackingPath,
+            replyConversionPath: cityOpeningReplyConversionPath,
+            channelRegistryPath: cityOpeningChannelRegistryPath,
+            sendLedgerPath: cityOpeningSendLedgerPath,
+            executionReportPath: cityOpeningExecutionReportPath,
+          },
+          canonical: {
+            briefPath: canonicalCityOpeningBriefPath,
+            channelMapPath: canonicalCityOpeningChannelMapPath,
+            firstWavePackPath: canonicalCityOpeningFirstWavePackPath,
+            ctaRoutingPath: canonicalCityOpeningCtaRoutingPath,
+            responseTrackingPath: canonicalCityOpeningResponseTrackingPath,
+            replyConversionPath: canonicalCityOpeningReplyConversionPath,
+            channelRegistryPath: canonicalCityOpeningChannelRegistryPath,
+            sendLedgerPath: canonicalCityOpeningSendLedgerPath,
+            executionReportPath: canonicalCityOpeningExecutionReportPath,
+          },
+        },
+      },
+      planning: {
+        status: planningState.status,
+        latestArtifactPath: planningState.latestArtifactPath,
+        completedArtifactPath: planningState.completedArtifactPath,
+        warnings: planningState.warnings,
+      },
+    };
 
-  await writeCityLaunchActivation({
-    city: profile.city,
-    budgetTier: budgetPolicy.tier,
-    budgetPolicy,
-    founderApproved: Boolean(input.founderApproved),
-    status: result.activationStatus,
-    rootIssueId: result.paperclip?.rootIssueId || null,
-    taskIssueIds,
-    wideningGuard,
-  }).catch(() => null);
+    await advanceStep("sync_notion");
+    const notion = await syncExecutionArtifactsToNotion({
+      profile,
+      status,
+      canonicalSystemDocPath,
+      systemDocText,
+      completedAt: result.completedAt,
+    }).catch(() => null);
 
-  const researchMaterialization = await materializeCityLaunchResearch({
-    city: profile.city,
-    launchId: result.paperclip?.rootIssueId || null,
-    budgetPolicy,
-    outputPath: researchMaterializationPath,
-  });
-  result.researchMaterialization = {
-    status: researchMaterialization.status,
-    sourceArtifactPath: researchMaterialization.sourceArtifactPath,
-    prospectsUpserted: researchMaterialization.prospectsUpserted,
-    buyerTargetsUpserted: researchMaterialization.buyerTargetsUpserted,
-    touchesRecorded: researchMaterialization.touchesRecorded,
-    budgetRecommendationsRecorded: researchMaterialization.budgetRecommendationsRecorded,
-    warnings: researchMaterialization.warnings,
-  };
+    if (notion) {
+      result.notion = notion;
+      result.artifacts.notionKnowledgePageUrl = notion.knowledgePageUrl;
+      result.artifacts.notionWorkQueuePageUrl = notion.workQueuePageUrl;
+    }
 
-  const [cityBuyerTargets, cityProspects, refreshedSendActions] = await Promise.all([
-    listCityLaunchBuyerTargets(profile.city).catch(() => []),
-    listCityLaunchProspects(profile.city).catch(() => []),
-    listCityLaunchSendActions(profile.city).catch(() => cityOpeningExecution.sendActions),
-  ]);
-  const robotTeamContactList = renderRobotTeamContactListMarkdown({
-    profile,
-    buyerTargets: cityBuyerTargets,
-    sendActions: refreshedSendActions,
-  });
-  const siteOperatorContactList = renderSiteOperatorContactListMarkdown({
-    profile,
-    prospects: cityProspects,
-  });
+    await advanceStep("dispatch_issue_tree");
+    if (input.dispatchIssues !== false) {
+      try {
+        const dispatch = await dispatchCityLaunchIssueTree({
+          activationRunId: runTimestamp,
+          profile,
+          tasks,
+          founderApproved: Boolean(input.founderApproved),
+          budgetPolicy,
+          existingRootIssueId: priorActivation?.rootIssueId || null,
+          existingTaskIssueIds: priorActivation?.taskIssueIds || {},
+          wakeExistingIssues: Boolean(input.founderApproved),
+          rewakeTaskKeys: input.rewakeTaskKeys,
+          rewakeOwnerLanes: input.rewakeOwnerLanes,
+          artifactPaths: {
+            canonicalSystemDocPath,
+            canonicalIssueBundlePath,
+            canonicalTargetLedgerPath,
+            canonicalActivationPayloadPath,
+          },
+        });
+        result.paperclip = {
+          rootIssueId: dispatch.rootIssue.id,
+          rootIssueIdentifier: dispatch.rootIssue.identifier || null,
+          createdRootIssue: dispatch.createdRootIssue,
+          dispatched: dispatch.dispatched,
+        };
+      } catch (error) {
+        result.paperclip = {
+          rootIssueId: null,
+          rootIssueIdentifier: null,
+          createdRootIssue: false,
+          dispatched: [],
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }
 
-  await writeTextArtifact(cityOpeningRobotTeamContactListPath, robotTeamContactList);
-  await writeTextArtifact(cityOpeningSiteOperatorContactListPath, siteOperatorContactList);
-  await writeTextArtifact(canonicalCityOpeningRobotTeamContactListPath, robotTeamContactList);
-  await writeTextArtifact(canonicalCityOpeningSiteOperatorContactListPath, siteOperatorContactList);
+    if (
+      input.founderApproved
+      && input.dispatchIssues !== false
+      && (!result.paperclip?.rootIssueId || (result.paperclip?.dispatched.length || 0) === 0)
+    ) {
+      const dispatchError = result.paperclip?.error
+        || "Founder-approved activation did not create or update the live Paperclip city-launch issue tree.";
+      throw new Error(
+        `City launch activation failed closed for ${profile.city}: ${dispatchError}`,
+      );
+    }
 
-  await writeTextArtifact(manifestPath, JSON.stringify(result, null, 2));
-  return result;
+    const taskIssueIds = Object.fromEntries(
+      (result.paperclip?.dispatched || []).map((entry) => [entry.key, entry.issueId]),
+    );
+
+    await advanceStep("seed_city_opening_execution");
+    const seededCityOpeningExecution = await seedCityOpeningExecutionLedgers({
+      profile,
+      launchId: result.paperclip?.rootIssueId || null,
+      taskIssueIds,
+      research: completedResearch,
+      founderApproved: Boolean(input.founderApproved),
+    }).catch(() => null);
+
+    const cityOpeningExecution =
+      seededCityOpeningExecution
+      || {
+        channelAccounts: await listCityLaunchChannelAccounts(profile.city).catch(() => []),
+        sendActions: await listCityLaunchSendActions(profile.city).catch(() => []),
+      };
+
+    await advanceStep("execute_outbound");
+    const seededOutboundReadiness = assessCityLaunchOutboundReadiness({
+      city: profile.city,
+      sendActions: cityOpeningExecution.sendActions,
+    });
+    result.outboundReadiness = seededOutboundReadiness;
+
+    if (input.founderApproved && seededOutboundReadiness.status !== "blocked") {
+      result.sendExecution = await executeCityLaunchSends({
+        city: profile.city,
+      }).catch((error) => ({
+        city: profile.city,
+        totalEligible: 0,
+        sent: 0,
+        skippedApproval: 0,
+        skippedNoRecipient: 0,
+        skippedAlreadySent: 0,
+        failed: 1,
+        errors: [error instanceof Error ? error.message : String(error)],
+      }));
+    } else if (input.founderApproved) {
+      result.sendExecution = {
+        city: profile.city,
+        totalEligible: seededOutboundReadiness.directOutreachActions.readyToSend,
+        sent: 0,
+        skippedApproval: 0,
+        skippedNoRecipient: 0,
+        skippedAlreadySent: 0,
+        failed: 0,
+        errors: [...seededOutboundReadiness.blockers],
+      };
+    }
+
+    await advanceStep("write_execution_ledgers");
+    const refreshedCityOpeningExecution = {
+      channelAccounts: await listCityLaunchChannelAccounts(profile.city).catch(
+        () => cityOpeningExecution.channelAccounts,
+      ),
+      sendActions: await listCityLaunchSendActions(profile.city).catch(
+        () => cityOpeningExecution.sendActions,
+      ),
+    };
+
+    const cityOpeningChannelRegistry = renderCityOpeningChannelRegistryMarkdown({
+      profile,
+      channelAccounts: refreshedCityOpeningExecution.channelAccounts,
+    });
+    const cityOpeningSendLedger = renderCityOpeningSendLedgerMarkdown({
+      profile,
+      sendActions: refreshedCityOpeningExecution.sendActions,
+    });
+    const cityOpeningExecutionReport = renderCityOpeningExecutionReportMarkdown({
+      profile,
+      channelAccounts: refreshedCityOpeningExecution.channelAccounts,
+      sendActions: refreshedCityOpeningExecution.sendActions,
+      outboundReadiness: assessCityLaunchOutboundReadiness({
+        city: profile.city,
+        sendActions: refreshedCityOpeningExecution.sendActions,
+      }),
+    });
+    result.outboundReadiness = assessCityLaunchOutboundReadiness({
+      city: profile.city,
+      sendActions: refreshedCityOpeningExecution.sendActions,
+    });
+
+    await writeTextArtifact(cityOpeningChannelRegistryPath, cityOpeningChannelRegistry);
+    await writeTextArtifact(cityOpeningSendLedgerPath, cityOpeningSendLedger);
+    await writeTextArtifact(cityOpeningExecutionReportPath, cityOpeningExecutionReport);
+    await writeTextArtifact(canonicalCityOpeningChannelRegistryPath, cityOpeningChannelRegistry);
+    await writeTextArtifact(canonicalCityOpeningSendLedgerPath, cityOpeningSendLedger);
+    await writeTextArtifact(canonicalCityOpeningExecutionReportPath, cityOpeningExecutionReport);
+
+    await advanceStep("persist_activation_state");
+    await writeCityLaunchActivation({
+      city: profile.city,
+      budgetTier: budgetPolicy.tier,
+      budgetPolicy,
+      founderApproved: Boolean(input.founderApproved),
+      status: result.activationStatus,
+      rootIssueId: result.paperclip?.rootIssueId || null,
+      taskIssueIds,
+      wideningGuard,
+    }).catch(() => null);
+
+    await advanceStep("materialize_research");
+    const researchMaterialization = await materializeCityLaunchResearch({
+      city: profile.city,
+      launchId: result.paperclip?.rootIssueId || null,
+      budgetPolicy,
+      outputPath: researchMaterializationPath,
+    });
+    result.researchMaterialization = {
+      status: researchMaterialization.status,
+      sourceArtifactPath: researchMaterialization.sourceArtifactPath,
+      prospectsUpserted: researchMaterialization.prospectsUpserted,
+      buyerTargetsUpserted: researchMaterialization.buyerTargetsUpserted,
+      touchesRecorded: researchMaterialization.touchesRecorded,
+      budgetRecommendationsRecorded: researchMaterialization.budgetRecommendationsRecorded,
+      contactEnrichmentStatus: researchMaterialization.contactEnrichmentStatus,
+      contactEnrichmentArtifactPath: researchMaterialization.contactEnrichmentArtifactPath || null,
+      warnings: researchMaterialization.warnings,
+    };
+
+    await advanceStep("write_contact_lists");
+    const [cityBuyerTargets, cityProspects, refreshedSendActions] = await Promise.all([
+      listCityLaunchBuyerTargets(profile.city).catch(() => []),
+      listCityLaunchProspects(profile.city).catch(() => []),
+      listCityLaunchSendActions(profile.city).catch(() => cityOpeningExecution.sendActions),
+    ]);
+    const robotTeamContactList = renderRobotTeamContactListMarkdown({
+      profile,
+      buyerTargets: cityBuyerTargets,
+      sendActions: refreshedSendActions,
+    });
+    const siteOperatorContactList = renderSiteOperatorContactListMarkdown({
+      profile,
+      prospects: cityProspects,
+    });
+
+    await writeTextArtifact(cityOpeningRobotTeamContactListPath, robotTeamContactList);
+    await writeTextArtifact(cityOpeningSiteOperatorContactListPath, siteOperatorContactList);
+    await writeTextArtifact(canonicalCityOpeningRobotTeamContactListPath, robotTeamContactList);
+    await writeTextArtifact(canonicalCityOpeningSiteOperatorContactListPath, siteOperatorContactList);
+
+    currentStep = "completed";
+    await writeRuntimeManifest(result);
+    return result;
+  } catch (error) {
+    const errorDetail = serializeError(error);
+    await writeTextArtifact(
+      stepErrorPath,
+      JSON.stringify({
+        city: profile.city,
+        citySlug: profile.key,
+        status,
+        founderApproved: Boolean(input.founderApproved),
+        currentStep,
+        stepHistory,
+        failedAt: new Date().toISOString(),
+        error: errorDetail,
+      }, null, 2),
+    );
+    await writeRuntimeManifest(undefined, errorDetail);
+    throw error;
+  }
 }
 
 export async function runAustinLaunchExecutionHarness(input?: {

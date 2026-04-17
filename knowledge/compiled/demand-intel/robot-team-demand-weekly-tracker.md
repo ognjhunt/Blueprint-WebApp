@@ -68,6 +68,7 @@ Current technical-buyer demand is concentrating around developer-first spatial p
 - The strongest proof pack language should make state, replay, export, and provenance obvious.
 - Site-operator conversations should stay secondary unless they materially reduce site access friction or increase proof credibility for a specific buyer motion.
 - Austin and San Francisco should be treated differently: Austin looks more like an industrial / deployment / safety-and-operations cluster, while San Francisco is more likely to reward developer-platform and world-model narrative work.
+- Austin now has a named target-account map anchored by Apptronik, Diligent Robotics, Fox Robotics, ICON, SparkCognition, Ocean Infinity, RoyCo Robotics, RobotLAB Austin, Texas Robotics, and Austin Robotics & AI, which makes the industrial/deployment posture more concrete than the older generic city split.
 - San Diego now has a distinct target-account map worth keeping separate from Austin and San Francisco: the strongest local anchors are Brain Corp, Shield AI, GA-ASI, UC San Diego CRI, and a set of industrial integrators and defense-adjacent buyers.
 
 ## Open Questions
@@ -84,6 +85,7 @@ Current technical-buyer demand is concentrating around developer-first spatial p
 - Paperclip issue: `paperclip://issue/06e0041b-8b0d-4b40-b31d-e2e1e928ff5c`
 - Steering file: `ops/paperclip/programs/demand-intel-agent-program.md`
 - Agent instructions: `ops/paperclip/skills/demand-intel-agent.md`
+- Austin target-account dossier: `knowledge/compiled/demand-intel/austin-robot-team-target-accounts.md`
 - Current weekly report: `knowledge/reports/demand-intel/2026-04-13-demand-intel-weekly-digest-2026-04-13.md`
 - San Diego target-account report: `knowledge/reports/demand-intel/2026-04-13-san-diego-robot-team-target-accounts.md`
 - Related downstream lanes: `robot-team-growth-agent`, `site-operator-partnership-agent`, `city-demand-agent`

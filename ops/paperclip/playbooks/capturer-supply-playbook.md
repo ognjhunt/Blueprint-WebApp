@@ -15,6 +15,11 @@ That means:
 - do not copy gig-economy tactics that trade trust for short-term volume
 - do optimize for reliable, rights-safe, high-quality local contributors
 
+Observed marketplace pattern:
+- reward and access loops should hinge on a verified first action, not a raw signup
+- city expansion should wait for a local supply pocket plus a trust gate plus a quality gate
+- referral and ambassador mechanics work best after contributors have already produced one acceptable output
+
 ## Generic Funnel
 1. targeted channel entry
 2. gated cohort intake or access-code expression of interest
@@ -44,11 +49,22 @@ Open discovery should feed gated cohorts, not immediate broad approval. The oper
 | Niche field-task platforms | Open discovery | can surface supply pockets but usually with more noise and trust burden | task-platform workers | low-medium | medium | duplicate/content checks, stronger review, limited pilot scope |
 | Event-based recruiting pushes | Gated cohort | time-bounded cohorts can work when intake and onboarding are already standardized | hackathons, meetups, local activations | medium | medium | event coordination, fast stage management, human attendance |
 
+## What Sacramento Confirms
+- First-wave capturer outreach should stay split between professional capturer sources and bounded public-commercial community sources.
+- The professional lane should prioritize surveying, AEC, industrial inspection, and commercial mapping operators with explicit lawful-access expectations.
+- Public-commercial capture should stay public-area-only and never imply private-interior permission.
+- Early city launches can use source buckets and next moves before a fully named contact roster exists, as long as the evidence boundary is explicit.
+- Every first-wave asset should point to the same tagged intake path and preserve no-guarantee language.
+- Sacramento's current professional supply wave should stay anchored to site-authorized surveying and industrial inspection operators, Sacramento civil engineering and land surveying society members, and contractors already working McClellan Park, US Cold Storage, or similar facilities.
+- Sacramento's feeder lanes can include UC Davis technical communities and FIRA USA contacts, but those lanes stay secondary to the professional industrial wedge until a verified first output exists.
+- Sacramento public-commercial capture remains a separate bounded lane for lawful public areas only, with no implication of private-interior access.
+
 ## Cohort and Access Rules
 - Austin and San Francisco should start with cohort-based supply seeding, not citywide open recruiting.
 - Open channels are discovery surfaces only until approval rate, first-capture activation rate, and trust checks are stable.
 - Access codes, invite links, or direct operator review should be the default way to admit early cohorts.
 - Rights-sensitive exact-site work should start with a consent-backed site-access path plus a hard-capped technical cohort; generic gig recruiting stays in discovery until the trust and activation rails are proven.
+- Public community sourcing for capturers should stay bounded to lawful public areas until the local evidence stack proves first-action quality and repeat reliability.
 - Private or higher-trust work should stay restricted to approved contributors who have passed a first capture and trust review.
 
 ## Messaging Hierarchy
@@ -94,6 +110,7 @@ If these controls are not operational, Blueprint should not widen top-of-funnel 
 - only approved capturers who have passed a first capture should be eligible to refer
 - referred contributors should count only after their first passed capture or equivalent quality milestone
 - referral programs should prefer metro-specific or cohort-specific windows over blanket always-on pushes
+- metro-level referral or ambassador windows should only open once a local pocket has already produced a verified first output
 - private higher-trust opportunities can be used as a retention and quality lever before cash-heavy public incentives
 
 ## Quality and Trust Filters
@@ -138,6 +155,7 @@ If these controls are not operational, Blueprint should not widen top-of-funnel 
 - Blueprint trust-packet drop-off and approval timing
 - city-by-city first-capture activation benchmarks
 - ops burden by cohort source and contributor tier
+- which local supply pocket can reliably produce the first 25-100 high-signal capturers in each launch metro
 
 ## Handoffs
 - `intake-agent`: signup qualification, trust-packet rules, approval stages, and contributor tier entry rules

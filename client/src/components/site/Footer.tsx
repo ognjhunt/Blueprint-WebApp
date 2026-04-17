@@ -13,8 +13,12 @@ export function Footer() {
             Blueprint
           </a>
           <p className="text-sm leading-6 text-slate-500">
-            Site-specific world models, buyer-facing proof, and hosted evaluation grounded in real
-            capture.
+            Exact-site packages, hosted evaluation, and buyer-readable trust surfaces grounded in
+            real capture.
+          </p>
+          <p className="text-sm leading-6 text-slate-500">
+            Built for robot teams that need one real facility, one workflow lane, and a cleaner
+            path from inspection to decision.
           </p>
           <div className="flex flex-col gap-2">
             <a

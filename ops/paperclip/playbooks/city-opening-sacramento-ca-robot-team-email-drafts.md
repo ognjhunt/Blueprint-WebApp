@@ -9,15 +9,18 @@
 - send_action_id: `sacramento-ca-send-warehouse-direct-1`
 - company: `Raymond West`
 - recipient_email: `sales@raymondwest.com`
-- source_of_contact: real SendGrid Sacramento exact-site-hosted-review delivery telemetry already stored in `growth_campaign_events`
-- subject: `Blueprint Sacramento exact-site warehouse opening`
+- source_of_contact: Sacramento warehouse automation page and existing SendGrid delivery evidence
+- why_now: the Sacramento page explicitly surfaces AGVs, cobots, WMS integration, dock and door systems, and warehouse engineering support
+- why_this_contact: Raymond West is a Sacramento-local warehouse automation team with a public Sacramento route and a clear owner for workflow-specific review
+- relevant_blueprint_angle: exact-site hosted review for one warehouse workflow lane
+- subject: `Blueprint Sacramento exact-site hosted review for warehouse automation`
 
 ```text
-Blueprint is opening a bounded Sacramento city-launch motion focused on exact-site hosted review for real warehouse workflows.
+Blueprint is opening a bounded Sacramento exact-site hosted-review motion.
 
-We are looking for named buyer, operator, and integrator threads where one real site and one real workflow lane can be routed into a truthful proof path.
+Your Sacramento page highlights AGVs, cobots, WMS integration, and dock-and-door systems, which is the kind of warehouse workflow we can ground in a truthful site review.
 
-If there is a relevant Sacramento facility or workflow thread, reply with the site, role, access posture, and whether the next step should be a direct intro or a proof-led follow-up.
+If there is a Sacramento owner for automation evaluation, reply with the right contact and whether the next step should be a short review on one warehouse lane.
 ```
 
 ## Draft 2
@@ -25,13 +28,36 @@ If there is a relevant Sacramento facility or workflow thread, reply with the si
 - send_action_id: `sacramento-ca-send-buyer-linked-1`
 - company: `SIR Robotics`
 - recipient_email: `mbeer@sir-robotics.com`
-- source_of_contact: real SendGrid Sacramento exact-site-hosted-review delivery telemetry already stored in `growth_campaign_events`
-- subject: `Blueprint Sacramento exact-site follow-up`
+- source_of_contact: official Sacramento office listing and public robotics solutions pages
+- why_now: the public site shows robotics work across automotive, e-mobility, foundry, and general industry
+- why_this_contact: SIR Robotics has a Sacramento office and a plausible technical owner for site-specific review conversations
+- relevant_blueprint_angle: one real site, one workflow lane, one truthful next step into proof review
+- subject: `Blueprint Sacramento exact-site review path`
 
 ```text
 Blueprint is opening a bounded Sacramento exact-site hosted-review motion.
 
-This follow-up stays narrow: one real site, one workflow lane, one truthful next step into proof review.
+I saw your Sacramento office and the robotics work you do across automotive, e-mobility, foundry, and general industry.
 
-Reply with the site/workflow fit and the right owner or operator path if a Sacramento thread should be opened.
+If Sacramento is the right lane, reply with the owner for a short exact-site review and the workflow you would want grounded in a real site.
+```
+
+## Draft 3
+
+- send_action_id: `sacramento-ca-send-capital-robotics-1`
+- company: `Capital Robotics`
+- recipient_email: `taylor@capitalrobotics.com`
+- source_of_contact: public delivery evidence already present in the city-launch ledger
+- why_now: the current city materials still treat this as a working target, but the Sacramento link should be validated before any send
+- why_this_contact: the thread is useful only if a Sacramento-specific route is confirmed in a live reply or a fresh public contact source
+- relevant_blueprint_angle: parked until a cleaner Sacramento buyer signal appears
+- status: parked
+- subject: `Blueprint Sacramento exact-site follow-up`
+
+```text
+Blueprint is opening a bounded exact-site hosted-review motion.
+
+If this is the right Sacramento-linked thread, reply with the site, the role, and who should own the next step.
+
+If not, point us to the correct Sacramento contact and we will keep the conversation narrow and truthful.
 ```

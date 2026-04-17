@@ -26,6 +26,7 @@ import {
   readCurrentCityLaunchActivation,
   runCityLaunchExecutionHarness,
 } from "../utils/cityLaunchExecutionHarness";
+import { resolveCityLaunchActivationFounderApproval } from "../utils/cityLaunchApprovalMode";
 import {
   listCityLaunchBudgetEvents,
   listCityLaunchBuyerTargets,
@@ -446,7 +447,10 @@ router.post("/city-launch/activate", requireOps, async (req, res) => {
 
     const result = await runCityLaunchExecutionHarness({
       city,
-      founderApproved: req.body?.founderApproved === true,
+      founderApproved: resolveCityLaunchActivationFounderApproval({
+        founderApproved: req.body?.founderApproved,
+        requireFounderApproval: req.body?.requireFounderApproval,
+      }),
       budgetTier,
       budgetMaxUsd: normalizeNumber(req.body?.budgetMaxUsd) ?? undefined,
       operatorAutoApproveUsd:
@@ -543,6 +547,7 @@ router.post("/city-launch/ledgers/buyer-targets", requireOps, async (req, res) =
       launchId: normalizeString(req.body?.launchId) || null,
       companyName,
       contactName: normalizeString(req.body?.contactName) || null,
+      contactEmail: normalizeString(req.body?.contactEmail) || null,
       status:
         status as
           | "identified"
@@ -1012,6 +1017,7 @@ router.post("/city-launch/send-actions/:sendActionId/ingest-response", requireOp
         launchId: existing.launchId,
         companyName: normalizeString(req.body?.companyName) || existing.targetLabel,
         contactName: normalizeString(req.body?.contactName) || null,
+        contactEmail: normalizeString(req.body?.contactEmail) || existing.recipientEmail || null,
         status: normalizeString(req.body?.buyerStatus) === "engaged" ? "engaged" : "contacted",
         workflowFit: normalizeString(req.body?.workflowFit) || null,
         proofPath: isCityLaunchBuyerProofPath(normalizeString(req.body?.proofPath) || null)

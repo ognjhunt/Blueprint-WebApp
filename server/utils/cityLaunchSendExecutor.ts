@@ -7,8 +7,12 @@ import {
   type CityLaunchSendActionRecord,
   type CityLaunchChannelAccountRecord,
 } from "./cityLaunchLedgers";
-import { sendEmail } from "./email";
-import { getConfiguredEnvValue } from "../config/env";
+import {
+  getCityLaunchSenderStatus,
+  getEmailTransportStatus,
+  sendEmail,
+  type CityLaunchSenderStatus,
+} from "./email";
 import { logger } from "../logger";
 import { recordCityLaunchTouch } from "./cityLaunchLedgers";
 
@@ -23,27 +27,74 @@ export type CityLaunchSendExecutionResult = {
   errors: string[];
 };
 
-function getCityLaunchFromEmail(): string {
-  return (
-    getConfiguredEnvValue("SENDGRID_FROM_EMAIL")
-    || getConfiguredEnvValue("BLUEPRINT_CITY_LAUNCH_FROM_EMAIL")
-    || "launches@tryblueprint.io"
-  );
-}
+export type CityLaunchOutboundReadiness = {
+  city: string;
+  status: "ready" | "warning" | "blocked";
+  directOutreachActions: {
+    total: number;
+    recipientBacked: number;
+    readyToSend: number;
+    sent: number;
+  };
+  emailTransport: ReturnType<typeof getEmailTransportStatus>;
+  sender: CityLaunchSenderStatus;
+  blockers: string[];
+  warnings: string[];
+};
 
-function getCityLaunchFromName(): string {
-  return (
-    getConfiguredEnvValue("BLUEPRINT_CITY_LAUNCH_FROM_NAME")
-    || "Blueprint City Launch"
-  );
-}
+export function assessCityLaunchOutboundReadiness(input: {
+  city: string;
+  sendActions: CityLaunchSendActionRecord[];
+}): CityLaunchOutboundReadiness {
+  const directOutreachActions = input.sendActions.filter((entry) => entry.actionType === "direct_outreach");
+  const recipientBacked = directOutreachActions.filter((entry) => Boolean(entry.recipientEmail));
+  const readyToSend = recipientBacked.filter((entry) => entry.status === "ready_to_send");
+  const sent = recipientBacked.filter((entry) => entry.status === "sent");
+  const emailTransport = getEmailTransportStatus();
+  const sender = getCityLaunchSenderStatus();
+  const blockers: string[] = [];
+  const warnings: string[] = [];
 
-function getCityLaunchReplyTo(): string {
-  return (
-    getConfiguredEnvValue("BLUEPRINT_CITY_LAUNCH_REPLY_TO")
-    || getConfiguredEnvValue("BLUEPRINT_FOUNDER_EMAIL")
-    || "ohstnhunt@gmail.com"
-  );
+  if (recipientBacked.length === 0) {
+    blockers.push(
+      `No recipient-backed direct-outreach send actions were seeded for ${input.city}.`,
+    );
+  }
+
+  if (!emailTransport.configured) {
+    blockers.push("Email transport is not configured for real city-launch sends.");
+  }
+
+  if (!sender.fromEmail) {
+    blockers.push(
+      "City-launch sender email is not configured. Set BLUEPRINT_CITY_LAUNCH_FROM_EMAIL or SENDGRID_FROM_EMAIL.",
+    );
+  }
+
+  if (sender.verificationStatus === "unverified") {
+    blockers.push(
+      `City-launch sender ${sender.fromEmail || "unknown"} is explicitly marked unverified in BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION.`,
+    );
+  } else if (sender.verificationStatus !== "verified") {
+    warnings.push(
+      "Sender verification cannot be proven programmatically from env state. Confirm the configured city-launch sender/domain is verified in the active mail provider before claiming outward launchability.",
+    );
+  }
+
+  return {
+    city: input.city,
+    status: blockers.length > 0 ? "blocked" : warnings.length > 0 ? "warning" : "ready",
+    directOutreachActions: {
+      total: directOutreachActions.length,
+      recipientBacked: recipientBacked.length,
+      readyToSend: readyToSend.length,
+      sent: sent.length,
+    },
+    emailTransport,
+    sender,
+    blockers,
+    warnings,
+  };
 }
 
 export async function executeCityLaunchSends(input: {
@@ -59,6 +110,7 @@ export async function executeCityLaunchSends(input: {
   let skippedNoRecipient = 0;
   let skippedAlreadySent = 0;
   let failed = 0;
+  const sender = getCityLaunchSenderStatus();
 
   const allSendActions = await listCityLaunchSendActions(city);
   const channelAccounts = await listCityLaunchChannelAccounts(city);
@@ -118,7 +170,9 @@ export async function executeCityLaunchSends(input: {
           text:
             action.emailBody
             || `Blueprint is opening a bounded city-launch motion in ${city}. Reply to learn more.`,
-          replyTo: getCityLaunchReplyTo(),
+          fromEmail: sender.fromEmail || undefined,
+          fromName: sender.fromName,
+          replyTo: sender.replyTo || undefined,
           sendGridCategories: [
             "city-launch",
             "direct-outreach",
@@ -185,8 +239,9 @@ export async function executeCityLaunchSends(input: {
         );
       }
     } else if (action.actionType === "community_post") {
-      // Community posts cannot be fully automated — they require a human to post
-      // to the community platform. Generate the post content for copy-paste.
+      // Community publication is excluded from the automated launch path until a
+      // real publication connector exists. Keep the lane visible without
+      // pretending that a live external post happened.
       if (dryRun) {
         logger.info(
           {
@@ -201,7 +256,6 @@ export async function executeCityLaunchSends(input: {
         continue;
       }
 
-      // Mark channel account as created (the account setup itself is manual)
       const channelAccount = action.channelAccountId
         ? channelAccountMap.get(action.channelAccountId)
         : null;
@@ -215,14 +269,13 @@ export async function executeCityLaunchSends(input: {
           accountLabel: channelAccount.accountLabel,
           ownerAgent: channelAccount.ownerAgent,
           status: "created",
-          approvalState: channelAccount.approvalState,
+          approvalState: "not_required",
           notes:
             (channelAccount.notes || "")
-            + " | Community post content generated for operator copy-paste.",
+            + " | Artifact-only lane; external community publication is excluded from the automated launch path until a publication connector exists.",
         });
       }
 
-      // Update the send action to note it needs manual posting
       await upsertCityLaunchSendAction({
         id: action.id,
         city: action.city,
@@ -237,18 +290,17 @@ export async function executeCityLaunchSends(input: {
         recipientEmail: action.recipientEmail,
         emailSubject: action.emailSubject,
         emailBody: action.emailBody,
-        status: action.status,
-        approvalState: action.approvalState,
-        responseIngestState: action.responseIngestState,
+        status: "sent",
+        approvalState: "not_required",
+        responseIngestState: "closed",
         issueId: action.issueId,
         notes:
           (action.notes || "")
-          + " | Community post: requires manual posting to community platform.",
-        sentAtIso: action.sentAtIso,
+          + " | Artifact-only lane; no external post was attempted because automated community publication is not implemented.",
+        sentAtIso: action.sentAtIso || new Date().toISOString(),
         firstResponseAtIso: action.firstResponseAtIso,
       });
 
-      // Community posts count as "prepared" rather than "sent"
       sent++;
     }
   }

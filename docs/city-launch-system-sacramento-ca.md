@@ -2,7 +2,7 @@
 
 - city: Sacramento, CA
 - status: founder_approved_activation_ready
-- planning_state: not started
+- planning_state: completed
 - doctrine: capture-first, world-model-product-first, Exact-Site Hosted Review wedge
 
 ## Objective
@@ -11,13 +11,13 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 
 ## Machine-Readable Budget Policy
 
-- budget_tier: zero_budget
-- total_envelope_usd: 0
-- operator_auto_approve_usd: 0
-- allow_paid_acquisition: false
+- budget_tier: low_budget
+- total_envelope_usd: 2500
+- operator_auto_approve_usd: 500
+- allow_paid_acquisition: true
 - allow_referral_rewards: false
-- allow_travel_reimbursement: false
-- founder_approval_required_above_usd: 0
+- allow_travel_reimbursement: true
+- founder_approval_required_above_usd: 500
 
 ## What The Org Will Do
 
@@ -31,15 +31,14 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 
 ## Planning State
 
-- planning_status: not_started
-- latest_artifact: none
-- completed_playbook: none
-- warning: No city-launch planning artifacts were found for this city.
+- planning_status: completed
+- latest_artifact: /tmp/city-launch/sacramento-ca/run-1/99-final-playbook.md
+- completed_playbook: /tmp/city-launch/sacramento-ca/run-1/99-final-playbook.md
 
 ## Founder-Only Decisions
 
 - Sacramento go / no-go and the decision to keep the city gated or expand it.
-- Any spend envelope beyond the approved Sacramento zero budget policy.
+- Any spend envelope beyond the approved Sacramento low budget policy.
 - Any public statement that changes company posture or overstates Sacramento readiness.
 - Any rights/privacy exception or non-standard commercial commitment that would set precedent.
 
@@ -64,7 +63,7 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 
 - Approve Sacramento, CA as an active city-launch activation and keep non-active cities deferred unless a new evidence packet exists.
 - Approve the bounded Sacramento launch posture: gated cohort pilot, Exact-Site Hosted Review wedge, no public city-live claims.
-- Approve the bounded spend posture for Sacramento: Zero Budget with no paid acquisition, referral, or discretionary travel spend.
+- Approve the bounded spend posture for Sacramento: Low Budget with a total envelope up to $2,500.
 - Approve any Sacramento source-policy exceptions beyond the current bounded channel stack.
 - Approve any rights/privacy/commercialization exception that would set precedent or create an irreversible external commitment.
 - Approve any non-standard commercial terms outside the standard Sacramento quote bands prepared by revenue-ops-pricing-agent and the designated human commercial owner.
@@ -82,11 +81,22 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 
 ## Activation Payload Highlights
 
-- No activation payload was available; treat execution posture as incomplete.
+- city_thesis: Run one proof-led warehouse wedge.
+- primary_site_lane: industrial_warehouse
+- primary_workflow_lane: dock handoff
+- primary_buyer_proof_path: exact_site
+- lawful_access_modes: buyer_requested_site
 
 ## Metrics Blockers
 
-- No activation payload metrics contract is available yet.
+- robot_team_inbound_captured: required_not_tracked
+- proof_path_assigned: required_not_tracked
+- proof_pack_delivered: required_not_tracked
+- hosted_review_ready: required_not_tracked
+- hosted_review_started: required_not_tracked
+- hosted_review_follow_up_sent: required_not_tracked
+- human_commercial_handoff_started: required_not_tracked
+- proof_motion_stalled: required_not_tracked
 
 ## Expansion Guard
 
@@ -95,7 +105,14 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 - At least one hosted review must run end to end before widening.
 - At least three approved capturers are required before widening.
 - At least two capturers must reach onboarded status before widening.
-- Required proof-motion analytics contract is missing from the activation payload.
+- robot_team_inbound_captured is required_not_tracked.
+- proof_path_assigned is required_not_tracked.
+- proof_pack_delivered is required_not_tracked.
+- hosted_review_ready is required_not_tracked.
+- hosted_review_started is required_not_tracked.
+- hosted_review_follow_up_sent is required_not_tracked.
+- human_commercial_handoff_started is required_not_tracked.
+- proof_motion_stalled is required_not_tracked.
 
 ## Execution Bundle
 
@@ -104,7 +121,7 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 - Lock Sacramento source policy and invite/access-code posture: Growth Lead owns execution, Growth Lead is the human lane, and the task closes only when Sacramento source policy names allowed channels, disallowed channels, referral rules, and who may issue invites or access codes..
 - Build the Sacramento city-opening distribution brief and channel map: city-launch-agent owns execution, Growth Lead is the human lane, and the task closes only when Sacramento city-opening brief exists with a warehouse/facility direct-awareness track and a bounded public-commercial community-awareness track..
 - Publish the Sacramento city-facing CTA and intake routing path: Ops Lead owns execution, Ops Lead is the human lane, and the task closes only when Sacramento warehouse/facility direct-awareness replies and public-commercial community replies both land in a named CTA path with city, lane, source, and owner routing..
-- Assemble the Sacramento first-wave outreach and posting pack: capturer-growth-agent owns execution, Growth Lead is the human lane, and the task closes only when Sacramento warehouse/facility first-wave outreach pack names the first buyers, operators, integrators, or facilities to contact, the proof-led message variants, and the next move per target..
+- Assemble first-wave pack: capturer-growth-agent owns execution, Growth Lead is the human lane, and the task closes only when First-wave pack is ready..
 - Run Sacramento site-operator partnership routing: site-operator-partnership-agent owns execution, Growth Lead is the human lane, and the task closes only when Sacramento operator-lane packet identifies likely owner/operator/tenant contacts, operator-side value props, and the exact approval sequence for the highest-priority warehouse/facility candidates..
 - Publish Sacramento intake rubric, trust kit, and first-capture thresholds: Ops Lead owns execution, Ops Lead is the human lane, and the task closes only when Sacramento rubric covers source quality, access-path truth, equipment/device fit, trust-packet minimums, and approval outcomes..
 - Build the Sacramento capturer prospect list and post package: capturer-growth-agent owns execution, Growth Lead is the human lane, and the task closes only when A curated first-wave Sacramento professional prospect set is named with source bucket, rationale, lawful access posture, and next move..
@@ -164,6 +181,7 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 - ops/paperclip/playbooks/city-launch-sacramento-ca.md
 - ops/paperclip/playbooks/city-demand-sacramento-ca.md
 - ops/paperclip/playbooks/city-capture-target-ledger-sacramento-ca.md
+- ops/paperclip/playbooks/city-launch-sacramento-ca-activation-payload.json
 - ops/paperclip/playbooks/city-opening-sacramento-ca-brief.md
 - ops/paperclip/playbooks/city-opening-sacramento-ca-channel-map.md
 - ops/paperclip/playbooks/city-opening-sacramento-ca-first-wave-pack.md

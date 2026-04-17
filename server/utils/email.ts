@@ -7,12 +7,28 @@ interface SendEmailOptions {
   text: string;
   html?: string;
   replyTo?: string;
+  fromEmail?: string;
+  fromName?: string;
   sendGridCategories?: string[];
   sendGridCustomArgs?: Record<string, string>;
   attachments?: nodemailer.SendMailOptions["attachments"];
 }
 
 let cachedTransporter: nodemailer.Transporter | null = null;
+
+export type CityLaunchSenderVerificationStatus =
+  | "verified"
+  | "unverified"
+  | "unknown"
+  | "unset";
+
+export type CityLaunchSenderStatus = {
+  fromEmail: string | null;
+  fromName: string;
+  replyTo: string | null;
+  source: "blueprint_city_launch" | "sendgrid_default" | null;
+  verificationStatus: CityLaunchSenderVerificationStatus;
+};
 
 function getSendGridConfig() {
   const apiKey = process.env.SENDGRID_API_KEY?.trim() || "";
@@ -70,12 +86,51 @@ export function getEmailTransportStatus() {
   };
 }
 
+export function getCityLaunchSenderStatus(): CityLaunchSenderStatus {
+  const configuredCityFromEmail = process.env.BLUEPRINT_CITY_LAUNCH_FROM_EMAIL?.trim() || "";
+  const sendGridDefaultFromEmail = process.env.SENDGRID_FROM_EMAIL?.trim() || "";
+  const fromEmail = configuredCityFromEmail || sendGridDefaultFromEmail || null;
+  const fromName =
+    process.env.BLUEPRINT_CITY_LAUNCH_FROM_NAME?.trim()
+    || process.env.SENDGRID_FROM_NAME?.trim()
+    || "Blueprint City Launch";
+  const replyTo =
+    process.env.BLUEPRINT_CITY_LAUNCH_REPLY_TO?.trim()
+    || process.env.BLUEPRINT_FOUNDER_EMAIL?.trim()
+    || fromEmail;
+  const verificationState = (process.env.BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION?.trim() || "")
+    .toLowerCase();
+
+  let verificationStatus: CityLaunchSenderVerificationStatus = "unset";
+  if (verificationState === "verified") {
+    verificationStatus = "verified";
+  } else if (verificationState === "unverified") {
+    verificationStatus = "unverified";
+  } else if (fromEmail) {
+    verificationStatus = "unknown";
+  }
+
+  return {
+    fromEmail,
+    fromName,
+    replyTo: replyTo || null,
+    source: configuredCityFromEmail
+      ? "blueprint_city_launch"
+      : sendGridDefaultFromEmail
+        ? "sendgrid_default"
+        : null,
+    verificationStatus,
+  };
+}
+
 async function sendViaSendGrid({
   to,
   subject,
   text,
   html,
   replyTo,
+  fromEmail,
+  fromName,
   sendGridCategories,
   sendGridCustomArgs,
   attachments,
@@ -95,8 +150,8 @@ async function sendViaSendGrid({
       body: JSON.stringify({
         personalizations: [{ to: [{ email: to }] }],
         from: {
-          email: config.fromEmail,
-          name: config.fromName,
+          email: fromEmail || config.fromEmail,
+          name: fromName || config.fromName,
         },
         reply_to: replyTo ? { email: replyTo } : undefined,
         subject,
@@ -144,6 +199,8 @@ export async function sendEmail({
   text,
   html,
   replyTo,
+  fromEmail,
+  fromName,
   sendGridCategories,
   sendGridCustomArgs,
   attachments,
@@ -154,6 +211,8 @@ export async function sendEmail({
     text,
     html,
     replyTo,
+    fromEmail,
+    fromName,
     sendGridCategories,
     sendGridCustomArgs,
     attachments,
@@ -170,8 +229,13 @@ export async function sendEmail({
   }
 
   try {
+    const smtpFrom = process.env.SMTP_FROM?.trim() || fromEmail || "";
     await transporter.sendMail({
-      from: process.env.SMTP_FROM ?? "Blueprint <ohstnhunt@gmail.com>",
+      from: smtpFrom
+        ? fromName
+          ? `${fromName} <${smtpFrom}>`
+          : smtpFrom
+        : undefined,
       to,
       subject,
       text,

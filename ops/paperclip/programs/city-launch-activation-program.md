@@ -39,6 +39,7 @@ Execution rule:
 - every lane must execute all reversible research, drafting, implementation, routing, and internal/external preparation immediately
 - lanes stop only at irreversible human gates, external counterparty confirmations, or the absence of a real live signal needed to mark the task complete
 - city-opening distribution must be explicit: publish the city-opening brief, channel map, first-wave outreach/posting pack, CTA / intake path, and response-tracking view before assuming the city knows Blueprint is launching
+- activation-ready first-wave direct outreach must name 1-3 truthful recipient-backed contacts with explicit `contact_email` evidence; otherwise the city is not outwardly addressable yet
 - reply-conversion cadence must also be explicit: define the shared response queue, follow-up timing rules, stale-response handling, and handoff boundaries into intake, site-operator partnership, buyer handling, or no-fit closure
 - city-opening execution must be explicit: maintain a channel/account registry, per-action send ledger, approval state for first live sends, response-ingest state, and an execution report showing what actually went live
 - city source policy must distinguish private controlled interiors from public, non-controlled commercial locations; broad online/community sourcing is disallowed for the former but allowed in bounded form for the latter

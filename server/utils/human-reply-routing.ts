@@ -31,7 +31,8 @@ export type HumanResumeActionKind =
   | "rerun_launch_smoke"
   | "inspect_logs"
   | "manual_followup"
-  | "ops_followup";
+  | "ops_followup"
+  | "city_launch_activate";
 
 export type HumanReplyRouteDecision = {
   classification: HumanReplyClassification;
@@ -196,6 +197,8 @@ export function classifyHumanReply(
   }
 
   const approval = includesAny(normalized, [
+    "approve",
+    "approve all",
     "approved",
     "go ahead",
     "proceed",

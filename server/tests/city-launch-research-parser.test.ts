@@ -24,6 +24,7 @@ describe("city launch research parser", () => {
           capture_location_candidates: [
             {
               name: "Del Valle Logistics Hub",
+              contact_email: "siteops@delvallelogistics.com",
               source_bucket: "industrial_warehouse",
               channel: "operator_intro",
               status: "qualified",
@@ -35,20 +36,21 @@ describe("city launch research parser", () => {
               workflow_fit: "dock handoff",
               priority_note: "Strong first exact-site hosted review candidate.",
               source_urls: ["https://example.com/logistics"],
-              explicit_fields: ["name", "site_address", "workflow_fit"],
+              explicit_fields: ["name", "contact_email", "site_address", "workflow_fit"],
               inferred_fields: ["lat", "lng"],
             },
           ],
           buyer_target_candidates: [
             {
               company_name: "Warehouse Robotics Co",
+              contact_email: "ops@warehouserobotics.com",
               status: "researched",
               workflow_fit: "dock handoff",
               proof_path: "exact_site",
               notes: "Current warehouse autonomy fit.",
               source_bucket: "warehouse_robotics",
               source_urls: ["https://example.com/buyer"],
-              explicit_fields: ["company_name", "workflow_fit"],
+              explicit_fields: ["company_name", "contact_email", "workflow_fit"],
               inferred_fields: [],
             },
           ],
@@ -282,5 +284,133 @@ describe("city launch research parser", () => {
     expect(result.budgetRecommendations).toHaveLength(0);
     expect(result.errors.join("\n")).toContain('unsupported "proof_path" value "hosted_review"');
     expect(result.errors.join("\n")).toContain('unsupported "category" value "proptech_processing"');
+  });
+
+  it("rejects activation-ready direct outreach when first-wave contacts omit contact_email", () => {
+    const markdown = [
+      "# Sacramento, CA Launch Playbook",
+      "",
+      "## Structured launch data appendix",
+      "",
+      "```city-launch-records",
+      JSON.stringify(
+        {
+          schema_version: CITY_LAUNCH_RESEARCH_SCHEMA_VERSION,
+          generated_at: "2026-04-17T12:00:00.000Z",
+          capture_location_candidates: [
+            {
+              name: "Northgate Logistics",
+              source_bucket: "industrial_warehouse",
+              channel: "professional_outreach",
+              status: "qualified",
+              workflow_fit: "dock handoff",
+              source_urls: ["https://example.com/capture"],
+              explicit_fields: ["name", "workflow_fit"],
+              inferred_fields: [],
+            },
+          ],
+          buyer_target_candidates: [
+            {
+              company_name: "Capital Robotics",
+              contact_name: "Taylor Buyer",
+              status: "researched",
+              workflow_fit: "dock handoff",
+              proof_path: "exact_site",
+              source_urls: ["https://example.com/buyer"],
+              explicit_fields: ["company_name", "contact_name", "workflow_fit"],
+              inferred_fields: [],
+            },
+          ],
+          first_touch_candidates: [
+            {
+              reference_type: "buyer_target",
+              reference_name: "Capital Robotics",
+              channel: "email",
+              touch_type: "first_touch",
+              status: "queued",
+              source_urls: ["https://example.com/buyer"],
+              explicit_fields: ["reference_name", "channel"],
+              inferred_fields: [],
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+      "```",
+      "",
+      "## Machine-readable activation payload",
+      "",
+      "```city-launch-activation-payload",
+      JSON.stringify(
+        {
+          schema_version: CITY_LAUNCH_ACTIVATION_PAYLOAD_SCHEMA_VERSION,
+          machine_policy_version: CITY_LAUNCH_MACHINE_POLICY_VERSION,
+          city: "Sacramento, CA",
+          city_slug: "sacramento-ca",
+          city_thesis: "Run one proof-led warehouse wedge.",
+          primary_site_lane: "industrial_warehouse",
+          primary_workflow_lane: "dock handoff",
+          primary_buyer_proof_path: "exact_site",
+          lawful_access_modes: ["buyer_requested_site"],
+          preferred_lawful_access_mode: "buyer_requested_site",
+          rights_path: {
+            summary: "Private controlled interiors require explicit authorization.",
+            private_controlled_interiors_require_authorization: true,
+            validation_required: false,
+            source_urls: ["https://example.com/rights"],
+          },
+          validation_blockers: [],
+          required_approvals: [{ lane: "founder", reason: "go/no-go" }],
+          owner_lanes: ["city-launch-agent", "capturer-growth-agent", "analytics-agent"],
+          issue_seeds: [
+            {
+              key: "city-opening-first-wave-pack",
+              title: "Assemble first-wave pack",
+              phase: "supply",
+              owner_lane: "capturer-growth-agent",
+              human_lane: "growth-lead",
+              summary: "Prepare first-wave outreach and posting assets.",
+              dependency_keys: [],
+              success_criteria: ["First-wave pack is ready."],
+              metrics_dependencies: ["first_lawful_access_path"],
+              validation_required: false,
+            },
+          ],
+          metrics_dependencies: [
+            { key: "robot_team_inbound_captured", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
+            { key: "proof_path_assigned", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
+            { key: "proof_pack_delivered", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
+            { key: "hosted_review_ready", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
+            { key: "hosted_review_started", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
+            { key: "hosted_review_follow_up_sent", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
+            { key: "human_commercial_handoff_started", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
+            { key: "proof_motion_stalled", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
+          ],
+          named_claims: [
+            {
+              subject: "Capital Robotics",
+              claim_type: "company",
+              claim: "Capital Robotics is a named buyer target.",
+              validation_required: false,
+              source_urls: ["https://example.com/buyer"],
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+      "```",
+    ].join("\n");
+
+    const result = parseCityLaunchResearchArtifact({
+      city: "Sacramento, CA",
+      artifactPath: "/tmp/city-launch-sacramento.md",
+      markdown,
+    });
+
+    expect(result.errors.join("\n")).toContain(
+      "Activation-ready direct outreach requires 1-3 recipient-backed first-wave contacts with explicit contact_email evidence.",
+    );
   });
 });

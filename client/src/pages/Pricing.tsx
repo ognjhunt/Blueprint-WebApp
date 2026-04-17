@@ -23,6 +23,12 @@ const pricingNotes = [
   },
 ];
 
+const pricingWorkflow = [
+  "Inspect the listing and its trust labels first.",
+  "Choose the package path, hosted evaluation, or a custom scope based on the real site question.",
+  "Use contact or booking to narrow the exact site, workflow lane, and any trust boundaries that could change scope.",
+];
+
 export default function Pricing() {
   return (
     <>
@@ -81,6 +87,55 @@ export default function Pricing() {
                 <p>1. Blueprint confirms the exact site, workflow lane, and trust boundaries.</p>
                 <p>2. The reply points you to the package path, hosted evaluation, or a custom quote.</p>
                 <p>3. Commercial follow-through narrows the scope instead of reopening discovery from scratch.</p>
+              </div>
+            </article>
+          </section>
+
+          <section className="mt-10 grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+            <article className="rounded-2xl border border-slate-200 bg-slate-950 p-6 text-white">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Buyer workflow
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold">Pricing should sit next to proof, not replace it.</h2>
+              <div className="mt-5 space-y-3">
+                {pricingWorkflow.map((item, index) => (
+                  <div key={item} className="rounded-2xl border border-slate-800 bg-slate-900/90 px-4 py-4 text-sm leading-7 text-slate-300">
+                    <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-950">
+                      {index + 1}
+                    </span>
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="rounded-2xl border border-slate-200 bg-white p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Where to start
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+                The clearest first move depends on how sure your team already is.
+              </h2>
+              <div className="mt-5 grid gap-3">
+                {[
+                  {
+                    title: "Still validating the category",
+                    body: "Inspect the sample listing and sample deliverables before asking for anything custom.",
+                  },
+                  {
+                    title: "Know the site and question",
+                    body: "Book the scoping call or send the short brief so the conversation stays anchored to one exact facility.",
+                  },
+                  {
+                    title: "Need private or unusual terms",
+                    body: "Use the custom path and say what about the site, rights model, or support layer changes the normal listing flow.",
+                  },
+                ].map((item) => (
+                  <div key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">{item.body}</p>
+                  </div>
+                ))}
               </div>
             </article>
           </section>

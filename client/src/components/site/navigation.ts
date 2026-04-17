@@ -1,7 +1,7 @@
 export const primaryNavLinks = [
   { href: "/world-models", label: "World Models" },
   { href: "/exact-site-hosted-review", label: "Hosted Evaluation" },
-  { href: "/launch-map", label: "Launch Map" },
+  { href: "/how-it-works", label: "How It Works" },
   { href: "/pricing", label: "Pricing" },
   { href: "/governance", label: "Trust" },
 ];
@@ -14,6 +14,7 @@ export const headerUtilityLinks = [
 export const footerProductLinks = [
   { href: "/world-models", label: "World Models" },
   { href: "/exact-site-hosted-review", label: "Hosted Evaluation" },
+  { href: "/how-it-works", label: "How It Works" },
   { href: "/world-models/siteworld-f5fd54898cfb", label: "Sample Site" },
   { href: "/sample-deliverables", label: "Sample Deliverables" },
 ];

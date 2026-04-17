@@ -6,9 +6,15 @@ import {
   runCityLaunchPlanningHarness,
   slugifyCityName,
 } from "../../server/utils/cityLaunchPlanningHarness";
+import { runCityLaunchContactEnrichment } from "../../server/utils/cityLaunchContactEnrichment";
 import { resolveCityLaunchPlanningState } from "../../server/utils/cityLaunchPlanningState";
 import { buildCityLaunchBudgetPolicy, type CityLaunchBudgetTier } from "../../server/utils/cityLaunchPolicy";
 import { dispatchCityLaunchFounderApproval } from "../../server/utils/cityLaunchApprovalDispatch";
+import {
+  resolveCityLaunchFounderApproval,
+  shouldDispatchCityLaunchApproval,
+} from "../../server/utils/cityLaunchApprovalMode";
+import { resolveHistoricalRecipientEvidence } from "../../server/utils/cityLaunchRecipientEvidence";
 
 function getFlagValue(args: string[], flag: string) {
   const index = args.indexOf(flag);
@@ -22,7 +28,7 @@ function hasFlag(args: string[], flag: string) {
   return args.includes(flag);
 }
 
-type RunPhase = "plan" | "approve" | "activate" | "full";
+type RunPhase = "plan" | "enrich" | "approve" | "activate" | "full";
 
 async function main() {
   const args = process.argv.slice(2);
@@ -39,7 +45,12 @@ async function main() {
   const phase: RunPhase = (getFlagValue(args, "--phase") as RunPhase) || "full";
   const skipPlan = hasFlag(args, "--skip-plan");
   const skipApproval = hasFlag(args, "--skip-approval");
-  const founderApproved = hasFlag(args, "--founder-approved");
+  const requireFounderApproval = hasFlag(args, "--require-founder-approval");
+  const founderApproved = resolveCityLaunchFounderApproval({
+    phase,
+    founderApprovedFlag: hasFlag(args, "--founder-approved"),
+    requireFounderApproval,
+  });
   const operatorAutoApproveUsdValue = getFlagValue(args, "--operator-auto-approve-usd");
   const operatorAutoApproveUsd = operatorAutoApproveUsdValue
     ? Number(operatorAutoApproveUsdValue)
@@ -70,6 +81,7 @@ async function main() {
       skipPlan,
       skipApproval,
       founderApproved,
+      requireFounderApproval,
     }),
   );
 
@@ -108,7 +120,52 @@ async function main() {
   }
 
   // Phase 2: Approve (Generate + present approval packet)
-  if (!skipApproval && !founderApproved && (phase === "approve" || phase === "full")) {
+  if (phase === "enrich" || phase === "full") {
+    const planningState = await resolveCityLaunchPlanningState({ city });
+    if (planningState.completedArtifactPath) {
+      console.log(JSON.stringify({ phase: "enrich", status: "starting", city }));
+      const citySlug = slugifyCityName(city);
+      const enrichmentResult = await runCityLaunchContactEnrichment({
+        city,
+        artifactPath: planningState.completedArtifactPath,
+        outputPath: path.resolve(
+          process.cwd(),
+          "ops/paperclip/playbooks",
+          `city-launch-${citySlug}-contact-enrichment.json`,
+        ),
+        resolveRecipientEvidence: resolveHistoricalRecipientEvidence,
+      });
+
+      console.log(
+        JSON.stringify({
+          phase: "enrich",
+          status: enrichmentResult.status,
+          city,
+          recoveredBuyerTargetContacts: enrichmentResult.recoveredBuyerTargetContacts,
+          recoveredCaptureCandidateContacts: enrichmentResult.recoveredCaptureCandidateContacts,
+          unresolvedBuyerTargets: enrichmentResult.unresolvedBuyerTargets,
+          unresolvedCaptureCandidates: enrichmentResult.unresolvedCaptureCandidates,
+          outputPath: enrichmentResult.outputPath,
+        }),
+      );
+
+      if (phase === "enrich") {
+        return;
+      }
+    } else if (phase === "enrich") {
+      throw new Error(`No completed deep-research artifact found for ${city}.`);
+    }
+  }
+
+  // Phase 3: Approve (Generate + present approval packet)
+  if (
+    !skipApproval
+    && shouldDispatchCityLaunchApproval({
+      phase,
+      founderApproved,
+      requireFounderApproval,
+    })
+  ) {
     console.log(JSON.stringify({ phase: "approve", status: "starting", city }));
 
     const approvalResult = await dispatchCityLaunchFounderApproval({
@@ -126,8 +183,8 @@ async function main() {
         emailSent: approvalResult.emailSent,
         slackMirrored: approvalResult.slackMirrored,
         message: approvalResult.dispatched
-          ? "Founder approval packet dispatched. Re-run with --founder-approved after approval."
-          : "Approval dispatch skipped (missing transport config or already approved). Pass --founder-approved to proceed.",
+          ? "Founder approval packet dispatched. Activation will resume automatically after the approval reply is recorded."
+          : "Approval dispatch skipped because the city is already approved or the manual approval lane is unavailable.",
       }),
     );
 
@@ -136,13 +193,13 @@ async function main() {
     }
   }
 
-  // Phase 3: Activate (Build execution harness + dispatch Paperclip issues)
+  // Phase 4: Activate (Build execution harness + dispatch Paperclip issues)
   if (phase === "activate" || phase === "full") {
     console.log(JSON.stringify({ phase: "activate", status: "starting", city }));
 
     const activateResult = await runCityLaunchExecutionHarness({
       city,
-      founderApproved: founderApproved || phase === "activate",
+      founderApproved,
       budgetTier: budgetPolicy.tier,
       budgetMaxUsd: budgetPolicy.maxTotalApprovedUsd,
       operatorAutoApproveUsd: budgetPolicy.operatorAutoApproveUsd,

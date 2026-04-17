@@ -3,177 +3,92 @@
   "machinePolicyVersion": "2026-04-13.city-launch-doctrine.v1",
   "city": "San Jose, CA",
   "citySlug": "san-jose-ca",
-  "cityThesis": "One narrow exact-site hosted review motion for industrial robotics teams evaluating San Jose warehouse and manufacturing interiors.",
+  "cityThesis": "Run one proof-led warehouse wedge.",
+  "primarySiteLane": "industrial_warehouse",
+  "primaryWorkflowLane": "dock handoff",
+  "primaryBuyerProofPath": "exact_site",
   "lawfulAccessModes": [
-    "buyer_requested_site",
-    "site_operator_intro",
-    "capturer_existing_lawful_access",
-    "public_non_controlled_site"
+    "buyer_requested_site"
   ],
+  "preferredLawfulAccessMode": "buyer_requested_site",
+  "rightsPath": {
+    "summary": "Private controlled interiors require authorization.",
+    "privateControlledInteriorsRequireAuthorization": true,
+    "validationRequired": false,
+    "sourceUrls": [
+      "https://example.com/rights"
+    ]
+  },
+  "validationBlockers": [],
+  "requiredApprovals": [
+    {
+      "lane": "founder",
+      "reason": "go/no-go"
+    }
+  ],
+  "ownerLanes": [
+    "city-launch-agent",
+    "capturer-growth-agent",
+    "analytics-agent"
+  ],
+  "issueSeeds": [],
   "metricsDependencies": [
     {
       "key": "robot_team_inbound_captured",
       "kind": "event",
       "status": "required_not_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Ensure intake parsing matches San Jose industrial robotics demand."
+      "notes": null
     },
     {
       "key": "proof_path_assigned",
       "kind": "event",
       "status": "required_not_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Track routing between exact_site, adjacent_site, and scoped_follow_up."
+      "notes": null
     },
     {
       "key": "proof_pack_delivered",
       "kind": "event",
       "status": "required_not_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Establish baseline time-to-proof for San Jose warehouse and manufacturing interiors."
+      "notes": null
     },
     {
       "key": "hosted_review_ready",
       "kind": "event",
       "status": "required_not_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Triggered after rights clearance and proof-pack assembly."
+      "notes": null
     },
     {
       "key": "hosted_review_started",
       "kind": "event",
       "status": "required_not_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Verify that buyers open the hosted review surface."
+      "notes": null
     },
     {
       "key": "hosted_review_follow_up_sent",
       "kind": "event",
       "status": "required_not_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Track artifact-led follow-up after the technical review."
+      "notes": null
     },
     {
       "key": "human_commercial_handoff_started",
       "kind": "event",
       "status": "required_not_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Marks successful technical proof and transition to human commercial handling."
+      "notes": null
     },
     {
       "key": "proof_motion_stalled",
       "kind": "event",
       "status": "required_not_tracked",
       "ownerLane": "analytics-agent",
-      "notes": "Expose rights, format, or stack blockers before live outreach widens."
+      "notes": null
     }
   ],
-  "namedClaims": [
-    {
-      "subject": "Roboteon",
-      "claimType": "company",
-      "claim": "San Jose HQ warehouse robotics platform focused on platform, integration, interoperability, orchestration, simulation, and AI/ML for warehouses and 3PLs.",
-      "validationRequired": true,
-      "sourceUrls": []
-    },
-    {
-      "subject": "Applied Intuition",
-      "claimType": "stack",
-      "claim": "Their San Jose research work is explicitly oriented around physical AI, world-action foundation model pre-training, robot learning, and grounded multimodal data.",
-      "validationRequired": true,
-      "sourceUrls": []
-    },
-    {
-      "subject": "Vimaan",
-      "claimType": "company",
-      "claim": "Warehouse inventory tracking and customer-specific product demonstrations make Vimaan a plausible San Jose exact-site or adjacent-site buyer cluster.",
-      "validationRequired": true,
-      "sourceUrls": []
-    },
-    {
-      "subject": "Air-Gapped Delivery",
-      "claimType": "delivery",
-      "claim": "Some San Jose buyers may require air-gapped or non-web artifact delivery for controlled environments.",
-      "validationRequired": true,
-      "sourceUrls": []
-    }
-  ],
-  "ownerLanes": [
-    "city-launch-agent",
-    "ops-lead",
-    "growth-lead",
-    "intake-agent",
-    "rights-provenance-agent",
-    "buyer-solutions-agent",
-    "analytics-agent"
-  ],
-  "preferredLawfulAccessMode": "buyer_requested_site",
-  "primaryBuyerProofPath": "exact_site",
-  "primarySiteLane": "industrial_warehouse",
-  "primaryWorkflowLane": "robotics simulation and imitation-learning validation",
-  "rightsPath": {
-    "summary": "Use buyer_requested_site or site_operator_intro for private industrial interiors, and require explicit operator authorization before capture dispatch.",
-    "privateControlledInteriorsRequireAuthorization": true,
-    "validationRequired": true,
-    "sourceUrls": []
-  },
-  "issueSeeds": [
-    {
-      "key": "lawful-access-path",
-      "title": "Lock the first San Jose lawful access path",
-      "phase": "founder_gates",
-      "ownerLane": "city-launch-agent",
-      "humanLane": "ops-lead",
-      "summary": "Secure the first rights-cleared San Jose industrial access path for an exact-site hosted review, starting from buyer_requested_site or site_operator_intro and falling back to other lawful modes only when authorized.",
-      "dependencyKeys": [],
-      "successCriteria": [
-        "The first lawful access path is explicitly authorized and tied to a named site and workflow lane.",
-        "The first proof candidate is routed through a valid lawful-access mode before any capture dispatch."
-      ],
-      "metricsDependencies": [
-        "first_lawful_access_path"
-      ],
-      "validationRequired": true
-    }
-  ],
-  "requiredApprovals": [
-    {
-      "lane": "founder",
-      "reason": "New city activation and any rights/privacy exception that changes public posture require founder gate."
-    },
-    {
-      "lane": "ops-lead",
-      "reason": "Private industrial access requires authority verification, first-capture thresholds, and proof-pack controls."
-    },
-    {
-      "lane": "designated-human-rights-reviewer",
-      "reason": "Requires manual verification of site authorization and rights/privacy boundaries before materialization."
-    }
-  ],
-  "validationBlockers": [
-    {
-      "key": "buyer_stack_fit",
-      "summary": "Verify exact-site artifact compatibility with Applied Intuition, Scale AI, and similar robotics toolchains before live outreach.",
-      "severity": "high",
-      "ownerLane": "buyer-solutions-agent",
-      "validationRequired": true,
-      "sourceUrls": []
-    },
-    {
-      "key": "rights_clearance_gap",
-      "summary": "Verify the first San Jose proof assets are rights-cleared and tied to a lawful access mode before buyer-visible claims or hosted-review invites.",
-      "severity": "high",
-      "ownerLane": "rights-provenance-agent",
-      "validationRequired": true,
-      "sourceUrls": []
-    },
-    {
-      "key": "air_gapped_delivery_constraint",
-      "summary": "Verify whether export-controlled or dual-use industrial buyers require air-gapped delivery over the web app.",
-      "severity": "high",
-      "ownerLane": "ops-lead",
-      "validationRequired": true,
-      "sourceUrls": []
-    }
-  ]
+  "namedClaims": []
 }

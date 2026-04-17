@@ -71,6 +71,12 @@ const controlCards = [
   },
 ];
 
+const listingPolicy = [
+  "Public listing does not mean unrestricted commercial clearance. It means Blueprint is comfortable showing the site, the proof shape, and the trust labels publicly.",
+  "Request-scoped commercial review means rights, privacy, export scope, or buyer-specific terms still need to be confirmed against the exact request.",
+  "Public addresses and facility names are used only when Blueprint is prepared to expose that listing publicly; the commercial path still stays bounded by the rights class and restrictions on the listing.",
+];
+
 export default function Governance() {
   return (
     <>
@@ -187,6 +193,22 @@ export default function Governance() {
                 ))}
               </div>
             </article>
+          </section>
+
+          <section className="mt-10 rounded-3xl border border-slate-200 bg-stone-50 p-6 sm:p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Public listing policy
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+              Why a public listing can still be request-scoped commercially.
+            </h2>
+            <div className="mt-5 grid gap-3">
+              {listingPolicy.map((item) => (
+                <div key={item} className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm leading-7 text-slate-700">
+                  {item}
+                </div>
+              ))}
+            </div>
           </section>
         </div>
       </div>

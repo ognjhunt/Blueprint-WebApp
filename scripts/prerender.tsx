@@ -22,6 +22,9 @@ import Pricing from "../client/src/pages/Pricing";
 import SampleDeliverables from "../client/src/pages/SampleDeliverables";
 import CaseStudies from "../client/src/pages/CaseStudies";
 import Contact from "../client/src/pages/Contact";
+import Support from "../client/src/pages/Support";
+import ExactSiteHostedReview from "../client/src/pages/ExactSiteHostedReview";
+import BookExactSiteReview from "../client/src/pages/BookExactSiteReview";
 import HowItWorks from "../client/src/pages/HowItWorks";
 import FAQ from "../client/src/pages/FAQ";
 import Governance from "../client/src/pages/Governance";
@@ -32,6 +35,7 @@ import Terms from "../client/src/pages/Terms";
 import Login from "../client/src/pages/Login";
 import Blog from "../client/src/pages/Blog";
 import Docs from "../client/src/pages/Docs";
+import LaunchMap from "../client/src/pages/LaunchMap";
 import { siteWorldCards } from "../client/src/data/siteWorlds";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -56,7 +60,11 @@ const staticRoutes: StaticRoute[] = [
   { path: "/sample-deliverables", component: SampleDeliverables },
   { path: "/case-studies", component: CaseStudies },
   { path: "/contact", component: Contact },
+  { path: "/help", component: Support },
+  { path: "/exact-site-hosted-review", component: ExactSiteHostedReview },
+  { path: "/book-exact-site-review", component: BookExactSiteReview },
   { path: "/how-it-works", component: HowItWorks },
+  { path: "/launch-map", component: LaunchMap },
   { path: "/faq", component: FAQ },
   { path: "/governance", component: Governance },
   { path: "/about", component: About },

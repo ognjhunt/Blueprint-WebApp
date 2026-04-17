@@ -63,6 +63,10 @@ describe("city launch planning harness", () => {
     expect(prompt).toContain("What Must Be Validated Before Live Outreach");
     expect(prompt).toContain("Machine-readable activation payload");
     expect(prompt).toContain(CITY_LAUNCH_ACTIVATION_PAYLOAD_SCHEMA_VERSION);
+    expect(prompt).toContain("1-3 recipient-backed first-wave direct outreach contacts");
+    expect(prompt).toContain("explicit `contact_email` fields");
+    expect(prompt).toContain("downgrade readiness");
+    expect(prompt).toContain("artifact-only/community lanes");
     expect(prompt).not.toContain("first 25, first 100, first 250 capturers");
     expect(prompt).toContain("do not ask for citywide liquidity");
   });
@@ -172,6 +176,10 @@ describe("city launch planning harness", () => {
     expect(prompt).toContain(CITY_LAUNCH_MACHINE_POLICY_VERSION);
     expect(prompt).toContain("allowed buyer target proof_path values");
     expect(prompt).toContain("approved analytics references for the instrumentation section");
+    expect(prompt).toContain("1-3 recipient-backed first-wave direct outreach contacts");
+    expect(prompt).toContain("Every direct-outreach-ready buyer_target_candidates or capture_location_candidates entry must include contact_email");
+    expect(prompt).toContain("If truthful recipients cannot be found, downgrade readiness");
+    expect(prompt).toContain("community-posting lanes as artifact-only");
     expect(prompt).not.toContain("first 25, first 100, first 250 capturers");
     expect(prompt).toContain("```city-launch-activation-payload");
     expect(prompt).toContain("```city-launch-records");

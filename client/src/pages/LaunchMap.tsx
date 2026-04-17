@@ -64,6 +64,27 @@ export default function LaunchMap() {
         </section>
 
         <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+          <div className="mb-6 grid gap-4 lg:grid-cols-3">
+            {[
+              {
+                title: "For robot teams",
+                body: "Use the map to see which cities are public, which are still under review, and whether the catalog is likely to have the exact-site path you need today.",
+              },
+              {
+                title: "For site operators",
+                body: "Use the map to understand where Blueprint is publicly active before discussing rights, access, or listing posture around a specific facility.",
+              },
+              {
+                title: "For capturers",
+                body: "Use the map to understand where direct public capture actions are live versus where launch work is still gated behind review.",
+              },
+            ].map((item) => (
+              <article key={item.title} className="rounded-[1.4rem] border border-[color:var(--line)] bg-white/80 p-5">
+                <h2 className="text-lg font-semibold text-[color:var(--ink)]">{item.title}</h2>
+                <p className="mt-3 text-sm leading-7 text-[color:var(--ink-soft)]">{item.body}</p>
+              </article>
+            ))}
+          </div>
           {error ? (
             <div className="rounded-[1.6rem] border border-rose-200 bg-rose-50 p-6 text-sm text-rose-800">
               Blueprint could not load the public launch map right now. Try again shortly.

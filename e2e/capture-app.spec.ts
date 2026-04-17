@@ -14,6 +14,6 @@ test("capture app access page renders the handoff flow", async ({ page }) => {
       .first(),
   ).toBeVisible();
   await expect(page.getByText(/This is the public handoff for people recording indoor spaces for Blueprint\./i)).toBeVisible();
-  await expect(page.getByRole("link", { name: /Apply for capturer access/i })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Read capture basics/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Apply for capturer access/i }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: /Read capture basics/i }).first()).toBeVisible();
 });

@@ -6,7 +6,7 @@ import {
   isAutomationLaneEnabled,
   isTruthyEnvValue,
 } from "../config/env";
-import { getEmailTransportStatus } from "./email";
+import { getCityLaunchSenderStatus, getEmailTransportStatus } from "./email";
 import { getHostedSessionLiveStoreStatus } from "./hosted-session-live-store";
 import { buildGrowthIntegrationSummary } from "./provider-status";
 
@@ -66,6 +66,7 @@ export function listActiveReadinessFindings(
 export function buildLaunchReadinessSnapshot() {
   const liveSessionStore = getHostedSessionLiveStoreStatus();
   const emailTransport = getEmailTransportStatus();
+  const cityLaunchSender = getCityLaunchSenderStatus();
   const agentRuntime = getAgentRuntimeConnectionMetadata();
   const growthIntegrations = buildGrowthIntegrationSummary();
   const fieldEncryptionReady = Boolean(
@@ -234,6 +235,17 @@ export function buildLaunchReadinessSnapshot() {
           ? "SMTP delivery is configured."
           : "SMTP delivery is required but not fully configured."
         : "SMTP delivery is not required.",
+    },
+    cityLaunchSender: {
+      required: false,
+      ready: Boolean(cityLaunchSender.fromEmail) && cityLaunchSender.verificationStatus !== "unverified",
+      detail: !cityLaunchSender.fromEmail
+        ? "City-launch sender email is not configured. Set BLUEPRINT_CITY_LAUNCH_FROM_EMAIL or SENDGRID_FROM_EMAIL before claiming outbound city launchability."
+        : cityLaunchSender.verificationStatus === "verified"
+          ? `City-launch sender ${cityLaunchSender.fromEmail} is configured and manually marked verified.`
+          : cityLaunchSender.verificationStatus === "unverified"
+            ? `City-launch sender ${cityLaunchSender.fromEmail} is explicitly marked unverified.`
+            : `City-launch sender ${cityLaunchSender.fromEmail} is configured, but verification cannot be proven programmatically. Confirm it manually and set BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION=verified.`,
     },
     pipelineSync: {
       required: pipelineSyncEnabled,

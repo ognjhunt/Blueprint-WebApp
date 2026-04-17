@@ -48,6 +48,12 @@ const afterInquiry = [
   "If the request is workable, the next reply points to the exact commercial path: package, hosted session, or custom program.",
 ];
 
+const publicToday = [
+  "A dedicated hosted-evaluation explainer tied to the same exact-site product story as the catalog and pricing pages",
+  "Sample artifact layouts and illustrative workflow panels labeled as previews instead of public-customer proof",
+  "Contact and scoping paths that keep the conversation anchored to one listing, one robot setup, and one workflow question",
+];
+
 function HostedIllustrativePanel() {
   return (
     <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-[linear-gradient(160deg,rgba(255,255,255,0.94),rgba(241,245,249,0.94))] shadow-[0_24px_90px_-50px_rgba(15,23,42,0.5)]">
@@ -239,6 +245,24 @@ export default function ExactSiteHostedReview() {
               </div>
             </div>
           </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <article className="rounded-3xl border border-slate-200 bg-white p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              What's live today
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+              Public hosted-evaluation surfaces that a buyer can inspect now.
+            </h2>
+            <div className="mt-5 grid gap-3 md:grid-cols-3">
+              {publicToday.map((item) => (
+                <div key={item} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-700">
+                  {item}
+                </div>
+              ))}
+            </div>
+          </article>
         </section>
 
         <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">

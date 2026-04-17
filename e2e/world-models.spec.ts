@@ -4,10 +4,11 @@ test('world models page exposes hosted access and package paths', async ({ page 
   await page.goto('/world-models', { waitUntil: 'domcontentloaded' });
 
   await expect(
-    page.getByRole('heading', { name: /Train on exact sites your team needs before deployment\./i }),
+    page.getByRole('heading', { name: /Train, evaluate, and debug on the exact site before deployment\./i }),
   ).toBeVisible();
   await expect(page.getByText(/Choose how you want access\./i)).toBeVisible();
-  await expect(page.getByRole('link', { name: /Request site package/i }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: /How access works/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /See available sites/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /Request hosted evaluation/i }).first()).toBeVisible();
 });
 

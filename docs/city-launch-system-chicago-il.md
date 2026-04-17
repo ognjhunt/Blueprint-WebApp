@@ -1,8 +1,8 @@
 # Chicago, IL Launch System
 
 - city: Chicago, IL
-- status: draft_pending_founder_approval
-- planning_state: not started
+- status: founder_approved_activation_ready
+- planning_state: completed
 - doctrine: capture-first, world-model-product-first, Exact-Site Hosted Review wedge
 
 ## Objective
@@ -11,13 +11,13 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 
 ## Machine-Readable Budget Policy
 
-- budget_tier: funded
-- total_envelope_usd: 25000
-- operator_auto_approve_usd: 2500
+- budget_tier: low_budget
+- total_envelope_usd: 2500
+- operator_auto_approve_usd: 500
 - allow_paid_acquisition: true
-- allow_referral_rewards: true
+- allow_referral_rewards: false
 - allow_travel_reimbursement: true
-- founder_approval_required_above_usd: 2500
+- founder_approval_required_above_usd: 500
 
 ## What The Org Will Do
 
@@ -31,15 +31,14 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 
 ## Planning State
 
-- planning_status: not_started
-- latest_artifact: none
-- completed_playbook: none
-- warning: No city-launch planning artifacts were found for this city.
+- planning_status: completed
+- latest_artifact: /tmp/city-launch/chicago-il/run-1/99-final-playbook.md
+- completed_playbook: /tmp/city-launch/chicago-il/run-1/99-final-playbook.md
 
 ## Founder-Only Decisions
 
 - Chicago go / no-go and the decision to keep the city gated or expand it.
-- Any spend envelope beyond the approved Chicago funded policy.
+- Any spend envelope beyond the approved Chicago low budget policy.
 - Any public statement that changes company posture or overstates Chicago readiness.
 - Any rights/privacy exception or non-standard commercial commitment that would set precedent.
 
@@ -64,7 +63,7 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 
 - Approve Chicago, IL as an active city-launch activation and keep non-active cities deferred unless a new evidence packet exists.
 - Approve the bounded Chicago launch posture: gated cohort pilot, Exact-Site Hosted Review wedge, no public city-live claims.
-- Approve the bounded spend posture for Chicago: Funded with a total envelope up to $25,000.
+- Approve the bounded spend posture for Chicago: Low Budget with a total envelope up to $2,500.
 - Approve any Chicago source-policy exceptions beyond the current bounded channel stack.
 - Approve any rights/privacy/commercialization exception that would set precedent or create an irreversible external commitment.
 - Approve any non-standard commercial terms outside the standard Chicago quote bands prepared by revenue-ops-pricing-agent and the designated human commercial owner.
@@ -82,11 +81,22 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 
 ## Activation Payload Highlights
 
-- No activation payload was available; treat execution posture as incomplete.
+- city_thesis: Run one proof-led warehouse wedge.
+- primary_site_lane: industrial_warehouse
+- primary_workflow_lane: dock handoff
+- primary_buyer_proof_path: exact_site
+- lawful_access_modes: buyer_requested_site
 
 ## Metrics Blockers
 
-- No activation payload metrics contract is available yet.
+- robot_team_inbound_captured: required_not_tracked
+- proof_path_assigned: required_not_tracked
+- proof_pack_delivered: required_not_tracked
+- hosted_review_ready: required_not_tracked
+- hosted_review_started: required_not_tracked
+- hosted_review_follow_up_sent: required_not_tracked
+- human_commercial_handoff_started: required_not_tracked
+- proof_motion_stalled: required_not_tracked
 
 ## Expansion Guard
 
@@ -95,7 +105,14 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 - At least one hosted review must run end to end before widening.
 - At least three approved capturers are required before widening.
 - At least two capturers must reach onboarded status before widening.
-- Required proof-motion analytics contract is missing from the activation payload.
+- robot_team_inbound_captured is required_not_tracked.
+- proof_path_assigned is required_not_tracked.
+- proof_pack_delivered is required_not_tracked.
+- hosted_review_ready is required_not_tracked.
+- hosted_review_started is required_not_tracked.
+- hosted_review_follow_up_sent is required_not_tracked.
+- human_commercial_handoff_started is required_not_tracked.
+- proof_motion_stalled is required_not_tracked.
 
 ## Execution Bundle
 
@@ -164,6 +181,7 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 - ops/paperclip/playbooks/city-launch-chicago-il.md
 - ops/paperclip/playbooks/city-demand-chicago-il.md
 - ops/paperclip/playbooks/city-capture-target-ledger-chicago-il.md
+- ops/paperclip/playbooks/city-launch-chicago-il-activation-payload.json
 - ops/paperclip/playbooks/city-opening-chicago-il-brief.md
 - ops/paperclip/playbooks/city-opening-chicago-il-channel-map.md
 - ops/paperclip/playbooks/city-opening-chicago-il-first-wave-pack.md

@@ -291,6 +291,31 @@ function getEmailTransportStatus() {
   );
 }
 
+function getCityLaunchSenderStatus() {
+  const fromEmail = envValue("BLUEPRINT_CITY_LAUNCH_FROM_EMAIL", "SENDGRID_FROM_EMAIL");
+  const verificationStatus = envValue("BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION").toLowerCase();
+  return {
+    fromEmail,
+    verificationStatus: verificationStatus || (fromEmail ? "unknown" : "unset"),
+  };
+}
+
+const cityLaunchSender = getCityLaunchSenderStatus();
+requireCheckWithWaiver(
+  "city_launch_outbound",
+  Boolean(cityLaunchSender.fromEmail),
+  "A city-launch sender email is required for real outbound city-launch sends. Set BLUEPRINT_CITY_LAUNCH_FROM_EMAIL or SENDGRID_FROM_EMAIL.",
+);
+requireCheckWithWaiver(
+  "city_launch_outbound",
+  cityLaunchSender.verificationStatus !== "unverified",
+  `City-launch sender ${cityLaunchSender.fromEmail || "unknown"} is explicitly marked unverified. Update BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION after fixing the provider sender setup.`,
+);
+warnCheck(
+  !cityLaunchSender.fromEmail || cityLaunchSender.verificationStatus === "verified",
+  "City-launch sender verification cannot be proven programmatically from env state. Confirm the sender/domain in the active mail provider and set BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION=verified once checked.",
+);
+
 console.log("Alpha launch preflight");
 console.log(`Mode: ${preflightMode}`);
 console.log("");

@@ -1,0 +1,27 @@
+{
+  "city": "San Jose, CA",
+  "citySlug": "san-jose-ca",
+  "status": "founder_approved_activation_ready",
+  "founderApproved": true,
+  "currentStep": "load_completed_research",
+  "stepHistory": [
+    {
+      "step": "load_activation_state",
+      "atIso": "2026-04-17T22:11:25.018Z"
+    },
+    {
+      "step": "resolve_planning_state",
+      "atIso": "2026-04-17T22:11:26.835Z"
+    },
+    {
+      "step": "load_completed_research",
+      "atIso": "2026-04-17T22:11:26.839Z"
+    }
+  ],
+  "failedAt": "2026-04-17T22:11:26.879Z",
+  "error": {
+    "message": "San Jose, CA founder-approved activation requires a completed deep-research playbook before delegation starts.",
+    "name": "Error",
+    "stack": "Error: San Jose, CA founder-approved activation requires a completed deep-research playbook before delegation starts.\n    at runCityLaunchExecutionHarness (/Users/nijelhunt_1/workspace/Blueprint-WebApp/server/utils/cityLaunchExecutionHarness.ts:2863:13)\n    at async main (/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/city-launch/build-execution-harness.ts:50:18)"
+  }
+}

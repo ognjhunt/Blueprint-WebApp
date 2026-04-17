@@ -62,6 +62,11 @@ const faqs = [
       "Yes. The stable contract is the capture truth, the rights and provenance metadata, the site package, and the hosted-session contract. The runtime backend can change without changing that buyer-facing contract.",
   },
   {
+    question: "What can a team bring into hosted evaluation today?",
+    answer:
+      "Start with the exact site, the workflow lane, and the robot setup that matters. Hosted evaluation scoping can center on a policy name, checkpoint reference, stack adapter, teleop surface, containerized runtime entrypoint, or a narrower evaluation contract for the job your team needs to answer first.",
+  },
+  {
     question: "When should we not buy exact-site work yet?",
     answer:
       "If your team does not have a target facility or workflow lane yet, exact-site work is usually too early. Generic simulation, broader discovery, or earlier rights review is often the better first step until one real site and one real question matter.",
@@ -75,6 +80,11 @@ const faqs = [
     question: "What happens after we submit a brief?",
     answer:
       "Blueprint reviews the site, the robot setup, and the workflow question first. The reply should narrow the path quickly: package access, hosted evaluation, or a custom quote. The goal is to avoid reopening discovery from scratch.",
+  },
+  {
+    question: "Why can a listing be public while the commercial path is still request-scoped?",
+    answer:
+      "Public means Blueprint is willing to expose the site, proof shape, and trust labels for inspection. Request-scoped means rights, privacy, export scope, or buyer-specific commercial terms still need to be confirmed against the exact request before access expands.",
   },
   {
     question: "Can we book time instead of starting with a form?",

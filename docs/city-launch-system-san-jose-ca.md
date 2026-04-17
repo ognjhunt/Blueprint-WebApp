@@ -2,7 +2,7 @@
 
 - city: San Jose, CA
 - status: founder_approved_activation_ready
-- planning_state: in progress
+- planning_state: completed
 - doctrine: capture-first, world-model-product-first, Exact-Site Hosted Review wedge
 
 ## Objective
@@ -31,10 +31,9 @@ Turn the San Jose planning artifacts into an executable company harness that run
 
 ## Planning State
 
-- planning_status: in_progress
-- latest_artifact: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-13T17-38-45.838Z/01-initial-research.md
-- completed_playbook: none
-- warning: City-launch planning has partial artifacts but no final playbook yet.
+- planning_status: completed
+- latest_artifact: /tmp/city-launch/san-jose-ca/run-1/99-final-playbook.md
+- completed_playbook: /tmp/city-launch/san-jose-ca/run-1/99-final-playbook.md
 
 ## Founder-Only Decisions
 
@@ -82,11 +81,22 @@ Turn the San Jose planning artifacts into an executable company harness that run
 
 ## Activation Payload Highlights
 
-- No activation payload was available; treat execution posture as incomplete.
+- city_thesis: Run one proof-led warehouse wedge.
+- primary_site_lane: industrial_warehouse
+- primary_workflow_lane: dock handoff
+- primary_buyer_proof_path: exact_site
+- lawful_access_modes: buyer_requested_site
 
 ## Metrics Blockers
 
-- No activation payload metrics contract is available yet.
+- robot_team_inbound_captured: required_not_tracked
+- proof_path_assigned: required_not_tracked
+- proof_pack_delivered: required_not_tracked
+- hosted_review_ready: required_not_tracked
+- hosted_review_started: required_not_tracked
+- hosted_review_follow_up_sent: required_not_tracked
+- human_commercial_handoff_started: required_not_tracked
+- proof_motion_stalled: required_not_tracked
 
 ## Expansion Guard
 
@@ -95,7 +105,14 @@ Turn the San Jose planning artifacts into an executable company harness that run
 - At least one hosted review must run end to end before widening.
 - At least three approved capturers are required before widening.
 - At least two capturers must reach onboarded status before widening.
-- Required proof-motion analytics contract is missing from the activation payload.
+- robot_team_inbound_captured is required_not_tracked.
+- proof_path_assigned is required_not_tracked.
+- proof_pack_delivered is required_not_tracked.
+- hosted_review_ready is required_not_tracked.
+- hosted_review_started is required_not_tracked.
+- hosted_review_follow_up_sent is required_not_tracked.
+- human_commercial_handoff_started is required_not_tracked.
+- proof_motion_stalled is required_not_tracked.
 
 ## Execution Bundle
 
@@ -164,6 +181,7 @@ Turn the San Jose planning artifacts into an executable company harness that run
 - ops/paperclip/playbooks/city-launch-san-jose-ca.md
 - ops/paperclip/playbooks/city-demand-san-jose-ca.md
 - ops/paperclip/playbooks/city-capture-target-ledger-san-jose-ca.md
+- ops/paperclip/playbooks/city-launch-san-jose-ca-activation-payload.json
 - ops/paperclip/playbooks/city-opening-san-jose-ca-brief.md
 - ops/paperclip/playbooks/city-opening-san-jose-ca-channel-map.md
 - ops/paperclip/playbooks/city-opening-san-jose-ca-first-wave-pack.md

@@ -44,6 +44,27 @@ This issue bundle turns the Sacramento playbook into executable lanes using the 
   - If one warehouse stalls, another named access path is ready without restarting city planning from zero.
   - Each queued candidate names the current access posture, likely owner/operator/tenant path, and whether the next move belongs to buyer thread, operator intro, or existing lawful access.
 
+## Lock the first Sacramento multi-tenant lawful access path
+
+- key: lawful-access-path
+- phase: founder_gates
+- agent owner: site-operator-partnership-agent
+- human owner: growth-lead
+- purpose: Secure the first complete owner/operator/tenant path for Sacramento private controlled-interior capture so the launch can move beyond generic queue building.
+- human gate: Founder review only if the access path requires a precedent-setting rights/privacy or spend exception.
+- dependencies: parallel-lawful-access-queue, city-target-ledger, growth-source-policy
+- metrics dependencies: first_lawful_access_path
+- validation required: true
+- source: default_task_bundle
+- inputs:
+  - Sacramento city-launch playbook
+  - Sacramento source policy
+  - buyer-linked exact-site requests
+  - operator intro notes
+- done when:
+  - A first multi-tenant lawful access path is signed by owner, operator, and tenant or else blocked with explicit missing facts.
+  - The path is written into the Sacramento target ledger and the next capture step is routed without waiting on the rest of the city to be perfect.
+
 ## Lock Sacramento source policy and invite/access-code posture
 
 - key: growth-source-policy
@@ -111,27 +132,25 @@ This issue bundle turns the Sacramento playbook into executable lanes using the 
   - Sacramento CTA path states what Blueprint is asking for, what access or site facts respondents must provide, and what the next review step is.
   - Responses do not die in personal inboxes or draft docs; they enter the canonical intake queue or ledger path with next-owner visibility.
 
-## Assemble the Sacramento first-wave outreach and posting pack
+## Assemble first-wave pack
 
 - key: city-opening-first-wave-pack
 - phase: supply
 - agent owner: capturer-growth-agent
 - human owner: growth-lead
-- purpose: Turn the Sacramento city-opening brief into concrete first-wave assets that can create the first responses: direct named outreach for warehouse/facility awareness and small bounded posting packages for public-commercial awareness.
+- purpose: Prepare first-wave outreach and posting assets.
 - human gate: Human review before the first live send or post in any channel, and before any expansion beyond the written city-opening brief.
 - dependencies: city-opening-distribution, city-opening-cta-routing
-- metrics dependencies: none
+- metrics dependencies: first_lawful_access_path
 - validation required: false
-- source: default_task_bundle
+- source: activation_payload
 - inputs:
   - Sacramento city-opening brief
   - Sacramento channel map
   - Sacramento CTA / intake path
   - ops/paperclip/playbooks/city-capture-target-ledger-sacramento-ca.md
 - done when:
-  - Sacramento warehouse/facility first-wave outreach pack names the first buyers, operators, integrators, or facilities to contact, the proof-led message variants, and the next move per target.
-  - Sacramento public-commercial first-wave posting pack names the first small community placements, the public-area-only brief, and the exact CTA copy for each placement.
-  - Every Sacramento first-wave asset points to the same truthful CTA path, uses source attribution, and avoids invented traction, blanket permission claims, or fake legal certainty.
+  - First-wave pack is ready.
 
 ## Run Sacramento site-operator partnership routing
 
@@ -183,7 +202,7 @@ This issue bundle turns the Sacramento playbook into executable lanes using the 
 - agent owner: capturer-growth-agent
 - human owner: growth-lead
 - purpose: Generate the first Sacramento curated professional supply wave for private controlled interiors and buyer-linked exact-site paths, then push the first real prospect or invite response into the live intake path without widening into generic gig-market posture.
-- human gate: Human review before any public posting or channel expansion beyond the written Sacramento source policy.
+- human gate: Escalate only for rights/privacy exceptions or posture-changing source-policy changes beyond the approved Sacramento launch posture.
 - dependencies: city-target-ledger, growth-source-policy, city-opening-first-wave-pack, city-opening-cta-routing
 - metrics dependencies: none
 - validation required: false
@@ -207,7 +226,7 @@ This issue bundle turns the Sacramento playbook into executable lanes using the 
 - agent owner: capturer-growth-agent
 - human owner: growth-lead
 - purpose: Open a bounded online-community sourcing lane for public, non-controlled commercial locations such as groceries, retail stores, and similar walk-in sites, and turn that lane into real intake signals.
-- human gate: Human review before the first live community post in a new channel, or when the copy risks blurring public commercial capture with private controlled-interior access.
+- human gate: none
 - dependencies: growth-source-policy, city-opening-first-wave-pack, city-opening-cta-routing
 - metrics dependencies: none
 - validation required: false
@@ -223,6 +242,7 @@ This issue bundle turns the Sacramento playbook into executable lanes using the 
 - done when:
   - Sacramento public-commercial sourcing names the online communities, channels, and posting brief for public, non-controlled commercial capture.
   - At least one live Sacramento community-sourced invite, reply, or applicant signal is landed in the intake path with source bucket and public-commercial posture recorded.
+  - If no automated publication connector exists, the lane still produces a complete agent-owned posting pack and does not block the automated launch path.
   - The lane stays explicitly limited to lawful public areas and preserves privacy, signage, and provenance rules.
 
 ## Route Sacramento applicants into qualification and approval
@@ -374,7 +394,7 @@ This issue bundle turns the Sacramento playbook into executable lanes using the 
 - agent owner: robot-team-growth-agent
 - human owner: growth-lead
 - purpose: Make outbound specific to Sacramento proof assets and hosted review instead of generic AI messaging.
-- human gate: Human review before any live send.
+- human gate: Escalate only for rights/privacy exceptions, posture-changing claims, or non-standard commercial commitments beyond the approved launch posture.
 - dependencies: buyer-target-research
 - metrics dependencies: proof_path_assigned
 - validation required: false
@@ -385,7 +405,7 @@ This issue bundle turns the Sacramento playbook into executable lanes using the 
   - standard commercial handoff rules
 - done when:
   - Sacramento outbound templates lead with one site, one workflow lane, proof-led CTA, and hosted-review next step.
-  - First proof-led touches are queued for operator approval or event-driven send.
+  - First proof-led touches are prepared for autonomous dispatch inside the approved launch posture.
 
 ## Run Sacramento outbound and move serious buyers into hosted review
 

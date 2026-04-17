@@ -36,6 +36,25 @@ describe("build output", () => {
     ).toBe(true);
   });
 
+  it("ships prerendered public route pages for hosted evaluation and support flows", () => {
+    expect(
+      fs.existsSync(
+        path.resolve(process.cwd(), "dist/public/exact-site-hosted-review/index.html"),
+      ),
+    ).toBe(true);
+    expect(
+      fs.existsSync(
+        path.resolve(process.cwd(), "dist/public/book-exact-site-review/index.html"),
+      ),
+    ).toBe(true);
+    expect(
+      fs.existsSync(path.resolve(process.cwd(), "dist/public/help/index.html")),
+    ).toBe(true);
+    expect(
+      fs.existsSync(path.resolve(process.cwd(), "dist/public/launch-map/index.html")),
+    ).toBe(true);
+  });
+
   it("does not ship false zero trust stats on marketing pages", () => {
     const captureHtml = fs.readFileSync(
       path.resolve(process.cwd(), "dist/public/capture/index.html"),
@@ -65,6 +84,10 @@ describe("build output", () => {
     expect(sitemap).toContain("https://tryblueprint.io/world-models/sw-chi-01");
     expect(sitemap).toContain("https://tryblueprint.io/docs");
     expect(sitemap).toContain("https://tryblueprint.io/blog");
+    expect(sitemap).toContain("https://tryblueprint.io/exact-site-hosted-review");
+    expect(sitemap).toContain("https://tryblueprint.io/book-exact-site-review");
+    expect(sitemap).toContain("https://tryblueprint.io/help");
+    expect(sitemap).toContain("https://tryblueprint.io/launch-map");
     expect(sitemap).not.toContain("https://tryblueprint.io/site-worlds");
   });
 
