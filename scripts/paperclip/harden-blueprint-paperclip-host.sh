@@ -6,6 +6,10 @@ SWAPFILE_SIZE_GB="${SWAPFILE_SIZE_GB:-4}"
 SYSCTL_PATH="/etc/sysctl.d/99-blueprint-paperclip.conf"
 SYSTEMD_DROPIN_DIR="/etc/systemd/system/paperclip.service.d"
 SYSTEMD_DROPIN_PATH="${SYSTEMD_DROPIN_DIR}/override.conf"
+PRUNE_SERVICE_PATH="/etc/systemd/system/blueprint-paperclip-prune.service"
+PRUNE_TIMER_PATH="/etc/systemd/system/blueprint-paperclip-prune.timer"
+WEBAPP_REPO="/Users/nijelhunt_1/workspace/Blueprint-WebApp"
+PAPERCLIP_ENV_FILE="/Users/nijelhunt_1/workspace/.paperclip-blueprint.env"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "Run as root." >&2
@@ -38,7 +42,40 @@ Environment=BLUEPRINT_PAPERCLIP_NODE_OPTIONS=--max-old-space-size=2560
 Environment=MALLOC_ARENA_MAX=2
 EOF
 
-systemctl daemon-reload
+cat > "$PRUNE_SERVICE_PATH" <<EOF
+[Unit]
+Description=Prune Blueprint Paperclip runtime data
+Wants=paperclip.service
+After=paperclip.service
 
-echo "Swap and Paperclip host guardrails configured."
+[Service]
+Type=oneshot
+Environment=PAPERCLIP_ENV_FILE=${PAPERCLIP_ENV_FILE}
+Environment=BLUEPRINT_PAPERCLIP_RESTART_MODE=systemd
+Environment=BLUEPRINT_PAPERCLIP_SYSTEMD_SERVICE=paperclip.service
+Environment=KEEP_LATEST_BACKUPS=3
+Environment=BACKUP_TMP_RETENTION_MINUTES=180
+Environment=RUN_LOG_RETENTION_DAYS=7
+Environment=SESSION_RETENTION_DAYS=7
+ExecStart=/usr/bin/env bash ${WEBAPP_REPO}/scripts/paperclip/prune-paperclip-runtime.sh
+EOF
+
+cat > "$PRUNE_TIMER_PATH" <<'EOF'
+[Unit]
+Description=Run Blueprint Paperclip runtime pruning hourly
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=15m
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+systemctl daemon-reload
+systemctl enable --now blueprint-paperclip-prune.timer >/dev/null
+
+echo "Swap, Paperclip host guardrails, and runtime prune timer configured."
 swapon --show
+systemctl --no-pager --full status blueprint-paperclip-prune.timer | sed -n '1,12p'

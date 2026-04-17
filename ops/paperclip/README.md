@@ -98,6 +98,13 @@ Current production state:
 - internally clean
 - aligned with the local duplicate-process recovery fix set
 
+Production retention guardrail added on `2026-04-17`:
+
+- `scripts/paperclip/prune-paperclip-runtime.sh` is the canonical runtime-data cleanup entrypoint for the trusted host
+- `scripts/paperclip/harden-blueprint-paperclip-host.sh` now installs `blueprint-paperclip-prune.timer`
+- the timer runs hourly with a randomized delay, keeps the latest `3` completed SQL backups, deletes stale `*.sql.tmp` artifacts, trims old run logs and session traces, and restarts `paperclip.service` through `systemd`
+- this is required on the VPS because the Paperclip embedded backup path can otherwise fill `/Users/nijelhunt_1/workspace/.paperclip-blueprint/instances/default/data/backups` and strand queued runs behind repeated service restarts
+
 Hermes-backed Blueprint agents are expected to use Codex OAuth only on this host. Install and configure Hermes locally before running reconcile or verify:
 
 - `hermes model` → choose the Codex provider

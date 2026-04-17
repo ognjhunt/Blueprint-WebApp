@@ -7,10 +7,12 @@ PAPERCLIP_HOME_DIR="${PAPERCLIP_HOME_DIR:-$WORKSPACE_ROOT/.paperclip-blueprint}"
 PAPERCLIP_HOST="${PAPERCLIP_HOST:-127.0.0.1}"
 RUN_LOG_RETENTION_DAYS="${RUN_LOG_RETENTION_DAYS:-7}"
 SESSION_RETENTION_DAYS="${SESSION_RETENTION_DAYS:-7}"
-KEEP_LATEST_BACKUPS="${KEEP_LATEST_BACKUPS:-1}"
+KEEP_LATEST_BACKUPS="${KEEP_LATEST_BACKUPS:-3}"
 BACKUP_TMP_RETENTION_MINUTES="${BACKUP_TMP_RETENTION_MINUTES:-180}"
 INSTANCE_ID="${PAPERCLIP_INSTANCE_ID:-default}"
 RUNTIME_LOG_PATH="${RUNTIME_LOG_PATH:-$PAPERCLIP_HOME_DIR/logs/paperclip-runtime.log}"
+PAPERCLIP_RESTART_MODE="${BLUEPRINT_PAPERCLIP_RESTART_MODE:-manual}"
+PAPERCLIP_SYSTEMD_SERVICE="${BLUEPRINT_PAPERCLIP_SYSTEMD_SERVICE:-paperclip.service}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck source=./paperclip-api.sh
@@ -128,6 +130,37 @@ start_paperclip() {
   )
 }
 
+restart_paperclip() {
+  case "$PAPERCLIP_RESTART_MODE" in
+    none)
+      log "Skipping Paperclip restart (BLUEPRINT_PAPERCLIP_RESTART_MODE=none)."
+      ;;
+    systemd)
+      if ! command -v systemctl >/dev/null 2>&1; then
+        log "systemctl is unavailable; falling back to manual restart."
+        stop_paperclip
+        start_paperclip
+        return 0
+      fi
+      if [ "$(id -u)" -ne 0 ]; then
+        log "systemd restart requested but the script is not running as root; falling back to manual restart."
+        stop_paperclip
+        start_paperclip
+        return 0
+      fi
+      systemctl restart "$PAPERCLIP_SYSTEMD_SERVICE"
+      ;;
+    manual)
+      stop_paperclip
+      start_paperclip
+      ;;
+    *)
+      echo "Unknown BLUEPRINT_PAPERCLIP_RESTART_MODE: $PAPERCLIP_RESTART_MODE" >&2
+      return 1
+      ;;
+  esac
+}
+
 wait_for_health() {
   local api_url=""
 
@@ -177,12 +210,13 @@ main() {
   log "after prune: backups=$after_backups run_logs=$after_run_logs companies=$after_sessions"
   log "deleted files: backups=$deleted_backups backup_temps=$deleted_backup_temps run_logs=$deleted_run_logs sessions=$deleted_sessions"
 
-  stop_paperclip
-  start_paperclip
+  restart_paperclip
   api_url="$(wait_for_health)"
   log "Paperclip healthy at $api_url"
   curl -fsS "$api_url/api/health" | jq '.'
-  tail -n 20 "$RUNTIME_LOG_PATH" || true
+  if [ "$PAPERCLIP_RESTART_MODE" = "manual" ]; then
+    tail -n 20 "$RUNTIME_LOG_PATH" || true
+  fi
 }
 
 main "$@"
