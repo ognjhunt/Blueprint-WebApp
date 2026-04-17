@@ -51,7 +51,7 @@ After=paperclip.service
 [Service]
 Type=oneshot
 Environment=PAPERCLIP_ENV_FILE=${PAPERCLIP_ENV_FILE}
-Environment=BLUEPRINT_PAPERCLIP_RESTART_MODE=systemd
+Environment=BLUEPRINT_PAPERCLIP_RESTART_MODE=none
 Environment=BLUEPRINT_PAPERCLIP_SYSTEMD_SERVICE=paperclip.service
 Environment=KEEP_LATEST_BACKUPS=3
 Environment=BACKUP_TMP_RETENTION_MINUTES=180
