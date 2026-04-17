@@ -3,55 +3,72 @@ import { describe, expect, it } from "vitest";
 import SiteWorlds from "@/pages/SiteWorlds";
 
 describe("SiteWorlds", () => {
-  it("renders realistic deployment sites and request-based hosted evaluation links", () => {
+  it("renders the simplified catalog-first world-models page", () => {
     render(<SiteWorlds />);
 
     expect(
       screen.getByRole("heading", {
-        name: /Train, evaluate, and debug on the exact site before deployment\./i,
+        name: /Browse exact-site world models\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Shrink the demo-to-deployment gap\./i)).toBeInTheDocument();
+
     expect(
       screen.getByText(
-        /Each Blueprint world model is built from real capture of one facility and one workflow lane/i,
+        /Real facilities, real capture, and clear paths into site packages or hosted sessions\./i,
       ),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /Choose how you want access\./i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /Common reasons robot teams buy this surface\./i }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Buy the site package/i)).toBeInTheDocument();
-    expect(screen.getByText(/Request a hosted evaluation/i)).toBeInTheDocument();
-    expect(
-      screen.getByText(/What real site and workflow the model is anchored to/i),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/What public status means/i)).toBeInTheDocument();
-    expect(screen.getByText(/Harborview Grocery Distribution Annex/i)).toBeInTheDocument();
-    expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Public demo/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Export ready/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Commercial status/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Request-scoped commercial review/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Hosted Evaluation/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Embodiment/i)).toBeInTheDocument();
-    expect(screen.getByText(/Quick filters/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Hosted path documented/i })).toBeInTheDocument();
-    expect(screen.queryByText(/Likely buyer:/i)).not.toBeInTheDocument();
 
-    const packageLinks = screen.getAllByRole("link", { name: /Request site package/i });
-    const packageUrl = new URL(packageLinks[0].getAttribute("href")!, "https://example.com");
-    expect(packageUrl.pathname).toBe("/contact");
-    expect(packageUrl.searchParams.get("interest")).toBe("data-licensing");
-    expect(packageUrl.searchParams.get("buyerType")).toBe("robot_team");
-    expect(packageUrl.searchParams.get("siteName")).toBe("Harborview Grocery Distribution Annex");
+    expect(
+      screen.getByRole("link", { name: /View Sample Site/i }),
+    ).toHaveAttribute("href", "/world-models/siteworld-f5fd54898cfb");
 
-    const hostedLinks = screen.getAllByRole("link", { name: /Request hosted evaluation/i });
-    const hostedUrl = new URL(hostedLinks[0].getAttribute("href")!, "https://example.com");
-    expect(hostedUrl.pathname).toBe("/contact");
-    expect(hostedUrl.searchParams.get("interest")).toBe("evaluation-package");
-    expect(hostedUrl.searchParams.get("buyerType")).toBe("robot_team");
+    expect(
+      screen.getAllByRole("link", { name: /Request Access/i })[0],
+    ).toHaveAttribute(
+      "href",
+      "/contact?persona=robot-team&interest=evaluation-package",
+    );
+
+    expect(screen.getByText(/Site Package/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hosted Session/i)).toBeInTheDocument();
+    expect(screen.getByText(/Public proof first/i)).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("heading", {
+        name: /Featured sites\./i,
+      }),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("link", { name: /Harborview Grocery Distribution Annex/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Media Room Demo Walkthrough/i }),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("heading", {
+        name: /Browse the catalog\./i,
+      }),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("button", { name: /Public demo available/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Hosted path documented/i }),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("heading", {
+        name: /Need a specific site\?/i,
+      }),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.queryByText(/Common reasons robot teams buy this surface/i),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/What public status means/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Choose how you want access/i)).not.toBeInTheDocument();
   });
 });
