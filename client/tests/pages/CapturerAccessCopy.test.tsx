@@ -12,6 +12,26 @@ vi.mock("@/lib/client-env", () => ({
   getCaptureAppPlaceholderUrl: () => "https://capture.blueprint.test/app",
 }));
 
+vi.mock("@/hooks/usePublicLaunchStatus", () => ({
+  usePublicLaunchStatus: () => ({
+    data: {
+      ok: true,
+      supportedCities: [
+        { city: "Austin", stateCode: "TX", displayName: "Austin, TX", citySlug: "austin-tx" },
+        {
+          city: "San Francisco",
+          stateCode: "CA",
+          displayName: "San Francisco, CA",
+          citySlug: "san-francisco-ca",
+        },
+      ],
+      currentCity: null,
+    },
+    loading: false,
+    error: null,
+  }),
+}));
+
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({
     signIn: vi.fn(),
@@ -28,6 +48,7 @@ describe("Capturer access copy", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/invite- and code-gated/i)).toBeInTheDocument();
     expect(screen.getByText(/approval is not guaranteed/i)).toBeInTheDocument();
+    expect(screen.getByText(/Currently supported: Austin, TX and San Francisco, CA\./i)).toBeInTheDocument();
   });
 
   it("keeps the capture app handoff explicit about approval gates", () => {
@@ -35,6 +56,7 @@ describe("Capturer access copy", () => {
 
     expect(screen.getByText(/invite- and code-gated/i)).toBeInTheDocument();
     expect(screen.getByText(/approval is not guaranteed/i)).toBeInTheDocument();
+    expect(screen.getByText(/Currently supported: Austin, TX and San Francisco, CA\./i)).toBeInTheDocument();
   });
 
   it("keeps capturers on the mobile path from the sign-in page", () => {

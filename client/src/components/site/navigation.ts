@@ -5,29 +5,29 @@ export const primaryNavLinks = [
   { href: "/governance", label: "Trust" },
 ];
 
-export const secondaryNavLinks = [
-  { href: "/world-models/siteworld-f5fd54898cfb", label: "Sample Listing" },
-  { href: "/sample-deliverables", label: "Deliverables" },
-  { href: "/faq", label: "FAQ" },
-  { href: "/about", label: "About" },
-];
-
-export const footerExploreLinks = [
-  ...primaryNavLinks,
-  ...secondaryNavLinks,
-  { href: "/book-exact-site-review", label: "Book Call" },
-  { href: "/how-it-works", label: "How It Works" },
+export const headerUtilityLinks = [
+  { href: "/help", label: "Support" },
   { href: "/contact?persona=robot-team", label: "Contact" },
 ];
 
-export const footerReferenceLinks = [
-  { href: "/world-models/siteworld-f5fd54898cfb", label: "Sample Listing" },
+export const footerProductLinks = [
+  { href: "/world-models", label: "World Models" },
+  { href: "/exact-site-hosted-review", label: "Hosted Evaluation" },
+  { href: "/world-models/siteworld-f5fd54898cfb", label: "Sample Site" },
   { href: "/sample-deliverables", label: "Sample Deliverables" },
 ];
 
-export const footerUtilityLinks = [
+export const footerCompanyLinks = [
+  { href: "/about", label: "About" },
+  { href: "/governance", label: "Trust" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/contact?persona=robot-team", label: "Contact" },
+];
+
+export const footerSupportLinks = [
+  { href: "/help", label: "Support" },
+  { href: "/faq", label: "FAQ" },
   { href: "/capture-app", label: "Capture App" },
-  { href: "/sign-in", label: "Sign In" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },
 ];

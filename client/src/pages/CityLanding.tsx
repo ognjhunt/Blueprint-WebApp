@@ -1,288 +1,213 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "wouter";
-import { withCsrfHeader } from "@/lib/csrf";
+import { ArrowRight, CheckCircle2, Clock3, MapPinned } from "lucide-react";
 import { analyticsEvents } from "@/lib/analytics";
+import { withCsrfHeader } from "@/lib/csrf";
+import { findLaunchCityBySlug } from "@/lib/publicLaunchStatus";
+import { usePublicLaunchStatus } from "@/hooks/usePublicLaunchStatus";
 
-type CityLandingData = {
-  ok: boolean;
-  city: string;
-  citySlug: string;
-  activation: {
-    founderApproved: boolean;
-    status: string | null;
-    cityThesis: string | null;
-    primarySiteLane: string | null;
-    primaryWorkflowLane: string | null;
-    lawfulAccessModes: string[];
-  } | null;
-  ledgerSummary: {
-    trackedSupplyProspectsContacted: number;
-    trackedBuyerTargetsResearched: number;
-    trackedCityOpeningSendActionsReady: number;
-    trackedCityOpeningSendActionsSent: number;
-    trackedCityOpeningResponsesRecorded: number;
-    wideningGuard: {
-      wideningAllowed: boolean;
-      reasons: string[];
-    };
-    onboardedCapturers: number;
-  } | null;
-};
+function humanizeCitySlug(citySlug: string) {
+  return citySlug
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+const captureRules = [
+  {
+    title: "Only approved targets open publicly",
+    body: "Blueprint Capture shows research-backed, launch-approved capture opportunities. It does not open generic nearby discovery as a public card just because a place is close.",
+    icon: CheckCircle2,
+  },
+  {
+    title: "Nearby places can still enter review",
+    body: "When someone opens the app, nearby places can be submitted into the city-launch research loop. Those places stay under review until the org qualifies and approves them.",
+    icon: Clock3,
+  },
+  {
+    title: "City support is explicit",
+    body: "This page only claims current support when the launch-city system says the city is open. Everything else stays in future-city interest until the rollout changes.",
+    icon: MapPinned,
+  },
+];
 
 export default function CityLanding() {
   const params = useParams<{ citySlug: string }>();
   const citySlug = params.citySlug || "";
-  const [data, setData] = useState<CityLandingData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, loading } = usePublicLaunchStatus();
   const [email, setEmail] = useState("");
   const [locationType, setLocationType] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
-  useEffect(() => {
-    if (!citySlug) {
-      setError("City slug is required");
-      setLoading(false);
+  const supportedCities = data?.supportedCities ?? [];
+  const supportedCity = useMemo(
+    () => findLaunchCityBySlug(supportedCities, citySlug),
+    [citySlug, supportedCities],
+  );
+  const cityName = supportedCity?.displayName || humanizeCitySlug(citySlug);
+  const isSupported = Boolean(supportedCity);
+
+  const handleWaitlistSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!email.trim()) {
       return;
     }
 
-    async function fetchCityData() {
-      try {
-        const res = await fetch(
-          `/api/city-launch/status?city=${encodeURIComponent(citySlug.replace(/-/g, " "))}`,
-          {
-            headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-          },
-        );
-        if (!res.ok) {
-          throw new Error(`Failed to load city data: ${res.status}`);
-        }
-        const json = await res.json();
-        setData(json);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load city data");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchCityData();
-  }, [citySlug]);
-
-  const handleWaitlistSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-
     try {
-      const res = await fetch("/api/waitlist", {
+      const response = await fetch("/api/waitlist", {
         method: "POST",
         headers: await withCsrfHeader({ "Content-Type": "application/json" }),
         body: JSON.stringify({
-          email,
-          locationType,
+          email: email.trim(),
+          locationType: locationType.trim() || "City capture interest",
           role: "capturer",
-          market: data?.city || citySlug.replace(/-/g, " "),
+          market: cityName,
         }),
       });
 
-      if (res.ok) {
-        setSubmitted(true);
-        analyticsEvents.cityOpeningResponseReceived({
-          city: data?.city || citySlug,
-          citySlug,
-          lane: "public-commercial-community",
-          responseType: "waitlist_signup",
-          routingTarget: "supply_qualification",
-        });
+      if (!response.ok) {
+        throw new Error(`Failed to submit city waitlist: ${response.status}`);
       }
+
+      setSubmitted(true);
+      analyticsEvents.cityOpeningResponseReceived({
+        city: cityName,
+        citySlug,
+        lane: isSupported ? "public-commercial-community" : "future-city-interest",
+        responseType: isSupported ? "capturer_application" : "future_city_waitlist",
+        routingTarget: isSupported ? "capturer_review" : "city_launch_queue",
+      });
     } catch {
-      // Best-effort
+      // Best-effort public intake.
     }
   };
 
-  const cityName = data?.city || citySlug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />
-          <p className="mt-4 text-sm text-slate-500">Loading {cityName}...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !data?.ok) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="max-w-md text-center">
-          <h1 className="text-2xl font-bold text-slate-900">{cityName}</h1>
-          <p className="mt-2 text-slate-600">
-            {error || "This city is not yet active on Blueprint."}
-          </p>
-          <p className="mt-4 text-sm text-slate-500">
-            Sign up below to be notified when Blueprint launches in your area.
-          </p>
-          <form onSubmit={handleWaitlistSubmit} className="mt-6 flex gap-2">
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@company.com"
-              className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm"
-            />
-            <button
-              type="submit"
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-            >
-              Notify me
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  const isActive = data.activation?.status && data.activation.status !== "planning";
-  const thesis = data.activation?.cityThesis;
-  const siteLane = data.activation?.primarySiteLane;
-  const workflowLane = data.activation?.primaryWorkflowLane;
-  const accessModes = data.activation?.lawfulAccessModes || [];
-  const ledger = data.ledgerSummary;
-
   return (
-    <div className="min-h-screen bg-white">
-      {/* Hero */}
-      <section className="mx-auto max-w-5xl px-6 pt-20 pb-16">
-        <div className="flex items-center gap-3 text-sm text-slate-500">
-          <span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
-            {isActive ? "Active City" : "Coming Soon"}
-          </span>
-          {data.activation?.status && (
-            <span>{data.activation.status.replace(/_/g, " ")}</span>
-          )}
-        </div>
-        <h1 className="mt-6 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-          Blueprint in {cityName}
-        </h1>
-        {thesis && (
-          <p className="mt-4 max-w-2xl text-lg text-slate-600">{thesis}</p>
-        )}
-        {isActive && (
-          <div className="mt-8 flex flex-wrap gap-3">
-            <a
-              href="/api/waitlist"
-              onClick={(e) => {
-                e.preventDefault();
-                document.getElementById("signup-form")?.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="inline-flex items-center rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-700"
-            >
-              Request site capture
-            </a>
-            <a
-              href="/contact"
-              className="inline-flex items-center rounded-full border border-slate-200 px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              Contact ops team
-            </a>
+    <div className="min-h-screen bg-stone-50 text-slate-950">
+      <section className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(14,116,144,0.08),_transparent_42%),linear-gradient(180deg,_rgba(255,255,255,0.98),_rgba(248,250,252,0.98))]">
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
+          <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700">
+                <MapPinned className="h-3.5 w-3.5" />
+                {isSupported ? "Current capture rollout" : "Future-city interest"}
+              </div>
+              <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">
+                Blueprint capture in {cityName}
+              </h1>
+              <p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">
+                {loading
+                  ? "Checking current launch-city support."
+                  : isSupported
+                    ? `${cityName} is in Blueprint's current capture rollout. Public capture access, nearby review, and mobile onboarding all follow the approved launch-city state for this city.`
+                    : `${cityName} is not in Blueprint's current capture rollout. You can still leave your interest here, but the capture app and public capture feed stay locked until the launch org approves this city.`}
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                {isSupported ? (
+                  <>
+                    <a
+                      href="/signup/capturer"
+                      className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                    >
+                      Apply for capturer access
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </a>
+                    <a
+                      href="/capture-app"
+                      className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+                    >
+                      Open capture app
+                    </a>
+                  </>
+                ) : (
+                  <>
+                    <a
+                      href="#city-waitlist"
+                      className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                    >
+                      Join future-city waitlist
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </a>
+                    <a
+                      href="/capture"
+                      className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+                    >
+                      Read capture basics
+                    </a>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <aside className="rounded-[1.8rem] border border-slate-200 bg-white p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Current launch cities
+              </p>
+              <h2 className="mt-3 text-2xl font-semibold text-slate-950">
+                Website messaging follows launch approval, not a generic city list.
+              </h2>
+              <p className="mt-3 text-sm leading-7 text-slate-600">
+                These are the only cities that should read as currently open for public capture. If a city is not listed here, the right message is interest and review, not live availability.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                {supportedCities.map((city) => (
+                  <a
+                    key={city.citySlug}
+                    href={`/city/${city.citySlug}`}
+                    className={`inline-flex items-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                      city.citySlug === citySlug
+                        ? "border-slate-950 bg-slate-950 text-white"
+                        : "border-slate-200 bg-slate-50 text-slate-900 hover:border-slate-300 hover:bg-slate-100"
+                    }`}
+                  >
+                    {city.displayName}
+                  </a>
+                ))}
+                {!supportedCities.length && !loading ? (
+                  <span className="text-sm text-slate-500">No cities are currently marked supported.</span>
+                ) : null}
+              </div>
+            </aside>
           </div>
-        )}
+        </div>
       </section>
 
-      {/* What we capture */}
-      {isActive && (
-        <section className="border-t border-slate-100 bg-slate-50 py-16">
-          <div className="mx-auto max-w-5xl px-6">
-            <h2 className="text-2xl font-bold text-slate-900">
-              What Blueprint captures in {cityName}
-            </h2>
-            <div className="mt-8 grid gap-6 sm:grid-cols-3">
-              {siteLane && (
-                <div className="rounded-xl border border-slate-200 bg-white p-6">
-                  <h3 className="font-semibold text-slate-900">Site type</h3>
-                  <p className="mt-2 text-sm text-slate-600">
-                    {siteLane.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                  </p>
+      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="grid gap-4 md:grid-cols-3">
+          {captureRules.map((rule) => {
+            const Icon = rule.icon;
+            return (
+              <article key={rule.title} className="rounded-[1.6rem] border border-slate-200 bg-white p-6">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                  <Icon className="h-5 w-5" />
                 </div>
-              )}
-              {workflowLane && (
-                <div className="rounded-xl border border-slate-200 bg-white p-6">
-                  <h3 className="font-semibold text-slate-900">Workflow focus</h3>
-                  <p className="mt-2 text-sm text-slate-600">
-                    {workflowLane.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                  </p>
-                </div>
-              )}
-              {accessModes.length > 0 && (
-                <div className="rounded-xl border border-slate-200 bg-white p-6">
-                  <h3 className="font-semibold text-slate-900">Access modes</h3>
-                  <p className="mt-2 text-sm text-slate-600">
-                    {accessModes.join(", ").replace(/_/g, " ")}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
+                <h3 className="mt-4 text-lg font-semibold text-slate-950">{rule.title}</h3>
+                <p className="mt-2 text-sm leading-7 text-slate-600">{rule.body}</p>
+              </article>
+            );
+          })}
+        </div>
+      </section>
 
-      {/* Progress indicators */}
-      {isActive && ledger && (
-        <section className="border-t border-slate-100 py-16">
-          <div className="mx-auto max-w-5xl px-6">
-            <h2 className="text-2xl font-bold text-slate-900">
-              {cityName} launch progress
-            </h2>
-            <div className="mt-8 grid gap-4 sm:grid-cols-4">
-              <div className="rounded-xl border border-slate-200 p-4 text-center">
-                <p className="text-2xl font-bold text-slate-900">
-                  {ledger.trackedCityOpeningSendActionsSent}
-                </p>
-                <p className="text-xs text-slate-500">Outreach sent</p>
-              </div>
-              <div className="rounded-xl border border-slate-200 p-4 text-center">
-                <p className="text-2xl font-bold text-slate-900">
-                  {ledger.trackedCityOpeningResponsesRecorded}
-                </p>
-                <p className="text-xs text-slate-500">Responses received</p>
-              </div>
-              <div className="rounded-xl border border-slate-200 p-4 text-center">
-                <p className="text-2xl font-bold text-slate-900">
-                  {ledger.onboardedCapturers}
-                </p>
-                <p className="text-xs text-slate-500">Capturers onboarded</p>
-              </div>
-              <div className="rounded-xl border border-slate-200 p-4 text-center">
-                <p className="text-2xl font-bold text-slate-900">
-                  {ledger.trackedBuyerTargetsResearched}
-                </p>
-                <p className="text-xs text-slate-500">Buyer targets</p>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Signup form */}
-      <section id="signup-form" className="border-t border-slate-100 bg-slate-50 py-16">
-        <div className="mx-auto max-w-lg px-6 text-center">
-          <h2 className="text-2xl font-bold text-slate-900">
-            {isActive
-              ? `Join the ${cityName} capture program`
-              : `Get notified when Blueprint launches in ${cityName}`}
+      <section id="city-waitlist" className="border-t border-slate-200 bg-white">
+        <div className="mx-auto max-w-xl px-4 py-14 text-center sm:px-6 lg:px-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+            {isSupported ? "Capturer access" : "Future-city signal"}
+          </p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+            {isSupported
+              ? `Apply for capturer access in ${cityName}`
+              : `Tell Blueprint to watch ${cityName}`}
           </h2>
-          <p className="mt-2 text-sm text-slate-600">
-            {isActive
-              ? "Sign up to participate in site capture, hosted reviews, or buyer programs."
-              : "Enter your email and we'll reach out when your city is active."}
+          <p className="mt-3 text-sm leading-7 text-slate-600">
+            {isSupported
+              ? "Use this if you want to capture in this city. Approval is still invite- and code-gated, but this city is currently in rollout."
+              : "Use this if you want Blueprint to track interest in this city. This does not mean the city is open yet."}
           </p>
 
           {submitted ? (
-            <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
-              Thanks for your interest! We'll be in touch soon.
+            <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-700">
+              Thanks. Blueprint has your city interest and will route it through the launch workflow.
             </div>
           ) : (
             <form onSubmit={handleWaitlistSubmit} className="mt-6 flex flex-col gap-3">
@@ -290,35 +215,26 @@ export default function CityLanding() {
                 type="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@company.com"
-                className="rounded-lg border border-slate-200 px-4 py-3 text-sm"
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm"
               />
               <input
                 value={locationType}
-                onChange={(e) => setLocationType(e.target.value)}
-                placeholder="e.g. Warehouse, grocery, manufacturing facility"
-                className="rounded-lg border border-slate-200 px-4 py-3 text-sm"
+                onChange={(event) => setLocationType(event.target.value)}
+                placeholder="e.g. Grocery, warehouse, manufacturing facility"
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm"
               />
               <button
                 type="submit"
-                className="rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-700"
+                className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
-                {isActive ? "Request access" : "Notify me"}
+                {isSupported ? "Request capturer review" : "Join future-city waitlist"}
               </button>
             </form>
           )}
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-100 py-8">
-        <div className="mx-auto max-w-5xl px-6 text-center text-xs text-slate-400">
-          Blueprint Capture — exact-site world models for robotics.
-          <br />
-          This city page is auto-generated from the city launch profile.
-        </div>
-      </footer>
     </div>
   );
 }

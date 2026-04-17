@@ -1,4 +1,5 @@
 import { SEO } from "@/components/SEO";
+import { LaunchCityAvailability } from "@/components/site/LaunchCityAvailability";
 import { getCaptureAppPlaceholderUrl } from "@/lib/client-env";
 import { ArrowRight, ExternalLink, Mail, Smartphone } from "lucide-react";
 
@@ -78,6 +79,16 @@ export default function CaptureAppPlaceholder() {
                 Read capture basics
               </a>
             </div>
+          </div>
+
+          <div className="mt-8">
+            <LaunchCityAvailability
+              tone="light"
+              title="The public capture path only opens in current launch cities."
+              description="Website signup, the mobile app handoff, and the public capture feed are all tied to the same launch-city approval state. Outside those cities, Blueprint keeps interest on file until the launch org opens the market."
+              primaryCta={{ href: "/signup/capturer", label: "Apply for capturer access" }}
+              secondaryCta={{ href: "/capture", label: "Read capture basics" }}
+            />
           </div>
 
           <div className="mt-8 grid gap-4 lg:grid-cols-[1fr_0.8fr]">

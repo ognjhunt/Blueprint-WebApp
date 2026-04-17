@@ -103,7 +103,7 @@ Rights path is still validation-required. Private controlled interiors require e
 | likely supply quality | 3/5 | high if channels stay with site-authorized technical operators, low if widened into generic public recruiting |
 | operations feasibility | 3/5 | the issue tree and operator lanes exist, but the city still needs explicit site acquisition and proof-ops packets |
 | measurement readiness | 3/5 | platform events exist, but city-specific reporting still needs end-to-end validation |
-| legal/compliance clarity | 1/5 | private-interior access, rights authority, and any defense/export constraints remain explicit blockers until reviewed |
+| legal/compliance clarity | 3/5 | private-interior access requires explicit authorization; defense/export/air-gapped buyers follow explicit human review process; hosted-review path is default with buyer-driven exceptions |
 | strategic importance | 2/5 | city value is still hypothesis-level until proof-ready assets and hosted reviews exist |
 
 ## Human Gates

@@ -1,20 +1,20 @@
 import {
-  footerExploreLinks,
-  footerReferenceLinks,
-  footerUtilityLinks,
+  footerCompanyLinks,
+  footerProductLinks,
+  footerSupportLinks,
 } from "./navigation";
 
 export function Footer() {
   return (
-    <footer className="border-t border-slate-200 bg-slate-50/70">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[1.1fr_0.9fr_0.9fr_0.8fr]">
-        <div className="max-w-sm space-y-3">
+    <footer className="border-t border-slate-200 bg-stone-50">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[1.2fr_0.9fr_0.9fr_0.9fr]">
+        <div className="max-w-sm space-y-4">
           <a href="/" className="text-lg font-semibold tracking-tight text-slate-900">
             Blueprint
           </a>
           <p className="text-sm leading-6 text-slate-500">
-            Blueprint captures real customer facilities and turns them into testable environments
-            for robot teams.
+            Site-specific world models, buyer-facing proof, and hosted evaluation grounded in real
+            capture.
           </p>
           <div className="flex flex-col gap-2">
             <a
@@ -34,9 +34,9 @@ export function Footer() {
 
         <nav className="space-y-3 text-sm text-slate-600">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Explore
+            Product
           </p>
-          {footerExploreLinks.map((link) => (
+          {footerProductLinks.map((link) => (
             <a key={link.href} href={link.href} className="block transition hover:text-slate-900">
               {link.label}
             </a>
@@ -45,9 +45,9 @@ export function Footer() {
 
         <nav className="space-y-3 text-sm text-slate-600">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Reference
+            Company
           </p>
-          {footerReferenceLinks.map((link) => (
+          {footerCompanyLinks.map((link) => (
             <a key={link.href} href={link.href} className="block transition hover:text-slate-900">
               {link.label}
             </a>
@@ -56,9 +56,9 @@ export function Footer() {
 
         <nav className="space-y-3 text-sm text-slate-600">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Utility
+            Support
           </p>
-          {footerUtilityLinks.map((link) => (
+          {footerSupportLinks.map((link) => (
             <a key={link.href} href={link.href} className="block transition hover:text-slate-900">
               {link.label}
             </a>

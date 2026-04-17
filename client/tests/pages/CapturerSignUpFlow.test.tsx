@@ -28,6 +28,26 @@ vi.mock("@/lib/client-env", () => ({
   getCaptureAppPlaceholderUrl: () => "https://capture.blueprint.test/app",
 }));
 
+vi.mock("@/hooks/usePublicLaunchStatus", () => ({
+  usePublicLaunchStatus: () => ({
+    data: {
+      ok: true,
+      supportedCities: [
+        { city: "Austin", stateCode: "TX", displayName: "Austin, TX", citySlug: "austin-tx" },
+        {
+          city: "San Francisco",
+          stateCode: "CA",
+          displayName: "San Francisco, CA",
+          citySlug: "san-francisco-ca",
+        },
+      ],
+      currentCity: null,
+    },
+    loading: false,
+    error: null,
+  }),
+}));
+
 vi.mock("firebase/auth", () => ({
   getAuth: vi.fn(() => ({ currentUser: null })),
   createUserWithEmailAndPassword: createUserWithEmailAndPasswordMock,
@@ -108,8 +128,8 @@ describe("CapturerSignUpFlow analytics", () => {
       "password",
     );
 
-    fireEvent.change(screen.getByLabelText(/Home market/i), {
-      target: { value: "Raleigh-Durham, NC" },
+    fireEvent.change(screen.getByLabelText(/Capture city/i), {
+      target: { value: "Austin, TX" },
     });
     fireEvent.change(screen.getByLabelText(/Phone number/i), {
       target: { value: "(555) 555-5555" },
@@ -131,7 +151,7 @@ describe("CapturerSignUpFlow analytics", () => {
       referralSource: "search",
     });
     expect(analyticsEventsMock.capturerCohortEntered).toHaveBeenCalledWith({
-      market: "Raleigh-Durham, NC",
+      market: "Austin, TX",
       cohortSource: "search",
       accessPath: "search",
       hasAccessCode: false,

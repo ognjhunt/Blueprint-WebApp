@@ -1,4 +1,5 @@
 import { SEO } from "@/components/SEO";
+import { LaunchCityAvailability } from "@/components/site/LaunchCityAvailability";
 import { ArrowRight, Camera, DollarSign, Smartphone, Upload } from "lucide-react";
 
 const steps = [
@@ -94,6 +95,16 @@ export default function Capture() {
               </div>
             </div>
           </div>
+        </section>
+
+        <section className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+          <LaunchCityAvailability
+            tone="light"
+            title="Current capture access is limited to launch-approved cities."
+            description="Blueprint Capture matches the city-launch org state. If your city is not in the current rollout, you can still register interest, but the app and public capture feed stay locked until the city is approved."
+            primaryCta={{ href: "/signup/capturer", label: "Apply for capturer access" }}
+            secondaryCta={{ href: "/capture-app", label: "Open capture app" }}
+          />
         </section>
 
         <section className="mx-auto max-w-5xl px-4 py-14 sm:px-6 lg:px-8">

@@ -111,27 +111,11 @@ export default function Contact() {
           { href: "/sample-deliverables", label: "Sample deliverables" },
           { href: "/faq", label: "FAQ" },
         ];
-  const contactModes = [
-    {
-      title: "Quick brief",
-      body: "Use the short form when you want Blueprint to understand the site, robot, and question before deciding on the right path.",
-    },
-    {
-      title: "Hosted evaluation scoping",
-      body: "Use this when the next step is a managed runtime session on one exact site, with reruns, failure review, and exports.",
-    },
-    {
-      title: "Custom site quote",
-      body: "Use this when the facility is private, rights need negotiation up front, or the work needs managed support and custom scope.",
-    },
+  const afterInquiry = [
+    "Blueprint reviews the site, task, and robot context first.",
+    "The next reply narrows the package path, hosted evaluation path, or the follow-up question that actually matters.",
+    "Rights, privacy, and proof boundaries stay explicit instead of being deferred into vague sales language.",
   ];
-  const buyerJourney = [
-    "Request",
-    "Scope confirmation",
-    "Commercial next step",
-    hostedMode ? "Hosted session" : "Package or hosted session",
-  ];
-
   return (
     <>
       <SEO title={seoTitle} description={seoDescription} canonical="/contact" />
@@ -164,19 +148,6 @@ export default function Contact() {
             >
               {heroBody}
             </motion.p>
-            <motion.div
-              initial={shouldReduce ? {} : { opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.25 }}
-              className="mt-6 grid gap-3 sm:grid-cols-3"
-            >
-              {contactModes.map((mode) => (
-                <div key={mode.title} className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
-                  <p className="text-sm font-semibold text-slate-900">{mode.title}</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">{mode.body}</p>
-                </div>
-              ))}
-            </motion.div>
           </div>
 
           <div className="grid grid-cols-1 gap-16 lg:grid-cols-2">
@@ -242,24 +213,14 @@ export default function Contact() {
                     <div>
                       <h3 className="font-semibold text-slate-900">{responseTitle}</h3>
                       <p className="mt-1 text-sm text-slate-600">{responseBody}</p>
-                      <div className="mt-4 grid gap-2">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                          Buyer journey
-                        </p>
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          {buyerJourney.map((step, index) => (
-                            <div
-                              key={step}
-                              className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700"
-                            >
-                              <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-[11px] font-semibold text-white">
-                                {index + 1}
-                              </span>
-                              {step}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                      <ul className="mt-4 space-y-2 text-sm text-slate-700">
+                        {afterInquiry.map((item) => (
+                          <li key={item} className="flex items-start gap-2">
+                            <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-900" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   </div>
                 </motion.div>

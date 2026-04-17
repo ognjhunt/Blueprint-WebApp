@@ -1,7 +1,7 @@
 import { SEO } from "@/components/SEO";
-import { OfferComparison } from "@/components/site/OfferComparison";
 import { ProofModule } from "@/components/site/ProofModule";
 import { WhenNotToBuyModule } from "@/components/site/WhenNotToBuyModule";
+import { LaunchCityAvailability } from "@/components/site/LaunchCityAvailability";
 import {
   companyTrustItems,
   hostedEvaluationDefinition,
@@ -13,15 +13,8 @@ import {
   worldModelDefinition,
 } from "@/data/marketingDefinitions";
 import { exactSiteScopingCallPath } from "@/lib/booking";
-import { publicDemoHref, publicDemoLabel, publicProofAssets } from "@/lib/marketingProof";
-import { ArrowRight, CheckCircle2, Mail } from "lucide-react";
-
-const heroSignals = [
-  "Fine-tune policies against the real geometry, occlusions, and workflow constraints that matter at deployment.",
-  "Generate site-specific training data and controlled variations from the same capture record.",
-  "Compare checkpoints on one exact environment so regressions show up before travel and deployment week.",
-  "Use hosted evaluation when your team wants Blueprint to run the exact site and export results without moving files first.",
-];
+import { publicDemoHref, publicProofAssets } from "@/lib/marketingProof";
+import { ArrowRight } from "lucide-react";
 
 const definitionCards = [
   {
@@ -99,64 +92,47 @@ export default function Home() {
               <h1 className="mt-5 text-[3.3rem] font-semibold tracking-tight text-slate-950 sm:text-[4.2rem] sm:leading-[0.95]">
                 Test the exact site before deployment.
               </h1>
-              <p className="mt-4 max-w-3xl text-base font-semibold uppercase tracking-[0.16em] text-slate-600">
-                Shrink the demo-to-deployment gap.
-              </p>
-              <p className="mt-3 max-w-3xl text-[1.05rem] leading-8 text-slate-600">
+              <p className="mt-4 max-w-3xl text-[1.05rem] leading-8 text-slate-600">
                 Blueprint turns a real facility into a site-specific world model, data package,
                 and hosted test environment so your team can answer deployment questions before
                 site visits, pilot spend, and rollout work begin.
               </p>
-              <p className="mt-4 max-w-3xl rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm leading-7 text-slate-700">
-                <span className="font-semibold text-slate-900">What teams are buying:</span> one
-                site-specific world model built from real capture of one facility and one
-                workflow lane, with the data package path and hosted path tied back to the same
-                source record.
+              <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600">
+                One exact site. One workflow lane. Package access and hosted evaluation tied back
+                to the same real capture record.
               </p>
-              <div className="mt-5 grid gap-2.5">
-                {heroSignals.map((item) => (
-                  <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </div>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <a
                   href={publicDemoHref}
                   className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  {publicDemoLabel}
+                  View Sample Site
                   <ArrowRight className="ml-2 h-4 w-4" />
-                </a>
-                <a
-                  href="/exact-site-hosted-review"
-                  className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
-                >
-                  See hosted evaluation
-                </a>
-                <a
-                  href="/contact?persona=robot-team"
-                  className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-stone-100 px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-stone-200"
-                >
-                  Scope your site
                 </a>
                 <a
                   href={exactSiteScopingCallPath}
                   className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
                 >
-                  Book scoping call
+                  Book Hosted Review
                 </a>
               </div>
-              <a
-                href="mailto:hello@tryblueprint.io?subject=Blueprint%20brief"
-                className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-700 transition hover:text-slate-950"
-              >
-                <Mail className="h-4 w-4" />
-                Prefer email? Send a short brief.
-              </a>
+              <p className="mt-4 text-sm text-slate-600">
+                Need a custom scope instead?{" "}
+                <a href="/contact?persona=robot-team" className="font-semibold text-slate-900 hover:underline">
+                  Talk to Blueprint.
+                </a>
+              </p>
             </div>
           </div>
+        </section>
+
+        <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+          <LaunchCityAvailability
+            title="Capture supply opens city by city."
+            description="The buyer site stays global, but the public capture program does not. Blueprint only opens capturer access, nearby review, and public capture availability in cities the launch org has actually approved."
+            primaryCta={{ href: "/signup/capturer", label: "Apply for capturer access" }}
+            secondaryCta={{ href: "/capture", label: "Read capture basics" }}
+          />
         </section>
 
         <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
@@ -168,7 +144,8 @@ export default function Home() {
               Choose the path that matches the work.
             </h2>
             <p className="mt-4 text-sm leading-7 text-slate-600">
-              Start with the exact-site proof object, then choose between the package, the hosted evaluation path, or a custom site program.
+              Start with the exact-site proof object, then choose the package, hosted evaluation,
+              or a request-scoped program tied to that same source record.
             </p>
           </div>
           <div className="mt-8 grid gap-4 lg:grid-cols-3">
@@ -206,16 +183,15 @@ export default function Home() {
         <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Public proof assets
+              Proof trail
             </p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              Current public proof assets buyers can inspect today.
+              Inspect the public proof before you contact anyone.
             </h2>
             <p className="mt-4 text-sm leading-7 text-slate-600">
-              These links point to the strongest public proof surfaces already in this repo:
-              the sample listing, a current runtime reference still, and the representative
-              package and rights artifacts used to explain the commercial contract without
-              inventing customer evidence.
+              Start with the sample listing, then move into the runtime still and representative
+              artifact layout. The point is to let a serious buyer inspect the proof path before
+              deciding whether the package or hosted route is the right next step.
             </p>
           </div>
           <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -233,14 +209,6 @@ export default function Home() {
               </a>
             ))}
           </div>
-        </section>
-
-        <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
-          <OfferComparison
-            eyebrow="What teams get"
-            title="Choose the path that matches the work."
-            description="Inspect the package when your team wants the data contract. Use hosted evaluation when your team wants Blueprint to run the exact site first. Use custom scope when the site, rights model, or support layer are private from day one."
-          />
         </section>
 
         <section className="mx-auto grid max-w-6xl gap-6 px-4 py-4 sm:px-6 lg:grid-cols-[1fr_1fr] lg:px-8">
@@ -378,66 +346,9 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
-          <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Buying flow
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              How buying works before anyone gets on a plane.
-            </h2>
-            <p className="mt-4 text-sm leading-7 text-slate-600">
-              The goal is not to force a sales call. The goal is to help a serious robot team move from site proof to the right commercial next step quickly and truthfully.
-            </p>
-          </div>
-          <div className="mt-8 grid gap-4 md:grid-cols-4">
-            {[
-              "Inspect the sample listing and trust surfaces.",
-              "Confirm whether the package or hosted path matches the question.",
-              "Send a short brief with the site, robot, and workflow context.",
-              "Move into package access or hosted evaluation with the right scope.",
-            ].map((item, index) => (
-              <article key={item} className="rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white">
-                  {index + 1}
-                </div>
-                <p className="mt-4 text-sm leading-7 text-slate-700">{item}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
         <div className="mx-auto max-w-6xl px-4 py-2 sm:px-6 lg:px-8">
           <WhenNotToBuyModule />
         </div>
-
-        <section className="mx-auto max-w-6xl px-4 pb-14 sm:px-6 lg:px-8">
-          <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Proof story
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              An anonymized proof story buyers can follow.
-            </h2>
-            <p className="mt-4 text-sm leading-7 text-slate-600">
-              A robot team has one exact-site deployment question. The buyer inspects the sample listing, checks the trust surfaces, decides whether the package or hosted path answers the question first, and then scopes the next step without pretending the site proves more than it does.
-            </p>
-          </div>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {[
-              "Inspect the real-site proof object first, not a generic product promise.",
-              "Use the package or hosted path that matches the exact deployment question.",
-              "Move into a scoped next step with rights, freshness, and restrictions already visible.",
-            ].map((item, index) => (
-              <article key={item} className="rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold text-white">
-                  {index + 1}
-                </div>
-                <p className="mt-4 text-sm leading-7 text-slate-700">{item}</p>
-              </article>
-            ))}
-          </div>
-        </section>
       </div>
     </>
   );

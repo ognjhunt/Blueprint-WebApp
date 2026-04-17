@@ -49,6 +49,7 @@ import verifyFirebaseToken from "./middleware/verifyFirebaseToken";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
 import marketplaceEntitlementsRouter from "./routes/marketplace-entitlements";
 import cityLaunchRouter from "./routes/city-launch";
+import publicLaunchRouter from "./routes/public-launch";
 
 export function registerRoutes(app: Express) {
   app.use(appleAssociationRouter);
@@ -59,6 +60,7 @@ export function registerRoutes(app: Express) {
   // Public content summary for external tooling.
   app.use("/api/site-content", siteContentRouter);
   app.use("/api/experiments", experimentsRouter);
+  app.use("/api/public/launch", publicLaunchRouter);
   app.use("/api/internal/pipeline", internalPipelineRouter);
   app.use("/api/internal/gap-intake", internalGapIntakeRouter);
   app.use("/api/internal/human-blockers", internalHumanBlockersRouter);

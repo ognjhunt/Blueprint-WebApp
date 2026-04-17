@@ -23,11 +23,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SEO } from "@/components/SEO";
+import { LaunchCityAvailability } from "@/components/site/LaunchCityAvailability";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { usePublicLaunchStatus } from "@/hooks/usePublicLaunchStatus";
 import { analyticsEvents, getSafeErrorType } from "@/lib/analytics";
 import { getCaptureAppPlaceholderUrl } from "@/lib/client-env";
+import { joinLaunchCityLabels } from "@/lib/publicLaunchStatus";
 
 const EQUIPMENT_OPTIONS = [
   { value: "iphone", label: "iPhone", detail: "Best fit for mobile indoor capture." },
@@ -65,6 +68,10 @@ function isValidPhone(value: string) {
 function buildUsername(name: string, fallbackEmail: string) {
   const source = name.trim() || fallbackEmail.split("@")[0] || "capturer";
   return source.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "capturer";
+}
+
+function normalizeCityToken(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ");
 }
 
 function StepDots({ currentStep }: { currentStep: 1 | 2 }) {
@@ -115,12 +122,26 @@ export default function CapturerSignUpFlow() {
   const [accessCode, setAccessCode] = useState("");
   const [referralSource, setReferralSource] = useState<ReferralValue | "">("search");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [successSummary, setSuccessSummary] = useState<{ name: string; market: string } | null>(
+  const [successSummary, setSuccessSummary] = useState<{
+    name: string;
+    market: string;
+    isSupportedLaunchCity: boolean;
+  } | null>(
     null,
   );
   const [captureAppQrCode, setCaptureAppQrCode] = useState("");
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const captureAppUrl = useMemo(() => getCaptureAppPlaceholderUrl(), []);
+  const { data: publicLaunchStatus, loading: launchCitiesLoading } = usePublicLaunchStatus();
+  const supportedLaunchCities = publicLaunchStatus?.supportedCities ?? [];
+  const supportedLaunchCitySummary = joinLaunchCityLabels(supportedLaunchCities);
+  const marketIsSupportedLaunchCity = useMemo(
+    () =>
+      supportedLaunchCities.some(
+        (city) => normalizeCityToken(city.displayName) === normalizeCityToken(market),
+      ),
+    [market, supportedLaunchCities],
+  );
 
   const step1Valid = useMemo(
     () =>
@@ -391,12 +412,13 @@ export default function CapturerSignUpFlow() {
         hasAccessCode: Boolean(accessCode.trim()),
         equipmentCount: equipment.length,
         availability,
-        applicationStatus: "pending_review",
+        applicationStatus: marketIsSupportedLaunchCity ? "pending_review" : "future_city_waitlist",
       });
 
       setSuccessSummary({
         name: normalizedName.split(" ")[0] || normalizedName,
         market: market.trim(),
+        isSupportedLaunchCity: marketIsSupportedLaunchCity,
       });
       analyticsEvents.capturerSignupCompleted({
         authMethod,
@@ -427,6 +449,7 @@ export default function CapturerSignUpFlow() {
     equipment,
     fullName,
     market,
+    marketIsSupportedLaunchCity,
     password,
     phoneNumber,
     referralSource,
@@ -524,6 +547,14 @@ export default function CapturerSignUpFlow() {
                 <p className="mt-1 text-sm text-[color:var(--ink-soft)]">Not the primary work surface.</p>
               </div>
             </div>
+
+            <LaunchCityAvailability
+              tone="paper"
+              className="p-5"
+              title="Current capture rollout is city-limited."
+              description="This web form follows the same launch-city truth as Blueprint Capture. Supported cities can move into capturer review now. Other cities stay in the future-city queue until the launch org opens them."
+              primaryCta={{ href: "/capture", label: "Capture overview" }}
+            />
 
               <div className="rounded-[1.6rem] border border-[color:var(--line-strong)] bg-[color:var(--panel)] p-5">
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[color:var(--ink-muted)]">
@@ -679,18 +710,53 @@ export default function CapturerSignUpFlow() {
                     <div className="grid gap-5 sm:grid-cols-2">
                       <div className="sm:col-span-2">
                         <Label htmlFor="market" className="text-[color:var(--ink)]">
-                          Home market
+                          Capture city
                         </Label>
+                        <p className="mt-2 text-sm leading-6 text-[color:var(--ink-soft)]">
+                          Choose a current launch city if Blueprint is already opening there, or
+                          tell us which city to watch next. Current rollout:{" "}
+                          {launchCitiesLoading ? "loading..." : supportedLaunchCitySummary}.
+                        </p>
+                        {supportedLaunchCities.length > 0 ? (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {supportedLaunchCities.map((city) => {
+                              const active = normalizeCityToken(city.displayName) === normalizeCityToken(market);
+                              return (
+                                <button
+                                  key={city.citySlug}
+                                  type="button"
+                                  onClick={() => setMarket(city.displayName)}
+                                  className={`rounded-full border px-3 py-2 text-sm font-semibold transition ${
+                                    active
+                                      ? "border-[color:var(--leaf)] bg-[color:var(--leaf)] text-white"
+                                      : "border-[color:var(--line-strong)] bg-white text-[color:var(--ink)] hover:bg-[color:var(--paper)]"
+                                  }`}
+                                >
+                                  {city.displayName}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : null}
                         <div className="relative mt-2">
                           <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--ink-muted)]" />
                           <Input
                             id="market"
                             value={market}
                             onChange={(event) => setMarket(event.target.value)}
-                            placeholder="Raleigh-Durham, NC"
+                            placeholder={
+                              supportedLaunchCities[0]?.displayName || "Austin, TX"
+                            }
                             className="h-12 rounded-2xl border-[color:var(--line-strong)] pl-10"
                           />
                         </div>
+                        <p className="mt-2 text-xs leading-5 text-[color:var(--ink-muted)]">
+                          {market.trim()
+                            ? marketIsSupportedLaunchCity
+                              ? `${market} is in the current capture rollout.`
+                              : `${market} is not open for capture yet. We can keep your application on the future-city queue until launch approval exists.`
+                            : "If your city is not open yet, you can still submit this form and we will treat it as future-city interest."}
+                        </p>
                       </div>
 
                       <div className="sm:col-span-2">
@@ -713,7 +779,7 @@ export default function CapturerSignUpFlow() {
                         <div>
                           <p className="font-semibold text-[color:var(--ink)]">Gated access and approval</p>
                           <p className="mt-1 text-sm leading-6 text-[color:var(--ink-soft)]">
-                            Blueprint capturer access is invite- and code-gated. Submitting this application does not guarantee approval. We review each submission for market fit and device availability before sending capture onboarding instructions.
+                            Blueprint capturer access is invite- and code-gated. Submitting this application does not guarantee approval. We review each submission for launch-city fit, device availability, and cohort capacity before sending capture onboarding instructions.
                           </p>
                         </div>
                       </div>
@@ -875,7 +941,13 @@ export default function CapturerSignUpFlow() {
                     disabled={isSubmitting}
                     className="rounded-full bg-[color:var(--ink)] px-6 text-white hover:bg-[color:var(--leaf-deep)]"
                   >
-                    {isSubmitting ? "Submitting..." : step === 1 ? "Continue" : "Create capturer account"}
+                    {isSubmitting
+                      ? "Submitting..."
+                      : step === 1
+                        ? "Continue"
+                        : market.trim() && !marketIsSupportedLaunchCity
+                          ? "Join future-city waitlist"
+                          : "Create capturer account"}
                     {!isSubmitting ? <ArrowRight className="ml-2 h-4 w-4" /> : null}
                   </Button>
                 </div>
@@ -898,8 +970,13 @@ export default function CapturerSignUpFlow() {
                 </h2>
                 <p className="mt-3 max-w-xl text-base leading-7 text-[color:var(--ink-soft)]">
                   {successSummary
-                    ? `${successSummary.name}, your capturer application for ${successSummary.market} has been submitted.`
-                    : "Your capturer application has been submitted."} This is not an approval — it is the first step. We review every application before granting capture access.
+                    ? successSummary.isSupportedLaunchCity
+                      ? `${successSummary.name}, your capturer application for ${successSummary.market} has been submitted.`
+                      : `${successSummary.name}, your request for ${successSummary.market} has been saved for a future-city launch.`
+                    : "Your capturer application has been submitted."}{" "}
+                  {successSummary?.isSupportedLaunchCity === false
+                    ? "Blueprint is not open there yet, so we will only move this forward if that city becomes part of the launch rollout."
+                    : "This is not an approval — it is the first step. We review every application before granting capture access."}
                 </p>
               </div>
 
@@ -910,7 +987,9 @@ export default function CapturerSignUpFlow() {
                     <div>
                       <p className="font-semibold text-[color:var(--ink)]">Application under review</p>
                       <p className="mt-1 text-sm leading-6 text-[color:var(--ink-soft)]">
-                        Your submission is in the capturer queue. We will reach out via email with access instructions once your application is approved. In the meantime, the Blueprint Capture app is where actual capture sessions, review steps, and payout setup live.
+                        {successSummary?.isSupportedLaunchCity === false
+                          ? "Your submission is in the future-city queue. We will only send access instructions if that city becomes part of the approved launch rollout."
+                          : "Your submission is in the capturer queue. We will reach out via email with access instructions once your application is approved. In the meantime, the Blueprint Capture app is where actual capture sessions, review steps, and payout setup live."}
                       </p>
                     </div>
                   </div>
