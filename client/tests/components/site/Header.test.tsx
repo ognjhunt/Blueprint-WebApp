@@ -23,35 +23,29 @@ describe("Header", () => {
       "href",
       "/world-models",
     );
-    expect(screen.getByRole("link", { name: /^Sample Listing$/i })).toHaveAttribute(
-      "href",
-      "/world-models/siteworld-f5fd54898cfb",
-    );
     expect(screen.getByRole("link", { name: /^Hosted Evaluation$/i })).toHaveAttribute(
       "href",
       "/exact-site-hosted-review",
-    );
-    expect(screen.getByRole("link", { name: /^Deliverables$/i })).toHaveAttribute(
-      "href",
-      "/sample-deliverables",
     );
     expect(screen.getByRole("link", { name: /^Pricing$/i })).toHaveAttribute(
       "href",
       "/pricing",
     );
-    expect(screen.getByRole("link", { name: /^FAQ$/i })).toHaveAttribute("href", "/faq");
-    expect(screen.getByRole("link", { name: /^Governance$/i })).toHaveAttribute("href", "/governance");
-    expect(screen.getByRole("link", { name: /^About$/i })).toHaveAttribute("href", "/about");
+    expect(screen.getByRole("link", { name: /^Trust$/i })).toHaveAttribute("href", "/governance");
+    expect(screen.queryByRole("link", { name: /^Sample Listing$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Deliverables$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^About$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Capture$/i })).not.toBeInTheDocument();
   });
 
-  it("uses proof-first utility actions in the header", () => {
+  it("uses a reduced proof-first action rail in the header", () => {
     render(<Header />);
 
     const sampleLink = screen.getByRole("link", { name: /View sample listing/i });
-    const hostedLink = screen.getByRole("link", { name: /See hosted evaluation/i });
+    const bookingLink = screen.getByRole("link", { name: /^Book call$/i });
     expect(sampleLink).toHaveAttribute("href", "/world-models/siteworld-f5fd54898cfb");
-    expect(hostedLink).toHaveAttribute("href", "/exact-site-hosted-review");
+    expect(bookingLink).toHaveAttribute("href", "/book-exact-site-review");
+    expect(screen.queryByRole("link", { name: /See hosted evaluation/i })).not.toBeInTheDocument();
   });
 
   it("de-emphasizes auth from the main marketing header", () => {
