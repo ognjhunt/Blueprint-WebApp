@@ -54,6 +54,8 @@ describe("BusinessSignUpFlow analytics", () => {
       defaultRequestedLane: "deeper_evaluation",
       requestedLaneCount: 1,
     });
+    expect(screen.getByText(/Buyer access request/i)).toBeInTheDocument();
+    expect(screen.getByText(/Existing portal users should use sign in instead of creating a second path/i)).toBeInTheDocument();
   });
 
   it("tracks Austin demand-city context on funnel start when present in the URL", () => {

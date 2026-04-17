@@ -11,5 +11,8 @@ describe("Governance", () => {
     expect(screen.getByText(/Sample rights and restrictions/i)).toBeInTheDocument();
     expect(screen.getByText(/Hosted access boundary/i)).toBeInTheDocument();
     expect(screen.getByText(/Retention and redaction/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /What Blueprint publishes today versus what it does not claim\./i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Security, privacy, and access controls buyers should expect to read\./i })).toBeInTheDocument();
+    expect(screen.getByText(/No certification claims are implied unless Blueprint publishes them explicitly/i)).toBeInTheDocument();
   });
 });

@@ -613,6 +613,9 @@ export async function upsertCityLaunchCandidateSignal(
     candidateSignalMemoryStore.set(record.dedupeKey, record);
     return record;
   }
+  if (!db) {
+    throw new Error("Database not available");
+  }
 
   const ref = db.collection(COLLECTIONS.candidateSignals).doc(record.id);
   const existingDoc = await ref.get();
@@ -688,6 +691,9 @@ export async function listCityLaunchCandidateSignals(options?: {
       if (filterStatuses && !filterStatuses.has(record.status)) return false;
       return true;
     });
+  }
+  if (!db) {
+    throw new Error("Database not available");
   }
 
   let snapshot = await db.collection(COLLECTIONS.candidateSignals).limit(1000).get();

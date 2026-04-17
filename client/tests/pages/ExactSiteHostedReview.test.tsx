@@ -15,15 +15,22 @@ describe("ExactSiteHostedReview", () => {
     expect(screen.getByRole("heading", { name: /What your team provides/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What Blueprint runs and returns/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /How the hosted loop works/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Hosted integration contract/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What happens after inquiry/i })).toBeInTheDocument();
     expect(screen.getAllByText(/Illustrative product preview/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole("link", { name: /See a sample hosted flow/i })).toHaveAttribute(
-      "href",
-      "/sample-deliverables",
-    );
-    expect(screen.getByRole("link", { name: /Scope hosted evaluation/i })).toHaveAttribute(
-      "href",
-      "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package",
-    );
+    expect(
+      screen
+        .getAllByRole("link", { name: /See a sample hosted flow/i })
+        .some((link) => link.getAttribute("href") === "/sample-deliverables"),
+    ).toBe(true);
+    expect(
+      screen
+        .getAllByRole("link", { name: /Scope hosted evaluation/i })
+        .some(
+          (link) =>
+            link.getAttribute("href")
+            === "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package",
+        ),
+    ).toBe(true);
   });
 });

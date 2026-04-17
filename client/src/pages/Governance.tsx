@@ -38,6 +38,39 @@ const trustCards = [
   },
 ];
 
+const publishedToday = [
+  "Public proof depth, freshness, and commercial-status disclosure on listing surfaces",
+  "Readable sample manifest, export bundle, and rights-sheet layouts for buyer inspection",
+  "Hosted-access boundary language that separates public proof from illustrative UI",
+  "Privacy, retention, redaction, and restriction framing in the buyer path",
+];
+
+const notClaimed = [
+  "Blanket site approval unless the listing says so explicitly",
+  "Unrestricted commercialization or export rights by default",
+  "Deployment guarantees, safety certification, or customer outcome claims",
+  "Security or compliance certifications that Blueprint has not published explicitly",
+];
+
+const controlCards = [
+  {
+    title: "Access and entitlement controls",
+    body: "Hosted sessions should run behind authenticated access, listing-level entitlements, and request-specific approval steps. Public listings are for buyer review, not unrestricted runtime access.",
+  },
+  {
+    title: "Redaction and privacy processing",
+    body: "Blueprint treats redaction state, restricted zones, and privacy processing as product metadata. If media was transformed or withheld for privacy reasons, that should be visible instead of buried.",
+  },
+  {
+    title: "Retention and export boundaries",
+    body: "Retention policy, export entitlements, and sharing limits should stay attached to the listing and package contract so a buyer can tell what continues after purchase.",
+  },
+  {
+    title: "Auditability and human gates",
+    body: "Irreversible access, rights exceptions, and unusual hosted-session requests should remain human-gated with clear records of what changed and why.",
+  },
+];
+
 export default function Governance() {
   return (
     <>
@@ -99,6 +132,61 @@ export default function Governance() {
                 </div>
               ))}
             </div>
+          </section>
+
+          <section className="mt-10 grid gap-4 lg:grid-cols-2">
+            <article className="rounded-3xl border border-slate-200 bg-white p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Truth boundary
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+                What Blueprint publishes today versus what it does not claim.
+              </h2>
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-semibold text-slate-900">Published today</p>
+                  <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
+                    {publishedToday.map((item) => (
+                      <li key={item} className="flex items-start gap-3">
+                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-400" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-semibold text-slate-900">Not claimed</p>
+                  <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
+                    {notClaimed.map((item) => (
+                      <li key={item} className="flex items-start gap-3">
+                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-400" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              <p className="mt-4 text-sm leading-6 text-slate-600">
+                No certification claims are implied unless Blueprint publishes them explicitly.
+              </p>
+            </article>
+
+            <article className="rounded-3xl border border-slate-200 bg-stone-50 p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Operational controls
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+                Security, privacy, and access controls buyers should expect to read.
+              </h2>
+              <div className="mt-5 grid gap-4">
+                {controlCards.map((card) => (
+                  <section key={card.title} className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <h3 className="text-base font-semibold text-slate-900">{card.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">{card.body}</p>
+                  </section>
+                ))}
+              </div>
+            </article>
           </section>
         </div>
       </div>

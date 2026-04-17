@@ -5,6 +5,7 @@ import { illustrativeLabel } from "@/data/marketingDefinitions";
 import { caseStudies } from "@/data/content";
 import { analyticsEvents } from "@/lib/analytics";
 import { resolveExperimentVariant } from "@/lib/experiments";
+import { proofReferenceImageSrc, proofReelPosterSrc, publicDemoHref } from "@/lib/marketingProof";
 import { ArrowRight, BarChart3, Database, GitBranch, MapPinned } from "lucide-react";
 
 const loopSteps = [
@@ -72,6 +73,25 @@ const useCaseCards = [
     title: "Customer readiness",
     body:
       "Show operators, buyers, and internal teams the exact site and the expected robot behavior in the same surface.",
+  },
+];
+
+const proofChain = [
+  {
+    title: "Real site capture",
+    body: "Start from the actual facility and workflow lane instead of an abstract scene.",
+  },
+  {
+    title: "Sample package manifest",
+    body: "Show the site package contract, freshness, rights class, and export set before a buyer commits.",
+  },
+  {
+    title: "Hosted run review",
+    body: "Use the same exact site for run review, failure analysis, checkpoint comparison, and buyer-visible iteration.",
+  },
+  {
+    title: "Export bundle",
+    body: "Move from run review into representative export objects tied to the same listing.",
   },
 ];
 
@@ -319,6 +339,85 @@ export default function HowItWorks() {
             <ScrollReveal>
               <div className="max-w-3xl">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Proof chain
+                </p>
+                <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
+                  Proof chain, not just product philosophy.
+                </h2>
+                <p className="mt-4 text-sm leading-7 text-slate-600">
+                  The buyer path should move from real site evidence to package contract to hosted run review to export artifacts. The proof chain matters more than any abstract positioning claim.
+                </p>
+              </div>
+            </ScrollReveal>
+
+            <div className="mt-8 grid gap-4 lg:grid-cols-[1fr_1.05fr]">
+              <article className="rounded-3xl border border-slate-200 bg-white p-6">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                    <img
+                      src={proofReelPosterSrc}
+                      alt="Real site capture"
+                      className="aspect-[16/10] w-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                    <img
+                      src={proofReferenceImageSrc}
+                      alt="Hosted run review"
+                      className="aspect-[16/10] w-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                </div>
+                <div className="mt-5 grid gap-3 md:grid-cols-2">
+                  {proofChain.map((item) => (
+                    <div key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">{item.body}</p>
+                    </div>
+                  ))}
+                </div>
+              </article>
+
+              <article className="rounded-3xl border border-slate-200 bg-slate-950 p-6 text-white">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                  Proof path
+                </p>
+                <h2 className="mt-2 text-3xl font-bold tracking-tight">
+                  Exact-site proof vs adjacent-site proof
+                </h2>
+                <div className="mt-5 grid gap-4">
+                  <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-5">
+                    <p className="text-sm font-semibold text-white">Exact-site proof</p>
+                    <p className="mt-2 text-sm leading-7 text-slate-300">
+                      The package or hosted session is tied to the actual facility the buyer cares about. This is the path for stronger deployment-specific decisions.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-800 bg-slate-900/90 p-5">
+                    <p className="text-sm font-semibold text-white">Adjacent-site proof</p>
+                    <p className="mt-2 text-sm leading-7 text-slate-300">
+                      A clearly labeled nearby or similar site can answer an earlier question, but it should never be blurred into exact-site claims.
+                    </p>
+                  </div>
+                </div>
+                <a
+                  href={publicDemoHref}
+                  className="mt-6 inline-flex items-center text-sm font-semibold text-white underline-offset-4 hover:underline"
+                >
+                  Inspect the sample listing
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section className="py-14 sm:py-20">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <ScrollReveal>
+              <div className="max-w-3xl">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                   Comparison
                 </p>
                 <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
@@ -391,21 +490,19 @@ export default function HowItWorks() {
           </div>
         </section>
 
-        {/* Example workflows — absorbed from /case-studies */}
+        {/* Proof stories — adapted from anonymized commercial narratives */}
         <section className="py-14 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <ScrollReveal>
               <div className="max-w-3xl">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Example workflows
+                  Proof stories
                 </p>
                 <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
-                  How this looks across different facility types
+                  How this looks once a buyer has one real deployment question
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-slate-600">
-                  These examples show how Blueprint packages and hosted evaluation would be framed
-                  for different industries. Named customer references will be added as they become
-                  available.
+                  These are anonymized proof stories tied to the same commercial workflow. They are more useful than generic industry examples because they show the decision path a serious buyer actually follows.
                 </p>
               </div>
             </ScrollReveal>
@@ -443,10 +540,10 @@ export default function HowItWorks() {
                       ))}
                     </ul>
                     <a
-                      href="/contact?persona=robot-team"
+                      href={publicDemoHref}
                       className="mt-auto text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
                     >
-                      {study.cta}
+                      Inspect the sample listing
                     </a>
                   </div>
                 </article>

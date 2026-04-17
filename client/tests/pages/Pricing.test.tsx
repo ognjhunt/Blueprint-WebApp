@@ -15,8 +15,14 @@ describe("Pricing", () => {
     expect(screen.getAllByText(/\$2,100 - \$3,400/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/\$16 - \$29/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Compare the three commercial paths\./i)).toBeInTheDocument();
-    expect(screen.getByText(/Typical first purchase/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Typical first purchase/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/What happens after inquiry/i)).toBeInTheDocument();
+    expect(screen.getByText(/Exact-site proof vs adjacent-site proof/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /When not to buy exact-site work yet\./i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Book a scoping call/i })).toHaveAttribute(
+      "href",
+      "/book-exact-site-review",
+    );
     expect(screen.getByRole("link", { name: /Request a custom quote/i })).toHaveAttribute(
       "href",
       "/contact?persona=robot-team&interest=enterprise",

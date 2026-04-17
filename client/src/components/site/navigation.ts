@@ -1,6 +1,8 @@
 export const primaryNavLinks = [
   { href: "/world-models", label: "World Models" },
+  { href: "/world-models/siteworld-f5fd54898cfb", label: "Sample Listing" },
   { href: "/exact-site-hosted-review", label: "Hosted Evaluation" },
+  { href: "/book-exact-site-review", label: "Book Call" },
   { href: "/sample-deliverables", label: "Deliverables" },
   { href: "/pricing", label: "Pricing" },
   { href: "/faq", label: "FAQ" },

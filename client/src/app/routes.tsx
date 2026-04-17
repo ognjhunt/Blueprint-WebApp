@@ -26,6 +26,7 @@ const CaseStudies = lazy(() => import("../pages/CaseStudies"));
 const SampleDeliverables = lazy(() => import("../pages/SampleDeliverables"));
 const Contact = lazy(() => import("../pages/Contact"));
 const ExactSiteHostedReview = lazy(() => import("../pages/ExactSiteHostedReview"));
+const BookExactSiteReview = lazy(() => import("../pages/BookExactSiteReview"));
 const HowItWorks = lazy(() => import("../pages/HowItWorks"));
 const Proof = lazy(() => import("../pages/Proof"));
 const Portal = lazy(() => import("../pages/Portal"));
@@ -133,6 +134,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/case-studies", layout: "public", component: LegacyCaseStudiesRedirect },
   { path: "/contact", layout: "public", component: Contact },
   { path: "/exact-site-hosted-review", layout: "public", component: ExactSiteHostedReview },
+  { path: "/book-exact-site-review", layout: "public", component: BookExactSiteReview },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
   { path: "/proof", layout: "public", component: Proof },
   { path: "/faq", layout: "public", component: FAQ },

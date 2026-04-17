@@ -101,20 +101,35 @@ describe("SiteWorldDetail", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/What hosted evaluation looks like/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Trust and access snapshot/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/Commercial status/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Request-scoped commercial review/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Proof depth/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Rights class/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Freshness/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Public proof assets available/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Decision story for this site/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Inspectable sample artifacts for this listing/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Book scoping call/i })).toHaveAttribute(
+      "href",
+      "/book-exact-site-review",
+    );
+    expect(screen.getByRole("link", { name: /Download sample manifest/i })).toHaveAttribute(
+      "href",
+      "/samples/sample-site-package-manifest.json",
+    );
     expect(screen.getByText(/Step 1/i)).toBeInTheDocument();
     expect(screen.getByText(/Pick the site/i)).toBeInTheDocument();
     expect(screen.getByText(/Step 8/i)).toBeInTheDocument();
     expect(screen.getByText(/Score the run, export results, and compare policies/i)).toBeInTheDocument();
     expect(screen.getByText(/Self-serve starting rate/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /When not to buy exact-site work yet\./i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What goes in/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What comes back/i })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /What teams do with this world model/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/A sample eval loop for Harborview Grocery Distribution Annex/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Proof depth/i).length).toBeGreaterThan(1);
     expect(screen.queryByText(/Not specified/i)).not.toBeInTheDocument();
 
     const packageLink = screen.getByRole("link", { name: /Request site package/i });

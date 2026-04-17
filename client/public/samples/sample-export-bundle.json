@@ -1,0 +1,27 @@
+{
+  "bundle_id": "sample-export-bundle-001",
+  "site_id": "siteworld-f5fd54898cfb",
+  "run_summary": {
+    "scenario": "default_lane_plus_clutter_variation",
+    "robot_setup": "sample_mobile_manipulator",
+    "policy_reference": "sample-policy-v4"
+  },
+  "artifacts": [
+    {
+      "type": "rollout_video",
+      "label": "Buyer-facing rollout review"
+    },
+    {
+      "type": "run_summary",
+      "label": "Hosted evaluation summary card"
+    },
+    {
+      "type": "raw_bundle_reference",
+      "label": "Reference to the underlying raw run bundle"
+    }
+  ],
+  "notes": [
+    "Representative sample export bundle layout",
+    "Actual export set depends on listing-specific availability"
+  ]
+}

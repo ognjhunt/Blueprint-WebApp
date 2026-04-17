@@ -10,7 +10,15 @@ describe("SampleDeliverables", () => {
     expect(screen.getByRole("heading", { name: /Sample manifest layout/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Sample export bundle/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Input\/output contract/i })).toBeInTheDocument();
-    expect(screen.getByText(/Sample artifact layout/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Sample artifact layout/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: /Download sample manifest/i })).toHaveAttribute(
+      "href",
+      "/samples/sample-site-package-manifest.json",
+    );
+    expect(screen.getByRole("link", { name: /Download sample rights sheet/i })).toHaveAttribute(
+      "href",
+      "/samples/sample-rights-sheet.md",
+    );
     expect(screen.getByRole("link", { name: /View sample listing/i })).toHaveAttribute(
       "href",
       "/world-models/siteworld-f5fd54898cfb",

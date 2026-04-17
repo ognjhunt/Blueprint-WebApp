@@ -28,13 +28,17 @@ describe("SiteWorlds", () => {
     expect(
       screen.getByText(/What real site and workflow the model is anchored to/i),
     ).toBeInTheDocument();
+    expect(screen.getByText(/What public status means/i)).toBeInTheDocument();
     expect(screen.getByText(/Harborview Grocery Distribution Annex/i)).toBeInTheDocument();
     expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Public demo/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Export ready/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Commercial status/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Request-scoped commercial review/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Hosted Evaluation/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Embodiment/i)).toBeInTheDocument();
     expect(screen.getByText(/Quick filters/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Hosted path documented/i })).toBeInTheDocument();
     expect(screen.queryByText(/Likely buyer:/i)).not.toBeInTheDocument();
 
     const packageLinks = screen.getAllByRole("link", { name: /Request site package/i });

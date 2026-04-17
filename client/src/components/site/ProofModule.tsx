@@ -1,4 +1,10 @@
-import { proofHighlights, proofReelPosterSrc, proofReelVideoSrc, resultHighlights } from "@/lib/marketingProof";
+import {
+  proofHighlights,
+  proofReelPosterSrc,
+  proofReelVideoSrc,
+  publicProofAssets,
+  resultHighlights,
+} from "@/lib/marketingProof";
 import { PlayCircle, ShieldCheck } from "lucide-react";
 
 interface ProofModuleProps {
@@ -67,6 +73,21 @@ export function ProofModule({
                 <p className="mt-2 text-sm font-semibold text-slate-900">{item.title}</p>
                 <p className="mt-2 text-xs leading-5 text-slate-600">{item.detail}</p>
               </div>
+            ))}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {publicProofAssets.map((item) => (
+              <a
+                key={item.title}
+                href={item.href}
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 transition hover:border-slate-300 hover:bg-slate-50"
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  {item.label}
+                </p>
+                <p className="mt-2 text-sm font-semibold text-slate-900">{item.title}</p>
+                <p className="mt-2 text-xs leading-5 text-slate-600">{item.detail}</p>
+              </a>
             ))}
           </div>
           <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-stone-50 px-4 py-3">

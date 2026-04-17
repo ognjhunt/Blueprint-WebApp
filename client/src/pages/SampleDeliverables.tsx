@@ -382,6 +382,20 @@ export default function SampleDeliverables() {
 
           <div className="mt-10 flex flex-col gap-3 sm:flex-row">
             <a
+              href="/samples/sample-site-package-manifest.json"
+              className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+              download
+            >
+              Download sample manifest
+            </a>
+            <a
+              href="/samples/sample-rights-sheet.md"
+              className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+              download
+            >
+              Download sample rights sheet
+            </a>
+            <a
               href={publicDemoHref}
               className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >

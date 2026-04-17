@@ -620,10 +620,22 @@ export default function BusinessSignUpFlow() {
     <main className="min-h-screen bg-gradient-to-b from-zinc-50 to-white px-4 py-12">
       <div className="mx-auto max-w-2xl">
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-semibold text-zinc-900">Create your Blueprint account</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+            Buyer access request
+          </p>
+          <h1 className="mt-3 text-2xl font-semibold text-zinc-900">Create your Blueprint account</h1>
           <p className="mt-2 text-zinc-600">
             Start with a site submission, not a marketplace browse.
           </p>
+        </div>
+
+        <div className="mb-6 rounded-2xl border border-zinc-200 bg-white p-4 text-sm leading-6 text-zinc-600 shadow-sm">
+          Existing portal users should use sign in instead of creating a second path. New buyer
+          teams can either finish this access request or{" "}
+          <a href="/book-exact-site-review" className="font-semibold text-zinc-900 underline-offset-4 hover:underline">
+            book a scoping call
+          </a>
+          {" "}first when the exact facility and workflow are already known.
         </div>
 
         <StepIndicator currentStep={step} totalSteps={3} />

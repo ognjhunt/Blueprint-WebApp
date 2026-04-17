@@ -2,6 +2,12 @@ import { SEO } from "@/components/SEO";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import { categoryFilters, siteWorldCards, type SiteCategory } from "@/data/siteWorlds";
 import { getSiteWorldBadge } from "@/lib/siteWorldBadges";
+import {
+  getSiteWorldCommercialStatus,
+  getSiteWorldProofDepth,
+  getSiteWorldPublicProofSummary,
+  getSiteWorldReadinessDisclosure,
+} from "@/lib/siteWorldCommercialStatus";
 import { fetchSiteWorldCatalog } from "@/lib/siteWorldsApi";
 import { ExternalLink, Filter, Play, ScanLine } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -35,9 +41,7 @@ function formatFreshness(value?: string | null) {
 }
 
 function getProofDepthLabel(site: (typeof siteWorldCards)[number]) {
-  if (hasPublicDemo(site)) return "Public demo + listing";
-  if (isHostedReady(site)) return "Listing + hosted path";
-  return "Listing only";
+  return getSiteWorldProofDepth(site);
 }
 
 function getRightsClassLabel(site: (typeof siteWorldCards)[number]) {
@@ -203,10 +207,10 @@ export default function SiteWorlds() {
               </p>
               <p className="max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
                 Each Blueprint world model is built from real capture of one facility and one
-                workflow lane, so your team can test on the environment that actually matters
+                workflow lane, so your team can inspect the environment that actually matters
                 instead of guessing from a generic benchmark. Open a listing to see what is in
-                the package, what hosted evaluation can export, and whether a sample is available
-                to inspect.
+                the package, what hosted evaluation can export, what public proof exists today,
+                and where commercial review is still request-scoped.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
@@ -317,11 +321,11 @@ export default function SiteWorlds() {
                   Sample catalog
                 </p>
                 <h2 className="mt-2 text-3xl font-bold text-slate-900">
-                  Sites your team can train on right now.
+                  Sites your team can inspect and scope right now.
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Open any listing to see training data options, hosted evaluation, and what you
-                  can export.
+                  Open any listing to see package scope, hosted evaluation, public proof assets,
+                  and what kind of commercial review still applies.
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
@@ -402,7 +406,7 @@ export default function SiteWorlds() {
                     : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                 }`}
               >
-                Hosted path ready
+                Hosted path documented
               </button>
               <button
                 type="button"
@@ -417,8 +421,35 @@ export default function SiteWorlds() {
               </button>
             </div>
 
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm font-semibold text-slate-900">What public status means</p>
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                {[
+                  [
+                    "Public demo sample",
+                    "A current public proof surface with clearly labeled representative artifacts.",
+                  ],
+                  [
+                    "Request-scoped commercial review",
+                    "Readable buyer surface with public proof and runtime disclosure, while final rights and access stay request-specific.",
+                  ],
+                  [
+                    "Refresh or restriction review",
+                    "A buyer can inspect the listing, but freshness, privacy, or rights review still gates the next step.",
+                  ],
+                ].map(([title, body]) => (
+                  <div key={title} className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <p className="text-sm font-semibold text-slate-900">{title}</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">{body}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {filteredSites.map((site) => (
+              {filteredSites.map((site) => {
+                const commercialStatus = getSiteWorldCommercialStatus(site);
+                return (
                 <article
                   key={site.id}
                   className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-slate-300"
@@ -444,7 +475,7 @@ export default function SiteWorlds() {
                       <div className="absolute bottom-4 left-4">
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-sky-700 shadow-sm backdrop-blur">
                           <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
-                          Native package ready
+                          Hosted path documented
                         </span>
                       </div>
                     ) : fallbackAvailable ? (
@@ -491,6 +522,7 @@ export default function SiteWorlds() {
 
                     <div className="grid gap-2 sm:grid-cols-2">
                       {[
+                        ["Commercial status", commercialStatus.label],
                         ["Proof depth", getProofDepthLabel(site)],
                         ["Rights class", getRightsClassLabel(site)],
                         ["Freshness", formatFreshness(site.deploymentReadiness?.freshness_date)],
@@ -503,6 +535,16 @@ export default function SiteWorlds() {
                           <p className="mt-1 text-sm text-slate-800">{value}</p>
                         </div>
                       ))}
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white px-3 py-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        Public proof assets
+                      </p>
+                      <p className="mt-1 text-sm text-slate-800">{getSiteWorldPublicProofSummary(site)}</p>
+                      <p className="mt-2 text-xs leading-5 text-slate-600">
+                        {getSiteWorldReadinessDisclosure(site)}
+                      </p>
                     </div>
 
                     {site.deploymentReadiness?.native_world_model_primary ? (
@@ -577,7 +619,8 @@ export default function SiteWorlds() {
                     </div>
                   </div>
                 </article>
-              ))}
+                );
+              })}
             </div>
           </section>
         </div>

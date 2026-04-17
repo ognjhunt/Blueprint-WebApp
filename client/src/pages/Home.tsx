@@ -1,6 +1,7 @@
 import { SEO } from "@/components/SEO";
 import { OfferComparison } from "@/components/site/OfferComparison";
 import { ProofModule } from "@/components/site/ProofModule";
+import { WhenNotToBuyModule } from "@/components/site/WhenNotToBuyModule";
 import {
   companyTrustItems,
   hostedEvaluationDefinition,
@@ -11,7 +12,8 @@ import {
   sitePackageIncludes,
   worldModelDefinition,
 } from "@/data/marketingDefinitions";
-import { publicDemoHref, publicDemoLabel } from "@/lib/marketingProof";
+import { exactSiteScopingCallPath } from "@/lib/booking";
+import { publicDemoHref, publicDemoLabel, publicProofAssets } from "@/lib/marketingProof";
 import { ArrowRight, CheckCircle2, Mail } from "lucide-react";
 
 const heroSignals = [
@@ -139,6 +141,12 @@ export default function Home() {
                 >
                   Scope your site
                 </a>
+                <a
+                  href={exactSiteScopingCallPath}
+                  className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+                >
+                  Book scoping call
+                </a>
               </div>
               <a
                 href="mailto:hello@tryblueprint.io?subject=Blueprint%20brief"
@@ -193,6 +201,38 @@ export default function Home() {
             description="The public demo listing is the first trust check. It shows that the site is real, that the package is grounded to that site, and that the hosted path stays tied to the same facility."
             caption="This reel shows current capture and product surfaces. Additional views are added as the product develops."
           />
+        </section>
+
+        <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Public proof assets
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              Current public proof assets buyers can inspect today.
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-slate-600">
+              These links point to the strongest public proof surfaces already in this repo:
+              the sample listing, a current runtime reference still, and the representative
+              package and rights artifacts used to explain the commercial contract without
+              inventing customer evidence.
+            </p>
+          </div>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {publicProofAssets.map((asset) => (
+              <a
+                key={asset.title}
+                href={asset.href}
+                className="rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-slate-300 hover:bg-slate-50"
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  {asset.label}
+                </p>
+                <h3 className="mt-3 text-lg font-semibold text-slate-900">{asset.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{asset.detail}</p>
+              </a>
+            ))}
+          </div>
         </section>
 
         <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
@@ -359,6 +399,38 @@ export default function Home() {
             ].map((item, index) => (
               <article key={item} className="rounded-2xl border border-slate-200 bg-white p-5">
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white">
+                  {index + 1}
+                </div>
+                <p className="mt-4 text-sm leading-7 text-slate-700">{item}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <div className="mx-auto max-w-6xl px-4 py-2 sm:px-6 lg:px-8">
+          <WhenNotToBuyModule />
+        </div>
+
+        <section className="mx-auto max-w-6xl px-4 pb-14 sm:px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Proof story
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              An anonymized proof story buyers can follow.
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-slate-600">
+              A robot team has one exact-site deployment question. The buyer inspects the sample listing, checks the trust surfaces, decides whether the package or hosted path answers the question first, and then scopes the next step without pretending the site proves more than it does.
+            </p>
+          </div>
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            {[
+              "Inspect the real-site proof object first, not a generic product promise.",
+              "Use the package or hosted path that matches the exact deployment question.",
+              "Move into a scoped next step with rights, freshness, and restrictions already visible.",
+            ].map((item, index) => (
+              <article key={item} className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold text-white">
                   {index + 1}
                 </div>
                 <p className="mt-4 text-sm leading-7 text-slate-700">{item}</p>

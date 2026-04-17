@@ -23,6 +23,10 @@ describe("Header", () => {
       "href",
       "/world-models",
     );
+    expect(screen.getByRole("link", { name: /^Sample Listing$/i })).toHaveAttribute(
+      "href",
+      "/world-models/siteworld-f5fd54898cfb",
+    );
     expect(screen.getByRole("link", { name: /^Hosted Evaluation$/i })).toHaveAttribute(
       "href",
       "/exact-site-hosted-review",

@@ -487,6 +487,8 @@ export interface PublicSiteWorldRecord {
     generationSourceType?: string | null;
   };
   artifactExplorer?: ArtifactExplorerSummary | null;
+  runtimeReferenceImageUrl?: string | null;
+  presentationReferenceImageUrl?: string | null;
   sceneMemoryManifestUri?: string | null;
   conditioningBundleUri?: string | null;
   siteWorldSpecUri?: string | null;

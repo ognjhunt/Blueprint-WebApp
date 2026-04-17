@@ -13,8 +13,18 @@ const faqs = [
     answer: "A Blueprint-managed runtime session on one exact site. Your team can rerun tasks, review failures, compare checkpoints, and export results without downloading or moving data into your own stack first.",
   },
   {
+    question: "What does exact-site proof mean versus adjacent-site proof?",
+    answer:
+      "Exact-site proof means the facility in the package or hosted session is the actual place the buyer cares about. Adjacent-site proof means a clearly labeled nearby or similar site is being used to answer an earlier or lower-risk question. Blueprint should label that distinction instead of letting a buyer infer it.",
+  },
+  {
     question: "What is a session-hour?",
     answer: "One hour of self-serve hosted runtime on one exact site. It covers the live session time used to run, rerun, inspect, and export results.",
+  },
+  {
+    question: "What does 'self-serve' mean today?",
+    answer:
+      "It means the hosted path is structured around a buyer-visible runtime session and export loop on one exact site. It does not mean the buyer is dropped into an unbounded generic platform. A buyer can bring a policy, checkpoint, stack adapter, teleop surface, or evaluation contract into the scoping conversation and Blueprint confirms the right session path from there.",
   },
   {
     question: "Why not just use a generic sim?",
@@ -42,14 +52,34 @@ const faqs = [
       "Freshness is a property of the listing, not a vague promise. If a package is stale, that should be visible as a refresh problem instead of being hidden in sales copy.",
   },
   {
+    question: "What does 'request-scoped commercial review' mean?",
+    answer:
+      "Request-scoped commercial review means the public listing is readable, not that Blueprint is claiming blanket site approval. The listing tells a buyer what is publicly inspectable now, while rights, privacy, export scope, and commercialization details stay attached to the request-specific review path.",
+  },
+  {
     question: "Can this work with different robots and runtimes?",
     answer:
       "Yes. The stable contract is the capture truth, the rights and provenance metadata, the site package, and the hosted-session contract. The runtime backend can change without changing that buyer-facing contract.",
   },
   {
+    question: "When should we not buy exact-site work yet?",
+    answer:
+      "If your team does not have a target facility or workflow lane yet, exact-site work is usually too early. Generic simulation, broader discovery, or earlier rights review is often the better first step until one real site and one real question matter.",
+  },
+  {
     question: "What if the exact site we care about is not in the catalog?",
     answer:
       "The public catalog is the starting point, not the full inventory. If your team needs a specific facility, use the contact path and say which site, workflow, and robot question matter.",
+  },
+  {
+    question: "What happens after we submit a brief?",
+    answer:
+      "Blueprint reviews the site, the robot setup, and the workflow question first. The reply should narrow the path quickly: package access, hosted evaluation, or a custom quote. The goal is to avoid reopening discovery from scratch.",
+  },
+  {
+    question: "Can we book time instead of starting with a form?",
+    answer:
+      "Yes. Use the dedicated booking path when your team already has a real facility or listing in mind and wants a fast scoping conversation around hosted evaluation or package access.",
   },
 ];
 

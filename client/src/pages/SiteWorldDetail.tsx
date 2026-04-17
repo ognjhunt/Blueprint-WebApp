@@ -3,10 +3,18 @@ import { SEO } from "@/components/SEO";
 import { useAuth } from "@/contexts/AuthContext";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import { ProofModule } from "@/components/site/ProofModule";
+import { WhenNotToBuyModule } from "@/components/site/WhenNotToBuyModule";
 import { sessionHourDefinition } from "@/data/marketingDefinitions";
 import { getSiteWorldById, siteWorldCards } from "@/data/siteWorlds";
 import { hasAnyRole } from "@/lib/adminAccess";
+import { exactSiteScopingCallPath } from "@/lib/booking";
 import { withCsrfHeader } from "@/lib/csrf";
+import {
+  getSiteWorldCommercialStatus,
+  getSiteWorldProofDepth,
+  getSiteWorldPublicProofSummary,
+  getSiteWorldReadinessDisclosure,
+} from "@/lib/siteWorldCommercialStatus";
 import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
 import type { PublicSiteWorldRecord } from "@/types/inbound-request";
 import { AlertCircle, ArrowLeft, ExternalLink, Play, RefreshCw, ScanLine, Sparkles } from "lucide-react";
@@ -148,6 +156,10 @@ function formatFreshnessLabel(value?: string | null) {
     day: "numeric",
     year: "numeric",
   });
+}
+
+function formatRelatedProofDepth(site: PublicSiteWorldRecord) {
+  return getSiteWorldProofDepth(site);
 }
 
 function getArtifactSourceUri(site: PublicSiteWorldRecord | null | undefined, sourceId: string) {
@@ -332,32 +344,6 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
       ? `Retention policy: ${site?.deploymentReadiness?.rights_and_compliance?.retention_policy}`
       : null,
   ].filter(Boolean) as string[];
-  const trustSnapshot = [
-    {
-      label: "Proof depth",
-      value: isDemoWalkthrough
-        ? "Public demo + sample artifact layouts"
-        : worldLabsPreview?.launchUrl
-          ? "Listing + hosted path"
-          : "Listing only",
-    },
-    {
-      label: "Rights class",
-      value:
-        site?.deploymentReadiness?.rights_and_compliance?.export_entitlements?.slice(0, 2).join(", ")
-        || "Request-specific",
-    },
-    {
-      label: "Freshness",
-      value: formatFreshnessLabel(site?.deploymentReadiness?.freshness_date),
-    },
-    {
-      label: "Restrictions",
-      value:
-        site?.deploymentReadiness?.rights_and_compliance?.consent_scope?.slice(0, 2).join(", ")
-        || "Review on request",
-    },
-  ];
 
   const runWorldLabsAdminAction = async (action: "generate" | "refresh") => {
     if (!site || !currentUser) {
@@ -421,6 +407,38 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
       </div>
     );
   }
+
+  const commercialStatus = getSiteWorldCommercialStatus(site);
+  const trustSnapshot = [
+    {
+      label: "Commercial status",
+      value: commercialStatus.label,
+    },
+    {
+      label: "Proof depth",
+      value: getSiteWorldProofDepth(site),
+    },
+    {
+      label: "Rights class",
+      value:
+        site.deploymentReadiness?.rights_and_compliance?.export_entitlements?.slice(0, 2).join(", ")
+        || "Request-specific",
+    },
+    {
+      label: "Freshness",
+      value: formatFreshnessLabel(site.deploymentReadiness?.freshness_date),
+    },
+    {
+      label: "Restrictions",
+      value:
+        site.deploymentReadiness?.rights_and_compliance?.consent_scope?.slice(0, 2).join(", ")
+        || "Review on request",
+    },
+    {
+      label: "Public proof assets",
+      value: getSiteWorldPublicProofSummary(site),
+    },
+  ];
 
   const scenePackage = site.packages[0];
   const hostedSessions = site.packages[1];
@@ -572,13 +590,13 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
           {site.deploymentReadiness ? (
             <section className="mt-8 rounded-3xl border border-slate-200 bg-slate-950 px-5 py-6 text-slate-100 sm:px-7 sm:py-7">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-                Deployment Readiness
+                Listing evidence and runtime disclosure
               </p>
               <div className="mt-4 grid gap-4 lg:grid-cols-2">
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-                  <p className="text-sm font-semibold text-white">Current listing status</p>
+                  <p className="text-sm font-semibold text-white">Current public status</p>
                   <p className="mt-2 text-2xl font-bold text-white">
-                    {humanizeToken(site.deploymentReadiness.qualification_state || "unknown")}
+                    {commercialStatus.label}
                   </p>
                   <p className="mt-2 text-sm text-slate-300">
                     Benchmark coverage: {humanizeToken(site.deploymentReadiness.benchmark_coverage_status || "missing")}
@@ -591,6 +609,9 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   </p>
                   <p className="mt-1 text-sm text-slate-300">
                     Refresh state: {site.deploymentReadiness.recapture_required ? "Needs refresh" : humanizeToken(site.deploymentReadiness.recapture_status || "Current")}
+                  </p>
+                  <p className="mt-3 text-sm leading-6 text-slate-300">
+                    {commercialStatus.summary}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
@@ -624,6 +645,9 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   </ul>
                 </div>
               </div>
+              <p className="mt-4 text-sm leading-6 text-slate-300">
+                {commercialStatus.buyerNote}
+              </p>
             </section>
           ) : null}
 
@@ -839,6 +863,60 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 </article>
               ))}
             </div>
+            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm font-semibold text-slate-900">Public proof assets available</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                {getSiteWorldReadinessDisclosure(site)}
+              </p>
+            </div>
+          </section>
+
+          <section className="mt-8 rounded-3xl border border-slate-200 bg-white px-5 py-6 sm:px-7 sm:py-7">
+            <div className="max-w-3xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Sample artifacts
+              </p>
+              <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
+                Inspectable sample artifacts for this listing
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                Every listing should make the artifact contract legible. These representative sample files show the kinds of manifest, rights, and export objects a buyer can inspect while the listing-specific trust metadata stays attached to this site.
+              </p>
+            </div>
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
+              {[
+                {
+                  title: "Sample package manifest",
+                  body: "Representative manifest fields showing site id, freshness, rights class, and available export types.",
+                  href: "/samples/sample-site-package-manifest.json",
+                  cta: "Download sample manifest",
+                },
+                {
+                  title: "Sample rights sheet",
+                  body: "Readable rights, retention, sharing, and export entitlements attached to the listing trust model.",
+                  href: "/samples/sample-rights-sheet.md",
+                  cta: "Download sample rights sheet",
+                },
+                {
+                  title: "Sample export bundle",
+                  body: "Representative output structure showing run summary, rollout review, and raw bundle references.",
+                  href: "/samples/sample-export-bundle.json",
+                  cta: "Download sample export bundle",
+                },
+              ].map((item) => (
+                <article key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
+                  <a
+                    href={item.href}
+                    download
+                    className="mt-5 inline-flex text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
+                  >
+                    {item.cta}
+                  </a>
+                </article>
+              ))}
+            </div>
           </section>
 
           <section
@@ -947,12 +1025,20 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   {sessionHourDefinition} Managed, priority, or higher-touch work is scoped
                   separately when the job needs more support.
                 </p>
-                <a
-                  href={hostedSessions.actionHref}
-                  className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                >
-                  {hostedSessions.actionLabel}
-                </a>
+                <div className="mt-5 grid gap-3">
+                  <a
+                    href={hostedSessions.actionHref}
+                    className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  >
+                    {hostedSessions.actionLabel}
+                  </a>
+                  <a
+                    href={exactSiteScopingCallPath}
+                    className="inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
+                  >
+                    Book scoping call
+                  </a>
+                </div>
               </div>
             </div>
           </section>
@@ -1005,6 +1091,10 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             ))}
           </section>
 
+          <div className="mt-8">
+            <WhenNotToBuyModule />
+          </div>
+
           <section className="mt-8 rounded-3xl border border-slate-200 bg-slate-900 px-5 py-6 text-white sm:px-7 sm:py-7">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">
               Example
@@ -1020,6 +1110,29 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               ready for a real visit. Then they review the rollout video, metrics, failure cases,
               and exported data.
             </p>
+          </section>
+
+          <section className="mt-8 rounded-3xl border border-slate-200 bg-white px-5 py-6 sm:px-7 sm:py-7">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Decision story for this site
+            </p>
+            <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
+              Decision story for this site
+            </h2>
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
+              {[
+                "A robot team wants to know whether this exact facility is worth deeper integration work before travel.",
+                "The buyer inspects the listing, the trust snapshot, and the package-vs-hosted split to decide what kind of proof it needs first.",
+                "Blueprint helps the team move into package access or hosted evaluation without pretending the site answers more than it actually can.",
+              ].map((item, index) => (
+                <article key={item} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold text-white">
+                    {index + 1}
+                  </div>
+                  <p className="mt-4 text-sm leading-7 text-slate-700">{item}</p>
+                </article>
+              ))}
+            </div>
           </section>
 
           <section className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 px-5 py-6 sm:px-7 sm:py-7">
@@ -1040,6 +1153,19 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   <p className="mt-2 text-sm leading-relaxed text-slate-600">
                     {relatedSite.taskLane}
                   </p>
+                  <div className="mt-4 grid gap-2">
+                    {[
+                      ["Proof depth", formatRelatedProofDepth(relatedSite)],
+                      ["Freshness", formatFreshnessLabel(relatedSite.deploymentReadiness?.freshness_date)],
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                          {label}
+                        </p>
+                        <p className="mt-1 text-sm text-slate-800">{value}</p>
+                      </div>
+                    ))}
+                  </div>
                 </a>
               ))}
             </div>

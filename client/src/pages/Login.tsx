@@ -136,37 +136,48 @@ export default function Login() {
           {/* Header */}
           <div className="mb-10 text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-500">
-              Blueprint
+              Web portal utility
             </p>
             <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
               Sign in to the web portal
             </h1>
             <p className="mt-2 text-sm text-slate-600">
-              This route is for robot teams and site operators using the web product.
+              Existing portal users only. New buyers and capturers should start from the routing
+              paths below instead of guessing.
             </p>
           </div>
 
-        <div className="mb-6 rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-left">
-          <p className="text-sm font-semibold text-slate-900">Capturer?</p>
+        <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left">
+          <p className="text-sm font-semibold text-slate-900">Need new access instead?</p>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            Capturers do not sign in on the web app. Use the mobile app to capture, upload,
-            and track payouts. Capturer access is invite- and code-gated, and approval is not
-            guaranteed.
+            Capturers do not use the buyer web portal for routine work. Buyers should either book
+            a scoping call or submit the buyer access request. Existing portal users should use sign
+            in instead of creating a second path. Capturer access remains invite- and code-gated,
+            and approval is not guaranteed.
           </p>
-          <a
-            href="/signup/capturer"
-            className="mt-3 inline-flex min-h-11 items-center font-semibold text-indigo-600 hover:text-indigo-500"
-          >
-            Apply for capturer access
-            <ArrowRight className="ml-1 h-4 w-4" />
-          </a>
-          <a
-            href="/capture-app"
-            className="mt-2 inline-flex min-h-11 items-center font-semibold text-indigo-600 hover:text-indigo-500"
-          >
-            Open the capture app page
-            <ArrowRight className="ml-1 h-4 w-4" />
-          </a>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <a
+              href="/book-exact-site-review"
+              className="inline-flex min-h-11 items-center font-semibold text-indigo-600 hover:text-indigo-500"
+            >
+              Book buyer scoping call
+              <ArrowRight className="ml-1 h-4 w-4" />
+            </a>
+            <a
+              href="/signup/business"
+              className="inline-flex min-h-11 items-center font-semibold text-indigo-600 hover:text-indigo-500"
+            >
+              Submit buyer access request
+              <ArrowRight className="ml-1 h-4 w-4" />
+            </a>
+            <a
+              href="/capture-app"
+              className="inline-flex min-h-11 items-center font-semibold text-indigo-600 hover:text-indigo-500"
+            >
+              Open the capture app page
+              <ArrowRight className="ml-1 h-4 w-4" />
+            </a>
+          </div>
         </div>
 
         {/* Auth Card */}
@@ -340,10 +351,10 @@ export default function Login() {
         <p className="mt-8 text-center text-sm text-slate-600">
           Need web access for a robot team or site?{" "}
           <a
-            href="/signup"
+            href="/contact?persona=robot-team"
             className="inline-flex min-h-11 items-center font-semibold text-indigo-600 hover:text-indigo-500"
           >
-            Sign up
+            Send a short brief
           </a>
         </p>
       </div>

@@ -1,5 +1,7 @@
 import { SEO } from "@/components/SEO";
 import { OfferComparison } from "@/components/site/OfferComparison";
+import { WhenNotToBuyModule } from "@/components/site/WhenNotToBuyModule";
+import { exactSiteScopingCallPath } from "@/lib/booking";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 
 const pricingNotes = [
@@ -83,6 +85,33 @@ export default function Pricing() {
             </article>
           </section>
 
+          <section className="mt-10 rounded-2xl border border-slate-200 bg-white p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Proof path
+            </p>
+            <h2 className="mt-2 text-2xl font-bold text-slate-900">
+              Exact-site proof vs adjacent-site proof
+            </h2>
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <article className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <p className="text-sm font-semibold text-slate-900">Exact-site proof</p>
+                <p className="mt-2 text-sm leading-7 text-slate-600">
+                  Use this when the site in the package or hosted session needs to be the actual place the buyer cares about. This is the higher-trust path for deployment-specific questions.
+                </p>
+              </article>
+              <article className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <p className="text-sm font-semibold text-slate-900">Adjacent-site proof</p>
+                <p className="mt-2 text-sm leading-7 text-slate-600">
+                  Use this when a clearly labeled nearby or similar site is enough to answer an earlier or lower-risk question. It should be labeled explicitly, not blurred into exact-site claims.
+                </p>
+              </article>
+            </div>
+          </section>
+
+          <div className="mt-10">
+            <WhenNotToBuyModule />
+          </div>
+
           <section className="mt-10 grid gap-4 md:grid-cols-2">
             {pricingNotes.map((note) => (
               <article
@@ -107,13 +136,21 @@ export default function Pricing() {
                 Use the custom path when one specific facility matters more than the public
                 inventory, or when the rights and privacy model need to be negotiated up front.
               </p>
-              <a
-                href="/contact?persona=robot-team&interest=enterprise"
-                className="mt-4 inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
-              >
-                Request a custom quote
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </a>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <a
+                  href={exactSiteScopingCallPath}
+                  className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Book a scoping call
+                </a>
+                <a
+                  href="/contact?persona=robot-team&interest=enterprise"
+                  className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+                >
+                  Request a custom quote
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+              </div>
             </div>
             <a
               href="mailto:hello@tryblueprint.io?subject=Blueprint%20brief"

@@ -1,5 +1,7 @@
 import { Link } from "wouter";
 import { SEO } from "@/components/SEO";
+import { WhenNotToBuyModule } from "@/components/site/WhenNotToBuyModule";
+import { exactSiteScopingCallPath } from "@/lib/booking";
 import { publicDemoHref } from "@/lib/marketingProof";
 import { ArrowRight, CheckCircle2, Clock3, Database, ScanSearch, ShieldCheck, Workflow } from "lucide-react";
 
@@ -23,6 +25,21 @@ const hostedLoop = [
   "Launch the managed runtime session on that site.",
   "Inspect the run, failure points, and export surfaces.",
   "Decide whether to continue with hosted time, package access, or a custom scope.",
+];
+
+const integrationContract = [
+  {
+    title: "What a buyer can bring",
+    body: "A policy name, checkpoint reference, stack adapter, teleop surface, containerized runtime entrypoint, or a narrower evaluation contract for the workflow lane that matters.",
+  },
+  {
+    title: "What Blueprint confirms",
+    body: "The exact site, the robot assumptions, the scenario path, the hosted-access boundary, and the export surfaces tied to that listing.",
+  },
+  {
+    title: "What stays stable",
+    body: "The capture-backed site package, the hosted-session contract, the trust metadata, and the buyer-facing export rules stay stable even if runtime backends evolve.",
+  },
 ];
 
 const afterInquiry = [
@@ -198,6 +215,12 @@ export default function ExactSiteHostedReview() {
                   >
                     Inspect sample listing
                   </Link>
+                  <Link
+                    href={exactSiteScopingCallPath}
+                    className="rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
+                  >
+                    Book scoping call
+                  </Link>
                 </div>
               </div>
 
@@ -318,6 +341,27 @@ export default function ExactSiteHostedReview() {
           </div>
         </section>
 
+        <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <article className="rounded-3xl border border-slate-200 bg-white p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Hosted integration contract
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-900">Hosted integration contract</h2>
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
+              {integrationContract.map((item) => (
+                <div key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
+                </div>
+              ))}
+            </div>
+          </article>
+        </section>
+
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <WhenNotToBuyModule />
+        </div>
+
         <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
           <div className="grid gap-4 lg:grid-cols-[1fr_0.95fr]">
             <article className="rounded-3xl border border-slate-200 bg-white p-6">
@@ -369,6 +413,13 @@ export default function ExactSiteHostedReview() {
                   className="inline-flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
                 >
                   Inspect sample listing
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link
+                  href={exactSiteScopingCallPath}
+                  className="inline-flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
+                >
+                  Book scoping call
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </div>

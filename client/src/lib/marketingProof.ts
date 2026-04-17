@@ -3,6 +3,29 @@ export const proofReelPosterSrc = "/siteworld-f5fd54898cfb-presentation-referenc
 export const proofReferenceImageSrc = "/siteworld-f5fd54898cfb-runtime-reference.png";
 export const publicDemoHref = "/world-models/siteworld-f5fd54898cfb";
 export const publicDemoLabel = "View sample listing";
+export const runtimeReferenceHref = "/siteworld-f5fd54898cfb-runtime-reference.png";
+export const presentationReferenceHref = "/siteworld-f5fd54898cfb-presentation-reference.png";
+
+export const publicProofAssets = [
+  {
+    title: "Public sample listing",
+    label: "Current public surface",
+    href: publicDemoHref,
+    detail: "The buyer-facing listing that ties the site, package framing, and hosted path to one public sample.",
+  },
+  {
+    title: "Runtime reference still",
+    label: "Current public proof asset",
+    href: runtimeReferenceHref,
+    detail: "A current runtime still from the public demo path, used as concrete visual proof instead of illustrative UI alone.",
+  },
+  {
+    title: "Sample manifest and rights sheet",
+    label: "Representative artifact layout",
+    href: "/sample-deliverables",
+    detail: "Representative manifests and trust sheets showing how package, export, and rights objects are presented to a buyer.",
+  },
+];
 
 export const proofHighlights = [
   "Real capture proof: the walkthrough reel and listing are grounded to one specific facility.",
@@ -14,7 +37,7 @@ export const resultHighlights = [
   {
     title: "Real capture proof",
     outcome: "Real listing asset",
-    detail: "Show the walkthrough and facility-grounded evidence that anchor the public sample listing.",
+    detail: "Show the walkthrough, runtime stills, and listing evidence that anchor the public sample listing.",
   },
   {
     title: "Hosted product preview",

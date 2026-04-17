@@ -65,6 +65,11 @@ describe("CapturerSignUpFlow analytics", () => {
       1,
       "account_basics",
     );
+    expect(screen.getByText(/Capturer access application/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Buyer access request/i })).toHaveAttribute(
+      "href",
+      "/signup/business",
+    );
   });
 
   it("tracks a validation failure when step 1 is incomplete", () => {

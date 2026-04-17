@@ -4,6 +4,7 @@ import { Menu, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { publicDemoHref, publicDemoLabel } from "@/lib/marketingProof";
+import { exactSiteScopingCallPath } from "@/lib/booking";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,6 +78,12 @@ export function Header() {
           >
             See hosted evaluation
           </a>
+          <a
+            href={exactSiteScopingCallPath}
+            className="text-sm font-semibold text-slate-700 transition hover:text-slate-900"
+          >
+            Book scoping call
+          </a>
           {currentUser ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -149,6 +156,13 @@ export function Header() {
               onClick={() => setOpen(false)}
             >
               See hosted evaluation
+            </a>
+            <a
+              href={exactSiteScopingCallPath}
+              className="inline-flex min-h-11 items-center justify-center rounded-full border border-slate-200 px-4 py-2.5 text-center text-slate-700"
+              onClick={() => setOpen(false)}
+            >
+              Book scoping call
             </a>
             {currentUser ? (
               <>

@@ -50,6 +50,10 @@ describe("Home", () => {
       "href",
       "/contact?persona=robot-team",
     );
+    expect(screen.getByRole("link", { name: /Book scoping call/i })).toHaveAttribute(
+      "href",
+      "/book-exact-site-review",
+    );
     expect(
       screen.getByText(/one site-specific world model built from real capture of one facility/i),
     ).toBeInTheDocument();
@@ -65,6 +69,9 @@ describe("Home", () => {
       screen.getByRole("heading", { name: /See the real site first, then inspect the product around it\./i }),
     ).toBeInTheDocument();
     expect(
+      screen.getByRole("heading", { name: /Current public proof assets buyers can inspect today\./i }),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole("heading", {
         name: /What goes into the site package/i,
       }),
@@ -76,7 +83,9 @@ describe("Home", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What a serious buyer should be able to verify at a glance\./i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /How buying works before anyone gets on a plane\./i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /An anonymized proof story buyers can follow\./i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Use one exact site to answer one expensive question earlier\./i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /When not to buy exact-site work yet\./i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Read about Blueprint/i })).toHaveAttribute(
       "href",
       "/about",

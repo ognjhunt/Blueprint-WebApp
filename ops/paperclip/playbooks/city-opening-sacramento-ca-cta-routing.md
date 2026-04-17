@@ -1,6 +1,6 @@
 # Sacramento, CA City-Opening CTA Routing
 
-- status: published
+- status: generated draft artifact
 - purpose: canonical response-routing contract for city-opening replies
 
 ## CTA Standard

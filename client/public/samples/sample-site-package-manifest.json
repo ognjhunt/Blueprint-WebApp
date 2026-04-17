@@ -1,0 +1,19 @@
+{
+  "site_id": "siteworld-f5fd54898cfb",
+  "site_name": "Sample public site listing",
+  "capture_date": "2026-03-13",
+  "proof_depth": "public_demo_plus_sample_artifacts",
+  "freshness_state": "current_sample",
+  "rights_class": "internal_evaluation_and_approved_exports_only",
+  "export_types": [
+    "walkthrough_video",
+    "camera_poses",
+    "rollout_video",
+    "raw_run_bundle",
+    "dataset_export"
+  ],
+  "listing_notes": [
+    "Representative public sample manifest layout",
+    "Use listing-specific trust metadata for actual commercial scope"
+  ]
+}

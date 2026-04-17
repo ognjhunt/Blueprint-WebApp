@@ -478,7 +478,7 @@ export default function CapturerSignUpFlow() {
           <div className="relative space-y-8">
             <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--line-strong)] bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[color:var(--leaf-deep)]">
               <Compass className="h-3.5 w-3.5" />
-              Capturer Intake
+              Capturer access application
             </div>
 
             <div className="space-y-4">
@@ -487,6 +487,17 @@ export default function CapturerSignUpFlow() {
               </h1>
               <p className="max-w-lg text-base leading-7 text-[color:var(--ink-soft)]">
                 Capturer access is invite- and code-gated. This page is for account creation and application review. Actual capture work happens in Blueprint Capture, not the operator dashboard.
+              </p>
+              <p className="max-w-lg text-sm leading-6 text-[color:var(--ink-soft)]">
+                Robot teams and site operators should use the{" "}
+                <a className="font-semibold text-[color:var(--leaf-deep)] underline-offset-4 hover:underline" href="/signup/business">
+                  Buyer access request
+                </a>
+                {" "}or the{" "}
+                <a className="font-semibold text-[color:var(--leaf-deep)] underline-offset-4 hover:underline" href="/book-exact-site-review">
+                  exact-site scoping call
+                </a>
+                {" "}instead of this capturer path.
               </p>
             </div>
 
