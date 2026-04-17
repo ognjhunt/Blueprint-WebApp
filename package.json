@@ -124,6 +124,7 @@
     "react-helmet": "^6.1.0",
     "react-hook-form": "^7.54.2",
     "react-resizable-panels": "^2.1.4",
+    "react-simple-maps": "^3.0.0",
     "reactflow": "^11.11.4",
     "recharts": "^2.13.0",
     "redis": "^5.10.0",

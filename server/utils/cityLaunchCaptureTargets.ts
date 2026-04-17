@@ -65,18 +65,34 @@ export type CityLaunchCaptureTarget = {
 };
 
 export type CreatorLaunchStatus = {
+  cities: Array<{
+    city: string;
+    stateCode: string;
+    displayName: string;
+    citySlug: string;
+    status: "live" | "planned" | "under_review";
+    latitude: number | null;
+    longitude: number | null;
+  }>;
   supportedCities: Array<{
     city: string;
     stateCode: string;
     displayName: string;
     citySlug: string;
   }>;
+  statusCounts: {
+    live: number;
+    planned: number;
+    underReview: number;
+  };
   currentCity: {
     city: string;
     stateCode: string | null;
     displayName: string;
     citySlug: string | null;
     isSupported: boolean;
+    isPubliclyTracked: boolean;
+    status: "live" | "planned" | "under_review" | null;
   } | null;
 };
 
@@ -95,31 +111,156 @@ function normalizeToken(value: string | null | undefined) {
     .replace(/[^a-z0-9]+/g, " ");
 }
 
+function averageCoordinates(points: Array<{ lat: number | null; lng: number | null }>) {
+  const validPoints = points.filter(
+    (point) => Number.isFinite(point.lat) && Number.isFinite(point.lng),
+  ) as Array<{ lat: number; lng: number }>;
+
+  if (!validPoints.length) {
+    return { latitude: null, longitude: null };
+  }
+
+  const totals = validPoints.reduce(
+    (accumulator, point) => ({
+      lat: accumulator.lat + point.lat,
+      lng: accumulator.lng + point.lng,
+    }),
+    { lat: 0, lng: 0 },
+  );
+
+  return {
+    latitude: Number((totals.lat / validPoints.length).toFixed(4)),
+    longitude: Number((totals.lng / validPoints.length).toFixed(4)),
+  };
+}
+
 export async function buildCreatorLaunchStatus(input: {
   resolvedCity?: { city: string; stateCode?: string | null } | null;
 }): Promise<CreatorLaunchStatus> {
   const activations = await listCityLaunchActivations();
-  const supportedCities = activations
-    .filter((activation) =>
+  const activationCoordinates = new Map<string, { latitude: number | null; longitude: number | null }>();
+  await Promise.all(
+    activations.map(async (activation) => {
+      const prospects = await listCityLaunchProspects(activation.city);
+      activationCoordinates.set(
+        activation.citySlug,
+        averageCoordinates(
+          prospects.map((prospect) => ({
+            lat: prospect.lat,
+            lng: prospect.lng,
+          })),
+        ),
+      );
+    }),
+  );
+
+  let underReviewSignals: Array<{
+    city: string;
+    citySlug: string;
+    lat: number;
+    lng: number;
+  }> = [];
+  try {
+    underReviewSignals = await listCityLaunchCandidateSignals({
+      statuses: ["queued", "in_review"],
+    });
+  } catch {
+    underReviewSignals = [];
+  }
+
+  const underReviewCoordinates = new Map<string, { latitude: number | null; longitude: number | null }>();
+  const underReviewCities = new Map<string, { city: string; stateCode: string; displayName: string; citySlug: string }>();
+
+  for (const signal of underReviewSignals) {
+    const parts = splitCityLabel(signal.city);
+    underReviewCities.set(signal.citySlug, {
+      city: parts.city,
+      stateCode: parts.stateCode || "",
+      displayName: signal.city,
+      citySlug: signal.citySlug,
+    });
+  }
+
+  for (const [citySlug] of underReviewCities.entries()) {
+    const matchingSignals = underReviewSignals.filter((signal) => signal.citySlug === citySlug);
+    underReviewCoordinates.set(
+      citySlug,
+      averageCoordinates(
+        matchingSignals.map((signal) => ({
+          lat: signal.lat,
+          lng: signal.lng,
+        })),
+      ),
+    );
+  }
+
+  const citiesBySlug = new Map<
+    string,
+    {
+      city: string;
+      stateCode: string;
+      displayName: string;
+      citySlug: string;
+      status: "live" | "planned" | "under_review";
+      latitude: number | null;
+      longitude: number | null;
+    }
+  >();
+
+  for (const activation of activations) {
+    const parts = splitCityLabel(activation.city);
+    const isLive =
       activation.founderApproved
-      || ACTIVE_ACTIVATION_STATUSES.has(activation.status),
-    )
-    .map((activation) => {
-      const parts = splitCityLabel(activation.city);
-      return {
-        city: parts.city,
-        stateCode: parts.stateCode || "",
-        displayName: activation.city,
-        citySlug: activation.citySlug,
-      };
-    })
-    .sort((left, right) => left.displayName.localeCompare(right.displayName));
+      || ACTIVE_ACTIVATION_STATUSES.has(activation.status);
+    const coordinates = activationCoordinates.get(activation.citySlug)
+      || underReviewCoordinates.get(activation.citySlug)
+      || { latitude: null, longitude: null };
+
+    citiesBySlug.set(activation.citySlug, {
+      city: parts.city,
+      stateCode: parts.stateCode || "",
+      displayName: activation.city,
+      citySlug: activation.citySlug,
+      status: isLive ? "live" : "planned",
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+    });
+  }
+
+  for (const [citySlug, city] of underReviewCities.entries()) {
+    if (citiesBySlug.has(citySlug)) {
+      continue;
+    }
+    const coordinates = underReviewCoordinates.get(citySlug) || {
+      latitude: null,
+      longitude: null,
+    };
+    citiesBySlug.set(citySlug, {
+      ...city,
+      status: "under_review",
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+    });
+  }
+
+  const cities = Array.from(citiesBySlug.values()).sort((left, right) =>
+    left.displayName.localeCompare(right.displayName),
+  );
+
+  const supportedCities = cities
+    .filter((city) => city.status === "live")
+    .map((city) => ({
+      city: city.city,
+      stateCode: city.stateCode,
+      displayName: city.displayName,
+      citySlug: city.citySlug,
+    }));
 
   const currentCity = input.resolvedCity
     ? (() => {
         const normalizedCity = normalizeToken(input.resolvedCity?.city);
         const normalizedState = normalizeToken(input.resolvedCity?.stateCode || null);
-        const match = supportedCities.find((city) =>
+        const match = cities.find((city) =>
           normalizeToken(city.city) === normalizedCity
           && normalizeToken(city.stateCode) === normalizedState,
         );
@@ -130,13 +271,21 @@ export async function buildCreatorLaunchStatus(input: {
             ? `${input.resolvedCity.city}, ${input.resolvedCity.stateCode}`
             : input.resolvedCity.city,
           citySlug: match?.citySlug || null,
-          isSupported: Boolean(match),
+          isSupported: match?.status === "live",
+          isPubliclyTracked: Boolean(match),
+          status: match?.status || null,
         };
       })()
     : null;
 
   return {
+    cities,
     supportedCities,
+    statusCounts: {
+      live: cities.filter((city) => city.status === "live").length,
+      planned: cities.filter((city) => city.status === "planned").length,
+      underReview: cities.filter((city) => city.status === "under_review").length,
+    },
     currentCity,
   };
 }

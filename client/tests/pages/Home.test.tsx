@@ -71,8 +71,11 @@ describe("Home", () => {
       "href",
       "/contact?persona=robot-team",
     );
-    expect(screen.getByRole("heading", { name: /Capture supply opens city by city\./i })).toBeInTheDocument();
-    expect(screen.getByText(/Currently supported: Austin, TX and San Francisco, CA\./i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Where Blueprint is live, planned, and under review\./i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open launch map/i })).toHaveAttribute(
+      "href",
+      "/launch-map",
+    );
     expect(screen.getAllByRole("heading", { name: /Choose the path that matches the work\./i }).length).toBeGreaterThan(0);
   });
 

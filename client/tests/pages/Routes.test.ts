@@ -8,6 +8,7 @@ describe("Route registration", () => {
     const source = fs.readFileSync(routesPath, "utf-8");
 
     expect(source).toContain('path: "/"');
+    expect(source).toContain('path: "/launch-map"');
     expect(source).toContain('path: "/world-models"');
     expect(source).toContain('path: "/world-models/:slug"');
     expect(source).toContain('path: "/capture-app"');

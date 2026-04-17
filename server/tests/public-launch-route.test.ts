@@ -5,12 +5,16 @@ import type { Server } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const listCityLaunchActivations = vi.hoisted(() => vi.fn());
+const listCityLaunchProspects = vi.hoisted(() => vi.fn());
+const listCityLaunchCandidateSignals = vi.hoisted(() => vi.fn());
 
 vi.mock("../utils/cityLaunchLedgers", async () => {
   const actual = await vi.importActual("../utils/cityLaunchLedgers");
   return {
     ...actual,
     listCityLaunchActivations,
+    listCityLaunchProspects,
+    listCityLaunchCandidateSignals,
   };
 });
 
@@ -40,7 +44,7 @@ afterEach(() => {
 });
 
 describe("public launch route", () => {
-  it("returns only launch-supported cities without auth", async () => {
+  it("returns public launch truth with live, planned, and under-review cities without auth", async () => {
     listCityLaunchActivations.mockResolvedValue([
       {
         city: "Austin, TX",
@@ -61,6 +65,32 @@ describe("public launch route", () => {
         status: "planning",
       },
     ]);
+    listCityLaunchProspects.mockImplementation(async (city: string) => {
+      if (city === "Austin, TX") {
+        return [
+          {
+            id: "austin-prospect",
+            city: "Austin, TX",
+            citySlug: "austin-tx",
+            status: "capturing",
+            lat: 30.2672,
+            lng: -97.7431,
+          },
+        ];
+      }
+      return [];
+    });
+    listCityLaunchCandidateSignals.mockResolvedValue([
+      {
+        id: "raleigh-candidate",
+        city: "Raleigh, NC",
+        citySlug: "raleigh-nc",
+        name: "Raleigh Research Queue",
+        status: "in_review",
+        lat: 35.7796,
+        lng: -78.6382,
+      },
+    ]);
 
     const { server, baseUrl } = await startServer();
     try {
@@ -69,7 +99,9 @@ describe("public launch route", () => {
       const payload = (await response.json()) as {
         ok: boolean;
         supportedCities: Array<{ displayName: string }>;
-        currentCity: { isSupported: boolean; citySlug: string | null } | null;
+        cities: Array<{ displayName: string; status: string; latitude: number | null }>;
+        statusCounts: { live: number; planned: number; underReview: number };
+        currentCity: { isSupported: boolean; citySlug: string | null; status: string | null } | null;
       };
 
       expect(payload.ok).toBe(true);
@@ -77,10 +109,36 @@ describe("public launch route", () => {
         { displayName: "Austin, TX" },
         { displayName: "San Francisco, CA" },
       ]);
+      expect(payload.cities).toEqual([
+        expect.objectContaining({
+          displayName: "Austin, TX",
+          status: "live",
+          latitude: 30.2672,
+        }),
+        expect.objectContaining({
+          displayName: "Durham, NC",
+          status: "planned",
+        }),
+        expect.objectContaining({
+          displayName: "Raleigh, NC",
+          status: "under_review",
+          latitude: 35.7796,
+        }),
+        expect.objectContaining({
+          displayName: "San Francisco, CA",
+          status: "live",
+        }),
+      ]);
+      expect(payload.statusCounts).toEqual({
+        live: 2,
+        planned: 1,
+        underReview: 1,
+      });
       expect(payload.currentCity).toEqual(
         expect.objectContaining({
           isSupported: true,
           citySlug: "austin-tx",
+          status: "live",
         }),
       );
     } finally {

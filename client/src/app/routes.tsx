@@ -10,6 +10,7 @@ export type AppRoute = {
 };
 
 const Home = lazy(() => import("../pages/Home"));
+const LaunchMap = lazy(() => import("../pages/LaunchMap"));
 const Capture = lazy(() => import("../pages/Capture"));
 const CaptureAppPlaceholder = lazy(() => import("../pages/CaptureAppPlaceholder"));
 const BusinessSignUpFlow = lazy(() => import("../pages/BusinessSignUpFlow"));
@@ -104,6 +105,7 @@ const LegacyCaseStudiesRedirect = () => (
 
 export const appRoutes: AppRoute[] = [
   { path: "/", layout: "public", component: Home },
+  { path: "/launch-map", layout: "public", component: LaunchMap },
 
   // Capture / Earn (new)
   { path: "/capture", layout: "public", component: Capture },

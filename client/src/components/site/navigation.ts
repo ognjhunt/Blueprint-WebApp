@@ -1,6 +1,7 @@
 export const primaryNavLinks = [
   { href: "/world-models", label: "World Models" },
   { href: "/exact-site-hosted-review", label: "Hosted Evaluation" },
+  { href: "/launch-map", label: "Launch Map" },
   { href: "/pricing", label: "Pricing" },
   { href: "/governance", label: "Trust" },
 ];
@@ -19,6 +20,7 @@ export const footerProductLinks = [
 
 export const footerCompanyLinks = [
   { href: "/about", label: "About" },
+  { href: "/launch-map", label: "Launch Map" },
   { href: "/governance", label: "Trust" },
   { href: "/pricing", label: "Pricing" },
   { href: "/contact?persona=robot-team", label: "Contact" },

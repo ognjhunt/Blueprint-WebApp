@@ -5,15 +5,31 @@ export type SupportedLaunchCity = {
   citySlug: string;
 };
 
+export type PublicLaunchCityStatus = "live" | "planned" | "under_review";
+
+export type PublicLaunchCity = SupportedLaunchCity & {
+  status: PublicLaunchCityStatus;
+  latitude: number | null;
+  longitude: number | null;
+};
+
 export type PublicLaunchStatus = {
   ok: true;
+  cities: PublicLaunchCity[];
   supportedCities: SupportedLaunchCity[];
+  statusCounts: {
+    live: number;
+    planned: number;
+    underReview: number;
+  };
   currentCity: {
     city: string;
     stateCode: string | null;
     displayName: string;
     citySlug: string | null;
     isSupported: boolean;
+    isPubliclyTracked: boolean;
+    status: PublicLaunchCityStatus | null;
   } | null;
 };
 
@@ -82,4 +98,11 @@ export function joinLaunchCityLabels(cities: SupportedLaunchCity[]) {
 
 export function findLaunchCityBySlug(cities: SupportedLaunchCity[], citySlug: string) {
   return cities.find((city) => city.citySlug === citySlug) || null;
+}
+
+export function getLaunchCitiesByStatus(
+  cities: PublicLaunchCity[],
+  status: PublicLaunchCityStatus,
+) {
+  return cities.filter((city) => city.status === status);
 }

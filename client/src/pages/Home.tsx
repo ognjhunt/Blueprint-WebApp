@@ -1,7 +1,7 @@
 import { SEO } from "@/components/SEO";
+import { LaunchMapTeaser } from "@/components/site/LaunchMapTeaser";
 import { ProofModule } from "@/components/site/ProofModule";
 import { WhenNotToBuyModule } from "@/components/site/WhenNotToBuyModule";
-import { LaunchCityAvailability } from "@/components/site/LaunchCityAvailability";
 import {
   companyTrustItems,
   hostedEvaluationDefinition,
@@ -127,12 +127,7 @@ export default function Home() {
         </section>
 
         <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-          <LaunchCityAvailability
-            title="Capture supply opens city by city."
-            description="The buyer site stays global, but the public capture program does not. Blueprint only opens capturer access, nearby review, and public capture availability in cities the launch org has actually approved."
-            primaryCta={{ href: "/signup/capturer", label: "Apply for capturer access" }}
-            secondaryCta={{ href: "/capture", label: "Read capture basics" }}
-          />
+          <LaunchMapTeaser />
         </section>
 
         <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
