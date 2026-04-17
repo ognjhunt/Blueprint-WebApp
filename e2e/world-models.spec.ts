@@ -9,6 +9,9 @@ test('world models page exposes hosted access and package paths', async ({ page 
   await expect(page.getByText(/Choose how you want access\./i)).toBeVisible();
   await expect(page.getByRole('link', { name: /How access works/i })).toBeVisible();
   await expect(page.getByRole('link', { name: /See available sites/i })).toBeVisible();
+  await expect(page.getByText(/Best place to start/i).first()).toBeVisible();
+  await expect(page.getByText(/Commercial exemplar/i).first()).toBeVisible();
+  await expect(page.getByText(/Plain-English commercial note/i).first()).toBeVisible();
   await expect(page.getByRole('link', { name: /Request hosted evaluation/i }).first()).toBeVisible();
 });
 
@@ -35,5 +38,7 @@ test('direct navigation to a world-model detail page stays on the detail page', 
       /Use it to answer a deployment question on the real site, compare the package with hosted evaluation, and decide how your team should test before visiting\./i,
     ),
   ).toBeVisible();
+  await expect(page.getByText(/Typical response cadence/i)).toBeVisible();
+  await expect(page.getByText(/Hosted evaluation evidence/i)).toBeVisible();
   await expect(page.getByText(/session-hour is one hour of self-serve hosted runtime/i)).toBeVisible();
 });

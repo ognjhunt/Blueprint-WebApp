@@ -3,7 +3,14 @@ import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import { categoryFilters, siteWorldCards, type SiteCategory } from "@/data/siteWorlds";
 import { getSiteWorldBadge } from "@/lib/siteWorldBadges";
 import {
+  COMMERCIAL_EXEMPLAR_SITE_WORLD_ID,
+  PUBLIC_SAMPLE_SITE_WORLD_ID,
+  getSiteWorldCatalogPriority,
   getSiteWorldCommercialStatus,
+  getSiteWorldFeaturedTag,
+  getSiteWorldPlainEnglishProof,
+  getSiteWorldPlainEnglishRestrictions,
+  getSiteWorldPlainEnglishStatus,
   getSiteWorldProofDepth,
   getSiteWorldPublicProofSummary,
   getSiteWorldReadinessDisclosure,
@@ -146,7 +153,7 @@ export default function SiteWorlds() {
   }, []);
 
   const filteredSites = useMemo(() => {
-    return catalog.filter((site) => {
+    const visibleSites = catalog.filter((site) => {
       const matchesCategory = activeCategory === "All" || site.category === activeCategory;
       const matchesEmbodiment =
         activeEmbodiment === "All"
@@ -164,7 +171,23 @@ export default function SiteWorlds() {
         && matchesExportReady
       );
     });
+
+    return [...visibleSites].sort((left, right) => {
+      const priorityDelta = getSiteWorldCatalogPriority(left) - getSiteWorldCatalogPriority(right);
+      if (priorityDelta !== 0) return priorityDelta;
+      return left.siteName.localeCompare(right.siteName);
+    });
   }, [activeCategory, activeEmbodiment, catalog, exportReadyOnly, hostedReadyOnly, publicDemoOnly]);
+
+  const featuredSampleSite = useMemo(
+    () => filteredSites.find((site) => site.id === PUBLIC_SAMPLE_SITE_WORLD_ID) || null,
+    [filteredSites],
+  );
+
+  const featuredCommercialSite = useMemo(
+    () => filteredSites.find((site) => site.id === COMMERCIAL_EXEMPLAR_SITE_WORLD_ID) || null,
+    [filteredSites],
+  );
 
   return (
     <>
@@ -446,9 +469,92 @@ export default function SiteWorlds() {
               </div>
             </div>
 
+            {(featuredSampleSite || featuredCommercialSite) ? (
+              <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                {[featuredSampleSite, featuredCommercialSite]
+                  .filter(Boolean)
+                  .map((site) => {
+                    const featuredSite = site!;
+                    const featuredTag = getSiteWorldFeaturedTag(featuredSite);
+                    const commercialStatus = getSiteWorldCommercialStatus(featuredSite);
+                    return (
+                      <article
+                        key={featuredSite.id}
+                        className="overflow-hidden rounded-[1.8rem] border border-slate-200 bg-white shadow-[0_20px_70px_-52px_rgba(15,23,42,0.4)]"
+                      >
+                        <a href={`/world-models/${featuredSite.id}`} className="relative block">
+                          <SiteWorldGraphic site={featuredSite} />
+                          {featuredTag ? (
+                            <div className="absolute left-4 top-4">
+                              <span
+                                className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${featuredTag.tone}`}
+                              >
+                                {featuredTag.label}
+                              </span>
+                            </div>
+                          ) : null}
+                        </a>
+                        <div className="space-y-4 p-6">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                              {featuredSite.industry}
+                            </p>
+                            <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+                              <a href={`/world-models/${featuredSite.id}`} className="hover:text-slate-700">
+                                {featuredSite.siteName}
+                              </a>
+                            </h3>
+                            <p className="mt-2 text-sm text-slate-500">{featuredSite.siteAddress}</p>
+                            <p className="mt-3 text-sm leading-7 text-slate-600">{featuredSite.summary}</p>
+                          </div>
+
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                Why start here
+                              </p>
+                              <p className="mt-2 text-sm leading-6 text-slate-700">
+                                {getSiteWorldPlainEnglishStatus(featuredSite)}
+                              </p>
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                Public proof
+                              </p>
+                              <p className="mt-2 text-sm leading-6 text-slate-700">
+                                {getSiteWorldPlainEnglishProof(featuredSite)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                              Commercial status
+                            </p>
+                            <p className="mt-2 text-sm font-semibold text-slate-900">{commercialStatus.label}</p>
+                            <p className="mt-2 text-sm leading-6 text-slate-600">{commercialStatus.summary}</p>
+                          </div>
+
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {featuredSite.packages.map((pkg) => (
+                              <div key={pkg.name} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                <p className="text-sm font-semibold text-slate-900">{pkg.name}</p>
+                                <p className="mt-1 text-sm text-slate-600">{pkg.priceLabel}</p>
+                                <p className="mt-2 text-sm leading-6 text-slate-600">{pkg.summary}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+              </div>
+            ) : null}
+
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {filteredSites.map((site) => {
                 const commercialStatus = getSiteWorldCommercialStatus(site);
+                const featuredTag = getSiteWorldFeaturedTag(site);
                 return (
                 <article
                   key={site.id}
@@ -505,6 +611,11 @@ export default function SiteWorlds() {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
+                      {featuredTag ? (
+                        <span className={`rounded-full border px-3 py-1 text-xs font-medium ${featuredTag.tone}`}>
+                          {featuredTag.label}
+                        </span>
+                      ) : null}
                       <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
                         {formatEmbodimentLabel(site.sampleRobotProfile?.embodimentType)}
                       </span>
@@ -543,9 +654,23 @@ export default function SiteWorlds() {
                       </p>
                       <p className="mt-1 text-sm text-slate-800">{getSiteWorldPublicProofSummary(site)}</p>
                       <p className="mt-2 text-xs leading-5 text-slate-600">
-                        {getSiteWorldReadinessDisclosure(site)}
+                        {getSiteWorldPlainEnglishProof(site)}
                       </p>
                     </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        Plain-English commercial note
+                      </p>
+                      <p className="mt-1 text-sm text-slate-800">{getSiteWorldPlainEnglishStatus(site)}</p>
+                      <p className="mt-2 text-xs leading-5 text-slate-600">
+                        {getSiteWorldPlainEnglishRestrictions(site)}
+                      </p>
+                    </div>
+
+                    <p className="text-xs leading-5 text-slate-500">
+                      {getSiteWorldReadinessDisclosure(site)}
+                    </p>
 
                     {site.deploymentReadiness?.native_world_model_primary ? (
                       <div className="space-y-2">

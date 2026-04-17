@@ -10,7 +10,12 @@ import { hasAnyRole } from "@/lib/adminAccess";
 import { exactSiteScopingCallPath } from "@/lib/booking";
 import { withCsrfHeader } from "@/lib/csrf";
 import {
+  COMMERCIAL_EXEMPLAR_SITE_WORLD_ID,
   getSiteWorldCommercialStatus,
+  getSiteWorldFeaturedTag,
+  getSiteWorldPlainEnglishProof,
+  getSiteWorldPlainEnglishRestrictions,
+  getSiteWorldPlainEnglishStatus,
   getSiteWorldProofDepth,
   getSiteWorldPublicProofSummary,
   getSiteWorldReadinessDisclosure,
@@ -319,6 +324,8 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
   );
   const shouldShowWorldLabsSection = Boolean(worldLabsPreview) || isAdmin;
   const isDemoWalkthrough = site?.id === "siteworld-f5fd54898cfb";
+  const isCommercialExemplar = site?.id === COMMERCIAL_EXEMPLAR_SITE_WORLD_ID;
+  const featuredTag = site ? getSiteWorldFeaturedTag(site) : null;
   const capabilityItems = [
     site?.deploymentReadiness?.capability_envelope?.embodiment_type
       ? `Embodiment: ${humanizeToken(site.deploymentReadiness.capability_envelope.embodiment_type)}`
@@ -472,6 +479,84 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
       ],
     },
   ];
+  const responseCadence = [
+    "Public-listing and hosted-evaluation questions: typical first reply within 1 business day.",
+    "Request-scoped rights, privacy, or export review: typical first scoped answer within 2 business days.",
+    "Private-site or unusual support requests: timing confirmed in the first follow-up once scope is clear.",
+  ];
+  const compatibilityCards = [
+    {
+      title: "What buyers can bring now",
+      body: "A policy or checkpoint reference, stack adapter, teleop surface, container entrypoint, or a narrower evaluation contract tied to the workflow lane that matters.",
+    },
+    {
+      title: "What stays case-by-case",
+      body: "Robot embodiment edge cases, unusual sensor stacks, private-site support obligations, and managed support levels that materially change the scope.",
+    },
+    {
+      title: "What is live today",
+      body: "Listing trust metadata, package-vs-hosted pricing, public proof summaries, buyer-readable sample artifacts, and the request path into hosted evaluation or package access.",
+    },
+  ];
+  const economicsCards = [
+    {
+      title: "Rational when",
+      body: "The site question is specific enough that one facility can save a flight, pilot week, or false positive on deployment fit.",
+    },
+    {
+      title: "Less useful when",
+      body: "The team still needs broad discovery, generic pretraining, or a rights review before one exact site matters.",
+    },
+    {
+      title: "The practical tradeoff",
+      body: "This works best when the cost of getting the site wrong is already higher than the cost of inspecting the site earlier.",
+    },
+  ];
+  const artifactPreviewCards = [
+    {
+      title: "Buyer-readable manifest preview",
+      rows: [
+        ["proof depth", getSiteWorldProofDepth(site)],
+        ["public proof", getSiteWorldPublicProofSummary(site)],
+        ["commercial status", commercialStatus.label],
+      ],
+    },
+    {
+      title: "Buyer-readable rights preview",
+      rows: [
+        [
+          "exports",
+          site.deploymentReadiness?.rights_and_compliance?.export_entitlements?.join(", ")
+            || "Confirmed in request-specific review",
+        ],
+        [
+          "retention",
+          site.deploymentReadiness?.rights_and_compliance?.retention_policy
+            || "Confirmed in request-specific review",
+        ],
+        ["restriction note", getSiteWorldPlainEnglishRestrictions(site)],
+      ],
+    },
+    {
+      title: "Hosted output preview",
+      rows: [
+        ["run summary", "Rollout, timing, and failure review tied to the same exact site"],
+        ["export bundle", "Raw bundle, dataset export, and comparison surfaces when approved"],
+        ["next step", "Package access, more hosted time, or scoped follow-up on the same listing"],
+      ],
+    },
+  ];
+  const decisionMemoSteps = isCommercialExemplar
+    ? [
+        "The team wanted to know whether this exact backroom was worth deeper integration work before a rollout visit.",
+        "It used the listing proof, hosted-evaluation framing, and trust snapshot to decide that the first paid step should be a hosted evaluation, not a blind pilot week.",
+        "That is the kind of commercial decision this page should support: one real site, one clean next move, and less guessing.",
+      ]
+    : [
+        "The team wants to know whether this exact facility is worth deeper work before travel.",
+        "The listing helps it decide whether the package or hosted path should come first.",
+        "Blueprint keeps the answer tied to one real site instead of inflating the claim.",
+      ];
 
   return (
     <>
@@ -510,6 +595,11 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               </p>
               <p className="mt-2 text-sm text-slate-500">{site.bestFor}</p>
               <div className="mt-5 flex flex-wrap gap-3">
+                {featuredTag ? (
+                  <span className={`rounded-full border px-4 py-2 text-sm font-medium ${featuredTag.tone}`}>
+                    {featuredTag.label}
+                  </span>
+                ) : null}
                 <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
                   {site.taskLane}
                 </span>
@@ -545,9 +635,93 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             </aside>
           </header>
 
+          <section className="mt-8 grid gap-4 lg:grid-cols-[1fr_0.95fr]">
+            <article className="rounded-3xl border border-slate-200 bg-white p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                What is live today
+              </p>
+              <h2 className="mt-2 text-2xl font-bold text-slate-900">What a buyer can inspect right now.</h2>
+              <div className="mt-5 grid gap-3">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-700">
+                  {getSiteWorldPlainEnglishStatus(site)}
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-700">
+                  {getSiteWorldPlainEnglishProof(site)}
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-700">
+                  {getSiteWorldPlainEnglishRestrictions(site)}
+                </div>
+              </div>
+            </article>
+
+            <article className="rounded-3xl border border-slate-200 bg-slate-950 p-6 text-white">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Typical response cadence
+              </p>
+              <h2 className="mt-2 text-2xl font-bold">How quickly this usually narrows.</h2>
+              <div className="mt-5 space-y-3">
+                {responseCadence.map((item) => (
+                  <div key={item} className="rounded-2xl border border-slate-800 bg-slate-900/90 px-4 py-4 text-sm leading-7 text-slate-300">
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </article>
+          </section>
+
           <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-5 sm:p-6">
             <SiteWorldGraphic site={site as Parameters<typeof SiteWorldGraphic>[0]["site"]} />
           </section>
+
+          {(site.runtimeReferenceImageUrl || site.presentationReferenceImageUrl) ? (
+            <section className="mt-8 rounded-3xl border border-slate-200 bg-white px-5 py-6 sm:px-7 sm:py-7">
+              <div className="max-w-3xl">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Hosted evaluation evidence
+                </p>
+                <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
+                  Current evidence tied to this listing
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  These are current buyer-facing proof views for this listing. They are meant to make the hosted path more concrete before your team requests a session.
+                </p>
+              </div>
+              <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                {site.runtimeReferenceImageUrl ? (
+                  <article className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                    <img
+                      src={site.runtimeReferenceImageUrl}
+                      alt={`${site.siteName} hosted evaluation runtime view`}
+                      className="aspect-[16/10] w-full object-cover"
+                      loading="lazy"
+                    />
+                    <div className="p-5">
+                      <p className="text-sm font-semibold text-slate-900">Runtime proof view</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        A concrete hosted-evaluation proof frame for this listing, showing the kind of run review surface a buyer should expect.
+                      </p>
+                    </div>
+                  </article>
+                ) : null}
+                {site.presentationReferenceImageUrl ? (
+                  <article className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                    <img
+                      src={site.presentationReferenceImageUrl}
+                      alt={`${site.siteName} buyer review surface`}
+                      className="aspect-[16/10] w-full object-cover"
+                      loading="lazy"
+                    />
+                    <div className="p-5">
+                      <p className="text-sm font-semibold text-slate-900">Buyer review surface</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        A buyer-readable trust and review layout tied to this listing, used here as the commercial proof companion to the runtime view.
+                      </p>
+                    </div>
+                  </article>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
 
           {isDemoWalkthrough ? (
             <div className="mt-8">
@@ -650,6 +824,25 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               </p>
             </section>
           ) : null}
+
+          <section className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 px-5 py-6 sm:px-7 sm:py-7">
+            <div className="max-w-3xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Compatibility and support
+              </p>
+              <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
+                What your team can bring, and what still gets scoped.
+              </h2>
+            </div>
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
+              {compatibilityCards.map((card) => (
+                <article key={card.title} className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <h3 className="text-base font-semibold text-slate-900">{card.title}</h3>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">{card.body}</p>
+                </article>
+              ))}
+            </div>
+          </section>
 
           {shouldShowWorldLabsSection ? (
             <section className="mt-8 rounded-3xl border border-slate-200 bg-white px-5 py-6 sm:px-7 sm:py-7">
@@ -884,36 +1077,64 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               </p>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-3">
-              {[
-                {
-                  title: "Sample package manifest",
-                  body: "Representative manifest fields showing site id, freshness, rights class, and available export types.",
-                  href: "/samples/sample-site-package-manifest.json",
-                  cta: "Download sample manifest",
-                },
-                {
-                  title: "Sample rights sheet",
-                  body: "Readable rights, retention, sharing, and export entitlements attached to the listing trust model.",
-                  href: "/samples/sample-rights-sheet.md",
-                  cta: "Download sample rights sheet",
-                },
-                {
-                  title: "Sample export bundle",
-                  body: "Representative output structure showing run summary, rollout review, and raw bundle references.",
-                  href: "/samples/sample-export-bundle.json",
-                  cta: "Download sample export bundle",
-                },
-              ].map((item) => (
-                <article key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                  <p className="text-sm font-semibold text-slate-900">{item.title}</p>
-                  <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
-                  <a
-                    href={item.href}
-                    download
-                    className="mt-5 inline-flex text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
-                  >
-                    {item.cta}
-                  </a>
+              {artifactPreviewCards.map((card, index) => (
+                <article key={card.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <p className="text-sm font-semibold text-slate-900">{card.title}</p>
+                  <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                    {card.rows.map(([label, value]) => (
+                      <div
+                        key={`${card.title}-${label}`}
+                        className="grid grid-cols-[0.78fr_1.22fr] gap-3 border-t border-slate-200 px-4 py-3 text-sm first:border-t-0"
+                      >
+                        <p className="font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</p>
+                        <p className="text-slate-700">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {index === 0 ? (
+                    <a
+                      href="/samples/sample-site-package-manifest.json"
+                      download
+                      className="mt-5 inline-flex text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
+                    >
+                      Download sample manifest
+                    </a>
+                  ) : index === 1 ? (
+                    <a
+                      href="/samples/sample-rights-sheet.md"
+                      download
+                      className="mt-5 inline-flex text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
+                    >
+                      Download sample rights sheet
+                    </a>
+                  ) : (
+                    <a
+                      href="/samples/sample-export-bundle.json"
+                      download
+                      className="mt-5 inline-flex text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
+                    >
+                      Download sample export bundle
+                    </a>
+                  )}
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 px-5 py-6 sm:px-7 sm:py-7">
+            <div className="max-w-3xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Why this is rational
+              </p>
+              <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
+                When this beats a field-first or pilot-first process.
+              </h2>
+            </div>
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
+              {economicsCards.map((card) => (
+                <article key={card.title} className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <h3 className="text-base font-semibold text-slate-900">{card.title}</h3>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">{card.body}</p>
                 </article>
               ))}
             </div>
@@ -1120,11 +1341,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               Decision story for this site
             </h2>
             <div className="mt-5 grid gap-4 md:grid-cols-3">
-              {[
-                "A robot team wants to know whether this exact facility is worth deeper integration work before travel.",
-                "The buyer inspects the listing, the trust snapshot, and the package-vs-hosted split to decide what kind of proof it needs first.",
-                "Blueprint helps the team move into package access or hosted evaluation without pretending the site answers more than it actually can.",
-              ].map((item, index) => (
+              {decisionMemoSteps.map((item, index) => (
                 <article key={item} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold text-white">
                     {index + 1}

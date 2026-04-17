@@ -54,6 +54,12 @@ const publicToday = [
   "Contact and scoping paths that keep the conversation anchored to one listing, one robot setup, and one workflow question",
 ];
 
+const responseCadence = [
+  "Public-listing and hosted-evaluation questions: typical first reply within 1 business day.",
+  "Request-scoped rights, privacy, or export review: typical first scoped answer within 2 business days.",
+  "Private-site, unusual robot-fit, or managed-support requests: timing confirmed in the first follow-up once scope is clear.",
+];
+
 function HostedIllustrativePanel() {
   return (
     <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-[linear-gradient(160deg,rgba(255,255,255,0.94),rgba(241,245,249,0.94))] shadow-[0_24px_90px_-50px_rgba(15,23,42,0.5)]">
@@ -267,6 +273,38 @@ export default function ExactSiteHostedReview() {
 
         <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
           <HostedIllustrativePanel />
+        </section>
+
+        <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          <article className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
+            <div className="grid gap-4 lg:grid-cols-[1fr_0.95fr]">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Typical commercial cadence
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+                  Hosted evaluation should narrow quickly.
+                </h2>
+                <div className="mt-5 grid gap-3">
+                  {responseCadence.map((item) => (
+                    <div key={item} className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm leading-7 text-slate-700">
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-3xl border border-slate-200 bg-white p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Support posture
+                </p>
+                <p className="mt-3 text-sm leading-7 text-slate-600">
+                  Public session-hour pricing covers the standard starting path. Higher-touch support,
+                  unusual robot-fit questions, private-site work, or custom export requirements are
+                  scoped separately when they materially change the job.
+                </p>
+              </div>
+            </div>
+          </article>
         </section>
 
         <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">

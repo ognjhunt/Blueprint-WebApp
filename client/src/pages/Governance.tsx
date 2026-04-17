@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { SEO } from "@/components/SEO";
 
 const principles = [
@@ -75,6 +76,29 @@ const listingPolicy = [
   "Public listing does not mean unrestricted commercial clearance. It means Blueprint is comfortable showing the site, the proof shape, and the trust labels publicly.",
   "Request-scoped commercial review means rights, privacy, export scope, or buyer-specific terms still need to be confirmed against the exact request.",
   "Public addresses and facility names are used only when Blueprint is prepared to expose that listing publicly; the commercial path still stays bounded by the rights class and restrictions on the listing.",
+];
+
+const accessControlMatrix = [
+  {
+    control: "Authenticated hosted access",
+    current: "Required",
+    buyerMeaning: "Hosted sessions are not public browse surfaces; access follows account and listing-level checks.",
+  },
+  {
+    control: "Listing-level entitlement review",
+    current: "Required",
+    buyerMeaning: "The public listing can be readable while export scope and deeper access still stay request-specific.",
+  },
+  {
+    control: "Retention and export policy",
+    current: "Attached to listing",
+    buyerMeaning: "A buyer should be able to tell what remains view-only, what can be exported, and what retention rules survive purchase.",
+  },
+  {
+    control: "Audit trail",
+    current: "Human-gated for exceptions",
+    buyerMeaning: "Irreversible rights, privacy, or access exceptions should be recorded and reviewed rather than implied by default.",
+  },
 ];
 
 export default function Governance() {
@@ -208,6 +232,41 @@ export default function Governance() {
                   {item}
                 </div>
               ))}
+            </div>
+          </section>
+
+          <section className="mt-10 rounded-3xl border border-slate-200 bg-white p-6 sm:p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Operational control matrix
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+              The trust page should show more than posture.
+            </h2>
+            <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
+              <div className="grid grid-cols-[0.95fr_0.65fr_1.4fr] gap-px bg-slate-200">
+                <div className="bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  Control
+                </div>
+                <div className="bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  Current
+                </div>
+                <div className="bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  Buyer meaning
+                </div>
+                {accessControlMatrix.map((row) => (
+                  <Fragment key={row.control}>
+                    <div className="bg-white px-4 py-4 text-sm font-semibold text-slate-900">
+                      {row.control}
+                    </div>
+                    <div className="bg-white px-4 py-4 text-sm text-slate-700">
+                      {row.current}
+                    </div>
+                    <div className="bg-white px-4 py-4 text-sm leading-7 text-slate-600">
+                      {row.buyerMeaning}
+                    </div>
+                  </Fragment>
+                ))}
+              </div>
             </div>
           </section>
         </div>

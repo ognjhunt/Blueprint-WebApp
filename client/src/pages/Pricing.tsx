@@ -29,6 +29,12 @@ const pricingWorkflow = [
   "Use contact or booking to narrow the exact site, workflow lane, and any trust boundaries that could change scope.",
 ];
 
+const responseCadence = [
+  "Public-listing and hosted-evaluation questions: typical first reply within 1 business day.",
+  "Request-scoped rights, privacy, export, or commercial review: typical first scoped answer within 2 business days.",
+  "Private-site or managed-support requests: exact timing confirmed in follow-up once the real scope is clear.",
+];
+
 export default function Pricing() {
   return (
     <>
@@ -137,6 +143,38 @@ export default function Pricing() {
                   </div>
                 ))}
               </div>
+            </article>
+          </section>
+
+          <section className="mt-10 grid gap-4 lg:grid-cols-[1fr_0.95fr]">
+            <article className="rounded-2xl border border-slate-200 bg-white p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Typical commercial cadence
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+                Pricing is public. Scope still gets narrowed in follow-up.
+              </h2>
+              <div className="mt-5 grid gap-3">
+                {responseCadence.map((item) => (
+                  <div key={item} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-700">
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Minimums and managed support
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+                Public listing prices cover the standard starting path.
+              </h2>
+              <p className="mt-3 text-sm leading-7 text-slate-600">
+                Site-package prices and hosted session-hour rates are the public starting point.
+                Private-site onboarding, unusual trust review, or higher-touch managed support are
+                scoped separately when they materially change the work.
+              </p>
             </article>
           </section>
 

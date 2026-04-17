@@ -133,6 +133,11 @@ export default function Contact() {
       detail: "Best when your team wants to validate the proof style before any outreach.",
     },
   ];
+  const responseCadence = [
+    "Public-listing or hosted-evaluation questions: typical first reply within 1 business day.",
+    "Request-scoped rights, privacy, or export review: typical first scoped answer within 2 business days.",
+    "Private-site and unusual support requests: timing confirmed in the first follow-up once scope is clear.",
+  ];
   return (
     <>
       <SEO title={seoTitle} description={seoDescription} canonical="/contact" />
@@ -238,6 +243,19 @@ export default function Contact() {
                           </li>
                         ))}
                       </ul>
+                      <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          Typical response cadence
+                        </p>
+                        <ul className="mt-3 space-y-2 text-sm text-slate-700">
+                          {responseCadence.map((item) => (
+                            <li key={item} className="flex items-start gap-2">
+                              <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-900" />
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     </div>
                   </div>
                 </motion.div>

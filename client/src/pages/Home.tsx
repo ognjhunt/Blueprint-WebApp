@@ -347,6 +347,46 @@ export default function Home() {
           </div>
         </section>
 
+        <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_20px_70px_-52px_rgba(15,23,42,0.45)] sm:p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Buyer decision memo
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              One commercial-grade listing should carry the full proof loop.
+            </h2>
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              {[
+                "The buyer starts with a listing that has real pricing, richer proof cards, and a trust snapshot that is easy to scan.",
+                "It decides whether to start with hosted evaluation or package access before spending time on a field visit or a blind pilot path.",
+                "That is the standard the rest of the catalog should move toward, not just the public sample.",
+              ].map((item, index) => (
+                <article key={item} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold text-white">
+                    {index + 1}
+                  </div>
+                  <p className="mt-4 text-sm leading-7 text-slate-700">{item}</p>
+                </article>
+              ))}
+            </div>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <a
+                href="/world-models/sw-chi-01"
+                className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                Read the commercial exemplar
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </a>
+              <a
+                href="/world-models/siteworld-f5fd54898cfb"
+                className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
+              >
+                Compare it with the public sample
+              </a>
+            </div>
+          </div>
+        </section>
+
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
           <WhenNotToBuyModule />
         </div>

@@ -135,5 +135,11 @@ describe("build output", () => {
     expect(
       fs.existsSync(path.resolve(process.cwd(), "dist/public/proof/blueprint-proof-reel.mp4")),
     ).toBe(true);
+    expect(
+      fs.existsSync(path.resolve(process.cwd(), "dist/public/illustrations/sw-chi-01-runtime-proof.svg")),
+    ).toBe(true);
+    expect(
+      fs.existsSync(path.resolve(process.cwd(), "dist/public/illustrations/sw-chi-01-buyer-review.svg")),
+    ).toBe(true);
   });
 });

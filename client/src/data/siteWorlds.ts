@@ -710,6 +710,8 @@ const rawSiteWorldCards: RawSiteWorldCard[] = [
     samplePolicy: "Checkpoint 148000",
     scenarioVariants: ["Normal lighting", "Dim backroom lighting", "Partial aisle clutter"],
     exportArtifacts: ["Rollout video", "Action trace", "Success labels", "Episode summary"],
+    runtimeReferenceImageUrl: "/illustrations/sw-chi-01-runtime-proof.svg",
+    presentationReferenceImageUrl: "/illustrations/sw-chi-01-buyer-review.svg",
     packages: buildPackages({
       siteId: "sw-chi-01",
       siteName: "Harborview Grocery Distribution Annex",

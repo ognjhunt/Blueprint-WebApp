@@ -62,6 +62,11 @@ const faqs = [
       "Yes. The stable contract is the capture truth, the rights and provenance metadata, the site package, and the hosted-session contract. The runtime backend can change without changing that buyer-facing contract.",
   },
   {
+    question: "How fast does Blueprint usually respond?",
+    answer:
+      "Public-listing and hosted-evaluation questions usually get a first reply within 1 business day. Request-scoped rights, privacy, or export review usually gets a first scoped answer within 2 business days. Private-site and unusual support requests are confirmed in follow-up once the real scope is clear.",
+  },
+  {
     question: "What can a team bring into hosted evaluation today?",
     answer:
       "Start with the exact site, the workflow lane, and the robot setup that matters. Hosted evaluation scoping can center on a policy name, checkpoint reference, stack adapter, teleop surface, containerized runtime entrypoint, or a narrower evaluation contract for the job your team needs to answer first.",
@@ -85,6 +90,21 @@ const faqs = [
     question: "Why can a listing be public while the commercial path is still request-scoped?",
     answer:
       "Public means Blueprint is willing to expose the site, proof shape, and trust labels for inspection. Request-scoped means rights, privacy, export scope, or buyer-specific commercial terms still need to be confirmed against the exact request before access expands.",
+  },
+  {
+    question: "What turns a listing from listing-only into proof-rich?",
+    answer:
+      "A proof-rich listing has more than metadata. It should include stronger public proof such as screenshots, runtime stills, buyer-readable trust cards, sample artifact previews, and clearer disclosure of what is live now versus illustrative or request-scoped.",
+  },
+  {
+    question: "What scenario variation controls are live today?",
+    answer:
+      "Scenario variation is listing-specific. Public listings show the scenario types Blueprint is prepared to disclose now, while deeper or private variation controls are confirmed during hosted-evaluation or package scoping.",
+  },
+  {
+    question: "What do public demo, public proof, and export ready mean?",
+    answer:
+      "Public demo means the listing is a stronger public sample surface. Public proof means there are concrete assets a buyer can inspect today, such as screenshots or artifact previews. Export ready means the listing documents export surfaces that can be part of the commercial path, subject to the listing's rights and privacy rules.",
   },
   {
     question: "Can we book time instead of starting with a form?",
