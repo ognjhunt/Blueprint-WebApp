@@ -69,13 +69,18 @@ describe("Contact page", () => {
       "href",
       "/world-models",
     );
-    expect(screen.getByRole("link", { name: /Hosted evaluation/i })).toHaveAttribute("href", "/exact-site-hosted-review");
+    expect(screen.getAllByRole("link", { name: /Hosted evaluation/i })[0]).toHaveAttribute(
+      "href",
+      "/exact-site-hosted-review",
+    );
     expect(screen.getByRole("link", { name: /Sample deliverables/i })).toHaveAttribute("href", "/sample-deliverables");
     expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/Quick brief/i)).toBeInTheDocument();
-    expect(screen.getByText(/Hosted evaluation scoping/i)).toBeInTheDocument();
-    expect(screen.getByText(/Custom site quote/i)).toBeInTheDocument();
+    expect(screen.getByText(/Book a scoping call/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Best when your team wants the runtime path explained before it writes a brief\./i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Inspect the sample listing/i)).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /What should Blueprint help your team answer first\?/i })).toBeInTheDocument();
     expect(analyticsEventsMock.contactRequestStarted).toHaveBeenCalledWith({
       persona: "robot_team",
@@ -98,7 +103,11 @@ describe("Contact page", () => {
     expect(screen.getByDisplayValue("Walk to shelf staging and pick the blue tote")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Unitree G1 with head cam and wrist cam")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Request hosted evaluation/i })).toBeInTheDocument();
-    expect(screen.getByText(/Hosted evaluation scoping/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Confirm the site, the task, and the robot setup\. Blueprint will use that to line up the right hosted evaluation path for your team\./i,
+      ),
+    ).toBeInTheDocument();
 
     expect(screen.queryByRole("combobox", { name: /Proof path/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: /Existing stack or review workflow/i })).not.toBeInTheDocument();

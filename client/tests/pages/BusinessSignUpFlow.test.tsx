@@ -123,7 +123,7 @@ describe("BusinessSignUpFlow analytics", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
 
-    await screen.findByText(/Site submission details/i);
+    await screen.findByLabelText(/Site name/i);
 
     fireEvent.change(screen.getByLabelText(/Site name/i), {
       target: { value: "Durham fulfillment center" },

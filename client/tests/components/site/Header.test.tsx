@@ -41,11 +41,10 @@ describe("Header", () => {
   it("uses a reduced proof-first action rail in the header", () => {
     render(<Header />);
 
-    const sampleLink = screen.getByRole("link", { name: /View sample listing/i });
-    const bookingLink = screen.getByRole("link", { name: /^Book call$/i });
+    const sampleLink = screen.getByRole("link", { name: /Inspect a real site/i });
     expect(sampleLink).toHaveAttribute("href", "/world-models/siteworld-f5fd54898cfb");
-    expect(bookingLink).toHaveAttribute("href", "/book-exact-site-review");
     expect(screen.queryByRole("link", { name: /See hosted evaluation/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Book call$/i })).not.toBeInTheDocument();
   });
 
   it("de-emphasizes auth from the main marketing header", () => {

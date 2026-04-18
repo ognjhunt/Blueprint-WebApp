@@ -10,7 +10,9 @@ describe("BookExactSiteReview", () => {
       screen.getByRole("heading", { name: /Book an exact-site scoping call\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/This is the fastest path when your team already has a real facility or listing in mind/i),
+      screen.getByText(
+        /Use this path when your team already has a real facility or listing in mind and wants to confirm whether Blueprint package access, hosted evaluation, or a custom scope makes the most sense\./i,
+      ),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Open scheduling/i })).toHaveAttribute(
       "href",

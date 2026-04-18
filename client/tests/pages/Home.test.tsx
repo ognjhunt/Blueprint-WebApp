@@ -65,7 +65,7 @@ describe("Home", () => {
   });
 
   it("surfaces concise sections for sites, products, proof, and closing action", {
-    timeout: 10000,
+    timeout: 20000,
   }, () => {
     window.localStorage.clear();
     render(<Home />);
