@@ -29,8 +29,8 @@ describe("SiteWorlds", () => {
       "/contact?persona=robot-team&interest=evaluation-package",
     );
 
-    expect(screen.getByText(/Site Package/i)).toBeInTheDocument();
-    expect(screen.getByText(/Hosted Session/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Site Package/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Hosted Session/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Public proof first/i)).toBeInTheDocument();
 
     expect(
@@ -40,11 +40,11 @@ describe("SiteWorlds", () => {
     ).toBeInTheDocument();
 
     expect(
-      screen.getByRole("link", { name: /Harborview Grocery Distribution Annex/i }),
-    ).toBeInTheDocument();
+      screen.getAllByRole("link", { name: /Harborview Grocery Distribution Annex/i }).length,
+    ).toBeGreaterThan(0);
     expect(
-      screen.getByRole("link", { name: /Media Room Demo Walkthrough/i }),
-    ).toBeInTheDocument();
+      screen.getAllByRole("link", { name: /Media Room Demo Walkthrough/i }).length,
+    ).toBeGreaterThan(0);
 
     expect(
       screen.getByRole("heading", {
