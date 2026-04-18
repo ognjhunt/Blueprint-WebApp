@@ -1,17 +1,14 @@
 {
   "schemaVersion": "2026-04-13.city-launch-activation-payload.v1",
   "machinePolicyVersion": "2026-04-13.city-launch-doctrine.v1",
-  "city": "Sacramento, CA",
-  "citySlug": "sacramento-ca",
+  "city": "Chicago, IL",
+  "citySlug": "chicago-il",
   "cityThesis": "Run one proof-led warehouse wedge.",
   "primarySiteLane": "industrial_warehouse",
   "primaryWorkflowLane": "dock handoff",
   "primaryBuyerProofPath": "exact_site",
   "lawfulAccessModes": [
-    "buyer_requested_site",
-    "site_operator_intro",
-    "capturer_existing_lawful_access",
-    "public_non_controlled_site"
+    "buyer_requested_site"
   ],
   "preferredLawfulAccessMode": "buyer_requested_site",
   "rightsPath": {
@@ -34,43 +31,7 @@
     "capturer-growth-agent",
     "analytics-agent"
   ],
-  "issueSeeds": [
-    {
-      "key": "city-opening-first-wave-pack",
-      "title": "Assemble first-wave pack",
-      "phase": "supply",
-      "ownerLane": "capturer-growth-agent",
-      "humanLane": "growth-lead",
-      "summary": "Prepare first-wave outreach and posting assets.",
-      "dependencyKeys": [],
-      "successCriteria": [
-        "First-wave pack is ready."
-      ],
-      "metricsDependencies": [
-        "first_lawful_access_path"
-      ],
-      "validationRequired": false
-    },
-    {
-      "key": "parallel-lawful-access-queue",
-      "title": "Maintain the Sacramento parallel lawful-access queue",
-      "phase": "founder_gates",
-      "ownerLane": "city-demand-agent",
-      "humanLane": "growth-lead",
-      "summary": "Keep Northgate Logistics, US Cold Storage - Ambient Module, McClellan Park - Building 775 (Light Industrial), Sacramento Costco - Natomas, and Home Depot - Sacramento (Cal Expo) queued in parallel.",
-      "dependencyKeys": [
-        "city-target-ledger"
-      ],
-      "successCriteria": [
-        "Sacramento keeps 3-5 named lawful-access candidates or buyer-linked fallback sites queued in parallel.",
-        "Each queued candidate names the current access posture and next move."
-      ],
-      "metricsDependencies": [
-        "first_lawful_access_path"
-      ],
-      "validationRequired": false
-    }
-  ],
+  "issueSeeds": [],
   "metricsDependencies": [
     {
       "key": "robot_team_inbound_captured",
@@ -129,15 +90,5 @@
       "notes": null
     }
   ],
-  "namedClaims": [
-    {
-      "subject": "Capital Robotics",
-      "claimType": "company",
-      "claim": "Capital Robotics is a named buyer target.",
-      "validationRequired": false,
-      "sourceUrls": [
-        "https://example.com/buyer"
-      ]
-    }
-  ]
+  "namedClaims": []
 }

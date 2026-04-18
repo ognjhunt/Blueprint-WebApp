@@ -3,16 +3,27 @@ import { describe, expect, it } from "vitest";
 import FAQ from "@/pages/FAQ";
 
 describe("FAQ", () => {
-  it("covers technical and buyer questions", () => {
+  it("renders the shortened buyer-objections page", () => {
     render(<FAQ />);
 
-    expect(screen.getByText(/not a generic benchmark scene or a synthetic environment generator/i)).toBeInTheDocument();
-    expect(screen.getByText(/camera poses, intrinsics, site notes, and any available depth or geometry artifacts/i)).toBeInTheDocument();
-    expect(screen.getByText(/one hour of self-serve hosted runtime on one exact site/i)).toBeInTheDocument();
-    expect(screen.getByText(/exact-site proof means the facility in the package or hosted session is the actual place the buyer cares about/i)).toBeInTheDocument();
-    expect(screen.getByText(/adjacent-site proof means a clearly labeled nearby or similar site/i)).toBeInTheDocument();
-    expect(screen.getByText(/a buyer can bring a policy, checkpoint, stack adapter, teleop surface, or evaluation contract into the scoping conversation/i)).toBeInTheDocument();
-    expect(screen.getByText(/Request-scoped commercial review means the public listing is readable, not that Blueprint is claiming blanket site approval/i)).toBeInTheDocument();
-    expect(screen.getByText(/If your team does not have a target facility or workflow lane yet, exact-site work is usually too early/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: /The questions that usually decide fit\./i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/What is a Blueprint world model\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/What does a buyer actually receive with the site package\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/What is hosted evaluation\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/What does exact-site proof mean versus adjacent-site proof\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/How close is this to a deployment guarantee\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/What if the exact site we care about is not in the catalog\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/How fast does Blueprint usually respond\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/Can we book time instead of starting with a form\?/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Talk to Blueprint about a real site/i }),
+    ).toHaveAttribute("href", "/contact?persona=robot-team");
+
+    expect(screen.queryByText(/What scenario variation controls are live today\?/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/What turns a listing from listing-only into proof-rich\?/i)).not.toBeInTheDocument();
   });
 });

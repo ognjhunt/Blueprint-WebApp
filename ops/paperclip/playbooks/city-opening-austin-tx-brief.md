@@ -18,10 +18,8 @@ Open Austin with truthful awareness before expecting replies: make the right peo
 - CTA: respond through the tagged city intake path with site type, access posture, contact role, and what kind of follow-up is requested.
 
 ## Evidence Anchors Available Now
-- Ranked Austin proof targets in the capture target ledger.
-- Austin proof-pack rights clearance dossier for the current rights boundary.
-- Exact-site Hosted Review wedge as the current buyer-facing posture.
-- Buyer target clusters are materialized, but no recipient-backed sends exist yet.
+- Example research-backed capture targets: Austin Capture Ops.
+- No research-backed buyer target set is materialized yet.
 
 ## Usage Rule
 This artifact is a working city-opening brief for operators and agents. It does not mean outreach has been sent, channels have been opened, or live responses already exist.

@@ -6,7 +6,7 @@
 - channels_ready_or_created: 0
 - sends_ready_or_sent: 0
 - sends_marked_sent: 0
-- sends_blocked: 10
+- sends_blocked: 0
 - responses_routed: 0
 - outbound_readiness_status: blocked
 
@@ -17,11 +17,11 @@
 - response ingest stays in the send ledger until the reply-conversion lane routes it onward.
 
 ## Outbound readiness
-- direct_outreach_total: 10
+- direct_outreach_total: 0
 - direct_outreach_recipient_backed: 0
 - email_transport_configured: true
 - city_launch_sender: launches@tryblueprint.io
 - Austin may be activated operationally, but it is not outwardly addressable yet.
 
 ### Outbound blockers
-- 10 draft direct-outreach actions are seeded, but all remain blocked pending verified recipients and human approval.
+- No recipient-backed direct-outreach send actions were seeded for Austin, TX.

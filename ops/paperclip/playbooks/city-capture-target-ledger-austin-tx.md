@@ -2,7 +2,7 @@
 
 - city: Austin, TX
 - city_slug: austin-tx
-- generated_at: 2026-04-17T16:50:35.679Z
+- generated_at: 2026-04-18T00:09:49.115Z
 - mode: deep_research_records
 - status: hypothesis-ranked targeting ledger, not a claim that every site is already accessible
 
@@ -47,7 +47,7 @@ This ledger is intentionally split into:
 
 ## Sources
 
-- [Austin deep research playbook](/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/existing-city-launch-harness-lFQ34b/austin-tx/2026-04-17T16-50-35.673Z/city-launch-contact-enrichment-austin-tx.json) — Latest completed deep-research artifact with structured launch records.
+- [Austin deep research playbook](/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/existing-city-launch-harness-0yzuR9/austin-tx/2026-04-18T00-09-49.095Z/city-launch-contact-enrichment-austin-tx.json) — Latest completed deep-research artifact with structured launch records.
 
 ## Warnings
 

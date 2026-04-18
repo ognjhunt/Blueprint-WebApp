@@ -1,38 +1,20 @@
 import { ContactForm } from "@/components/site/ContactForm";
 import { SEO } from "@/components/SEO";
-import { ScrollReveal } from "@/components/motion";
-import { motion, useReducedMotion } from "framer-motion";
 import { normalizeInterestToLane } from "@/lib/contactInterest";
-import { getDemandCityMessaging, withDemandCityQuery } from "@/lib/cityDemandMessaging";
+import { getDemandCityMessaging } from "@/lib/cityDemandMessaging";
 import { Mail, MessageSquare, Sparkles } from "lucide-react";
 import { useMemo } from "react";
 import { useSearch } from "wouter";
 
-function DotPattern() {
+function SectionLabel({ children }: { children: string }) {
   return (
-    <svg
-      className="absolute inset-0 -z-10 h-full w-full stroke-slate-200 [mask-image:radial-gradient(100%_100%_at_top_right,white,transparent)]"
-      aria-hidden="true"
-    >
-      <defs>
-        <pattern
-          id="grid-pattern"
-          width={40}
-          height={40}
-          x="50%"
-          y={-1}
-          patternUnits="userSpaceOnUse"
-        >
-          <path d="M.5 40V.5H40" fill="none" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" strokeWidth={0} fill="url(#grid-pattern)" />
-    </svg>
+    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+      {children}
+    </p>
   );
 }
 
 export default function Contact() {
-  const shouldReduce = useReducedMotion();
   const search = useSearch();
   const searchParams = useMemo(() => new URLSearchParams(search), [search]);
   const interest = searchParams.get("interest")?.trim() ?? "";
@@ -53,69 +35,53 @@ export default function Contact() {
     ? "Request Hosted Evaluation | Blueprint"
     : robotTeamCityMessaging
       ? `For ${robotTeamCityMessaging.shortLabel} Robot Teams | Blueprint`
-    : persona === "site_operator"
-      ? "For Site Operators | Blueprint"
-      : "For Robot Teams | Blueprint";
+      : persona === "site_operator"
+        ? "For Site Operators | Blueprint"
+        : "For Robot Teams | Blueprint";
   const seoDescription = hostedMode
     ? "Request a hosted robot-team evaluation for a site-specific world model."
     : robotTeamCityMessaging
       ? `Send Blueprint a short ${robotTeamCityMessaging.shortLabel} buyer brief anchored in exact-site proof, workflow context, and truthful next steps.`
-    : persona === "site_operator"
-      ? "Talk to Blueprint about facility participation, access rules, and governance."
-      : "Send Blueprint a short brief about the site, task, and robot setup you want to evaluate.";
+      : persona === "site_operator"
+        ? "Talk to Blueprint about facility participation, access rules, and governance."
+        : "Send Blueprint a short brief about the site, task, and robot setup you want to evaluate.";
 
   const badgeLabel = hostedMode
     ? "Hosted Evaluation"
     : robotTeamCityMessaging
       ? `For Robot Teams • ${robotTeamCityMessaging.shortLabel}`
-    : persona === "site_operator"
-      ? "For Site Operators"
-      : "For Robot Teams";
+      : persona === "site_operator"
+        ? "For Site Operators"
+        : "For Robot Teams";
   const heroTitle = hostedMode
     ? "Request a hosted evaluation for this site."
     : robotTeamCityMessaging
       ? robotTeamCityMessaging.requestHeroTitle
-    : persona === "site_operator"
-      ? "Tell us about the facility and the rules around it."
-      : "Tell us the site, task, and robot in a few lines.";
+      : persona === "site_operator"
+        ? "Tell us about the facility and the rules around it."
+        : "Tell us the site, task, and robot in a few lines.";
   const heroBody = hostedMode
     ? "Confirm the site, the task, and the robot setup. Blueprint will use that to line up the right hosted evaluation path for your team."
     : robotTeamCityMessaging
       ? robotTeamCityMessaging.requestHeroBody
-    : persona === "site_operator"
-      ? "Use this form if you run the facility and need to talk through capture access, privacy rules, or whether the site should be listed at all."
-      : "Use this form if your team needs one exact site for evaluation, site-specific data, release comparison, or package access. A short brief is enough if you are still figuring out fit.";
+      : persona === "site_operator"
+        ? "Use this form if you run the facility and need to talk through capture access, privacy rules, or whether the site should be listed at all."
+        : "Use this form if your team needs one exact site for evaluation, site-specific data, release comparison, or package access. A short brief is enough if you are still figuring out fit.";
   const responseTitle = hostedMode ? "Hosted evaluation request" : "What happens after you send this";
   const responseBody = hostedMode
     ? "Fill out the short form and Blueprint will follow up to confirm the site, robot setup, and the next step toward a hosted evaluation."
     : robotTeamCityMessaging
       ? robotTeamCityMessaging.requestResponseBody
-    : persona === "site_operator"
-      ? "Blueprint reviews the facility details, access rules, and privacy notes first so the next reply can narrow the path quickly."
-      : "Blueprint reviews the site, task, and robot details first. The reply should point your team toward the package path, hosted evaluation, or a short follow-up question.";
-  const learnMoreLinks = hostedMode
-    ? [
-          { href: "/world-models", label: "Back to World Models" },
-          { href: "/sample-deliverables", label: "Sample Deliverables" },
-          { href: "/faq", label: "FAQ" },
-        ]
       : persona === "site_operator"
-      ? [
-          { href: "/governance", label: "Governance" },
-          { href: "/about", label: "About Blueprint" },
-          { href: "/capture", label: "Capture basics" },
-        ]
-      : [
-          { href: "/world-models", label: "Explore world models" },
-          { href: "/exact-site-hosted-review", label: "Hosted evaluation" },
-          { href: "/sample-deliverables", label: "Sample deliverables" },
-          { href: "/faq", label: "FAQ" },
-        ];
+        ? "Blueprint reviews the facility details, access rules, and privacy notes first so the next reply can narrow the path quickly."
+        : "Blueprint reviews the site, task, and robot details first. The reply should point your team toward the package path, hosted evaluation, or a short follow-up question.";
+
   const afterInquiry = [
     "Blueprint reviews the site, task, and robot context first.",
     "The next reply narrows the package path, hosted evaluation path, or the follow-up question that actually matters.",
     "Rights, privacy, and proof boundaries stay explicit instead of being deferred into vague sales language.",
   ];
+
   const fastPaths = [
     {
       href: "/book-exact-site-review",
@@ -133,202 +99,126 @@ export default function Contact() {
       detail: "Best when your team wants to validate the proof style before any outreach.",
     },
   ];
+
   const responseCadence = [
     "Public-listing or hosted-evaluation questions: typical first reply within 1 business day.",
     "Request-scoped rights, privacy, or export review: typical first scoped answer within 2 business days.",
     "Private-site and unusual support requests: timing confirmed in the first follow-up once scope is clear.",
   ];
+
   return (
     <>
       <SEO title={seoTitle} description={seoDescription} canonical="/contact" />
-      <div className="relative min-h-screen overflow-hidden bg-white font-sans text-slate-900">
-        <DotPattern />
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="mb-12 max-w-2xl">
-            <motion.div
-              initial={shouldReduce ? {} : { opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium uppercase tracking-wider text-slate-600 backdrop-blur-sm"
-            >
-              <MessageSquare className="h-3 w-3" />
-              {badgeLabel}
-            </motion.div>
-            <motion.h1
-              initial={shouldReduce ? {} : { opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="mt-6 text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl"
-            >
-              {heroTitle}
-            </motion.h1>
-            <motion.p
-              initial={shouldReduce ? {} : { opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="mt-6 text-lg leading-relaxed text-slate-600"
-            >
-              {heroBody}
-            </motion.p>
-          </div>
 
-          <div className="grid grid-cols-1 gap-16 lg:grid-cols-2">
-            <ScrollReveal delay={0.1}>
-              <div className="space-y-8">
-                <motion.div
-                  whileHover={shouldReduce ? {} : { y: -2 }}
-                  className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm transition-shadow hover:shadow-md"
-                >
-                  <ContactForm />
-                </motion.div>
+      <div className="overflow-hidden bg-[#f6f1e8] text-slate-950">
+        <section className="relative border-b border-black/10">
+          <div className="absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_40%),radial-gradient(circle_at_82%_12%,_rgba(14,116,144,0.12),_transparent_24%),linear-gradient(180deg,_rgba(255,255,255,0.78),_rgba(246,241,232,0.96))]" />
+          <div className="absolute left-[-7rem] top-20 h-56 w-56 rounded-full bg-[#dce7df] blur-3xl" />
+          <div className="absolute right-[-8rem] top-12 h-72 w-72 rounded-full bg-[#eadfca] blur-3xl" />
+
+          <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-18 lg:px-8 lg:py-24">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/82 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
+                <MessageSquare className="h-3.5 w-3.5" />
+                {badgeLabel}
               </div>
-            </ScrollReveal>
+              <h1 className="font-editorial mt-5 text-[3.3rem] leading-[0.95] tracking-[-0.05em] text-slate-950 sm:text-[4.35rem]">
+                {heroTitle}
+              </h1>
+              <p className="mt-5 max-w-2xl text-base leading-8 text-slate-700 sm:text-[1.05rem]">
+                {heroBody}
+              </p>
+            </div>
+          </div>
+        </section>
 
-            <div className="flex flex-col justify-start space-y-6 lg:pl-8">
+        <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
+          <div className="grid gap-8 lg:grid-cols-[0.98fr_1.02fr]">
+            <div className="rounded-[1.95rem] border border-black/10 bg-white/88 p-6 shadow-[0_18px_40px_-36px_rgba(15,23,42,0.28)]">
+              <ContactForm />
+            </div>
+
+            <div className="space-y-4">
               {robotTeamCityMessaging ? (
-                <ScrollReveal delay={0.12}>
-                  <motion.div
-                    whileHover={shouldReduce ? {} : { y: -2 }}
-                    className="rounded-2xl border border-sky-200 bg-sky-50/80 p-6 transition-shadow hover:shadow-sm"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-sky-700">
-                        <Sparkles className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
-                          {robotTeamCityMessaging.label}
-                        </p>
-                        <h3 className="mt-2 font-semibold text-slate-900">
-                          {robotTeamCityMessaging.requestCardTitle}
-                        </h3>
-                        <p className="mt-2 text-sm text-slate-600">
-                          {robotTeamCityMessaging.requestCardBody}
-                        </p>
-                        <ul className="mt-4 space-y-2 text-sm text-slate-700">
-                          {robotTeamCityMessaging.requestCardPoints.map((point) => (
-                            <li key={point} className="flex items-start gap-2">
-                              <span className="mt-2 h-1.5 w-1.5 rounded-full bg-sky-600" />
-                              <span>{point}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </motion.div>
-                </ScrollReveal>
-              ) : null}
-
-              <ScrollReveal delay={0.15}>
-                <motion.div
-                  whileHover={shouldReduce ? {} : { y: -2 }}
-                  className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-6 transition-shadow hover:shadow-sm"
-                >
+                <article className="rounded-[1.85rem] border border-sky-200 bg-sky-50/88 p-6">
                   <div className="flex items-start gap-4">
-                    <motion.div
-                      animate={shouldReduce ? {} : { rotate: [0, 5, -5, 0] }}
-                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600"
-                    >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-sky-700">
                       <Sparkles className="h-5 w-5" />
-                    </motion.div>
+                    </div>
                     <div>
-                      <h3 className="font-semibold text-slate-900">{responseTitle}</h3>
-                      <p className="mt-1 text-sm text-slate-600">{responseBody}</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
+                        {robotTeamCityMessaging.label}
+                      </p>
+                      <h2 className="mt-2 text-xl font-semibold text-slate-900">
+                        {robotTeamCityMessaging.requestCardTitle}
+                      </h2>
+                      <p className="mt-2 text-sm leading-7 text-slate-600">
+                        {robotTeamCityMessaging.requestCardBody}
+                      </p>
                       <ul className="mt-4 space-y-2 text-sm text-slate-700">
-                        {afterInquiry.map((item) => (
-                          <li key={item} className="flex items-start gap-2">
-                            <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-900" />
-                            <span>{item}</span>
+                        {robotTeamCityMessaging.requestCardPoints.map((point) => (
+                          <li key={point} className="flex items-start gap-2">
+                            <span className="mt-2 h-1.5 w-1.5 rounded-full bg-sky-600" />
+                            <span>{point}</span>
                           </li>
                         ))}
                       </ul>
-                      <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                          Typical response cadence
-                        </p>
-                        <ul className="mt-3 space-y-2 text-sm text-slate-700">
-                          {responseCadence.map((item) => (
-                            <li key={item} className="flex items-start gap-2">
-                              <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-900" />
-                              <span>{item}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
                     </div>
                   </div>
-                </motion.div>
-              </ScrollReveal>
+                </article>
+              ) : null}
 
-              <ScrollReveal delay={0.2}>
-                <motion.div
-                  whileHover={shouldReduce ? {} : { y: -2 }}
-                  className="rounded-2xl border border-slate-200 bg-white p-6 transition-shadow hover:shadow-sm"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
-                      <Mail className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-slate-900">Prefer a lighter first step?</h3>
-                      <a
-                        href="mailto:hello@tryblueprint.io?subject=Blueprint%20brief"
-                        className="mt-1 inline-block text-slate-900 transition hover:text-slate-700 hover:underline"
-                      >
-                        Email a short brief to hello@tryblueprint.io
-                      </a>
-                    </div>
-                  </div>
-                </motion.div>
-              </ScrollReveal>
-
-              <ScrollReveal delay={0.25}>
-                <div className="rounded-2xl border border-slate-200 bg-white p-6">
-                  <h3 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-400">
-                    Fastest Paths
-                  </h3>
-                  <div className="space-y-3">
-                    {fastPaths.map((path) => (
-                      <a
-                        key={path.href}
-                        href={path.href}
-                        className="block rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 transition hover:border-slate-300 hover:bg-white"
-                      >
-                        <p className="text-sm font-semibold text-slate-900">{path.label}</p>
-                        <p className="mt-2 text-sm leading-6 text-slate-600">{path.detail}</p>
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              </ScrollReveal>
-
-              <ScrollReveal delay={0.3}>
-                <div className="rounded-2xl border border-slate-200 bg-white p-6">
-                  <h3 className="mb-4 text-sm font-bold uppercase tracking-widest text-slate-400">
-                    Learn More
-                  </h3>
-                  <ul className="space-y-3">
-                    {learnMoreLinks.map((link) => (
-                      <li key={link.href}>
-                        <a
-                          href={withDemandCityQuery(
-                            link.href,
-                            robotTeamCityMessaging?.key ?? null,
-                          )}
-                          className="group flex items-center gap-2 text-slate-700 transition hover:text-slate-900"
-                        >
-                          <span>{link.label}</span>
-                          <span className="transition-transform group-hover:translate-x-0.5">→</span>
-                        </a>
+              <article className="rounded-[1.85rem] border border-black/10 bg-slate-950 p-6 text-white shadow-[0_22px_50px_-40px_rgba(15,23,42,0.75)]">
+                <SectionLabel>{responseTitle}</SectionLabel>
+                <p className="mt-4 text-sm leading-7 text-white/76">{responseBody}</p>
+                <ul className="mt-5 space-y-3 text-sm leading-7 text-white/78">
+                  {afterInquiry.map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <span className="mt-2 h-1.5 w-1.5 rounded-full bg-white/45" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/55">
+                    Typical response cadence
+                  </p>
+                  <ul className="mt-3 space-y-2 text-sm text-white/76">
+                    {responseCadence.map((item) => (
+                      <li key={item} className="flex items-start gap-2">
+                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-white/45" />
+                        <span>{item}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
-              </ScrollReveal>
+              </article>
+
+              <article className="rounded-[1.85rem] border border-black/10 bg-white/88 p-6 shadow-[0_18px_40px_-36px_rgba(15,23,42,0.28)]">
+                <SectionLabel>Fastest Paths</SectionLabel>
+                <div className="mt-4 space-y-3">
+                  {fastPaths.map((path) => (
+                    <a
+                      key={path.href}
+                      href={path.href}
+                      className="block rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 transition hover:border-slate-300 hover:bg-white"
+                    >
+                      <p className="text-sm font-semibold text-slate-900">{path.label}</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">{path.detail}</p>
+                    </a>
+                  ))}
+                </div>
+                <a
+                  href="mailto:hello@tryblueprint.io?subject=Blueprint%20brief"
+                  className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-slate-900 transition hover:text-slate-700 hover:underline"
+                >
+                  <Mail className="h-4 w-4" />
+                  Email a short brief to hello@tryblueprint.io
+                </a>
+              </article>
             </div>
           </div>
-        </div>
+        </section>
       </div>
     </>
   );

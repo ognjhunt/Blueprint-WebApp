@@ -1,14 +1,15 @@
 # BLU-3100 Status
 
 - Issue: Run Sacramento outbound and move serious buyers into hosted review
-- Date: 2026-04-17
+- Date: 2026-04-18
 - Owner: outbound-sales-agent
 - Status: blocked
 
 ## What I checked
 
-- Re-read the Sacramento launch system, the 2026-04-17 first-wave pack, the send ledger, the robot-team contact list, and the site-operator contact list.
+- Re-read the Sacramento launch system, the Sacramento city-opening first-wave pack, the send ledger, and the Sacramento launch and target-ledger playbooks.
 - Confirmed the Sacramento outbound lane is still scoped to the exact-site hosted-review posture and that the live send path has not produced a sent record.
+- Verified the simplified product pages for hosted review, governance, how it works, and pricing with targeted Vitest coverage.
 - Confirmed the issue remains bound to the Sacramento city-launch program and should stay within buyer conversations only.
 
 ## Current buyer shortlist
@@ -19,7 +20,7 @@
 
 ## Draft state
 
-- The Sacramento first-wave pack now names Raymond West, Lineage Logistics, and Locus Robotics as the current first-wave buyer set and keeps the CTA anchored to one workflow lane and one truthful hosted-review path.
+- The Sacramento first-wave pack keeps the CTA anchored to one workflow lane and one truthful hosted-review path.
 - The send ledger marks the direct outreach actions as `ready_to_send` with approval recorded.
 - No live send has been recorded from this issue yet.
 

@@ -1,259 +1,234 @@
 import { SEO } from "@/components/SEO";
 import { OfferComparison } from "@/components/site/OfferComparison";
-import { WhenNotToBuyModule } from "@/components/site/WhenNotToBuyModule";
 import { exactSiteScopingCallPath } from "@/lib/booking";
+import { publicDemoHref } from "@/lib/marketingProof";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 
-const pricingNotes = [
+const heroSignals = [
+  "Site package",
+  "Hosted session-hour",
+  "Custom scope only when needed",
+];
+
+const choiceCards = [
   {
-    title: "Site package",
-    body: "A one-time purchase of the full data bundle for one facility. Your team runs its own stack on the captured site data.",
+    title: "Package first",
+    body:
+      "Choose this when your team wants the site data contract and plans to run its own stack on that facility.",
   },
   {
-    title: "Hosted evaluation",
-    body: "Blueprint runs the site for you. Your team gets a managed runtime session for reruns, failure review, and exports — no local setup needed.",
+    title: "Hosted first",
+    body:
+      "Choose this when your team wants runtime evidence, reruns, and exports before moving files into its own environment.",
   },
   {
-    title: "Session-hour",
-    body: "One hour of self-serve hosted runtime on one exact site, covering run time, inspection, and export generation.",
-  },
-  {
-    title: "Custom scope",
-    body: "Private sites, exclusive rights, managed support, and custom capture are quoted separately.",
+    title: "Custom first",
+    body:
+      "Choose this when the site is private, rights are unusual, or higher-touch managed support changes the work from the start.",
   },
 ];
 
-const pricingWorkflow = [
-  "Inspect the listing and its trust labels first.",
-  "Choose the package path, hosted evaluation, or a custom scope based on the real site question.",
-  "Use contact or booking to narrow the exact site, workflow lane, and any trust boundaries that could change scope.",
+const scopeCards = [
+  {
+    title: "What changes scope",
+    body:
+      "Private-site work, unusual trust review, exclusive rights, and higher-touch managed support are quoted separately when they materially change the job.",
+  },
+  {
+    title: "Typical first reply",
+    body:
+      "Public-listing and hosted-review pricing questions usually get a first reply within 1 business day. Request-scoped rights, privacy, export, or commercial review usually gets a first scoped answer within 2 business days.",
+  },
+  {
+    title: "What pricing does not claim",
+    body:
+      "Public price visibility does not imply unrestricted export rights, blanket site approval, or a deployment guarantee. Exact-site proof and adjacent-site proof still need to stay clearly labeled.",
+  },
 ];
 
-const responseCadence = [
-  "Public-listing and hosted-evaluation questions: typical first reply within 1 business day.",
-  "Request-scoped rights, privacy, export, or commercial review: typical first scoped answer within 2 business days.",
-  "Private-site or managed-support requests: exact timing confirmed in follow-up once the real scope is clear.",
-];
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+      {children}
+    </p>
+  );
+}
 
 export default function Pricing() {
   return (
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Blueprint pricing for robot teams: site packages for grounding your own world model, hosted evaluation on one exact site, and custom engagements."
+        description="Public pricing for Blueprint's exact-site buying paths: site packages, hosted session-hours, and custom scope when a real facility needs a private program."
         canonical="/pricing"
       />
 
-      <div className="min-h-screen bg-white">
-        <div className="mx-auto max-w-5xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
-          <header className="max-w-3xl space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Pricing
-            </p>
-            <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              Start with the package or the hosted runtime.
-            </h1>
-            <p className="text-lg leading-8 text-slate-600">
-              Most teams need one of two things first: all the site data for their own
-              stack, or a Blueprint-managed runtime session on the exact site. Prices are on every
-              listing so you do not need a sales call to understand what you are buying.
-            </p>
-          </header>
+      <div className="overflow-hidden bg-[#f6f1e8] text-slate-950">
+        <section className="relative border-b border-black/10">
+          <div className="absolute inset-x-0 top-0 h-[38rem] bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_38%),radial-gradient(circle_at_84%_12%,_rgba(14,116,144,0.12),_transparent_22%),linear-gradient(180deg,_rgba(255,255,255,0.76),_rgba(246,241,232,0.96))]" />
+          <div className="absolute left-[-6rem] top-24 h-56 w-56 rounded-full bg-[#dde6df] blur-3xl" />
+          <div className="absolute right-[-8rem] top-10 h-72 w-72 rounded-full bg-[#eadfca] blur-3xl" />
 
-          <OfferComparison className="mt-10" />
-
-          <section className="mt-10 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-            <article className="rounded-2xl border border-slate-200 bg-white p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Typical first purchase
-              </p>
-              <h2 className="mt-2 text-2xl font-bold text-slate-900">
-                Most teams do not need a bespoke program on day one.
-              </h2>
-              <div className="mt-5 grid gap-3">
-                {[
-                  "Package first: when your team wants the site data contract and plans to run its own stack.",
-                  "Hosted evaluation first: when your team wants runtime evidence, reruns, and exports before moving files around.",
-                  "Custom quote first: when the site is private, rights need negotiation, or managed support is part of the job.",
-                ].map((item) => (
-                  <div key={item} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </article>
-            <article className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                What happens after inquiry
-              </p>
-              <h2 className="mt-2 text-2xl font-bold text-slate-900">
-                Pricing is public. Scope is still confirmed on the real site.
-              </h2>
-              <div className="mt-5 space-y-3 text-sm leading-6 text-slate-700">
-                <p>1. Blueprint confirms the exact site, workflow lane, and trust boundaries.</p>
-                <p>2. The reply points you to the package path, hosted evaluation, or a custom quote.</p>
-                <p>3. Commercial follow-through narrows the scope instead of reopening discovery from scratch.</p>
-              </div>
-            </article>
-          </section>
-
-          <section className="mt-10 grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
-            <article className="rounded-2xl border border-slate-200 bg-slate-950 p-6 text-white">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                Buyer workflow
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold">Pricing should sit next to proof, not replace it.</h2>
-              <div className="mt-5 space-y-3">
-                {pricingWorkflow.map((item, index) => (
-                  <div key={item} className="rounded-2xl border border-slate-800 bg-slate-900/90 px-4 py-4 text-sm leading-7 text-slate-300">
-                    <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-950">
-                      {index + 1}
-                    </span>
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </article>
-
-            <article className="rounded-2xl border border-slate-200 bg-white p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Where to start
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold text-slate-900">
-                The clearest first move depends on how sure your team already is.
-              </h2>
-              <div className="mt-5 grid gap-3">
-                {[
-                  {
-                    title: "Still validating the category",
-                    body: "Inspect the sample listing and sample deliverables before asking for anything custom.",
-                  },
-                  {
-                    title: "Know the site and question",
-                    body: "Book the scoping call or send the short brief so the conversation stays anchored to one exact facility.",
-                  },
-                  {
-                    title: "Need private or unusual terms",
-                    body: "Use the custom path and say what about the site, rights model, or support layer changes the normal listing flow.",
-                  },
-                ].map((item) => (
-                  <div key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm font-semibold text-slate-900">{item.title}</p>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">{item.body}</p>
-                  </div>
-                ))}
-              </div>
-            </article>
-          </section>
-
-          <section className="mt-10 grid gap-4 lg:grid-cols-[1fr_0.95fr]">
-            <article className="rounded-2xl border border-slate-200 bg-white p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Typical commercial cadence
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold text-slate-900">
-                Pricing is public. Scope still gets narrowed in follow-up.
-              </h2>
-              <div className="mt-5 grid gap-3">
-                {responseCadence.map((item) => (
-                  <div key={item} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-700">
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </article>
-
-            <article className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Minimums and managed support
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold text-slate-900">
-                Public listing prices cover the standard starting path.
-              </h2>
-              <p className="mt-3 text-sm leading-7 text-slate-600">
-                Site-package prices and hosted session-hour rates are the public starting point.
-                Private-site onboarding, unusual trust review, or higher-touch managed support are
-                scoped separately when they materially change the work.
-              </p>
-            </article>
-          </section>
-
-          <section className="mt-10 rounded-2xl border border-slate-200 bg-white p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Proof path
-            </p>
-            <h2 className="mt-2 text-2xl font-bold text-slate-900">
-              Exact-site proof vs adjacent-site proof
-            </h2>
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <article className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <p className="text-sm font-semibold text-slate-900">Exact-site proof</p>
-                <p className="mt-2 text-sm leading-7 text-slate-600">
-                  Use this when the site in the package or hosted session needs to be the actual place the buyer cares about. This is the higher-trust path for deployment-specific questions.
+          <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-18 lg:px-8 lg:py-24">
+            <div className="grid gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-end">
+              <div className="max-w-3xl">
+                <SectionLabel>Pricing</SectionLabel>
+                <h1 className="font-editorial mt-5 text-[3.35rem] leading-[0.95] tracking-[-0.05em] text-slate-950 sm:text-[4.5rem]">
+                  Public pricing for the exact-site paths that matter first.
+                </h1>
+                <p className="mt-5 max-w-2xl text-base leading-8 text-slate-700 sm:text-[1.05rem]">
+                  Most teams start with one of three moves: buy the site package, run the hosted path, or scope a custom program around one real facility.
                 </p>
-              </article>
-              <article className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <p className="text-sm font-semibold text-slate-900">Adjacent-site proof</p>
-                <p className="mt-2 text-sm leading-7 text-slate-600">
-                  Use this when a clearly labeled nearby or similar site is enough to answer an earlier or lower-risk question. It should be labeled explicitly, not blurred into exact-site claims.
-                </p>
-              </article>
+
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                  <a
+                    href={publicDemoHref}
+                    className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  >
+                    Inspect sample site
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
+                  <a
+                    href={exactSiteScopingCallPath}
+                    className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white/85 px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-white"
+                  >
+                    Book scoping call
+                  </a>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                {heroSignals.map((item) => (
+                  <article
+                    key={item}
+                    className="rounded-[1.65rem] border border-black/10 bg-white/82 p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.28)]"
+                  >
+                    <p className="text-sm font-semibold text-slate-900">{item}</p>
+                  </article>
+                ))}
+              </div>
             </div>
-          </section>
+          </div>
+        </section>
 
-          <div className="mt-10">
-            <WhenNotToBuyModule />
+        <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
+          <OfferComparison className="" />
+        </section>
+
+        <section className="border-y border-black/10 bg-white/55">
+          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
+            <div className="max-w-2xl">
+              <SectionLabel>How To Choose</SectionLabel>
+              <h2 className="font-editorial mt-4 text-4xl tracking-[-0.05em] text-slate-950 sm:text-[3.3rem]">
+                How to choose the first move.
+              </h2>
+            </div>
+
+            <div className="mt-8 grid gap-4 lg:grid-cols-3">
+              {choiceCards.map((card, index) => (
+                <article
+                  key={card.title}
+                  className={
+                    index === 1
+                      ? "rounded-[1.85rem] border border-black/10 bg-slate-950 p-6 text-white shadow-[0_22px_50px_-40px_rgba(15,23,42,0.75)]"
+                      : "rounded-[1.85rem] border border-black/10 bg-[#fbf9f5] p-6"
+                  }
+                >
+                  <p
+                    className={
+                      index === 1
+                        ? "text-xs font-semibold uppercase tracking-[0.18em] text-white/52"
+                        : "text-xs font-semibold uppercase tracking-[0.18em] text-slate-500"
+                    }
+                  >
+                    Option {index + 1}
+                  </p>
+                  <h3
+                    className={
+                      index === 1
+                        ? "mt-4 text-2xl font-semibold tracking-tight text-white"
+                        : "mt-4 text-2xl font-semibold tracking-tight text-slate-900"
+                    }
+                  >
+                    {card.title}
+                  </h3>
+                  <p
+                    className={
+                      index === 1
+                        ? "mt-4 text-sm leading-7 text-white/78"
+                        : "mt-4 text-sm leading-7 text-slate-600"
+                    }
+                  >
+                    {card.body}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
+          <div className="max-w-2xl">
+            <SectionLabel>Scope And Trust</SectionLabel>
+            <h2 className="font-editorial mt-4 text-4xl tracking-[-0.05em] text-slate-950 sm:text-[3.2rem]">
+              What changes scope.
+            </h2>
           </div>
 
-          <section className="mt-10 grid gap-4 md:grid-cols-2">
-            {pricingNotes.map((note) => (
+          <div className="mt-8 grid gap-4 lg:grid-cols-3">
+            {scopeCards.map((card) => (
               <article
-                key={note.title}
-                className="rounded-2xl border border-slate-200 bg-slate-50 p-6"
+                key={card.title}
+                className="rounded-[1.85rem] border border-black/10 bg-white/85 p-6 shadow-[0_18px_40px_-36px_rgba(15,23,42,0.3)]"
               >
-                <h2 className="text-xl font-bold text-slate-900">{note.title}</h2>
-                <p className="mt-3 text-sm leading-7 text-slate-600">{note.body}</p>
+                <h3 className="text-2xl font-semibold tracking-tight text-slate-900">{card.title}</h3>
+                <p className="mt-4 text-sm leading-7 text-slate-600">{card.body}</p>
               </article>
             ))}
-          </section>
+          </div>
+        </section>
 
-          <section className="mt-10 rounded-2xl border border-slate-200 bg-slate-50 p-6">
-            <div className="mb-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Custom scope
-              </p>
-              <h2 className="mt-2 text-xl font-bold text-slate-900">
-                Need a site that is not in the public catalog yet?
-              </h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                Use the custom path when one specific facility matters more than the public
-                inventory, or when the rights and privacy model need to be negotiated up front.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <a
-                  href={exactSiteScopingCallPath}
-                  className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-                >
-                  Book a scoping call
-                </a>
-                <a
-                  href="/contact?persona=robot-team&interest=enterprise"
-                  className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
-                >
-                  Request a custom quote
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </a>
+        <section className="pb-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="overflow-hidden rounded-[2.25rem] border border-black/10 bg-slate-950 px-6 py-10 text-white shadow-[0_30px_80px_-52px_rgba(15,23,42,0.85)] sm:px-8 lg:px-10 lg:py-12">
+              <div className="grid gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:items-end">
+                <div className="max-w-2xl">
+                  <SectionLabel>Custom Scope</SectionLabel>
+                  <h2 className="font-editorial mt-4 text-4xl tracking-[-0.05em] text-white sm:text-[3.1rem]">
+                    Need a site that is not in the public catalog yet?
+                  </h2>
+                  <p className="mt-4 text-sm leading-7 text-white/72">
+                    Use the custom path when one specific facility matters more than the current public inventory, or when the rights, privacy, or support model needs to be negotiated up front.
+                  </p>
+                </div>
+
+                <div className="grid gap-3">
+                  <a
+                    href={exactSiteScopingCallPath}
+                    className="inline-flex items-center justify-between rounded-2xl bg-white px-5 py-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                  >
+                    Book scoping call
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
+                  <a
+                    href="/contact?persona=robot-team&interest=enterprise"
+                    className="inline-flex items-center justify-between rounded-2xl border border-white/15 bg-white/5 px-5 py-4 text-sm font-semibold text-white transition hover:bg-white/10"
+                  >
+                    Request custom quote
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
+                  <a
+                    href="mailto:hello@tryblueprint.io?subject=Blueprint%20brief"
+                    className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-transparent px-5 py-4 text-sm font-semibold text-white/88 transition hover:bg-white/8"
+                  >
+                    <ShieldCheck className="h-4 w-4 text-white/70" />
+                    Email a short brief
+                  </a>
+                </div>
               </div>
             </div>
-            <a
-              href="mailto:hello@tryblueprint.io?subject=Blueprint%20brief"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 transition hover:text-slate-900"
-            >
-              <ShieldCheck className="h-4 w-4 text-slate-500" />
-              Not ready for the full form? Email a short brief.
-            </a>
-          </section>
-        </div>
+          </div>
+        </section>
       </div>
     </>
   );

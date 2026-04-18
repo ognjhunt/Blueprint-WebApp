@@ -46,10 +46,23 @@ This lane is not for private controlled interiors. It is for bounded community o
 Reply only if your work can stay inside that boundary and you can follow the site and privacy rules without improvising permissions.
 ```
 
+## Sacramento Named Anchor Set
+
+Use these as the live pack anchors when the issue needs concrete Sacramento examples:
+
+- US Cold Storage - Ambient Module — operator-intro candidate in McClellan Park; keep the ask to exact-site validation and lawful access posture.
+- McClellan Park - Building 775 (Light Industrial) — operator-intro candidate with a simpler consent path than the ambient module.
+- Sacramento Costco - Natomas — big_box_retail / public_non_controlled / inventory AMR and aisle-navigation signal; no permission required.
+- Home Depot - Sacramento (Cal Expo) — home_improvement_retail / public_non_controlled / forklift-robot co-navigation and pallet movement signal; no permission required.
+- Safeway - Alhambra Blvd — grocery_retail / public_non_controlled / shelf-scanning and stock-audit signal; no permission required.
+- Walmart Supercenter - Natomas — big_box_retail / public_non_controlled / inventory AMR and aisle-navigation signal; no permission required.
+- Arden Fair Mall - Common Areas — shopping_mall / public_non_controlled / common-area capture only; keep the brief to public spaces.
+- Next move: route the two operator-intro prospects toward site-operator-partnership handling and route the public_non_controlled prospects into the public-commercial community lane with the same tagged intake path.
+
 ## Copy Rules
 - say who Blueprint is and what exact city-opening motion is underway
 - say what spaces are in scope and what is not allowed
-- point every asset to the same tagged intake path with source tagging
+- point every asset to the same CTA / intake path with source tagging
 - keep the first touch under a single source bucket, a single workflow lane, and a single next step
 - do not imply traction, legal certainty, or permission that does not exist
 

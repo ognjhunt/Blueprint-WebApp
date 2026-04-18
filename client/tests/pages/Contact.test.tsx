@@ -64,24 +64,18 @@ describe("Contact page", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText(/For Robot Teams/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/What happens after you send this/i)).toBeInTheDocument();
-    expect(screen.getByText(/Prefer a lighter first step\?/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Explore world models/i })).toHaveAttribute(
-      "href",
-      "/world-models",
-    );
-    expect(screen.getAllByRole("link", { name: /Hosted evaluation/i })[0]).toHaveAttribute(
-      "href",
-      "/exact-site-hosted-review",
-    );
-    expect(screen.getByRole("link", { name: /Sample deliverables/i })).toHaveAttribute("href", "/sample-deliverables");
+    expect(screen.getByText(/Typical response cadence/i)).toBeInTheDocument();
     expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Fastest paths/i)).toBeInTheDocument();
     expect(screen.getByText(/Book a scoping call/i)).toBeInTheDocument();
     expect(
       screen.getByText(/Best when your team wants the runtime path explained before it writes a brief\./i),
     ).toBeInTheDocument();
     expect(screen.getByText(/Inspect the sample listing/i)).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /What should Blueprint help your team answer first\?/i })).toBeInTheDocument();
+    expect(screen.queryByText(/Learn More/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Prefer a lighter first step\?/i)).not.toBeInTheDocument();
     expect(analyticsEventsMock.contactRequestStarted).toHaveBeenCalledWith({
       persona: "robot_team",
       hostedMode: false,
@@ -128,10 +122,8 @@ describe("Contact page", () => {
     expect(
       screen.getByText(/Texas Robotics, a founder intro, a university contact, or an industrial partner/i),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Explore world models/i })).toHaveAttribute(
-      "href",
-      "/world-models?city=austin",
-    );
+    expect(screen.getByText(/Fastest paths/i)).toBeInTheDocument();
+    expect(screen.getByText(/Inspect the sample listing/i)).toBeInTheDocument();
   });
 
   it("renders San Francisco-specific buyer guidance when the city param is present", () => {

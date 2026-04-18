@@ -3,7 +3,7 @@
 ## Status
 - phase: activation_ready
 - owner: city-launch-agent
-- last-reviewed: 2026-04-17
+- last-reviewed: 2026-04-18
 - recommended-posture: gated cohort pilot
 - last-human-launch-decision: approved with conditions
 - planning-state: completed
@@ -11,13 +11,49 @@
 ## Launch Thesis
 Run one proof-led warehouse wedge.
 
+## Current Founder-Gate Focus
+- This week's Sacramento focus is the first multi-tenant lawful access path for an ambient-temperature McClellan Park industrial module.
+- The first acceptable access packet requires signed property-owner, operator, and tenant consent, not just a single facility contact.
+- Until that packet exists, Sacramento stays activation-ready but not dispatchable into private controlled interiors.
+- The active lawful-access modes remain `buyer_requested_site`, `site_operator_intro`, and `capturer_existing_lawful_access` when explicitly cleared against existing obligations.
+
+## Issue-Ready Work Items
+| Lane | Owner | Next reversible step | Completion signal |
+|---|---|---|---|
+| Founder gate | founder | Confirm no-go / go posture for the McClellan Park 3-tier consent path | Founder approval or a formal hold |
+| Growth | growth-lead | Keep Sacramento source policy narrow and buyer-thread-led | Written sponsor path for the first site thread |
+| Ops | ops-lead | Draft the 3-tier consent packet and COI / equipment checklist | Packet ready for owner, operator, and tenant review |
+| Intake | intake-agent | Pre-tag how signed access packets enter the canonical queue | Named intake state and next-owner routing |
+| Analytics | analytics-agent | Track first lawful access path and proof-path assignment explicitly | Metrics mapped to the Sacramento scorecard |
+| Field Ops | field-ops-agent | Keep dispatch assumptions ambient-temp only until hardware fit is verified | Ready-to-send dispatch checklist for a rights-cleared site |
+
+## Four-Layer Operating Split
+### Founder-only
+- Go / no-go for the first lawful access path
+- Spend posture beyond the approved low-budget envelope
+- Any posture-changing public claim or precedent-setting legal exception
+
+### Human operator-owned
+- Ops Lead owns the 3-tier consent packet and rights clearance
+- Growth Lead owns the narrow source policy and sponsor path
+- Designated human rights and commercial owners handle any exceptions
+
+### Agent-prepared / autonomous
+- city-launch-agent keeps the city guide and dependency map current
+- city-demand-agent keeps the target ledger and lawful-access queue aligned
+- analytics-agent keeps the scorecard and blocker view explicit
+
+### Exception-only escalation
+- Defense-adjacent or air-gapped delivery requests
+- Any request that changes privacy, rights, or commercial precedent
+- Any attempt to treat a single facility contact as sufficient authorization for a multi-tenant interior
+
 ## What Changed This Pass
-- weekly-cycle note: `BLU-3143` remains the current Sacramento lawful-access blocker, and this run did not touch any other city.
 - evidence-backed: the generic city-launch activation harness generated the Sacramento system doc, execution issue bundle, target ledger, and compact city playbooks in one run.
 - evidence-backed: the launch harness now tracks planning state explicitly so activation can distinguish "not started" from "research still running".
 - evidence-backed: the compact launch packet uses the standard platform analytics event model rather than inventing city-specific telemetry.
 - evidence-backed: the target ledger mode for this city is `deep_research_records`. Research-backed named targets already available include Northgate Logistics.
-- analytics-backed: the latest Sacramento scorecard still shows proof motion as blocked because live proof-pack delivery, hosted-review start, and follow-up stamps are not verified in this window.
+- evidence-backed: the lawful-access queue is now explicit about its parallel paths instead of collapsing everything into one industrial bucket.
 
 ## Why This City Now
 - the city remains a planning candidate only if it can produce rights-cleared exact-site proof assets for real robotics workflows
@@ -95,48 +131,19 @@ Private controlled interiors require authorization.
 
 ## Validation Blockers
 
-- first multi-tenant lawful access path is not yet signed by owner, operator, and tenant
-- current bound issue `BLU-3143` is executing that first lawful access path for the ambient-temperature McClellan Park industrial module
-- live proof-motion metrics remain `required_not_tracked`, so the scorecard cannot smooth missing proof-pack or hosted-review stamps into progress
-- no new rights, spend, or posture facts changed during this weekly cycle
-- this lane stays open until the signed owner/operator/tenant path is logged in the target ledger, execution issue bundle, and execution report
-
-## Issue-Ready Work Queue
-| Owner | Proposed issue | Why now | Done when |
-|---|---|---|---|
-| site-operator-partnership-agent | Lock the first multi-tenant lawful access path | Sacramento cannot widen private controlled-interior dispatch until one owner/operator/tenant path is signed | First lawful access path is signed and logged in the target ledger, issue bundle, and execution report |
-| analytics-agent | Verify live proof-motion stamps for Sacramento | The current scorecard is still blocked until proof-pack delivery, hosted-review start, and follow-up can be verified in the canonical path | The live path shows verified proof-pack, hosted-review, and follow-up stamps for this window |
-
-## Four-Layer Operating Split
-
-### Founder-only
-- Decide whether Sacramento stays on the gated cohort pilot posture or widens into a different launch posture.
-- Approve any spend-envelope changes, posture-changing public claims, or precedent-setting rights/privacy exceptions.
-
-### Human operator-owned
-- Growth Lead owns channel posture, source sequencing, and any partner-facing outreach decisions.
-- Ops Lead owns intake rubric, activation thresholds, trust-kit standards, and launch-readiness signoff.
-- Commercial owner owns standard quotes inside approved bands.
-
-### Agent-prepared / autonomous
-- city-launch-agent keeps the city guide, scorecard, and issue queue current.
-- intake-agent prepares qualification logic and trust-packet sequencing.
-- field-ops-agent prepares proof-pack and site-access operations.
-- analytics-agent prepares the measurement stack and reporting view.
-
-### Exception-only escalation
-- Escalate only when the city needs a new lawful-access exception, a rights/privacy exception, or a posture change that would alter the launch envelope.
-- Keep the current blocker visible until the signed owner/operator/tenant path is logged.
+- No complete 3-tier consent packet is signed yet.
+- No rights-cleared proof asset exists for the first Sacramento access path.
+- No external confirmation has converted the McClellan path from research into an executable private-interior dispatch.
 
 ## Readiness Scorecard
 | Dimension | Score | Rationale |
 |---|---:|---|
-| channel reachability | 3/5 | Named research exists, but operator-rights paths still need validation. |
-| likely supply quality | 3/5 | high if channels stay with site-authorized technical operators, low if widened into generic public recruiting |
-| operations feasibility | 3/5 | the issue tree and operator lanes exist, but the city still needs explicit site acquisition and proof-ops packets |
-| measurement readiness | 3/5 | platform events exist, but city-specific reporting still needs end-to-end validation |
-| legal/compliance clarity | 1/5 | private-interior access, rights authority, and any defense/export constraints remain explicit blockers until reviewed |
-| strategic importance | 3/5 | city value is still hypothesis-level until proof-ready assets and hosted reviews exist |
+| channel reachability | 3/5 | Named research exists, but the McClellan multi-tenant access path still needs a sponsor thread. |
+| likely supply quality | 3/5 | Strong if the lane stays with insured, site-authorized technical operators; weak if widened into generic recruiting. |
+| operations feasibility | 2/5 | The packet structure exists, but the owner / operator / tenant consent chain is not signed yet. |
+| measurement readiness | 3/5 | The platform event model exists, but Sacramento still needs end-to-end proof-path tracking. |
+| legal / compliance clarity | 1/5 | Private-interior access, rights authority, and any defense-adjacent overlap remain explicit blockers. |
+| strategic importance | 4/5 | The city is high-value if McClellan-area proof motion clears, but still hypothesis-level until the first consent packet exists. |
 
 ## Human Gates
 - founder or designated human approval for new city activation, spend expansion, posture-changing public claims, precedent-setting rights/privacy exceptions, and non-standard commercial commitments
@@ -144,13 +151,4 @@ Private controlled interiors require authorization.
 - designated human commercial owner for standard quotes inside approved bands
 
 ## Sequencing Recommendation
-Do not treat Sacramento as operationally real until a small number of rights-cleared sites, proof packs, hosted reviews, and a signed multi-tenant lawful access path are real. The city should widen only after those proofs exist and the operator lanes can support them.
-
-## Weekly Run Log
-
-### 2026-04-17
-- Confirmed `BLU-3143` is still the active Sacramento lawful-access blocker for the first multi-tenant path.
-- Kept Sacramento as the only active city in scope for this run.
-- No new rights, spend, or posture facts changed during this pass.
-- Refreshed the Sacramento launch guide as the durable weekly artifact for this issue.
-- Other cities touched: none.
+Do not treat Sacramento as operationally real until a small number of rights-cleared sites, proof packs, and hosted reviews are real. The city should widen only after those proofs exist and the operator lanes can support them.

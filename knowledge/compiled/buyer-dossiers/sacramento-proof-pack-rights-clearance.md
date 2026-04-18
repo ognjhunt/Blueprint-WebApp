@@ -44,6 +44,20 @@ Use this dossier as the buyer-thread reference for Sacramento exact-site proof p
 - Sacramento buyer demand is best anchored to exact-site robotics workflows, not generic robotics marketing language.
 - The current posture is blocker-aware packaging, not buyer-facing readiness claims.
 
+## Sacramento Proof Candidate Rights Register
+
+The current Sacramento target ledger splits the city into permissioned industrial interiors and public non-controlled retail / mall surfaces. No live capture artifact has been materialized yet, so this register is still a rights posture map rather than a buyer-ready proof-pack clearance.
+
+| Proof candidate | Rights posture | Status | Evidence |
+| --- | --- | --- | --- |
+| US Cold Storage - Ambient Module | Private controlled interior; requires explicit authorization and the Sacramento 3-tier consent packet | BLOCKED | Sacramento deep research playbook requires a 3-tier consent protocol for industrial interiors; the capture target ledger lists this as a permissioned warehouse target with `operator_intro`. |
+| McClellan Park - Building 775 (Light Industrial) | Private controlled interior in a multi-tenant industrial hub; requires explicit authorization and consent review | BLOCKED | Sacramento deep research playbook requires the 3-tier consent packet for multi-tenant industrial interiors and flags McClellan Park as sensitive enough to validate export-control / ITAR adjacency before outreach. |
+| Sacramento Costco - Natomas | Public non-controlled site; bounded public-area capture is allowed in the current playbook | NEEDS-REVIEW | The Sacramento deep research playbook explicitly allows public-site capture for retail / grocery validation with `public_non_controlled_site`; the target ledger also marks this site `public_non_controlled`. No live capture artifact exists yet. |
+| Home Depot - Sacramento (Cal Expo) | Public non-controlled site; bounded public-area capture is allowed in the current playbook | NEEDS-REVIEW | The deep research playbook allows public-site capture for home-improvement validation without a consent packet; the target ledger marks the site `public_non_controlled`. No live capture artifact exists yet. |
+| Safeway - Alhambra Blvd | Public non-controlled site; bounded public-area capture is allowed in the current playbook | NEEDS-REVIEW | The deep research playbook allows public-site capture for grocery validation without a consent packet; the target ledger marks the site `public_non_controlled`. No live capture artifact exists yet. |
+| Walmart Supercenter - Natomas | Public non-controlled site; bounded public-area capture is allowed in the current playbook | NEEDS-REVIEW | The deep research playbook allows public-site capture for big-box retail validation without a consent packet; the target ledger marks the site `public_non_controlled`. No live capture artifact exists yet. |
+| Arden Fair Mall - Common Areas | Public non-controlled common areas; bounded public-area capture is allowed in the current playbook | NEEDS-REVIEW | The deep research playbook allows public-site capture for shopping-mall common areas without a consent packet; the target ledger marks the site `public_non_controlled`. No live capture artifact exists yet. |
+
 ## Buyer Clusters
 
 - Industrial automation and robotics integration: SIR Robotics, VC Automation, Axis Robotics

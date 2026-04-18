@@ -61,6 +61,7 @@ Open discovery should feed gated cohorts, not immediate broad approval. The oper
 - Sacramento's current professional supply wave should stay anchored to site-authorized surveying and industrial inspection operators, Sacramento civil engineering and land surveying society members, and contractors already working McClellan Park, US Cold Storage, or similar facilities.
 - Sacramento's feeder lanes can include UC Davis technical communities and FIRA USA contacts, but those lanes stay secondary to the professional industrial wedge until a verified first output exists.
 - Sacramento public-commercial capture remains a separate bounded lane for lawful public areas only, with no implication of private-interior access.
+- Sacramento's current first-wave prospect set is now concrete: two operator-intro industrial_warehouse targets and five public_non_controlled retail or community targets, which reinforces the reusable rule that operator-intro work and public-commercial discovery should stay separate but share one tagged intake path.
 
 ## Cohort and Access Rules
 - Austin and San Francisco should start with cohort-based supply seeding, not citywide open recruiting.

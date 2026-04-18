@@ -41,29 +41,9 @@ This issue bundle turns the Sacramento playbook into executable lanes using the 
   - site access path notes
 - done when:
   - Sacramento keeps 3-5 named lawful-access candidates or buyer-linked fallback sites queued in parallel, with one current next step per candidate.
+  - The current candidate set is explicit rather than implied, and includes Northgate Logistics, US Cold Storage - Ambient Module, McClellan Park - Building 775 (Light Industrial), Sacramento Costco - Natomas, and Home Depot - Sacramento (Cal Expo).
   - If one warehouse stalls, another named access path is ready without restarting city planning from zero.
   - Each queued candidate names the current access posture, likely owner/operator/tenant path, and whether the next move belongs to buyer thread, operator intro, or existing lawful access.
-
-## Lock the first Sacramento multi-tenant lawful access path
-
-- key: lawful-access-path
-- phase: founder_gates
-- agent owner: site-operator-partnership-agent
-- human owner: growth-lead
-- purpose: Secure the first complete owner/operator/tenant path for Sacramento private controlled-interior capture so the launch can move beyond generic queue building.
-- human gate: Founder review only if the access path requires a precedent-setting rights/privacy or spend exception.
-- dependencies: parallel-lawful-access-queue, city-target-ledger, growth-source-policy
-- metrics dependencies: first_lawful_access_path
-- validation required: true
-- source: default_task_bundle
-- inputs:
-  - Sacramento city-launch playbook
-  - Sacramento source policy
-  - buyer-linked exact-site requests
-  - operator intro notes
-- done when:
-  - A first multi-tenant lawful access path is signed by owner, operator, and tenant or else blocked with explicit missing facts.
-  - The path is written into the Sacramento target ledger and the next capture step is routed without waiting on the rest of the city to be perfect.
 
 ## Lock Sacramento source policy and invite/access-code posture
 
@@ -213,7 +193,6 @@ This issue bundle turns the Sacramento playbook into executable lanes using the 
   - Sacramento source policy
   - Sacramento city-opening brief
   - Sacramento first-wave outreach pack
-  - Sacramento capturer prospect list and post package
   - live capturer intake path
 - done when:
   - A curated first-wave Sacramento professional prospect set is named with source bucket, rationale, lawful access posture, and next move.

@@ -21,13 +21,14 @@ describe("Proof page", () => {
     render(<Proof />);
 
     expect(
-      screen.getByRole("heading", { name: /See the exact-site asset before you commit\./i }),
+      screen.getByRole("heading", { name: /See the site before you commit to the path\./i }),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Austin, TX/i)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Contact Blueprint/i })).toHaveAttribute(
       "href",
       "/contact?persona=robot-team",
     );
+    expect(screen.getByRole("heading", { name: /Proof routes\./i })).toBeInTheDocument();
   });
 
   it("renders Austin-specific proof guidance and preserves city context in the CTA", () => {

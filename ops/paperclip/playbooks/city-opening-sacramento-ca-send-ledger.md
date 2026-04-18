@@ -5,6 +5,5 @@
 
 | Lane | Action type | Target | Recipient | Status | Approval | Response ingest | Owner | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| warehouse-facility-direct | direct_outreach | Raymond West | sales@raymondwest.com | blocked | pending | awaiting_response | outbound-sales-agent | Sacramento automation page is the cleanest buyer-side first touch, but the live send still waits on human approval. |
-| buyer-linked-site | direct_outreach | SIR Robotics | mbeer@sir-robotics.com | blocked | pending | awaiting_response | outbound-sales-agent | Sacramento office and robotics portfolio make this a strong second buyer-side thread, but it remains draft-only. |
+| warehouse-facility-direct | direct_outreach | Capital Robotics | taylor@capitalrobotics.com | blocked | approved | awaiting_response | capturer-growth-agent | Missing rights-cleared proof pack. Capital Robotics first touch is drafted, but it must stay conditional until a proof-ready asset exists. |
 | professional-capturer | direct_outreach | Northgate Logistics | ops@northgatelogistics.com | ready_to_send | approved | awaiting_response | capturer-growth-agent | Recipient sourced from real growth campaign delivery evidence for Northgate Logistics. |

@@ -3,33 +3,50 @@ import { describe, expect, it } from "vitest";
 import Pricing from "@/pages/Pricing";
 
 describe("Pricing", () => {
-  it("keeps pricing focused on the robot-team buying path", () => {
+  it("renders the simplified comparison-led pricing page", () => {
     render(<Pricing />);
 
     expect(
       screen.getByRole("heading", {
-        name: /Start with the package or the hosted runtime\./i,
+        name: /Public pricing for the exact-site paths that matter first\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText(/session-hour is one hour of self-serve hosted runtime/i).length).toBeGreaterThan(0);
+
+    expect(screen.getAllByText(/^Site package$/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Hosted session-hour$/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Custom scope only when needed$/i).length).toBeGreaterThan(0);
+
     expect(screen.getAllByText(/\$2,100 - \$3,400/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/\$16 - \$29/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Compare the three commercial paths\./i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Typical first purchase/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/What happens after inquiry/i)).toBeInTheDocument();
-    expect(screen.getByText(/Exact-site proof vs adjacent-site proof/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /When not to buy exact-site work yet\./i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Book a scoping call/i })).toHaveAttribute(
-      "href",
-      "/book-exact-site-review",
-    );
-    expect(screen.getByRole("link", { name: /Request a custom quote/i })).toHaveAttribute(
-      "href",
-      "/contact?persona=robot-team&interest=enterprise",
-    );
-    expect(screen.getByRole("link", { name: /Email a short brief/i })).toHaveAttribute(
-      "href",
-      "mailto:hello@tryblueprint.io?subject=Blueprint%20brief",
-    );
+
+    expect(
+      screen.getByRole("heading", { name: /How to choose the first move\./i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Package first/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hosted first/i)).toBeInTheDocument();
+    expect(screen.getByText(/Custom first/i)).toBeInTheDocument();
+
+    expect(screen.getByRole("heading", { name: /What changes scope\./i })).toBeInTheDocument();
+    expect(screen.getByText(/What pricing does not claim/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: /Need a site that is not in the public catalog yet\?/i,
+      }),
+    ).toBeInTheDocument();
+
+    expect(
+      screen
+        .getAllByRole("link", { name: /Book scoping call/i })
+        .some((link) => link.getAttribute("href") === "/book-exact-site-review"),
+    ).toBe(true);
+    expect(
+      screen
+        .getAllByRole("link", { name: /Request custom quote/i })
+        .some((link) => link.getAttribute("href") === "/contact?persona=robot-team&interest=enterprise"),
+    ).toBe(true);
+
+    expect(screen.queryByText(/What happens after inquiry/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/When not to buy exact-site work yet\./i)).not.toBeInTheDocument();
   });
 });

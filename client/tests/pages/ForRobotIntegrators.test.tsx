@@ -12,25 +12,20 @@ vi.mock("@/contexts/AuthContext", () => ({
 }));
 
 describe("ForRobotIntegrators", () => {
-  it("renders the robot-team use cases and simpler positioning", () => {
+  it("renders the simplified robot-team persona page", () => {
     render(<ForRobotIntegrators />);
 
     expect(screen.getByText(/^For Robot Teams$/i)).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /Test the exact site before deployment\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Shrink the demo-to-deployment gap\./i)).toBeInTheDocument();
     expect(
-      screen.getByText(
-        /Blueprint turns a real facility into a site-specific world model, data package, and hosted test environment/i,
-      ),
+      screen.getByRole("heading", { name: /Why integrators use this path\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /What teams train and ship with this\./i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Common jobs on one exact site\./i })).toBeInTheDocument();
     expect(screen.getByText(/Tune before travel/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Make site-specific data/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Share one environment/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /What you get/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /What to expect/i })).toBeInTheDocument();
+    expect(screen.getByText(/Compare releases/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /What you get and what it does not do\./i })).toBeInTheDocument();
     expect(
       screen.getByText(/A site-specific world model, data package, and hosted evaluation path built from real capture/i),
     ).toBeInTheDocument();
@@ -38,5 +33,6 @@ describe("ForRobotIntegrators", () => {
       "href",
       "/world-models",
     );
+    expect(screen.queryByText(/Shrink the demo-to-deployment gap\./i)).not.toBeInTheDocument();
   });
 });

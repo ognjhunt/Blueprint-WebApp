@@ -1,227 +1,190 @@
 import { SEO } from "@/components/SEO";
 import { ArrowRight, Mail, ShieldCheck } from "lucide-react";
-import { companyTrustItems } from "@/data/marketingDefinitions";
 
-const credibilityBlocks = [
+const heroSignals = [
+  "Real-site product surfaces",
+  "Rights and provenance stay visible",
+  "Built for serious robot-team decisions",
+];
+
+const companyCards = [
   {
-    title: "What Blueprint does",
-    body: "Blueprint turns real facilities into buyer-ready world-model products: site packages, hosted evaluation, and trust surfaces tied to the same capture-backed source record.",
+    title: "What Blueprint is",
+    body:
+      "A buyer-facing system for turning one real facility into site packages, hosted review, and clear trust surfaces tied to the same capture-backed source record.",
   },
   {
-    title: "Why teams trust Blueprint",
-    body: "The company is careful about provenance, rights, privacy, and truthful labeling. The product is designed to help a buyer answer a deployment question earlier, not to overstate certainty.",
-  },
-  {
-    title: "How Blueprint works with real sites",
-    body: "Blueprint treats facility access, restricted zones, redaction, retention, and export boundaries as part of the product contract rather than afterthoughts.",
+    title: "What Blueprint is not",
+    body:
+      "Not a generic AI marketplace, not a model-demo theater, and not a deployment-guarantee layer pretending uncertainty has disappeared.",
   },
 ];
 
-const operatingSignals = [
-  "Buyer-facing listings, package manifests, and hosted-session surfaces are anchored to real capture.",
-  "Pricing, legal, privacy, security, and other irreversible topics stay human-gated.",
-  "Hosted evaluation is a concrete commercial path, not a vague consulting placeholder.",
+const storySteps = [
+  "A robot team has one real facility and one workflow question before a field visit starts.",
+  "Blueprint's job is to make that site legible earlier through truthful proof, package framing, and hosted review.",
+  "That lets the team decide whether to keep moving on the exact site instead of spending time on vague assumptions.",
 ];
 
-const companyFacts = [
-  {
-    title: "Current focus",
-    body: "One narrow wedge: exact-site package access and hosted evaluation for robot teams that need a real facility earlier.",
-  },
-  {
-    title: "What Blueprint operates",
-    body: "Buyer-facing listings, rights-aware package surfaces, hosted evaluation paths, and the supporting ops layer around those products.",
-  },
-  {
-    title: "What Blueprint avoids",
-    body: "Generic marketplace language, fake readiness states, blanket permissions, and model-demo theater disconnected from real capture provenance.",
-  },
-];
-
-const deploymentStory = [
-  "An autonomy team needed to answer a narrow question before a field visit: whether a workflow lane on one facility was worth deeper integration work.",
-  "Blueprint's role was not to promise deployment success. It was to get the exact site in front of the team earlier, package the evidence clearly, and make the next step legible.",
-  "That is the kind of decision Blueprint is built to support: less blind travel, fewer vague assumptions, and a cleaner path from curiosity to real site work.",
-];
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+      {children}
+    </p>
+  );
+}
 
 export default function About() {
   return (
     <>
       <SEO
         title="About | Blueprint"
-        description="Why Blueprint exists, how it works with real sites, and why robot teams can trust its site-package and hosted-evaluation workflow."
+        description="Why Blueprint exists and how it turns real facilities into site packages, hosted review, and buyer-readable trust surfaces."
         canonical="/about"
       />
-      <div className="min-h-screen bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-                About Blueprint
-              </p>
-              <h1 className="mt-3 max-w-4xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-                Blueprint turns real facilities into buyer-ready world-model products.
-              </h1>
-              <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600">
-                Blueprint exists to help robot teams inspect one exact site earlier, choose the right product path, and keep rights, privacy, provenance, and hosted-access boundaries readable along the way.
-              </p>
-              <div className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 p-6">
-                <p className="text-sm font-semibold text-slate-900">Founded by</p>
-                <p className="mt-3 text-sm leading-7 text-slate-700">
-                  Nijel Hunt — background in robotics simulation, 3D capture, and deployment operations. Blueprint is built around the operational gap between “interesting robotics demo” and “serious site-specific deployment work.”
+
+      <div className="overflow-hidden bg-[#f6f1e8] text-slate-950">
+        <section className="relative border-b border-black/10">
+          <div className="absolute inset-x-0 top-0 h-[36rem] bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_40%),radial-gradient(circle_at_82%_12%,_rgba(14,116,144,0.12),_transparent_24%),linear-gradient(180deg,_rgba(255,255,255,0.78),_rgba(246,241,232,0.96))]" />
+          <div className="absolute left-[-7rem] top-20 h-56 w-56 rounded-full bg-[#dbe7df] blur-3xl" />
+          <div className="absolute right-[-8rem] top-12 h-72 w-72 rounded-full bg-[#eadfca] blur-3xl" />
+
+          <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-18 lg:px-8 lg:py-24">
+            <div className="grid gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-end">
+              <div className="max-w-3xl">
+                <SectionLabel>About Blueprint</SectionLabel>
+                <h1 className="font-editorial mt-5 text-[3.35rem] leading-[0.95] tracking-[-0.05em] text-slate-950 sm:text-[4.5rem]">
+                  Blueprint exists to make one real site legible earlier.
+                </h1>
+                <p className="mt-5 max-w-2xl text-base leading-8 text-slate-700 sm:text-[1.05rem]">
+                  Blueprint helps robot teams inspect one exact facility sooner, choose the right product path, and keep rights, privacy, provenance, and hosted-access boundaries readable along the way.
                 </p>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <a
-                    href="https://www.linkedin.com/in/nijelhunt/"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                {heroSignals.map((item) => (
+                  <article
+                    key={item}
+                    className="rounded-[1.65rem] border border-black/10 bg-white/82 p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.28)]"
                   >
-                    Founder LinkedIn
-                  </a>
-                  <a
-                    href="mailto:hello@tryblueprint.io"
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
-                  >
-                    <Mail className="h-4 w-4" />
-                    hello@tryblueprint.io
-                  </a>
-                </div>
+                    <p className="text-sm font-semibold text-slate-900">{item}</p>
+                  </article>
+                ))}
               </div>
             </div>
+          </div>
+        </section>
 
-            <aside className="rounded-3xl border border-slate-200 bg-slate-950 p-6 text-white">
+        <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
+          <div className="grid gap-4 lg:grid-cols-[0.42fr_0.58fr]">
+            <article className="rounded-[1.95rem] border border-black/10 bg-slate-950 p-6 text-white shadow-[0_22px_50px_-40px_rgba(15,23,42,0.75)]">
               <div className="flex items-start gap-3">
-                <div className="rounded-2xl bg-slate-800 p-3 text-slate-300">
+                <div className="rounded-2xl bg-white/10 p-3 text-white">
                   <ShieldCheck className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    Operating posture
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/55">
+                    Founder
                   </p>
-                  <h2 className="mt-1 text-2xl font-semibold">Built for real-site buying decisions.</h2>
+                  <h2 className="mt-2 text-2xl font-semibold">Built by Nijel Hunt.</h2>
                 </div>
               </div>
-              <ul className="mt-5 space-y-3 text-sm leading-7 text-slate-300">
-                {operatingSignals.map((item) => (
-                  <li key={item} className="flex items-start gap-3">
-                    <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-500" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/90 p-5">
-                <p className="text-sm font-semibold text-white">Trust posture</p>
-                <ul className="mt-3 space-y-3 text-sm leading-6 text-slate-300">
-                  {companyTrustItems.map((item) => (
-                    <li key={item} className="flex items-start gap-3">
-                      <span className="mt-2 h-1.5 w-1.5 rounded-full bg-slate-500" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
+              <p className="mt-5 text-sm leading-7 text-white/76">
+                Background in robotics simulation, 3D capture, and deployment operations. Blueprint is built around the gap between an interesting robotics demo and serious site-specific deployment work.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <a
+                  href="https://www.linkedin.com/in/nijelhunt/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                >
+                  Founder LinkedIn
+                </a>
+                <a
+                  href="mailto:hello@tryblueprint.io"
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+                >
+                  <Mail className="h-4 w-4" />
+                  hello@tryblueprint.io
+                </a>
               </div>
-            </aside>
+            </article>
+
+            <article className="rounded-[1.95rem] border border-black/10 bg-white/88 p-6 shadow-[0_18px_40px_-36px_rgba(15,23,42,0.28)]">
+              <SectionLabel>Company Framing</SectionLabel>
+              <h2 className="font-editorial mt-4 text-4xl tracking-[-0.05em] text-slate-950 sm:text-[3.2rem]">
+                What Blueprint is and what it is not.
+              </h2>
+              <div className="mt-6 grid gap-4 md:grid-cols-2">
+                {companyCards.map((card) => (
+                  <div key={card.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                    <h3 className="text-2xl font-semibold tracking-tight text-slate-900">{card.title}</h3>
+                    <p className="mt-3 text-sm leading-7 text-slate-600">{card.body}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
           </div>
+        </section>
 
-          <section className="mt-10 grid gap-4 md:grid-cols-3">
-            {credibilityBlocks.map((item) => (
-              <article key={item.title} className="rounded-2xl border border-slate-200 bg-white p-6">
-                <h2 className="text-2xl font-semibold text-slate-900">{item.title}</h2>
-                <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
-              </article>
-            ))}
-          </section>
+        <section className="border-y border-black/10 bg-white/55">
+          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
+            <div className="max-w-2xl">
+              <SectionLabel>Decision Story</SectionLabel>
+              <h2 className="font-editorial mt-4 text-4xl tracking-[-0.05em] text-slate-950 sm:text-[3.2rem]">
+                Why this matters before the expensive part starts.
+              </h2>
+            </div>
 
-          <section className="mt-10 grid gap-4 md:grid-cols-3">
-            {companyFacts.map((item) => (
-              <article key={item.title} className="rounded-2xl border border-slate-200 bg-stone-50 p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Company fact
-                </p>
-                <h2 className="mt-3 text-2xl font-semibold text-slate-900">{item.title}</h2>
-                <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
-              </article>
-            ))}
-          </section>
-
-          <section className="mt-10 rounded-3xl border border-slate-200 bg-stone-50 p-6 sm:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-              An anonymized deployment-decision story
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-              An anonymized deployment-decision story
-            </h2>
-            <div className="mt-5 grid gap-4 md:grid-cols-3">
-              {deploymentStory.map((paragraph, index) => (
-                <article key={paragraph} className="rounded-2xl border border-slate-200 bg-white p-5">
+            <div className="mt-8 grid gap-4 md:grid-cols-3">
+              {storySteps.map((step, index) => (
+                <article
+                  key={step}
+                  className="rounded-[1.85rem] border border-black/10 bg-white/88 p-6 shadow-[0_18px_40px_-36px_rgba(15,23,42,0.26)]"
+                >
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold text-white">
                     {index + 1}
                   </div>
-                  <p className="mt-4 text-sm leading-7 text-slate-700">{paragraph}</p>
+                  <p className="mt-4 text-sm leading-7 text-slate-700">{step}</p>
                 </article>
               ))}
             </div>
-          </section>
+          </div>
+        </section>
 
-          <section className="mt-10 grid gap-4 lg:grid-cols-[1fr_0.95fr]">
-            <article className="rounded-3xl border border-slate-200 bg-white p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Public product surfaces
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold text-slate-900">
-                What a skeptical buyer can inspect without a call.
-              </h2>
-              <div className="mt-5 grid gap-3">
-                {[
-                  "The public sample listing that ties the site, package framing, and hosted path together",
-                  "Pricing and package-vs-hosted framing without requiring a sales conversation",
-                  "Deliverables, governance, and trust language that stay attached to the product story",
-                ].map((item) => (
-                  <div key={item} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-700">
-                    {item}
-                  </div>
-                ))}
+        <section className="pb-20 pt-14 sm:pt-18">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="overflow-hidden rounded-[2.15rem] border border-black/10 bg-slate-950 px-6 py-8 text-white shadow-[0_26px_70px_-48px_rgba(15,23,42,0.85)] sm:px-8">
+              <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-end">
+                <div className="max-w-2xl">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/55">
+                    Next Step
+                  </p>
+                  <p className="mt-3 text-sm leading-7 text-white/72">
+                    Start with the public catalog if you want to inspect the proof style, or contact Blueprint when your team already has one exact site and one real question in mind.
+                  </p>
+                </div>
+                <div className="grid gap-3">
+                  <a
+                    href="/world-models"
+                    className="inline-flex items-center justify-between rounded-2xl bg-white px-5 py-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                  >
+                    Explore world models
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
+                  <a
+                    href="/contact?persona=robot-team"
+                    className="inline-flex items-center justify-between rounded-2xl border border-white/15 bg-white/5 px-5 py-4 text-sm font-semibold text-white transition hover:bg-white/10"
+                  >
+                    Contact Blueprint
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
+                </div>
               </div>
-            </article>
-
-            <article className="rounded-3xl border border-slate-200 bg-slate-950 p-6 text-white">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                Operating standard
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold">Make the next step obvious.</h2>
-              <p className="mt-4 text-sm leading-7 text-slate-300">
-                Blueprint should not ask a careful buyer to reverse-engineer the commercial motion.
-                The company standard is straightforward: one real site, one truthful proof path,
-                one clear next action.
-              </p>
-            </article>
-          </section>
-
-          <section className="mt-10 rounded-3xl bg-slate-950 p-8 text-white sm:p-10">
-            <h2 className="text-3xl font-semibold tracking-tight">
-              Blueprint is designed to look serious because the work itself is serious.
-            </h2>
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300">
-              The product should help a skeptical buyer understand what is real, what is sample or illustrative, what is permitted, and what the next step actually is. That is the commercial standard Blueprint is trying to meet.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <a
-                href="/world-models"
-                className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
-              >
-                Explore world models
-              </a>
-              <a
-                href="/governance"
-                className="inline-flex items-center justify-center rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-900"
-              >
-                Read governance and trust
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </a>
             </div>
-          </section>
-        </div>
+          </div>
+        </section>
       </div>
     </>
   );
