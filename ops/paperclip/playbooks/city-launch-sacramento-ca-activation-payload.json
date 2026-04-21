@@ -3,7 +3,7 @@
   "machinePolicyVersion": "2026-04-13.city-launch-doctrine.v1",
   "city": "Sacramento, CA",
   "citySlug": "sacramento-ca",
-  "cityThesis": "Run one proof-led warehouse wedge.",
+  "cityThesis": "One site, one workflow, one hosted review wedge.",
   "primarySiteLane": "industrial_warehouse",
   "primaryWorkflowLane": "dock handoff",
   "primaryBuyerProofPath": "exact_site",
@@ -12,7 +12,7 @@
   ],
   "preferredLawfulAccessMode": "buyer_requested_site",
   "rightsPath": {
-    "summary": "Private controlled interiors require authorization.",
+    "summary": "Rights summary",
     "privateControlledInteriorsRequireAuthorization": true,
     "validationRequired": false,
     "sourceUrls": [
@@ -27,68 +27,9 @@
     }
   ],
   "ownerLanes": [
-    "city-launch-agent",
-    "capturer-growth-agent",
-    "analytics-agent"
+    "city-launch-agent"
   ],
   "issueSeeds": [],
-  "metricsDependencies": [
-    {
-      "key": "robot_team_inbound_captured",
-      "kind": "event",
-      "status": "required_not_tracked",
-      "ownerLane": "analytics-agent",
-      "notes": null
-    },
-    {
-      "key": "proof_path_assigned",
-      "kind": "event",
-      "status": "required_not_tracked",
-      "ownerLane": "analytics-agent",
-      "notes": null
-    },
-    {
-      "key": "proof_pack_delivered",
-      "kind": "event",
-      "status": "required_not_tracked",
-      "ownerLane": "analytics-agent",
-      "notes": null
-    },
-    {
-      "key": "hosted_review_ready",
-      "kind": "event",
-      "status": "required_not_tracked",
-      "ownerLane": "analytics-agent",
-      "notes": null
-    },
-    {
-      "key": "hosted_review_started",
-      "kind": "event",
-      "status": "required_not_tracked",
-      "ownerLane": "analytics-agent",
-      "notes": null
-    },
-    {
-      "key": "hosted_review_follow_up_sent",
-      "kind": "event",
-      "status": "required_not_tracked",
-      "ownerLane": "analytics-agent",
-      "notes": null
-    },
-    {
-      "key": "human_commercial_handoff_started",
-      "kind": "event",
-      "status": "required_not_tracked",
-      "ownerLane": "analytics-agent",
-      "notes": null
-    },
-    {
-      "key": "proof_motion_stalled",
-      "kind": "event",
-      "status": "required_not_tracked",
-      "ownerLane": "analytics-agent",
-      "notes": null
-    }
-  ],
+  "metricsDependencies": [],
   "namedClaims": []
 }

@@ -2,7 +2,7 @@
 
 - city: Sacramento, CA
 - city_slug: sacramento-ca
-- generated_at: 2026-04-21T00:55:21.996Z
+- generated_at: 2026-04-21T01:00:37.239Z
 - mode: deep_research_records
 - status: hypothesis-ranked targeting ledger, not a claim that every site is already accessible
 
@@ -47,10 +47,9 @@ This ledger is intentionally split into:
 
 ## Sources
 
-- [Sacramento deep research playbook](/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/blocked-outbound-city-launch-harness-rJi9k0/sacramento-ca/2026-04-21T00-55-21.774Z/city-launch-contact-enrichment-sacramento-ca.json) — Latest completed deep-research artifact with structured launch records.
+- [Sacramento deep research playbook](/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/autonomy-sparse-city-GsLmCP/sacramento-ca/2026-04-21T01-00-37.232Z/city-launch-contact-enrichment-sacramento-ca.json) — Latest completed deep-research artifact with structured launch records.
 
 ## Warnings
 
-- Activation-ready buyer direct-outreach lanes for Sacramento, CA have named targets but no explicit contact_email evidence.
 - Activation-ready capturer direct-outreach lanes for Sacramento, CA have named targets but no explicit contact_email evidence.
 - Activation-ready direct outreach requires 1-3 recipient-backed first-wave contacts with explicit contact_email evidence.

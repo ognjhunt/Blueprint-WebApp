@@ -9,6 +9,7 @@ import {
 import { runCityLaunchContactEnrichment } from "../../server/utils/cityLaunchContactEnrichment";
 import { resolveCityLaunchPlanningState } from "../../server/utils/cityLaunchPlanningState";
 import { buildCityLaunchBudgetPolicy, type CityLaunchBudgetTier } from "../../server/utils/cityLaunchPolicy";
+import { summarizeCityLaunchAutonomyCertification } from "../../server/utils/cityLaunchAutonomyCertification";
 import {
   resolveCityLaunchFounderApproval,
 } from "../../server/utils/cityLaunchApprovalMode";
@@ -213,6 +214,8 @@ async function main() {
           activateResult.researchMaterialization?.prospectsUpserted || 0,
         buyerTargetsUpserted:
           activateResult.researchMaterialization?.buyerTargetsUpserted || 0,
+        capabilitySnapshot: activateResult.capabilitySnapshot || null,
+        certification: summarizeCityLaunchAutonomyCertification(activateResult),
       }),
     );
   }

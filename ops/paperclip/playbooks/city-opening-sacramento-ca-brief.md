@@ -19,7 +19,7 @@ Open Sacramento with truthful awareness before expecting replies: make the right
 
 ## Evidence Anchors Available Now
 - Example research-backed capture targets: Northgate Logistics.
-- Example buyer-side targets already named in research: Capital Robotics.
+- No research-backed buyer target set is materialized yet.
 
 ## Usage Rule
 This artifact is a working city-opening brief for operators and agents. It does not mean outreach has been sent, channels have been opened, or live responses already exist.

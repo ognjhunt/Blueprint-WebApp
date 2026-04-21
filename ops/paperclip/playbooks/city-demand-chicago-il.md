@@ -13,7 +13,7 @@ Chicago demand should stay proof-led: qualify real robot-team interest, classify
 ## What Changed This Pass
 - evidence-backed: the city launcher now generates the compact demand playbook during activation so downstream tasks have a real canonical reference.
 - evidence-backed: city demand instrumentation is pinned to the platform event model rather than custom city-specific events.
-- evidence-backed: current deep research names buyer targets such as Midwest Robotics, Lakeshore AMR.
+- evidence-backed: current deep research names buyer targets such as Chicago Robotics.
 
 ## Required Proof Motion
 - serious robot-team demand must hit 24-hour proof-path triage
@@ -31,14 +31,7 @@ Chicago demand should stay proof-led: qualify real robot-team interest, classify
 
 ## Metrics Dependencies
 
-- robot_team_inbound_captured: required_not_tracked
-- proof_path_assigned: required_not_tracked
-- proof_pack_delivered: required_not_tracked
-- hosted_review_ready: required_not_tracked
-- hosted_review_started: required_not_tracked
-- hosted_review_follow_up_sent: required_not_tracked
-- human_commercial_handoff_started: required_not_tracked
-- proof_motion_stalled: required_not_tracked
+- No machine-readable metrics dependency payload is available yet.
 
 ## Sensitive-Lane Constraints
 - if a buyer sits in defense, aerospace, export-controlled, or air-gapped environments, block the standard hosted-review path until the policy and evidence path are explicit

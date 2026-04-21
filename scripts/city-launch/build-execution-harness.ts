@@ -1,6 +1,7 @@
 import path from "node:path";
 import { runCityLaunchExecutionHarness } from "../../server/utils/cityLaunchExecutionHarness";
 import { buildCityLaunchBudgetPolicy } from "../../server/utils/cityLaunchPolicy";
+import { summarizeCityLaunchAutonomyCertification } from "../../server/utils/cityLaunchAutonomyCertification";
 
 function hasFlag(args: string[], flag: string) {
   return args.includes(flag);
@@ -97,6 +98,8 @@ async function main() {
         researchMaterializationSource: result.researchMaterialization?.sourceArtifactPath || null,
         prospectsUpserted: result.researchMaterialization?.prospectsUpserted || 0,
         buyerTargetsUpserted: result.researchMaterialization?.buyerTargetsUpserted || 0,
+        capabilitySnapshot: result.capabilitySnapshot || null,
+        certification: summarizeCityLaunchAutonomyCertification(result),
       },
       null,
       2,
