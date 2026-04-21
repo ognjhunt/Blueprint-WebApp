@@ -1,0 +1,77 @@
+{
+  "city": "San Jose, CA",
+  "city_slug": "san-jose-ca",
+  "generated_at": "2026-04-18T06:21:12.738Z",
+  "mode": "deep_research_records",
+  "workflow_priorities": [
+    {
+      "key": "warehouse",
+      "label": "Warehouse",
+      "whyNow": "Primary exact-site wedge reference.",
+      "priority": "tier_1"
+    }
+  ],
+  "priority_proof_targets": [
+    {
+      "rank": 1,
+      "name": "Edenvale Industrial Park corridor",
+      "type": "warehouse",
+      "corridor": "Primary modern industrial corridor in the San Jose research.",
+      "workflowFit": "dock handoff and pallet movement",
+      "exactSiteValue": "Primary exact-site wedge reference.",
+      "accessApproach": "buyer_requested_site",
+      "confidence": "high",
+      "sourceNote": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-13T17-38-45.838Z/01-initial-research.md"
+    },
+    {
+      "rank": 2,
+      "name": "550 Piercy Road",
+      "type": "warehouse",
+      "corridor": "Named warehouse example in the Edenvale corridor.",
+      "workflowFit": "dock handoff and pallet movement",
+      "exactSiteValue": "Useful fallback exact-site candidate.",
+      "accessApproach": "site_operator_intro",
+      "confidence": "high",
+      "sourceNote": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-13T17-38-45.838Z/01-initial-research.md"
+    },
+    {
+      "rank": 3,
+      "name": "6480 Hellyer Avenue",
+      "type": "warehouse",
+      "corridor": "Named warehouse example in the San Jose industrial corridor.",
+      "workflowFit": "dock handoff and pallet movement",
+      "exactSiteValue": "Useful adjacent exact-site candidate.",
+      "accessApproach": "site_operator_intro",
+      "confidence": "high",
+      "sourceNote": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-13T17-38-45.838Z/01-initial-research.md"
+    }
+  ],
+  "queued_lawful_access_buckets": [
+    {
+      "label": "Industrial Warehouse",
+      "activation_rule": "after first rights-cleared proof asset",
+      "rationale": "Expand only after the first research-backed proof assets and rights-cleared reviews exist."
+    }
+  ],
+  "discovery_lanes": [
+    {
+      "label": "Industrial Warehouse",
+      "rationale": "Long-universe estimate inferred from the research-backed target mix. Validate locally before treating it as a coverage plan."
+    }
+  ],
+  "warnings": [
+    "Activation-ready capturer direct-outreach lanes for San Jose, CA have named targets but no explicit contact_email evidence."
+  ],
+  "sources": [
+    {
+      "label": "San Jose deep research playbook",
+      "url": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-jose-ca/2026-04-18T06-21-12.114Z/city-launch-contact-enrichment-san-jose-ca.json",
+      "note": "Latest completed deep-research artifact with structured launch records."
+    },
+    {
+      "label": "Research citation 1",
+      "url": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-13T17-38-45.838Z/01-initial-research.md",
+      "note": "Cited source carried through the structured deep-research appendix."
+    }
+  ]
+}

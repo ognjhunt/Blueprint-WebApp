@@ -12,18 +12,25 @@ It inherits the shared rules from:
 This playbook does not authorize pricing, contract, permission, privacy, rights, or commercialization decisions.
 
 ## Shared Rule
-Keep a request in normal buyer follow-up until there is evidence that the motion now needs coordinated proof delivery, standard commercial handling, or human-gated escalation.
+Keep a request in normal buyer follow-up until there is evidence that the motion now needs coordinated proof delivery, standard commercial handling, or policy-blocked escalation.
 
 Use the smallest truthful lane:
 - `intake-agent`: buyer-safe follow-up, source tagging, and proof-path classification
 - `ops-lead`: proof-pack assembly readiness, hosted-review coordination, mixed-lane ownership, and missing-owner escalation
-- `buyer-solutions-agent` + designated human commercial owner: standard buyer-thread commercial handling inside approved quote bands
+- `buyer-solutions-agent` + automated commercial policy: standard buyer-thread commercial handling inside approved quote bands
 - `revenue-ops-pricing-agent`: quote guidance, package-band checks, discount guardrail checks, and exception detection for the human commercial owner
 - optional operator lane / `field-ops-agent`: access, permissions, operator coordination, rights, privacy, or commercialization-boundary friction
 - engineering via Paperclip issue: product bugs affecting proof-pack pages, hosted review, artifact access, or billing UI
 
 ## Sacramento Posture
-Sacramento should be treated as a gated-cohort proof-and-commercialization market. Do not pull founder review into routine pricing or proof follow-up.
+Sacramento should be treated as a gated-cohort proof-and-commercialization market. Do not pull manual review into routine pricing or proof follow-up.
+
+### Sacramento Standard Commercial Bands
+- Keep standard commercial handling on the published `Site Package` and `Hosted Evaluation` paths.
+- Use the current public pricing anchors when a buyer asks for a standard quote: `Site Package` at `$2,100 - $3,400` and `Hosted Evaluation` at `$16 - $29 / session-hour`.
+- Treat anything that requires private-site rights, unusual privacy or export review, exclusive access, or managed support as custom scope instead of standard handling.
+- Treat any request that changes package shape, adds non-standard support, or asks for pricing outside the published anchors as a human commercial owner decision, with manual review only for non-standard commitments.
+- `revenue-ops-pricing-agent` should frame quotes against the published anchors and flag exceptions early rather than inventing new package names.
 
 ### Keep Sacramento In Normal Buyer Follow-Up When
 - the request is still a single-thread proof review
@@ -53,7 +60,7 @@ Route to founder only when the commercial ask is non-standard: discounts outside
 - a controlled-access or sensitive facility requires operator-side coordination to continue truthfully
 
 ### Escalate To Human Review Immediately
-Fail closed into explicit human review when the request asks for:
+Fail closed into explicit policy review when the request asks for:
 - pricing approval, discounts, credits, refunds, or payout action
 - contract language, procurement commitments, legal/privacy/rights interpretation
 - permission judgment or commercialization terms
@@ -66,7 +73,7 @@ When `ops-lead` takes ownership, the handoff package should include:
 - site type and exact-site versus adjacent-site status
 - current proof-pack or hosted-review state
 - open technical questions
-- open human-gated questions
+- open policy-blocked questions
 - requested timeline
 - recommended next owner
 

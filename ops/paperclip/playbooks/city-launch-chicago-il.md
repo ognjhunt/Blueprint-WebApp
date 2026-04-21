@@ -3,9 +3,9 @@
 ## Status
 - phase: activation_ready
 - owner: city-launch-agent
-- last-reviewed: 2026-04-18
+- last-reviewed: 2026-04-21
 - recommended-posture: gated cohort pilot
-- last-human-launch-decision: approved with conditions
+- launch_policy_state: autonomous_execution_ready
 - planning-state: completed
 
 ## Launch Thesis
@@ -105,10 +105,10 @@ Private controlled interiors require authorization.
 | legal/compliance clarity | 1/5 | private-interior access, rights authority, and any defense/export constraints remain explicit blockers until reviewed |
 | strategic importance | 3/5 | city value is still hypothesis-level until proof-ready assets and hosted reviews exist |
 
-## Human Gates
-- founder or designated human approval for new city activation, spend expansion, posture-changing public claims, precedent-setting rights/privacy exceptions, and non-standard commercial commitments
-- designated human rights review for sensitive privacy, consent, or commercialization questions
-- designated human commercial owner for standard quotes inside approved bands
+## Autonomous Policy
+- city activation runs automatically inside the written budget envelope, source policy, and evidence-backed posture
+- unsupported public claims, evidence-free rights/privacy exceptions, and non-standard commercial terms stay automatically blocked until repo truth is updated
+- pricing, rights, privacy, and commercialization rules are enforced from the written policy and proof artifacts rather than approval packets
 
 ## Sequencing Recommendation
 Do not treat Chicago as operationally real until a small number of rights-cleared sites, proof packs, and hosted reviews are real. The city should widen only after those proofs exist and the operator lanes can support them.

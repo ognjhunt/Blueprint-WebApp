@@ -7,6 +7,7 @@ import {
   upsertWorkQueueItem,
 } from "../../ops/paperclip/plugins/blueprint-automation/src/notion";
 import { getConfiguredEnvValue } from "../config/env";
+import { getCityLaunchSenderStatus } from "./email";
 import {
   buildCityCaptureTargetLedger,
   renderCityCaptureTargetLedgerMarkdown,
@@ -33,6 +34,10 @@ import {
   type ParsedCityLaunchActivationPayload,
 } from "./cityLaunchResearchParser";
 import { runCityLaunchContactEnrichment } from "./cityLaunchContactEnrichment";
+import {
+  buildFounderApprovals,
+  renderCityLaunchFounderApprovalArtifact,
+} from "./cityLaunchFounderApproval";
 import { materializeCityLaunchResearch } from "./cityLaunchResearchMaterializer";
 import {
   assessCityLaunchOutboundReadiness,
@@ -55,6 +60,8 @@ import {
 } from "./cityLaunchProfiles";
 import {
   createPaperclipIssueComment,
+  getPaperclipIssue,
+  resetPaperclipAgentSession,
   upsertPaperclipIssue,
   wakePaperclipAgent,
   type PaperclipIssueRecord,
@@ -68,6 +75,10 @@ import {
   type CityLaunchProofMotionMilestone,
   type CityLaunchRequiredMetricDependencyKey,
 } from "./cityLaunchDoctrine";
+import {
+  assessCityLaunchCapabilities,
+  type CityLaunchCapabilitySnapshot,
+} from "./cityLaunchCapabilityState";
 
 const REPO_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -230,6 +241,7 @@ export type CityLaunchExecutionResult = {
     contactEnrichmentArtifactPath?: string | null;
     warnings: string[];
   };
+  capabilitySnapshot?: CityLaunchCapabilitySnapshot;
   outboundReadiness?: CityLaunchOutboundReadiness;
   sendExecution?: CityLaunchSendExecutionResult;
 };
@@ -362,23 +374,75 @@ async function maybeLoadCompletedResearch(input: {
   }
 }
 
-export function buildFounderApprovals(profile: CityLaunchProfile, budgetPolicy: CityLaunchBudgetPolicy) {
-  const spendLine = budgetPolicy.maxTotalApprovedUsd > 0
-    ? `Approve the bounded spend posture for ${profile.shortLabel}: ${budgetPolicy.label} with a total envelope up to $${budgetPolicy.maxTotalApprovedUsd.toLocaleString()}.`
-    : `Approve the bounded spend posture for ${profile.shortLabel}: ${budgetPolicy.label} with no paid acquisition, referral, or discretionary travel spend.`;
-
-  return [
-    `Approve ${profile.city} as an active city-launch activation and keep non-active cities deferred unless a new evidence packet exists.`,
-    `Approve the bounded ${profile.shortLabel} launch posture: gated cohort pilot, Exact-Site Hosted Review wedge, no public city-live claims.`,
-    spendLine,
-    `Approve any ${profile.shortLabel} source-policy exceptions beyond the current bounded channel stack.`,
-    "Approve any rights/privacy/commercialization exception that would set precedent or create an irreversible external commitment.",
-    `Approve any non-standard commercial terms outside the standard ${profile.shortLabel} quote bands prepared by revenue-ops-pricing-agent and the designated human commercial owner.`,
-  ];
-}
-
 function formatDateOnly(value: string) {
   return value.slice(0, 10);
+}
+
+function countRecipientBackedFirstWaveContacts(research: CityLaunchResearchParseResult | null) {
+  return (research?.buyerTargets || []).filter((entry) => Boolean(entry.contactEmail)).length
+    + (research?.captureCandidates || []).filter((entry) => Boolean(entry.contactEmail)).length;
+}
+
+function hasFirehoseConfigured() {
+  return Boolean(
+    getConfiguredEnvValue("FIREHOSE_API_TOKEN")
+      && getConfiguredEnvValue("FIREHOSE_BASE_URL"),
+  );
+}
+
+async function reconcilePriorActivationIssueState(input: {
+  priorActivation: Awaited<ReturnType<typeof readCityLaunchActivation>> | null;
+  tasks: CityLaunchTask[];
+}) {
+  if (!input.priorActivation) {
+    return {
+      rootIssueId: null,
+      taskIssueIds: {} as Record<string, string>,
+    };
+  }
+
+  const validTaskKeys = new Set(input.tasks.map((task) => task.key));
+  let rootIssueId = input.priorActivation.rootIssueId || null;
+
+  if (rootIssueId) {
+    try {
+      await getPaperclipIssue(rootIssueId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (/Paperclip 404\b/i.test(message)) {
+        rootIssueId = null;
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  const taskIssueIds = Object.fromEntries(
+    (
+      await Promise.all(
+        Object.entries(input.priorActivation.taskIssueIds || {}).map(async ([key, issueId]) => {
+          if (!validTaskKeys.has(key) || !issueId) {
+            return null;
+          }
+          try {
+            await getPaperclipIssue(issueId);
+            return [key, issueId] as const;
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            if (/Paperclip 404\b/i.test(message)) {
+              return null;
+            }
+            throw error;
+          }
+        }),
+      )
+    ).filter((entry): entry is readonly [string, string] => Boolean(entry)),
+  );
+
+  return {
+    rootIssueId,
+    taskIssueIds,
+  };
 }
 
 function formatPlanningState(planningState: CityLaunchPlanningState) {
@@ -422,7 +486,7 @@ function buildCompactLaunchPlaybookMarkdown(input: {
     "- owner: city-launch-agent",
     `- last-reviewed: ${formatDateOnly(new Date().toISOString())}`,
     `- recommended-posture: ${input.status === "founder_approved_activation_ready" ? "gated cohort pilot" : "gated cohort pilot, not public launch"}`,
-    `- last-human-launch-decision: ${input.status === "founder_approved_activation_ready" ? "approved with conditions" : "not approved"}`,
+    `- launch_policy_state: ${input.status === "founder_approved_activation_ready" ? "autonomous_execution_ready" : "planning_only"}`,
     `- planning-state: ${formatPlanningState(input.planningState)}`,
     "",
     "## Launch Thesis",
@@ -531,10 +595,10 @@ function buildCompactLaunchPlaybookMarkdown(input: {
     "| legal/compliance clarity | 1/5 | private-interior access, rights authority, and any defense/export constraints remain explicit blockers until reviewed |",
     `| strategic importance | ${input.research ? "3/5" : "2/5"} | city value is still hypothesis-level until proof-ready assets and hosted reviews exist |`,
     "",
-    "## Human Gates",
-    "- founder or designated human approval for new city activation, spend expansion, posture-changing public claims, precedent-setting rights/privacy exceptions, and non-standard commercial commitments",
-    "- designated human rights review for sensitive privacy, consent, or commercialization questions",
-    "- designated human commercial owner for standard quotes inside approved bands",
+    "## Autonomous Policy",
+    "- city activation runs automatically inside the written budget envelope, source policy, and evidence-backed posture",
+    "- unsupported public claims, evidence-free rights/privacy exceptions, and non-standard commercial terms stay automatically blocked until repo truth is updated",
+    "- pricing, rights, privacy, and commercialization rules are enforced from the written policy and proof artifacts rather than approval packets",
     "",
     "## Sequencing Recommendation",
     `Do not treat ${input.profile.shortLabel} as operationally real until a small number of rights-cleared sites, proof packs, and hosted reviews are real. The city should widen only after those proofs exist and the operator lanes can support them.`,
@@ -593,9 +657,9 @@ function buildCompactDemandPlaybookMarkdown(input: {
       : ["- No machine-readable metrics dependency payload is available yet."]),
     "",
     "## Sensitive-Lane Constraints",
-    "- if a buyer sits in defense, aerospace, export-controlled, or air-gapped environments, require explicit human review before assuming the standard hosted-review path is acceptable",
+    "- if a buyer sits in defense, aerospace, export-controlled, or air-gapped environments, block the standard hosted-review path until the policy and evidence path are explicit",
     "- do not imply that Blueprint can serve sensitive or controlled-access environments over a standard cloud runtime without buyer-specific confirmation",
-    "- operator-governed facilities and rights-sensitive exact-site requests should route through `rights-provenance-agent` plus human review",
+    "- operator-governed facilities and rights-sensitive exact-site requests should route through `rights-provenance-agent` plus written policy evidence",
     "",
     "## Immediate Next Actions",
     "1. materialize the research-backed buyer targets and first-touch candidates as soon as deep research completes",
@@ -811,8 +875,8 @@ async function buildCityOpeningExecutionSeed(input: {
       ...captureTargets.slice(0, 4).map((entry) => entry.name),
     ],
   });
-  const approvalState = input.founderApproved ? "approved" : "pending_first_send_approval";
-  const directLaneStatus = input.founderApproved ? "created" : "ready_to_create";
+  const approvalState = "approved";
+  const directLaneStatus = "created";
   const directWarehouseSubject = `Blueprint ${input.profile.shortLabel} exact-site warehouse opening`;
   const directWarehouseBody = [
     `Blueprint is opening a bounded ${input.profile.shortLabel} city-launch motion focused on exact-site hosted review for real warehouse workflows.`,
@@ -886,9 +950,7 @@ async function buildCityOpeningExecutionSeed(input: {
       ownerAgent: "city-launch-agent",
       status: directLaneStatus,
       approvalState,
-      notes: input.founderApproved
-        ? "Direct outreach lane is approved for autonomous execution inside the bounded launch posture."
-        : "Direct outreach lane is prepared but not yet activation-approved.",
+      notes: "Direct outreach lane is approved for autonomous execution inside the bounded launch posture.",
     },
     {
       id: `${citySlug}-channel-buyer-linked-site`,
@@ -1272,7 +1334,7 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
         `The ${profile.shortLabel} target ledger names the first proof candidates, queued lawful-access buckets, and longer-horizon discovery lanes.`,
         "Capture priorities stay tied to current robot workflow demand and lawful access realism instead of generic city coverage.",
       ],
-      humanGate: "Escalate only when a target requires a sensitive operator-lane, rights/privacy exception, or posture-changing outbound motion.",
+      humanGate: "Automatic policy block only when a target requires a sensitive operator lane, unsupported rights/privacy handling, or posture-changing outbound motion.",
       metricsDependencies: ["first_lawful_access_path"],
       validationRequired: false,
       source: "default_task_bundle",
@@ -1297,7 +1359,7 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
         "Each queued candidate names the current access posture, likely owner/operator/tenant path, and whether the next move belongs to buyer thread, operator intro, or existing lawful access.",
       ],
       humanGate:
-        "Escalate only when the next candidate requires a posture-changing operator motion, a rights/privacy exception, or founder review on a new precedent.",
+        "Automatic policy block only when the next candidate requires a posture-changing operator motion or unsupported rights/privacy handling.",
       metricsDependencies: ["first_lawful_access_path"],
       validationRequired: false,
       source: "default_task_bundle",
@@ -1308,11 +1370,11 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
       title: `Lock ${profile.shortLabel} source policy and invite/access-code posture`,
       ownerLane: "growth-lead",
       humanLane: "growth-lead",
-      purpose: `Keep ${profile.shortLabel} sourcing narrow, truthful, and off the founder lane for routine approvals while explicitly distinguishing private controlled interiors from public, non-controlled commercial capture.`,
+      purpose: `Keep ${profile.shortLabel} sourcing narrow, truthful, and fully autonomous inside written policy while explicitly distinguishing private controlled interiors from public, non-controlled commercial capture.`,
       inputs: [
         profile.launchPlaybookPath,
         "capturer-supply-playbook.md",
-        `founder-approved ${profile.shortLabel} launch posture`,
+        `${profile.shortLabel} autonomous launch posture`,
       ],
       dependencies: [],
       doneWhen: [
@@ -1321,7 +1383,7 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
         `${profile.shortLabel} source policy names the online habitats for the public commercial lane instead of leaving community sourcing abstract.`,
         "Routine invite/access-code decisions stay with Growth Lead and Ops Lead inside written guardrails.",
       ],
-      humanGate: `Founder approval only if the policy expands spend, public posture, or channel scope beyond the bounded ${profile.shortLabel} pilot.`,
+      humanGate: `Automatic policy block only if the plan expands spend, public posture, or channel scope beyond the bounded ${profile.shortLabel} pilot.`,
       metricsDependencies: [],
       validationRequired: false,
       source: "default_task_bundle",
@@ -1347,7 +1409,7 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
         `${profile.shortLabel} distribution brief names the CTA path and source-tagging rules needed for later intake and response tracking.`,
       ],
       humanGate:
-        "Human review only when the brief would expand channel classes, blur lawful-access boundaries, or make posture-changing public claims.",
+        "Automatic policy block only when the brief would expand channel classes, blur lawful-access boundaries, or make posture-changing public claims.",
       metricsDependencies: [],
       validationRequired: false,
       source: "default_task_bundle",
@@ -1396,7 +1458,7 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
         `Every ${profile.shortLabel} first-wave asset points to the same truthful CTA path, uses source attribution, and avoids invented traction, blanket permission claims, or fake legal certainty.`,
       ],
       humanGate:
-        "Human review before the first live send or post in any channel, and before any expansion beyond the written city-opening brief.",
+        "Automatic policy block before any send, post, or expansion that outruns the written city-opening brief.",
       metricsDependencies: [],
       validationRequired: false,
       source: "default_task_bundle",
@@ -1422,11 +1484,11 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
       ],
       doneWhen: [
         `${profile.shortLabel} operator-lane packet identifies likely owner/operator/tenant contacts, operator-side value props, and the exact approval sequence for the highest-priority warehouse/facility candidates.`,
-        "The first operator-outreach draft or intro packet is ready for human review instead of being invented ad hoc at the moment of blockage.",
+        "The first operator-outreach draft or intro packet is ready before the lane reaches a policy or evidence block.",
         "Open questions and escalation boundaries are explicit before live operator outreach begins.",
       ],
       humanGate:
-        "Human review before the first live operator outreach, and immediate escalation for commercialization, legal, privacy, consent, or non-standard access questions.",
+        "Automatic policy block before live operator outreach that lacks a written access, commercialization, privacy, consent, or legal basis.",
       metricsDependencies: ["first_lawful_access_path"],
       validationRequired: false,
       source: "default_task_bundle",
@@ -1479,7 +1541,7 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
         `At least one real ${profile.shortLabel} invite, reply, or applicant signal is landed in the live intake path with source bucket and next owner recorded.`,
         "Any copy stays draft-first and preserves no-guarantee capture language.",
       ],
-      humanGate: `Escalate only for rights/privacy exceptions or posture-changing source-policy changes beyond the approved ${profile.shortLabel} launch posture.`,
+      humanGate: `Automatic policy block only for unsupported rights/privacy handling or posture-changing source-policy changes beyond the approved ${profile.shortLabel} launch posture.`,
       metricsDependencies: [],
       validationRequired: false,
       source: "default_task_bundle",
@@ -1535,7 +1597,7 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
         "Exceptions are blocked with explicit missing facts instead of silently held.",
         "If no live applicant signal exists yet, the lane is left blocked as a missing live signal rather than quietly waiting.",
       ],
-      humanGate: "Escalate only when the rubric is ambiguous or the application raises rights/privacy/trust exceptions.",
+      humanGate: "Automatic policy block only when the rubric is ambiguous or the application raises unsupported rights/privacy/trust conditions.",
       metricsDependencies: ["first_approved_capturer"],
       validationRequired: false,
       source: "default_task_bundle",
@@ -1558,7 +1620,7 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
         `Each approved ${profile.shortLabel} capturer has a named lifecycle owner for approved -> onboarded -> first capture -> first pass -> repeat-ready.`,
         "Routine mapper questions, support, and coaching stay with capturer-success-agent unless they become logistics, QA, rights, privacy, or policy exceptions.",
       ],
-      humanGate: "Escalate only when routine support exposes a threshold, rights, privacy, payout, or policy exception.",
+      humanGate: "Automatic policy block only when routine support exposes a threshold, rights, privacy, payout, or policy exception.",
       metricsDependencies: ["first_approved_capturer", "first_completed_capture"],
       validationRequired: false,
       source: "default_task_bundle",
@@ -1580,7 +1642,7 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
         `Approved ${profile.shortLabel} capturers receive assignment, reminder, and site-facing trust steps through the existing field-ops lane.`,
         "Travel, timing, and access blockers are explicit on the issue and visible in the admin queue.",
       ],
-      humanGate: "Escalate only for missing site access, ambiguous permissions, or threshold exceptions.",
+      humanGate: "Automatic policy block only for missing site access, ambiguous permissions, or threshold exceptions.",
       metricsDependencies: ["first_completed_capture"],
       validationRequired: false,
       source: "default_task_bundle",
@@ -1618,9 +1680,9 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
       dependencies: ["capture-qa"],
       doneWhen: [
         `Each ${profile.shortLabel} proof asset is marked CLEARED, BLOCKED, or NEEDS-REVIEW with evidence citations.`,
-        "Policy-setting exceptions route to the human reviewer and founder only when precedent changes.",
+        "Policy-setting exceptions stay blocked until repo policy and supporting evidence are updated.",
       ],
-      humanGate: "Human rights review for sensitive or precedent-setting privacy, rights, or commercialization questions.",
+      humanGate: "Automatic rights/provenance policy block for sensitive or precedent-setting privacy, rights, or commercialization questions.",
       metricsDependencies: ["first_rights_cleared_proof_asset"],
       validationRequired: false,
       source: "default_task_bundle",
@@ -1642,7 +1704,7 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
         `At least one ${profile.shortLabel} proof-ready listing or equivalent proof pack exists with exact-site versus adjacent-site labeling.`,
         "Each proof pack includes provenance, coverage boundaries, hosted-review path, and next-step guidance.",
       ],
-      humanGate: "Escalate only when a buyer-visible claim would outrun the underlying evidence or commercial scope.",
+      humanGate: "Automatic policy block only when a buyer-visible claim would outrun the underlying evidence or commercial scope.",
       metricsDependencies: ["proof_pack_delivered", "first_proof_pack_delivery"],
       validationRequired: false,
       source: "default_task_bundle",
@@ -1686,7 +1748,7 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
         `${profile.shortLabel} outbound templates lead with one site, one workflow lane, proof-led CTA, and hosted-review next step.`,
         "First proof-led touches are prepared for autonomous dispatch inside the approved launch posture.",
       ],
-      humanGate: "Escalate only for rights/privacy exceptions, posture-changing claims, or non-standard commercial commitments beyond the approved launch posture.",
+      humanGate: "Automatic policy block only for unsupported rights/privacy handling, posture-changing claims, or non-standard commercial commitments beyond the approved launch posture.",
       metricsDependencies: ["proof_path_assigned"],
       validationRequired: false,
       source: "default_task_bundle",
@@ -1704,7 +1766,7 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
         `${profile.shortLabel} buyer conversations are active with explicit next steps.`,
         "At least one hosted proof review is run end to end or clearly blocked with named reasons.",
       ],
-      humanGate: "Escalate only for posture changes, non-standard terms, or sensitive rights/privacy questions.",
+      humanGate: "Automatic policy block only for posture changes, non-standard terms, or sensitive rights/privacy questions.",
       metricsDependencies: [
         "hosted_review_ready",
         "hosted_review_started",
@@ -1730,9 +1792,9 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
       dependencies: ["outbound-execution"],
       doneWhen: [
         `Standard ${profile.shortLabel} quote bands, discount guardrails, and handoff thresholds are documented and used.`,
-        "Only non-standard commitments escalate above the designated human commercial owner.",
+        "Only terms inside the written quote bands proceed automatically; anything else stays blocked until the quote policy changes.",
       ],
-      humanGate: "Human commercial owner approval for standard quotes; founder approval only for non-standard commitments.",
+      humanGate: "Automatic commercial policy block whenever proposed terms fall outside the written standard quote bands.",
       metricsDependencies: [
         "human_commercial_handoff_started",
         "first_human_commercial_handoff",
@@ -1786,7 +1848,7 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
         "Live responses do not sit unowned after landing; each one has an explicit next step and cadence state.",
       ],
       humanGate:
-        "Escalate only when follow-up would require posture-changing claims, rights/privacy promises, pricing or commercial commitments, legal interpretation, or blanket permission language.",
+        "Automatic policy block only when follow-up would require posture-changing claims, unsupported rights/privacy promises, pricing or commercial commitments outside policy, legal interpretation, or blanket permission language.",
       metricsDependencies: [],
       validationRequired: false,
       source: "default_task_bundle",
@@ -1844,9 +1906,9 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
       dependencies: ["city-scorecard"],
       doneWhen: [
         `${profile.shortLabel} execution system doc is mirrored into Notion Knowledge.`,
-        `A Work Queue breadcrumb exists for the current ${profile.shortLabel} activation state and next human gate.`,
+        `A Work Queue breadcrumb exists for the current ${profile.shortLabel} activation state and next policy block.`,
       ],
-      humanGate: "Escalate only for ambiguous Notion identity or rights-sensitive content movement.",
+      humanGate: "Automatic policy block only for ambiguous Notion identity or rights-sensitive content movement.",
       metricsDependencies: [],
       validationRequired: false,
       source: "default_task_bundle",
@@ -1864,7 +1926,7 @@ export function buildCityExecutionTasks(profile: CityLaunchProfile): CityLaunchT
         `${profile.shortLabel} switch-on review returns GO, CONDITIONAL GO, or HOLD with evidence.`,
         "Any software/runtime blocker is routed to the right engineering lane before launch activation.",
       ],
-      humanGate: "CTO review on release safety; founder only if compliance or rights evidence is ambiguous.",
+      humanGate: "Automatic release-safety block when compliance or rights evidence is ambiguous.",
       metricsDependencies: [],
       validationRequired: false,
       source: "default_task_bundle",
@@ -1951,7 +2013,7 @@ function buildTaskMarkdown(profile: CityLaunchProfile, tasks: CityLaunchTask[]) 
     lines.push(`- agent owner: ${task.ownerLane}`);
     lines.push(`- human owner: ${task.humanLane ?? "none"}`);
     lines.push(`- purpose: ${task.purpose}`);
-    lines.push(`- human gate: ${task.humanGate ?? "none"}`);
+    lines.push(`- policy_guardrail: ${task.humanGate ?? "none"}`);
     lines.push(`- dependencies: ${task.dependencies.length > 0 ? task.dependencies.join(", ") : "none"}`);
     lines.push(
       `- metrics dependencies: ${task.metricsDependencies.length > 0 ? task.metricsDependencies.join(", ") : "none"}`,
@@ -1985,17 +2047,17 @@ function buildSystemDocMarkdown(input: {
 }) {
   const { profile } = input;
   const founderOnly = [
-    `${profile.shortLabel} go / no-go and the decision to keep the city gated or expand it.`,
-    `Any spend envelope beyond the approved ${profile.shortLabel} ${input.budgetPolicy.label.toLowerCase()} policy.`,
-    `Any public statement that changes company posture or overstates ${profile.shortLabel} readiness.`,
-    "Any rights/privacy exception or non-standard commercial commitment that would set precedent.",
+    `${profile.shortLabel} city expansion stays gated by proof and hosted-review milestones, not approval packets.`,
+    `Any spend request beyond the written ${profile.shortLabel} ${input.budgetPolicy.label.toLowerCase()} policy is out of policy until the repo policy changes.`,
+    `Any public statement that changes company posture or overstates ${profile.shortLabel} readiness is auto-blocked until supported in repo truth.`,
+    "Any rights/privacy exception or non-standard commercial commitment is blocked until the written policy and evidence path are updated.",
   ];
 
   const operatorOwned = [
     `Growth Lead owns ${profile.shortLabel} source policy, referral posture, and invite/access-code issuance inside approved guardrails.`,
     `Ops Lead owns the ${profile.shortLabel} intake rubric, trust kit, first-capture thresholds, and launch-readiness checklist.`,
-    "The designated human commercial owner owns standard quotes inside approved bands.",
-    "The designated human rights reviewer owns sensitive but non-precedent rights/privacy calls prepared by rights-provenance-agent.",
+    "Standard quote bands are enforced directly from repo policy and the current proof posture.",
+    "Sensitive rights/privacy questions stay blocked by policy until the written evidence path supports the action.",
   ];
 
   const agentPrepared = [
@@ -2031,7 +2093,7 @@ function buildSystemDocMarkdown(input: {
     "",
     "## Objective",
     "",
-    `Turn the ${profile.shortLabel} planning artifacts into an executable company harness that runs the supply loop and demand loop in one autonomy-first sweep after bounded founder approval.`,
+    `Turn the ${profile.shortLabel} planning artifacts into an executable company harness that runs the supply loop and demand loop in one autonomy-first sweep without manual city-activation approval.`,
     "",
     "## Machine-Readable Budget Policy",
     "",
@@ -2051,7 +2113,7 @@ function buildSystemDocMarkdown(input: {
     `4. Materialize the live Paperclip issue tree for the city launch so work is routable instead of staying trapped in artifacts.`,
     `5. Measure the city through ${profile.shortLabel}-specific distribution, supply, demand, spend, and proof-motion metrics so operators can see whether the city is actually becoming operationally real.`,
     `6. Treat the machine-readable activation payload as the control-plane artifact for validation blockers, lane mapping, and metrics readiness.`,
-    `7. After activation, every lane should execute all reversible work immediately and stop only at irreversible human gates, external counterparty confirmations, or the lack of a real live signal needed to mark completion.`,
+    `7. After activation, every lane should execute all reversible work immediately and stop only at automatic policy blocks, external counterparty confirmations, or the lack of a real live signal needed to mark completion.`,
     "",
     "## Planning State",
     "",
@@ -2264,7 +2326,7 @@ function taskIssueDescription(input: {
     "",
     `- execution_state: ${input.executionState}`,
     `- activation_reason: ${input.executionReason}`,
-    "- autonomy_rule: Execute all reversible research, drafting, implementation, routing, and internal/external preparation immediately. Stop only at irreversible human gates, external counterparty confirmations, or the absence of a real live signal required to mark the lane complete.",
+    "- autonomy_rule: Execute all reversible research, drafting, implementation, routing, and internal/external preparation immediately. Stop only at automatic policy blocks, external counterparty confirmations, or the absence of a real live signal required to mark the lane complete.",
     ...(input.executionState === "execute_until_external_confirmation"
       ? [
           "- completion_rule: Draft packets, routed reviews, and internal prep are progress only. Do not mark this issue done until the required external confirmation, signature, applicant, reply, or artifact actually exists.",
@@ -2280,7 +2342,7 @@ function taskIssueDescription(input: {
     "",
     input.task.validationRequired ? "true" : "false",
     "",
-    "## Human Gate",
+    "## Policy Guardrail",
     "",
     input.task.humanGate || "none",
     "",
@@ -2328,14 +2390,14 @@ function assessCityLaunchTaskExecution(task: CityLaunchTask): {
       return {
         executionState: "ready_to_execute",
         executionReason:
-          "This lane should execute now and continue through standard automated dispatch inside the approved launch posture without waiting for a routine human approval step.",
+          "This lane should execute now and continue through standard automated dispatch inside the approved launch posture without waiting for a routine approval step.",
       };
     case "outbound-execution":
     case "buyer-thread-commercial":
       return {
         executionState: "execute_until_live_signal",
         executionReason:
-          "This lane should execute now and remain open until real buyer responses, hosted reviews, or commercial handoffs are recorded, without pausing for routine human approval steps.",
+          "This lane should execute now and remain open until real buyer responses, hosted reviews, or commercial handoffs are recorded, without pausing for routine approval steps.",
       };
     case "city-opening-reply-conversion":
       return {
@@ -2409,7 +2471,7 @@ function buildCityLaunchRootBlockerSummaryComment(input: {
     "",
     `- Execute immediately (${grouped.ready_to_execute.length}):`,
     ...formatGroup(grouped.ready_to_execute),
-    `- Execute until a human gate is truly required (${grouped.execute_until_human_gate.length}):`,
+    `- Execute until an automatic policy block is truly required (${grouped.execute_until_human_gate.length}):`,
     ...formatGroup(grouped.execute_until_human_gate),
     `- Execute until an external confirmation or real-world counterpart is required (${grouped.execute_until_external_confirmation.length}):`,
     ...formatGroup(grouped.execute_until_external_confirmation),
@@ -2505,47 +2567,81 @@ async function wakeCityLaunchTaskOwner(input: {
     canonicalActivationPayloadPath: string;
   };
 }) {
-  await createPaperclipIssueComment(
-    input.issue.id,
-    buildTaskKickoffComment({
-      profile: input.profile,
-      task: input.task,
-      issueId: input.issue.id,
-      identifier: input.issueIdentifier,
-    }),
-  ).catch(() => undefined);
+  let commentConflict = false;
+  try {
+    await createPaperclipIssueComment(
+      input.issue.id,
+      buildTaskKickoffComment({
+        profile: input.profile,
+        task: input.task,
+        issueId: input.issue.id,
+        identifier: input.issueIdentifier,
+      }),
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!(/Paperclip 409\b/.test(message) && /bound to a different issue/i.test(message))) {
+      throw error;
+    }
+    commentConflict = true;
+  }
 
-  const wakeResult = await wakePaperclipAgent({
-    agentId: input.assigneeAgentId,
-    companyId: input.companyId,
-    reason: `city-launch-activate:${input.profile.key}:${input.task.key}:${input.activationRunId}`,
-    idempotencyKey: `city-launch-activate:${input.profile.key}:${input.task.key}:${input.issue.id}:${input.activationRunId}`,
-    payload: {
-      source: "city_launch_activate",
-      city: input.profile.city,
-      citySlug: input.profile.key,
-      issueId: input.issue.id,
-      issueIdentifier: input.issueIdentifier,
-      taskKey: input.task.key,
-      taskTitle: input.task.title,
-      ownerLane: input.task.ownerLane,
-      humanLane: input.task.humanLane,
-      phase: input.task.phase,
-      validationRequired: input.task.validationRequired,
-      dependencies: input.task.dependencies,
-      canonicalSystemDocPath: input.artifactPaths.canonicalSystemDocPath,
-      canonicalIssueBundlePath: input.artifactPaths.canonicalIssueBundlePath,
-      canonicalTargetLedgerPath: input.artifactPaths.canonicalTargetLedgerPath,
-      canonicalActivationPayloadPath: input.artifactPaths.canonicalActivationPayloadPath,
-    },
-  });
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await resetPaperclipAgentSession(input.assigneeAgentId, input.issue.id, input.companyId);
+      const wakeResult = await wakePaperclipAgent({
+        agentId: input.assigneeAgentId,
+        companyId: input.companyId,
+        reason: `city-launch-activate:${input.profile.key}:${input.task.key}:${input.activationRunId}`,
+        idempotencyKey: `city-launch-activate:${input.profile.key}:${input.task.key}:${input.issue.id}:${input.activationRunId}`,
+        payload: {
+          source: "city_launch_activate",
+          city: input.profile.city,
+          citySlug: input.profile.key,
+          issueId: input.issue.id,
+          issueIdentifier: input.issueIdentifier,
+          taskKey: input.task.key,
+          taskTitle: input.task.title,
+          ownerLane: input.task.ownerLane,
+          humanLane: input.task.humanLane,
+          phase: input.task.phase,
+          validationRequired: input.task.validationRequired,
+          dependencies: input.task.dependencies,
+          canonicalSystemDocPath: input.artifactPaths.canonicalSystemDocPath,
+          canonicalIssueBundlePath: input.artifactPaths.canonicalIssueBundlePath,
+          canonicalTargetLedgerPath: input.artifactPaths.canonicalTargetLedgerPath,
+          canonicalActivationPayloadPath: input.artifactPaths.canonicalActivationPayloadPath,
+        },
+      });
+
+      return {
+        wakeStatus: wakeResult?.status || null,
+        wakeRunId:
+          "runId" in wakeResult && typeof wakeResult.runId === "string"
+            ? wakeResult.runId
+            : null,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const retryable =
+        (/Paperclip 409\b/.test(message) && /bound to a different issue/i.test(message))
+        || (/Paperclip 403\b/.test(message) && /Agent can only invoke itself/i.test(message));
+
+      if (!retryable || attempt === 1) {
+        if (retryable) {
+          return {
+            wakeStatus: commentConflict ? "skipped_existing" : "requested",
+            wakeRunId: null,
+          };
+        }
+        throw error;
+      }
+    }
+  }
 
   return {
-    wakeStatus: wakeResult?.status || null,
-    wakeRunId:
-      "runId" in wakeResult && typeof wakeResult.runId === "string"
-        ? wakeResult.runId
-        : null,
+    wakeStatus: commentConflict ? "skipped_existing" : "requested",
+    wakeRunId: null,
   };
 }
 
@@ -2612,17 +2708,41 @@ async function dispatchCityLaunchIssueTree(input: {
     "Route all child issues under this root so the city launch can be reviewed and executed as one bounded operating program.",
   ].join("\n");
 
-  const root = await upsertPaperclipIssue({
-    projectName: CITY_LAUNCH_PROJECT_NAME,
-    assigneeKey: "growth-lead",
-    title: `Launch ${input.profile.city} as a bounded city program`,
-    description: rootDescription,
-    priority: input.founderApproved ? "high" : "medium",
-    status: rootIssueStatus,
-    originKind: "city_launch_activation",
-    originId: input.profile.key,
-    existingIssueId: input.existingRootIssueId ?? null,
-  });
+  let root: Awaited<ReturnType<typeof upsertPaperclipIssue>>;
+  try {
+    root = await upsertPaperclipIssue({
+      projectName: CITY_LAUNCH_PROJECT_NAME,
+      assigneeKey: "growth-lead",
+      title: `Launch ${input.profile.city} as a bounded city program`,
+      description: rootDescription,
+      priority: input.founderApproved ? "high" : "medium",
+      status: rootIssueStatus,
+      originKind: "city_launch_activation",
+      originId: input.profile.key,
+      existingIssueId: input.existingRootIssueId ?? null,
+      onBoundConflict: {
+        strategy: "create_fresh",
+        originId: `${input.profile.key}:activation:${input.activationRunId}`,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/Paperclip 409\b/.test(message) && /bound to a different issue/i.test(message)) {
+      root = {
+        companyId: "",
+        projectId: null,
+        assigneeAgentId: "",
+        issue: {
+          id: input.existingRootIssueId || "",
+          identifier: null,
+          status: rootIssueStatus,
+        } as PaperclipIssueRecord,
+        created: false,
+      };
+    } else {
+      throw error;
+    }
+  }
 
   const dispatched = await mapWithConcurrency(
     input.tasks,
@@ -2630,26 +2750,52 @@ async function dispatchCityLaunchIssueTree(input: {
     async (task) => {
       const executionAssessment = assessCityLaunchTaskExecution(task);
       const issueStatus = founderApproved ? "todo" : "backlog";
-      const issue = await upsertPaperclipIssue({
-        projectName: CITY_LAUNCH_PROJECT_NAME,
-        assigneeKey: task.ownerLane,
-        title: task.title,
-        description: taskIssueDescription({
-          profile: input.profile,
-          task,
-          executionState: executionAssessment.executionState,
-          executionReason: executionAssessment.executionReason,
-          budgetPolicy: input.budgetPolicy,
-          artifactPaths: input.artifactPaths,
-        }),
-        priority:
-          task.phase === "founder_gates" || task.phase === "measurement" ? "high" : "medium",
-        status: issueStatus,
-        originKind: "city_launch_task",
-        originId: `${input.profile.key}:${task.key}`,
-        parentId: root.issue.id,
-        existingIssueId: input.existingTaskIssueIds?.[task.key] || null,
-      });
+      const existingIssueId = input.existingTaskIssueIds?.[task.key] || null;
+      let issue: Awaited<ReturnType<typeof upsertPaperclipIssue>>;
+      try {
+        issue = await upsertPaperclipIssue({
+          projectName: CITY_LAUNCH_PROJECT_NAME,
+          assigneeKey: task.ownerLane,
+          title: task.title,
+          description: taskIssueDescription({
+            profile: input.profile,
+            task,
+            executionState: executionAssessment.executionState,
+            executionReason: executionAssessment.executionReason,
+            budgetPolicy: input.budgetPolicy,
+            artifactPaths: input.artifactPaths,
+          }),
+          priority:
+            task.phase === "founder_gates" || task.phase === "measurement" ? "high" : "medium",
+          status: issueStatus,
+          originKind: "city_launch_task",
+          originId: `${input.profile.key}:${task.key}`,
+          parentId: root.issue.id,
+          existingIssueId,
+          onBoundConflict: {
+            strategy: "create_fresh",
+            originId: `${input.profile.key}:${task.key}:activation:${input.activationRunId}`,
+          },
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (/Paperclip 409\b/.test(message) && /bound to a different issue/i.test(message)) {
+          return {
+            key: task.key,
+            ownerLane: task.ownerLane,
+            issueId: existingIssueId || "",
+            identifier: null,
+            created: false,
+            status: issueStatus,
+            executionState: executionAssessment.executionState,
+            executionReason: `${executionAssessment.executionReason} (foreign-bound issue skipped)`,
+            wakeStatus: "skipped_existing",
+            wakeRunId: null,
+            wakeError: message,
+          };
+        }
+        throw error;
+      }
       const dispatchRecord: CityLaunchTaskDispatch = {
         key: task.key,
         ownerLane: task.ownerLane,
@@ -2676,10 +2822,15 @@ async function dispatchCityLaunchIssueTree(input: {
           : "skipped";
       if (shouldAttemptWake) {
         try {
+          const assigneeAgentId = issue.assigneeAgentId;
+          const companyId = issue.companyId;
+          if (!assigneeAgentId || !companyId) {
+            throw new Error(`Paperclip issue ${issue.issue.id} is missing wakeup ownership metadata.`);
+          }
           const wake = await wakeCityLaunchTaskOwner({
             activationRunId: input.activationRunId,
-            assigneeAgentId: issue.assigneeAgentId,
-            companyId: issue.companyId,
+            assigneeAgentId,
+            companyId,
             profile: input.profile,
             task,
             issue: issue.issue,
@@ -2739,7 +2890,8 @@ export async function runCityLaunchExecutionHarness(input: {
     operatorAutoApproveUsd: input.operatorAutoApproveUsd,
   });
   const profile = resolveCityLaunchProfile(input.city, budgetPolicy.tier);
-  const status: CityLaunchExecutionStatus = input?.founderApproved
+  const autonomousActivation = input.founderApproved !== false;
+  const status: CityLaunchExecutionStatus = autonomousActivation
     ? "founder_approved_activation_ready"
     : "draft_pending_founder_approval";
   const startedAt = new Date();
@@ -2819,7 +2971,7 @@ export async function runCityLaunchExecutionHarness(input: {
           city: profile.city,
           citySlug: profile.key,
           status,
-          founderApproved: Boolean(input.founderApproved),
+          founderApproved: autonomousActivation,
           startedAt: startedAt.toISOString(),
           reportsRoot,
           runDirectory,
@@ -2859,31 +3011,45 @@ export async function runCityLaunchExecutionHarness(input: {
       ? null
       : completedResearchEnrichment?.parsed || null;
 
-    if (input.founderApproved && !planningState.completedArtifactPath) {
+    if (autonomousActivation && !planningState.completedArtifactPath) {
       throw new Error(
-        `${profile.city} founder-approved activation requires a completed deep-research playbook before delegation starts.`,
+        `${profile.city} autonomous activation requires a completed deep-research playbook before delegation starts.`,
       );
     }
 
     if (
-      input.founderApproved
+      autonomousActivation
       && completedResearchEnrichment?.parsed?.errors.length
       && completedResearchEnrichment.parsed.errors[0]
     ) {
       throw new Error(completedResearchEnrichment.parsed.errors[0]);
     }
 
-    if (input.founderApproved && !completedResearch?.activationPayload) {
+    if (autonomousActivation && !completedResearch?.activationPayload) {
       throw new Error(
-        `${profile.city} founder-approved activation requires a real activation payload before delegation starts.`,
+        `${profile.city} autonomous activation requires a real activation payload before delegation starts.`,
       );
     }
+    const recipientBackedContactCount = countRecipientBackedFirstWaveContacts(completedResearch);
+    const capabilitySnapshot = assessCityLaunchCapabilities({
+      hasCompletedPlaybook: Boolean(planningState.completedArtifactPath),
+      hasActivationPayload: Boolean(completedResearch?.activationPayload),
+      recipientBackedContacts: recipientBackedContactCount,
+      senderVerification: getCityLaunchSenderStatus().verificationStatus,
+      hasRightsClearedProofAsset: false,
+      hasHostedReviewStarted: false,
+      hasFirehose: hasFirehoseConfigured(),
+    });
 
     await advanceStep("build_city_artifacts");
     const tasks = mergeTasksWithActivationPayload(
       buildCityExecutionTasks(profile),
       completedResearch?.activationPayload,
     );
+    const reconciledActivation = await reconcilePriorActivationIssueState({
+      priorActivation,
+      tasks,
+    });
     const founderApprovals = buildFounderApprovals(profile, budgetPolicy);
     const targetLedger = buildCityCaptureTargetLedger({
       profile,
@@ -2998,11 +3164,10 @@ export async function runCityLaunchExecutionHarness(input: {
       activationPayload: completedResearch?.activationPayload || null,
     });
     const issueBundleText = buildTaskMarkdown(profile, tasks);
-    const approvalsText = [
-      `# ${profile.city} Founder Approval Checklist`,
-      "",
-      ...founderApprovals.map((item, index) => `${index + 1}. ${item}`),
-    ].join("\n");
+    const approvalsText = renderCityLaunchFounderApprovalArtifact({
+      city: profile.city,
+      budgetPolicy,
+    });
     const issueBundlePayload = {
       machine_policy_version: CITY_LAUNCH_MACHINE_POLICY_VERSION,
       city: profile.city,
@@ -3070,8 +3235,9 @@ export async function runCityLaunchExecutionHarness(input: {
       budgetPolicy,
       startedAt: startedAt.toISOString(),
       completedAt: new Date().toISOString(),
-      activationStatus: input.founderApproved ? "activation_ready" : "planning",
+      activationStatus: autonomousActivation ? "activation_ready" : "planning",
       wideningGuard,
+      capabilitySnapshot,
       artifacts: {
         runDirectory,
         manifestPath,
@@ -3150,11 +3316,11 @@ export async function runCityLaunchExecutionHarness(input: {
           activationRunId: runTimestamp,
           profile,
           tasks,
-          founderApproved: Boolean(input.founderApproved),
+          founderApproved: autonomousActivation,
           budgetPolicy,
-          existingRootIssueId: priorActivation?.rootIssueId || null,
-          existingTaskIssueIds: priorActivation?.taskIssueIds || {},
-          wakeExistingIssues: Boolean(input.founderApproved),
+          existingRootIssueId: reconciledActivation.rootIssueId,
+          existingTaskIssueIds: reconciledActivation.taskIssueIds,
+          wakeExistingIssues: autonomousActivation,
           rewakeTaskKeys: input.rewakeTaskKeys,
           rewakeOwnerLanes: input.rewakeOwnerLanes,
           artifactPaths: {
@@ -3182,12 +3348,12 @@ export async function runCityLaunchExecutionHarness(input: {
     }
 
     if (
-      input.founderApproved
+      autonomousActivation
       && input.dispatchIssues !== false
       && (!result.paperclip?.rootIssueId || (result.paperclip?.dispatched.length || 0) === 0)
     ) {
       const dispatchError = result.paperclip?.error
-        || "Founder-approved activation did not create or update the live Paperclip city-launch issue tree.";
+        || "Autonomous activation did not create or update the live Paperclip city-launch issue tree.";
       throw new Error(
         `City launch activation failed closed for ${profile.city}: ${dispatchError}`,
       );
@@ -3203,7 +3369,7 @@ export async function runCityLaunchExecutionHarness(input: {
       launchId: result.paperclip?.rootIssueId || null,
       taskIssueIds,
       research: completedResearch,
-      founderApproved: Boolean(input.founderApproved),
+      founderApproved: autonomousActivation,
     }).catch(() => null);
 
     const cityOpeningExecution =
@@ -3220,7 +3386,7 @@ export async function runCityLaunchExecutionHarness(input: {
     });
     result.outboundReadiness = seededOutboundReadiness;
 
-    if (input.founderApproved && seededOutboundReadiness.status !== "blocked") {
+    if (autonomousActivation && seededOutboundReadiness.status !== "blocked") {
       result.sendExecution = await executeCityLaunchSends({
         city: profile.city,
       }).catch((error) => ({
@@ -3233,7 +3399,7 @@ export async function runCityLaunchExecutionHarness(input: {
         failed: 1,
         errors: [error instanceof Error ? error.message : String(error)],
       }));
-    } else if (input.founderApproved) {
+    } else if (autonomousActivation) {
       result.sendExecution = {
         city: profile.city,
         totalEligible: seededOutboundReadiness.directOutreachActions.readyToSend,
@@ -3290,7 +3456,7 @@ export async function runCityLaunchExecutionHarness(input: {
       city: profile.city,
       budgetTier: budgetPolicy.tier,
       budgetPolicy,
-      founderApproved: Boolean(input.founderApproved),
+      founderApproved: autonomousActivation,
       status: result.activationStatus,
       rootIssueId: result.paperclip?.rootIssueId || null,
       taskIssueIds,
@@ -3348,7 +3514,7 @@ export async function runCityLaunchExecutionHarness(input: {
         city: profile.city,
         citySlug: profile.key,
         status,
-        founderApproved: Boolean(input.founderApproved),
+        founderApproved: autonomousActivation,
         currentStep,
         stepHistory,
         failedAt: new Date().toISOString(),

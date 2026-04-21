@@ -7,6 +7,7 @@ import {
   type ParsedCityLaunchBuyerTarget,
   type ParsedCityLaunchCaptureCandidate,
 } from "./cityLaunchResearchParser";
+import { demoteRecipientBackedContactError } from "./cityLaunchCapabilityState";
 import { discoverGovernedExternalContactEvidence } from "./cityLaunchExternalContactDiscovery";
 
 type ContactEvidence = {
@@ -302,18 +303,23 @@ export async function runCityLaunchContactEnrichment(input: {
     errors,
   });
 
+  const normalizedValidation = demoteRecipientBackedContactError({
+    warnings,
+    errors,
+  });
+
   const parsed: CityLaunchResearchParseResult = {
     ...rawParsed,
     artifactPath: effectiveOutputPath,
     buyerTargets: mergedBuyerTargets.buyerTargets,
     captureCandidates: mergedCaptureCandidates.captureCandidates,
-    warnings,
-    errors,
+    warnings: normalizedValidation.warnings,
+    errors: normalizedValidation.errors,
   };
 
   const result: CityLaunchContactEnrichmentResult = {
     status:
-      errors.length > 0
+      normalizedValidation.errors.length > 0
         ? "failed"
         : mergedBuyerTargets.recovered > 0 || mergedCaptureCandidates.recovered > 0
           ? "enriched"
@@ -328,8 +334,8 @@ export async function runCityLaunchContactEnrichment(input: {
     recoveredCaptureCandidateContacts: mergedCaptureCandidates.recovered,
     unresolvedBuyerTargets: mergedBuyerTargets.unresolved,
     unresolvedCaptureCandidates: mergedCaptureCandidates.unresolved,
-    warnings,
-    errors,
+    warnings: normalizedValidation.warnings,
+    errors: normalizedValidation.errors,
   };
 
   await maybeWriteArtifacts(result);

@@ -526,6 +526,7 @@ Given the proximity of aerospace/defense contractors at McClellan Park:
   "buyer_target_candidates": [
     {
       "company_name": "Raymond West",
+      "contact_email": "sales@raymondwest.com",
       "status": "researched",
       "workflow_fit": "warehouse autonomy",
       "proof_path": "exact_site",
@@ -535,7 +536,8 @@ Given the proximity of aerospace/defense contractors at McClellan Park:
       "explicit_fields": [
         "company_name",
         "workflow_fit",
-        "proof_path"
+        "proof_path",
+        "contact_email"
       ],
       "inferred_fields": []
     },

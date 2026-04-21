@@ -3,7 +3,7 @@
 ## Status
 - phase: activation_ready
 - owner: city-demand-agent
-- latest-refresh: 2026-04-18
+- latest-refresh: 2026-04-21
 - planning-state: completed
 - confidence: medium
 
@@ -41,9 +41,9 @@ San Jose demand should stay proof-led: qualify real robot-team interest, classif
 - proof_motion_stalled: required_not_tracked
 
 ## Sensitive-Lane Constraints
-- if a buyer sits in defense, aerospace, export-controlled, or air-gapped environments, require explicit human review before assuming the standard hosted-review path is acceptable
+- if a buyer sits in defense, aerospace, export-controlled, or air-gapped environments, block the standard hosted-review path until the policy and evidence path are explicit
 - do not imply that Blueprint can serve sensitive or controlled-access environments over a standard cloud runtime without buyer-specific confirmation
-- operator-governed facilities and rights-sensitive exact-site requests should route through `rights-provenance-agent` plus human review
+- operator-governed facilities and rights-sensitive exact-site requests should route through `rights-provenance-agent` plus written policy evidence
 
 ## Immediate Next Actions
 1. materialize the research-backed buyer targets and first-touch candidates as soon as deep research completes

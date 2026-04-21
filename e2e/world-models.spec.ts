@@ -4,15 +4,14 @@ test('world models page exposes hosted access and package paths', async ({ page 
   await page.goto('/world-models', { waitUntil: 'domcontentloaded' });
 
   await expect(
-    page.getByRole('heading', { name: /Train, evaluate, and debug on the exact site before deployment\./i }),
+    page.getByRole('heading', { name: /Browse exact-site world models\./i }),
   ).toBeVisible();
-  await expect(page.getByText(/Choose how you want access\./i)).toBeVisible();
-  await expect(page.getByRole('link', { name: /How access works/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /See available sites/i })).toBeVisible();
-  await expect(page.getByText(/Best place to start/i).first()).toBeVisible();
-  await expect(page.getByText(/Commercial exemplar/i).first()).toBeVisible();
-  await expect(page.getByText(/Plain-English commercial note/i).first()).toBeVisible();
-  await expect(page.getByRole('link', { name: /Request hosted evaluation/i }).first()).toBeVisible();
+  await expect(page.getByText(/Real facilities, real capture, and clear paths into site packages or hosted sessions\./i)).toBeVisible();
+  await expect(page.getByRole('link', { name: /View Sample Site/i }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: /Request Access/i }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Featured sites\./i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Browse the catalog\./i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Need a specific site\?/i })).toBeVisible();
 });
 
 test('direct navigation to the setup flow stays reachable', async ({ page }) => {
@@ -34,11 +33,9 @@ test('direct navigation to a world-model detail page stays on the detail page', 
     }),
   ).toBeVisible();
   await expect(
-    page.getByText(
-      /Use it to answer a deployment question on the real site, compare the package with hosted evaluation, and decide how your team should test before visiting\./i,
-    ),
+    page.getByText(/What a buyer can inspect right now\./i),
   ).toBeVisible();
   await expect(page.getByText(/Typical response cadence/i)).toBeVisible();
   await expect(page.getByText(/Hosted evaluation evidence/i)).toBeVisible();
-  await expect(page.getByText(/session-hour is one hour of self-serve hosted runtime/i)).toBeVisible();
+  await expect(page.getByText(/Current evidence tied to this listing/i)).toBeVisible();
 });

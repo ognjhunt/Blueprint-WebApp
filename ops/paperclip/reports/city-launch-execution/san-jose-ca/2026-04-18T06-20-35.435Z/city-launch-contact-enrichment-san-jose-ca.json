@@ -1,0 +1,67 @@
+{
+  "status": "no_changes",
+  "city": "San Jose, CA",
+  "city_slug": "san-jose-ca",
+  "source_artifact_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-deep-research.md",
+  "recovered_buyer_target_contacts": 0,
+  "recovered_capture_candidate_contacts": 0,
+  "unresolved_buyer_targets": [],
+  "unresolved_capture_candidates": [
+    "Edenvale Industrial Park corridor",
+    "550 Piercy Road",
+    "6480 Hellyer Avenue"
+  ],
+  "warnings": [
+    "Activation-ready capturer direct-outreach lanes for San Jose, CA have named targets but no explicit contact_email evidence."
+  ],
+  "errors": [],
+  "buyer_target_candidates": [
+    {
+      "company_name": "Applied Intuition",
+      "contact_name": null,
+      "contact_email": "security@applied.co",
+      "notes": "Public technical/security contact route can receive the first-wave draft.",
+      "source_key": "buyer_target_candidates[0]",
+      "source_type": "deep_research_playbook"
+    },
+    {
+      "company_name": "AutoX",
+      "contact_name": null,
+      "contact_email": "contact@autox.ai",
+      "notes": "Public business inquiry route can receive the first-wave draft.",
+      "source_key": "buyer_target_candidates[1]",
+      "source_type": "deep_research_playbook"
+    },
+    {
+      "company_name": "Brain Corp",
+      "contact_name": null,
+      "contact_email": "support@braincorporation.com",
+      "notes": "Public support route can receive the first-wave draft.",
+      "source_key": "buyer_target_candidates[2]",
+      "source_type": "deep_research_playbook"
+    }
+  ],
+  "capture_location_candidates": [
+    {
+      "name": "Edenvale Industrial Park corridor",
+      "contact_email": null,
+      "priority_note": "Primary exact-site wedge reference.",
+      "source_key": "capture_location_candidates[0]",
+      "source_type": "deep_research_playbook"
+    },
+    {
+      "name": "550 Piercy Road",
+      "contact_email": null,
+      "priority_note": "Useful fallback exact-site candidate.",
+      "source_key": "capture_location_candidates[1]",
+      "source_type": "deep_research_playbook"
+    },
+    {
+      "name": "6480 Hellyer Avenue",
+      "contact_email": null,
+      "priority_note": "Useful adjacent exact-site candidate.",
+      "source_key": "capture_location_candidates[2]",
+      "source_type": "deep_research_playbook"
+    }
+  ]
+}

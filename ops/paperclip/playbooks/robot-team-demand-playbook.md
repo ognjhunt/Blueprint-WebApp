@@ -33,7 +33,7 @@ These can matter, but they are not the center of the playbook:
 3. 24-hour proof-path triage
 4. proof-pack review
 5. hosted-session demo or exact-site artifact review
-6. standard commercial handling inside approved guardrails, plus human-gated exception routing
+6. standard commercial handling inside approved guardrails, plus policy-blocked exception routing
 7. buyer activation or package purchase
 8. usage feedback, renewal, or adjacent site expansion
 
@@ -64,19 +64,20 @@ These can matter, but they are not the center of the playbook:
 
 ## Latest Operating Evidence
 - As of 2026-03-30, `inboundRequests.ops.proof_path` is the authoritative storage layer for proof-path timestamps, but truthful reporting still depends on new requests plus ops-stamped manual milestones for steps the system cannot infer automatically.
-- The intake contract now captures buyer role, target site type, proof-path preference, existing-stack or review-workflow context, and early human-gated topics, so the first response can distinguish exact-site proof from adjacent-site proof without guessing.
+- The intake contract now captures buyer role, target site type, proof-path preference, existing-stack or review-workflow context, and early policy-blocked topics, so the first response can distinguish exact-site proof from adjacent-site proof without guessing.
 - The reusable proof motion now has explicit support artifacts in `hosted-review-artifact-handoff-checklist.md` and `robot-team-finance-support-routing-playbook.md`, so hosted review and commercial-routing claims do not need to live as unwritten tribal knowledge.
 - Austin and San Francisco playbooks now inherit this shared proof system, but live intake review still shows no city-tagged buyer-demand evidence for either city. City-specific messaging should stay hypothesis-labeled until tagged traffic is real.
 - Sacramento now has a draft-only outbound first-touch pack anchored to Raymond West on the buyer side and US Cold Storage - McClellan Park on the site-operator side. It is the reusable one-site / one-lane / one-proof-path example, not buyer-ready proof.
 - Sacramento's first-touch pack should keep the proof-led CTA and hosted-review next step, but it stays behind human approval until rights, access, and live-send posture are cleared.
+- As of 2026-04-18, Sacramento's outbound-package lane has a draft city-opening brief, channel map, CTA routing contract, first-wave pack, and response-tracking rules. The reusable motion now has the exact-site hosted-review CTA path written down, but live send remains separate from package preparation.
 - San Diego now has a concrete first-wave outbound shape in the launch harness: Otay Business Park Logistics Center anchors the primary AMR lane, Brain Corp is the research-backed buyer target, and a separate guarded defense track for Shield AI must not use the public hosted-review wedge.
 
 ## Reusable Segment and Channel Matrix
 | Buyer role | Site / workflow need | Channel fit | Proof requirement | Evidence level | Human dependencies |
 | --- | --- | --- | --- | --- | --- |
-| autonomy or perception lead | evaluate an exact site before deployment or model tuning | founder intros, robotics builder networks, technical community events | exact-site proof pack plus hosted review within 24 hours | ready now | designated human commercial owner only for standard pricing/progression; founder only for non-standard commitments and rights exceptions |
+| autonomy or perception lead | evaluate an exact site before deployment or model tuning | founder intros, robotics builder networks, technical community events | exact-site proof pack plus hosted review within 24 hours | ready now | automated commercial policy only for standard pricing/progression; manual policy update required for non-standard commitments and rights exceptions |
 | deployment or operations lead | remote review before field travel, rollout planning, or intervention prep | partner referrals, operations communities, deployment-heavy intros | hosted review path, artifact handoff checklist, recency and site coverage summary | ready now | human for site access, delivery commitments, and rollout coordination; founder only for irreversible exceptions |
-| systems integrator or industrial data partner | fit Blueprint output into an existing customer stack | stack-adjacent partners and implementation relationships | compatibility statement, artifact export expectations, and explicit gap labeling | partial | designated human commercial owner for standard commercials; founder for partner-term or non-standard scope commitments |
+| systems integrator or industrial data partner | fit Blueprint output into an existing customer stack | stack-adjacent partners and implementation relationships | compatibility statement, artifact export expectations, and explicit gap labeling | partial | automated commercial policy for standard commercials; founder for partner-term or non-standard scope commitments |
 | simulation or data platform owner | consume exact-site artifacts inside an existing data workflow | developer-native channels, docs, partner introductions | standardized artifact structure, provenance, and what would require extra packaging | partial | human for delivery scope and any custom export commitments |
 
 ## Proof Pack Requirements
@@ -114,7 +115,7 @@ Every reusable proof pack should be organized in this order so the buyer can und
    - what can be reviewed asynchronously versus what needs a live session
 5. Gap and escalation block
    - what still requires more capture, packaging, or integration
-   - what still requires human review for rights, privacy, commercials, or access
+   - what still requires policy review for rights, privacy, commercials, or access
    - named next step: proof review, scoped follow-up, or human handoff
 
 ## 24-Hour Proof Path
@@ -124,7 +125,7 @@ For qualified robot-team demand, Blueprint should aim to move from first serious
 2. Decide whether current Blueprint evidence supports an exact-site proof pack, a clearly labeled adjacent-site proof pack, or only a scoped follow-up.
 3. Deliver a standard proof pack with hosted review access or walkthrough instructions.
 4. Attach artifact handoff expectations so the buyer knows what can be reviewed asynchronously versus what still needs a live conversation.
-5. Flag all human-gated topics immediately instead of hiding them in later stages.
+5. Flag all policy-blocked topics immediately instead of hiding them in later stages.
 
 If Blueprint cannot satisfy this proof path truthfully, the motion should be framed as a scoped follow-up, not as a ready-now demo.
 
@@ -157,7 +158,7 @@ Within one business day after the hosted session or async review:
 - attach or relink the proof pack and hosted-session entry point
 - list the specific artifacts the buyer can inspect now
 - name the open technical questions that still block buyer confidence
-- separate human-gated topics from product or evidence gaps
+- separate policy-blocked topics from product or evidence gaps
 - propose one concrete next step: exact-site request, deeper technical review, or scoped human commercial handoff
 
 If the hosted review surfaced a missing proof surface, the follow-up should say that directly instead of pretending the deal is already in commercial scoping.
@@ -231,7 +232,7 @@ Repo-ready analytics requirements, current coverage, and reporting views are doc
 | hosted review started | `hosted_review_started` with buyer segment and source | measures whether proof packs are compelling enough to open |
 | hosted follow-up | `hosted_review_follow_up_sent` with next-step recommendation | keeps follow-up operational instead of anecdotal |
 | buyer next action | `exact_site_request_created`, `deeper_review_requested`, or `human_commercial_handoff_started` | distinguishes product pull from commercial escalation |
-| stalled motion | `proof_motion_stalled` with blocker reason | exposes whether demand is failing on proof, product gaps, or human gates |
+| stalled motion | `proof_motion_stalled` with blocker reason | exposes whether demand is failing on proof, product gaps, or policy guardrails |
 
 Authoritative storage for proof-path milestones lives in `inboundRequests.ops.proof_path`. Historical requests remain incomplete until ops backfills the manual milestone fields, so reporting should explicitly distinguish live coverage from legacy gaps.
 
@@ -242,7 +243,7 @@ Authoritative storage for proof-path milestones lives in `inboundRequests.ops.pr
 | `analytics-agent` | instrument the funnel events in this playbook and publish stage definitions for reporting | growth can see time-to-proof, hosted-review conversion, and stall reasons by buyer segment and source |
 | `intake-agent` | classify inbound robot-team requests by buyer role, exact-site need, and proof-path outcome | intake can route serious requests into exact-site, adjacent-site, or scoped follow-up lanes without ambiguous qualification-only framing |
 | `ops-lead` | define the operational checklist for proof-pack assembly, hosted review readiness, and human escalation triggers | ops can support the proof motion without ad hoc delivery behavior |
-| `buyer-solutions-agent` + designated human commercial owner | define the standard commercial handoff that should stay separate from technical proof follow-up | standard pricing, quote, and procurement handling stop contaminating the technical proof motion while founder review stays sparse |
+| `buyer-solutions-agent` + automated commercial policy | define the standard commercial handoff that should stay separate from technical proof follow-up | standard pricing, quote, and procurement handling stop contaminating the technical proof motion while manual review stays sparse |
 | `revenue-ops-pricing-agent` | define approved quote bands, package logic, and exception thresholds for the human commercial owner | pricing guidance stays truthful to the real product and exposes non-standard asks early |
 | `city-demand-agent` | inherit this proof-pack and hosted-review standard into Austin and San Francisco demand plans | city plans customize channels and clusters without rewriting the reusable buyer proof system |
 
@@ -260,6 +261,6 @@ Cities should customize:
 - `analytics-agent`: instrumentation and funnel reporting
 - `intake-agent`: inbound classification and missing-info handling
 - `ops-lead`: delivery and operational coordination when demand becomes real work
-- `buyer-solutions-agent` + designated human commercial owner: standard quote, procurement, and buyer-thread commercial routing
+- `buyer-solutions-agent` + automated commercial policy: standard quote, procurement, and buyer-thread commercial routing
 - `revenue-ops-pricing-agent`: standard pricing guidance and exception detection
 - `city-demand-agent`: city-specific adaptation

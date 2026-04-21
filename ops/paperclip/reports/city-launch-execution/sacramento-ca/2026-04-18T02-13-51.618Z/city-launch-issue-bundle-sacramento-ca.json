@@ -1,0 +1,548 @@
+{
+  "machine_policy_version": "2026-04-13.city-launch-doctrine.v1",
+  "city": "Sacramento, CA",
+  "city_slug": "sacramento-ca",
+  "source_activation_payload_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-sacramento-ca-activation-payload.json",
+  "tasks": [
+    {
+      "key": "city-target-ledger",
+      "title": "Maintain the Sacramento capture target ledger",
+      "phase": "founder_gates",
+      "owner_lane": "city-demand-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Rank which Sacramento sites and site clusters should be captured first based on current robot workflow focus, buyer value, and access realism.",
+      "dependencies": [],
+      "done_when": [
+        "The Sacramento target ledger names the first proof candidates, queued lawful-access buckets, and longer-horizon discovery lanes.",
+        "Capture priorities stay tied to current robot workflow demand and lawful access realism instead of generic city coverage."
+      ],
+      "metrics_dependencies": [
+        "first_lawful_access_path"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "parallel-lawful-access-queue",
+      "title": "Maintain the Sacramento parallel lawful-access queue",
+      "phase": "founder_gates",
+      "owner_lane": "city-demand-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Keep a multi-site lawful-access queue active so Sacramento warehouse and facility work does not stall on a single signature path.",
+      "dependencies": [
+        "city-target-ledger"
+      ],
+      "done_when": [
+        "Sacramento keeps 3-5 named lawful-access candidates or buyer-linked fallback sites queued in parallel, with one current next step per candidate.",
+        "If one warehouse stalls, another named access path is ready without restarting city planning from zero.",
+        "Each queued candidate names the current access posture, likely owner/operator/tenant path, and whether the next move belongs to buyer thread, operator intro, or existing lawful access."
+      ],
+      "metrics_dependencies": [
+        "first_lawful_access_path"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "growth-source-policy",
+      "title": "Lock Sacramento source policy and invite/access-code posture",
+      "phase": "founder_gates",
+      "owner_lane": "growth-lead",
+      "human_lane": "growth-lead",
+      "purpose": "Keep Sacramento sourcing narrow, truthful, and off the founder lane for routine approvals while explicitly distinguishing private controlled interiors from public, non-controlled commercial capture.",
+      "dependencies": [],
+      "done_when": [
+        "Sacramento source policy names allowed channels, disallowed channels, referral rules, and who may issue invites or access codes.",
+        "Sacramento source policy makes public, non-controlled commercial community sourcing explicit while keeping private controlled interiors on stricter lawful-access paths.",
+        "Sacramento source policy names the online habitats for the public commercial lane instead of leaving community sourcing abstract.",
+        "Routine invite/access-code decisions stay with Growth Lead and Ops Lead inside written guardrails."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "city-opening-distribution",
+      "title": "Build the Sacramento city-opening distribution brief and channel map",
+      "phase": "founder_gates",
+      "owner_lane": "city-launch-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Make Sacramento city opening explicit before the system expects replies: define who needs to hear about Blueprint in the city, what proof-led message each lane gets, which channels are in scope, what is out of scope, and how replies should route back into Blueprint.",
+      "dependencies": [
+        "city-target-ledger",
+        "growth-source-policy"
+      ],
+      "done_when": [
+        "Sacramento city-opening brief exists with a warehouse/facility direct-awareness track and a bounded public-commercial community-awareness track.",
+        "Sacramento channel map names the target audience, named channel or channel class, proof posture, exact CTA, and what is allowed versus out of scope for each lane.",
+        "Sacramento distribution brief tells people who Blueprint is, what the city launch is trying to source, what spaces are in scope, what is not allowed, and what counts as a qualified reply.",
+        "Sacramento distribution brief names the CTA path and source-tagging rules needed for later intake and response tracking."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "city-opening-cta-routing",
+      "title": "Publish the Sacramento city-facing CTA and intake routing path",
+      "phase": "founder_gates",
+      "owner_lane": "ops-lead",
+      "human_lane": "ops-lead",
+      "purpose": "Ensure Sacramento awareness work routes into a live intake path instead of scattering replies across ad hoc inboxes, notes, or untracked side conversations.",
+      "dependencies": [
+        "city-opening-distribution",
+        "ops-rubric-thresholds"
+      ],
+      "done_when": [
+        "Sacramento warehouse/facility direct-awareness replies and public-commercial community replies both land in a named CTA path with city, lane, source, and owner routing.",
+        "Sacramento CTA path states what Blueprint is asking for, what access or site facts respondents must provide, and what the next review step is.",
+        "Responses do not die in personal inboxes or draft docs; they enter the canonical intake queue or ledger path with next-owner visibility."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "city-opening-first-wave-pack",
+      "title": "Assemble the Sacramento first-wave outreach and posting pack",
+      "phase": "supply",
+      "owner_lane": "capturer-growth-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Turn the Sacramento city-opening brief into concrete first-wave assets that can create the first responses: direct named outreach for warehouse/facility awareness and small bounded posting packages for public-commercial awareness.",
+      "dependencies": [
+        "city-opening-distribution",
+        "city-opening-cta-routing"
+      ],
+      "done_when": [
+        "Sacramento warehouse/facility first-wave outreach pack names the first buyers, operators, integrators, or facilities to contact, the proof-led message variants, and the next move per target.",
+        "Sacramento public-commercial first-wave posting pack names the first small community placements, the public-area-only brief, and the exact CTA copy for each placement.",
+        "Every Sacramento first-wave asset points to the same truthful CTA path, uses source attribution, and avoids invented traction, blanket permission claims, or fake legal certainty."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "site-operator-partnership",
+      "title": "Run Sacramento site-operator partnership routing",
+      "phase": "founder_gates",
+      "owner_lane": "site-operator-partnership-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Prepare the operator-side access path for Sacramento warehouses and facilities by identifying contacts, operator value props, approval sequence, and escalation boundaries before the city waits on a single site.",
+      "dependencies": [
+        "parallel-lawful-access-queue",
+        "growth-source-policy",
+        "city-opening-distribution"
+      ],
+      "done_when": [
+        "Sacramento operator-lane packet identifies likely owner/operator/tenant contacts, operator-side value props, and the exact approval sequence for the highest-priority warehouse/facility candidates.",
+        "The first operator-outreach draft or intro packet is ready for human review instead of being invented ad hoc at the moment of blockage.",
+        "Open questions and escalation boundaries are explicit before live operator outreach begins."
+      ],
+      "metrics_dependencies": [
+        "first_lawful_access_path"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "ops-rubric-thresholds",
+      "title": "Publish Sacramento intake rubric, trust kit, and first-capture thresholds",
+      "phase": "founder_gates",
+      "owner_lane": "ops-lead",
+      "human_lane": "ops-lead",
+      "purpose": "Give Intake, Field Ops, QA, and Rights lanes explicit Sacramento rules so they can run without founder review.",
+      "dependencies": [
+        "growth-source-policy"
+      ],
+      "done_when": [
+        "Sacramento rubric covers source quality, access-path truth, equipment/device fit, trust-packet minimums, and approval outcomes.",
+        "Sacramento first-capture thresholds and trust-kit checklist exist in one operator packet."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "supply-prospects",
+      "title": "Build the Sacramento capturer prospect list and post package",
+      "phase": "supply",
+      "owner_lane": "capturer-growth-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Generate the first Sacramento curated professional supply wave for private controlled interiors and buyer-linked exact-site paths, then push the first real prospect or invite response into the live intake path without widening into generic gig-market posture.",
+      "dependencies": [
+        "city-target-ledger",
+        "growth-source-policy",
+        "city-opening-first-wave-pack",
+        "city-opening-cta-routing"
+      ],
+      "done_when": [
+        "A curated first-wave Sacramento professional prospect set is named with source bucket, rationale, lawful access posture, and next move.",
+        "At least one real Sacramento invite, reply, or applicant signal is landed in the live intake path with source bucket and next owner recorded.",
+        "Any copy stays draft-first and preserves no-guarantee capture language."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "public-commercial-community-sourcing",
+      "title": "Run Sacramento public-commercial community sourcing",
+      "phase": "supply",
+      "owner_lane": "capturer-growth-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Open a bounded online-community sourcing lane for public, non-controlled commercial locations such as groceries, retail stores, and similar walk-in sites, and turn that lane into real intake signals.",
+      "dependencies": [
+        "growth-source-policy",
+        "city-opening-first-wave-pack",
+        "city-opening-cta-routing"
+      ],
+      "done_when": [
+        "Sacramento public-commercial sourcing names the online communities, channels, and posting brief for public, non-controlled commercial capture.",
+        "At least one live Sacramento community-sourced invite, reply, or applicant signal is landed in the intake path with source bucket and public-commercial posture recorded.",
+        "If no automated publication connector exists, the lane still produces a complete agent-owned posting pack and does not block the automated launch path.",
+        "The lane stays explicitly limited to lawful public areas and preserves privacy, signage, and provenance rules."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "supply-qualification",
+      "title": "Route Sacramento applicants into qualification and approval",
+      "phase": "supply",
+      "owner_lane": "intake-agent",
+      "human_lane": "ops-lead",
+      "purpose": "Classify Sacramento applicants using the approved rubric instead of ad hoc founder review, and resume immediately once the first live invite or applicant signal lands.",
+      "dependencies": [
+        "ops-rubric-thresholds"
+      ],
+      "done_when": [
+        "Sacramento applicants are tagged by source bucket, approval state, and missing-trust evidence.",
+        "Exceptions are blocked with explicit missing facts instead of silently held.",
+        "If no live applicant signal exists yet, the lane is left blocked as a missing live signal rather than quietly waiting."
+      ],
+      "metrics_dependencies": [
+        "first_approved_capturer"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "capturer-activation-success",
+      "title": "Own approved Sacramento capturers through onboarding and repeat-ready",
+      "phase": "supply",
+      "owner_lane": "capturer-success-agent",
+      "human_lane": "ops-lead",
+      "purpose": "Give every approved Sacramento mapper one routine relationship owner from approval through onboarding, first pass, and repeat-readiness so the founder is not the default support lane.",
+      "dependencies": [
+        "ops-rubric-thresholds",
+        "supply-qualification"
+      ],
+      "done_when": [
+        "Each approved Sacramento capturer has a named lifecycle owner for approved -> onboarded -> first capture -> first pass -> repeat-ready.",
+        "Routine mapper questions, support, and coaching stay with capturer-success-agent unless they become logistics, QA, rights, privacy, or policy exceptions."
+      ],
+      "metrics_dependencies": [
+        "first_approved_capturer",
+        "first_completed_capture"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "first-capture-routing",
+      "title": "Assign Sacramento first captures, reminders, and site-facing trust prep",
+      "phase": "supply",
+      "owner_lane": "field-ops-agent",
+      "human_lane": "ops-lead",
+      "purpose": "Turn approved Sacramento capturers into real first captures inside bounded thresholds.",
+      "dependencies": [
+        "supply-qualification",
+        "capturer-activation-success"
+      ],
+      "done_when": [
+        "Approved Sacramento capturers receive assignment, reminder, and site-facing trust steps through the existing field-ops lane.",
+        "Travel, timing, and access blockers are explicit on the issue and visible in the admin queue."
+      ],
+      "metrics_dependencies": [
+        "first_completed_capture"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "capture-qa",
+      "title": "QA Sacramento first captures and route recapture decisions",
+      "phase": "proof_assets",
+      "owner_lane": "capture-qa-agent",
+      "human_lane": "ops-lead",
+      "purpose": "Ensure Sacramento proof assets are real, clean, and ready for buyer proof work.",
+      "dependencies": [
+        "first-capture-routing"
+      ],
+      "done_when": [
+        "Sacramento captures receive PASS, BORDERLINE, or FAIL with explicit evidence.",
+        "Recapture instructions are attached when the first pass is not proof-ready."
+      ],
+      "metrics_dependencies": [
+        "first_qa_passed_capture"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "rights-clearance",
+      "title": "Clear rights, provenance, and privacy on Sacramento proof assets",
+      "phase": "proof_assets",
+      "owner_lane": "rights-provenance-agent",
+      "human_lane": "designated-human-rights-reviewer",
+      "purpose": "Make Sacramento proof packs releasable without weakening trust boundaries.",
+      "dependencies": [
+        "capture-qa"
+      ],
+      "done_when": [
+        "Each Sacramento proof asset is marked CLEARED, BLOCKED, or NEEDS-REVIEW with evidence citations.",
+        "Policy-setting exceptions route to the human reviewer and founder only when precedent changes."
+      ],
+      "metrics_dependencies": [
+        "first_rights_cleared_proof_asset"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "proof-pack-listings",
+      "title": "Assemble Sacramento proof packs and publish 1-2 proof-ready listings",
+      "phase": "proof_assets",
+      "owner_lane": "buyer-solutions-agent",
+      "human_lane": "ops-lead",
+      "purpose": "Turn Sacramento captures into concrete exact-site proof assets with a hosted-review path.",
+      "dependencies": [
+        "city-target-ledger",
+        "rights-clearance"
+      ],
+      "done_when": [
+        "At least one Sacramento proof-ready listing or equivalent proof pack exists with exact-site versus adjacent-site labeling.",
+        "Each proof pack includes provenance, coverage boundaries, hosted-review path, and next-step guidance."
+      ],
+      "metrics_dependencies": [
+        "proof_pack_delivered",
+        "first_proof_pack_delivery"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "buyer-target-research",
+      "title": "Research Sacramento robot-company target accounts and buyer clusters",
+      "phase": "demand",
+      "owner_lane": "demand-intel-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Build a real Sacramento demand list that matches the proof assets Blueprint can actually show.",
+      "dependencies": [
+        "proof-pack-listings"
+      ],
+      "done_when": [
+        "A named Sacramento buyer target set is researched with facility/workflow fit and proof-path notes.",
+        "Exact-site versus adjacent-site proof rules are explicit per target."
+      ],
+      "metrics_dependencies": [
+        "robot_team_inbound_captured",
+        "proof_path_assigned"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "outbound-package",
+      "title": "Prepare Sacramento proof-led outbound package and first touches",
+      "phase": "demand",
+      "owner_lane": "robot-team-growth-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Make outbound specific to Sacramento proof assets and hosted review instead of generic AI messaging.",
+      "dependencies": [
+        "buyer-target-research"
+      ],
+      "done_when": [
+        "Sacramento outbound templates lead with one site, one workflow lane, proof-led CTA, and hosted-review next step.",
+        "First proof-led touches are prepared for autonomous dispatch inside the approved launch posture."
+      ],
+      "metrics_dependencies": [
+        "proof_path_assigned"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "outbound-execution",
+      "title": "Run Sacramento outbound and move serious buyers into hosted review",
+      "phase": "demand",
+      "owner_lane": "outbound-sales-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Convert named Sacramento targets into serious proof conversations without dragging the founder into routine work.",
+      "dependencies": [
+        "outbound-package"
+      ],
+      "done_when": [
+        "Sacramento buyer conversations are active with explicit next steps.",
+        "At least one hosted proof review is run end to end or clearly blocked with named reasons."
+      ],
+      "metrics_dependencies": [
+        "hosted_review_ready",
+        "hosted_review_started",
+        "hosted_review_follow_up_sent",
+        "proof_motion_stalled",
+        "first_hosted_review"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "buyer-thread-commercial",
+      "title": "Keep Sacramento buyer threads inside standard commercial handling",
+      "phase": "commercial",
+      "owner_lane": "revenue-ops-pricing-agent",
+      "human_lane": "designated-human-commercial-owner",
+      "purpose": "Prevent routine pricing and packaging questions from escalating to founder review.",
+      "dependencies": [
+        "outbound-execution"
+      ],
+      "done_when": [
+        "Standard Sacramento quote bands, discount guardrails, and handoff thresholds are documented and used.",
+        "Only non-standard commitments escalate above the designated human commercial owner."
+      ],
+      "metrics_dependencies": [
+        "human_commercial_handoff_started",
+        "first_human_commercial_handoff"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "city-opening-response-tracking",
+      "title": "Publish Sacramento city-opening response tracking",
+      "phase": "measurement",
+      "owner_lane": "analytics-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Make Sacramento city-opening distribution measurable so operators can see which awareness lanes actually create replies before deeper capture or buyer workflows take over.",
+      "dependencies": [
+        "city-opening-cta-routing",
+        "city-opening-first-wave-pack"
+      ],
+      "done_when": [
+        "Sacramento response-tracking view shows which warehouse/facility channels and which public-commercial community channels were activated, with asset or message attribution where available.",
+        "A real Sacramento city-opening response is defined and counted only when a reply, applicant, referral, operator callback, or buyer callback is recorded with city, lane, source, and CTA attribution.",
+        "Missing attribution or missing visibility is called out explicitly instead of assuming awareness work happened."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": true,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "city-opening-reply-conversion",
+      "title": "Run the Sacramento city-opening reply-conversion and follow-up cadence lane",
+      "phase": "supply",
+      "owner_lane": "city-launch-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Convert live Sacramento city-opening replies across warehouse/facility and public-commercial channels into routed next steps with explicit follow-up cadence, instead of letting first responses decay across scattered threads.",
+      "dependencies": [
+        "city-opening-response-tracking",
+        "city-opening-cta-routing"
+      ],
+      "done_when": [
+        "Sacramento reply-conversion queue exists with each live response tagged by responder type, channel, current status, next owner, next follow-up due, and downstream handoff target.",
+        "Sacramento follow-up cadence rules define first response, second follow-up, stale-response handling, and the handoff boundary into qualification, site-operator partnership, buyer handling, or no-fit closure.",
+        "At least one live Sacramento city-opening response is moved through the queue into qualification, operator/buyer handoff, blocked-with-reason, or explicit no-fit / closed-lost outcome.",
+        "Live responses do not sit unowned after landing; each one has an explicit next step and cadence state."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "city-scorecard",
+      "title": "Publish the Sacramento launch scorecard and blocker view",
+      "phase": "measurement",
+      "owner_lane": "analytics-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Make Sacramento progress measurable and reviewable without relying on narrative updates.",
+      "dependencies": [
+        "supply-qualification",
+        "proof-pack-listings",
+        "outbound-execution",
+        "city-opening-response-tracking",
+        "city-opening-reply-conversion"
+      ],
+      "done_when": [
+        "Sacramento scorecard reports supply and demand progress against the launch thresholds.",
+        "Missing instrumentation is surfaced as blocked instead of smoothed over."
+      ],
+      "metrics_dependencies": [
+        "robot_team_inbound_captured",
+        "proof_path_assigned",
+        "proof_pack_delivered",
+        "hosted_review_ready",
+        "hosted_review_started",
+        "hosted_review_follow_up_sent",
+        "human_commercial_handoff_started",
+        "proof_motion_stalled"
+      ],
+      "validation_required": true,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "notion-breadcrumbs",
+      "title": "Mirror Sacramento execution artifacts into Notion Knowledge and Work Queue",
+      "phase": "measurement",
+      "owner_lane": "notion-manager-agent",
+      "human_lane": "chief-of-staff",
+      "purpose": "Keep the Sacramento launch runnable and inspectable for humans outside the repo.",
+      "dependencies": [
+        "city-scorecard"
+      ],
+      "done_when": [
+        "Sacramento execution system doc is mirrored into Notion Knowledge.",
+        "A Work Queue breadcrumb exists for the current Sacramento activation state and next human gate."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "switch-on-review",
+      "title": "Run the Sacramento switch-on review before activation",
+      "phase": "measurement",
+      "owner_lane": "beta-launch-commander",
+      "human_lane": "cto",
+      "purpose": "Confirm the software/runtime surfaces needed by the Sacramento launch are safe before switch-on.",
+      "dependencies": [
+        "city-scorecard"
+      ],
+      "done_when": [
+        "Sacramento switch-on review returns GO, CONDITIONAL GO, or HOLD with evidence.",
+        "Any software/runtime blocker is routed to the right engineering lane before launch activation."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "lawful-access-path",
+      "title": "Lock the first multi-tenant lawful access path",
+      "phase": "founder_gates",
+      "owner_lane": "city-launch-agent",
+      "human_lane": "ops-lead",
+      "purpose": "Secure the first complete 3-Tier Consent packet for an ambient-temperature McClellan Park industrial module.",
+      "dependencies": [],
+      "done_when": [
+        "First lawful access path is signed by owner, operator, and tenant."
+      ],
+      "metrics_dependencies": [
+        "first_lawful_access_path"
+      ],
+      "validation_required": true,
+      "source": "activation_payload"
+    }
+  ]
+}

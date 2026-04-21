@@ -2,7 +2,7 @@
 authority: draft
 source_system: paperclip
 source_urls:
-  - "paperclip://issue/62a3c57d-2243-4b8d-94f2-64d17e7442b7"
+  - "paperclip://issue/55b01c1c-9728-422a-a5ea-d112332762b3"
   - "repo:///knowledge/reports/city-launch-execution/sacramento-ca/2026-04-17-sacramento-capturer-growth-prospect-set-and-post-package.md"
   - "repo:///ops/paperclip/playbooks/capturer-supply-playbook.md"
   - "repo:///ops/paperclip/playbooks/city-launch-sacramento-ca-execution-issue-bundle.md"
@@ -14,7 +14,7 @@ subject_key: sacramento-capturer-growth-work-queue
 review_status: active
 canonical_refs:
   - system: issue
-    ref: "issue://62a3c57d-2243-4b8d-94f2-64d17e7442b7"
+    ref: "issue://55b01c1c-9728-422a-a5ea-d112332762b3"
   - system: report
     ref: "knowledge/reports/city-launch-execution/sacramento-ca/2026-04-17-sacramento-capturer-growth-prospect-set-and-post-package.md"
 entity_tags:
@@ -28,12 +28,12 @@ entity_tags:
 
 ## Summary
 
-This breadcrumb records the current Sacramento capturer supply state for `BLU-3090`.
-The prospect set is drafted, but the lane remains draft-only until Growth Lead and Ops Lead review the copy and decide whether any live send is allowed.
+This breadcrumb records the current Sacramento capturer supply state for `BLU-3221`.
+The prospect set and first-wave pack are drafted, but the lane remains draft-only until Growth Lead and Ops Lead review the copy and decide whether any live send is allowed.
 
 ## Evidence
 
-- The bound Paperclip issue is `BLU-3090`.
+- The bound Paperclip issue is `BLU-3221`.
 - The issue owner is `capturer-growth-agent`, and the human owner is `growth-lead`.
 - Sacramento supply should prioritize professional operators with lawful access over generic public recruiting.
 - UC Davis and FIRA remain secondary feeder lanes only.
@@ -45,7 +45,7 @@ The prospect set is drafted, but the lane remains draft-only until Growth Lead a
 - city: Sacramento, CA
 - execution_state: draft_prepared
 - work_queue_state: awaiting_human_review
-- next_human_gate: Growth Lead and Ops Lead review of the professional supply wave before any live send or channel expansion
+- next_human_gate: Growth Lead and Ops Lead review of the prospect set and first-wave pack before any live send or channel expansion
 
 ## Recommended Follow-up
 

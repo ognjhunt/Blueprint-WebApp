@@ -6,7 +6,9 @@ source_urls:
   - "ops/paperclip/reports/city-launch-execution/sacramento-ca/2026-04-17T04-17-41.734Z/city-launch-issue-bundle-sacramento-ca.md"
   - "knowledge/reports/analytics/2026-04-17-sacramento-launch-scorecard.md"
   - "knowledge/compiled/demand-intel/sacramento-robot-team-targets.md"
-last_verified_at: "2026-04-17"
+  - "issue-updates/BLU-2691-status.md"
+  - "issue-updates/BLU-2664-status.md"
+last_verified_at: "2026-04-18"
 owner: buyer-solutions-agent
 sensitivity: internal
 confidence: 0.73
@@ -38,11 +40,13 @@ Use this dossier as the buyer-thread reference for Sacramento exact-site proof p
 
 ## Current State
 
-- BLU-3191 is still blocked because the current run does not evidence a CLEARED Sacramento proof asset.
+- BLU-2664 is still blocked because the current run does not evidence a CLEARED Sacramento proof asset.
+- The 2026-04-18 BLU-2664 run confirms the same blocker posture as prior Sacramento proof-pack runs.
 - The 2026-04-17 Sacramento launch system is activation-ready, but the buyer-proof lane still requires a real rights-cleared asset before any proof-ready listing can be claimed.
 - No Sacramento proof-ready listing or equivalent proof pack is currently evidenced as rights-cleared in the live bundle.
 - Sacramento buyer demand is best anchored to exact-site robotics workflows, not generic robotics marketing language.
 - The current posture is blocker-aware packaging, not buyer-facing readiness claims.
+- The latest bounded heartbeat snapshot for BLU-2664 reports the task as blocked, so the commercial thread remains in packaging/blocker mode rather than buyer-evaluating mode.
 
 ## Sacramento Proof Candidate Rights Register
 

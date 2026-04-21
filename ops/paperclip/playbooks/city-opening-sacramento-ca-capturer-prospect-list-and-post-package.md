@@ -28,6 +28,14 @@ The Sacramento capturer-side roster is still evidence-bounded. Use source bucket
 4. Existing McClellan Park, US Cold Storage, or similar site-adjacent contractors for lawful-access paths already on the ground.
 5. UC Davis technical communities only as a secondary feeder lane.
 
+### Routing Contract
+
+- Every reply must carry city, lane, source bucket, current access posture, and next owner.
+- Professional capturer replies route first to `site-operator-partnership-agent` when they mention lawful-access paths, owner/operator/tenant authority, or site-side referrals.
+- Professional capturer replies route to `intake-agent` when they are ready for trust-packet review, approval, or first-capture staging.
+- Public-commercial replies route to `city-launch-agent` and `intake-agent` using the same tagged intake path.
+- Anything that looks like a rights or privacy exception stays blocked until the policy gate clears it.
+
 ### Professional outreach draft
 
 ```text
@@ -51,11 +59,13 @@ This is draft-first. We are not promising work volume, earnings, or blanket priv
 ### Bounded public-commercial posting draft
 
 ```text
-Blueprint is keeping a secondary Sacramento feeder lane for public-area or academic testing sites only.
+Blueprint is keeping a secondary Sacramento feeder lane for public-area-only capture at groceries, retail stores, and similar walk-in commercial sites.
 
-This lane is not for private controlled interiors. It is for bounded community or campus-relevant capture where the brief stays public-area only and the access posture is explicit.
+This lane is not for private controlled interiors. It is for bounded placements in local city and neighborhood forums, Nextdoor, local Facebook Groups, Reddit local or city subreddits, retail and shopping communities, creator, mapping, and maker communities, campus and alumni groups, local LinkedIn groups, and small public Slack or Discord communities.
 
-Reply only if your work can stay inside that boundary and you can follow the site and privacy rules without improvising permissions.
+Reply only if you can name a candidate public commercial site, confirm a public-area-only posture, and follow the site, privacy, signage, and provenance rules without improvising permissions.
+
+Use the same tagged intake path as the rest of the Sacramento city-opening brief.
 ```
 
 ## Sacramento Named Anchor Set
@@ -84,9 +94,12 @@ Use these as the concrete Sacramento examples when the issue needs explicit site
 - adjacent demand anchor already materialized in the repo: Northgate Logistics
 - adjacent delivery evidence already materialized in the repo: Capital Robotics
 - public-commercial lane stays bounded to public-area-only sourcing until a human approves publication
+- the canonical intake path is shared with the Sacramento city-opening brief, channel map, CTA routing, response tracking, and send ledger artifacts
+- the first live signal is still pending, so this package remains draft-first until a real reply or applicant lands in the intake path
 
 ## Next Steps
 
 1. Growth Lead reviews the draft pack and confirms the tagged intake path.
 2. Replace source buckets with verified Sacramento contacts once the roster is materialized.
-3. Hold all live sends and public posts until the human review gate clears.
+3. Hold all live sends and public posts until the policy gate clears.
+4. Hand the approved packet to `city-launch-agent` for channel execution and `intake-agent` for response routing once a real signal arrives.

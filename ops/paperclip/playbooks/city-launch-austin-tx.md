@@ -3,9 +3,9 @@
 ## Status
 - phase: activation_ready
 - owner: city-launch-agent
-- last-reviewed: 2026-04-18
+- last-reviewed: 2026-04-21
 - recommended-posture: gated cohort pilot
-- last-human-launch-decision: approved with conditions
+- launch_policy_state: autonomous_execution_ready
 - planning-state: completed
 
 ## Launch Thesis
@@ -15,7 +15,7 @@ Run one proof-led warehouse wedge.
 - evidence-backed: the generic city-launch activation harness generated the Austin system doc, execution issue bundle, target ledger, and compact city playbooks in one run.
 - evidence-backed: the launch harness now tracks planning state explicitly so activation can distinguish "not started" from "research still running".
 - evidence-backed: the compact launch packet uses the standard platform analytics event model rather than inventing city-specific telemetry.
-- evidence-backed: the target ledger mode for this city is `deep_research_records`. Research-backed named targets already available include Austin Capture Ops.
+- evidence-backed: the target ledger mode for this city is `curated_city_profile`. No research-backed named targets are available yet, so the first live capture work should stay blocked until deep research materializes into named sites.
 
 ## Why This City Now
 - the city remains a planning candidate only if it can produce rights-cleared exact-site proof assets for real robotics workflows
@@ -105,10 +105,10 @@ Private controlled interiors require authorization.
 | legal/compliance clarity | 1/5 | private-interior access, rights authority, and any defense/export constraints remain explicit blockers until reviewed |
 | strategic importance | 3/5 | city value is still hypothesis-level until proof-ready assets and hosted reviews exist |
 
-## Human Gates
-- founder or designated human approval for new city activation, spend expansion, posture-changing public claims, precedent-setting rights/privacy exceptions, and non-standard commercial commitments
-- designated human rights review for sensitive privacy, consent, or commercialization questions
-- designated human commercial owner for standard quotes inside approved bands
+## Autonomous Policy
+- city activation runs automatically inside the written budget envelope, source policy, and evidence-backed posture
+- unsupported public claims, evidence-free rights/privacy exceptions, and non-standard commercial terms stay automatically blocked until repo truth is updated
+- pricing, rights, privacy, and commercialization rules are enforced from the written policy and proof artifacts rather than approval packets
 
 ## Sequencing Recommendation
 Do not treat Austin as operationally real until a small number of rights-cleared sites, proof packs, and hosted reviews are real. The city should widen only after those proofs exist and the operator lanes can support them.

@@ -1,12 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { worldModelDefinition } from '../client/src/data/marketingDefinitions';
 
 test('homepage leads with capture and world models', async ({ page }) => {
   await page.goto('/');
 
   await expect(
     page.getByRole('heading', {
-      name: /Test the exact site before deployment\./i,
+      name: /Site-specific world models for real facilities\./i,
     }),
   ).toBeVisible();
   const nav = page.getByRole('banner').getByRole('navigation');
@@ -15,9 +14,8 @@ test('homepage leads with capture and world models', async ({ page }) => {
   await expect(nav.getByRole('link', { name: /^How It Works$/i })).toBeVisible();
   await expect(nav.getByRole('link', { name: /^Pricing$/i })).toBeVisible();
   await expect(nav.getByRole('link', { name: /^Trust$/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Inspect a real site/i }).first()).toBeVisible();
-  await expect(page.getByRole('link', { name: /Request hosted evaluation/i }).first()).toBeVisible();
-  await expect(page.locator('body')).toContainText("What's public now");
-  await expect(page.getByText(/Hosted evaluation scoping/i)).toBeVisible();
-  await expect(page.getByText(worldModelDefinition)).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Explore Sites$/i }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Request Access$/i }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: /One exact site\. Two buying paths\./i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /See what a team gets before it commits\./i })).toBeVisible();
 });

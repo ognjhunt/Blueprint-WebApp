@@ -357,6 +357,10 @@ export async function upsertPaperclipIssue(input: {
   originId: string;
   parentId?: string | null;
   existingIssueId?: string | null;
+  onBoundConflict?: {
+    strategy: "reuse_existing" | "create_fresh";
+    originId?: string | null;
+  };
 }) {
   const companyId = await resolvePaperclipCompanyId();
   if (!companyId) {
@@ -366,6 +370,59 @@ export async function upsertPaperclipIssue(input: {
   const assigneeAgentId = await resolvePaperclipAgentId(input.assigneeKey);
   if (!assigneeAgentId) {
     throw new Error(`Paperclip agent not found: ${input.assigneeKey}`);
+  }
+
+  async function recoverExistingIssue(issueId: string) {
+    const issue = await getPaperclipIssue(issueId);
+    return {
+      companyId,
+      projectId: null,
+      assigneeAgentId,
+      issue,
+      created: false,
+    };
+  }
+
+  async function createFreshIssue(conflictOriginId?: string | null) {
+    const projectId = await resolvePaperclipProjectId(input.projectName);
+    if (!projectId) {
+      throw new Error(`Paperclip project not found: ${input.projectName}`);
+    }
+
+    const created = await fetchPaperclipJsonWithRetry<PaperclipIssueRecord>(
+      `/api/companies/${companyId}/issues`,
+      {
+        method: "POST",
+        headers: buildHeaders(true),
+        body: JSON.stringify({
+          projectId,
+          title: input.title,
+          description: input.description,
+          priority: input.priority,
+          status: input.status,
+          assigneeAgentId,
+          parentId: input.parentId ?? null,
+          originKind: input.originKind,
+          originId: conflictOriginId || input.originId,
+        }),
+        timeoutMs: 12_000,
+        retries: 2,
+      },
+    );
+    return {
+      companyId,
+      projectId,
+      assigneeAgentId,
+      issue: created,
+      created: true,
+    };
+  }
+
+  async function recoverFromBoundConflict(issueId: string) {
+    if (input.onBoundConflict?.strategy === "create_fresh") {
+      return await createFreshIssue(input.onBoundConflict.originId);
+    }
+    return await recoverExistingIssue(issueId);
   }
 
   if (input.existingIssueId) {
@@ -386,6 +443,10 @@ export async function upsertPaperclipIssue(input: {
         created: false,
       };
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (/Paperclip 409\b/.test(message) && /bound to a different issue/i.test(message)) {
+        return await recoverFromBoundConflict(input.existingIssueId);
+      }
       if (!(error instanceof Error) || !/Paperclip 404\b/.test(error.message)) {
         throw error;
       }
@@ -403,61 +464,38 @@ export async function upsertPaperclipIssue(input: {
   }
 
   if (issue) {
-    const updated = await fetchPaperclipJsonWithRetry<PaperclipIssueRecord>(`/api/issues/${issue.id}`, {
-      method: "PATCH",
-      headers: buildHeaders(true),
-      body: JSON.stringify({
-        title: input.title,
-        description: input.description,
-        priority: input.priority,
-        status: input.status,
+    try {
+      const updated = await fetchPaperclipJsonWithRetry<PaperclipIssueRecord>(`/api/issues/${issue.id}`, {
+        method: "PATCH",
+        headers: buildHeaders(true),
+        body: JSON.stringify({
+          title: input.title,
+          description: input.description,
+          priority: input.priority,
+          status: input.status,
+          assigneeAgentId,
+          parentId: input.parentId ?? null,
+        }),
+        timeoutMs: 12_000,
+        retries: 2,
+      });
+      return {
+        companyId,
+        projectId: null,
         assigneeAgentId,
-        parentId: input.parentId ?? null,
-      }),
-      timeoutMs: 12_000,
-      retries: 2,
-    });
-    return {
-      companyId,
-      projectId: null,
-      assigneeAgentId,
-      issue: updated,
-      created: false,
-    };
+        issue: updated,
+        created: false,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (/Paperclip 409\b/.test(message) && /bound to a different issue/i.test(message)) {
+        return await recoverFromBoundConflict(issue.id);
+      }
+      throw error;
+    }
   }
 
-  const projectId = await resolvePaperclipProjectId(input.projectName);
-  if (!projectId) {
-    throw new Error(`Paperclip project not found: ${input.projectName}`);
-  }
-
-  const created = await fetchPaperclipJsonWithRetry<PaperclipIssueRecord>(
-    `/api/companies/${companyId}/issues`,
-    {
-      method: "POST",
-      headers: buildHeaders(true),
-      body: JSON.stringify({
-        projectId,
-        title: input.title,
-        description: input.description,
-        priority: input.priority,
-        status: input.status,
-        assigneeAgentId,
-        parentId: input.parentId ?? null,
-        originKind: input.originKind,
-        originId: input.originId,
-      }),
-      timeoutMs: 12_000,
-      retries: 2,
-    },
-  );
-  return {
-    companyId,
-    projectId,
-    assigneeAgentId,
-    issue: created,
-    created: true,
-  };
+  return await createFreshIssue();
 }
 
 export async function createPaperclipIssueComment(issueId: string, body: string) {

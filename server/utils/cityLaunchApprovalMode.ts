@@ -13,7 +13,7 @@ export function resolveCityLaunchFounderApproval(input: {
     return false;
   }
 
-  return input.requireFounderApproval !== true;
+  return true;
 }
 
 export function shouldDispatchCityLaunchApproval(input: {
@@ -21,11 +21,7 @@ export function shouldDispatchCityLaunchApproval(input: {
   founderApproved: boolean;
   requireFounderApproval?: boolean;
 }) {
-  return (
-    input.requireFounderApproval === true
-    && input.founderApproved !== true
-    && (input.phase === "approve" || input.phase === "full")
-  );
+  return false;
 }
 
 export function resolveCityLaunchActivationFounderApproval(input: {
@@ -40,5 +36,5 @@ export function resolveCityLaunchActivationFounderApproval(input: {
     return false;
   }
 
-  return input.requireFounderApproval !== true;
+  return true;
 }

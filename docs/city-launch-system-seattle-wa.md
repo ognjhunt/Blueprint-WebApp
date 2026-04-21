@@ -7,7 +7,7 @@
 
 ## Objective
 
-Turn the Seattle planning artifacts into an executable company harness that can run the supply loop and the demand loop with minimal founder involvement after bounded founder approval.
+Turn the Seattle planning artifacts into an executable company harness that can run the supply loop and the demand loop with minimal founder involvement without manual city-activation approval.
 
 ## Machine-Readable Budget Policy
 
@@ -39,14 +39,14 @@ Turn the Seattle planning artifacts into an executable company harness that can 
 - Seattle go / no-go and the decision to keep the city gated or expand it.
 - Any spend envelope beyond the approved Seattle zero budget policy.
 - Any public statement that changes company posture or overstates Seattle readiness.
-- Any rights/privacy exception or non-standard commercial commitment that would set precedent.
+- Any rights/privacy exception or non-standard commercial commitment stays blocked until the written policy and evidence path are updated.
 
 ## Human Operator-Owned Decisions
 
 - Growth Lead owns Seattle source policy, referral posture, and invite/access-code issuance inside approved guardrails.
 - Ops Lead owns the Seattle intake rubric, trust kit, first-capture thresholds, and launch-readiness checklist.
-- The designated human commercial owner owns standard quotes inside approved bands.
-- The designated human rights reviewer owns sensitive but non-precedent rights/privacy calls prepared by rights-provenance-agent.
+- The automated commercial policy owns standard quote bands enforced from repo policy.
+- The rights-provenance policy owns sensitive but non-precedent rights/privacy calls prepared by rights-provenance-agent.
 
 ## Agent-Prepared / Autonomous Work
 
@@ -62,8 +62,8 @@ Turn the Seattle planning artifacts into an executable company harness that can 
 - Approve the bounded Seattle launch posture: gated cohort pilot, Exact-Site Hosted Review wedge, no public city-live claims.
 - Approve the bounded spend posture for Seattle: Zero Budget with no paid acquisition, referral, or discretionary travel spend.
 - Approve any Seattle source-policy exceptions beyond the current bounded channel stack.
-- Approve any rights/privacy/commercialization exception that would set precedent or create an irreversible external commitment.
-- Approve any non-standard commercial terms outside the standard Seattle quote bands prepared by revenue-ops-pricing-agent and the designated human commercial owner.
+- Automatically block any rights/privacy/commercialization exception that lacks written policy and evidence.
+- Automatically block any non-standard commercial terms outside the standard Seattle quote bands prepared by revenue-ops-pricing-agent and the automated commercial policy.
 
 ## Seattle Switch-On Requirements
 

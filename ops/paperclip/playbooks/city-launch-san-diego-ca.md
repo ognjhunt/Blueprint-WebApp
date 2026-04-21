@@ -27,10 +27,18 @@ San Diego should launch only as a bounded, proof-led city program: create rights
 ## Recommended Launch Posture
 - Choose the lawful access mode per target from: buyer_requested_site, site_operator_intro, capturer_existing_lawful_access, public_non_controlled_site.
 - Private controlled interiors require explicit authorization before dispatching capturers.
-- Keep the first active capturer cohort capped at roughly 5-10 vetted surveying, AEC, industrial inspection, or commercial mapping operators until the first 3-5 proof-ready sites exist.
+- Keep the first active capturer cohort hard-capped at 10 vetted surveying, AEC, industrial inspection, or commercial mapping operators until the first 3-5 proof-ready sites exist.
 - Do not run paid acquisition, public bounty, or generic gig-worker motions for private interiors.
+- For public, non-controlled commercial locations such as groceries, retail stores, and similar walk-in sites, allow bounded online community sourcing when the brief constrains capture to lawful public areas and preserves privacy, signage, and provenance rules.
 - Keep public posture at Exact-Site Hosted Review wedge only; no city-live or readiness claims until proof is real.
 - Preferred first lawful access mode is still validation-required.
+
+## Public-Commercial Community Lane
+- San Diego should open with two explicit awareness tracks: warehouse/facility direct awareness to named buyers, operators, and integrators; and bounded public-commercial awareness through many small community placements rather than one broad campaign.
+- The public-commercial lane should use the named online habitats in the reusable capturer supply playbook instead of inventing a city-specific gig strategy.
+- Replies from the public-commercial lane should route into the canonical intake path with city, lane, source bucket, and next owner tagged.
+- The reply path should be mirrored in `ops/paperclip/playbooks/city-opening-san-diego-ca-cta-routing.md` and the first live send or blocked state should be tracked in `ops/paperclip/playbooks/city-opening-san-diego-ca-send-ledger.md`.
+- No private-interior permission, earnings promise, or blanket access claim should appear in the community copy.
 
 ## Target Capturer Profile
 - site-authorized surveying, AEC scanning, industrial inspection, or commercial mapping operator
@@ -53,6 +61,7 @@ Rights path is still validation-required. Private controlled interiors require e
 ## Trust Infrastructure Required Before Expansion
 - written site-operator acquisition path and authority verification checklist
 - Ops Lead-approved intake rubric, trust kit, and first-capture thresholds
+- hard-capped 10-person AEC starter cohort with `first_approved_capturer`, approval owner, and approval timestamp visible in the launch scorecard
 - standard proof-pack structure with provenance, rights, privacy, recency, and hosted-review path
 - platform analytics using `robot_team_inbound_captured`, `proof_path_assigned`, `proof_pack_delivered`, `hosted_review_ready`, and `hosted_review_started` with city/source tags
 
@@ -70,10 +79,10 @@ Rights path is still validation-required. Private controlled interiors require e
 | legal/compliance clarity | 1/5 | private-interior access, rights authority, and any defense/export constraints remain explicit blockers until reviewed |
 | strategic importance | 2/5 | city value is still hypothesis-level until proof-ready assets and hosted reviews exist |
 
-## Human Gates
-- founder or designated human approval for new city activation, spend expansion, posture-changing public claims, precedent-setting rights/privacy exceptions, and non-standard commercial commitments
-- designated human rights review for sensitive privacy, consent, or commercialization questions
-- designated human commercial owner for standard quotes inside approved bands
+## Autonomous Policy
+- city activation runs automatically inside the written budget envelope, source policy, and evidence-backed posture; unsupported claims, rights/privacy exceptions, and non-standard commercial terms stay policy-blocked until repo truth is updated
+- rights-provenance policy for sensitive privacy, consent, or commercialization questions
+- automated commercial policy for standard quote bands enforced from repo policy
 
 ## Sequencing Recommendation
 Do not treat San Diego as operationally real until a small number of rights-cleared sites, proof packs, and hosted reviews are real. The city should widen only after those proofs exist and the operator lanes can support them.

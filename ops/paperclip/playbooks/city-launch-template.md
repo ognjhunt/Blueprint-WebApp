@@ -16,7 +16,7 @@
 ## Recommended Launch Posture
 - internal-only posture recommendation
 - what should happen first
-- what should stay explicitly human-gated
+- what should stay explicitly policy-blocked
 
 ## Target Capturer Profile
 - who fits this city best
@@ -63,7 +63,7 @@
 |---|---|---|---|
 |  |  |  |  |
 
-## Human Gates
+## Autonomous Policy
 - what must stay human-approved
 
 ## Sequencing Recommendation

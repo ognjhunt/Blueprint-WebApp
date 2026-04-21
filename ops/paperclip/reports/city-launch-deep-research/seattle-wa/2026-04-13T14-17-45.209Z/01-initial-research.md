@@ -2034,3 +2034,419 @@ Before Blueprint can claim a "Public Beta" in Seattle, the following missing dat
 36. [portland.gov](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGGqjfkYgn6MXqhh3IUafuKtJCe9szJ8y8s_gGHr9jYC2-NfYE8wsimca6Z4h95khpYEjfKXFqUAaafcfVxR31VF_eEu7yKalFnbZtBW6Kov190bbxqknVNZFGp91WY9eLJ0Va2Qd1tOgRs4EN2PYAE4PWkM5TFo_jpKL6Cb7_AxXrnUiH0H_o5IfYC37JB6nwIf-m3Wau7WYX9q71IKY_po3xrxp_tRY6b0e11_Q==)
 37. [geekwire.com](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHXxj9nXSVfjP0rEjOgToLO3_i45JUc-FV3i7UBuUHSlUDHs-B8msgtdhkHqOIq8oop4ZLIBb8n9A6vaV9IbaO35564-SkLIRAL4dBjn4l3lzg1-n49BWG1nSB-c6ktN9CIVghi_XQUcUayxGzHoZeED0R3qqgUbZ8VVhp0GKy_gi2Xr-MZBgH41RfS9VEn_fVZWBMK_n0-kAYjtZCOQlA=)
 38. [crexi.com](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFZjqZXw0BriFbRkE-J_ZjoAQQHQFw9iSvMEyJ5evDaaaqhk5QUCR5ds9f5VhFPN4wTdARheBtvKo-rKFUAQH60dORzpjKNB9CgOh5MzTaAWq4YL5tUQ6FH-W8IOykEadWEfS3snVlCkj5bsPHspY8aD9an6su6oZG63FXRje7xqH1YC8ZR43Obrr6Aguw0cQSUvVX5afyJFCVbsIU=)
+
+## Machine-readable activation payload
+
+```city-launch-activation-payload
+{
+  "schema_version": "2026-04-13.city-launch-activation-payload.v1",
+  "machine_policy_version": "2026-04-13.city-launch-doctrine.v1",
+  "city": "Seattle, WA",
+  "city_slug": "seattle-wa",
+  "city_thesis": "Run one proof-led Seattle wedge anchored to UW-linked supply and CoMotion introductions, then convert the first rights-cleared proof asset into hosted review before widening.",
+  "primary_site_lane": "industrial_warehouse",
+  "primary_workflow_lane": "dock handoff and indoor navigation validation",
+  "primary_buyer_proof_path": "exact_site",
+  "lawful_access_modes": [
+    "buyer_requested_site",
+    "site_operator_intro",
+    "capturer_existing_lawful_access",
+    "public_non_controlled_site"
+  ],
+  "preferred_lawful_access_mode": "site_operator_intro",
+  "rights_path": {
+    "summary": "Use site-operator introductions or buyer-requested access first; private controlled interiors require explicit authorization before any capture dispatch, and public-commercial captures stay limited to public-area-only briefs.",
+    "private_controlled_interiors_require_authorization": true,
+    "validation_required": true,
+    "source_urls": []
+  },
+  "validation_blockers": [
+    {
+      "key": "uw-authority-check",
+      "summary": "Confirm site operator authority for any UW or CoMotion-linked indoor access before dispatching a capturer.",
+      "severity": "high",
+      "owner_lane": "ops-lead",
+      "validation_required": true,
+      "source_urls": []
+    },
+    {
+      "key": "seattle-public-area-boundary",
+      "summary": "Keep public-commercial captures limited to public-area-only briefs until privacy and signage rules are validated.",
+      "severity": "medium",
+      "owner_lane": "rights-provenance-agent",
+      "validation_required": true,
+      "source_urls": []
+    }
+  ],
+  "required_approvals": [
+    {
+      "lane": "founder",
+      "reason": "New city activation and any spend posture changes stay founder-gated."
+    },
+    {
+      "lane": "ops-lead",
+      "reason": "Rights and proof-path controls need operator review before dispatch."
+    }
+  ],
+  "owner_lanes": [
+    "city-launch-agent",
+    "site-operator-partnership-agent",
+    "capturer-growth-agent",
+    "intake-agent",
+    "capture-qa-agent",
+    "rights-provenance-agent",
+    "demand-intel-agent",
+    "robot-team-growth-agent",
+    "buyer-solutions-agent",
+    "analytics-agent",
+    "notion-manager-agent"
+  ],
+  "issue_seeds": [
+    {
+      "key": "first-lawful-access-path",
+      "title": "Lock the first lawful access path",
+      "phase": "founder_gates",
+      "owner_lane": "city-launch-agent",
+      "human_lane": "growth-lead",
+      "summary": "Choose the first Seattle lawful access mode and block private controlled interiors until authorization is explicit.",
+      "dependency_keys": [],
+      "success_criteria": [
+        "First lawful access path is named and documented.",
+        "Private controlled interiors stay blocked until authorization is explicit."
+      ],
+      "metrics_dependencies": [
+        "first_lawful_access_path"
+      ],
+      "validation_required": false
+    },
+    {
+      "key": "first-approved-capturer",
+      "title": "Approve the first Seattle capturer",
+      "phase": "supply",
+      "owner_lane": "capturer-growth-agent",
+      "human_lane": "ops-lead",
+      "summary": "Convert the first Seattle supply contact into an approved, rights-aware operator with explicit access and privacy training.",
+      "dependency_keys": [
+        "first-lawful-access-path"
+      ],
+      "success_criteria": [
+        "At least one capturer is approved with documented access and privacy rules.",
+        "The approval path is visible in the canonical issue tree."
+      ],
+      "metrics_dependencies": [
+        "first_approved_capturer"
+      ],
+      "validation_required": false
+    },
+    {
+      "key": "first-proof-pack",
+      "title": "Materialize the first Seattle proof pack",
+      "phase": "proof_assets",
+      "owner_lane": "buyer-solutions-agent",
+      "human_lane": "designated-human-commercial-owner",
+      "summary": "Turn the first rights-cleared Seattle capture into a buyer-visible proof pack and hosted-review-ready handoff.",
+      "dependency_keys": [
+        "first-approved-capturer"
+      ],
+      "success_criteria": [
+        "The first Seattle proof pack is rights-cleared and review-ready.",
+        "Hosted review routing is explicit and buyer-visible."
+      ],
+      "metrics_dependencies": [
+        "proof_pack_delivered",
+        "hosted_review_ready",
+        "first_rights_cleared_proof_asset",
+        "first_proof_pack_delivery"
+      ],
+      "validation_required": false
+    },
+    {
+      "key": "measurement-loop",
+      "title": "Wire Seattle proof-motion metrics",
+      "phase": "measurement",
+      "owner_lane": "analytics-agent",
+      "human_lane": "chief-of-staff",
+      "summary": "Track the canonical proof-motion events and surface stalls instead of smoothing them over.",
+      "dependency_keys": [
+        "first-proof-pack"
+      ],
+      "success_criteria": [
+        "Seattle proof-motion events are tracked with the canonical vocabulary.",
+        "Stalls are visible in the scorecard instead of hidden in prose."
+      ],
+      "metrics_dependencies": [
+        "robot_team_inbound_captured",
+        "proof_path_assigned",
+        "proof_motion_stalled",
+        "first_hosted_review",
+        "first_human_commercial_handoff"
+      ],
+      "validation_required": false
+    }
+  ],
+  "metrics_dependencies": [
+    {
+      "key": "robot_team_inbound_captured",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Implement before expecting autonomous governance."
+    },
+    {
+      "key": "proof_path_assigned",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Implement before expecting autonomous governance."
+    },
+    {
+      "key": "proof_pack_delivered",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Implement before expecting autonomous governance."
+    },
+    {
+      "key": "hosted_review_ready",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Implement before expecting autonomous governance."
+    },
+    {
+      "key": "hosted_review_started",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Implement before expecting autonomous governance."
+    },
+    {
+      "key": "hosted_review_follow_up_sent",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Implement before expecting autonomous governance."
+    },
+    {
+      "key": "human_commercial_handoff_started",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Implement before expecting autonomous governance."
+    },
+    {
+      "key": "proof_motion_stalled",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Implement before expecting autonomous governance."
+    },
+    {
+      "key": "first_lawful_access_path",
+      "kind": "milestone",
+      "status": "required_not_tracked",
+      "owner_lane": "city-launch-agent",
+      "notes": "Treat the first lawful access path as a tracked proof-motion milestone."
+    },
+    {
+      "key": "first_approved_capturer",
+      "kind": "milestone",
+      "status": "required_not_tracked",
+      "owner_lane": "capturer-growth-agent",
+      "notes": "Treat the first approved capturer as a tracked proof-motion milestone."
+    },
+    {
+      "key": "first_completed_capture",
+      "kind": "milestone",
+      "status": "required_not_tracked",
+      "owner_lane": "capture-qa-agent",
+      "notes": "Treat the first completed capture as a tracked proof-motion milestone."
+    },
+    {
+      "key": "first_qa_passed_capture",
+      "kind": "milestone",
+      "status": "required_not_tracked",
+      "owner_lane": "capture-qa-agent",
+      "notes": "Treat the first QA-passed capture as a tracked proof-motion milestone."
+    },
+    {
+      "key": "first_rights_cleared_proof_asset",
+      "kind": "milestone",
+      "status": "required_not_tracked",
+      "owner_lane": "rights-provenance-agent",
+      "notes": "Treat the first rights-cleared proof asset as a tracked proof-motion milestone."
+    },
+    {
+      "key": "first_proof_pack_delivery",
+      "kind": "milestone",
+      "status": "required_not_tracked",
+      "owner_lane": "buyer-solutions-agent",
+      "notes": "Treat the first proof pack delivery as a tracked proof-motion milestone."
+    },
+    {
+      "key": "first_hosted_review",
+      "kind": "milestone",
+      "status": "required_not_tracked",
+      "owner_lane": "buyer-solutions-agent",
+      "notes": "Treat the first hosted review as a tracked proof-motion milestone."
+    },
+    {
+      "key": "first_human_commercial_handoff",
+      "kind": "milestone",
+      "status": "required_not_tracked",
+      "owner_lane": "buyer-solutions-agent",
+      "notes": "Treat the first human commercial handoff as a tracked proof-motion milestone."
+    }
+  ],
+  "named_claims": [
+    {
+      "subject": "University of Washington BioRobotics Laboratory",
+      "claim_type": "company",
+      "claim": "The lab is a credible Seattle capturer-supply and site-operator-intro lane for the first proof motion.",
+      "validation_required": false,
+      "source_urls": [
+        "https://wp.ece.uw.edu/brl/contact-us/"
+      ]
+    },
+    {
+      "subject": "CoMotion Labs at the University of Washington",
+      "claim_type": "company",
+      "claim": "CoMotion can route startup, hardware, and robotics-intro conversations that fit a proof-led Seattle launch.",
+      "validation_required": false,
+      "source_urls": [
+        "https://comotion.uw.edu/startups-incubation/comotion-labs/",
+        "https://comotion.uw.edu/wp-content/uploads/2024/04/CoMotion-Labs-at-Fluke-Hall-DirectionsV2.pdf"
+      ]
+    },
+    {
+      "subject": "Seattle launch playbook",
+      "claim_type": "delivery",
+      "claim": "Seattle should stay exact-site and hosted-review first before any widening or volume motion.",
+      "validation_required": true,
+      "source_urls": []
+    }
+  ]
+}
+```
+
+## Structured launch data appendix
+
+```city-launch-records
+{
+  "schema_version": "2026-04-12.city-launch-research.v1",
+  "generated_at": "2026-04-13T14:17:45.209Z",
+  "capture_location_candidates": [
+    {
+      "name": "University of Washington BioRobotics Laboratory",
+      "contact_email": "chizeck@uw.edu",
+      "source_bucket": "university_research",
+      "channel": "site_operator_intro",
+      "status": "identified",
+      "site_address": "Electrical Engineering Building, University of Washington, Seattle, WA 98195",
+      "location_summary": "Seattle robotics lab contact lane that can validate early proof-motion rights and operator-intro access.",
+      "site_category": "university_lab",
+      "workflow_fit": "site-operator intro and early proof-pack validation",
+      "priority_note": "Strong early Seattle intro lane for rights-aware supply validation.",
+      "source_urls": [
+        "https://wp.ece.uw.edu/brl/contact-us/"
+      ],
+      "explicit_fields": [
+        "name",
+        "contact_email",
+        "source_bucket",
+        "channel",
+        "status",
+        "site_address",
+        "location_summary",
+        "site_category",
+        "workflow_fit",
+        "priority_note",
+        "source_urls"
+      ],
+      "inferred_fields": []
+    },
+    {
+      "name": "CoMotion Labs @ Startup Hall",
+      "contact_email": "incubate@uw.edu",
+      "source_bucket": "uw_comotion",
+      "channel": "partner_intro",
+      "status": "identified",
+      "site_address": "Startup Hall, 1100 NE Campus Parkway, Seattle, WA 98195",
+      "location_summary": "Seattle startup-incubator contact lane that can route robotics and hardware introductions without assuming private-interior access.",
+      "site_category": "incubator",
+      "workflow_fit": "partner intro and first hosted-review routing",
+      "priority_note": "Useful second Seattle intro lane for operator and startup validation.",
+      "source_urls": [
+        "https://comotion.uw.edu/startups-incubation/comotion-labs/",
+        "https://comotion.uw.edu/wp-content/uploads/2024/04/CoMotion-Labs-at-Startup-Hall-DirectionsV2.pdf"
+      ],
+      "explicit_fields": [
+        "name",
+        "contact_email",
+        "source_bucket",
+        "channel",
+        "status",
+        "site_address",
+        "location_summary",
+        "site_category",
+        "workflow_fit",
+        "priority_note",
+        "source_urls"
+      ],
+      "inferred_fields": []
+    }
+  ],
+  "buyer_target_candidates": [
+  ],
+  "first_touch_candidates": [
+    {
+      "reference_type": "prospect",
+      "reference_name": "University of Washington BioRobotics Laboratory",
+      "channel": "email",
+      "touch_type": "first_touch",
+      "status": "queued",
+      "campaign_id": null,
+      "issue_id": null,
+      "notes": "Request an operator-intro conversation and validate the first Seattle lawful access path.",
+      "source_urls": [
+        "https://wp.ece.uw.edu/brl/contact-us/"
+      ],
+      "explicit_fields": [
+        "reference_type",
+        "reference_name",
+        "channel",
+        "touch_type",
+        "status",
+        "notes",
+        "source_urls"
+      ],
+      "inferred_fields": []
+    },
+    {
+      "reference_type": "prospect",
+      "reference_name": "CoMotion Labs @ Startup Hall",
+      "channel": "email",
+      "touch_type": "first_touch",
+      "status": "queued",
+      "campaign_id": null,
+      "issue_id": null,
+      "notes": "Request a startup and hardware-intro conversation that can support Seattle proof-motion routing.",
+      "source_urls": [
+        "https://comotion.uw.edu/startups-incubation/comotion-labs/"
+      ],
+      "explicit_fields": [
+        "reference_type",
+        "reference_name",
+        "channel",
+        "touch_type",
+        "status",
+        "notes",
+        "source_urls"
+      ],
+      "inferred_fields": []
+    }
+  ],
+  "budget_recommendations": [
+  ]
+}
+```

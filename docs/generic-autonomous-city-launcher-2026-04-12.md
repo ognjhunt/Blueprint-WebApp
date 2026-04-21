@@ -12,7 +12,7 @@ Accept a city and a bounded budget posture, then route the launch through the ex
 - make city-opening distribution explicit before waiting on replies
 - create the live Paperclip issue tree
 - track sourcing, buyer research, first touches, and spend in canonical ledgers
-- hold human gates on spend, rights, posture, and non-standard commercial terms
+- enforce spend, rights, posture, and non-standard commercial limits automatically from written policy and evidence
 - prevent multi-city sprawl until one city is operationally proven
 
 ## Core Principle
@@ -30,7 +30,7 @@ The org should only widen once one city has actual proof.
   - `low_budget`
   - `funded`
 - optional spend overrides within policy
-- `founderApproved`
+- `autonomousActivation`
 
 ## Outputs
 
@@ -58,21 +58,21 @@ The org should only widen once one city has actual proof.
 - research materialization audit artifact showing what deep-research records were written
 - city scorecard with tracked outreach and spend metrics
 
-## Human Gates
+## Autonomous Policy
 
-Remain human-gated:
-- new city activation
-- spend above the approved operator threshold
-- posture-changing public claims
-- rights/privacy exceptions that set precedent
-- non-standard commercial commitments
+The launcher should auto-run by default.
+It should fail closed only when:
+- spend exceeds the written city budget envelope
+- public claims outrun the written proof posture
+- rights/privacy/commercialization handling is unsupported by current repo policy or evidence
+- external confirmations, signatures, or live proof artifacts are still missing
 
 Remain operator-owned:
 - source policy inside guardrails
 - invite/access-code issuance inside policy
 - intake thresholds
 - trust kit and first-capture thresholds
-- standard quotes inside approved bands
+- standard quote bands enforced directly from repo policy
 
 Source-policy rule:
 - private controlled interiors stay on operator introductions, buyer-linked requests, and curated professional supply

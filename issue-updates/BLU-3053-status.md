@@ -1,5 +1,5 @@
 Issue: BLU-3053 Launch Sacramento, CA as a bounded city program
-Status: In progress
+Status: Blocked
 Date: 2026-04-17
 
 Actions Taken:
@@ -9,6 +9,6 @@ Actions Taken:
 - Kept this heartbeat scoped to the bound Sacramento root issue and did not touch any other issue.
 
 Next Steps:
-- Keep the Sacramento root issue aligned to the routed issue tree and wait on lawful-access evidence before widening the city posture.
-- Continue the existing city-opening lanes once the blocked subordinate path clears.
-- Do not reopen cross-city work or generic coverage work.
+- Wait for BLU-3052 to produce the signed first multi-tenant lawful access path before widening the city posture.
+- Keep the Sacramento root issue aligned to the routed issue tree and continue the existing city-opening lanes once the blocked subordinate path clears.
+- Do not reopen cross-city work or generic coverage work while the lawful-access gate remains open.

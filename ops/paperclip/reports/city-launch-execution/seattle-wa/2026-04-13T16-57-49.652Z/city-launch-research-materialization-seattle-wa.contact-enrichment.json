@@ -1,0 +1,29 @@
+{
+  "status": "no_changes",
+  "city": "Seattle, WA",
+  "city_slug": "seattle-wa",
+  "source_artifact_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/seattle-wa/2026-04-13T14-17-45.209Z/01-initial-research.md",
+  "recovered_buyer_target_contacts": 0,
+  "recovered_capture_candidate_contacts": 0,
+  "unresolved_buyer_targets": [],
+  "unresolved_capture_candidates": [],
+  "warnings": [],
+  "errors": [],
+  "buyer_target_candidates": [],
+  "capture_location_candidates": [
+    {
+      "name": "University of Washington BioRobotics Laboratory",
+      "contact_email": "chizeck@uw.edu",
+      "priority_note": "Strong early Seattle intro lane for rights-aware supply validation.",
+      "source_key": "capture_location_candidates[0]",
+      "source_type": "deep_research_playbook"
+    },
+    {
+      "name": "CoMotion Labs @ Startup Hall",
+      "contact_email": "incubate@uw.edu",
+      "priority_note": "Useful second Seattle intro lane for operator and startup validation.",
+      "source_key": "capture_location_candidates[1]",
+      "source_type": "deep_research_playbook"
+    }
+  ]
+}

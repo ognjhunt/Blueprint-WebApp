@@ -1,0 +1,18 @@
+{
+  "city": "San Jose, CA",
+  "citySlug": "san-jose-ca",
+  "status": "in_progress",
+  "startedAt": "2026-04-18T02:14:24.118Z",
+  "completedAt": "2026-04-18T02:14:24.118Z",
+  "artifacts": {
+    "runDirectory": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-18T02-14-24.118Z",
+    "manifestPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-18T02-14-24.118Z/manifest.json",
+    "initialResearchPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-18T02-14-24.118Z/01-initial-research.md",
+    "finalPlaybookPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-18T02-14-24.118Z/99-final-playbook.md",
+    "activationPayloadPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-18T02-14-24.118Z/97-activation-payload.json",
+    "canonicalPlaybookPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-deep-research.md",
+    "canonicalActivationPayloadPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-activation-payload.json",
+    "stageArtifacts": []
+  },
+  "stages": []
+}

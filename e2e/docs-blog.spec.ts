@@ -6,7 +6,7 @@ test("docs page is publicly reachable", async ({ page }) => {
   await expect(page).toHaveURL(/\/sample-deliverables\/?$/);
   await expect(
     page.getByRole("heading", {
-      name: /What a buyer actually gets\./i,
+      name: /Sample deliverables from one real site\./i,
     }),
   ).toBeVisible();
 });

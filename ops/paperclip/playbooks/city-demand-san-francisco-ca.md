@@ -85,13 +85,13 @@ San Francisco demand should stay proof-led and ecosystem-driven: qualify real ro
 - `human_commercial_handoff_started`
 
 ## Sensitive-Lane Constraints
-- if a buyer sits in defense, aerospace, export-controlled, or air-gapped environments, require explicit human review before assuming the standard hosted-review path is acceptable
+- if a buyer sits in defense, aerospace, export-controlled, or air-gapped environments, block the standard hosted-review path until the policy and evidence path are explicit
 - do not imply that Blueprint can serve sensitive or controlled-access environments over a standard cloud runtime without buyer-specific confirmation
-- operator-governed facilities and rights-sensitive exact-site requests should route through `rights-provenance-agent` plus human review
+- operator-governed facilities and rights-sensitive exact-site requests should route through `rights-provenance-agent` plus automatic policy review
 
 ## Immediate Next Actions
 1. hand `demand-intel-agent` the San Francisco target ledger so named corridors turn into buyer threads, facility owners, and first-touch candidates.
 2. hand `buyer-solutions-agent` the San Francisco proof-pack requirement so exact-site, adjacent-site, and scoped-follow-up labels are real before outbound.
 3. hand `analytics-agent` the San Francisco funnel definitions so `robot_team_inbound_captured` through `hosted_review_follow_up_sent` are measurable by city and source.
-4. keep `revenue-ops-pricing-agent` and the designated human commercial owner on standby for quote bands, while founders stay out of routine proof motion.
+4. keep `revenue-ops-pricing-agent` and the automated commercial policy on standby for quote bands, while founders stay out of routine proof motion.
 5. block city-specific outbound scale until at least one rights-cleared San Francisco proof pack and hosted review are actually materialized.

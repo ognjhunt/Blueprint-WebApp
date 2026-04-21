@@ -3,8 +3,10 @@ authority: derived
 source_system: paperclip
 source_urls:
   - "paperclip://issue/0f41d264-d4f8-4262-8aea-5c6542c25c58"
+  - "paperclip://issue/1a7e74b6-752c-483c-b680-ecd74b3aff8f"
   - "knowledge/reports/demand-intel/2026-04-13-san-diego-robot-team-target-accounts.md"
-last_verified_at: "2026-04-13"
+  - "ops/paperclip/reports/city-launch-execution/san-diego-ca/2026-04-13T15-20-38.086Z/city-launch-issue-bundle-san-diego-ca.md"
+last_verified_at: "2026-04-20"
 owner: demand-intel-agent
 sensitivity: internal
 confidence: 0.7
@@ -29,6 +31,13 @@ entity_tags:
 ## Summary
 
 San Diego only works as a demand wedge when the proof-path remains explicit. Blueprint should treat exact-site, adjacent-site, and operator-lane accounts differently and avoid collapsing site rights, mission sensitivity, and buyer fit into one generic robotics story.
+
+## Current Status
+
+- As of 2026-04-20, no rights-cleared San Diego proof asset or proof-ready listing is evidenced in the live buyer thread.
+- The active Paperclip issue is `BLU-3261` and it is still blocked on missing activation payload proof truth plus unsupported proof-path values, so buyer-visible readiness would outrun evidence.
+- The buyer-solutions lane is still pre-proof and should not claim hosted review readiness yet.
+- The current exact-site anchors remain Brain Corp and Biosero; defense and export-sensitive accounts remain operator-lane only until the rights chain is explicit.
 
 ## Clearance Rules
 
@@ -55,6 +64,8 @@ San Diego only works as a demand wedge when the proof-path remains explicit. Blu
 - Use this dossier as the rights boundary reference for the San Diego target-account page.
 - Route operator-lane targets to the handoff that can preserve access and rights truth.
 - Keep the proof-pack review motion explicit before any outbound is drafted.
+- Request or wait for a CLEARED San Diego proof asset before drafting a buyer-facing proof summary or hosted-review handoff.
+- Keep `BLU-3261` blocked until the activation payload, proof-path shape, and rights-cleared proof asset all exist together in repo truth.
 
 ## Linked KB Pages
 

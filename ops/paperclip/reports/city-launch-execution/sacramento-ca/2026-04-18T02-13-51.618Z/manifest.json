@@ -1,0 +1,42 @@
+{
+  "city": "Sacramento, CA",
+  "citySlug": "sacramento-ca",
+  "status": "founder_approved_activation_ready",
+  "founderApproved": true,
+  "startedAt": "2026-04-18T02:13:51.618Z",
+  "reportsRoot": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution",
+  "runDirectory": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/sacramento-ca/2026-04-18T02-13-51.618Z",
+  "manifestPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/sacramento-ca/2026-04-18T02-13-51.618Z/manifest.json",
+  "currentStep": "dispatch_issue_tree",
+  "stepHistory": [
+    {
+      "step": "load_activation_state",
+      "atIso": "2026-04-18T02:13:51.647Z"
+    },
+    {
+      "step": "resolve_planning_state",
+      "atIso": "2026-04-18T02:13:59.253Z"
+    },
+    {
+      "step": "load_completed_research",
+      "atIso": "2026-04-18T02:13:59.260Z"
+    },
+    {
+      "step": "build_city_artifacts",
+      "atIso": "2026-04-18T02:13:59.913Z"
+    },
+    {
+      "step": "sync_notion",
+      "atIso": "2026-04-18T02:14:01.202Z"
+    },
+    {
+      "step": "dispatch_issue_tree",
+      "atIso": "2026-04-18T02:14:07.583Z"
+    }
+  ],
+  "error": {
+    "message": "City launch activation failed closed for Sacramento, CA: Paperclip 409 for /api/issues/8b238d29-311e-4b4c-8f10-475ecc1cd17b: {\"error\":\"Agent run is bound to a different issue\",\"boundIssueId\":\"470790d4-c986-45a2-82b3-8587b6d1aa9f\",\"requestedIssueId\":\"8b238d29-311e-4b4c-8f10-475ecc1cd17b\",\"requestedIssueIdentifier\":\"BLU-3215\"}",
+    "name": "Error",
+    "stack": "Error: City launch activation failed closed for Sacramento, CA: Paperclip 409 for /api/issues/8b238d29-311e-4b4c-8f10-475ecc1cd17b: {\"error\":\"Agent run is bound to a different issue\",\"boundIssueId\":\"470790d4-c986-45a2-82b3-8587b6d1aa9f\",\"requestedIssueId\":\"8b238d29-311e-4b4c-8f10-475ecc1cd17b\",\"requestedIssueIdentifier\":\"BLU-3215\"}\n    at runCityLaunchExecutionHarness (/Users/nijelhunt_1/workspace/Blueprint-WebApp/server/utils/cityLaunchExecutionHarness.ts:3191:13)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async main (/Users/nijelhunt_1/workspace/Blueprint-WebApp/scripts/city-launch/build-execution-harness.ts:50:18)"
+  }
+}

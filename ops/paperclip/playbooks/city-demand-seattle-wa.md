@@ -8,7 +8,7 @@
 - confidence: low
 
 ## City Demand Thesis
-Seattle demand should stay proof-led: qualify real robot-team interest, classify exact-site versus adjacent-site fit inside one business day, and route serious threads into hosted review with clear artifact handoff and human-gated exceptions.
+Seattle demand should stay proof-led: qualify real robot-team interest, classify exact-site versus adjacent-site fit inside one business day, and route serious threads into hosted review with clear artifact handoff and policy-blocked exceptions.
 
 ## What Changed This Pass
 - evidence-backed: the city launcher now generates the compact demand playbook during activation so downstream tasks have a real canonical reference.
@@ -34,9 +34,9 @@ Seattle demand should stay proof-led: qualify real robot-team interest, classify
 - No machine-readable metrics dependency payload is available yet.
 
 ## Sensitive-Lane Constraints
-- if a buyer sits in defense, aerospace, export-controlled, or air-gapped environments, require explicit human review before assuming the standard hosted-review path is acceptable
+- if a buyer sits in defense, aerospace, export-controlled, or air-gapped environments, block the standard hosted-review path until the policy and evidence path are explicit
 - do not imply that Blueprint can serve sensitive or controlled-access environments over a standard cloud runtime without buyer-specific confirmation
-- operator-governed facilities and rights-sensitive exact-site requests should route through `rights-provenance-agent` plus human review
+- operator-governed facilities and rights-sensitive exact-site requests should route through `rights-provenance-agent` plus automatic policy review
 
 ## Immediate Next Actions
 1. materialize the research-backed buyer targets and first-touch candidates as soon as deep research completes

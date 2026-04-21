@@ -43,6 +43,18 @@ async function fileExists(filePath: string) {
   }
 }
 
+async function fileHasStructuredAppendix(filePath: string) {
+  try {
+    const content = await fs.readFile(filePath, "utf8");
+    return (
+      /^##\s+Machine-readable activation payload\s*$/im.test(content)
+      && /^##\s+Structured launch data appendix\s*$/im.test(content)
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function resolveLatestRunDirectory(cityReportsRoot: string) {
   if (!(await fileExists(cityReportsRoot))) {
     return null;
@@ -103,6 +115,60 @@ async function resolveLatestArtifactPath(runDirectory: string | null) {
   return null;
 }
 
+async function resolveLatestCompletedArtifactPath(cityReportsRoot: string) {
+  if (!(await fileExists(cityReportsRoot))) {
+    return null;
+  }
+
+  const directories = (await fs.readdir(cityReportsRoot, { withFileTypes: true }))
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort()
+    .reverse();
+
+  const candidates = [
+    "99-final-playbook.md",
+    "20-follow-up-research-round-9.md",
+    "20-follow-up-research-round-8.md",
+    "20-follow-up-research-round-7.md",
+    "20-follow-up-research-round-6.md",
+    "20-follow-up-research-round-5.md",
+    "20-follow-up-research-round-4.md",
+    "20-follow-up-research-round-3.md",
+    "20-follow-up-research-round-2.md",
+    "20-follow-up-research-round-1.md",
+    "10-critique-round-9.md",
+    "10-critique-round-8.md",
+    "10-critique-round-7.md",
+    "10-critique-round-6.md",
+    "10-critique-round-5.md",
+    "10-critique-round-4.md",
+    "10-critique-round-3.md",
+    "10-critique-round-2.md",
+    "10-critique-round-1.md",
+    "01-initial-research.md",
+  ];
+
+  for (const directory of directories) {
+    const runDirectory = path.join(cityReportsRoot, directory);
+    for (const candidate of candidates) {
+      const candidatePath = path.join(runDirectory, candidate);
+      if (!(await fileExists(candidatePath))) {
+        continue;
+      }
+      if (
+        candidate === "01-initial-research.md"
+        && !(await fileHasStructuredAppendix(candidatePath))
+      ) {
+        continue;
+      }
+      return candidatePath;
+    }
+  }
+
+  return null;
+}
+
 export async function resolveCityLaunchPlanningState(input: {
   city: string;
   reportsRoot?: string;
@@ -122,12 +188,7 @@ export async function resolveCityLaunchPlanningState(input: {
     ? path.join(latestRun.runDirectory, "manifest.json")
     : null;
   const canonicalExists = await fileExists(canonicalPlaybookPath);
-  const latestRunFinalArtifactPath = latestRun?.runDirectory
-    ? path.join(latestRun.runDirectory, "99-final-playbook.md")
-    : null;
-  const latestRunFinalExists = latestRunFinalArtifactPath
-    ? await fileExists(latestRunFinalArtifactPath)
-    : false;
+  const latestCompletedArtifactPath = await resolveLatestCompletedArtifactPath(cityReportsRoot);
 
   let status: CityLaunchPlanningStateStatus = "not_started";
   let completedArtifactPath: string | null = null;
@@ -136,15 +197,15 @@ export async function resolveCityLaunchPlanningState(input: {
   if (canonicalExists) {
     completedArtifactPath = canonicalPlaybookPath;
     status = "completed";
-  } else if (latestRunFinalExists && latestRunFinalArtifactPath) {
-    completedArtifactPath = latestRunFinalArtifactPath;
+  } else if (latestCompletedArtifactPath) {
+    completedArtifactPath = latestCompletedArtifactPath;
     status = "completed";
   }
 
   const hasPartialRun = Boolean(
     latestRun?.runDirectory
     && latestArtifactPath
-    && !latestRunFinalExists,
+    && completedArtifactPath !== latestArtifactPath,
   );
 
   if (status === "completed" && hasPartialRun) {

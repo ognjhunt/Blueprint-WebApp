@@ -9,7 +9,7 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
 - agent owner: city-demand-agent
 - human owner: growth-lead
 - purpose: Rank which San Diego sites and site clusters should be captured first based on current robot workflow focus, buyer value, and access realism.
-- human gate: Escalate only when a target requires a sensitive operator-lane, rights/privacy exception, or posture-changing outbound motion.
+- policy guardrail: Automatic policy block only when a target requires a sensitive operator-lane, rights/privacy exception, or posture-changing outbound motion.
 - dependencies: none
 - metrics dependencies: first_lawful_access_path
 - validation required: false
@@ -29,7 +29,7 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
 - agent owner: growth-lead
 - human owner: growth-lead
 - purpose: Keep San Diego sourcing narrow, truthful, and off the founder lane for routine approvals.
-- human gate: Founder approval only if the policy expands spend, public posture, or channel scope beyond the bounded San Diego pilot.
+- policy guardrail: Automatic policy block only if the policy expands spend, public posture, or channel scope beyond the bounded San Diego pilot.
 - dependencies: none
 - metrics dependencies: none
 - validation required: false
@@ -37,7 +37,7 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
 - inputs:
   - ops/paperclip/playbooks/city-launch-san-diego-ca.md
   - capturer-supply-playbook.md
-  - founder-approved San Diego launch posture
+  - autonomous San Diego launch posture
 - done when:
   - San Diego source policy names allowed channels, disallowed channels, referral rules, and who may issue invites or access codes.
   - Routine invite/access-code decisions stay with Growth Lead and Ops Lead inside written guardrails.
@@ -49,7 +49,7 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
 - agent owner: site-operator-partnership-agent
 - human owner: growth-lead
 - purpose: Prepare the operator-side access path for San Diego warehouses and facilities by identifying contacts, operator value props, approval sequence, and escalation boundaries before the city waits on a single site.
-- human gate: Human review before the first live operator outreach, and immediate escalation for commercialization, legal, privacy, consent, or non-standard access questions.
+- policy guardrail: Automatic policy block before the first live operator outreach, and immediate escalation for commercialization, legal, privacy, consent, or non-standard access questions.
 - dependencies: city-target-ledger, growth-source-policy
 - metrics dependencies: first_lawful_access_path
 - validation required: false
@@ -62,7 +62,7 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
   - parallel lawful-access queue
 - done when:
   - San Diego operator-lane packet identifies likely owner/operator/tenant contacts, operator-side value props, and the exact approval sequence for the highest-priority warehouse/facility candidates.
-  - The first operator-outreach draft or intro packet is ready for human review instead of being invented ad hoc at the moment of blockage.
+  - The first operator-outreach draft or intro packet is ready for automatic policy review instead of being invented ad hoc at the moment of blockage.
   - Open questions and escalation boundaries are explicit before live operator outreach begins.
 
 ## Publish San Diego intake rubric, trust kit, and first-capture thresholds
@@ -71,8 +71,8 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
 - phase: founder_gates
 - agent owner: ops-lead
 - human owner: ops-lead
-- purpose: Give Intake, Field Ops, QA, and Rights lanes explicit San Diego rules so they can run without founder review.
-- human gate: none
+- purpose: Give Intake, Field Ops, QA, and Rights lanes explicit San Diego rules so they can run without manual review.
+- policy guardrail: none
 - dependencies: growth-source-policy
 - metrics dependencies: none
 - validation required: false
@@ -92,7 +92,7 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
 - agent owner: capturer-growth-agent
 - human owner: growth-lead
 - purpose: Generate the first San Diego supply wave without widening into generic gig-market posture.
-- human gate: Human review before any public posting or channel expansion beyond the written San Diego source policy.
+- policy guardrail: Automatic policy block before any public posting or channel expansion beyond the written San Diego source policy.
 - dependencies: city-target-ledger, growth-source-policy
 - metrics dependencies: none
 - validation required: false
@@ -100,9 +100,10 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
 - inputs:
   - capturer-supply-playbook.md
   - ops/paperclip/playbooks/city-launch-san-diego-ca.md
+  - ops/paperclip/playbooks/city-launch-san-diego-ca-professional-first-wave-pack.md
   - San Diego source policy
 - done when:
-  - A curated first-wave San Diego prospect set is named with source bucket, rationale, lawful access posture, and next move.
+  - A curated first-wave San Diego professional prospect set is named with source bucket, rationale, lawful access posture, and next move.
   - Any copy stays draft-first and preserves no-guarantee capture language.
 
 ## Route San Diego applicants into qualification and approval
@@ -111,8 +112,8 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
 - phase: supply
 - agent owner: intake-agent
 - human owner: ops-lead
-- purpose: Classify San Diego applicants using the approved rubric instead of ad hoc founder review.
-- human gate: Escalate only when the rubric is ambiguous or the application raises rights/privacy/trust exceptions.
+- purpose: Classify San Diego applicants using the approved rubric instead of ad hoc manual review.
+- policy guardrail: Automatic policy block only when the rubric is ambiguous or the application raises rights/privacy/trust exceptions.
 - dependencies: ops-rubric-thresholds
 - metrics dependencies: first_approved_capturer
 - validation required: false
@@ -132,7 +133,7 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
 - agent owner: capturer-success-agent
 - human owner: ops-lead
 - purpose: Give every approved San Diego mapper one routine relationship owner from approval through onboarding, first pass, and repeat-readiness so the founder is not the default support lane.
-- human gate: Escalate only when routine support exposes a threshold, rights, privacy, payout, or policy exception.
+- policy guardrail: Automatic policy block only when routine support exposes a threshold, rights, privacy, payout, or policy exception.
 - dependencies: ops-rubric-thresholds, supply-qualification
 - metrics dependencies: first_approved_capturer, first_completed_capture
 - validation required: false
@@ -153,7 +154,7 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
 - agent owner: field-ops-agent
 - human owner: ops-lead
 - purpose: Turn approved San Diego capturers into real first captures inside bounded thresholds.
-- human gate: Escalate only for missing site access, ambiguous permissions, or threshold exceptions.
+- policy guardrail: Automatic policy block only for missing site access, ambiguous permissions, or threshold exceptions.
 - dependencies: supply-qualification, capturer-activation-success
 - metrics dependencies: first_completed_capture
 - validation required: false
@@ -173,7 +174,7 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
 - agent owner: capture-qa-agent
 - human owner: ops-lead
 - purpose: Ensure San Diego proof assets are real, clean, and ready for buyer proof work.
-- human gate: none
+- policy guardrail: none
 - dependencies: first-capture-routing
 - metrics dependencies: first_qa_passed_capture
 - validation required: false
@@ -192,7 +193,7 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
 - agent owner: rights-provenance-agent
 - human owner: designated-human-rights-reviewer
 - purpose: Make San Diego proof packs releasable without weakening trust boundaries.
-- human gate: Human rights review for sensitive or precedent-setting privacy, rights, or commercialization questions.
+- policy guardrail: Human rights review for sensitive or precedent-setting privacy, rights, or commercialization questions.
 - dependencies: capture-qa
 - metrics dependencies: first_rights_cleared_proof_asset
 - validation required: false
@@ -203,7 +204,7 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
   - rights/provenance checklist
 - done when:
   - Each San Diego proof asset is marked CLEARED, BLOCKED, or NEEDS-REVIEW with evidence citations.
-  - Policy-setting exceptions route to the human reviewer and founder only when precedent changes.
+  - Policy-setting exceptions route to the automatic policy reviewer and founder only when precedent changes.
 
 ## Assemble San Diego proof packs and publish 1-2 proof-ready listings
 
@@ -212,7 +213,7 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
 - agent owner: buyer-solutions-agent
 - human owner: ops-lead
 - purpose: Turn San Diego captures into concrete exact-site proof assets with a hosted-review path.
-- human gate: Escalate only when a buyer-visible claim would outrun the underlying evidence or commercial scope.
+- policy guardrail: Automatic policy block only when a buyer-visible claim would outrun the underlying evidence or commercial scope.
 - dependencies: city-target-ledger, rights-clearance
 - metrics dependencies: proof_pack_delivered, first_proof_pack_delivery
 - validation required: false
@@ -232,7 +233,7 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
 - agent owner: demand-intel-agent
 - human owner: growth-lead
 - purpose: Build a real San Diego demand list that matches the proof assets Blueprint can actually show.
-- human gate: none
+- policy guardrail: none
 - dependencies: proof-pack-listings
 - metrics dependencies: robot_team_inbound_captured, proof_path_assigned
 - validation required: false
@@ -252,7 +253,7 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
 - agent owner: robot-team-growth-agent
 - human owner: growth-lead
 - purpose: Make outbound specific to San Diego proof assets and hosted review instead of generic AI messaging.
-- human gate: Human review before any live send.
+- policy guardrail: Automatic policy block before any live send.
 - dependencies: buyer-target-research
 - metrics dependencies: proof_path_assigned
 - validation required: false
@@ -272,7 +273,7 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
 - agent owner: outbound-sales-agent
 - human owner: growth-lead
 - purpose: Convert named San Diego targets into serious proof conversations without dragging the founder into routine work.
-- human gate: Escalate only for posture changes, non-standard terms, or sensitive rights/privacy questions.
+- policy guardrail: Automatic policy block only for posture changes, non-standard terms, or sensitive rights/privacy questions.
 - dependencies: outbound-package
 - metrics dependencies: hosted_review_ready, hosted_review_started, hosted_review_follow_up_sent, proof_motion_stalled, first_hosted_review
 - validation required: false
@@ -290,8 +291,8 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
 - phase: commercial
 - agent owner: revenue-ops-pricing-agent
 - human owner: designated-human-commercial-owner
-- purpose: Prevent routine pricing and packaging questions from escalating to founder review.
-- human gate: Human commercial owner approval for standard quotes; founder approval only for non-standard commitments.
+- purpose: Prevent routine pricing and packaging questions from escalating to manual review.
+- policy guardrail: Automatic commercial policy block whenever proposed terms fall outside the written standard quote bands.
 - dependencies: outbound-execution
 - metrics dependencies: human_commercial_handoff_started, first_human_commercial_handoff
 - validation required: false
@@ -302,7 +303,7 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
   - revenue-ops-pricing-agent-program.md
 - done when:
   - Standard San Diego quote bands, discount guardrails, and handoff thresholds are documented and used.
-  - Only non-standard commitments escalate above the designated human commercial owner.
+  - Only non-standard commitments escalate above the automated commercial policy.
 
 ## Publish the San Diego launch scorecard and blocker view
 
@@ -311,7 +312,7 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
 - agent owner: analytics-agent
 - human owner: growth-lead
 - purpose: Make San Diego progress measurable and reviewable without relying on narrative updates.
-- human gate: none
+- policy guardrail: none
 - dependencies: supply-qualification, proof-pack-listings, outbound-execution
 - metrics dependencies: robot_team_inbound_captured, proof_path_assigned, proof_pack_delivered, hosted_review_ready, hosted_review_started, hosted_review_follow_up_sent, human_commercial_handoff_started, proof_motion_stalled
 - validation required: true
@@ -332,7 +333,7 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
 - agent owner: notion-manager-agent
 - human owner: chief-of-staff
 - purpose: Keep the San Diego launch runnable and inspectable for humans outside the repo.
-- human gate: Escalate only for ambiguous Notion identity or rights-sensitive content movement.
+- policy guardrail: Automatic policy block only for ambiguous Notion identity or rights-sensitive content movement.
 - dependencies: city-scorecard
 - metrics dependencies: none
 - validation required: false
@@ -343,7 +344,7 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
   - San Diego scorecard
 - done when:
   - San Diego execution system doc is mirrored into Notion Knowledge.
-  - A Work Queue breadcrumb exists for the current San Diego activation state and next human gate.
+  - A Work Queue breadcrumb exists for the current San Diego activation state and next policy block.
 
 ## Run the San Diego switch-on review before activation
 
@@ -352,7 +353,7 @@ This issue bundle turns the San Diego playbook into executable lanes using the c
 - agent owner: beta-launch-commander
 - human owner: cto
 - purpose: Confirm the software/runtime surfaces needed by the San Diego launch are safe before switch-on.
-- human gate: CTO review on release safety; founder only if compliance or rights evidence is ambiguous.
+- policy guardrail: CTO review on release safety; founder only if compliance or rights evidence is ambiguous.
 - dependencies: city-scorecard
 - metrics dependencies: none
 - validation required: false

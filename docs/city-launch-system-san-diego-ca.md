@@ -7,7 +7,7 @@
 
 ## Objective
 
-Turn the San Diego planning artifacts into an executable company harness that can run the supply loop and the demand loop with minimal founder involvement after bounded founder approval.
+Turn the San Diego planning artifacts into an executable company harness that can run the supply loop and the demand loop with minimal founder involvement without manual city-activation approval.
 
 ## Machine-Readable Budget Policy
 
@@ -38,14 +38,14 @@ Turn the San Diego planning artifacts into an executable company harness that ca
 - San Diego go / no-go and the decision to keep the city gated or expand it.
 - Any spend envelope beyond the approved San Diego zero budget policy.
 - Any public statement that changes company posture or overstates San Diego readiness.
-- Any rights/privacy exception or non-standard commercial commitment that would set precedent.
+- Any rights/privacy exception or non-standard commercial commitment stays blocked until the written policy and evidence path are updated.
 
 ## Human Operator-Owned Decisions
 
 - Growth Lead owns San Diego source policy, referral posture, and invite/access-code issuance inside approved guardrails.
 - Ops Lead owns the San Diego intake rubric, trust kit, first-capture thresholds, and launch-readiness checklist.
-- The designated human commercial owner owns standard quotes inside approved bands.
-- The designated human rights reviewer owns sensitive but non-precedent rights/privacy calls prepared by rights-provenance-agent.
+- The automated commercial policy owns standard quote bands enforced from repo policy.
+- The rights-provenance policy owns sensitive but non-precedent rights/privacy calls prepared by rights-provenance-agent.
 
 ## Agent-Prepared / Autonomous Work
 
@@ -61,8 +61,8 @@ Turn the San Diego planning artifacts into an executable company harness that ca
 - Approve the bounded San Diego launch posture: gated cohort pilot, Exact-Site Hosted Review wedge, no public city-live claims.
 - Approve the bounded spend posture for San Diego: Zero Budget with no paid acquisition, referral, or discretionary travel spend.
 - Approve any San Diego source-policy exceptions beyond the current bounded channel stack.
-- Approve any rights/privacy/commercialization exception that would set precedent or create an irreversible external commitment.
-- Approve any non-standard commercial terms outside the standard San Diego quote bands prepared by revenue-ops-pricing-agent and the designated human commercial owner.
+- Automatically block any rights/privacy/commercialization exception that lacks written policy and evidence.
+- Automatically block any non-standard commercial terms outside the standard San Diego quote bands prepared by revenue-ops-pricing-agent and the automated commercial policy.
 
 ## San Diego Switch-On Requirements
 
@@ -148,6 +148,8 @@ Turn the San Diego planning artifacts into an executable company harness that ca
 - ops/paperclip/programs/city-launch-activation-program.md
 - ops/paperclip/blueprint-company/tasks/city-launch-activation/TASK.md
 - ops/paperclip/playbooks/city-launch-san-diego-ca.md
+- ops/paperclip/playbooks/city-opening-san-diego-ca-cta-routing.md
+- ops/paperclip/playbooks/city-opening-san-diego-ca-send-ledger.md
 - ops/paperclip/playbooks/city-demand-san-diego-ca.md
 - ops/paperclip/playbooks/city-buyer-handoff-escalation-rubric-san-diego.md
 - ops/paperclip/playbooks/city-capture-target-ledger-san-diego-ca.md

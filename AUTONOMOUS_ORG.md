@@ -9,7 +9,7 @@
 
 ## Overview
 
-Blueprint runs as an autonomous organization powered by [Paperclip](https://github.com/paperclipai/paperclip). Every operational role — from buyer intake to market research to conversion optimization — is modeled as a persistent agent with defined responsibilities, triggers, human gates, and a graduation path toward full autonomy.
+Blueprint runs as an autonomous organization powered by [Paperclip](https://github.com/paperclipai/paperclip). Every operational role — from buyer intake to market research to conversion optimization — is modeled as a persistent agent with defined responsibilities, triggers, policy guardrails, and a graduation path toward full autonomy.
 
 This guide covers the full org so that any agent or human working in any Blueprint repo understands who does what, how work flows, and where the boundaries are.
 
@@ -20,9 +20,9 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 - Progressive autonomy — agents start supervised and graduate based on track record
 - Paperclip is the execution and ownership record; Notion is the workspace, knowledge, review, and operator-visibility surface; repo files are the definitional source of truth
 - Autoresearch-pattern loops drive continuous optimization (adapted from [Karpathy's autoresearch](https://github.com/karpathy/autoresearch))
-- Growth should stay anchored to one narrow commercial wedge at a time. The current priority wedge is **Exact-Site Hosted Review**: one real site, one workflow lane, one package-plus-hosted-review path, with explicit human gates on pricing, policy, rights, and irreversible commitments.
-- Founder scope stays narrow: irreversible or company-level decisions only. Routine launch, commercial, and ops approvals belong in named operator lanes with agents preparing evidence, packets, and exception routing.
-- Named operator lanes in the current model: Growth Lead for channel/referral/source posture, Ops Lead for intake/threshold/trust-kit readiness, designated human commercial owner for standard quotes inside approved bands, and designated human rights reviewer for sensitive trust cases.
+- Growth should stay anchored to one narrow commercial wedge at a time. The current priority wedge is **Exact-Site Hosted Review**: one real site, one workflow lane, one package-plus-hosted-review path, with explicit automatic policy enforcement on pricing, policy, rights, and irreversible commitments.
+- Founder scope stays narrow: strategic repo truth, policy updates, and architecture changes. Routine launch, commercial, and ops execution should run autonomously from written policy and evidence, not approval packets.
+- Named operator lanes in the current model: Growth Lead for channel/referral/source posture, Ops Lead for intake/threshold/trust-kit readiness, revenue-ops-pricing-agent for standard quote-band enforcement, and rights-provenance-agent for rights/privacy/commercialization evidence handling.
 
 ---
 
@@ -98,7 +98,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 - Strategy direction updates
 - Weekly founder briefing
 
-**Human gates:** Strategy and budget decisions always require founder approval.
+**Policy guardrails:** Strategy and budget decisions are governed by written repo policy and fail-closed execution, not per-run founder approval.
 
 **Graduation:** N/A — executive role, always reports to human.
 
@@ -116,7 +116,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 | **Model** | Hermes (OpenRouter Arcee free primary, Arcee/Z.ai ladder before Codex fallback) |
 | **Status** | Live in Paperclip package |
 
-**Purpose:** Runs the continuous managerial loop. Watches issue state, routine health, queue changes, and agent activity; decides what finished, what stalled, and what needs a next action; routes or closes work in Paperclip; and packages every founder or human gate as a standard decision packet instead of a vague escalation.
+**Purpose:** Runs the continuous managerial loop. Watches issue state, routine health, queue changes, and agent activity; decides what finished, what stalled, and what needs a next action; routes or closes work in Paperclip; and turns missing policy or missing evidence into explicit blockers instead of vague escalation.
 
 **Triggers:**
 - `*/5 * * * *` — Continuous manager loop
@@ -132,7 +132,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 - Slack-visible manager wakeups and task-routing activity
 - Human-reply watcher ownership for blocker packets, including correlation, reply classification, and delegated execution handoff
 
-**Human gates:** Strategy, budget, rights/privacy, commercialization commitments, legal, policy, and other irreversible high-risk decisions.
+**Policy guardrails:** Strategy, budget, rights/privacy, commercialization commitments, legal, policy, and other irreversible high-risk decisions.
 
 **Instructions:** `ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md`
 **Paperclip config:** `ops/paperclip/blueprint-company/.paperclip.yaml`
@@ -162,7 +162,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 - Engineering agent work items
 - Technical escalations to CEO
 
-**Human gates:** Architecture decisions affecting platform contracts.
+**Policy guardrails:** Architecture decisions affecting platform contracts.
 
 **Graduation:** N/A — executive role.
 
@@ -197,7 +197,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 - Draft investor campaign → SendGrid-backed draft path (when configured)
 - Internal review note → Slack `#exec` (when configured)
 
-**Human gates:** Any live send/publish, fundraising language, projections, runway claims, or board-sensitive disclosures.
+**Policy guardrails:** Any live send/publish, fundraising language, projections, runway claims, or board-sensitive disclosures.
 
 **Instructions:** `ops/paperclip/blueprint-company/agents/investor-relations-agent/AGENTS.md`
 **Program:** `ops/paperclip/programs/investor-relations-agent-program.md`
@@ -231,7 +231,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 - Escalation comment on affected page when the fix is unsafe or ambiguous
 - Follow-up Paperclip issue plus manager-visible Slack alert when a page cannot be auto-repaired safely
 
-**Human gates:** Ambiguous page identity, contested ownership, rights/privacy-sensitive content, arbitrary workspace cleanup outside Blueprint-managed Hub surfaces, or any move/archive decision without strong evidence.
+**Policy guardrails:** Ambiguous page identity, contested ownership, rights/privacy-sensitive content, arbitrary workspace cleanup outside Blueprint-managed Hub surfaces, or any move/archive decision without strong evidence.
 
 **Instructions:** `ops/paperclip/blueprint-company/agents/notion-manager-agent/AGENTS.md`
 
@@ -262,7 +262,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 - backward-compatible run mirror only when an old action still uses the legacy recorder
 - blocked follow-up comment when the cleanup is unsafe or ambiguous
 
-**Human gates:** Ambiguous page identity, unsafe move/archive decisions, and rights/privacy-sensitive cleanup.
+**Policy guardrails:** Ambiguous page identity, unsafe move/archive decisions, and rights/privacy-sensitive cleanup.
 
 **Instructions:** `ops/paperclip/blueprint-company/agents/notion-reconciler/AGENTS.md`
 
@@ -277,10 +277,10 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 | **Model** | Hermes (OpenRouter Arcee free primary, Arcee/Z.ai ladder before Codex fallback) |
 | **Status** | New |
 
-**Purpose:** Maintains Blueprint's pricing and commercial system discipline. Connects buyer demand, site-catalog supply, usage, and delivery-cost signals into draft pricebook updates, package guidance, quote support, and discount guardrails without taking over buyer-thread ownership or making live commercial commitments. The designated human commercial owner uses this lane for standard quote decisions inside approved bands.
+**Purpose:** Maintains Blueprint's pricing and commercial system discipline. Connects buyer demand, site-catalog supply, usage, and delivery-cost signals into draft pricebook updates, package guidance, quote support, and discount guardrails without taking over buyer-thread ownership or making live commercial commitments. The revenue-ops-pricing-agent uses this lane for standard quote decisions inside approved bands.
 
 **Triggers:**
-- Event: designated human commercial owner, chief-of-staff, buyer-solutions-agent, or growth-lead requests quote or package guidance
+- Event: revenue-ops-pricing-agent, chief-of-staff, buyer-solutions-agent, or growth-lead requests quote or package guidance
 - Standing weekly pricing review remains paused until buyer volume or pricing-system drift justifies it
 
 **Inputs:**
@@ -295,7 +295,7 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 - Commercial contradiction reports when pricing, catalog, and delivery truth diverge
 - Follow-up work for product, ops, growth, or finance when pricing questions expose deeper gaps
 
-**Human gates:** Live pricing changes, discounts, terms, contract commitments, revenue-share logic, and any non-standard commercial offer.
+**Policy guardrails:** Live pricing changes, discounts, terms, contract commitments, revenue-share logic, and any non-standard commercial offer.
 
 **Instructions:** `ops/paperclip/blueprint-company/agents/revenue-ops-pricing-agent/AGENTS.md`
 **Program:** `ops/paperclip/programs/revenue-ops-pricing-agent-program.md`
@@ -351,7 +351,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Weekly ops trend summary → CEO + Growth Lead
 - Resumed execution ownership for non-technical human replies unless a narrower buyer, rights, or commercial lane already owns the thread
 
-**Human gates:** Ops Lead is itself the routine human operator lane for launch-readiness ops. Founder escalation is only for spend, policy, rights/privacy, legal, or other irreversible exceptions.
+**Policy guardrails:** Ops Lead is itself the routine human operator lane for launch-readiness ops. Founder escalation is only for spend, policy, rights/privacy, legal, or other irreversible exceptions.
 
 **External needs:** Firestore read, Notion API, Slack webhook.
 
@@ -394,7 +394,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Missing-info flags with specific questions
 - Updates to Notion Work Queue
 
-**Human gates:**
+**Policy guardrails:**
 - High-risk or low-confidence outbound messages
 - Rejections and edge cases
 - Rights/privacy/commercial commitment cases
@@ -439,7 +439,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Payout recommendation draft → human approval gate
 - Quality trends report → Growth Lead (weekly)
 
-**Human gates:**
+**Policy guardrails:**
 - All payout approvals (permanent — never graduates)
 - Recapture decisions (Phase 1 only)
 - QA pass/fail on borderline captures (Phase 1-2)
@@ -487,7 +487,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Site-access first outreach and permission-state tracking
 - Travel/logistics notes
 
-**Human gates:**
+**Policy guardrails:**
 - Complex reschedules and cancellations
 - Custom capturer communications
 - Site-access negotiation, denials, and conditional terms
@@ -535,7 +535,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Ledger discrepancy reports
 - Stripe health summary → Ops Lead
 
-**Human gates:**
+**Policy guardrails:**
 - All financial actions
 - Dispute responses, refunds, and compliance exceptions
 - Any money movement or legal/privacy judgment
@@ -587,7 +587,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Post-deploy monitoring reports
 - Rollback documentation when needed
 
-**Human gates:**
+**Policy guardrails:**
 - Release freeze directives
 - Risk acceptance on compliance flags
 - Go/no-go when evidence is genuinely ambiguous
@@ -635,8 +635,8 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Buyer-facing proof summaries
 - Journey stage transitions and outcome documentation
 
-**Human gates:**
-- Standard quotes and package approvals route to the designated human commercial owner
+**Policy guardrails:**
+- Standard quotes and package approvals route to the revenue-ops-pricing-agent
 - Non-standard pricing, terms, or contract negotiation route to founder
 - Promises about capabilities Blueprint does not yet have
 - Any external buyer-facing communication that would create a non-standard commitment
@@ -645,7 +645,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | Phase | Behavior | Criteria to advance |
 |-------|----------|-------------------|
 | 1 | Tracks and recommends; human handles all buyer communication | 5 buyer journeys tracked end-to-end |
-| 2 | Sends routine status updates and proof delivery autonomously; designated human commercial owner handles standard commercial conversations | 3 successful proof deliveries |
+| 2 | Sends routine status updates and proof delivery autonomously; revenue-ops-pricing-agent handles standard commercial conversations | 3 successful proof deliveries |
 | 3 | Manages routine buyer journeys autonomously; human reviews only non-standard commercial and capability-gap conversations | Founder sign-off |
 
 ---
@@ -683,7 +683,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Product-gap or artifact-gap escalations to engineering or ops
 - Clean technical handoffs into buyer-success-agent when delivery is ready
 
-**Human gates:** Capability guarantees, deployment guarantees, custom engineering promises, pricing implications, and any external technical commitment beyond current product truth.
+**Policy guardrails:** Capability guarantees, deployment guarantees, custom engineering promises, pricing implications, and any external technical commitment beyond current product truth.
 
 **Instructions:** `ops/paperclip/blueprint-company/agents/solutions-engineering-agent/AGENTS.md`
 **Program:** `ops/paperclip/programs/solutions-engineering-agent-program.md`
@@ -723,20 +723,20 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Designated-human-reviewer escalation summaries for NEEDS-REVIEW cases
 - Rights clearance attached to Paperclip issues
 
-**Human gates:**
+**Policy guardrails:**
 - Novel consent situations without precedent
 - Regulatory gray areas
 - Expanding commercialization scope beyond original grant
 - Any case where the right answer is genuinely unclear
-- Designated human reviewer handles sensitive rights/privacy judgments; founder review is reserved for precedent-setting or policy-changing exceptions
-- ALL rights decisions remain permanently human-gated (never fully autonomous)
+- rights-provenance-agent handles sensitive rights/privacy judgments from written policy and evidence, and policy-changing exceptions require a repo policy update rather than a per-run approval gate
+- All rights decisions remain permanently policy-blocked until repo truth and evidence support the action.
 
 **Graduation path:**
 | Phase | Behavior | Criteria to advance |
 |-------|----------|-------------------|
 | 1 | Reviews and recommends; human approves all clearance decisions | 10 reviews with consistent quality |
 | 2 | Auto-clears routine cases matching established patterns; human reviews edge cases and high-sensitivity sites | 20 reviews, zero false clearances |
-| 3 | Semi-autonomous for routine clearance; all novel, high-sensitivity, and scope-expansion cases remain human-gated permanently | Founder sign-off |
+| 3 | Semi-autonomous for routine clearance; all novel, high-sensitivity, and scope-expansion cases remain policy-blocked permanently | Founder sign-off |
 
 ---
 
@@ -773,7 +773,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Missing-evidence escalations to engineering, ops, or rights owners
 - Explicit "not currently supported" answers where evidence does not exist
 
-**Human gates:** Legal language, certification or pentest claims, privacy/risk interpretation, contract commitments, and any answer that outruns existing evidence.
+**Policy guardrails:** Legal language, certification or pentest claims, privacy/risk interpretation, contract commitments, and any answer that outruns existing evidence.
 
 **Instructions:** `ops/paperclip/blueprint-company/agents/security-procurement-agent/AGENTS.md`
 **Program:** `ops/paperclip/programs/security-procurement-agent-program.md`
@@ -816,7 +816,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Activity pattern reports and intervention recommendations
 - Systemic issue escalations (when multiple capturers hit the same wall)
 
-**Human gates:**
+**Policy guardrails:**
 - Capturer deactivation
 - Payout adjustments
 - Platform-level UX/process changes based on pattern analysis
@@ -868,7 +868,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Explicit pause or restart decisions for non-core growth lanes
 - Funnel health dashboard updates → Notion
 
-**Human gates:** Growth Lead is itself the routine human operator lane for channel/referral/source policy. Founder escalation is only for spend envelopes, posture-changing public claims, or policy changes with irreversible external effect.
+**Policy guardrails:** Growth Lead is itself the routine human operator lane for channel/referral/source policy. Founder escalation is only for spend envelopes, posture-changing public claims, or policy changes with irreversible external effect.
 
 **External needs:** Notion API, Slack webhook, analytics platform read.
 
@@ -910,7 +910,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Channel and referral recommendations
 - Inputs for Capturer Growth and City Launch planning
 
-**Human gates:** Compensation policy, legal classification, claims about earnings/work volume, and any external outreach.
+**Policy guardrails:** Compensation policy, legal classification, claims about earnings/work volume, and any external outreach.
 
 **Skill file:** `ops/paperclip/skills/supply-intel-agent.md`
 **Steering file:** `ops/paperclip/programs/supply-intel-agent-program.md`
@@ -944,7 +944,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Channel recommendations and internal campaign drafts
 - Execution queue for Conversion, Analytics, Intake, Ops, and City Launch
 
-**Human gates:** Spend, compensation changes, public posting, and claims about earnings/work availability.
+**Policy guardrails:** Spend, compensation changes, public posting, and claims about earnings/work availability.
 
 **Skill file:** `ops/paperclip/skills/capturer-growth-agent.md`
 **Steering file:** `ops/paperclip/programs/capturer-growth-agent-program.md`
@@ -978,7 +978,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Weekly city scorecards and readiness status
 - Cross-agent action queues for web, analytics, ops, intake, and field readiness
 
-**Human gates:** Final city launch / no-launch decision, new spend envelopes, posture-changing public claims, and local legal/compliance interpretation. Routine invite/referral/rubric/threshold/trust-kit decisions belong to named operators.
+**Policy guardrails:** Final city launch / no-launch decision, new spend envelopes, posture-changing public claims, and local legal/compliance interpretation. Routine invite/referral/rubric/threshold/trust-kit decisions belong to named operators.
 
 **Skill file:** `ops/paperclip/skills/city-launch-agent.md`
 **Steering file:** `ops/paperclip/programs/city-launch-agent-program.md`
@@ -1012,7 +1012,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Proof-pack and channel recommendations
 - Inputs for Robot Team Growth, Site Operator Partnership, and City Demand planning
 
-**Human gates:** Pricing or contract decisions, external outreach, public traction claims, and any privacy/rights/procurement judgment.
+**Policy guardrails:** Pricing or contract decisions, external outreach, public traction claims, and any privacy/rights/procurement judgment.
 
 **Skill file:** `ops/paperclip/skills/demand-intel-agent.md`
 **Steering file:** `ops/paperclip/programs/demand-intel-agent-program.md`
@@ -1046,7 +1046,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Proof-pack and hosted-session guidance
 - Execution queue for Conversion, Analytics, Intake, Ops, standard commercial handling, and City Demand
 
-**Human gates:** Spend, discounts, pricing, contracts, outreach sends, and claims beyond current product truth.
+**Policy guardrails:** Spend, discounts, pricing, contracts, outreach sends, and claims beyond current product truth.
 
 **Skill file:** `ops/paperclip/skills/robot-team-growth-agent.md`
 **Steering file:** `ops/paperclip/programs/robot-team-growth-agent-program.md`
@@ -1080,7 +1080,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Internal conversation frameworks for access and commercialization
 - Execution queue for Ops, Intake, standard commercial handling, and City Demand
 
-**Human gates:** Permission judgments, legal/privacy/rights interpretation, pricing, contracts, revenue-share commitments, and external outreach.
+**Policy guardrails:** Permission judgments, legal/privacy/rights interpretation, pricing, contracts, revenue-share commitments, and external outreach.
 
 **Skill file:** `ops/paperclip/skills/site-operator-partnership-agent.md`
 **Steering file:** `ops/paperclip/programs/site-operator-partnership-agent-program.md`
@@ -1115,7 +1115,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Weekly city scorecards and readiness status
 - Cross-agent action queues for web, analytics, intake, ops, standard commercial handling, and site-operator follow-up
 
-**Human gates:** Public posting, outreach, city-live claims, guaranteed demand or partnership claims, non-standard pricing or contract commitments, and local legal/privacy/rights/commercialization interpretation. Standard buyer progression and standard quotes should stay out of founder review.
+**Policy guardrails:** Public posting, outreach, city-live claims, guaranteed demand or partnership claims, non-standard pricing or contract commitments, and local legal/privacy/rights/commercialization interpretation. Standard buyer progression and standard quotes should stay out of founder review.
 
 **Skill file:** `ops/paperclip/skills/city-demand-agent.md`
 **Steering file:** `ops/paperclip/programs/city-demand-agent-program.md`
@@ -1161,7 +1161,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Experiment result reports → Growth Lead
 - Running experiment history → Notion Knowledge DB
 
-**Human gates:**
+**Policy guardrails:**
 - All code deploys (Phase 1)
 - Structural changes — flow reordering, new pages (Phase 1-2)
 
@@ -1224,7 +1224,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Operations** | Queue depth, resolution time, support ticket volume |
 | **Engagement** | Page bounce rate, time on page, scroll depth, return visits |
 
-**Human gates:** None (reporting/analytics role).
+**Policy guardrails:** None (reporting/analytics role).
 
 **External needs:** Analytics platform API, Stripe API (read-only), Firestore read, Notion API, Slack webhook.
 
@@ -1265,7 +1265,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - redirect note pointing legacy work to `analytics-agent`
 - backward-compatible report/run mirror only when an old action still uses the legacy reporter
 
-**Human gates:** External reuse of material claims still requires human review.
+**Policy guardrails:** External reuse of material claims still requires human review.
 
 **Instructions:** `ops/paperclip/blueprint-company/agents/metrics-reporter/AGENTS.md`
 
@@ -1297,7 +1297,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Draft community campaign → SendGrid-backed draft path (when configured)
 - Internal review note → Slack `#growth` (when configured)
 
-**Human gates:** Any live send/publish, unsupported traction claims, or sensitive rights/commercial disclosures.
+**Policy guardrails:** Any live send/publish, unsupported traction claims, or sensitive rights/commercial disclosures.
 
 **Instructions:** `ops/paperclip/blueprint-company/agents/community-updates-agent/AGENTS.md`
 **Program:** `ops/paperclip/programs/community-updates-agent-program.md`
@@ -1330,7 +1330,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - optional follow-up work items → Blueprint Work Queue
 - run-level visibility row → Blueprint Agent Runs
 
-**Human gates:** Externalization of draft language or reuse as public messaging.
+**Policy guardrails:** Externalization of draft language or reuse as public messaging.
 
 **Instructions:** `ops/paperclip/blueprint-company/agents/workspace-digest-publisher/AGENTS.md`
 
@@ -1382,7 +1382,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Market** | Robotics deployment trends, enterprise adoption, funding rounds in adjacent space |
 | **Regulatory** | Data privacy laws, robotics safety standards, commercial robot regulations |
 
-**Human gates:** None (research/reporting role).
+**Policy guardrails:** None (research/reporting role).
 
 **External needs:** Web search API (SerpAPI/Brave/Tavily), ArXiv API, Notion API, Slack webhook.
 
@@ -1430,7 +1430,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Catalog gap reports to growth-lead
 - Stale listing flags for review
 
-**Human gates:** Listing a new site type or removing a major category requires founder sign-off.
+**Policy guardrails:** Listing a new site type or removing a major category requires founder sign-off.
 
 **Graduation path:**
 | Phase | Behavior | Criteria to advance |
@@ -1472,7 +1472,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Qualified handoffs to buyer-solutions-agent
 - Outreach pattern reports to growth-lead
 
-**Human gates:**
+**Policy guardrails:**
 - Standard outreach approval sits with Growth Lead inside approved posture; founder review is reserved for posture-changing, high-risk, or relationship-sensitive exceptions
 - Any pricing or capability commitments outside approved commercial guardrails — founder
 - Companies with existing relationships — coordinate through buyer-solutions-agent first
@@ -1526,10 +1526,10 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Expansion handoffs to buyer-solutions-agent
 - Churn reason reports and patterns to growth-lead
 
-**Human gates:**
+**Policy guardrails:**
 - Routine buyer communication follows the active buyer-success policy
-- Contract or pricing discussions route to the designated human commercial owner for standard cases and founder only for non-standard exceptions
-- Rights/privacy concerns from buyers escalate to `rights-provenance-agent` plus the designated human reviewer; founder only for precedent-setting exceptions
+- Contract or pricing discussions route to the revenue-ops-pricing-agent for standard cases and founder only for non-standard exceptions
+- Rights/privacy concerns from buyers escalate to `rights-provenance-agent` plus the rights-provenance-agent; founder only for precedent-setting exceptions
 
 **Graduation path:**
 | Phase | Behavior | Criteria to advance |
@@ -1578,7 +1578,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Doc freshness tracking (last-verified date per major doc)
 - Doc gap reports to CTO when gaps are too large to address without engineering input
 
-**Human gates:** New documentation created from scratch requires CTO review before publishing.
+**Policy guardrails:** New documentation created from scratch requires CTO review before publishing.
 
 **Graduation path:**
 | Phase | Behavior | Criteria to advance |
@@ -1663,7 +1663,7 @@ An agent advances from Phase N to N+1 when ALL of these are met:
 3. **No incidents:** No escalation caused by agent error in the graduation period
 4. **Founder sign-off:** Human explicitly promotes the agent
 
-### Permanent Human Gates (Never Graduate)
+### Permanent Policy Guardrails
 
 These actions always require human approval regardless of phase:
 

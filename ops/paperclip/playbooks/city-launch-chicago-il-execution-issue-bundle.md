@@ -9,7 +9,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: city-demand-agent
 - human owner: growth-lead
 - purpose: Rank which Chicago sites and site clusters should be captured first based on current robot workflow focus, buyer value, and access realism.
-- human gate: Escalate only when a target requires a sensitive operator-lane, rights/privacy exception, or posture-changing outbound motion.
+- policy_guardrail: Automatic policy block only when a target requires a sensitive operator lane, unsupported rights/privacy handling, or posture-changing outbound motion.
 - dependencies: none
 - metrics dependencies: first_lawful_access_path
 - validation required: false
@@ -29,7 +29,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: city-demand-agent
 - human owner: growth-lead
 - purpose: Keep a multi-site lawful-access queue active so Chicago warehouse and facility work does not stall on a single signature path.
-- human gate: Escalate only when the next candidate requires a posture-changing operator motion, a rights/privacy exception, or founder review on a new precedent.
+- policy_guardrail: Automatic policy block only when the next candidate requires a posture-changing operator motion or unsupported rights/privacy handling.
 - dependencies: city-target-ledger
 - metrics dependencies: first_lawful_access_path
 - validation required: false
@@ -50,8 +50,8 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - phase: founder_gates
 - agent owner: growth-lead
 - human owner: growth-lead
-- purpose: Keep Chicago sourcing narrow, truthful, and off the founder lane for routine approvals while explicitly distinguishing private controlled interiors from public, non-controlled commercial capture.
-- human gate: Founder approval only if the policy expands spend, public posture, or channel scope beyond the bounded Chicago pilot.
+- purpose: Keep Chicago sourcing narrow, truthful, and fully autonomous inside written policy while explicitly distinguishing private controlled interiors from public, non-controlled commercial capture.
+- policy_guardrail: Automatic policy block only if the plan expands spend, public posture, or channel scope beyond the bounded Chicago pilot.
 - dependencies: none
 - metrics dependencies: none
 - validation required: false
@@ -59,7 +59,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - inputs:
   - ops/paperclip/playbooks/city-launch-chicago-il.md
   - capturer-supply-playbook.md
-  - founder-approved Chicago launch posture
+  - Chicago autonomous launch posture
 - done when:
   - Chicago source policy names allowed channels, disallowed channels, referral rules, and who may issue invites or access codes.
   - Chicago source policy makes public, non-controlled commercial community sourcing explicit while keeping private controlled interiors on stricter lawful-access paths.
@@ -73,7 +73,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: city-launch-agent
 - human owner: growth-lead
 - purpose: Make Chicago city opening explicit before the system expects replies: define who needs to hear about Blueprint in the city, what proof-led message each lane gets, which channels are in scope, what is out of scope, and how replies should route back into Blueprint.
-- human gate: Human review only when the brief would expand channel classes, blur lawful-access boundaries, or make posture-changing public claims.
+- policy_guardrail: Automatic policy block only when the brief would expand channel classes, blur lawful-access boundaries, or make posture-changing public claims.
 - dependencies: city-target-ledger, growth-source-policy
 - metrics dependencies: none
 - validation required: false
@@ -96,7 +96,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: ops-lead
 - human owner: ops-lead
 - purpose: Ensure Chicago awareness work routes into a live intake path instead of scattering replies across ad hoc inboxes, notes, or untracked side conversations.
-- human gate: none
+- policy_guardrail: none
 - dependencies: city-opening-distribution, ops-rubric-thresholds
 - metrics dependencies: none
 - validation required: false
@@ -118,7 +118,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: capturer-growth-agent
 - human owner: growth-lead
 - purpose: Turn the Chicago city-opening brief into concrete first-wave assets that can create the first responses: direct named outreach for warehouse/facility awareness and small bounded posting packages for public-commercial awareness.
-- human gate: Human review before the first live send or post in any channel, and before any expansion beyond the written city-opening brief.
+- policy_guardrail: Automatic policy block before any send, post, or expansion that outruns the written city-opening brief.
 - dependencies: city-opening-distribution, city-opening-cta-routing
 - metrics dependencies: none
 - validation required: false
@@ -140,7 +140,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: site-operator-partnership-agent
 - human owner: growth-lead
 - purpose: Prepare the operator-side access path for Chicago warehouses and facilities by identifying contacts, operator value props, approval sequence, and escalation boundaries before the city waits on a single site.
-- human gate: Human review before the first live operator outreach, and immediate escalation for commercialization, legal, privacy, consent, or non-standard access questions.
+- policy_guardrail: Automatic policy block before live operator outreach that lacks a written access, commercialization, privacy, consent, or legal basis.
 - dependencies: parallel-lawful-access-queue, growth-source-policy, city-opening-distribution
 - metrics dependencies: first_lawful_access_path
 - validation required: false
@@ -153,7 +153,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
   - parallel lawful-access queue
 - done when:
   - Chicago operator-lane packet identifies likely owner/operator/tenant contacts, operator-side value props, and the exact approval sequence for the highest-priority warehouse/facility candidates.
-  - The first operator-outreach draft or intro packet is ready for human review instead of being invented ad hoc at the moment of blockage.
+  - The first operator-outreach draft or intro packet is ready before the lane reaches a policy or evidence block.
   - Open questions and escalation boundaries are explicit before live operator outreach begins.
 
 ## Publish Chicago intake rubric, trust kit, and first-capture thresholds
@@ -163,7 +163,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: ops-lead
 - human owner: ops-lead
 - purpose: Give Intake, Field Ops, QA, and Rights lanes explicit Chicago rules so they can run without founder review.
-- human gate: none
+- policy_guardrail: none
 - dependencies: growth-source-policy
 - metrics dependencies: none
 - validation required: false
@@ -183,7 +183,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: capturer-growth-agent
 - human owner: growth-lead
 - purpose: Generate the first Chicago curated professional supply wave for private controlled interiors and buyer-linked exact-site paths, then push the first real prospect or invite response into the live intake path without widening into generic gig-market posture.
-- human gate: Escalate only for rights/privacy exceptions or posture-changing source-policy changes beyond the approved Chicago launch posture.
+- policy_guardrail: Automatic policy block only for unsupported rights/privacy handling or posture-changing source-policy changes beyond the approved Chicago launch posture.
 - dependencies: city-target-ledger, growth-source-policy, city-opening-first-wave-pack, city-opening-cta-routing
 - metrics dependencies: none
 - validation required: false
@@ -207,7 +207,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: capturer-growth-agent
 - human owner: growth-lead
 - purpose: Open a bounded online-community sourcing lane for public, non-controlled commercial locations such as groceries, retail stores, and similar walk-in sites, and turn that lane into real intake signals.
-- human gate: none
+- policy_guardrail: none
 - dependencies: growth-source-policy, city-opening-first-wave-pack, city-opening-cta-routing
 - metrics dependencies: none
 - validation required: false
@@ -233,7 +233,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: intake-agent
 - human owner: ops-lead
 - purpose: Classify Chicago applicants using the approved rubric instead of ad hoc founder review, and resume immediately once the first live invite or applicant signal lands.
-- human gate: Escalate only when the rubric is ambiguous or the application raises rights/privacy/trust exceptions.
+- policy_guardrail: Automatic policy block only when the rubric is ambiguous or the application raises unsupported rights/privacy/trust conditions.
 - dependencies: ops-rubric-thresholds
 - metrics dependencies: first_approved_capturer
 - validation required: false
@@ -255,7 +255,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: capturer-success-agent
 - human owner: ops-lead
 - purpose: Give every approved Chicago mapper one routine relationship owner from approval through onboarding, first pass, and repeat-readiness so the founder is not the default support lane.
-- human gate: Escalate only when routine support exposes a threshold, rights, privacy, payout, or policy exception.
+- policy_guardrail: Automatic policy block only when routine support exposes a threshold, rights, privacy, payout, or policy exception.
 - dependencies: ops-rubric-thresholds, supply-qualification
 - metrics dependencies: first_approved_capturer, first_completed_capture
 - validation required: false
@@ -276,7 +276,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: field-ops-agent
 - human owner: ops-lead
 - purpose: Turn approved Chicago capturers into real first captures inside bounded thresholds.
-- human gate: Escalate only for missing site access, ambiguous permissions, or threshold exceptions.
+- policy_guardrail: Automatic policy block only for missing site access, ambiguous permissions, or threshold exceptions.
 - dependencies: supply-qualification, capturer-activation-success
 - metrics dependencies: first_completed_capture
 - validation required: false
@@ -296,7 +296,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: capture-qa-agent
 - human owner: ops-lead
 - purpose: Ensure Chicago proof assets are real, clean, and ready for buyer proof work.
-- human gate: none
+- policy_guardrail: none
 - dependencies: first-capture-routing
 - metrics dependencies: first_qa_passed_capture
 - validation required: false
@@ -315,7 +315,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: rights-provenance-agent
 - human owner: designated-human-rights-reviewer
 - purpose: Make Chicago proof packs releasable without weakening trust boundaries.
-- human gate: Human rights review for sensitive or precedent-setting privacy, rights, or commercialization questions.
+- policy_guardrail: Automatic rights/provenance policy block for sensitive or precedent-setting privacy, rights, or commercialization questions.
 - dependencies: capture-qa
 - metrics dependencies: first_rights_cleared_proof_asset
 - validation required: false
@@ -326,7 +326,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
   - rights/provenance checklist
 - done when:
   - Each Chicago proof asset is marked CLEARED, BLOCKED, or NEEDS-REVIEW with evidence citations.
-  - Policy-setting exceptions route to the human reviewer and founder only when precedent changes.
+  - Policy-setting exceptions stay blocked until repo policy and supporting evidence are updated.
 
 ## Assemble Chicago proof packs and publish 1-2 proof-ready listings
 
@@ -335,7 +335,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: buyer-solutions-agent
 - human owner: ops-lead
 - purpose: Turn Chicago captures into concrete exact-site proof assets with a hosted-review path.
-- human gate: Escalate only when a buyer-visible claim would outrun the underlying evidence or commercial scope.
+- policy_guardrail: Automatic policy block only when a buyer-visible claim would outrun the underlying evidence or commercial scope.
 - dependencies: city-target-ledger, rights-clearance
 - metrics dependencies: proof_pack_delivered, first_proof_pack_delivery
 - validation required: false
@@ -355,7 +355,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: demand-intel-agent
 - human owner: growth-lead
 - purpose: Build a real Chicago demand list that matches the proof assets Blueprint can actually show.
-- human gate: none
+- policy_guardrail: none
 - dependencies: proof-pack-listings
 - metrics dependencies: robot_team_inbound_captured, proof_path_assigned
 - validation required: false
@@ -375,7 +375,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: robot-team-growth-agent
 - human owner: growth-lead
 - purpose: Make outbound specific to Chicago proof assets and hosted review instead of generic AI messaging.
-- human gate: Escalate only for rights/privacy exceptions, posture-changing claims, or non-standard commercial commitments beyond the approved launch posture.
+- policy_guardrail: Automatic policy block only for unsupported rights/privacy handling, posture-changing claims, or non-standard commercial commitments beyond the approved launch posture.
 - dependencies: buyer-target-research
 - metrics dependencies: proof_path_assigned
 - validation required: false
@@ -395,7 +395,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: outbound-sales-agent
 - human owner: growth-lead
 - purpose: Convert named Chicago targets into serious proof conversations without dragging the founder into routine work.
-- human gate: Escalate only for posture changes, non-standard terms, or sensitive rights/privacy questions.
+- policy_guardrail: Automatic policy block only for posture changes, non-standard terms, or sensitive rights/privacy questions.
 - dependencies: outbound-package
 - metrics dependencies: hosted_review_ready, hosted_review_started, hosted_review_follow_up_sent, proof_motion_stalled, first_hosted_review
 - validation required: false
@@ -414,7 +414,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: revenue-ops-pricing-agent
 - human owner: designated-human-commercial-owner
 - purpose: Prevent routine pricing and packaging questions from escalating to founder review.
-- human gate: Human commercial owner approval for standard quotes; founder approval only for non-standard commitments.
+- policy_guardrail: Automatic commercial policy block whenever proposed terms fall outside the written standard quote bands.
 - dependencies: outbound-execution
 - metrics dependencies: human_commercial_handoff_started, first_human_commercial_handoff
 - validation required: false
@@ -425,7 +425,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
   - revenue-ops-pricing-agent-program.md
 - done when:
   - Standard Chicago quote bands, discount guardrails, and handoff thresholds are documented and used.
-  - Only non-standard commitments escalate above the designated human commercial owner.
+  - Only terms inside the written quote bands proceed automatically; anything else stays blocked until the quote policy changes.
 
 ## Publish Chicago city-opening response tracking
 
@@ -434,7 +434,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: analytics-agent
 - human owner: growth-lead
 - purpose: Make Chicago city-opening distribution measurable so operators can see which awareness lanes actually create replies before deeper capture or buyer workflows take over.
-- human gate: none
+- policy_guardrail: none
 - dependencies: city-opening-cta-routing, city-opening-first-wave-pack
 - metrics dependencies: none
 - validation required: true
@@ -456,7 +456,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: city-launch-agent
 - human owner: growth-lead
 - purpose: Convert live Chicago city-opening replies across warehouse/facility and public-commercial channels into routed next steps with explicit follow-up cadence, instead of letting first responses decay across scattered threads.
-- human gate: Escalate only when follow-up would require posture-changing claims, rights/privacy promises, pricing or commercial commitments, legal interpretation, or blanket permission language.
+- policy_guardrail: Automatic policy block only when follow-up would require posture-changing claims, unsupported rights/privacy promises, pricing or commercial commitments outside policy, legal interpretation, or blanket permission language.
 - dependencies: city-opening-response-tracking, city-opening-cta-routing
 - metrics dependencies: none
 - validation required: false
@@ -480,7 +480,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: analytics-agent
 - human owner: growth-lead
 - purpose: Make Chicago progress measurable and reviewable without relying on narrative updates.
-- human gate: none
+- policy_guardrail: none
 - dependencies: supply-qualification, proof-pack-listings, outbound-execution, city-opening-response-tracking, city-opening-reply-conversion
 - metrics dependencies: robot_team_inbound_captured, proof_path_assigned, proof_pack_delivered, hosted_review_ready, hosted_review_started, hosted_review_follow_up_sent, human_commercial_handoff_started, proof_motion_stalled
 - validation required: true
@@ -501,7 +501,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: notion-manager-agent
 - human owner: chief-of-staff
 - purpose: Keep the Chicago launch runnable and inspectable for humans outside the repo.
-- human gate: Escalate only for ambiguous Notion identity or rights-sensitive content movement.
+- policy_guardrail: Automatic policy block only for ambiguous Notion identity or rights-sensitive content movement.
 - dependencies: city-scorecard
 - metrics dependencies: none
 - validation required: false
@@ -512,7 +512,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
   - Chicago scorecard
 - done when:
   - Chicago execution system doc is mirrored into Notion Knowledge.
-  - A Work Queue breadcrumb exists for the current Chicago activation state and next human gate.
+  - A Work Queue breadcrumb exists for the current Chicago activation state and next policy block.
 
 ## Run the Chicago switch-on review before activation
 
@@ -521,7 +521,7 @@ This issue bundle turns the Chicago playbook into executable lanes using the cur
 - agent owner: beta-launch-commander
 - human owner: cto
 - purpose: Confirm the software/runtime surfaces needed by the Chicago launch are safe before switch-on.
-- human gate: CTO review on release safety; founder only if compliance or rights evidence is ambiguous.
+- policy_guardrail: Automatic release-safety block when compliance or rights evidence is ambiguous.
 - dependencies: city-scorecard
 - metrics dependencies: none
 - validation required: false

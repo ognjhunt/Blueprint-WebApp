@@ -18,8 +18,8 @@ Open Austin with truthful awareness before expecting replies: make the right peo
 - CTA: respond through the tagged city intake path with site type, access posture, contact role, and what kind of follow-up is requested.
 
 ## Evidence Anchors Available Now
-- Example research-backed capture targets: Austin Capture Ops.
-- No research-backed buyer target set is materialized yet.
+- No research-backed capture targets are materialized yet; keep claims narrow and posture-led.
+- Example buyer-side targets already named in research: Austin Robotics.
 
 ## Usage Rule
 This artifact is a working city-opening brief for operators and agents. It does not mean outreach has been sent, channels have been opened, or live responses already exist.

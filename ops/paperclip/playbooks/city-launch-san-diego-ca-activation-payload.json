@@ -1,0 +1,185 @@
+{
+  "schemaVersion": "2026-04-13.city-launch-activation-payload.v1",
+  "machinePolicyVersion": "2026-04-13.city-launch-doctrine.v1",
+  "city": "San Diego, CA",
+  "citySlug": "san-diego-ca",
+  "cityThesis": "Run one proof-led warehouse wedge with a secure adjacent defense follow-up path.",
+  "primarySiteLane": "industrial_warehouse",
+  "primaryWorkflowLane": "dock handoff",
+  "primaryBuyerProofPath": "exact_site",
+  "lawfulAccessModes": [
+    "buyer_requested_site",
+    "site_operator_intro"
+  ],
+  "preferredLawfulAccessMode": "buyer_requested_site",
+  "rightsPath": {
+    "summary": "Private controlled interiors require documented site authorization before any capture or buyer-visible proof motion.",
+    "privateControlledInteriorsRequireAuthorization": true,
+    "validationRequired": true,
+    "sourceUrls": []
+  },
+  "validationBlockers": [
+    {
+      "key": "shield-ai-secure-delivery",
+      "summary": "Shield AI must stay off the standard public hosted-review path until the secure containerized delivery path is explicitly validated.",
+      "severity": "high",
+      "ownerLane": "ops-lead",
+      "validationRequired": true,
+      "sourceUrls": [
+        "https://shield.ai",
+        "https://aws.amazon.com/ecr/"
+      ]
+    }
+  ],
+  "requiredApprovals": [],
+  "ownerLanes": [
+    "city-launch-agent",
+    "capturer-growth-agent",
+    "demand-intel-agent",
+    "robot-team-growth-agent",
+    "buyer-solutions-agent",
+    "rights-provenance-agent",
+    "analytics-agent",
+    "revenue-ops-pricing-agent"
+  ],
+  "issueSeeds": [
+    {
+      "key": "proof-pack-listings",
+      "title": "Assemble San Diego proof packs and publish the first proof-ready listing",
+      "phase": "proof_assets",
+      "ownerLane": "buyer-solutions-agent",
+      "humanLane": "ops-lead",
+      "summary": "Turn the first rights-cleared San Diego warehouse asset into a buyer-visible proof pack with hosted-review routing.",
+      "dependencyKeys": [
+        "rights-clearance"
+      ],
+      "successCriteria": [
+        "At least one San Diego proof-ready listing or equivalent proof pack exists with exact-site labeling.",
+        "The proof pack includes provenance, coverage boundaries, hosted-review routing, and next-step guidance."
+      ],
+      "metricsDependencies": [
+        "proof_pack_delivered",
+        "hosted_review_ready"
+      ],
+      "validationRequired": false
+    },
+    {
+      "key": "outbound-package",
+      "title": "Prepare San Diego proof-led outbound package and first touches",
+      "phase": "demand",
+      "ownerLane": "robot-team-growth-agent",
+      "humanLane": "growth-lead",
+      "summary": "Prepare exact-site outbound for Brain Corp and keep Shield AI on the secure follow-up path.",
+      "dependencyKeys": [
+        "proof-pack-listings"
+      ],
+      "successCriteria": [
+        "Brain Corp first-touch copy is prepared with exact-site hosted-review posture.",
+        "Shield AI remains routed to a secure scoped follow-up path instead of the public hosted-review lane."
+      ],
+      "metricsDependencies": [
+        "proof_path_assigned"
+      ],
+      "validationRequired": false
+    },
+    {
+      "key": "city-scorecard",
+      "title": "Publish the San Diego launch scorecard and blocker view",
+      "phase": "measurement",
+      "ownerLane": "analytics-agent",
+      "humanLane": "growth-lead",
+      "summary": "Keep San Diego measurable from first outreach through proof and hosted review.",
+      "dependencyKeys": [
+        "outbound-package"
+      ],
+      "successCriteria": [
+        "The scorecard reports supply, demand, proof, and hosted-review milestones using the approved event vocabulary.",
+        "Missing evidence remains explicit instead of being collapsed into narrative progress."
+      ],
+      "metricsDependencies": [
+        "robot_team_inbound_captured",
+        "proof_motion_stalled"
+      ],
+      "validationRequired": true
+    }
+  ],
+  "metricsDependencies": [
+    {
+      "key": "robot_team_inbound_captured",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Track inbound buyer or operator requests with city and source attribution."
+    },
+    {
+      "key": "proof_path_assigned",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Track exact_site versus scoped_follow_up routing."
+    },
+    {
+      "key": "proof_pack_delivered",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Track the first buyer-visible San Diego proof pack delivery."
+    },
+    {
+      "key": "hosted_review_ready",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Track when a hosted review is genuinely ready to open."
+    },
+    {
+      "key": "hosted_review_started",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Track the first hosted review start."
+    },
+    {
+      "key": "hosted_review_follow_up_sent",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Track follow-up after hosted review."
+    },
+    {
+      "key": "human_commercial_handoff_started",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "revenue-ops-pricing-agent",
+      "notes": "Track when a buyer thread moves into commercial handling."
+    },
+    {
+      "key": "proof_motion_stalled",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "ownerLane": "analytics-agent",
+      "notes": "Track when proof motion stalls despite active routing."
+    }
+  ],
+  "namedClaims": [
+    {
+      "subject": "Brain Corp",
+      "claimType": "company",
+      "claim": "Brain Corp is the primary exact-site buyer target for the San Diego warehouse wedge.",
+      "validationRequired": false,
+      "sourceUrls": [
+        "https://braincorp.com"
+      ]
+    },
+    {
+      "subject": "Shield AI",
+      "claimType": "company",
+      "claim": "Shield AI stays on a secure scoped follow-up path and must not use the standard public hosted-review lane.",
+      "validationRequired": false,
+      "sourceUrls": [
+        "https://shield.ai",
+        "https://aws.amazon.com/ecr/"
+      ]
+    }
+  ]
+}

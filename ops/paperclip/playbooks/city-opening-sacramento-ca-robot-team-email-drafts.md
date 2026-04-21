@@ -2,7 +2,7 @@
 
 - status: draft only
 - execution rule: do not send from this artifact directly
-- current blocker: live execution remains gated until the runtime uses the verified SendGrid sender identity and a human approves the send
+- current blocker: this is a draft-only artifact; live Sacramento sends are already recorded in the canonical send ledger, so future changes should stay aligned to the live state
 
 ## Draft 1
 

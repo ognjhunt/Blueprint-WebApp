@@ -12,12 +12,12 @@ It inherits the shared rules from:
 This playbook does not authorize pricing, contract, permission, privacy, rights, or commercialization decisions.
 
 ## Shared Rule
-Keep a request in normal buyer follow-up until there is evidence that the motion now needs coordinated proof delivery, mixed-lane routing, or a human-gated escalation.
+Keep a request in normal buyer follow-up until there is evidence that the motion now needs coordinated proof delivery, mixed-lane routing, or a policy-blocked escalation.
 
 Use the smallest truthful lane:
 - `intake-agent`: buyer-safe follow-up, source tagging, and proof-path classification
 - `ops-lead`: proof-pack assembly readiness, hosted-review coordination, mixed-lane ownership, and missing-owner escalation
-- `buyer-solutions-agent` + designated human commercial owner: standard buyer-thread commercial handling inside approved quote bands
+- `buyer-solutions-agent` + automated commercial policy: standard buyer-thread commercial handling inside approved quote bands
 - `revenue-ops-pricing-agent`: quote guidance, package-band checks, and exception detection for the human commercial owner
 - optional operator lane / `field-ops-agent`: access, permissions, operator coordination, rights, privacy, or commercialization-boundary friction
 - engineering via Paperclip issue: product bugs affecting proof-pack pages, hosted review, artifact access, or billing UI
@@ -39,7 +39,7 @@ Route to `ops-lead` when any of the following becomes true:
 - the buyer asks for exact-site or adjacent-site evidence packaging that is not yet cleanly assembled
 
 ### Move To Standard Commercial Handling
-Route to `buyer-solutions-agent` plus the designated human commercial owner when the thread moves beyond proof review and into:
+Route to `buyer-solutions-agent` plus the automated commercial policy when the thread moves beyond proof review and into:
 - standard pricing, invoice flow, procurement routing, or approved quote handling
 - a normal commercial handoff after proof review
 - questions that need `revenue-ops-pricing-agent` support but still fit the approved package and quote bands
@@ -53,7 +53,7 @@ Route to the optional operator lane or `field-ops-agent` when:
 - a controlled-access or sensitive facility requires operator-side coordination to continue truthfully
 
 ### Escalate To Human Review Immediately
-Fail closed into explicit human review when the request asks for:
+Fail closed into explicit policy review when the request asks for:
 - pricing approval, discounts, credits, refunds, or payout action
 - contract language, procurement commitments, legal/privacy/rights interpretation
 - permission judgment or commercialization terms
@@ -83,7 +83,7 @@ Austin should be treated as a relationship-driven market where not every introdu
 - access permission, privacy boundaries, or commercialization participation become explicit blockers
 
 ### Austin Anti-Pattern
-Do not treat every founder intro or Texas Robotics conversation as ops escalation. Austin should stay narrow and relationship-led until the request clearly creates proof-delivery work or human-gated risk.
+Do not treat every founder intro or Texas Robotics conversation as ops escalation. Austin should stay narrow and relationship-led until the request clearly creates proof-delivery work or policy-blocked risk.
 
 ## San Francisco, CA Posture
 San Francisco should be treated as the denser buyer-matchmaking market, which means ops should engage earlier when proof review starts pulling in multiple stakeholders or commercialization-adjacent expectations.
@@ -109,7 +109,7 @@ San Francisco should be treated as the denser buyer-matchmaking market, which me
 - governed hosted access or recurring operator coordination becomes part of the live request
 
 ### San Francisco Anti-Pattern
-Do not confuse higher meeting density with real ops urgency. SF should escalate earlier than Austin only when there is clear multi-party coordination, mixed-lane ownership, or human-gated risk, not just more introductions.
+Do not confuse higher meeting density with real ops urgency. SF should escalate earlier than Austin only when there is clear multi-party coordination, mixed-lane ownership, or policy-blocked risk, not just more introductions.
 
 ## Minimum Handoff Packet
 When `ops-lead` takes ownership, the handoff package should include:
@@ -118,7 +118,7 @@ When `ops-lead` takes ownership, the handoff package should include:
 - site type and exact-site versus adjacent-site status
 - current proof-pack or hosted-review state
 - open technical questions
-- open human-gated questions
+- open policy-blocked questions
 - requested timeline
 - recommended next owner
 

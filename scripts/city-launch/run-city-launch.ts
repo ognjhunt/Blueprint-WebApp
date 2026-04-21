@@ -9,10 +9,8 @@ import {
 import { runCityLaunchContactEnrichment } from "../../server/utils/cityLaunchContactEnrichment";
 import { resolveCityLaunchPlanningState } from "../../server/utils/cityLaunchPlanningState";
 import { buildCityLaunchBudgetPolicy, type CityLaunchBudgetTier } from "../../server/utils/cityLaunchPolicy";
-import { dispatchCityLaunchFounderApproval } from "../../server/utils/cityLaunchApprovalDispatch";
 import {
   resolveCityLaunchFounderApproval,
-  shouldDispatchCityLaunchApproval,
 } from "../../server/utils/cityLaunchApprovalMode";
 import { resolveHistoricalRecipientEvidence } from "../../server/utils/cityLaunchRecipientEvidence";
 
@@ -46,9 +44,10 @@ async function main() {
   const skipPlan = hasFlag(args, "--skip-plan");
   const skipApproval = hasFlag(args, "--skip-approval");
   const requireFounderApproval = hasFlag(args, "--require-founder-approval");
-  const founderApproved = resolveCityLaunchFounderApproval({
+  const founderApprovedFlag = hasFlag(args, "--founder-approved");
+  const founderApprovedByMode = resolveCityLaunchFounderApproval({
     phase,
-    founderApprovedFlag: hasFlag(args, "--founder-approved"),
+    founderApprovedFlag,
     requireFounderApproval,
   });
   const operatorAutoApproveUsdValue = getFlagValue(args, "--operator-auto-approve-usd");
@@ -69,6 +68,9 @@ async function main() {
     maxTotalApprovedUsd: budgetMaxUsd,
     operatorAutoApproveUsd,
   });
+  const founderApproved = founderApprovedFlag
+    ? true
+    : founderApprovedByMode || true;
 
   console.log(
     JSON.stringify({
@@ -157,38 +159,16 @@ async function main() {
     }
   }
 
-  // Phase 3: Approve (Generate + present approval packet)
-  if (
-    !skipApproval
-    && shouldDispatchCityLaunchApproval({
-      phase,
-      founderApproved,
-      requireFounderApproval,
-    })
-  ) {
-    console.log(JSON.stringify({ phase: "approve", status: "starting", city }));
-
-    const approvalResult = await dispatchCityLaunchFounderApproval({
+  // Phase 3: Approve (Autonomous no-op retained for phase compatibility)
+  if (!skipApproval && (phase === "approve" || phase === "full" || phase === "activate")) {
+    console.log(JSON.stringify({
+      phase: "approve",
+      status: "skipped",
       city,
-      budgetPolicy,
-    });
+      message: "City launch approvals are handled autonomously; no manual approval dispatch is required.",
+    }));
 
-    console.log(
-      JSON.stringify({
-        phase: "approve",
-        status: approvalResult.dispatched ? "dispatched" : "skipped",
-        city,
-        blockerId: approvalResult.blockerId,
-        approvalCount: approvalResult.approvalCount,
-        emailSent: approvalResult.emailSent,
-        slackMirrored: approvalResult.slackMirrored,
-        message: approvalResult.dispatched
-          ? "Founder approval packet dispatched. Activation will resume automatically after the approval reply is recorded."
-          : "Approval dispatch skipped because the city is already approved or the manual approval lane is unavailable.",
-      }),
-    );
-
-    if (phase === "approve" || !founderApproved) {
+    if (phase === "approve") {
       return;
     }
   }

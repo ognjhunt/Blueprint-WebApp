@@ -1,0 +1,510 @@
+{
+  "machine_policy_version": "2026-04-13.city-launch-doctrine.v1",
+  "city": "San Jose, CA",
+  "city_slug": "san-jose-ca",
+  "source_activation_payload_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-activation-payload.json",
+  "tasks": [
+    {
+      "key": "city-target-ledger",
+      "title": "Maintain the San Jose capture target ledger",
+      "phase": "founder_gates",
+      "owner_lane": "city-demand-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Rank the first San Jose proof candidates and discovery lanes against the exact-site hosted-review wedge.",
+      "dependencies": [],
+      "done_when": [
+        "The first proof candidates and queued lawful-access buckets are named."
+      ],
+      "metrics_dependencies": [
+        "first_lawful_access_path"
+      ],
+      "validation_required": false,
+      "source": "activation_payload"
+    },
+    {
+      "key": "parallel-lawful-access-queue",
+      "title": "Maintain the San Jose parallel lawful-access queue",
+      "phase": "founder_gates",
+      "owner_lane": "city-demand-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Keep a multi-site lawful-access queue active so San Jose warehouse and facility work does not stall on a single signature path.",
+      "dependencies": [
+        "city-target-ledger"
+      ],
+      "done_when": [
+        "San Jose keeps 3-5 named lawful-access candidates or buyer-linked fallback sites queued in parallel, with one current next step per candidate.",
+        "If one warehouse stalls, another named access path is ready without restarting city planning from zero.",
+        "Each queued candidate names the current access posture, likely owner/operator/tenant path, and whether the next move belongs to buyer thread, operator intro, or existing lawful access."
+      ],
+      "metrics_dependencies": [
+        "first_lawful_access_path"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "growth-source-policy",
+      "title": "Lock San Jose source policy and invite/access-code posture",
+      "phase": "founder_gates",
+      "owner_lane": "growth-lead",
+      "human_lane": "growth-lead",
+      "purpose": "Keep San Jose sourcing narrow, truthful, and off the founder lane for routine approvals while explicitly distinguishing private controlled interiors from public, non-controlled commercial capture.",
+      "dependencies": [],
+      "done_when": [
+        "San Jose source policy names allowed channels, disallowed channels, referral rules, and who may issue invites or access codes.",
+        "San Jose source policy makes public, non-controlled commercial community sourcing explicit while keeping private controlled interiors on stricter lawful-access paths.",
+        "San Jose source policy names the online habitats for the public commercial lane instead of leaving community sourcing abstract.",
+        "Routine invite/access-code decisions stay with Growth Lead and Ops Lead inside written guardrails."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "city-opening-distribution",
+      "title": "Build the San Jose city-opening distribution brief and channel map",
+      "phase": "founder_gates",
+      "owner_lane": "city-launch-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Define who needs to hear about the San Jose motion and which channels are in scope.",
+      "dependencies": [
+        "city-target-ledger"
+      ],
+      "done_when": [
+        "A warehouse/facility direct-awareness track and a bounded public-commercial track exist."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "activation_payload"
+    },
+    {
+      "key": "city-opening-cta-routing",
+      "title": "Publish the San Jose city-facing CTA and intake routing path",
+      "phase": "founder_gates",
+      "owner_lane": "ops-lead",
+      "human_lane": "ops-lead",
+      "purpose": "Route San Jose replies into the live intake path instead of ad hoc side conversations.",
+      "dependencies": [
+        "city-opening-distribution"
+      ],
+      "done_when": [
+        "A named CTA path exists with city, lane, source, and owner routing."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "activation_payload"
+    },
+    {
+      "key": "city-opening-first-wave-pack",
+      "title": "Assemble the San Jose first-wave outreach and posting pack",
+      "phase": "supply",
+      "owner_lane": "capturer-growth-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Turn the city-opening brief into concrete first-wave assets that can create the first responses.",
+      "dependencies": [
+        "city-opening-distribution",
+        "city-opening-cta-routing"
+      ],
+      "done_when": [
+        "First-wave outreach and posting variants exist and point to the same truthful CTA path."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "activation_payload"
+    },
+    {
+      "key": "site-operator-partnership",
+      "title": "Run San Jose site-operator partnership routing",
+      "phase": "founder_gates",
+      "owner_lane": "city-launch-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Prepare the operator-side access path for San Jose warehouses and facilities.",
+      "dependencies": [
+        "city-opening-distribution",
+        "city-target-ledger"
+      ],
+      "done_when": [
+        "The first operator-outreach draft or intro packet is ready for human review."
+      ],
+      "metrics_dependencies": [
+        "first_lawful_access_path"
+      ],
+      "validation_required": false,
+      "source": "activation_payload"
+    },
+    {
+      "key": "ops-rubric-thresholds",
+      "title": "Publish San Jose intake rubric, trust kit, and first-capture thresholds",
+      "phase": "founder_gates",
+      "owner_lane": "ops-lead",
+      "human_lane": "ops-lead",
+      "purpose": "Give Intake, Field Ops, QA, and Rights lanes explicit San Jose rules.",
+      "dependencies": [
+        "growth-source-policy"
+      ],
+      "done_when": [
+        "The San Jose rubric covers source quality, access-path truth, equipment fit, and approval outcomes."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "activation_payload"
+    },
+    {
+      "key": "supply-prospects",
+      "title": "Build the San Jose capturer prospect list and post package",
+      "phase": "supply",
+      "owner_lane": "capturer-growth-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Generate the first San Jose professional supply wave and keep it rights-safe.",
+      "dependencies": [
+        "city-target-ledger",
+        "city-opening-first-wave-pack",
+        "city-opening-cta-routing"
+      ],
+      "done_when": [
+        "A curated first-wave San Jose prospect set is named with source bucket, rationale, and lawful access posture."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "activation_payload"
+    },
+    {
+      "key": "public-commercial-community-sourcing",
+      "title": "Run San Jose public-commercial community sourcing",
+      "phase": "supply",
+      "owner_lane": "capturer-growth-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Open a bounded online-community sourcing lane for public, non-controlled commercial locations.",
+      "dependencies": [
+        "city-opening-first-wave-pack",
+        "city-opening-cta-routing"
+      ],
+      "done_when": [
+        "At least one public-commercial sourcing channel is named and bounded to public areas only."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "activation_payload"
+    },
+    {
+      "key": "supply-qualification",
+      "title": "Route San Jose applicants into qualification and approval",
+      "phase": "supply",
+      "owner_lane": "intake-agent",
+      "human_lane": "ops-lead",
+      "purpose": "Classify San Jose applicants using the approved rubric instead of ad hoc founder review, and resume immediately once the first live invite or applicant signal lands.",
+      "dependencies": [
+        "ops-rubric-thresholds"
+      ],
+      "done_when": [
+        "San Jose applicants are tagged by source bucket, approval state, and missing-trust evidence.",
+        "Exceptions are blocked with explicit missing facts instead of silently held.",
+        "If no live applicant signal exists yet, the lane is left blocked as a missing live signal rather than quietly waiting."
+      ],
+      "metrics_dependencies": [
+        "first_approved_capturer"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "capturer-activation-success",
+      "title": "Own approved San Jose capturers through onboarding and repeat-ready",
+      "phase": "supply",
+      "owner_lane": "capturer-success-agent",
+      "human_lane": "ops-lead",
+      "purpose": "Give every approved San Jose mapper one routine relationship owner from approval through onboarding, first pass, and repeat-readiness so the founder is not the default support lane.",
+      "dependencies": [
+        "ops-rubric-thresholds",
+        "supply-qualification"
+      ],
+      "done_when": [
+        "Each approved San Jose capturer has a named lifecycle owner for approved -> onboarded -> first capture -> first pass -> repeat-ready.",
+        "Routine mapper questions, support, and coaching stay with capturer-success-agent unless they become logistics, QA, rights, privacy, or policy exceptions."
+      ],
+      "metrics_dependencies": [
+        "first_approved_capturer",
+        "first_completed_capture"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "first-capture-routing",
+      "title": "Assign San Jose first captures, reminders, and site-facing trust prep",
+      "phase": "supply",
+      "owner_lane": "field-ops-agent",
+      "human_lane": "ops-lead",
+      "purpose": "Turn approved San Jose capturers into real first captures inside bounded thresholds.",
+      "dependencies": [
+        "supply-qualification",
+        "capturer-activation-success"
+      ],
+      "done_when": [
+        "Approved San Jose capturers receive assignment, reminder, and site-facing trust steps through the existing field-ops lane.",
+        "Travel, timing, and access blockers are explicit on the issue and visible in the admin queue."
+      ],
+      "metrics_dependencies": [
+        "first_completed_capture"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "capture-qa",
+      "title": "QA San Jose first captures and route recapture decisions",
+      "phase": "proof_assets",
+      "owner_lane": "capture-qa-agent",
+      "human_lane": "ops-lead",
+      "purpose": "Ensure San Jose proof assets are real, clean, and ready for buyer proof work.",
+      "dependencies": [
+        "first-capture-routing"
+      ],
+      "done_when": [
+        "San Jose captures receive PASS, BORDERLINE, or FAIL with explicit evidence.",
+        "Recapture instructions are attached when the first pass is not proof-ready."
+      ],
+      "metrics_dependencies": [
+        "first_qa_passed_capture"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "rights-clearance",
+      "title": "Clear rights, provenance, and privacy on San Jose proof assets",
+      "phase": "proof_assets",
+      "owner_lane": "rights-provenance-agent",
+      "human_lane": "designated-human-rights-reviewer",
+      "purpose": "Make San Jose proof packs releasable without weakening trust boundaries.",
+      "dependencies": [
+        "capture-qa"
+      ],
+      "done_when": [
+        "Each San Jose proof asset is marked CLEARED, BLOCKED, or NEEDS-REVIEW with evidence citations.",
+        "Policy-setting exceptions route to the human reviewer and founder only when precedent changes."
+      ],
+      "metrics_dependencies": [
+        "first_rights_cleared_proof_asset"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "proof-pack-listings",
+      "title": "Assemble San Jose proof packs and publish 1-2 proof-ready listings",
+      "phase": "proof_assets",
+      "owner_lane": "buyer-solutions-agent",
+      "human_lane": "ops-lead",
+      "purpose": "Turn San Jose captures into concrete exact-site proof assets with a hosted-review path.",
+      "dependencies": [
+        "city-target-ledger",
+        "rights-clearance"
+      ],
+      "done_when": [
+        "At least one San Jose proof-ready listing or equivalent proof pack exists with exact-site versus adjacent-site labeling.",
+        "Each proof pack includes provenance, coverage boundaries, hosted-review path, and next-step guidance."
+      ],
+      "metrics_dependencies": [
+        "proof_pack_delivered",
+        "first_proof_pack_delivery"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "buyer-target-research",
+      "title": "Research San Jose robot-company target accounts and buyer clusters",
+      "phase": "demand",
+      "owner_lane": "demand-intel-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Build a real San Jose demand list that matches the proof assets Blueprint can actually show.",
+      "dependencies": [
+        "proof-pack-listings"
+      ],
+      "done_when": [
+        "A named San Jose buyer target set is researched with facility/workflow fit and proof-path notes.",
+        "Exact-site versus adjacent-site proof rules are explicit per target."
+      ],
+      "metrics_dependencies": [
+        "robot_team_inbound_captured",
+        "proof_path_assigned"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "outbound-package",
+      "title": "Prepare San Jose proof-led outbound package and first touches",
+      "phase": "demand",
+      "owner_lane": "robot-team-growth-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Make outbound specific to San Jose proof assets and hosted review instead of generic AI messaging.",
+      "dependencies": [
+        "buyer-target-research"
+      ],
+      "done_when": [
+        "San Jose outbound templates lead with one site, one workflow lane, proof-led CTA, and hosted-review next step.",
+        "First proof-led touches are prepared for autonomous dispatch inside the approved launch posture."
+      ],
+      "metrics_dependencies": [
+        "proof_path_assigned"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "outbound-execution",
+      "title": "Run San Jose outbound and move serious buyers into hosted review",
+      "phase": "demand",
+      "owner_lane": "outbound-sales-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Convert named San Jose targets into serious proof conversations without dragging the founder into routine work.",
+      "dependencies": [
+        "outbound-package"
+      ],
+      "done_when": [
+        "San Jose buyer conversations are active with explicit next steps.",
+        "At least one hosted proof review is run end to end or clearly blocked with named reasons."
+      ],
+      "metrics_dependencies": [
+        "hosted_review_ready",
+        "hosted_review_started",
+        "hosted_review_follow_up_sent",
+        "proof_motion_stalled",
+        "first_hosted_review"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "buyer-thread-commercial",
+      "title": "Keep San Jose buyer threads inside standard commercial handling",
+      "phase": "commercial",
+      "owner_lane": "revenue-ops-pricing-agent",
+      "human_lane": "designated-human-commercial-owner",
+      "purpose": "Prevent routine pricing and packaging questions from escalating to founder review.",
+      "dependencies": [
+        "outbound-execution"
+      ],
+      "done_when": [
+        "Standard San Jose quote bands, discount guardrails, and handoff thresholds are documented and used.",
+        "Only non-standard commitments escalate above the designated human commercial owner."
+      ],
+      "metrics_dependencies": [
+        "human_commercial_handoff_started",
+        "first_human_commercial_handoff"
+      ],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "city-opening-response-tracking",
+      "title": "Publish San Jose city-opening response tracking",
+      "phase": "measurement",
+      "owner_lane": "analytics-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Make San Jose city-opening distribution measurable so operators can see which awareness lanes actually create replies before deeper capture or buyer workflows take over.",
+      "dependencies": [
+        "city-opening-cta-routing",
+        "city-opening-first-wave-pack"
+      ],
+      "done_when": [
+        "San Jose response-tracking view shows which warehouse/facility channels and which public-commercial community channels were activated, with asset or message attribution where available.",
+        "A real San Jose city-opening response is defined and counted only when a reply, applicant, referral, operator callback, or buyer callback is recorded with city, lane, source, and CTA attribution.",
+        "Missing attribution or missing visibility is called out explicitly instead of assuming awareness work happened."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": true,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "city-opening-reply-conversion",
+      "title": "Run the San Jose city-opening reply-conversion and follow-up cadence lane",
+      "phase": "supply",
+      "owner_lane": "city-launch-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Convert live San Jose city-opening replies across warehouse/facility and public-commercial channels into routed next steps with explicit follow-up cadence, instead of letting first responses decay across scattered threads.",
+      "dependencies": [
+        "city-opening-response-tracking",
+        "city-opening-cta-routing"
+      ],
+      "done_when": [
+        "San Jose reply-conversion queue exists with each live response tagged by responder type, channel, current status, next owner, next follow-up due, and downstream handoff target.",
+        "San Jose follow-up cadence rules define first response, second follow-up, stale-response handling, and the handoff boundary into qualification, site-operator partnership, buyer handling, or no-fit closure.",
+        "At least one live San Jose city-opening response is moved through the queue into qualification, operator/buyer handoff, blocked-with-reason, or explicit no-fit / closed-lost outcome.",
+        "Live responses do not sit unowned after landing; each one has an explicit next step and cadence state."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "city-scorecard",
+      "title": "Publish the San Jose launch scorecard and blocker view",
+      "phase": "measurement",
+      "owner_lane": "analytics-agent",
+      "human_lane": "growth-lead",
+      "purpose": "Make San Jose progress measurable and reviewable without relying on narrative updates.",
+      "dependencies": [
+        "supply-qualification",
+        "proof-pack-listings",
+        "outbound-execution",
+        "city-opening-response-tracking",
+        "city-opening-reply-conversion"
+      ],
+      "done_when": [
+        "San Jose scorecard reports supply and demand progress against the launch thresholds.",
+        "Missing instrumentation is surfaced as blocked instead of smoothed over."
+      ],
+      "metrics_dependencies": [
+        "robot_team_inbound_captured",
+        "proof_path_assigned",
+        "proof_pack_delivered",
+        "hosted_review_ready",
+        "hosted_review_started",
+        "hosted_review_follow_up_sent",
+        "human_commercial_handoff_started",
+        "proof_motion_stalled"
+      ],
+      "validation_required": true,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "notion-breadcrumbs",
+      "title": "Mirror San Jose execution artifacts into Notion Knowledge and Work Queue",
+      "phase": "measurement",
+      "owner_lane": "notion-manager-agent",
+      "human_lane": "chief-of-staff",
+      "purpose": "Keep the San Jose launch runnable and inspectable for humans outside the repo.",
+      "dependencies": [
+        "city-scorecard"
+      ],
+      "done_when": [
+        "San Jose execution system doc is mirrored into Notion Knowledge.",
+        "A Work Queue breadcrumb exists for the current San Jose activation state and next human gate."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    },
+    {
+      "key": "switch-on-review",
+      "title": "Run the San Jose switch-on review before activation",
+      "phase": "measurement",
+      "owner_lane": "beta-launch-commander",
+      "human_lane": "cto",
+      "purpose": "Confirm the software/runtime surfaces needed by the San Jose launch are safe before switch-on.",
+      "dependencies": [
+        "city-scorecard"
+      ],
+      "done_when": [
+        "San Jose switch-on review returns GO, CONDITIONAL GO, or HOLD with evidence.",
+        "Any software/runtime blocker is routed to the right engineering lane before launch activation."
+      ],
+      "metrics_dependencies": [],
+      "validation_required": false,
+      "source": "default_task_bundle"
+    }
+  ]
+}

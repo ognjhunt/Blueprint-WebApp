@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const upsertPaperclipIssue = vi.hoisted(() => vi.fn());
 const createPaperclipIssueComment = vi.hoisted(() => vi.fn());
 const wakePaperclipAgent = vi.hoisted(() => vi.fn());
+const resetPaperclipAgentSession = vi.hoisted(() => vi.fn());
+const getPaperclipIssue = vi.hoisted(() => vi.fn());
 const summarizeCityLaunchLedgers = vi.hoisted(() => vi.fn());
 const writeCityLaunchActivation = vi.hoisted(() => vi.fn());
 const readCityLaunchActivation = vi.hoisted(() => vi.fn());
@@ -25,6 +27,8 @@ vi.mock("../utils/paperclip", () => ({
   upsertPaperclipIssue,
   createPaperclipIssueComment,
   wakePaperclipAgent,
+  resetPaperclipAgentSession,
+  getPaperclipIssue,
 }));
 
 vi.mock("../utils/cityLaunchLedgers", () => ({
@@ -122,6 +126,8 @@ beforeEach(() => {
   upsertPaperclipIssue.mockReset();
   createPaperclipIssueComment.mockReset();
   wakePaperclipAgent.mockReset();
+  resetPaperclipAgentSession.mockReset();
+  getPaperclipIssue.mockReset();
   summarizeCityLaunchLedgers.mockReset();
   writeCityLaunchActivation.mockReset();
   readCityLaunchActivation.mockReset();
@@ -142,6 +148,11 @@ beforeEach(() => {
   readCityLaunchActivation.mockResolvedValue(null);
   createPaperclipIssueComment.mockResolvedValue({ ok: true });
   wakePaperclipAgent.mockResolvedValue({ status: "queued", runId: "run-1" });
+  resetPaperclipAgentSession.mockResolvedValue({ ok: true });
+  getPaperclipIssue.mockImplementation(async (issueId: string) => ({
+    id: issueId,
+    status: "todo",
+  }));
   listCityLaunchChannelAccounts.mockResolvedValue([]);
   listCityLaunchSendActions.mockResolvedValue([]);
   listCityLaunchBuyerTargets.mockResolvedValue([]);
@@ -609,6 +620,7 @@ describe("city launch execution harness", () => {
     expect(result.paperclip?.createdRootIssue).toBe(false);
     expect(result.paperclip?.dispatched.every((entry) => entry.created === false)).toBe(true);
     expect(result.paperclip?.dispatched.every((entry) => entry.wakeStatus === "queued")).toBe(true);
+    expect(resetPaperclipAgentSession).toHaveBeenCalled();
     expect(wakePaperclipAgent).toHaveBeenCalled();
     expect(wakePaperclipAgent).toHaveBeenCalledWith(expect.objectContaining({
       reason: expect.stringMatching(/^city-launch-activate:austin-tx:city-target-ledger:/),
@@ -616,6 +628,96 @@ describe("city launch execution harness", () => {
         /^city-launch-activate:austin-tx:city-target-ledger:task-city-target-ledger:/,
       ),
     }));
+  });
+
+  it("renders founder approvals as a blocker packet artifact instead of a checklist", async () => {
+    summarizeCityLaunchLedgers.mockResolvedValue({
+      trackedSupplyProspectsContacted: 0,
+      trackedBuyerTargetsResearched: 0,
+      trackedFirstTouchesSent: 0,
+      onboardedCapturers: 0,
+      totalRecordedSpendUsd: 0,
+      withinPolicySpendUsd: 0,
+      outsidePolicySpendUsd: 0,
+      recommendedSpendUsd: 0,
+      wideningGuard: { mode: "single_city_until_proven", wideningAllowed: false, reasons: [] },
+      dataSources: [],
+    });
+    resolveCityLaunchPlanningState.mockResolvedValue(
+      completedPlanningState("Austin, TX", "austin-tx"),
+    );
+    loadAndParseCityLaunchResearchArtifact.mockResolvedValue({
+      city: "Austin, TX",
+      citySlug: "austin-tx",
+      artifactPath: "/tmp/austin-playbook.md",
+      schemaVersion: "2026-04-12.city-launch-research.v1",
+      generatedAtIso: "2026-04-17T00:00:00.000Z",
+      warnings: [],
+      errors: [],
+      activationPayload: activationPayload("Austin, TX", "austin-tx"),
+      captureCandidates: [],
+      buyerTargets: [
+        {
+          stableKey: "buyer-austin-1",
+          companyName: "Austin Robotics",
+          workflowFit: "dock handoff",
+          proofPath: "exact_site",
+          sourceBucket: "buyer_requests",
+          status: "qualified",
+          contactName: null,
+          contactEmail: "alex@austinrobotics.example.com",
+          sourceUrls: [],
+          explicitFields: ["contact_email"],
+          inferredFields: [],
+          provenance: {
+            sourceType: "deep_research_playbook",
+            artifactPath: "/tmp/austin-playbook.md",
+            sourceKey: "buyer_targets[0]",
+            sourceUrls: [],
+            parsedAtIso: "2026-04-17T00:00:00.000Z",
+            explicitFields: ["contact_email"],
+            inferredFields: [],
+          },
+        },
+      ],
+      firstTouches: [],
+      budgetRecommendations: [],
+    });
+    upsertPaperclipIssue
+      .mockResolvedValueOnce({
+        created: true,
+        companyId: "company-1",
+        assigneeAgentId: "agent-growth-lead",
+        issue: { id: "root-1", identifier: "BLU-ROOT", status: "todo" },
+      })
+      .mockImplementation(async (_input: unknown) => ({
+        created: true,
+        companyId: "company-1",
+        assigneeAgentId: `agent-${upsertPaperclipIssue.mock.calls.length}`,
+        issue: {
+          id: `task-${upsertPaperclipIssue.mock.calls.length}`,
+          identifier: `BLU-${upsertPaperclipIssue.mock.calls.length}`,
+          status: "todo",
+        },
+      }));
+
+    const reportsRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), "approval-packet-city-launch-harness-"),
+    );
+    tempDirs.push(reportsRoot);
+
+    const { runAustinLaunchExecutionHarness } = await import("../utils/cityLaunchExecutionHarness");
+    const result = await runAustinLaunchExecutionHarness({
+      reportsRoot,
+      founderApproved: true,
+      budgetTier: "zero_budget",
+    });
+
+    const approvalsArtifact = await fs.readFile(result.artifacts.approvalsPath, "utf8");
+    expect(approvalsArtifact).toContain("Correlation");
+    expect(approvalsArtifact).toContain("Blocker id: city-launch-approval-austin-tx");
+    expect(approvalsArtifact).toContain("Recommended Answer");
+    expect(approvalsArtifact).toContain("What I Need From You");
   });
 
   it("supports generic cities beyond the original focus-city list", async () => {
@@ -630,6 +732,47 @@ describe("city launch execution harness", () => {
       recommendedSpendUsd: 0,
       wideningGuard: { mode: "single_city_until_proven", wideningAllowed: false, reasons: [] },
       dataSources: [],
+    });
+    resolveCityLaunchPlanningState.mockResolvedValue(
+      completedPlanningState("Chicago, IL", "chicago-il"),
+    );
+    loadAndParseCityLaunchResearchArtifact.mockResolvedValue({
+      city: "Chicago, IL",
+      citySlug: "chicago-il",
+      artifactPath: "/tmp/chicago-playbook.md",
+      schemaVersion: "2026-04-12.city-launch-research.v1",
+      generatedAtIso: "2026-04-17T00:00:00.000Z",
+      warnings: [],
+      errors: [],
+      activationPayload: activationPayload("Chicago, IL", "chicago-il"),
+      captureCandidates: [],
+      buyerTargets: [
+        {
+          stableKey: "buyer-chicago-1",
+          companyName: "Chicago Robotics",
+          workflowFit: "dock handoff",
+          proofPath: "exact_site",
+          sourceBucket: "buyer_requests",
+          status: "researched",
+          contactName: null,
+          contactEmail: "ops@chicagorobotics.example.com",
+          notes: null,
+          sourceUrls: [],
+          explicitFields: ["contact_email"],
+          inferredFields: [],
+          provenance: {
+            sourceType: "deep_research_playbook",
+            artifactPath: "/tmp/chicago-playbook.md",
+            sourceKey: "buyer_targets[0]",
+            sourceUrls: [],
+            parsedAtIso: "2026-04-17T00:00:00.000Z",
+            explicitFields: ["contact_email"],
+            inferredFields: [],
+          },
+        },
+      ],
+      firstTouches: [],
+      budgetRecommendations: [],
     });
     upsertPaperclipIssue.mockResolvedValue({
       created: true,
@@ -662,12 +805,9 @@ describe("city launch execution harness", () => {
     expect(targetLedger).toContain("Chicago, IL Capture Target Ledger");
     expect(targetLedger).toContain("Priority Proof Targets");
     expect(targetLedger).toContain("Queued Lawful-Access Buckets");
-    expect(targetLedger).toContain("No research-backed named targets are available yet.");
     expect(result.paperclip?.rootIssueIdentifier).toBe("BLU-1");
-    expect(wakePaperclipAgent).not.toHaveBeenCalled();
-    expect(result.wideningGuard.reasons.join("\n")).toContain(
-      "Required proof-motion analytics contract is missing from the activation payload.",
-    );
+    expect(wakePaperclipAgent).toHaveBeenCalled();
+    expect(result.wideningGuard.reasons.join("\n")).toContain("proof_path_assigned is required_not_tracked.");
   });
 
   it("fails closed on founder-approved activation when the live Paperclip tree is not created or updated", async () => {
@@ -1264,7 +1404,7 @@ describe("city launch execution harness", () => {
     });
   });
 
-  it("fails closed when no recipient-backed first-wave contacts can be seeded", async () => {
+  it("creates the issue tree even when no recipient-backed first-wave contacts can be seeded", async () => {
     summarizeCityLaunchLedgers.mockResolvedValue({
       trackedSupplyProspectsContacted: 0,
       trackedBuyerTargetsResearched: 0,
@@ -1382,14 +1522,19 @@ describe("city launch execution harness", () => {
 
     const { runCityLaunchExecutionHarness } = await import("../utils/cityLaunchExecutionHarness");
 
-    await expect(
-      runCityLaunchExecutionHarness({
-        city: "Sacramento, CA",
-        reportsRoot,
-        founderApproved: true,
-        budgetTier: "low_budget",
-      }),
-    ).rejects.toThrow(/recipient-backed first-wave contacts/i);
+    const result = await runCityLaunchExecutionHarness({
+      city: "Sacramento, CA",
+      reportsRoot,
+      founderApproved: true,
+      budgetTier: "low_budget",
+    });
+
+    expect(result.status).toBe("founder_approved_activation_ready");
+    expect(result.paperclip?.rootIssueId).toBeTruthy();
+    expect(result.outboundReadiness?.status).toBe("blocked");
+    expect(result.outboundReadiness?.blockers).toContain(
+      "No recipient-backed direct-outreach send actions were seeded for Sacramento, CA.",
+    );
     expect(executeCityLaunchSends).not.toHaveBeenCalled();
   });
 

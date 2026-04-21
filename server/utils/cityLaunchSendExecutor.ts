@@ -290,18 +290,16 @@ export async function executeCityLaunchSends(input: {
         recipientEmail: action.recipientEmail,
         emailSubject: action.emailSubject,
         emailBody: action.emailBody,
-        status: "sent",
-        approvalState: "not_required",
-        responseIngestState: "closed",
+        status: "blocked",
+        approvalState: action.approvalState,
+        responseIngestState: action.responseIngestState,
         issueId: action.issueId,
         notes:
           (action.notes || "")
           + " | Artifact-only lane; no external post was attempted because automated community publication is not implemented.",
-        sentAtIso: action.sentAtIso || new Date().toISOString(),
+        sentAtIso: action.sentAtIso,
         firstResponseAtIso: action.firstResponseAtIso,
       });
-
-      sent++;
     }
   }
 

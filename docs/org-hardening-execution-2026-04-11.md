@@ -40,7 +40,7 @@ Still blocked:
 - Decision: keep `notion-reconciler` only as a paused legacy shim; all active ownership belongs to `notion-manager-agent`.
 - Evidence:
   - repo instructions for both lanes overlap heavily
-  - both share the same Notion surfaces, human gates, and metadata/relations remit
+  - both share the same Notion surfaces, policy guardrails, and metadata/relations remit
   - live Notion registry shows both pages active/pilot at the same time, which creates duplicate authority
 - Implemented changes:
   - updated both repo-side agent definitions and org docs to mark `notion-reconciler` as legacy-only
@@ -220,8 +220,8 @@ Canonical repo source:
 - analytics reports distinguish reliable metrics from blocked metrics
 - Notion mirrors never outrank Paperclip or app/API truth
 
-### Human Gates
-- any rights/privacy/commercialization exposure
+### Policy Guardrails
+- any rights/privacy/commercialization exposure without written policy and evidence stays automatically blocked
 - any pricing, contract, or buyer commitment
 - any platform-contract change that would alter capture/pipeline/webapp boundaries
 

@@ -149,4 +149,200 @@ describe("paperclip project resolution", () => {
       expect.anything(),
     );
   });
+
+  it("reuses an existing issue when Paperclip refuses cross-bound updates with 409", async () => {
+    process.env.BLUEPRINT_PAPERCLIP_COMPANY_ID = "company-1";
+
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url === "http://127.0.0.1:3100/api/companies/company-1/agents") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify([
+              {
+                id: "agent-1",
+                name: "Growth Lead",
+                title: null,
+                metadata: { slug: "growth-lead" },
+              },
+            ]),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
+        );
+      }
+
+      if (url === "http://127.0.0.1:3100/api/issues/issue-1" && init?.method === "PATCH") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: "Agent run is bound to a different issue",
+              boundIssueId: "root-issue",
+              requestedIssueId: "issue-1",
+            }),
+            {
+              status: 409,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
+        );
+      }
+
+      if (url === "http://127.0.0.1:3100/api/issues/issue-1" && (!init?.method || init.method === "GET")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: "issue-1",
+              identifier: "BLU-1",
+              title: "Launch Sacramento, CA as a bounded city program",
+              status: "todo",
+              priority: "high",
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
+        );
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { upsertPaperclipIssue } = await import("../utils/paperclip");
+    const result = await upsertPaperclipIssue({
+      projectName: "blueprint-webapp",
+      assigneeKey: "growth-lead",
+      title: "Launch Sacramento, CA as a bounded city program",
+      description: "timing probe",
+      priority: "high",
+      status: "todo",
+      originKind: "city_launch_activation",
+      originId: "sacramento-ca",
+      existingIssueId: "issue-1",
+    });
+
+    expect(result.created).toBe(false);
+    expect(result.issue.id).toBe("issue-1");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:3100/api/issues/issue-1",
+      expect.objectContaining({
+        method: "PATCH",
+        headers: expect.any(Headers),
+      }),
+    );
+  });
+
+  it("creates a fresh replacement issue for city launch when configured to clone on 409", async () => {
+    process.env.BLUEPRINT_PAPERCLIP_COMPANY_ID = "company-1";
+
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url === "http://127.0.0.1:3100/api/companies/company-1/agents") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify([
+              {
+                id: "agent-1",
+                name: "Growth Lead",
+                title: null,
+                metadata: { slug: "growth-lead" },
+              },
+            ]),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
+        );
+      }
+
+      if (url === "http://127.0.0.1:3100/api/companies/company-1/projects") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify([
+              {
+                id: "project-1",
+                name: "Blueprint WebApp",
+                slug: "blueprint-webapp",
+                urlKey: "blueprint-webapp",
+              },
+            ]),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
+        );
+      }
+
+      if (url === "http://127.0.0.1:3100/api/issues/issue-1" && init?.method === "PATCH") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              error: "Agent run is bound to a different issue",
+              boundIssueId: "root-issue",
+              requestedIssueId: "issue-1",
+            }),
+            {
+              status: 409,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
+        );
+      }
+
+      if (url === "http://127.0.0.1:3100/api/companies/company-1/issues" && init?.method === "POST") {
+        const body = JSON.parse(String(init.body));
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: "issue-fresh",
+              identifier: "BLU-NEW",
+              title: body.title,
+              status: body.status,
+              priority: body.priority,
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
+        );
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { upsertPaperclipIssue } = await import("../utils/paperclip");
+    const result = await upsertPaperclipIssue({
+      projectName: "blueprint-webapp",
+      assigneeKey: "growth-lead",
+      title: "Launch Sacramento, CA as a bounded city program",
+      description: "timing probe",
+      priority: "high",
+      status: "todo",
+      originKind: "city_launch_activation",
+      originId: "sacramento-ca",
+      existingIssueId: "issue-1",
+      onBoundConflict: {
+        strategy: "create_fresh",
+        originId: "sacramento-ca:activation:2026-04-19T00-00-00.000Z",
+      },
+    });
+
+    expect(result.created).toBe(true);
+    expect(result.issue.id).toBe("issue-fresh");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://127.0.0.1:3100/api/companies/company-1/issues",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.any(Headers),
+      }),
+    );
+  });
 });

@@ -68,10 +68,10 @@ Rights path is still validation-required. Private controlled interiors require e
 | legal/compliance clarity | 1/5 | private-interior access, rights authority, and any defense/export constraints remain explicit blockers until reviewed |
 | strategic importance | 2/5 | city value is still hypothesis-level until proof-ready assets and hosted reviews exist |
 
-## Human Gates
-- founder or designated human approval for new city activation, spend expansion, posture-changing public claims, precedent-setting rights/privacy exceptions, and non-standard commercial commitments
-- designated human rights review for sensitive privacy, consent, or commercialization questions
-- designated human commercial owner for standard quotes inside approved bands
+## Autonomous Policy
+- city activation runs automatically inside the written budget envelope, source policy, and evidence-backed posture; unsupported claims, rights/privacy exceptions, and non-standard commercial terms stay policy-blocked until repo truth is updated
+- rights-provenance policy for sensitive privacy, consent, or commercialization questions
+- automated commercial policy for standard quote bands enforced from repo policy
 
 ## Sequencing Recommendation
 Do not treat San Francisco as operationally real until a small number of rights-cleared sites, proof packs, and hosted reviews are real. The city should widen only after those proofs exist and the operator lanes can support them.

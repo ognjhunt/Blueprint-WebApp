@@ -185,6 +185,198 @@ We cannot capture what we do not legally access.
 
 ---
 
+## Machine-readable activation payload
+
+```city-launch-activation-payload
+{
+  "schema_version": "2026-04-13.city-launch-activation-payload.v1",
+  "machine_policy_version": "2026-04-13.city-launch-doctrine.v1",
+  "city": "San Diego, CA",
+  "city_slug": "san-diego-ca",
+  "city_thesis": "Run one proof-led warehouse wedge with a secure adjacent defense follow-up path.",
+  "primary_site_lane": "industrial_warehouse",
+  "primary_workflow_lane": "dock handoff",
+  "primary_buyer_proof_path": "exact_site",
+  "lawful_access_modes": [
+    "buyer_requested_site",
+    "site_operator_intro"
+  ],
+  "preferred_lawful_access_mode": "buyer_requested_site",
+  "rights_path": {
+    "summary": "Private controlled interiors require documented site authorization before any capture or buyer-visible proof motion.",
+    "private_controlled_interiors_require_authorization": true,
+    "validation_required": true,
+    "source_urls": []
+  },
+  "validation_blockers": [
+    {
+      "key": "shield-ai-secure-delivery",
+      "summary": "Shield AI must stay off the standard public hosted-review path until the secure containerized delivery path is explicitly validated.",
+      "severity": "high",
+      "owner_lane": "ops-lead",
+      "validation_required": true,
+      "source_urls": [
+        "https://shield.ai",
+        "https://aws.amazon.com/ecr/"
+      ]
+    }
+  ],
+  "required_approvals": [],
+  "owner_lanes": [
+    "city-launch-agent",
+    "capturer-growth-agent",
+    "demand-intel-agent",
+    "robot-team-growth-agent",
+    "buyer-solutions-agent",
+    "rights-provenance-agent",
+    "analytics-agent",
+    "revenue-ops-pricing-agent"
+  ],
+  "issue_seeds": [
+    {
+      "key": "proof-pack-listings",
+      "title": "Assemble San Diego proof packs and publish the first proof-ready listing",
+      "phase": "proof_assets",
+      "owner_lane": "buyer-solutions-agent",
+      "human_lane": "ops-lead",
+      "summary": "Turn the first rights-cleared San Diego warehouse asset into a buyer-visible proof pack with hosted-review routing.",
+      "dependency_keys": [
+        "rights-clearance"
+      ],
+      "success_criteria": [
+        "At least one San Diego proof-ready listing or equivalent proof pack exists with exact-site labeling.",
+        "The proof pack includes provenance, coverage boundaries, hosted-review routing, and next-step guidance."
+      ],
+      "metrics_dependencies": [
+        "proof_pack_delivered",
+        "hosted_review_ready"
+      ],
+      "validation_required": false
+    },
+    {
+      "key": "outbound-package",
+      "title": "Prepare San Diego proof-led outbound package and first touches",
+      "phase": "demand",
+      "owner_lane": "robot-team-growth-agent",
+      "human_lane": "growth-lead",
+      "summary": "Prepare exact-site outbound for Brain Corp and keep Shield AI on the secure follow-up path.",
+      "dependency_keys": [
+        "proof-pack-listings"
+      ],
+      "success_criteria": [
+        "Brain Corp first-touch copy is prepared with exact-site hosted-review posture.",
+        "Shield AI remains routed to a secure scoped follow-up path instead of the public hosted-review lane."
+      ],
+      "metrics_dependencies": [
+        "proof_path_assigned"
+      ],
+      "validation_required": false
+    },
+    {
+      "key": "city-scorecard",
+      "title": "Publish the San Diego launch scorecard and blocker view",
+      "phase": "measurement",
+      "owner_lane": "analytics-agent",
+      "human_lane": "growth-lead",
+      "summary": "Keep San Diego measurable from first outreach through proof and hosted review.",
+      "dependency_keys": [
+        "outbound-package"
+      ],
+      "success_criteria": [
+        "The scorecard reports supply, demand, proof, and hosted-review milestones using the approved event vocabulary.",
+        "Missing evidence remains explicit instead of being collapsed into narrative progress."
+      ],
+      "metrics_dependencies": [
+        "robot_team_inbound_captured",
+        "proof_motion_stalled"
+      ],
+      "validation_required": true
+    }
+  ],
+  "metrics_dependencies": [
+    {
+      "key": "robot_team_inbound_captured",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Track inbound buyer or operator requests with city and source attribution."
+    },
+    {
+      "key": "proof_path_assigned",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Track exact_site versus scoped_follow_up routing."
+    },
+    {
+      "key": "proof_pack_delivered",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Track the first buyer-visible San Diego proof pack delivery."
+    },
+    {
+      "key": "hosted_review_ready",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Track when a hosted review is genuinely ready to open."
+    },
+    {
+      "key": "hosted_review_started",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Track the first hosted review start."
+    },
+    {
+      "key": "hosted_review_follow_up_sent",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Track follow-up after hosted review."
+    },
+    {
+      "key": "human_commercial_handoff_started",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "owner_lane": "revenue-ops-pricing-agent",
+      "notes": "Track when a buyer thread moves into commercial handling."
+    },
+    {
+      "key": "proof_motion_stalled",
+      "kind": "event",
+      "status": "required_not_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Track when proof motion stalls despite active routing."
+    }
+  ],
+  "named_claims": [
+    {
+      "subject": "Brain Corp",
+      "claim_type": "company",
+      "claim": "Brain Corp is the primary exact-site buyer target for the San Diego warehouse wedge.",
+      "validation_required": false,
+      "source_urls": [
+        "https://braincorp.com"
+      ]
+    },
+    {
+      "subject": "Shield AI",
+      "claim_type": "company",
+      "claim": "Shield AI stays on a secure scoped follow-up path and must not use the standard public hosted-review lane.",
+      "validation_required": false,
+      "source_urls": [
+        "https://shield.ai",
+        "https://aws.amazon.com/ecr/"
+      ]
+    }
+  ]
+}
+```
+
+## Structured launch data appendix
+
 ```city-launch-records
 {
   "schema_version": "2026-04-12.city-launch-research.v1",
@@ -258,9 +450,10 @@ We cannot capture what we do not legally access.
     {
       "company_name": "Brain Corp",
       "contact_name": "VP of Autonomy / Perception Lead",
+      "contact_email": "support@braincorporation.com",
       "status": "researched",
       "workflow_fit": "AMR navigation in retail and warehouse environments",
-      "proof_path": "hosted_review",
+      "proof_path": "exact_site",
       "notes": "Target requires ROS 2 native architecture and Gazebo compatible (.world/.sdf) formats.",
       "source_bucket": "warehouse_robotics",
       "source_urls": [
@@ -269,6 +462,7 @@ We cannot capture what we do not legally access.
       ],
       "explicit_fields": [
         "company_name",
+        "contact_email",
         "status",
         "workflow_fit",
         "proof_path",
@@ -284,7 +478,7 @@ We cannot capture what we do not legally access.
       "contact_name": "Director of Simulation",
       "status": "researched",
       "workflow_fit": "GPS-denied indoor drone autonomy (V-BAT/Nova)",
-      "proof_path": "secure_containerized_delivery",
+      "proof_path": "scoped_follow_up",
       "notes": "Must comply with ITAR and A-GRA constraints. Stack relies on Hivemind, EdgeOS (C++17), and AWS ECR. Do not use standard public cloud wedge.",
       "source_bucket": "defense_aerospace",
       "source_urls": [
@@ -331,7 +525,7 @@ We cannot capture what we do not legally access.
   ],
   "budget_recommendations": [
     {
-      "category": "supply_bounties",
+      "category": "field_ops",
       "amount_usd": 1500,
       "note": "Estimated day rate for contracting elite AEC surveyors (e.g., NV5, GIS Surveyors) for single-site industrial capture.",
       "source_urls": [
@@ -347,7 +541,7 @@ We cannot capture what we do not legally access.
       ]
     },
     {
-      "category": "proptech_processing",
+      "category": "tools",
       "amount_usd": 500,
       "note": "Estimated cloud compute cost for generating the high-fidelity PropTech digital twin used as the barter item for Phase 0 site acquisition.",
       "source_urls": [],

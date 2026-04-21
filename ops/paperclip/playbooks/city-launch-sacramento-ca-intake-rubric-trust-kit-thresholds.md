@@ -9,7 +9,7 @@ It inherits the shared rules from:
 - `ops/paperclip/playbooks/city-launch-sacramento-ca.md`
 - `ops/paperclip/HANDOFF_PROTOCOL.md`
 
-Use this packet when a Sacramento contributor, applicant, or first-capture path needs a clear approval posture without dragging founder review into routine work.
+Use this packet when a Sacramento contributor, applicant, or first-capture path needs a clear approval posture without dragging manual review into routine work.
 
 ## Truth Guardrails
 - Approval means operational readiness, not a promise of work volume, payout, or repeat access.

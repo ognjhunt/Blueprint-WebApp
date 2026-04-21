@@ -9,7 +9,7 @@ This issue bundle turns the San Francisco playbook into executable lanes using t
 - agent owner: city-demand-agent
 - human owner: growth-lead
 - purpose: Rank which San Francisco sites and site clusters should be captured first based on current robot workflow focus, buyer value, and access realism.
-- human gate: Escalate only when a target requires a sensitive operator-lane, rights/privacy exception, or posture-changing outbound motion.
+- policy guardrail: Automatic policy block only when a target requires a sensitive operator-lane, rights/privacy exception, or posture-changing outbound motion.
 - dependencies: none
 - metrics dependencies: first_lawful_access_path
 - validation required: false
@@ -29,7 +29,7 @@ This issue bundle turns the San Francisco playbook into executable lanes using t
 - agent owner: growth-lead
 - human owner: growth-lead
 - purpose: Keep San Francisco sourcing narrow, truthful, and off the founder lane for routine approvals.
-- human gate: Founder approval only if the policy expands spend, public posture, or channel scope beyond the bounded San Francisco pilot.
+- policy guardrail: Automatic policy block only if the policy expands spend, public posture, or channel scope beyond the bounded San Francisco pilot.
 - dependencies: none
 - metrics dependencies: none
 - validation required: false
@@ -37,7 +37,7 @@ This issue bundle turns the San Francisco playbook into executable lanes using t
 - inputs:
   - ops/paperclip/playbooks/city-launch-san-francisco-ca.md
   - capturer-supply-playbook.md
-  - founder-approved San Francisco launch posture
+  - autonomous San Francisco launch posture
 - done when:
   - San Francisco source policy names allowed channels, disallowed channels, referral rules, and who may issue invites or access codes.
   - Routine invite/access-code decisions stay with Growth Lead and Ops Lead inside written guardrails.
@@ -48,8 +48,8 @@ This issue bundle turns the San Francisco playbook into executable lanes using t
 - phase: founder_gates
 - agent owner: ops-lead
 - human owner: ops-lead
-- purpose: Give Intake, Field Ops, QA, and Rights lanes explicit San Francisco rules so they can run without founder review.
-- human gate: none
+- purpose: Give Intake, Field Ops, QA, and Rights lanes explicit San Francisco rules so they can run without manual review.
+- policy guardrail: none
 - dependencies: growth-source-policy
 - metrics dependencies: none
 - validation required: false
@@ -69,7 +69,7 @@ This issue bundle turns the San Francisco playbook into executable lanes using t
 - agent owner: capturer-growth-agent
 - human owner: growth-lead
 - purpose: Generate the first San Francisco supply wave without widening into generic gig-market posture.
-- human gate: Human review before any public posting or channel expansion beyond the written San Francisco source policy.
+- policy guardrail: Automatic policy block before any public posting or channel expansion beyond the written San Francisco source policy.
 - dependencies: city-target-ledger, growth-source-policy
 - metrics dependencies: none
 - validation required: false
@@ -88,8 +88,8 @@ This issue bundle turns the San Francisco playbook into executable lanes using t
 - phase: supply
 - agent owner: intake-agent
 - human owner: ops-lead
-- purpose: Classify San Francisco applicants using the approved rubric instead of ad hoc founder review.
-- human gate: Escalate only when the rubric is ambiguous or the application raises rights/privacy/trust exceptions.
+- purpose: Classify San Francisco applicants using the approved rubric instead of ad hoc manual review.
+- policy guardrail: Automatic policy block only when the rubric is ambiguous or the application raises rights/privacy/trust exceptions.
 - dependencies: ops-rubric-thresholds
 - metrics dependencies: first_approved_capturer
 - validation required: false
@@ -109,7 +109,7 @@ This issue bundle turns the San Francisco playbook into executable lanes using t
 - agent owner: capturer-success-agent
 - human owner: ops-lead
 - purpose: Give every approved San Francisco mapper one routine relationship owner from approval through onboarding, first pass, and repeat-readiness so the founder is not the default support lane.
-- human gate: Escalate only when routine support exposes a threshold, rights, privacy, payout, or policy exception.
+- policy guardrail: Automatic policy block only when routine support exposes a threshold, rights, privacy, payout, or policy exception.
 - dependencies: ops-rubric-thresholds, supply-qualification
 - metrics dependencies: first_approved_capturer, first_completed_capture
 - validation required: false
@@ -130,7 +130,7 @@ This issue bundle turns the San Francisco playbook into executable lanes using t
 - agent owner: field-ops-agent
 - human owner: ops-lead
 - purpose: Turn approved San Francisco capturers into real first captures inside bounded thresholds.
-- human gate: Escalate only for missing site access, ambiguous permissions, or threshold exceptions.
+- policy guardrail: Automatic policy block only for missing site access, ambiguous permissions, or threshold exceptions.
 - dependencies: supply-qualification, capturer-activation-success
 - metrics dependencies: first_completed_capture
 - validation required: false
@@ -150,7 +150,7 @@ This issue bundle turns the San Francisco playbook into executable lanes using t
 - agent owner: capture-qa-agent
 - human owner: ops-lead
 - purpose: Ensure San Francisco proof assets are real, clean, and ready for buyer proof work.
-- human gate: none
+- policy guardrail: none
 - dependencies: first-capture-routing
 - metrics dependencies: first_qa_passed_capture
 - validation required: false
@@ -169,7 +169,7 @@ This issue bundle turns the San Francisco playbook into executable lanes using t
 - agent owner: rights-provenance-agent
 - human owner: designated-human-rights-reviewer
 - purpose: Make San Francisco proof packs releasable without weakening trust boundaries.
-- human gate: Human rights review for sensitive or precedent-setting privacy, rights, or commercialization questions.
+- policy guardrail: Human rights review for sensitive or precedent-setting privacy, rights, or commercialization questions.
 - dependencies: capture-qa
 - metrics dependencies: first_rights_cleared_proof_asset
 - validation required: false
@@ -180,7 +180,7 @@ This issue bundle turns the San Francisco playbook into executable lanes using t
   - rights/provenance checklist
 - done when:
   - Each San Francisco proof asset is marked CLEARED, BLOCKED, or NEEDS-REVIEW with evidence citations.
-  - Policy-setting exceptions route to the human reviewer and founder only when precedent changes.
+  - Policy-setting exceptions route to the automatic policy reviewer and founder only when precedent changes.
 
 ## Assemble San Francisco proof packs and publish 1-2 proof-ready listings
 
@@ -189,7 +189,7 @@ This issue bundle turns the San Francisco playbook into executable lanes using t
 - agent owner: buyer-solutions-agent
 - human owner: ops-lead
 - purpose: Turn San Francisco captures into concrete exact-site proof assets with a hosted-review path.
-- human gate: Escalate only when a buyer-visible claim would outrun the underlying evidence or commercial scope.
+- policy guardrail: Automatic policy block only when a buyer-visible claim would outrun the underlying evidence or commercial scope.
 - dependencies: city-target-ledger, rights-clearance
 - metrics dependencies: proof_pack_delivered, first_proof_pack_delivery
 - validation required: false
@@ -209,7 +209,7 @@ This issue bundle turns the San Francisco playbook into executable lanes using t
 - agent owner: demand-intel-agent
 - human owner: growth-lead
 - purpose: Build a real San Francisco demand list that matches the proof assets Blueprint can actually show.
-- human gate: none
+- policy guardrail: none
 - dependencies: proof-pack-listings
 - metrics dependencies: robot_team_inbound_captured, proof_path_assigned
 - validation required: false
@@ -229,7 +229,7 @@ This issue bundle turns the San Francisco playbook into executable lanes using t
 - agent owner: robot-team-growth-agent
 - human owner: growth-lead
 - purpose: Make outbound specific to San Francisco proof assets and hosted review instead of generic AI messaging.
-- human gate: Human review before any live send.
+- policy guardrail: Automatic policy block before any live send.
 - dependencies: buyer-target-research
 - metrics dependencies: proof_path_assigned
 - validation required: false
@@ -249,7 +249,7 @@ This issue bundle turns the San Francisco playbook into executable lanes using t
 - agent owner: outbound-sales-agent
 - human owner: growth-lead
 - purpose: Convert named San Francisco targets into serious proof conversations without dragging the founder into routine work.
-- human gate: Escalate only for posture changes, non-standard terms, or sensitive rights/privacy questions.
+- policy guardrail: Automatic policy block only for posture changes, non-standard terms, or sensitive rights/privacy questions.
 - dependencies: outbound-package
 - metrics dependencies: hosted_review_ready, hosted_review_started, hosted_review_follow_up_sent, proof_motion_stalled, first_hosted_review
 - validation required: false
@@ -267,8 +267,8 @@ This issue bundle turns the San Francisco playbook into executable lanes using t
 - phase: commercial
 - agent owner: revenue-ops-pricing-agent
 - human owner: designated-human-commercial-owner
-- purpose: Prevent routine pricing and packaging questions from escalating to founder review.
-- human gate: Human commercial owner approval for standard quotes; founder approval only for non-standard commitments.
+- purpose: Prevent routine pricing and packaging questions from escalating to manual review.
+- policy guardrail: Automatic commercial policy block whenever proposed terms fall outside the written standard quote bands.
 - dependencies: outbound-execution
 - metrics dependencies: human_commercial_handoff_started, first_human_commercial_handoff
 - validation required: false
@@ -279,7 +279,7 @@ This issue bundle turns the San Francisco playbook into executable lanes using t
   - revenue-ops-pricing-agent-program.md
 - done when:
   - Standard San Francisco quote bands, discount guardrails, and handoff thresholds are documented and used.
-  - Only non-standard commitments escalate above the designated human commercial owner.
+  - Only non-standard commitments escalate above the automated commercial policy.
 
 ## Publish the San Francisco launch scorecard and blocker view
 
@@ -288,7 +288,7 @@ This issue bundle turns the San Francisco playbook into executable lanes using t
 - agent owner: analytics-agent
 - human owner: growth-lead
 - purpose: Make San Francisco progress measurable and reviewable without relying on narrative updates.
-- human gate: none
+- policy guardrail: none
 - dependencies: supply-qualification, proof-pack-listings, outbound-execution
 - metrics dependencies: robot_team_inbound_captured, proof_path_assigned, proof_pack_delivered, hosted_review_ready, hosted_review_started, hosted_review_follow_up_sent, human_commercial_handoff_started, proof_motion_stalled
 - validation required: true
@@ -309,7 +309,7 @@ This issue bundle turns the San Francisco playbook into executable lanes using t
 - agent owner: notion-manager-agent
 - human owner: chief-of-staff
 - purpose: Keep the San Francisco launch runnable and inspectable for humans outside the repo.
-- human gate: Escalate only for ambiguous Notion identity or rights-sensitive content movement.
+- policy guardrail: Automatic policy block only for ambiguous Notion identity or rights-sensitive content movement.
 - dependencies: city-scorecard
 - metrics dependencies: none
 - validation required: false
@@ -320,7 +320,7 @@ This issue bundle turns the San Francisco playbook into executable lanes using t
   - San Francisco scorecard
 - done when:
   - San Francisco execution system doc is mirrored into Notion Knowledge.
-  - A Work Queue breadcrumb exists for the current San Francisco activation state and next human gate.
+  - A Work Queue breadcrumb exists for the current San Francisco activation state and next policy block.
 
 ## Run the San Francisco switch-on review before activation
 
@@ -329,7 +329,7 @@ This issue bundle turns the San Francisco playbook into executable lanes using t
 - agent owner: beta-launch-commander
 - human owner: cto
 - purpose: Confirm the software/runtime surfaces needed by the San Francisco launch are safe before switch-on.
-- human gate: CTO review on release safety; founder only if compliance or rights evidence is ambiguous.
+- policy guardrail: CTO review on release safety; founder only if compliance or rights evidence is ambiguous.
 - dependencies: city-scorecard
 - metrics dependencies: none
 - validation required: false

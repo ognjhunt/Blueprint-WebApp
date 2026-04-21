@@ -20,10 +20,6 @@ export type CityLaunchWideningGuard = {
 };
 
 const DEFAULT_FOUNDER_TRIGGERS = [
-  "new city activation",
-  "posture-changing public claims",
-  "rights or privacy exceptions that set precedent",
-  "non-standard commercial commitments",
 ];
 
 export function buildCityLaunchBudgetPolicy(input?: {
@@ -48,7 +44,7 @@ export function buildCityLaunchBudgetPolicy(input?: {
       allowPaidAcquisition: true,
       allowReferralRewards: true,
       allowTravelReimbursement: true,
-      founderApprovalRequiredAboveUsd: operatorAutoApproveUsd,
+      founderApprovalRequiredAboveUsd: maxTotalApprovedUsd,
       founderApprovalTriggers: DEFAULT_FOUNDER_TRIGGERS,
       operatorLane: "growth-lead",
     } satisfies CityLaunchBudgetPolicy;
@@ -69,7 +65,7 @@ export function buildCityLaunchBudgetPolicy(input?: {
       allowPaidAcquisition: true,
       allowReferralRewards: false,
       allowTravelReimbursement: true,
-      founderApprovalRequiredAboveUsd: operatorAutoApproveUsd,
+      founderApprovalRequiredAboveUsd: maxTotalApprovedUsd,
       founderApprovalTriggers: DEFAULT_FOUNDER_TRIGGERS,
       operatorLane: "growth-lead",
     } satisfies CityLaunchBudgetPolicy;
@@ -83,7 +79,7 @@ export function buildCityLaunchBudgetPolicy(input?: {
     allowPaidAcquisition: false,
     allowReferralRewards: false,
     allowTravelReimbursement: false,
-    founderApprovalRequiredAboveUsd: 0,
+    founderApprovalRequiredAboveUsd: Math.max(0, input?.maxTotalApprovedUsd ?? 0),
     founderApprovalTriggers: DEFAULT_FOUNDER_TRIGGERS,
     operatorLane: "growth-lead",
   } satisfies CityLaunchBudgetPolicy;

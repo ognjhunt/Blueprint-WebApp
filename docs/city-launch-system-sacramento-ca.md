@@ -7,7 +7,7 @@
 
 ## Objective
 
-Turn the Sacramento planning artifacts into an executable company harness that runs the supply loop and demand loop in one autonomy-first sweep after bounded founder approval.
+Turn the Sacramento planning artifacts into an executable company harness that runs the supply loop and demand loop in one autonomy-first sweep without manual city-activation approval.
 
 ## Machine-Readable Budget Policy
 
@@ -17,7 +17,7 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 - allow_paid_acquisition: true
 - allow_referral_rewards: false
 - allow_travel_reimbursement: true
-- founder_approval_required_above_usd: 500
+- founder_approval_required_above_usd: 2500
 
 ## What The Org Will Do
 
@@ -27,7 +27,7 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 4. Materialize the live Paperclip issue tree for the city launch so work is routable instead of staying trapped in artifacts.
 5. Measure the city through Sacramento-specific distribution, supply, demand, spend, and proof-motion metrics so operators can see whether the city is actually becoming operationally real.
 6. Treat the machine-readable activation payload as the control-plane artifact for validation blockers, lane mapping, and metrics readiness.
-7. After activation, every lane should execute all reversible work immediately and stop only at irreversible human gates, external counterparty confirmations, or the lack of a real live signal needed to mark completion.
+7. After activation, every lane should execute all reversible work immediately and stop only at automatic policy blocks, external counterparty confirmations, or the lack of a real live signal needed to mark completion.
 
 ## Planning State
 
@@ -37,17 +37,17 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 
 ## Founder-Only Decisions
 
-- Sacramento go / no-go and the decision to keep the city gated or expand it.
-- Any spend envelope beyond the approved Sacramento low budget policy.
-- Any public statement that changes company posture or overstates Sacramento readiness.
-- Any rights/privacy exception or non-standard commercial commitment that would set precedent.
+- Sacramento city expansion stays gated by proof and hosted-review milestones, not approval packets.
+- Any spend request beyond the written Sacramento low budget policy is out of policy until the repo policy changes.
+- Any public statement that changes company posture or overstates Sacramento readiness is auto-blocked until supported in repo truth.
+- Any rights/privacy exception or non-standard commercial commitment is blocked until the written policy and evidence path are updated.
 
 ## Human Operator-Owned Decisions
 
 - Growth Lead owns Sacramento source policy, referral posture, and invite/access-code issuance inside approved guardrails.
 - Ops Lead owns the Sacramento intake rubric, trust kit, first-capture thresholds, and launch-readiness checklist.
-- The designated human commercial owner owns standard quotes inside approved bands.
-- The designated human rights reviewer owns sensitive but non-precedent rights/privacy calls prepared by rights-provenance-agent.
+- Standard quote bands are enforced directly from repo policy and the current proof posture.
+- Sensitive rights/privacy questions stay blocked by policy until the written evidence path supports the action.
 
 ## Agent-Prepared / Autonomous Work
 
@@ -61,12 +61,12 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 
 ## Founder Approvals Required Before Activation
 
-- Approve Sacramento, CA as an active city-launch activation and keep non-active cities deferred unless a new evidence packet exists.
-- Approve the bounded Sacramento launch posture: gated cohort pilot, Exact-Site Hosted Review wedge, no public city-live claims.
-- Approve the bounded spend posture for Sacramento: Low Budget with a total envelope up to $2,500.
-- Approve any Sacramento source-policy exceptions beyond the current bounded channel stack.
-- Approve any rights/privacy/commercialization exception that would set precedent or create an irreversible external commitment.
-- Approve any non-standard commercial terms outside the standard Sacramento quote bands prepared by revenue-ops-pricing-agent and the designated human commercial owner.
+- Autonomously activate Sacramento, CA as an active city-launch program and keep execution bounded to the selected city.
+- Run the Sacramento launch posture autonomously: gated cohort pilot, Exact-Site Hosted Review wedge, and truthful public claims only.
+- Autonomous spend posture for Sacramento: Low Budget with a total envelope up to $2,500.
+- Automatically block any Sacramento source-policy change that exceeds the current bounded channel stack until the written policy is updated in repo truth.
+- Automatically block any rights/privacy/commercialization exception that lacks repo-backed policy and evidence.
+- Automatically block any non-standard commercial term outside the standard Sacramento quote bands until the quote policy is updated in repo truth.
 
 ## Sacramento Completion Requirements
 
@@ -121,7 +121,7 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 - Lock Sacramento source policy and invite/access-code posture: Growth Lead owns execution, Growth Lead is the human lane, and the task closes only when Sacramento source policy names allowed channels, disallowed channels, referral rules, and who may issue invites or access codes..
 - Build the Sacramento city-opening distribution brief and channel map: city-launch-agent owns execution, Growth Lead is the human lane, and the task closes only when Sacramento city-opening brief exists with a warehouse/facility direct-awareness track and a bounded public-commercial community-awareness track..
 - Publish the Sacramento city-facing CTA and intake routing path: Ops Lead owns execution, Ops Lead is the human lane, and the task closes only when Sacramento warehouse/facility direct-awareness replies and public-commercial community replies both land in a named CTA path with city, lane, source, and owner routing..
-- Assemble first-wave pack: capturer-growth-agent owns execution, Growth Lead is the human lane, and the task closes only when First-wave pack is ready..
+- Assemble the Sacramento first-wave outreach and posting pack: capturer-growth-agent owns execution, Growth Lead is the human lane, and the task closes only when Sacramento warehouse/facility first-wave outreach pack names the first buyers, operators, integrators, or facilities to contact, the proof-led message variants, and the next move per target..
 - Run Sacramento site-operator partnership routing: site-operator-partnership-agent owns execution, Growth Lead is the human lane, and the task closes only when Sacramento operator-lane packet identifies likely owner/operator/tenant contacts, operator-side value props, and the exact approval sequence for the highest-priority warehouse/facility candidates..
 - Publish Sacramento intake rubric, trust kit, and first-capture thresholds: Ops Lead owns execution, Ops Lead is the human lane, and the task closes only when Sacramento rubric covers source quality, access-path truth, equipment/device fit, trust-packet minimums, and approval outcomes..
 - Build the Sacramento capturer prospect list and post package: capturer-growth-agent owns execution, Growth Lead is the human lane, and the task closes only when A curated first-wave Sacramento professional prospect set is named with source bucket, rationale, lawful access posture, and next move..

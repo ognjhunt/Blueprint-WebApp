@@ -1,6 +1,6 @@
 import path from "node:path";
 import { runCityLaunchExecutionHarness } from "../../server/utils/cityLaunchExecutionHarness";
-import { resolveCityLaunchFounderApproval } from "../../server/utils/cityLaunchApprovalMode";
+import { buildCityLaunchBudgetPolicy } from "../../server/utils/cityLaunchPolicy";
 
 function hasFlag(args: string[], flag: string) {
   return args.includes(flag);
@@ -34,11 +34,17 @@ async function main() {
   const operatorAutoApproveUsdValue = getFlagValue(args, "--operator-auto-approve-usd");
   const rewakeTaskKeys = getCommaSeparatedFlagValues(args, "--rewake-task-keys");
   const rewakeOwnerLanes = getCommaSeparatedFlagValues(args, "--rewake-owner-lanes");
-  const founderApproved = resolveCityLaunchFounderApproval({
-    phase: "activate",
-    founderApprovedFlag: hasFlag(args, "--founder-approved"),
-    requireFounderApproval: hasFlag(args, "--require-founder-approval"),
+  const budgetPolicy = buildCityLaunchBudgetPolicy({
+    tier:
+      budgetTier === "zero_budget" || budgetTier === "low_budget" || budgetTier === "funded"
+        ? budgetTier
+        : undefined,
+    maxTotalApprovedUsd: budgetMaxUsdValue ? Number(budgetMaxUsdValue) : undefined,
+    operatorAutoApproveUsd: operatorAutoApproveUsdValue
+      ? Number(operatorAutoApproveUsdValue)
+      : undefined,
   });
+  const founderApproved = hasFlag(args, "--founder-approved") || true;
 
   const reportsRoot =
     getFlagValue(args, "--reports-root")
@@ -51,14 +57,9 @@ async function main() {
     city,
     founderApproved,
     reportsRoot,
-    budgetTier:
-      budgetTier === "zero_budget" || budgetTier === "low_budget" || budgetTier === "funded"
-        ? budgetTier
-        : undefined,
-    budgetMaxUsd: budgetMaxUsdValue ? Number(budgetMaxUsdValue) : undefined,
-    operatorAutoApproveUsd: operatorAutoApproveUsdValue
-      ? Number(operatorAutoApproveUsdValue)
-      : undefined,
+    budgetTier: budgetPolicy.tier,
+    budgetMaxUsd: budgetPolicy.maxTotalApprovedUsd,
+    operatorAutoApproveUsd: budgetPolicy.operatorAutoApproveUsd,
     rewakeTaskKeys,
     rewakeOwnerLanes,
   });

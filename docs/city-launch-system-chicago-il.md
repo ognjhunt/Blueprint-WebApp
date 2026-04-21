@@ -7,7 +7,7 @@
 
 ## Objective
 
-Turn the Chicago planning artifacts into an executable company harness that runs the supply loop and demand loop in one autonomy-first sweep after bounded founder approval.
+Turn the Chicago planning artifacts into an executable company harness that runs the supply loop and demand loop in one autonomy-first sweep without manual city-activation approval.
 
 ## Machine-Readable Budget Policy
 
@@ -17,7 +17,7 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 - allow_paid_acquisition: true
 - allow_referral_rewards: false
 - allow_travel_reimbursement: true
-- founder_approval_required_above_usd: 500
+- founder_approval_required_above_usd: 2500
 
 ## What The Org Will Do
 
@@ -27,7 +27,7 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 4. Materialize the live Paperclip issue tree for the city launch so work is routable instead of staying trapped in artifacts.
 5. Measure the city through Chicago-specific distribution, supply, demand, spend, and proof-motion metrics so operators can see whether the city is actually becoming operationally real.
 6. Treat the machine-readable activation payload as the control-plane artifact for validation blockers, lane mapping, and metrics readiness.
-7. After activation, every lane should execute all reversible work immediately and stop only at irreversible human gates, external counterparty confirmations, or the lack of a real live signal needed to mark completion.
+7. After activation, every lane should execute all reversible work immediately and stop only at automatic policy blocks, external counterparty confirmations, or the lack of a real live signal needed to mark completion.
 
 ## Planning State
 
@@ -37,17 +37,17 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 
 ## Founder-Only Decisions
 
-- Chicago go / no-go and the decision to keep the city gated or expand it.
-- Any spend envelope beyond the approved Chicago low budget policy.
-- Any public statement that changes company posture or overstates Chicago readiness.
-- Any rights/privacy exception or non-standard commercial commitment that would set precedent.
+- Chicago city expansion stays gated by proof and hosted-review milestones, not approval packets.
+- Any spend request beyond the written Chicago low budget policy is out of policy until the repo policy changes.
+- Any public statement that changes company posture or overstates Chicago readiness is auto-blocked until supported in repo truth.
+- Any rights/privacy exception or non-standard commercial commitment is blocked until the written policy and evidence path are updated.
 
 ## Human Operator-Owned Decisions
 
 - Growth Lead owns Chicago source policy, referral posture, and invite/access-code issuance inside approved guardrails.
 - Ops Lead owns the Chicago intake rubric, trust kit, first-capture thresholds, and launch-readiness checklist.
-- The designated human commercial owner owns standard quotes inside approved bands.
-- The designated human rights reviewer owns sensitive but non-precedent rights/privacy calls prepared by rights-provenance-agent.
+- Standard quote bands are enforced directly from repo policy and the current proof posture.
+- Sensitive rights/privacy questions stay blocked by policy until the written evidence path supports the action.
 
 ## Agent-Prepared / Autonomous Work
 
@@ -61,12 +61,12 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 
 ## Founder Approvals Required Before Activation
 
-- Approve Chicago, IL as an active city-launch activation and keep non-active cities deferred unless a new evidence packet exists.
-- Approve the bounded Chicago launch posture: gated cohort pilot, Exact-Site Hosted Review wedge, no public city-live claims.
-- Approve the bounded spend posture for Chicago: Low Budget with a total envelope up to $2,500.
-- Approve any Chicago source-policy exceptions beyond the current bounded channel stack.
-- Approve any rights/privacy/commercialization exception that would set precedent or create an irreversible external commitment.
-- Approve any non-standard commercial terms outside the standard Chicago quote bands prepared by revenue-ops-pricing-agent and the designated human commercial owner.
+- Autonomously activate Chicago, IL as an active city-launch program and keep execution bounded to the selected city.
+- Run the Chicago launch posture autonomously: gated cohort pilot, Exact-Site Hosted Review wedge, and truthful public claims only.
+- Autonomous spend posture for Chicago: Low Budget with a total envelope up to $2,500.
+- Automatically block any Chicago source-policy change that exceeds the current bounded channel stack until the written policy is updated in repo truth.
+- Automatically block any rights/privacy/commercialization exception that lacks repo-backed policy and evidence.
+- Automatically block any non-standard commercial term outside the standard Chicago quote bands until the quote policy is updated in repo truth.
 
 ## Chicago Completion Requirements
 

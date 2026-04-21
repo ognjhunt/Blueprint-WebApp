@@ -3,7 +3,7 @@
 ## Status
 - phase: activation_ready
 - owner: city-demand-agent
-- latest-refresh: 2026-04-18
+- latest-refresh: 2026-04-21
 - planning-state: completed
 - confidence: medium
 
@@ -13,8 +13,6 @@ Sacramento demand should stay proof-led: qualify real robot-team interest, class
 ## What Changed This Pass
 - evidence-backed: the city launcher now generates the compact demand playbook during activation so downstream tasks have a real canonical reference.
 - evidence-backed: city demand instrumentation is pinned to the platform event model rather than custom city-specific events.
-- evidence-backed: the Sacramento lawful-access queue now stays parallel instead of single-threaded, with Northgate Logistics, US Cold Storage - Ambient Module, McClellan Park - Building 775, Sacramento Costco - Natomas, and Home Depot - Sacramento (Cal Expo) named as the current candidate set.
-- evidence-backed: the queue now separates buyer-linked exact-site, operator-intro, existing-lawful-access, and public non-controlled fallback paths so one stalled facility does not erase the next option.
 - evidence-backed: current deep research names buyer targets such as Capital Robotics.
 
 ## Required Proof Motion
@@ -43,12 +41,11 @@ Sacramento demand should stay proof-led: qualify real robot-team interest, class
 - proof_motion_stalled: required_not_tracked
 
 ## Sensitive-Lane Constraints
-- if a buyer sits in defense, aerospace, export-controlled, or air-gapped environments, require explicit human review before assuming the standard hosted-review path is acceptable
+- if a buyer sits in defense, aerospace, export-controlled, or air-gapped environments, block the standard hosted-review path until the policy and evidence path are explicit
 - do not imply that Blueprint can serve sensitive or controlled-access environments over a standard cloud runtime without buyer-specific confirmation
-- operator-governed facilities and rights-sensitive exact-site requests should route through `rights-provenance-agent` plus human review
+- operator-governed facilities and rights-sensitive exact-site requests should route through `rights-provenance-agent` plus written policy evidence
 
 ## Immediate Next Actions
-1. keep the named lawful-access queue explicit by candidate, access posture, and next step so the city does not stall on a single site thread
-2. materialize the research-backed buyer targets and first-touch candidates as soon as deep research completes
-3. keep `buyer-solutions-agent` and `revenue-ops-pricing-agent` on standard commercial prep while founders stay out of routine proof motion
-4. block city-specific outbound scale until proof packs and hosted reviews are real, not just planned
+1. materialize the research-backed buyer targets and first-touch candidates as soon as deep research completes
+2. keep `buyer-solutions-agent` and `revenue-ops-pricing-agent` on standard commercial prep while founders stay out of routine proof motion
+3. block city-specific outbound scale until proof packs and hosted reviews are real, not just planned

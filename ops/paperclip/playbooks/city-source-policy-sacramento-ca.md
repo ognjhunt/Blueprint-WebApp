@@ -58,7 +58,7 @@ Use these channels only for public-area-only capture of places such as groceries
 - Growth Lead may issue or revoke invites and access codes within this written policy.
 - Ops Lead co-owns guardrails for routine invite/access-code posture and intake alignment.
 - Founder approval is required only when the policy would expand spend, public posture, channel scope, or precedent-setting exceptions.
-- Any new template, invite flow, or channel class must stay inside this document until human review changes it.
+- Any new template, invite flow, or channel class must stay inside this document until policy review changes it.
 
 ## Source-Tagging Rules
 Every Sacramento reply, applicant signal, or referral must be tagged with:

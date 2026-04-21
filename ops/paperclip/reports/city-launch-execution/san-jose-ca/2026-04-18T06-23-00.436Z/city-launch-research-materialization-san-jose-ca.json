@@ -1,0 +1,868 @@
+{
+  "status": "materialized",
+  "city": "San Jose, CA",
+  "citySlug": "san-jose-ca",
+  "sourceArtifactPath": "ops/paperclip/playbooks/city-launch-san-jose-ca-deep-research.md",
+  "parsed": {
+    "city": "San Jose, CA",
+    "citySlug": "san-jose-ca",
+    "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-jose-ca/2026-04-18T06-23-00.436Z/city-launch-research-materialization-san-jose-ca.contact-enrichment.json",
+    "schemaVersion": "2026-04-12.city-launch-research.v1",
+    "generatedAtIso": "2026-04-18T00:00:00.000Z",
+    "captureCandidates": [
+      {
+        "stableKey": "prospect_san-jose-ca_industrial-warehouse-edenvale-industrial-park-corridor-edenvale-industrial-park-san-jose-ca",
+        "name": "Edenvale Industrial Park corridor",
+        "contactEmail": null,
+        "sourceBucket": "industrial_warehouse",
+        "channel": "buyer_requested_site",
+        "status": "identified",
+        "siteAddress": "Edenvale Industrial Park, San Jose, CA",
+        "locationSummary": "Primary modern industrial corridor in the San Jose research.",
+        "lat": 37.3,
+        "lng": -121.8,
+        "siteCategory": "warehouse",
+        "workflowFit": "dock handoff and pallet movement",
+        "priorityNote": "Primary exact-site wedge reference.",
+        "sourceUrls": [
+          "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-13T17-38-45.838Z/01-initial-research.md"
+        ],
+        "explicitFields": [
+          "name",
+          "source_bucket",
+          "channel",
+          "status",
+          "site_address",
+          "site_category",
+          "workflow_fit",
+          "priority_note"
+        ],
+        "inferredFields": [
+          "lat",
+          "lng",
+          "location_summary"
+        ],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-deep-research.md",
+          "sourceKey": "capture_location_candidates[0]",
+          "sourceUrls": [
+            "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-13T17-38-45.838Z/01-initial-research.md"
+          ],
+          "parsedAtIso": "2026-04-18T06:23:07.145Z",
+          "explicitFields": [
+            "name",
+            "source_bucket",
+            "channel",
+            "status",
+            "site_address",
+            "site_category",
+            "workflow_fit",
+            "priority_note"
+          ],
+          "inferredFields": [
+            "lat",
+            "lng",
+            "location_summary"
+          ]
+        }
+      },
+      {
+        "stableKey": "prospect_san-jose-ca_industrial-warehouse-550-piercy-road-550-piercy-road-san-jose-ca",
+        "name": "550 Piercy Road",
+        "contactEmail": null,
+        "sourceBucket": "industrial_warehouse",
+        "channel": "site_operator_intro",
+        "status": "identified",
+        "siteAddress": "550 Piercy Road, San Jose, CA",
+        "locationSummary": "Named warehouse example in the Edenvale corridor.",
+        "lat": 37.3,
+        "lng": -121.8,
+        "siteCategory": "warehouse",
+        "workflowFit": "dock handoff and pallet movement",
+        "priorityNote": "Useful fallback exact-site candidate.",
+        "sourceUrls": [
+          "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-13T17-38-45.838Z/01-initial-research.md"
+        ],
+        "explicitFields": [
+          "name",
+          "source_bucket",
+          "channel",
+          "status",
+          "site_address",
+          "site_category",
+          "workflow_fit",
+          "priority_note"
+        ],
+        "inferredFields": [
+          "lat",
+          "lng",
+          "location_summary"
+        ],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-deep-research.md",
+          "sourceKey": "capture_location_candidates[1]",
+          "sourceUrls": [
+            "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-13T17-38-45.838Z/01-initial-research.md"
+          ],
+          "parsedAtIso": "2026-04-18T06:23:07.145Z",
+          "explicitFields": [
+            "name",
+            "source_bucket",
+            "channel",
+            "status",
+            "site_address",
+            "site_category",
+            "workflow_fit",
+            "priority_note"
+          ],
+          "inferredFields": [
+            "lat",
+            "lng",
+            "location_summary"
+          ]
+        }
+      },
+      {
+        "stableKey": "prospect_san-jose-ca_industrial-warehouse-6480-hellyer-avenue-6480-hellyer-avenue-san-jose-ca",
+        "name": "6480 Hellyer Avenue",
+        "contactEmail": null,
+        "sourceBucket": "industrial_warehouse",
+        "channel": "site_operator_intro",
+        "status": "identified",
+        "siteAddress": "6480 Hellyer Avenue, San Jose, CA",
+        "locationSummary": "Named warehouse example in the San Jose industrial corridor.",
+        "lat": 37.2,
+        "lng": -121.8,
+        "siteCategory": "warehouse",
+        "workflowFit": "dock handoff and pallet movement",
+        "priorityNote": "Useful adjacent exact-site candidate.",
+        "sourceUrls": [
+          "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-13T17-38-45.838Z/01-initial-research.md"
+        ],
+        "explicitFields": [
+          "name",
+          "source_bucket",
+          "channel",
+          "status",
+          "site_address",
+          "site_category",
+          "workflow_fit",
+          "priority_note"
+        ],
+        "inferredFields": [
+          "lat",
+          "lng",
+          "location_summary"
+        ],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-deep-research.md",
+          "sourceKey": "capture_location_candidates[2]",
+          "sourceUrls": [
+            "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-13T17-38-45.838Z/01-initial-research.md"
+          ],
+          "parsedAtIso": "2026-04-18T06:23:07.145Z",
+          "explicitFields": [
+            "name",
+            "source_bucket",
+            "channel",
+            "status",
+            "site_address",
+            "site_category",
+            "workflow_fit",
+            "priority_note"
+          ],
+          "inferredFields": [
+            "lat",
+            "lng",
+            "location_summary"
+          ]
+        }
+      }
+    ],
+    "buyerTargets": [
+      {
+        "stableKey": "buyer_target_san-jose-ca_applied-intuition-physical-ai-simulation-and-deployment-validation",
+        "companyName": "Applied Intuition",
+        "contactName": null,
+        "contactEmail": "security@applied.co",
+        "status": "researched",
+        "workflowFit": "physical AI simulation and deployment validation",
+        "proofPath": "exact_site",
+        "notes": "Public technical/security contact route can receive the first-wave draft.",
+        "sourceBucket": "physical_ai_simulation",
+        "sourceUrls": [
+          "https://www.appliedintuition.com/security",
+          "https://www.appliedintuition.com/contact"
+        ],
+        "explicitFields": [
+          "company_name",
+          "contact_email",
+          "status",
+          "workflow_fit",
+          "proof_path",
+          "source_bucket"
+        ],
+        "inferredFields": [],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-deep-research.md",
+          "sourceKey": "buyer_target_candidates[0]",
+          "sourceUrls": [
+            "https://www.appliedintuition.com/security",
+            "https://www.appliedintuition.com/contact"
+          ],
+          "parsedAtIso": "2026-04-18T06:23:07.145Z",
+          "explicitFields": [
+            "company_name",
+            "contact_email",
+            "status",
+            "workflow_fit",
+            "proof_path",
+            "source_bucket"
+          ],
+          "inferredFields": []
+        }
+      },
+      {
+        "stableKey": "buyer_target_san-jose-ca_autox-autonomous-systems-review-and-city-located-technical-evaluation",
+        "companyName": "AutoX",
+        "contactName": null,
+        "contactEmail": "contact@autox.ai",
+        "status": "researched",
+        "workflowFit": "autonomous systems review and city-located technical evaluation",
+        "proofPath": "exact_site",
+        "notes": "Public business inquiry route can receive the first-wave draft.",
+        "sourceBucket": "autonomy_platform",
+        "sourceUrls": [
+          "https://www.autox.ai/ko/contact.html"
+        ],
+        "explicitFields": [
+          "company_name",
+          "contact_email",
+          "status",
+          "workflow_fit",
+          "proof_path",
+          "source_bucket"
+        ],
+        "inferredFields": [],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-deep-research.md",
+          "sourceKey": "buyer_target_candidates[1]",
+          "sourceUrls": [
+            "https://www.autox.ai/ko/contact.html"
+          ],
+          "parsedAtIso": "2026-04-18T06:23:07.145Z",
+          "explicitFields": [
+            "company_name",
+            "contact_email",
+            "status",
+            "workflow_fit",
+            "proof_path",
+            "source_bucket"
+          ],
+          "inferredFields": []
+        }
+      },
+      {
+        "stableKey": "buyer_target_san-jose-ca_brain-corp-warehouse-amr-navigation-and-hosted-review",
+        "companyName": "Brain Corp",
+        "contactName": null,
+        "contactEmail": "support@braincorporation.com",
+        "status": "researched",
+        "workflowFit": "warehouse AMR navigation and hosted review",
+        "proofPath": "exact_site",
+        "notes": "Public support route can receive the first-wave draft.",
+        "sourceBucket": "warehouse_robotics",
+        "sourceUrls": [
+          "https://www.braincorp.com/legal",
+          "https://www.braincorp.com/privacy",
+          "https://www.braincorp.com/es/contact"
+        ],
+        "explicitFields": [
+          "company_name",
+          "contact_email",
+          "status",
+          "workflow_fit",
+          "proof_path",
+          "source_bucket"
+        ],
+        "inferredFields": [],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-deep-research.md",
+          "sourceKey": "buyer_target_candidates[2]",
+          "sourceUrls": [
+            "https://www.braincorp.com/legal",
+            "https://www.braincorp.com/privacy",
+            "https://www.braincorp.com/es/contact"
+          ],
+          "parsedAtIso": "2026-04-18T06:23:07.145Z",
+          "explicitFields": [
+            "company_name",
+            "contact_email",
+            "status",
+            "workflow_fit",
+            "proof_path",
+            "source_bucket"
+          ],
+          "inferredFields": []
+        }
+      }
+    ],
+    "firstTouches": [
+      {
+        "stableKey": "touch_san-jose-ca_buyer-target-applied-intuition-email-first-touch",
+        "referenceType": "buyer_target",
+        "referenceName": "Applied Intuition",
+        "channel": "email",
+        "touchType": "first_touch",
+        "status": "draft",
+        "campaignId": null,
+        "issueId": null,
+        "notes": "Open with exact-site hosted review and ask who owns deployment/security evaluation.",
+        "sourceUrls": [
+          "https://www.appliedintuition.com/security"
+        ],
+        "explicitFields": [
+          "reference_type",
+          "reference_name",
+          "channel",
+          "touch_type",
+          "status"
+        ],
+        "inferredFields": [],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-deep-research.md",
+          "sourceKey": "first_touch_candidates[0]",
+          "sourceUrls": [
+            "https://www.appliedintuition.com/security"
+          ],
+          "parsedAtIso": "2026-04-18T06:23:07.145Z",
+          "explicitFields": [
+            "reference_type",
+            "reference_name",
+            "channel",
+            "touch_type",
+            "status"
+          ],
+          "inferredFields": []
+        }
+      },
+      {
+        "stableKey": "touch_san-jose-ca_buyer-target-autox-email-first-touch",
+        "referenceType": "buyer_target",
+        "referenceName": "AutoX",
+        "channel": "email",
+        "touchType": "first_touch",
+        "status": "draft",
+        "campaignId": null,
+        "issueId": null,
+        "notes": "Use the public business inquiry route and keep the CTA to exact-site hosted review.",
+        "sourceUrls": [
+          "https://www.autox.ai/ko/contact.html"
+        ],
+        "explicitFields": [
+          "reference_type",
+          "reference_name",
+          "channel",
+          "touch_type",
+          "status"
+        ],
+        "inferredFields": [],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-deep-research.md",
+          "sourceKey": "first_touch_candidates[1]",
+          "sourceUrls": [
+            "https://www.autox.ai/ko/contact.html"
+          ],
+          "parsedAtIso": "2026-04-18T06:23:07.145Z",
+          "explicitFields": [
+            "reference_type",
+            "reference_name",
+            "channel",
+            "touch_type",
+            "status"
+          ],
+          "inferredFields": []
+        }
+      },
+      {
+        "stableKey": "touch_san-jose-ca_buyer-target-brain-corp-email-first-touch",
+        "referenceType": "buyer_target",
+        "referenceName": "Brain Corp",
+        "channel": "email",
+        "touchType": "first_touch",
+        "status": "draft",
+        "campaignId": null,
+        "issueId": null,
+        "notes": "Use the public support route and frame the message as a warehouse proof review request.",
+        "sourceUrls": [
+          "https://www.braincorp.com/legal"
+        ],
+        "explicitFields": [
+          "reference_type",
+          "reference_name",
+          "channel",
+          "touch_type",
+          "status"
+        ],
+        "inferredFields": [],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-deep-research.md",
+          "sourceKey": "first_touch_candidates[2]",
+          "sourceUrls": [
+            "https://www.braincorp.com/legal"
+          ],
+          "parsedAtIso": "2026-04-18T06:23:07.145Z",
+          "explicitFields": [
+            "reference_type",
+            "reference_name",
+            "channel",
+            "touch_type",
+            "status"
+          ],
+          "inferredFields": []
+        }
+      }
+    ],
+    "budgetRecommendations": [
+      {
+        "stableKey": "budget_san-jose-ca_outbound-0-keep-outbound-on-the-zero-budget-posture-until-a-human-changes-it",
+        "category": "outbound",
+        "amountUsd": 0,
+        "note": "Keep outbound on the zero-budget posture until a human changes it.",
+        "sourceUrls": [
+          "/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/city-launch-system-san-jose-ca.md"
+        ],
+        "explicitFields": [
+          "category",
+          "amount_usd"
+        ],
+        "inferredFields": [],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-deep-research.md",
+          "sourceKey": "budget_recommendations[0]",
+          "sourceUrls": [
+            "/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/city-launch-system-san-jose-ca.md"
+          ],
+          "parsedAtIso": "2026-04-18T06:23:07.145Z",
+          "explicitFields": [
+            "category",
+            "amount_usd"
+          ],
+          "inferredFields": []
+        }
+      },
+      {
+        "stableKey": "budget_san-jose-ca_community-0-community-placements-stay-bounded-and-draft-first-until-human-review-clears-the-lane",
+        "category": "community",
+        "amountUsd": 0,
+        "note": "Community placements stay bounded and draft-first until human review clears the lane.",
+        "sourceUrls": [
+          "/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/city-launch-system-san-jose-ca.md"
+        ],
+        "explicitFields": [
+          "category",
+          "amount_usd"
+        ],
+        "inferredFields": [],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-jose-ca-deep-research.md",
+          "sourceKey": "budget_recommendations[1]",
+          "sourceUrls": [
+            "/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/city-launch-system-san-jose-ca.md"
+          ],
+          "parsedAtIso": "2026-04-18T06:23:07.145Z",
+          "explicitFields": [
+            "category",
+            "amount_usd"
+          ],
+          "inferredFields": []
+        }
+      }
+    ],
+    "activationPayload": {
+      "schemaVersion": "2026-04-13.city-launch-activation-payload.v1",
+      "machinePolicyVersion": "2026-04-13.city-launch-doctrine.v1",
+      "city": "San Jose, CA",
+      "citySlug": "san-jose-ca",
+      "cityThesis": "Run one proof-led warehouse wedge.",
+      "primarySiteLane": "industrial_warehouse",
+      "primaryWorkflowLane": "dock handoff",
+      "primaryBuyerProofPath": "exact_site",
+      "lawfulAccessModes": [
+        "buyer_requested_site",
+        "site_operator_intro",
+        "capturer_existing_lawful_access",
+        "public_non_controlled_site"
+      ],
+      "preferredLawfulAccessMode": "buyer_requested_site",
+      "rightsPath": {
+        "summary": "Private controlled interiors require explicit authorization before capture dispatch.",
+        "privateControlledInteriorsRequireAuthorization": true,
+        "validationRequired": false,
+        "sourceUrls": [
+          "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-13T17-38-45.838Z/01-initial-research.md",
+          "/Users/nijelhunt_1/workspace/Blueprint-WebApp/docs/city-launch-system-san-jose-ca.md"
+        ]
+      },
+      "validationBlockers": [
+        {
+          "key": "buyer_stack_fit",
+          "summary": "Verify stack compatibility before public claim or live outreach.",
+          "severity": "high",
+          "ownerLane": "buyer-solutions-agent",
+          "validationRequired": true,
+          "sourceUrls": [
+            "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-13T17-38-45.838Z/01-initial-research.md"
+          ]
+        },
+        {
+          "key": "sensitive_lane_review",
+          "summary": "Verify air-gapped or export-controlled review needs before outreach to defense-adjacent buyers.",
+          "severity": "high",
+          "ownerLane": "rights-provenance-agent",
+          "validationRequired": true,
+          "sourceUrls": [
+            "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-13T17-38-45.838Z/01-initial-research.md"
+          ]
+        }
+      ],
+      "requiredApprovals": [
+        {
+          "lane": "founder",
+          "reason": "New city activation and non-standard commitments remain founder-gated."
+        }
+      ],
+      "ownerLanes": [
+        "city-launch-agent",
+        "city-demand-agent",
+        "growth-lead",
+        "ops-lead",
+        "capturer-growth-agent",
+        "buyer-solutions-agent",
+        "analytics-agent",
+        "intake-agent",
+        "rights-provenance-agent",
+        "revenue-ops-pricing-agent"
+      ],
+      "issueSeeds": [
+        {
+          "key": "city-target-ledger",
+          "title": "Maintain the San Jose capture target ledger",
+          "phase": "founder_gates",
+          "ownerLane": "city-demand-agent",
+          "humanLane": "growth-lead",
+          "summary": "Rank the first San Jose proof candidates and discovery lanes against the exact-site hosted-review wedge.",
+          "dependencyKeys": [],
+          "successCriteria": [
+            "The first proof candidates and queued lawful-access buckets are named."
+          ],
+          "metricsDependencies": [
+            "first_lawful_access_path"
+          ],
+          "validationRequired": false
+        },
+        {
+          "key": "city-opening-distribution",
+          "title": "Build the San Jose city-opening distribution brief and channel map",
+          "phase": "founder_gates",
+          "ownerLane": "city-launch-agent",
+          "humanLane": "growth-lead",
+          "summary": "Define who needs to hear about the San Jose motion and which channels are in scope.",
+          "dependencyKeys": [
+            "city-target-ledger"
+          ],
+          "successCriteria": [
+            "A warehouse/facility direct-awareness track and a bounded public-commercial track exist."
+          ],
+          "metricsDependencies": [],
+          "validationRequired": false
+        },
+        {
+          "key": "city-opening-cta-routing",
+          "title": "Publish the San Jose city-facing CTA and intake routing path",
+          "phase": "founder_gates",
+          "ownerLane": "ops-lead",
+          "humanLane": "ops-lead",
+          "summary": "Route San Jose replies into the live intake path instead of ad hoc side conversations.",
+          "dependencyKeys": [
+            "city-opening-distribution"
+          ],
+          "successCriteria": [
+            "A named CTA path exists with city, lane, source, and owner routing."
+          ],
+          "metricsDependencies": [],
+          "validationRequired": false
+        },
+        {
+          "key": "city-opening-first-wave-pack",
+          "title": "Assemble the San Jose first-wave outreach and posting pack",
+          "phase": "supply",
+          "ownerLane": "capturer-growth-agent",
+          "humanLane": "growth-lead",
+          "summary": "Turn the city-opening brief into concrete first-wave assets that can create the first responses.",
+          "dependencyKeys": [
+            "city-opening-distribution",
+            "city-opening-cta-routing"
+          ],
+          "successCriteria": [
+            "First-wave outreach and posting variants exist and point to the same truthful CTA path."
+          ],
+          "metricsDependencies": [],
+          "validationRequired": false
+        },
+        {
+          "key": "ops-rubric-thresholds",
+          "title": "Publish San Jose intake rubric, trust kit, and first-capture thresholds",
+          "phase": "founder_gates",
+          "ownerLane": "ops-lead",
+          "humanLane": "ops-lead",
+          "summary": "Give Intake, Field Ops, QA, and Rights lanes explicit San Jose rules.",
+          "dependencyKeys": [],
+          "successCriteria": [
+            "The San Jose rubric covers source quality, access-path truth, equipment fit, and approval outcomes."
+          ],
+          "metricsDependencies": [],
+          "validationRequired": false
+        },
+        {
+          "key": "supply-prospects",
+          "title": "Build the San Jose capturer prospect list and post package",
+          "phase": "supply",
+          "ownerLane": "capturer-growth-agent",
+          "humanLane": "growth-lead",
+          "summary": "Generate the first San Jose professional supply wave and keep it rights-safe.",
+          "dependencyKeys": [
+            "city-target-ledger",
+            "city-opening-first-wave-pack",
+            "city-opening-cta-routing"
+          ],
+          "successCriteria": [
+            "A curated first-wave San Jose prospect set is named with source bucket, rationale, and lawful access posture."
+          ],
+          "metricsDependencies": [],
+          "validationRequired": false
+        },
+        {
+          "key": "public-commercial-community-sourcing",
+          "title": "Run San Jose public-commercial community sourcing",
+          "phase": "supply",
+          "ownerLane": "capturer-growth-agent",
+          "humanLane": "growth-lead",
+          "summary": "Open a bounded online-community sourcing lane for public, non-controlled commercial locations.",
+          "dependencyKeys": [
+            "city-opening-first-wave-pack",
+            "city-opening-cta-routing"
+          ],
+          "successCriteria": [
+            "At least one public-commercial sourcing channel is named and bounded to public areas only."
+          ],
+          "metricsDependencies": [],
+          "validationRequired": false
+        },
+        {
+          "key": "site-operator-partnership",
+          "title": "Run San Jose site-operator partnership routing",
+          "phase": "founder_gates",
+          "ownerLane": "city-launch-agent",
+          "humanLane": "growth-lead",
+          "summary": "Prepare the operator-side access path for San Jose warehouses and facilities.",
+          "dependencyKeys": [
+            "city-opening-distribution",
+            "city-target-ledger"
+          ],
+          "successCriteria": [
+            "The first operator-outreach draft or intro packet is ready for human review."
+          ],
+          "metricsDependencies": [
+            "first_lawful_access_path"
+          ],
+          "validationRequired": false
+        }
+      ],
+      "metricsDependencies": [
+        {
+          "key": "robot_team_inbound_captured",
+          "kind": "event",
+          "status": "required_not_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Implement before expecting autonomous governance."
+        },
+        {
+          "key": "proof_path_assigned",
+          "kind": "event",
+          "status": "required_not_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Implement before expecting autonomous governance."
+        },
+        {
+          "key": "proof_pack_delivered",
+          "kind": "event",
+          "status": "required_not_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Implement before expecting autonomous governance."
+        },
+        {
+          "key": "hosted_review_ready",
+          "kind": "event",
+          "status": "required_not_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Implement before expecting autonomous governance."
+        },
+        {
+          "key": "hosted_review_started",
+          "kind": "event",
+          "status": "required_not_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Implement before expecting autonomous governance."
+        },
+        {
+          "key": "hosted_review_follow_up_sent",
+          "kind": "event",
+          "status": "required_not_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Implement before expecting autonomous governance."
+        },
+        {
+          "key": "human_commercial_handoff_started",
+          "kind": "event",
+          "status": "required_not_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Implement before expecting autonomous governance."
+        },
+        {
+          "key": "proof_motion_stalled",
+          "kind": "event",
+          "status": "required_not_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Implement before expecting autonomous governance."
+        },
+        {
+          "key": "first_lawful_access_path",
+          "kind": "milestone",
+          "status": "required_not_tracked",
+          "ownerLane": "city-demand-agent",
+          "notes": "Required before the city widens."
+        },
+        {
+          "key": "first_approved_capturer",
+          "kind": "milestone",
+          "status": "required_not_tracked",
+          "ownerLane": "ops-lead",
+          "notes": "Required before the first capture lane can scale."
+        },
+        {
+          "key": "first_completed_capture",
+          "kind": "milestone",
+          "status": "required_not_tracked",
+          "ownerLane": "capture-qa-agent",
+          "notes": "Required before proof-pack assembly claims."
+        },
+        {
+          "key": "first_rights_cleared_proof_asset",
+          "kind": "milestone",
+          "status": "required_not_tracked",
+          "ownerLane": "rights-provenance-agent",
+          "notes": "Required before buyer-visible proof claims."
+        },
+        {
+          "key": "first_proof_pack_delivery",
+          "kind": "milestone",
+          "status": "required_not_tracked",
+          "ownerLane": "buyer-solutions-agent",
+          "notes": "Required before hosted-review conversion claims."
+        },
+        {
+          "key": "first_hosted_review",
+          "kind": "milestone",
+          "status": "required_not_tracked",
+          "ownerLane": "buyer-solutions-agent",
+          "notes": "Required before widening."
+        },
+        {
+          "key": "first_human_commercial_handoff",
+          "kind": "milestone",
+          "status": "required_not_tracked",
+          "ownerLane": "revenue-ops-pricing-agent",
+          "notes": "Required before broader commercial claims."
+        }
+      ],
+      "namedClaims": [
+        {
+          "subject": "San Jose industrial wedge",
+          "claimType": "company",
+          "claim": "San Jose contains a strong industrial and advanced manufacturing wedge for exact-site proof motion.",
+          "validationRequired": false,
+          "sourceUrls": [
+            "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-13T17-38-45.838Z/01-initial-research.md"
+          ]
+        },
+        {
+          "subject": "Applied Intuition",
+          "claimType": "company",
+          "claim": "Applied Intuition is a relevant physical AI buyer reference with a public contact route.",
+          "validationRequired": false,
+          "sourceUrls": [
+            "https://www.appliedintuition.com/contact",
+            "https://www.appliedintuition.com/security",
+            "https://www.appliedintuition.com/press-kit"
+          ]
+        },
+        {
+          "subject": "AutoX",
+          "claimType": "company",
+          "claim": "AutoX exposes a public business inquiry route at contact@autox.ai and lists a San Jose Silicon Valley R&D location.",
+          "validationRequired": false,
+          "sourceUrls": [
+            "https://www.autox.ai/ko/contact.html"
+          ]
+        },
+        {
+          "subject": "Brain Corp",
+          "claimType": "company",
+          "claim": "Brain Corp exposes public support and data-inquiry contact routes that can serve as a recipient-backed first-wave route.",
+          "validationRequired": false,
+          "sourceUrls": [
+            "https://www.braincorp.com/legal",
+            "https://www.braincorp.com/privacy",
+            "https://www.braincorp.com/es/contact"
+          ]
+        },
+        {
+          "subject": "Edenvale / Prologis corridor",
+          "claimType": "company",
+          "claim": "The Edenvale Industrial Park and Prologis STEM Park corridor is the primary warehouse-site reference in the research.",
+          "validationRequired": false,
+          "sourceUrls": [
+            "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/san-jose-ca/2026-04-13T17-38-45.838Z/01-initial-research.md"
+          ]
+        }
+      ]
+    },
+    "warnings": [
+      "Activation-ready capturer direct-outreach lanes for San Jose, CA have named targets but no explicit contact_email evidence."
+    ],
+    "errors": []
+  },
+  "activationPayloadPresent": true,
+  "activationIssueSeeds": 8,
+  "prospectsUpserted": 3,
+  "buyerTargetsUpserted": 3,
+  "touchesRecorded": 3,
+  "budgetRecommendationsRecorded": 2,
+  "contactEnrichmentStatus": "no_changes",
+  "contactEnrichmentArtifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/san-jose-ca/2026-04-18T06-23-00.436Z/city-launch-research-materialization-san-jose-ca.contact-enrichment.json",
+  "warnings": [
+    "Activation-ready capturer direct-outreach lanes for San Jose, CA have named targets but no explicit contact_email evidence."
+  ]
+}

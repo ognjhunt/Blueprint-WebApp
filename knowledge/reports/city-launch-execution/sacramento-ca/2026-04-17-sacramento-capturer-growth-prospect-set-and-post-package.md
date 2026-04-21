@@ -2,7 +2,7 @@
 authority: draft
 source_system: paperclip
 source_urls:
-  - "paperclip://issue/62a3c57d-2243-4b8d-94f2-64d17e7442b7"
+  - "paperclip://issue/55b01c1c-9728-422a-a5ea-d112332762b3"
   - "repo:///ops/paperclip/playbooks/capturer-supply-playbook.md"
   - "repo:///ops/paperclip/playbooks/city-launch-sacramento-ca-execution-issue-bundle.md"
   - "repo:///ops/paperclip/playbooks/city-launch-sacramento-ca.md"
@@ -17,7 +17,7 @@ subject_key: sacramento-capturer-growth-prospect-set
 review_status: active
 canonical_refs:
   - system: issue
-    ref: "issue://62a3c57d-2243-4b8d-94f2-64d17e7442b7"
+    ref: "issue://55b01c1c-9728-422a-a5ea-d112332762b3"
   - system: report
     ref: "knowledge/reports/city-launch-execution/sacramento-ca/2026-04-17-sacramento-launch-scorecard-and-blocker-view.md"
   - system: report
@@ -35,12 +35,13 @@ entity_tags:
 ## Summary
 
 Sacramento supply should stay professional, site-authorized, and draft-first.
-This run does not authorize any live send, but it does tighten the reusable capturer wave around the actual city posture for `BLU-3090`:
+This run does not authorize any live send, but it does tighten the reusable capturer wave around the actual city posture for `BLU-3221`:
 
 - private controlled interiors stay on lawful access only
 - public recruiting stays secondary and bounded
 - professional operators outrank generic gig recruiting
 - campus and event channels stay as gated feeder lanes, not the core industrial wedge
+- the first-wave pack should split direct outreach from bounded public-commercial placement so response routing stays clean
 
 ## Evidence
 
@@ -48,7 +49,7 @@ This run does not authorize any live send, but it does tighten the reusable capt
 - The capturer playbook says the target capturer is a site-authorized surveying, AEC scanning, industrial inspection, or commercial mapping operator.
 - The playbook also says public community sourcing for capturers must stay bounded to lawful public areas until local evidence proves first-action quality and repeat reliability.
 - The Sacramento deep research consistently points to UC Davis technical communities, FIRA USA, and local professional networks as feeder lanes, while the industrial wedge depends on insured professional operators with explicit access paths.
-- The Sacramento launch issue `BLU-3090` requires a first-wave professional supply set with source bucket, rationale, lawful access posture, and next move.
+- The Sacramento launch issue `BLU-3221` requires a first-wave professional supply set with source bucket, rationale, lawful access posture, and next move.
 
 ## First-Wave Prospect Set
 

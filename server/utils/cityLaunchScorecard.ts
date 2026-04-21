@@ -1,5 +1,6 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { normalizeDemandCity } from "../../client/src/lib/cityDemandMessaging";
+import { getConfiguredEnvValue } from "../config/env";
 import { decryptInboundRequestForAdmin } from "./field-encryption";
 import type { InboundRequest, InboundRequestStored } from "../types/inbound-request";
 import { buildCityLaunchWideningGuard } from "./cityLaunchPolicy";
@@ -64,6 +65,13 @@ export type CityLaunchScorecard = {
       ownerLane: string | null;
       notes: string | null;
     }>;
+    executionStates: {
+      proofAsset: "missing" | "ready";
+      proofPack: "missing" | "delivered";
+      hostedReview: "missing" | "ready" | "started" | "follow_up_sent";
+      commercialHandoff: "missing" | "started";
+      analyticsSource: "first_party_only" | "firehose_enriched";
+    };
     sourceActivationPayloadPath: string | null;
   };
   warnings: string[];
@@ -236,6 +244,13 @@ function countEvent(
     const name = typeof event.event === "string" ? event.event : "";
     return name === eventName && eventMatchesCity(citySlug, event);
   }).length;
+}
+
+function firehoseConfigured() {
+  return Boolean(
+    getConfiguredEnvValue("FIREHOSE_API_TOKEN")
+      && getConfiguredEnvValue("FIREHOSE_BASE_URL"),
+  );
 }
 
 function buildMetricDependencyStatus(input: {
@@ -461,6 +476,19 @@ export async function collectCityLaunchScorecard(city: string): Promise<CityLaun
     .filter((dependency) => dependency.status !== "verified")
     .map((dependency) => `${dependency.key} is ${dependency.status}.`);
 
+  const analyticsSource = firehoseConfigured() ? "firehose_enriched" : "first_party_only";
+  const proofAssetState = proofReadyListings > 0 ? "ready" : "missing";
+  const proofPackState = proofPacksDelivered > 0 ? "delivered" : "missing";
+  const hostedReviewState =
+    hostedFollowUps > 0
+      ? "follow_up_sent"
+      : hostedReviewsStarted > 0
+        ? "started"
+        : hostedReviewsReady > 0
+          ? "ready"
+          : "missing";
+  const commercialHandoffState = commercialHandoffs > 0 ? "started" : "missing";
+
   const wideningGuard = buildCityLaunchWideningGuard({
     proofReadyListings,
     hostedReviewsStarted,
@@ -471,6 +499,9 @@ export async function collectCityLaunchScorecard(city: string): Promise<CityLaun
   });
 
   const warnings = [
+    ...(analyticsSource === "first_party_only"
+      ? ["Firehose enrichment unavailable; using first-party city-launch ledgers only."]
+      : []),
     `${profile.shortLabel} proof-ready listing count is derived from city-matching inbound requests with proof-pack or hosted-review readiness, because published marketplace inventory does not yet carry an explicit city field.`,
     ...(activationPayload
       ? activationPayload.validationBlockers
@@ -690,6 +721,13 @@ export async function collectCityLaunchScorecard(city: string): Promise<CityLaun
           ownerLane: blocker.ownerLane,
         })) || [],
       metricsDependencies: metricDependencies,
+      executionStates: {
+        proofAsset: proofAssetState,
+        proofPack: proofPackState,
+        hostedReview: hostedReviewState,
+        commercialHandoff: commercialHandoffState,
+        analyticsSource,
+      },
       sourceActivationPayloadPath: research?.artifactPath || null,
     },
     warnings,
