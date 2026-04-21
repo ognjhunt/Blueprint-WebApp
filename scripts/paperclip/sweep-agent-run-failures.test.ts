@@ -374,6 +374,71 @@ describe("sweep agent run failures", () => {
     expect(split.suppressedRecoveredCandidates).toHaveLength(1);
   });
 
+  it("suppresses failure candidates whose related issues are already resolved", () => {
+    const signature = classifyFailureSignature({
+      run: {
+        id: "run-tool-runtime-resolved-issue",
+        agentId: "agent-tool-runtime",
+        companyId: "company-1",
+        status: "failed",
+        errorCode: "tool_runtime_unavailable",
+        exitCode: 1,
+      },
+      logText: `
+        ERROR codex_core::tools::router: error=exec_command failed for /bin/bash -lc "pwd": CreateProcess { message: "Rejected(\\"Failed to create unified exec process: No such file or directory (os error 2)\\")" }
+      `,
+    });
+
+    const split = splitRecoveredCandidates(
+      [
+        {
+          run: {
+            id: "run-tool-runtime-resolved-issue",
+            agentId: "agent-tool-runtime",
+            companyId: "company-1",
+            status: "failed",
+            createdAt: "2026-04-20T23:18:57.340Z",
+            errorCode: "tool_runtime_unavailable",
+            exitCode: 1,
+            contextSnapshot: {
+              issueId: "issue-1",
+              taskId: "issue-1",
+              taskKey: "issue-1",
+            },
+          },
+          agent: { id: "agent-tool-runtime", name: "Blueprint CTO", urlKey: "blueprint-cto" },
+          issues: [{ id: "issue-1", identifier: "BLU-2123", status: "done" }],
+          bestText: "Codex lost access to its local exec tooling during the run.",
+          logText: `
+            ERROR codex_core::tools::router: error=exec_command failed for /bin/bash -lc "pwd": CreateProcess { message: "Rejected(\\"Failed to create unified exec process: No such file or directory (os error 2)\\")" }
+          `,
+          signature,
+          stalled: false,
+        },
+      ],
+      [
+        {
+          id: "run-tool-runtime-resolved-issue",
+          agentId: "agent-tool-runtime",
+          companyId: "company-1",
+          status: "failed",
+          createdAt: "2026-04-20T23:18:57.340Z",
+          errorCode: "tool_runtime_unavailable",
+          exitCode: 1,
+          contextSnapshot: {
+            issueId: "issue-1",
+            taskId: "issue-1",
+            taskKey: "issue-1",
+          },
+        },
+      ],
+      20,
+    );
+
+    expect(split.visibleCandidates).toHaveLength(0);
+    expect(split.suppressedRecoveredCandidates).toHaveLength(1);
+  });
+
   it("suppresses quota failures after the agent has already been switched off Hermes", () => {
     const signature = classifyFailureSignature({
       run: {

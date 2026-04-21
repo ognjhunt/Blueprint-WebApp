@@ -29,6 +29,7 @@ type AgentRecord = {
 type IssueRecord = {
   id: string;
   identifier?: string | null;
+  status?: string | null;
   title?: string | null;
 };
 
@@ -657,6 +658,15 @@ function isRecoverableQuotaFamily(signature: FailureSignature) {
   );
 }
 
+function isResolvedIssueStatus(status: string | undefined | null) {
+  const normalized = normalizeWhitespace(status ?? "").toLowerCase();
+  return normalized === "done" || normalized === "cancelled" || normalized === "canceled";
+}
+
+function hasOnlyResolvedIssues(candidate: CandidateRun) {
+  return candidate.issues.length > 0 && candidate.issues.every((issue) => isResolvedIssueStatus(issue.status));
+}
+
 function isQuotaFailureStaleAfterAdapterSwitch(
   candidate: CandidateRun,
   currentAgent: AgentRecord | undefined,
@@ -693,6 +703,11 @@ export function splitRecoveredCandidates(
 
   for (const candidate of candidates) {
     if (isCompletedTurnToolRuntimeFalseFailure(candidate)) {
+      suppressedRecoveredCandidates.push(candidate);
+      continue;
+    }
+
+    if (hasOnlyResolvedIssues(candidate)) {
       suppressedRecoveredCandidates.push(candidate);
       continue;
     }
