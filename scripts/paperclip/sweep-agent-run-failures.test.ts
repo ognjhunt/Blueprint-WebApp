@@ -511,6 +511,78 @@ describe("sweep agent run failures", () => {
     expect(split.suppressedRecoveredCandidates).toHaveLength(1);
   });
 
+  it("suppresses failures when the same issue scope is actively recovering on a different agent", () => {
+    const signature = classifyFailureSignature({
+      run: {
+        id: "run-chief-of-staff-hermes-start-failed",
+        agentId: "agent-chief-of-staff",
+        companyId: "company-1",
+        status: "failed",
+        contextSnapshot: {
+          issueId: "issue-1",
+          taskId: "issue-1",
+          taskKey: "issue-1",
+        },
+      },
+      logText: 'Failed to start command "hermes" in "/tmp/project". Verify adapter command, working directory, and PATH.',
+    });
+
+    const split = splitRecoveredCandidates(
+      [
+        {
+          run: {
+            id: "run-chief-of-staff-hermes-start-failed",
+            agentId: "agent-chief-of-staff",
+            companyId: "company-1",
+            status: "failed",
+            createdAt: "2026-04-21T00:15:20.189Z",
+            contextSnapshot: {
+              issueId: "issue-1",
+              taskId: "issue-1",
+              taskKey: "issue-1",
+            },
+          },
+          agent: { id: "agent-chief-of-staff", name: "Chief of Staff", urlKey: "blueprint-chief-of-staff", adapterType: "hermes_local" },
+          issues: [{ id: "issue-1", identifier: "BLU-4261", status: "backlog" }],
+          bestText: 'Failed to start command "hermes" in "/tmp/project". Verify adapter command, working directory, and PATH.',
+          signature,
+          stalled: false,
+        },
+      ],
+      [
+        {
+          id: "run-chief-of-staff-hermes-start-failed",
+          agentId: "agent-chief-of-staff",
+          companyId: "company-1",
+          status: "failed",
+          createdAt: "2026-04-21T00:15:20.189Z",
+          contextSnapshot: {
+            issueId: "issue-1",
+            taskId: "issue-1",
+            taskKey: "issue-1",
+          },
+        },
+        {
+          id: "run-ops-lead-recovery",
+          agentId: "agent-ops-lead",
+          companyId: "company-1",
+          status: "running",
+          createdAt: "2026-04-21T00:37:40.258Z",
+          startedAt: "2026-04-21T00:37:40.453Z",
+          contextSnapshot: {
+            issueId: "issue-1",
+            taskId: "issue-1",
+            taskKey: "issue-1",
+          },
+        },
+      ],
+      20,
+    );
+
+    expect(split.visibleCandidates).toHaveLength(0);
+    expect(split.suppressedRecoveredCandidates).toHaveLength(1);
+  });
+
   it("suppresses quota failures after the agent has already been switched off Hermes", () => {
     const signature = classifyFailureSignature({
       run: {

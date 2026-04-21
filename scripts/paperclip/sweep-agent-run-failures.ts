@@ -675,7 +675,6 @@ function hasLaterActiveRecoveryRun(
   const candidateCreatedAt = safeDateRank(candidate.run.createdAt);
   return runs.some((run) => (
     run.id !== candidate.run.id
-    && run.agentId === candidate.run.agentId
     && safeDateRank(run.createdAt) > candidateCreatedAt
     && isActiveRecoveryRun(run, stalledMinutes)
     && hasMatchingRecoveryScope(candidate.run, run)

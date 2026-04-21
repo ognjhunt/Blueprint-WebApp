@@ -38,7 +38,7 @@ sysctl --system >/dev/null
 mkdir -p "$SYSTEMD_DROPIN_DIR"
 cat > "$SYSTEMD_DROPIN_PATH" <<'EOF'
 [Service]
-Environment=BLUEPRINT_PAPERCLIP_NODE_OPTIONS=--max-old-space-size=2560
+Environment=BLUEPRINT_PAPERCLIP_NODE_OPTIONS=--max-old-space-size=3072
 Environment=MALLOC_ARENA_MAX=2
 EOF
 
