@@ -1,8 +1,71 @@
-import { requireConfiguredEnvValue } from "../config/env";
+import {
+  getConfiguredEnvValue,
+  requireConfiguredEnvValue,
+} from "../config/env";
 import { logger } from "../logger";
 
-export const GEMINI_DEEP_RESEARCH_AGENT = "deep-research-pro-preview-12-2025";
+export const GEMINI_DEEP_RESEARCH_STANDARD_AGENT = "deep-research-preview-04-2026";
+export const GEMINI_DEEP_RESEARCH_MAX_AGENT = "deep-research-max-preview-04-2026";
+export const GEMINI_DEEP_RESEARCH_LEGACY_AGENT = "deep-research-pro-preview-12-2025";
+export const GEMINI_DEEP_RESEARCH_AGENT = GEMINI_DEEP_RESEARCH_MAX_AGENT;
 export const GEMINI_PLANNING_MODEL = "gemini-3.1-pro-preview";
+
+export type GeminiDeepResearchThinkingSummaries = "none" | "auto";
+export type GeminiDeepResearchVisualization = "off" | "auto";
+
+export interface GeminiDeepResearchAgentConfig {
+  type: "deep-research";
+  thinking_summaries: GeminiDeepResearchThinkingSummaries;
+  visualization: GeminiDeepResearchVisualization;
+  collaborative_planning: boolean;
+}
+
+export function resolveGeminiDeepResearchAgent(input?: {
+  explicitAgent?: string | null;
+  envKeys?: string[];
+}) {
+  const configuredAgent =
+    input?.explicitAgent?.trim()
+    || getConfiguredEnvValue(
+      ...(input?.envKeys || ["BLUEPRINT_DEEP_RESEARCH_AGENT"]),
+    );
+
+  if (!configuredAgent) {
+    return GEMINI_DEEP_RESEARCH_AGENT;
+  }
+
+  const normalized = configuredAgent.trim().toLowerCase();
+  if (
+    normalized === "max"
+    || configuredAgent === GEMINI_DEEP_RESEARCH_MAX_AGENT
+    || configuredAgent === GEMINI_DEEP_RESEARCH_LEGACY_AGENT
+  ) {
+    return GEMINI_DEEP_RESEARCH_MAX_AGENT;
+  }
+
+  if (
+    normalized === "standard"
+    || normalized === "deep-research"
+    || configuredAgent === GEMINI_DEEP_RESEARCH_STANDARD_AGENT
+  ) {
+    return GEMINI_DEEP_RESEARCH_STANDARD_AGENT;
+  }
+
+  return configuredAgent;
+}
+
+export function buildGeminiDeepResearchAgentConfig(input?: {
+  collaborativePlanning?: boolean;
+  thinkingSummaries?: GeminiDeepResearchThinkingSummaries;
+  visualization?: GeminiDeepResearchVisualization;
+}) {
+  return {
+    type: "deep-research",
+    thinking_summaries: input?.thinkingSummaries ?? "auto",
+    visualization: input?.visualization ?? "auto",
+    collaborative_planning: input?.collaborativePlanning ?? false,
+  } satisfies GeminiDeepResearchAgentConfig;
+}
 
 export type GeminiInteractionStatus =
   | "queued"

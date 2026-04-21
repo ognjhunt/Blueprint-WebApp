@@ -1,11 +1,12 @@
 import { SEO } from "@/components/SEO";
-import { ArrowRight, Mail, ShieldCheck } from "lucide-react";
-
-const heroSignals = [
-  "Real-site product surfaces",
-  "Rights and provenance stay visible",
-  "Built for serious robot-team decisions",
-];
+import {
+  EditorialCtaBand,
+  EditorialSectionIntro,
+  EditorialSectionLabel,
+  MonochromeMedia,
+  ProofChip,
+} from "@/components/site/editorial";
+import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
 
 const companyCards = [
   {
@@ -26,14 +27,6 @@ const storySteps = [
   "That lets the team decide whether to keep moving on the exact site instead of spending time on vague assumptions.",
 ];
 
-function SectionLabel({ children }: { children: string }) {
-  return (
-    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-      {children}
-    </p>
-  );
-}
-
 export default function About() {
   return (
     <>
@@ -43,147 +36,98 @@ export default function About() {
         canonical="/about"
       />
 
-      <div className="overflow-hidden bg-[#f6f1e8] text-slate-950">
-        <section className="relative border-b border-black/10">
-          <div className="absolute inset-x-0 top-0 h-[36rem] bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_40%),radial-gradient(circle_at_82%_12%,_rgba(14,116,144,0.12),_transparent_24%),linear-gradient(180deg,_rgba(255,255,255,0.78),_rgba(246,241,232,0.96))]" />
-          <div className="absolute left-[-7rem] top-20 h-56 w-56 rounded-full bg-[#dbe7df] blur-3xl" />
-          <div className="absolute right-[-8rem] top-12 h-72 w-72 rounded-full bg-[#eadfca] blur-3xl" />
-
-          <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-18 lg:px-8 lg:py-24">
-            <div className="grid gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-end">
-              <div className="max-w-3xl">
-                <SectionLabel>About Blueprint</SectionLabel>
-                <h1 className="font-editorial mt-5 text-[3.35rem] leading-[0.95] tracking-[-0.05em] text-slate-950 sm:text-[4.5rem]">
+      <div className="bg-[#f5f3ef] text-slate-950">
+        <section className="border-b border-black/10">
+          <MonochromeMedia
+            src={editorialGeneratedAssets.homeHero}
+            alt="About Blueprint hero"
+            className="min-h-[40rem] rounded-none"
+            loading="eager"
+            imageClassName="min-h-[40rem]"
+            overlayClassName="bg-[linear-gradient(90deg,rgba(0,0,0,0.82)_0%,rgba(0,0,0,0.58)_34%,rgba(0,0,0,0.18)_78%)]"
+          >
+            <div className="absolute inset-0">
+              <div className="mx-auto grid h-full max-w-[88rem] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[0.62fr_0.38fr] lg:px-10 lg:py-16">
+                <div className="flex min-h-[32rem] flex-col justify-end">
+                <EditorialSectionLabel light>About Blueprint</EditorialSectionLabel>
+                <h1 className="font-editorial mt-6 max-w-[36rem] text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5rem]">
                   Blueprint exists to make one real site legible earlier.
                 </h1>
-                <p className="mt-5 max-w-2xl text-base leading-8 text-slate-700 sm:text-[1.05rem]">
+                <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/72">
                   Blueprint helps robot teams inspect one exact facility sooner, choose the right product path, and keep rights, privacy, provenance, and hosted-access boundaries readable along the way.
                 </p>
               </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                {heroSignals.map((item) => (
-                  <article
-                    key={item}
-                    className="rounded-[1.65rem] border border-black/10 bg-white/82 p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.28)]"
-                  >
-                    <p className="text-sm font-semibold text-slate-900">{item}</p>
-                  </article>
-                ))}
+                <div className="hidden flex-wrap content-end gap-2 lg:flex lg:justify-end">
+                  <ProofChip light>Real-site product surfaces</ProofChip>
+                  <ProofChip light>Rights and provenance stay visible</ProofChip>
+                  <ProofChip light>Built for serious robot-team decisions</ProofChip>
+                </div>
               </div>
             </div>
-          </div>
+          </MonochromeMedia>
         </section>
 
-        <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
-          <div className="grid gap-4 lg:grid-cols-[0.42fr_0.58fr]">
-            <article className="rounded-[1.95rem] border border-black/10 bg-slate-950 p-6 text-white shadow-[0_22px_50px_-40px_rgba(15,23,42,0.75)]">
-              <div className="flex items-start gap-3">
-                <div className="rounded-2xl bg-white/10 p-3 text-white">
-                  <ShieldCheck className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/55">
-                    Founder
-                  </p>
-                  <h2 className="mt-2 text-2xl font-semibold">Built by Nijel Hunt.</h2>
-                </div>
-              </div>
-              <p className="mt-5 text-sm leading-7 text-white/76">
+        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+          <div className="grid gap-4 lg:grid-cols-[0.38fr_0.62fr]">
+            <div className="bg-slate-950 p-6 text-white">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Founder note</p>
+              <h2 className="font-editorial mt-4 text-[2.4rem] leading-[0.94] tracking-[-0.04em]">
+                Built by Nijel Hunt.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-white/72">
                 Background in robotics simulation, 3D capture, and deployment operations. Blueprint is built around the gap between an interesting robotics demo and serious site-specific deployment work.
               </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <a
-                  href="https://www.linkedin.com/in/nijelhunt/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center justify-center rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
-                >
-                  Founder LinkedIn
-                </a>
-                <a
-                  href="mailto:hello@tryblueprint.io"
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
-                >
-                  <Mail className="h-4 w-4" />
-                  hello@tryblueprint.io
-                </a>
-              </div>
-            </article>
-
-            <article className="rounded-[1.95rem] border border-black/10 bg-white/88 p-6 shadow-[0_18px_40px_-36px_rgba(15,23,42,0.28)]">
-              <SectionLabel>Company Framing</SectionLabel>
-              <h2 className="font-editorial mt-4 text-4xl tracking-[-0.05em] text-slate-950 sm:text-[3.2rem]">
-                What Blueprint is and what it is not.
-              </h2>
+            </div>
+            <div className="bg-white p-6">
+              <EditorialSectionIntro
+                eyebrow="Company framing"
+                title="What Blueprint is and what it is not."
+              />
               <div className="mt-6 grid gap-4 md:grid-cols-2">
                 {companyCards.map((card) => (
-                  <div key={card.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                    <h3 className="text-2xl font-semibold tracking-tight text-slate-900">{card.title}</h3>
-                    <p className="mt-3 text-sm leading-7 text-slate-600">{card.body}</p>
+                  <div key={card.title} className="border border-black/10 bg-[#f5f3ef] p-5">
+                    <h2 className="font-editorial text-[1.9rem] leading-[0.95] tracking-[-0.04em] text-slate-950">
+                      {card.title}
+                    </h2>
+                    <p className="mt-4 text-sm leading-7 text-slate-600">{card.body}</p>
                   </div>
                 ))}
               </div>
-            </article>
+            </div>
           </div>
         </section>
 
-        <section className="border-y border-black/10 bg-white/55">
-          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
-            <div className="max-w-2xl">
-              <SectionLabel>Decision Story</SectionLabel>
-              <h2 className="font-editorial mt-4 text-4xl tracking-[-0.05em] text-slate-950 sm:text-[3.2rem]">
-                Why this matters before the expensive part starts.
-              </h2>
-            </div>
-
+        <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+            <EditorialSectionIntro
+              eyebrow="Decision story"
+              title="Why this matters before the expensive part starts."
+              className="max-w-3xl"
+            />
             <div className="mt-8 grid gap-4 md:grid-cols-3">
               {storySteps.map((step, index) => (
-                <article
-                  key={step}
-                  className="rounded-[1.85rem] border border-black/10 bg-white/88 p-6 shadow-[0_18px_40px_-36px_rgba(15,23,42,0.26)]"
-                >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold text-white">
-                    {index + 1}
-                  </div>
+                <div key={step} className="bg-[#f5f3ef] p-6">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">0{index + 1}</p>
                   <p className="mt-4 text-sm leading-7 text-slate-700">{step}</p>
-                </article>
+                </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="pb-20 pt-14 sm:pt-18">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="overflow-hidden rounded-[2.15rem] border border-black/10 bg-slate-950 px-6 py-8 text-white shadow-[0_26px_70px_-48px_rgba(15,23,42,0.85)] sm:px-8">
-              <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-end">
-                <div className="max-w-2xl">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/55">
-                    Next Step
-                  </p>
-                  <p className="mt-3 text-sm leading-7 text-white/72">
-                    Start with the public catalog if you want to inspect the proof style, or contact Blueprint when your team already has one exact site and one real question in mind.
-                  </p>
-                </div>
-                <div className="grid gap-3">
-                  <a
-                    href="/world-models"
-                    className="inline-flex items-center justify-between rounded-2xl bg-white px-5 py-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
-                  >
-                    Explore world models
-                    <ArrowRight className="h-4 w-4" />
-                  </a>
-                  <a
-                    href="/contact?persona=robot-team"
-                    className="inline-flex items-center justify-between rounded-2xl border border-white/15 bg-white/5 px-5 py-4 text-sm font-semibold text-white transition hover:bg-white/10"
-                  >
-                    Contact Blueprint
-                    <ArrowRight className="h-4 w-4" />
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
+        <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
+          <EditorialCtaBand
+            eyebrow="Next step"
+            title="Start with the public proof or bring one exact site."
+            description="Browse the public catalog if you want to inspect the proof style first, or contact Blueprint when the facility is already known."
+            imageSrc={editorialGeneratedAssets.scopingRoom}
+            imageAlt="Blueprint scoping room"
+            primaryHref="/world-models"
+            primaryLabel="Explore world models"
+            secondaryHref="/contact?persona=robot-team"
+            secondaryLabel="Contact Blueprint"
+            dark={false}
+          />
         </section>
       </div>
     </>

@@ -8,7 +8,7 @@ Scope: Routing policy for image-heavy brand, marketing, and frontend work across
 
 Source note:
 - OpenAI, "Codex for (almost) everything," published April 16, 2026:
-  Codex can use `gpt-image-1.5` to generate and iterate on images inside the same workflow as screenshots and code.
+  Codex can use `gpt-image-2` to generate and iterate on images inside the same workflow as screenshots and code.
 
 ## Decision
 
@@ -39,7 +39,7 @@ These lanes should use Codex-native image generation by default when the assigne
 
 | Agent | Current runtime role | Policy |
 |---|---|---|
-| `webapp-codex` | Codex implementation lane for `Blueprint-WebApp` | Default execution lane for brand, marketing, and frontend image generation in Codex using OAuth-backed `gpt-image-1.5`. |
+| `webapp-codex` | Codex implementation lane for `Blueprint-WebApp` | Default execution lane for brand, marketing, and frontend image generation in Codex using OAuth-backed `gpt-image-2`. |
 
 ### Route Image Work To Codex
 
@@ -91,7 +91,7 @@ When a Hermes lane needs imagery:
 
 When `webapp-codex` receives image-heavy work:
 
-1. use Codex desktop's native image workflow with OAuth-backed `gpt-image-1.5`
+1. use Codex desktop's native image workflow with OAuth-backed `gpt-image-2`
 2. combine screenshots, code context, and the proof pack when iterating on mockups, product concepts, frontend visuals, or game-like UI work
 3. keep outputs truthful and wedge-specific
 4. if Codex image generation is unavailable or rate-limited, keep the execution issue on the Codex lane and retry later rather than switching to a separate image API

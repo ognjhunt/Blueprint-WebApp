@@ -46,3 +46,6 @@ derived/graphify/*
 derived/graphify/webapp-architecture/*
 !derived/graphify/webapp-architecture/README.md
 !derived/graphify/webapp-architecture/corpus.manifest.txt
+
+# Local Deep Research grounding cache
+ops/paperclip/research-grounding/notion/

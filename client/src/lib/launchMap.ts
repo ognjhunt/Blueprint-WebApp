@@ -21,25 +21,25 @@ export const launchStatusMeta: Record<
     label: "Live",
     definition:
       "Public capture access and approved capture opportunities can be available here.",
-    markerClassName: "fill-emerald-500 stroke-white",
-    badgeClassName: "bg-emerald-500/12 text-emerald-800 border-emerald-500/20",
-    haloClassName: "fill-emerald-500/18",
+    markerClassName: "fill-slate-950 stroke-white",
+    badgeClassName: "bg-slate-950 text-white border-slate-950",
+    haloClassName: "fill-slate-950/16",
   },
   planned: {
     label: "Planned",
     definition:
       "Blueprint has a launch path for this city, but public capture is not open yet.",
-    markerClassName: "fill-amber-500 stroke-white",
-    badgeClassName: "bg-amber-500/12 text-amber-900 border-amber-500/20",
-    haloClassName: "fill-amber-500/18",
+    markerClassName: "fill-slate-500 stroke-white",
+    badgeClassName: "bg-slate-200 text-slate-900 border-slate-300",
+    haloClassName: "fill-slate-500/18",
   },
   under_review: {
     label: "Under review",
     definition:
       "Research, qualification, and city-launch work are in progress. Public capture is not open.",
-    markerClassName: "fill-sky-600 stroke-white",
-    badgeClassName: "bg-sky-500/12 text-sky-900 border-sky-500/20",
-    haloClassName: "fill-sky-500/18",
+    markerClassName: "fill-white stroke-slate-950",
+    badgeClassName: "bg-white text-slate-900 border-slate-300",
+    haloClassName: "fill-slate-300/26",
   },
 };
 

@@ -247,9 +247,9 @@ export function PublicLaunchMap({
     <div className={className}>
       <div
         ref={containerRef}
-        className="relative overflow-hidden rounded-[2rem] border border-[color:var(--line)] bg-[radial-gradient(circle_at_top,_rgba(21,128,61,0.08),_transparent_30%),linear-gradient(180deg,#fffdf8_0%,#f4efe4_100%)] p-3 sm:p-5"
+        className="relative overflow-hidden rounded-[2rem] border border-black/10 bg-[linear-gradient(180deg,#f9f8f4_0%,#f1efea_100%)] p-3 sm:p-5"
       >
-        <div className="rounded-[1.6rem] border border-[color:var(--line)] bg-white/85 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:p-4">
+        <div className="rounded-[1.6rem] border border-black/10 bg-white/90 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:p-4">
           <ComposableMap
             projection="geoAlbersUsa"
             projectionConfig={{ scale: 1200 }}
@@ -264,13 +264,13 @@ export function PublicLaunchMap({
                   <Geography
                     key={geo.rsmKey}
                     geography={geo}
-                    fill="#ebe5d6"
-                    stroke="#d2cab4"
+                    fill="#f1efea"
+                    stroke="#d2cec4"
                     strokeWidth={0.75}
                     style={{
                       default: { outline: "none" },
-                      hover: { fill: "#e2d9c3", outline: "none" },
-                      pressed: { fill: "#e2d9c3", outline: "none" },
+                      hover: { fill: "#ebe8df", outline: "none" },
+                      pressed: { fill: "#ebe8df", outline: "none" },
                     }}
                   />
                 ))

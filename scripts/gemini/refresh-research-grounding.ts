@@ -1,5 +1,6 @@
 import { getConfiguredEnvValue } from "../../server/config/env";
 import { buildCityLaunchFileSearchStore } from "../../server/utils/geminiFileSearchStore";
+import { refreshNotionGrounding } from "../../server/utils/notionGrounding";
 
 function getFlagValue(args: string[], flag: string) {
   const index = args.indexOf(flag);
@@ -29,6 +30,8 @@ function getCsvFlagValues(args: string[], flag: string) {
 
 async function main() {
   const args = process.argv.slice(2);
+  const city = getFlagValue(args, "--city");
+  const skipNotion = hasFlag(args, "--skip-notion");
   const storeName =
     getFlagValue(args, "--store-name")
     || getConfiguredEnvValue(
@@ -37,8 +40,13 @@ async function main() {
     )
     || undefined;
 
+  const notionGrounding = skipNotion
+    ? null
+    : await refreshNotionGrounding({
+      city,
+    });
   const result = await buildCityLaunchFileSearchStore({
-    city: getFlagValue(args, "--city"),
+    city,
     storeName,
     displayName: getFlagValue(args, "--display-name"),
     replaceExistingDocuments: !hasFlag(args, "--append"),
@@ -50,6 +58,14 @@ async function main() {
     JSON.stringify(
       {
         ok: true,
+        notionGrounding:
+          notionGrounding
+            ? {
+              rootRelativePath: notionGrounding.rootRelativePath,
+              selectedPageCount: notionGrounding.selectedPages.length,
+              writtenPathCount: notionGrounding.writtenPaths.length,
+            }
+            : null,
         dryRun: result.dryRun,
         city: result.city,
         citySlug: result.citySlug,

@@ -1,117 +1,161 @@
 import { SEO } from "@/components/SEO";
 import {
-  proofReferenceImageSrc,
-  proofReelPosterSrc,
+  EditorialSectionLabel,
+  MonochromeMedia,
+  ProofChip,
+  RouteTraceOverlay,
+} from "@/components/site/editorial";
+import {
   publicDemoHref,
 } from "@/lib/marketingProof";
-import { ArrowRight, GitBranch, MapPinned, PlayCircle } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
-const heroSignals = [
-  "One exact site first",
-  "Controlled variation second",
-  "Run, review, and export on the same ground truth",
-];
-
-const loopCards = [
+const chapterCards = [
   {
-    title: "Anchor to the site",
-    body:
-      "Blueprint starts from one real facility and one real workflow lane, so geometry, constraints, and task context are not guesses.",
-    icon: MapPinned,
+    id: "01",
+    title: "Capture",
+    body: "We capture the facility as it is, at site scale.",
+    proof: "12,842 frames · 278 scan positions · 3.2 cm RMS",
   },
   {
-    title: "Branch realistic variation",
-    body:
-      "Once the site is grounded, teams can vary clutter, lighting, start states, and other conditions without losing the real-site anchor.",
-    icon: GitBranch,
+    id: "02",
+    title: "Package",
+    body: "We organize the capture into a site-specific package.",
+    proof: "Manifest locked · versioned metadata · explicit rights sheet",
   },
   {
-    title: "Run, compare, and export",
-    body:
-      "Teams can rerun policies, inspect failures, compare checkpoints, and export the useful outputs back into training and deployment review.",
-    icon: PlayCircle,
-  },
-];
-
-const proofChain = [
-  {
-    title: "Real site capture",
-    body: "The workflow starts from the actual facility instead of an abstract environment.",
+    id: "03",
+    title: "Run",
+    body: "Your robot runs against a site-specific world model.",
+    proof: "Routes validated · decisions replayable · coverage visible",
   },
   {
-    title: "Package contract",
-    body: "The listing and package path keep freshness, rights, provenance, and export shape visible.",
-  },
-  {
-    title: "Hosted run review",
-    body: "The same site supports run review, failure inspection, checkpoint comparison, and export generation.",
+    id: "04",
+    title: "Deliver",
+    body: "You get a versioned world model and the artifacts needed to use it.",
+    proof: "Export complete · artifact bundle · run-ready package",
   },
 ];
 
-const comparisonRows = [
-  {
-    title: "Generic simulation",
-    bestFor: "Broad pretraining and early iteration",
-    weakOn: "Customer-specific geometry, task semantics, and failure modes",
-  },
-  {
-    title: "Exact site only",
-    bestFor: "Grounding to the real geometry and basic fit checking",
-    weakOn: "Edge-case probing if the environment stays static",
-  },
-  {
-    title: "Exact site plus controlled variation",
-    bestFor: "Site-specific training, checkpoint comparison, and earlier deployment review",
-    weakOn: "Still requires final on-site validation and stack-specific signoff",
-  },
-];
-
-function SectionLabel({ children }: { children: string }) {
+function ChapterLabel({
+  id,
+  title,
+  body,
+  proof,
+}: {
+  id: string;
+  title: string;
+  body: string;
+  proof: string;
+}) {
   return (
-    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-      {children}
-    </p>
+    <div className="border-r border-black/10 bg-[#f3f1ec] px-6 py-8 lg:px-8 lg:py-10">
+      <p className="text-[3rem] leading-none tracking-[-0.05em] text-slate-300">{id}</p>
+      <h2 className="font-editorial mt-4 text-[3.4rem] leading-[0.92] tracking-[-0.05em] text-slate-950">
+        {title}
+      </h2>
+      <p className="mt-6 max-w-[15rem] text-base leading-7 text-slate-700">{body}</p>
+      <div className="mt-10 border-t border-black/10 pt-4">
+        <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Proof</p>
+        <p className="mt-2 text-sm leading-6 text-slate-500">{proof}</p>
+      </div>
+    </div>
   );
 }
 
-function LoopDiagram() {
+function PackagePanel() {
   return (
-    <div className="overflow-hidden rounded-[2rem] border border-black/10 bg-white/88 p-6 shadow-[0_20px_50px_-38px_rgba(15,23,42,0.3)]">
-      <svg
-        viewBox="0 0 800 170"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="w-full"
-        aria-label="Three-step loop: anchor, vary, run and export"
-      >
-        {[
-          { cx: 135, label: "Anchor", color: "#0f172a" },
-          { cx: 400, label: "Vary", color: "#0f172a" },
-          { cx: 665, label: "Run / Export", color: "#0f172a" },
-        ].map((step, index) => (
-          <g key={step.label}>
-            {index < 2 ? (
-              <line
-                x1={step.cx + 44}
-                y1={62}
-                x2={step.cx + 221}
-                y2={62}
-                stroke="#cbd5e1"
-                strokeWidth={2}
-                strokeDasharray="6 5"
-              />
-            ) : null}
-            <circle cx={step.cx} cy={62} r={42} fill={step.color} opacity={0.08} />
-            <circle cx={step.cx} cy={62} r={42} stroke={step.color} strokeWidth={2} fill="none" opacity={0.24} />
-            <text x={step.cx} y={58} textAnchor="middle" fill={step.color} fontSize={17} fontWeight={700}>
-              {index + 1}
-            </text>
-            <text x={step.cx} y={136} textAnchor="middle" fill="#334155" fontSize={16} fontWeight={600}>
-              {step.label}
-            </text>
-          </g>
-        ))}
-      </svg>
+    <div className="grid h-full place-items-center bg-[#f8f6f2] p-6 lg:p-10">
+      <div className="grid max-w-[42rem] gap-4 md:grid-cols-[0.6fr_0.4fr]">
+        <div className="rotate-[-3deg] rounded-[1.8rem] border border-black/10 bg-white p-6 shadow-[0_26px_50px_-36px_rgba(15,23,42,0.22)]">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+            Blueprint manifest
+          </p>
+          <h3 className="mt-5 text-2xl font-semibold text-slate-950">Plant 7</h3>
+          <div className="mt-6 grid gap-y-3 text-sm text-slate-700">
+            <div className="flex justify-between border-b border-black/6 pb-3">
+              <span>Capture date</span>
+              <span>04 / 18 / 2025</span>
+            </div>
+            <div className="flex justify-between border-b border-black/6 pb-3">
+              <span>Package ID</span>
+              <span>BP7-250418-01</span>
+            </div>
+            <div className="flex justify-between border-b border-black/6 pb-3">
+              <span>Images</span>
+              <span>12,842</span>
+            </div>
+            <div className="flex justify-between border-b border-black/6 pb-3">
+              <span>LiDAR scans</span>
+              <span>278</span>
+            </div>
+            <div className="flex justify-between border-b border-black/6 pb-3">
+              <span>Annotations</span>
+              <span>236</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Version</span>
+              <span>1.0.0</span>
+            </div>
+          </div>
+        </div>
+        <div className="space-y-4">
+          <div className="rounded-[1.8rem] border border-black/10 bg-slate-950 p-6 text-white shadow-[0_24px_44px_-34px_rgba(15,23,42,0.5)]">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-white/44">Package</p>
+            <p className="mt-4 text-2xl font-semibold">Blueprint package</p>
+            <p className="mt-5 text-sm leading-7 text-white/68">
+              Versioned geometry, routes, metadata, rights, and export surfaces tied to one exact site.
+            </p>
+          </div>
+          <div className="rounded-[1.8rem] border border-black/10 bg-white p-6 shadow-[0_20px_38px_-30px_rgba(15,23,42,0.16)]">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Rights sheet</p>
+            <p className="mt-4 text-lg font-semibold text-slate-950">Use scope attached</p>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Public review allowed. Export and private sharing remain request-scoped.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeliverPanel() {
+  return (
+    <div className="grid h-full place-items-center bg-[#f5f3ef] p-6 lg:p-10">
+      <div className="grid max-w-[44rem] gap-6 md:grid-cols-[0.58fr_0.42fr]">
+        <div className="space-y-3">
+          {[
+            "World model (optimized)",
+            "Navigation graph",
+            "Asset bundle",
+            "Metadata & maps",
+            "SDK & integration",
+            "Documentation",
+          ].map((item, index) => (
+            <div
+              key={item}
+              className="rounded-[1.1rem] border border-white/10 bg-slate-950 px-5 py-4 text-sm font-medium text-white shadow-[0_18px_34px_-28px_rgba(15,23,42,0.55)]"
+              style={{ marginLeft: `${index * 8}px` }}
+            >
+              {item}
+            </div>
+          ))}
+        </div>
+        <div className="space-y-4">
+          <div className="rounded-[1.7rem] border border-black/10 bg-slate-950 p-6 text-white shadow-[0_24px_42px_-32px_rgba(15,23,42,0.52)]">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-white/42">World model card</p>
+            <p className="mt-5 text-[1.75rem] font-semibold leading-tight">Plant 7 world model</p>
+            <p className="mt-3 text-sm text-white/56">BP7-250418-01 · v1.0.0</p>
+          </div>
+          <div className="rounded-[1.3rem] border border-black/10 bg-white px-5 py-4 shadow-[0_16px_28px_-24px_rgba(15,23,42,0.18)]">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Export bundle</p>
+            <p className="mt-3 text-sm leading-6 text-slate-700">
+              MP4 sessions, JSON maps, ZIP observations, logs, and package metadata ready for handoff.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -121,277 +165,164 @@ export default function HowItWorks() {
     <>
       <SEO
         title="How It Works | Blueprint"
-        description="Blueprint starts with one real site, branches realistic variation around it, and keeps training, run review, and exports tied to the same exact-site ground truth."
+        description="See how Blueprint moves from real capture to site package, run-ready world model, and delivery artifacts."
         canonical="/how-it-works"
       />
 
-      <div className="overflow-hidden bg-[#f6f1e8] text-slate-950">
-        <section className="relative border-b border-black/10">
-          <div className="absolute inset-x-0 top-0 h-[38rem] bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_40%),radial-gradient(circle_at_82%_12%,_rgba(14,116,144,0.13),_transparent_24%),linear-gradient(180deg,_rgba(255,255,255,0.78),_rgba(246,241,232,0.96))]" />
-          <div className="absolute left-[-7rem] top-20 h-56 w-56 rounded-full bg-[#dbe8e4] blur-3xl" />
-          <div className="absolute right-[-8rem] top-14 h-72 w-72 rounded-full bg-[#eadfca] blur-3xl" />
-
-          <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-18 lg:px-8 lg:py-24">
-            <div className="grid gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-end">
-              <div className="max-w-3xl">
-                <SectionLabel>How It Works</SectionLabel>
-                <h1 className="font-editorial mt-5 text-[3.35rem] leading-[0.95] tracking-[-0.05em] text-slate-950 sm:text-[4.55rem]">
-                  Start with one real site. Train around it.
+      <div className="bg-[#f3f1ec] text-slate-950">
+        <section className="border-b border-black/10 bg-[radial-gradient(circle_at_top_left,_rgba(0,0,0,0.06),_transparent_28%),linear-gradient(180deg,#f7f5f1_0%,#efede7_100%)]">
+          <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+            <div className="grid gap-8 lg:grid-cols-[0.37fr_0.63fr]">
+              <div className="pt-16 lg:pt-24">
+                <EditorialSectionLabel>How It Works</EditorialSectionLabel>
+                <h1 className="font-editorial mt-8 text-[3.8rem] leading-[0.9] tracking-[-0.06em] sm:text-[5.2rem]">
+                  Capture to world model.
                 </h1>
-                <p className="mt-5 max-w-2xl text-base leading-8 text-slate-700 sm:text-[1.05rem]">
-                  Blueprint anchors training and evaluation to one exact facility, then lets a team branch realistic variation without losing the real-site starting point.
-                </p>
-
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                  <a
-                    href="/world-models"
-                    className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                  >
-                    Explore world models
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
-                  <a
-                    href="/sample-deliverables"
-                    className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white/85 px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-white"
-                  >
-                    See sample deliverables
-                  </a>
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                {heroSignals.map((item) => (
-                  <article
-                    key={item}
-                    className="rounded-[1.65rem] border border-black/10 bg-white/82 p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.28)]"
-                  >
-                    <p className="text-sm font-semibold text-slate-900">{item}</p>
-                  </article>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="border-y border-black/10 bg-white/55">
-          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
-            <div className="max-w-2xl">
-              <SectionLabel>Loop</SectionLabel>
-              <h2 className="font-editorial mt-4 text-4xl tracking-[-0.05em] text-slate-950 sm:text-[3.25rem]">
-                The exact-site loop.
-              </h2>
-            </div>
-
-            <div className="mt-8 grid gap-6 lg:grid-cols-[0.42fr_0.58fr] lg:items-start">
-              <div className="max-w-md">
-                <p className="text-sm leading-7 text-slate-600">
-                  The useful part is not just seeing the facility once. The useful part is keeping the site truthful while letting a team vary conditions, rerun the job, and export what matters from the same grounded environment.
+                <p className="mt-6 max-w-[18rem] text-sm uppercase tracking-[0.2em] text-slate-500">
+                  Real places. Real routes. Site-specific world models that robots can run.
                 </p>
               </div>
-              <LoopDiagram />
-            </div>
 
-            <div className="mt-8 grid gap-4 lg:grid-cols-3">
-              {loopCards.map((item, index) => {
-                const Icon = item.icon;
-                return (
-                  <article
-                    key={item.title}
-                    className={
-                      index === 1
-                        ? "rounded-[1.85rem] border border-black/10 bg-slate-950 p-6 text-white shadow-[0_22px_50px_-40px_rgba(15,23,42,0.75)]"
-                        : "rounded-[1.85rem] border border-black/10 bg-[#fbf9f5] p-6"
-                    }
-                  >
-                    <div
-                      className={
-                        index === 1
-                          ? "flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-white"
-                          : "flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-800"
-                      }
-                    >
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <h3
-                      className={
-                        index === 1
-                          ? "mt-4 text-2xl font-semibold tracking-tight text-white"
-                          : "mt-4 text-2xl font-semibold tracking-tight text-slate-900"
-                      }
-                    >
-                      {item.title}
-                    </h3>
-                    <p
-                      className={
-                        index === 1
-                          ? "mt-4 text-sm leading-7 text-white/78"
-                          : "mt-4 text-sm leading-7 text-slate-600"
-                      }
-                    >
-                      {item.body}
-                    </p>
-                  </article>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
-          <div className="max-w-2xl">
-            <SectionLabel>Proof Path</SectionLabel>
-            <h2 className="font-editorial mt-4 text-4xl tracking-[-0.05em] text-slate-950 sm:text-[3.2rem]">
-              Proof path, not abstract positioning.
-            </h2>
-          </div>
-
-          <div className="mt-8 grid gap-4 lg:grid-cols-[1.02fr_0.98fr]">
-            <article className="rounded-[1.95rem] border border-black/10 bg-white/88 p-6 shadow-[0_18px_40px_-36px_rgba(15,23,42,0.3)]">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                  <img
-                    src={proofReelPosterSrc}
-                    alt="Real site capture proof for Blueprint's sample listing."
-                    className="aspect-[16/10] w-full object-cover"
-                    loading="lazy"
-                  />
+              <div className="relative min-h-[34rem]">
+                <div className="absolute right-[4%] top-0 z-20 rotate-[1deg] rounded-[0.2rem] bg-white px-5 py-4 shadow-[0_16px_30px_-20px_rgba(15,23,42,0.24)]">
+                  <p className="font-editorial text-[1.1rem] italic">Site: Plant 7</p>
+                  <p className="mt-2 text-sm text-slate-700">Date: 04 / 18</p>
+                  <p className="text-sm text-slate-700">Capture: 2 of 3</p>
                 </div>
-                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                  <img
-                    src={proofReferenceImageSrc}
-                    alt="Hosted review reference still for Blueprint's sample listing."
-                    className="aspect-[16/10] w-full object-cover"
-                    loading="lazy"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-5 grid gap-3 md:grid-cols-3">
-                {proofChain.map((item) => (
-                  <div key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm font-semibold text-slate-900">{item.title}</p>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">{item.body}</p>
+                <div className="absolute left-[22%] right-[8%] top-[2.5rem] rounded-[1.3rem] border border-black/10 bg-white p-3 shadow-[0_24px_44px_-26px_rgba(15,23,42,0.2)]">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {["/generated/editorial/world-models-hero.png", "/generated/editorial/proof-board.png", "/generated/editorial/cross-dock.png"].map((src) => (
+                      <MonochromeMedia
+                        key={src}
+                        src={src}
+                        alt="Capture frame"
+                        className="aspect-[4/3] border border-black/10"
+                        overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.06),rgba(0,0,0,0.2))]"
+                      />
+                    ))}
                   </div>
-                ))}
+                </div>
+                <div className="absolute left-[18%] top-[11rem] z-10 rotate-[-2deg] overflow-hidden rounded-[1.4rem] border border-black/10 bg-slate-950 p-4 shadow-[0_28px_50px_-28px_rgba(15,23,42,0.4)]">
+                  <svg viewBox="0 0 380 220" className="h-[13rem] w-[18rem]">
+                    <rect x="18" y="18" width="344" height="184" rx="22" fill="rgba(255,255,255,0.03)" />
+                    <path d="M28 44H352" stroke="rgba(255,255,255,0.12)" strokeDasharray="6 8" />
+                    <path d="M52 176C112 176 118 74 182 74C228 74 230 138 298 138C322 138 334 108 342 108" fill="none" stroke="rgba(255,255,255,0.88)" strokeWidth="5" strokeLinecap="round" />
+                    {[52, 182, 298, 342].map((cx, index) => (
+                      <circle key={cx} cx={cx} cy={[176, 74, 138, 108][index]} r="7" fill="white" />
+                    ))}
+                  </svg>
+                </div>
+                <div className="absolute bottom-0 left-[10%] right-0 grid gap-3 rounded-[1.4rem] border border-black/10 bg-white/90 p-3 shadow-[0_18px_36px_-22px_rgba(15,23,42,0.16)] md:grid-cols-5">
+                  {["/generated/editorial/world-models-hero.png", "/generated/editorial/proof-board.png", "/generated/editorial/cross-dock.png", "/generated/editorial/hosted-hero.png", "/generated/editorial/grocery-fulfillment.png"].map((src, index) => (
+                    <MonochromeMedia
+                      key={`${src}-${index}`}
+                      src={src}
+                      alt="Timeline frame"
+                      className="aspect-[16/10] border border-black/10"
+                      overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.06),rgba(0,0,0,0.14))]"
+                    />
+                  ))}
+                </div>
               </div>
-            </article>
+            </div>
+          </div>
+        </section>
 
-            <article className="rounded-[1.95rem] border border-black/10 bg-slate-950 p-6 text-white shadow-[0_22px_50px_-40px_rgba(15,23,42,0.75)]">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                Buyer Meaning
-              </p>
-              <h3 className="mt-3 text-3xl font-semibold tracking-tight">
-                The same site should carry the proof and the commercial path.
-              </h3>
-              <p className="mt-4 text-sm leading-7 text-white/76">
-                The page should move from real-site evidence to package contract to hosted review to export shape. That sequence tells a buyer more than a long product philosophy paragraph ever will.
-              </p>
-              <a
-                href={publicDemoHref}
-                className="mt-6 inline-flex items-center text-sm font-semibold text-white underline-offset-4 hover:underline"
+        <section className="mx-auto max-w-[88rem] border-x border-black/10">
+          <div className="grid min-h-[32rem] lg:grid-cols-[0.32fr_0.68fr]">
+            <ChapterLabel {...chapterCards[0]} />
+            <div className="relative border-t border-black/10 lg:border-t-0">
+              <MonochromeMedia
+                src="/generated/editorial/hosted-hero.png"
+                alt="Capture proof"
+                className="h-full rounded-none"
+                imageClassName="h-full"
+                overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.14),rgba(0,0,0,0.42))]"
               >
-                Inspect the sample listing
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </a>
-            </article>
-          </div>
-        </section>
-
-        <section className="border-y border-black/10 bg-white/55">
-          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
-            <div className="max-w-2xl">
-              <SectionLabel>Comparison</SectionLabel>
-              <h2 className="font-editorial mt-4 text-4xl tracking-[-0.05em] text-slate-950 sm:text-[3.2rem]">
-                Where Blueprint fits in the training stack.
-              </h2>
-            </div>
-
-            <div className="mt-8 grid gap-4 lg:grid-cols-3">
-              {comparisonRows.map((row, index) => (
-                <article
-                  key={row.title}
-                  className={
-                    index === 2
-                      ? "rounded-[1.85rem] border border-black/10 bg-slate-950 p-6 text-white shadow-[0_22px_50px_-40px_rgba(15,23,42,0.75)]"
-                      : "rounded-[1.85rem] border border-black/10 bg-[#fbf9f5] p-6"
-                  }
-                >
-                  <h3
-                    className={
-                      index === 2
-                        ? "text-2xl font-semibold tracking-tight text-white"
-                        : "text-2xl font-semibold tracking-tight text-slate-900"
-                    }
-                  >
-                    {row.title}
-                  </h3>
-                  <div className="mt-5 space-y-4 text-sm leading-7">
-                    <div>
-                      <p
-                        className={
-                          index === 2
-                            ? "text-xs font-semibold uppercase tracking-[0.18em] text-slate-300"
-                            : "text-xs font-semibold uppercase tracking-[0.18em] text-slate-500"
-                        }
-                      >
-                        Best for
-                      </p>
-                      <p className={index === 2 ? "text-slate-100" : "text-slate-700"}>
-                        {row.bestFor}
-                      </p>
-                    </div>
-                    <div>
-                      <p
-                        className={
-                          index === 2
-                            ? "text-xs font-semibold uppercase tracking-[0.18em] text-slate-300"
-                            : "text-xs font-semibold uppercase tracking-[0.18em] text-slate-500"
-                        }
-                      >
-                        Watch-out
-                      </p>
-                      <p className={index === 2 ? "text-slate-200" : "text-slate-600"}>
-                        {row.weakOn}
-                      </p>
-                    </div>
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.14),transparent_52%)]" />
+                <div className="absolute inset-y-0 left-[8%] w-px bg-white/26" />
+                <div className="absolute inset-y-0 left-[18%] w-px bg-white/18" />
+                <div className="absolute inset-y-0 right-[18%] w-px bg-white/18" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_26%_40%,rgba(255,255,255,0.18)_0_2px,transparent_2px_100%)] bg-[size:14px_14px] opacity-40" />
+                <div className="absolute bottom-6 right-6 w-[10rem] rounded-[1.1rem] border border-white/16 bg-black/40 p-3 text-white">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/48">Scan path</p>
+                  <div className="mt-3 rounded-[0.9rem] border border-white/10 bg-black/50 p-2">
+                    <svg viewBox="0 0 140 110" className="h-20 w-full">
+                      <path d="M10 90C26 90 22 26 50 26C76 26 78 82 114 82C124 82 130 56 132 56" fill="none" stroke="rgba(255,255,255,0.82)" strokeWidth="4" strokeLinecap="round" />
+                    </svg>
                   </div>
-                </article>
-              ))}
+                </div>
+              </MonochromeMedia>
+            </div>
+          </div>
+
+          <div className="grid min-h-[26rem] border-t border-black/10 lg:grid-cols-[0.32fr_0.68fr]">
+            <ChapterLabel {...chapterCards[1]} />
+            <div className="border-t border-black/10 lg:border-t-0">
+              <PackagePanel />
+            </div>
+          </div>
+
+          <div className="grid min-h-[28rem] border-t border-black/10 lg:grid-cols-[0.32fr_0.68fr]">
+            <ChapterLabel {...chapterCards[2]} />
+            <div className="relative border-t border-black/10 bg-slate-950 lg:border-t-0">
+              <MonochromeMedia
+                src="/generated/editorial/manufacturing-plant.png"
+                alt="Run overlay"
+                className="h-full rounded-none"
+                imageClassName="h-full"
+                overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.2),rgba(0,0,0,0.62))]"
+              >
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.16)_0_1px,transparent_1px_100%)] bg-[size:12px_12px] opacity-40" />
+                <RouteTraceOverlay className="opacity-90" />
+                <div className="absolute bottom-6 right-6 w-[13rem] rounded-[1.2rem] border border-white/12 bg-black/42 p-4 text-white shadow-[0_18px_36px_-24px_rgba(0,0,0,0.5)]">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/46">World model preview</p>
+                  <p className="mt-4 text-sm leading-6 text-white/72">
+                    Route overlays, robot pose, and site geometry remain tied to the same package truth.
+                  </p>
+                </div>
+              </MonochromeMedia>
+            </div>
+          </div>
+
+          <div className="grid min-h-[26rem] border-t border-black/10 lg:grid-cols-[0.32fr_0.68fr]">
+            <ChapterLabel {...chapterCards[3]} />
+            <div className="border-t border-black/10 lg:border-t-0">
+              <DeliverPanel />
             </div>
           </div>
         </section>
 
-        <section className="pb-20 pt-14 sm:pt-18">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="overflow-hidden rounded-[2.15rem] border border-black/10 bg-slate-950 px-6 py-8 text-white shadow-[0_26px_70px_-48px_rgba(15,23,42,0.85)] sm:px-8">
-              <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-end">
-                <div className="max-w-2xl">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/55">
-                    Next Step
-                  </p>
-                  <h2 className="font-editorial mt-3 text-4xl tracking-[-0.05em] text-white sm:text-[3rem]">
-                    Start with one real site and one deployment question.
-                  </h2>
-                  <p className="mt-4 text-sm leading-7 text-white/72">
-                    That is enough to decide whether you need the package, the hosted path, or a custom scope. The rest of the workflow gets much cleaner once the site is grounded.
-                  </p>
-                </div>
-                <div className="grid gap-3">
-                  <a
-                    href="/world-models"
-                    className="inline-flex items-center justify-between rounded-2xl bg-white px-5 py-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
-                  >
-                    Explore world models
-                    <ArrowRight className="h-4 w-4" />
-                  </a>
-                  <a
-                    href="/sample-deliverables"
-                    className="inline-flex items-center justify-between rounded-2xl border border-white/15 bg-white/5 px-5 py-4 text-sm font-semibold text-white transition hover:bg-white/10"
-                  >
-                    See sample deliverables
-                    <ArrowRight className="h-4 w-4" />
-                  </a>
-                </div>
+        <section className="mx-auto max-w-[88rem] px-5 pb-16 pt-8 sm:px-8 lg:px-10 lg:pb-20">
+          <div className="grid gap-6 overflow-hidden rounded-[2rem] border border-black/10 bg-slate-950 px-6 py-8 text-white lg:grid-cols-[0.5fr_0.5fr] lg:px-8">
+            <MonochromeMedia
+              src="/generated/editorial/cross-dock.png"
+              alt="Call to action background"
+              className="min-h-[14rem] border border-white/10"
+              overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.16),rgba(0,0,0,0.52))]"
+            />
+            <div className="flex flex-col justify-center">
+              <ProofChip light>Real site. Real route. Real package.</ProofChip>
+              <h2 className="font-editorial mt-5 text-[3rem] leading-[0.95] tracking-[-0.05em]">
+                See the exact site before you start the sales motion.
+              </h2>
+              <p className="mt-4 max-w-[28rem] text-sm leading-7 text-white/72">
+                The public sample listing shows how capture, package framing, and hosted review stay attached to one facility.
+              </p>
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                <a
+                  href={publicDemoHref}
+                  className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                >
+                  Inspect a real site
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </a>
+                <a
+                  href="/sample-deliverables"
+                  className="inline-flex items-center justify-center rounded-full border border-white/16 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/6"
+                >
+                  View sample deliverables
+                </a>
               </div>
             </div>
           </div>

@@ -1,0 +1,110 @@
+[    7030ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://127.0.0.1:4173/@fs/Users/nijelhunt_1/workspace/Blueprint-WebApp/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=ab27ee27:21550
+[    7109ms] [LOG] [ErrorTracking] Initialized in development mode @ http://127.0.0.1:4173/src/lib/errorTracking.ts:30
+[    7300ms] [ERROR] {level: error, message: Error setting persistence:, context: Object, timestamp: 2026-04-21T22:10:11.797Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[    7300ms] [ERROR] {level: error, message: Failed to initialize auth state listener:, context: Object, timestamp: 2026-04-21T22:10:11.800Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[    7300ms] [ERROR] {level: error, message: Error setting persistence:, context: Object, timestamp: 2026-04-21T22:10:11.800Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[    7300ms] [ERROR] {level: error, message: Failed to initialize auth state listener:, context: Object, timestamp: 2026-04-21T22:10:11.800Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[   11945ms] [LOG] {level: info, message: %cDownload the React DevTools for a better develop…perience: https://reactjs.org/link/react-devtools, context: font-weight:bold, timestamp: 2026-04-21T22:10:16.418Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[   12947ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://127.0.0.1:4173/@fs/Users/nijelhunt_1/workspace/Blueprint-WebApp/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=1b1a9146:21550
+[   13017ms] [LOG] [ErrorTracking] Initialized in development mode @ http://127.0.0.1:4173/src/lib/errorTracking.ts:30
+[   13113ms] [ERROR] {level: error, message: Error setting persistence:, context: Object, timestamp: 2026-04-21T22:10:17.612Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[   13113ms] [ERROR] {level: error, message: Failed to initialize auth state listener:, context: Object, timestamp: 2026-04-21T22:10:17.612Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[   13113ms] [ERROR] {level: error, message: Error setting persistence:, context: Object, timestamp: 2026-04-21T22:10:17.612Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[   13113ms] [ERROR] {level: error, message: Failed to initialize auth state listener:, context: Object, timestamp: 2026-04-21T22:10:17.613Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[   13308ms] [ERROR] {level: error, message: Warning: Using UNSAFE_componentWillMount in strict…ctor.
+
+Please update the following components: %s, context: SideEffect(NullComponent2), timestamp: 2026-04-21T22:10:17.807Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[  531471ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://127.0.0.1:4173/@fs/Users/nijelhunt_1/workspace/Blueprint-WebApp/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=1b1a9146:21550
+[  531555ms] [LOG] [ErrorTracking] Initialized in development mode @ http://127.0.0.1:4173/src/lib/errorTracking.ts:30
+[  531652ms] [ERROR] {level: error, message: Error setting persistence:, context: Object, timestamp: 2026-04-21T22:18:56.151Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[  531655ms] [ERROR] {level: error, message: Failed to initialize auth state listener:, context: Object, timestamp: 2026-04-21T22:18:56.154Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[  531655ms] [ERROR] {level: error, message: Error setting persistence:, context: Object, timestamp: 2026-04-21T22:18:56.155Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[  531655ms] [ERROR] {level: error, message: Failed to initialize auth state listener:, context: Object, timestamp: 2026-04-21T22:18:56.155Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[  531791ms] [ERROR] {level: error, message: Warning: Using UNSAFE_componentWillMount in strict…ctor.
+
+Please update the following components: %s, context: SideEffect(NullComponent2), timestamp: 2026-04-21T22:18:56.291Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[  542147ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://127.0.0.1:4173/@fs/Users/nijelhunt_1/workspace/Blueprint-WebApp/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=1b1a9146:21550
+[  542196ms] [LOG] [ErrorTracking] Initialized in development mode @ http://127.0.0.1:4173/src/lib/errorTracking.ts:30
+[  542343ms] [ERROR] {level: error, message: Error setting persistence:, context: Object, timestamp: 2026-04-21T22:19:06.843Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[  542344ms] [ERROR] {level: error, message: Failed to initialize auth state listener:, context: Object, timestamp: 2026-04-21T22:19:06.843Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[  542344ms] [ERROR] {level: error, message: Error setting persistence:, context: Object, timestamp: 2026-04-21T22:19:06.843Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[  542344ms] [ERROR] {level: error, message: Failed to initialize auth state listener:, context: Object, timestamp: 2026-04-21T22:19:06.843Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[  543014ms] [ERROR] {level: error, message: Warning: Using UNSAFE_componentWillMount in strict…ctor.
+
+Please update the following components: %s, context: SideEffect(NullComponent2), timestamp: 2026-04-21T22:19:07.513Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[  552527ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://127.0.0.1:4173/@fs/Users/nijelhunt_1/workspace/Blueprint-WebApp/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=1b1a9146:21550
+[  552566ms] [LOG] [ErrorTracking] Initialized in development mode @ http://127.0.0.1:4173/src/lib/errorTracking.ts:30
+[  552624ms] [ERROR] {level: error, message: Error setting persistence:, context: Object, timestamp: 2026-04-21T22:19:17.123Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[  552624ms] [ERROR] {level: error, message: Failed to initialize auth state listener:, context: Object, timestamp: 2026-04-21T22:19:17.123Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[  552624ms] [ERROR] {level: error, message: Error setting persistence:, context: Object, timestamp: 2026-04-21T22:19:17.123Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[  552625ms] [ERROR] {level: error, message: Failed to initialize auth state listener:, context: Object, timestamp: 2026-04-21T22:19:17.124Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[  552843ms] [ERROR] {level: error, message: Warning: Using UNSAFE_componentWillMount in strict…ctor.
+
+Please update the following components: %s, context: SideEffect(NullComponent2), timestamp: 2026-04-21T22:19:17.342Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[  897996ms] [LOG] {level: debug, message: [vite] hot updated: /src/components/site/CaptureAppDock.tsx, context: undefined, timestamp: 2026-04-21T22:25:02.482Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[  898061ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T22:25:02.560Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[  898735ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T22:25:03.234Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[  898736ms] [LOG] {level: debug, message: [vite] hot updated: /src/pages/SiteWorlds.tsx, context: undefined, timestamp: 2026-04-21T22:25:03.235Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[  898738ms] [LOG] {level: debug, message: [vite] hot updated: /src/components/site/Header.tsx, context: undefined, timestamp: 2026-04-21T22:25:03.237Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[  898738ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T22:25:03.237Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[  980635ms] [LOG] {level: debug, message: [vite] hot updated: /src/pages/SiteWorlds.tsx, context: undefined, timestamp: 2026-04-21T22:26:25.134Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[  980635ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T22:26:25.134Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 1158616ms] [LOG] {level: debug, message: [vite] hot updated: /src/components/site/Footer.tsx, context: undefined, timestamp: 2026-04-21T22:29:23.115Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 1158616ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T22:29:23.116Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 1158631ms] [LOG] {level: debug, message: [vite] hot updated: /src/components/site/Header.tsx, context: undefined, timestamp: 2026-04-21T22:29:23.130Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 1158631ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T22:29:23.130Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 1159427ms] [LOG] {level: debug, message: [vite] hot updated: /src/components/site/CaptureAppDock.tsx, context: undefined, timestamp: 2026-04-21T22:29:23.927Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 1159428ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T22:29:23.927Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 1160686ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://127.0.0.1:4173/@fs/Users/nijelhunt_1/workspace/Blueprint-WebApp/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=1b1a9146:21550
+[ 1160735ms] [LOG] [ErrorTracking] Initialized in development mode @ http://127.0.0.1:4173/src/lib/errorTracking.ts:30
+[ 1160811ms] [ERROR] {level: error, message: Error setting persistence:, context: Object, timestamp: 2026-04-21T22:29:25.311Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[ 1160812ms] [ERROR] {level: error, message: Failed to initialize auth state listener:, context: Object, timestamp: 2026-04-21T22:29:25.311Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[ 1160812ms] [ERROR] {level: error, message: Error setting persistence:, context: Object, timestamp: 2026-04-21T22:29:25.311Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[ 1160812ms] [ERROR] {level: error, message: Failed to initialize auth state listener:, context: Object, timestamp: 2026-04-21T22:29:25.311Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[ 1160989ms] [ERROR] {level: error, message: Warning: Using UNSAFE_componentWillMount in strict…ctor.
+
+Please update the following components: %s, context: SideEffect(NullComponent2), timestamp: 2026-04-21T22:29:25.488Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[ 1381983ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T22:33:06.481Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 1382092ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T22:33:06.592Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 2938859ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T22:59:03.356Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 3279671ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T23:04:44.168Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 3279828ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T23:04:44.327Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 3560413ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T23:09:24.912Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 3951154ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://127.0.0.1:4173/@fs/Users/nijelhunt_1/workspace/Blueprint-WebApp/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=1b1a9146:21550
+[ 3951253ms] [LOG] [ErrorTracking] Initialized in development mode @ http://127.0.0.1:4173/src/lib/errorTracking.ts:30
+[ 3951381ms] [ERROR] {level: error, message: Error setting persistence:, context: Object, timestamp: 2026-04-21T23:15:55.880Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[ 3951385ms] [ERROR] {level: error, message: Failed to initialize auth state listener:, context: Object, timestamp: 2026-04-21T23:15:55.884Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[ 3951385ms] [ERROR] {level: error, message: Error setting persistence:, context: Object, timestamp: 2026-04-21T23:15:55.885Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[ 3951385ms] [ERROR] {level: error, message: Failed to initialize auth state listener:, context: Object, timestamp: 2026-04-21T23:15:55.885Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[ 3951858ms] [ERROR] {level: error, message: Warning: Using UNSAFE_componentWillMount in strict…ctor.
+
+Please update the following components: %s, context: SideEffect(NullComponent2), timestamp: 2026-04-21T23:15:56.357Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[ 4058713ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T23:17:43.211Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 4058742ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T23:17:43.241Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 4058744ms] [LOG] {level: debug, message: [vite] hot updated: /src/pages/SiteWorlds.tsx, context: undefined, timestamp: 2026-04-21T23:17:43.244Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 4058744ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T23:17:43.244Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 4189467ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T23:19:53.967Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 4189473ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T23:19:53.973Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 4189473ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T23:19:53.973Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 4630330ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://127.0.0.1:4173/@fs/Users/nijelhunt_1/workspace/Blueprint-WebApp/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=1b1a9146:21550
+[ 4630403ms] [LOG] [ErrorTracking] Initialized in development mode @ http://127.0.0.1:4173/src/lib/errorTracking.ts:30
+[ 4630581ms] [ERROR] {level: error, message: Error setting persistence:, context: Object, timestamp: 2026-04-21T23:27:15.080Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[ 4630583ms] [ERROR] {level: error, message: Failed to initialize auth state listener:, context: Object, timestamp: 2026-04-21T23:27:15.082Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[ 4630583ms] [ERROR] {level: error, message: Error setting persistence:, context: Object, timestamp: 2026-04-21T23:27:15.083Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[ 4630583ms] [ERROR] {level: error, message: Failed to initialize auth state listener:, context: Object, timestamp: 2026-04-21T23:27:15.083Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[ 4631348ms] [ERROR] {level: error, message: Warning: Using UNSAFE_componentWillMount in strict…ctor.
+
+Please update the following components: %s, context: SideEffect(NullComponent2), timestamp: 2026-04-21T23:27:15.847Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[ 4653767ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://127.0.0.1:4173/@fs/Users/nijelhunt_1/workspace/Blueprint-WebApp/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=1b1a9146:21550
+[ 4653833ms] [LOG] [ErrorTracking] Initialized in development mode @ http://127.0.0.1:4173/src/lib/errorTracking.ts:30
+[ 4653877ms] [ERROR] {level: error, message: Error setting persistence:, context: Object, timestamp: 2026-04-21T23:27:38.376Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[ 4653877ms] [ERROR] {level: error, message: Failed to initialize auth state listener:, context: Object, timestamp: 2026-04-21T23:27:38.377Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[ 4653878ms] [ERROR] {level: error, message: Error setting persistence:, context: Object, timestamp: 2026-04-21T23:27:38.377Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[ 4653878ms] [ERROR] {level: error, message: Failed to initialize auth state listener:, context: Object, timestamp: 2026-04-21T23:27:38.377Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[ 4654139ms] [ERROR] {level: error, message: Warning: Using UNSAFE_componentWillMount in strict…ctor.
+
+Please update the following components: %s, context: SideEffect(NullComponent2), timestamp: 2026-04-21T23:27:38.638Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:87
+[ 4723049ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T23:28:47.549Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 5571072ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T23:42:55.568Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 5571139ms] [LOG] {level: debug, message: [vite] hot updated: /src/pages/ExactSiteHostedReview.tsx, context: undefined, timestamp: 2026-04-21T23:42:55.638Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90
+[ 5571139ms] [LOG] {level: debug, message: [vite] hot updated: /src/index.css, context: undefined, timestamp: 2026-04-21T23:42:55.639Z} @ http://127.0.0.1:4173/src/utils/clientLogger.ts:90

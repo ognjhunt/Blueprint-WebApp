@@ -59,6 +59,15 @@ async function main() {
       previousInteractionId,
       question,
       artifactPath: followUpPath,
+      fileSearchStoreNames: getCsvFlagValues(args, "--file-search-store"),
+      deepResearchAgent:
+        getFlagValue(args, "--research-agent")
+        || getFlagValue(args, "--deep-research-agent")
+        || undefined,
+      pollIntervalMs: Number(getFlagValue(args, "--poll-interval-ms") || "10000"),
+      timeoutMs: Number(
+        getFlagValue(args, "--timeout-ms") || String(20 * 60 * 1000),
+      ),
     });
 
     console.log(
@@ -93,11 +102,15 @@ async function main() {
         .filter(Boolean)
     : undefined;
   const fileSearchStoreNames = getCsvFlagValues(args, "--file-search-store");
+  const deepResearchAgent =
+    getFlagValue(args, "--research-agent")
+    || getFlagValue(args, "--deep-research-agent");
 
   const result = await runCityLaunchPlanningHarness({
     city,
     region,
     fileSearchStoreNames,
+    deepResearchAgent: deepResearchAgent || undefined,
     critiqueRounds: Number.isFinite(critiqueRounds) ? critiqueRounds : 1,
     pollIntervalMs: Number.isFinite(pollIntervalMs) ? pollIntervalMs : 10_000,
     timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : 20 * 60 * 1000,

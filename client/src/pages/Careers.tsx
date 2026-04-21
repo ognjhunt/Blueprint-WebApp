@@ -1,4 +1,10 @@
 import { SEO } from "@/components/SEO";
+import {
+  EditorialCtaBand,
+  EditorialSectionLabel,
+  MonochromeMedia,
+} from "@/components/site/editorial";
+import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
 import { ArrowRight, Briefcase, Code2, PenTool } from "lucide-react";
 
 const roles = [
@@ -35,35 +41,51 @@ export default function Careers() {
         canonical="/careers"
       />
 
-      <div className="min-h-screen bg-white">
-        <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Careers
-            </p>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-              Build the product layer between raw site capture and a buyer who needs a straight answer.
-            </h1>
-            <p className="mt-4 text-lg leading-8 text-slate-600">
-              Blueprint is trying to make one thing less messy: taking a real facility and turning
-              it into a world-model package a robotics team can actually evaluate. That means the
-              work sits somewhere between asset production, tooling, and product judgment.
-            </p>
-          </div>
+      <div className="bg-[#f5f3ef] text-slate-950">
+        <section className="border-b border-black/10">
+          <MonochromeMedia
+            src={editorialGeneratedAssets.careersStudio}
+            alt="Careers hero"
+            className="min-h-[38rem] rounded-none"
+            loading="eager"
+            imageClassName="min-h-[38rem]"
+            overlayClassName="bg-[linear-gradient(90deg,rgba(0,0,0,0.82)_0%,rgba(0,0,0,0.58)_34%,rgba(0,0,0,0.18)_78%)]"
+          >
+            <div className="absolute inset-0">
+              <div className="mx-auto h-full max-w-[88rem] px-5 py-12 sm:px-8 lg:px-10 lg:py-16">
+                <div className="flex h-full max-w-[36rem] flex-col justify-end">
+                <EditorialSectionLabel light>Careers</EditorialSectionLabel>
+                <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5rem]">
+                  Build the product layer between raw site capture and a buyer who needs a straight answer.
+                </h1>
+                <p className="mt-6 text-base leading-8 text-white/72">
+                  The work sits between asset production, tooling, and product judgment. It should feel like a serious craft company, not a jobs board.
+                </p>
+                </div>
+              </div>
+            </div>
+          </MonochromeMedia>
+        </section>
 
-          <div className="mt-12 grid gap-4">
-            {roles.map((role) => {
+        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+          <div className="grid gap-4">
+            {roles.map((role, index) => {
               const Icon = role.icon;
               return (
-                <article key={role.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                <div
+                  key={role.title}
+                  className={index === 1 ? "bg-slate-950 p-6 text-white" : "bg-white p-6 text-slate-950"}
+                >
                   <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                     <div className="flex gap-4">
-                      <div className="rounded-2xl bg-white p-3 text-slate-700">
+                      <div className={index === 1 ? "border border-white/14 bg-white/6 p-3 text-white" : "border border-black/10 bg-[#f5f3ef] p-3 text-slate-950"}>
                         <Icon className="h-5 w-5" />
                       </div>
                       <div>
-                        <h2 className="text-2xl font-semibold text-slate-900">{role.title}</h2>
-                        <div className="mt-2 flex flex-wrap gap-3 text-sm text-slate-500">
+                        <h2 className="font-editorial text-[2.3rem] leading-[0.95] tracking-[-0.04em]">
+                          {role.title}
+                        </h2>
+                        <div className={`mt-2 flex flex-wrap gap-3 text-sm ${index === 1 ? "text-white/54" : "text-slate-500"}`}>
                           <span className="inline-flex items-center gap-1.5">
                             <Briefcase className="h-4 w-4" />
                             {role.type}
@@ -74,27 +96,32 @@ export default function Careers() {
                     </div>
                     <a
                       href={role.href}
-                      className="inline-flex items-center rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                      className={index === 1 ? "inline-flex items-center bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100" : "inline-flex items-center bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"}
                     >
                       Apply by email
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                   </div>
-                  <p className="mt-6 text-base leading-7 text-slate-600">{role.summary}</p>
-                  <p className="mt-4 text-sm leading-7 text-slate-600">{role.description}</p>
-                </article>
+                  <p className={`mt-6 text-base leading-7 ${index === 1 ? "text-white/72" : "text-slate-600"}`}>{role.summary}</p>
+                  <p className={`mt-4 text-sm leading-7 ${index === 1 ? "text-white/66" : "text-slate-600"}`}>{role.description}</p>
+                </div>
               );
             })}
           </div>
+        </section>
 
-          <div className="mt-12 rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
-            Don&apos;t see the right fit? Send a note and portfolio to{" "}
-            <a href="mailto:careers@tryblueprint.io" className="font-semibold text-slate-900">
-              careers@tryblueprint.io
-            </a>
-            . If the work is relevant, we will read it.
-          </div>
-        </div>
+        <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
+          <EditorialCtaBand
+            eyebrow="Open line"
+            title="If the work is relevant, send the note."
+            description="Don’t see the exact fit? Send a short note and portfolio. If the work maps to the product, it will get read."
+            imageSrc={editorialGeneratedAssets.careersStudio}
+            imageAlt="Blueprint careers studio"
+            primaryHref="mailto:careers@tryblueprint.io"
+            primaryLabel="careers@tryblueprint.io"
+            dark={false}
+          />
+        </section>
       </div>
     </>
   );

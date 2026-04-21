@@ -1,6 +1,14 @@
 import { SEO } from "@/components/SEO";
+import {
+  EditorialCtaBand,
+  EditorialMetricStrip,
+  EditorialSectionIntro,
+  EditorialSectionLabel,
+  ProofChip,
+} from "@/components/site/editorial";
 import { PublicLaunchMap } from "@/components/site/PublicLaunchMap";
 import { usePublicLaunchStatus } from "@/hooks/usePublicLaunchStatus";
+import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
 import { launchStatusMeta } from "@/lib/launchMap";
 
 export default function LaunchMap() {
@@ -9,6 +17,32 @@ export default function LaunchMap() {
     live: 0,
     planned: 0,
     underReview: 0,
+  };
+  const cities = data?.cities || [];
+
+  const metrics = [
+    {
+      label: "Live cities",
+      detail: `${counts.live} launch markets currently show public live status.`,
+    },
+    {
+      label: "Planned cities",
+      detail: `${counts.planned} rollout lanes are visible but not yet open for public capture.`,
+    },
+    {
+      label: "Under review",
+      detail: `${counts.underReview} cities still sit inside launch qualification and city-specific review.`,
+    },
+    {
+      label: "Interaction rule",
+      detail: "City details stay inline on this page rather than jumping into separate route views.",
+    },
+  ];
+
+  const grouped = {
+    live: cities.filter((city) => city.status === "live").slice(0, 4),
+    planned: cities.filter((city) => city.status === "planned").slice(0, 4),
+    under_review: cities.filter((city) => city.status === "under_review").slice(0, 4),
   };
 
   return (
@@ -19,83 +53,103 @@ export default function LaunchMap() {
         canonical="/launch-map"
       />
 
-      <div className="min-h-screen bg-[color:var(--paper)] text-[color:var(--ink)]">
-        <section className="border-b border-[color:var(--line)] bg-[radial-gradient(circle_at_top_left,_rgba(21,128,61,0.1),_transparent_32%),linear-gradient(180deg,#fffdf8_0%,#f5f0e6_100%)]">
-          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
-            <div className="max-w-4xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--ink-muted)]">
-                Public launch map
-              </p>
-              <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
-                Where Blueprint is live.
-              </h1>
-              <p className="mt-5 max-w-3xl text-lg leading-8 text-[color:var(--ink-soft)]">
-                This is the public rollout surface for robot teams, site operators, and
-                capturers. Live cities can support direct public capture actions. Planned and
-                under-review cities stay clearly gated until the city-launch org changes their
-                status.
-              </p>
-            </div>
+      <div className="bg-[#f5f3ef] text-slate-950">
+        <section className="border-b border-black/10 bg-[linear-gradient(180deg,#fbfaf6_0%,#f1efea_100%)]">
+          <div className="mx-auto max-w-[88rem] px-5 py-12 sm:px-8 lg:px-10 lg:py-14">
+            <div className="grid gap-8 lg:grid-cols-[0.62fr_0.38fr] lg:items-end">
+              <div className="max-w-[40rem]">
+                <EditorialSectionLabel>Public launch map</EditorialSectionLabel>
+                <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] sm:text-[5rem]">
+                  Where Blueprint is live.
+                </h1>
+                <p className="mt-6 max-w-[30rem] text-base leading-8 text-slate-700">
+                  This is the public rollout surface. Live, planned, and under-review states stay visible without pretending every city is already open.
+                </p>
+              </div>
 
-            <div className="mt-8 grid gap-4 sm:grid-cols-3">
-              {[
-                ["live", counts.live],
-                ["planned", counts.planned],
-                ["under_review", counts.underReview],
-              ].map(([status, count]) => {
-                const meta = launchStatusMeta[status as keyof typeof launchStatusMeta];
-
-                return (
-                  <article key={status} className="rounded-[1.4rem] border border-[color:var(--line)] bg-white/80 p-5">
-                    <div
-                      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${meta.badgeClassName}`}
-                    >
-                      {meta.label}
-                    </div>
-                    <p className="mt-4 text-3xl font-semibold">{count}</p>
-                    <p className="mt-2 text-sm leading-6 text-[color:var(--ink-soft)]">
-                      {meta.definition}
-                    </p>
-                  </article>
-                );
-              })}
+              <div className="flex flex-wrap gap-2 lg:justify-end">
+                <ProofChip>Robot teams</ProofChip>
+                <ProofChip>Site operators</ProofChip>
+                <ProofChip>Capturers</ProofChip>
+              </div>
             </div>
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-          <div className="mb-6 grid gap-4 lg:grid-cols-3">
-            {[
-              {
-                title: "For robot teams",
-                body: "Use the map to see which cities are public, which are still under review, and whether the catalog is likely to have the exact-site path you need today.",
-              },
-              {
-                title: "For site operators",
-                body: "Use the map to understand where Blueprint is publicly active before discussing rights, access, or listing posture around a specific facility.",
-              },
-              {
-                title: "For capturers",
-                body: "Use the map to understand where direct public capture actions are live versus where launch work is still gated behind review.",
-              },
-            ].map((item) => (
-              <article key={item.title} className="rounded-[1.4rem] border border-[color:var(--line)] bg-white/80 p-5">
-                <h2 className="text-lg font-semibold text-[color:var(--ink)]">{item.title}</h2>
-                <p className="mt-3 text-sm leading-7 text-[color:var(--ink-soft)]">{item.body}</p>
-              </article>
-            ))}
+        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10">
+          <EditorialMetricStrip items={metrics} />
+        </section>
+
+        <section className="mx-auto max-w-[88rem] px-5 pb-10 sm:px-8 lg:px-10 lg:pb-12">
+          <div className="grid gap-6 lg:grid-cols-[0.34fr_0.66fr]">
+            <div className="space-y-6">
+              <EditorialSectionIntro
+                eyebrow="Rollout posture"
+                title="Public status should read clearly."
+                description="Each city keeps its current launch meaning inline. The map is a public product surface, not a hidden ops dashboard."
+              />
+
+              {([
+                ["live", grouped.live],
+                ["planned", grouped.planned],
+                ["under_review", grouped.under_review],
+              ] as const).map(([status, list]) => {
+                const meta = launchStatusMeta[status];
+                return (
+                  <div
+                    key={status}
+                    className="rounded-[1.6rem] border border-black/10 bg-white p-5 shadow-[0_20px_50px_-40px_rgba(15,23,42,0.22)]"
+                  >
+                    <div className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${meta.badgeClassName}`}>
+                      {meta.label}
+                    </div>
+                    <p className="mt-4 text-sm leading-7 text-slate-600">{meta.definition}</p>
+                    <div className="mt-4 space-y-2 border-t border-black/8 pt-4">
+                      {list.length > 0 ? (
+                        list.map((city) => (
+                          <div key={city.citySlug} className="flex items-center justify-between text-sm text-slate-700">
+                            <span>{city.displayName}</span>
+                            <span className="text-slate-400">Public</span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-slate-400">No cities currently shown in this state.</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div>
+              {error ? (
+                <div className="rounded-[2rem] border border-black/10 bg-white p-10 text-sm text-slate-600 shadow-[0_20px_60px_-44px_rgba(15,23,42,0.22)]">
+                  Blueprint could not load the public launch map right now. Try again shortly.
+                </div>
+              ) : loading ? (
+                <div className="rounded-[2rem] border border-black/10 bg-white p-10 text-sm text-slate-500 shadow-[0_20px_60px_-44px_rgba(15,23,42,0.22)]">
+                  Loading launch map…
+                </div>
+              ) : (
+                <PublicLaunchMap cities={cities} />
+              )}
+            </div>
           </div>
-          {error ? (
-            <div className="rounded-[1.6rem] border border-rose-200 bg-rose-50 p-6 text-sm text-rose-800">
-              Blueprint could not load the public launch map right now. Try again shortly.
-            </div>
-          ) : loading ? (
-            <div className="rounded-[1.6rem] border border-[color:var(--line)] bg-white p-10 text-center text-sm text-[color:var(--ink-muted)]">
-              Loading launch map…
-            </div>
-          ) : (
-            <PublicLaunchMap cities={data?.cities ?? []} />
-          )}
+        </section>
+
+        <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
+          <EditorialCtaBand
+            eyebrow="Next step"
+            title="Use the launch surface to decide where to lean in."
+            description="If the city you care about is already live, move into hosted review or a buyer brief. If it is not, keep the request scoped and truthful."
+            imageSrc={editorialGeneratedAssets.homeHero}
+            imageAlt="Blueprint rollout proof"
+            primaryHref="/book-exact-site-review"
+            primaryLabel="Book hosted review"
+            secondaryHref="/contact?persona=launch-map"
+            secondaryLabel="Talk to Blueprint"
+            dark={false}
+          />
         </section>
       </div>
     </>

@@ -1,56 +1,114 @@
+import type { ReactNode } from "react";
+
 import { SEO } from "@/components/SEO";
-import { OfferComparison } from "@/components/site/OfferComparison";
+import {
+  EditorialSectionIntro,
+  EditorialSectionLabel,
+  MonochromeMedia,
+  ProofChip,
+} from "@/components/site/editorial";
 import { exactSiteScopingCallPath } from "@/lib/booking";
 import { publicDemoHref } from "@/lib/marketingProof";
-import { ArrowRight, ShieldCheck } from "lucide-react";
+import {
+  ArrowRight,
+  Boxes,
+  CirclePlay,
+  Map,
+  ScanEye,
+  ShieldCheck,
+} from "lucide-react";
 
-const heroSignals = [
-  "Site package",
-  "Hosted session-hour",
-  "Custom scope only when needed",
+const packageBullets = [
+  "Exact-site 3D model and geometry coverage",
+  "Semantic labels and object library",
+  "Robot-ready navigation graph",
+  "Validation report and coverage maps",
+  "Export bundle for offline use",
 ];
 
-const choiceCards = [
-  {
-    title: "Package first",
-    body:
-      "Choose this when your team wants the site data contract and plans to run its own stack on that facility.",
-  },
-  {
-    title: "Hosted first",
-    body:
-      "Choose this when your team wants runtime evidence, reruns, and exports before moving files into its own environment.",
-  },
-  {
-    title: "Custom first",
-    body:
-      "Choose this when the site is private, rights are unusual, or higher-touch managed support changes the work from the start.",
-  },
+const hostedBullets = [
+  "Hosted exact-site environment",
+  "Route replay and scenario variation",
+  "Multi-view sensor observation",
+  "Sharable sessions and result exports",
+  "Expert review and guidance",
 ];
 
-const scopeCards = [
-  {
-    title: "What changes scope",
-    body:
-      "Private-site work, unusual trust review, exclusive rights, and higher-touch managed support are quoted separately when they materially change the job.",
-  },
-  {
-    title: "Typical first reply",
-    body:
-      "Public-listing and hosted-review pricing questions usually get a first reply within 1 business day. Request-scoped rights, privacy, export, or commercial review usually gets a first scoped answer within 2 business days.",
-  },
-  {
-    title: "What pricing does not claim",
-    body:
-      "Public price visibility does not imply unrestricted export rights, blanket site approval, or a deployment guarantee. Exact-site proof and adjacent-site proof still need to stay clearly labeled.",
-  },
+const enterpriseBullets = [
+  "Custom capture and private onboarding",
+  "Multi-site rollout planning",
+  "Role-based access and audit logs",
+  "Detection and recapture workflows",
+  "SLA, support, and success planning",
 ];
 
-function SectionLabel({ children }: { children: string }) {
+const comparisonArtifacts = [
+  { label: "3D model", detail: "Exact-site geometry", icon: Boxes },
+  { label: "Navigation graph", detail: "Robot-ready routes", icon: Map },
+  { label: "Export bundle", detail: "Run anywhere", icon: ShieldCheck },
+  { label: "Route replay", detail: "Test real paths", icon: CirclePlay },
+  { label: "Sensor views", detail: "See it like the robot", icon: ScanEye },
+  { label: "Site control", detail: "Operate at scale", icon: ShieldCheck },
+];
+
+function PricePanel({
+  index,
+  eyebrow,
+  title,
+  price,
+  body,
+  bullets,
+  image,
+  imageAlt,
+  dark = false,
+  children,
+}: {
+  index: string;
+  eyebrow: string;
+  title: string;
+  price: string;
+  body: string;
+  bullets: string[];
+  image: string;
+  imageAlt: string;
+  dark?: boolean;
+  children?: ReactNode;
+}) {
   return (
-    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-      {children}
-    </p>
+    <section className={`grid overflow-hidden rounded-[2rem] border border-black/10 ${dark ? "bg-slate-950" : "bg-white"} lg:grid-cols-[0.34fr_0.66fr]`}>
+      <div className={`px-6 py-7 lg:px-8 lg:py-9 ${dark ? "text-white" : "text-slate-950"}`}>
+        <p className={`text-sm ${dark ? "text-white/48" : "text-slate-400"}`}>{index}</p>
+        <h2 className="font-editorial mt-4 text-[3.2rem] leading-[0.95] tracking-[-0.05em]">
+          {title}
+        </h2>
+        <p className={`mt-3 text-[11px] uppercase tracking-[0.2em] ${dark ? "text-white/48" : "text-slate-500"}`}>
+          {eyebrow}
+        </p>
+        <p className={`mt-5 text-base leading-7 ${dark ? "text-white/74" : "text-slate-700"}`}>
+          {body}
+        </p>
+        <p className={`mt-6 text-lg font-semibold ${dark ? "text-white" : "text-slate-950"}`}>{price}</p>
+        <ul className={`mt-6 space-y-3 text-sm leading-6 ${dark ? "text-white/68" : "text-slate-600"}`}>
+          {bullets.map((bullet) => (
+            <li key={bullet} className="flex gap-3">
+              <span className={`mt-2 h-1.5 w-1.5 rounded-full ${dark ? "bg-white/46" : "bg-slate-400"}`} />
+              <span>{bullet}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="relative min-h-[25rem] border-t border-black/10 lg:border-l lg:border-t-0">
+        <MonochromeMedia
+          src={image}
+          alt={imageAlt}
+          className="h-full rounded-none"
+          imageClassName="h-full"
+          overlayClassName={dark ? "bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.48))]" : "bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.36))]"}
+        >
+          {children}
+        </MonochromeMedia>
+      </div>
+    </section>
   );
 }
 
@@ -59,174 +117,201 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing | Blueprint"
-        description="Public pricing for Blueprint's exact-site buying paths: site packages, hosted session-hours, and custom scope when a real facility needs a private program."
+        description="Choose the right path into one exact-site world model: site package, hosted evaluation, or enterprise scope."
         canonical="/pricing"
       />
 
-      <div className="overflow-hidden bg-[#f6f1e8] text-slate-950">
-        <section className="relative border-b border-black/10">
-          <div className="absolute inset-x-0 top-0 h-[38rem] bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_38%),radial-gradient(circle_at_84%_12%,_rgba(14,116,144,0.12),_transparent_22%),linear-gradient(180deg,_rgba(255,255,255,0.76),_rgba(246,241,232,0.96))]" />
-          <div className="absolute left-[-6rem] top-24 h-56 w-56 rounded-full bg-[#dde6df] blur-3xl" />
-          <div className="absolute right-[-8rem] top-10 h-72 w-72 rounded-full bg-[#eadfca] blur-3xl" />
-
-          <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-18 lg:px-8 lg:py-24">
-            <div className="grid gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-end">
-              <div className="max-w-3xl">
-                <SectionLabel>Pricing</SectionLabel>
-                <h1 className="font-editorial mt-5 text-[3.35rem] leading-[0.95] tracking-[-0.05em] text-slate-950 sm:text-[4.5rem]">
-                  Public pricing for the exact-site paths that matter first.
+      <div className="bg-[#f5f3ef] text-slate-950">
+        <section className="border-b border-black/10">
+          <MonochromeMedia
+            src="/generated/editorial/pricing-hero.png"
+            alt="Pricing hero"
+            className="min-h-[35rem] rounded-none"
+            loading="eager"
+            imageClassName="min-h-[35rem]"
+            overlayClassName="bg-[linear-gradient(90deg,rgba(255,255,255,0.94)_0%,rgba(255,255,255,0.34)_30%,rgba(255,255,255,0.04)_72%)]"
+          >
+            <div className="absolute inset-0 mx-auto max-w-[88rem] px-5 py-12 sm:px-8 lg:px-10 lg:py-16">
+              <div className="max-w-[34rem]">
+                <EditorialSectionLabel>Pricing</EditorialSectionLabel>
+                <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-slate-950 sm:text-[5.1rem]">
+                  Choose the right path.
                 </h1>
-                <p className="mt-5 max-w-2xl text-base leading-8 text-slate-700 sm:text-[1.05rem]">
-                  Most teams start with one of three moves: buy the site package, run the hosted path, or scope a custom program around one real facility.
+                <p className="mt-6 text-lg leading-8 text-slate-700">
+                  Exact-site world models for real facilities and the robots that run in them.
                 </p>
-
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                  <a
-                    href={publicDemoHref}
-                    className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                  >
-                    Inspect sample site
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
-                  <a
-                    href={exactSiteScopingCallPath}
-                    className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white/85 px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-white"
-                  >
-                    Book scoping call
-                  </a>
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                {heroSignals.map((item) => (
-                  <article
-                    key={item}
-                    className="rounded-[1.65rem] border border-black/10 bg-white/82 p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.28)]"
-                  >
-                    <p className="text-sm font-semibold text-slate-900">{item}</p>
-                  </article>
-                ))}
               </div>
             </div>
-          </div>
+          </MonochromeMedia>
         </section>
 
-        <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
-          <OfferComparison className="" />
-        </section>
-
-        <section className="border-y border-black/10 bg-white/55">
-          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
-            <div className="max-w-2xl">
-              <SectionLabel>How To Choose</SectionLabel>
-              <h2 className="font-editorial mt-4 text-4xl tracking-[-0.05em] text-slate-950 sm:text-[3.3rem]">
-                How to choose the first move.
-              </h2>
-            </div>
-
-            <div className="mt-8 grid gap-4 lg:grid-cols-3">
-              {choiceCards.map((card, index) => (
-                <article
-                  key={card.title}
-                  className={
-                    index === 1
-                      ? "rounded-[1.85rem] border border-black/10 bg-slate-950 p-6 text-white shadow-[0_22px_50px_-40px_rgba(15,23,42,0.75)]"
-                      : "rounded-[1.85rem] border border-black/10 bg-[#fbf9f5] p-6"
-                  }
-                >
-                  <p
-                    className={
-                      index === 1
-                        ? "text-xs font-semibold uppercase tracking-[0.18em] text-white/52"
-                        : "text-xs font-semibold uppercase tracking-[0.18em] text-slate-500"
-                    }
-                  >
-                    Option {index + 1}
-                  </p>
-                  <h3
-                    className={
-                      index === 1
-                        ? "mt-4 text-2xl font-semibold tracking-tight text-white"
-                        : "mt-4 text-2xl font-semibold tracking-tight text-slate-900"
-                    }
-                  >
-                    {card.title}
-                  </h3>
-                  <p
-                    className={
-                      index === 1
-                        ? "mt-4 text-sm leading-7 text-white/78"
-                        : "mt-4 text-sm leading-7 text-slate-600"
-                    }
-                  >
-                    {card.body}
-                  </p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
-          <div className="max-w-2xl">
-            <SectionLabel>Scope And Trust</SectionLabel>
-            <h2 className="font-editorial mt-4 text-4xl tracking-[-0.05em] text-slate-950 sm:text-[3.2rem]">
-              What changes scope.
-            </h2>
-          </div>
-
-          <div className="mt-8 grid gap-4 lg:grid-cols-3">
-            {scopeCards.map((card) => (
-              <article
-                key={card.title}
-                className="rounded-[1.85rem] border border-black/10 bg-white/85 p-6 shadow-[0_18px_40px_-36px_rgba(15,23,42,0.3)]"
-              >
-                <h3 className="text-2xl font-semibold tracking-tight text-slate-900">{card.title}</h3>
-                <p className="mt-4 text-sm leading-7 text-slate-600">{card.body}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="pb-20">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="overflow-hidden rounded-[2.25rem] border border-black/10 bg-slate-950 px-6 py-10 text-white shadow-[0_30px_80px_-52px_rgba(15,23,42,0.85)] sm:px-8 lg:px-10 lg:py-12">
-              <div className="grid gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:items-end">
-                <div className="max-w-2xl">
-                  <SectionLabel>Custom Scope</SectionLabel>
-                  <h2 className="font-editorial mt-4 text-4xl tracking-[-0.05em] text-white sm:text-[3.1rem]">
-                    Need a site that is not in the public catalog yet?
-                  </h2>
-                  <p className="mt-4 text-sm leading-7 text-white/72">
-                    Use the custom path when one specific facility matters more than the current public inventory, or when the rights, privacy, or support model needs to be negotiated up front.
-                  </p>
+        <section className="mx-auto max-w-[88rem] space-y-4 px-5 py-10 sm:px-8 lg:px-10">
+          <PricePanel
+            index="01"
+            eyebrow="Own your exact-site world model."
+            title="Site Package"
+            price="$2,100 – $3,400"
+            body="Capture your facility once and receive a complete site package your team can run anywhere."
+            bullets={packageBullets}
+            image="/generated/editorial/pricing-hero.png"
+            imageAlt="Site package illustration"
+            dark
+          >
+            <div className="absolute inset-y-0 right-0 flex w-full items-end justify-center p-6 lg:justify-end lg:p-8">
+              <div className="grid w-full max-w-[32rem] gap-4 md:grid-cols-[0.52fr_0.48fr]">
+                <div className="rounded-[1.6rem] border border-white/10 bg-black/56 p-5 text-white">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Blueprint site package</p>
+                  <p className="mt-5 text-2xl font-semibold">Rivergate DC 01</p>
+                  <p className="mt-3 text-sm text-white/62">Capture date · Apr 22, 2025</p>
                 </div>
-
-                <div className="grid gap-3">
-                  <a
-                    href={exactSiteScopingCallPath}
-                    className="inline-flex items-center justify-between rounded-2xl bg-white px-5 py-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
-                  >
-                    Book scoping call
-                    <ArrowRight className="h-4 w-4" />
-                  </a>
-                  <a
-                    href="/contact?persona=robot-team&interest=enterprise"
-                    className="inline-flex items-center justify-between rounded-2xl border border-white/15 bg-white/5 px-5 py-4 text-sm font-semibold text-white transition hover:bg-white/10"
-                  >
-                    Request custom quote
-                    <ArrowRight className="h-4 w-4" />
-                  </a>
-                  <a
-                    href="mailto:hello@tryblueprint.io?subject=Blueprint%20brief"
-                    className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-transparent px-5 py-4 text-sm font-semibold text-white/88 transition hover:bg-white/8"
-                  >
-                    <ShieldCheck className="h-4 w-4 text-white/70" />
-                    Email a short brief
-                  </a>
+                <div className="space-y-3">
+                  <div className="rounded-[1.2rem] border border-white/10 bg-white/90 p-4">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Manifest</p>
+                    <p className="mt-2 text-sm text-slate-700">Geometry, routes, labels, and provenance attached.</p>
+                  </div>
+                  <div className="rounded-[1.2rem] border border-white/10 bg-white/90 p-4">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Coverage map</p>
+                    <p className="mt-2 text-sm text-slate-700">Exact-site layout and path coverage visible.</p>
+                  </div>
                 </div>
               </div>
             </div>
+          </PricePanel>
+
+          <PricePanel
+            index="02"
+            eyebrow="Test on your site. Remotely."
+            title="Hosted Evaluation"
+            price="$16 – $29 / session-hour"
+            body="Blueprint hosts the exact-site world model so your team can replay routes, test behaviors, and evaluate robot performance without disrupting operations."
+            bullets={hostedBullets}
+            image="/generated/editorial/hosted-hero.png"
+            imageAlt="Hosted evaluation panel"
+          >
+            <div className="absolute inset-0 flex items-center justify-center p-6 lg:justify-end lg:p-8">
+              <div className="w-full max-w-[34rem] overflow-hidden rounded-[1.8rem] border border-white/14 bg-black/72 text-white shadow-[0_24px_60px_-36px_rgba(0,0,0,0.62)]">
+                <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 text-[11px] uppercase tracking-[0.18em] text-white/48">
+                  <span>Session playback</span>
+                  <span>Illustrative hosted surface</span>
+                </div>
+                <div className="grid gap-4 p-5 md:grid-cols-[0.64fr_0.36fr]">
+                  <div className="overflow-hidden rounded-[1.2rem] border border-white/10 bg-black/36">
+                    <div className="absolute hidden" />
+                    <svg viewBox="0 0 360 220" className="h-[13rem] w-full">
+                      <path d="M26 186V42H112V84H204V28H328V178H232V138H138V186Z" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="3" />
+                      <path d="M56 164C92 164 96 112 142 112C190 112 196 70 244 70C288 70 298 140 324 140" fill="none" stroke="rgba(255,255,255,0.86)" strokeWidth="4" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                  <div className="space-y-3">
+                    {["/generated/editorial/world-models-hero.png", "/generated/editorial/grocery-fulfillment.png"].map((src, index) => (
+                      <MonochromeMedia
+                        key={`${src}-${index}`}
+                        src={src}
+                        alt="Observation view"
+                        className="aspect-[16/10] border border-white/10"
+                        overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.06),rgba(0,0,0,0.16))]"
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </PricePanel>
+
+          <PricePanel
+            index="03"
+            eyebrow="Deploy across sites. Operate with confidence."
+            title="Enterprise"
+            price="$50,000+ scoped"
+            body="Use this path when the site is private, the rights model is custom, or your team needs Blueprint-managed rollout support across multiple facilities."
+            bullets={enterpriseBullets}
+            image="/generated/editorial/manufacturing-plant.png"
+            imageAlt="Enterprise operations view"
+            dark
+          >
+            <div className="absolute inset-0 flex items-center justify-center p-6 lg:justify-end lg:p-8">
+              <div className="w-full max-w-[34rem] overflow-hidden rounded-[1.8rem] border border-white/10 bg-black/70 shadow-[0_24px_60px_-36px_rgba(0,0,0,0.62)]">
+                <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 text-[11px] uppercase tracking-[0.18em] text-white/46">
+                  <span>Enterprise overview</span>
+                  <span>Illustrative ops surface</span>
+                </div>
+                <div className="grid gap-px bg-white/8 md:grid-cols-[0.62fr_0.38fr]">
+                  <div className="bg-black/36 px-5 py-4 text-sm text-white/72">
+                    {[
+                      ["Rivergate DC 01", "Live"],
+                      ["Northfield Fulfillment", "Live"],
+                      ["Lakeside Manufacturing", "Review"],
+                      ["Southpoint DC", "Updating"],
+                    ].map(([name, state]) => (
+                      <div key={name} className="flex items-center justify-between border-b border-white/8 py-3 last:border-b-0">
+                        <span>{name}</span>
+                        <span className="text-white/46">{state}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="bg-black/28 px-5 py-4">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Rollout map</p>
+                    <div className="mt-4 rounded-[1.1rem] border border-white/10 bg-black/36 p-4">
+                      <svg viewBox="0 0 210 120" className="h-28 w-full">
+                        <path d="M16 90L44 28L72 38L84 20L128 28L166 42L194 76L176 98L138 90L116 102L68 96L44 112Z" fill="none" stroke="rgba(255,255,255,0.24)" strokeWidth="2.5" />
+                        {[44, 92, 136, 168].map((cx, index) => (
+                          <circle key={cx} cx={cx} cy={[64, 82, 52, 72][index]} r="4.5" fill="white" />
+                        ))}
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </PricePanel>
+        </section>
+
+        <section className="mx-auto max-w-[88rem] px-5 pb-16 sm:px-8 lg:px-10 lg:pb-20">
+          <div className="overflow-hidden rounded-[2rem] border border-black/10 bg-white shadow-[0_24px_60px_-42px_rgba(15,23,42,0.18)]">
+            <div className="border-b border-black/10 px-6 py-5">
+              <EditorialSectionIntro
+                eyebrow="What you get"
+                title="A simpler visual comparison."
+                description="Compare the first artifact a buyer sees on each commercial path instead of reading through a dense pricing table."
+                className="max-w-3xl"
+              />
+            </div>
+            <div className="grid gap-px bg-black/8 md:grid-cols-3 xl:grid-cols-6">
+              {comparisonArtifacts.map((artifact) => {
+                const Icon = artifact.icon;
+                return (
+                  <div key={artifact.label} className="bg-white px-5 py-5">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-black/10 bg-slate-950 text-white">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <p className="mt-5 text-sm font-semibold text-slate-950">{artifact.label}</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">{artifact.detail}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-8 grid gap-3 sm:flex sm:flex-wrap">
+            <a
+              href={publicDemoHref}
+              className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              Inspect a real site
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </a>
+            <a
+              href={exactSiteScopingCallPath}
+              className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-50"
+            >
+              Book scoping call
+            </a>
+            <a
+              href="/contact?persona=robot-team&interest=enterprise"
+              className="inline-flex items-center justify-center rounded-full border border-black/10 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:bg-white"
+            >
+              Request custom quote
+            </a>
           </div>
         </section>
       </div>

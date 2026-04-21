@@ -30,7 +30,7 @@ The issue should include:
 
 ## Required Work
 
-- use Codex desktop's OAuth-backed native image workflow with `gpt-image-1.5` for the visual execution
+- use Codex desktop's OAuth-backed native image workflow with `gpt-image-2` for the visual execution
 - combine screenshots, relevant code context, and the proof pack when iterating on mockups, comps, or frontend visuals
 - keep the asset grounded in real Blueprint proof, capture, package, and hosted-review truth
 - produce the smallest set of variants needed to satisfy the issue

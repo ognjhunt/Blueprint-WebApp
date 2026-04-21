@@ -13,21 +13,13 @@ function isExternalHref(value: string) {
 }
 
 function shouldShowDock(pathname: string) {
-  const hiddenRoutes = [
-    /^\/dashboard(?:\/|$)/,
-    /^\/admin(?:\/|$)/,
-    /^\/portal(?:\/|$)/,
-    /^\/settings(?:\/|$)/,
-    /^\/requests(?:\/|$)/,
-    /^\/onboarding(?:\/|$)/,
-    /^\/sign-in$/,
-    /^\/login$/,
-    /^\/signup(?:\/|$)/,
-    /^\/forgot-password$/,
-    /^\/world-models\/[^/]+\/(?:start|workspace)$/,
+  const visibleRoutes = [
+    /^\/capture$/,
+    /^\/capture-app$/,
+    /^\/signup\/capturer$/,
   ];
 
-  return !hiddenRoutes.some((pattern) => pattern.test(pathname));
+  return visibleRoutes.some((pattern) => pattern.test(pathname));
 }
 
 export function CaptureAppDock() {

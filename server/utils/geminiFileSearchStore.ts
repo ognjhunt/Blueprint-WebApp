@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { requireConfiguredEnvValue } from "../config/env";
 import { slugifyCityName } from "./cityLaunchProfiles";
+import { NOTION_GROUNDING_ROOT_RELATIVE } from "./notionGrounding";
 
 const REPO_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -29,6 +30,9 @@ const DEFAULT_CITY_LAUNCH_DOC_PATHS = [
   "ops/paperclip/programs/city-launch-activation-program.md",
   "ops/paperclip/blueprint-company/tasks/city-launch-activation/TASK.md",
   "docs/robot-team-proof-motion-analytics-requirements-2026-04-10.md",
+];
+const DEFAULT_GENERATED_GROUNDING_ROOTS = [
+  NOTION_GROUNDING_ROOT_RELATIVE,
 ];
 
 type FileSearchCustomMetadata =
@@ -156,6 +160,40 @@ async function fileExists(absolutePath: string) {
   }
 }
 
+async function directoryExists(absolutePath: string) {
+  try {
+    const stats = await fs.stat(absolutePath);
+    return stats.isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+async function listFilesRecursively(relativeRootPath: string) {
+  const absoluteRootPath = path.join(REPO_ROOT, relativeRootPath);
+  if (!(await directoryExists(absoluteRootPath))) {
+    return [];
+  }
+
+  const files: string[] = [];
+
+  async function walk(relativePath: string) {
+    const absolutePath = path.join(REPO_ROOT, relativePath);
+    const entries = await fs.readdir(absolutePath, { withFileTypes: true });
+    for (const entry of entries) {
+      const childRelativePath = path.posix.join(relativePath, entry.name);
+      if (entry.isDirectory()) {
+        await walk(childRelativePath);
+        continue;
+      }
+      files.push(childRelativePath);
+    }
+  }
+
+  await walk(relativeRootPath);
+  return files.sort();
+}
+
 function unique(values: string[]) {
   return [...new Set(values)];
 }
@@ -188,7 +226,11 @@ export async function resolveCuratedCityLaunchDocPaths(input?: {
     }
   }
 
-  return existingPaths;
+  for (const rootPath of DEFAULT_GENERATED_GROUNDING_ROOTS) {
+    existingPaths.push(...(await listFilesRecursively(rootPath)));
+  }
+
+  return unique(existingPaths);
 }
 
 function guessMimeType(filePath: string) {
@@ -199,7 +241,7 @@ function guessMimeType(filePath: string) {
     case ".txt":
       return "text/plain";
     case ".json":
-      return "application/json";
+      return "text/plain";
     case ".pdf":
       return "application/pdf";
     case ".csv":
@@ -425,7 +467,13 @@ async function getFileSearchOperation(operationName: string) {
   });
 }
 
-async function pollOperation(operationName: string, intervalMs = 2_000, timeoutMs = 2 * 60 * 1000) {
+async function pollOperation(
+  operationName: string,
+  intervalMs = 2_000,
+  timeoutMs = Number(
+    process.env.BLUEPRINT_GEMINI_FILE_SEARCH_OPERATION_TIMEOUT_MS || String(10 * 60 * 1000),
+  ),
+) {
   const startedAt = Date.now();
 
   while (true) {

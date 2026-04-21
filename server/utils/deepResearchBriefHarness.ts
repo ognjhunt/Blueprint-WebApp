@@ -9,16 +9,18 @@ import {
 import { getConfiguredEnvValue } from "../config/env";
 import { logger } from "../logger";
 import {
+  buildGeminiDeepResearchAgentConfig,
   createGeminiInteraction,
   extractGeminiInteractionText,
-  GEMINI_DEEP_RESEARCH_AGENT,
   GEMINI_PLANNING_MODEL,
   pollGeminiInteractionUntilComplete,
+  resolveGeminiDeepResearchAgent,
   type GeminiInteraction,
 } from "./geminiInteractions";
 import {
   buildDeepResearchTools,
   resolveDeepResearchFileSearchStoreNames,
+  resolveDeepResearchMcpServers,
 } from "./deepResearchFileSearch";
 
 const REPO_ROOT = path.resolve(
@@ -30,6 +32,12 @@ const DEFAULT_REPORTS_ROOT = path.join(
   REPO_ROOT,
   "ops/paperclip/reports/deep-research-briefs",
 );
+const DEFAULT_CONTEXT_FILES = [
+  "PLATFORM_CONTEXT.md",
+  "WORLD_MODEL_STRATEGY_CONTEXT.md",
+  "AUTONOMOUS_ORG.md",
+  "DEPLOYMENT.md",
+];
 
 export interface DeepResearchBriefOptions {
   title: string;
@@ -38,6 +46,7 @@ export interface DeepResearchBriefOptions {
   businessLane?: "Executive" | "Ops" | "Growth" | "Buyer" | "Capturer" | "Experiment" | "Risk";
   system?: "Cross-System" | "WebApp" | "Capture" | "Pipeline" | "Validation";
   fileSearchStoreNames?: string[];
+  deepResearchAgent?: string;
   critiqueRounds?: number;
   reportsRoot?: string;
   slug?: string;
@@ -78,8 +87,32 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
+function trimContext(text: string, maxChars = 6_000) {
+  const normalized = text.trim();
+  if (normalized.length <= maxChars) {
+    return normalized;
+  }
+  return `${normalized.slice(0, maxChars)}\n\n[Truncated for prompt budget]`;
+}
+
 function getNotionToken() {
   return getConfiguredEnvValue("NOTION_API_TOKEN", "NOTION_API_KEY");
+}
+
+async function readRepoFile(relativePath: string) {
+  const absolutePath = path.join(REPO_ROOT, relativePath);
+  const content = await fs.readFile(absolutePath, "utf8");
+  return {
+    relativePath,
+    content,
+  };
+}
+
+async function loadDeepResearchBriefContext() {
+  const contents = await Promise.all(DEFAULT_CONTEXT_FILES.map(readRepoFile));
+  return contents
+    .map((entry) => `## ${entry.relativePath}\n\n${trimContext(entry.content)}`)
+    .join("\n\n");
 }
 
 async function writeTextArtifact(filePath: string, content: string) {
@@ -87,7 +120,10 @@ async function writeTextArtifact(filePath: string, content: string) {
   await fs.writeFile(filePath, content, "utf8");
 }
 
-function buildInitialPrompt(input: DeepResearchBriefOptions) {
+function buildInitialPrompt(
+  input: DeepResearchBriefOptions,
+  startupContext: string,
+) {
   return [
     `You are Blueprint's Deep Research analyst.`,
     ``,
@@ -98,11 +134,15 @@ function buildInitialPrompt(input: DeepResearchBriefOptions) {
     ``,
     `Requirements:`,
     `- use web research aggressively but cite concrete sources`,
+    `- use the repo-grounded Blueprint context below as startup grounding, not as external proof`,
     `- separate evidence, inference, and recommendation`,
     `- do not invent traction, legal posture, rights status, or product capability`,
     `- if evidence is missing, say it is missing`,
     `- bias toward operator-useful detail instead of generic summary`,
     `- output Markdown`,
+    ``,
+    `Blueprint repo context:`,
+    startupContext,
     ``,
     `Research brief:`,
     input.brief,
@@ -267,18 +307,28 @@ export async function runDeepResearchBrief(
   const runDirectory = path.join(reportsRoot, slug, timestampForFile(startedAt));
   const stages: DeepResearchBriefResult["stages"] = [];
   const critiqueRounds = Math.max(1, options.critiqueRounds ?? 1);
-  const deepResearchTools = buildDeepResearchTools(
-    resolveDeepResearchFileSearchStoreNames({
+  const deepResearchAgent = resolveGeminiDeepResearchAgent({
+    explicitAgent: options.deepResearchAgent,
+    envKeys: ["BLUEPRINT_DEEP_RESEARCH_AGENT"],
+  });
+  const deepResearchTools = buildDeepResearchTools({
+    fileSearchStoreNames: resolveDeepResearchFileSearchStoreNames({
       explicitStoreNames: options.fileSearchStoreNames,
     }),
+    mcpServers: resolveDeepResearchMcpServers(),
+  });
+  const startupContext = await loadDeepResearchBriefContext();
+
+  logger.info(
+    { title, slug, deepResearchAgent },
+    "Starting generic Deep Research brief",
   );
 
-  logger.info({ title, slug }, "Starting generic Deep Research brief");
-
-  const initialPrompt = buildInitialPrompt(options);
+  const initialPrompt = buildInitialPrompt(options, startupContext);
   const initialInteraction = await createGeminiInteraction({
     input: initialPrompt,
-    agent: GEMINI_DEEP_RESEARCH_AGENT,
+    agent: deepResearchAgent,
+    agentConfig: buildGeminiDeepResearchAgentConfig(),
     background: true,
     store: true,
     tools: deepResearchTools,
@@ -332,7 +382,9 @@ export async function runDeepResearchBrief(
     );
     const followUpInteraction = await createGeminiInteraction({
       input: followUpPrompt,
-      agent: GEMINI_DEEP_RESEARCH_AGENT,
+      agent: deepResearchAgent,
+      agentConfig: buildGeminiDeepResearchAgentConfig(),
+      previousInteractionId: stages[stages.length - 1]?.interactionId,
       background: true,
       store: true,
       tools: deepResearchTools,

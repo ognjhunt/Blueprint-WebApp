@@ -110,5 +110,5 @@ Optional:
 Image-generation note:
 
 - final image execution is not wired through a server-side image API in this phase
-- use Codex desktop OAuth image generation on `gpt-image-1.5` through the `webapp-codex` lane
+- use Codex desktop OAuth image generation on `gpt-image-2` through the `webapp-codex` lane
 - keep screenshots and code in the same Codex workflow when iterating on visuals

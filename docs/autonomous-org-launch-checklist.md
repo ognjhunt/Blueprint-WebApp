@@ -142,7 +142,7 @@ Human-gate packet rule:
   Recommended:
   - `OPENROUTER_BASE_URL`
   Notes:
-  - final image execution should route to `webapp-codex` using Codex desktop OAuth image generation on `gpt-image-1.5`
+  - final image execution should route to `webapp-codex` using Codex desktop OAuth image generation on `gpt-image-2`
   - no separate server-side image API key is required for that final image lane
 
 - [ ] Buyer lifecycle path is wired if that lane is enabled

@@ -1,28 +1,25 @@
 import { SEO } from "@/components/SEO";
 import {
-  exactSiteScopingCallChecklist,
-  exactSiteScopingCallUrl,
-} from "@/lib/booking";
-import { ArrowRight, CalendarDays, CheckCircle2, FileText, Workflow } from "lucide-react";
+  EditorialCtaBand,
+  EditorialSectionIntro,
+  EditorialSectionLabel,
+  MonochromeMedia,
+} from "@/components/site/editorial";
+import { exactSiteScopingCallPath } from "@/lib/booking";
+import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
 
-const scopingOutcomes = [
-  "Whether the first step should be hosted evaluation, package access, or a custom program",
-  "Which exact site, workflow lane, and trust questions actually matter before travel",
-  "What your team needs to provide next if the request moves forward",
-];
-
-const comparePaths = [
+const reviewCards = [
   {
     title: "Book the call",
-    body: "Best when the site is already known and your team wants a fast human scoping pass.",
+    body: "A narrow scoping pass on one real site, one workflow lane, and one deployment question.",
   },
   {
-    title: "Send a written brief",
-    body: "Best when you want to attach a listing, robot notes, or workflow context before the conversation.",
+    title: "What to bring",
+    body: "The site, the robot setup, and the exact question the team needs answered before travel or rollout spend.",
   },
   {
-    title: "Inspect the sample first",
-    body: "Best when your team is still validating whether Blueprint's proof style matches the kind of exact-site review you need.",
+    title: "What it resolves",
+    body: "Whether the next move is package access, hosted review, more scoping, or a custom request path.",
   },
 ];
 
@@ -34,160 +31,97 @@ export default function BookExactSiteReview() {
         description="Book a Blueprint scoping call for exact-site world-model work, hosted evaluation, and site-package review."
         canonical="/book-exact-site-review"
       />
-      <div className="min-h-screen bg-stone-50 text-slate-900">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-                Scheduling
-              </p>
-              <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-                Book an exact-site scoping call.
-              </h1>
-              <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-600">
-                Use this path when your team already has a real facility or listing in mind and
-                wants to confirm whether Blueprint package access, hosted evaluation, or a custom
-                scope makes the most sense.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <a
-                  href={exactSiteScopingCallUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                >
-                  Open scheduling
-                </a>
-                <a
-                  href="/contact?persona=robot-team&interest=evaluation-package"
-                  className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
-                >
-                  Send a written brief instead
-                </a>
-                <a
-                  href="/world-models/siteworld-f5fd54898cfb"
-                  className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-stone-100 px-6 py-3 text-sm font-semibold text-slate-900 transition hover:bg-stone-200"
-                >
-                  Inspect sample listing
-                </a>
+
+      <div className="bg-[#f5f3ef] text-slate-950">
+        <section className="border-b border-black/10">
+          <MonochromeMedia
+            src={editorialGeneratedAssets.scopingRoom}
+            alt="Book exact-site review"
+            className="min-h-[38rem] rounded-none"
+            loading="eager"
+            imageClassName="min-h-[38rem]"
+            overlayClassName="bg-[linear-gradient(90deg,rgba(255,255,255,0.88)_0%,rgba(255,255,255,0.72)_34%,rgba(255,255,255,0.2)_78%)]"
+          >
+            <div className="absolute inset-0">
+              <div className="mx-auto h-full max-w-[88rem] px-5 py-12 sm:px-8 lg:px-10 lg:py-16">
+                <div className="flex h-full max-w-[34rem] flex-col justify-end">
+                <EditorialSectionLabel>Book the call</EditorialSectionLabel>
+                <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] sm:text-[5rem]">
+                  Book an exact-site scoping call.
+                </h1>
+                <p className="mt-6 text-base leading-8 text-slate-700">
+                  This page should feel like stepping into a private review room, not a generic scheduling funnel.
+                </p>
+                </div>
               </div>
             </div>
+          </MonochromeMedia>
+        </section>
 
-            <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_20px_70px_-50px_rgba(15,23,42,0.45)]">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Bring this to the call
-              </p>
-              <ul className="mt-4 space-y-3">
-                {exactSiteScopingCallChecklist.map((item) => (
-                  <li key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-                The call is for scoping and buyer fit. It is not a testimonial, a deployment
-                promise, or a claim that every public listing is already commercially cleared.
-              </div>
-            </section>
-          </div>
-
-          <section className="mt-10 grid gap-4 lg:grid-cols-3">
-            {comparePaths.map((item) => (
-              <article key={item.title} className="rounded-2xl border border-slate-200 bg-white p-6">
-                <h2 className="text-xl font-semibold text-slate-900">{item.title}</h2>
-                <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
-              </article>
-            ))}
-          </section>
-
-          <section className="mt-10 grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
-            <article className="rounded-[2rem] border border-slate-200 bg-white p-6">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-slate-100 p-3 text-slate-700">
-                  <Workflow className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    What happens in the call
-                  </p>
-                  <h2 className="mt-1 text-2xl font-semibold text-slate-900">A narrow scoping pass on one real site.</h2>
-                </div>
-              </div>
-              <div className="mt-5 space-y-3 text-sm leading-7 text-slate-700">
-                <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                  1. Confirm the exact facility or listing and the workflow lane that matters.
-                </p>
-                <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                  2. Clarify whether your team needs the package, the Blueprint-run hosted path, or
-                  a request-scoped commercial review.
-                </p>
-                <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                  3. Leave with the next step that matches the question instead of restarting
-                  discovery from scratch.
-                </p>
-              </div>
-            </article>
-
-            <article className="rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-slate-800 p-3 text-slate-300">
-                  <CalendarDays className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    Typical outcomes
-                  </p>
-                  <h2 className="mt-1 text-2xl font-semibold">What a good scoping call resolves.</h2>
-                </div>
-              </div>
-              <ul className="mt-5 space-y-3">
-                {scopingOutcomes.map((item) => (
-                  <li key={item} className="rounded-2xl border border-slate-800 bg-slate-900/90 px-4 py-4 text-sm leading-7 text-slate-300">
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </article>
-          </section>
-
-          <section className="mt-10 rounded-[2rem] border border-slate-200 bg-white p-6 sm:p-8">
-            <div className="grid gap-4 lg:grid-cols-[1.02fr_0.98fr]">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Need a paper trail first?
-                </p>
-                <h2 className="mt-2 text-2xl font-semibold text-slate-900">
-                  Send the written brief before or after the call.
+        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+          <div className="grid gap-4 lg:grid-cols-3">
+            {reviewCards.map((card, index) => (
+              <div
+                key={card.title}
+                className={index === 1 ? "bg-slate-950 p-6 text-white" : "bg-white p-6 text-slate-950"}
+              >
+                <h2 className="font-editorial text-[2rem] leading-[0.95] tracking-[-0.04em]">
+                  {card.title}
                 </h2>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-                  Some teams want the conversation first. Others want to attach a listing, robot
-                  notes, rights questions, and workflow context before anyone talks. Both are valid.
+                <p className={`mt-4 text-sm leading-7 ${index === 1 ? "text-white/72" : "text-slate-600"}`}>
+                  {card.body}
                 </p>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-2xl bg-white p-3 text-slate-700 shadow-sm">
-                    <FileText className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">Written brief path</p>
-                    <p className="mt-1 text-sm text-slate-600">
-                      Better when you need to preserve the exact site, robot setup, and trust notes in writing.
-                    </p>
-                  </div>
-                </div>
-                <a
-                  href="/contact?persona=robot-team&interest=evaluation-package"
-                  className="mt-5 inline-flex items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                >
-                  Open the contact path
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </a>
+            ))}
+          </div>
+        </section>
+
+        <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.42fr_0.58fr] lg:px-10 lg:py-12">
+            <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
+              <EditorialSectionIntro
+                eyebrow="Scoping"
+                title="A good call resolves the next real move."
+                description="The output is a tighter path, not a vague intro meeting."
+              />
+              <div className="mt-8 space-y-3 text-sm leading-7 text-slate-700">
+                <div>Confirm the real facility and workflow lane.</div>
+                <div>Clarify whether package, hosted review, or a custom path fits.</div>
+                <div>Keep rights, privacy, and export considerations visible from the start.</div>
               </div>
             </div>
-          </section>
-        </div>
+            <div className="bg-slate-950 px-6 py-8 text-white lg:px-8 lg:py-10">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Scheduling</p>
+              <h2 className="font-editorial mt-4 text-[2.6rem] leading-[0.94] tracking-[-0.04em]">
+                A narrow scoping pass on one real site.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-white/72">
+                The page stays quiet on purpose. If the site is real and the question is narrow, the call should be easy to open.
+              </p>
+              <a
+                href={exactSiteScopingCallPath}
+                className="mt-8 inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+              >
+                Open scheduling
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
+          <EditorialCtaBand
+            eyebrow="Next step"
+            title="Use the call when one real facility is already in view."
+            description="If you still need the public proof surface first, inspect the listing or the hosted-review page before opening a time slot."
+            imageSrc={editorialGeneratedAssets.scopingRoom}
+            imageAlt="Scoping room"
+            primaryHref={exactSiteScopingCallPath}
+            primaryLabel="Book the call"
+            secondaryHref="/exact-site-hosted-review"
+            secondaryLabel="What a good scoping call resolves"
+            dark={false}
+          />
+        </section>
       </div>
     </>
   );

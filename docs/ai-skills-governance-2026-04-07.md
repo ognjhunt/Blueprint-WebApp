@@ -201,7 +201,7 @@ Codex should:
 - implement against current contracts
 - escalate when architecture or service boundaries are implicated
 - avoid importing greenfield defaults from external examples
-- use Codex desktop's OAuth-backed native image workflow with `gpt-image-1.5` by default for Codex-executed brand, marketing, and frontend image work unless the assigned issue is explicitly about the server-side provider path
+- use Codex desktop's OAuth-backed native image workflow with `gpt-image-2` by default for Codex-executed brand, marketing, and frontend image work unless the assigned issue is explicitly about the server-side provider path
 
 ## Creative Routing Rule
 
@@ -209,7 +209,7 @@ The current creative routing policy is documented in [docs/codex-creative-routin
 
 Current default:
 
-- Codex-executed image work: Codex desktop OAuth image generation on `gpt-image-1.5`, ideally iterated with screenshots and code context
+- Codex-executed image work: Codex desktop OAuth image generation on `gpt-image-2`, ideally iterated with screenshots and code context
 - Hermes growth/research lanes: no direct image-generation assumption
 - server-side autonomous workers: no separate image API for final asset execution; route image work to Codex
 - video generation: explicit provider path, currently OpenRouter video

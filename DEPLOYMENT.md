@@ -120,6 +120,18 @@ Launch-critical note:
   `ANTHROPIC_PAYOUT_EXCEPTION_MODEL`,
   `ANTHROPIC_PREVIEW_DIAGNOSIS_MODEL`,
   `ANTHROPIC_OPERATOR_THREAD_MODEL`
+- Optional Gemini Deep Research overrides:
+  `BLUEPRINT_DEEP_RESEARCH_AGENT`
+  `BLUEPRINT_CITY_LAUNCH_DEEP_RESEARCH_AGENT`
+  `BLUEPRINT_DEEP_RESEARCH_FILE_SEARCH_STORE`
+  `BLUEPRINT_CITY_LAUNCH_FILE_SEARCH_STORE`
+  `BLUEPRINT_DEEP_RESEARCH_MCP_SERVERS_JSON`
+  `BLUEPRINT_CITY_LAUNCH_DEEP_RESEARCH_MCP_SERVERS_JSON`
+
+Deep Research notes:
+- The repo defaults async Deep Research harnesses to Gemini Deep Research Max (`deep-research-max-preview-04-2026`).
+- Use `BLUEPRINT_DEEP_RESEARCH_AGENT=standard` only when you deliberately want the lower-latency Deep Research agent instead of Max.
+- `*_MCP_SERVERS_JSON` must be a JSON array of remote MCP server configs with `name`, `url`, optional `headers`, and optional `allowed_tools`.
 
 ### Internal Marketplace + Pipeline
 - `PIPELINE_SYNC_TOKEN`

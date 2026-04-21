@@ -1,18 +1,15 @@
 import { ContactForm } from "@/components/site/ContactForm";
 import { SEO } from "@/components/SEO";
+import {
+  EditorialSectionLabel,
+  MonochromeMedia,
+} from "@/components/site/editorial";
 import { normalizeInterestToLane } from "@/lib/contactInterest";
 import { getDemandCityMessaging } from "@/lib/cityDemandMessaging";
+import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
 import { Mail, MessageSquare, Sparkles } from "lucide-react";
 import { useMemo } from "react";
 import { useSearch } from "wouter";
-
-function SectionLabel({ children }: { children: string }) {
-  return (
-    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-      {children}
-    </p>
-  );
-}
 
 export default function Contact() {
   const search = useSearch();
@@ -41,7 +38,7 @@ export default function Contact() {
   const seoDescription = hostedMode
     ? "Request a hosted robot-team evaluation for a site-specific world model."
     : robotTeamCityMessaging
-      ? `Send Blueprint a short ${robotTeamCityMessaging.shortLabel} buyer brief anchored in exact-site proof, workflow context, and truthful next steps.`
+      ? robotTeamCityMessaging.requestHeroBody
       : persona === "site_operator"
         ? "Talk to Blueprint about facility participation, access rules, and governance."
         : "Send Blueprint a short brief about the site, task, and robot setup you want to evaluate.";
@@ -66,21 +63,15 @@ export default function Contact() {
       ? robotTeamCityMessaging.requestHeroBody
       : persona === "site_operator"
         ? "Use this form if you run the facility and need to talk through capture access, privacy rules, or whether the site should be listed at all."
-        : "Use this form if your team needs one exact site for evaluation, site-specific data, release comparison, or package access. A short brief is enough if you are still figuring out fit.";
-  const responseTitle = hostedMode ? "Hosted evaluation request" : "What happens after you send this";
+        : "Use this form if your team needs one exact site for evaluation, site-specific data, release comparison, or package access.";
+
   const responseBody = hostedMode
     ? "Fill out the short form and Blueprint will follow up to confirm the site, robot setup, and the next step toward a hosted evaluation."
     : robotTeamCityMessaging
       ? robotTeamCityMessaging.requestResponseBody
       : persona === "site_operator"
         ? "Blueprint reviews the facility details, access rules, and privacy notes first so the next reply can narrow the path quickly."
-        : "Blueprint reviews the site, task, and robot details first. The reply should point your team toward the package path, hosted evaluation, or a short follow-up question.";
-
-  const afterInquiry = [
-    "Blueprint reviews the site, task, and robot context first.",
-    "The next reply narrows the package path, hosted evaluation path, or the follow-up question that actually matters.",
-    "Rights, privacy, and proof boundaries stay explicit instead of being deferred into vague sales language.",
-  ];
+        : "Blueprint reviews the site, task, and robot details first. The reply should point your team toward the package path, hosted evaluation path, or the follow-up question that actually matters.";
 
   const fastPaths = [
     {
@@ -94,116 +85,84 @@ export default function Contact() {
       detail: "Best when your team wants the runtime path explained before it writes a brief.",
     },
     {
-      href: "/world-models/siteworld-f5fd54898cfb",
+      href: "/world-models",
       label: "Inspect the sample listing",
       detail: "Best when your team wants to validate the proof style before any outreach.",
     },
-  ];
-
-  const responseCadence = [
-    "Public-listing or hosted-evaluation questions: typical first reply within 1 business day.",
-    "Request-scoped rights, privacy, or export review: typical first scoped answer within 2 business days.",
-    "Private-site and unusual support requests: timing confirmed in the first follow-up once scope is clear.",
   ];
 
   return (
     <>
       <SEO title={seoTitle} description={seoDescription} canonical="/contact" />
 
-      <div className="overflow-hidden bg-[#f6f1e8] text-slate-950">
-        <section className="relative border-b border-black/10">
-          <div className="absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_40%),radial-gradient(circle_at_82%_12%,_rgba(14,116,144,0.12),_transparent_24%),linear-gradient(180deg,_rgba(255,255,255,0.78),_rgba(246,241,232,0.96))]" />
-          <div className="absolute left-[-7rem] top-20 h-56 w-56 rounded-full bg-[#dce7df] blur-3xl" />
-          <div className="absolute right-[-8rem] top-12 h-72 w-72 rounded-full bg-[#eadfca] blur-3xl" />
-
-          <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-18 lg:px-8 lg:py-24">
-            <div className="max-w-3xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/82 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
-                <MessageSquare className="h-3.5 w-3.5" />
-                {badgeLabel}
+      <div className="bg-[#f5f3ef] text-slate-950">
+        <section className="border-b border-black/10">
+          <MonochromeMedia
+            src={editorialGeneratedAssets.scopingRoom}
+            alt="Contact hero"
+            className="min-h-[38rem] rounded-none"
+            loading="eager"
+            imageClassName="min-h-[38rem]"
+            overlayClassName="bg-[linear-gradient(90deg,rgba(255,255,255,0.88)_0%,rgba(255,255,255,0.72)_34%,rgba(255,255,255,0.2)_78%)]"
+          >
+            <div className="absolute inset-0">
+              <div className="mx-auto h-full max-w-[88rem] px-5 py-12 sm:px-8 lg:px-10 lg:py-16">
+                <div className="flex h-full max-w-[36rem] flex-col justify-end">
+                <div className="inline-flex items-center gap-2 border border-black/10 bg-white/82 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  {badgeLabel}
+                </div>
+                <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] sm:text-[5rem]">
+                  {heroTitle}
+                </h1>
+                <p className="mt-6 text-base leading-8 text-slate-700">{heroBody}</p>
+                </div>
               </div>
-              <h1 className="font-editorial mt-5 text-[3.3rem] leading-[0.95] tracking-[-0.05em] text-slate-950 sm:text-[4.35rem]">
-                {heroTitle}
-              </h1>
-              <p className="mt-5 max-w-2xl text-base leading-8 text-slate-700 sm:text-[1.05rem]">
-                {heroBody}
-              </p>
             </div>
-          </div>
+          </MonochromeMedia>
         </section>
 
-        <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
-          <div className="grid gap-8 lg:grid-cols-[0.98fr_1.02fr]">
-            <div className="rounded-[1.95rem] border border-black/10 bg-white/88 p-6 shadow-[0_18px_40px_-36px_rgba(15,23,42,0.28)]">
+        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+          <div className="grid gap-8 lg:grid-cols-[0.56fr_0.44fr]">
+            <div className="border border-black/10 bg-white p-6 shadow-[0_20px_60px_-44px_rgba(15,23,42,0.22)]">
               <ContactForm />
             </div>
-
             <div className="space-y-4">
               {robotTeamCityMessaging ? (
-                <article className="rounded-[1.85rem] border border-sky-200 bg-sky-50/88 p-6">
+                <div className="border border-black/10 bg-white p-6">
                   <div className="flex items-start gap-4">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-sky-700">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-black/10 bg-[#f5f3ef] text-slate-950">
                       <Sparkles className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
                         {robotTeamCityMessaging.label}
                       </p>
-                      <h2 className="mt-2 text-xl font-semibold text-slate-900">
+                      <h2 className="font-editorial mt-3 text-[2rem] leading-[0.95] tracking-[-0.04em] text-slate-950">
                         {robotTeamCityMessaging.requestCardTitle}
                       </h2>
-                      <p className="mt-2 text-sm leading-7 text-slate-600">
+                      <p className="mt-4 text-sm leading-7 text-slate-600">
                         {robotTeamCityMessaging.requestCardBody}
                       </p>
-                      <ul className="mt-4 space-y-2 text-sm text-slate-700">
-                        {robotTeamCityMessaging.requestCardPoints.map((point) => (
-                          <li key={point} className="flex items-start gap-2">
-                            <span className="mt-2 h-1.5 w-1.5 rounded-full bg-sky-600" />
-                            <span>{point}</span>
-                          </li>
-                        ))}
-                      </ul>
                     </div>
                   </div>
-                </article>
+                </div>
               ) : null}
 
-              <article className="rounded-[1.85rem] border border-black/10 bg-slate-950 p-6 text-white shadow-[0_22px_50px_-40px_rgba(15,23,42,0.75)]">
-                <SectionLabel>{responseTitle}</SectionLabel>
-                <p className="mt-4 text-sm leading-7 text-white/76">{responseBody}</p>
-                <ul className="mt-5 space-y-3 text-sm leading-7 text-white/78">
-                  {afterInquiry.map((item) => (
-                    <li key={item} className="flex items-start gap-3">
-                      <span className="mt-2 h-1.5 w-1.5 rounded-full bg-white/45" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/55">
-                    Typical response cadence
-                  </p>
-                  <ul className="mt-3 space-y-2 text-sm text-white/76">
-                    {responseCadence.map((item) => (
-                      <li key={item} className="flex items-start gap-2">
-                        <span className="mt-2 h-1.5 w-1.5 rounded-full bg-white/45" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
+              <div className="bg-slate-950 p-6 text-white">
+                <EditorialSectionLabel light>What happens after you send this</EditorialSectionLabel>
+                <p className="mt-4 text-sm leading-7 text-white/72">{responseBody}</p>
+                <div className="mt-6 border-t border-white/10 pt-4 text-sm leading-7 text-white/68">
+                  Rights, privacy, and proof boundaries stay explicit instead of being deferred into vague sales language.
                 </div>
-              </article>
+              </div>
 
-              <article className="rounded-[1.85rem] border border-black/10 bg-white/88 p-6 shadow-[0_18px_40px_-36px_rgba(15,23,42,0.28)]">
-                <SectionLabel>Fastest Paths</SectionLabel>
+              <div className="border border-black/10 bg-white p-6">
+                <EditorialSectionLabel>Fastest Paths</EditorialSectionLabel>
                 <div className="mt-4 space-y-3">
                   {fastPaths.map((path) => (
-                    <a
-                      key={path.href}
-                      href={path.href}
-                      className="block rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 transition hover:border-slate-300 hover:bg-white"
-                    >
-                      <p className="text-sm font-semibold text-slate-900">{path.label}</p>
+                    <a key={path.href} href={path.href} className="block border border-black/10 bg-[#f5f3ef] px-4 py-4 transition hover:bg-white">
+                      <p className="font-medium text-slate-950">{path.label}</p>
                       <p className="mt-2 text-sm leading-6 text-slate-600">{path.detail}</p>
                     </a>
                   ))}
@@ -215,7 +174,7 @@ export default function Contact() {
                   <Mail className="h-4 w-4" />
                   Email a short brief to hello@tryblueprint.io
                 </a>
-              </article>
+              </div>
             </div>
           </div>
         </section>

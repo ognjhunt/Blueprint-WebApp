@@ -178,7 +178,7 @@ Simplification must not remove the following truths:
 
 - Use the same warm editorial direction introduced on the homepage.
 - Reuse existing real proof assets where possible.
-- If new raster imagery becomes necessary later, use Codex image generation on `gpt-image-1.5`.
+- If new raster imagery becomes necessary later, use Codex image generation on `gpt-image-2`.
 - Prioritize image-led sections over repeated boxed copy sections.
 - Keep the catalog scannable on mobile first, not just compressed desktop cards.
 
@@ -235,4 +235,3 @@ Mitigation:
 Mitigation:
 - keep only primary filters expanded by default
 - reduce explanatory chrome around them
-

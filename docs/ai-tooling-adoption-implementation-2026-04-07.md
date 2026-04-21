@@ -78,7 +78,7 @@ This also follows the repo's own recent conclusions:
 
 Creative execution addendum on the trusted host:
 
-- Codex-executed brand, marketing, and frontend image work should use Codex desktop's OAuth-backed native image workflow with `gpt-image-1.5` by default
+- Codex-executed brand, marketing, and frontend image work should use Codex desktop's OAuth-backed native image workflow with `gpt-image-2` by default
 - screenshots and code context should stay in the same Codex workflow when iterating on visuals
 - Hermes-backed lanes remain planning, research, copy, and routing lanes unless work is explicitly moved into Codex
 - server-side autonomous workers do not call a separate paid image API for final asset execution; they route image-heavy work into the Codex lane

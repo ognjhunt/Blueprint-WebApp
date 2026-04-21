@@ -66,6 +66,9 @@ async function main() {
     | null;
   const critiqueRounds = Number(getFlagValue(args, "--critique-rounds") || "1");
   const fileSearchStoreNames = getCsvFlagValues(args, "--file-search-store");
+  const deepResearchAgent =
+    getFlagValue(args, "--research-agent")
+    || getFlagValue(args, "--deep-research-agent");
 
   const result = await runDeepResearchBrief({
     title,
@@ -74,6 +77,7 @@ async function main() {
     businessLane: businessLane || undefined,
     system: system || undefined,
     fileSearchStoreNames,
+    deepResearchAgent: deepResearchAgent || undefined,
     critiqueRounds: Number.isFinite(critiqueRounds) ? critiqueRounds : 1,
   });
 

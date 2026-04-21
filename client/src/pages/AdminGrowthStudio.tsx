@@ -419,12 +419,12 @@ export default function AdminGrowthStudio() {
       model: "disabled_by_policy",
       executionState: "not_configured",
       note:
-        "Server-side paid image generation is disabled. Route image-heavy work to webapp-codex and use Codex desktop OAuth image generation on gpt-image-1.5 there.",
+        "Server-side paid image generation is disabled. Route image-heavy work to webapp-codex and use Codex desktop OAuth image generation on gpt-image-2 there.",
       lastError: null,
     });
     setError("");
     setNotice(
-      "Server-side image generation is disabled by policy. Use the creative factory handoff or a webapp-codex issue for Codex OAuth image execution on gpt-image-1.5.",
+      "Server-side image generation is disabled by policy. Use the creative factory handoff or a webapp-codex issue for Codex OAuth image execution on gpt-image-2.",
     );
   }
 

@@ -3,17 +3,42 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   buildDeepResearchTools,
   resolveDeepResearchFileSearchStoreNames,
+  resolveDeepResearchMcpServers,
 } from "../utils/deepResearchFileSearch";
 
 afterEach(() => {
   delete process.env.BLUEPRINT_DEEP_RESEARCH_FILE_SEARCH_STORE;
   delete process.env.BLUEPRINT_CITY_LAUNCH_FILE_SEARCH_STORE;
+  delete process.env.BLUEPRINT_DEEP_RESEARCH_MCP_SERVERS_JSON;
 });
 
 describe("deep research file search helpers", () => {
-  it("builds file search tool config only when store names exist", () => {
-    expect(buildDeepResearchTools()).toBeUndefined();
-    expect(buildDeepResearchTools(["fileSearchStores/example"])).toEqual([
+  it("builds the default Deep Research tool suite and appends file search when configured", () => {
+    expect(buildDeepResearchTools()).toEqual([
+      {
+        type: "google_search",
+      },
+      {
+        type: "url_context",
+      },
+      {
+        type: "code_execution",
+      },
+    ]);
+    expect(
+      buildDeepResearchTools({
+        fileSearchStoreNames: ["fileSearchStores/example"],
+      }),
+    ).toEqual([
+      {
+        type: "google_search",
+      },
+      {
+        type: "url_context",
+      },
+      {
+        type: "code_execution",
+      },
       {
         type: "file_search",
         file_search_store_names: ["fileSearchStores/example"],
@@ -52,6 +77,37 @@ describe("deep research file search helpers", () => {
     expect(resolveDeepResearchFileSearchStoreNames()).toEqual([
       "fileSearchStores/store-a",
       "fileSearchStores/store-b",
+    ]);
+  });
+
+  it("parses env-configured remote MCP servers for Deep Research", () => {
+    process.env.BLUEPRINT_DEEP_RESEARCH_MCP_SERVERS_JSON = JSON.stringify([
+      {
+        name: "blueprint-market-data",
+        url: "https://example.com/mcp",
+        headers: {
+          Authorization: "Bearer token",
+        },
+        allowed_tools: {
+          mode: "validated",
+          tools: ["search_company", "get_contact_page"],
+        },
+      },
+    ]);
+
+    expect(resolveDeepResearchMcpServers()).toEqual([
+      {
+        type: "mcp_server",
+        name: "blueprint-market-data",
+        url: "https://example.com/mcp",
+        headers: {
+          Authorization: "Bearer token",
+        },
+        allowed_tools: {
+          mode: "validated",
+          tools: ["search_company", "get_contact_page"],
+        },
+      },
     ]);
   });
 });

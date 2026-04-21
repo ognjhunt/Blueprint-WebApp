@@ -108,9 +108,46 @@ describe("city launch planning harness", () => {
   });
 
   it("builds an optional file search tool config for deep research", () => {
-    expect(buildDeepResearchTools()).toBeUndefined();
-    expect(buildDeepResearchTools(["  "])).toBeUndefined();
-    expect(buildDeepResearchTools(["fileSearchStores/blueprint-city-launch"])).toEqual([
+    expect(buildDeepResearchTools()).toEqual([
+      {
+        type: "google_search",
+      },
+      {
+        type: "url_context",
+      },
+      {
+        type: "code_execution",
+      },
+    ]);
+    expect(
+      buildDeepResearchTools({
+        fileSearchStoreNames: ["  "],
+      }),
+    ).toEqual([
+      {
+        type: "google_search",
+      },
+      {
+        type: "url_context",
+      },
+      {
+        type: "code_execution",
+      },
+    ]);
+    expect(
+      buildDeepResearchTools({
+        fileSearchStoreNames: ["fileSearchStores/blueprint-city-launch"],
+      }),
+    ).toEqual([
+      {
+        type: "google_search",
+      },
+      {
+        type: "url_context",
+      },
+      {
+        type: "code_execution",
+      },
       {
         type: "file_search",
         file_search_store_names: ["fileSearchStores/blueprint-city-launch"],

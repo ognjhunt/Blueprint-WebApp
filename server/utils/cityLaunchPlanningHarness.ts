@@ -9,16 +9,18 @@ import {
 import { getConfiguredEnvValue } from "../config/env";
 import { logger } from "../logger";
 import {
+  buildGeminiDeepResearchAgentConfig,
   createGeminiInteraction,
   extractGeminiInteractionText,
-  GEMINI_DEEP_RESEARCH_AGENT,
   GEMINI_PLANNING_MODEL,
   pollGeminiInteractionUntilComplete,
+  resolveGeminiDeepResearchAgent,
   type GeminiInteraction,
 } from "./geminiInteractions";
 import {
   buildDeepResearchTools,
   resolveDeepResearchFileSearchStoreNames,
+  resolveDeepResearchMcpServers,
 } from "./deepResearchFileSearch";
 import {
   CITY_LAUNCH_RESEARCH_SCHEMA_VERSION,
@@ -73,6 +75,7 @@ export interface CityLaunchHarnessRunOptions {
   region?: string | null;
   similarCompanies?: string[];
   fileSearchStoreNames?: string[];
+  deepResearchAgent?: string;
   critiqueRounds?: number;
   pollIntervalMs?: number;
   timeoutMs?: number;
@@ -1029,15 +1032,28 @@ export async function runCityLaunchPlanningHarness(
   const similarCompanies = options.similarCompanies?.length
     ? options.similarCompanies
     : ["Uber", "DoorDash", "Instacart", "Airbnb", "Lime"];
-  const deepResearchTools = buildDeepResearchTools(
-    resolveDeepResearchFileSearchStoreNames({
+  const deepResearchAgent = resolveGeminiDeepResearchAgent({
+    explicitAgent: options.deepResearchAgent,
+    envKeys: [
+      "BLUEPRINT_CITY_LAUNCH_DEEP_RESEARCH_AGENT",
+      "BLUEPRINT_DEEP_RESEARCH_AGENT",
+    ],
+  });
+  const deepResearchTools = buildDeepResearchTools({
+    fileSearchStoreNames: resolveDeepResearchFileSearchStoreNames({
       explicitStoreNames: options.fileSearchStoreNames,
       envKeys: [
         "BLUEPRINT_CITY_LAUNCH_FILE_SEARCH_STORE",
         "BLUEPRINT_DEEP_RESEARCH_FILE_SEARCH_STORE",
       ],
     }),
-  );
+    mcpServers: resolveDeepResearchMcpServers({
+      envKeys: [
+        "BLUEPRINT_CITY_LAUNCH_DEEP_RESEARCH_MCP_SERVERS_JSON",
+        "BLUEPRINT_DEEP_RESEARCH_MCP_SERVERS_JSON",
+      ],
+    }),
+  });
   const critiqueRounds = Math.max(1, options.critiqueRounds ?? 1);
   const context = await loadPlanningContext(citySlug);
   let latestResearchText = "";
@@ -1072,11 +1088,15 @@ export async function runCityLaunchPlanningHarness(
     context,
   });
 
-  logger.info({ city, citySlug }, "Starting city launch Deep Research harness");
+  logger.info(
+    { city, citySlug, deepResearchAgent },
+    "Starting city launch Deep Research harness",
+  );
 
   const initialResearch = await createGeminiInteraction({
     input: initialResearchPrompt,
-    agent: GEMINI_DEEP_RESEARCH_AGENT,
+    agent: deepResearchAgent,
+    agentConfig: buildGeminiDeepResearchAgentConfig(),
     background: true,
     store: true,
     tools: deepResearchTools,
@@ -1154,7 +1174,9 @@ export async function runCityLaunchPlanningHarness(
     });
     const followUpResearch = await createGeminiInteraction({
       input: followUpPrompt,
-      agent: GEMINI_DEEP_RESEARCH_AGENT,
+      agent: deepResearchAgent,
+      agentConfig: buildGeminiDeepResearchAgentConfig(),
+      previousInteractionId: stages[stages.length - 1]?.interactionId,
       background: true,
       store: true,
       tools: deepResearchTools,
@@ -1363,12 +1385,46 @@ export async function runCityLaunchFollowUpQuestion(input: {
   previousInteractionId: string;
   question: string;
   artifactPath?: string;
+  fileSearchStoreNames?: string[];
+  deepResearchAgent?: string;
+  pollIntervalMs?: number;
+  timeoutMs?: number;
 }) {
-  const interaction = await createGeminiInteraction({
+  const deepResearchAgent = resolveGeminiDeepResearchAgent({
+    explicitAgent: input.deepResearchAgent,
+    envKeys: [
+      "BLUEPRINT_CITY_LAUNCH_DEEP_RESEARCH_AGENT",
+      "BLUEPRINT_DEEP_RESEARCH_AGENT",
+    ],
+  });
+  const deepResearchTools = buildDeepResearchTools({
+    fileSearchStoreNames: resolveDeepResearchFileSearchStoreNames({
+      explicitStoreNames: input.fileSearchStoreNames,
+      envKeys: [
+        "BLUEPRINT_CITY_LAUNCH_FILE_SEARCH_STORE",
+        "BLUEPRINT_DEEP_RESEARCH_FILE_SEARCH_STORE",
+      ],
+    }),
+    mcpServers: resolveDeepResearchMcpServers({
+      envKeys: [
+        "BLUEPRINT_CITY_LAUNCH_DEEP_RESEARCH_MCP_SERVERS_JSON",
+        "BLUEPRINT_DEEP_RESEARCH_MCP_SERVERS_JSON",
+      ],
+    }),
+  });
+  const startedInteraction = await createGeminiInteraction({
     input: input.question,
-    model: GEMINI_PLANNING_MODEL,
+    agent: deepResearchAgent,
+    agentConfig: buildGeminiDeepResearchAgentConfig(),
     previousInteractionId: input.previousInteractionId,
+    background: true,
     store: true,
+    tools: deepResearchTools,
+  });
+  const interaction = await pollGeminiInteractionUntilComplete({
+    interactionId: startedInteraction.id,
+    pollIntervalMs: input.pollIntervalMs,
+    timeoutMs: input.timeoutMs,
   });
 
   const text = extractGeminiInteractionText(interaction);
@@ -1380,6 +1436,7 @@ export async function runCityLaunchFollowUpQuestion(input: {
         ``,
         `- previous_interaction_id: ${input.previousInteractionId}`,
         `- interaction_id: ${interaction.id}`,
+        `- status: ${interaction.status}`,
         ``,
         `## Question`,
         input.question,

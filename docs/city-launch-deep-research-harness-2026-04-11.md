@@ -21,9 +21,12 @@ This design follows Google's current docs:
 
 - Gemini Deep Research is available only through the Interactions API and not `generateContent`
 - Deep Research is powered by Gemini 3.1 Pro
+- Supported agent versions are `deep-research-preview-04-2026` and `deep-research-max-preview-04-2026`
+- Blueprint defaults async planning and generic research-brief runs to Deep Research Max
 - Deep Research must run with `background=true`
 - follow-up questions should use `previous_interaction_id`
-- Deep Research currently does not support custom function-calling tools or structured outputs
+- Deep Research now supports remote MCP servers, File Search, URL Context, Code Execution, and Google Search in the same Interactions workflow
+- Deep Research still does not support custom function-calling tools or structured outputs
 
 Those constraints mean the correct Blueprint pattern is:
 
@@ -45,18 +48,25 @@ Useful flags:
 - `--critique-rounds 2`
 - `--region "Texas"`
 - `--similar-companies "Uber,DoorDash,Instacart,Airbnb,Lime"`
+- `--research-agent standard`
 - `--file-search-store "fileSearchStores/blueprint-city-launch"`
 - `--poll-interval-ms 10000`
 - `--timeout-ms 1200000`
 
 Optional internal grounding:
 
-- By default Deep Research uses public-web tools only.
+- By default Blueprint Deep Research harnesses enable Google Search, URL Context, and Code Execution.
 - To add a small curated Blueprint document store, pass `--file-search-store`.
 - The value may be a single File Search store name or a comma-separated list of store names.
 - Keep this narrow and curated. Do not index the whole repo by default.
 - You can also set `BLUEPRINT_CITY_LAUNCH_FILE_SEARCH_STORE` to make a default store automatic for `city-launch:plan`.
 - For all Gemini Deep Research brief runs across the org, you can set `BLUEPRINT_DEEP_RESEARCH_FILE_SEARCH_STORE`.
+- To attach remote MCP servers, set `BLUEPRINT_DEEP_RESEARCH_MCP_SERVERS_JSON` or the city-specific override `BLUEPRINT_CITY_LAUNCH_DEEP_RESEARCH_MCP_SERVERS_JSON`.
+
+Agent choice:
+
+- Use the default Max agent for city planning, customer finding, due diligence, and other background research runs where completeness matters most.
+- Use `--research-agent standard` only when you are wiring a lower-latency interactive surface and want the faster non-Max Deep Research agent.
 
 Build a narrow curated File Search store for city-launch docs:
 
@@ -94,15 +104,41 @@ export BLUEPRINT_DEEP_RESEARCH_FILE_SEARCH_STORE="fileSearchStores/blueprintcity
 
 Paperclip agents that use `npm run deep-research:brief` can then inherit the same store automatically.
 
+Example remote MCP config:
+
+```bash
+export BLUEPRINT_DEEP_RESEARCH_MCP_SERVERS_JSON='[
+  {
+    "name": "blueprint-market-data",
+    "url": "https://example.com/mcp",
+    "headers": {
+      "Authorization": "Bearer REPLACE_ME"
+    },
+    "allowed_tools": {
+      "mode": "validated",
+      "tools": ["search_company", "get_contact_page"]
+    }
+  }
+]'
+```
+
 Refresh the research grounding store on demand:
 
 ```bash
 npm run research-grounding:refresh -- --city "Austin, TX"
 ```
 
+Refresh the curated local Notion export on its own:
+
+```bash
+npm run notion-grounding:refresh -- --city "Austin, TX"
+```
+
 Operational rule:
 
+- `notion-grounding:refresh` exports the selected Blueprint Knowledge and Work Queue pages into the local cache at `ops/paperclip/research-grounding/notion/`.
 - `research-grounding:refresh` is the explicit maintenance command that Paperclip agents may call when they need fresher internal grounding before a Gemini Deep Research run.
+- `research-grounding:refresh` now refreshes the local Notion grounding cache first, then uploads repo docs plus that curated Notion export into the Gemini File Search store.
 - It does not run automatically before every research pass.
 - If `BLUEPRINT_CITY_LAUNCH_FILE_SEARCH_STORE` or `BLUEPRINT_DEEP_RESEARCH_FILE_SEARCH_STORE` is set, the refresh command will update that existing store by default.
 
@@ -153,10 +189,11 @@ That keeps the research readable by the broader team without requiring access to
 For non-city research briefs, use the generic Deep Research brief runner:
 
 ```bash
-npm run deep-research:brief -- --title "Austin warehouse robotics demand patterns" --owner "demand-intel-agent" --business-lane Growth --brief-file /abs/path/to/brief.md
+npm run deep-research:brief -- --title "Austin warehouse robotics demand patterns" --owner "demand-intel-agent" --business-lane Growth --brief-file /abs/path/to/brief.md --research-agent max
 ```
 
 This writes repo artifacts under `ops/paperclip/reports/deep-research-briefs/` and, when Notion credentials are configured, mirrors the final brief into Blueprint Knowledge plus a review breadcrumb in Work Queue.
+The generic brief runner now also embeds the core Blueprint doctrine files directly into the initial research prompt, so non-city briefs start with startup context even before optional File Search grounding is added.
 
 ## Agents Allowed To Use This Capability
 
