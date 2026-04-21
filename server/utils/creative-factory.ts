@@ -9,6 +9,7 @@ import {
   upsertPaperclipIssue,
   wakePaperclipAgent,
 } from "./paperclip";
+import { readLatestMarketSignalSnapshot } from "./marketSignalCache";
 
 function normalizeString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -27,14 +28,7 @@ function startOfUtcDay(date = new Date()) {
 }
 
 async function latestResearchRun() {
-  if (!db) return null;
-  const snapshot = await db
-    .collection("autonomous_growth_runs")
-    .orderBy("created_at", "desc")
-    .limit(1)
-    .get();
-  if (snapshot.empty) return null;
-  return snapshot.docs[0].data() as Record<string, unknown>;
+  return await readLatestMarketSignalSnapshot();
 }
 
 const OBJECTION_SIGNAL_PATTERNS: Array<{ label: string; pattern: RegExp }> = [
@@ -227,11 +221,7 @@ export async function runCreativeAssetFactoryLoop() {
   const signalHighlights = Array.isArray(researchRun?.signals)
     ? researchRun!.signals
         .slice(0, 3)
-        .map((signal) =>
-          signal && typeof signal === "object"
-            ? `${normalizeString((signal as Record<string, unknown>).title)}: ${normalizeString((signal as Record<string, unknown>).summary)}`
-            : "",
-        )
+        .map((signal) => `${normalizeString(signal.title)}: ${normalizeString(signal.summary)}`)
         .filter(Boolean)
     : [];
   const mergedSignalHighlights = [...contentReviewSignals, ...signalHighlights].slice(0, 4);

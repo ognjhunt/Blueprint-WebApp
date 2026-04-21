@@ -249,7 +249,7 @@ describe("city launch planning harness", () => {
             {
               key: "robot_team_inbound_captured",
               kind: "event",
-              status: "required_not_tracked",
+              status: "required_tracked",
               owner_lane: "analytics-agent",
             },
           ],
@@ -301,7 +301,6 @@ describe("city launch planning harness", () => {
     expect(result.errors.join("\n")).toContain("Manipulative or posture-drifting language detected");
     expect(result.errors.join("\n")).toContain("unsupported analytics vocabulary");
     expect(result.errors.join("\n")).toContain('Missing required section heading: "What Must Be Validated Before Live Outreach"');
-    expect(result.errors.join("\n")).toContain('unsupported "proof_path" value "hosted_review"');
     expect(result.errors.join("\n")).toContain("Structured playbook includes placeholder source URLs");
     expect(result.errors.join("\n")).toContain(
       'Activation payload is missing required metrics_dependencies key "proof_path_assigned"',

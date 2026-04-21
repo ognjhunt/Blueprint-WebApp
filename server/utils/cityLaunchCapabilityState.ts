@@ -32,7 +32,7 @@ export function assessCityLaunchCapabilities(input: {
   senderVerification: "verified" | "unverified" | "unknown" | "unset";
   hasRightsClearedProofAsset: boolean;
   hasHostedReviewStarted: boolean;
-  hasFirehose: boolean;
+  hasSignalProvider: boolean;
 }): CityLaunchCapabilitySnapshot {
   const blockers: string[] = [];
   const warnings: string[] = [];
@@ -84,8 +84,8 @@ export function assessCityLaunchCapabilities(input: {
         detail: "Hosted review is a downstream execution milestone, not an activation precondition.",
       },
       analytics: {
-        status: input.hasFirehose ? "ready" : "warning",
-        detail: "Firehose enriches analytics but must not block first-party city-launch scorecards.",
+        status: input.hasSignalProvider ? "ready" : "warning",
+        detail: "External market signals enrich analytics but must not block first-party city-launch scorecards.",
       },
     },
   };

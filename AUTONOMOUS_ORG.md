@@ -24,6 +24,21 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 - Founder scope stays narrow: strategic repo truth, policy updates, and architecture changes. Routine launch, commercial, and ops execution should run autonomously from written policy and evidence, not approval packets.
 - Named operator lanes in the current model: Growth Lead for channel/referral/source posture, Ops Lead for intake/threshold/trust-kit readiness, revenue-ops-pricing-agent for standard quote-band enforcement, and rights-provenance-agent for rights/privacy/commercialization evidence handling.
 
+## Phase 0 Canonical Contracts
+
+The current cross-repo autonomy program uses these repo-grounded contracts as canonical definitions:
+
+- [Autonomous Org Cross-Repo Operating Graph Contract](./docs/autonomous-org-cross-repo-operating-graph-2026-04-20.md)
+- [Founder Inbox Contract](./docs/founder-inbox-contract-2026-04-20.md)
+- [Company Metrics Contract](./docs/company-metrics-contract-2026-04-20.md)
+
+These contracts establish that:
+
+- `Blueprint-WebApp` is the canonical control plane for execution state, founder inbox state, and company metrics
+- `blocked`, `awaiting_external_confirmation`, `awaiting_human_decision`, `ready_to_execute`, and `completed` have one shared meaning across repos
+- true founder-facing interrupts route through the universal founder inbox instead of ad hoc escalation packets
+- company scoreboards must derive from first-party evidence projected into WebApp rather than lane-local narrative summaries
+
 ---
 
 ## Org Chart
@@ -128,11 +143,11 @@ On the current trusted host, Paperclip uses local subscription-backed auth only.
 - Concrete Paperclip issue creation/update/closure
 - Delegations and blocker follow-up issues
 - Cross-agent follow-through decisions
-- Founder decision packets with one recommendation, one exact ask, one deadline, and one follow-through owner
+- Founder decision packets routed through the canonical founder inbox contract with one recommendation, one exact ask, one deadline, one blocker id, and one follow-through owner
 - Slack-visible manager wakeups and task-routing activity
 - Human-reply watcher ownership for blocker packets, including correlation, reply classification, and delegated execution handoff
 
-**Policy guardrails:** Strategy, budget, rights/privacy, commercialization commitments, legal, policy, and other irreversible high-risk decisions.
+**Policy guardrails:** Strategy, budget, rights/privacy, commercialization commitments, legal, policy, and other irreversible high-risk decisions. Founder-facing cases must use the canonical founder inbox contract rather than repo-local packet variants.
 
 **Instructions:** `ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md`
 **Paperclip config:** `ops/paperclip/blueprint-company/.paperclip.yaml`
@@ -1193,7 +1208,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 | **Model** | Hermes (OpenRouter Arcee free primary, Arcee/Z.ai ladder before Codex fallback) |
 | **Status** | New |
 
-**Purpose:** KPI contract owner across Firestore, Stripe, PostHog/GA4, and Paperclip. Pulls, aggregates, and interprets measurable signals, detects anomalies, publishes daily/weekly reports, and keeps blocked metrics visible instead of inventing them.
+**Purpose:** KPI contract owner across Firestore, Stripe, PostHog/GA4, and Paperclip. Pulls, aggregates, and interprets measurable signals, detects anomalies, publishes daily/weekly reports, and keeps blocked metrics visible instead of inventing them. Canonical metric definitions and scoreboard truth are governed by the Phase 0 company metrics contract in `docs/company-metrics-contract-2026-04-20.md`.
 
 **Triggers:**
 - `0 6 * * *` — Daily 6am ET metrics pull + anomaly detection
@@ -1213,6 +1228,7 @@ All 6 engineering agents already exist in Paperclip. They are organized as imple
 - Weekly growth report → Growth Lead
 - Anomaly alerts (immediate) → Growth Lead + CEO
 - On-demand metric answers → requesting agent
+- Shared company-scoreboard interpretations aligned to the canonical WebApp-centered metrics contract
 
 **Key metrics tracked:**
 

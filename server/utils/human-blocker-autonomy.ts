@@ -131,6 +131,7 @@ export async function dispatchRuntimeApprovalHumanBlocker(params: {
       ]
         .filter(Boolean)
         .join(" "),
+      decisionType: "runtime_approval",
       recommendedAnswer: approvalRecommendedAnswer(approvalReason),
       exactResponseNeeded:
         "Reply with approved, rejected, or revise: <exact change> for this run.",
@@ -155,6 +156,16 @@ export async function dispatchRuntimeApprovalHumanBlocker(params: {
       ].filter(Boolean) as string[],
       nonScope:
         "This does not authorize broader pricing, policy, rights/privacy, or scope changes outside this blocked run.",
+      repoContext: {
+        repo: "Blueprint-WebApp",
+        project: "blueprint-webapp",
+        sourceRef: params.runId,
+      },
+      policyContext: {
+        gateMode: "universal_founder_inbox",
+        reasonCategory: approvalReason,
+        autoExecutionEligible: false,
+      },
     },
   });
 }
@@ -187,6 +198,7 @@ export async function dispatchActionApprovalHumanBlocker(params: {
       ]),
       title: `${titleCase(params.lane)} action requires human review`,
       summary: `The ${params.actionType} action for ${params.sourceCollection}/${params.sourceDocId} is queued in pending approval.`,
+      decisionType: "queued_action_approval",
       recommendedAnswer: approvalRecommendedAnswer(approvalReason),
       exactResponseNeeded:
         "Reply with approved, rejected, or revise: <exact change> for this queued action.",
@@ -210,6 +222,17 @@ export async function dispatchActionApprovalHumanBlocker(params: {
       ],
       nonScope:
         "This does not authorize unrelated pricing, rights/privacy, legal, or policy changes outside this one queued action.",
+      repoContext: {
+        repo: "Blueprint-WebApp",
+        project: "blueprint-webapp",
+        opsWorkItemId: params.ledgerDocId,
+        sourceRef: `${params.sourceCollection}/${params.sourceDocId}`,
+      },
+      policyContext: {
+        gateMode: "universal_founder_inbox",
+        reasonCategory: approvalReason,
+        autoExecutionEligible: false,
+      },
     },
   });
 }

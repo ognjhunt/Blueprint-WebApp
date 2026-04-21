@@ -79,6 +79,13 @@ import {
   assessCityLaunchCapabilities,
   type CityLaunchCapabilitySnapshot,
 } from "./cityLaunchCapabilityState";
+import { hasConfiguredMarketSignalProvider } from "./marketSignalProviders";
+import { appendOperatingGraphEvent, buildCityProgramId } from "./operatingGraph";
+import type {
+  BlockingCondition,
+  NextAction,
+  OperatingGraphStage,
+} from "./operatingGraphTypes";
 
 const REPO_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -381,13 +388,6 @@ function formatDateOnly(value: string) {
 function countRecipientBackedFirstWaveContacts(research: CityLaunchResearchParseResult | null) {
   return (research?.buyerTargets || []).filter((entry) => Boolean(entry.contactEmail)).length
     + (research?.captureCandidates || []).filter((entry) => Boolean(entry.contactEmail)).length;
-}
-
-function hasFirehoseConfigured() {
-  return Boolean(
-    getConfiguredEnvValue("FIREHOSE_API_TOKEN")
-      && getConfiguredEnvValue("FIREHOSE_BASE_URL"),
-  );
 }
 
 async function reconcilePriorActivationIssueState(input: {
@@ -2566,7 +2566,7 @@ async function wakeCityLaunchTaskOwner(input: {
     canonicalTargetLedgerPath: string;
     canonicalActivationPayloadPath: string;
   };
-}) {
+}): Promise<{ wakeStatus: string | null; wakeRunId: string | null; wakeError?: string | null }> {
   let commentConflict = false;
   try {
     await createPaperclipIssueComment(
@@ -2630,8 +2630,9 @@ async function wakeCityLaunchTaskOwner(input: {
       if (!retryable || attempt === 1) {
         if (retryable) {
           return {
-            wakeStatus: commentConflict ? "skipped_existing" : "requested",
+            wakeStatus: "degraded_binding_conflict",
             wakeRunId: null,
+            wakeError: message,
           };
         }
         throw error;
@@ -2640,8 +2641,11 @@ async function wakeCityLaunchTaskOwner(input: {
   }
 
   return {
-    wakeStatus: commentConflict ? "skipped_existing" : "requested",
+    wakeStatus: commentConflict ? "degraded_binding_conflict" : "requested",
     wakeRunId: null,
+    wakeError: commentConflict
+      ? "Paperclip kickoff comment conflicted with another bound issue during wake dispatch."
+      : null,
   };
 }
 
@@ -2708,41 +2712,21 @@ async function dispatchCityLaunchIssueTree(input: {
     "Route all child issues under this root so the city launch can be reviewed and executed as one bounded operating program.",
   ].join("\n");
 
-  let root: Awaited<ReturnType<typeof upsertPaperclipIssue>>;
-  try {
-    root = await upsertPaperclipIssue({
-      projectName: CITY_LAUNCH_PROJECT_NAME,
-      assigneeKey: "growth-lead",
-      title: `Launch ${input.profile.city} as a bounded city program`,
-      description: rootDescription,
-      priority: input.founderApproved ? "high" : "medium",
-      status: rootIssueStatus,
-      originKind: "city_launch_activation",
-      originId: input.profile.key,
-      existingIssueId: input.existingRootIssueId ?? null,
-      onBoundConflict: {
-        strategy: "create_fresh",
-        originId: `${input.profile.key}:activation:${input.activationRunId}`,
-      },
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (/Paperclip 409\b/.test(message) && /bound to a different issue/i.test(message)) {
-      root = {
-        companyId: "",
-        projectId: null,
-        assigneeAgentId: "",
-        issue: {
-          id: input.existingRootIssueId || "",
-          identifier: null,
-          status: rootIssueStatus,
-        } as PaperclipIssueRecord,
-        created: false,
-      };
-    } else {
-      throw error;
-    }
-  }
+  const root = await upsertPaperclipIssue({
+    projectName: CITY_LAUNCH_PROJECT_NAME,
+    assigneeKey: "growth-lead",
+    title: `Launch ${input.profile.city} as a bounded city program`,
+    description: rootDescription,
+    priority: input.founderApproved ? "high" : "medium",
+    status: rootIssueStatus,
+    originKind: "city_launch_activation",
+    originId: input.profile.key,
+    existingIssueId: input.existingRootIssueId ?? null,
+    onBoundConflict: {
+      strategy: "create_fresh",
+      originId: `${input.profile.key}:activation:${input.activationRunId}`,
+    },
+  });
 
   const dispatched = await mapWithConcurrency(
     input.tasks,
@@ -2751,51 +2735,30 @@ async function dispatchCityLaunchIssueTree(input: {
       const executionAssessment = assessCityLaunchTaskExecution(task);
       const issueStatus = founderApproved ? "todo" : "backlog";
       const existingIssueId = input.existingTaskIssueIds?.[task.key] || null;
-      let issue: Awaited<ReturnType<typeof upsertPaperclipIssue>>;
-      try {
-        issue = await upsertPaperclipIssue({
-          projectName: CITY_LAUNCH_PROJECT_NAME,
-          assigneeKey: task.ownerLane,
-          title: task.title,
-          description: taskIssueDescription({
-            profile: input.profile,
-            task,
-            executionState: executionAssessment.executionState,
-            executionReason: executionAssessment.executionReason,
-            budgetPolicy: input.budgetPolicy,
-            artifactPaths: input.artifactPaths,
-          }),
-          priority:
-            task.phase === "founder_gates" || task.phase === "measurement" ? "high" : "medium",
-          status: issueStatus,
-          originKind: "city_launch_task",
-          originId: `${input.profile.key}:${task.key}`,
-          parentId: root.issue.id,
-          existingIssueId,
-          onBoundConflict: {
-            strategy: "create_fresh",
-            originId: `${input.profile.key}:${task.key}:activation:${input.activationRunId}`,
-          },
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (/Paperclip 409\b/.test(message) && /bound to a different issue/i.test(message)) {
-          return {
-            key: task.key,
-            ownerLane: task.ownerLane,
-            issueId: existingIssueId || "",
-            identifier: null,
-            created: false,
-            status: issueStatus,
-            executionState: executionAssessment.executionState,
-            executionReason: `${executionAssessment.executionReason} (foreign-bound issue skipped)`,
-            wakeStatus: "skipped_existing",
-            wakeRunId: null,
-            wakeError: message,
-          };
-        }
-        throw error;
-      }
+      const issue = await upsertPaperclipIssue({
+        projectName: CITY_LAUNCH_PROJECT_NAME,
+        assigneeKey: task.ownerLane,
+        title: task.title,
+        description: taskIssueDescription({
+          profile: input.profile,
+          task,
+          executionState: executionAssessment.executionState,
+          executionReason: executionAssessment.executionReason,
+          budgetPolicy: input.budgetPolicy,
+          artifactPaths: input.artifactPaths,
+        }),
+        priority:
+          task.phase === "founder_gates" || task.phase === "measurement" ? "high" : "medium",
+        status: issueStatus,
+        originKind: "city_launch_task",
+        originId: `${input.profile.key}:${task.key}`,
+        parentId: root.issue.id,
+        existingIssueId,
+        onBoundConflict: {
+          strategy: "create_fresh",
+          originId: `${input.profile.key}:${task.key}:activation:${input.activationRunId}`,
+        },
+      });
       const dispatchRecord: CityLaunchTaskDispatch = {
         key: task.key,
         ownerLane: task.ownerLane,
@@ -2839,6 +2802,7 @@ async function dispatchCityLaunchIssueTree(input: {
           });
           dispatchRecord.wakeStatus = wake.wakeStatus || dispatchRecord.wakeStatus;
           dispatchRecord.wakeRunId = wake.wakeRunId;
+          dispatchRecord.wakeError = wake.wakeError || dispatchRecord.wakeError;
         } catch (error) {
           dispatchRecord.wakeError = error instanceof Error ? error.message : String(error);
         }
@@ -2854,6 +2818,7 @@ async function dispatchCityLaunchIssueTree(input: {
       `Founder-approved activation: ${founderApproved}`,
       `Task issues routed: ${dispatched.length}`,
       `Task wakeups attempted: ${dispatched.filter((entry) => entry.wakeStatus !== "skipped" && entry.wakeStatus !== "skipped_existing").length}`,
+      `Wake degradations: ${dispatched.filter((entry) => Boolean(entry.wakeError)).length}`,
       `Canonical bundle: ${input.artifactPaths.canonicalIssueBundlePath}`,
     ].join("\n"),
   ).catch(() => undefined);
@@ -2949,6 +2914,10 @@ export async function runCityLaunchExecutionHarness(input: {
   const stepErrorPath = path.join(runDirectory, "step-error.json");
   const stepHistory: Array<{ step: string; atIso: string; note?: string }> = [];
   let currentStep = "init";
+  const graphEntityId = buildCityProgramId({
+    citySlug: profile.key,
+    budgetTier: budgetPolicy.tier,
+  });
 
   const serializeError = (error: unknown) => ({
     message: error instanceof Error ? error.message : String(error),
@@ -2994,6 +2963,26 @@ export async function runCityLaunchExecutionHarness(input: {
   };
 
   await writeRuntimeManifest();
+  await appendOperatingGraphEvent({
+    eventKey: `${graphEntityId}:city_selected:${runTimestamp}`,
+    entityId: graphEntityId,
+    city: profile.city,
+    citySlug: profile.key,
+    stage: "city_selected",
+    summary: `City launch selected for ${profile.city} at ${budgetPolicy.tier} budget tier.`,
+    sourceRepo: "Blueprint-WebApp",
+    sourceKind: "city_launch_execution",
+    origin: {
+      repo: "Blueprint-WebApp",
+      project: CITY_LAUNCH_PROJECT_NAME,
+      artifactPath: manifestPath,
+      runId: runTimestamp,
+    },
+    metadata: {
+      budgetTier: budgetPolicy.tier,
+      founderApproved: autonomousActivation,
+    },
+  }).catch(() => null);
 
   try {
     await advanceStep("load_activation_state");
@@ -3038,8 +3027,56 @@ export async function runCityLaunchExecutionHarness(input: {
       senderVerification: getCityLaunchSenderStatus().verificationStatus,
       hasRightsClearedProofAsset: false,
       hasHostedReviewStarted: false,
-      hasFirehose: hasFirehoseConfigured(),
+      hasSignalProvider: hasConfiguredMarketSignalProvider(),
     });
+    const initialBlockingConditions: BlockingCondition[] = [];
+    if (capabilitySnapshot.execution.contacts.status !== "ready") {
+      initialBlockingConditions.push({
+        id: "city_launch_contacts",
+        status: "awaiting_external_confirmation",
+        summary: capabilitySnapshot.execution.contacts.detail,
+        owner: "city-launch-agent",
+        evidenceStatus: "missing",
+      });
+    }
+    if (capabilitySnapshot.execution.outbound.status !== "ready") {
+      initialBlockingConditions.push({
+        id: "city_launch_outbound_transport",
+        status:
+          capabilitySnapshot.execution.outbound.status === "blocked"
+            ? "blocked"
+            : "awaiting_external_confirmation",
+        summary: capabilitySnapshot.execution.outbound.detail,
+        owner: "ops-lead",
+        evidenceStatus: "external",
+      });
+    }
+    await appendOperatingGraphEvent({
+      eventKey: `${graphEntityId}:supply_seeded:${runTimestamp}`,
+      entityId: graphEntityId,
+      city: profile.city,
+      citySlug: profile.key,
+      stage: "supply_seeded",
+      summary: `Planning resolved for ${profile.city}; launch tasks and capability checks were seeded.`,
+      sourceRepo: "Blueprint-WebApp",
+      sourceKind: "city_launch_execution",
+      origin: {
+        repo: "Blueprint-WebApp",
+        project: CITY_LAUNCH_PROJECT_NAME,
+        artifactPath: manifestPath,
+        runId: runTimestamp,
+      },
+      blockingConditions: initialBlockingConditions,
+      nextActions: [
+        {
+          id: "dispatch_city_launch_issue_tree",
+          summary: "Dispatch or refresh the city launch issue tree.",
+          owner: "city-launch-agent",
+          status: "ready_to_execute",
+          sourceRef: manifestPath,
+        },
+      ],
+    }).catch(() => null);
 
     await advanceStep("build_city_artifacts");
     const tasks = mergeTasksWithActivationPayload(
@@ -3335,6 +3372,10 @@ export async function runCityLaunchExecutionHarness(input: {
           rootIssueIdentifier: dispatch.rootIssue.identifier || null,
           createdRootIssue: dispatch.createdRootIssue,
           dispatched: dispatch.dispatched,
+          error:
+            dispatch.dispatched.some((entry) => Boolean(entry.wakeError))
+              ? `${dispatch.dispatched.filter((entry) => Boolean(entry.wakeError)).length} lane wakeups degraded; inspect wakeError on dispatched tasks.`
+              : null,
         };
       } catch (error) {
         result.paperclip = {
@@ -3504,9 +3545,93 @@ export async function runCityLaunchExecutionHarness(input: {
     await writeTextArtifact(canonicalCityOpeningSiteOperatorContactListPath, siteOperatorContactList);
 
     currentStep = "completed";
+    const dispatchedGraphEntries = result.paperclip?.dispatched || [];
+    const graphStage: OperatingGraphStage =
+      dispatchedGraphEntries.length > 0 ? "next_action_open" : "supply_seeded";
+    const nextActions: NextAction[] = dispatchedGraphEntries.length > 0
+      ? dispatchedGraphEntries.map((entry) => ({
+          id: `paperclip_issue:${entry.issueId}`,
+          summary: `${entry.ownerLane} issue is ${entry.executionState.replaceAll("_", " ")}.`,
+          owner: entry.ownerLane,
+          status:
+            entry.executionState === "ready_to_execute"
+              ? "ready_to_execute"
+              : entry.executionState === "execute_until_external_confirmation"
+                ? "awaiting_external_confirmation"
+                : "awaiting_human_decision",
+          sourceRef: entry.issueId,
+        }))
+      : [
+          {
+            id: "city_launch_manual_follow_up",
+            summary: "Review why the issue tree did not dispatch.",
+            owner: "blueprint-chief-of-staff",
+            status: "awaiting_human_decision",
+            sourceRef: manifestPath,
+          },
+        ];
+    await appendOperatingGraphEvent({
+      eventKey: `${graphEntityId}:execution_result:${runTimestamp}`,
+      entityId: graphEntityId,
+      city: profile.city,
+      citySlug: profile.key,
+      stage: graphStage,
+      summary: `City launch execution updated for ${profile.city}; ${dispatchedGraphEntries.length} lane issues dispatched.`,
+      sourceRepo: "Blueprint-WebApp",
+      sourceKind: "city_launch_execution",
+      origin: {
+        repo: "Blueprint-WebApp",
+        project: CITY_LAUNCH_PROJECT_NAME,
+        issueId: result.paperclip?.rootIssueId || null,
+        artifactPath: manifestPath,
+        runId: runTimestamp,
+      },
+      blockingConditions: initialBlockingConditions,
+      nextActions,
+      metadata: {
+        rootIssueId: result.paperclip?.rootIssueId || null,
+        dispatchedCount: dispatchedGraphEntries.length,
+        outboundStatus: result.outboundReadiness?.status || null,
+      },
+    }).catch(() => null);
     await writeRuntimeManifest(result);
     return result;
   } catch (error) {
+    await appendOperatingGraphEvent({
+      eventKey: `${graphEntityId}:execution_error:${runTimestamp}:${currentStep}`,
+      entityId: graphEntityId,
+      city: profile.city,
+      citySlug: profile.key,
+      stage: "city_selected",
+      summary: `City launch execution failed during ${currentStep}.`,
+      sourceRepo: "Blueprint-WebApp",
+      sourceKind: "city_launch_execution",
+      origin: {
+        repo: "Blueprint-WebApp",
+        project: CITY_LAUNCH_PROJECT_NAME,
+        artifactPath: stepErrorPath,
+        runId: runTimestamp,
+      },
+      blockingConditions: [
+        {
+          id: `city_launch_error:${currentStep}`,
+          status: "blocked",
+          summary: error instanceof Error ? error.message : String(error),
+          owner: "webapp-codex",
+          evidenceStatus: "first_party",
+          sourceRef: stepErrorPath,
+        },
+      ],
+      nextActions: [
+        {
+          id: "inspect_step_error",
+          summary: "Inspect the step error artifact and rerun the failing phase.",
+          owner: "webapp-codex",
+          status: "ready_to_execute",
+          sourceRef: stepErrorPath,
+        },
+      ],
+    }).catch(() => null);
     const errorDetail = serializeError(error);
     await writeTextArtifact(
       stepErrorPath,

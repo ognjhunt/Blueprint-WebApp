@@ -87,11 +87,7 @@ async function main() {
         paperclipRootIssueId: result.paperclip?.rootIssueId || null,
         dispatchedIssueCount: result.paperclip?.dispatched.length || 0,
         wokenIssueCount:
-          result.paperclip?.dispatched.filter((entry) =>
-            entry.wakeStatus
-            && entry.wakeStatus !== "skipped"
-            && entry.wakeStatus !== "skipped_existing",
-          ).length || 0,
+          result.paperclip?.dispatched.filter((entry) => Boolean(entry.wakeRunId)).length || 0,
         wakeFailureCount:
           result.paperclip?.dispatched.filter((entry) => entry.wakeError).length || 0,
         researchMaterializationStatus: result.researchMaterialization?.status || null,

@@ -14,6 +14,16 @@ export type ActionType =
   | "route_to_queue";
 
 export type ActionTier = 1 | 2 | 3;
+export type ActionExecutionMode =
+  | "auto_execute"
+  | "auto_execute_with_notification"
+  | "universal_founder_inbox";
+export type IrreversibleActionClass =
+  | "money_movement"
+  | "pricing_or_commercial"
+  | "rights_privacy_legal"
+  | "external_send"
+  | "policy_change";
 
 export interface DraftOutput {
   recommendation?: string;
@@ -50,6 +60,13 @@ export interface ActionPayload {
   updates?: Record<string, unknown>;
   queue?: string;
   [key: string]: unknown;
+}
+
+export interface ActionExecutionDecision {
+  tier: ActionTier;
+  executionMode: ActionExecutionMode;
+  irreversibleActionClass: IrreversibleActionClass | null;
+  reasonCategory: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -185,6 +202,49 @@ export function evaluateActionTier(
   if (policy.alwaysHumanReview(draft)) return 3;
   if (policy.autoApproveCriteria(draft)) return 1;
   return 2; // auto-execute with notification
+}
+
+export function classifyActionExecution(params: {
+  lane: string;
+  actionType: ActionType;
+  draft: DraftOutput;
+  policy: LaneSafetyPolicy;
+}): ActionExecutionDecision {
+  const tier = evaluateActionTier(params.draft, params.policy);
+
+  if (params.lane === "payout") {
+    return {
+      tier: 3,
+      executionMode: "universal_founder_inbox",
+      irreversibleActionClass: "money_movement",
+      reasonCategory: "payout_always_human",
+    };
+  }
+
+  if (params.lane === "growth_campaign" || params.lane === "buyer_lifecycle") {
+    return {
+      tier: 3,
+      executionMode: "universal_founder_inbox",
+      irreversibleActionClass: "external_send",
+      reasonCategory: "campaign_or_lifecycle_send_requires_review",
+    };
+  }
+
+  if (tier === 3) {
+    return {
+      tier,
+      executionMode: "universal_founder_inbox",
+      irreversibleActionClass: "pricing_or_commercial",
+      reasonCategory: "policy_forced_human_review",
+    };
+  }
+
+  return {
+    tier,
+    executionMode: tier === 1 ? "auto_execute" : "auto_execute_with_notification",
+    irreversibleActionClass: null,
+    reasonCategory: tier === 1 ? "policy_auto_approved" : "policy_notification_only",
+  };
 }
 
 export function validateEmailContent(

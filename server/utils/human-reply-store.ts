@@ -94,6 +94,19 @@ export type HumanBlockerThreadRecord = {
   last_resume_requested_at: string | null;
   last_dispatch_id: string | null;
   blocked_reason: string | null;
+  decision_context: {
+    decision_type: string | null;
+    irreversible_action_class: string | null;
+    gate_mode: "universal_founder_inbox" | "repo_local_no_send";
+    reason_category: string | null;
+  };
+  repo_context: {
+    repo: string | null;
+    project: string | null;
+    issue_id: string | null;
+    ops_work_item_id: string | null;
+    source_ref: string | null;
+  };
   created_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
   updated_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
 };
@@ -173,6 +186,19 @@ export async function upsertHumanBlockerThread(input: {
   correlation?: Partial<HumanBlockerCorrelation>;
   last_dispatch_id?: string | null;
   blocked_reason?: string | null;
+  decision_context?: {
+    decision_type?: string | null;
+    irreversible_action_class?: string | null;
+    gate_mode?: "universal_founder_inbox" | "repo_local_no_send";
+    reason_category?: string | null;
+  };
+  repo_context?: {
+    repo?: string | null;
+    project?: string | null;
+    issue_id?: string | null;
+    ops_work_item_id?: string | null;
+    source_ref?: string | null;
+  };
 }) {
   if (!db) {
     throw new Error("Database not available");
@@ -258,6 +284,48 @@ export async function upsertHumanBlockerThread(input: {
     last_dispatch_id:
       normalizeString(input.last_dispatch_id) || existing?.last_dispatch_id || null,
     blocked_reason: normalizeString(input.blocked_reason) || existing?.blocked_reason || null,
+    decision_context: {
+      decision_type:
+        normalizeString(input.decision_context?.decision_type)
+        || existing?.decision_context?.decision_type
+        || null,
+      irreversible_action_class:
+        normalizeString(input.decision_context?.irreversible_action_class)
+        || existing?.decision_context?.irreversible_action_class
+        || null,
+      gate_mode:
+        input.decision_context?.gate_mode
+        || existing?.decision_context?.gate_mode
+        || "universal_founder_inbox",
+      reason_category:
+        normalizeString(input.decision_context?.reason_category)
+        || existing?.decision_context?.reason_category
+        || null,
+    },
+    repo_context: {
+      repo:
+        normalizeString(input.repo_context?.repo)
+        || existing?.repo_context?.repo
+        || null,
+      project:
+        normalizeString(input.repo_context?.project)
+        || existing?.repo_context?.project
+        || null,
+      issue_id:
+        normalizeString(input.repo_context?.issue_id)
+        || existing?.repo_context?.issue_id
+        || null,
+      ops_work_item_id:
+        normalizeString(input.repo_context?.ops_work_item_id)
+        || existing?.repo_context?.ops_work_item_id
+        || normalizeString(input.record_of_truth?.ops_work_item_id)
+        || existing?.record_of_truth?.ops_work_item_id
+        || null,
+      source_ref:
+        normalizeString(input.repo_context?.source_ref)
+        || existing?.repo_context?.source_ref
+        || null,
+    },
     created_at: existing?.created_at || nowTimestamp(),
     updated_at: nowTimestamp(),
   };

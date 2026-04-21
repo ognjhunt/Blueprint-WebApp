@@ -89,14 +89,14 @@ Turn the San Jose planning artifacts into an executable company harness that run
 
 ## Metrics Blockers
 
-- robot_team_inbound_captured: required_not_tracked
-- proof_path_assigned: required_not_tracked
-- proof_pack_delivered: required_not_tracked
-- hosted_review_ready: required_not_tracked
-- hosted_review_started: required_not_tracked
-- hosted_review_follow_up_sent: required_not_tracked
-- human_commercial_handoff_started: required_not_tracked
-- proof_motion_stalled: required_not_tracked
+- robot_team_inbound_captured: required_tracked
+- proof_path_assigned: required_tracked
+- proof_pack_delivered: required_tracked
+- hosted_review_ready: required_tracked
+- hosted_review_started: required_tracked
+- hosted_review_follow_up_sent: required_tracked
+- human_commercial_handoff_started: required_tracked
+- proof_motion_stalled: required_tracked
 
 ## Expansion Guard
 
@@ -105,14 +105,14 @@ Turn the San Jose planning artifacts into an executable company harness that run
 - At least one hosted review must run end to end before widening.
 - At least three approved capturers are required before widening.
 - At least two capturers must reach onboarded status before widening.
-- robot_team_inbound_captured is required_not_tracked.
-- proof_path_assigned is required_not_tracked.
-- proof_pack_delivered is required_not_tracked.
-- hosted_review_ready is required_not_tracked.
-- hosted_review_started is required_not_tracked.
-- hosted_review_follow_up_sent is required_not_tracked.
-- human_commercial_handoff_started is required_not_tracked.
-- proof_motion_stalled is required_not_tracked.
+- robot_team_inbound_captured is required_tracked.
+- proof_path_assigned is required_tracked.
+- proof_pack_delivered is required_tracked.
+- hosted_review_ready is required_tracked.
+- hosted_review_started is required_tracked.
+- hosted_review_follow_up_sent is required_tracked.
+- human_commercial_handoff_started is required_tracked.
+- proof_motion_stalled is required_tracked.
 
 ## Execution Bundle
 

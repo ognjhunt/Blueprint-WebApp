@@ -225,11 +225,13 @@ export async function runCityLaunchContactEnrichment(input: {
   artifactPath: string;
   resolveRecipientEvidence: (params: { targets: Array<string | null | undefined> }) => Promise<Map<string, ContactEvidence>>;
   outputPath?: string | null;
+  fallbackActivationPayloadPath?: string | null;
 }) {
   const rawParsed = await loadAndParseCityLaunchResearchArtifact({
     city: input.city,
     artifactPath: input.artifactPath,
     skipActivationReadyDirectOutreachValidation: true,
+    fallbackActivationPayloadPath: input.fallbackActivationPayloadPath,
   });
 
   if (rawParsed.errors.length > 0) {

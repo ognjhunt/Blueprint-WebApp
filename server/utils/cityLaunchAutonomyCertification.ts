@@ -44,7 +44,7 @@ export function summarizeCityLaunchAutonomyCertification(
   }
 
   if (executionStates?.analytics.status === "warning") {
-    warnings.push("Firehose enrichment unavailable; using first-party city-launch ledgers only.");
+    warnings.push("External market-signal enrichment unavailable; using first-party city-launch ledgers only.");
   }
 
   const uniqueBlockingStates = [...new Set(blockingExecutionStates)];

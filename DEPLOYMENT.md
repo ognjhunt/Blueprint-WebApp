@@ -197,13 +197,14 @@ Important:
 - For the Growth Studio mirror vars above, use the Notion data source UUIDs for each database, not the outer database page UUIDs.
 - The Growth Studio sync path can be run by scheduler, by `POST /api/admin/growth/notion/sync`, or from the shell with `npm run notion:sync:growth-studio`.
 - The human-reply Gmail watcher is valid only when the authenticated mailbox is the approved org-facing identity `ohstnhunt@gmail.com`. If Gmail OAuth resolves to another mailbox, the watcher must fail closed.
+- Slack remains a notification or mirror surface only for founder interrupts. The Slack human-reply env vars do not create a durable resume path by themselves.
 - City-launch direct outreach is outwardly launchable only when at least one direct-outreach action has a real recipient and the active sender address is truthful.
 - `BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION` is a manual mirror of sender/domain verification state for outbound city-launch mail. Use `verified` only after confirming the configured sender/domain is actually verified in the live provider; leave it unset if verification is unknown, and treat `unverified` as fail-closed for real sends.
 - Governed external city-launch contact discovery is opt-in. It only fetches explicit public contact evidence from hosts listed in `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_ALLOWED_HOSTS`, and it only accepts email addresses that appear explicitly on those pages. It does not guess, derive, or synthesize emails.
 - Governed search discovery is also opt-in. When enabled, it may query only the search provider configured in `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_SEARCH_URL`, only if that provider host is allowlisted in `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_SEARCH_ALLOWED_HOSTS`, and it will only keep result URLs whose hosts are already allowed by `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_ALLOWED_HOSTS`. Search only discovers candidate public contact pages; the same explicit-email extraction rules still apply.
 - `BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN` also authorizes the internal human-blocker dispatch route used by Blueprint automation tools to queue or send standard blocker packets from Paperclip agent lanes.
 - `BLUEPRINT_HUMAN_REPLY_GMAIL_OAUTH_PUBLISHING_STATUS` is a manual mirror of the Google OAuth consent-screen publishing state. If it is unset, treat Gmail OAuth durability as unknown rather than production-grade.
-- Slack reply watching is operationally valid only for conversations the bot can actually see. DMs require `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOW_DMS=1`. Channel replies require the bot to be present and the channel id to be listed in `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOWED_CHANNELS`. Root-channel replies should fail closed.
+- Slack reply-watching env vars are forward-looking configuration only. Until inbound correlation and resume handoff are fully implemented, Slack replies are non-authoritative mirrors and email remains the only durable founder reply path.
 
 ### Creative Pipeline
 - Codex-executed image generation is the default lane for image-heavy brand, marketing, and frontend work.

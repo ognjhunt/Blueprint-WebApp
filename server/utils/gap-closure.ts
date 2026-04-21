@@ -30,6 +30,10 @@ type OpsWorkItemDoc = {
   severity: string;
   suggested_owner: string;
   source?: string | null;
+  repo?: string | null;
+  project?: string | null;
+  failure_family?: string | null;
+  source_ref?: string | null;
   detected_at: string;
   updated_at: unknown;
   last_escalation_at: string | null;
@@ -51,7 +55,18 @@ const MAX_ESCALATION_LEVEL = 5;
 function suggestedOwnerForFinding(
   kind: OpsWorkItemKind,
   source?: string | null,
+  repo?: string | null,
 ): string {
+  const normalizedRepo = String(repo || "").toLowerCase();
+  if (normalizedRepo.includes("capture")) {
+    return "capture-codex";
+  }
+  if (normalizedRepo.includes("pipeline")) {
+    return "pipeline-codex";
+  }
+  if (normalizedRepo.includes("webapp")) {
+    return "webapp-codex";
+  }
   if (kind === "external") {
     const lane = String(source || "").toLowerCase();
     if (lane.includes("eng") || lane.includes("code") || lane.includes("ci")) {
@@ -157,10 +172,18 @@ function buildWorkItemPayload(params: {
   detail: string;
   severity: string;
   source?: string | null;
+  repo?: string | null;
+  project?: string | null;
+  failureFamily?: string | null;
+  sourceRef?: string | null;
   previous: DocumentSnapshot | null;
 }): { doc: OpsWorkItemDoc; shouldDelegate: boolean; shouldReopen: boolean } {
   const now = new Date().toISOString();
-  const suggested_owner = suggestedOwnerForFinding(params.kind, params.source);
+  const suggested_owner = suggestedOwnerForFinding(
+    params.kind,
+    params.source,
+    params.repo,
+  );
   const prev = params.previous?.exists ? (params.previous.data() as OpsWorkItemDoc) : null;
   const wasCompleted = prev?.status === "completed";
   const shouldReopen = Boolean(wasCompleted);
@@ -176,6 +199,10 @@ function buildWorkItemPayload(params: {
     detail: params.detail,
     severity: params.severity,
     source: params.source ?? null,
+    repo: params.repo ?? prev?.repo ?? null,
+    project: params.project ?? prev?.project ?? null,
+    failure_family: params.failureFamily ?? prev?.failure_family ?? null,
+    source_ref: params.sourceRef ?? prev?.source_ref ?? null,
     suggested_owner,
     detected_at: prev?.detected_at && !shouldReopen ? prev.detected_at : now,
     updated_at: admin.firestore.FieldValue.serverTimestamp(),
@@ -387,6 +414,8 @@ export function stableIdForExternalReport(params: {
   source: string;
   title: string;
   detail?: string | null;
+  repo?: string | null;
+  failure_family?: string | null;
 }): string {
   const explicit = String(params.stable_id || "").trim();
   if (explicit) {
@@ -395,7 +424,13 @@ export function stableIdForExternalReport(params: {
   const h = crypto
     .createHash("sha256")
     .update(
-      `${params.source.trim()}|${params.title.trim()}|${String(params.detail || "").trim()}`,
+      [
+        params.repo || "",
+        params.failure_family || "",
+        params.source.trim(),
+        params.title.trim(),
+        String(params.detail || "").trim(),
+      ].join("|"),
     )
     .digest("hex")
     .slice(0, 24);
@@ -409,6 +444,10 @@ export async function recordExternalGapReport(params: {
   severity?: "info" | "warn" | "blocker";
   suggested_owner?: string | null;
   stable_id?: string | null;
+  repo?: "Blueprint-WebApp" | "BlueprintCapture" | "BlueprintPipeline";
+  project?: string | null;
+  failure_family?: string | null;
+  source_ref?: string | null;
 }): Promise<{ stable_id: string; is_new: boolean }> {
   if (!db) {
     throw new Error("Database not available");
@@ -419,6 +458,8 @@ export async function recordExternalGapReport(params: {
     source: params.source,
     title: params.title,
     detail: params.detail,
+    repo: params.repo,
+    failure_family: params.failure_family,
   });
   const ref = db.collection(COLLECTION).doc(stable_id);
   const prev = await ref.get();
@@ -428,7 +469,7 @@ export async function recordExternalGapReport(params: {
   const detail = String(params.detail || "").trim() || "(no detail)";
   const suggested_owner =
     String(params.suggested_owner || "").trim()
-    || suggestedOwnerForFinding("external", params.source);
+    || suggestedOwnerForFinding("external", params.source, params.repo);
 
   const now = new Date().toISOString();
   const { doc, shouldDelegate } = buildWorkItemPayload({
@@ -438,6 +479,10 @@ export async function recordExternalGapReport(params: {
     detail,
     severity,
     source: params.source,
+    repo: params.repo,
+    project: params.project,
+    failureFamily: params.failure_family,
+    sourceRef: params.source_ref,
     previous: prev,
   });
   doc.suggested_owner = suggested_owner;

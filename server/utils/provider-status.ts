@@ -1,6 +1,7 @@
 import { getConfiguredEnvValue, isEnvFlagEnabled } from "../config/env";
 import { getEmailTransportStatus } from "./email";
 import { getElevenLabsConfig } from "./elevenlabs";
+import { getMarketSignalProviderStatus } from "./marketSignalProviders";
 import { getRunwayStatus } from "./runway";
 
 export type ProviderExecutionState =
@@ -97,6 +98,7 @@ export function buildGrowthIntegrationSummary(params?: {
   analyticsResult?: { ok?: boolean; persisted?: boolean; error?: string };
   googleImage?: Partial<Pick<GoogleCreativeStatus, "executionState" | "note" | "lastError">>;
 }) {
+  const marketSignalProvider = getMarketSignalProviderStatus();
   const analyticsIngestEnabled = isEnvFlagEnabled("BLUEPRINT_ANALYTICS_INGEST_ENABLED");
   const gaMeasurementId = getConfiguredEnvValue("VITE_GA_MEASUREMENT_ID", "VITE_FIREBASE_MEASUREMENT_ID");
   const posthogToken = getConfiguredEnvValue("VITE_PUBLIC_POSTHOG_PROJECT_TOKEN");
@@ -145,12 +147,13 @@ export function buildGrowthIntegrationSummary(params?: {
       forwardNumberConfigured: Boolean(getConfiguredEnvValue("BLUEPRINT_VOICE_FORWARD_NUMBER")),
     },
     researchOutbound: {
-      configured: Boolean(
-        getConfiguredEnvValue("FIREHOSE_API_TOKEN") &&
-        getConfiguredEnvValue("FIREHOSE_BASE_URL"),
-      ),
+      configured: marketSignalProvider.configured,
+      optional: marketSignalProvider.optional,
+      providerKey: marketSignalProvider.providerKey,
+      availableProviderKeys: marketSignalProvider.availableProviderKeys,
       topicsConfigured: Boolean(getConfiguredEnvValue("BLUEPRINT_AUTONOMOUS_RESEARCH_TOPICS")),
       recipientsConfigured: Boolean(getConfiguredEnvValue("BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS")),
+      note: marketSignalProvider.note,
     },
     sendgrid: email,
     sendgridWebhook: {

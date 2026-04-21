@@ -1,7 +1,7 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { normalizeDemandCity } from "../../client/src/lib/cityDemandMessaging";
-import { getConfiguredEnvValue } from "../config/env";
 import { decryptInboundRequestForAdmin } from "./field-encryption";
+import { hasConfiguredMarketSignalProvider } from "./marketSignalProviders";
 import type { InboundRequest, InboundRequestStored } from "../types/inbound-request";
 import { buildCityLaunchWideningGuard } from "./cityLaunchPolicy";
 import { resolveCityLaunchProfile, slugifyCityName } from "./cityLaunchProfiles";
@@ -70,7 +70,7 @@ export type CityLaunchScorecard = {
       proofPack: "missing" | "delivered";
       hostedReview: "missing" | "ready" | "started" | "follow_up_sent";
       commercialHandoff: "missing" | "started";
-      analyticsSource: "first_party_only" | "firehose_enriched";
+      analyticsSource: "first_party_only" | "external_signals_enriched";
     };
     sourceActivationPayloadPath: string | null;
   };
@@ -244,13 +244,6 @@ function countEvent(
     const name = typeof event.event === "string" ? event.event : "";
     return name === eventName && eventMatchesCity(citySlug, event);
   }).length;
-}
-
-function firehoseConfigured() {
-  return Boolean(
-    getConfiguredEnvValue("FIREHOSE_API_TOKEN")
-      && getConfiguredEnvValue("FIREHOSE_BASE_URL"),
-  );
 }
 
 function buildMetricDependencyStatus(input: {
@@ -476,7 +469,9 @@ export async function collectCityLaunchScorecard(city: string): Promise<CityLaun
     .filter((dependency) => dependency.status !== "verified")
     .map((dependency) => `${dependency.key} is ${dependency.status}.`);
 
-  const analyticsSource = firehoseConfigured() ? "firehose_enriched" : "first_party_only";
+  const analyticsSource = hasConfiguredMarketSignalProvider()
+    ? "external_signals_enriched"
+    : "first_party_only";
   const proofAssetState = proofReadyListings > 0 ? "ready" : "missing";
   const proofPackState = proofPacksDelivered > 0 ? "delivered" : "missing";
   const hostedReviewState =
@@ -500,7 +495,7 @@ export async function collectCityLaunchScorecard(city: string): Promise<CityLaun
 
   const warnings = [
     ...(analyticsSource === "first_party_only"
-      ? ["Firehose enrichment unavailable; using first-party city-launch ledgers only."]
+      ? ["External market-signal enrichment unavailable; using first-party city-launch ledgers only."]
       : []),
     `${profile.shortLabel} proof-ready listing count is derived from city-matching inbound requests with proof-pack or hosted-review readiness, because published marketplace inventory does not yet carry an explicit city field.`,
     ...(activationPayload

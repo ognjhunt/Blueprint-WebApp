@@ -27,6 +27,7 @@ import adminCreativeRouter from "./routes/admin-creative";
 import adminGrowthRouter, {
   sendgridWebhookHandler,
 } from "./routes/admin-growth";
+import adminCompanyMetricsRouter from "./routes/admin-company-metrics";
 import adminSiteWorldsRouter from "./routes/admin-site-worlds";
 import analyticsIngestRouter from "./routes/analytics-ingest";
 import experimentsRouter from "./routes/experiments";
@@ -144,6 +145,12 @@ export function registerRoutes(app: Express) {
     csrfProtection,
     verifyFirebaseToken,
     adminGrowthRouter,
+  );
+  app.use(
+    "/api/admin/company-metrics",
+    csrfProtection,
+    verifyFirebaseToken,
+    adminCompanyMetricsRouter,
   );
   app.use(
     "/api/admin/site-worlds",

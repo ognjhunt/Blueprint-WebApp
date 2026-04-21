@@ -138,6 +138,9 @@ beforeEach(() => {
   vi.stubEnv("SENDGRID_API_KEY", "sg-key");
   vi.stubEnv("SENDGRID_FROM_EMAIL", "launches@tryblueprint.io");
   vi.stubEnv("BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION", "verified");
+  vi.stubEnv("SEARCH_API_KEY", "");
+  vi.stubEnv("SEARCH_API_PROVIDER", "");
+  vi.stubEnv("BLUEPRINT_MARKET_SIGNAL_PROVIDER", "");
   vi.stubEnv("FIREHOSE_API_TOKEN", "fh-token");
   vi.stubEnv("FIREHOSE_BASE_URL", "https://firehose.test");
 
@@ -274,6 +277,9 @@ describe("city launch autonomy regression", () => {
   });
 
   it("certifies degraded-but-routed execution when contacts, proof, hosted review, and Firehose are missing", async () => {
+    vi.stubEnv("SEARCH_API_KEY", "");
+    vi.stubEnv("SEARCH_API_PROVIDER", "");
+    vi.stubEnv("BLUEPRINT_MARKET_SIGNAL_PROVIDER", "");
     vi.stubEnv("FIREHOSE_API_TOKEN", "");
     vi.stubEnv("FIREHOSE_BASE_URL", "");
 
@@ -342,6 +348,6 @@ describe("city launch autonomy regression", () => {
     expect(certification.blockingExecutionStates).toEqual(
       expect.arrayContaining(["contacts", "proofMotion", "hostedReview"]),
     );
-    expect(certification.warnings.join("\n")).toContain("Firehose enrichment unavailable");
+    expect(certification.warnings.join("\n")).toContain("External market-signal enrichment unavailable");
   });
 });

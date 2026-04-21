@@ -1,4 +1,5 @@
 import { promises as fs } from "node:fs";
+import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { slugifyCityName } from "./cityLaunchProfiles";
 import {
@@ -46,6 +47,7 @@ import {
 } from "./cityLaunchResearchContracts";
 
 export const CITY_LAUNCH_RESEARCH_SCHEMA_VERSION = "2026-04-12.city-launch-research.v1";
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 type StructuredCaptureCandidate = {
   name: string;
@@ -296,6 +298,50 @@ function asString(value: unknown) {
 function asOptionalString(value: unknown) {
   const normalized = asString(value);
   return normalized || null;
+}
+
+function normalizeLegacyBuyerProofPathValue(input: {
+  value: unknown;
+  sourceKey: string;
+  warnings: string[];
+}) {
+  const normalized = asString(input.value);
+  switch (normalized) {
+    case "hosted_review":
+      input.warnings.push(
+        `${input.sourceKey} normalized legacy "proof_path" value "hosted_review" to "scoped_follow_up".`,
+      );
+      return "scoped_follow_up";
+    case "secure_containerized_delivery":
+      input.warnings.push(
+        `${input.sourceKey} normalized legacy "proof_path" value "secure_containerized_delivery" to "scoped_follow_up".`,
+      );
+      return "scoped_follow_up";
+    default:
+      return input.value;
+  }
+}
+
+function normalizeLegacyBudgetCategoryValue(input: {
+  value: unknown;
+  sourceKey: string;
+  warnings: string[];
+}) {
+  const normalized = asString(input.value);
+  switch (normalized) {
+    case "supply_bounties":
+      input.warnings.push(
+        `${input.sourceKey} normalized legacy budget category "supply_bounties" to "other".`,
+      );
+      return "other";
+    case "proptech_processing":
+      input.warnings.push(
+        `${input.sourceKey} normalized legacy budget category "proptech_processing" to "other".`,
+      );
+      return "other";
+    default:
+      return input.value;
+  }
 }
 
 function asNumber(value: unknown) {
@@ -554,7 +600,11 @@ function parseBuyerTargets(
         return null;
       }
       const proofPath = parseEnumValue({
-        value: record.proof_path,
+        value: normalizeLegacyBuyerProofPathValue({
+          value: record.proof_path,
+          sourceKey,
+          warnings,
+        }),
         allowed: CITY_LAUNCH_BUYER_PROOF_PATH_VALUES,
         fieldName: "proof_path",
         sourceKey,
@@ -698,7 +748,11 @@ function parseBudgetRecommendations(
       const amountUsd = asNumber(record.amount_usd);
       const sourceKey = `budget_recommendations[${index}]`;
       const category = parseEnumValue({
-        value: record.category,
+        value: normalizeLegacyBudgetCategoryValue({
+          value: record.category,
+          sourceKey,
+          warnings,
+        }),
         allowed: CITY_LAUNCH_BUDGET_CATEGORY_VALUES,
         fieldName: "category",
         sourceKey,
@@ -1339,12 +1393,61 @@ export async function loadAndParseCityLaunchResearchArtifact(input: {
   city: string;
   artifactPath: string;
   skipActivationReadyDirectOutreachValidation?: boolean;
+  fallbackActivationPayloadPath?: string | null;
 }) {
   const markdown = await fs.readFile(input.artifactPath, "utf8");
-  return parseCityLaunchResearchArtifact({
+  const parsed = parseCityLaunchResearchArtifact({
     city: input.city,
     artifactPath: input.artifactPath,
     markdown,
     skipActivationReadyDirectOutreachValidation: input.skipActivationReadyDirectOutreachValidation,
   });
+
+  if (parsed.activationPayload) {
+    return parsed;
+  }
+
+  const fallbackActivationPayloadPath = input.fallbackActivationPayloadPath
+    ? path.resolve(input.fallbackActivationPayloadPath)
+    : path.join(
+      REPO_ROOT,
+      "ops/paperclip/playbooks",
+      `city-launch-${slugifyCityName(input.city)}-activation-payload.json`,
+    );
+
+  try {
+    const fallbackJson = await fs.readFile(fallbackActivationPayloadPath, "utf8");
+    const repaired = parseCityLaunchResearchArtifact({
+      city: input.city,
+      artifactPath: input.artifactPath,
+      markdown: [
+        markdown.trimEnd(),
+        "",
+        "## Machine-readable activation payload",
+        "",
+        "```city-launch-activation-payload",
+        fallbackJson.trim(),
+        "```",
+      ].join("\n"),
+      skipActivationReadyDirectOutreachValidation: input.skipActivationReadyDirectOutreachValidation,
+    });
+
+    if (!repaired.activationPayload || repaired.errors.length > parsed.errors.length) {
+      return parsed;
+    }
+
+    const fallbackNote = path.relative(REPO_ROOT, fallbackActivationPayloadPath).startsWith("..")
+      ? fallbackActivationPayloadPath
+      : path.relative(REPO_ROOT, fallbackActivationPayloadPath).replaceAll(path.sep, "/");
+
+    return {
+      ...repaired,
+      warnings: [
+        ...repaired.warnings,
+        `Recovered machine-readable activation payload from canonical artifact ${fallbackNote}.`,
+      ],
+    };
+  } catch {
+    return parsed;
+  }
 }

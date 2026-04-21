@@ -36,56 +36,56 @@
     {
       "key": "robot_team_inbound_captured",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "ownerLane": "analytics-agent",
       "notes": null
     },
     {
       "key": "proof_path_assigned",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "ownerLane": "analytics-agent",
       "notes": null
     },
     {
       "key": "proof_pack_delivered",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "ownerLane": "analytics-agent",
       "notes": null
     },
     {
       "key": "hosted_review_ready",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "ownerLane": "analytics-agent",
       "notes": null
     },
     {
       "key": "hosted_review_started",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "ownerLane": "analytics-agent",
       "notes": null
     },
     {
       "key": "hosted_review_follow_up_sent",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "ownerLane": "analytics-agent",
       "notes": null
     },
     {
       "key": "human_commercial_handoff_started",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "ownerLane": "analytics-agent",
       "notes": null
     },
     {
       "key": "proof_motion_stalled",
       "kind": "event",
-      "status": "required_not_tracked",
+      "status": "required_tracked",
       "ownerLane": "analytics-agent",
       "notes": null
     }

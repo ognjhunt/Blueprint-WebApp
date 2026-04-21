@@ -7,6 +7,11 @@ import {
   QUALIFICATION_STATES,
 } from "../../client/src/lib/requestTaxonomy";
 import { logger } from "../logger";
+import {
+  appendOperatingGraphEvent,
+  buildCityProgramId,
+  buildPackageRunId,
+} from "../utils/operatingGraph";
 import { parsePipelineAttachmentSyncPayload } from "../utils/pipelineAttachmentContract";
 import {
   resolveCreatorIdForCapture,
@@ -30,6 +35,12 @@ import type {
   ProofPathMilestones,
 } from "../types/inbound-request";
 import { ZodError } from "zod";
+import type { OperatingGraphStage } from "../utils/operatingGraphTypes";
+import {
+  buildBuyerOperatingGraphMetadata,
+  deriveCityContext,
+  deriveStablePackageId,
+} from "../utils/buyerOutcomes";
 
 const router = Router();
 
@@ -556,6 +567,154 @@ router.post("/attachments", requirePipelineToken, async (req: Request, res: Resp
       }).catch((err: unknown) => {
         logger.warn({ err, event: "proof_motion_stalled" }, "Failed to emit pipeline growth event");
       });
+    }
+
+    if (cityForEvent) {
+      const hostedReviewReadiness = checkHostedReviewReadiness({
+        artifacts: pipeline?.artifacts,
+        derivedAssets,
+      });
+      const cityContext = deriveCityContext({
+        city: cityForEvent,
+      });
+      const packageId = deriveStablePackageId({
+        captureId: pipeline?.capture_id || null,
+        sceneId: pipeline?.scene_id || null,
+        siteSubmissionId: siteSubmissionId || requestId || docRef.id,
+        buyerRequestId:
+          String(parsedBody.buyer_request_id || pipeline?.buyer_request_id || currentData?.buyer_request_id || "")
+            .trim()
+          || null,
+        requestId: docRef.id,
+      });
+      const graphStage: OperatingGraphStage = hostedReviewReadiness.ready
+        ? "hosted_review_ready"
+        : stateTransition.qualificationState === "qualified_ready"
+          || stateTransition.qualificationState === "qualified_risky"
+          ? "package_ready"
+          : "pipeline_packaging";
+      const captureIdForSync =
+        String(pipeline?.capture_id || parsedBody.capture_id || "").trim() || null;
+      if (captureIdForSync) {
+        await db.collection("capture_submissions").doc(captureIdForSync).set(
+          {
+            capture_id: captureIdForSync,
+            scene_id: String(pipeline?.scene_id || parsedBody.scene_id || "").trim() || null,
+            site_submission_id: siteSubmissionId || requestId || docRef.id,
+            buyer_request_id:
+              String(parsedBody.buyer_request_id || pipeline?.buyer_request_id || currentData?.buyer_request_id || "")
+                .trim()
+              || null,
+            capture_job_id: String(pipeline?.capture_job_id || parsedBody.capture_job_id || "").trim() || null,
+            city_context: {
+              city: cityForEvent,
+              city_slug: cityContext.citySlug,
+            },
+            lifecycle: {
+              pipeline_handoff_published_at: admin.firestore.FieldValue.serverTimestamp(),
+            },
+          },
+          { merge: true },
+        );
+      }
+      await appendOperatingGraphEvent({
+        eventKey: `pipeline_sync:${docRef.id}:${String(pipeline?.capture_id || pipeline?.scene_id || docRef.id)}`,
+        entityId: buildCityProgramId({
+          citySlug: cityContext.citySlug,
+        }),
+        city: cityForEvent,
+        citySlug: cityContext.citySlug,
+        stage: graphStage,
+        summary: `Pipeline sync updated ${cityForEvent} to ${graphStage.replaceAll("_", " ")}.`,
+        sourceRepo: "Blueprint-WebApp",
+        sourceKind: "pipeline_sync",
+        origin: {
+          repo: "Blueprint-WebApp",
+          project: "blueprint-webapp",
+          sourceCollection: "inboundRequests",
+          sourceDocId: docRef.id,
+          route: "/api/internal/pipeline/attachments",
+        },
+        nextActions: [
+          {
+            id: `pipeline_request:${docRef.id}`,
+            summary: stateTransition.recommendedAction,
+            owner: stateTransition.requiresHumanReview ? "ops-lead" : "webapp-codex",
+            status: stateTransition.requiresHumanReview
+              ? "awaiting_human_decision"
+              : "ready_to_execute",
+            sourceRef: docRef.id,
+          },
+        ],
+        metadata: {
+          ...buildBuyerOperatingGraphMetadata({
+            cityProgramId: cityContext.cityProgramId,
+            siteSubmissionId: siteSubmissionId || requestId || docRef.id,
+            captureId: pipeline?.capture_id || null,
+            sceneId: pipeline?.scene_id || null,
+            buyerRequestId:
+              String(parsedBody.buyer_request_id || pipeline?.buyer_request_id || currentData?.buyer_request_id || "")
+                .trim()
+              || null,
+            captureJobId: pipeline?.capture_job_id || null,
+            packageId,
+          }),
+          qualificationState: nextQualificationState,
+          opportunityState: nextOpportunityState,
+          hostedReviewReady: hostedReviewReadiness.ready,
+        },
+      }).catch(() => null);
+
+      if (packageId) {
+        await appendOperatingGraphEvent({
+          eventKey: `pipeline_sync:package:${docRef.id}:${packageId}:${graphStage}`,
+          entityType: "package_run",
+          entityId: buildPackageRunId({
+            packageId,
+          }),
+          city: cityForEvent,
+          citySlug: cityContext.citySlug,
+          stage: graphStage,
+          summary: `Package run ${packageId} updated to ${graphStage.replaceAll("_", " ")}.`,
+          sourceRepo: "Blueprint-WebApp",
+          sourceKind: "pipeline_sync",
+          origin: {
+            repo: "Blueprint-WebApp",
+            project: "blueprint-webapp",
+            sourceCollection: "inboundRequests",
+            sourceDocId: docRef.id,
+            route: "/api/internal/pipeline/attachments",
+          },
+          nextActions: [
+            {
+              id: `package_run:${packageId}:next_action`,
+              summary: stateTransition.recommendedAction,
+              owner: stateTransition.requiresHumanReview ? "ops-lead" : "webapp-codex",
+              status: stateTransition.requiresHumanReview
+                ? "awaiting_human_decision"
+                : "ready_to_execute",
+              sourceRef: docRef.id,
+            },
+          ],
+          metadata: {
+            ...buildBuyerOperatingGraphMetadata({
+              cityProgramId: cityContext.cityProgramId,
+              siteSubmissionId: siteSubmissionId || requestId || docRef.id,
+              captureId: pipeline?.capture_id || null,
+              sceneId: pipeline?.scene_id || null,
+              buyerRequestId:
+                String(parsedBody.buyer_request_id || pipeline?.buyer_request_id || currentData?.buyer_request_id || "")
+                  .trim()
+                || null,
+              captureJobId: pipeline?.capture_job_id || null,
+              packageId,
+            }),
+            qualificationState: nextQualificationState,
+            opportunityState: nextOpportunityState,
+            hostedReviewReady: hostedReviewReadiness.ready,
+          },
+        }).catch(() => null);
+      }
     }
 
     return res.json({

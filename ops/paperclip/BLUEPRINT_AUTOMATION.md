@@ -24,6 +24,21 @@ The automation loop is deliberately grounded in real repo state and truthful pro
 - chief-of-staff wakeups and major task/delegation changes are mirrored into Slack when webhook targets exist
 - Codex remains the implementation default while Claude stays the executive/review lane and Hermes remains the default low-cost lane for the chief-of-staff plus selected research/specialist/summary agents on this host
 
+## Phase 0 Control-Plane Contracts
+
+The autonomous-org unification program now freezes three canonical contracts in this repo:
+
+- [Autonomous Org Cross-Repo Operating Graph Contract](../../docs/autonomous-org-cross-repo-operating-graph-2026-04-20.md)
+- [Founder Inbox Contract](../../docs/founder-inbox-contract-2026-04-20.md)
+- [Company Metrics Contract](../../docs/company-metrics-contract-2026-04-20.md)
+
+For Paperclip automation, these contracts mean:
+
+- `Blueprint-WebApp` remains the canonical control plane for cross-repo execution state
+- plugin- or routine-originated work should use the shared lifecycle and blocker vocabulary rather than repo-local status prose
+- true founder-facing interrupts should route through the canonical founder inbox contract and reuse one durable `blocker_id`
+- company metrics, manager loops, and founder summaries should converge on the shared company metrics contract instead of lane-local KPI definitions
+
 ## Architecture
 
 ### Company package
@@ -107,6 +122,8 @@ It provides:
   - tracks handoff latency, blocked depth, bounce rate, and stuck handoffs
   - mirrors new handoffs, responses, and stuck escalations into Slack
   - opens and resolves managed escalation issues for handoffs that stall
+
+Founder-gated interrupts should follow the same founder inbox contract used by WebApp runtime paths. Plugin-created founder-facing asks should not invent a parallel packet shape or a second blocker-id scheme.
 
 ### Storage and traceability
 

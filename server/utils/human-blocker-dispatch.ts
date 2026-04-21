@@ -81,6 +81,19 @@ export type HumanBlockerDispatchRecord = {
     uid: string | null;
     email: string | null;
   } | null;
+  decision_context: {
+    decision_type: string | null;
+    irreversible_action_class: string | null;
+    gate_mode: "universal_founder_inbox" | "repo_local_no_send";
+    reason_category: string | null;
+  };
+  repo_context: {
+    repo: string | null;
+    project: string | null;
+    issue_id: string | null;
+    ops_work_item_id: string | null;
+    source_ref: string | null;
+  };
   created_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
   updated_at: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue | string;
 };
@@ -211,6 +224,27 @@ async function upsertHumanBlockerThreadForDispatch(
       report_paths: prepared.reportPaths,
       paperclip_issue_id: prepared.paperclipIssueId,
       ops_work_item_id: prepared.opsWorkItemId,
+    },
+    decision_context: {
+      decision_type: normalizeString(prepared.packet.decisionType) || null,
+      irreversible_action_class:
+        normalizeString(prepared.packet.irreversibleActionClass) || null,
+      gate_mode: prepared.packet.policyContext?.gateMode || "universal_founder_inbox",
+      reason_category:
+        normalizeString(prepared.packet.policyContext?.reasonCategory) || null,
+    },
+    repo_context: {
+      repo: normalizeString(prepared.packet.repoContext?.repo) || null,
+      project: normalizeString(prepared.packet.repoContext?.project) || null,
+      issue_id:
+        normalizeString(prepared.packet.repoContext?.issueId)
+        || prepared.paperclipIssueId
+        || null,
+      ops_work_item_id:
+        normalizeString(prepared.packet.repoContext?.opsWorkItemId)
+        || prepared.opsWorkItemId
+        || null,
+      source_ref: normalizeString(prepared.packet.repoContext?.sourceRef) || null,
     },
     correlation: {
       outbound_subject: prepared.emailSubject,
@@ -370,6 +404,27 @@ async function sendPreparedHumanBlockerDispatch(
           email: normalizeString(input.reviewedBy.email) || null,
         }
       : null,
+    decision_context: {
+      decision_type: normalizeString(prepared.packet.decisionType) || null,
+      irreversible_action_class:
+        normalizeString(prepared.packet.irreversibleActionClass) || null,
+      gate_mode: prepared.packet.policyContext?.gateMode || "universal_founder_inbox",
+      reason_category:
+        normalizeString(prepared.packet.policyContext?.reasonCategory) || null,
+    },
+    repo_context: {
+      repo: normalizeString(prepared.packet.repoContext?.repo) || null,
+      project: normalizeString(prepared.packet.repoContext?.project) || null,
+      issue_id:
+        normalizeString(prepared.packet.repoContext?.issueId)
+        || prepared.paperclipIssueId
+        || null,
+      ops_work_item_id:
+        normalizeString(prepared.packet.repoContext?.opsWorkItemId)
+        || prepared.opsWorkItemId
+        || null,
+      source_ref: normalizeString(prepared.packet.repoContext?.sourceRef) || null,
+    },
     created_at: nowTimestamp(),
     updated_at: nowTimestamp(),
   };
@@ -482,6 +537,27 @@ export async function dispatchHumanBlocker(input: {
         email: normalizeString(input.actor?.email) || null,
       },
       reviewed_by: null,
+      decision_context: {
+        decision_type: normalizeString(prepared.packet.decisionType) || null,
+        irreversible_action_class:
+          normalizeString(prepared.packet.irreversibleActionClass) || null,
+        gate_mode: prepared.packet.policyContext?.gateMode || "universal_founder_inbox",
+        reason_category:
+          normalizeString(prepared.packet.policyContext?.reasonCategory) || null,
+      },
+      repo_context: {
+        repo: normalizeString(prepared.packet.repoContext?.repo) || null,
+        project: normalizeString(prepared.packet.repoContext?.project) || null,
+        issue_id:
+          normalizeString(prepared.packet.repoContext?.issueId)
+          || prepared.paperclipIssueId
+          || null,
+        ops_work_item_id:
+          normalizeString(prepared.packet.repoContext?.opsWorkItemId)
+          || prepared.opsWorkItemId
+          || null,
+        source_ref: normalizeString(prepared.packet.repoContext?.sourceRef) || null,
+      },
       created_at: nowTimestamp(),
       updated_at: nowTimestamp(),
     };

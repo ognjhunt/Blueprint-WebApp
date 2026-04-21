@@ -8,6 +8,8 @@ import path from "node:path";
 
 import { parsePipelineAttachmentSyncPayload } from "../utils/pipelineAttachmentContract";
 
+process.env.FIREHOSE_BASE_URL = "https://example.com";
+
 const state = vi.hoisted(() => ({
   queryDocs: [] as Array<{
     ref: { id: string; update: ReturnType<typeof vi.fn> };
@@ -17,6 +19,13 @@ const state = vi.hoisted(() => ({
   docData: {} as Record<string, unknown>,
   docSet: vi.fn().mockResolvedValue(undefined),
   docUpdate: vi.fn().mockResolvedValue(undefined),
+  collectionWrites: [] as Array<{
+    collection: string;
+    id: string;
+    payload: Record<string, unknown>;
+    options?: Record<string, unknown>;
+  }>,
+  notesAdds: [] as Array<Record<string, unknown>>,
   storageText: "",
   storageShouldFail: false,
 }));
@@ -30,22 +39,46 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
     },
   },
   dbAdmin: {
-    collection: () => ({
-      where: () => ({
-        limit: () => ({
-          get: async () => ({ docs: state.queryDocs }),
+    collection: (name: string) => {
+      if (name === "inboundRequests") {
+        return {
+          where: () => ({
+            limit: () => ({
+              get: async () => ({ docs: state.queryDocs }),
+            }),
+          }),
+          doc: (id?: string) => ({
+            id: id || "mock-doc-id",
+            get: async () => ({
+              exists: state.docExists,
+              data: () => state.docData,
+            }),
+            set: state.docSet,
+            update: state.docUpdate,
+            collection: (childName: string) => ({
+              add: async (payload: Record<string, unknown>) => {
+                state.notesAdds.push({ collection: childName, ...payload });
+                return { id: "note-1" };
+              },
+            }),
+          }),
+        };
+      }
+
+      return {
+        doc: (id?: string) => ({
+          id: id || "mock-doc-id",
+          set: async (payload: Record<string, unknown>, options?: Record<string, unknown>) => {
+            state.collectionWrites.push({
+              collection: name,
+              id: id || "mock-doc-id",
+              payload,
+              options,
+            });
+          },
         }),
-      }),
-      doc: (id?: string) => ({
-        id: id || "mock-doc-id",
-        get: async () => ({
-          exists: state.docExists,
-          data: () => state.docData,
-        }),
-        set: state.docSet,
-        update: state.docUpdate,
-      }),
-    }),
+      };
+    },
   },
   storageAdmin: {
     bucket: () => ({
@@ -66,6 +99,16 @@ vi.mock("../utils/field-encryption", () => ({
   decryptFieldValue: async (value: string) => value,
   decryptInboundRequestForAdmin: async (value: Record<string, unknown>) => value,
   encryptFieldValue: async (value: string) => value,
+}));
+
+vi.mock("../utils/access-control", () => ({
+  hasAnyRole: async () => true,
+}));
+
+vi.mock("../utils/request-review-auth", () => ({
+  createRequestReviewToken: () => "valid",
+  getRequestReviewCookieName: () => "blueprint-review",
+  verifyRequestReviewToken: (token: string) => token === "valid",
 }));
 
 async function startServer(
@@ -111,11 +154,17 @@ afterEach(() => {
   state.docSet.mockResolvedValue(undefined);
   state.docUpdate.mockReset();
   state.docUpdate.mockResolvedValue(undefined);
+  state.collectionWrites = [];
+  state.notesAdds = [];
   state.storageText = "";
   state.storageShouldFail = false;
   delete process.env.PIPELINE_SYNC_TOKEN;
   delete process.env.PIPELINE_SYNC_ALLOW_PLACEHOLDER_REQUESTS;
 });
+
+function findCollectionWrites(collection: string) {
+  return state.collectionWrites.filter((entry) => entry.collection === collection);
+}
 
 const fixturePath = path.resolve(
   import.meta.dirname,
@@ -142,6 +191,12 @@ describe("pipeline integration routes", () => {
           status: "qualified_ready",
           qualification_state: "qualified_ready",
           opportunity_state: "handoff_ready",
+          context: {
+            demandCity: "Durham, NC",
+          },
+          contact: {
+            roleTitle: "Ops Lead",
+          },
           derived_assets: {
             preview_simulation: {
               status: "generated",
@@ -170,6 +225,8 @@ describe("pipeline integration routes", () => {
         },
         body: JSON.stringify({
           ...pipelineAttachmentFixture,
+          buyer_request_id: "buyer-req-123",
+          capture_job_id: "job-1",
           authoritative_state_update: false,
         }),
       });
@@ -207,6 +264,42 @@ describe("pipeline integration routes", () => {
         expect.objectContaining({
           qualification_state: expect.anything(),
         })
+      );
+
+      const graphWrites = findCollectionWrites("operatingGraphEvents");
+      expect(graphWrites).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            payload: expect.objectContaining({
+              entity_type: "city_program",
+              stage: expect.any(String),
+            }),
+          }),
+          expect.objectContaining({
+            payload: expect.objectContaining({
+              entity_type: "package_run",
+              stage: "pipeline_packaging",
+              metadata: expect.objectContaining({
+                capture_id: "cap-1",
+                scene_id: "scene-1",
+                buyer_request_id: "buyer-req-123",
+                package_id: "cap-1",
+                package_run_id: "package_run:cap-1",
+                site_submission_id: "req-1",
+                capture_job_id: "job-1",
+              }),
+            }),
+          }),
+        ])
+      );
+      expect(
+        graphWrites.flatMap((entry) => entry.payload.blocking_conditions as Array<Record<string, unknown>> || [])
+      ).not.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            status: "warning",
+          }),
+        ]),
       );
     } finally {
       await stopServer(server);
@@ -508,6 +601,244 @@ describe("pipeline integration routes", () => {
     try {
       const response = await fetch(`${baseUrl}/req-1/pipeline/dashboard`);
       expect(response.status).toBe(409);
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("writes a hosted-review-run event when buyer review access starts the hosted review", async () => {
+    state.docData = {
+      requestId: "req-1",
+      site_submission_id: "submission-1",
+      buyer_request_id: "buyer-request-12",
+      contact: {
+        email: "ada@example.com",
+        roleTitle: "Ops Lead",
+      },
+      request: {
+        buyerType: "robot_team",
+        siteName: "Durham Facility",
+        siteLocation: "Durham, NC",
+        taskStatement: "Review a picking workflow.",
+      },
+      context: {
+        sourcePageUrl: "https://example.com",
+        demandCity: "Durham, NC",
+        buyerChannelSource: "direct",
+        buyerChannelSourceCaptureMode: "manual",
+        utm: {},
+      },
+      ops: {
+        proof_path: {
+          hosted_review_started_at: null,
+        },
+      },
+      pipeline: {
+        capture_id: "cap-1",
+        scene_id: "scene-1",
+      },
+    };
+
+    const { server, baseUrl } = await startServer(() => import("../routes/requests"));
+
+    try {
+      const response = await fetch(`${baseUrl}/req-1?access=valid`);
+      expect(response.status).toBe(200);
+      expect(state.docUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          "ops.proof_path.hosted_review_started_at": "SERVER_TIMESTAMP",
+        }),
+      );
+
+      expect(findCollectionWrites("operatingGraphEvents")).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            payload: expect.objectContaining({
+              entity_type: "hosted_review_run",
+              stage: "hosted_review_started",
+              metadata: expect.objectContaining({
+                hosted_review_run_id: "req-1",
+                buyer_request_id: "buyer-request-12",
+                site_submission_id: "submission-1",
+                capture_id: "cap-1",
+                scene_id: "scene-1",
+              }),
+            }),
+          }),
+        ]),
+      );
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("writes buyer follow-up operating-graph events from admin ops stamping", async () => {
+    state.docData = {
+      requestId: "req-1",
+      site_submission_id: "submission-1",
+      buyer_request_id: "buyer-request-12",
+      contact: {
+        email: "ada@example.com",
+        roleTitle: "Ops Lead",
+      },
+      request: {
+        buyerType: "robot_team",
+        siteName: "Durham Facility",
+        siteLocation: "Durham, NC",
+        taskStatement: "Review a picking workflow.",
+      },
+      context: {
+        sourcePageUrl: "https://example.com",
+        demandCity: "Durham, NC",
+        buyerChannelSource: "direct",
+        buyerChannelSourceCaptureMode: "manual",
+        utm: {},
+      },
+      ops: {
+        proof_path: {
+          hosted_review_started_at: "2026-04-20T10:00:00.000Z",
+          hosted_review_follow_up_at: null,
+          human_commercial_handoff_at: null,
+        },
+      },
+      pipeline: {
+        capture_id: "cap-1",
+        scene_id: "scene-1",
+        capture_job_id: "job-1",
+      },
+    };
+
+    const { server, baseUrl } = await startServer(() => import("../routes/admin-leads"));
+
+    try {
+      const response = await fetch(`${baseUrl}/req-1/ops`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          proof_path_stage: "hosted_review_follow_up",
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(findCollectionWrites("operatingGraphEvents")).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            payload: expect.objectContaining({
+              entity_type: "hosted_review_run",
+              stage: "buyer_follow_up_in_progress",
+              metadata: expect.objectContaining({
+                hosted_review_run_id: "req-1",
+                buyer_request_id: "buyer-request-12",
+                site_submission_id: "submission-1",
+                capture_id: "cap-1",
+                scene_id: "scene-1",
+                capture_job_id: "job-1",
+              }),
+            }),
+          }),
+        ]),
+      );
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("records an explicit buyer outcome ledger row and buyer outcome event", async () => {
+    state.docData = {
+      requestId: "req-1",
+      site_submission_id: "submission-1",
+      buyer_request_id: "buyer-request-12",
+      contact: {
+        email: "buyer@example.com",
+        company: "Analytical Engines",
+        roleTitle: "Buyer",
+      },
+      request: {
+        buyerType: "robot_team",
+        siteName: "Durham Facility",
+        siteLocation: "Durham, NC",
+        taskStatement: "Review a picking workflow.",
+      },
+      context: {
+        sourcePageUrl: "https://example.com",
+        demandCity: "Durham, NC",
+        buyerChannelSource: "direct",
+        buyerChannelSourceCaptureMode: "manual",
+        utm: {},
+      },
+      pipeline: {
+        capture_id: "cap-1",
+        scene_id: "scene-1",
+        capture_job_id: "job-1",
+      },
+      ops: {
+        proof_path: {
+          hosted_review_started_at: "2026-04-20T10:00:00.000Z",
+        },
+      },
+    };
+
+    const { server, baseUrl } = await startServer(() => import("../routes/admin-leads"));
+
+    try {
+      const response = await fetch(`${baseUrl}/req-1/buyer-outcomes`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          outcome_type: "package_closed_won",
+          outcome_status: "completed",
+          commercial_value_usd: 25000,
+          confidence: 0.92,
+          source: "admin_ops",
+          notes: "Buyer closed the package after hosted review.",
+          proof_refs: ["gs://bucket/proofs/req-1/quote.pdf"],
+          buyer_account_id: "buyer-77",
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(findCollectionWrites("buyerOutcomes")).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            payload: expect.objectContaining({
+              buyer_outcome_id: expect.stringContaining("req-1"),
+              city_program_id: "city_program:durham-nc:unscoped",
+              site_submission_id: "submission-1",
+              capture_id: "cap-1",
+              hosted_review_run_id: "req-1",
+              buyer_account_id: "buyer-77",
+              outcome_type: "package_closed_won",
+              outcome_status: "completed",
+              commercial_value_usd: 25000,
+              confidence: 0.92,
+              source: "admin_ops",
+              notes: "Buyer closed the package after hosted review.",
+              proof_refs: ["gs://bucket/proofs/req-1/quote.pdf"],
+            }),
+          }),
+        ]),
+      );
+      expect(findCollectionWrites("operatingGraphEvents")).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            payload: expect.objectContaining({
+              entity_type: "buyer_outcome",
+              stage: "buyer_outcome_recorded",
+              metadata: expect.objectContaining({
+                buyer_outcome_id: expect.stringContaining("req-1"),
+                hosted_review_run_id: "req-1",
+                buyer_account_id: "buyer-77",
+                capture_id: "cap-1",
+                site_submission_id: "submission-1",
+              }),
+            }),
+          }),
+        ]),
+      );
     } finally {
       await stopServer(server);
     }

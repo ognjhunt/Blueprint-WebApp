@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const creativeFactoryRuns = new Map<string, Record<string, unknown>>();
-const researchRuns: Array<Record<string, unknown>> = [];
+const marketSignalCacheDocs: Array<Record<string, unknown>> = [];
 const contactRequests: Array<Record<string, unknown>> = [];
 const getActiveExperimentRollouts = vi.hoisted(() => vi.fn());
 const upsertPaperclipIssue = vi.hoisted(() => vi.fn());
@@ -11,7 +11,7 @@ const wakePaperclipAgent = vi.hoisted(() => vi.fn());
 
 function resetState() {
   creativeFactoryRuns.clear();
-  researchRuns.length = 0;
+  marketSignalCacheDocs.length = 0;
   contactRequests.length = 0;
 }
 
@@ -25,7 +25,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   },
   dbAdmin: {
     collection(name: string) {
-      if (name === "autonomous_growth_runs") {
+      if (name === "market_signal_cache") {
         return {
           orderBy() {
             return {
@@ -33,13 +33,32 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
                 return {
                   async get() {
                     return {
-                      empty: researchRuns.length === 0,
-                      docs: researchRuns.map((run, index) => ({
-                        id: `research-${index}`,
-                        data: () => run,
+                      empty: marketSignalCacheDocs.length === 0,
+                      docs: marketSignalCacheDocs.map((doc, index) => ({
+                        id: `signal-${index}`,
+                        data: () => doc,
                       })),
                     };
                   },
+                };
+              },
+            };
+          },
+          where(field: string, op: string, value: string) {
+            if (field !== "last_seen_run_id" || op !== "==") {
+              throw new Error(`Unexpected query ${field} ${op}`);
+            }
+            return {
+              async get() {
+                const docs = marketSignalCacheDocs
+                  .filter((doc) => doc.last_seen_run_id === value)
+                  .map((doc, index) => ({
+                    id: `signal-${index}`,
+                    data: () => doc,
+                  }));
+                return {
+                  empty: docs.length === 0,
+                  docs,
                 };
               },
             };
@@ -127,14 +146,21 @@ beforeEach(() => {
   getActiveExperimentRollouts.mockResolvedValue({
     exact_site_hosted_review_hero_v1: "proof_first",
   });
-  researchRuns.push({
+  marketSignalCacheDocs.push({
     topic: "warehouse robotics",
-    signals: [
-      {
-        title: "Operators are narrowing facility pilots",
-        summary: "Teams want one exact site before another travel-heavy review cycle.",
-      },
-    ],
+    signal_provider_key: "firehose",
+    last_seen_run_id: "2026-04-20__warehouse-robotics",
+    last_seen_at_iso: "2026-04-20T12:00:00.000Z",
+    title: "Operators are narrowing facility pilots",
+    summary: "Teams want one exact site before another travel-heavy review cycle.",
+  });
+  marketSignalCacheDocs.push({
+    topic: "warehouse robotics",
+    signal_provider_key: "firehose",
+    last_seen_run_id: "2026-04-20__warehouse-robotics",
+    last_seen_at_iso: "2026-04-20T12:00:00.000Z",
+    title: "Travel-heavy site reviews are being compressed",
+    summary: "Teams want earlier grounded evidence.",
   });
   contactRequests.push({
     message: "We need pricing clarity before another site visit.",

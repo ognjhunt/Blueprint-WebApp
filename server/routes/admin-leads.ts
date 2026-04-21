@@ -48,6 +48,18 @@ import { isAutomationLaneEnabled, isTruthyEnvValue } from "../config/env";
 import { buildLaunchReadinessSnapshot } from "../utils/launch-readiness";
 import { logGrowthEvent } from "../utils/growth-events";
 import { collectCityLaunchScorecard } from "../utils/cityLaunchScorecard";
+import {
+  appendOperatingGraphEvent,
+  buildHostedReviewRunId,
+} from "../utils/operatingGraph";
+import {
+  buildBuyerOperatingGraphMetadata,
+  deriveCityContext,
+  deriveStableBuyerAccountId,
+  deriveStableHostedReviewRunId,
+  deriveStablePackageId,
+  recordBuyerOutcome,
+} from "../utils/buyerOutcomes";
 
 const router = Router();
 
@@ -1738,6 +1750,26 @@ router.patch("/:requestId/ops", requireAdmin, async (req: Request, res: Response
     });
 
     if (previousData.request.buyerType === "robot_team") {
+      const cityContext = deriveCityContext({
+        city: previousData.context?.demandCity || null,
+      });
+      const hostedReviewRunId = deriveStableHostedReviewRunId({
+        requestId,
+        buyerRequestId: previousData.buyer_request_id || previousData.requestId,
+      });
+      const packageId = deriveStablePackageId({
+        captureId: previousData.pipeline?.capture_id || null,
+        sceneId: previousData.pipeline?.scene_id || null,
+        siteSubmissionId: previousData.site_submission_id || previousData.requestId,
+        buyerRequestId: previousData.buyer_request_id || previousData.requestId,
+        requestId: previousData.requestId,
+      });
+      const buyerAccountId = deriveStableBuyerAccountId({
+        contactEmail: previousData.contact?.email || null,
+        contactCompany: previousData.contact?.company || null,
+        buyerRequestId: previousData.buyer_request_id || previousData.requestId,
+      });
+
       if (proof_path_stage) {
         await logGrowthEvent({
           event: "proof_path_stage_updated",
@@ -1774,6 +1806,46 @@ router.patch("/:requestId/ops", requireAdmin, async (req: Request, res: Response
             },
           }).catch(() => null);
         }
+
+        if (
+          proof_path_stage === "hosted_review_follow_up"
+          && proof_path_stage_action !== "clear"
+          && cityContext.city
+          && cityContext.citySlug
+          && hostedReviewRunId
+        ) {
+          await appendOperatingGraphEvent({
+            eventKey: `buyer_follow_up:${requestId}:hosted_review_follow_up`,
+            entityType: "hosted_review_run",
+            entityId: buildHostedReviewRunId({
+              hostedReviewRunId,
+            }),
+            city: cityContext.city,
+            citySlug: cityContext.citySlug,
+            stage: "buyer_follow_up_in_progress",
+            summary: "Buyer follow-up is in progress after hosted review.",
+            sourceRepo: "Blueprint-WebApp",
+            sourceKind: "admin_ops_follow_up",
+            origin: {
+              repo: "Blueprint-WebApp",
+              project: "blueprint-webapp",
+              sourceCollection: "inboundRequests",
+              sourceDocId: requestId,
+              route: "/api/admin/leads/:requestId/ops",
+            },
+            metadata: buildBuyerOperatingGraphMetadata({
+              cityProgramId: cityContext.cityProgramId,
+              siteSubmissionId: previousData.site_submission_id || previousData.requestId,
+              captureId: previousData.pipeline?.capture_id || null,
+              sceneId: previousData.pipeline?.scene_id || null,
+              buyerRequestId: previousData.buyer_request_id || previousData.requestId,
+              captureJobId: previousData.pipeline?.capture_job_id || null,
+              packageId,
+              hostedReviewRunId,
+              buyerAccountId,
+            }),
+          }).catch(() => null);
+        }
       }
 
       if (quote_status === "buyer_ready") {
@@ -1792,6 +1864,40 @@ router.patch("/:requestId/ops", requireAdmin, async (req: Request, res: Response
             email: user.email || null,
           },
         }).catch(() => null);
+
+        if (cityContext.city && cityContext.citySlug && hostedReviewRunId) {
+          await appendOperatingGraphEvent({
+            eventKey: `buyer_follow_up:${requestId}:human_commercial_handoff`,
+            entityType: "hosted_review_run",
+            entityId: buildHostedReviewRunId({
+              hostedReviewRunId,
+            }),
+            city: cityContext.city,
+            citySlug: cityContext.citySlug,
+            stage: "buyer_follow_up_in_progress",
+            summary: "Human commercial handoff is in progress for the buyer.",
+            sourceRepo: "Blueprint-WebApp",
+            sourceKind: "admin_ops_handoff",
+            origin: {
+              repo: "Blueprint-WebApp",
+              project: "blueprint-webapp",
+              sourceCollection: "inboundRequests",
+              sourceDocId: requestId,
+              route: "/api/admin/leads/:requestId/ops",
+            },
+            metadata: buildBuyerOperatingGraphMetadata({
+              cityProgramId: cityContext.cityProgramId,
+              siteSubmissionId: previousData.site_submission_id || previousData.requestId,
+              captureId: previousData.pipeline?.capture_id || null,
+              sceneId: previousData.pipeline?.scene_id || null,
+              buyerRequestId: previousData.buyer_request_id || previousData.requestId,
+              captureJobId: previousData.pipeline?.capture_job_id || null,
+              packageId,
+              hostedReviewRunId,
+              buyerAccountId,
+            }),
+          }).catch(() => null);
+        }
       }
     }
 
@@ -1808,6 +1914,105 @@ router.patch("/:requestId/ops", requireAdmin, async (req: Request, res: Response
   } catch (error) {
     logger.error({ error, requestId: req.params.requestId }, "Error updating request ops");
     return res.status(500).json({ error: "Failed to update request ops" });
+  }
+});
+
+router.post("/:requestId/buyer-outcomes", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ error: "Database not available" });
+    }
+
+    const { requestId } = req.params;
+    const {
+      buyer_outcome_id,
+      buyer_account_id,
+      outcome_type,
+      outcome_status,
+      commercial_value_usd,
+      confidence,
+      source,
+      notes,
+      proof_refs,
+    } = req.body as Record<string, unknown>;
+    const user = res.locals.firebaseUser!;
+
+    if (typeof outcome_type !== "string" || !outcome_type.trim()) {
+      return res.status(400).json({ error: "outcome_type is required" });
+    }
+    if (typeof outcome_status !== "string" || !outcome_status.trim()) {
+      return res.status(400).json({ error: "outcome_status is required" });
+    }
+    if (typeof source !== "string" || !source.trim()) {
+      return res.status(400).json({ error: "source is required" });
+    }
+
+    const doc = await db.collection("inboundRequests").doc(requestId).get();
+    if (!doc.exists) {
+      return res.status(404).json({ error: "Request not found" });
+    }
+
+    const current = normalizeDecryptedRequest(
+      (await decryptInboundRequestForAdmin(
+        doc.data() as InboundRequestStored,
+      )) as InboundRequest,
+    );
+
+    const result = await recordBuyerOutcome({
+      requestId,
+      city: current.context?.demandCity || null,
+      siteSubmissionId: current.site_submission_id || current.requestId,
+      captureId: current.pipeline?.capture_id || null,
+      sceneId: current.pipeline?.scene_id || null,
+      buyerRequestId: current.buyer_request_id || current.requestId,
+      captureJobId: current.pipeline?.capture_job_id || null,
+      packageId: deriveStablePackageId({
+        captureId: current.pipeline?.capture_id || null,
+        sceneId: current.pipeline?.scene_id || null,
+        siteSubmissionId: current.site_submission_id || current.requestId,
+        buyerRequestId: current.buyer_request_id || current.requestId,
+        requestId: current.requestId,
+      }),
+      hostedReviewRunId: deriveStableHostedReviewRunId({
+        requestId,
+        buyerRequestId: current.buyer_request_id || current.requestId,
+      }),
+      buyerAccountId: deriveStableBuyerAccountId({
+        buyerAccountId: typeof buyer_account_id === "string" ? buyer_account_id : null,
+        contactEmail: current.contact?.email || null,
+        contactCompany: current.contact?.company || null,
+        buyerRequestId: current.buyer_request_id || current.requestId,
+      }),
+      outcomeType: outcome_type,
+      outcomeStatus: outcome_status,
+      recordedBy:
+        (typeof user.email === "string" && user.email.trim())
+        || (typeof user.uid === "string" && user.uid.trim())
+        || "admin",
+      commercialValueUsd:
+        typeof commercial_value_usd === "number" && Number.isFinite(commercial_value_usd)
+          ? commercial_value_usd
+          : null,
+      confidence:
+        typeof confidence === "number" && Number.isFinite(confidence) ? confidence : null,
+      source,
+      notes: typeof notes === "string" ? notes : null,
+      proofRefs: Array.isArray(proof_refs)
+        ? proof_refs.filter((entry): entry is string => typeof entry === "string")
+        : [],
+      originRoute: "/api/admin/leads/:requestId/buyer-outcomes",
+      sourceDocId: requestId,
+      buyerOutcomeId: typeof buyer_outcome_id === "string" ? buyer_outcome_id : null,
+    });
+
+    return res.status(201).json({
+      ok: true,
+      buyer_outcome_id: result?.buyerOutcomeId || null,
+      hosted_review_run_id: result?.hostedReviewRunId || null,
+    });
+  } catch (error) {
+    logger.error({ error, requestId: req.params.requestId }, "Error recording buyer outcome");
+    return res.status(500).json({ error: "Failed to record buyer outcome" });
   }
 });
 

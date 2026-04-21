@@ -109,14 +109,14 @@ function activationPayload(city: string, citySlug: string) {
     ownerLanes: ["city-launch-agent", "capturer-growth-agent", "analytics-agent"],
     issueSeeds: [],
     metricsDependencies: [
-      { key: "robot_team_inbound_captured" as const, kind: "event" as const, status: "required_not_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
-      { key: "proof_path_assigned" as const, kind: "event" as const, status: "required_not_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
-      { key: "proof_pack_delivered" as const, kind: "event" as const, status: "required_not_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
-      { key: "hosted_review_ready" as const, kind: "event" as const, status: "required_not_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
-      { key: "hosted_review_started" as const, kind: "event" as const, status: "required_not_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
-      { key: "hosted_review_follow_up_sent" as const, kind: "event" as const, status: "required_not_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
-      { key: "human_commercial_handoff_started" as const, kind: "event" as const, status: "required_not_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
-      { key: "proof_motion_stalled" as const, kind: "event" as const, status: "required_not_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "robot_team_inbound_captured" as const, kind: "event" as const, status: "required_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "proof_path_assigned" as const, kind: "event" as const, status: "required_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "proof_pack_delivered" as const, kind: "event" as const, status: "required_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "hosted_review_ready" as const, kind: "event" as const, status: "required_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "hosted_review_started" as const, kind: "event" as const, status: "required_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "hosted_review_follow_up_sent" as const, kind: "event" as const, status: "required_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "human_commercial_handoff_started" as const, kind: "event" as const, status: "required_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
+      { key: "proof_motion_stalled" as const, kind: "event" as const, status: "required_tracked" as const, ownerLane: "analytics-agent" as const, notes: null },
     ],
     namedClaims: [],
   };
@@ -807,7 +807,7 @@ describe("city launch execution harness", () => {
     expect(targetLedger).toContain("Queued Lawful-Access Buckets");
     expect(result.paperclip?.rootIssueIdentifier).toBe("BLU-1");
     expect(wakePaperclipAgent).toHaveBeenCalled();
-    expect(result.wideningGuard.reasons.join("\n")).toContain("proof_path_assigned is required_not_tracked.");
+    expect(result.wideningGuard.reasons.join("\n")).toContain("proof_path_assigned is required_tracked.");
   });
 
   it("fails closed on founder-approved activation when the live Paperclip tree is not created or updated", async () => {
@@ -1254,14 +1254,14 @@ describe("city launch execution harness", () => {
           },
         ],
         metricsDependencies: [
-          { key: "robot_team_inbound_captured", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
-          { key: "proof_path_assigned", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
-          { key: "proof_pack_delivered", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
-          { key: "hosted_review_ready", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
-          { key: "hosted_review_started", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
-          { key: "hosted_review_follow_up_sent", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
-          { key: "human_commercial_handoff_started", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
-          { key: "proof_motion_stalled", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "robot_team_inbound_captured", kind: "event", status: "required_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "proof_path_assigned", kind: "event", status: "required_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "proof_pack_delivered", kind: "event", status: "required_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "hosted_review_ready", kind: "event", status: "required_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "hosted_review_started", kind: "event", status: "required_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "hosted_review_follow_up_sent", kind: "event", status: "required_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "human_commercial_handoff_started", kind: "event", status: "required_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "proof_motion_stalled", kind: "event", status: "required_tracked", ownerLane: "analytics-agent", notes: null },
         ],
         namedClaims: [
           {
@@ -1538,6 +1538,132 @@ describe("city launch execution harness", () => {
     expect(executeCityLaunchSends).not.toHaveBeenCalled();
   });
 
+  it("surfaces foreign-bound wake conflicts as degraded wake status instead of skipped success", async () => {
+    summarizeCityLaunchLedgers.mockResolvedValue({
+      trackedSupplyProspectsContacted: 0,
+      trackedBuyerTargetsResearched: 0,
+      trackedFirstTouchesSent: 0,
+      onboardedCapturers: 0,
+      totalRecordedSpendUsd: 0,
+      withinPolicySpendUsd: 0,
+      outsidePolicySpendUsd: 0,
+      recommendedSpendUsd: 0,
+      wideningGuard: { mode: "single_city_until_proven", wideningAllowed: false, reasons: [] },
+      dataSources: [],
+    });
+    upsertPaperclipIssue
+      .mockResolvedValueOnce({
+        created: true,
+        companyId: "company-1",
+        assigneeAgentId: "agent-growth-lead",
+        issue: { id: "root-1", identifier: "BLU-ROOT", status: "todo" },
+      })
+      .mockImplementation(async (_input: unknown) => ({
+        created: true,
+        companyId: "company-1",
+        assigneeAgentId: `agent-${upsertPaperclipIssue.mock.calls.length}`,
+        issue: {
+          id: `task-${upsertPaperclipIssue.mock.calls.length}`,
+          identifier: `BLU-${upsertPaperclipIssue.mock.calls.length}`,
+          status: "todo",
+        },
+      }));
+    resolveCityLaunchPlanningState.mockResolvedValue({
+      ...completedPlanningState("Chicago, IL", "chicago-il"),
+    });
+    loadAndParseCityLaunchResearchArtifact.mockResolvedValue({
+      city: "Chicago, IL",
+      citySlug: "chicago-il",
+      artifactPath: "/tmp/chicago-playbook.md",
+      schemaVersion: "2026-04-12.city-launch-research.v1",
+      generatedAtIso: "2026-04-17T00:00:00.000Z",
+      warnings: [],
+      errors: [],
+      activationPayload: activationPayload("Chicago, IL", "chicago-il"),
+      captureCandidates: [
+        {
+          stableKey: "prospect_chicago-il-pro-capturer",
+          name: "Chicago Survey Ops",
+          sourceBucket: "industrial_warehouse",
+          channel: "professional_outreach",
+          status: "qualified",
+          siteAddress: "100 Industrial Way",
+          locationSummary: null,
+          lat: null,
+          lng: null,
+          siteCategory: "warehouse",
+          workflowFit: "dock handoff",
+          priorityNote: null,
+          contactEmail: "field@chicagosurveyops.com",
+          sourceUrls: [],
+          explicitFields: ["contact_email"],
+          inferredFields: [],
+          provenance: {
+            sourceType: "deep_research_playbook",
+            artifactPath: "/tmp/chicago-playbook.md",
+            sourceKey: "capture_location_candidates[0]",
+            sourceUrls: [],
+            parsedAtIso: "2026-04-17T00:00:00.000Z",
+            explicitFields: ["contact_email"],
+            inferredFields: [],
+          },
+        },
+      ],
+      buyerTargets: [
+        {
+          stableKey: "buyer_target_chicago-il-midwest-robotics",
+          companyName: "Midwest Robotics",
+          contactName: "Alex Buyer",
+          contactEmail: "alex@midwestrobotics.com",
+          status: "researched",
+          workflowFit: "warehouse autonomy",
+          proofPath: "exact_site",
+          notes: "Strong exact-site fit.",
+          sourceBucket: "warehouse_robotics",
+          sourceUrls: [],
+          explicitFields: ["contact_email"],
+          inferredFields: [],
+          provenance: {
+            sourceType: "deep_research_playbook",
+            artifactPath: "/tmp/chicago-playbook.md",
+            sourceKey: "buyer_target_candidates[0]",
+            sourceUrls: [],
+            parsedAtIso: "2026-04-17T00:00:00.000Z",
+            explicitFields: ["contact_email"],
+            inferredFields: [],
+          },
+        },
+      ],
+      firstTouches: [],
+      budgetRecommendations: [],
+    });
+    wakePaperclipAgent.mockRejectedValue(
+      new Error('Paperclip 409 for /api/issues/task-2: {"error":"Agent run is bound to a different issue"}'),
+    );
+
+    const reportsRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), "degraded-wake-city-launch-harness-"),
+    );
+    tempDirs.push(reportsRoot);
+
+    const { runCityLaunchExecutionHarness } = await import("../utils/cityLaunchExecutionHarness");
+    const result = await runCityLaunchExecutionHarness({
+      city: "Chicago, IL",
+      reportsRoot,
+      founderApproved: true,
+      budgetTier: "low_budget",
+    });
+
+    expect(result.paperclip?.rootIssueId).toBe("root-1");
+    expect(result.paperclip?.error).toContain("lane wakeups degraded");
+    expect(
+      result.paperclip?.dispatched.some((entry) => entry.wakeStatus === "degraded_binding_conflict"),
+    ).toBe(true);
+    expect(
+      result.paperclip?.dispatched.some((entry) => (entry.wakeError || "").includes("bound to a different issue")),
+    ).toBe(true);
+  });
+
   it("keeps buyer-facing sends blocked until a proof-ready asset exists while still dispatching supply-side outbound", async () => {
     summarizeCityLaunchLedgers.mockResolvedValue({
       trackedSupplyProspectsContacted: 0,
@@ -1612,14 +1738,14 @@ describe("city launch execution harness", () => {
         ownerLanes: ["city-launch-agent", "capturer-growth-agent", "analytics-agent"],
         issueSeeds: [],
         metricsDependencies: [
-          { key: "robot_team_inbound_captured", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
-          { key: "proof_path_assigned", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
-          { key: "proof_pack_delivered", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
-          { key: "hosted_review_ready", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
-          { key: "hosted_review_started", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
-          { key: "hosted_review_follow_up_sent", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
-          { key: "human_commercial_handoff_started", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
-          { key: "proof_motion_stalled", kind: "event", status: "required_not_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "robot_team_inbound_captured", kind: "event", status: "required_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "proof_path_assigned", kind: "event", status: "required_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "proof_pack_delivered", kind: "event", status: "required_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "hosted_review_ready", kind: "event", status: "required_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "hosted_review_started", kind: "event", status: "required_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "hosted_review_follow_up_sent", kind: "event", status: "required_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "human_commercial_handoff_started", kind: "event", status: "required_tracked", ownerLane: "analytics-agent", notes: null },
+          { key: "proof_motion_stalled", kind: "event", status: "required_tracked", ownerLane: "analytics-agent", notes: null },
         ],
         namedClaims: [],
       },

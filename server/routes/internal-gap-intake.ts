@@ -32,6 +32,10 @@ const reportSchema = z.object({
   severity: z.enum(["info", "warn", "blocker"]).optional(),
   suggested_owner: z.string().trim().max(200).optional().nullable(),
   stable_id: z.string().trim().max(400).optional().nullable(),
+  repo: z.enum(["Blueprint-WebApp", "BlueprintCapture", "BlueprintPipeline"]).optional(),
+  project: z.string().trim().max(200).optional().nullable(),
+  failure_family: z.string().trim().max(200).optional().nullable(),
+  source_ref: z.string().trim().max(1000).optional().nullable(),
 });
 
 router.post("/report", async (req: Request, res: Response) => {

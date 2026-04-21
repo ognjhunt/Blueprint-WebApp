@@ -151,14 +151,14 @@ describe("city launch research materializer", () => {
               },
             ],
             metrics_dependencies: [
-              { key: "robot_team_inbound_captured", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "proof_path_assigned", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "proof_pack_delivered", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "hosted_review_ready", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "hosted_review_started", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "hosted_review_follow_up_sent", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "human_commercial_handoff_started", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "proof_motion_stalled", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
+              { key: "robot_team_inbound_captured", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "proof_path_assigned", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "proof_pack_delivered", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "hosted_review_ready", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "hosted_review_started", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "hosted_review_follow_up_sent", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "human_commercial_handoff_started", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "proof_motion_stalled", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
             ],
             named_claims: [
               {
@@ -353,14 +353,14 @@ describe("city launch research materializer", () => {
               },
             ],
             metrics_dependencies: [
-              { key: "robot_team_inbound_captured", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "proof_path_assigned", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "proof_pack_delivered", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "hosted_review_ready", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "hosted_review_started", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "hosted_review_follow_up_sent", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "human_commercial_handoff_started", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "proof_motion_stalled", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
+              { key: "robot_team_inbound_captured", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "proof_path_assigned", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "proof_pack_delivered", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "hosted_review_ready", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "hosted_review_started", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "hosted_review_follow_up_sent", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "human_commercial_handoff_started", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "proof_motion_stalled", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
             ],
             named_claims: [
               {
@@ -429,14 +429,13 @@ describe("city launch research materializer", () => {
       artifactPath,
     });
 
-    expect(result.status).toBe("failed");
-    expect(result.warnings.join("\n")).toContain("Contract violation");
-    expect(result.warnings.join("\n")).toContain('unsupported "proof_path" value "hosted_review"');
-    expect(result.warnings.join("\n")).toContain('unsupported "category" value "proptech_processing"');
+    expect(result.status).toBe("materialized");
+    expect(result.warnings.join("\n")).toContain('normalized legacy "proof_path" value "hosted_review" to "scoped_follow_up"');
+    expect(result.warnings.join("\n")).toContain('normalized legacy budget category "proptech_processing" to "other"');
     expect(upsertCityLaunchProspect).not.toHaveBeenCalled();
-    expect(upsertCityLaunchBuyerTarget).not.toHaveBeenCalled();
+    expect(upsertCityLaunchBuyerTarget).toHaveBeenCalled();
     expect(recordCityLaunchTouch).not.toHaveBeenCalled();
-    expect(recordCityLaunchBudgetEvent).not.toHaveBeenCalled();
+    expect(recordCityLaunchBudgetEvent).toHaveBeenCalled();
   });
 
   it("materializes activation-ready research and preserves the recipient-backed contact warning", async () => {
@@ -504,14 +503,14 @@ describe("city launch research materializer", () => {
               },
             ],
             metrics_dependencies: [
-              { key: "robot_team_inbound_captured", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "proof_path_assigned", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "proof_pack_delivered", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "hosted_review_ready", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "hosted_review_started", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "hosted_review_follow_up_sent", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "human_commercial_handoff_started", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "proof_motion_stalled", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
+              { key: "robot_team_inbound_captured", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "proof_path_assigned", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "proof_pack_delivered", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "hosted_review_ready", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "hosted_review_started", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "hosted_review_follow_up_sent", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "human_commercial_handoff_started", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "proof_motion_stalled", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
             ],
             named_claims: [
               {
@@ -679,14 +678,14 @@ describe("city launch research materializer", () => {
               },
             ],
             metrics_dependencies: [
-              { key: "robot_team_inbound_captured", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "proof_path_assigned", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "proof_pack_delivered", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "hosted_review_ready", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "hosted_review_started", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "hosted_review_follow_up_sent", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "human_commercial_handoff_started", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
-              { key: "proof_motion_stalled", kind: "event", status: "required_not_tracked", owner_lane: "analytics-agent" },
+              { key: "robot_team_inbound_captured", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "proof_path_assigned", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "proof_pack_delivered", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "hosted_review_ready", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "hosted_review_started", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "hosted_review_follow_up_sent", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "human_commercial_handoff_started", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
+              { key: "proof_motion_stalled", kind: "event", status: "required_tracked", owner_lane: "analytics-agent" },
             ],
             named_claims: [
               {

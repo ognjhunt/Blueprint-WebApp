@@ -75,32 +75,15 @@ export function evaluateSlackHumanReplySurface(params: {
 
   const channel = normalizeString(params.channel);
   const conversationKind = inferConversationKind(channel, params.channelType);
+  const visibilityHint =
+    conversationKind === "dm"
+      ? "Slack DM visibility is configured."
+      : status.allowed_channels.includes(channel) && normalizeString(params.threadTs)
+        ? "Slack thread visibility is configured."
+        : "Slack visibility is incomplete.";
 
-  if (conversationKind === "dm") {
-    if (!status.allow_dms) {
-      return {
-        accepted: false,
-        reason: "Slack DM replies are disabled for human-blocker resume.",
-      };
-    }
-    return { accepted: true, reason: "dm_allowed" };
-  }
-
-  if (!status.allowed_channels.includes(channel)) {
-    return {
-      accepted: false,
-      reason:
-        "Slack channel reply is not resumable because the channel is not in BLUEPRINT_HUMAN_REPLY_SLACK_ALLOWED_CHANNELS.",
-    };
-  }
-
-  if (!normalizeString(params.threadTs)) {
-    return {
-      accepted: false,
-      reason:
-        "Slack channel replies are valid only inside an allowed thread; root-channel replies fail closed.",
-    };
-  }
-
-  return { accepted: true, reason: "allowed_thread" };
+  return {
+    accepted: false,
+    reason: `${visibilityHint} Slack remains a notification-only mirror for founder interrupts until inbound correlation, durable reply ingest, and resume handoff are implemented end to end. Email is the only durable resume path today.`,
+  };
 }

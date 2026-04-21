@@ -281,9 +281,9 @@ export function buildLaunchReadinessSnapshot() {
       ready: researchOutboundReady,
       detail: automationFlags.researchOutbound
         ? researchOutboundReady
-          ? `Autonomous research outbound is configured for the ${outboundChannel} delivery path.`
+          ? `Autonomous research outbound is configured for ${growthIntegrations.researchOutbound.providerKey || "market-signal"} discovery and the ${outboundChannel} delivery path.`
           : outboundChannel === "sendgrid"
-            ? "Autonomous research outbound needs Firehose, research topics, BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS, and a configured SendGrid/SMTP delivery path."
+            ? "Autonomous research outbound needs a configured market-signal provider, research topics, BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS, and a configured SendGrid/SMTP delivery path."
             : `Autonomous research outbound channel "${outboundChannel}" is not supported. Use sendgrid.`
         : "Autonomous research outbound is disabled.",
     },

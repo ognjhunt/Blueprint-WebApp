@@ -30,6 +30,8 @@ describe("provider-status", () => {
     vi.stubEnv("VITE_PUBLIC_POSTHOG_PROJECT_TOKEN", "phc_test");
     vi.stubEnv("VITE_PUBLIC_POSTHOG_HOST", "https://ph.test");
     vi.stubEnv("BLUEPRINT_ANALYTICS_INGEST_ENABLED", "1");
+    vi.stubEnv("SEARCH_API_KEY", "search-key");
+    vi.stubEnv("SEARCH_API_PROVIDER", "brave");
     vi.stubEnv("FIREHOSE_API_TOKEN", "fh-token");
     vi.stubEnv("FIREHOSE_BASE_URL", "https://firehose.test");
     vi.stubEnv("BLUEPRINT_AUTONOMOUS_RESEARCH_TOPICS", "warehouse robotics");
@@ -53,6 +55,9 @@ describe("provider-status", () => {
     expect(summary.analytics.ga4.configured).toBe(true);
     expect(summary.analytics.posthog.configured).toBe(true);
     expect(summary.sendgrid.configured).toBe(true);
+    expect(summary.researchOutbound.configured).toBe(true);
+    expect(summary.researchOutbound.providerKey).toBe("web_search");
+    expect(summary.researchOutbound.optional).toBe(true);
   });
 
   it("classifyGoogleCreativeFailure handles quota errors", async () => {

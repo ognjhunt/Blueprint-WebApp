@@ -48,6 +48,7 @@ export function buildCityLaunchFounderApprovalPacket(input: {
     ),
     title: `${profile.city} City Launch Autonomy Policy`,
     summary: `Autonomous launch policy for ${profile.city} with ${input.budgetPolicy.label} budget ($${input.budgetPolicy.maxTotalApprovedUsd.toLocaleString()}). ${approvals.length} governing rules.`,
+    decisionType: "city_launch_activation",
     recommendedAnswer:
       "AUTO-RUN — execute the city activation autonomously inside the written spend, policy, rights, and commercial guardrails.",
     exactResponseNeeded:
@@ -67,6 +68,16 @@ export function buildCityLaunchFounderApprovalPacket(input: {
     evidence: approvals,
     nonScope:
       "This policy does not authorize unsupported public claims, evidence-free rights/privacy exceptions, or spend beyond the approved envelope.",
+    repoContext: {
+      repo: "Blueprint-WebApp",
+      project: "blueprint-webapp",
+      sourceRef: `city-launch:${profile.key}`,
+    },
+    policyContext: {
+      gateMode: "universal_founder_inbox",
+      reasonCategory: "city_launch_activation",
+      autoExecutionEligible: false,
+    },
     resumeAction: {
       kind: "city_launch_activate",
       description: `Activate ${profile.city} automatically.`,

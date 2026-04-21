@@ -2,11 +2,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const autonomousGrowthRuns = new Map<string, Record<string, unknown>>();
+const marketSignalCache = new Map<string, Record<string, unknown>>();
 const createGrowthCampaignDraft = vi.hoisted(() => vi.fn());
 const queueGrowthCampaignSend = vi.hoisted(() => vi.fn());
 
 function resetState() {
   autonomousGrowthRuns.clear();
+  marketSignalCache.clear();
+}
+
+function mockFetchJson(payload: unknown) {
+  vi.mocked(fetch).mockResolvedValue({
+    ok: true,
+    text: async () => JSON.stringify(payload),
+    json: async () => payload,
+  } as Response);
 }
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
@@ -19,7 +29,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   },
   dbAdmin: {
     collection(name: string) {
-      if (name !== "autonomous_growth_runs") {
+      if (name !== "autonomous_growth_runs" && name !== "market_signal_cache") {
         throw new Error(`Unexpected collection ${name}`);
       }
 
@@ -28,13 +38,20 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
           return {
             async get() {
               return {
-                exists: autonomousGrowthRuns.has(id),
-                data: () => autonomousGrowthRuns.get(id),
+                exists:
+                  name === "autonomous_growth_runs"
+                    ? autonomousGrowthRuns.has(id)
+                    : marketSignalCache.has(id),
+                data: () =>
+                  name === "autonomous_growth_runs"
+                    ? autonomousGrowthRuns.get(id)
+                    : marketSignalCache.get(id),
               };
             },
             async set(payload: Record<string, unknown>) {
-              autonomousGrowthRuns.set(id, {
-                ...(autonomousGrowthRuns.get(id) || {}),
+              const target = name === "autonomous_growth_runs" ? autonomousGrowthRuns : marketSignalCache;
+              target.set(id, {
+                ...(target.get(id) || {}),
                 ...payload,
               });
             },
@@ -57,6 +74,9 @@ import {
 
 beforeEach(() => {
   resetState();
+  vi.stubEnv("SEARCH_API_KEY", "");
+  vi.stubEnv("SEARCH_API_PROVIDER", "");
+  vi.stubEnv("BLUEPRINT_MARKET_SIGNAL_PROVIDER", "firehose");
   vi.stubEnv("FIREHOSE_API_TOKEN", "fh-token");
   vi.stubEnv("FIREHOSE_BASE_URL", "https://firehose.test");
   vi.stubEnv("BLUEPRINT_AUTONOMOUS_RESEARCH_TOPICS", "warehouse robotics,field robotics deployment");
@@ -147,6 +167,26 @@ describe("buildAutonomousOutboundDraft", () => {
 });
 
 describe("runAutonomousResearchOutboundLoop", () => {
+  it("fails open when no market signal provider is configured", async () => {
+    vi.stubEnv("SEARCH_API_KEY", "");
+    vi.stubEnv("SEARCH_API_PROVIDER", "");
+    vi.stubEnv("FIREHOSE_API_TOKEN", "");
+    vi.stubEnv("FIREHOSE_BASE_URL", "");
+
+    const result = await runAutonomousResearchOutboundLoop({
+      topics: ["warehouse robotics"],
+    });
+
+    expect(result.results).toEqual([
+      expect.objectContaining({
+        topic: "warehouse robotics",
+        status: "provider_unavailable",
+      }),
+    ]);
+    expect(createGrowthCampaignDraft).not.toHaveBeenCalled();
+    expect(queueGrowthCampaignSend).not.toHaveBeenCalled();
+  });
+
   it("skips a topic that already ran today", async () => {
     const today = new Date().toISOString().slice(0, 10);
     autonomousGrowthRuns.set(`${today}__warehouse-robotics`, {
@@ -167,10 +207,7 @@ describe("runAutonomousResearchOutboundLoop", () => {
   });
 
   it("records a no-signals run without creating a campaign", async () => {
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      json: async () => ({ items: [] }),
-    } as Response);
+    mockFetchJson({ items: [] });
 
     const result = await runAutonomousResearchOutboundLoop({
       topics: ["warehouse robotics"],
@@ -191,19 +228,16 @@ describe("runAutonomousResearchOutboundLoop", () => {
 
   it("creates a draft without queueing when recipients are absent", async () => {
     vi.stubEnv("BLUEPRINT_AUTONOMOUS_OUTBOUND_RECIPIENTS", "");
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        items: [
-          {
-            id: "sig-1",
-            topic: "warehouse robotics",
-            title: "Signal one",
-            summary: "Summary one",
-          },
-        ],
-      }),
-    } as Response);
+    mockFetchJson({
+      items: [
+        {
+          id: "sig-1",
+          topic: "warehouse robotics",
+          title: "Signal one",
+          summary: "Summary one",
+        },
+      ],
+    });
 
     const result = await runAutonomousResearchOutboundLoop({
       topics: ["warehouse robotics"],
@@ -220,20 +254,17 @@ describe("runAutonomousResearchOutboundLoop", () => {
   });
 
   it("queues a sendgrid campaign when recipients exist", async () => {
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        items: [
-          {
-            id: "sig-1",
-            topic: "warehouse robotics",
-            title: "Signal one",
-            summary: "Summary one",
-            url: "https://example.com/1",
-          },
-        ],
-      }),
-    } as Response);
+    mockFetchJson({
+      items: [
+        {
+          id: "sig-1",
+          topic: "warehouse robotics",
+          title: "Signal one",
+          summary: "Summary one",
+          url: "https://example.com/1",
+        },
+      ],
+    });
 
     const result = await runAutonomousResearchOutboundLoop({
       topics: ["warehouse robotics"],
@@ -257,22 +288,24 @@ describe("runAutonomousResearchOutboundLoop", () => {
       campaignId: "campaign-1",
       operatorEmail: "operator@tryblueprint.io",
     });
+    expect(marketSignalCache.get("sig-1")).toMatchObject({
+      topic: "warehouse robotics",
+      signal_provider_key: "firehose",
+      last_seen_run_id: expect.stringContaining("warehouse-robotics"),
+    });
   });
 
   it("processes multiple topics in one pass", async () => {
-    vi.mocked(fetch).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        items: [
-          {
-            id: "sig-1",
-            topic: "topic",
-            title: "Signal one",
-            summary: "Summary one",
-          },
-        ],
-      }),
-    } as Response);
+    mockFetchJson({
+      items: [
+        {
+          id: "sig-1",
+          topic: "topic",
+          title: "Signal one",
+          summary: "Summary one",
+        },
+      ],
+    });
 
     const result = await runAutonomousResearchOutboundLoop({
       topics: ["warehouse robotics", "field robotics deployment"],
@@ -281,5 +314,45 @@ describe("runAutonomousResearchOutboundLoop", () => {
     expect(result.count).toBe(2);
     expect(createGrowthCampaignDraft).toHaveBeenCalledTimes(2);
     expect(queueGrowthCampaignSend).toHaveBeenCalledTimes(2);
+  });
+
+  it("builds outbound drafts through the normalized provider interface", async () => {
+    const provider = {
+      key: "stub_provider",
+      async fetchSignals(topic: string) {
+        return {
+          providerKey: "stub_provider",
+          signals: [
+            {
+              id: "signal-1",
+              topic,
+              title: "Grounded deployment signal",
+              summary: "Teams want exact-site review before another facility visit.",
+              url: "https://example.com/signal-1",
+              source: "stub_provider",
+              publishedAt: "2026-04-20T00:00:00.000Z",
+            },
+          ],
+        };
+      },
+    };
+
+    const result = await runAutonomousResearchOutboundLoop({
+      topics: ["warehouse robotics"],
+      provider: provider as any,
+    });
+
+    expect(result.results).toEqual([
+      expect.objectContaining({
+        topic: "warehouse robotics",
+        status: "campaign_queued",
+      }),
+    ]);
+    expect(createGrowthCampaignDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Autonomous outbound: warehouse robotics",
+        body: expect.stringContaining("Grounded deployment signal"),
+      }),
+    );
   });
 });

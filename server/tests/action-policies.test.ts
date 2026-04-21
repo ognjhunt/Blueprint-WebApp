@@ -3,12 +3,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   CAPTURER_COMMS_POLICY,
+  GROWTH_CAMPAIGN_POLICY,
   INBOUND_POLICY,
   PAYOUT_POLICY,
   RESCHEDULE_POLICY,
   SITE_ACCESS_POLICY,
   SUPPORT_POLICY,
   WAITLIST_POLICY,
+  classifyActionExecution,
   evaluateActionTier,
   validateEmailContent,
   type ActionPayload,
@@ -104,6 +106,45 @@ describe("WAITLIST_POLICY", () => {
         automation_status: "ready",
       }),
     ).toBe(false);
+  });
+});
+
+describe("classifyActionExecution", () => {
+  it("routes payout actions to the universal founder inbox", () => {
+    const decision = classifyActionExecution({
+      lane: "payout",
+      actionType: "send_email",
+      draft: { recommendation: "manual_review" },
+      policy: PAYOUT_POLICY,
+    });
+    expect(decision.executionMode).toBe("universal_founder_inbox");
+    expect(decision.irreversibleActionClass).toBe("money_movement");
+  });
+
+  it("routes growth sends to the universal founder inbox", () => {
+    const decision = classifyActionExecution({
+      lane: "growth_campaign",
+      actionType: "send_campaign_emails",
+      draft: { recommendation: "send_campaign", requires_human_review: true },
+      policy: GROWTH_CAMPAIGN_POLICY,
+    });
+    expect(decision.executionMode).toBe("universal_founder_inbox");
+    expect(decision.irreversibleActionClass).toBe("external_send");
+  });
+
+  it("keeps safe waitlist work auto-executable", () => {
+    const decision = classifyActionExecution({
+      lane: "waitlist",
+      actionType: "send_email",
+      draft: {
+        recommendation: "invite_now",
+        confidence: 0.95,
+        scores: { market_fit: 90 },
+      },
+      policy: WAITLIST_POLICY,
+    });
+    expect(decision.executionMode).toBe("auto_execute");
+    expect(decision.irreversibleActionClass).toBeNull();
   });
 });
 

@@ -4,16 +4,12 @@ import {
   queueGrowthCampaignSend,
 } from "./growth-ops";
 import { getConfiguredEnvValue } from "../config/env";
-
-interface FirehoseSignal {
-  id: string;
-  topic: string;
-  title: string;
-  summary: string;
-  url?: string | null;
-  source?: string | null;
-  publishedAt?: string | null;
-}
+import {
+  resolveMarketSignalProvider,
+  type MarketSignalProvider,
+  type MarketSignalRecord,
+} from "./marketSignalProviders";
+import { writeMarketSignalCache } from "./marketSignalCache";
 
 function normalizeString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -45,71 +41,9 @@ function autonomousResearchTopics() {
     .filter(Boolean);
 }
 
-function firehoseConfig() {
-  const apiToken = getConfiguredEnvValue("FIREHOSE_API_TOKEN");
-  const baseUrl = getConfiguredEnvValue("FIREHOSE_BASE_URL");
-  return {
-    configured: Boolean(apiToken && baseUrl),
-    apiToken,
-    baseUrl: (baseUrl || "").replace(/\/+$/, ""),
-  };
-}
-
-export async function fetchFirehoseSignals(topic: string) {
-  const config = firehoseConfig();
-  if (!config.configured) {
-    throw new Error("Firehose is not configured");
-  }
-
-  const response = await fetch(`${config.baseUrl}/signals/search`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.apiToken}`,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      query: topic,
-      topics: [topic],
-      limit: 6,
-      since: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    }),
-  });
-
-  const payload = (await response.json()) as {
-    items?: Array<Record<string, unknown>>;
-    signals?: Array<Record<string, unknown>>;
-  };
-
-  if (!response.ok) {
-    throw new Error(`Firehose ${response.status}: ${JSON.stringify(payload).slice(0, 300)}`);
-  }
-
-  const rawSignals = payload.items || payload.signals || [];
-  return rawSignals
-    .map((item): FirehoseSignal | null => {
-      const id = normalizeString(item.id || item.externalId);
-      const title = normalizeString(item.title);
-      const summary = normalizeString(item.summary || item.snippet);
-      if (!id || !title || !summary) {
-        return null;
-      }
-      return {
-        id,
-        topic: normalizeString(item.topic) || topic,
-        title,
-        summary,
-        url: normalizeString(item.url) || null,
-        source: normalizeString(item.source) || null,
-        publishedAt: normalizeString(item.publishedAt) || null,
-      };
-    })
-    .filter((item): item is FirehoseSignal => Boolean(item));
-}
-
 export function buildAutonomousOutboundDraft(params: {
   topic: string;
-  signals: FirehoseSignal[];
+  signals: MarketSignalRecord[];
 }) {
   const evidence = params.signals.slice(0, 3);
   const subject = `Why ${params.topic} teams are narrowing the exact-site review question sooner`;
@@ -139,14 +73,10 @@ export function buildAutonomousOutboundDraft(params: {
 export async function runAutonomousResearchOutboundLoop(params?: {
   topics?: string[];
   operatorEmail?: string;
+  provider?: MarketSignalProvider;
 }) {
   if (!db) {
     throw new Error("Database not available");
-  }
-
-  const config = firehoseConfig();
-  if (!config.configured) {
-    throw new Error("Firehose is not configured");
   }
 
   const channel = "sendgrid";
@@ -154,7 +84,18 @@ export async function runAutonomousResearchOutboundLoop(params?: {
   const operatorEmail = params?.operatorEmail || "autonomous-growth@tryblueprint.io";
   const today = startOfUtcDay();
   const topics = params?.topics?.length ? params.topics : autonomousResearchTopics();
+  const provider = params?.provider || resolveMarketSignalProvider();
   const results: Array<Record<string, unknown>> = [];
+  const limit = Math.max(
+    1,
+    Number(getConfiguredEnvValue("BLUEPRINT_MARKET_SIGNAL_LIMIT") || "6"),
+  );
+  const since = new Date(
+    Date.now() - Math.max(
+      1,
+      Number(getConfiguredEnvValue("BLUEPRINT_MARKET_SIGNAL_LOOKBACK_DAYS") || "7"),
+    ) * 24 * 60 * 60 * 1000,
+  ).toISOString();
 
   for (const topic of topics) {
     const runId = `${today}__${slugify(topic)}`;
@@ -169,13 +110,38 @@ export async function runAutonomousResearchOutboundLoop(params?: {
       continue;
     }
 
-    const signals = await fetchFirehoseSignals(topic);
+    if (!provider) {
+      await runRef.set(
+        {
+          topic,
+          status: "provider_unavailable",
+          signals: [],
+          signal_provider_key: null,
+          created_at_iso: new Date().toISOString(),
+          created_at: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+      results.push({
+        topic,
+        status: "provider_unavailable",
+        runId,
+      });
+      continue;
+    }
+
+    const signalResult = await provider.fetchSignals(topic, {
+      limit,
+      since,
+    });
+    const signals = signalResult.signals;
     if (signals.length === 0) {
       await runRef.set(
         {
           topic,
           status: "no_signals",
           signals: [],
+          signal_provider_key: signalResult.providerKey,
           created_at_iso: new Date().toISOString(),
           created_at: admin.firestore.FieldValue.serverTimestamp(),
         },
@@ -186,6 +152,12 @@ export async function runAutonomousResearchOutboundLoop(params?: {
     }
 
     const draft = buildAutonomousOutboundDraft({ topic, signals });
+    await writeMarketSignalCache({
+      runId,
+      providerKey: signalResult.providerKey,
+      topic,
+      signals,
+    });
     const campaign = await createGrowthCampaignDraft({
       name: draft.name,
       subject: draft.subject,
@@ -211,6 +183,7 @@ export async function runAutonomousResearchOutboundLoop(params?: {
         campaign_id: campaign.id,
         channel,
         recipients,
+        signal_provider_key: signalResult.providerKey,
         queue_result_state:
           queueResult && typeof queueResult.state === "string" ? queueResult.state : null,
         signals,

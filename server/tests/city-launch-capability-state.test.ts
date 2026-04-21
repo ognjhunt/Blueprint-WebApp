@@ -12,7 +12,7 @@ describe("city launch capability state", () => {
       senderVerification: "unknown",
       hasRightsClearedProofAsset: false,
       hasHostedReviewStarted: false,
-      hasFirehose: false,
+      hasSignalProvider: false,
     });
 
     expect(snapshot.activation.allowed).toBe(true);
@@ -29,7 +29,7 @@ describe("city launch capability state", () => {
       senderVerification: "verified",
       hasRightsClearedProofAsset: false,
       hasHostedReviewStarted: false,
-      hasFirehose: false,
+      hasSignalProvider: false,
     });
 
     expect(snapshot.activation.allowed).toBe(true);

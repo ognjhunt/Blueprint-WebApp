@@ -28,6 +28,8 @@ const humanBlockerPacketSchema = z.object({
   blockerId: z.string().trim().min(1).max(200).optional(),
   title: z.string().trim().min(1).max(240),
   summary: z.string().trim().min(1).max(2000),
+  decisionType: z.string().trim().max(240).optional().nullable(),
+  irreversibleActionClass: z.string().trim().max(240).optional().nullable(),
   recommendedAnswer: z.string().trim().min(1).max(2000),
   exactResponseNeeded: z.string().trim().min(1).max(2000),
   whyBlocked: z.string().trim().min(1).max(3000),
@@ -38,6 +40,18 @@ const humanBlockerPacketSchema = z.object({
   deadline: z.string().trim().min(1).max(240),
   evidence: z.array(z.string().trim().min(1).max(2000)).min(1).max(12),
   nonScope: z.string().trim().min(1).max(2000),
+  repoContext: z.object({
+    repo: z.string().trim().min(1).max(240),
+    project: z.string().trim().max(240).optional().nullable(),
+    issueId: z.string().trim().max(240).optional().nullable(),
+    opsWorkItemId: z.string().trim().max(240).optional().nullable(),
+    sourceRef: z.string().trim().max(1000).optional().nullable(),
+  }).optional().nullable(),
+  policyContext: z.object({
+    gateMode: z.enum(["universal_founder_inbox", "repo_local_no_send"]),
+    reasonCategory: z.string().trim().max(240).optional().nullable(),
+    autoExecutionEligible: z.boolean().optional().nullable(),
+  }).optional().nullable(),
 });
 
 const dispatchSchema = z.object({

@@ -17,11 +17,15 @@ describe("gap registry helpers", () => {
 
   it("stableIdForExternalReport hashes when stable_id omitted", () => {
     const a = stableIdForExternalReport({
+      repo: "Blueprint-WebApp",
+      failure_family: "webapp_build_failure",
       source: "ci",
       title: "fail",
       detail: "x",
     });
     const b = stableIdForExternalReport({
+      repo: "BlueprintPipeline",
+      failure_family: "pipeline_build_failure",
       source: "ci",
       title: "fail",
       detail: "y",

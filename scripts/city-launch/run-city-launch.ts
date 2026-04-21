@@ -204,12 +204,7 @@ async function main() {
         dispatchedIssueCount:
           activateResult.paperclip?.dispatched.length || 0,
         wokenIssueCount:
-          activateResult.paperclip?.dispatched.filter(
-            (e) =>
-              e.wakeStatus &&
-              e.wakeStatus !== "skipped" &&
-              e.wakeStatus !== "skipped_existing",
-          ).length || 0,
+          activateResult.paperclip?.dispatched.filter((e) => Boolean(e.wakeRunId)).length || 0,
         prospectsUpserted:
           activateResult.researchMaterialization?.prospectsUpserted || 0,
         buyerTargetsUpserted:

@@ -31,14 +31,14 @@ Austin demand should stay proof-led: qualify real robot-team interest, classify 
 
 ## Metrics Dependencies
 
-- robot_team_inbound_captured: required_not_tracked
-- proof_path_assigned: required_not_tracked
-- proof_pack_delivered: required_not_tracked
-- hosted_review_ready: required_not_tracked
-- hosted_review_started: required_not_tracked
-- hosted_review_follow_up_sent: required_not_tracked
-- human_commercial_handoff_started: required_not_tracked
-- proof_motion_stalled: required_not_tracked
+- robot_team_inbound_captured: required_tracked
+- proof_path_assigned: required_tracked
+- proof_pack_delivered: required_tracked
+- hosted_review_ready: required_tracked
+- hosted_review_started: required_tracked
+- hosted_review_follow_up_sent: required_tracked
+- human_commercial_handoff_started: required_tracked
+- proof_motion_stalled: required_tracked
 
 ## Sensitive-Lane Constraints
 - if a buyer sits in defense, aerospace, export-controlled, or air-gapped environments, block the standard hosted-review path until the policy and evidence path are explicit

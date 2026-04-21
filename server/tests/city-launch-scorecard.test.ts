@@ -117,14 +117,14 @@ describe("city launch scorecard", () => {
           {
             key: "robot_team_inbound_captured",
             kind: "event",
-            status: "required_not_tracked",
+            status: "required_tracked",
             ownerLane: "analytics-agent",
             notes: "Need to emit from server.",
           },
           {
             key: "proof_path_assigned",
             kind: "event",
-            status: "required_not_tracked",
+            status: "required_tracked",
             ownerLane: "analytics-agent",
             notes: "Need to emit from server.",
           },
@@ -209,6 +209,9 @@ describe("city launch scorecard", () => {
   });
 
   it("reports proof-motion execution state and falls back to first-party ledgers when Firehose is unavailable", async () => {
+    vi.stubEnv("SEARCH_API_KEY", "");
+    vi.stubEnv("SEARCH_API_PROVIDER", "");
+    vi.stubEnv("BLUEPRINT_MARKET_SIGNAL_PROVIDER", "");
     vi.stubEnv("FIREHOSE_API_TOKEN", "");
     vi.stubEnv("FIREHOSE_BASE_URL", "");
 
@@ -310,7 +313,7 @@ describe("city launch scorecard", () => {
     expect(scorecard.activation.executionStates.hostedReview).toBe("missing");
     expect(scorecard.activation.executionStates.analyticsSource).toBe("first_party_only");
     expect(scorecard.warnings.join("\n")).toContain(
-      "Firehose enrichment unavailable; using first-party city-launch ledgers only.",
+      "External market-signal enrichment unavailable; using first-party city-launch ledgers only.",
     );
   });
 });

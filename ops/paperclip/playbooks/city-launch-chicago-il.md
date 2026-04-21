@@ -9,7 +9,7 @@
 - planning-state: completed
 
 ## Launch Thesis
-One site, one workflow, one hosted review wedge.
+Run one proof-led warehouse wedge.
 
 ## What Changed This Pass
 - evidence-backed: the generic city-launch activation harness generated the Chicago system doc, execution issue bundle, target ledger, and compact city playbooks in one run.
@@ -85,7 +85,7 @@ One site, one workflow, one hosted review wedge.
 
 ## Rights Path
 
-Rights summary
+Private controlled interiors require authorization.
 
 ## Trust Infrastructure Required Before Expansion
 - written site-operator acquisition path and authority verification checklist
