@@ -439,7 +439,7 @@ describe("city launch research materializer", () => {
     expect(recordCityLaunchBudgetEvent).not.toHaveBeenCalled();
   });
 
-  it("fails materialization when activation-ready research has no recipient-backed direct contacts", async () => {
+  it("materializes activation-ready research and preserves the recipient-backed contact warning", async () => {
     resolveCityLaunchPlanningState.mockResolvedValue({
       city: "Sacramento, CA",
       citySlug: "sacramento-ca",
@@ -584,12 +584,12 @@ describe("city launch research materializer", () => {
       artifactPath,
     });
 
-    expect(result.status).toBe("failed");
+    expect(result.status).toBe("materialized");
     expect(result.warnings.join("\n")).toContain(
       "Activation-ready direct outreach requires 1-3 recipient-backed first-wave contacts with explicit contact_email evidence.",
     );
-    expect(upsertCityLaunchProspect).not.toHaveBeenCalled();
-    expect(upsertCityLaunchBuyerTarget).not.toHaveBeenCalled();
+    expect(upsertCityLaunchProspect).toHaveBeenCalled();
+    expect(upsertCityLaunchBuyerTarget).toHaveBeenCalled();
   });
 
   it("auto-enriches missing contact_email evidence from historical delivery data before materializing", async () => {

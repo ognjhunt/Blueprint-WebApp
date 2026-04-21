@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { promises as fs } from "node:fs";
+import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -7,8 +8,10 @@ import { parseCityLaunchResearchArtifact } from "../utils/cityLaunchResearchPars
 
 describe("San Diego city-launch playbook", () => {
   it("contains a valid machine-readable activation payload", async () => {
-    const artifactPath =
-      "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-san-diego-ca-deep-research.md";
+    const artifactPath = path.resolve(
+      process.cwd(),
+      "ops/paperclip/playbooks/city-launch-san-diego-ca-deep-research.md",
+    );
     const markdown = await fs.readFile(artifactPath, "utf8");
 
     const parsed = parseCityLaunchResearchArtifact({
