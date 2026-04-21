@@ -667,6 +667,21 @@ function hasOnlyResolvedIssues(candidate: CandidateRun) {
   return candidate.issues.length > 0 && candidate.issues.every((issue) => isResolvedIssueStatus(issue.status));
 }
 
+function hasLaterActiveRecoveryRun(
+  candidate: CandidateRun,
+  runs: HeartbeatRunRecord[],
+  stalledMinutes: number,
+) {
+  const candidateCreatedAt = safeDateRank(candidate.run.createdAt);
+  return runs.some((run) => (
+    run.id !== candidate.run.id
+    && run.agentId === candidate.run.agentId
+    && safeDateRank(run.createdAt) > candidateCreatedAt
+    && isActiveRecoveryRun(run, stalledMinutes)
+    && hasMatchingRecoveryScope(candidate.run, run)
+  ));
+}
+
 function isQuotaFailureStaleAfterAdapterSwitch(
   candidate: CandidateRun,
   currentAgent: AgentRecord | undefined,
@@ -712,6 +727,11 @@ export function splitRecoveredCandidates(
       continue;
     }
 
+    if (hasLaterActiveRecoveryRun(candidate, runs, stalledMinutes)) {
+      suppressedRecoveredCandidates.push(candidate);
+      continue;
+    }
+
     if (
       isQuotaFailureStaleAfterAdapterSwitch(
         candidate,
@@ -728,21 +748,7 @@ export function splitRecoveredCandidates(
       visibleCandidates.push(candidate);
       continue;
     }
-
-    const candidateCreatedAt = safeDateRank(candidate.run.createdAt);
-    const recovered = runs.some((run) => (
-      run.id !== candidate.run.id
-      && run.agentId === candidate.run.agentId
-      && safeDateRank(run.createdAt) > candidateCreatedAt
-      && isActiveRecoveryRun(run, stalledMinutes)
-      && hasMatchingRecoveryScope(candidate.run, run)
-    ));
-
-    if (recovered) {
-      suppressedRecoveredCandidates.push(candidate);
-    } else {
-      visibleCandidates.push(candidate);
-    }
+    visibleCandidates.push(candidate);
   }
 
   return {
