@@ -8,6 +8,7 @@ import {
   type CityLaunchChannelAccountRecord,
 } from "./cityLaunchLedgers";
 import {
+  getCityLaunchSenderOperationalState,
   getCityLaunchSenderStatus,
   getEmailTransportStatus,
   sendEmail,
@@ -50,34 +51,15 @@ export function assessCityLaunchOutboundReadiness(input: {
   const recipientBacked = directOutreachActions.filter((entry) => Boolean(entry.recipientEmail));
   const readyToSend = recipientBacked.filter((entry) => entry.status === "ready_to_send");
   const sent = recipientBacked.filter((entry) => entry.status === "sent");
-  const emailTransport = getEmailTransportStatus();
-  const sender = getCityLaunchSenderStatus();
-  const blockers: string[] = [];
-  const warnings: string[] = [];
+  const senderOperationalState = getCityLaunchSenderOperationalState();
+  const emailTransport = senderOperationalState.transport;
+  const sender = senderOperationalState.sender;
+  const blockers: string[] = [...senderOperationalState.blockers];
+  const warnings: string[] = [...senderOperationalState.warnings];
 
   if (recipientBacked.length === 0) {
     blockers.push(
       `No recipient-backed direct-outreach send actions were seeded for ${input.city}.`,
-    );
-  }
-
-  if (!emailTransport.configured) {
-    blockers.push("Email transport is not configured for real city-launch sends.");
-  }
-
-  if (!sender.fromEmail) {
-    blockers.push(
-      "City-launch sender email is not configured. Set BLUEPRINT_CITY_LAUNCH_FROM_EMAIL or SENDGRID_FROM_EMAIL.",
-    );
-  }
-
-  if (sender.verificationStatus === "unverified") {
-    blockers.push(
-      `City-launch sender ${sender.fromEmail || "unknown"} is explicitly marked unverified in BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION.`,
-    );
-  } else if (sender.verificationStatus !== "verified") {
-    warnings.push(
-      "Sender verification cannot be proven programmatically from env state. Confirm the configured city-launch sender/domain is verified in the active mail provider before claiming outward launchability.",
     );
   }
 

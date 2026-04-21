@@ -30,6 +30,14 @@ export type CityLaunchSenderStatus = {
   verificationStatus: CityLaunchSenderVerificationStatus;
 };
 
+export type CityLaunchSenderOperationalState = {
+  capability: "ready" | "warning" | "blocked";
+  transport: ReturnType<typeof getEmailTransportStatus>;
+  sender: CityLaunchSenderStatus;
+  blockers: string[];
+  warnings: string[];
+};
+
 function getSendGridConfig() {
   const apiKey = process.env.SENDGRID_API_KEY?.trim() || "";
   const fromEmail = process.env.SENDGRID_FROM_EMAIL?.trim() || "";
@@ -120,6 +128,41 @@ export function getCityLaunchSenderStatus(): CityLaunchSenderStatus {
         ? "sendgrid_default"
         : null,
     verificationStatus,
+  };
+}
+
+export function getCityLaunchSenderOperationalState(): CityLaunchSenderOperationalState {
+  const transport = getEmailTransportStatus();
+  const sender = getCityLaunchSenderStatus();
+  const blockers: string[] = [];
+  const warnings: string[] = [];
+
+  if (!transport.configured) {
+    blockers.push("Email transport is not configured for real city-launch sends.");
+  }
+
+  if (!sender.fromEmail) {
+    blockers.push(
+      "City-launch sender email is not configured. Set BLUEPRINT_CITY_LAUNCH_FROM_EMAIL or SENDGRID_FROM_EMAIL.",
+    );
+  }
+
+  if (sender.verificationStatus === "unverified") {
+    blockers.push(
+      `City-launch sender ${sender.fromEmail || "unknown"} is explicitly marked unverified in BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION.`,
+    );
+  } else if (sender.verificationStatus !== "verified") {
+    warnings.push(
+      "Sender verification cannot be proven programmatically from env state. Confirm the configured city-launch sender/domain is verified in the active mail provider before claiming outward launchability.",
+    );
+  }
+
+  return {
+    capability: blockers.length > 0 ? "blocked" : warnings.length > 0 ? "warning" : "ready",
+    transport,
+    sender,
+    blockers,
+    warnings,
   };
 }
 
