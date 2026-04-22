@@ -163,7 +163,7 @@ const moreSites = useMemo(
                 <h1 className="font-editorial text-[3.4rem] leading-[0.94] tracking-[-0.05em] text-white sm:text-[4.7rem]">
                   Exact-site worlds.
                 </h1>
-                <p className="mt-3 text-lg text-white/76">
+                <p className="mt-3 text-lg text-white/88">
                   Browse real facilities.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-2">

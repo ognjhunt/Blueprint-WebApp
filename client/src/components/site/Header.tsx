@@ -50,11 +50,11 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-black/10 bg-white/94 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-black text-white">
       <div className="mx-auto flex max-w-[88rem] items-center justify-between gap-4 px-4 py-4 sm:px-6">
         <a
           href="/"
-          className="inline-flex min-h-11 items-center text-slate-950 transition hover:opacity-90"
+          className="inline-flex min-h-11 items-center text-white transition hover:opacity-90"
         >
           <span className="font-editorial text-[2.1rem] leading-none tracking-[-0.05em]">
             Blueprint
@@ -69,12 +69,12 @@ export function Header() {
                 key={link.href}
                 href={link.href}
                 className={`relative pb-1.5 text-sm font-medium tracking-[-0.01em] transition ${
-                  active ? "text-slate-950" : "text-slate-500 hover:text-slate-950"
+                  active ? "text-white" : "text-white/60 hover:text-white"
                 }`}
               >
                 {link.label}
                 <span
-                  className={`absolute inset-x-0 bottom-0 h-px origin-center bg-slate-950 transition ${
+                  className={`absolute inset-x-0 bottom-0 h-px origin-center bg-white transition ${
                     active ? "scale-x-100 opacity-100" : "scale-x-0 opacity-0"
                   }`}
                 />
@@ -86,7 +86,7 @@ export function Header() {
         <div className="hidden items-center gap-4 xl:flex">
           <a
             href={publicDemoHref}
-            className="inline-flex items-center justify-center whitespace-nowrap rounded-none border border-slate-950 bg-slate-950 px-4.5 py-2.5 text-[13px] font-semibold leading-none text-white shadow-[0_16px_34px_-24px_rgba(15,23,42,0.58)] transition hover:bg-slate-800"
+            className="inline-flex items-center justify-center whitespace-nowrap rounded-none border border-white/20 px-4.5 py-2.5 text-[13px] font-semibold leading-none text-white transition hover:bg-white/10"
           >
             Inspect a real site
           </a>
@@ -129,7 +129,7 @@ export function Header() {
 
         <button
           type="button"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-none border border-black/10 bg-white p-0 shadow-[0_14px_28px_-26px_rgba(15,23,42,0.5)] xl:hidden"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-none border border-white/20 bg-white/5 p-0 text-white xl:hidden"
           onClick={() => setOpen((prev) => !prev)}
           aria-expanded={open}
           aria-label="Toggle navigation"
@@ -139,17 +139,17 @@ export function Header() {
       </div>
 
       {open ? (
-        <div className="border-t border-slate-200 bg-white xl:hidden">
-          <nav className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-5 text-sm font-medium text-slate-700">
+        <div className="border-t border-white/10 bg-black xl:hidden">
+          <nav className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-5 text-sm font-medium text-white/72">
             <div className="space-y-2">
-              <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+              <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
                 Explore
               </p>
               {primaryNavLinks.map((link) => (
                 <a
                   key={link.href}
                   href={link.href}
-                  className="flex min-h-11 items-center rounded-none border-b border-black/8 px-1 py-3 transition hover:text-slate-950"
+                  className="flex min-h-11 items-center rounded-none border-b border-white/10 px-1 py-3 transition hover:text-white"
                   onClick={() => setOpen(false)}
                 >
                   {link.label}
@@ -159,7 +159,7 @@ export function Header() {
 
             <a
               href={publicDemoHref}
-              className="inline-flex min-h-11 items-center justify-center rounded-none bg-slate-950 px-4 py-2.5 text-center font-semibold text-white"
+              className="inline-flex min-h-11 items-center justify-center rounded-none border border-white/20 bg-white/5 px-4 py-2.5 text-center font-semibold text-white"
               onClick={() => setOpen(false)}
             >
               Inspect a real site
@@ -169,14 +169,14 @@ export function Header() {
               <>
                 <a
                   href="/settings"
-                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-slate-200 px-4 py-2.5 text-center text-slate-700"
+                  className="inline-flex min-h-11 items-center justify-center rounded-none border border-white/20 px-4 py-2.5 text-center text-white"
                   onClick={() => setOpen(false)}
                 >
                   Settings
                 </a>
                 <button
                   type="button"
-                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-red-200 px-4 py-2.5 text-center text-red-600"
+                  className="inline-flex min-h-11 items-center justify-center rounded-none border border-red-500/30 px-4 py-2.5 text-center text-red-200"
                   onClick={async () => {
                     await handleSignOut();
                     setOpen(false);
