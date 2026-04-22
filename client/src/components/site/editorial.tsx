@@ -179,8 +179,8 @@ export function ProofChip({
       className={cn(
         "inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]",
         light
-          ? "border-white/16 bg-white/8 text-white/72"
-          : "border-black/10 bg-white/88 text-slate-600",
+          ? "border-white/[0.26] bg-black/[0.32] text-white/[0.90]"
+          : "border-black/10 bg-white/[0.88] text-slate-600",
         className,
       )}
     >

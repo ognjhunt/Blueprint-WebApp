@@ -47,12 +47,12 @@ export default function ExactSiteHostedReview() {
           >
             <div className="absolute inset-0">
               <div className="mx-auto grid h-full max-w-[88rem] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[0.6fr_0.4fr] lg:px-10 lg:py-16">
-                <div className="flex min-h-[34rem] flex-col justify-end">
+                <div className="flex min-h-[34rem] flex-col justify-end selection:bg-white/20 selection:text-white">
                 <EditorialSectionLabel light>Hosted Review</EditorialSectionLabel>
                 <h1 className="font-editorial mt-6 max-w-[36rem] text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5rem]">
                   Review before you buy.
                 </h1>
-                <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/72">
+                <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/[0.86]">
                   Hosted evaluation of one exact-site world model. See how the robot perceives, plans, and acts inside your facility before your team commits.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-2">
@@ -70,7 +70,7 @@ export default function ExactSiteHostedReview() {
                   </a>
                   <a
                     href="/sample-deliverables"
-                    className="inline-flex items-center justify-center border border-white/16 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/8"
+                    className="inline-flex items-center justify-center border border-white/[0.16] px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
                   >
                     See sample deliverables
                   </a>
@@ -78,18 +78,18 @@ export default function ExactSiteHostedReview() {
               </div>
 
                 <div className="hidden items-end justify-end lg:flex">
-                  <div className="w-full max-w-[24rem] overflow-hidden border border-white/14 bg-black/42 text-white backdrop-blur-sm">
-                  <div className="border-b border-white/10 px-5 py-4 text-[11px] uppercase tracking-[0.18em] text-white/44">
+                  <div className="w-full max-w-[24rem] overflow-hidden border border-white/[0.14] bg-black/[0.42] text-white backdrop-blur-sm">
+                  <div className="border-b border-white/10 px-5 py-4 text-[11px] uppercase tracking-[0.18em] text-white/[0.44]">
                     Hosted evaluation workspace
                   </div>
                   <div className="grid gap-3 p-5">
-                    <div className="rounded-[1rem] border border-white/10 bg-white/8 p-4 text-sm text-white/72">
+                    <div className="rounded-[1rem] border border-white/10 bg-white/[0.08] p-4 text-sm text-white/[0.72]">
                       Site: one exact facility
                     </div>
-                    <div className="rounded-[1rem] border border-white/10 bg-white/8 p-4 text-sm text-white/72">
+                    <div className="rounded-[1rem] border border-white/10 bg-white/[0.08] p-4 text-sm text-white/[0.72]">
                       Review: reruns, observations, exports
                     </div>
-                    <div className="rounded-[1rem] border border-white/10 bg-white/8 p-4 text-sm text-white/72">
+                    <div className="rounded-[1rem] border border-white/10 bg-white/[0.08] p-4 text-sm text-white/[0.72]">
                       Output: next commercial step stays explicit
                     </div>
                   </div>
@@ -160,7 +160,7 @@ export default function ExactSiteHostedReview() {
                 <h2 className="font-editorial text-[2rem] leading-[0.95] tracking-[-0.04em]">
                   {card.title}
                 </h2>
-                <p className={`mt-4 text-sm leading-7 ${index === 1 ? "text-white/72" : "text-slate-600"}`}>
+                <p className={`mt-4 text-sm leading-7 ${index === 1 ? "text-white/[0.72]" : "text-slate-600"}`}>
                   {card.body}
                 </p>
               </div>
