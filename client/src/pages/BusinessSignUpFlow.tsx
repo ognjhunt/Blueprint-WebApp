@@ -19,6 +19,14 @@ import {
   User,
   Users,
 } from "lucide-react";
+import { SEO } from "@/components/SEO";
+import {
+  SurfaceBrowserFrame,
+  SurfaceMiniLabel,
+  SurfacePage,
+  SurfaceSection,
+  SurfaceTopBar,
+} from "@/components/site/privateSurface";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -37,6 +45,7 @@ import {
   REQUESTED_LANE_LABELS,
   REQUESTED_LANES as SHARED_REQUESTED_LANES,
 } from "@/lib/requestTaxonomy";
+import { privateGeneratedAssets } from "@/lib/privateGeneratedAssets";
 
 type RequestedLane = (typeof SHARED_REQUESTED_LANES)[number];
 
@@ -112,6 +121,7 @@ type LegacyPrimaryNeed =
 
 const DEFAULT_BUYER_TYPE: BuyerType = "robot_team";
 const DEFAULT_REQUESTED_LANE: RequestedLane = "deeper_evaluation";
+const BUYER_STEP_LABELS = ["Organization", "Team", "Site & Workflow"] as const;
 
 const LEGACY_PRIMARY_NEED_BY_LANE: Record<RequestedLane, LegacyPrimaryNeed> = {
   qualification: "benchmark-packs",
@@ -138,32 +148,46 @@ function StepIndicator({
   totalSteps: number;
 }) {
   return (
-    <div className="mb-6 flex items-center gap-2">
-      {Array.from({ length: totalSteps }, (_, index) => index + 1).map((stepNumber) => (
-        <React.Fragment key={stepNumber}>
-          <div
-            className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
-              stepNumber < currentStep
-                ? "bg-emerald-500 text-white"
-                : stepNumber === currentStep
-                ? "bg-emerald-500 text-white ring-4 ring-emerald-500/15"
-                : "bg-zinc-100 text-zinc-400"
-            }`}
-          >
-            {stepNumber < currentStep ? <CheckCircle2 className="h-4 w-4" /> : stepNumber}
-          </div>
-          {stepNumber < totalSteps ? (
+    <div className="mb-8 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
+      <div className="grid grid-cols-3 gap-3">
+        {Array.from({ length: totalSteps }, (_, index) => index + 1).map((stepNumber) => {
+          const isComplete = stepNumber < currentStep;
+          const isActive = stepNumber === currentStep;
+          return (
             <div
-              className={`h-0.5 flex-1 ${
-                stepNumber < currentStep ? "bg-emerald-500" : "bg-zinc-200"
+              key={stepNumber}
+              className={`rounded-[1.2rem] border px-4 py-3 ${
+                isActive
+                  ? "border-black/18 bg-white text-[#111110]"
+                  : isComplete
+                    ? "border-black/12 bg-[#f6f1e8] text-[#111110]"
+                    : "border-black/8 bg-[#faf6ef] text-black/42"
               }`}
-            />
-          ) : null}
-        </React.Fragment>
-      ))}
-      <span className="ml-2 text-sm text-zinc-500">
-        Step {currentStep} of {totalSteps}
-      </span>
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold ${
+                    isActive
+                      ? "border-black bg-black text-white"
+                      : isComplete
+                        ? "border-black/18 bg-[#111110] text-white"
+                        : "border-black/10 bg-white text-black/48"
+                  }`}
+                >
+                  {isComplete ? <CheckCircle2 className="h-4 w-4" /> : stepNumber}
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-black/42">
+                    Step {stepNumber}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold">{BUYER_STEP_LABELS[stepNumber - 1]}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-sm text-black/48">Step {currentStep} of {totalSteps}</p>
     </div>
   );
 }
@@ -617,396 +641,535 @@ export default function BusinessSignUpFlow() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-zinc-50 to-white px-4 py-12">
-      <div className="mx-auto max-w-2xl">
-        <div className="mb-8 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
-            Buyer access request
-          </p>
-          <h1 className="mt-3 text-2xl font-semibold text-zinc-900">Create your Blueprint account</h1>
-          <p className="mt-2 text-zinc-600">
-            Start with a site submission, not a marketplace browse.
-          </p>
-        </div>
+    <>
+      <SEO
+        title="Buyer Access Request | Blueprint"
+        description="Request buyer access for exact-site packages and hosted evaluation."
+        canonical="/signup/business"
+        noIndex
+      />
 
-        <div className="mb-6 rounded-2xl border border-zinc-200 bg-white p-4 text-sm leading-6 text-zinc-600 shadow-sm">
-          Existing portal users should use sign in instead of creating a second path. New buyer
-          teams can either finish this access request or{" "}
-          <a href="/book-exact-site-review" className="font-semibold text-zinc-900 underline-offset-4 hover:underline">
-            book a scoping call
-          </a>
-          {" "}first when the exact facility and workflow are already known.
-        </div>
+      <SurfacePage>
+        <SurfaceTopBar eyebrow="Secure Intake" rightLabel="Buyer Access Request" />
+        <SurfaceSection className="py-8">
+          <SurfaceBrowserFrame>
+            <div className="grid xl:grid-cols-[0.64fr_0.36fr]">
+              <div className="bg-[#fbf7f0] p-8 lg:p-10">
+                <div className="mx-auto max-w-[42rem]">
+                  <SurfaceMiniLabel>Buyer Access Request</SurfaceMiniLabel>
+                  <h1 className="mt-4 text-[clamp(2.8rem,4vw,4.5rem)] font-semibold tracking-[-0.08em] leading-[0.92] text-[#111110]">
+                    {step === 1
+                      ? "Organization details"
+                      : step === 2
+                        ? "Team and requested lane"
+                        : "Site and workflow intake"}
+                  </h1>
+                  <p className="mt-3 max-w-[34rem] text-sm leading-7 text-black/60">
+                    {step === 1
+                      ? "Request exact-site packages or hosted evaluation through a private, context-rich intake instead of a generic marketplace signup."
+                      : step === 2
+                        ? "Tell Blueprint who is evaluating the site and which lane should open first."
+                        : "Ground the request in one real facility, one workflow, and one commercial path."}
+                  </p>
 
-        <StepIndicator currentStep={step} totalSteps={3} />
-
-        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <AnimatePresence mode="wait">
-            {step === 1 ? (
-              <motion.div
-                key="step-1"
-                initial="enter"
-                animate="center"
-                exit="exit"
-                variants={slideVariants}
-                transition={{ duration: 0.2 }}
-              >
-                <h2 className="mb-4 text-lg font-medium text-zinc-900">Account basics</h2>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="organizationName">Organization name</Label>
-                    <div className="relative mt-1">
-                      <Building2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                      <Input
-                        id="organizationName"
-                        className="pl-10"
-                        placeholder="Acme Operations"
-                        value={organizationName}
-                        onChange={(event) => setOrganizationName(event.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="email">Work email</Label>
-                    <div className="relative mt-1">
-                      <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                      <Input
-                        id="email"
-                        type="email"
-                        className="pl-10"
-                        placeholder="you@company.com"
-                        value={email}
-                        onChange={(event) => setEmail(event.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="password">Password</Label>
-                    <div className="relative mt-1">
-                      <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                      <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        className="pl-10"
-                        placeholder="At least 8 characters"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      className="mt-2 text-sm text-zinc-500 hover:text-zinc-700"
-                      onClick={() => setShowPassword((current) => !current)}
-                    >
-                      {showPassword ? "Hide password" : "Show password"}
-                    </button>
-                  </div>
-                  <div>
-                    <Label htmlFor="confirmPassword">Confirm password</Label>
-                    <Input
-                      id="confirmPassword"
-                      type={showPassword ? "text" : "password"}
-                      className="mt-1"
-                      placeholder="Repeat password"
-                      value={confirmPassword}
-                      onChange={(event) => setConfirmPassword(event.target.value)}
-                    />
-                  </div>
-                  <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                    <p className="text-sm text-zinc-600">
-                      Prefer Google? Authenticate now, then finish the intake details on the next
-                      step.
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="mt-3"
-                      onClick={handleGoogleSignUp}
-                      disabled={isSubmitting}
-                    >
-                      Continue with Google
-                    </Button>
-                  </div>
-                </div>
-              </motion.div>
-            ) : null}
-
-            {step === 2 ? (
-              <motion.div
-                key="step-2"
-                initial="enter"
-                animate="center"
-                exit="exit"
-                variants={slideVariants}
-                transition={{ duration: 0.2 }}
-              >
-                <h2 className="mb-4 text-lg font-medium text-zinc-900">Who is submitting and why</h2>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="contactName">Your name</Label>
-                    <div className="relative mt-1">
-                      <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                      <Input
-                        id="contactName"
-                        className="pl-10"
-                        placeholder="Ada Lovelace"
-                        value={contactName}
-                        onChange={(event) => setContactName(event.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="jobTitle">Title</Label>
-                    <Input
-                      id="jobTitle"
-                      className="mt-1"
-                      placeholder="Operations Lead"
-                      value={jobTitle}
-                      onChange={(event) => setJobTitle(event.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="phoneNumber">Phone</Label>
-                    <Input
-                      id="phoneNumber"
-                      className="mt-1"
-                      placeholder="(555) 555-5555"
-                      value={phoneNumber}
-                      onChange={(event) => setPhoneNumber(event.target.value)}
-                    />
+                  <div className="mt-6 rounded-[1.5rem] border border-black/10 bg-white px-5 py-4 text-sm leading-7 text-black/58">
+                    Existing portal users should use sign in instead of creating a second path. If
+                    the exact facility and workflow are already known, you can also{" "}
+                    <a href="/book-exact-site-review" className="font-semibold text-[#111110] underline-offset-4 hover:underline">
+                      book a scoping call
+                    </a>
+                    .
                   </div>
 
-                  <div className="space-y-3">
-                    <Label>Buyer type</Label>
-                    <RadioGroup value={buyerType} onValueChange={(value) => setBuyerType(value as BuyerType)}>
-                      {BUYER_TYPES.map((option) => (
-                        <label
-                          key={option.value}
-                          className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200 p-4"
+                  <div className="mt-8">
+                    <StepIndicator currentStep={step} totalSteps={3} />
+                  </div>
+
+                  <div className="rounded-[1.9rem] border border-black/10 bg-white p-6 shadow-[0_20px_70px_rgba(17,17,16,0.06)] sm:p-7">
+                    <AnimatePresence mode="wait">
+                      {step === 1 ? (
+                        <motion.div
+                          key="step-1"
+                          initial="enter"
+                          animate="center"
+                          exit="exit"
+                          variants={slideVariants}
+                          transition={{ duration: 0.2 }}
+                          className="space-y-5"
                         >
-                          <RadioGroupItem value={option.value} />
-                          <div>
-                            <div className="font-medium text-zinc-900">{option.label}</div>
-                            <p className="text-sm text-zinc-500">{option.description}</p>
+                          <div className="grid gap-5 md:grid-cols-2">
+                            <div className="md:col-span-2">
+                              <Label htmlFor="organizationName" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                                Organization name
+                              </Label>
+                              <div className="relative mt-2">
+                                <Building2 className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/28" />
+                                <Input
+                                  id="organizationName"
+                                  className="h-12 rounded-[1rem] border-black/10 bg-white pl-11"
+                                  placeholder="Acme Operations"
+                                  value={organizationName}
+                                  onChange={(event) => setOrganizationName(event.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <div className="md:col-span-2">
+                              <Label htmlFor="email" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                                Work email
+                              </Label>
+                              <div className="relative mt-2">
+                                <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/28" />
+                                <Input
+                                  id="email"
+                                  type="email"
+                                  className="h-12 rounded-[1rem] border-black/10 bg-white pl-11"
+                                  placeholder="you@company.com"
+                                  value={email}
+                                  onChange={(event) => setEmail(event.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <Label htmlFor="password" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                                Password
+                              </Label>
+                              <div className="relative mt-2">
+                                <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/28" />
+                                <Input
+                                  id="password"
+                                  type={showPassword ? "text" : "password"}
+                                  className="h-12 rounded-[1rem] border-black/10 bg-white pl-11"
+                                  placeholder="At least 8 characters"
+                                  value={password}
+                                  onChange={(event) => setPassword(event.target.value)}
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                className="mt-2 text-sm text-black/46 transition hover:text-black"
+                                onClick={() => setShowPassword((current) => !current)}
+                              >
+                                {showPassword ? "Hide password" : "Show password"}
+                              </button>
+                            </div>
+                            <div>
+                              <Label htmlFor="confirmPassword" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                                Confirm password
+                              </Label>
+                              <Input
+                                id="confirmPassword"
+                                type={showPassword ? "text" : "password"}
+                                className="mt-2 h-12 rounded-[1rem] border-black/10 bg-white"
+                                placeholder="Repeat password"
+                                value={confirmPassword}
+                                onChange={(event) => setConfirmPassword(event.target.value)}
+                              />
+                            </div>
                           </div>
-                        </label>
-                      ))}
-                    </RadioGroup>
-                  </div>
 
-                  <div className="space-y-3">
-                    <Label>Requested lanes</Label>
-                    {REQUESTED_LANES.map((lane) => (
-                      <label
-                        key={lane.value}
-                        className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200 p-4"
+                          <div className="rounded-[1.35rem] border border-black/10 bg-[#faf6ef] p-5">
+                            <p className="text-sm leading-7 text-black/60">
+                              Prefer Google? Authenticate now, then finish the intake details on
+                              the next step.
+                            </p>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="mt-4 h-11 rounded-full border-black/12 bg-white px-5 text-[#111110] hover:bg-[#f3efe8]"
+                              onClick={handleGoogleSignUp}
+                              disabled={isSubmitting}
+                            >
+                              Continue with Google
+                            </Button>
+                          </div>
+                        </motion.div>
+                      ) : null}
+
+                      {step === 2 ? (
+                        <motion.div
+                          key="step-2"
+                          initial="enter"
+                          animate="center"
+                          exit="exit"
+                          variants={slideVariants}
+                          transition={{ duration: 0.2 }}
+                          className="space-y-5"
+                        >
+                          <div className="grid gap-5 md:grid-cols-2">
+                            <div>
+                              <Label htmlFor="contactName" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                                Your name
+                              </Label>
+                              <div className="relative mt-2">
+                                <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/28" />
+                                <Input
+                                  id="contactName"
+                                  className="h-12 rounded-[1rem] border-black/10 bg-white pl-11"
+                                  placeholder="Ada Lovelace"
+                                  value={contactName}
+                                  onChange={(event) => setContactName(event.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <Label htmlFor="jobTitle" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                                Title
+                              </Label>
+                              <Input
+                                id="jobTitle"
+                                className="mt-2 h-12 rounded-[1rem] border-black/10 bg-white"
+                                placeholder="Operations Lead"
+                                value={jobTitle}
+                                onChange={(event) => setJobTitle(event.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="phoneNumber" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                                Phone
+                              </Label>
+                              <Input
+                                id="phoneNumber"
+                                className="mt-2 h-12 rounded-[1rem] border-black/10 bg-white"
+                                placeholder="(555) 555-5555"
+                                value={phoneNumber}
+                                onChange={(event) => setPhoneNumber(event.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="companySize" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                                Company size
+                              </Label>
+                              <select
+                                id="companySize"
+                                className="mt-2 flex h-12 w-full rounded-[1rem] border border-black/10 bg-white px-4 text-sm text-[#111110]"
+                                value={companySize}
+                                onChange={(event) => setCompanySize(event.target.value as CompanySize)}
+                              >
+                                <option value="">Select size</option>
+                                {COMPANY_SIZE_OPTIONS.map((option) => (
+                                  <option key={option} value={option}>
+                                    {option}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            <Label className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                              Buyer type
+                            </Label>
+                            <RadioGroup value={buyerType} onValueChange={(value) => setBuyerType(value as BuyerType)} className="grid gap-3">
+                              {BUYER_TYPES.map((option) => (
+                                <label
+                                  key={option.value}
+                                  className="flex cursor-pointer items-start gap-4 rounded-[1.25rem] border border-black/10 bg-[#faf6ef] p-4 transition hover:border-black/16"
+                                >
+                                  <RadioGroupItem value={option.value} />
+                                  <div>
+                                    <div className="font-semibold text-[#111110]">{option.label}</div>
+                                    <p className="mt-1 text-sm leading-6 text-black/56">{option.description}</p>
+                                  </div>
+                                </label>
+                              ))}
+                            </RadioGroup>
+                          </div>
+
+                          <div className="space-y-3">
+                            <Label className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                              Requested lane
+                            </Label>
+                            <div className="grid gap-3">
+                              {REQUESTED_LANES.map((lane) => (
+                                <label
+                                  key={lane.value}
+                                  className="flex cursor-pointer items-start gap-4 rounded-[1.25rem] border border-black/10 bg-white p-4 transition hover:border-black/16"
+                                >
+                                  <Checkbox
+                                    checked={requestedLanes.includes(lane.value)}
+                                    onCheckedChange={() => toggleLane(lane.value)}
+                                  />
+                                  <div>
+                                    <div className="font-semibold text-[#111110]">{lane.label}</div>
+                                    <p className="mt-1 text-sm leading-6 text-black/56">{lane.description}</p>
+                                  </div>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        </motion.div>
+                      ) : null}
+
+                      {step === 3 ? (
+                        <motion.div
+                          key="step-3"
+                          initial="enter"
+                          animate="center"
+                          exit="exit"
+                          variants={slideVariants}
+                          transition={{ duration: 0.2 }}
+                          className="space-y-5"
+                        >
+                          <div className="grid gap-5 md:grid-cols-2">
+                            <div>
+                              <Label htmlFor="siteName" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                                Site name
+                              </Label>
+                              <div className="relative mt-2">
+                                <Building2 className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/28" />
+                                <Input
+                                  id="siteName"
+                                  className="h-12 rounded-[1rem] border-black/10 bg-white pl-11"
+                                  placeholder="Durham fulfillment center"
+                                  value={siteName}
+                                  onChange={(event) => setSiteName(event.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <Label htmlFor="siteLocation" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                                Site location
+                              </Label>
+                              <div className="relative mt-2">
+                                <MapPin className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/28" />
+                                <Input
+                                  id="siteLocation"
+                                  className="h-12 rounded-[1rem] border-black/10 bg-white pl-11"
+                                  placeholder="Durham, NC"
+                                  value={siteLocation}
+                                  onChange={(event) => setSiteLocation(event.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <div className="md:col-span-2">
+                              <Label htmlFor="taskStatement" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                                Task statement
+                              </Label>
+                              <div className="relative mt-2">
+                                <Target className="absolute left-4 top-4 h-4 w-4 text-black/28" />
+                                <Textarea
+                                  id="taskStatement"
+                                  className="min-h-28 rounded-[1rem] border-black/10 bg-white pl-11"
+                                  placeholder="What exact site and technical question should Blueprint help with?"
+                                  value={taskStatement}
+                                  onChange={(event) => setTaskStatement(event.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <div className="md:col-span-2">
+                              <Label htmlFor="workflowContext" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                                Workflow context
+                              </Label>
+                              <div className="relative mt-2">
+                                <Route className="absolute left-4 top-4 h-4 w-4 text-black/28" />
+                                <Textarea
+                                  id="workflowContext"
+                                  className="min-h-24 rounded-[1rem] border-black/10 bg-white pl-11"
+                                  placeholder="Describe handoffs, adjacent workflow, or zone boundaries."
+                                  value={workflowContext}
+                                  onChange={(event) => setWorkflowContext(event.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <Label htmlFor="operatingConstraints" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                                Operating constraints
+                              </Label>
+                              <Textarea
+                                id="operatingConstraints"
+                                className="mt-2 min-h-24 rounded-[1rem] border-black/10 bg-white"
+                                placeholder="Hours, access windows, safety rules, bottlenecks."
+                                value={operatingConstraints}
+                                onChange={(event) => setOperatingConstraints(event.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="privacySecurityConstraints" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                                Privacy and security constraints
+                              </Label>
+                              <Textarea
+                                id="privacySecurityConstraints"
+                                className="mt-2 min-h-24 rounded-[1rem] border-black/10 bg-white"
+                                placeholder="Restricted zones, camera restrictions, masked areas."
+                                value={privacySecurityConstraints}
+                                onChange={(event) => setPrivacySecurityConstraints(event.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="knownBlockers" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                                Known blockers
+                              </Label>
+                              <Textarea
+                                id="knownBlockers"
+                                className="mt-2 min-h-24 rounded-[1rem] border-black/10 bg-white"
+                                placeholder="Call out obvious blockers or open questions."
+                                value={knownBlockers}
+                                onChange={(event) => setKnownBlockers(event.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="targetRobotTeam" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                                Target robot team or embodiment
+                              </Label>
+                              <div className="relative mt-2">
+                                <Users className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/28" />
+                                <Input
+                                  id="targetRobotTeam"
+                                  className="h-12 rounded-[1rem] border-black/10 bg-white pl-11"
+                                  placeholder="Optional"
+                                  value={targetRobotTeam}
+                                  onChange={(event) => setTargetRobotTeam(event.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <Label htmlFor="budgetRange" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                                Budget range
+                              </Label>
+                              <select
+                                id="budgetRange"
+                                className="mt-2 flex h-12 w-full rounded-[1rem] border border-black/10 bg-white px-4 text-sm text-[#111110]"
+                                value={budgetRange}
+                                onChange={(event) => setBudgetRange(event.target.value as BudgetRange)}
+                              >
+                                <option value="">Select budget range</option>
+                                {BUDGET_RANGE_OPTIONS.map((option) => (
+                                  <option key={option} value={option}>
+                                    {option}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="md:col-span-2">
+                              <Label htmlFor="referralSource" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                                How did you hear about Blueprint?
+                              </Label>
+                              <select
+                                id="referralSource"
+                                className="mt-2 flex h-12 w-full rounded-[1rem] border border-black/10 bg-white px-4 text-sm text-[#111110]"
+                                value={referralSource}
+                                onChange={(event) => setReferralSource(event.target.value as ReferralSource)}
+                              >
+                                <option value="">Select one</option>
+                                {REFERRAL_SOURCE_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="rounded-[1.35rem] border border-black/10 bg-[#faf6ef] p-5 text-sm text-black/62">
+                            <div className="flex items-center gap-2 font-semibold text-[#111110]">
+                              <Shield className="h-4 w-4" />
+                              What happens after signup
+                            </div>
+                            <p className="mt-3 leading-7">
+                              Blueprint routes the request into the intake review hub so the team
+                              can confirm the site, workflow, and commercial lane before opening a
+                              hosted review or package path.
+                            </p>
+                          </div>
+                        </motion.div>
+                      ) : null}
+                    </AnimatePresence>
+
+                    {errorMessage ? (
+                      <div className="mt-5 rounded-[1rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        {errorMessage}
+                      </div>
+                    ) : null}
+
+                    <div className="mt-6 flex flex-col gap-3 border-t border-black/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={handleBack}
+                        disabled={step === 1 || isSubmitting}
+                        className="justify-start rounded-full px-0 text-black/54 hover:bg-transparent hover:text-[#111110]"
                       >
-                        <Checkbox
-                          checked={requestedLanes.includes(lane.value)}
-                          onCheckedChange={() => toggleLane(lane.value)}
-                        />
-                        <div>
-                          <div className="font-medium text-zinc-900">{lane.label}</div>
-                          <p className="text-sm text-zinc-500">{lane.description}</p>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
+                        <ChevronLeft className="mr-2 h-4 w-4" />
+                        Back
+                      </Button>
 
-                  <div>
-                    <Label htmlFor="companySize">Company size</Label>
-                    <select
-                      id="companySize"
-                      className="mt-1 flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm"
-                      value={companySize}
-                      onChange={(event) => setCompanySize(event.target.value as CompanySize)}
-                    >
-                      <option value="">Select company size</option>
-                      {COMPANY_SIZE_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
+                      {step < 3 ? (
+                        <Button
+                          type="button"
+                          onClick={handleNext}
+                          disabled={isSubmitting}
+                          className="h-12 rounded-full bg-[#111110] px-6 text-white hover:bg-black"
+                        >
+                          Continue
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          onClick={handleSubmit}
+                          disabled={isSubmitting}
+                          className="h-12 rounded-full bg-[#111110] px-6 text-white hover:bg-black"
+                        >
+                          {isSubmitting ? "Creating account..." : "Submit request"}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </motion.div>
-            ) : null}
+              </div>
 
-            {step === 3 ? (
-              <motion.div
-                key="step-3"
-                initial="enter"
-                animate="center"
-                exit="exit"
-                variants={slideVariants}
-                transition={{ duration: 0.2 }}
-              >
-                <h2 className="mb-4 text-lg font-medium text-zinc-900">Site submission details</h2>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="siteName">Site name</Label>
-                    <div className="relative mt-1">
-                      <Building2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                      <Input
-                        id="siteName"
-                        className="pl-10"
-                        placeholder="Durham fulfillment center"
-                        value={siteName}
-                        onChange={(event) => setSiteName(event.target.value)}
-                      />
-                    </div>
+              <aside className="border-t border-black/10 bg-[#f5f0e7] p-8 lg:p-10 xl:border-l xl:border-t-0">
+                <SurfaceMiniLabel>Why Exact-Site Context Matters</SurfaceMiniLabel>
+                <div className="mt-5 overflow-hidden rounded-[1.75rem] border border-black/10 bg-white">
+                  <img
+                    src={privateGeneratedAssets.facilityPlanBoard}
+                    alt="Blueprint site plan board"
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+
+                <div className="mt-6 space-y-5">
+                  <div className="rounded-[1.35rem] border border-black/10 bg-white p-5">
+                    <p className="text-sm font-semibold text-[#111110]">Robots perform in the real world.</p>
+                    <p className="mt-2 text-sm leading-7 text-black/58">
+                      Site-specific scans reveal the nuance that drives access, route design, and
+                      buyer trust.
+                    </p>
                   </div>
-                  <div>
-                    <Label htmlFor="siteLocation">Site location</Label>
-                    <div className="relative mt-1">
-                      <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                      <Input
-                        id="siteLocation"
-                        className="pl-10"
-                        placeholder="Durham, NC"
-                        value={siteLocation}
-                        onChange={(event) => setSiteLocation(event.target.value)}
-                      />
-                    </div>
+                  <div className="rounded-[1.35rem] border border-black/10 bg-white p-5">
+                    <p className="text-sm font-semibold text-[#111110]">Better data. Fewer unknowns.</p>
+                    <p className="mt-2 text-sm leading-7 text-black/58">
+                      Exact-site packages reduce rework and de-risk evaluations before travel or
+                      deployment.
+                    </p>
                   </div>
-                  <div>
-                    <Label htmlFor="taskStatement">Task statement</Label>
-                    <div className="relative mt-1">
-                      <Target className="absolute left-3 top-3 h-4 w-4 text-zinc-400" />
-                      <Textarea
-                        id="taskStatement"
-                        className="min-h-24 pl-10"
-                        placeholder="What exact site and technical question should Blueprint help with?"
-                        value={taskStatement}
-                        onChange={(event) => setTaskStatement(event.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="workflowContext">Workflow context</Label>
-                    <div className="relative mt-1">
-                      <Route className="absolute left-3 top-3 h-4 w-4 text-zinc-400" />
-                      <Textarea
-                        id="workflowContext"
-                        className="min-h-24 pl-10"
-                        placeholder="Describe handoffs, adjacent workflow, or zone boundaries."
-                        value={workflowContext}
-                        onChange={(event) => setWorkflowContext(event.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="operatingConstraints">Operating constraints</Label>
-                    <Textarea
-                      id="operatingConstraints"
-                      className="mt-1 min-h-20"
-                      placeholder="Hours, access windows, safety rules, bottlenecks."
-                      value={operatingConstraints}
-                      onChange={(event) => setOperatingConstraints(event.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="privacySecurityConstraints">Privacy and security constraints</Label>
-                    <Textarea
-                      id="privacySecurityConstraints"
-                      className="mt-1 min-h-20"
-                      placeholder="Restricted zones, camera restrictions, masked areas."
-                      value={privacySecurityConstraints}
-                      onChange={(event) => setPrivacySecurityConstraints(event.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="knownBlockers">Known blockers</Label>
-                    <Textarea
-                      id="knownBlockers"
-                      className="mt-1 min-h-20"
-                      placeholder="Call out obvious blockers or open questions."
-                      value={knownBlockers}
-                      onChange={(event) => setKnownBlockers(event.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="targetRobotTeam">Target robot team or embodiment</Label>
-                    <div className="relative mt-1">
-                      <Users className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                      <Input
-                        id="targetRobotTeam"
-                        className="pl-10"
-                        placeholder="Optional"
-                        value={targetRobotTeam}
-                        onChange={(event) => setTargetRobotTeam(event.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="budgetRange">Budget range</Label>
-                    <select
-                      id="budgetRange"
-                      className="mt-1 flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm"
-                      value={budgetRange}
-                      onChange={(event) => setBudgetRange(event.target.value as BudgetRange)}
-                    >
-                      <option value="">Select budget range</option>
-                      {BUDGET_RANGE_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <Label htmlFor="referralSource">How did you hear about Blueprint?</Label>
-                    <select
-                      id="referralSource"
-                      className="mt-1 flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm"
-                      value={referralSource}
-                      onChange={(event) => setReferralSource(event.target.value as ReferralSource)}
-                    >
-                      <option value="">Select one</option>
-                      {REFERRAL_SOURCE_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-                    <div className="flex items-center gap-2 font-medium">
-                      <Shield className="h-4 w-4" />
-                      What happens after signup
-                    </div>
-                    <p className="mt-2">
-                      Blueprint routes you into the intake review hub, where you can confirm the
-                      submission and move the site into the exact-site proof path.
+                  <div className="rounded-[1.35rem] border border-black/10 bg-white p-5">
+                    <p className="text-sm font-semibold text-[#111110]">Private by default.</p>
+                    <p className="mt-2 text-sm leading-7 text-black/58">
+                      Every access request is reviewed to maintain truthful product routing,
+                      entitlement boundaries, and buyer-side privacy expectations.
                     </p>
                   </div>
                 </div>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
 
-          {errorMessage ? <p className="mt-4 text-sm text-red-600">{errorMessage}</p> : null}
-
-          <div className="mt-6 flex items-center justify-between">
-            <Button type="button" variant="ghost" onClick={handleBack} disabled={step === 1 || isSubmitting}>
-              <ChevronLeft className="mr-1 h-4 w-4" />
-              Back
-            </Button>
-
-            {step < 3 ? (
-              <Button type="button" onClick={handleNext} disabled={isSubmitting}>
-                Continue
-                <ArrowRight className="ml-1 h-4 w-4" />
-              </Button>
-            ) : (
-              <Button type="button" onClick={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting ? "Creating account..." : "Create account"}
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-    </main>
+                <div className="mt-6 rounded-[1.35rem] border border-black/10 bg-[#111110] p-5 text-white">
+                  <SurfaceMiniLabel className="text-white/50">Current Path</SurfaceMiniLabel>
+                  <p className="mt-4 text-2xl font-semibold tracking-[-0.05em]">
+                    {step === 1 ? "Organization" : step === 2 ? "Team" : "Site & workflow"}
+                  </p>
+                  <p className="mt-3 text-sm leading-7 text-white/72">
+                    {step === 1
+                      ? "Open the request with company and account details."
+                      : step === 2
+                        ? "Define who is evaluating the site and which lane should open first."
+                        : "Anchor the request in one real facility and one workflow question."}
+                  </p>
+                </div>
+              </aside>
+            </div>
+          </SurfaceBrowserFrame>
+        </SurfaceSection>
+      </SurfacePage>
+    </>
   );
 }

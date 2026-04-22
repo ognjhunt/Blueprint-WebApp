@@ -16,33 +16,37 @@ import { appRoutes } from "./app/routes";
 
 installClientLogger();
 
-const withLayout = <P extends object>(Component: React.ComponentType<P>) =>
-  (props: P) => (
-    <SiteLayout>
-      <Component {...props} />
-    </SiteLayout>
-  );
-
-const withProtectedLayout = <P extends object>(
-  Component: React.ComponentType<P>,
-) =>
-  (props: P) => (
-    <ProtectedRoute>
-      <SiteLayout>
+const withShell =
+  <P extends object>(
+    Component: React.ComponentType<P>,
+    options: { protectedRoute?: boolean; shell?: "site" | "bare" },
+  ) =>
+  (props: P) => {
+    const content =
+      options.shell === "bare" ? (
         <Component {...props} />
-      </SiteLayout>
-    </ProtectedRoute>
-  );
+      ) : (
+        <SiteLayout>
+          <Component {...props} />
+        </SiteLayout>
+      );
+
+    if (options.protectedRoute) {
+      return <ProtectedRoute>{content}</ProtectedRoute>;
+    }
+
+    return content;
+  };
 
 function Router() {
   return (
     <Suspense fallback={<LoadingScreen />}>
       <Switch>
         {appRoutes.map((route, index) => {
-          const wrappedComponent =
-            route.layout === "protected"
-              ? withProtectedLayout(route.component)
-              : withLayout(route.component);
+          const wrappedComponent = withShell(route.component, {
+            protectedRoute: route.layout === "protected",
+            shell: route.shell || "site",
+          });
 
           if (!route.path) {
             return <Route key={`fallback-${index}`} component={wrappedComponent} />;

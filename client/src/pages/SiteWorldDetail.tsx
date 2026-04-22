@@ -1,96 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
 import { SEO } from "@/components/SEO";
 import { useAuth } from "@/contexts/AuthContext";
-import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
-import { ProofModule } from "@/components/site/ProofModule";
-import { WhenNotToBuyModule } from "@/components/site/WhenNotToBuyModule";
-import { sessionHourDefinition } from "@/data/marketingDefinitions";
-import { getSiteWorldById, siteWorldCards } from "@/data/siteWorlds";
-import { hasAnyRole } from "@/lib/adminAccess";
-import { exactSiteScopingCallPath } from "@/lib/booking";
-import { withCsrfHeader } from "@/lib/csrf";
 import {
-  COMMERCIAL_EXEMPLAR_SITE_WORLD_ID,
+  EditorialCtaBand,
+  EditorialFilmstrip,
+  MonochromeMedia,
+  RouteTraceOverlay,
+} from "@/components/site/editorial";
+import { getSiteWorldById } from "@/data/siteWorlds";
+import { hasAnyRole } from "@/lib/adminAccess";
+import { withCsrfHeader } from "@/lib/csrf";
+import { editorialRefreshAssets } from "@/lib/editorialRefreshAssets";
+import {
   getSiteWorldCommercialStatus,
-  getSiteWorldFeaturedTag,
   getSiteWorldPlainEnglishProof,
   getSiteWorldPlainEnglishRestrictions,
   getSiteWorldPlainEnglishStatus,
   getSiteWorldProofDepth,
-  getSiteWorldPublicProofSummary,
-  getSiteWorldReadinessDisclosure,
 } from "@/lib/siteWorldCommercialStatus";
 import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
 import type { PublicSiteWorldRecord } from "@/types/inbound-request";
-import { AlertCircle, ArrowLeft, ExternalLink, Play, RefreshCw, ScanLine, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, ExternalLink, RefreshCw } from "lucide-react";
 
 interface SiteWorldDetailProps {
   params: {
     slug: string;
   };
-}
-
-const hostedSessionSteps = [
-  {
-    title: "Pick the site",
-    detail: "Pick the exact site you want to test so the run stays tied to one real place.",
-  },
-  {
-    title: "Start the hosted session",
-    detail: "Blueprint brings up the managed hosted run built from that site.",
-  },
-  {
-    title: "Choose robot, sensors, task, policy/checkpoint, and scenario variation",
-    detail: "Choose the robot setup, the task, the policy, and the variation you want to run.",
-  },
-  {
-    title: "Receive the starting observation",
-    detail: "The session returns the first view of the site so the policy has a starting point.",
-  },
-  {
-    title: "Let the policy choose an action",
-    detail: "The policy decides what to do next, such as move, turn, lift, grasp, or stop.",
-  },
-  {
-    title: "Get the next observation",
-    detail: "The hosted world model advances the run one step and returns the next view.",
-  },
-  {
-    title: "Repeat until success, failure, or timeout",
-    detail: "Keep looping until the task succeeds, fails, or times out.",
-  },
-  {
-    title: "Score the run, export results, and compare policies",
-    detail: "Review the results, export the outputs, and compare checkpoints side by side.",
-  },
-];
-
-const worldModelUseCases = [
-  {
-    title: "Check deployment fit",
-    detail:
-      "See if your robot can move through this site, see the task, and finish the job before a field visit.",
-  },
-  {
-    title: "Make site-specific data",
-    detail:
-      "Render runs from this exact site, vary scenarios, and export outputs for training or debugging.",
-  },
-  {
-    title: "Compare releases",
-    detail:
-      "Run the same task on the same site after each software update so regressions are easy to spot.",
-  },
-  {
-    title: "Train and demo",
-    detail:
-      "Use the exact site for customer demos, operator walkthroughs, and shared remote review.",
-  },
-];
-
-interface SupportBlock {
-  title: string;
-  items: string[];
 }
 
 type WorldLabsPreviewState = NonNullable<PublicSiteWorldRecord["worldLabsPreview"]>;
@@ -109,51 +44,34 @@ const WORLDLABS_STATUS_COPY: Record<
   not_requested: {
     label: "Not requested",
     tone: "border-slate-200 bg-slate-100 text-slate-700",
-    summary: "The pipeline artifacts are ready, but Marble generation has not been requested yet.",
+    summary:
+      "The listing is still anchored in the native package and hosted path. The optional interactive preview has not been requested yet.",
   },
   queued: {
     label: "Queued",
     tone: "border-amber-200 bg-amber-50 text-amber-700",
-    summary: "World Labs accepted the request and Marble is still waiting to start.",
+    summary: "World Labs accepted the request and the interactive preview is still queued.",
   },
   processing: {
     label: "Processing",
     tone: "border-sky-200 bg-sky-50 text-sky-700",
-    summary: "World Labs is still building the interactive Marble world from the walkthrough.",
+    summary: "The provider-generated preview is still rendering from the walkthrough artifacts.",
   },
   ready: {
     label: "Ready",
     tone: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    summary: "The Marble world is ready and can be launched in a new tab.",
+    summary: "The optional interactive preview is ready to open in a new tab.",
   },
   failed: {
     label: "Failed",
     tone: "border-rose-200 bg-rose-50 text-rose-700",
-    summary: "The last Marble generation attempt failed. Review the failure reason, then retry.",
+    summary:
+      "The last interactive-preview attempt failed. The native package and hosted path remain the primary contract.",
   },
 };
 
-function formatTimestamp(value?: string | null) {
-  if (!value) return "Not available yet";
-  const timestamp = new Date(value);
-  if (Number.isNaN(timestamp.getTime())) {
-    return value;
-  }
-  return timestamp.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function formatStatusLabel(status: WorldLabsStatus) {
-  return WORLDLABS_STATUS_COPY[status].label;
-}
-
 function formatFreshnessLabel(value?: string | null) {
-  if (!value) return "Refresh state pending";
+  if (!value) return "Current review";
   const timestamp = new Date(value);
   if (Number.isNaN(timestamp.getTime())) return value;
   return timestamp.toLocaleDateString("en-US", {
@@ -163,57 +81,15 @@ function formatFreshnessLabel(value?: string | null) {
   });
 }
 
-function formatRelatedProofDepth(site: PublicSiteWorldRecord) {
-  return getSiteWorldProofDepth(site);
-}
-
 function getArtifactSourceUri(site: PublicSiteWorldRecord | null | undefined, sourceId: string) {
-  return (
-    site?.artifactExplorer?.sources.find((source) => source.id === sourceId)?.uri ||
-    null
-  );
-}
-
-function humanizeToken(value?: string | null) {
-  const raw = String(value || "").trim();
-  if (!raw) {
-    return "";
-  }
-  const normalized = raw.toLowerCase();
-  const replacements: Record<string, string> = {
-    qualified_ready: "Ready to review",
-    qualified_risky: "Needs review",
-    needs_refresh: "Needs refresh",
-    not_ready_yet: "Not ready yet",
-    ready: "Ready",
-    partial: "Partial",
-    missing: "Missing",
-    unchanged: "Current",
-    default: "Default scene",
-    default_start_state: "Default start state",
-    counterfactual_lighting: "Lighting variation",
-    counterfactual_clutter: "Clutter variation",
-    generic: "General task",
-  };
-  if (replacements[normalized]) {
-    return replacements[normalized];
-  }
-  return raw
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (character) => character.toUpperCase());
+  return site?.artifactExplorer?.sources.find((source) => source.id === sourceId)?.uri || null;
 }
 
 function deriveWorldLabsStatus(site: PublicSiteWorldRecord | null | undefined): WorldLabsStatus {
   const preview = site?.worldLabsPreview;
-  if (!preview) {
-    return "not_requested";
-  }
-  if (preview.launchUrl && preview.worldId) {
-    return "ready";
-  }
-  if (preview.failureReason || preview.status === "failed") {
-    return "failed";
-  }
+  if (!preview) return "not_requested";
+  if (preview.launchUrl && preview.worldId) return "ready";
+  if (preview.failureReason || preview.status === "failed") return "failed";
   if (preview.operationId || preview.operationManifestUri) {
     return preview.status === "queued" ? "queued" : "processing";
   }
@@ -239,24 +115,7 @@ function applyWorldLabsPreview(
 
 export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
   const { currentUser, userData, tokenClaims } = useAuth();
-  const slug = useMemo(() => {
-    const routeSlug = String(params?.slug || "").trim().replace(/^\/+|\/+$/g, "");
-    if (routeSlug) {
-      return routeSlug;
-    }
-
-    if (typeof window === "undefined") {
-      return "";
-    }
-
-    const segments = window.location.pathname.replace(/^\/+|\/+$/g, "").split("/");
-    if (segments[0] === "world-models" && segments[1]) {
-      return segments[1];
-    }
-
-    return "";
-  }, [params?.slug]);
-
+  const slug = String(params?.slug || "").trim();
   const fallbackSite = getSiteWorldById(slug) as PublicSiteWorldRecord | null;
   const [site, setSite] = useState<PublicSiteWorldRecord | null>(fallbackSite);
   const [worldLabsAction, setWorldLabsAction] = useState<"generate" | "refresh" | null>(null);
@@ -297,61 +156,6 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
     };
   }, [slug]);
 
-  const relatedSites = useMemo(() => {
-    if (!site) return [];
-    return siteWorldCards.filter((item) => item.id !== site.id).slice(0, 3);
-  }, [site]);
-
-  void relatedSites;
-
-  const worldLabsPreview = site?.worldLabsPreview || null;
-  const nativeWorldModelPrimary =
-    Boolean(site?.deploymentReadiness?.native_world_model_primary) || Boolean(site?.siteWorldSpecUri);
-  const worldLabsStatus = deriveWorldLabsStatus(site);
-  const worldLabsStatusCopy = WORLDLABS_STATUS_COPY[worldLabsStatus];
-  const worldLabsRequestManifestUri =
-    worldLabsPreview?.requestManifestUri || getArtifactSourceUri(site, "worldlabs-request");
-  const worldLabsInputManifestUri = getArtifactSourceUri(site, "worldlabs-input-manifest");
-  const worldLabsInputVideoUri = getArtifactSourceUri(site, "worldlabs-input-video");
-  const hasRequiredWorldLabsArtifacts =
-    Boolean(worldLabsRequestManifestUri) && Boolean(worldLabsInputVideoUri);
-  const missingWorldLabsArtifactFields = [
-    !worldLabsRequestManifestUri ? "worldlabs_request_manifest_uri" : null,
-    !worldLabsInputVideoUri ? "worldlabs_input_video_uri" : null,
-  ].filter(Boolean) as string[];
-  const canRefreshWorldLabsStatus = Boolean(
-    worldLabsPreview?.operationId || worldLabsPreview?.operationManifestUri,
-  );
-  const shouldShowWorldLabsSection = Boolean(worldLabsPreview) || isAdmin;
-  const isDemoWalkthrough = site?.id === "siteworld-f5fd54898cfb";
-  const isCommercialExemplar = site?.id === COMMERCIAL_EXEMPLAR_SITE_WORLD_ID;
-  const featuredTag = site ? getSiteWorldFeaturedTag(site) : null;
-  const capabilityItems = [
-    site?.deploymentReadiness?.capability_envelope?.embodiment_type
-      ? `Embodiment: ${humanizeToken(site.deploymentReadiness.capability_envelope.embodiment_type)}`
-      : null,
-    typeof site?.deploymentReadiness?.capability_envelope?.minimum_path_width_m === "number"
-      ? `Minimum path width: ${site.deploymentReadiness.capability_envelope.minimum_path_width_m} m`
-      : null,
-    typeof site?.deploymentReadiness?.capability_envelope?.maximum_reach_m === "number"
-      ? `Maximum reach: ${site.deploymentReadiness.capability_envelope.maximum_reach_m} m`
-      : null,
-    (site?.deploymentReadiness?.capability_envelope?.sensor_requirements || []).length > 0
-      ? `Sensors: ${site?.deploymentReadiness?.capability_envelope?.sensor_requirements?.join(", ")}`
-      : null,
-  ].filter(Boolean) as string[];
-  const rightsItems = [
-    (site?.deploymentReadiness?.rights_and_compliance?.export_entitlements || []).length > 0
-      ? `Export entitlements: ${site?.deploymentReadiness?.rights_and_compliance?.export_entitlements?.join(", ")}`
-      : null,
-    (site?.deploymentReadiness?.rights_and_compliance?.consent_scope || []).length > 0
-      ? `Consent scope: ${site?.deploymentReadiness?.rights_and_compliance?.consent_scope?.join(", ")}`
-      : null,
-    site?.deploymentReadiness?.rights_and_compliance?.retention_policy
-      ? `Retention policy: ${site?.deploymentReadiness?.rights_and_compliance?.retention_policy}`
-      : null,
-  ].filter(Boolean) as string[];
-
   const runWorldLabsAdminAction = async (action: "generate" | "refresh") => {
     if (!site || !currentUser) {
       return;
@@ -381,18 +185,14 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
       setSite((currentSite) => applyWorldLabsPreview(currentSite, payload.preview) || currentSite);
       setWorldLabsAdminNotice(
         action === "generate"
-          ? "Marble generation requested. Use refresh while World Labs is still processing."
+          ? "Interactive preview requested. Refresh while the provider is still rendering."
           : payload.preview.status === "ready"
-            ? "Marble status refreshed. The interactive preview is ready to launch."
-            : "Marble status refreshed.",
+            ? "Interactive preview refreshed. It is ready to open."
+            : "Interactive preview status refreshed.",
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : `worldlabs_${action}_failed`;
-      const friendlyMessage =
-        message === "worldlabs_operation_missing"
-          ? "No World Labs operation exists yet. Generate a Marble preview first."
-          : message;
-      setWorldLabsAdminError(friendlyMessage);
+      setWorldLabsAdminError(message);
     } finally {
       setWorldLabsAction(null);
     }
@@ -407,7 +207,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
         </p>
         <a
           href="/world-models"
-          className="mt-6 inline-flex items-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+          className="mt-6 inline-flex items-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
         >
           Back to World Models
         </a>
@@ -416,978 +216,503 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
   }
 
   const commercialStatus = getSiteWorldCommercialStatus(site);
-  const trustSnapshot = [
+  const worldLabsPreview = site.worldLabsPreview || null;
+  const worldLabsStatus = deriveWorldLabsStatus(site);
+  const worldLabsStatusCopy = WORLDLABS_STATUS_COPY[worldLabsStatus];
+  const worldLabsRequestManifestUri =
+    worldLabsPreview?.requestManifestUri || getArtifactSourceUri(site, "worldlabs-request");
+  const worldLabsInputVideoUri = getArtifactSourceUri(site, "worldlabs-input-video");
+  const hasRequiredWorldLabsArtifacts =
+    Boolean(worldLabsRequestManifestUri) && Boolean(worldLabsInputVideoUri);
+  const canRefreshWorldLabsStatus = Boolean(
+    worldLabsPreview?.operationId || worldLabsPreview?.operationManifestUri,
+  );
+
+  const trustRows = [
+    { label: "Proof depth", value: getSiteWorldProofDepth(site), width: "72%" },
+    { label: "Public proof", value: "Visible now", width: "84%" },
+    { label: "Freshness", value: formatFreshnessLabel(site.deploymentReadiness?.freshness_date), width: "64%" },
+    { label: "Status", value: commercialStatus.label, width: "88%" },
+  ];
+
+  const overviewRows = [
+    { title: "Site code", value: site.siteCode || "Current listing" },
+    { title: "Industry", value: site.industry || "Exact-site walkthrough" },
+    { title: "Workflow lane", value: site.taskLane || site.sampleTask || "Current workflow" },
+    { title: "Runtime", value: site.runtime || "Hosted evaluation" },
+  ];
+
+  const taskRows = [
     {
-      label: "Commercial status",
-      value: commercialStatus.label,
+      title: site.sampleTask || site.taskCatalog[0]?.taskText || "Primary lane",
+      body: "Base workflow lane tied to the exact site.",
+      image: editorialRefreshAssets.detailHeroWarehouse,
+      imageClassName: "object-cover object-center",
+      meta: "Base lane",
     },
     {
-      label: "Proof depth",
-      value: getSiteWorldProofDepth(site),
+      title: "Lighting variation",
+      body: "Same site, adjusted lighting assumptions.",
+      image: editorialRefreshAssets.detailProofCapture,
+      imageClassName: "object-cover object-center",
+      meta: "1.2 km est. path",
     },
     {
-      label: "Rights class",
-      value:
-        site.deploymentReadiness?.rights_and_compliance?.export_entitlements?.slice(0, 2).join(", ")
-        || "Request-specific",
+      title: "Clutter variation",
+      body: "Same route, more clutter and occlusion.",
+      image: editorialRefreshAssets.detailSitePlan,
+      imageClassName: "object-cover object-center",
+      meta: "620 m est. path",
     },
     {
-      label: "Freshness",
-      value: formatFreshnessLabel(site.deploymentReadiness?.freshness_date),
+      title: "Export review",
+      body: "Package and hosted outputs read back against the same exact site.",
+      image: editorialRefreshAssets.detailProofCapture,
+      imageClassName: "object-cover object-right",
+      meta: "480 m est. path",
+    },
+  ];
+
+  const previewFrames = [
+    {
+      src: editorialRefreshAssets.detailSitePlan,
+      alt: "Site overview map",
+      time: "00",
+      title: "Overview",
     },
     {
-      label: "Restrictions",
-      value:
-        site.deploymentReadiness?.rights_and_compliance?.consent_scope?.slice(0, 2).join(", ")
-        || "Review on request",
+      src: editorialRefreshAssets.detailHeroWarehouse,
+      alt: "Staging entry",
+      time: "01",
+      title: "Staging",
     },
     {
-      label: "Public proof assets",
-      value: getSiteWorldPublicProofSummary(site),
+      src: editorialRefreshAssets.detailProofCapture,
+      alt: "Capture proof",
+      time: "02",
+      title: "Proof",
+    },
+    {
+      src: editorialRefreshAssets.detailHeroWarehouse,
+      alt: "Route lane",
+      time: "03",
+      title: "Route",
+    },
+    {
+      src: editorialRefreshAssets.detailProofCapture,
+      alt: "Restriction board",
+      time: "04",
+      title: "Review",
+    },
+  ];
+
+  const restrictionCards = [
+    {
+      title: "Current public status",
+      body: getSiteWorldPlainEnglishStatus(site),
+    },
+    {
+      title: "Proof and fidelity",
+      body: getSiteWorldPlainEnglishProof(site),
+    },
+    {
+      title: "Restrictions and change",
+      body: getSiteWorldPlainEnglishRestrictions(site),
+    },
+    {
+      title: "Artifacts visible today",
+      body: `${site.exportArtifacts.slice(0, 4).join(", ")}.`,
     },
   ];
 
   const scenePackage = site.packages[0];
-  const hostedSessions = site.packages[1];
-  const supportBlocks: SupportBlock[] = [
-    {
-      title: "What goes in",
-      items: [
-        "Exact site selection and workflow lane",
-        site.sampleRobot,
-        site.sampleTask,
-        site.scenarioVariants.map((variant) => humanizeToken(variant)).join(", "),
-      ],
-    },
-    {
-      title: "What comes back",
-      items: [
-        `Starting observation from ${site.siteName}`,
-        "Step-by-step observations as the run progresses",
-        "Rollout video, metrics, and failure cases",
-        "Dataset or raw bundle exports tied to the run",
-        "Checkpoint comparison on the same site",
-      ],
-    },
-    {
-      title: "What teams do with this world model",
-      items: [
-        "Check deployment fit before travel",
-        "Generate site-specific data",
-        "Compare releases on the same setup",
-        "Train operators or run customer demos",
-      ],
-    },
-  ];
-  const responseCadence = [
-    "Public-listing and hosted-evaluation questions: typical first reply within 1 business day.",
-    "Request-scoped rights, privacy, or export review: typical first scoped answer within 2 business days.",
-    "Private-site or unusual support requests: timing confirmed in the first follow-up once scope is clear.",
-  ];
-  const compatibilityCards = [
-    {
-      title: "What buyers can bring now",
-      body: "A policy or checkpoint reference, stack adapter, teleop surface, container entrypoint, or a narrower evaluation contract tied to the workflow lane that matters.",
-    },
-    {
-      title: "What stays case-by-case",
-      body: "Robot embodiment edge cases, unusual sensor stacks, private-site support obligations, and managed support levels that materially change the scope.",
-    },
-    {
-      title: "What is live today",
-      body: "Listing trust metadata, package-vs-hosted pricing, public proof summaries, buyer-readable sample artifacts, and the request path into hosted evaluation or package access.",
-    },
-  ];
-  const economicsCards = [
-    {
-      title: "Rational when",
-      body: "The site question is specific enough that one facility can save a flight, pilot week, or false positive on deployment fit.",
-    },
-    {
-      title: "Less useful when",
-      body: "The team still needs broad discovery, generic pretraining, or a rights review before one exact site matters.",
-    },
-    {
-      title: "The practical tradeoff",
-      body: "This works best when the cost of getting the site wrong is already higher than the cost of inspecting the site earlier.",
-    },
-  ];
-  const artifactPreviewCards = [
-    {
-      title: "Buyer-readable manifest preview",
-      rows: [
-        ["proof depth", getSiteWorldProofDepth(site)],
-        ["public proof", getSiteWorldPublicProofSummary(site)],
-        ["commercial status", commercialStatus.label],
-      ],
-    },
-    {
-      title: "Buyer-readable rights preview",
-      rows: [
-        [
-          "exports",
-          site.deploymentReadiness?.rights_and_compliance?.export_entitlements?.join(", ")
-            || "Confirmed in request-specific review",
-        ],
-        [
-          "retention",
-          site.deploymentReadiness?.rights_and_compliance?.retention_policy
-            || "Confirmed in request-specific review",
-        ],
-        ["restriction note", getSiteWorldPlainEnglishRestrictions(site)],
-      ],
-    },
-    {
-      title: "Hosted output preview",
-      rows: [
-        ["run summary", "Rollout, timing, and failure review tied to the same exact site"],
-        ["export bundle", "Raw bundle, dataset export, and comparison surfaces when approved"],
-        ["next step", "Package access, more hosted time, or scoped follow-up on the same listing"],
-      ],
-    },
-  ];
-  const decisionMemoSteps = isCommercialExemplar
-    ? [
-        "The team wanted to know whether this exact backroom was worth deeper integration work before a rollout visit.",
-        "It used the listing proof, hosted-evaluation framing, and trust snapshot to decide that the first paid step should be a hosted evaluation, not a blind pilot week.",
-        "That is the kind of commercial decision this page should support: one real site, one clean next move, and less guessing.",
-      ]
-    : [
-        "The team wants to know whether this exact facility is worth deeper work before travel.",
-        "The listing helps it decide whether the package or hosted path should come first.",
-        "Blueprint keeps the answer tied to one real site instead of inflating the claim.",
-      ];
+  const hostedPackage = site.packages[1];
 
   return (
     <>
       <SEO
         title={`${site.siteName} | World Models | Blueprint`}
-        description={`${site.siteName} is a site-specific world model that robot teams can use for tuning, evaluation, and data generation before a site visit.`}
+        description={`${site.siteName} is a site-specific world model listing for buyer review, hosted evaluation, and package access.`}
         canonical={`/world-models/${site.id}`}
       />
 
-      <div className="min-h-screen bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
-          <a
-            href="/world-models"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 transition hover:text-slate-900"
+      <div className="bg-[#f5f3ef] text-slate-950">
+        <section className="border-b border-black/10">
+          <MonochromeMedia
+            src={editorialRefreshAssets.detailHeroWarehouse}
+            alt={site.siteName}
+            className="min-h-[44rem] rounded-none"
+            loading="eager"
+            imageClassName="min-h-[44rem]"
+            overlayClassName="bg-[linear-gradient(90deg,rgba(0,0,0,0.86)_0%,rgba(0,0,0,0.58)_32%,rgba(0,0,0,0.14)_74%)]"
           >
-            <ArrowLeft className="h-4 w-4" />
-            Back to World Models
-          </a>
+            <RouteTraceOverlay className="opacity-90" />
+            <div className="absolute inset-0">
+              <div className="mx-auto grid h-full max-w-[96rem] items-end gap-10 px-5 py-10 sm:px-8 lg:grid-cols-[0.46fr_0.54fr] lg:px-10 lg:py-14">
+                <div className="text-white">
+                  <a
+                    href="/world-models"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-white/72 transition hover:text-white"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back to World Models
+                  </a>
+                  <p className="mt-6 text-[11px] uppercase tracking-[0.18em] text-white/54">
+                    Exact site
+                  </p>
+                  <h1 className="font-editorial mt-5 max-w-[24rem] text-[4.4rem] leading-[0.88] tracking-[-0.08em] sm:text-[5.8rem]">
+                    {site.siteName}
+                  </h1>
+                  <p className="mt-4 text-lg text-white/86">{site.siteAddress}</p>
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    <span className="rounded-full border border-white/16 bg-black/24 px-4 py-2 text-sm text-white/78">
+                      {commercialStatus.label}
+                    </span>
+                    <span className="rounded-full border border-white/16 bg-black/24 px-4 py-2 text-sm text-white/78">
+                      {formatFreshnessLabel(site.deploymentReadiness?.freshness_date)}
+                    </span>
+                  </div>
+                  <div className="mt-8 flex flex-wrap gap-3">
+                    <a
+                      href={scenePackage?.actionHref || "/contact?persona=robot-team"}
+                      className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                    >
+                      Request access
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </a>
+                    <a
+                      href={`/world-models/${site.id}/start`}
+                      className="inline-flex items-center justify-center border border-white/16 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/8"
+                    >
+                      Start hosted evaluation
+                    </a>
+                  </div>
+                </div>
 
-          <header className="mt-6 grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                {site.industry}
-              </p>
-              <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-                {site.siteName}
-              </h1>
-              <p className="mt-3 text-base font-medium text-slate-500">{site.siteAddress}</p>
-              <p className="mt-4 max-w-3xl text-lg leading-relaxed text-slate-600 sm:text-[1.08rem]">
-                {site.summary}
-              </p>
-              <p className="mt-3 text-sm text-slate-600">
-                This world model is built from real capture of this facility. Use it to answer
-                a deployment question on the real site, compare the package with hosted
-                evaluation, and decide how your team should test before visiting.
-              </p>
-              <p className="mt-2 text-sm text-slate-500">{site.bestFor}</p>
-              <div className="mt-5 flex flex-wrap gap-3">
-                {featuredTag ? (
-                  <span className={`rounded-full border px-4 py-2 text-sm font-medium ${featuredTag.tone}`}>
-                    {featuredTag.label}
-                  </span>
-                ) : null}
-                <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
-                  {site.taskLane}
-                </span>
-                <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">
-                  {site.runtime}
-                </span>
+                <div className="flex justify-start lg:justify-end">
+                  <div className="w-full max-w-[18rem] border border-white/14 bg-black/36 p-5 text-white shadow-[0_24px_60px_-40px_rgba(0,0,0,0.52)] backdrop-blur-sm">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">
+                      Trust snapshot
+                    </p>
+                    <div className="mt-5 space-y-4">
+                      {trustRows.map((item) => (
+                        <div key={item.label}>
+                          <div className="flex items-center justify-between gap-3 text-sm text-white/78">
+                            <span>{item.label}</span>
+                            <span className="max-w-[9rem] text-right text-white/62">{item.value}</span>
+                          </div>
+                          <div className="mt-2 h-px w-full bg-white/12">
+                            <div className="h-px bg-white" style={{ width: item.width }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
+          </MonochromeMedia>
+        </section>
 
-            <aside className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-5 sm:px-6">
-                  <p className="text-sm font-semibold text-slate-900">What you can buy on this listing</p>
-              <div className="mt-4 space-y-2.5">
-                <a
-                  href="#scene-package"
-                  className="block rounded-2xl border border-slate-300 bg-white p-4 transition hover:bg-slate-50"
-                >
-                  <p className="text-sm font-semibold text-slate-900">Site Package</p>
-                  <p className="mt-1 text-sm text-slate-600">{scenePackage.priceLabel}</p>
-                </a>
-                <a
-                  href="#hosted-sessions"
-                  className="block rounded-2xl border border-slate-200 bg-white p-4 transition hover:bg-slate-50"
-                >
-                  <p className="text-sm font-semibold text-slate-900">Hosted evaluation</p>
-                  <p className="mt-1 text-sm text-slate-600">{hostedSessions.priceLabel}</p>
-                </a>
+        <section className="border-b border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[96rem] gap-px px-5 py-10 lg:grid-cols-2 sm:px-8 lg:px-10">
+            <div className="border border-black/10 p-6 lg:p-8">
+              <h2 className="font-editorial text-[2.8rem] leading-[0.94] tracking-[-0.05em] text-slate-950">
+                Site overview
+              </h2>
+              <p className="mt-2 max-w-[26rem] text-sm leading-7 text-slate-700">
+                {site.summary}
+              </p>
+              <div className="mt-6 overflow-hidden border border-black/10 bg-[#f5f3ef]">
+                <MonochromeMedia
+                  src={editorialRefreshAssets.detailSitePlan}
+                  alt={`${site.siteName} site plan`}
+                  className="aspect-[4/3] rounded-none"
+                  imageClassName="aspect-[4/3] object-cover"
+                  overlayClassName="bg-[linear-gradient(180deg,rgba(255,255,255,0.1),rgba(255,255,255,0.04))]"
+                />
               </div>
-              <p className="mt-4 text-sm leading-relaxed text-slate-600">
-                Buy the package if your team wants all the site data in its own stack.
-                Request hosted evaluation if your team wants runtime evidence, release comparison,
-                or failure review on the same site.
-              </p>
-            </aside>
-          </header>
-
-          <section className="mt-8 grid gap-4 lg:grid-cols-[1fr_0.95fr]">
-            <article className="rounded-3xl border border-slate-200 bg-white p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                What is live today
-              </p>
-              <h2 className="mt-2 text-2xl font-bold text-slate-900">What a buyer can inspect right now.</h2>
-              <div className="mt-5 grid gap-3">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-700">
-                  {getSiteWorldPlainEnglishStatus(site)}
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-700">
-                  {getSiteWorldPlainEnglishProof(site)}
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-700">
-                  {getSiteWorldPlainEnglishRestrictions(site)}
-                </div>
-              </div>
-            </article>
-
-            <article className="rounded-3xl border border-slate-200 bg-slate-950 p-6 text-white">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                Typical response cadence
-              </p>
-              <h2 className="mt-2 text-2xl font-bold">How quickly this usually narrows.</h2>
-              <div className="mt-5 space-y-3">
-                {responseCadence.map((item) => (
-                  <div key={item} className="rounded-2xl border border-slate-800 bg-slate-900/90 px-4 py-4 text-sm leading-7 text-slate-300">
-                    {item}
+              <div className="mt-4 divide-y divide-black/10 border border-black/10">
+                {overviewRows.map((row) => (
+                  <div key={row.title} className="grid grid-cols-[0.78fr_0.22fr] gap-3 px-4 py-4 text-sm text-slate-700">
+                    <span>{row.title}</span>
+                    <span className="text-right text-slate-950">{row.value}</span>
                   </div>
                 ))}
               </div>
-            </article>
-          </section>
-
-          <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-5 sm:p-6">
-            <SiteWorldGraphic site={site as Parameters<typeof SiteWorldGraphic>[0]["site"]} />
-          </section>
-
-          {(site.runtimeReferenceImageUrl || site.presentationReferenceImageUrl) ? (
-            <section className="mt-8 rounded-3xl border border-slate-200 bg-white px-5 py-6 sm:px-7 sm:py-7">
-              <div className="max-w-3xl">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Hosted evaluation evidence
-                </p>
-                <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                  Current evidence tied to this listing
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-slate-600">
-                  These are current buyer-facing proof views for this listing. They are meant to make the hosted path more concrete before your team requests a session.
-                </p>
-              </div>
-              <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                {site.runtimeReferenceImageUrl ? (
-                  <article className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                    <img
-                      src={site.runtimeReferenceImageUrl}
-                      alt={`${site.siteName} hosted evaluation runtime view`}
-                      className="aspect-[16/10] w-full object-cover"
-                      loading="lazy"
-                    />
-                    <div className="p-5">
-                      <p className="text-sm font-semibold text-slate-900">Runtime proof view</p>
-                      <p className="mt-2 text-sm leading-6 text-slate-600">
-                        A concrete hosted-evaluation proof frame for this listing, showing the kind of run review surface a buyer should expect.
-                      </p>
-                    </div>
-                  </article>
-                ) : null}
-                {site.presentationReferenceImageUrl ? (
-                  <article className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                    <img
-                      src={site.presentationReferenceImageUrl}
-                      alt={`${site.siteName} buyer review surface`}
-                      className="aspect-[16/10] w-full object-cover"
-                      loading="lazy"
-                    />
-                    <div className="p-5">
-                      <p className="text-sm font-semibold text-slate-900">Buyer review surface</p>
-                      <p className="mt-2 text-sm leading-6 text-slate-600">
-                        A buyer-readable trust and review layout tied to this listing, used here as the commercial proof companion to the runtime view.
-                      </p>
-                    </div>
-                  </article>
-                ) : null}
-              </div>
-            </section>
-          ) : null}
-
-          {isDemoWalkthrough ? (
-            <div className="mt-8">
-              <ProofModule
-                eyebrow="Public demo"
-                title="See the public proof path before you ask for more."
-                description="This sample is the cleanest public example on the site. It shows the walkthrough, the package framing, and the hosted side in one place without pretending to be a full customer case study."
-                caption="Sample artifact. The reel uses current demo assets plus labeled placeholder graphics."
-                compact={true}
-              />
             </div>
-          ) : null}
 
-          <section className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 px-5 py-6 sm:px-7 sm:py-7">
-            <div className="max-w-3xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Why teams use this site
-              </p>
-              <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                What teams use this listing for.
+            <div className="border border-black/10 p-6 lg:p-8">
+              <h2 className="font-editorial text-[2.8rem] leading-[0.94] tracking-[-0.05em] text-slate-950">
+                Tasks in this world model
               </h2>
-              <p className="mt-3 text-sm leading-6 text-slate-600">
-                The point is to answer one real deployment question before the expensive part
-                starts.
+              <p className="mt-2 text-sm leading-7 text-slate-700">
+                Pre-configured evaluation lanes for hosted review.
               </p>
-            </div>
-            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {worldModelUseCases.map((item) => (
-                <article
-                  key={item.title}
-                  className="rounded-2xl border border-slate-200 bg-white p-5"
-                >
-                  <h3 className="text-base font-semibold text-slate-900">{item.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.detail}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          {site.deploymentReadiness ? (
-            <section className="mt-8 rounded-3xl border border-slate-200 bg-slate-950 px-5 py-6 text-slate-100 sm:px-7 sm:py-7">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-                Listing evidence and runtime disclosure
-              </p>
-              <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-                  <p className="text-sm font-semibold text-white">Current public status</p>
-                  <p className="mt-2 text-2xl font-bold text-white">
-                    {commercialStatus.label}
-                  </p>
-                  <p className="mt-2 text-sm text-slate-300">
-                    Benchmark coverage: {humanizeToken(site.deploymentReadiness.benchmark_coverage_status || "missing")}
-                    {typeof site.deploymentReadiness.benchmark_task_count === "number"
-                      ? ` · ${site.deploymentReadiness.benchmark_task_count} tasks`
-                      : ""}
-                  </p>
-                  <p className="mt-1 text-sm text-slate-300">
-                    Export readiness: {humanizeToken(site.deploymentReadiness.export_readiness_status || "missing")}
-                  </p>
-                  <p className="mt-1 text-sm text-slate-300">
-                    Refresh state: {site.deploymentReadiness.recapture_required ? "Needs refresh" : humanizeToken(site.deploymentReadiness.recapture_status || "Current")}
-                  </p>
-                  <p className="mt-3 text-sm leading-6 text-slate-300">
-                    {commercialStatus.summary}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-                  <p className="text-sm font-semibold text-white">Capability envelope</p>
-                  <ul className="mt-3 space-y-2 text-sm text-slate-300">
-                    {capabilityItems.length > 0 ? (
-                      capabilityItems.map((item) => <li key={item}>{item}</li>)
-                    ) : (
-                      <li>Robot-fit details are confirmed during hosted-evaluation scoping for this site.</li>
-                    )}
-                  </ul>
-                </div>
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-                  <p className="text-sm font-semibold text-white">Rights and compliance</p>
-                  <ul className="mt-3 space-y-2 text-sm text-slate-300">
-                    {rightsItems.length > 0 ? (
-                      rightsItems.map((item) => <li key={item}>{item}</li>)
-                    ) : (
-                      <li>Rights, privacy, and retention details are reviewed before package access is granted.</li>
-                    )}
-                  </ul>
-                </div>
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-                  <p className="text-sm font-semibold text-white">Evidence gaps</p>
-                  <ul className="mt-3 space-y-2 text-sm text-slate-300">
-                    {(site.deploymentReadiness.missing_evidence || []).length > 0 ? (
-                      site.deploymentReadiness.missing_evidence?.map((item) => <li key={item}>{item}</li>)
-                    ) : (
-                      <li>No flagged evidence gaps on the current readiness package.</li>
-                    )}
-                  </ul>
-                </div>
-              </div>
-              <p className="mt-4 text-sm leading-6 text-slate-300">
-                {commercialStatus.buyerNote}
-              </p>
-            </section>
-          ) : null}
-
-          <section className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 px-5 py-6 sm:px-7 sm:py-7">
-            <div className="max-w-3xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Compatibility and support
-              </p>
-              <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                What your team can bring, and what still gets scoped.
-              </h2>
-            </div>
-            <div className="mt-5 grid gap-4 md:grid-cols-3">
-              {compatibilityCards.map((card) => (
-                <article key={card.title} className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <h3 className="text-base font-semibold text-slate-900">{card.title}</h3>
-                  <p className="mt-3 text-sm leading-7 text-slate-600">{card.body}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          {shouldShowWorldLabsSection ? (
-            <section className="mt-8 rounded-3xl border border-slate-200 bg-white px-5 py-6 sm:px-7 sm:py-7">
-              <div className="flex items-center gap-2">
-                <Play className="h-5 w-5 text-slate-700" />
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Interactive Preview
-                </p>
-              </div>
-              <div className="mt-3 grid gap-6 lg:grid-cols-[1fr_0.9fr]">
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                    {isAdmin ? "Launch the optional interactive preview." : "Open the optional interactive preview."}
-                  </h2>
-                  <p className="mt-3 text-sm leading-6 text-slate-600">
-                    {isAdmin
-                      ? "This is an optional provider-generated demo layer built from the walkthrough. Blueprint treats the internal package and hosted-evaluation surfaces as primary and keeps this interactive preview secondary."
-                      : "This is an optional browser preview built from the walkthrough. The site package and hosted-evaluation surfaces remain the primary buyer paths."}
-                  </p>
-                  {nativeWorldModelPrimary ? (
-                    <p className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-800">
-                      Native Blueprint world-model artifacts are the primary path for this site.
-                      World Labs is secondary and does not define readiness truth.
-                    </p>
-                  ) : null}
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                      Status: {formatStatusLabel(worldLabsStatus)}
+              <div className="mt-6 space-y-3">
+                {taskRows.map((row, index) => (
+                  <div key={`${row.title}-${index}`} className="grid gap-3 border border-black/10 bg-[#f8f6f1] p-3 sm:grid-cols-[0.32fr_0.5fr_0.18fr]">
+                    <MonochromeMedia
+                      src={row.image}
+                      alt={row.title}
+                      className="aspect-[16/9] rounded-none"
+                      imageClassName={`aspect-[16/9] ${row.imageClassName}`}
+                      overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.04),rgba(0,0,0,0.14))]"
+                    />
+                    <div>
+                      <p className="text-[1.4rem] leading-[1.02] tracking-[-0.04em] text-slate-950">
+                        {row.title}
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-slate-700">{row.body}</p>
                     </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                      Model: {worldLabsPreview?.model || "Pending"}
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                      Panorama: {worldLabsPreview?.panoUrl ? "Available" : "Not available yet"}
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                      SPZ export: {(worldLabsPreview?.spzUrls || []).length > 0 ? "Available" : "Not available yet"}
+                    <div className="text-right text-sm text-slate-700">
+                      <div className="font-semibold text-slate-950">{row.meta}</div>
+                      <div className="mt-4 h-12 border-l border-dashed border-black/20" />
                     </div>
                   </div>
-                  <p className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-                    {worldLabsStatusCopy.summary}
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-b border-black/10 bg-white">
+          <div className="mx-auto max-w-[96rem] px-5 py-10 sm:px-8 lg:px-10">
+            <h2 className="font-editorial text-[2.6rem] leading-[0.94] tracking-[-0.05em] text-slate-950">
+              Hosted evaluation preview
+            </h2>
+            <p className="mt-2 text-sm leading-7 text-slate-700">
+              See the site through the review experience before moving into a deeper scoped session.
+            </p>
+            <div className="mt-6 bg-slate-950 p-4">
+              <EditorialFilmstrip frames={previewFrames} />
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-[96rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="border border-black/10 bg-white p-6 lg:p-8">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                Proof of fidelity
+              </p>
+              <p className="mt-2 text-sm text-slate-700">Captured. Aligned. Verified.</p>
+              <div className="mt-6 grid gap-3 sm:grid-cols-[0.34fr_0.33fr_0.33fr]">
+                <MonochromeMedia
+                  src={editorialRefreshAssets.detailProofCapture}
+                  alt="Capture proof"
+                  className="aspect-square rounded-none border border-black/10"
+                  imageClassName="aspect-square object-cover"
+                  overlayClassName="bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))]"
+                />
+                <MonochromeMedia
+                  src={editorialRefreshAssets.detailHeroWarehouse}
+                  alt="Warehouse still"
+                  className="aspect-square rounded-none border border-black/10"
+                  imageClassName="aspect-square object-cover object-center"
+                  overlayClassName="bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))]"
+                />
+                <div className="border border-black/10 bg-[#f8f6f1] p-4">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                    Capture manifest
                   </p>
-                  {worldLabsPreview?.caption ? (
-                    <p className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-                      {worldLabsPreview.caption}
-                    </p>
-                  ) : null}
+                  <div className="mt-4 space-y-2 text-sm text-slate-700">
+                    <div>Session ID: {site.captureId}</div>
+                    <div>Frames: capture-backed</div>
+                    <div>Coverage: public proof visible</div>
+                    <div>Capture date: {formatFreshnessLabel(site.deploymentReadiness?.freshness_date)}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-black/10 bg-white p-6 lg:p-8">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                Restrictions and change
+              </p>
+              <p className="mt-2 text-sm text-slate-700">Know what is stable and what stays bounded.</p>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                {restrictionCards.map((card) => (
+                  <div key={card.title} className="border border-black/10 bg-[#f8f6f1] p-4">
+                    <p className="text-sm font-semibold text-slate-950">{card.title}</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">{card.body}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {worldLabsPreview || isAdmin ? (
+          <section className="border-y border-black/10 bg-white">
+            <div className="mx-auto max-w-[96rem] px-5 py-10 sm:px-8 lg:px-10">
+              <div className="grid gap-4 lg:grid-cols-[0.6fr_0.4fr]">
+                <div className="border border-black/10 bg-[#f8f6f1] p-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                        Interactive preview
+                      </p>
+                      <h2 className="mt-2 text-[2rem] leading-[0.96] tracking-[-0.05em] text-slate-950">
+                        Optional provider-generated preview
+                      </h2>
+                    </div>
+                    <span
+                      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${worldLabsStatusCopy.tone}`}
+                    >
+                      {worldLabsStatusCopy.label}
+                    </span>
+                  </div>
+                  <p className="mt-4 text-sm leading-7 text-slate-700">{worldLabsStatusCopy.summary}</p>
                   {worldLabsPreview?.failureReason ? (
-                    <p className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm leading-6 text-rose-700">
+                    <p className="mt-4 text-sm text-rose-700">
                       Last generation error: {worldLabsPreview.failureReason}
                     </p>
                   ) : null}
-                  {isAdmin ? (
-                    <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="h-4 w-4 text-slate-700" />
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                          Admin Marble Controls
-                        </p>
-                      </div>
-                      <div className="mt-4 flex flex-wrap gap-3">
-                        <span
-                          className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${worldLabsStatusCopy.tone}`}
-                        >
-                          {worldLabsStatusCopy.label}
-                        </span>
-                        <button
-                          type="button"
-                          disabled={worldLabsAction !== null || !hasRequiredWorldLabsArtifacts}
-                          onClick={() => {
-                            void runWorldLabsAdminAction("generate");
-                          }}
-                          className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-                        >
-                          {worldLabsAction === "generate" ? (
-                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                          ) : (
-                            <Sparkles className="mr-2 h-4 w-4" />
-                          )}
-                          Generate Marble Preview
-                        </button>
-                        <button
-                          type="button"
-                          disabled={worldLabsAction !== null || !canRefreshWorldLabsStatus}
-                          onClick={() => {
-                            void runWorldLabsAdminAction("refresh");
-                          }}
-                          className="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
-                        >
-                          <RefreshCw
-                            className={`mr-2 h-4 w-4 ${worldLabsAction === "refresh" ? "animate-spin" : ""}`}
-                          />
-                          Refresh Marble Status
-                        </button>
-                      </div>
-                      {!hasRequiredWorldLabsArtifacts ? (
-                        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
-                          <div className="flex items-start gap-2">
-                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                            <div>
-                              Pipeline output is required before Marble generation can run for this
-                              site-world. Missing required artifact fields:{" "}
-                              <span className="font-semibold">
-                                {missingWorldLabsArtifactFields.join(", ")}
-                              </span>
-                              .
-                              {!worldLabsInputManifestUri ? (
-                                <> The supporting `worldlabs_input_manifest_uri` artifact is also missing.</>
-                              ) : null}
-                            </div>
-                          </div>
-                        </div>
-                      ) : null}
-                      {worldLabsAdminError ? (
-                        <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm leading-6 text-rose-700">
-                          {worldLabsAdminError}
-                        </div>
-                      ) : null}
-                      {worldLabsAdminNotice ? (
-                        <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-700">
-                          {worldLabsAdminNotice}
-                        </div>
-                      ) : null}
-                      <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                          <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                            Operation ID
-                          </dt>
-                          <dd className="mt-2 break-all text-sm text-slate-700">
-                            {worldLabsPreview?.operationId || "Not available yet"}
-                          </dd>
-                        </div>
-                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                          <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                            World ID
-                          </dt>
-                          <dd className="mt-2 break-all text-sm text-slate-700">
-                            {worldLabsPreview?.worldId || "Not available yet"}
-                          </dd>
-                        </div>
-                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                          <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                            Failure Reason
-                          </dt>
-                          <dd className="mt-2 break-words text-sm text-slate-700">
-                            {worldLabsPreview?.failureReason || "No failure recorded"}
-                          </dd>
-                        </div>
-                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                          <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                            Last Updated
-                          </dt>
-                          <dd className="mt-2 text-sm text-slate-700">
-                            {formatTimestamp(worldLabsPreview?.lastUpdatedAt)}
-                          </dd>
-                        </div>
-                      </dl>
-                    </div>
-                  ) : null}
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    Fallback launch state
-                  </p>
-                  <p className="mt-2 text-lg font-bold text-slate-900">
-                    {worldLabsStatus === "ready" ? "Ready to launch" : "Waiting on generation"}
-                  </p>
-                  <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                    The World Labs viewer opens in a new tab because their viewer cannot be embedded
-                    inside Blueprint.
-                  </p>
                   {worldLabsPreview?.launchUrl ? (
                     <a
                       href={worldLabsPreview.launchUrl}
                       target="_blank"
-                      rel="noreferrer"
-                      className="mt-5 inline-flex w-full items-center justify-center rounded-xl border border-slate-900 bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                      rel="noreferrer noopener"
+                      className="mt-6 inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                     >
-                      {isAdmin ? "Launch interactive preview" : "Open interactive preview"}
+                      Open interactive preview
                       <ExternalLink className="ml-2 h-4 w-4" />
                     </a>
-                  ) : (
-                    <div className="mt-5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-                      Preview not ready yet. Keep using the grounded Blueprint artifacts until generation completes.
-                    </div>
-                  )}
-                </div>
-              </div>
-            </section>
-          ) : null}
-
-          <section className="mt-8 rounded-3xl border border-slate-200 bg-white px-5 py-6 sm:px-7 sm:py-7">
-            <div className="max-w-3xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Trust and access snapshot
-              </p>
-              <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                Trust and access snapshot
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-slate-600">
-                This is the listing-level summary a buyer should be able to scan before purchase: proof depth, rights class, freshness, and restrictions.
-              </p>
-            </div>
-            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {trustSnapshot.map((item) => (
-                <article key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    {item.label}
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-slate-800">{item.value}</p>
-                </article>
-              ))}
-            </div>
-            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm font-semibold text-slate-900">Public proof assets available</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                {getSiteWorldReadinessDisclosure(site)}
-              </p>
-            </div>
-          </section>
-
-          <section className="mt-8 rounded-3xl border border-slate-200 bg-white px-5 py-6 sm:px-7 sm:py-7">
-            <div className="max-w-3xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Sample artifacts
-              </p>
-              <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                Inspectable sample artifacts for this listing
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-slate-600">
-                Every listing should make the artifact contract legible. These representative sample files show the kinds of manifest, rights, and export objects a buyer can inspect while the listing-specific trust metadata stays attached to this site.
-              </p>
-            </div>
-            <div className="mt-5 grid gap-4 md:grid-cols-3">
-              {artifactPreviewCards.map((card, index) => (
-                <article key={card.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                  <p className="text-sm font-semibold text-slate-900">{card.title}</p>
-                  <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                    {card.rows.map(([label, value]) => (
-                      <div
-                        key={`${card.title}-${label}`}
-                        className="grid grid-cols-[0.78fr_1.22fr] gap-3 border-t border-slate-200 px-4 py-3 text-sm first:border-t-0"
+                  ) : null}
+                  {isAdmin ? (
+                    <div className="mt-6 flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        disabled={worldLabsAction !== null || !hasRequiredWorldLabsArtifacts}
+                        onClick={() => void runWorldLabsAdminAction("generate")}
+                        className="inline-flex items-center justify-center bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        <p className="font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</p>
-                        <p className="text-slate-700">{value}</p>
-                      </div>
-                    ))}
-                  </div>
-                  {index === 0 ? (
-                    <a
-                      href="/samples/sample-site-package-manifest.json"
-                      download
-                      className="mt-5 inline-flex text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
-                    >
-                      Download sample manifest
-                    </a>
-                  ) : index === 1 ? (
-                    <a
-                      href="/samples/sample-rights-sheet.md"
-                      download
-                      className="mt-5 inline-flex text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
-                    >
-                      Download sample rights sheet
-                    </a>
-                  ) : (
-                    <a
-                      href="/samples/sample-export-bundle.json"
-                      download
-                      className="mt-5 inline-flex text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
-                    >
-                      Download sample export bundle
-                    </a>
-                  )}
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 px-5 py-6 sm:px-7 sm:py-7">
-            <div className="max-w-3xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Why this is rational
-              </p>
-              <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-                When this beats a field-first or pilot-first process.
-              </h2>
-            </div>
-            <div className="mt-5 grid gap-4 md:grid-cols-3">
-              {economicsCards.map((card) => (
-                <article key={card.title} className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <h3 className="text-base font-semibold text-slate-900">{card.title}</h3>
-                  <p className="mt-3 text-sm leading-7 text-slate-600">{card.body}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section
-            id="scene-package"
-            className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 px-5 py-6 sm:px-7 sm:py-7"
-          >
-            <div className="flex items-center gap-2">
-              <ScanLine className="h-5 w-5 text-slate-700" />
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Site Package
-              </p>
-            </div>
-            <div className="mt-3 grid gap-6 lg:grid-cols-[1fr_0.9fr]">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                  Buy the site package.
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Everything your team needs to run its own world model on this facility — walkthrough media, geometry, metadata, and rights.
-                </p>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  {scenePackage.deliverables.map((item) => (
-                    <div
-                      key={item}
-                      className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700"
-                    >
-                      {item}
+                        {worldLabsAction === "generate" ? "Requesting..." : "Generate preview"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={worldLabsAction !== null || !canRefreshWorldLabsStatus}
+                        onClick={() => void runWorldLabsAdminAction("refresh")}
+                        className="inline-flex items-center justify-center border border-black/10 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <RefreshCw
+                          className={`mr-2 h-4 w-4 ${worldLabsAction === "refresh" ? "animate-spin" : ""}`}
+                        />
+                        Refresh status
+                      </button>
                     </div>
-                  ))}
+                  ) : null}
+                  {worldLabsAdminError ? (
+                    <p className="mt-4 text-sm text-rose-700">{worldLabsAdminError}</p>
+                  ) : null}
+                  {worldLabsAdminNotice ? (
+                    <p className="mt-4 text-sm text-emerald-700">{worldLabsAdminNotice}</p>
+                  ) : null}
+                </div>
+
+                <div className="border border-black/10 bg-slate-950 p-6 text-white">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">
+                    Listing boundary
+                  </p>
+                  <div className="mt-4 space-y-3 text-sm text-white/74">
+                    <div>The native package and hosted path stay primary on this listing.</div>
+                    <div>Interactive preview is optional and does not redefine the trust surface.</div>
+                    <div>Public proof, freshness, and rights remain visible even without the preview.</div>
+                  </div>
+                  <div className="mt-6 border-t border-white/10 pt-4 text-sm text-white/62">
+                    {worldLabsPreview?.operationId ? `Operation: ${worldLabsPreview.operationId}` : "No live operation id"}
+                  </div>
                 </div>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Best fit
-                </p>
-                <p className="mt-2 text-lg font-bold text-slate-900">
-                  Teams that want all the site data in their own stack
-                </p>
-                <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Starting price
-                </p>
-                <p className="mt-2 text-2xl font-bold text-slate-900">{scenePackage.priceLabel}</p>
-                <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                  This is the path for internal review, integration work, or a team that wants to
-                  run or generate its own world model for the site.
-                </p>
-                <a
-                  href={scenePackage.actionHref}
-                  className="mt-5 inline-flex w-full items-center justify-center rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
-                >
-                  {scenePackage.actionLabel}
-                </a>
-              </div>
             </div>
           </section>
+        ) : null}
 
-          <section
-            id="hosted-sessions"
-            className="mt-8 rounded-3xl border border-slate-200 bg-white px-5 py-6 sm:px-7 sm:py-7"
-          >
-            <div className="flex items-center gap-2">
-              <Play className="h-5 w-5 text-slate-700" />
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+        <section className="mx-auto max-w-[96rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div id="scene-package" className="border border-black/10 bg-white p-6 lg:p-8">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                Site package
+              </p>
+              <h2 className="mt-3 text-[2.1rem] leading-[0.98] tracking-[-0.05em] text-slate-950">
+                Buy the site package.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-slate-700">{scenePackage.summary}</p>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                {scenePackage.deliverables.map((item) => (
+                  <div key={item} className="border border-black/10 bg-[#f8f6f1] px-4 py-4 text-sm text-slate-700">
+                    {item}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6 border border-black/10 bg-[#f8f6f1] p-5">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Best fit</p>
+                <p className="mt-2 text-lg text-slate-950">Teams that want all the site data in their own stack</p>
+                <p className="mt-3 text-sm text-slate-700">{scenePackage.priceLabel}</p>
+              </div>
+              <a
+                href={scenePackage.actionHref}
+                className="mt-6 inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                {scenePackage.actionLabel}
+              </a>
+            </div>
+
+            <div id="hosted-sessions" className="border border-black/10 bg-white p-6 lg:p-8">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
                 Hosted evaluation
               </p>
-            </div>
-            <div className="mt-3 grid gap-6 lg:grid-cols-[1fr_0.9fr]">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                  Request hosted evaluation for this site.
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Blueprint runs this site for you. Rerun tasks, review failures, compare checkpoints, and export results — no local setup needed.
-                </p>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  {hostedSessions.deliverables.map((item) => (
-                    <div
-                      key={item}
-                      className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"
-                    >
-                      {item}
-                    </div>
-                  ))}
-                  {site.startStates.map((state) => (
-                    <div
-                      key={state}
-                      className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700"
-                    >
-                      {humanizeToken(state)}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Best fit
-                </p>
-                <p className="mt-2 text-lg font-bold text-slate-900">
-                  Teams that want to run the site now
-                </p>
-                <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Self-serve starting rate
-                </p>
-                <p className="mt-2 text-2xl font-bold text-slate-900">{hostedSessions.priceLabel}</p>
-                <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                  {sessionHourDefinition} Managed, priority, or higher-touch work is scoped
-                  separately when the job needs more support.
-                </p>
-                <div className="mt-5 grid gap-3">
-                  <a
-                    href={hostedSessions.actionHref}
-                    className="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                  >
-                    {hostedSessions.actionLabel}
-                  </a>
-                  <a
-                    href={exactSiteScopingCallPath}
-                    className="inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
-                  >
-                    Book scoping call
-                  </a>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 px-5 py-6 sm:px-7 sm:py-7">
-            <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Simple eval loop
-            </p>
-            <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-              What hosted evaluation looks like
-            </h2>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
-              One site. One task. One robot question. Start the session, run the task, compare the
-              result, and export what matters.
-            </p>
-            </div>
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              {hostedSessionSteps.map((step, index) => (
-                <article
-                  key={step.title}
-                  className="rounded-2xl border border-slate-200 bg-white p-5"
-                >
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    Step {index + 1}
-                  </p>
-                  <h3 className="mt-2 text-lg font-semibold text-slate-900">{step.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-600">{step.detail}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section className="mt-8 grid gap-4 lg:grid-cols-3">
-            {supportBlocks.map((block) => (
-              <article
-                key={block.title}
-                className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6"
-              >
-                <h2 className="text-xl font-bold text-slate-900">{block.title}</h2>
-                <ul className="mt-4 space-y-2.5">
-                  {block.items.map((item) => (
-                    <li key={item} className="flex items-start gap-2 text-sm text-slate-700">
-                      <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-400" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </article>
-            ))}
-          </section>
-
-          <div className="mt-8">
-            <WhenNotToBuyModule />
-          </div>
-
-          <section className="mt-8 rounded-3xl border border-slate-200 bg-slate-900 px-5 py-6 text-white sm:px-7 sm:py-7">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">
-              Example
-            </p>
-            <h2 className="mt-2 text-2xl font-bold sm:text-3xl">
-              A sample eval loop for {site.siteName}
-            </h2>
-            <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-200">
-              A team picks {site.siteName}, chooses {site.sampleRobot}, and tests{" "}
-              {site.samplePolicy} on the task to {site.sampleTask.toLowerCase()}. They run a few
-              variations like {site.scenarioVariants.slice(0, 2).map((variant) => humanizeToken(variant).toLowerCase()).join(" and ")} to
-              see whether the lane is viable, what breaks first, and whether the checkpoint is
-              ready for a real visit. Then they review the rollout video, metrics, failure cases,
-              and exported data.
-            </p>
-          </section>
-
-          <section className="mt-8 rounded-3xl border border-slate-200 bg-white px-5 py-6 sm:px-7 sm:py-7">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Decision story for this site
-            </p>
-            <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-              Decision story for this site
-            </h2>
-            <div className="mt-5 grid gap-4 md:grid-cols-3">
-              {decisionMemoSteps.map((item, index) => (
-                <article key={item} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-xs font-semibold text-white">
-                    {index + 1}
+              <h2 className="mt-3 text-[2.1rem] leading-[0.98] tracking-[-0.05em] text-slate-950">
+                Start hosted evaluation for this site.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-slate-700">
+                {hostedPackage?.summary
+                  || "Use the managed hosted path when the team wants reruns, review, and exports on the same site before moving the package."}
+              </p>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                {(hostedPackage?.deliverables || site.exportArtifacts).slice(0, 4).map((item) => (
+                  <div key={item} className="border border-black/10 bg-[#f8f6f1] px-4 py-4 text-sm text-slate-700">
+                    {item}
                   </div>
-                  <p className="mt-4 text-sm leading-7 text-slate-700">{item}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 px-5 py-6 sm:px-7 sm:py-7">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Related sites
-            </p>
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
-              {relatedSites.map((relatedSite) => (
+                ))}
+              </div>
+              <div className="mt-6 border border-black/10 bg-slate-950 p-5 text-white">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Best fit</p>
+                <p className="mt-2 text-lg">Teams that want to run the site now</p>
+                <p className="mt-3 text-sm text-white/72">{hostedPackage?.priceLabel || "Request scoped review"}</p>
+              </div>
+              <div className="mt-6 flex flex-wrap gap-3">
                 <a
-                  key={relatedSite.id}
-                  href={`/world-models/${relatedSite.id}`}
-                  className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300"
+                  href={`/world-models/${site.id}/start`}
+                  className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    {relatedSite.industry}
-                  </p>
-                  <p className="mt-2 text-lg font-bold text-slate-900">{relatedSite.siteName}</p>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                    {relatedSite.taskLane}
-                  </p>
-                  <div className="mt-4 grid gap-2">
-                    {[
-                      ["Proof depth", formatRelatedProofDepth(relatedSite)],
-                      ["Freshness", formatFreshnessLabel(relatedSite.deploymentReadiness?.freshness_date)],
-                    ].map(([label, value]) => (
-                      <div key={label} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                          {label}
-                        </p>
-                        <p className="mt-1 text-sm text-slate-800">{value}</p>
-                      </div>
-                    ))}
-                  </div>
+                  Start hosted evaluation
                 </a>
-              ))}
+                <a
+                  href={hostedPackage?.actionHref || "/contact?persona=robot-team"}
+                  className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                >
+                  Request hosted evaluation
+                </a>
+              </div>
             </div>
-          </section>
-        </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-[96rem] px-5 pb-10 sm:px-8 lg:px-10">
+          <EditorialCtaBand
+            eyebrow="Next step"
+            title="Ready to evaluate this site?"
+            description="Request access to start a hosted evaluation, or take the package path when your team wants the site data inside its own stack."
+            imageSrc={editorialRefreshAssets.detailHeroWarehouse}
+            imageAlt={site.siteName}
+            primaryHref={scenePackage?.actionHref || "/contact?persona=robot-team"}
+            primaryLabel="Request access"
+            secondaryHref={`/world-models/${site.id}/start`}
+            secondaryLabel="Start hosted evaluation"
+          />
+        </section>
       </div>
     </>
   );

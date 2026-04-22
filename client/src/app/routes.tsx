@@ -5,6 +5,7 @@ import { MarketingRedirect } from "../pages/MarketingRedirect";
 export type AppRoute = {
   path?: string;
   layout: "public" | "protected";
+  shell?: "site" | "bare";
   // Some route components require `params` props from wouter dynamic segments.
   component: ComponentType<any>;
 };
@@ -109,7 +110,7 @@ export const appRoutes: AppRoute[] = [
 
   // Capture / Earn (new)
   { path: "/capture", layout: "public", component: Capture },
-  { path: "/capture-app", layout: "public", component: CaptureAppPlaceholder },
+  { path: "/capture-app", layout: "public", shell: "bare", component: CaptureAppPlaceholder },
 
   // City landing pages (auto-generated from city launch profile)
   { path: "/city/:citySlug", layout: "public", component: CityLanding },
@@ -118,7 +119,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/world-models", layout: "public", component: SiteWorlds },
   { path: "/world-models/:slug", layout: "public", component: SiteWorldDetail },
   { path: "/world-models/:slug/start", layout: "public", component: HostedSessionSetup },
-  { path: "/world-models/:slug/workspace", layout: "public", component: HostedSessionWorkspace },
+  { path: "/world-models/:slug/workspace", layout: "public", shell: "bare", component: HostedSessionWorkspace },
 
   // Legacy site-worlds redirects
   { path: "/site-worlds", layout: "public", component: LegacySiteWorldsRedirect },
@@ -162,21 +163,21 @@ export const appRoutes: AppRoute[] = [
   { path: "/environments", layout: "public", component: LegacyEnvironmentsRedirect },
 
   // Auth & account
-  { path: "/portal", layout: "public", component: Portal },
-  { path: "/sign-in", layout: "public", component: Login },
+  { path: "/portal", layout: "public", shell: "bare", component: Portal },
+  { path: "/sign-in", layout: "public", shell: "bare", component: Login },
   { path: "/login", layout: "public", component: LegacyLoginRedirect },
-  { path: "/signup", layout: "public", component: BusinessSignUpFlow },
-  { path: "/signup/business", layout: "public", component: BusinessSignUpFlow },
-  { path: "/signup/capturer", layout: "public", component: CapturerSignUpFlow },
+  { path: "/signup", layout: "public", shell: "bare", component: BusinessSignUpFlow },
+  { path: "/signup/business", layout: "public", shell: "bare", component: BusinessSignUpFlow },
+  { path: "/signup/capturer", layout: "public", shell: "bare", component: CapturerSignUpFlow },
   { path: "/onboarding", layout: "protected", component: OnboardingChecklist },
-  { path: "/forgot-password", layout: "public", component: ForgotPassword },
-  { path: "/privacy", layout: "public", component: Privacy },
-  { path: "/terms", layout: "public", component: Terms },
-  { path: "/settings", layout: "public", component: Settings },
-  { path: "/requests/:requestId", layout: "public", component: RequestConsole },
-  { path: "/requests/:requestId/evidence", layout: "public", component: RequestConsole },
-  { path: "/requests/:requestId/qualification", layout: "public", component: RequestConsole },
-  { path: "/requests/:requestId/preview", layout: "public", component: RequestConsole },
+  { path: "/forgot-password", layout: "public", shell: "bare", component: ForgotPassword },
+  { path: "/privacy", layout: "public", shell: "bare", component: Privacy },
+  { path: "/terms", layout: "public", shell: "bare", component: Terms },
+  { path: "/settings", layout: "public", shell: "bare", component: Settings },
+  { path: "/requests/:requestId", layout: "public", shell: "bare", component: RequestConsole },
+  { path: "/requests/:requestId/evidence", layout: "public", shell: "bare", component: RequestConsole },
+  { path: "/requests/:requestId/qualification", layout: "public", shell: "bare", component: RequestConsole },
+  { path: "/requests/:requestId/preview", layout: "public", shell: "bare", component: RequestConsole },
 
   // Admin
   { path: "/admin/leads", layout: "protected", component: AdminLeads },

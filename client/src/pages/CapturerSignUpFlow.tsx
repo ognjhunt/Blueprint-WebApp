@@ -24,12 +24,19 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SEO } from "@/components/SEO";
 import { LaunchCityAvailability } from "@/components/site/LaunchCityAvailability";
+import {
+  SurfaceBrowserFrame,
+  SurfacePage,
+  SurfaceSection,
+  SurfaceTopBar,
+} from "@/components/site/privateSurface";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { usePublicLaunchStatus } from "@/hooks/usePublicLaunchStatus";
 import { analyticsEvents, getSafeErrorType } from "@/lib/analytics";
 import { getCaptureAppPlaceholderUrl } from "@/lib/client-env";
+import { privateGeneratedAssets } from "@/lib/privateGeneratedAssets";
 import { joinLaunchCityLabels } from "@/lib/publicLaunchStatus";
 
 const EQUIPMENT_OPTIONS = [
@@ -476,28 +483,32 @@ export default function CapturerSignUpFlow() {
         canonical="/signup/capturer"
         noIndex={true}
       />
-      <main
-        className="min-h-screen bg-[color:var(--paper)] px-4 py-10 text-[color:var(--ink)]"
-        style={
-          {
-            "--paper": "oklch(0.985 0.012 95)",
-            "--paper-strong": "oklch(0.962 0.024 95)",
-            "--panel": "oklch(0.995 0.008 95)",
-            "--ink": "oklch(0.23 0.03 80)",
-            "--ink-soft": "oklch(0.4 0.024 80)",
-            "--ink-muted": "oklch(0.56 0.018 80)",
-            "--line": "oklch(0.9 0.02 90)",
-            "--line-strong": "oklch(0.83 0.03 88)",
-            "--leaf": "oklch(0.63 0.16 149)",
-            "--leaf-deep": "oklch(0.51 0.12 149)",
-            "--amber": "oklch(0.78 0.13 82)",
-            "--rose": "oklch(0.64 0.19 26)",
-          } as React.CSSProperties
-        }
-      >
+      <SurfacePage>
+        <SurfaceTopBar eyebrow="Invite-Gated Capture" rightLabel="Field Ops Access" />
+        <SurfaceSection className="py-8">
+          <SurfaceBrowserFrame className="overflow-hidden border-black/10 bg-[#f8f4ec]">
+            <main
+              className="px-6 py-8 text-[color:var(--ink)] lg:px-8"
+              style={
+                {
+                  "--paper": "oklch(0.985 0.008 95)",
+                  "--paper-strong": "oklch(0.965 0.012 95)",
+                  "--panel": "oklch(0.994 0.004 95)",
+                  "--ink": "oklch(0.18 0.01 95)",
+                  "--ink-soft": "oklch(0.38 0.01 95)",
+                  "--ink-muted": "oklch(0.56 0.008 95)",
+                  "--line": "oklch(0.9 0.01 95)",
+                  "--line-strong": "oklch(0.82 0.01 95)",
+                  "--leaf": "oklch(0.2 0.01 95)",
+                  "--leaf-deep": "oklch(0.16 0.006 95)",
+                  "--amber": "oklch(0.7 0.03 80)",
+                  "--rose": "oklch(0.62 0.14 28)",
+                } as React.CSSProperties
+              }
+            >
       <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.92fr_1.08fr]">
         <section className="relative overflow-hidden rounded-[2rem] border border-[color:var(--line)] bg-[color:var(--paper-strong)] p-7 sm:p-8">
-          <div className="absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_top_left,_rgba(55,145,86,0.18),_transparent_62%)]" />
+          <div className="absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_top_left,_rgba(17,17,16,0.08),_transparent_62%)]" />
           <div className="relative space-y-8">
             <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--line-strong)] bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-[color:var(--leaf-deep)]">
               <Compass className="h-3.5 w-3.5" />
@@ -522,6 +533,14 @@ export default function CapturerSignUpFlow() {
                 </a>
                 {" "}instead of this capturer path.
               </p>
+            </div>
+
+            <div className="overflow-hidden rounded-[1.75rem] border border-[color:var(--line)] bg-white">
+              <img
+                src={privateGeneratedAssets.captureAppAisle}
+                alt="Blueprint capture aisle"
+                className="h-[15rem] w-full object-cover"
+              />
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
@@ -1102,7 +1121,10 @@ export default function CapturerSignUpFlow() {
           )}
         </section>
       </div>
-      </main>
+            </main>
+          </SurfaceBrowserFrame>
+        </SurfaceSection>
+      </SurfacePage>
     </>
   );
 }

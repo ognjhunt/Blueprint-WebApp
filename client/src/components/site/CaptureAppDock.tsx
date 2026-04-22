@@ -14,7 +14,6 @@ function isExternalHref(value: string) {
 
 function shouldShowDock(pathname: string) {
   const visibleRoutes = [
-    /^\/capture$/,
     /^\/capture-app$/,
     /^\/signup\/capturer$/,
   ];

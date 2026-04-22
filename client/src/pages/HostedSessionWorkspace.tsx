@@ -13,6 +13,13 @@ import {
   Square,
 } from "lucide-react";
 import { SEO } from "@/components/SEO";
+import {
+  SurfaceBrowserFrame,
+  SurfaceMiniLabel,
+  SurfacePage,
+  SurfaceSection,
+  SurfaceTopBar,
+} from "@/components/site/privateSurface";
 import { SiteWorldGraphic } from "@/components/site/SiteWorldGraphic";
 import {
   isRenderableObservationPath,
@@ -21,6 +28,7 @@ import {
   REQUESTED_OUTPUT_DEFINITIONS,
   type HostedSessionPreviewPayload,
 } from "@/lib/hostedSession";
+import { privateGeneratedAssets } from "@/lib/privateGeneratedAssets";
 import { getSiteWorldById } from "@/data/siteWorlds";
 import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
 import { withCsrfHeader } from "@/lib/csrf";
@@ -2013,9 +2021,110 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
 
   if (!site) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-24 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-bold text-slate-900">Hosted session not found</h1>
-      </div>
+      <SurfacePage>
+        <SurfaceTopBar eyebrow="Hosted Session Workspace" rightLabel="Private Runtime" />
+        <SurfaceSection className="py-8">
+          <SurfaceBrowserFrame>
+            <div className="grid min-h-[34rem] place-items-center bg-[#f8f4ec] p-8 text-center">
+              <div className="max-w-xl">
+                <SurfaceMiniLabel>Workspace Unavailable</SurfaceMiniLabel>
+                <h1 className="mt-4 text-4xl font-semibold tracking-[-0.08em] text-[#111110]">
+                  Hosted session not found
+                </h1>
+                <p className="mt-4 text-sm leading-7 text-black/58">
+                  Blueprint could not resolve this workspace to a known site-world session.
+                </p>
+              </div>
+            </div>
+          </SurfaceBrowserFrame>
+        </SurfaceSection>
+      </SurfacePage>
+    );
+  }
+
+  if (!sessionId && !previewPayload) {
+    return (
+      <>
+        <SEO
+          title={`Hosted Session | ${site.siteName} | Blueprint`}
+          description={`Hosted session workspace for ${site.siteName}.`}
+          canonical={`/world-models/${site.id}/workspace`}
+        />
+
+        <SurfacePage tone="ink">
+          <SurfaceTopBar eyebrow="Hosted Session Workspace" rightLabel="Private Runtime" dark />
+          <SurfaceSection className="py-8">
+            <SurfaceBrowserFrame dark className="overflow-hidden border-white/10">
+              <div className="grid xl:grid-cols-[0.68fr_0.32fr]">
+                <div className="relative min-h-[42rem] overflow-hidden bg-black text-white">
+                  <img
+                    src={privateGeneratedAssets.workspaceRuntimeWarehouse}
+                    alt={`${site.siteName} runtime workspace`}
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.4),rgba(0,0,0,0.14)_55%,rgba(0,0,0,0.35))]" />
+                  <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-3 border-b border-white/10 px-6 py-4 text-[11px] uppercase tracking-[0.22em] text-white/50">
+                    <span>Live runtime</span>
+                    <span>Presentation world</span>
+                    <span>Diagnostics</span>
+                  </div>
+                  <div className="relative flex h-full items-end p-8 lg:p-10">
+                    <div className="max-w-[28rem]">
+                      <SurfaceMiniLabel className="text-white/52">Hosted Session Workspace</SurfaceMiniLabel>
+                      <h1 className="mt-5 text-[clamp(3.1rem,5vw,5rem)] font-semibold tracking-[-0.08em] leading-[0.9] text-white">
+                        Control room for one exact-site world.
+                      </h1>
+                      <p className="mt-5 text-sm leading-7 text-white/74">
+                        This workspace opens after the hosted review setup creates a real session.
+                        Until then, Blueprint keeps the exact-site scene, controls, and export rails
+                        attached to the setup path instead of inventing a fake runtime.
+                      </p>
+                      <div className="mt-7 flex flex-wrap gap-3">
+                        <a
+                          href={`/world-models/${site.id}/start`}
+                          className="inline-flex min-h-12 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#f4f0e8]"
+                        >
+                          Back to setup
+                        </a>
+                        <a
+                          href={`/world-models/${site.id}`}
+                          className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/16 px-5 text-sm font-semibold text-white transition hover:bg-white/8"
+                        >
+                          View world model
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-[#111110] p-8 text-white">
+                  <div className="space-y-4">
+                    <div className="rounded-[1.35rem] border border-white/10 bg-white/5 p-5">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/46">Session metadata</p>
+                      <p className="mt-4 text-lg font-semibold">{site.siteName}</p>
+                      <p className="mt-2 text-sm leading-7 text-white/68">{site.siteAddress}</p>
+                    </div>
+                    <div className="rounded-[1.35rem] border border-white/10 bg-white/5 p-5">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/46">Why the workspace is empty</p>
+                      <p className="mt-4 text-sm leading-7 text-white/72">
+                        A session ID is required before the live runtime, observation cameras,
+                        diagnostics, and export panels become active.
+                      </p>
+                    </div>
+                    <div className="rounded-[1.35rem] border border-white/10 bg-white/5 p-5">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/46">Next move</p>
+                      <p className="mt-4 text-sm leading-7 text-white/72">
+                        Return to setup and launch a hosted review or preview-backed session from
+                        the exact-site start flow.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </SurfaceBrowserFrame>
+          </SurfaceSection>
+        </SurfacePage>
+      </>
     );
   }
 

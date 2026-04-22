@@ -1,47 +1,42 @@
+import { Mail, Shield, SlidersHorizontal, SquareStack, Waypoints } from "lucide-react";
 import { SEO } from "@/components/SEO";
+import {
+  SurfaceBrowserFrame,
+  SurfaceCard,
+  SurfaceMiniLabel,
+  SurfacePage,
+  SurfacePill,
+  SurfaceSection,
+  SurfaceTopBar,
+} from "@/components/site/privateSurface";
+import { privateGeneratedAssets } from "@/lib/privateGeneratedAssets";
 
 const sections = [
   {
-    title: "1. What we collect",
+    title: "What we collect",
     body:
       "We collect the information you submit through forms, account creation, checkout, support requests, and capture-related workflows. Depending on the product surface, that can include contact details, account information, company information, payment metadata from our payment processor, uploaded files, and technical logs tied to site packages or hosted sessions.",
+    icon: SquareStack,
   },
   {
-    title: "2. Capture and site data",
+    title: "Capture and site data",
     body:
       "Blueprint may process walkthrough media, timestamps, poses, depth, device metadata, and site-level rights or privacy metadata when those records are part of a capture bundle or world-model package. That data is part of the product record and may be used to package, deliver, operate, refresh, or audit a listing or hosted session.",
+    icon: Waypoints,
   },
   {
-    title: "3. How we use information",
-    body:
-      "We use information to operate the site, provide packages and hosted sessions, process payments, respond to support requests, maintain security, enforce rights and privacy limits, and improve the product. We may also use aggregate usage information to understand how buyers and operators use the service.",
-  },
-  {
-    title: "4. Sharing",
+    title: "Sharing",
     body:
       "We do not sell personal data. We may share information with service providers who help us host the product, process payments, deliver analytics, or support customer communication. We may also share information when required by law or when needed to protect rights, privacy, security, or the integrity of the service.",
+    icon: Shield,
   },
   {
-    title: "5. Rights, privacy, and retention",
-    body:
-      "Blueprint keeps rights and privacy metadata attached to the product record because those limits matter after capture, not just during intake. We retain information for as long as needed to operate the service, meet legal obligations, enforce product terms, and manage package or hosted-session records.",
-  },
-  {
-    title: "6. Security",
-    body:
-      "We use reasonable safeguards to protect data in transit and at rest, but no system is perfectly secure. If you think a Blueprint account or package has been accessed improperly, contact us right away.",
-  },
-  {
-    title: "7. Your choices",
+    title: "Your choices",
     body:
       "Depending on your location, you may have rights to access, correct, delete, or restrict certain personal data. You can also opt out of non-essential marketing messages at any time.",
+    icon: SlidersHorizontal,
   },
-  {
-    title: "8. Contact",
-    body:
-      "Questions about this policy or privacy requests can be sent to privacy@tryblueprint.io.",
-  },
-];
+] as const;
 
 export default function Privacy() {
   return (
@@ -51,27 +46,80 @@ export default function Privacy() {
         description="Privacy policy for Blueprint's website, capture workflows, world-model packages, hosted sessions, and related services."
         canonical="/privacy"
       />
-      <div className="mx-auto max-w-4xl space-y-8 px-4 pb-24 pt-16 sm:px-6">
-        <header className="space-y-4">
-          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Legal</p>
-          <h1 className="text-4xl font-semibold text-slate-900">Privacy Policy</h1>
-          <p className="text-sm text-slate-600">
-            <span className="font-medium">Effective date:</span> March 23, 2026.{" "}
-            <span className="font-medium">Last updated:</span> March 23, 2026.
-          </p>
-          <p className="text-sm text-slate-600">
-            This policy explains how Blueprint collects, uses, and protects information across the
-            website, capture workflows, world-model packages, hosted sessions, and related services.
-          </p>
-        </header>
 
-        {sections.map((section) => (
-          <section key={section.title} className="space-y-3 text-sm text-slate-600">
-            <h2 className="text-lg font-semibold text-slate-900">{section.title}</h2>
-            <p>{section.body}</p>
-          </section>
-        ))}
-      </div>
+      <SurfacePage>
+        <SurfaceTopBar eyebrow="Legal Reference Board" rightLabel="Privacy by Design" />
+        <SurfaceSection className="py-8">
+          <SurfaceBrowserFrame>
+            <div className="grid gap-0 xl:grid-cols-[0.38fr_0.62fr]">
+              <div className="border-b border-black/10 bg-[#f7f3eb] p-8 xl:border-b-0 xl:border-r lg:p-10">
+                <SurfaceMiniLabel>Policy Card</SurfaceMiniLabel>
+                <h1 className="mt-5 text-[clamp(3.5rem,6vw,5.4rem)] font-semibold uppercase leading-[0.86] tracking-[-0.09em]">
+                  Privacy
+                  <br />
+                  Policy
+                </h1>
+                <p className="mt-5 max-w-[20rem] text-sm uppercase tracking-[0.2em] text-black/52">
+                  How we handle information with respect and transparency.
+                </p>
+                <div className="mt-8 overflow-hidden rounded-[1.8rem] border border-black/10 bg-white">
+                  <img
+                    src={privateGeneratedAssets.privacyArchiveBoard}
+                    alt="Blueprint privacy archive board"
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <SurfacePill>Effective March 23, 2026</SurfacePill>
+                  <SurfacePill>Archive reference</SurfacePill>
+                </div>
+              </div>
+
+              <div className="bg-white p-8 lg:p-10">
+                <div className="grid gap-5 md:grid-cols-2">
+                  {sections.map((section) => {
+                    const Icon = section.icon;
+                    return (
+                      <SurfaceCard key={section.title} className="h-full">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-[#faf6ef]">
+                            <Icon className="h-4.5 w-4.5 text-black/64" />
+                          </div>
+                          <SurfaceMiniLabel>{section.title}</SurfaceMiniLabel>
+                        </div>
+                        <p className="mt-4 text-[1.5rem] font-semibold tracking-[-0.05em]">{section.title}</p>
+                        <p className="mt-4 text-sm leading-7 text-black/62">{section.body}</p>
+                      </SurfaceCard>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+                  <SurfaceCard className="bg-[#faf7f1]">
+                    <SurfaceMiniLabel>Rights, privacy, and retention</SurfaceMiniLabel>
+                    <p className="mt-4 text-sm leading-7 text-black/62">
+                      Blueprint keeps rights and privacy metadata attached to the product record
+                      because those limits matter after capture, not just during intake. We retain
+                      information for as long as needed to operate the service, meet legal
+                      obligations, enforce product terms, and manage package or hosted-session
+                      records.
+                    </p>
+                  </SurfaceCard>
+
+                  <SurfaceCard>
+                    <SurfaceMiniLabel>Contact</SurfaceMiniLabel>
+                    <p className="mt-4 text-[1.5rem] font-semibold tracking-[-0.05em]">Questions or privacy requests?</p>
+                    <a href="mailto:privacy@tryblueprint.io" className="mt-5 inline-flex items-center gap-3 text-sm font-semibold">
+                      <Mail className="h-4 w-4" />
+                      privacy@tryblueprint.io
+                    </a>
+                  </SurfaceCard>
+                </div>
+              </div>
+            </div>
+          </SurfaceBrowserFrame>
+        </SurfaceSection>
+      </SurfacePage>
     </>
   );
 }
