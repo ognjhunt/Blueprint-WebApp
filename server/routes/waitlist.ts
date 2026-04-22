@@ -110,7 +110,7 @@ export default async function waitlistHandler(req: Request, res: Response) {
     return res.status(HTTP_STATUS.OK).json({ success: true });
   }
 
-  const { email, locationType, role, device, phone, market } = req.body ?? {};
+  const { email, locationType, role, device, phone, market, company, notes, source } = req.body ?? {};
 
   if (!email || !locationType) {
     return res.status(400).json({ error: "Missing required fields" });
@@ -122,10 +122,14 @@ export default async function waitlistHandler(req: Request, res: Response) {
   const deviceValue = typeof device === "string" ? device.trim() : "";
   const phoneValue = typeof phone === "string" ? phone.trim() : "";
   const marketValue = typeof market === "string" ? market.trim() : "";
+  const companyValue = typeof company === "string" ? company.trim() : "";
+  const notesValue = typeof notes === "string" ? notes.trim() : "";
+  const sourceValue = typeof source === "string" ? source.trim() : "";
   const normalizedEmail = emailValue.toLowerCase();
   const normalizedRole = roleValue.toLowerCase();
   const normalizedDevice = deviceValue.toLowerCase();
   const normalizedMarket = marketValue.toLowerCase();
+  const roleIncludesCapturer = normalizedRole.includes("capturer");
   const filterTags = [
     normalizedRole ? `role:${toFilterToken(normalizedRole)}` : null,
     normalizedDevice ? `device:${toFilterToken(normalizedDevice)}` : null,
@@ -155,6 +159,9 @@ export default async function waitlistHandler(req: Request, res: Response) {
       device: deviceValue || null,
       phone: phoneValue || null,
       market: marketValue || null,
+      company: companyValue || null,
+      notes: notesValue || null,
+      source: sourceValue || null,
     },
   });
 
@@ -165,7 +172,7 @@ export default async function waitlistHandler(req: Request, res: Response) {
 
   const to = process.env.WAITLIST_TO ?? "ops@tryblueprint.io";
   const subject =
-    roleValue === "capturer"
+    roleIncludesCapturer
       ? "New Blueprint Capture private beta request"
       : "New on-site capture waitlist submission";
   const text = [
@@ -173,8 +180,11 @@ export default async function waitlistHandler(req: Request, res: Response) {
     `Location type: ${locationTypeValue}`,
     marketValue ? `Market: ${marketValue}` : null,
     roleValue ? `Role: ${roleValue}` : null,
+    companyValue ? `Company: ${companyValue}` : null,
     deviceValue ? `Device: ${deviceValue}` : null,
     phoneValue ? `Phone: ${phoneValue}` : null,
+    sourceValue ? `Source: ${sourceValue}` : null,
+    notesValue ? `Notes: ${notesValue}` : null,
   ]
     .filter(Boolean)
     .join("\n");
@@ -194,27 +204,30 @@ export default async function waitlistHandler(req: Request, res: Response) {
       market_normalized: marketValue ? normalizedMarket : null,
       role: roleValue || null,
       role_normalized: roleValue ? normalizedRole : null,
+      company: companyValue || null,
+      notes: notesValue || null,
       device: deviceValue || null,
       device_normalized: deviceValue ? normalizedDevice : null,
       phone: phoneValue || null,
       source:
-        normalizedRole === "capturer" ? "capture_app_private_beta" : "website_waitlist",
+        sourceValue
+        || (roleIncludesCapturer ? "capture_app_private_beta" : "website_waitlist"),
       status: "new",
       queue:
-        normalizedRole === "capturer" ? "capturer_beta_review" : "website_waitlist_review",
+        roleIncludesCapturer ? "capturer_beta_review" : "website_waitlist_review",
       intent:
-        normalizedRole === "capturer" ? "capturer_beta_access" : "website_waitlist_access",
+        roleIncludesCapturer ? "capturer_beta_access" : "website_waitlist_access",
       filter_tags: filterTags,
       ops_automation: {
         status: "pending",
         version: "waitlist_v1",
         next_action:
-          normalizedRole === "capturer"
+          roleIncludesCapturer
             ? "route_by_market_device_and_role"
             : "manual_waitlist_review",
         recommended_path:
-          normalizedRole === "capturer" ? "capturer_beta_workflow" : "website_waitlist_workflow",
-        eligible_for_ai_triage: normalizedRole === "capturer",
+          roleIncludesCapturer ? "capturer_beta_workflow" : "website_waitlist_workflow",
+        eligible_for_ai_triage: roleIncludesCapturer,
         last_error: null,
         last_attempt_at: null,
       },
@@ -246,12 +259,12 @@ export default async function waitlistHandler(req: Request, res: Response) {
           city: matchedActivation.city,
           launchId: matchedActivation.rootIssueId,
           sourceBucket: "waitlist_intake",
-          channel: normalizedRole === "capturer" ? "capture_app_beta" : "website_waitlist",
-          name: emailValue.split("@")[0] || "Waitlist Applicant",
+          channel: roleIncludesCapturer ? "capture_app_beta" : "website_waitlist",
+          name: companyValue || emailValue.split("@")[0] || "Waitlist Applicant",
           email: emailValue,
           status: "identified",
           ownerAgent: "intake-agent",
-          notes: `Auto-linked from waitlist submission. Market: ${marketValue}. Role: ${roleValue || "unknown"}. Location type: ${locationTypeValue}. Device: ${deviceValue || "unknown"}.`,
+          notes: `Auto-linked from waitlist submission. Market: ${marketValue}. Role: ${roleValue || "unknown"}. Location type: ${locationTypeValue}. Device: ${deviceValue || "unknown"}.${notesValue ? ` Notes: ${notesValue}.` : ""}`,
           firstContactedAt: null,
           lastContactedAt: null,
           siteAddress: locationTypeValue || null,
@@ -259,7 +272,7 @@ export default async function waitlistHandler(req: Request, res: Response) {
           lat: null,
           lng: null,
           siteCategory: locationTypeValue || null,
-          workflowFit: normalizedRole === "capturer" ? "capturer_supply" : "unknown",
+          workflowFit: roleIncludesCapturer ? "capturer_supply" : "unknown",
           priorityNote: null,
           researchProvenance: null,
         });

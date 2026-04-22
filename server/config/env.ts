@@ -304,7 +304,14 @@ export function requireConfiguredEnvValue(
 }
 
 export function validateEnv(): Env {
-  const result = envSchema.safeParse(process.env);
+  const normalizedEnv = Object.fromEntries(
+    Object.entries(process.env).map(([key, value]) => [
+      key,
+      typeof value === "string" && value.trim().length === 0 ? undefined : value,
+    ]),
+  );
+
+  const result = envSchema.safeParse(normalizedEnv);
   if (result.success) {
     return result.data;
   }

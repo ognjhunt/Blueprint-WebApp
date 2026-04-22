@@ -124,7 +124,7 @@ export default function CaptureAppPlaceholder() {
                         </a>
                       ) : (
                         <a
-                          href="mailto:hello@tryblueprint.io?subject=Blueprint%20Capture%20App%20Access"
+                          href="/capture-app/launch-access?source=capture-app-placeholder"
                           className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/12 bg-white px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#f4f0e8]"
                         >
                           Request capture access

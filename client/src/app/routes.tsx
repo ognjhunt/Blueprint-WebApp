@@ -14,6 +14,7 @@ const Home = lazy(() => import("../pages/Home"));
 const LaunchMap = lazy(() => import("../pages/LaunchMap"));
 const Capture = lazy(() => import("../pages/Capture"));
 const CaptureAppPlaceholder = lazy(() => import("../pages/CaptureAppPlaceholder"));
+const CaptureLaunchAccess = lazy(() => import("../pages/CaptureLaunchAccess"));
 const BusinessSignUpFlow = lazy(() => import("../pages/BusinessSignUpFlow"));
 const CapturerSignUpFlow = lazy(() => import("../pages/CapturerSignUpFlow"));
 const OnboardingChecklist = lazy(() => import("../pages/OnboardingChecklist"));
@@ -111,6 +112,7 @@ export const appRoutes: AppRoute[] = [
   // Capture / Earn (new)
   { path: "/capture", layout: "public", component: Capture },
   { path: "/capture-app", layout: "public", shell: "bare", component: CaptureAppPlaceholder },
+  { path: "/capture-app/launch-access", layout: "public", component: CaptureLaunchAccess },
 
   // City landing pages (auto-generated from city launch profile)
   { path: "/city/:citySlug", layout: "public", component: CityLanding },

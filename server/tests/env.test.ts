@@ -40,6 +40,14 @@ describe("server env helpers", () => {
     expect(env.PORT).toBeGreaterThan(0);
   });
 
+  it("treats blank optional url env values as unset", () => {
+    process.env.FIREHOSE_BASE_URL = "";
+
+    const env = validateEnv();
+
+    expect(env.FIREHOSE_BASE_URL).toBeUndefined();
+  });
+
   it("throws a readable validation error for invalid env values", () => {
     process.env.STRIPE_PUBLIC_BASE_URL = "not-a-url";
 
