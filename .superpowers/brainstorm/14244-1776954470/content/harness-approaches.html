@@ -1,0 +1,51 @@
+<h2>Harness Architecture Options</h2>
+<p class="subtitle">All options keep synthetic scenes allowed, real proof claims gated, and Meta output paused/draft-only.</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="placeholder" style="height:auto;text-align:left;padding:16px">
+        <div class="label">A · Minimal Patch</div>
+        <h3>Creative Factory Extension</h3>
+        <p>Extend the existing creative factory to generate two-lane prompt packs, route images to Codex, call Seedance, QA, then create Meta drafts.</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Fastest</h3>
+      <p>Smallest code footprint, but generation/review/distribution risks getting tangled in one workflow.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="placeholder" style="height:auto;text-align:left;padding:16px">
+        <div class="label">B · Recommended</div>
+        <h3>Ad Studio Harness</h3>
+        <p>New repo-owned harness: brief → scene board → image task → video task → QA → Meta draft writer → outcome review.</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Cleanest</h3>
+      <p>Explicit contracts, separate lane ownership, reusable quality gates, and safe Meta API integration.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="placeholder" style="height:auto;text-align:left;padding:16px">
+        <div class="label">C · Full Org Buildout</div>
+        <h3>New Agent Department</h3>
+        <p>Create dedicated brand, creative director, video producer, QA reviewer, media buyer, and performance analyst agents.</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Too much for v1</h3>
+      <p>Powerful later, but it increases coordination and governance before the loop has proved quality.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Recommendation</h3>
+  <p>Use B: a new Ad Studio harness under the existing Growth/Paperclip stack. It can reuse creative factory pieces without forcing every responsibility into the current factory.</p>
+</div>

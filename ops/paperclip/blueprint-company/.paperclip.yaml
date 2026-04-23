@@ -1570,11 +1570,11 @@ routines:
   chief-of-staff-continuous-loop:
     agent: blueprint-chief-of-staff
     priority: high
-    concurrencyPolicy: always_enqueue
-    catchUpPolicy: enqueue_missed_with_cap
+    concurrencyPolicy: coalesce_if_active
+    catchUpPolicy: skip_missed
     triggers:
       - kind: schedule
-        cronExpression: 25 9,16 * * 1-5
+        cronExpression: '*/30 8-18 * * 1-5'
         timezone: America/New_York
   cto-cross-repo-triage:
     priority: high

@@ -49,6 +49,7 @@ const AdminLeads = lazy(() => import("../pages/AdminLeads"));
 const AdminGrowthOpsScorecard = lazy(() => import("../pages/AdminGrowthOpsScorecard"));
 const AdminAustinLaunchScorecard = lazy(() => import("../pages/AdminAustinLaunchScorecard"));
 const AdminGrowthStudio = lazy(() => import("../pages/AdminGrowthStudio"));
+const AdminCompanyMetrics = lazy(() => import("../pages/AdminCompanyMetrics"));
 const Dashboard = lazy(() => import("../pages/Dashboard"));
 const OffWaitlistSignUpFlow = lazy(() => import("../pages/OffWaitlistSignUpFlow"));
 const RequestConsole = lazy(() => import("../pages/RequestConsole"));
@@ -187,6 +188,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/admin/submissions", layout: "protected", component: AdminLeads },
   { path: "/admin/submissions/:requestId", layout: "protected", component: AdminLeads },
   { path: "/admin/growth-ops-scorecard", layout: "protected", component: AdminGrowthOpsScorecard },
+  { path: "/admin/company-metrics", layout: "protected", component: AdminCompanyMetrics },
   { path: "/admin/city-launch/austin", layout: "protected", component: AdminAustinLaunchScorecard },
   { path: "/admin/city-launch/:citySlug", layout: "protected", component: AdminAustinLaunchScorecard },
   { path: "/admin/growth-studio", layout: "protected", component: AdminGrowthStudio },

@@ -1,0 +1,301 @@
+{
+  "schema_version": "2026-04-13.city-launch-activation-payload.v1",
+  "machine_policy_version": "2026-04-13.city-launch-doctrine.v1",
+  "city": "Durham, NC",
+  "city_slug": "durham-nc",
+  "city_thesis": "Durham should start as one subscale exact-site hosted review motion around a single empty or pre-tenant logistics bay with pre-dispatch export-control screening and no buyer-lane live outreach until recipient-backed buyer contacts exist.",
+  "primary_site_lane": "industrial_warehouse_empty_bay",
+  "primary_workflow_lane": "amr_pre_deployment_evaluation_for_subscale_logistics_bays",
+  "primary_buyer_proof_path": "exact_site",
+  "lawful_access_modes": [
+    "site_operator_intro",
+    "capturer_existing_lawful_access"
+  ],
+  "preferred_lawful_access_mode": "site_operator_intro",
+  "rights_path": {
+    "summary": "Pre-dispatch site-operator authorization and export-control screening are required before any private controlled interior capture. Unscreened logistics or defense-adjacent interiors must remain blocked.",
+    "private_controlled_interiors_require_authorization": true,
+    "validation_required": true,
+    "source_urls": []
+  },
+  "validation_blockers": [
+    {
+      "key": "subscale_target_scope",
+      "summary": "Constrain the first Durham capture to one sub-10,000 sq ft empty or pre-tenant bay instead of a full 351,030 sq ft facility.",
+      "severity": "high",
+      "owner_lane": "city-launch-agent",
+      "validation_required": true,
+      "source_urls": []
+    },
+    {
+      "key": "recipient_backed_buyer_contacts",
+      "summary": "BotBuilt and ROI Industries remain research-backed buyer candidates, but direct buyer outreach is blocked until recipient-backed human contact emails are verified.",
+      "severity": "high",
+      "owner_lane": "city-demand-agent",
+      "validation_required": true,
+      "source_urls": []
+    },
+    {
+      "key": "pre_dispatch_export_control_screen",
+      "summary": "Export-control, defense, and air-gap constraints must be screened during site-operator intake before any capturer is dispatched.",
+      "severity": "high",
+      "owner_lane": "rights-provenance-agent",
+      "validation_required": true,
+      "source_urls": []
+    }
+  ],
+  "required_approvals": [
+    {
+      "lane": "designated-human-rights-reviewer",
+      "reason": "Private interior capture cannot start until site authorization and export-control screening are explicitly cleared."
+    },
+    {
+      "lane": "growth-lead",
+      "reason": "First live external sends should stay inside the bounded Durham posture and recipient evidence rules."
+    }
+  ],
+  "owner_lanes": [
+    "city-launch-agent",
+    "city-demand-agent",
+    "capturer-growth-agent",
+    "rights-provenance-agent",
+    "buyer-solutions-agent",
+    "analytics-agent",
+    "outbound-sales-agent",
+    "beta-launch-commander"
+  ],
+  "issue_seeds": [
+    {
+      "key": "lock-subscale-site-scope",
+      "title": "Lock the first Durham subscale site scope",
+      "phase": "founder_gates",
+      "owner_lane": "city-launch-agent",
+      "human_lane": "growth-lead",
+      "summary": "Reduce the first Durham target from full-facility rhetoric to one empty or pre-tenant logistics bay with explicit physical scope.",
+      "dependency_keys": [],
+      "success_criteria": [
+        "One exact Durham bay or equivalent bounded interior is named.",
+        "The first capture boundary is documented as sub-10,000 sq ft."
+      ],
+      "metrics_dependencies": [
+        "first_lawful_access_path"
+      ],
+      "validation_required": true
+    },
+    {
+      "key": "pre-dispatch-rights-screen",
+      "title": "Move export-control and rights screening before field dispatch",
+      "phase": "founder_gates",
+      "owner_lane": "rights-provenance-agent",
+      "human_lane": "designated-human-rights-reviewer",
+      "summary": "Confirm site authorization, defense/export-control posture, and privacy boundaries before any Durham capturer is dispatched.",
+      "dependency_keys": [
+        "lock-subscale-site-scope"
+      ],
+      "success_criteria": [
+        "The first Durham candidate is screened for private-interior authorization.",
+        "Any export-control or air-gap blocker is recorded before dispatch."
+      ],
+      "metrics_dependencies": [
+        "first_lawful_access_path"
+      ],
+      "validation_required": true
+    },
+    {
+      "key": "seed-aec-capturer-cohort",
+      "title": "Line up Durham AEC capturer supply",
+      "phase": "supply",
+      "owner_lane": "capturer-growth-agent",
+      "human_lane": "ops-lead",
+      "summary": "Use Triangle AEC-capable supply lanes to identify the first small professional cohort for Durham capture.",
+      "dependency_keys": [
+        "pre-dispatch-rights-screen"
+      ],
+      "success_criteria": [
+        "At least one Durham or Triangle AEC-grade capturer candidate is queued for trust review.",
+        "The first Durham supply lane stays bounded to a small vetted cohort."
+      ],
+      "metrics_dependencies": [
+        "first_approved_capturer"
+      ],
+      "validation_required": true
+    },
+    {
+      "key": "keep-buyer-lane-research-only",
+      "title": "Keep the Durham buyer lane research-only until contacts are real",
+      "phase": "demand",
+      "owner_lane": "city-demand-agent",
+      "human_lane": "growth-lead",
+      "summary": "Carry BotBuilt and ROI Industries as research-backed buyer candidates while blocking live buyer sends until recipient-backed contact evidence exists.",
+      "dependency_keys": [],
+      "success_criteria": [
+        "Durham buyer candidates remain visible in the target ledger.",
+        "No live buyer send is marked ready without a recipient-backed contact email."
+      ],
+      "metrics_dependencies": [
+        "proof_path_assigned"
+      ],
+      "validation_required": true
+    },
+    {
+      "key": "verify-buyer-artifact-fit",
+      "title": "Verify Durham buyer artifact and hosted-review fit",
+      "phase": "commercial",
+      "owner_lane": "buyer-solutions-agent",
+      "human_lane": "ops-lead",
+      "summary": "Validate mesh, point-cloud, and hosted-review expectations for Durham robotics buyers before claiming stack fit.",
+      "dependency_keys": [
+        "keep-buyer-lane-research-only"
+      ],
+      "success_criteria": [
+        "At least one Durham buyer-fit hypothesis is reduced to a concrete artifact requirement.",
+        "Any air-gap or delivery blocker is recorded explicitly."
+      ],
+      "metrics_dependencies": [
+        "proof_pack_delivered",
+        "hosted_review_ready"
+      ],
+      "validation_required": true
+    },
+    {
+      "key": "keep-durham-scorecard-honest",
+      "title": "Keep the Durham scorecard honest",
+      "phase": "measurement",
+      "owner_lane": "analytics-agent",
+      "human_lane": "ops-lead",
+      "summary": "Track Durham only with approved proof-motion events and milestones, and surface blocked buyer-contact and lawful-access gaps directly.",
+      "dependency_keys": [],
+      "success_criteria": [
+        "Durham blockers are visible in the city launch scorecard.",
+        "No Durham-specific analytics vocabulary is introduced."
+      ],
+      "metrics_dependencies": [
+        "robot_team_inbound_captured",
+        "proof_path_assigned",
+        "proof_pack_delivered",
+        "hosted_review_ready",
+        "hosted_review_started",
+        "hosted_review_follow_up_sent",
+        "human_commercial_handoff_started",
+        "proof_motion_stalled"
+      ],
+      "validation_required": false
+    }
+  ],
+  "metrics_dependencies": [
+    {
+      "key": "robot_team_inbound_captured",
+      "kind": "event",
+      "status": "required_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Use the current WebApp event surfaces and keep Durham city attribution verified."
+    },
+    {
+      "key": "proof_path_assigned",
+      "kind": "event",
+      "status": "required_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Use the current WebApp proof-path routing surfaces."
+    },
+    {
+      "key": "proof_pack_delivered",
+      "kind": "event",
+      "status": "required_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Track when Durham leaves planning and actual proof artifacts move."
+    },
+    {
+      "key": "hosted_review_ready",
+      "kind": "event",
+      "status": "required_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Track when a Durham hosted-review surface is technically ready."
+    },
+    {
+      "key": "hosted_review_started",
+      "kind": "event",
+      "status": "required_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Track whether Durham proof converts into review behavior."
+    },
+    {
+      "key": "hosted_review_follow_up_sent",
+      "kind": "event",
+      "status": "required_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Keep Durham follow-up measurable without inventing new events."
+    },
+    {
+      "key": "human_commercial_handoff_started",
+      "kind": "event",
+      "status": "required_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Track when Durham shifts into a real human commercial thread."
+    },
+    {
+      "key": "proof_motion_stalled",
+      "kind": "event",
+      "status": "required_tracked",
+      "owner_lane": "analytics-agent",
+      "notes": "Expose blocked Durham motion instead of smoothing it over."
+    },
+    {
+      "key": "first_lawful_access_path",
+      "kind": "milestone",
+      "status": "required_not_tracked",
+      "owner_lane": "city-launch-agent",
+      "notes": "The first Durham lawful-access path still needs explicit confirmation."
+    },
+    {
+      "key": "first_approved_capturer",
+      "kind": "milestone",
+      "status": "required_not_tracked",
+      "owner_lane": "capturer-growth-agent",
+      "notes": "The first Durham AEC-grade capturer is not approved yet."
+    },
+    {
+      "key": "first_rights_cleared_proof_asset",
+      "kind": "milestone",
+      "status": "required_not_tracked",
+      "owner_lane": "rights-provenance-agent",
+      "notes": "Rights-cleared Durham proof assets do not exist yet."
+    },
+    {
+      "key": "first_hosted_review",
+      "kind": "milestone",
+      "status": "required_not_tracked",
+      "owner_lane": "buyer-solutions-agent",
+      "notes": "Durham hosted review remains a downstream milestone."
+    }
+  ],
+  "named_claims": [
+    {
+      "subject": "Durham Logistics Center",
+      "claim_type": "company",
+      "claim": "Durham Logistics Center is a real Durham logistics-site candidate worth keeping in the first operator access path, but it is not proof-ready and the initial scope must stay subscale.",
+      "validation_required": true,
+      "source_urls": []
+    },
+    {
+      "subject": "Welcome Venture Park",
+      "claim_type": "company",
+      "claim": "Welcome Venture Park remains an adjacent Durham logistics candidate, not an activated Blueprint site.",
+      "validation_required": true,
+      "source_urls": []
+    },
+    {
+      "subject": "Triangle AEC survey supply",
+      "claim_type": "delivery",
+      "claim": "Triangle AEC-grade survey firms are the preferred Durham supply lane over generic gig capture.",
+      "validation_required": true,
+      "source_urls": []
+    },
+    {
+      "subject": "Durham buyer lane",
+      "claim_type": "stack",
+      "claim": "Durham buyer direct outreach should stay blocked until recipient-backed contacts and artifact-fit requirements are verified.",
+      "validation_required": true,
+      "source_urls": []
+    }
+  ]
+}

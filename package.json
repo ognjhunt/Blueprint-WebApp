@@ -20,6 +20,7 @@
     "smoke:launch:local": "node scripts/launch-smoke-local.mjs",
     "human-replies:poll": "tsx scripts/human-replies/poll-gmail-replies.ts",
     "human-replies:audit-gmail": "tsx scripts/human-replies/audit-gmail-oauth.ts",
+    "human-replies:send-test-blocker": "tsx scripts/human-replies/send-test-blocker.ts",
     "audit:assets": "tsx scripts/audit-assets.ts",
     "graphify:pilot:webapp-architecture": "bash scripts/graphify/run-webapp-architecture-pilot.sh",
     "city-launch:plan": "tsx scripts/city-launch/run-deep-research-playbook.ts",

@@ -1,0 +1,90 @@
+# Blueprint City Buyer Handoff And Escalation Rubric - Durham
+
+## Scope
+This playbook defines how Durham-sourced proof review becomes standard commercial handling.
+
+It inherits the shared rules from:
+- `ops/paperclip/playbooks/robot-team-demand-playbook.md`
+- `ops/paperclip/playbooks/robot-team-finance-support-routing-playbook.md`
+- `ops/paperclip/playbooks/site-operator-access-and-commercialization-playbook.md`
+- `ops/paperclip/HANDOFF_PROTOCOL.md`
+
+This playbook does not authorize pricing, contract, permission, privacy, rights, or commercialization decisions.
+
+## Shared Rule
+Keep a request in normal buyer follow-up until there is evidence that the motion now needs coordinated proof delivery, standard commercial handling, or policy-blocked escalation.
+
+Use the smallest truthful lane:
+- `intake-agent`: buyer-safe follow-up, source tagging, and proof-path classification
+- `ops-lead`: proof-pack assembly readiness, hosted-review coordination, mixed-lane ownership, and missing-owner escalation
+- `buyer-solutions-agent` + automated commercial policy: standard buyer-thread commercial handling inside approved quote bands
+- `revenue-ops-pricing-agent`: quote guidance, package-band checks, discount guardrail checks, and exception detection for the human commercial owner
+- optional operator lane / `field-ops-agent`: access, permissions, operator coordination, rights, privacy, or commercialization-boundary friction
+- engineering via Paperclip issue: product bugs affecting proof-pack pages, hosted review, artifact access, or billing UI
+
+## Durham Posture
+Durham should be treated as a gated-cohort proof-and-commercialization market. Do not pull manual review into routine pricing or proof follow-up.
+
+### Durham Standard Commercial Bands
+- Keep standard commercial handling on the published `Site Package` and `Hosted Evaluation` paths.
+- Use the current public pricing anchors when a buyer asks for a standard quote: `Site Package` at `$2,100 - $3,400` and `Hosted Evaluation` at `$16 - $29 / session-hour`.
+- Treat anything that requires private-site rights, unusual privacy or export review, exclusive access, or managed support as custom scope instead of standard handling.
+- Treat any request that changes package shape, adds non-standard support, or asks for pricing outside the published anchors as a human commercial owner decision, with founder review only for non-standard commitments.
+- `revenue-ops-pricing-agent` should frame quotes against the published anchors and flag exceptions early rather than inventing new package names.
+
+### Keep Durham In Normal Buyer Follow-Up When
+- the request is still a single-thread proof review
+- the next step is a standard proof-pack send, hosted-review invite, or artifact recap
+- no pricing, contract, refund, permission, privacy, rights, or operator judgment is being requested
+- there is one clear buyer thread and no mixed internal ownership question
+
+### Route Durham To `ops-lead` When
+- the buyer asks for a coordinated proof path that crosses proof-pack delivery, hosted-review readiness, and artifact handoff
+- the next step requires a named owner and none is explicit yet
+- the thread mixes proof follow-up with delivery coordination or access planning
+- multiple internal lanes may need to act within one business day
+- the buyer asks for exact-site or adjacent-site evidence packaging that is not yet cleanly assembled
+
+### Route Durham To Standard Commercial Handling When
+- proof review turns into standard pricing, invoice flow, procurement routing, or approved quote handling
+- there is a normal commercial handoff after proof review
+- the buyer asks for quote or package support that still fits the approved package and quote bands
+- the buyer stays inside the standard `Site Package` or `Hosted Evaluation` paths already exposed on the product surface
+- the request can be handled without changing rights, privacy, contract, or revenue-share posture
+
+Route to founder only when the commercial ask is non-standard: discounts outside guardrails, custom packaging beyond precedent, contract deviations, or commitments that change company posture.
+
+### Route Durham To Operator / Access Review When
+- site access or operator coordination becomes necessary for the next step
+- privacy, consent, rights, or commercialization boundaries are now blocking progress
+- a controlled-access or sensitive facility requires operator-side coordination to continue truthfully
+
+### Escalate To Human Review Immediately
+Fail closed into explicit policy review when the request asks for:
+- pricing approval, discounts, credits, refunds, or payout action
+- contract language, procurement commitments, legal/privacy/rights interpretation
+- permission judgment or commercialization terms
+- delivery guarantees beyond current product truth
+- any request outside the published `Site Package` and `Hosted Evaluation` anchors above
+
+## Minimum Handoff Packet
+When `ops-lead` takes ownership, the handoff package should include:
+- city and source channel
+- buyer name, company, and role
+- site type and exact-site versus adjacent-site status
+- current proof-pack or hosted-review state
+- open technical questions
+- open policy-blocked questions
+- requested timeline
+- recommended next owner
+
+If another agent must take the next step, use the Paperclip handoff protocol and keep the first comment structured.
+
+## Queue Truth
+Operational ownership should remain visible in the real systems:
+- Firestore holds queue truth for `inboundRequests`, `contactRequests`, and any related access or payout records
+- Paperclip holds task ownership, escalation state, and follow-up accountability
+- Notion and Slack are downstream visibility layers only
+
+## Current Limitation
+Durham proof-review conversion data is still sparse. This rubric is evidence-backed on channel structure and shared handoff rules, but the exact trigger thresholds should tighten as city-tagged funnel data becomes real.

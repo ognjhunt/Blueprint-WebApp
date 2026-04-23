@@ -1,0 +1,53 @@
+<h2>Ad Studio Harness · Data + Ownership</h2>
+<p class="subtitle">V1 should be auditable: every Meta draft ties back to a brief, assets, prompts, QA result, and claim policy.</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Durable Records</div>
+    <div class="mockup-body">
+      <div class="placeholder" style="height:auto;text-align:left;padding:14px">
+        <h3>ad_studio_runs</h3>
+        <p>Run id, lane, city/audience, status, owners, spend cap, target CTA, Meta draft ids.</p>
+      </div>
+      <div class="placeholder" style="height:auto;text-align:left;padding:14px;margin-top:10px">
+        <h3>creative_assets</h3>
+        <p>Generated frame paths, video paths, prompts, provider metadata, aspect ratios, thumbnails.</p>
+      </div>
+      <div class="placeholder" style="height:auto;text-align:left;padding:14px;margin-top:10px">
+        <h3>claims_ledger</h3>
+        <p>Allowed claims, blocked claims, evidence links, labels, reviewer decisions.</p>
+      </div>
+      <div class="placeholder" style="height:auto;text-align:left;padding:14px;margin-top:10px">
+        <h3>meta_draft_records</h3>
+        <p>Campaign/ad set/ad ids, paused status, targeting, copy, UTM plan, API response proof.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">Agent Ownership</div>
+    <div class="mockup-body">
+      <div class="placeholder" style="height:auto;text-align:left;padding:14px">
+        <h3>Growth Lead</h3>
+        <p>Prioritizes lane, budget, city/audience, and which approved draft to review next.</p>
+      </div>
+      <div class="placeholder" style="height:auto;text-align:left;padding:14px;margin-top:10px">
+        <h3>Capturer + Robot Growth Agents</h3>
+        <p>Write lane-specific briefs and hooks; do not execute imagery directly.</p>
+      </div>
+      <div class="placeholder" style="height:auto;text-align:left;padding:14px;margin-top:10px">
+        <h3>WebApp Codex</h3>
+        <p>Executes gpt-image-2 frames and project-bound asset wiring.</p>
+      </div>
+      <div class="placeholder" style="height:auto;text-align:left;padding:14px;margin-top:10px">
+        <h3>Creative QA + Meta Writer</h3>
+        <p>QA can fail/approve draft safety; Meta writer creates paused draft objects only.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Review Surface</h3>
+  <p>Each run should show a compact review page or admin panel row: video preview, captions, claims ledger, QA score, Meta draft ids, and the exact human action needed.</p>
+</div>

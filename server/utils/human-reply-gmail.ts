@@ -31,6 +31,9 @@ export type GmailReplyMessage = {
   received_at: string;
 };
 
+export const DEFAULT_HUMAN_REPLY_GMAIL_QUERY =
+  'in:anywhere newer_than:14d "Blueprint Blocker ID:"';
+
 function trimValue(value: string | null | undefined) {
   return String(value || "").trim();
 }
@@ -233,7 +236,7 @@ export async function listHumanReplyGmailMessages(params?: {
     q:
       trimValue(params?.query)
       || trimValue(process.env.BLUEPRINT_HUMAN_REPLY_GMAIL_QUERY)
-      || "label:sent newer_than:14d",
+      || DEFAULT_HUMAN_REPLY_GMAIL_QUERY,
     maxResults: Math.max(1, Math.min(params?.limit ?? 25, 100)),
   });
 

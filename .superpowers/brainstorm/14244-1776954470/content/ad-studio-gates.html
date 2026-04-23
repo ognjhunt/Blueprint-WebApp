@@ -1,0 +1,58 @@
+<h2>Ad Studio Harness · Gates + Failure Modes</h2>
+<p class="subtitle">The harness should fail closed before Meta draft creation, and Meta drafts should never be live by default.</p>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-image">
+      <div class="placeholder" style="height:auto;text-align:left;padding:16px">
+        <div class="label">Gate 1</div>
+        <h3>Brief Safety</h3>
+        <p>Reject if lane, CTA, budget cap, allowed claims, blocked claims, or synthetic label policy is missing.</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>Status: <strong>blocked_missing_brief_contract</strong></p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-image">
+      <div class="placeholder" style="height:auto;text-align:left;padding:16px">
+        <div class="label">Gate 2</div>
+        <h3>Asset Integrity</h3>
+        <p>Reject if frames, video file, prompts, provider ids, or preview thumbnails are missing or unreadable.</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>Status: <strong>blocked_asset_incomplete</strong></p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-image">
+      <div class="placeholder" style="height:auto;text-align:left;padding:16px">
+        <div class="label">Gate 3</div>
+        <h3>Claims Review</h3>
+        <p>Reject if the draft implies real proof, earnings, permission, customers, press, app state, or outcomes without evidence.</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>Status: <strong>failed_claims_review</strong></p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-image">
+      <div class="placeholder" style="height:auto;text-align:left;padding:16px">
+        <div class="label">Gate 4</div>
+        <h3>Meta Draft Safety</h3>
+        <p>Create campaign/ad set/ad objects as paused only; verify delivery status, spend cap, and response ids after write.</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <p>Status: <strong>draft_created_paused</strong></p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Live Activation</h3>
+  <p>Out of scope for v1 automation. The system can present a ready draft and exact activation checklist, but spend/live toggles remain human-gated.</p>
+</div>

@@ -1,0 +1,41 @@
+{
+  "city": "Durham, NC",
+  "citySlug": "durham-nc",
+  "status": "in_progress",
+  "startedAt": "2026-04-22T21:15:34.527Z",
+  "completedAt": "2026-04-22T21:36:54.454Z",
+  "artifacts": {
+    "runDirectory": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/durham-nc/2026-04-22T21-15-34.527Z",
+    "manifestPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/durham-nc/2026-04-22T21-15-34.527Z/manifest.json",
+    "initialResearchPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/durham-nc/2026-04-22T21-15-34.527Z/01-initial-research.md",
+    "finalPlaybookPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/durham-nc/2026-04-22T21-15-34.527Z/99-final-playbook.md",
+    "activationPayloadPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/durham-nc/2026-04-22T21-15-34.527Z/97-activation-payload.json",
+    "canonicalPlaybookPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-deep-research.md",
+    "canonicalActivationPayloadPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-activation-payload.json",
+    "stageArtifacts": [
+      "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/durham-nc/2026-04-22T21-15-34.527Z/01-initial-research.md",
+      "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/durham-nc/2026-04-22T21-15-34.527Z/10-critique-round-1.md",
+      "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/durham-nc/2026-04-22T21-15-34.527Z/20-follow-up-research-round-1.md"
+    ]
+  },
+  "stages": [
+    {
+      "key": "initial_research",
+      "interactionId": "v1_ChdkenJwYWZIUENKdkJ6N0lQcmJEVXlBbxIXZHpycGFmSFBDSnZCejdJUHJiRFV5QW8",
+      "status": "completed",
+      "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/durham-nc/2026-04-22T21-15-34.527Z/01-initial-research.md"
+    },
+    {
+      "key": "critique_round_1",
+      "interactionId": "v1_ChdkenJwYWZIUENKdkJ6N0lQcmJEVXlBbxIXQlQzcGFmS3NBckRpX3VNUGdaX20tQVk",
+      "status": "completed",
+      "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/durham-nc/2026-04-22T21-15-34.527Z/10-critique-round-1.md"
+    },
+    {
+      "key": "follow_up_research_round_1",
+      "interactionId": "v1_ChdkenJwYWZIUENKdkJ6N0lQcmJEVXlBbxIXQlQzcGFjN0xPLUdSX3VNUHlKaUNzQXM",
+      "status": "completed",
+      "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/durham-nc/2026-04-22T21-15-34.527Z/20-follow-up-research-round-1.md"
+    }
+  ]
+}

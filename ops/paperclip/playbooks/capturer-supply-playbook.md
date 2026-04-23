@@ -166,6 +166,8 @@ If these controls are not operational, Blueprint should not widen top-of-funnel 
 - standardized stage management
 - trust packet as a prerequisite for broader scale
 - hard-capped professional starter cohorts for rights-sensitive exact-site launches
+- Durham's preferred Triangle AEC supply anchor is Summit Design and Engineering Services, followed by the broader Triangle AEC survey lane and adjacent inspection or mapping operators
+- Durham's first professional cohort should stay small and vetted until the first approved capturer and first proof-ready site are visible
 - San Diego's professional first-wave supply wave is now named in `ops/paperclip/playbooks/city-launch-san-diego-ca-professional-first-wave-pack.md`; the 10-operator cap starts with `NV5`, `GIS Surveyors`, `Guida`, and `UNICO Engineering`, then fills only through screened technical adjacencies
 - the paired operator-intro draft lives in `ops/paperclip/playbooks/city-launch-san-diego-ca-outbound-package.md`; keep it draft-only, no-guarantee, and locked to one site, one workflow lane, and the next technical step
 - analytics for the San Diego wave should capture `first_approved_capturer`, approval owner, approval timestamp, cap enforcement, and first-reply source bucket before any scale claim
@@ -209,6 +211,36 @@ If these controls are not operational, Blueprint should not widen top-of-funnel 
 - First-wave copy guardrail: never imply private-interior access, blanket permission, legal certainty, traction, or guaranteed volume
 - Routing rule: log every San Diego public-commercial reply through `ops/paperclip/playbooks/city-opening-san-diego-ca-cta-routing.md` and record the first live send or blocked state in `ops/paperclip/playbooks/city-opening-san-diego-ca-send-ledger.md`
 - Reusable draft pack: keep `ops/paperclip/playbooks/city-opening-san-diego-ca-first-wave-pack.md` aligned with the approved channel map, but treat it as draft-only until a human approves the first live post
+
+### Durham public-commercial community sourcing pack
+- Discovery habitats: local city/community groups, neighborhood forums, retail and shopping communities, creator communities, and lightweight campus or gig networks
+- Source bucket: `Durham / public-commercial / online community / public-area-only`
+- Allowed subject matter: lawful public-area capture at groceries, retail stores, and other walk-in commercial sites
+- Explicitly blocked subject matter: private interiors, controlled-access locations, blanket permission language, earnings promises, or volume guarantees
+- CTA path: express interest, complete trust packet, wait for operator review, then enter approved intake
+- Required packet fields: source, habitat, city, lane tag, posture, privacy/signage/provenance rule reminder, and next owner
+- Human gate: the first live community post in a new channel must be reviewed before send
+- Handoff rule: once the pack is ready, route the copy and form logic to `conversion-agent`, the qualification and reply path to `intake-agent`, and the measurement contract to `analytics-agent`
+- First-wave placement classes: Durham community forums and neighborhood groups; retail/shopping and creator-adjacent communities; lightweight campus, coworking, and gig-network boards
+- First-wave copy posture: one public-area-only brief, one tagged intake path, one source bucket, and one CTA that asks for candidate public commercial site, public-area posture, and availability
+- First-wave copy guardrail: never imply private-interior access, blanket permission, legal certainty, traction, or guaranteed volume
+- Reusable draft pack: keep `ops/paperclip/playbooks/city-opening-durham-nc-first-wave-pack.md` aligned with the approved channel map, but treat it as draft-only until a human approves the first live post
+
+### Durham professional capturer supply wave
+- Discovery habitats: Triangle AEC and surveying firms, especially Summit Design and Engineering Services, industrial inspection operators, commercial mapping operators, and trusted local referral paths that can support the first lawful-access contacts
+- Source bucket: `Durham / professional / AEC-surveying / direct-subcontract`
+- First-wave prospect set: `Summit Design and Engineering Services` is the preferred Triangle AEC anchor; keep the first cohort small, then extend to Triangle AEC-grade surveyors and adjacent inspection or mapping operators only through the same trust-review path
+- Buyer watchlist: `BotBuilt` and `ROI Industries` stay research-only until recipient-backed contact evidence exists
+- Allowed subject matter: consent-backed exact-site capture for a sub-10,000 sq ft Durham bay, plus lawful-access operator review for the same scope
+- Explicitly blocked subject matter: public gig recruiting, generic open-city volume pushes, earnings promises, or any claim that a site is already approved without proof
+- CTA path: direct B2B intro or operator route review, trust packet review, operator approval, then intake
+- Required packet fields: source, firm affiliation or operator role, hardware profile, rights proof or site authorization, lawful access posture, site class, and next owner
+- Human gate: Growth Lead and Ops Lead review the trust packet before any live subcontract or access motion
+- Handoff rule: once a firm or operator is interested, route the qualification path to `intake-agent`, the rights check to `ops-lead`, and the first-capture prep to `field-ops-agent`
+- First-wave copy posture: one consent-first direct outreach note, one clear site class, one trust packet request, and one no-guarantee explanation of what Blueprint is actually asking for
+- First-wave copy guardrail: never imply private-interior access without consent, blanket permission, or guaranteed work volume
+- Queue rule: treat a verified Summit Design and Engineering Services contact or equivalent Triangle AEC-grade candidate as the first trust-review queue entry, not as a broad recruiting signal
+- Reusable draft pack: keep `ops/paperclip/playbooks/city-launch-durham-nc-first-wave-pack.md` aligned with the approved channel map, but treat it as draft-only until a human approves the first live send
 
 ### San Diego professional capturer supply wave
 - Discovery habitats: established AEC and surveying firms that already carry site etiquette, spatial accuracy, and consent norms, plus adjacent technical networks that can feed the first 10 vetted operators

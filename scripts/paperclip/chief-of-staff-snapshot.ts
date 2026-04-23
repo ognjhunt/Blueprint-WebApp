@@ -144,7 +144,14 @@ async function fetchManagerState(companyId: string): Promise<ManagerStateSnapsho
     }),
   });
 
-  if (response.status === 401 || response.status === 403 || response.status === 502 || response.status === 503 || response.status === 504) {
+  if (
+    response.status === 401
+    || response.status === 403
+    || response.status === 500
+    || response.status === 502
+    || response.status === 503
+    || response.status === 504
+  ) {
     return null;
   }
 

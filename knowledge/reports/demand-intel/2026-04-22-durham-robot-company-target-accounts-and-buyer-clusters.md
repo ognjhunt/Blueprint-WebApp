@@ -1,0 +1,153 @@
+---
+authority: derived
+source_system: paperclip
+source_urls:
+  - "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/durham-nc/2026-04-22T21-15-34.527Z/99-final-playbook.md"
+  - "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/durham-nc/2026-04-22T21-15-34.527Z/20-follow-up-research-round-1.md"
+  - "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-capture-target-ledger-durham-nc.md"
+  - "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc.md"
+last_verified_at: "2026-04-22"
+owner: demand-intel-agent
+sensitivity: internal
+confidence: 0.82
+subject_key: durham-robot-company-target-accounts-and-buyer-clusters
+freshness_sla_days: 7
+review_status: active
+canonical_refs:
+  - system: paperclip
+    ref: "issue://02753225-bcf7-43cf-aadb-b36de68909fb"
+  - system: report
+    ref: "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/durham-nc/2026-04-22T21-15-34.527Z/99-final-playbook.md"
+entity_tags:
+  - robot-team-demand
+  - durham
+  - target-accounts
+  - buyer-clusters
+  - proof-pack
+---
+
+# Durham Robot-Company Target Accounts and Buyer Clusters
+
+## Summary
+
+Durham is a narrow, proof-led robot-team market. The strongest demand surface is not broad city awareness; it is a subscale logistics bay, an AMR pre-deployment evaluation workflow, and a buyer lane that stays research-only until recipient-backed contacts are verified.
+
+The current launch posture is a gated cohort pilot with one primary site lane, one workflow lane, and one buyer proof path:
+
+- primary site lane: class-A logistics and industrial interiors
+- primary workflow lane: AMR pre-deployment evaluation
+- primary buyer proof path: exact_site
+
+## Current State
+
+- Durham is founder-approved and activation-ready, but it is not a public city launch.
+- Durham Logistics Center and Welcome Venture Park are candidate sites, not proof-ready assets.
+- The first Durham capture boundary is constrained to one sub-10,000 sq ft empty or pre-tenant bay.
+- Private controlled interiors require explicit site-operator authorization before dispatch.
+- Live buyer direct outreach is blocked until recipient-backed human contact emails are verified.
+
+## Evidence
+
+- Lovett Industrial is actively developing the Durham Logistics Center, a 351,030-square-foot Class-A industrial facility near the I-85 and I-885 intersection.
+- The Durham target ledger names Durham Logistics Center as the first priority proof target, with a subscale empty-bay candidate route and a leasing-route candidate.
+- Welcome Venture Park is present in the Durham target ledger as an adjacent logistics candidate only.
+- Summit Design and Engineering Services appears in the Durham research as the preferred Triangle AEC supply lane.
+- BotBuilt is a Durham robotics buyer candidate with local technical relevance, but the public research still requires contact verification before direct outreach.
+- ROI Industries appears in the Durham research as a buyer candidate with a public `info@` inbox, but that inbox is not yet sufficient to qualify as a launch-ready direct lane.
+- The Durham research explicitly routes buyer direct outreach behind verified recipient-backed contacts and artifact-fit checks.
+
+## Signals
+
+- 2026-04-22: Durham is better treated as a narrow exact-site proof market than a broad robotics awareness market.
+- 2026-04-22: Exact-site proof should outrank generic city demand language.
+- 2026-04-22: The first meaningful buyer motion is a hosted review of a bounded logistics bay, not a full-facility capture.
+- 2026-04-22: AEC-grade survey supply is preferred over generic gig capture.
+- 2026-04-22: Generic inboxes do not count as launch-ready direct outreach evidence.
+- 2026-04-22: Defense, export-control, and air-gap questions must be verified before outreach.
+
+## Buyer Clusters
+
+### 1. Logistics Operators and Site Owners
+
+- Durham Logistics Center
+- Welcome Venture Park
+
+Why this cluster matters:
+
+- These are the highest-priority site-operator paths for lawful access.
+- Blueprint should lead with `site_operator_intro`, a bounded bay scope, and rights/provenance clarity.
+
+### 2. AEC Survey and Capture Supply
+
+- Summit Design and Engineering Services
+- Triangle AEC-grade surveyors as a broader sourcing lane
+
+Why this cluster matters:
+
+- Durham’s supply side is stronger when Blueprint uses professional surveying and geomatics operators rather than generic capturers.
+- Blueprint should treat commercial IP and resale rights as verify-before-outreach assumptions.
+
+### 3. Robotics Buyers and Integrators
+
+- BotBuilt
+- ROI Industries
+
+Why this cluster matters:
+
+- These are the clearest Durham-area buyer candidates for exact-site hosted review.
+- Direct outreach remains blocked until recipient-backed contact emails are verified and artifact-fit is confirmed.
+
+## Target Account Map
+
+| Target | Cluster | Why it matters | Proof path note | Evidence vs inference |
+|---|---|---|---|---|
+| Durham Logistics Center | Logistics operator | First priority site-operator path for a subscale bay | `exact_site` once lawful access and rights are verified | Evidence |
+| Durham Logistics Center leasing route | Logistics operator | Secondary route to the same physical target | `site_operator_intro` or scoped leasing follow-up | Evidence |
+| Welcome Venture Park | Adjacent logistics | Adjacent site candidate, not activated | `adjacent_site` only after exact subspace and rights posture are explicit | Evidence |
+| Summit Design and Engineering Services | AEC supply | Preferred professional supply lane | Capture supply, not a buyer pack | Evidence |
+| BotBuilt | Robotics buyer | Local technical buyer candidate for exact-site evaluation | Research-only until recipient-backed contact is verified | Evidence |
+| ROI Industries | Robotics buyer | Buyer candidate with public routing but no verified direct lane | `scoped_follow_up` until recipient-backed contact evidence exists | Evidence |
+
+## Proof Requirements
+
+- Exact physical boundary for the first site, ideally one empty or pre-tenant bay under 10,000 sq ft.
+- Pre-dispatch site-operator authorization that explicitly covers export-control and privacy boundaries.
+- AEC trust packet with insurance, hardware, and rights/distribution assumptions verified before outreach.
+- A replayable proof pack with provenance, recency, and rights boundaries.
+- Hosted-review readiness that can be evaluated without assuming air-gapped or bespoke delivery compatibility.
+
+## Inferred Claims
+
+- Durham likely converts better through exact-site proof than through broad awareness.
+- The first successful buyer motion will probably come from a logistics or AMR workflow, not a generic robotics brand conversation.
+- Professional AEC supply should be more reliable than generic gig capture for this city.
+
+## Hypotheses Needing Validation
+
+- Validate whether Lovett Industrial will grant `site_operator_intro` for a subscale bay.
+- Validate whether Durham-area AEC surveyors allow commercial distribution of resulting spatial artifacts.
+- Validate whether BotBuilt or ROI Industries can consume Blueprint artifacts without bespoke delivery work.
+- Validate whether the pipeline can materialize a bounded Durham bay without timeout or format failures.
+- Validate whether any buyer lane requires air-gapped delivery before outreach.
+
+## Recommended Actions
+
+- Keep Durham buyer research separate from live outreach until recipient-backed contacts are real.
+- Route Durham site-operator work to the exact-site hosted review wedge.
+- Route Durham AEC supply to the professional capture lane, not generic community capture.
+- Keep `proof_motion_stalled` visible whenever contact, rights, or delivery assumptions fail.
+
+## Open Questions
+
+- Which Durham site operator will actually approve a bounded bay for capture?
+- Which buyer is most likely to accept hosted review after seeing a real proof pack?
+- Does the first Durham conversion path start with direct buyer outreach or with a site-operator-led proof motion?
+
+## Linked Reports
+
+- [Durham Deep Research Playbook](/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/durham-nc/2026-04-22T21-15-34.527Z/99-final-playbook.md)
+- [Durham Follow-Up Deep Research Round 1](/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/durham-nc/2026-04-22T21-15-34.527Z/20-follow-up-research-round-1.md)
+
+## Authority Boundary
+
+This page is a derived Hermes KB artifact. It does not replace Paperclip work state, approvals, rights/privacy review, pricing/legal commitments, capture provenance, or package/runtime truth.

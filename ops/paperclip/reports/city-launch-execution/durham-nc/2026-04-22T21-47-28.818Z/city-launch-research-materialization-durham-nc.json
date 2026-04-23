@@ -1,0 +1,655 @@
+{
+  "status": "materialized",
+  "city": "Durham, NC",
+  "citySlug": "durham-nc",
+  "sourceArtifactPath": "ops/paperclip/playbooks/city-launch-durham-nc-deep-research.md",
+  "parsed": {
+    "city": "Durham, NC",
+    "citySlug": "durham-nc",
+    "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/durham-nc/2026-04-22T21-47-28.818Z/city-launch-research-materialization-durham-nc.contact-enrichment.json",
+    "schemaVersion": "2026-04-12.city-launch-research.v1",
+    "generatedAtIso": "2026-04-22T21:42:42Z",
+    "captureCandidates": [
+      {
+        "stableKey": "prospect_durham-nc_industrial-warehouse-durham-logistics-center-subscale-empty-bay-candidate-operator-route-for-one-empty-or-pre-tenant-bay-inside-durham-logistics-center-do-not-treat-the-full-facility-as-proof-ready",
+        "name": "Durham Logistics Center (subscale empty-bay candidate)",
+        "contactEmail": "madison.jones@lovettindustrial.com",
+        "sourceBucket": "industrial_warehouse",
+        "channel": "site_operator_intro",
+        "status": "identified",
+        "siteAddress": null,
+        "locationSummary": "Operator route for one empty or pre-tenant bay inside Durham Logistics Center. Do not treat the full facility as proof-ready.",
+        "lat": null,
+        "lng": null,
+        "siteCategory": "warehouse",
+        "workflowFit": "subscale empty-bay AMR evaluation",
+        "priorityNote": "Start with one sub-10,000 sq ft bay only after site authorization and export-control screening are confirmed.",
+        "sourceUrls": [],
+        "explicitFields": [
+          "name",
+          "contact_email",
+          "source_bucket",
+          "channel"
+        ],
+        "inferredFields": [
+          "location_summary",
+          "workflow_fit",
+          "priority_note"
+        ],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-deep-research.md",
+          "sourceKey": "capture_location_candidates[0]",
+          "sourceUrls": [],
+          "parsedAtIso": "2026-04-22T21:48:21.791Z",
+          "explicitFields": [
+            "name",
+            "contact_email",
+            "source_bucket",
+            "channel"
+          ],
+          "inferredFields": [
+            "location_summary",
+            "workflow_fit",
+            "priority_note"
+          ]
+        }
+      },
+      {
+        "stableKey": "prospect_durham-nc_industrial-warehouse-durham-logistics-center-leasing-route-candidate-leasing-route-contact-for-the-same-durham-logistics-center-scope-use-only-after-confirming-operator-permission-path-and-subscale-bay-target",
+        "name": "Durham Logistics Center (leasing route candidate)",
+        "contactEmail": "andrew.young@colliers.com",
+        "sourceBucket": "industrial_warehouse",
+        "channel": "site_operator_intro",
+        "status": "identified",
+        "siteAddress": null,
+        "locationSummary": "Leasing-route contact for the same Durham Logistics Center scope. Use only after confirming operator permission path and subscale bay target.",
+        "lat": null,
+        "lng": null,
+        "siteCategory": "warehouse",
+        "workflowFit": "subscale empty-bay AMR evaluation",
+        "priorityNote": "Useful as a leasing-route introduction, but still validation-required for lawful access.",
+        "sourceUrls": [],
+        "explicitFields": [
+          "name",
+          "contact_email",
+          "source_bucket",
+          "channel"
+        ],
+        "inferredFields": [
+          "location_summary",
+          "workflow_fit",
+          "priority_note"
+        ],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-deep-research.md",
+          "sourceKey": "capture_location_candidates[1]",
+          "sourceUrls": [],
+          "parsedAtIso": "2026-04-22T21:48:21.791Z",
+          "explicitFields": [
+            "name",
+            "contact_email",
+            "source_bucket",
+            "channel"
+          ],
+          "inferredFields": [
+            "location_summary",
+            "workflow_fit",
+            "priority_note"
+          ]
+        }
+      },
+      {
+        "stableKey": "prospect_durham-nc_industrial-warehouse-welcome-venture-park-candidate-only-adjacent-durham-logistics-candidate-keep-blocked-until-the-exact-subspace-operator-path-and-rights-posture-are-explicit",
+        "name": "Welcome Venture Park (candidate only)",
+        "contactEmail": null,
+        "sourceBucket": "industrial_warehouse",
+        "channel": "site_operator_intro",
+        "status": "identified",
+        "siteAddress": null,
+        "locationSummary": "Adjacent Durham logistics candidate. Keep blocked until the exact subspace, operator path, and rights posture are explicit.",
+        "lat": null,
+        "lng": null,
+        "siteCategory": "warehouse",
+        "workflowFit": "adjacent-site logistics proof path",
+        "priorityNote": "Do not promote as proof-ready or launch-ready.",
+        "sourceUrls": [],
+        "explicitFields": [
+          "name",
+          "source_bucket",
+          "channel"
+        ],
+        "inferredFields": [
+          "location_summary",
+          "workflow_fit",
+          "priority_note"
+        ],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-deep-research.md",
+          "sourceKey": "capture_location_candidates[2]",
+          "sourceUrls": [],
+          "parsedAtIso": "2026-04-22T21:48:21.791Z",
+          "explicitFields": [
+            "name",
+            "source_bucket",
+            "channel"
+          ],
+          "inferredFields": [
+            "location_summary",
+            "workflow_fit",
+            "priority_note"
+          ]
+        }
+      }
+    ],
+    "buyerTargets": [
+      {
+        "stableKey": "buyer_target_durham-nc_botbuilt-durham-robotics-buyer-candidate-for-exact-site-or-adjacent-site-facility-evaluation-after-contact-and-artifact-fit-verification",
+        "companyName": "BotBuilt",
+        "contactName": null,
+        "contactEmail": null,
+        "status": "researched",
+        "workflowFit": "Durham robotics buyer candidate for exact-site or adjacent-site facility evaluation after contact and artifact-fit verification.",
+        "proofPath": "scoped_follow_up",
+        "notes": "Keep as a researched buyer candidate only until recipient-backed contact and exact site demand are verified.",
+        "sourceBucket": "robotics_buyer",
+        "sourceUrls": [],
+        "explicitFields": [
+          "company_name"
+        ],
+        "inferredFields": [
+          "workflow_fit",
+          "notes"
+        ],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-deep-research.md",
+          "sourceKey": "buyer_target_candidates[0]",
+          "sourceUrls": [],
+          "parsedAtIso": "2026-04-22T21:48:21.791Z",
+          "explicitFields": [
+            "company_name"
+          ],
+          "inferredFields": [
+            "workflow_fit",
+            "notes"
+          ]
+        }
+      },
+      {
+        "stableKey": "buyer_target_durham-nc_roi-industries-industrial-automation-buyer-candidate-but-direct-outreach-remains-blocked-until-a-recipient-backed-contact-is-verified",
+        "companyName": "ROI Industries",
+        "contactName": null,
+        "contactEmail": null,
+        "status": "researched",
+        "workflowFit": "Industrial automation buyer candidate, but direct outreach remains blocked until a recipient-backed contact is verified.",
+        "proofPath": "scoped_follow_up",
+        "notes": "Do not treat the generic ROI inbox as launch-ready buyer evidence.",
+        "sourceBucket": "industrial_automation",
+        "sourceUrls": [],
+        "explicitFields": [
+          "company_name"
+        ],
+        "inferredFields": [
+          "workflow_fit",
+          "notes"
+        ],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-deep-research.md",
+          "sourceKey": "buyer_target_candidates[1]",
+          "sourceUrls": [],
+          "parsedAtIso": "2026-04-22T21:48:21.791Z",
+          "explicitFields": [
+            "company_name"
+          ],
+          "inferredFields": [
+            "workflow_fit",
+            "notes"
+          ]
+        }
+      }
+    ],
+    "firstTouches": [
+      {
+        "stableKey": "touch_durham-nc_prospect-durham-logistics-center-subscale-empty-bay-candidate-email-first-touch",
+        "referenceType": "prospect",
+        "referenceName": "Durham Logistics Center (subscale empty-bay candidate)",
+        "channel": "email",
+        "touchType": "first_touch",
+        "status": "queued",
+        "campaignId": null,
+        "issueId": null,
+        "notes": "Draft only. Send only after site scope, rights screen, and sender readiness are confirmed.",
+        "sourceUrls": [],
+        "explicitFields": [
+          "reference_name",
+          "channel"
+        ],
+        "inferredFields": [
+          "notes"
+        ],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-deep-research.md",
+          "sourceKey": "first_touch_candidates[0]",
+          "sourceUrls": [],
+          "parsedAtIso": "2026-04-22T21:48:21.791Z",
+          "explicitFields": [
+            "reference_name",
+            "channel"
+          ],
+          "inferredFields": [
+            "notes"
+          ]
+        }
+      },
+      {
+        "stableKey": "touch_durham-nc_prospect-durham-logistics-center-leasing-route-candidate-email-first-touch",
+        "referenceType": "prospect",
+        "referenceName": "Durham Logistics Center (leasing route candidate)",
+        "channel": "email",
+        "touchType": "first_touch",
+        "status": "queued",
+        "campaignId": null,
+        "issueId": null,
+        "notes": "Use only as a bounded operator-access route, not as evidence that the site is already available.",
+        "sourceUrls": [],
+        "explicitFields": [
+          "reference_name",
+          "channel"
+        ],
+        "inferredFields": [
+          "notes"
+        ],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-deep-research.md",
+          "sourceKey": "first_touch_candidates[1]",
+          "sourceUrls": [],
+          "parsedAtIso": "2026-04-22T21:48:21.791Z",
+          "explicitFields": [
+            "reference_name",
+            "channel"
+          ],
+          "inferredFields": [
+            "notes"
+          ]
+        }
+      }
+    ],
+    "budgetRecommendations": [
+      {
+        "stableKey": "budget_durham-nc_field-ops-0-do-not-approve-paid-durham-capture-spend-until-the-first-site-is-constrained-to-one-sub-10-000-sq-ft-bay-and-lawful-access-is-explicit",
+        "category": "field_ops",
+        "amountUsd": 0,
+        "note": "Do not approve paid Durham capture spend until the first site is constrained to one sub-10,000 sq ft bay and lawful access is explicit.",
+        "sourceUrls": [],
+        "explicitFields": [
+          "category",
+          "amount_usd",
+          "note"
+        ],
+        "inferredFields": [],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-deep-research.md",
+          "sourceKey": "budget_recommendations[0]",
+          "sourceUrls": [],
+          "parsedAtIso": "2026-04-22T21:48:21.791Z",
+          "explicitFields": [
+            "category",
+            "amount_usd",
+            "note"
+          ],
+          "inferredFields": []
+        }
+      },
+      {
+        "stableKey": "budget_durham-nc_outbound-0-keep-the-durham-buyer-lane-draft-only-until-recipient-backed-buyer-contacts-are-verified",
+        "category": "outbound",
+        "amountUsd": 0,
+        "note": "Keep the Durham buyer lane draft-only until recipient-backed buyer contacts are verified.",
+        "sourceUrls": [],
+        "explicitFields": [
+          "category",
+          "amount_usd",
+          "note"
+        ],
+        "inferredFields": [],
+        "provenance": {
+          "sourceType": "deep_research_playbook",
+          "artifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-deep-research.md",
+          "sourceKey": "budget_recommendations[1]",
+          "sourceUrls": [],
+          "parsedAtIso": "2026-04-22T21:48:21.791Z",
+          "explicitFields": [
+            "category",
+            "amount_usd",
+            "note"
+          ],
+          "inferredFields": []
+        }
+      }
+    ],
+    "activationPayload": {
+      "schemaVersion": "2026-04-13.city-launch-activation-payload.v1",
+      "machinePolicyVersion": "2026-04-13.city-launch-doctrine.v1",
+      "city": "Durham, NC",
+      "citySlug": "durham-nc",
+      "cityThesis": "Durham should start as one subscale exact-site hosted review motion around a single empty or pre-tenant logistics bay with pre-dispatch export-control screening and no buyer-lane live outreach until recipient-backed buyer contacts exist.",
+      "primarySiteLane": "industrial_warehouse_empty_bay",
+      "primaryWorkflowLane": "amr_pre_deployment_evaluation_for_subscale_logistics_bays",
+      "primaryBuyerProofPath": "exact_site",
+      "lawfulAccessModes": [
+        "site_operator_intro",
+        "capturer_existing_lawful_access"
+      ],
+      "preferredLawfulAccessMode": "site_operator_intro",
+      "rightsPath": {
+        "summary": "Pre-dispatch site-operator authorization and export-control screening are required before any private controlled interior capture. Unscreened logistics or defense-adjacent interiors must remain blocked.",
+        "privateControlledInteriorsRequireAuthorization": true,
+        "validationRequired": true,
+        "sourceUrls": []
+      },
+      "validationBlockers": [
+        {
+          "key": "subscale_target_scope",
+          "summary": "Constrain the first Durham capture to one sub-10,000 sq ft empty or pre-tenant bay instead of a full 351,030 sq ft facility.",
+          "severity": "high",
+          "ownerLane": "city-launch-agent",
+          "validationRequired": true,
+          "sourceUrls": []
+        },
+        {
+          "key": "recipient_backed_buyer_contacts",
+          "summary": "BotBuilt and ROI Industries remain research-backed buyer candidates, but direct buyer outreach is blocked until recipient-backed human contact emails are verified.",
+          "severity": "high",
+          "ownerLane": "city-demand-agent",
+          "validationRequired": true,
+          "sourceUrls": []
+        },
+        {
+          "key": "pre_dispatch_export_control_screen",
+          "summary": "Export-control, defense, and air-gap constraints must be screened during site-operator intake before any capturer is dispatched.",
+          "severity": "high",
+          "ownerLane": "rights-provenance-agent",
+          "validationRequired": true,
+          "sourceUrls": []
+        }
+      ],
+      "requiredApprovals": [
+        {
+          "lane": "designated-human-rights-reviewer",
+          "reason": "Private interior capture cannot start until site authorization and export-control screening are explicitly cleared."
+        },
+        {
+          "lane": "growth-lead",
+          "reason": "First live external sends should stay inside the bounded Durham posture and recipient evidence rules."
+        }
+      ],
+      "ownerLanes": [
+        "city-launch-agent",
+        "city-demand-agent",
+        "capturer-growth-agent",
+        "rights-provenance-agent",
+        "buyer-solutions-agent",
+        "analytics-agent",
+        "outbound-sales-agent",
+        "beta-launch-commander"
+      ],
+      "issueSeeds": [
+        {
+          "key": "lock-subscale-site-scope",
+          "title": "Lock the first Durham subscale site scope",
+          "phase": "founder_gates",
+          "ownerLane": "city-launch-agent",
+          "humanLane": "growth-lead",
+          "summary": "Reduce the first Durham target from full-facility rhetoric to one empty or pre-tenant logistics bay with explicit physical scope.",
+          "dependencyKeys": [],
+          "successCriteria": [
+            "One exact Durham bay or equivalent bounded interior is named.",
+            "The first capture boundary is documented as sub-10,000 sq ft."
+          ],
+          "metricsDependencies": [
+            "first_lawful_access_path"
+          ],
+          "validationRequired": true
+        },
+        {
+          "key": "pre-dispatch-rights-screen",
+          "title": "Move export-control and rights screening before field dispatch",
+          "phase": "founder_gates",
+          "ownerLane": "rights-provenance-agent",
+          "humanLane": "designated-human-rights-reviewer",
+          "summary": "Confirm site authorization, defense/export-control posture, and privacy boundaries before any Durham capturer is dispatched.",
+          "dependencyKeys": [
+            "lock-subscale-site-scope"
+          ],
+          "successCriteria": [
+            "The first Durham candidate is screened for private-interior authorization.",
+            "Any export-control or air-gap blocker is recorded before dispatch."
+          ],
+          "metricsDependencies": [
+            "first_lawful_access_path"
+          ],
+          "validationRequired": true
+        },
+        {
+          "key": "seed-aec-capturer-cohort",
+          "title": "Line up Durham AEC capturer supply",
+          "phase": "supply",
+          "ownerLane": "capturer-growth-agent",
+          "humanLane": "ops-lead",
+          "summary": "Use Triangle AEC-capable supply lanes to identify the first small professional cohort for Durham capture.",
+          "dependencyKeys": [
+            "pre-dispatch-rights-screen"
+          ],
+          "successCriteria": [
+            "At least one Durham or Triangle AEC-grade capturer candidate is queued for trust review.",
+            "The first Durham supply lane stays bounded to a small vetted cohort."
+          ],
+          "metricsDependencies": [
+            "first_approved_capturer"
+          ],
+          "validationRequired": true
+        },
+        {
+          "key": "keep-buyer-lane-research-only",
+          "title": "Keep the Durham buyer lane research-only until contacts are real",
+          "phase": "demand",
+          "ownerLane": "city-demand-agent",
+          "humanLane": "growth-lead",
+          "summary": "Carry BotBuilt and ROI Industries as research-backed buyer candidates while blocking live buyer sends until recipient-backed contact evidence exists.",
+          "dependencyKeys": [],
+          "successCriteria": [
+            "Durham buyer candidates remain visible in the target ledger.",
+            "No live buyer send is marked ready without a recipient-backed contact email."
+          ],
+          "metricsDependencies": [
+            "proof_path_assigned"
+          ],
+          "validationRequired": true
+        },
+        {
+          "key": "verify-buyer-artifact-fit",
+          "title": "Verify Durham buyer artifact and hosted-review fit",
+          "phase": "commercial",
+          "ownerLane": "buyer-solutions-agent",
+          "humanLane": "ops-lead",
+          "summary": "Validate mesh, point-cloud, and hosted-review expectations for Durham robotics buyers before claiming stack fit.",
+          "dependencyKeys": [
+            "keep-buyer-lane-research-only"
+          ],
+          "successCriteria": [
+            "At least one Durham buyer-fit hypothesis is reduced to a concrete artifact requirement.",
+            "Any air-gap or delivery blocker is recorded explicitly."
+          ],
+          "metricsDependencies": [
+            "proof_pack_delivered",
+            "hosted_review_ready"
+          ],
+          "validationRequired": true
+        },
+        {
+          "key": "keep-durham-scorecard-honest",
+          "title": "Keep the Durham scorecard honest",
+          "phase": "measurement",
+          "ownerLane": "analytics-agent",
+          "humanLane": "ops-lead",
+          "summary": "Track Durham only with approved proof-motion events and milestones, and surface blocked buyer-contact and lawful-access gaps directly.",
+          "dependencyKeys": [],
+          "successCriteria": [
+            "Durham blockers are visible in the city launch scorecard.",
+            "No Durham-specific analytics vocabulary is introduced."
+          ],
+          "metricsDependencies": [
+            "robot_team_inbound_captured",
+            "proof_path_assigned",
+            "proof_pack_delivered",
+            "hosted_review_ready",
+            "hosted_review_started",
+            "hosted_review_follow_up_sent",
+            "human_commercial_handoff_started",
+            "proof_motion_stalled"
+          ],
+          "validationRequired": false
+        }
+      ],
+      "metricsDependencies": [
+        {
+          "key": "robot_team_inbound_captured",
+          "kind": "event",
+          "status": "required_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Use the current WebApp event surfaces and keep Durham city attribution verified."
+        },
+        {
+          "key": "proof_path_assigned",
+          "kind": "event",
+          "status": "required_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Use the current WebApp proof-path routing surfaces."
+        },
+        {
+          "key": "proof_pack_delivered",
+          "kind": "event",
+          "status": "required_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Track when Durham leaves planning and actual proof artifacts move."
+        },
+        {
+          "key": "hosted_review_ready",
+          "kind": "event",
+          "status": "required_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Track when a Durham hosted-review surface is technically ready."
+        },
+        {
+          "key": "hosted_review_started",
+          "kind": "event",
+          "status": "required_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Track whether Durham proof converts into review behavior."
+        },
+        {
+          "key": "hosted_review_follow_up_sent",
+          "kind": "event",
+          "status": "required_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Keep Durham follow-up measurable without inventing new events."
+        },
+        {
+          "key": "human_commercial_handoff_started",
+          "kind": "event",
+          "status": "required_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Track when Durham shifts into a real human commercial thread."
+        },
+        {
+          "key": "proof_motion_stalled",
+          "kind": "event",
+          "status": "required_tracked",
+          "ownerLane": "analytics-agent",
+          "notes": "Expose blocked Durham motion instead of smoothing it over."
+        },
+        {
+          "key": "first_lawful_access_path",
+          "kind": "milestone",
+          "status": "required_not_tracked",
+          "ownerLane": "city-launch-agent",
+          "notes": "The first Durham lawful-access path still needs explicit confirmation."
+        },
+        {
+          "key": "first_approved_capturer",
+          "kind": "milestone",
+          "status": "required_not_tracked",
+          "ownerLane": "capturer-growth-agent",
+          "notes": "The first Durham AEC-grade capturer is not approved yet."
+        },
+        {
+          "key": "first_rights_cleared_proof_asset",
+          "kind": "milestone",
+          "status": "required_not_tracked",
+          "ownerLane": "rights-provenance-agent",
+          "notes": "Rights-cleared Durham proof assets do not exist yet."
+        },
+        {
+          "key": "first_hosted_review",
+          "kind": "milestone",
+          "status": "required_not_tracked",
+          "ownerLane": "buyer-solutions-agent",
+          "notes": "Durham hosted review remains a downstream milestone."
+        }
+      ],
+      "namedClaims": [
+        {
+          "subject": "Durham Logistics Center",
+          "claimType": "company",
+          "claim": "Durham Logistics Center is a real Durham logistics-site candidate worth keeping in the first operator access path, but it is not proof-ready and the initial scope must stay subscale.",
+          "validationRequired": true,
+          "sourceUrls": []
+        },
+        {
+          "subject": "Welcome Venture Park",
+          "claimType": "company",
+          "claim": "Welcome Venture Park remains an adjacent Durham logistics candidate, not an activated Blueprint site.",
+          "validationRequired": true,
+          "sourceUrls": []
+        },
+        {
+          "subject": "Triangle AEC survey supply",
+          "claimType": "delivery",
+          "claim": "Triangle AEC-grade survey firms are the preferred Durham supply lane over generic gig capture.",
+          "validationRequired": true,
+          "sourceUrls": []
+        },
+        {
+          "subject": "Durham buyer lane",
+          "claimType": "stack",
+          "claim": "Durham buyer direct outreach should stay blocked until recipient-backed contacts and artifact-fit requirements are verified.",
+          "validationRequired": true,
+          "sourceUrls": []
+        }
+      ]
+    },
+    "warnings": [
+      "Activation-ready buyer direct-outreach lanes for Durham, NC have named targets but no explicit contact_email evidence."
+    ],
+    "errors": []
+  },
+  "activationPayloadPresent": true,
+  "activationIssueSeeds": 6,
+  "prospectsUpserted": 3,
+  "buyerTargetsUpserted": 2,
+  "touchesRecorded": 2,
+  "budgetRecommendationsRecorded": 2,
+  "contactEnrichmentStatus": "no_changes",
+  "contactEnrichmentArtifactPath": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-execution/durham-nc/2026-04-22T21-47-28.818Z/city-launch-research-materialization-durham-nc.contact-enrichment.json",
+  "warnings": [
+    "Activation-ready buyer direct-outreach lanes for Durham, NC have named targets but no explicit contact_email evidence.",
+    "A newer deep-research refresh is still in progress. Materialized the latest completed playbook."
+  ]
+}

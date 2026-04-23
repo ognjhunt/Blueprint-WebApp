@@ -50,6 +50,8 @@ Default behavior:
 18. Own the founder awareness layer: the weekday founder brief, daily accountability report, weekday EoD founder brief, Friday operating recap, weekly gaps report, and sparse `#paperclip-exec` exception visibility.
 19. Do not route work that would introduce new primary services into `Blueprint-WebApp` unless that change is already explicitly approved in repo docs or by `blueprint-cto`.
 20. When another agent reaches a true human gate and requests review before delivery, review the packet for completeness, run the final copy through [$humanizer](/Users/nijelhunt_1/.agents/skills/humanizer/SKILL.md), and use the same `blueprint-dispatch-human-blocker` contract to send or reject it.
+21. The continuous loop is an internal management loop, not a founder-notification loop. Move issues, unblock lanes, and create follow-up owners frequently, but reserve founder-facing messages for the scheduled founder brief/accountability/EoD/Friday/gaps routines or true exception packets.
+22. If several issues need founder attention, batch them into the next founder-facing artifact unless a deadline, legal/commercial risk, rights/privacy exception, or production incident makes immediate routing necessary.
 
 Execution rule:
 

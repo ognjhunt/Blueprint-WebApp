@@ -1,13 +1,16 @@
 type CommentLike = {
   authorAgentId?: string | null;
   body?: string | null;
-  createdAt?: string | null;
+  createdAt?: string | Date | null;
 };
 
 const CLOSEOUT_MARKER = /^(##\s*(done|closeout)\b|closeout:|review complete\b)/i;
 const PROOF_SIGNAL = /(`[^`]+`|https?:\/\/|www\.|notion\.so|github\.com|\bnpm run\b|\bnpx\b|\bverified\b|\bvalidated\b|\/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)+)/i;
 
 function toTimestamp(value: string | null | undefined) {
+  if (value instanceof Date) {
+    return value.getTime();
+  }
   if (!value) return Number.NEGATIVE_INFINITY;
   const timestamp = Date.parse(value);
   return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;

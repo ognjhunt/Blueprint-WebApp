@@ -1,0 +1,60 @@
+{
+  "status": "no_changes",
+  "city": "Durham, NC",
+  "city_slug": "durham-nc",
+  "source_artifact_path": "/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-deep-research.md",
+  "recovered_buyer_target_contacts": 0,
+  "recovered_capture_candidate_contacts": 0,
+  "unresolved_buyer_targets": [
+    "BotBuilt",
+    "ROI Industries"
+  ],
+  "unresolved_capture_candidates": [
+    "Welcome Venture Park (candidate only)"
+  ],
+  "warnings": [
+    "Activation-ready buyer direct-outreach lanes for Durham, NC have named targets but no explicit contact_email evidence."
+  ],
+  "errors": [],
+  "buyer_target_candidates": [
+    {
+      "company_name": "BotBuilt",
+      "contact_name": null,
+      "contact_email": null,
+      "notes": "Keep as a researched buyer candidate only until recipient-backed contact and exact site demand are verified.",
+      "source_key": "buyer_target_candidates[0]",
+      "source_type": "deep_research_playbook"
+    },
+    {
+      "company_name": "ROI Industries",
+      "contact_name": null,
+      "contact_email": null,
+      "notes": "Do not treat the generic ROI inbox as launch-ready buyer evidence.",
+      "source_key": "buyer_target_candidates[1]",
+      "source_type": "deep_research_playbook"
+    }
+  ],
+  "capture_location_candidates": [
+    {
+      "name": "Durham Logistics Center (subscale empty-bay candidate)",
+      "contact_email": "madison.jones@lovettindustrial.com",
+      "priority_note": "Start with one sub-10,000 sq ft bay only after site authorization and export-control screening are confirmed.",
+      "source_key": "capture_location_candidates[0]",
+      "source_type": "deep_research_playbook"
+    },
+    {
+      "name": "Durham Logistics Center (leasing route candidate)",
+      "contact_email": "andrew.young@colliers.com",
+      "priority_note": "Useful as a leasing-route introduction, but still validation-required for lawful access.",
+      "source_key": "capture_location_candidates[1]",
+      "source_type": "deep_research_playbook"
+    },
+    {
+      "name": "Welcome Venture Park (candidate only)",
+      "contact_email": null,
+      "priority_note": "Do not promote as proof-ready or launch-ready.",
+      "source_key": "capture_location_candidates[2]",
+      "source_type": "deep_research_playbook"
+    }
+  ]
+}

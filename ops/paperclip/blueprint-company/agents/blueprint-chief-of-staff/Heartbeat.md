@@ -13,6 +13,9 @@
 - inspect routine alerts and active non-idle agents
 - confirm whether completed work needs proof, closure, or a follow-on issue
 - push the next owner before the thread cools off
+- run as an internal manager pass: prefer issue movement, ownership repair, blocker dedupe, and wake/reroute actions over founder-facing narrative
+- do not send founder-visible summaries from continuous-loop runs unless there is a true exception packet; batch normal founder visibility into the scheduled founder brief/accountability/EoD/Friday/gaps routines
+- skip missed continuous-loop runs rather than piling up stale manager heartbeats; the next live pass should summarize current truth
 
 ## Founder Awareness
 - founder-report routine issues are a hard gate, not a judgment call

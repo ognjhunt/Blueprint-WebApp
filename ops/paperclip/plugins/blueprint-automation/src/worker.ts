@@ -1142,9 +1142,38 @@ type ResolveManagedIssueInput = {
   companyId: string;
   sourceType: string;
   sourceId: string;
-  resolutionStatus: "done" | "cancelled";
+  resolutionStatus: "blocked" | "done" | "cancelled";
   comment: string;
 };
+
+async function updateIssueById(
+  ctx: PluginContext,
+  companyId: string,
+  issueId: string,
+  resolutionStatus: "blocked" | "done" | "cancelled",
+  comment: string,
+) {
+  const issue = await fetchIssueByIdWithFallback(ctx, companyId, issueId);
+  if (!issue) {
+    return {
+      content: `No issue found for ${issueId}.`,
+      data: { issueId, resolved: false },
+    };
+  }
+
+  await commentAndUpdateIssueByIdWithFallback(
+    ctx,
+    companyId,
+    issue.id,
+    resolutionStatus,
+    comment,
+  );
+
+  return {
+    content: `Updated issue ${issue.id} by direct issue reference.`,
+    data: { issueId: issue.id, resolved: true, resolutionStatus },
+  };
+}
 
 let currentContext: PluginContext | null = null;
 let toolRegistrationStarted = false;
@@ -2747,6 +2776,62 @@ async function fetchPaperclipApiJson<T>(path: string, init?: RequestInit): Promi
   return await response.json() as T;
 }
 
+function isBoardAccessError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /Board access required/i.test(message);
+}
+
+async function fetchIssueByIdWithFallback(ctx: PluginContext, companyId: string, issueId: string) {
+  try {
+    return await ctx.issues.get(issueId, companyId);
+  } catch (error) {
+    if (!isBoardAccessError(error)) {
+      throw error;
+    }
+    return await fetchPaperclipApiJson<Issue>(`/api/issues/${issueId}`).catch(() => null);
+  }
+}
+
+async function commentAndUpdateIssueByIdWithFallback(
+  ctx: PluginContext,
+  companyId: string,
+  issueId: string,
+  resolutionStatus: "blocked" | "done" | "cancelled",
+  comment: string,
+) {
+  const issue = await fetchIssueByIdWithFallback(ctx, companyId, issueId);
+  if (!issue) {
+    return null;
+  }
+  if (issue.status === resolutionStatus) {
+    return issue;
+  }
+
+  try {
+    await ctx.issues.createComment(issue.id, comment, companyId);
+    if (issue.status !== resolutionStatus) {
+      await ctx.issues.update(issue.id, { status: resolutionStatus }, companyId);
+    }
+    return issue;
+  } catch (error) {
+    if (!isBoardAccessError(error)) {
+      throw error;
+    }
+  }
+
+  await fetchPaperclipApiJson(`/api/issues/${issue.id}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ body: comment }),
+  });
+  if (issue.status !== resolutionStatus) {
+    await fetchPaperclipApiJson(`/api/issues/${issue.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: resolutionStatus }),
+    });
+  }
+  return await fetchPaperclipApiJson<Issue>(`/api/issues/${issue.id}`).catch(() => issue);
+}
+
 function safeDateRank(value: string | null | undefined) {
   if (!value) return Number.NEGATIVE_INFINITY;
   const parsed = Date.parse(value);
@@ -3156,7 +3241,22 @@ async function buildChiefOfStaffState(
     snapshot,
     issuesWithProjectName,
     agents,
-  );
+  ).catch((error) => {
+    ctx.logger.warn("chief-of-staff founder visibility build failed", {
+      companyId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return {
+      needsFounderItems: [],
+      blockedOver24h: [],
+      recentlyShipped: [],
+      queueAlerts: [],
+      routineMisses: [],
+      buyerRisks: [],
+      capturerRisks: [],
+      experimentOutcomes: [],
+    } satisfies FounderVisibilitySnapshot;
+  });
 
   return {
     ...snapshot,
@@ -6300,7 +6400,7 @@ async function getManagedIssue(ctx: PluginContext, companyId: string, fingerprin
   if (!mapping) return { mapping: null, issue: null };
   const data = (mapping.data ?? {}) as Partial<SourceMappingData>;
   const issueId = typeof data.issueId === "string" ? data.issueId : null;
-  const issue = issueId ? await ctx.issues.get(issueId, companyId) : null;
+  const issue = issueId ? await fetchIssueByIdWithFallback(ctx, companyId, issueId) : null;
   return { mapping, issue };
 }
 
@@ -7693,9 +7793,7 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
   }
 
   const existingData = (mapping.data ?? {}) as Partial<SourceMappingData>;
-  const alreadyResolved =
-    issue.status === input.resolutionStatus
-    && existingData.resolutionStatus === input.resolutionStatus;
+  const alreadyResolved = issue.status === input.resolutionStatus;
   if (alreadyResolved) {
     await upsertMapping(ctx, input.companyId, fingerprint, mapping.title ?? issue.title, input.resolutionStatus, {
       fingerprint,
@@ -7710,6 +7808,13 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
       lastSeenAt: nowIso(),
       resolutionStatus: input.resolutionStatus,
       metadata: existingData.metadata,
+    }).catch((error) => {
+      ctx.logger.warn("managed issue mapping refresh failed after resolution", {
+        companyId: input.companyId,
+        fingerprint,
+        issueId: issue.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
     });
     return { fingerprint, issue };
   }
@@ -7717,13 +7822,13 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
   const updatedIssue =
     issue.status === input.resolutionStatus
       ? issue
-      : await ctx.issues.update(
-        issue.id,
-        { status: input.resolutionStatus },
+      : await commentAndUpdateIssueByIdWithFallback(
+        ctx,
         input.companyId,
-      );
-
-  await ctx.issues.createComment(updatedIssue.id, input.comment, input.companyId);
+        issue.id,
+        input.resolutionStatus,
+        input.comment,
+      ) ?? issue;
 
   await upsertMapping(ctx, input.companyId, fingerprint, mapping.title ?? updatedIssue.title, input.resolutionStatus, {
     fingerprint,
@@ -7738,6 +7843,13 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
     lastSeenAt: nowIso(),
     resolutionStatus: input.resolutionStatus,
     metadata: existingData.metadata,
+  }).catch((error) => {
+    ctx.logger.warn("managed issue mapping update failed after resolution", {
+      companyId: input.companyId,
+      fingerprint,
+      issueId: updatedIssue.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
   });
 
   if (existingData.sourceType === "notion-work-queue") {
@@ -7768,8 +7880,22 @@ async function resolveManagedIssue(ctx: PluginContext, input: ResolveManagedIssu
     fingerprint,
     issueId: updatedIssue.id,
     detail: input.comment,
+  }).catch((error) => {
+    ctx.logger.warn("managed issue recent-event write failed after resolution", {
+      companyId: input.companyId,
+      fingerprint,
+      issueId: updatedIssue.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
   });
-  await clearManagedIssueSlackAlert(ctx, input.companyId, fingerprint);
+  await clearManagedIssueSlackAlert(ctx, input.companyId, fingerprint).catch((error) => {
+    ctx.logger.warn("managed issue slack alert clear failed after resolution", {
+      companyId: input.companyId,
+      fingerprint,
+      issueId: updatedIssue.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
 
   if (
     updatedIssue &&
@@ -12610,17 +12736,35 @@ async function registerActionHandlers(ctx: PluginContext) {
           ? "blocked"
           : "done";
     if (issueId && resolutionStatus !== "blocked") {
-      const mappings = await listSourceMappings(ctx, company.id);
-      const sourceMapping = findSourceMappingRecordByIssueId(mappings, issueId);
-      if (sourceMapping) {
-        return await resolveManagedIssue(ctx, {
-          companyId: company.id,
-          sourceType: sourceMapping.data.sourceType,
-          sourceId: sourceMapping.data.sourceId,
-          resolutionStatus,
-          comment: asString(params.comment) ?? "Resolved by Blueprint automation action.",
-        });
+      const mappings = await listSourceMappings(ctx, company.id).catch(() => null);
+      if (mappings) {
+        const sourceMapping = findSourceMappingRecordByIssueId(mappings, issueId);
+        if (sourceMapping) {
+          return await resolveManagedIssue(ctx, {
+            companyId: company.id,
+            sourceType: sourceMapping.data.sourceType,
+            sourceId: sourceMapping.data.sourceId,
+            resolutionStatus,
+            comment: asString(params.comment) ?? "Resolved by Blueprint automation action.",
+          });
+        }
       }
+      return await updateIssueById(
+        ctx,
+        company.id,
+        issueId,
+        resolutionStatus,
+        asString(params.comment) ?? "Resolved by Blueprint automation action.",
+      );
+    }
+    if (issueId) {
+      return await updateIssueById(
+        ctx,
+        company.id,
+        issueId,
+        "blocked",
+        asString(params.comment) ?? "Resolved by Blueprint automation action.",
+      );
     }
     return await resolveManagedIssue(ctx, {
       companyId: company.id,
@@ -13088,40 +13232,39 @@ async function registerToolHandlers(ctx: PluginContext) {
             ? "blocked"
             : "done";
       if (issueId && resolutionStatus !== "blocked") {
-        const mappings = await listSourceMappings(ctx, company.id);
-        const sourceMapping = findSourceMappingRecordByIssueId(mappings, issueId);
-        if (sourceMapping) {
-          const result = await resolveManagedIssue(ctx, {
-            companyId: company.id,
-            sourceType: sourceMapping.data.sourceType,
-            sourceId: sourceMapping.data.sourceId,
-            resolutionStatus,
-            comment: asString((params as Record<string, unknown>).comment) ?? "Resolved by Blueprint automation tool.",
-          });
-          return {
-            content: result.issue ? `Resolved managed issue ${result.issue.id} by issue reference.` : "No matching managed issue found for that issue id.",
-            data: result,
-          };
+        const mappings = await listSourceMappings(ctx, company.id).catch(() => null);
+        if (mappings) {
+          const sourceMapping = findSourceMappingRecordByIssueId(mappings, issueId);
+          if (sourceMapping) {
+            const result = await resolveManagedIssue(ctx, {
+              companyId: company.id,
+              sourceType: sourceMapping.data.sourceType,
+              sourceId: sourceMapping.data.sourceId,
+              resolutionStatus,
+              comment: asString((params as Record<string, unknown>).comment) ?? "Resolved by Blueprint automation tool.",
+            });
+            return {
+              content: result.issue ? `Resolved managed issue ${result.issue.id} by issue reference.` : "No matching managed issue found for that issue id.",
+              data: result,
+            };
+          }
         }
-        const issue = await ctx.issues.get(issueId, company.id);
-        if (!issue) {
-          return {
-            content: `No issue found for ${issueId}.`,
-            data: { issueId, resolved: false },
-          };
-        }
-        await ctx.issues.createComment(
-          issue.id,
-          asString((params as Record<string, unknown>).comment) ?? "Resolved by Blueprint automation tool.",
+        return await updateIssueById(
+          ctx,
           company.id,
+          issueId,
+          resolutionStatus,
+          asString((params as Record<string, unknown>).comment) ?? "Resolved by Blueprint automation tool.",
         );
-        if (issue.status !== resolutionStatus) {
-          await ctx.issues.update(issue.id, { status: resolutionStatus }, company.id);
-        }
-        return {
-          content: `Resolved issue ${issue.id} by direct issue reference.`,
-          data: { issueId: issue.id, resolved: true, resolutionStatus },
-        };
+      }
+      if (issueId) {
+        return await updateIssueById(
+          ctx,
+          company.id,
+          issueId,
+          "blocked",
+          asString((params as Record<string, unknown>).comment) ?? "Resolved by Blueprint automation tool.",
+        );
       }
       const result = await resolveManagedIssue(ctx, {
         companyId: company.id,

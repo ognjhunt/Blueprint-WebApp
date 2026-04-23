@@ -133,7 +133,7 @@ describe("human reply gmail status", () => {
     expect(status.risk).toBeNull();
   });
 
-  it("defaults the gmail watcher query to sent mail", async () => {
+  it("defaults the gmail watcher query to blocker-tagged mail", async () => {
     vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID", "client-id");
     vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET", "client-secret");
     vi.stubEnv("BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN", "refresh-token");
@@ -150,7 +150,7 @@ describe("human reply gmail status", () => {
     expect(listMessagesMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "me",
-        q: "label:sent newer_than:14d",
+        q: 'in:anywhere newer_than:14d "Blueprint Blocker ID:"',
       }),
     );
   });
