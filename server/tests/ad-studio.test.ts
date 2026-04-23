@@ -55,7 +55,11 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   },
 }));
 
-import { createAdStudioRun } from "../utils/ad-studio";
+import {
+  buildAdStudioBrief,
+  createAdStudioRun,
+  reviewAdStudioCreative,
+} from "../utils/ad-studio";
 
 beforeEach(() => {
   resetState();
@@ -121,5 +125,37 @@ describe("ad studio service", () => {
     ).rejects.toThrow(
       "Ad Studio run requires audience, CTA, budget cap, aspect ratio, and claim boundaries.",
     );
+  });
+
+  it("builds a capturer brief with synthetic public-indoor scene guidance", async () => {
+    const { brief } = await buildAdStudioBrief({
+      lane: "capturer",
+      audience: "public indoor capturers",
+      cta: "Apply to capture public indoor spaces",
+      budgetCapUsd: 250,
+      city: "Atlanta",
+      allowedClaims: ["Illustrative scenes allowed"],
+      blockedClaims: ["No fabricated payout proof"],
+      aspectRatio: "9:16",
+    });
+
+    expect(brief.visualDirection).toContain("public-facing indoor");
+    expect(brief.copyHooks.length).toBeGreaterThan(0);
+    expect(brief.copyHooks[0]).toContain("capture");
+  });
+
+  it("fails review when synthetic proof is presented as real", () => {
+    const result = reviewAdStudioCreative({
+      headline: "Earn $430 today capturing a real Atlanta gym",
+      primaryText: "Three capturers already got paid this week.",
+      claimsLedger: {
+        allowedClaims: ["Illustrative scenes allowed"],
+        blockedClaims: ["No fabricated earnings or captured sites"],
+        evidenceLinks: [],
+      },
+    });
+
+    expect(result.status).toBe("failed_claims_review");
+    expect(result.reasons).toContain("Creative presents fabricated proof as real.");
   });
 });

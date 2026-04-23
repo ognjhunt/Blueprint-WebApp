@@ -55,6 +55,24 @@ export interface AdStudioRunRecord {
   updatedAtIso: string;
 }
 
+export interface AdStudioBrief {
+  lane: AdStudioLane;
+  visualDirection: string;
+  copyHooks: string[];
+  claimsLedger: AdStudioClaimsLedger;
+}
+
+export interface ReviewAdStudioCreativeInput {
+  headline: string;
+  primaryText: string;
+  claimsLedger: Pick<AdStudioClaimsLedger, "allowedClaims" | "blockedClaims" | "evidenceLinks">;
+}
+
+export interface ReviewAdStudioCreativeResult {
+  status: "draft_safe" | "failed_claims_review";
+  reasons: string[];
+}
+
 function serverTimestampValue() {
   return admin?.firestore?.FieldValue?.serverTimestamp?.() ?? new Date();
 }
@@ -168,5 +186,70 @@ export async function createAdStudioRun(input: CreateAdStudioRunInput) {
   return {
     id: ref.id,
     run,
+  };
+}
+
+export async function buildAdStudioBrief(input: CreateAdStudioRunInput) {
+  const normalized = assertCreateContract(input);
+
+  const visualDirection =
+    input.lane === "capturer"
+      ? "Use synthetic public-facing indoor scenes, creator workflow framing, and iPhone-style or wearable POV overlays."
+      : "Use synthetic exact-site hosted-review dramatizations, operator review surfaces, and deployment-risk framing.";
+
+  const copyHooks =
+    input.lane === "capturer"
+      ? [
+        "Get paid to capture public indoor spaces near you.",
+        "Capture once, build repeatable local work.",
+        "POV: your phone turns a public space into a Blueprint-ready capture run.",
+      ]
+      : [
+        "Review the exact site before your robot shows up.",
+        "Cut deployment uncertainty with a hosted exact-site review.",
+        "See the site question before another travel-heavy review cycle.",
+      ];
+
+  const brief: AdStudioBrief = {
+    lane: input.lane,
+    visualDirection,
+    copyHooks,
+    claimsLedger: {
+      allowedClaims: normalized.allowedClaims,
+      blockedClaims: normalized.blockedClaims,
+      evidenceLinks: [],
+      reviewDecision: "pending",
+      reviewNotes: [],
+    },
+  };
+
+  return { brief };
+}
+
+export function reviewAdStudioCreative(
+  input: ReviewAdStudioCreativeInput,
+): ReviewAdStudioCreativeResult {
+  const text = `${normalizeString(input.headline)} ${normalizeString(input.primaryText)}`.toLowerCase();
+  const fabricatedProofPatterns = [
+    /\bearn(?:ed|ing)?\s*\$\d+/i,
+    /\bgot paid\b/i,
+    /\breal [a-z0-9 -]+ (gym|store|mall|hotel|library|museum|airport|site|facility)\b/i,
+    /\balready got paid\b/i,
+    /\bthree capturers\b/i,
+    /\bthis week\b/i,
+  ];
+
+  const fabricatedProof = fabricatedProofPatterns.some((pattern) => pattern.test(text));
+
+  if (fabricatedProof) {
+    return {
+      status: "failed_claims_review",
+      reasons: ["Creative presents fabricated proof as real."],
+    };
+  }
+
+  return {
+    status: "draft_safe",
+    reasons: [],
   };
 }
