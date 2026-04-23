@@ -20,18 +20,18 @@ const updates = [
     body:
       "From raw scans to placeable geometry and behavior, the package stays tied to one facility.",
   },
-  {
-    index: "03",
-    title: "Inside a site package",
-    body:
-      "What is included, how it is structured, and why the buyer surface should stay readable.",
-  },
-  {
-    index: "04",
-    title: "Hosted evaluation in practice",
-    body:
-      "What a managed review room should feel like when it mirrors one real site instead of a generic benchmark.",
-  },
+	  {
+	    index: "03",
+	    title: "Inside a site package",
+	    body:
+	      "What is included, how it is structured, and why the buyer surface stays readable.",
+	  },
+	  {
+	    index: "04",
+	    title: "Hosted evaluation in practice",
+	    body:
+	      "How a managed review room mirrors one real site instead of a generic benchmark.",
+	  },
   {
     index: "05",
     title: "Fidelity over finish",

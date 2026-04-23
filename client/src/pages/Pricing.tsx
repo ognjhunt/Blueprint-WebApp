@@ -5,9 +5,8 @@ import {
   EditorialSectionIntro,
   EditorialSectionLabel,
   MonochromeMedia,
-  ProofChip,
 } from "@/components/site/editorial";
-import { exactSiteScopingCallPath } from "@/lib/booking";
+import { exactSiteScopingCallUrl } from "@/lib/booking";
 import { publicDemoHref } from "@/lib/marketingProof";
 import {
   ArrowRight,
@@ -19,19 +18,19 @@ import {
 } from "lucide-react";
 
 const packageBullets = [
-  "Exact-site 3D model and geometry coverage",
-  "Semantic labels and object library",
-  "Robot-ready navigation graph",
-  "Validation report and coverage maps",
-  "Export bundle for offline use",
+  "Capture manifest, site notes, and provenance",
+  "Geometry/depth assets when the package supports them",
+  "Route graph and workflow lanes for the selected site",
+  "Rights sheet, freshness state, and export limits",
+  "Offline export bundle for your stack",
 ];
 
 const hostedBullets = [
   "Hosted exact-site environment",
-  "Route replay and scenario variation",
-  "Multi-view sensor observation",
-  "Sharable sessions and result exports",
-  "Expert review and guidance",
+  "Scoped route replay and scenario variation",
+  "Observation frames from the hosted review surface",
+  "Sharable session notes and result exports",
+  "Run evidence with truthful limits called out",
 ];
 
 const enterpriseBullets = [
@@ -43,12 +42,40 @@ const enterpriseBullets = [
 ];
 
 const comparisonArtifacts = [
-  { label: "3D model", detail: "Exact-site geometry", icon: Boxes },
-  { label: "Navigation graph", detail: "Robot-ready routes", icon: Map },
-  { label: "Export bundle", detail: "Run anywhere", icon: ShieldCheck },
-  { label: "Route replay", detail: "Test real paths", icon: CirclePlay },
-  { label: "Sensor views", detail: "See it like the robot", icon: ScanEye },
-  { label: "Site control", detail: "Operate at scale", icon: ShieldCheck },
+  { label: "Capture record", detail: "Where evidence came from", icon: Boxes },
+  { label: "Route graph", detail: "Site-specific paths", icon: Map },
+  { label: "Rights sheet", detail: "Use and export limits", icon: ShieldCheck },
+  { label: "Hosted review", detail: "Scoped reruns", icon: CirclePlay },
+  { label: "Observation frames", detail: "Review what the run saw", icon: ScanEye },
+  { label: "Change state", detail: "Freshness and recapture notes", icon: ShieldCheck },
+];
+
+const pricingExamples = [
+  {
+    title: "First exact-site evaluation",
+    price: "$2,150-$3,500 typical",
+    body: "One public or commercial site package plus three hosted review hours. Useful when the team needs one concrete site decision before travel, pilot planning, or integration work.",
+    items: ["Site package", "3 hosted hours", "Manifest, rights sheet, hosted report"],
+  },
+  {
+    title: "Hosted-only fit check",
+    price: "$160-$435 typical",
+    body: "Five to fifteen hosted review hours on a request-scoped site. Useful when the team wants reruns and evidence before moving a full package into its own stack.",
+    items: ["Hosted setup", "Run notes", "Evidence export"],
+  },
+  {
+    title: "Bring your site",
+    price: "Scoped",
+    body: "A grocery, retail, service, campus, or private facility can enter the capture path when lawful access, privacy handling, and buyer usefulness are clear enough to review.",
+    items: ["Capture scope", "Privacy review", "Package or hosted path"],
+  },
+];
+
+const scopeFactors = [
+  "Site size and capture depth",
+  "Private-site access or custom rights review",
+  "Export format and integration requirements",
+  "Recapture, change detection, or multi-site rollout",
 ];
 
 function PricePanel({
@@ -138,7 +165,7 @@ export default function Pricing() {
                   Choose the right path.
                 </h1>
                 <p className="mt-6 text-lg leading-8 text-slate-700">
-                  Exact-site world models for real facilities and the robots that run in them.
+                  Exact-site world models for real locations, from everyday public-facing places to private deployment sites.
                 </p>
               </div>
             </div>
@@ -151,7 +178,7 @@ export default function Pricing() {
             eyebrow="Own your exact-site world model."
             title="Site Package"
             price="$2,100 – $3,400"
-            body="Capture your facility once and receive a complete site package your team can run anywhere."
+            body="License one captured site package with the manifest, routes, rights notes, and exports your team needs to evaluate the exact place."
             bullets={packageBullets}
             image="/generated/editorial/pricing-hero.png"
             imageAlt="Site package illustration"
@@ -161,17 +188,17 @@ export default function Pricing() {
               <div className="grid w-full max-w-[32rem] gap-4 md:grid-cols-[0.52fr_0.48fr]">
                 <div className="rounded-[1.6rem] border border-white/10 bg-black/56 p-5 text-white">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Blueprint site package</p>
-                  <p className="mt-5 text-2xl font-semibold">Rivergate DC 01</p>
-                  <p className="mt-3 text-sm text-white/62">Capture date · Apr 22, 2025</p>
+                  <p className="mt-5 text-2xl font-semibold">Market Hall Grocery</p>
+                  <p className="mt-3 text-sm text-white/62">Sample capture date · Mar 13, 2026</p>
                 </div>
                 <div className="space-y-3">
                   <div className="rounded-[1.2rem] border border-white/10 bg-white/90 p-4">
                     <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Manifest</p>
-                    <p className="mt-2 text-sm text-slate-700">Geometry, routes, labels, and provenance attached.</p>
+                    <p className="mt-2 text-sm text-slate-700">Routes, site notes, rights, freshness, and provenance attached.</p>
                   </div>
                   <div className="rounded-[1.2rem] border border-white/10 bg-white/90 p-4">
                     <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Coverage map</p>
-                    <p className="mt-2 text-sm text-slate-700">Exact-site layout and path coverage visible.</p>
+                    <p className="mt-2 text-sm text-slate-700">Exact-site path coverage and export boundaries visible.</p>
                   </div>
                 </div>
               </div>
@@ -183,7 +210,7 @@ export default function Pricing() {
             eyebrow="Test on your site. Remotely."
             title="Hosted Evaluation"
             price="$16 – $29 / session-hour"
-            body="Blueprint hosts the exact-site world model so your team can replay routes, test behaviors, and evaluate robot performance without disrupting operations."
+            body="Blueprint hosts the exact-site world model so your team can review configured routes, reruns, observations, and outputs before moving deeper."
             bullets={hostedBullets}
             image="/generated/editorial/hosted-hero.png"
             imageAlt="Hosted evaluation panel"
@@ -220,10 +247,10 @@ export default function Pricing() {
 
           <PricePanel
             index="03"
-            eyebrow="Deploy across sites. Operate with confidence."
+            eyebrow="Private sites, multiple markets, or deeper ops."
             title="Enterprise"
             price="$50,000+ scoped"
-            body="Use this path when the site is private, the rights model is custom, or your team needs Blueprint-managed rollout support across multiple facilities."
+            body="Use this path when the site is private, the rights model is custom, or your team needs Blueprint-managed rollout support across multiple locations."
             bullets={enterpriseBullets}
             image="/generated/editorial/manufacturing-plant.png"
             imageAlt="Enterprise operations view"
@@ -266,6 +293,46 @@ export default function Pricing() {
           </PricePanel>
         </section>
 
+        <section className="mx-auto max-w-[88rem] px-5 pb-8 sm:px-8 lg:px-10">
+          <div className="grid gap-4 lg:grid-cols-[0.42fr_0.58fr]">
+            <div className="border border-black/10 bg-white p-6 lg:p-8">
+              <EditorialSectionIntro
+                eyebrow="Example scopes"
+                title="What the first bill usually means."
+                description="Pricing changes when the place is larger, the rights path is custom, or the export contract needs deeper integration work."
+              />
+              <div className="mt-6 border-t border-black/10 pt-5">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Scope changes with</p>
+                <div className="mt-4 grid gap-2">
+                  {scopeFactors.map((item) => (
+                    <div key={item} className="border border-black/10 bg-[#f8f6f1] px-4 py-3 text-sm text-slate-700">
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {pricingExamples.map((example) => (
+                <article key={example.title} className="border border-black/10 bg-white p-5">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{example.price}</p>
+                  <h2 className="mt-4 text-[1.55rem] leading-[1.02] tracking-[-0.04em] text-slate-950">
+                    {example.title}
+                  </h2>
+                  <p className="mt-3 text-sm leading-6 text-slate-700">{example.body}</p>
+                  <div className="mt-5 grid gap-2">
+                    {example.items.map((item) => (
+                      <span key={item} className="border border-black/10 bg-[#f8f6f1] px-3 py-2 text-sm text-slate-700">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="mx-auto max-w-[88rem] px-5 pb-16 sm:px-8 lg:px-10 lg:pb-20">
           <div className="overflow-hidden rounded-[2rem] border border-black/10 bg-white shadow-[0_24px_60px_-42px_rgba(15,23,42,0.18)]">
             <div className="border-b border-black/10 px-6 py-5">
@@ -301,7 +368,7 @@ export default function Pricing() {
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
             <a
-              href={exactSiteScopingCallPath}
+              href={exactSiteScopingCallUrl}
               className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-50"
             >
               Book scoping call

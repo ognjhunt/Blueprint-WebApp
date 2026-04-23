@@ -69,7 +69,7 @@ export function getSiteWorldCommercialStatus(
       label: "Refresh or evidence review required",
       tone: "border-amber-200 bg-amber-50 text-amber-700",
       summary:
-        "The listing is inspectable, but freshness, missing evidence, or recapture signals need review before the team should rely on it for a commercial decision.",
+        "The listing is inspectable, but freshness, missing evidence, or recapture signals need review before the team relies on it for a commercial decision.",
       buyerNote:
         "Use the public listing to assess fit, then confirm the refresh and evidence path before package access or hosted evaluation moves forward.",
     };
@@ -100,7 +100,7 @@ export function getSiteWorldCommercialStatus(
 
 export function getSiteWorldProofDepth(site: PublicSiteWorldRecord) {
   if (isPublicSampleSiteWorld(site)) return "Public demo + current public proof assets";
-  if (isCommercialExemplarSiteWorld(site)) return "Commercial exemplar with listing proof + hosted evidence";
+  if (isCommercialExemplarSiteWorld(site)) return "Commercial exemplar with listing proof fields + request-scoped hosted path";
   if (site.worldLabsPreview?.launchUrl) return "Listing + hosted path disclosure + fallback preview";
   if (site.deploymentReadiness?.native_world_model_primary) return "Listing + hosted path disclosure";
   return "Listing only";
@@ -183,7 +183,7 @@ export function getSiteWorldPlainEnglishProof(site: PublicSiteWorldRecord) {
   }
 
   if (isCommercialExemplarSiteWorld(site)) {
-    return "This listing is the commercial exemplar: real pricing, richer proof cards, and a clearer path into hosted evaluation or package access.";
+    return "This listing is the commercial exemplar: real pricing, listing proof fields, and a clearer path into hosted evaluation or package access.";
   }
 
   if (getSiteWorldPublicProofSummary(site) === "Listing metadata only") {

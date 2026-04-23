@@ -17,6 +17,8 @@ import {
   getSiteWorldPlainEnglishRestrictions,
   getSiteWorldPlainEnglishStatus,
   getSiteWorldProofDepth,
+  getSiteWorldPublicProofSummary,
+  isPublicSampleSiteWorld,
 } from "@/lib/siteWorldCommercialStatus";
 import { fetchSiteWorldDetail } from "@/lib/siteWorldsApi";
 import type { PublicSiteWorldRecord } from "@/types/inbound-request";
@@ -70,8 +72,8 @@ const WORLDLABS_STATUS_COPY: Record<
   },
 };
 
-function formatFreshnessLabel(value?: string | null) {
-  if (!value) return "Current review";
+function formatDateValue(value?: string | null, fallback = "Request-scoped") {
+  if (!value) return fallback;
   const timestamp = new Date(value);
   if (Number.isNaN(timestamp.getTime())) return value;
   return timestamp.toLocaleDateString("en-US", {
@@ -80,6 +82,50 @@ function formatFreshnessLabel(value?: string | null) {
     year: "numeric",
   });
 }
+
+function humanizeLabel(value?: string | null, fallback = "Request-scoped") {
+  const raw = String(value || "").trim();
+  if (!raw) return fallback;
+  return raw
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function formatCaptureDate(site: PublicSiteWorldRecord) {
+  return formatDateValue(site.deploymentReadiness?.freshness_date);
+}
+
+function formatReviewDate(site: PublicSiteWorldRecord) {
+  return formatDateValue(site.deploymentReadiness?.freshness_date);
+}
+
+function formatFreshnessState(site: PublicSiteWorldRecord) {
+  if (site.deploymentReadiness?.recapture_required) return "Recapture required";
+  return humanizeLabel(site.deploymentReadiness?.recapture_status);
+}
+
+const sampleArtifactLinks = [
+  {
+    label: "Sample manifest",
+    href: "/samples/sample-site-package-manifest.json",
+    body: "Representative package fields, capture provenance, route lanes, export modes, and quality checks.",
+  },
+  {
+    label: "Sample rights sheet",
+    href: "/samples/sample-rights-sheet.md",
+    body: "Representative rights class, sharing limits, redaction handling, and buyer-use boundaries.",
+  },
+  {
+    label: "Sample export bundle",
+    href: "/samples/sample-export-bundle.json",
+    body: "Representative export file tree and technical handoff shape.",
+  },
+  {
+    label: "Sample hosted report",
+    href: "/samples/sample-hosted-review-report.md",
+    body: "Representative hosted-review notes, run evidence, and follow-up questions.",
+  },
+] as const;
 
 function getArtifactSourceUri(site: PublicSiteWorldRecord | null | undefined, sourceId: string) {
   return site?.artifactExplorer?.sources.find((source) => source.id === sourceId)?.uri || null;
@@ -216,6 +262,8 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
   }
 
   const commercialStatus = getSiteWorldCommercialStatus(site);
+  const isPublicSample = isPublicSampleSiteWorld(site);
+  const publicProofSummary = getSiteWorldPublicProofSummary(site);
   const worldLabsPreview = site.worldLabsPreview || null;
   const worldLabsStatus = deriveWorldLabsStatus(site);
   const worldLabsStatusCopy = WORLDLABS_STATUS_COPY[worldLabsStatus];
@@ -230,8 +278,9 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
 
   const trustRows = [
     { label: "Proof depth", value: getSiteWorldProofDepth(site), width: "72%" },
-    { label: "Public proof", value: "Visible now", width: "84%" },
-    { label: "Freshness", value: formatFreshnessLabel(site.deploymentReadiness?.freshness_date), width: "64%" },
+    { label: "Public proof", value: publicProofSummary, width: "84%" },
+    { label: "Capture date", value: formatCaptureDate(site), width: "64%" },
+    { label: "Freshness", value: formatFreshnessState(site), width: "58%" },
     { label: "Status", value: commercialStatus.label, width: "88%" },
   ];
 
@@ -321,7 +370,9 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
     },
     {
       title: "Artifacts visible today",
-      body: `${site.exportArtifacts.slice(0, 4).join(", ")}.`,
+      body: isPublicSample
+        ? "Sample manifest, rights sheet, export bundle, and hosted-review report are linked below."
+        : "This commercial listing shows site metadata, price, trust fields, and request-scoped paths. Listing-specific screenshots or export previews open during follow-up.",
     },
   ];
 
@@ -369,7 +420,10 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                       {commercialStatus.label}
                     </span>
                     <span className="rounded-full border border-white/16 bg-black/24 px-4 py-2 text-sm text-white/78">
-                      {formatFreshnessLabel(site.deploymentReadiness?.freshness_date)}
+                      Capture: {formatCaptureDate(site)}
+                    </span>
+                    <span className="rounded-full border border-white/16 bg-black/24 px-4 py-2 text-sm text-white/78">
+                      Review: {formatReviewDate(site)}
                     </span>
                   </div>
                   <div className="mt-8 flex flex-wrap gap-3">
@@ -377,7 +431,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                       href={scenePackage?.actionHref || "/contact?persona=robot-team"}
                       className="inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                     >
-                      Request access
+                      Request package access
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                     <a
@@ -412,6 +466,47 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               </div>
             </div>
           </MonochromeMedia>
+        </section>
+
+        <section className="sticky top-[72px] z-20 border-b border-black/10 bg-white/96 backdrop-blur">
+          <div className="mx-auto grid max-w-[96rem] gap-3 px-5 py-4 text-sm sm:px-8 lg:grid-cols-[1fr_auto] lg:px-10">
+            <div className="grid gap-3 md:grid-cols-5">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Package</p>
+                <p className="mt-1 font-semibold text-slate-950">{scenePackage?.priceLabel || "Request scoped"}</p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Hosted</p>
+                <p className="mt-1 font-semibold text-slate-950">{hostedPackage?.priceLabel || "Request scoped"}</p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Proof</p>
+                <p className="mt-1 font-semibold text-slate-950">{getSiteWorldProofDepth(site)}</p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Capture</p>
+                <p className="mt-1 font-semibold text-slate-950">{formatCaptureDate(site)}</p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Review</p>
+                <p className="mt-1 font-semibold text-slate-950">{formatReviewDate(site)}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+              <a
+                href={scenePackage?.actionHref || "/contact?persona=robot-team"}
+                className="inline-flex items-center justify-center bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                Package access
+              </a>
+              <a
+                href={`/world-models/${site.id}/start`}
+                className="inline-flex items-center justify-center border border-black/10 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+              >
+                Hosted setup
+              </a>
+            </div>
+          </div>
         </section>
 
         <section className="border-b border-black/10 bg-white">
@@ -496,7 +591,11 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
                 Proof of fidelity
               </p>
-              <p className="mt-2 text-sm text-slate-700">Captured. Aligned. Verified.</p>
+              <p className="mt-2 text-sm text-slate-700">
+                {isPublicSample
+                  ? "Captured sample with representative public artifacts."
+                  : "Listing proof fields with request-scoped artifacts."}
+              </p>
               <div className="mt-6 grid gap-3 sm:grid-cols-[0.34fr_0.33fr_0.33fr]">
                 <MonochromeMedia
                   src={editorialRefreshAssets.detailProofCapture}
@@ -519,8 +618,9 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   <div className="mt-4 space-y-2 text-sm text-slate-700">
                     <div>Session ID: {site.captureId}</div>
                     <div>Frames: capture-backed</div>
-                    <div>Coverage: public proof visible</div>
-                    <div>Capture date: {formatFreshnessLabel(site.deploymentReadiness?.freshness_date)}</div>
+                    <div>Coverage: {publicProofSummary}</div>
+                    <div>Capture date: {formatCaptureDate(site)}</div>
+                    <div>Freshness: {formatFreshnessState(site)}</div>
                   </div>
                 </div>
               </div>
@@ -542,6 +642,42 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             </div>
           </div>
         </section>
+
+        {isPublicSample ? (
+          <section className="border-y border-black/10 bg-white">
+            <div className="mx-auto max-w-[96rem] px-5 py-10 sm:px-8 lg:px-10">
+              <div className="grid gap-4 lg:grid-cols-[0.36fr_0.64fr]">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                    Public sample artifacts
+                  </p>
+                  <h2 className="font-editorial mt-3 text-[2.8rem] leading-[0.94] tracking-[-0.05em] text-slate-950">
+                    Inspect the deliverable shape.
+                  </h2>
+                  <p className="mt-4 text-sm leading-7 text-slate-700">
+                    These files are representative samples, not customer proof. They show the
+                    manifest, rights, export, and hosted-report structure a buyer reviews.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {sampleArtifactLinks.map((artifact) => (
+                    <a
+                      key={artifact.href}
+                      href={artifact.href}
+                      className="group border border-black/10 bg-[#f8f6f1] p-5 transition hover:bg-white"
+                    >
+                      <p className="flex items-center justify-between gap-4 text-sm font-semibold text-slate-950">
+                        {artifact.label}
+                        <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                      </p>
+                      <p className="mt-3 text-sm leading-6 text-slate-700">{artifact.body}</p>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         {worldLabsPreview || isAdmin ? (
           <section className="border-y border-black/10 bg-white">
@@ -708,7 +844,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
             imageSrc={editorialRefreshAssets.detailHeroWarehouse}
             imageAlt={site.siteName}
             primaryHref={scenePackage?.actionHref || "/contact?persona=robot-team"}
-            primaryLabel="Request access"
+            primaryLabel="Request package access"
             secondaryHref={`/world-models/${site.id}/start`}
             secondaryLabel="Start hosted evaluation"
           />

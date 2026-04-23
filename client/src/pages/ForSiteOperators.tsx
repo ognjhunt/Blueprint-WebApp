@@ -81,9 +81,9 @@ export default function ForSiteOperators() {
                 <div className="hidden items-end justify-end lg:flex">
                   <div className="w-full max-w-[18rem] border border-white/14 bg-black/36 p-5 text-white backdrop-blur-sm">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Operator standard</p>
-                  <p className="mt-4 text-sm leading-7 text-white/66">
-                    The operator should never have to guess what is allowed, when capture happens, or who can use the resulting asset.
-                  </p>
+	                  <p className="mt-4 text-sm leading-7 text-white/66">
+	                    The operator sees what is allowed, when capture happens, and who can use the resulting asset.
+	                  </p>
                   </div>
                 </div>
               </div>
@@ -116,10 +116,10 @@ export default function ForSiteOperators() {
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.44fr_0.56fr] lg:px-10 lg:py-12">
             <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
               <EditorialSectionIntro
-                eyebrow="Controls"
-                title="How it works and what you control."
-                description="Operator rules should be readable in the workflow itself."
-              />
+	                eyebrow="Controls"
+	                title="How it works and what you control."
+	                description="Operator rules stay readable in the workflow itself."
+	              />
             </div>
             <div className="grid gap-px bg-black/10">
               {controls.map((item) => (
@@ -144,10 +144,10 @@ export default function ForSiteOperators() {
             />
             <div>
               <EditorialSectionIntro
-                eyebrow="Eligibility"
-                title="What kinds of spaces fit."
-                description="The governance layer should work for real indoor facilities, not just one narrow template."
-              />
+	                eyebrow="Eligibility"
+	                title="What kinds of spaces fit."
+	                description="The governance layer works for real indoor facilities, not just one narrow template."
+	              />
               <div className="mt-8 flex flex-wrap gap-2">
                 {facilityTypes.map((item) => (
                   <span key={item} className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm text-slate-700">

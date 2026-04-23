@@ -21,22 +21,22 @@ export default function LaunchMap() {
   const cities = data?.cities || [];
 
   const metrics = [
-    {
-      label: "Live cities",
-      detail: `${counts.live} launch markets currently show public live status.`,
-    },
-    {
-      label: "Planned cities",
-      detail: `${counts.planned} rollout lanes are visible but not yet open for public capture.`,
-    },
-    {
-      label: "Under review",
-      detail: `${counts.underReview} cities still sit inside launch qualification and city-specific review.`,
-    },
-    {
-      label: "Interaction rule",
-      detail: "City details stay inline on this page rather than jumping into separate route views.",
-    },
+	    {
+	      label: "Live cities",
+	      detail: `${counts.live} launch markets currently show public live status for capture access.`,
+	    },
+	    {
+	      label: "Planned",
+	      detail: `${counts.planned} rollout lanes are tracked without implying public capture is open.`,
+	    },
+	    {
+	      label: "Under review",
+	      detail: `${counts.underReview} cities are under review for demand, capturer coverage, and site supply.`,
+	    },
+	    {
+	      label: "Request path",
+	      detail: "If a city is not live yet, the useful action is to request the city or submit a site lead.",
+	    },
   ];
 
   const grouped = {
@@ -47,24 +47,24 @@ export default function LaunchMap() {
 
   return (
     <>
-      <SEO
-        title="Blueprint Launch Map | Public City Rollout"
-        description="See where Blueprint is live, planned, and under review across the United States."
-        canonical="/launch-map"
-      />
+	      <SEO
+	        title="Blueprint Launch Map | City Requests And Rollout Status"
+	        description="See truthful Blueprint city rollout status and request public-facing capture coverage for a city or site."
+	        canonical="/launch-map"
+	      />
 
       <div className="bg-[#f5f3ef] text-slate-950">
         <section className="border-b border-black/10 bg-[linear-gradient(180deg,#fbfaf6_0%,#f1efea_100%)]">
           <div className="mx-auto max-w-[88rem] px-5 py-12 sm:px-8 lg:px-10 lg:py-14">
             <div className="grid gap-8 lg:grid-cols-[0.62fr_0.38fr] lg:items-end">
               <div className="max-w-[40rem]">
-                <EditorialSectionLabel>Public launch map</EditorialSectionLabel>
-                <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] sm:text-[5rem]">
-                  Where Blueprint is live.
-                </h1>
-                <p className="mt-6 max-w-[30rem] text-base leading-8 text-slate-700">
-                  This is the public rollout surface. Live, planned, and under-review states stay visible without pretending every city is already open.
-                </p>
+	                <EditorialSectionLabel>Public launch map</EditorialSectionLabel>
+	                <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] sm:text-[5rem]">
+	                  Request the next city or site.
+	                </h1>
+	                <p className="mt-6 max-w-[30rem] text-base leading-8 text-slate-700">
+	                  This page keeps rollout status honest. If your city is not live yet, send the public-facing location or capture market Blueprint needs to prioritize.
+	                </p>
               </div>
 
               <div className="flex flex-wrap gap-2 lg:justify-end">
@@ -83,11 +83,11 @@ export default function LaunchMap() {
         <section className="mx-auto max-w-[88rem] px-5 pb-10 sm:px-8 lg:px-10 lg:pb-12">
           <div className="grid gap-6 lg:grid-cols-[0.34fr_0.66fr]">
             <div className="space-y-6">
-              <EditorialSectionIntro
-                eyebrow="Rollout posture"
-                title="Public status should read clearly."
-                description="Each city keeps its current launch meaning inline. The map is a public product surface, not a hidden ops dashboard."
-              />
+	              <EditorialSectionIntro
+	                eyebrow="Rollout posture"
+	                title="Public status stays narrow."
+	                description="Only live cities imply public capture access. Planned and under-review markets are demand signals, not open capture availability."
+	              />
 
               {([
                 ["live", grouped.live],
@@ -113,8 +113,10 @@ export default function LaunchMap() {
                           </div>
                         ))
                       ) : (
-                        <p className="text-sm text-slate-400">No cities currently shown in this state.</p>
-                      )}
+	                        <p className="text-sm leading-6 text-slate-400">
+	                          No public cities currently shown in this state. Use the request path to add city or site demand.
+	                        </p>
+	                      )}
                     </div>
                   </div>
                 );
@@ -139,17 +141,17 @@ export default function LaunchMap() {
 
         <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
           <EditorialCtaBand
-            eyebrow="Next step"
-            title="Use the launch surface to decide where to lean in."
-            description="If the city you care about is already live, move into hosted review or a buyer brief. If it is not, keep the request scoped and truthful."
-            imageSrc={editorialGeneratedAssets.homeHero}
-            imageAlt="Blueprint rollout proof"
-            primaryHref="/book-exact-site-review"
-            primaryLabel="Book hosted review"
-            secondaryHref="/contact?persona=launch-map"
-            secondaryLabel="Talk to Blueprint"
-            dark={false}
-          />
+	            eyebrow="Next step"
+	            title="Tell Blueprint which city or place matters."
+	            description="Send the city, public-facing location type, and whether you are a robot team, site operator, or capturer. Blueprint keeps the status truthful until the market is actually open."
+	            imageSrc={editorialGeneratedAssets.homeHero}
+	            imageAlt="Blueprint rollout proof"
+	            primaryHref="/contact?persona=launch-map"
+	            primaryLabel="Request a city or site"
+	            secondaryHref="/capture-app/launch-access?source=launch-map"
+	            secondaryLabel="Join capture access"
+	            dark={false}
+	          />
         </section>
       </div>
     </>

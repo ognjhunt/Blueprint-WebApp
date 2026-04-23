@@ -13,8 +13,10 @@ import { SiteLayout } from "../client/src/components/site/SiteLayout";
 import Home from "../client/src/pages/Home";
 import Capture from "../client/src/pages/Capture";
 import CaptureAppPlaceholder from "../client/src/pages/CaptureAppPlaceholder";
+import CaptureLaunchAccess from "../client/src/pages/CaptureLaunchAccess";
 import SiteWorlds from "../client/src/pages/SiteWorlds";
 import SiteWorldDetail from "../client/src/pages/SiteWorldDetail";
+import HostedSessionSetup from "../client/src/pages/HostedSessionSetup";
 import ForSiteOperators from "../client/src/pages/ForSiteOperators";
 import ForRobotIntegrators from "../client/src/pages/ForRobotIntegrators";
 import Solutions from "../client/src/pages/Solutions";
@@ -53,6 +55,7 @@ const staticRoutes: StaticRoute[] = [
   { path: "/world-models", component: SiteWorlds },
   { path: "/site-worlds", component: SiteWorlds },
   { path: "/capture-app", component: CaptureAppPlaceholder },
+  { path: "/capture-app/launch-access", component: CaptureLaunchAccess },
   { path: "/for-site-operators", component: ForSiteOperators },
   { path: "/for-robot-teams", component: ForRobotIntegrators },
   { path: "/solutions", component: Solutions },
@@ -78,6 +81,11 @@ const staticRoutes: StaticRoute[] = [
   ...siteWorldCards.map((site) => ({
     path: `/world-models/${site.id}`,
     component: SiteWorldDetail,
+    props: { params: { slug: site.id } },
+  })),
+  ...siteWorldCards.map((site) => ({
+    path: `/world-models/${site.id}/start`,
+    component: HostedSessionSetup,
     props: { params: { slug: site.id } },
   })),
 ];

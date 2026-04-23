@@ -125,7 +125,7 @@ export const trustFaqItems = [
   {
     question: "What proof is included with every public world-model listing?",
     answer:
-      "Blueprint keeps the facility identifier, capture timing, proof depth, and public artifact framing visible. Some listings also include runtime stills, sample manifests, or hosted-path disclosure.",
+      "Blueprint keeps the site identifier, capture timing, proof depth, and public artifact framing visible. Some listings also include runtime stills, sample manifests, or hosted-path disclosure.",
   },
   {
     question: "Who owns the data and the world model?",
@@ -138,7 +138,7 @@ export const trustFaqItems = [
       "Yes. Hosted access and package release remain entitlement-controlled and can stay limited to the named buyer team and approved collaborators.",
   },
   {
-    question: "How often should we recapture a facility?",
+    question: "How often do we recapture a site?",
     answer:
       "That depends on operational drift and the workflow in scope. Blueprint surfaces freshness and recapture signals so the buyer can decide whether the current package is still fit for the question at hand.",
   },

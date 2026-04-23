@@ -139,12 +139,12 @@ export default function ForRobotIntegrators() {
         <section className="border-y border-black/10 bg-white">
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.42fr_0.58fr] lg:px-10 lg:py-12">
             <div className="bg-slate-950 px-6 py-8 text-white lg:px-8 lg:py-10">
-              <EditorialSectionIntro
-                eyebrow="What this is"
-                title="A site-specific product, not a benchmark theater."
-                description="The page should make clear what you get and what it does not claim."
-                light
-              />
+	              <EditorialSectionIntro
+	                eyebrow="What this is"
+	                title="A site-specific product, not a benchmark theater."
+	                description="This path makes the deliverable and the truthful limits visible before the team moves deeper."
+	                light
+	              />
               <p className="mt-8 text-sm leading-7 text-white/68">
                 This path works well for policy fine-tuning, training data generation, release comparison, and hosted evaluation. It does not replace final on-site safety validation or stack-specific signoff.
               </p>

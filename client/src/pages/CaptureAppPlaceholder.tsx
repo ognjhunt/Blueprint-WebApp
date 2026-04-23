@@ -16,15 +16,15 @@ import { privateGeneratedAssets } from "@/lib/privateGeneratedAssets";
 const steps = [
   {
     label: "Plan",
-    body: "Map the route, confirm the access path, and identify the zones that matter.",
+    body: "Pick a lawful public-facing route, identify sensitive zones, and keep the walkthrough narrow.",
   },
   {
     label: "Capture",
-    body: "Record one usable walkthrough with the device you actually plan to use.",
+    body: "Record grocery, retail, service, library, lobby, or other everyday spaces from common areas.",
   },
   {
     label: "Process",
-    body: "Blueprint reviews coverage and turns the usable record into site-specific output.",
+    body: "Blueprint reviews coverage, privacy, and usefulness before the capture becomes downstream output.",
   },
 ] as const;
 
@@ -78,14 +78,14 @@ export default function CaptureAppPlaceholder() {
   return (
     <>
       <SEO
-        title="Capture App | Blueprint"
-        description="Open the Blueprint capture app or request invite-gated capturer access."
-        canonical="/capture-app"
-        noIndex
-      />
+	        title="Capture App | Blueprint"
+	        description="Open Blueprint Capture to record lawful public-facing locations and submit walkthrough evidence for review."
+	        canonical="/capture-app"
+	        noIndex
+	      />
 
       <SurfacePage>
-        <SurfaceTopBar eyebrow="Capture Access" rightLabel="Invite-Gated Handoff" />
+        <SurfaceTopBar eyebrow="Capture Access" rightLabel="Public Capture Handoff" />
         <SurfaceSection className="py-8">
           <SurfaceBrowserFrame className="overflow-hidden">
             <div className="grid xl:grid-cols-[0.56fr_0.44fr]">
@@ -98,21 +98,20 @@ export default function CaptureAppPlaceholder() {
                 <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.76),rgba(0,0,0,0.38)_58%,rgba(0,0,0,0.18))]" />
                 <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-4 border-b border-white/10 px-6 py-4 text-[11px] uppercase tracking-[0.22em] text-white/58">
                   <span>Capture App</span>
-                  <span>Capturer Access</span>
+	                  <span>Capture & Earn</span>
                   <span>Capture Basics</span>
                 </div>
                 <div className="relative flex h-full items-end px-6 py-8 lg:px-8">
                   <div className="max-w-[28rem]">
-                    <SurfaceMiniLabel className="text-white/52">Public Capture Handoff</SurfaceMiniLabel>
-                    <h1 className="mt-5 text-[clamp(3.5rem,7vw,6rem)] font-semibold uppercase leading-[0.86] tracking-[-0.08em] text-white">
-                      Exact site.
-                      <br />
-                      Captured.
-                    </h1>
-                    <p className="mt-5 max-w-[22rem] text-base leading-8 text-white/76">
-                      Open the Blueprint Capture App if you already have access. If you still need
-                      approval, route through the capturer application first.
-                    </p>
+	                    <SurfaceMiniLabel className="text-white/52">Public Capture Handoff</SurfaceMiniLabel>
+	                    <h1 className="mt-5 text-[clamp(3.5rem,7vw,6rem)] font-semibold uppercase leading-[0.86] tracking-[-0.08em] text-white">
+	                      Everyday site.
+	                      <br />
+	                      Captured.
+	                    </h1>
+	                    <p className="mt-5 max-w-[22rem] text-base leading-8 text-white/76">
+	                      Open Blueprint Capture to record public-facing places people visit every day: grocery stores, retail aisles, libraries, lobbies, and other common areas where capture is allowed.
+	                    </p>
                     <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                       {showExternalHandoff ? (
                         <a
@@ -127,15 +126,15 @@ export default function CaptureAppPlaceholder() {
                           href="/capture-app/launch-access?source=capture-app-placeholder"
                           className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/12 bg-white px-5 text-sm font-semibold text-[#111110] transition hover:bg-[#f4f0e8]"
                         >
-                          Request capture access
-                          <Mail className="h-4 w-4" />
+	                          Request capture access
+	                          <Mail className="h-4 w-4" />
                         </a>
                       )}
                       <a
                         href="/signup/capturer"
                         className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/18 px-5 text-sm font-semibold text-white transition hover:bg-white/8"
                       >
-                        Apply for capturer access
+	                        Apply for capturer access
                       </a>
                     </div>
                   </div>
@@ -150,7 +149,7 @@ export default function CaptureAppPlaceholder() {
                         <Smartphone className="h-3.5 w-3.5" />
                         Capture App
                       </div>
-                      <span className="text-[10px] uppercase tracking-[0.22em] text-white/45">Invite required</span>
+	                      <span className="text-[10px] uppercase tracking-[0.22em] text-white/45">Review required</span>
                     </div>
                     <div className="mt-6 rounded-[1.6rem] border border-white/10 bg-white/5 p-5">
                       <p className="text-center text-sm font-semibold uppercase tracking-[0.22em] text-white/56">
@@ -172,8 +171,7 @@ export default function CaptureAppPlaceholder() {
                         </div>
                       </div>
                       <p className="mt-4 text-center text-sm leading-6 text-white/66">
-                        Approved capturers can use this stable handoff even if the downstream app
-                        surface changes.
+	                        Capturers use this stable handoff to open the app, follow field rules, and submit walkthroughs for review.
                       </p>
                     </div>
                     <div className="mt-5">
@@ -203,8 +201,7 @@ export default function CaptureAppPlaceholder() {
                         ))
                       ) : (
                         <p className="text-sm leading-7 text-black/56">
-                          Capture access only opens inside approved launch cities. Unsupported
-                          markets stay in the future-city queue until the launch org opens them.
+	                          City access is opening in stages. Leave a signal if your city is not open yet, especially if you can capture common public-facing locations.
                         </p>
                       )}
                     </div>
@@ -232,8 +229,7 @@ export default function CaptureAppPlaceholder() {
                 <div className="rounded-[1.35rem] border border-black/10 bg-[#111110] p-5 text-white">
                   <SurfaceMiniLabel className="text-white/50">Need The Buyer Side Instead?</SurfaceMiniLabel>
                   <p className="mt-4 text-base leading-7 text-white/76">
-                    Robot teams should browse exact-site worlds and hosted review, not the capturer
-                    application flow.
+	                    Robot teams browse exact-site worlds and hosted review. Capturers use this handoff to record lawful public-facing locations for review.
                   </p>
                   <a
                     href="/world-models"

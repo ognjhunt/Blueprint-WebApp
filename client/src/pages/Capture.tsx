@@ -227,10 +227,10 @@ export default function Capture() {
 
         <section className="mx-auto max-w-[96rem] px-5 py-10 sm:px-8 lg:px-10">
           <EditorialCtaBand
-            eyebrow="Buyer side"
-            title="Looking for the buyer side instead?"
-            description="Robot teams should start in the world-model catalog and the hosted-review path, not in the capturer handoff."
-            imageSrc={editorialRefreshAssets.captureHero}
+	            eyebrow="Buyer side"
+	            title="Looking for the buyer side instead?"
+	            description="Robot teams start in the world-model catalog and the hosted-review path, not in the capturer handoff."
+	            imageSrc={editorialRefreshAssets.captureHero}
             imageAlt="Blueprint capture lane"
             primaryHref="/world-models"
             primaryLabel="Explore world models"

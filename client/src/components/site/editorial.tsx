@@ -3,12 +3,6 @@ import type { ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 
 type SectionLabelProps = {
   children: string;
@@ -379,18 +373,18 @@ export function EditorialFaq({
           <p className="mt-4 text-sm leading-7 text-slate-600">{description}</p>
         ) : null}
       </div>
-      <Accordion type="single" collapsible className="divide-y divide-black/8">
+      <div className="divide-y divide-black/8">
         {items.map((item, index) => (
-          <AccordionItem value={`item-${index}`} key={item.question} className="border-none">
-            <AccordionTrigger className="py-4 text-left text-base font-medium text-slate-900 hover:no-underline">
+          <article key={`${item.question}-${index}`} className="py-4">
+            <h3 className="text-left text-base font-medium text-slate-900">
               {item.question}
-            </AccordionTrigger>
-            <AccordionContent className="pb-4 text-sm leading-7 text-slate-600">
+            </h3>
+            <p className="mt-2 text-sm leading-7 text-slate-600">
               {item.answer}
-            </AccordionContent>
-          </AccordionItem>
+            </p>
+          </article>
         ))}
-      </Accordion>
+      </div>
     </div>
   );
 }

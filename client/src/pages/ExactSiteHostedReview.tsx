@@ -18,12 +18,34 @@ const trustCards = [
   },
   {
     title: "When this is a fit",
-    body: "Use this path when one real facility already matters and the team needs run evidence before moving files around or sending people on-site.",
+    body: "Use this path when one real site already matters and the team needs run evidence before moving files around or sending people on-site.",
   },
   {
     title: "Typical first reply",
     body: "Public-listing and hosted-review questions usually get a first reply within 1 business day. Rights or export review usually gets a first scoped answer within 2 business days.",
   },
+];
+
+const reviewSteps = [
+  {
+    title: "Scope",
+    body: "Pick one listing or facility, one workflow lane, and the robot setup or policy question that matters.",
+  },
+  {
+    title: "Run",
+    body: "Blueprint opens a hosted review session against the exact-site package and records observations, route behavior, and blockers.",
+  },
+  {
+    title: "Export",
+    body: "The buyer leaves with a review summary, run evidence, export framing, and the next commercial recommendation.",
+  },
+];
+
+const hostedOutputs = [
+  "Review summary and next-step recommendation",
+  "Observation frames and route/replay notes when available",
+  "Export bundle scope, dataset references, and raw-bundle pointers",
+  "Rights, restrictions, and non-guarantee language attached to the result",
 ];
 
 export default function ExactSiteHostedReview() {
@@ -53,7 +75,7 @@ export default function ExactSiteHostedReview() {
                   Review before you buy.
                 </h1>
                 <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/[0.86]">
-                  Hosted evaluation of one exact-site world model. See how the robot perceives, plans, and acts inside your facility before your team commits.
+                  Hosted evaluation of one exact-site world model. See how the robot perceives, plans, and acts inside the selected place before your team commits.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-2">
                   <ProofChip light>Request access</ProofChip>
@@ -84,7 +106,7 @@ export default function ExactSiteHostedReview() {
                   </div>
                   <div className="grid gap-3 p-5">
                     <div className="rounded-[1rem] border border-white/10 bg-white/[0.08] p-4 text-sm text-white/[0.72]">
-                      Site: one exact facility
+                      Site: one exact place
                     </div>
                     <div className="rounded-[1rem] border border-white/10 bg-white/[0.08] p-4 text-sm text-white/[0.72]">
                       Review: reruns, observations, exports
@@ -101,12 +123,12 @@ export default function ExactSiteHostedReview() {
         </section>
 
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
-          <div className="grid gap-6 lg:grid-cols-[0.38fr_0.62fr]">
-            <EditorialSectionIntro
-              eyebrow="Preview"
-              title="The hosted path should feel concrete."
-              description="A buyer should understand setup, rerun, and export flow at a glance."
-            />
+	          <div className="grid gap-6 lg:grid-cols-[0.38fr_0.62fr]">
+	            <EditorialSectionIntro
+	              eyebrow="Preview"
+	              title="Setup, run evidence, and export scope are visible."
+	              description="A hosted review is a managed session on one exact site. It starts with the scoped task, records the run evidence, then ends with the next commercial decision."
+	            />
             <div className="overflow-hidden border border-black/10 bg-slate-950 p-4 text-white">
               <EditorialFilmstrip frames={hostedFilmstripFrames.map((frame, index) => ({
                 ...frame,
@@ -116,10 +138,37 @@ export default function ExactSiteHostedReview() {
                     : editorialGeneratedAssets.groceryBackroom,
               }))} />
             </div>
+	          </div>
+	        </section>
+
+        <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.36fr_0.64fr] lg:px-10 lg:py-12">
+            <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
+              <EditorialSectionIntro
+                eyebrow="Session"
+                title="What happens in a hosted review."
+                description="The setup stays narrow so the result can answer a real buyer question instead of becoming a generic demo."
+              />
+              <a
+                href="/samples/sample-hosted-review-report.md"
+                className="mt-7 inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                Open sample report
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </a>
+            </div>
+            <div className="grid gap-px bg-black/10 md:grid-cols-3">
+              {reviewSteps.map((step) => (
+                <div key={step.title} className="bg-white p-6">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">{step.title}</p>
+                  <p className="mt-5 text-sm leading-7 text-slate-700">{step.body}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
-        <section className="border-y border-black/10 bg-white">
+        <section className="border-b border-black/10 bg-white">
           <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
             <div className="grid gap-4 lg:grid-cols-[0.5fr_0.5fr]">
               <MonochromeMedia
@@ -134,13 +183,21 @@ export default function ExactSiteHostedReview() {
                   title="Hosted review sits between listing and commitment."
                   description="It is the managed review room for one site, not a generic benchmark console."
                 />
-                <div className="mt-8 space-y-3 text-sm leading-7 text-slate-700">
-                  <div>1. Pick the site and workflow.</div>
-                  <div>2. Confirm the robot setup in scope.</div>
-                  <div>3. Run the hosted review and inspect the evidence.</div>
-                  <div>4. Decide the next commercial step with the proof still attached.</div>
+                  <div className="mt-8 space-y-3 text-sm leading-7 text-slate-700">
+                    <div>1. Pick the site and workflow.</div>
+                    <div>2. Confirm the robot setup in scope.</div>
+                    <div>3. Run the hosted review and inspect the evidence.</div>
+                    <div>4. Decide the next commercial step with the proof still attached.</div>
+                  </div>
+                  <div className="mt-8 border border-black/10 bg-white p-5">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Standard output shape</p>
+                    <div className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
+                      {hostedOutputs.map((item) => (
+                        <div key={item}>{item}</div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
             </div>
           </div>
         </section>
@@ -176,7 +233,7 @@ export default function ExactSiteHostedReview() {
             imageSrc={editorialGeneratedAssets.hostedReviewHero}
             imageAlt="Hosted review hero"
             primaryHref="/contact?persona=robot-team&interest=evaluation-package"
-            primaryLabel="Request access"
+            primaryLabel="Scope hosted review"
             secondaryHref="/world-models"
             secondaryLabel="Inspect sample listing"
           />

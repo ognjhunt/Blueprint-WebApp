@@ -23,7 +23,7 @@ const roleOptions: LaunchAccessRole[] = [
 const signalReasons = [
   {
     title: "We track real city demand",
-    body: "Future-city requests help Blueprint decide where launch planning, capturer recruitment, and operator outreach should move first.",
+    body: "Future-city requests help Blueprint prioritize launch planning, capturer recruitment, and operator outreach.",
     icon: RadioTower,
   },
   {

@@ -13,19 +13,19 @@ import { trustFaqItems } from "@/lib/siteEditorialContent";
 const readableCards = [
   {
     title: "Provenance and freshness",
-    body: "A buyer should be able to see the facility identifier, capture date, freshness state, approval path, and proof depth before deciding whether the site is current enough for review.",
+    body: "Blueprint shows the facility identifier, capture timing, freshness state, approval path, and proof depth before a buyer treats a site as current enough for review.",
   },
   {
     title: "Rights and restrictions",
-    body: "Rights class, export entitlements, restricted zones, and sharing limits should stay attached to the listing and manifest instead of being inferred from marketing copy.",
+    body: "Rights class, export entitlements, restricted zones, and sharing limits stay attached to the listing and manifest instead of being inferred from marketing copy.",
   },
   {
     title: "Hosted-access boundary",
-    body: "Hosted sessions should make it clear what is launchable, what remains human-gated, and which outputs are illustrative layouts versus confirmed buyer-facing exports.",
+    body: "Hosted sessions separate what is launchable, what remains human-gated, and which outputs are illustrative layouts versus confirmed buyer-facing exports.",
   },
   {
     title: "Redaction and retention",
-    body: "A buyer should be able to tell whether privacy processing ran, whether raw media is retained, and what remains visible or exportable.",
+    body: "Buyer-facing records identify whether privacy processing ran, whether raw media is retained, and what remains visible or exportable.",
   },
 ];
 
@@ -86,7 +86,7 @@ export default function Governance() {
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
           <EditorialSectionIntro
             eyebrow="Readable trust"
-            title="What a buyer should be able to read."
+            title="What a buyer can read before access."
             className="max-w-3xl"
           />
           <div className="mt-8 grid gap-4 lg:grid-cols-2">
@@ -132,7 +132,7 @@ export default function Governance() {
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
           <EditorialFaq
             title="FAQ"
-            description="The trust surface should answer the remaining boundary questions without collapsing into a legal page."
+            description="The trust surface answers boundary questions in buyer language while the legal pages remain the formal baseline."
             items={trustFaqItems}
           />
         </section>

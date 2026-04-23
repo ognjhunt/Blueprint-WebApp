@@ -5,7 +5,7 @@ import {
   EditorialSectionLabel,
   MonochromeMedia,
 } from "@/components/site/editorial";
-import { exactSiteScopingCallPath } from "@/lib/booking";
+import { exactSiteScopingCallUrl } from "@/lib/booking";
 import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
 
 const reviewCards = [
@@ -50,7 +50,7 @@ export default function BookExactSiteReview() {
                   Book an exact-site scoping call.
                 </h1>
                 <p className="mt-6 text-base leading-8 text-slate-700">
-                  This page should feel like stepping into a private review room, not a generic scheduling funnel.
+                  Use this page when one real site, one workflow lane, and one deployment question are ready for a focused scoping pass.
                 </p>
                 </div>
               </div>
@@ -96,10 +96,12 @@ export default function BookExactSiteReview() {
                 A narrow scoping pass on one real site.
               </h2>
               <p className="mt-4 text-sm leading-7 text-white/72">
-                The page stays quiet on purpose. If the site is real and the question is narrow, the call should be easy to open.
+                Open the scheduler when the site and first review question are already clear. Use contact instead when rights, privacy, or scope still need sorting first.
               </p>
               <a
-                href={exactSiteScopingCallPath}
+                href={exactSiteScopingCallUrl}
+                target="_blank"
+                rel="noreferrer noopener"
                 className="mt-8 inline-flex items-center justify-center bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
               >
                 Open scheduling
@@ -111,11 +113,11 @@ export default function BookExactSiteReview() {
         <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
           <EditorialCtaBand
             eyebrow="Next step"
-            title="Use the call when one real facility is already in view."
+            title="Use the call when one real site is already in view."
             description="If you still need the public proof surface first, inspect the listing or the hosted-review page before opening a time slot."
             imageSrc={editorialGeneratedAssets.scopingRoom}
             imageAlt="Scoping room"
-            primaryHref={exactSiteScopingCallPath}
+            primaryHref={exactSiteScopingCallUrl}
             primaryLabel="Book the call"
             secondaryHref="/exact-site-hosted-review"
             secondaryLabel="What a good scoping call resolves"

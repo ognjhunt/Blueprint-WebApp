@@ -520,10 +520,10 @@ export default function CapturerSignUpFlow() {
                 Apply on web. Capture in the Blueprint app.
               </h1>
               <p className="max-w-lg text-base leading-7 text-[color:var(--ink-soft)]">
-                Capturer access is invite- and code-gated. This page is for account creation and application review. Actual capture work happens in Blueprint Capture, not the operator dashboard.
+                Capturer access is public to request and review-based by market. This page creates the account and routes the application; actual capture work happens in Blueprint Capture, not the operator dashboard.
               </p>
               <p className="max-w-lg text-sm leading-6 text-[color:var(--ink-soft)]">
-                Robot teams and site operators should use the{" "}
+                Robot teams and site operators use the{" "}
                 <a className="font-semibold text-[color:var(--leaf-deep)] underline-offset-4 hover:underline" href="/signup/business">
                   Buyer access request
                 </a>
@@ -630,7 +630,7 @@ export default function CapturerSignUpFlow() {
               <p className="mt-2 max-w-xl text-sm leading-6 text-[color:var(--ink-soft)]">
                 {step === 1
                   ? "Keep the web form short. We only need enough to open your account and move you into the right market."
-                  : "This should feel more like a worker application than a site intake. No organization fields, no buyer workflow questions. Access is invite- and code-gated."}
+                  : "This is a capturer application, not a buyer site intake. Keep it focused on where you can capture, your device fit, and the market review path."}
                   </p>
                 </div>
                 <StepDots currentStep={step} />
@@ -798,7 +798,7 @@ export default function CapturerSignUpFlow() {
                         <div>
                           <p className="font-semibold text-[color:var(--ink)]">Gated access and approval</p>
                           <p className="mt-1 text-sm leading-6 text-[color:var(--ink-soft)]">
-                            Blueprint capturer access is invite- and code-gated. Submitting this application does not guarantee approval. We review each submission for launch-city fit, device availability, and cohort capacity before sending capture onboarding instructions.
+                            Blueprint capturer access is public to request and review-based. Submitting this application does not guarantee approval. We review each submission for launch-city fit, device availability, privacy readiness, and cohort capacity before sending capture onboarding instructions.
                           </p>
                         </div>
                       </div>
@@ -1093,7 +1093,7 @@ export default function CapturerSignUpFlow() {
                     <div>
                       <p className="font-semibold text-[color:var(--ink)]">Need a business account instead?</p>
                       <p className="mt-1 text-sm leading-6 text-[color:var(--ink-soft)]">
-                        Site operators and robot teams should stay on the business route so they get the right intake, not the worker flow.
+                        Site operators and robot teams stay on the business route so they get the right intake, not the worker flow.
                       </p>
                     </div>
                   </div>

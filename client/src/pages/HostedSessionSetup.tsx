@@ -387,7 +387,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                     Configure one exact-site run.
                   </p>
                   <p className="mt-4 max-w-[28rem] text-base leading-8 text-white/72">
-                    We execute it. You get the evidence.
+                    Blueprint prepares the hosted review path. You get run evidence, outputs, and limits tied back to the same captured site.
                   </p>
                 </div>
 

@@ -5,7 +5,6 @@ import {
   EditorialSectionIntro,
   EditorialSectionLabel,
   MonochromeMedia,
-  ProofChip,
   RouteTraceOverlay,
 } from "@/components/site/editorial";
 import { siteWorldCards } from "@/data/siteWorlds";
@@ -21,7 +20,7 @@ const productPaths = [
   {
     title: "Site Package",
     body:
-      "License the exact-site package when your team wants geometry, routes, metadata, and exports inside its own stack.",
+      "License the exact-site package when your team wants capture notes, routes, geometry when available, metadata, rights, and exports inside its own stack.",
     href: "/pricing",
     label: "View package path",
   },
@@ -37,8 +36,14 @@ const productPaths = [
 
 const proofItems = [
   "Capture provenance stays attached to the site record.",
-  "Package and hosted paths stay tied to the same facility.",
+  "Package and hosted paths stay tied to the same site.",
   "Rights, freshness, and restrictions stay visible before purchase.",
+];
+
+const captureExamples = [
+  "Grocery aisles and retail backrooms",
+  "Public customer areas and everyday service locations",
+  "Lawfully accessible walkthroughs with privacy rules visible",
 ];
 
 function HomeSiteCard({
@@ -90,20 +95,20 @@ export default function Home() {
   const metrics = useMemo(
     () => [
       {
-        label: "Catalog",
-        detail: "World-model listings stay tied to exact sites, not generic benchmark scenes.",
+        label: "World model",
+        detail: "A site-specific digital environment built from real capture of one place and workflow lane.",
       },
       {
-        label: "Buying paths",
-        detail: "Package and hosted evaluation remain legible on the same public surface.",
+        label: "Site package",
+        detail: "Walkthrough media, poses, metadata, geometry when available, rights, and export scope.",
       },
       {
-        label: "Proof",
-        detail: "The sample listing makes provenance, rights, and hosted posture inspectable first.",
+        label: "Hosted review",
+        detail: "Managed reruns, observations, evidence exports, and next-step recommendation on the same site.",
       },
       {
         label: "Decision",
-        detail: "The site is visible before a team commits travel, rollout spend, or stack work.",
+        detail: "Use it before the team commits travel, rollout spend, custom sim work, or deeper integration.",
       },
     ],
     [],
@@ -116,7 +121,7 @@ export default function Home() {
   return (
     <>
       <SEO
-        title="Blueprint | Site-Specific World Models For Real Facilities"
+        title="Blueprint | Site-Specific World Models For Real Places"
         description="Blueprint helps robot teams inspect, license, and run exact-site world-model products built from real capture."
         canonical="/"
       />
@@ -138,12 +143,12 @@ export default function Home() {
               <div className="mx-auto grid h-full max-w-[88rem] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[0.62fr_0.38fr] lg:px-10 lg:py-16">
                 <div className="flex min-h-[34rem] flex-col justify-end">
                 <EditorialSectionLabel light>Blueprint</EditorialSectionLabel>
-                <h1 className="font-editorial mt-6 max-w-[34rem] text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5.2rem]">
-                  Site-specific world models for real facilities.
-                </h1>
-                <p className="mt-6 max-w-[28rem] text-base leading-8 text-white/72 sm:text-[1.03rem]">
-                  Browse the site first, then move into the package path or the hosted path only when one real facility actually matters.
-                </p>
+	                <h1 className="font-editorial mt-6 max-w-[34rem] text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5.2rem]">
+	                  Site-specific world models for real places.
+	                </h1>
+	                <p className="mt-6 max-w-[28rem] text-base leading-8 text-white/72 sm:text-[1.03rem]">
+	                  Evaluate exact deployment sites before the expensive part starts. Inspect the captured place, then choose package access or hosted review.
+	                </p>
 
                 <div className="mt-8 flex flex-wrap gap-3">
                   <a
@@ -187,11 +192,11 @@ export default function Home() {
 
         <section className="mx-auto max-w-[88rem] px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
           <EditorialSectionIntro
-            eyebrow="Real places"
-            title="Real places. Real capture. Real buying surfaces."
-            description="The site itself stays legible instead of disappearing behind a generic robotics story."
-            className="max-w-3xl"
-          />
+                eyebrow="Real places"
+                title="Everyday places can become robot-team evidence."
+                description="Blueprint is not limited to warehouses. Public-facing grocery, retail, service, and common-area locations can become capture-backed site products when the walkthrough is lawful, privacy-safe, and useful."
+                className="max-w-3xl"
+              />
 
           <div className="mt-8 grid gap-4 lg:grid-cols-3">
             {featuredSites.map((site) => (
@@ -249,8 +254,8 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
-          <div className="grid overflow-hidden rounded-[2rem] border border-black/10 bg-white lg:grid-cols-[0.46fr_0.54fr]">
+	        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+	          <div className="grid overflow-hidden rounded-[2rem] border border-black/10 bg-white lg:grid-cols-[0.46fr_0.54fr]">
             <MonochromeMedia
               src={editorialGeneratedAssets.proofBoardDeliverables}
               alt="Blueprint public proof surface"
@@ -270,11 +275,11 @@ export default function Home() {
             </MonochromeMedia>
 
             <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
-              <EditorialSectionIntro
-                eyebrow="Proof"
-                title="See what attaches before it commits."
-                description="Blueprint’s public surface should already show the core trust boundary."
-              />
+	              <EditorialSectionIntro
+	                eyebrow="Proof"
+	                title="See what attaches before it commits."
+	                description="The public surface keeps the package, hosted path, rights, freshness, and restrictions readable before a buyer moves forward."
+	              />
               <div className="mt-8 space-y-3">
                 {proofItems.map((item) => (
                   <div
@@ -293,7 +298,7 @@ export default function Home() {
                   View sample deliverables
                 </a>
                 <a
-                  href="/proof"
+                  href="/exact-site-hosted-review"
                   className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
                 >
                   See hosted review
@@ -301,13 +306,32 @@ export default function Home() {
               </div>
             </div>
           </div>
+	        </section>
+
+        <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.38fr_0.62fr] lg:px-10">
+            <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
+              <EditorialSectionIntro
+                eyebrow="Capture supply"
+                title="Public-facing capture is the supply wedge."
+                description="The Capture app path is for everyday places people can actually reach, not only industrial facilities."
+              />
+            </div>
+            <div className="grid gap-px bg-black/10 md:grid-cols-3">
+              {captureExamples.map((item) => (
+                <div key={item} className="bg-white p-6 text-sm leading-7 text-slate-700">
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
 
-        <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
+	        <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
           <EditorialCtaBand
             eyebrow="Start"
             title="Start with the site that matters."
-            description="Browse a real listing, open the hosted path, or send a short brief tied to one exact facility."
+            description="Browse a real listing, open the hosted path, or send a short brief tied to one exact site."
             imageSrc={editorialGeneratedAssets.homeHero}
             imageAlt="Blueprint hosted runtime still"
             primaryHref="/world-models"

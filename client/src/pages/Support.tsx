@@ -35,7 +35,7 @@ const helpPaths = [
   {
     title: "Scoping call",
     body:
-      "Use this when the site is already known and the team wants to confirm whether package, hosted evaluation, or custom scope should come first.",
+      "Use this when the site is already known and the team wants to choose between package, hosted evaluation, or custom scope.",
     href: "/book-exact-site-review",
     icon: CalendarDays,
   },
@@ -160,8 +160,8 @@ export default function Support() {
                       hello@tryblueprint.io
                     </a>{" "}
                     with the page you were on, the exact problem, and the next thing you were
-                    trying to do. Commercial questions should include the listing link and the
-                    robot question so the next reply can stay narrow.
+                    trying to do. For commercial questions, include the listing link and the robot
+                    question so the next reply can stay narrow.
                   </p>
                 </div>
                 <div className="mt-6 flex flex-wrap gap-3">
@@ -191,10 +191,10 @@ export default function Support() {
               <h2 className="font-editorial mt-4 text-[2.4rem] leading-[0.94] tracking-[-0.05em]">
                 Handoff to Blueprint Capture.
               </h2>
-              <p className="mt-4 text-sm leading-7 text-white/72">
-                The capture app is not the primary buyer route. It is the current public handoff
-                for invite-gated capturer access, upload review, and field instructions.
-              </p>
+	                  <p className="mt-4 text-sm leading-7 text-white/72">
+	                The capture app is not the primary buyer route. It is the public handoff
+	                for capturers who want to record everyday public-facing locations, follow privacy rules, and submit captures for review.
+	              </p>
               <div className="mt-8 grid gap-2 text-sm text-white/74">
                 {["Capture", "Package", "Upload", "Blueprint review"].map((item) => (
                   <div key={item} className="flex items-center justify-between border border-white/10 px-4 py-3">
@@ -217,10 +217,10 @@ export default function Support() {
 
         <section className="mx-auto max-w-[96rem] px-5 pb-10 sm:px-8 lg:px-10">
           <EditorialCtaBand
-            eyebrow="Decision"
-            title="Start with the path that matches the question."
-            description="The public site should route the buyer to the next useful step without turning support into a handbook."
-            imageSrc={editorialRefreshAssets.helpScopingRoom}
+	            eyebrow="Decision"
+	            title="Start with the path that matches the question."
+	            description="The public site routes the buyer to the next useful step without turning support into a handbook."
+	            imageSrc={editorialRefreshAssets.helpScopingRoom}
             imageAlt="Blueprint scoping room"
             primaryHref="/contact?persona=robot-team"
             primaryLabel="Open contact"

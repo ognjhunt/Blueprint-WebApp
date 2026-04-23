@@ -11,17 +11,17 @@ const faqs = [
   {
     question: "What is a Blueprint world model?",
     answer:
-      "A digital environment built from real capture of one indoor facility and one workflow lane. It is not a generic benchmark scene or a synthetic environment generator.",
+      "A digital environment built from real capture of one site and one workflow lane. It is not a generic benchmark scene or a synthetic environment generator.",
   },
   {
     question: "What does a buyer actually receive with the site package?",
     answer:
-      "The walkthrough media, timestamps, camera poses, intrinsics, site notes, and any available depth or geometry artifacts for that facility, plus rights, privacy, and provenance metadata.",
+      "The walkthrough media, timestamps, camera poses, intrinsics, site notes, and any available depth or geometry artifacts for that site, plus rights, privacy, and provenance metadata.",
   },
   {
     question: "What is hosted evaluation?",
     answer:
-      "A Blueprint-managed runtime session on one exact site. Your team can rerun tasks, review failures, compare checkpoints, and export results without moving data into its own stack first.",
+      "A Blueprint-managed runtime session on one exact site. Your team can rerun scoped tasks, review failures, compare policies or checkpoints when configured, and export results without moving data into its own stack first.",
   },
   {
     question: "How close is this to a deployment guarantee?",
@@ -31,12 +31,12 @@ const faqs = [
   {
     question: "What if the exact site we care about is not in the catalog?",
     answer:
-      "The public catalog is the starting point, not the full inventory. If your team needs a specific facility, use the contact path and say which site, workflow, and robot question matter.",
+      "The public catalog is the starting point, not the full inventory. If your team needs a specific site, use the contact path and say which place, workflow, and robot question matter.",
   },
   {
     question: "Can we book time instead of starting with a form?",
     answer:
-      "Yes. Use the dedicated booking path when your team already has a real facility or listing in mind and wants a fast scoping conversation around package access or hosted review.",
+      "Yes. Use the dedicated booking path when your team already has a real site or listing in mind and wants a fast scoping conversation around package access or hosted review.",
   },
 ];
 
@@ -87,7 +87,7 @@ export default function FAQ() {
           <EditorialCtaBand
             eyebrow="Next step"
             title="Talk to Blueprint about a real site."
-            description="If one real facility already matters, the fastest move is to send a short brief tied to that site and workflow question."
+            description="If one real site already matters, the fastest move is to send a short brief tied to that site and workflow question."
             imageSrc={editorialGeneratedAssets.scopingRoom}
             imageAlt="Scoping room"
             primaryHref="/contact?persona=robot-team"

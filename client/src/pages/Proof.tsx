@@ -107,12 +107,12 @@ export default function Proof() {
 
         <section className="border-y border-black/10 bg-white">
           <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
-            <EditorialSectionIntro
-              eyebrow="Proof routes"
-              title="Proof routes."
-              description="The hub should point into the next decision surface without losing the proof context."
-              className="max-w-3xl"
-            />
+	            <EditorialSectionIntro
+	              eyebrow="Proof routes"
+	              title="Proof routes."
+	              description="The hub points into the next decision surface without losing the proof context."
+	              className="max-w-3xl"
+	            />
             <div className="mt-8 grid gap-4 lg:grid-cols-[0.62fr_0.38fr]">
               <div className="grid gap-4 md:grid-cols-3">
                 {proofRoutes.map((route) => (

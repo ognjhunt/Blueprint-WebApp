@@ -62,7 +62,7 @@ export default function Contact() {
     : robotTeamCityMessaging
       ? robotTeamCityMessaging.requestHeroBody
       : persona === "site_operator"
-        ? "Use this form if you run the facility and need to talk through capture access, privacy rules, or whether the site should be listed at all."
+        ? "Use this form if you run the facility and need to talk through capture access, privacy rules, or whether the site belongs in the catalog."
         : "Use this form if your team needs one exact site for evaluation, site-specific data, release comparison, or package access.";
 
   const responseBody = hostedMode
@@ -71,7 +71,7 @@ export default function Contact() {
       ? robotTeamCityMessaging.requestResponseBody
       : persona === "site_operator"
         ? "Blueprint reviews the facility details, access rules, and privacy notes first so the next reply can narrow the path quickly."
-        : "Blueprint reviews the site, task, and robot details first. The reply should point your team toward the package path, hosted evaluation path, or the follow-up question that actually matters.";
+        : "Blueprint reviews the site, task, and robot details first. The reply points your team toward the package path, hosted evaluation path, or the follow-up question that actually matters.";
 
   const fastPaths = [
     {
