@@ -63,6 +63,60 @@ describe("AdminGrowthStudio", () => {
         return new Response(JSON.stringify({ items: [] }));
       }
 
+      if (url.includes("/api/admin/growth/ad-studio/runs") && init?.method === "POST") {
+        return new Response(JSON.stringify({
+          id: "ad-run-1",
+          run: {
+            id: "ad-run-1",
+            lane: "capturer",
+            status: "draft_requested",
+            audience: "public indoor capturers",
+          },
+        }));
+      }
+
+      if (url.includes("/api/admin/growth/ad-studio/runs")) {
+        return new Response(JSON.stringify({
+          items: [
+            {
+              id: "ad-run-1",
+              lane: "capturer",
+              status: "draft_requested",
+              audience: "public indoor capturers",
+              cta: "Apply now",
+              city: "Atlanta",
+              aspectRatio: "9:16",
+              claimsLedger: {
+                allowedClaims: ["Illustrative scenes allowed"],
+                blockedClaims: ["No fabricated proof"],
+                evidenceLinks: [],
+                reviewDecision: "pending",
+                reviewNotes: [],
+              },
+              brief: null,
+              promptPack: null,
+              assets: [],
+              imageExecutionHandoff: null,
+              videoTask: null,
+              review: {
+                status: "pending",
+                reasons: [],
+                headline: null,
+                primaryText: null,
+              },
+              metaDraft: {
+                campaignId: null,
+                adSetId: null,
+                adId: null,
+                status: "not_created",
+              },
+              createdAtIso: "2026-04-23T15:00:00.000Z",
+              updatedAtIso: "2026-04-23T15:00:00.000Z",
+            },
+          ],
+        }));
+      }
+
       if (url.includes("/api/admin/growth/notion/sync")) {
         const requestBody =
           typeof init?.body === "string"
@@ -132,6 +186,25 @@ describe("AdminGrowthStudio", () => {
     expect(requestBody).toMatchObject({
       limit: 50,
       refreshIntegrationSnapshot: true,
+    });
+  });
+
+  it("renders the Ad Studio panel and creates a run", async () => {
+    renderPage();
+
+    expect(await screen.findByText(/^Ad Studio$/i)).toBeInTheDocument();
+    expect(await screen.findByText(/public indoor capturers/i)).toBeInTheDocument();
+
+    const createButton = screen.getByRole("button", { name: /Create Ad Studio Run/i });
+    fireEvent.click(createButton);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/admin/growth/ad-studio/runs"),
+        expect.objectContaining({
+          method: "POST",
+        }),
+      );
     });
   });
 });

@@ -49,6 +49,16 @@ import {
 } from "../utils/cityLaunchLedgers";
 import { isCityLaunchBuyerProofPath } from "../utils/cityLaunchResearchContracts";
 import { sendEmail, getEmailTransportStatus } from "../utils/email";
+import {
+  attachAdStudioAsset,
+  buildAndPersistAdStudioBrief,
+  createAdStudioImageExecutionHandoff,
+  createAdStudioRun,
+  createPersistedAdStudioMetaDraft,
+  listAdStudioRuns,
+  queuePersistedAdStudioVideo,
+  reviewPersistedAdStudioCreative,
+} from "../utils/ad-studio";
 
 const router = Router();
 
@@ -78,6 +88,19 @@ function normalizeString(value: unknown) {
 function normalizeNumber(value: unknown) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeStringArray(value: unknown) {
+  const rawValues = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(/[\n,]+/)
+      : [];
+
+  return rawValues
+    .filter((entry): entry is string => typeof entry === "string")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
 }
 
 function normalizeIsoOrNull(value: unknown) {
@@ -175,6 +198,150 @@ router.get("/creative-runs", requireOps, async (req, res) => {
   } catch (error) {
     logger.error({ err: error }, "Failed to list creative runs");
     return res.status(500).json({ error: "Failed to list creative runs" });
+  }
+});
+
+router.get("/ad-studio/runs", requireOps, async (req, res) => {
+  try {
+    const limit = Math.min(
+      Math.max(parseInt(typeof req.query.limit === "string" ? req.query.limit : "20", 10) || 20, 1),
+      50,
+    );
+
+    const items = await listAdStudioRuns(limit);
+    return res.json({ items });
+  } catch (error) {
+    logger.error({ err: error }, "Failed to list Ad Studio runs");
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : "Failed to list Ad Studio runs",
+    });
+  }
+});
+
+router.post("/ad-studio/runs", requireOps, async (req, res) => {
+  try {
+    const lane = normalizeString(req.body?.lane) as "capturer" | "buyer";
+    const result = await createAdStudioRun({
+      lane,
+      audience: normalizeString(req.body?.audience),
+      cta: normalizeString(req.body?.cta),
+      budgetCapUsd: normalizeNumber(req.body?.budgetCapUsd) || 0,
+      city: normalizeString(req.body?.city) || null,
+      allowedClaims: normalizeStringArray(req.body?.allowedClaims),
+      blockedClaims: normalizeStringArray(req.body?.blockedClaims),
+      aspectRatio: normalizeString(req.body?.aspectRatio),
+    });
+
+    return res.status(201).json(result);
+  } catch (error) {
+    logger.error({ err: error }, "Failed to create Ad Studio run");
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Failed to create Ad Studio run",
+    });
+  }
+});
+
+router.post("/ad-studio/runs/:runId/brief", requireOps, async (req, res) => {
+  try {
+    const result = await buildAndPersistAdStudioBrief(req.params.runId || "");
+    return res.json(result);
+  } catch (error) {
+    logger.error({ err: error }, "Failed to build Ad Studio brief");
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Failed to build Ad Studio brief",
+    });
+  }
+});
+
+router.post("/ad-studio/runs/:runId/image-handoff", requireOps, async (req, res) => {
+  try {
+    const result = await createAdStudioImageExecutionHandoff({
+      runId: req.params.runId || "",
+    });
+    return res.json(result);
+  } catch (error) {
+    logger.error({ err: error }, "Failed to create Ad Studio image handoff");
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Failed to create Ad Studio image handoff",
+    });
+  }
+});
+
+router.post("/ad-studio/runs/:runId/assets", requireOps, async (req, res) => {
+  try {
+    const result = await attachAdStudioAsset(req.params.runId || "", {
+      type: normalizeString(req.body?.type) as "image" | "video",
+      role: normalizeString(req.body?.role),
+      uri: normalizeString(req.body?.uri),
+      provider: normalizeString(req.body?.provider),
+      prompt: normalizeString(req.body?.prompt) || null,
+    });
+    return res.json(result);
+  } catch (error) {
+    logger.error({ err: error }, "Failed to attach Ad Studio asset");
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Failed to attach Ad Studio asset",
+    });
+  }
+});
+
+router.post("/ad-studio/runs/:runId/video", requireOps, async (req, res) => {
+  try {
+    const result = await queuePersistedAdStudioVideo(req.params.runId || "", {
+      promptText: normalizeString(req.body?.promptText),
+      firstFrameUrl: normalizeString(req.body?.firstFrameUrl),
+      ratio: normalizeString(req.body?.ratio),
+    });
+    return res.json(result);
+  } catch (error) {
+    logger.error({ err: error }, "Failed to queue Ad Studio video");
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Failed to queue Ad Studio video",
+    });
+  }
+});
+
+router.post("/ad-studio/runs/:runId/review", requireOps, async (req, res) => {
+  try {
+    const result = await reviewPersistedAdStudioCreative(req.params.runId || "", {
+      headline: normalizeString(req.body?.headline),
+      primaryText: normalizeString(req.body?.primaryText),
+      claimsLedger: {
+        allowedClaims: normalizeStringArray(req.body?.allowedClaims),
+        blockedClaims: normalizeStringArray(req.body?.blockedClaims),
+        evidenceLinks: normalizeStringArray(req.body?.evidenceLinks),
+      },
+    });
+    return res.json(result);
+  } catch (error) {
+    logger.error({ err: error }, "Failed to review Ad Studio creative");
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Failed to review Ad Studio creative",
+    });
+  }
+});
+
+router.post("/ad-studio/runs/:runId/meta-draft", requireOps, async (req, res) => {
+  try {
+    const result = await createPersistedAdStudioMetaDraft(req.params.runId || "", {
+      accountId: normalizeString(req.body?.accountId) || null,
+      campaignName: normalizeString(req.body?.campaignName),
+      objective: normalizeString(req.body?.objective),
+      dailyBudgetMinorUnits: normalizeNumber(req.body?.dailyBudgetMinorUnits) || 0,
+      primaryText: normalizeString(req.body?.primaryText),
+      headline: normalizeString(req.body?.headline),
+      videoId: normalizeString(req.body?.videoId),
+      destinationUrl: normalizeString(req.body?.destinationUrl),
+      pageId: normalizeString(req.body?.pageId) || null,
+      adSetName: normalizeString(req.body?.adSetName) || null,
+      adName: normalizeString(req.body?.adName) || null,
+    });
+    return res.json(result);
+  } catch (error) {
+    logger.error({ err: error }, "Failed to create Ad Studio Meta draft");
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Failed to create Ad Studio Meta draft",
+    });
   }
 });
 

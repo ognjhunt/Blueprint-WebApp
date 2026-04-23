@@ -228,6 +228,72 @@ type CreativeRunsResponse = {
   items: CreativeRunRecord[];
 };
 
+type AdStudioRunRecord = {
+  id: string;
+  lane: "capturer" | "buyer";
+  status: string;
+  audience: string;
+  cta: string;
+  city: string | null;
+  aspectRatio: string;
+  claimsLedger: {
+    allowedClaims: string[];
+    blockedClaims: string[];
+    evidenceLinks: string[];
+    reviewDecision: string;
+    reviewNotes: string[];
+  };
+  brief: {
+    visualDirection: string;
+    copyHooks: string[];
+  } | null;
+  promptPack: {
+    imagePromptVariants: string[];
+    videoPrompt: string;
+    headlineOptions: string[];
+    primaryTextOptions: string[];
+  } | null;
+  assets: Array<{
+    type: "image" | "video";
+    role: string;
+    uri: string;
+    provider: string;
+    prompt?: string | null;
+    createdAtIso: string;
+  }>;
+  imageExecutionHandoff: {
+    issueId: string | null;
+    status: string;
+    assignee: string;
+    error: string | null;
+  } | null;
+  videoTask: {
+    taskId: string | null;
+    status: string;
+    firstFrameUrl: string | null;
+    ratio: string | null;
+    promptText: string | null;
+  } | null;
+  review: {
+    status: string;
+    reasons: string[];
+    headline: string | null;
+    primaryText: string | null;
+  };
+  metaDraft: {
+    campaignId: string | null;
+    adSetId: string | null;
+    adId: string | null;
+    status: string;
+  };
+  createdAtIso: string;
+  updatedAtIso: string;
+};
+
+type AdStudioRunsResponse = {
+  items: AdStudioRunRecord[];
+};
+
 function metricValue(record: CampaignRecord, key: string) {
   return Number(record.event_counts?.[key] || 0);
 }
@@ -259,6 +325,32 @@ export default function AdminGrowthStudio() {
     videoRatio: "1280:720",
     videoDuration: "5",
   });
+  const [adStudioForm, setAdStudioForm] = useState({
+    lane: "capturer",
+    audience: "public indoor capturers",
+    city: "Atlanta",
+    cta: "Apply to capture public indoor spaces",
+    budgetCapUsd: "250",
+    aspectRatio: "9:16",
+    allowedClaims: "Illustrative scenes allowed",
+    blockedClaims: "No fabricated proof\nNo fake earnings\nNo fake captured sites",
+    firstFrameUrl: "",
+    reviewHeadline: "Capture public indoor spaces near you",
+    reviewPrimaryText:
+      "Illustrative concept ad for Blueprint's public-indoor capture network. Real proof claims stay evidence-gated.",
+    metaAccountId: "",
+    metaPageId: "",
+    metaVideoId: "",
+    metaDestinationUrl: "https://tryblueprint.io/capture",
+    metaCampaignName: "Blueprint Capturer Draft",
+  });
+  const [adStudioAssetUris, setAdStudioAssetUris] = useState<Record<string, string>>({});
+  const [adStudioReviewDrafts, setAdStudioReviewDrafts] = useState<
+    Record<string, { headline: string; primaryText: string }>
+  >({});
+  const [adStudioMetaDrafts, setAdStudioMetaDrafts] = useState<
+    Record<string, { accountId: string; pageId: string; videoId: string; destinationUrl: string; campaignName: string }>
+  >({});
   const [kit, setKit] = useState<CampaignKitResponse["kit"] | null>(null);
   const [images, setImages] = useState<ImageGenerationResponse["images"]>([]);
   const [imageProviderStatus, setImageProviderStatus] = useState<ProviderStatus | null>(null);
@@ -300,6 +392,18 @@ export default function AdminGrowthStudio() {
       });
       if (!response.ok) {
         throw new Error("Failed to fetch creative runs");
+      }
+      return response.json();
+    },
+  });
+  const adStudioRunsQuery = useQuery<AdStudioRunsResponse>({
+    queryKey: ["admin-growth-ad-studio-runs"],
+    queryFn: async () => {
+      const response = await fetch("/api/admin/growth/ad-studio/runs?limit=12", {
+        headers: await withCsrfHeader({}),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch Ad Studio runs");
       }
       return response.json();
     },
@@ -378,6 +482,10 @@ export default function AdminGrowthStudio() {
 
   async function refreshCreativeRuns() {
     await creativeRunsQuery.refetch();
+  }
+
+  async function refreshAdStudioRuns() {
+    await adStudioRunsQuery.refetch();
   }
 
   async function generateCampaignKit() {
@@ -693,8 +801,192 @@ export default function AdminGrowthStudio() {
     }
   }
 
+  async function createAdStudioRunRequest() {
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch("/api/admin/growth/ad-studio/runs", {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          lane: adStudioForm.lane,
+          audience: adStudioForm.audience,
+          city: adStudioForm.city,
+          cta: adStudioForm.cta,
+          budgetCapUsd: Number(adStudioForm.budgetCapUsd || 0),
+          allowedClaims: adStudioForm.allowedClaims.split("\n").map((line) => line.trim()).filter(Boolean),
+          blockedClaims: adStudioForm.blockedClaims.split("\n").map((line) => line.trim()).filter(Boolean),
+          aspectRatio: adStudioForm.aspectRatio,
+        }),
+      });
+      const json = (await response.json()) as { run?: AdStudioRunRecord; error?: string };
+      if (!response.ok || !json.run) {
+        throw new Error(json.error || "Failed to create Ad Studio run");
+      }
+      setNotice(`Ad Studio run ${json.run.id} created.`);
+      await refreshAdStudioRuns();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Failed to create Ad Studio run");
+    }
+  }
+
+  async function buildAdStudioBriefRequest(runId: string) {
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch(`/api/admin/growth/ad-studio/runs/${runId}/brief`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+      });
+      const json = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(json.error || "Failed to build Ad Studio brief");
+      }
+      setNotice(`Ad Studio brief built for ${runId}.`);
+      await refreshAdStudioRuns();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Failed to build Ad Studio brief");
+    }
+  }
+
+  async function routeAdStudioImageHandoff(runId: string) {
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch(`/api/admin/growth/ad-studio/runs/${runId}/image-handoff`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+      });
+      const json = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(json.error || "Failed to route Ad Studio image handoff");
+      }
+      setNotice(`Ad Studio image handoff queued for ${runId}.`);
+      await refreshAdStudioRuns();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Failed to route Ad Studio image handoff");
+    }
+  }
+
+  async function attachAdStudioFirstFrame(runId: string) {
+    const uri = (adStudioAssetUris[runId] || "").trim();
+    if (!uri) {
+      setError("Add a first-frame image URI before attaching it to the run.");
+      setNotice("");
+      return;
+    }
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch(`/api/admin/growth/ad-studio/runs/${runId}/assets`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          type: "image",
+          role: "first_frame",
+          uri,
+          provider: "codex_gpt_image_2",
+        }),
+      });
+      const json = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(json.error || "Failed to attach first-frame asset");
+      }
+      setNotice(`Attached first-frame asset to ${runId}.`);
+      await refreshAdStudioRuns();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Failed to attach first-frame asset");
+    }
+  }
+
+  async function queueAdStudioVideoRequest(runId: string) {
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch(`/api/admin/growth/ad-studio/runs/${runId}/video`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          firstFrameUrl: (adStudioAssetUris[runId] || "").trim() || undefined,
+        }),
+      });
+      const json = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(json.error || "Failed to queue Ad Studio video");
+      }
+      setNotice(`Queued Ad Studio video for ${runId}.`);
+      await refreshAdStudioRuns();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Failed to queue Ad Studio video");
+    }
+  }
+
+  async function reviewAdStudioRunRequest(runId: string) {
+    const reviewDraft = adStudioReviewDrafts[runId] || {
+      headline: adStudioForm.reviewHeadline,
+      primaryText: adStudioForm.reviewPrimaryText,
+    };
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch(`/api/admin/growth/ad-studio/runs/${runId}/review`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          headline: reviewDraft.headline,
+          primaryText: reviewDraft.primaryText,
+          allowedClaims: adStudioForm.allowedClaims.split("\n").map((line) => line.trim()).filter(Boolean),
+          blockedClaims: adStudioForm.blockedClaims.split("\n").map((line) => line.trim()).filter(Boolean),
+          evidenceLinks: [],
+        }),
+      });
+      const json = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(json.error || "Failed to review Ad Studio creative");
+      }
+      setNotice(`Ad Studio review completed for ${runId}.`);
+      await refreshAdStudioRuns();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Failed to review Ad Studio creative");
+    }
+  }
+
+  async function createAdStudioMetaDraftRequest(runId: string) {
+    const metaDraft = adStudioMetaDrafts[runId] || {
+      accountId: adStudioForm.metaAccountId,
+      pageId: adStudioForm.metaPageId,
+      videoId: adStudioForm.metaVideoId,
+      destinationUrl: adStudioForm.metaDestinationUrl,
+      campaignName: adStudioForm.metaCampaignName,
+    };
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch(`/api/admin/growth/ad-studio/runs/${runId}/meta-draft`, {
+        method: "POST",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          accountId: metaDraft.accountId,
+          pageId: metaDraft.pageId,
+          videoId: metaDraft.videoId,
+          destinationUrl: metaDraft.destinationUrl,
+          campaignName: metaDraft.campaignName,
+        }),
+      });
+      const json = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(json.error || "Failed to create Ad Studio Meta draft");
+      }
+      setNotice(`Paused Meta draft created for ${runId}.`);
+      await refreshAdStudioRuns();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Failed to create Ad Studio Meta draft");
+    }
+  }
+
   const campaigns = campaignsQuery.data?.localCampaigns ?? [];
   const creativeRuns = creativeRunsQuery.data?.items ?? [];
+  const adStudioRuns = adStudioRunsQuery.data?.items ?? [];
 
   useEffect(() => {
     if (!runwayTask) return;
@@ -993,6 +1285,339 @@ export default function AdminGrowthStudio() {
                 ) : null}
               </div>
             ) : null}
+
+            <div className="mt-4 rounded-[28px] border border-zinc-200 bg-white p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
+                    Ad Studio
+                  </p>
+                  <p className="mt-1 text-sm text-zinc-600">
+                    Two-lane harness for capturer and buyer concept ads, claims review, and paused Meta draft creation.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void refreshAdStudioRuns()}
+                  className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-xs font-medium text-zinc-900 transition hover:border-zinc-400"
+                >
+                  Refresh runs
+                </button>
+              </div>
+
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-zinc-700">Lane</span>
+                  <select
+                    className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm"
+                    value={adStudioForm.lane}
+                    onChange={(event) => setAdStudioForm((current) => ({ ...current, lane: event.target.value }))}
+                  >
+                    <option value="capturer">Capturer</option>
+                    <option value="buyer">Buyer</option>
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-zinc-700">Audience</span>
+                  <input
+                    className="w-full rounded-2xl border border-zinc-200 px-4 py-3 text-sm"
+                    value={adStudioForm.audience}
+                    onChange={(event) => setAdStudioForm((current) => ({ ...current, audience: event.target.value }))}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-zinc-700">City</span>
+                  <input
+                    className="w-full rounded-2xl border border-zinc-200 px-4 py-3 text-sm"
+                    value={adStudioForm.city}
+                    onChange={(event) => setAdStudioForm((current) => ({ ...current, city: event.target.value }))}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-zinc-700">CTA</span>
+                  <input
+                    className="w-full rounded-2xl border border-zinc-200 px-4 py-3 text-sm"
+                    value={adStudioForm.cta}
+                    onChange={(event) => setAdStudioForm((current) => ({ ...current, cta: event.target.value }))}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-zinc-700">Budget cap (USD)</span>
+                  <input
+                    className="w-full rounded-2xl border border-zinc-200 px-4 py-3 text-sm"
+                    value={adStudioForm.budgetCapUsd}
+                    onChange={(event) => setAdStudioForm((current) => ({ ...current, budgetCapUsd: event.target.value }))}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-zinc-700">Aspect ratio</span>
+                  <input
+                    className="w-full rounded-2xl border border-zinc-200 px-4 py-3 text-sm"
+                    value={adStudioForm.aspectRatio}
+                    onChange={(event) => setAdStudioForm((current) => ({ ...current, aspectRatio: event.target.value }))}
+                  />
+                </label>
+              </div>
+
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-zinc-700">Allowed claims</span>
+                  <textarea
+                    className="min-h-24 w-full rounded-2xl border border-zinc-200 px-4 py-3 text-sm"
+                    value={adStudioForm.allowedClaims}
+                    onChange={(event) => setAdStudioForm((current) => ({ ...current, allowedClaims: event.target.value }))}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-zinc-700">Blocked claims</span>
+                  <textarea
+                    className="min-h-24 w-full rounded-2xl border border-zinc-200 px-4 py-3 text-sm"
+                    value={adStudioForm.blockedClaims}
+                    onChange={(event) => setAdStudioForm((current) => ({ ...current, blockedClaims: event.target.value }))}
+                  />
+                </label>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={createAdStudioRunRequest}
+                  className="rounded-full bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800"
+                >
+                  Create Ad Studio Run
+                </button>
+              </div>
+
+              <div className="mt-6 space-y-3">
+                {adStudioRunsQuery.isLoading ? (
+                  <p className="text-sm text-zinc-500">Loading Ad Studio runs…</p>
+                ) : adStudioRunsQuery.isError ? (
+                  <p className="text-sm text-rose-700">Failed to load Ad Studio runs.</p>
+                ) : adStudioRuns.length === 0 ? (
+                  <p className="text-sm text-zinc-500">No Ad Studio runs yet.</p>
+                ) : (
+                  adStudioRuns.map((run) => {
+                    const reviewDraft = adStudioReviewDrafts[run.id] || {
+                      headline: run.review.headline || run.promptPack?.headlineOptions?.[0] || adStudioForm.reviewHeadline,
+                      primaryText: run.review.primaryText || run.promptPack?.primaryTextOptions?.[0] || adStudioForm.reviewPrimaryText,
+                    };
+                    const metaDraft = adStudioMetaDrafts[run.id] || {
+                      accountId: adStudioForm.metaAccountId,
+                      pageId: adStudioForm.metaPageId,
+                      videoId: adStudioForm.metaVideoId,
+                      destinationUrl: adStudioForm.metaDestinationUrl,
+                      campaignName: adStudioForm.metaCampaignName,
+                    };
+
+                    return (
+                      <div key={run.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-800">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="font-semibold text-zinc-950">{run.lane} · {run.audience}</p>
+                            <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">
+                              {run.status} {run.city ? `• ${run.city}` : ""}
+                            </p>
+                          </div>
+                          <p className="text-xs text-zinc-500">Meta: {run.metaDraft.status}</p>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void buildAdStudioBriefRequest(run.id)}
+                            className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-900"
+                          >
+                            Build brief
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void routeAdStudioImageHandoff(run.id)}
+                            className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-900"
+                          >
+                            Route image handoff
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void queueAdStudioVideoRequest(run.id)}
+                            className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-900"
+                          >
+                            Queue video
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void reviewAdStudioRunRequest(run.id)}
+                            className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-900"
+                          >
+                            Run review
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void createAdStudioMetaDraftRequest(run.id)}
+                            className="rounded-full border border-zinc-900 bg-zinc-900 px-3 py-1 text-xs font-medium text-white"
+                          >
+                            Create paused Meta draft
+                          </button>
+                        </div>
+
+                        {run.promptPack ? (
+                          <div className="mt-3 rounded-xl border border-zinc-200 bg-white p-3 text-xs text-zinc-600">
+                            <p className="font-medium text-zinc-950">Prompt pack</p>
+                            <p className="mt-2">{run.promptPack.imagePromptVariants[0]}</p>
+                          </div>
+                        ) : null}
+
+                        <label className="mt-3 block">
+                          <span className="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
+                            First-frame image URI
+                          </span>
+                          <div className="flex gap-2">
+                            <input
+                              className="w-full rounded-2xl border border-zinc-200 px-3 py-2 text-xs"
+                              value={adStudioAssetUris[run.id] || ""}
+                              onChange={(event) =>
+                                setAdStudioAssetUris((current) => ({
+                                  ...current,
+                                  [run.id]: event.target.value,
+                                }))}
+                              placeholder="https://..."
+                            />
+                            <button
+                              type="button"
+                              onClick={() => void attachAdStudioFirstFrame(run.id)}
+                              className="rounded-full border border-zinc-300 bg-white px-3 py-2 text-xs font-medium text-zinc-900"
+                            >
+                              Attach
+                            </button>
+                          </div>
+                        </label>
+
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
+                              Review headline
+                            </span>
+                            <input
+                              className="w-full rounded-2xl border border-zinc-200 px-3 py-2 text-xs"
+                              value={reviewDraft.headline}
+                              onChange={(event) =>
+                                setAdStudioReviewDrafts((current) => ({
+                                  ...current,
+                                  [run.id]: {
+                                    ...reviewDraft,
+                                    headline: event.target.value,
+                                  },
+                                }))}
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
+                              Review primary text
+                            </span>
+                            <textarea
+                              className="min-h-20 w-full rounded-2xl border border-zinc-200 px-3 py-2 text-xs"
+                              value={reviewDraft.primaryText}
+                              onChange={(event) =>
+                                setAdStudioReviewDrafts((current) => ({
+                                  ...current,
+                                  [run.id]: {
+                                    ...reviewDraft,
+                                    primaryText: event.target.value,
+                                  },
+                                }))}
+                            />
+                          </label>
+                        </div>
+
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
+                              Meta account id
+                            </span>
+                            <input
+                              className="w-full rounded-2xl border border-zinc-200 px-3 py-2 text-xs"
+                              value={metaDraft.accountId}
+                              onChange={(event) =>
+                                setAdStudioMetaDrafts((current) => ({
+                                  ...current,
+                                  [run.id]: {
+                                    ...metaDraft,
+                                    accountId: event.target.value,
+                                  },
+                                }))}
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
+                              Meta page id
+                            </span>
+                            <input
+                              className="w-full rounded-2xl border border-zinc-200 px-3 py-2 text-xs"
+                              value={metaDraft.pageId}
+                              onChange={(event) =>
+                                setAdStudioMetaDrafts((current) => ({
+                                  ...current,
+                                  [run.id]: {
+                                    ...metaDraft,
+                                    pageId: event.target.value,
+                                  },
+                                }))}
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
+                              Meta video id
+                            </span>
+                            <input
+                              className="w-full rounded-2xl border border-zinc-200 px-3 py-2 text-xs"
+                              value={metaDraft.videoId}
+                              onChange={(event) =>
+                                setAdStudioMetaDrafts((current) => ({
+                                  ...current,
+                                  [run.id]: {
+                                    ...metaDraft,
+                                    videoId: event.target.value,
+                                  },
+                                }))}
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
+                              Destination URL
+                            </span>
+                            <input
+                              className="w-full rounded-2xl border border-zinc-200 px-3 py-2 text-xs"
+                              value={metaDraft.destinationUrl}
+                              onChange={(event) =>
+                                setAdStudioMetaDrafts((current) => ({
+                                  ...current,
+                                  [run.id]: {
+                                    ...metaDraft,
+                                    destinationUrl: event.target.value,
+                                  },
+                                }))}
+                            />
+                          </label>
+                        </div>
+
+                        {run.imageExecutionHandoff ? (
+                          <p className="mt-3 text-xs text-zinc-600">
+                            Image handoff: {run.imageExecutionHandoff.assignee} · {run.imageExecutionHandoff.status}
+                          </p>
+                        ) : null}
+                        {run.review.reasons.length ? (
+                          <p className="mt-2 text-xs text-rose-700">{run.review.reasons.join(" ")}</p>
+                        ) : null}
+                        {(run.metaDraft.campaignId || run.metaDraft.adId) ? (
+                          <p className="mt-2 text-xs text-emerald-700">
+                            Meta IDs: {run.metaDraft.campaignId || "none"} / {run.metaDraft.adSetId || "none"} / {run.metaDraft.adId || "none"}
+                          </p>
+                        ) : null}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
 
             <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
               <div className="flex items-center justify-between gap-3">
