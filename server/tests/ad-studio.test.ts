@@ -58,6 +58,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
 import {
   buildAdStudioBrief,
   createAdStudioRun,
+  queueAdStudioVideo,
   reviewAdStudioCreative,
 } from "../utils/ad-studio";
 
@@ -157,5 +158,27 @@ describe("ad studio service", () => {
 
     expect(result.status).toBe("failed_claims_review");
     expect(result.reasons).toContain("Creative presents fabricated proof as real.");
+  });
+
+  it("starts a Seedance task from an approved first frame", async () => {
+    const startVideo = vi.fn().mockResolvedValue({ id: "task_1", status: "PENDING" });
+
+    const result = await queueAdStudioVideo(
+      {
+        runId: "run_1",
+        promptText: "Public indoor capture POV",
+        firstFrameUrl: "https://cdn.example.com/frame.png",
+        ratio: "9:16",
+      },
+      startVideo,
+    );
+
+    expect(startVideo).toHaveBeenCalledWith({
+      promptText: "Public indoor capture POV",
+      promptImage: "https://cdn.example.com/frame.png",
+      ratio: "9:16",
+    });
+    expect(result.videoTaskId).toBe("task_1");
+    expect(result.status).toBe("PENDING");
   });
 });

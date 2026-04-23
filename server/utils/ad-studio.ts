@@ -1,4 +1,5 @@
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { startRunwayImageToVideoTask } from "./runway";
 
 export type AdStudioLane = "capturer" | "buyer";
 
@@ -71,6 +72,13 @@ export interface ReviewAdStudioCreativeInput {
 export interface ReviewAdStudioCreativeResult {
   status: "draft_safe" | "failed_claims_review";
   reasons: string[];
+}
+
+export interface QueueAdStudioVideoInput {
+  runId: string;
+  promptText: string;
+  firstFrameUrl: string;
+  ratio: string;
 }
 
 function serverTimestampValue() {
@@ -251,5 +259,30 @@ export function reviewAdStudioCreative(
   return {
     status: "draft_safe",
     reasons: [],
+  };
+}
+
+export async function queueAdStudioVideo(
+  input: QueueAdStudioVideoInput,
+  startVideo: typeof startRunwayImageToVideoTask = startRunwayImageToVideoTask,
+) {
+  const promptText = normalizeString(input.promptText);
+  const firstFrameUrl = normalizeString(input.firstFrameUrl);
+  const ratio = normalizeString(input.ratio);
+
+  if (!promptText || !firstFrameUrl || !ratio) {
+    throw new Error("Ad Studio video queue requires prompt text, first frame, and ratio.");
+  }
+
+  const task = await startVideo({
+    promptText,
+    promptImage: firstFrameUrl,
+    ratio,
+  });
+
+  return {
+    runId: normalizeString(input.runId),
+    videoTaskId: task.id,
+    status: task.status,
   };
 }

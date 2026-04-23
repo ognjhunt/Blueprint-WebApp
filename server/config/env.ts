@@ -74,6 +74,7 @@ const envSchema = z
     META_MARKETING_API_ACCESS_TOKEN: z.string().trim().optional(),
     META_MARKETING_API_BASE_URL: z.string().trim().url().optional(),
     META_MARKETING_API_VERSION: z.string().trim().optional(),
+    META_PAGE_ID: z.string().trim().optional(),
     ANTHROPIC_API_KEY: z.string().trim().optional(),
     ANTHROPIC_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
     ANTHROPIC_DEFAULT_MODEL: z.string().trim().optional(),
