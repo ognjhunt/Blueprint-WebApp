@@ -127,11 +127,15 @@ Launch-critical note:
   `BLUEPRINT_CITY_LAUNCH_FILE_SEARCH_STORE`
   `BLUEPRINT_DEEP_RESEARCH_MCP_SERVERS_JSON`
   `BLUEPRINT_CITY_LAUNCH_DEEP_RESEARCH_MCP_SERVERS_JSON`
+- Optional Parallel Search MCP-backed agent web tools:
+  `SEARCH_API_PROVIDER=parallel_mcp`
+  `PARALLEL_API_KEY` only when using an authenticated Parallel account for higher rate limits/account attribution
 
 Deep Research notes:
 - The repo defaults async Deep Research harnesses to Gemini Deep Research Max (`deep-research-max-preview-04-2026`).
 - Use `BLUEPRINT_DEEP_RESEARCH_AGENT=standard` only when you deliberately want the lower-latency Deep Research agent instead of Max.
 - `*_MCP_SERVERS_JSON` must be a JSON array of remote MCP server configs with `name`, `url`, optional `headers`, and optional `allowed_tools`.
+- The Blueprint automation plugin registers `web-search` without a key when `SEARCH_API_PROVIDER=parallel_mcp`; it also registers `web-fetch` for specific public URL extraction through Parallel Search MCP.
 
 ### Internal Marketplace + Pipeline
 - `PIPELINE_SYNC_TOKEN`

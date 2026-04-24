@@ -9,6 +9,8 @@
   Use these for continuity first. Update them before publishing any mirrored operator-facing artifact.
 - live web research and primary source materials
   Prefer operator interviews, company writing, case studies, and public evidence over commentary.
+- `ops/paperclip/programs/parallel-search-mcp-policy.md`
+  Use Parallel-backed `web-search` for capturer/source ecosystem research and supply-side pattern discovery. Do not use it to claim proof, rights, legal posture, compensation norms, or capture truth.
 - current city and capturer-growth playbooks
   Use these to turn research into downstream implications instead of orphaned notes.
 - Paperclip issue lifecycle tools

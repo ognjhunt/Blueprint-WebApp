@@ -122,6 +122,23 @@ export BLUEPRINT_DEEP_RESEARCH_MCP_SERVERS_JSON='[
 ]'
 ```
 
+Parallel Search MCP is the default governed external-search MCP for Blueprint research lanes:
+
+```bash
+export BLUEPRINT_DEEP_RESEARCH_MCP_SERVERS_JSON='[
+  {
+    "name": "parallel-search",
+    "url": "https://search.parallel.ai/mcp",
+    "allowed_tools": {
+      "mode": "validated",
+      "tools": ["web_search", "web_fetch"]
+    }
+  }
+]'
+```
+
+For city-launch-only research, set the same JSON on `BLUEPRINT_CITY_LAUNCH_DEEP_RESEARCH_MCP_SERVERS_JSON` so generic briefs do not inherit the city search surface.
+
 Refresh the research grounding store on demand:
 
 ```bash

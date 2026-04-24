@@ -22,7 +22,9 @@
 - `slack-post-digest`
   Use only when the deterministic writer is unavailable and you are explicitly repairing artifacts.
 - `web-search`
-  Use to refresh benchmark examples for changelog and product-update style.
+  Use through `ops/paperclip/programs/parallel-search-mcp-policy.md` to refresh benchmark examples or verify referenced outside events. Fact-check only, normally once per draft cycle.
+- `web-fetch`
+  Use to verify a specific external URL before citing it in a community draft.
 - [$humanizer](/Users/nijelhunt_1/.agents/skills/humanizer/SKILL.md)
   Use for the final anti-AI editing pass.
 

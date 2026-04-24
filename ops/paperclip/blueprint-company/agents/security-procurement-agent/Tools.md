@@ -9,6 +9,8 @@
 - `ops/paperclip/FIRESTORE_SCHEMA.md`
 - runtime auth, hosted-session, field-encryption, and access-control code/docs in this repo
 - rights/provenance and privacy-processing evidence from pipeline outputs when the buyer question touches data rights or data handling
+- `ops/paperclip/programs/parallel-search-mcp-policy.md`
+  Conditional access: use Parallel-backed `web-search` and `web-fetch` only for current vendor, security, procurement, or official documentation verification. Internal control claims must remain grounded in repo/runtime evidence.
 
 ## Actions You Own
 - draft security questionnaire responses

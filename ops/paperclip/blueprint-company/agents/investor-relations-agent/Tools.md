@@ -22,7 +22,9 @@
 - `slack-post-digest`
   Use for the internal `#paperclip-exec` draft-ready alert when configured.
 - `web-search`
-  Use to refresh external benchmark examples or verify referenced outside events.
+  Use through `ops/paperclip/programs/parallel-search-mcp-policy.md` to refresh external benchmark examples or verify referenced outside events. Fact-check only, normally once per draft cycle.
+- `web-fetch`
+  Use to verify a specific external URL before citing it in an investor draft.
 - [$humanizer](/Users/nijelhunt_1/.agents/skills/humanizer/SKILL.md)
   Use for the final anti-AI editing pass.
 

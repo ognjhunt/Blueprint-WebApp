@@ -7,6 +7,8 @@
 - intake, ops, and finance-support feedback on access/commercialization questions
 - Blueprint Introw tools for partner search, account lookup, and draft partner-record maintenance
 - Paperclip issue lifecycle tools for cross-agent dependencies
+- `ops/paperclip/programs/parallel-search-mcp-policy.md`
+  Use Parallel-backed `web-search` for public operator/company context and partnership-surface research. Use `web-fetch` to verify specific operator, property, or partner pages before drafting internal guidance.
 
 ## Trust Model
 - operator-lane guidance must stay secondary to the robot-team buyer lane

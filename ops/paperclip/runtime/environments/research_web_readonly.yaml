@@ -33,6 +33,7 @@ vault:
   allowed_tools:
     - notion
     - web-search
+    - web-fetch
 artifacts:
   require_trace_link: true
   publish_to_issue: true

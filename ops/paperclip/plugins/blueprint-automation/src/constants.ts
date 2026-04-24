@@ -53,6 +53,7 @@ export const TOOL_NAMES = {
   notionReconcileRelations: "notion-reconcile-relations",
   slackPostDigest: "slack-post-digest",
   webSearch: "web-search",
+  webFetch: "web-fetch",
   firehoseReadSignals: "firehose-read-signals",
   firehoseReadBrief: "firehose-read-brief",
   introwSearchPartners: "introw-search-partners",

@@ -12,6 +12,8 @@
 - `/Users/nijelhunt_1/workspace/Blueprint-WebApp/WORLD_MODEL_STRATEGY_CONTEXT.md`
 - package manifests, deployment-readiness artifacts, and rights/provenance outputs when relevant
 - admin buyer and site-world views in the existing product
+- `ops/paperclip/programs/parallel-search-mcp-policy.md`
+  Conditional access: use Parallel-backed `web-search` and `web-fetch` for current vendor docs, buyer-stack context, or technical ecosystem verification. Product capability claims must remain grounded in live Blueprint artifact truth.
 
 ## Actions You Own
 - draft technical evaluation plans for active buyers

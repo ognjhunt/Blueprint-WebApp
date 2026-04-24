@@ -114,12 +114,14 @@ Not approved:
 - Repomix and similar repository packaging/export tools
 - third-party skill libraries used only as references
 - external marketing or workflow skill packs used only after Blueprint doctrine review
+- Parallel Search MCP for the explicitly approved research and fact-check lanes in `ops/paperclip/programs/parallel-search-mcp-policy.md`
 
 Condition:
 
 - they must not become silent architecture inputs
 - they must not alter production authority boundaries
 - they must not introduce new services into the plan unless separately approved
+- they must stay read-only enrichment and cannot become capture, rights, recipient, readiness, or deployment truth
 
 ### Disallowed Without Explicit CTO Approval
 

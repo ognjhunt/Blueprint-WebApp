@@ -6,6 +6,8 @@
 - supply-intel findings
 - analytics outputs and intake/ops feedback
 - Paperclip issue lifecycle tools for downstream execution
+- `ops/paperclip/programs/parallel-search-mcp-policy.md`
+  Use Parallel-backed `web-search` for public communities, capturer pools, lawful-access candidate discovery, and source verification. Use `web-fetch` before turning a public page into an internal campaign or channel recommendation.
 
 ## Actions You Own
 - update the capturer-growth playbook based on current research, funnel evidence, and ops reality

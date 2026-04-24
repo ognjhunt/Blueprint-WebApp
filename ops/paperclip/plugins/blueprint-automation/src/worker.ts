@@ -1899,7 +1899,7 @@ async function resolveOptionalSecret(
     if (resolvedSecretCache.has(ref)) {
       return resolvedSecretCache.get(ref) ?? null;
     }
-    const resolved = await ctx.secrets.resolve(ref);
+    const resolved = await ctx.secrets.resolve(ref).catch(() => null);
     resolvedSecretCache.set(ref, resolved ?? null);
     if (resolved) return resolved;
   }
@@ -1907,7 +1907,7 @@ async function resolveOptionalSecret(
     if (resolvedSecretCache.has(fallbackName)) {
       return resolvedSecretCache.get(fallbackName) ?? null;
     }
-    const resolved = await ctx.secrets.resolve(fallbackName);
+    const resolved = await ctx.secrets.resolve(fallbackName).catch(() => null);
     resolvedSecretCache.set(fallbackName, resolved ?? null);
     if (resolved) return resolved;
   }
@@ -14078,11 +14078,19 @@ async function registerToolHandlers(ctx: PluginContext) {
         config.secrets?.searchApiProviderRef,
         "SEARCH_API_PROVIDER",
       ) ?? "perplexity";
-      if (!searchApiKey) {
+      const parallelApiKey = await resolveOptionalSecret(
+        ctx,
+        undefined,
+        "PARALLEL_API_KEY",
+      );
+      if (!searchApiKey && searchApiProvider !== "parallel_mcp" && searchApiProvider !== "parallel") {
         throw new Error("Customer research search requires SEARCH_API_KEY to be configured.");
       }
       const searchTools = buildWebSearchToolHandler({
-        apiKey: searchApiKey,
+        apiKey:
+          searchApiProvider === "parallel_mcp" || searchApiProvider === "parallel"
+            ? parallelApiKey || undefined
+            : searchApiKey || undefined,
         provider: searchApiProvider,
       });
       const result = await runCustomerResearchSearch(
@@ -15093,9 +15101,17 @@ async function registerToolHandlers(ctx: PluginContext) {
       config.secrets?.searchApiProviderRef,
       "SEARCH_API_PROVIDER",
     ) ?? "perplexity";
-    if (searchApiKey) {
+    const parallelApiKey = await resolveOptionalSecret(
+      ctx,
+      undefined,
+      "PARALLEL_API_KEY",
+    );
+    if (searchApiKey || searchApiProvider === "parallel_mcp" || searchApiProvider === "parallel") {
       const searchTools = buildWebSearchToolHandler({
-        apiKey: searchApiKey,
+        apiKey:
+          searchApiProvider === "parallel_mcp" || searchApiProvider === "parallel"
+            ? parallelApiKey || undefined
+            : searchApiKey || undefined,
         provider: searchApiProvider,
       });
       ctx.tools.register(
@@ -15120,6 +15136,47 @@ async function registerToolHandlers(ctx: PluginContext) {
           };
         },
       );
+      if (searchApiProvider === "parallel_mcp" || searchApiProvider === "parallel") {
+        ctx.tools.register(
+          TOOL_NAMES.webFetch,
+          {
+            displayName: "Web Fetch",
+            description:
+              "Fetch token-efficient markdown excerpts from specific public URLs through Parallel Search MCP.",
+            parametersSchema: {
+              type: "object",
+              properties: {
+                urls: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "HTTP/HTTPS URLs to fetch, maximum 10.",
+                },
+                objective: {
+                  type: "string",
+                  description: "What information to extract from the URLs.",
+                },
+                searchQueries: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Optional search queries that produced the URLs.",
+                },
+                fullContent: {
+                  type: "boolean",
+                  description: "Request full markdown content instead of focused excerpts.",
+                },
+              },
+              required: ["urls"],
+            },
+          },
+          async (params): Promise<ToolResult> => {
+            const result = await searchTools[TOOL_NAMES.webFetch](params as any);
+            return {
+              content: `Fetch complete: ${result.citations.length} pages fetched, ${result.errors.length} errors.`,
+              data: result,
+            };
+          },
+        );
+      }
     }
   } catch {
     // Search API not configured — tool will not be available

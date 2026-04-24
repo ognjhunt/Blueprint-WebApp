@@ -9,6 +9,8 @@
   Use these for continuity first. Update them before publishing the mirrored operator-facing artifact.
 - live web search and primary-source company, paper, and regulatory materials
   Prefer first-party or direct reporting over commentary.
+- `ops/paperclip/programs/parallel-search-mcp-policy.md`
+  Use Parallel-backed `web-search` every scheduled market brief after repo KB grounding. Use `web-fetch` for primary-source URLs before citing them in the report.
 - prior Notion research artifacts and current Paperclip issues
   Use these to avoid rediscovering the same signal without a new angle.
 

@@ -8,6 +8,8 @@
 - `ops/paperclip/playbooks/capturer-supply-playbook.md`
 - supply-intel, capturer-growth, market-intel, city-demand, analytics, intake, and ops feedback
 - Paperclip issue lifecycle tools for cross-agent dependencies
+- `ops/paperclip/programs/parallel-search-mcp-policy.md`
+  Use Parallel-backed `web-search` for city activation evidence, local ecosystem discovery, and source verification. Use `web-fetch` before carrying a public-source claim into a city launch artifact.
 
 ## Actions You Own
 - maintain city-specific launch playbooks and readiness scorecards

@@ -8,6 +8,8 @@
 - `ops/paperclip/playbooks/site-operator-access-and-commercialization-playbook.md`
 - demand-intel, robot-team-growth, site-operator, analytics, intake, and ops feedback
 - Paperclip issue lifecycle tools for cross-agent dependencies
+- `ops/paperclip/programs/parallel-search-mcp-policy.md`
+  Use Parallel-backed `web-search` during city planning and active launch windows for local ecosystem, buyer-cluster, event/community, and proof-requirement context. Use `web-fetch` to verify the specific sources behind city scorecard claims.
 
 ## Actions You Own
 - maintain city-specific demand playbooks and scorecards grounded in current evidence

@@ -818,13 +818,43 @@ const manifest: PaperclipPluginManifestV1 = {
       name: TOOL_NAMES.webSearch,
       displayName: "Web Search",
       description:
-        "Search the web for market intelligence, competitor info, technology trends, and research papers using Perplexity.",
+        "Search the web for market intelligence, competitor info, technology trends, and research papers.",
       parametersSchema: {
         type: "object",
         properties: {
           query: { type: "string", description: "The search query" },
         },
         required: ["query"],
+      },
+    },
+    {
+      name: TOOL_NAMES.webFetch,
+      displayName: "Web Fetch",
+      description:
+        "Fetch token-efficient markdown excerpts from specific public URLs through Parallel Search MCP when SEARCH_API_PROVIDER=parallel_mcp.",
+      parametersSchema: {
+        type: "object",
+        properties: {
+          urls: {
+            type: "array",
+            items: { type: "string" },
+            description: "HTTP/HTTPS URLs to fetch, maximum 10.",
+          },
+          objective: {
+            type: "string",
+            description: "What information to extract from the URLs.",
+          },
+          searchQueries: {
+            type: "array",
+            items: { type: "string" },
+            description: "Optional search queries that produced the URLs.",
+          },
+          fullContent: {
+            type: "boolean",
+            description: "Request full markdown content instead of focused excerpts.",
+          },
+        },
+        required: ["urls"],
       },
     },
     {
