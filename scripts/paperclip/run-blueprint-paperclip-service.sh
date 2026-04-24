@@ -29,6 +29,7 @@ PAPERCLIP_STRICT_PORT="${PAPERCLIP_STRICT_PORT:-true}"
 INSTANCE_ROOT="$PAPERCLIP_HOME/instances/$PAPERCLIP_INSTANCE_ID"
 CONFIG_PATH="$INSTANCE_ROOT/config.json"
 PAPERCLIP_RUNNER="npx"
+PAPERCLIP_NPX_PACKAGE="${PAPERCLIP_NPX_PACKAGE:-paperclipai@0.3.1}"
 DEFAULT_NODE_OPTIONS="${BLUEPRINT_PAPERCLIP_NODE_OPTIONS:---max-old-space-size=3072}"
 
 export NODE_OPTIONS="${NODE_OPTIONS:-$DEFAULT_NODE_OPTIONS}"
@@ -66,7 +67,7 @@ if [ ! -f "$CONFIG_PATH" ]; then
       HOST="$PAPERCLIP_HOST" \
       PORT="$PAPERCLIP_PORT" \
       PAPERCLIP_STRICT_PORT="$PAPERCLIP_STRICT_PORT" \
-      npx -y paperclipai onboard --data-dir "$PAPERCLIP_HOME" --yes >/dev/null
+      npx -y "$PAPERCLIP_NPX_PACKAGE" onboard --data-dir "$PAPERCLIP_HOME" --yes >/dev/null
   fi
 fi
 
@@ -88,4 +89,4 @@ exec env \
   HOST="$PAPERCLIP_HOST" \
   PORT="$PAPERCLIP_PORT" \
   PAPERCLIP_STRICT_PORT="$PAPERCLIP_STRICT_PORT" \
-  npx -y paperclipai run --data-dir "$PAPERCLIP_HOME"
+  npx -y "$PAPERCLIP_NPX_PACKAGE" run --data-dir "$PAPERCLIP_HOME"
