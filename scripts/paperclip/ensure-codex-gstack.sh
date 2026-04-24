@@ -37,6 +37,15 @@ if all_symlinks_ready; then
   exit 0
 fi
 
+if [ -d "$CODEX_GSTACK_DIR" ]; then
+  for repo in "${REPOS[@]}"; do
+    mkdir -p "$repo/.agents/skills"
+    ln -sfn "$CODEX_GSTACK_DIR" "$repo/.agents/skills/gstack"
+  done
+  echo "Installed gstack for Codex at $CODEX_GSTACK_DIR"
+  exit 0
+fi
+
 (
   cd "$GSTACK_SOURCE_DIR"
   ./setup --host codex >/dev/null
