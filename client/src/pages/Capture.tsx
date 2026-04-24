@@ -4,7 +4,7 @@ import {
   EditorialSectionLabel,
   MonochromeMedia,
 } from "@/components/site/editorial";
-import { editorialRefreshAssets } from "@/lib/editorialRefreshAssets";
+import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
 import { ArrowRight, DollarSign } from "lucide-react";
 
 const processRows = [
@@ -53,8 +53,8 @@ export default function Capture() {
               </h1>
               <p className="mt-8 max-w-[30rem] text-base leading-8 text-slate-700">
                 Blueprint&apos;s main site is for buyers inspecting exact-site world models. If
-                you are the person recording the facility, this page is the narrow handoff into the
-                invite-gated capture lane.
+                you are the person recording an everyday public-facing place, this page is the
+                narrow handoff into the capture lane.
               </p>
               <div className="mt-10 flex flex-wrap gap-3">
                 <a
@@ -74,7 +74,7 @@ export default function Capture() {
             </div>
 
             <MonochromeMedia
-              src={editorialRefreshAssets.captureHero}
+              src={publicCaptureGeneratedAssets.captureAppHero}
               alt="Blueprint capture walkthrough"
               className="min-h-[30rem] rounded-none"
               loading="eager"
@@ -101,8 +101,8 @@ export default function Capture() {
                     <MonochromeMedia
                       src={
                         index === 0
-                          ? editorialRefreshAssets.capturePhone
-                          : editorialRefreshAssets.captureHero
+                          ? publicCaptureGeneratedAssets.captureAppHero
+                          : publicCaptureGeneratedAssets.everydayPlacesCollage
                       }
                       alt={row.title}
                       className="h-full rounded-none"
@@ -230,7 +230,7 @@ export default function Capture() {
 	            eyebrow="Buyer side"
 	            title="Looking for the buyer side instead?"
 	            description="Robot teams start in the world-model catalog and the hosted-review path, not in the capturer handoff."
-	            imageSrc={editorialRefreshAssets.captureHero}
+	            imageSrc={publicCaptureGeneratedAssets.everydayPlacesCollage}
             imageAlt="Blueprint capture lane"
             primaryHref="/world-models"
             primaryLabel="Explore world models"

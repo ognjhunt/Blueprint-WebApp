@@ -20,16 +20,16 @@ describe("ForRobotIntegrators", () => {
       screen.getByRole("heading", { name: /Test the exact site before deployment\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Why integrators use this path\./i }),
+      screen.getByRole("heading", { name: /Use exact-site worlds for the work that usually gets expensive late\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Common jobs on one exact site\./i })).toBeInTheDocument();
-    expect(screen.getByText(/Tune before travel/i)).toBeInTheDocument();
-    expect(screen.getByText(/Compare releases/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /What you get and what it does not do\./i })).toBeInTheDocument();
+    expect(screen.getByText(/The strongest fit is when a buyer already knows the site/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Tune before travel/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Compare releases/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: /A site-specific product, not a benchmark theater\./i })).toBeInTheDocument();
     expect(
-      screen.getByText(/A site-specific world model, data package, and hosted evaluation path built from real capture/i),
+      screen.getByText(/A site-specific world model of one real facility and workflow lane/i),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Explore world models/i })).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /Explore world models/i })[0]).toHaveAttribute(
       "href",
       "/world-models",
     );

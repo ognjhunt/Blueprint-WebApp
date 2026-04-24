@@ -16,7 +16,7 @@ describe('ForgotPassword', () => {
     vi.useFakeTimers();
     render(<ForgotPassword />);
 
-    fireEvent.change(screen.getByLabelText(/Email address/i), {
+    fireEvent.change(screen.getByLabelText(/^Email$/i), {
       target: { value: 'user@example.com' },
     });
 
@@ -29,7 +29,7 @@ describe('ForgotPassword', () => {
     });
 
     expect(
-      screen.getByRole('heading', { name: /Check your email/i }),
+      screen.getByText(/Check your email/i),
     ).toBeInTheDocument();
     expect(screen.getByText('user@example.com')).toBeInTheDocument();
   });

@@ -54,7 +54,7 @@ describe("BusinessSignUpFlow analytics", () => {
       defaultRequestedLane: "deeper_evaluation",
       requestedLaneCount: 1,
     });
-    expect(screen.getByText(/Buyer access request/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Buyer access request/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Existing portal users should use sign in instead of creating a second path/i)).toBeInTheDocument();
   });
 
@@ -113,7 +113,7 @@ describe("BusinessSignUpFlow analytics", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
 
-    await screen.findByText(/Who is submitting and why/i);
+    await screen.findByText(/Team and requested lane/i);
 
     fireEvent.change(await screen.findByLabelText(/Your name/i), {
       target: { value: "Ada Lovelace" },
@@ -140,7 +140,7 @@ describe("BusinessSignUpFlow analytics", () => {
     fireEvent.change(screen.getByLabelText(/How did you hear about Blueprint\?/i), {
       target: { value: "google" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Create account/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Submit request/i }));
 
     await waitFor(() => {
       expect(setLocationMock).toHaveBeenCalledWith("/onboarding");

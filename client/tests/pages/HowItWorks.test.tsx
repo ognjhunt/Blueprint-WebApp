@@ -8,28 +8,24 @@ describe("HowItWorks", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Start with one real site\. Train around it\./i,
+        name: /Capture to world model\./i,
       }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /The exact-site loop\./i }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Anchor to the site/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Branch realistic variation/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Run, compare, and export/i })).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /Proof path, not abstract positioning\./i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", {
-        name: /Where Blueprint fits in the training stack\./i,
-      }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Capture$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Package$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Run$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Deliver$/i })).toBeInTheDocument();
+    expect(screen.getByText(/Real site\. Real route\. Real package\./i)).toBeInTheDocument();
+    expect(screen.getByText(/See the exact site before you start the sales motion\./i)).toBeInTheDocument();
     expect(
       screen
-        .getAllByRole("link", { name: /Inspect the sample listing/i })
+        .getAllByRole("link", { name: /Inspect a real site/i })
         .some((link) => link.getAttribute("href") === "/world-models/siteworld-f5fd54898cfb"),
     ).toBe(true);
+    expect(screen.getByRole("link", { name: /View sample deliverables/i })).toHaveAttribute(
+      "href",
+      "/sample-deliverables",
+    );
     expect(screen.queryByText(/What teams train and ship with this/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Proof stories/i)).not.toBeInTheDocument();
   });

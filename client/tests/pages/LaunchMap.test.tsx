@@ -68,11 +68,11 @@ describe("LaunchMap", () => {
     render(<LaunchMap />);
 
     expect(
-      screen.getByRole("heading", { level: 1, name: /Where Blueprint is live/i }),
+      screen.getByRole("heading", { level: 1, name: /Request the next city or site\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Austin, TX/i)).toBeInTheDocument();
-    expect(screen.getByText(/Chicago, IL/i)).toBeInTheDocument();
-    expect(screen.getByText(/Raleigh, NC/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Austin, TX/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Chicago, IL/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Raleigh, NC/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/^Live$/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/^Planned$/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/^Under review$/i).length).toBeGreaterThan(0);

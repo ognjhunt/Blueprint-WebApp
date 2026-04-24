@@ -229,11 +229,13 @@ describe("HostedSessionWorkspace", () => {
     render(<HostedSessionWorkspace params={{ slug: "siteworld-f5fd54898cfb" }} />);
 
     expect(
-      await screen.findByRole("heading", { name: /Interactive Site-World Viewer/i }),
+      await screen.findByRole("heading", { name: /Control room for one exact-site world\./i }),
     ).toBeInTheDocument();
-    expect(await findModeLabel("Live Runtime")).toBeInTheDocument();
-    expect(screen.getByText("World-first live exploration")).toBeInTheDocument();
-    expect(screen.getByText(/Hosted session ID is missing\./i)).toBeInTheDocument();
+    expect(screen.getByText(/A session ID is required before the live runtime/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Back to setup/i })).toHaveAttribute(
+      "href",
+      "/world-models/siteworld-f5fd54898cfb/start",
+    );
   });
 
   it("auto-resets the live runtime when the session loads without an episode", async () => {

@@ -7,12 +7,14 @@ import {
 import {
   projectHostedReviewRunState,
   projectPackageRunState,
+  projectSupplyTargetState,
 } from "./operatingGraphProjectors";
 import type {
   HostedReviewRunProjection,
   OperatingGraphEvent,
   OperatingGraphState,
   PackageRunProjection,
+  SupplyTargetProjection,
 } from "./operatingGraphTypes";
 
 export const COMPANY_METRICS_CONTRACT_VERSION = "2026-04-20.company-metrics.v1";
@@ -447,6 +449,8 @@ function normalizeOperatingGraphStateDoc(doc: Record<string, unknown>): Operatin
     latestEventAtIso: coerceString(doc.latest_event_at_iso),
     canonicalForeignKeys: {
       cityProgramId: coerceString(canonicalForeignKeys.city_program_id) || null,
+      supplyTargetId: coerceString(canonicalForeignKeys.supply_target_id) || null,
+      cityLaunchProspectId: coerceString(canonicalForeignKeys.city_launch_prospect_id) || null,
       captureId: coerceString(canonicalForeignKeys.capture_id) || null,
       captureRunId: coerceString(canonicalForeignKeys.capture_run_id) || null,
       siteSubmissionId: coerceString(canonicalForeignKeys.site_submission_id) || null,
@@ -460,6 +464,33 @@ function normalizeOperatingGraphStateDoc(doc: Record<string, unknown>): Operatin
       buyerAccountId: coerceString(canonicalForeignKeys.buyer_account_id) || null,
     },
   };
+}
+
+function buildSupplyTargetProjections(snapshot: CompanyMetricsSnapshot) {
+  const stateProjections = snapshot.operatingGraphStates
+    .filter((state): state is OperatingGraphState => state.entityType === "supply_target")
+    .map((state) => ({
+      ...state,
+      entityType: "supply_target" as const,
+      supplyTargetId: state.entityId,
+      cityLaunchProspectId: state.canonicalForeignKeys.cityLaunchProspectId ?? null,
+    }));
+  if (stateProjections.length > 0) {
+    return stateProjections;
+  }
+
+  const grouped = groupOperatingGraphEvents(snapshot);
+  const projections: SupplyTargetProjection[] = [];
+  for (const [key, events] of grouped.entries()) {
+    if (!key.startsWith("supply_target:")) {
+      continue;
+    }
+    const projection = projectSupplyTargetState(events, events[0]?.entity_id || "");
+    if (projection) {
+      projections.push(projection);
+    }
+  }
+  return projections;
 }
 
 function buildPackageProjections(snapshot: CompanyMetricsSnapshot) {
@@ -618,28 +649,37 @@ export function projectCompanyMetricsView(
   const knownCities = new Map(
     snapshot.cityLaunchLedgers.map((entry) => [slugify(entry.city), entry.city]),
   );
+  const supplyTargets = buildSupplyTargetProjections(snapshot);
   const packageRuns = buildPackageProjections(snapshot);
   const hostedReviewRuns = buildHostedReviewProjections(snapshot);
 
   const captureCityValues = snapshot.cityLaunchLedgers
     .map((entry) => {
+      const citySlug = slugify(entry.city);
+      const projectedSupplyTargets = supplyTargets.filter(
+        (target) => target.citySlug === citySlug || slugify(target.city) === citySlug,
+      );
       const uploadedCaptures = snapshot.captureSubmissions.filter(
         (submission) =>
           submission.city
-          && slugify(submission.city) === slugify(entry.city)
+          && slugify(submission.city) === citySlug
           && Boolean(submission.captureUploadedAtIso),
       ).length;
       const hasCaptureLinkage = snapshot.captureSubmissions.some(
-        (submission) => submission.city && slugify(submission.city) === slugify(entry.city),
+        (submission) => submission.city && slugify(submission.city) === citySlug,
       );
+      const denominator =
+        projectedSupplyTargets.length > 0
+          ? projectedSupplyTargets.length
+          : entry.trackedSupplyProspectsContacted || null;
       return {
         city: entry.city,
-        numerator: hasCaptureLinkage ? uploadedCaptures : null,
-        denominator: entry.trackedSupplyProspectsContacted || null,
+        numerator: hasCaptureLinkage || projectedSupplyTargets.length > 0 ? uploadedCaptures : null,
+        denominator,
         value:
-          hasCaptureLinkage
-          && entry.trackedSupplyProspectsContacted > 0
-            ? computeRate(uploadedCaptures, entry.trackedSupplyProspectsContacted)
+          (hasCaptureLinkage || projectedSupplyTargets.length > 0)
+          && denominator
+            ? computeRate(uploadedCaptures, denominator)
             : null,
       };
     })

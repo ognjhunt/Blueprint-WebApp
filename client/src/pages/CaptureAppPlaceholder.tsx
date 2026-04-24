@@ -11,7 +11,11 @@ import {
 } from "@/components/site/privateSurface";
 import { usePublicLaunchStatus } from "@/hooks/usePublicLaunchStatus";
 import { getCaptureAppPlaceholderUrl } from "@/lib/client-env";
-import { privateGeneratedAssets } from "@/lib/privateGeneratedAssets";
+import {
+  publicCaptureLocationTypes,
+  publicCaptureProofStories,
+} from "@/lib/proofEvidence";
+import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
 
 const steps = [
   {
@@ -91,8 +95,8 @@ export default function CaptureAppPlaceholder() {
             <div className="grid xl:grid-cols-[0.56fr_0.44fr]">
               <div className="relative min-h-[42rem] overflow-hidden bg-black text-white">
                 <img
-                  src={privateGeneratedAssets.captureAppAisle}
-                  alt="Blueprint capture aisle"
+                  src={publicCaptureGeneratedAssets.captureAppHero}
+                  alt="Blueprint public-facing capture app walkthrough"
                   className="absolute inset-0 h-full w-full object-cover"
                 />
                 <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.76),rgba(0,0,0,0.38)_58%,rgba(0,0,0,0.18))]" />
@@ -239,6 +243,35 @@ export default function CaptureAppPlaceholder() {
                     <ArrowRight className="h-4 w-4" />
                   </a>
                 </div>
+              </div>
+
+              <div className="mt-8 grid gap-5 lg:grid-cols-[0.36fr_0.64fr]">
+                <div className="rounded-[1.35rem] border border-black/10 bg-[#111110] p-5 text-white">
+                  <SurfaceMiniLabel className="text-white/50">Capture Opportunities</SurfaceMiniLabel>
+                  <p className="mt-4 text-base leading-7 text-white/76">
+                    The public app is for ordinary places with useful robot workflows: store aisles, lobbies, corridors, common areas, venues, and service spaces.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {publicCaptureLocationTypes.map((item) => (
+                    <div key={item.label} className="rounded-[1.35rem] border border-black/10 bg-[#faf6ef] p-4">
+                      <p className="text-sm font-semibold text-[#111110]">{item.label}</p>
+                      <p className="mt-2 text-sm leading-6 text-black/58">{item.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 lg:grid-cols-4">
+                {publicCaptureProofStories.map((story) => (
+                  <div key={story.id} className="rounded-[1.35rem] border border-black/10 bg-white p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/42">
+                      {story.city}
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-[#111110]">{story.locationName}</p>
+                    <p className="mt-2 text-sm leading-6 text-black/58">{story.captureAppCue}</p>
+                  </div>
+                ))}
               </div>
             </div>
           </SurfaceBrowserFrame>

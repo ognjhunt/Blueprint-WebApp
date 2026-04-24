@@ -7,6 +7,7 @@ import {
   buildCityProgramId,
   buildHostedReviewRunId,
   buildPackageRunId,
+  buildSupplyTargetId,
 } from "../utils/operatingGraph";
 import {
   projectBuyerOutcomeState,
@@ -15,6 +16,7 @@ import {
   projectHostedReviewRunState,
   projectOperatingGraphState,
   projectPackageRunState,
+  projectSupplyTargetState,
 } from "../utils/operatingGraphProjectors";
 import type { OperatingGraphEvent } from "../utils/operatingGraphTypes";
 
@@ -23,6 +25,7 @@ describe("operating graph projectors", () => {
     citySlug: "seattle-wa",
     budgetTier: "funded",
   });
+  const supplyTargetId = buildSupplyTargetId({ cityLaunchProspectId: "prospect-1" });
   const captureRunId = buildCaptureRunId({ captureId: "capture-123" });
   const packageRunId = buildPackageRunId({ packageId: "package-456" });
   const hostedReviewRunId = buildHostedReviewRunId({ hostedReviewRunId: "review-789" });
@@ -47,6 +50,28 @@ describe("operating graph projectors", () => {
       metadata: { city_program_id: cityProgramId },
       recorded_at_iso: "2026-04-20T10:00:00.000Z",
       recorded_at: "2026-04-20T10:00:00.000Z",
+    },
+    {
+      id: "supply-1",
+      event_key: "supply:seeded",
+      entity_type: "supply_target",
+      entity_id: supplyTargetId,
+      city: "Seattle, WA",
+      city_slug: "seattle-wa",
+      stage: "supply_seeded",
+      summary: "Supply target seeded.",
+      source_repo: "Blueprint-WebApp",
+      source_kind: "city_launch_supply_projection",
+      origin: { repo: "Blueprint-WebApp" },
+      blocking_conditions: [],
+      external_confirmations: [],
+      next_actions: [],
+      metadata: {
+        supply_target_id: supplyTargetId,
+        city_launch_prospect_id: "prospect-1",
+      },
+      recorded_at_iso: "2026-04-20T10:00:30.000Z",
+      recorded_at: "2026-04-20T10:00:30.000Z",
     },
     {
       id: "capture-1",
@@ -214,6 +239,16 @@ describe("operating graph projectors", () => {
     expect(projection?.captureJobId).toBe("job-1");
     expect(projection?.canonicalForeignKeys.captureId).toBe("capture-123");
     expect(projection?.stateKey).toBe(captureRunId);
+  });
+
+  it("projects supply target state from supply target events only", () => {
+    const projection = projectSupplyTargetState(events, supplyTargetId);
+    expect(projection).not.toBeNull();
+    expect(projection?.entityType).toBe("supply_target");
+    expect(projection?.supplyTargetId).toBe(supplyTargetId);
+    expect(projection?.currentStage).toBe("supply_seeded");
+    expect(projection?.cityLaunchProspectId).toBe("prospect-1");
+    expect(projection?.latestSummary).toBe("Supply target seeded.");
   });
 
   it("uses the latest event stage as current stage instead of the max stage ever seen", () => {

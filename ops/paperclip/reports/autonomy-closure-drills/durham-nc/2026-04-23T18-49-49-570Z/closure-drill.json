@@ -1,0 +1,147 @@
+{
+  "generatedAt": "2026-04-23T18:49:49.570Z",
+  "city": "Durham, NC",
+  "citySlug": "durham-nc",
+  "status": "blocked",
+  "openNextActionCount": 41,
+  "projection": {
+    "processedCount": 4,
+    "failedCount": 0,
+    "capture": {
+      "scannedCount": 5,
+      "projectedEventCount": 0,
+      "projectedEntityCount": 0,
+      "skipped": [
+        {
+          "id": "45AD769B-3821-4964-865B-88B82B3360A5",
+          "reason": "missing_city_context"
+        },
+        {
+          "id": "D3D524FB-7C40-4454-BF3B-AC1229A94B3B",
+          "reason": "missing_city_context"
+        },
+        {
+          "id": "smoke_android_capture_0623bc39-2259-4f0d-82ba-0d2c3da6024e",
+          "reason": "missing_city_context"
+        },
+        {
+          "id": "smoke_android_capture_650033f7-14df-4d01-a922-83044ff9beb4",
+          "reason": "missing_city_context"
+        },
+        {
+          "id": "smoke_capture_90ddc77b-187c-43d2-a0be-1b699298b21e",
+          "reason": "missing_city_context"
+        }
+      ]
+    },
+    "supply": {
+      "scannedCount": 4,
+      "projectedEventCount": 4,
+      "projectedEntityCount": 4,
+      "skipped": []
+    }
+  },
+  "activeCity": {
+    "city": "San Jose, CA",
+    "citySlug": "san-jose-ca",
+    "currentStage": "next_action_open",
+    "latestSummary": "City launch execution updated for San Jose, CA; 25 lane issues dispatched.",
+    "latestEventAtIso": "2026-04-23T15:26:20.670Z",
+    "blockers": [
+      {
+        "id": "city_launch_error:load_completed_research",
+        "status": "blocked",
+        "summary": "San Jose, CA autonomous activation requires a completed deep-research playbook before delegation starts.",
+        "owner": "webapp-codex",
+        "evidenceStatus": "first_party",
+        "sourceRef": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/incomplete-city-launch-harness-d5SZYI/san-jose-ca/2026-04-23T15-24-38.959Z/step-error.json"
+      }
+    ],
+    "nextActionCount": 27
+  },
+  "lifecycle": [
+    {
+      "stage": "city_selected",
+      "status": "present",
+      "evidenceCount": 1
+    },
+    {
+      "stage": "supply_seeded",
+      "status": "present",
+      "evidenceCount": 1
+    },
+    {
+      "stage": "supply_contactable",
+      "status": "present",
+      "evidenceCount": 3
+    },
+    {
+      "stage": "capture_uploaded",
+      "status": "missing",
+      "evidenceCount": 0
+    },
+    {
+      "stage": "package_ready",
+      "status": "missing",
+      "evidenceCount": 0
+    },
+    {
+      "stage": "hosted_review_started",
+      "status": "missing",
+      "evidenceCount": 0
+    },
+    {
+      "stage": "buyer_outcome_recorded",
+      "status": "missing",
+      "evidenceCount": 0
+    },
+    {
+      "stage": "next_action_open",
+      "status": "open",
+      "evidenceCount": 41
+    }
+  ],
+  "missingStages": [
+    "capture_uploaded",
+    "package_ready",
+    "hosted_review_started",
+    "buyer_outcome_recorded"
+  ],
+  "routineRecommendations": [
+    {
+      "routine": "capturer-growth-weekly",
+      "reason": "Supply is not proven as contactable/approved enough to support autonomous first capture."
+    },
+    {
+      "routine": "site-operator-partnership-weekly",
+      "reason": "Lawful-access proof is still a tracked blocker, so the site-operator lane should run."
+    },
+    {
+      "routine": "robot-team-growth-weekly",
+      "reason": "Demand-side hosted-review usage or buyer outcome truth is not closed yet."
+    }
+  ],
+  "activation": {
+    "status": "activation_ready",
+    "budgetTier": "zero_budget",
+    "wideningAllowed": false,
+    "wideningReasons": [
+      "At least one proof-ready city asset must exist before widening.",
+      "At least one hosted review must run end to end before widening.",
+      "At least three approved capturers are required before widening.",
+      "At least two capturers must reach onboarded status before widening.",
+      "robot_team_inbound_captured is required_tracked.",
+      "proof_path_assigned is required_tracked.",
+      "proof_pack_delivered is required_tracked.",
+      "hosted_review_ready is required_tracked.",
+      "hosted_review_started is required_tracked.",
+      "hosted_review_follow_up_sent is required_tracked.",
+      "human_commercial_handoff_started is required_tracked.",
+      "proof_motion_stalled is required_tracked.",
+      "first_lawful_access_path is required_not_tracked.",
+      "first_approved_capturer is required_not_tracked.",
+      "first_rights_cleared_proof_asset is required_not_tracked.",
+      "first_hosted_review is required_not_tracked."
+    ]
+  }
+}

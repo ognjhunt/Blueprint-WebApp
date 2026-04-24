@@ -29,23 +29,22 @@ describe("Login", () => {
     render(<Login />);
 
     expect(screen.getByRole("button", { name: /Continue with Google/i })).toBeInTheDocument();
-    expect(screen.getByText(/Web portal utility/i)).toBeInTheDocument();
+    expect(screen.getByText(/Secure Access Portal/i)).toBeInTheDocument();
   });
 
   it("keeps capturer help as a secondary utility path", () => {
     render(<Login />);
 
-    expect(screen.getByText(/Existing portal users only/i)).toBeInTheDocument();
-    expect(screen.getByText(/Need new access instead\?/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Open the capture app page/i })).toHaveAttribute(
+    expect(screen.getByText(/New to Blueprint\?/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Capturer: Access the capture app/i })).toHaveAttribute(
       "href",
       "/capture-app",
     );
-    expect(screen.getByRole("link", { name: /Book buyer scoping call/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Buyer: Scope your project/i })).toHaveAttribute(
       "href",
       "/book-exact-site-review",
     );
-    expect(screen.getByRole("link", { name: /Submit buyer access request/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Buyer: Request access/i })).toHaveAttribute(
       "href",
       "/signup/business",
     );

@@ -15,6 +15,7 @@ const runAutonomousResearchOutboundLoop = vi.hoisted(() => vi.fn());
 const runCreativeAssetFactoryLoop = vi.hoisted(() => vi.fn());
 const runGapClosureLoop = vi.hoisted(() => vi.fn());
 const runHumanReplyEmailWatcher = vi.hoisted(() => vi.fn());
+const runOperatingGraphProjectionLoop = vi.hoisted(() => vi.fn());
 const sendSlackMessage = vi.hoisted(() => vi.fn());
 const workerFailureAlertState = vi.hoisted(() => new Map<string, string>());
 const maybeAlertOnWorkerStatusTransition = vi.hoisted(() =>
@@ -138,6 +139,10 @@ vi.mock("../utils/human-reply-worker", () => ({
   runHumanReplyEmailWatcher,
 }));
 
+vi.mock("../utils/operatingGraphEvidenceProjectors", () => ({
+  runOperatingGraphProjectionLoop,
+}));
+
 vi.mock("../utils/slack", () => ({
   sendSlackMessage,
 }));
@@ -166,6 +171,10 @@ beforeEach(() => {
     failedCount: 0,
     blockedCount: 0,
     reason: null,
+  });
+  runOperatingGraphProjectionLoop.mockResolvedValue({
+    processedCount: 2,
+    failedCount: 0,
   });
   sendSlackMessage.mockResolvedValue({ sent: true });
 });
@@ -244,6 +253,20 @@ describe("ops automation scheduler", () => {
     await vi.advanceTimersByTimeAsync(60_000);
 
     expect(runHumanReplyEmailWatcher).toHaveBeenCalledWith({ limit: 25 });
+
+    stop();
+  });
+
+  it("runs the operating graph projection worker when enabled", async () => {
+    vi.stubEnv("BLUEPRINT_OPERATING_GRAPH_PROJECTION_ENABLED", "1");
+    vi.stubEnv("BLUEPRINT_OPERATING_GRAPH_PROJECTION_STARTUP_DELAY_MS", "0");
+
+    const { startOpsAutomationScheduler } = await import("../utils/opsAutomationScheduler");
+    const stop = startOpsAutomationScheduler();
+
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(runOperatingGraphProjectionLoop).toHaveBeenCalledWith({ limit: 500 });
 
     stop();
   });

@@ -11,16 +11,16 @@ describe("BookExactSiteReview", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Use this path when your team already has a real facility or listing in mind and wants to confirm whether Blueprint package access, hosted evaluation, or a custom scope makes the most sense\./i,
+        /Use this page when one real site, one workflow lane, and one deployment question are ready for a focused scoping pass\./i,
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Open scheduling/i })).toHaveAttribute(
       "href",
       "https://calendly.com/blueprintar/30min",
     );
-    expect(screen.getByRole("link", { name: /Send a written brief instead/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /What a good scoping call resolves/i })).toHaveAttribute(
       "href",
-      "/contact?persona=robot-team&interest=evaluation-package",
+      "/exact-site-hosted-review",
     );
   });
 });

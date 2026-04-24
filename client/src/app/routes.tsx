@@ -102,10 +102,6 @@ const LegacyDocsRedirect = () => (
   <MarketingRedirect to="/sample-deliverables" />
 );
 
-const LegacyCaseStudiesRedirect = () => (
-  <MarketingRedirect to="/how-it-works" />
-);
-
 export const appRoutes: AppRoute[] = [
   { path: "/", layout: "public", component: Home },
   { path: "/launch-map", layout: "public", component: LaunchMap },
@@ -138,7 +134,7 @@ export const appRoutes: AppRoute[] = [
   // Core pages
   { path: "/pricing", layout: "public", component: Pricing },
   { path: "/sample-deliverables", layout: "public", component: SampleDeliverables },
-  { path: "/case-studies", layout: "public", component: LegacyCaseStudiesRedirect },
+  { path: "/case-studies", layout: "public", component: CaseStudies },
   { path: "/contact", layout: "public", component: Contact },
   { path: "/help", layout: "public", component: Support },
   { path: "/exact-site-hosted-review", layout: "public", component: ExactSiteHostedReview },

@@ -16,7 +16,7 @@ describe("ForSiteOperators", () => {
     expect(screen.getByRole("heading", { name: /How it works and what you control\./i })).toBeInTheDocument();
     expect(screen.getByText(/Register the facility/i)).toBeInTheDocument();
     expect(screen.getByText(/Approve capture windows/i)).toBeInTheDocument();
-    expect(screen.getByText(/Revenue share, privacy, and permissions stay under your rules\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Keep scheduling, privacy, permission, and downstream-usage boundaries explicit\./i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What kinds of spaces fit\./i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /List your site/i })).toHaveAttribute(
       "href",

@@ -9,27 +9,26 @@ describe("ExactSiteHostedReview", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Run one exact site before your team travels\./i,
+        name: /Review before you buy\./i,
       }),
     ).toBeInTheDocument();
 
     expect(
       screen.getByText(
-        /Blueprint hosts the review, keeps it tied to the same capture-backed package, and returns the run evidence your team needs to decide the next move\./i,
+        /Hosted evaluation of one exact-site world model\. See how the robot perceives, plans, and acts inside the selected place before your team commits\./i,
       ),
     ).toBeInTheDocument();
 
-    expect(screen.getAllByText(/^One exact site$/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/^Capture-backed hosted path$/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/^Package or hosted next step$/i).length).toBeGreaterThan(0);
-
-    expect(screen.getAllByText(/Illustrative product preview/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole("heading", { name: /What your team brings/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /What comes back/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /What stays explicit/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/^Hosted evaluation workspace$/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: /Setup, run evidence, and export scope are visible\./i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /A hosted review can start from a public-facing place\./i })).toBeInTheDocument();
+    expect(screen.getByText(/Composite sample, not a named customer outcome/i)).toBeInTheDocument();
+    expect(screen.getByText(/Run evidence mockup/i)).toBeInTheDocument();
+    expect(screen.getByText(/Export evidence/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /What happens in a hosted review\./i })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /Choose the next step for this site\./i,
+        name: /What this path is good for and what it does not claim\./i,
       }),
     ).toBeInTheDocument();
 
@@ -38,13 +37,17 @@ describe("ExactSiteHostedReview", () => {
         .getAllByRole("link", { name: /See sample deliverables/i })
         .some((link) => link.getAttribute("href") === "/sample-deliverables"),
     ).toBe(true);
+    expect(screen.getByRole("link", { name: /Open sample report/i })).toHaveAttribute(
+      "href",
+      "/samples/sample-hosted-review-report.md",
+    );
     expect(
       screen
         .getAllByRole("link", { name: /Scope hosted review/i })
         .some(
           (link) =>
             link.getAttribute("href")
-            === "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package",
+            === "/contact?persona=robot-team&interest=evaluation-package",
         ),
     ).toBe(true);
 

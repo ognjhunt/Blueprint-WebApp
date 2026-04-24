@@ -10,8 +10,13 @@ describe("SampleDeliverables", () => {
       screen.getByRole("heading", { name: /Sample deliverables from one real site\./i }),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /See the sample contract before the call\./i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Public capture can start with everyday places\./i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Open the representative artifacts\./i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Not just facilities\./i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Package and hosted paths, side by side\./i })).toBeInTheDocument();
-    expect(screen.getAllByText(/Sample artifact layout/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Sample manifest layout/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Hosted report mockup/i)).toBeInTheDocument();
+    expect(screen.getByText(/Export tree mockup/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Download sample manifest/i })).toHaveAttribute(
       "href",
       "/samples/sample-site-package-manifest.json",
@@ -20,9 +25,17 @@ describe("SampleDeliverables", () => {
       "href",
       "/samples/sample-rights-sheet.md",
     );
+    expect(screen.getByRole("link", { name: /Download sample export bundle/i })).toHaveAttribute(
+      "href",
+      "/samples/sample-export-bundle.json",
+    );
+    expect(screen.getByRole("link", { name: /Open sample report/i })).toHaveAttribute(
+      "href",
+      "/samples/sample-hosted-review-report.md",
+    );
     expect(screen.getByRole("link", { name: /View sample listing/i })).toHaveAttribute(
       "href",
-      "/world-models/siteworld-f5fd54898cfb",
+      "/world-models",
     );
     expect(screen.queryByRole("heading", { name: /Input\/output contract/i })).not.toBeInTheDocument();
   });

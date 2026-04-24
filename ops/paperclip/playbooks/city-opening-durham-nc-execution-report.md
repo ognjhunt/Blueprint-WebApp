@@ -3,12 +3,12 @@
 - status: generated execution snapshot
 - purpose: show what is ready, what is live, and what is still blocked in city-opening execution
 
-- channels_ready_or_created: 4
+- channels_ready_or_created: 0
 - sends_ready_or_sent: 2
 - sends_marked_sent: 2
 - sends_blocked: 0
 - responses_routed: 0
-- outbound_readiness_status: warning
+- outbound_readiness_status: ready
 
 ## Interpretation
 - `ready_to_create` means the channel/account is planned and not yet auto-opened for a launch lane.
@@ -20,7 +20,4 @@
 - direct_outreach_total: 2
 - direct_outreach_recipient_backed: 2
 - email_transport_configured: true
-- city_launch_sender: ohstnhunt@gmail.com
-
-### Outbound warnings
-- Sender verification cannot be proven programmatically from env state. Confirm the configured city-launch sender/domain is verified in the active mail provider before claiming outward launchability.
+- city_launch_sender: launches@tryblueprint.io

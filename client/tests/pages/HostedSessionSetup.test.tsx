@@ -75,15 +75,15 @@ describe("HostedSessionSetup", () => {
 
     expect(await screen.findByRole("heading", { name: /Configure Hosted Evaluation/i })).toBeInTheDocument();
     expect(screen.getAllByText(/Harborview Grocery Distribution Annex/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/1847 W Fulton St, Chicago, IL 60612/i).length).toBeGreaterThan(0);
     expect(
-      screen.getByText(/This opens a streamed world-model workspace for one site, one robot, and one task question\./i),
+      screen.getByText(/We will run your robot on-site at Harborview Grocery Distribution Annex/i),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/World Model/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Robot profile/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Session Runtime/i)).toBeInTheDocument();
-    expect(screen.getByText(/Embedded demo readiness/i)).toBeInTheDocument();
-    expect(screen.getByText(/Raw session bundle \+ RLDS dataset/i)).toBeInTheDocument();
+    expect(screen.getByText(/Readiness/i)).toBeInTheDocument();
+    expect(screen.getByText(/Presentation demo/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Observation frames/i).length).toBeGreaterThan(0);
   });
 
   it("renders structured readiness blockers for demo and runtime launch", async () => {
@@ -121,18 +121,15 @@ describe("HostedSessionSetup", () => {
 
     render(<HostedSessionSetup params={{ slug: "sw-chi-01" }} />);
 
-    expect(await screen.findByText(/Embedded demo readiness/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Presentation demo/i)).toBeInTheDocument();
     expect(
-      await screen.findByText(/Presentation package: gs:\/\/bucket\/presentation.json/i),
+      await screen.findByText(/Artifacts are ready\. Private operator UI is still blocked\./i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/This site can launch an artifact-backed presentation session\./i),
+      screen.getByText(/Runtime session is blocked right now\./i),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/A live private operator bridge can be added later without blocking this launch\./i),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/World-model runtime readiness/i)).toBeInTheDocument();
-    expect(screen.getByText(/The site-world registration does not include a live runtime handle yet\./i)).toBeInTheDocument();
+    expect(screen.getByText(/World-model runtime/i)).toBeInTheDocument();
+    expect(screen.getByText(/Runtime session is blocked right now\./i)).toBeInTheDocument();
   });
 
   it("offers a runtime-only launch fallback when the embedded demo is blocked", async () => {
@@ -145,8 +142,8 @@ describe("HostedSessionSetup", () => {
             entitled: true,
             blockers: [],
             presentation_demo: {
-              launchable: true,
-              blockers: [],
+              launchable: false,
+              blockers: ["Private operator UI is still blocked."],
               blocker_details: [],
               status: "presentation_ui_unconfigured",
               presentationWorldManifestUri: "gs://bucket/presentation.json",
@@ -173,7 +170,7 @@ describe("HostedSessionSetup", () => {
     render(<HostedSessionSetup params={{ slug: demoSiteId }} />);
 
     expect(
-      await screen.findByText(/Presentation can launch without the private operator bridge\./i),
+      await screen.findByText(/Embedded demo is blocked, but the world-model runtime is available\./i),
     ).toBeInTheDocument();
     const runtimeButton = screen.getByRole("button", { name: /Launch runtime session/i });
     expect(runtimeButton).toBeEnabled();
@@ -226,7 +223,7 @@ describe("HostedSessionSetup", () => {
 
     render(<HostedSessionSetup params={{ slug: demoSiteId }} />);
 
-    expect(await screen.findByText(/World-model runtime readiness/i)).toBeInTheDocument();
+    expect(await screen.findByText(/World-model runtime/i)).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const headers = (fetchMock.mock.calls[0]?.[1]?.headers || {}) as Record<string, string>;
     expect(headers.Authorization).toBeUndefined();

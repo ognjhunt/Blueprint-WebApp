@@ -2,7 +2,7 @@
 
 - city: San Jose, CA
 - city_slug: san-jose-ca
-- generated_at: 2026-04-23T15:26:15.350Z
+- generated_at: 2026-04-23T23:59:30.370Z
 - mode: deep_research_records
 - status: hypothesis-ranked targeting ledger, not a claim that every site is already accessible
 
@@ -47,7 +47,7 @@ This ledger is intentionally split into:
 
 ## Sources
 
-- [San Jose deep research playbook](/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/proof-gated-buyer-launch-harness-YSp0u2/san-jose-ca/2026-04-23T15-26-14.333Z/city-launch-contact-enrichment-san-jose-ca.json) — Latest completed deep-research artifact with structured launch records.
+- [San Jose deep research playbook](/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/proof-gated-buyer-launch-harness-mjvi8S/san-jose-ca/2026-04-23T23-59-29.039Z/city-launch-contact-enrichment-san-jose-ca.json) — Latest completed deep-research artifact with structured launch records.
 
 ## Warnings
 

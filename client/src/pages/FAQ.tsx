@@ -34,6 +34,16 @@ const faqs = [
       "The public catalog is the starting point, not the full inventory. If your team needs a specific site, use the contact path and say which place, workflow, and robot question matter.",
   },
   {
+    question: "Can Blueprint start from everyday public-facing locations?",
+    answer:
+      "Yes. The Capture app is designed for lawful public-facing places such as grocery stores, retail aisles, hotel lobbies, mall corridors, museums, and other common areas. Capturers still avoid restricted zones, screens, payment areas, private spaces, and identifiable people, and every submission goes through review before buyer-facing use.",
+  },
+  {
+    question: "Are the proof stories real customer results?",
+    answer:
+      "No. The current public proof stories are composite sample stories that show the artifact shape: capture cue, route, manifest, rights sheet, hosted report, and export tree. They should be replaced with approved real proof as the platform collects publishable captures.",
+  },
+  {
     question: "Can we book time instead of starting with a form?",
     answer:
       "Yes. Use the dedicated booking path when your team already has a real site or listing in mind and wants a fast scoping conversation around package access or hosted review.",

@@ -25,12 +25,19 @@ export const publicProofAssets = [
     href: "/sample-deliverables",
     detail: "Representative manifests and trust sheets showing how package, export, and rights objects are presented to a buyer.",
   },
+  {
+    title: "Public capture proof stories",
+    label: "Composite story set",
+    href: "/case-studies",
+    detail: "Composite grocery, retail, lobby, and common-area stories showing how public-facing captures become buyer-readable packets.",
+  },
 ];
 
 export const proofHighlights = [
   "Real capture proof: the walkthrough reel and listing are grounded to one specific facility.",
   "Sample artifact layout: package manifests, export bundles, and trust cards are representative layouts unless marked otherwise.",
   "Illustrative product preview: hosted-evaluation UI panels show the buyer workflow without implying customer outcomes the site cannot prove yet.",
+  "Public capture proof: composite stories show how everyday public-facing locations can enter review without pretending permission-gated spaces are already approved.",
 ];
 
 export const resultHighlights = [

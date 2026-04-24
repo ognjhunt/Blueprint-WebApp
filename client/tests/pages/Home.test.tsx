@@ -39,12 +39,12 @@ describe("Home", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Site-specific world models for real facilities\./i,
+        name: /Site-specific world models for real places\./i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Blueprint helps robot teams inspect, license, and run exact-site world-model products built from real capture\./i,
+        /Evaluate exact deployment sites before the expensive part starts/i,
       ),
     ).toBeInTheDocument();
     expect(
@@ -57,11 +57,10 @@ describe("Home", () => {
       "/contact?persona=robot-team&interest=evaluation-package",
     );
     expect(
-      screen.getByText(/Built for teams that need the real site before deployment\./i),
+      screen.getByText(/A site-specific digital environment built from real capture/i),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Real capture provenance/i)).toBeInTheDocument();
-    expect(screen.getByText(/Site package licensing/i)).toBeInTheDocument();
-    expect(screen.getByText(/Hosted session access/i)).toBeInTheDocument();
+    expect(screen.getByText(/Walkthrough media, poses, metadata, geometry when available/i)).toBeInTheDocument();
+    expect(screen.getByText(/Managed reruns, observations, evidence exports/i)).toBeInTheDocument();
   });
 
   it("surfaces concise sections for sites, products, proof, and closing action", {
@@ -72,7 +71,16 @@ describe("Home", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Real places\. Real capture\. Real buying surfaces\./i,
+        name: /Open the map to everyday places\./i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open capture app/i })).toHaveAttribute(
+      "href",
+      "/capture-app",
+    );
+    expect(
+      screen.getByRole("heading", {
+        name: /Everyday places can become robot-team evidence\./i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -82,23 +90,15 @@ describe("Home", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: /See what a team gets before it commits\./i,
+        name: /See what attaches before it commits\./i,
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/Capture provenance/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Package outputs/i)).toBeInTheDocument();
-    expect(screen.getByText(/Hosted session artifacts/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Composite stories make the evidence path concrete/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Cedar Market Aisle Loop/i)).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /Start with the site that matters\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Chicago grocery backroom/i })).toHaveAttribute(
-      "href",
-      "/world-models/sw-chi-01",
-    );
-    expect(screen.getByRole("link", { name: /Media room walkthrough/i })).toHaveAttribute(
-      "href",
-      "/world-models/siteworld-f5fd54898cfb",
-    );
     expect(
       screen.getByRole("link", { name: /View sample deliverables/i }),
     ).toBeInTheDocument();

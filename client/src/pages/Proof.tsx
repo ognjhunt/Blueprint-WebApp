@@ -5,8 +5,15 @@ import {
   EditorialSectionLabel,
   MonochromeMedia,
 } from "@/components/site/editorial";
-import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
 import { getDemandCityMessaging, withDemandCityQuery } from "@/lib/cityDemandMessaging";
+import {
+  proofEvidencePacket,
+  publicCaptureProofStories,
+  sampleHostedRunRows,
+  sampleProofTimeline,
+} from "@/lib/proofEvidence";
+import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
+import { ArrowRight } from "lucide-react";
 import { useMemo } from "react";
 import { useSearch } from "wouter";
 
@@ -25,6 +32,11 @@ const proofRoutes = [
     title: "Deliverables",
     body: "Inspect manifests, rights sheets, and output bundles tied to one listing.",
     href: "/sample-deliverables",
+  },
+  {
+    title: "Proof stories",
+    body: "Review composite stories for grocery, retail, lobby, and common-area capture paths.",
+    href: "/case-studies",
   },
 ];
 
@@ -50,7 +62,7 @@ export default function Proof() {
       <div className="bg-[#f5f3ef] text-slate-950">
         <section className="border-b border-black/10">
           <MonochromeMedia
-            src={editorialGeneratedAssets.proofBoardGovernance}
+            src={publicCaptureGeneratedAssets.governancePublicCaptureExplainer}
             alt="Proof hub hero"
             className="min-h-[38rem] rounded-none"
             loading="eager"
@@ -90,7 +102,7 @@ export default function Proof() {
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
           <div className="grid gap-4 lg:grid-cols-[0.48fr_0.52fr]">
             <MonochromeMedia
-              src={editorialGeneratedAssets.proofBoardDeliverables}
+              src={publicCaptureGeneratedAssets.cedarMarketProofBoard}
               alt="Public demo proof surface"
               className="min-h-[30rem]"
               overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.04),rgba(0,0,0,0.12))]"
@@ -107,6 +119,95 @@ export default function Proof() {
 
         <section className="border-y border-black/10 bg-white">
           <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+            <div className="grid gap-4 lg:grid-cols-[0.36fr_0.64fr]">
+              <div className="bg-[#f5f3ef] p-6 lg:p-8">
+                <EditorialSectionIntro
+                  eyebrow="Sample packet"
+                  title={proofEvidencePacket.headline}
+                  description={proofEvidencePacket.summary}
+                />
+                <p className="mt-5 text-sm leading-7 text-slate-600">
+                  {proofEvidencePacket.disclosure}
+                </p>
+              </div>
+              <div className="grid gap-px bg-black/10 md:grid-cols-4">
+                {sampleProofTimeline.map((item) => (
+                  <div key={item.label} className="bg-white p-5">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
+                    <p className="mt-4 text-sm leading-6 text-slate-700">{item.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+          <EditorialSectionIntro
+            eyebrow="Public-facing examples"
+            title="Proof is not warehouse-only."
+            description="These composite examples show how everyday public-facing locations can become evidence packets without pretending the sample names are real customer proof."
+            className="max-w-3xl"
+          />
+          <div className="mt-8 grid gap-4 lg:grid-cols-4">
+            {publicCaptureProofStories.map((story) => (
+              <article key={story.id} className="overflow-hidden border border-black/10 bg-white">
+                <MonochromeMedia
+                  src={story.image}
+                  alt={story.locationName}
+                  className="aspect-[4/3] rounded-none"
+                  imageClassName="aspect-[4/3]"
+                  overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.04),rgba(0,0,0,0.34))]"
+                />
+                <div className="p-5">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{story.label}</p>
+                  <h2 className="mt-3 text-xl font-semibold leading-tight text-slate-950">
+                    {story.locationName}
+                  </h2>
+                  <p className="mt-2 text-sm text-slate-500">{story.locationType} / {story.city}</p>
+                  <p className="mt-4 text-sm leading-6 text-slate-700">{story.robotQuestion}</p>
+                  <a
+                    href="/sample-deliverables"
+                    className="mt-5 inline-flex items-center text-sm font-semibold text-slate-950"
+                  >
+                    Inspect packet shape
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 sm:px-8 lg:grid-cols-[0.58fr_0.42fr] lg:px-10 lg:py-12">
+            <div className="border border-black/10 bg-[#f5f3ef] p-6">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Hosted report preview</p>
+              <div className="mt-5 divide-y divide-black/10 border border-black/10 bg-white">
+                {sampleHostedRunRows.map((row) => (
+                  <div key={row.run} className="grid gap-3 p-4 text-sm leading-6 text-slate-700 md:grid-cols-[0.16fr_0.28fr_0.36fr_0.2fr]">
+                    <span className="font-semibold text-slate-950">{row.run}</span>
+                    <span>{row.scenario}</span>
+                    <span>{row.observation}</span>
+                    <span className="text-slate-950">{row.output}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="bg-slate-950 p-6 text-white">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">What this proves</p>
+              <h2 className="font-editorial mt-4 text-[2.6rem] leading-[0.94] tracking-[-0.05em]">
+                Route, rights, report, and next step.
+              </h2>
+              <p className="mt-5 text-sm leading-7 text-white/70">
+                The proof surface is complete when a buyer can see where the capture came from, which public areas were in scope, what was redacted, what the hosted review observed, and which package or hosted path comes next.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
 	            <EditorialSectionIntro
 	              eyebrow="Proof routes"
 	              title="Proof routes."
@@ -114,7 +215,7 @@ export default function Proof() {
 	              className="max-w-3xl"
 	            />
             <div className="mt-8 grid gap-4 lg:grid-cols-[0.62fr_0.38fr]">
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {proofRoutes.map((route) => (
                   <a key={route.href} href={route.href} className="border border-black/10 bg-[#f5f3ef] p-5 transition hover:bg-white">
                     <h2 className="font-editorial text-[1.8rem] leading-[0.95] tracking-[-0.04em] text-slate-950">
@@ -141,7 +242,7 @@ export default function Proof() {
             eyebrow="Next step"
             title="Move from proof into the exact-site path."
             description="Inspect the listing first, then continue into deliverables, hosted review, or a direct buyer brief."
-            imageSrc={editorialGeneratedAssets.proofBoardGovernance}
+            imageSrc={publicCaptureGeneratedAssets.governancePublicCaptureExplainer}
             imageAlt="Proof board"
             primaryHref="/world-models"
             primaryLabel="View sample listing"

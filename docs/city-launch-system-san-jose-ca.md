@@ -191,6 +191,10 @@ Turn the San Jose planning artifacts into an executable company harness that run
 - ops/paperclip/playbooks/city-opening-san-jose-ca-channel-registry.md
 - ops/paperclip/playbooks/city-opening-san-jose-ca-send-ledger.md
 - ops/paperclip/playbooks/city-opening-san-jose-ca-execution-report.md
+- ops/paperclip/playbooks/city-opening-san-jose-ca-no-signal-recovery.md
+- ops/paperclip/playbooks/city-opening-san-jose-ca-campaign-mock-pack.md
+- ops/paperclip/playbooks/city-opening-san-jose-ca-site-operator-recovery-pack.md
+- ops/paperclip/playbooks/city-opening-san-jose-ca-no-signal-scorecard.md
 - ops/paperclip/playbooks/city-opening-san-jose-ca-robot-team-contact-list.md
 - ops/paperclip/playbooks/city-opening-san-jose-ca-site-operator-contact-list.md
 

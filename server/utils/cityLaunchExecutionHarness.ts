@@ -16,6 +16,7 @@ import {
   listCityLaunchBuyerTargets,
   listCityLaunchChannelAccounts,
   listCityLaunchProspects,
+  listCityLaunchReplyConversions,
   listCityLaunchSendActions,
   readCityLaunchActivation,
   summarizeCityLaunchLedgers,
@@ -26,6 +27,7 @@ import {
   type CityLaunchBuyerTargetRecord,
   type CityLaunchChannelAccountRecord,
   type CityLaunchProspectRecord,
+  type CityLaunchReplyConversionRecord,
   type CityLaunchSendActionRecord,
 } from "./cityLaunchLedgers";
 import { resolveCityLaunchPlanningState, type CityLaunchPlanningState } from "./cityLaunchPlanningState";
@@ -79,6 +81,16 @@ import {
   assessCityLaunchCapabilities,
   type CityLaunchCapabilitySnapshot,
 } from "./cityLaunchCapabilityState";
+import {
+  buildCityLaunchNoSignalRecovery,
+  buildNoSignalRecoveryTaskSeeds,
+  renderCityLaunchCampaignMockPackMarkdown,
+  renderCityLaunchNoSignalRecoveryMarkdown,
+  renderCityLaunchNoSignalScorecardMarkdown,
+  renderCityLaunchSiteOperatorRecoveryPackMarkdown,
+  type CityLaunchNoSignalRecoveryArtifactPaths,
+  type CityLaunchNoSignalRecoveryResult,
+} from "./cityLaunchNoSignalRecovery";
 import { hasConfiguredMarketSignalProvider } from "./marketSignalProviders";
 import { appendOperatingGraphEvent, buildCityProgramId } from "./operatingGraph";
 import type {
@@ -134,7 +146,7 @@ export type CityLaunchTask = {
     CityLaunchRequiredMetricDependencyKey | CityLaunchProofMotionMilestone
   >;
   validationRequired: boolean;
-  source: "default_task_bundle" | "activation_payload";
+  source: "default_task_bundle" | "activation_payload" | "no_signal_recovery";
 };
 
 export type CityLaunchTaskDispatch = {
@@ -202,6 +214,10 @@ export type CityLaunchExecutionResult = {
         channelRegistryPath: string;
         sendLedgerPath: string;
         executionReportPath: string;
+        noSignalRecoveryPath: string;
+        campaignMockPackPath: string;
+        siteOperatorRecoveryPackPath: string;
+        noSignalScorecardPath: string;
       };
       canonical: {
         briefPath: string;
@@ -213,6 +229,10 @@ export type CityLaunchExecutionResult = {
         channelRegistryPath: string;
         sendLedgerPath: string;
         executionReportPath: string;
+        noSignalRecoveryPath: string;
+        campaignMockPackPath: string;
+        siteOperatorRecoveryPackPath: string;
+        noSignalScorecardPath: string;
       };
     };
     notionKnowledgePageUrl?: string;
@@ -251,6 +271,7 @@ export type CityLaunchExecutionResult = {
   capabilitySnapshot?: CityLaunchCapabilitySnapshot;
   outboundReadiness?: CityLaunchOutboundReadiness;
   sendExecution?: CityLaunchSendExecutionResult;
+  noSignalRecovery?: CityLaunchNoSignalRecoveryResult;
 };
 
 type ReadSourceArtifact = {
@@ -294,6 +315,10 @@ function buildCanonicalCityOpeningArtifactPath(
     | "channel-registry"
     | "send-ledger"
     | "execution-report"
+    | "no-signal-recovery"
+    | "campaign-mock-pack"
+    | "site-operator-recovery-pack"
+    | "no-signal-scorecard"
     | "robot-team-contact-list"
     | "site-operator-contact-list",
 ) {
@@ -2375,6 +2400,9 @@ function assessCityLaunchTaskExecution(task: CityLaunchTask): {
     case "ops-rubric-thresholds":
     case "buyer-target-research":
     case "city-opening-response-tracking":
+    case "no-signal-city-opening-coherence":
+    case "no-signal-capturer-source-recovery":
+    case "no-signal-marketing-campaign-mock-pack":
     case "city-scorecard":
     case "notion-breadcrumbs":
     case "switch-on-review":
@@ -2412,10 +2440,17 @@ function assessCityLaunchTaskExecution(task: CityLaunchTask): {
     case "rights-clearance":
     case "proof-pack-listings":
     case "lawful-access-path":
+    case "no-signal-site-operator-recovery":
       return {
         executionState: "execute_until_external_confirmation",
         executionReason:
           "This lane should run now and push through research, packetization, routing, drafting, and prep work until it reaches the first real external confirmation, signature, applicant, capture artifact, or buyer response needed to complete the lane.",
+      };
+    case "no-signal-recipient-backed-outbound-recovery":
+      return {
+        executionState: "execute_until_live_signal",
+        executionReason:
+          "This lane should draft and route proof-led outbound only where recipient evidence exists, then remain open until a reply, qualified operator intro, capturer candidate, or explicit no-response outcome is recorded.",
       };
     default:
       return {
@@ -2547,6 +2582,11 @@ function buildTaskKickoffComment(input: {
     ...(input.task.key === "lawful-access-path"
       ? [
           "If the packet is only drafted and the signatures are still pending, leave the issue open or blocked rather than marking it done.",
+        ]
+      : []),
+    ...(input.task.key.startsWith("no-signal-")
+      ? [
+          "This is city-launch recovery because the first supply/outreach motion returned no positive live signal. Drafts, target lists, and scorecard updates are autonomous; live public posting, spend, rights/privacy exceptions, private controlled site commitments, and unsupported live sends remain human-gated.",
         ]
       : []),
   ].join("\n");
@@ -2880,6 +2920,10 @@ export async function runCityLaunchExecutionHarness(input: {
   const cityOpeningChannelRegistryPath = path.join(runDirectory, `city-opening-${profile.key}-channel-registry.md`);
   const cityOpeningSendLedgerPath = path.join(runDirectory, `city-opening-${profile.key}-send-ledger.md`);
   const cityOpeningExecutionReportPath = path.join(runDirectory, `city-opening-${profile.key}-execution-report.md`);
+  const cityOpeningNoSignalRecoveryPath = path.join(runDirectory, `city-opening-${profile.key}-no-signal-recovery.md`);
+  const cityOpeningCampaignMockPackPath = path.join(runDirectory, `city-opening-${profile.key}-campaign-mock-pack.md`);
+  const cityOpeningSiteOperatorRecoveryPackPath = path.join(runDirectory, `city-opening-${profile.key}-site-operator-recovery-pack.md`);
+  const cityOpeningNoSignalScorecardPath = path.join(runDirectory, `city-opening-${profile.key}-no-signal-scorecard.md`);
   const cityOpeningRobotTeamContactListPath = path.join(runDirectory, `city-opening-${profile.key}-robot-team-contact-list.md`);
   const cityOpeningSiteOperatorContactListPath = path.join(runDirectory, `city-opening-${profile.key}-site-operator-contact-list.md`);
   const researchMaterializationPath = path.join(
@@ -2905,8 +2949,26 @@ export async function runCityLaunchExecutionHarness(input: {
   const canonicalCityOpeningChannelRegistryPath = buildCanonicalCityOpeningArtifactPath(profile, "channel-registry");
   const canonicalCityOpeningSendLedgerPath = buildCanonicalCityOpeningArtifactPath(profile, "send-ledger");
   const canonicalCityOpeningExecutionReportPath = buildCanonicalCityOpeningArtifactPath(profile, "execution-report");
+  const canonicalCityOpeningNoSignalRecoveryPath = buildCanonicalCityOpeningArtifactPath(profile, "no-signal-recovery");
+  const canonicalCityOpeningCampaignMockPackPath = buildCanonicalCityOpeningArtifactPath(profile, "campaign-mock-pack");
+  const canonicalCityOpeningSiteOperatorRecoveryPackPath = buildCanonicalCityOpeningArtifactPath(profile, "site-operator-recovery-pack");
+  const canonicalCityOpeningNoSignalScorecardPath = buildCanonicalCityOpeningArtifactPath(profile, "no-signal-scorecard");
   const canonicalCityOpeningRobotTeamContactListPath = buildCanonicalCityOpeningArtifactPath(profile, "robot-team-contact-list");
   const canonicalCityOpeningSiteOperatorContactListPath = buildCanonicalCityOpeningArtifactPath(profile, "site-operator-contact-list");
+  const noSignalRecoveryArtifactPaths: CityLaunchNoSignalRecoveryArtifactPaths = {
+    run: {
+      recoveryReportPath: cityOpeningNoSignalRecoveryPath,
+      campaignMockPackPath: cityOpeningCampaignMockPackPath,
+      siteOperatorRecoveryPackPath: cityOpeningSiteOperatorRecoveryPackPath,
+      scorecardPath: cityOpeningNoSignalScorecardPath,
+    },
+    canonical: {
+      recoveryReportPath: canonicalCityOpeningNoSignalRecoveryPath,
+      campaignMockPackPath: canonicalCityOpeningCampaignMockPackPath,
+      siteOperatorRecoveryPackPath: canonicalCityOpeningSiteOperatorRecoveryPackPath,
+      scorecardPath: canonicalCityOpeningNoSignalScorecardPath,
+    },
+  };
   const canonicalActivationPayloadPath = path.join(
     REPO_ROOT,
     `ops/paperclip/playbooks/city-launch-${profile.key}-activation-payload.json`,
@@ -3181,6 +3243,10 @@ export async function runCityLaunchExecutionHarness(input: {
       canonicalCityOpeningChannelRegistryPath,
       canonicalCityOpeningSendLedgerPath,
       canonicalCityOpeningExecutionReportPath,
+      canonicalCityOpeningNoSignalRecoveryPath,
+      canonicalCityOpeningCampaignMockPackPath,
+      canonicalCityOpeningSiteOperatorRecoveryPackPath,
+      canonicalCityOpeningNoSignalScorecardPath,
       canonicalCityOpeningRobotTeamContactListPath,
       canonicalCityOpeningSiteOperatorContactListPath,
     ]) {
@@ -3309,6 +3375,10 @@ export async function runCityLaunchExecutionHarness(input: {
             channelRegistryPath: cityOpeningChannelRegistryPath,
             sendLedgerPath: cityOpeningSendLedgerPath,
             executionReportPath: cityOpeningExecutionReportPath,
+            noSignalRecoveryPath: cityOpeningNoSignalRecoveryPath,
+            campaignMockPackPath: cityOpeningCampaignMockPackPath,
+            siteOperatorRecoveryPackPath: cityOpeningSiteOperatorRecoveryPackPath,
+            noSignalScorecardPath: cityOpeningNoSignalScorecardPath,
           },
           canonical: {
             briefPath: canonicalCityOpeningBriefPath,
@@ -3320,6 +3390,10 @@ export async function runCityLaunchExecutionHarness(input: {
             channelRegistryPath: canonicalCityOpeningChannelRegistryPath,
             sendLedgerPath: canonicalCityOpeningSendLedgerPath,
             executionReportPath: canonicalCityOpeningExecutionReportPath,
+            noSignalRecoveryPath: canonicalCityOpeningNoSignalRecoveryPath,
+            campaignMockPackPath: canonicalCityOpeningCampaignMockPackPath,
+            siteOperatorRecoveryPackPath: canonicalCityOpeningSiteOperatorRecoveryPackPath,
+            noSignalScorecardPath: canonicalCityOpeningNoSignalScorecardPath,
           },
         },
       },
@@ -3400,7 +3474,7 @@ export async function runCityLaunchExecutionHarness(input: {
       );
     }
 
-    const taskIssueIds = Object.fromEntries(
+    let taskIssueIds = Object.fromEntries(
       (result.paperclip?.dispatched || []).map((entry) => [entry.key, entry.issueId]),
     );
 
@@ -3524,10 +3598,11 @@ export async function runCityLaunchExecutionHarness(input: {
     };
 
     await advanceStep("write_contact_lists");
-    const [cityBuyerTargets, cityProspects, refreshedSendActions] = await Promise.all([
+    const [cityBuyerTargets, cityProspects, refreshedSendActions, cityReplyConversions] = await Promise.all([
       listCityLaunchBuyerTargets(profile.city).catch(() => []),
       listCityLaunchProspects(profile.city).catch(() => []),
       listCityLaunchSendActions(profile.city).catch(() => cityOpeningExecution.sendActions),
+      listCityLaunchReplyConversions(profile.city).catch(() => [] as CityLaunchReplyConversionRecord[]),
     ]);
     const robotTeamContactList = renderRobotTeamContactListMarkdown({
       profile,
@@ -3543,6 +3618,151 @@ export async function runCityLaunchExecutionHarness(input: {
     await writeTextArtifact(cityOpeningSiteOperatorContactListPath, siteOperatorContactList);
     await writeTextArtifact(canonicalCityOpeningRobotTeamContactListPath, robotTeamContactList);
     await writeTextArtifact(canonicalCityOpeningSiteOperatorContactListPath, siteOperatorContactList);
+
+    await advanceStep("evaluate_no_signal_recovery");
+    const writeNoSignalRecoveryArtifacts = async (
+      recovery: CityLaunchNoSignalRecoveryResult,
+    ) => {
+      const recoveryReport = renderCityLaunchNoSignalRecoveryMarkdown(recovery);
+      const campaignMockPack = renderCityLaunchCampaignMockPackMarkdown({
+        profile,
+        recovery,
+      });
+      const siteOperatorRecoveryPack = renderCityLaunchSiteOperatorRecoveryPackMarkdown({
+        profile,
+        recovery,
+        prospects: cityProspects,
+        buyerTargets: cityBuyerTargets,
+      });
+      const noSignalScorecard = renderCityLaunchNoSignalScorecardMarkdown(recovery);
+
+      await writeTextArtifact(cityOpeningNoSignalRecoveryPath, recoveryReport);
+      await writeTextArtifact(cityOpeningCampaignMockPackPath, campaignMockPack);
+      await writeTextArtifact(cityOpeningSiteOperatorRecoveryPackPath, siteOperatorRecoveryPack);
+      await writeTextArtifact(cityOpeningNoSignalScorecardPath, noSignalScorecard);
+      await writeTextArtifact(canonicalCityOpeningNoSignalRecoveryPath, recoveryReport);
+      await writeTextArtifact(canonicalCityOpeningCampaignMockPackPath, campaignMockPack);
+      await writeTextArtifact(canonicalCityOpeningSiteOperatorRecoveryPackPath, siteOperatorRecoveryPack);
+      await writeTextArtifact(canonicalCityOpeningNoSignalScorecardPath, noSignalScorecard);
+    };
+    const noSignalRecovery = buildCityLaunchNoSignalRecovery({
+      profile,
+      sendActions: refreshedSendActions,
+      prospects: cityProspects,
+      buyerTargets: cityBuyerTargets,
+      replyConversions: cityReplyConversions,
+      artifactPaths: noSignalRecoveryArtifactPaths,
+    });
+    result.noSignalRecovery = noSignalRecovery;
+    await writeNoSignalRecoveryArtifacts(noSignalRecovery);
+
+    if (noSignalRecovery.triggered) {
+      const recoveryTasks = buildNoSignalRecoveryTaskSeeds({
+        profile,
+        recovery: noSignalRecovery,
+        artifactInputs: [
+          canonicalCityOpeningNoSignalRecoveryPath,
+          canonicalCityOpeningCampaignMockPackPath,
+          canonicalCityOpeningSiteOperatorRecoveryPackPath,
+          canonicalCityOpeningNoSignalScorecardPath,
+          canonicalCityOpeningCtaRoutingPath,
+          canonicalCityOpeningResponseTrackingPath,
+          canonicalCityOpeningReplyConversionPath,
+          canonicalCityOpeningSendLedgerPath,
+          canonicalCityOpeningRobotTeamContactListPath,
+          canonicalCityOpeningSiteOperatorContactListPath,
+        ],
+      }).map((taskSeed): CityLaunchTask => ({
+        ...taskSeed,
+        source: "no_signal_recovery",
+      }));
+
+      if (input.dispatchIssues === false) {
+        noSignalRecovery.dispatchStatus = "not_applicable";
+      } else if (!result.paperclip?.rootIssueId) {
+        noSignalRecovery.dispatchStatus = "failed";
+        noSignalRecovery.dispatchError =
+          "No root city-launch issue exists, so no-signal recovery lanes could not be delegated.";
+      } else {
+        await advanceStep("dispatch_no_signal_recovery");
+        try {
+          const recoveryDispatch = await dispatchCityLaunchIssueTree({
+            activationRunId: `${runTimestamp}:no-signal-recovery`,
+            profile,
+            tasks: recoveryTasks,
+            founderApproved: autonomousActivation,
+            budgetPolicy,
+            existingRootIssueId: result.paperclip.rootIssueId,
+            existingTaskIssueIds: taskIssueIds,
+            wakeExistingIssues: autonomousActivation,
+            rewakeTaskKeys: input.rewakeTaskKeys,
+            rewakeOwnerLanes: input.rewakeOwnerLanes,
+            artifactPaths: {
+              canonicalSystemDocPath,
+              canonicalIssueBundlePath,
+              canonicalTargetLedgerPath,
+              canonicalActivationPayloadPath,
+            },
+          });
+          const recoveryTaskIssueIds = Object.fromEntries(
+            recoveryDispatch.dispatched.map((entry) => [entry.key, entry.issueId]),
+          );
+          taskIssueIds = {
+            ...taskIssueIds,
+            ...recoveryTaskIssueIds,
+          };
+          result.paperclip = {
+            rootIssueId: recoveryDispatch.rootIssue.id,
+            rootIssueIdentifier: recoveryDispatch.rootIssue.identifier || null,
+            createdRootIssue:
+              Boolean(result.paperclip?.createdRootIssue) || recoveryDispatch.createdRootIssue,
+            dispatched: [
+              ...(result.paperclip?.dispatched || []),
+              ...recoveryDispatch.dispatched,
+            ],
+            error:
+              [
+                result.paperclip?.error || null,
+                recoveryDispatch.dispatched.some((entry) => Boolean(entry.wakeError))
+                  ? `${recoveryDispatch.dispatched.filter((entry) => Boolean(entry.wakeError)).length} no-signal recovery lane wakeups degraded; inspect wakeError on dispatched tasks.`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" ") || null,
+          };
+          noSignalRecovery.dispatchStatus = "dispatched";
+          noSignalRecovery.dispatchError = null;
+          await writeCityLaunchActivation({
+            city: profile.city,
+            budgetTier: budgetPolicy.tier,
+            budgetPolicy,
+            founderApproved: autonomousActivation,
+            status: result.activationStatus,
+            rootIssueId: result.paperclip.rootIssueId,
+            taskIssueIds,
+            wideningGuard,
+          }).catch(() => null);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          noSignalRecovery.dispatchStatus = "failed";
+          noSignalRecovery.dispatchError = message;
+          result.paperclip = {
+            rootIssueId: result.paperclip?.rootIssueId || null,
+            rootIssueIdentifier: result.paperclip?.rootIssueIdentifier || null,
+            createdRootIssue: Boolean(result.paperclip?.createdRootIssue),
+            dispatched: result.paperclip?.dispatched || [],
+            error:
+              [
+                result.paperclip?.error || null,
+                `No-signal recovery dispatch failed: ${message}`,
+              ]
+                .filter(Boolean)
+                .join(" "),
+          };
+        }
+      }
+      await writeNoSignalRecoveryArtifacts(noSignalRecovery);
+    }
 
     currentStep = "completed";
     const dispatchedGraphEntries = result.paperclip?.dispatched || [];

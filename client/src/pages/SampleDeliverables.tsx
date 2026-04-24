@@ -5,8 +5,15 @@ import {
   EditorialSectionLabel,
   MonochromeMedia,
 } from "@/components/site/editorial";
-import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
-import { ArrowRight, FileText, PackageOpen, ShieldCheck } from "lucide-react";
+import {
+  proofEvidencePacket,
+  publicCaptureLocationTypes,
+  sampleExportTree,
+  sampleHostedRunRows,
+  sampleProofTimeline,
+} from "@/lib/proofEvidence";
+import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
+import { ArrowRight, FileText, MapPinned, PackageOpen, ShieldCheck, Smartphone } from "lucide-react";
 
 const contractCards = [
   {
@@ -30,6 +37,7 @@ const artifactPreviews = [
     href: "/samples/sample-site-package-manifest.json",
     body: "Site id, capture date, proof depth, freshness state, rights class, and export types in one buyer-readable object.",
     icon: FileText,
+    action: "Download sample manifest",
   },
   {
     title: "Rights sheet",
@@ -37,6 +45,7 @@ const artifactPreviews = [
     href: "/samples/sample-rights-sheet.md",
     body: "Usage, sharing, retention, restricted-zone, and export-boundary language clearly marked as representative sample material.",
     icon: ShieldCheck,
+    action: "Download sample rights sheet",
   },
   {
     title: "Export bundle",
@@ -44,6 +53,7 @@ const artifactPreviews = [
     href: "/samples/sample-export-bundle.json",
     body: "A compact example of the run summary, artifact list, and notes a robot team can inspect after hosted review.",
     icon: PackageOpen,
+    action: "Download sample export bundle",
   },
   {
     title: "Hosted review report",
@@ -51,6 +61,7 @@ const artifactPreviews = [
     href: "/samples/sample-hosted-review-report.md",
     body: "A representative report outline showing session scope, run evidence, buyer decision notes, and truthful limitations.",
     icon: FileText,
+    action: "Open sample report",
   },
 ];
 
@@ -87,7 +98,7 @@ export default function SampleDeliverables() {
       <div className="bg-[#f5f3ef] text-slate-950">
         <section className="border-b border-black/10">
           <MonochromeMedia
-            src={editorialGeneratedAssets.proofBoardDeliverables}
+            src={publicCaptureGeneratedAssets.cedarMarketProofBoard}
             alt="Sample deliverables hero"
             className="min-h-[38rem] rounded-none"
             loading="eager"
@@ -135,6 +146,77 @@ export default function SampleDeliverables() {
         </section>
 
         <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 sm:px-8 lg:grid-cols-[0.44fr_0.56fr] lg:px-10 lg:py-12">
+            <div className="overflow-hidden border border-black/10 bg-slate-950 text-white">
+              <MonochromeMedia
+                src={publicCaptureGeneratedAssets.cedarMarketProofBoard}
+                alt="Cedar Market sample proof board with route, manifest, rights, and export previews"
+                className="min-h-[28rem] rounded-none"
+                imageClassName="min-h-[28rem]"
+                overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.1),rgba(0,0,0,0.72))]"
+              >
+                <div className="absolute inset-x-0 bottom-0 p-6">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-white/50">
+                    {proofEvidencePacket.selectedStory.label}
+                  </p>
+                  <h2 className="font-editorial mt-4 max-w-[22rem] text-[2.8rem] leading-[0.94] tracking-[-0.05em]">
+                    {proofEvidencePacket.selectedStory.locationName}
+                  </h2>
+                  <p className="mt-4 max-w-[24rem] text-sm leading-7 text-white/74">
+                    {proofEvidencePacket.selectedStory.locationType} in {proofEvidencePacket.selectedStory.city}.
+                  </p>
+                </div>
+              </MonochromeMedia>
+            </div>
+
+            <div className="border border-black/10 bg-[#f5f3ef] p-6 lg:p-8">
+              <EditorialSectionIntro
+                eyebrow="Complete packet mockup"
+                title={proofEvidencePacket.headline}
+                description={proofEvidencePacket.summary}
+              />
+              <div className="mt-7 grid gap-3 md:grid-cols-2">
+                <div className="border border-black/10 bg-white p-5">
+                  <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                    <Smartphone className="h-4 w-4" />
+                    Capture app cue
+                  </div>
+                  <p className="mt-3 text-sm leading-7 text-slate-700">
+                    {proofEvidencePacket.selectedStory.captureAppCue}
+                  </p>
+                </div>
+                <div className="border border-black/10 bg-white p-5">
+                  <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                    <MapPinned className="h-4 w-4" />
+                    Capture mode
+                  </div>
+                  <p className="mt-3 text-sm leading-7 text-slate-700">
+                    {proofEvidencePacket.selectedStory.captureMode}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 border border-black/10 bg-white p-5">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Buyer question</p>
+                <p className="mt-3 text-lg leading-7 text-slate-950">
+                  {proofEvidencePacket.selectedStory.robotQuestion}
+                </p>
+                <p className="mt-4 text-sm leading-7 text-slate-600">
+                  {proofEvidencePacket.disclosure}
+                </p>
+              </div>
+              <div className="mt-5 grid gap-3 md:grid-cols-4">
+                {sampleProofTimeline.map((item) => (
+                  <div key={item.label} className="border border-black/10 bg-white p-4">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
+                    <p className="mt-3 text-sm leading-6 text-slate-700">{item.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-y border-black/10 bg-white">
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.36fr_0.64fr] lg:px-10 lg:py-12">
             <div className="bg-[#f5f3ef] p-6 lg:p-8">
               <EditorialSectionIntro
@@ -174,12 +256,62 @@ export default function SampleDeliverables() {
                       {artifact.body}
                     </p>
                     <span className={`mt-6 inline-flex items-center text-sm font-semibold ${dark ? "text-white" : "text-slate-950"}`}>
-                      Open sample
+                      {artifact.action}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </span>
                   </a>
                 );
               })}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-b border-black/10 bg-white">
+          <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+            <div className="grid gap-4 lg:grid-cols-[0.42fr_0.58fr]">
+              <div className="bg-slate-950 p-6 text-white lg:p-8">
+                <EditorialSectionIntro
+                  eyebrow="Everyday capture"
+                  title="Not just facilities."
+                  description="The sample evidence set is intentionally biased toward the places people already visit and can capture from public-facing areas when the guardrails are followed."
+                  light
+                />
+                <div className="mt-7 grid gap-2">
+                  {publicCaptureLocationTypes.map((item) => (
+                    <div key={item.label} className="border border-white/10 bg-white/5 p-4">
+                      <p className="text-sm font-semibold text-white">{item.label}</p>
+                      <p className="mt-2 text-sm leading-6 text-white/66">{item.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-4">
+                <div className="border border-black/10 bg-[#f5f3ef] p-6">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Hosted report mockup</p>
+                  <div className="mt-5 divide-y divide-black/10 border border-black/10 bg-white">
+                    {sampleHostedRunRows.map((row) => (
+                      <div key={row.run} className="grid gap-3 p-4 text-sm leading-6 text-slate-700 md:grid-cols-[0.18fr_0.28fr_0.34fr_0.2fr]">
+                        <span className="font-semibold text-slate-950">{row.run}</span>
+                        <span>{row.scenario}</span>
+                        <span>{row.observation}</span>
+                        <span className="text-slate-950">{row.output}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border border-black/10 bg-[#f5f3ef] p-6">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Export tree mockup</p>
+                  <div className="mt-5 grid gap-2 font-mono text-[12px] leading-6 text-slate-700 md:grid-cols-2">
+                    {sampleExportTree.map((item) => (
+                      <div key={item} className="border border-black/10 bg-white px-3 py-2">
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -195,7 +327,7 @@ export default function SampleDeliverables() {
             <div className="mt-8 grid gap-4 lg:grid-cols-2">
               <div className="overflow-hidden border border-black/10 bg-[#f5f3ef]">
                 <MonochromeMedia
-                  src={editorialGeneratedAssets.warehouseAisle}
+                  src={publicCaptureGeneratedAssets.cedarMarketProofBoard}
                   alt="Site package"
                   className="aspect-[16/10] rounded-none"
                   overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.06),rgba(0,0,0,0.24))]"
@@ -213,7 +345,7 @@ export default function SampleDeliverables() {
               </div>
               <div className="overflow-hidden border border-black/10 bg-slate-950 text-white">
                 <MonochromeMedia
-                  src={editorialGeneratedAssets.hostedReviewHero}
+                  src={publicCaptureGeneratedAssets.hostedReviewPublicRoute}
                   alt="Hosted evaluation"
                   className="aspect-[16/10] rounded-none"
                   overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.3))]"
@@ -238,7 +370,7 @@ export default function SampleDeliverables() {
             eyebrow="Next step"
             title="Inspect the artifact shape before you buy the path."
             description="Move into the sample listing, then continue into package or hosted review only when the site and proof already make sense."
-            imageSrc={editorialGeneratedAssets.proofBoardDeliverables}
+            imageSrc={publicCaptureGeneratedAssets.cedarMarketProofBoard}
             imageAlt="Deliverables proof board"
             primaryHref="/world-models"
             primaryLabel="View sample listing"

@@ -11,8 +11,7 @@ import { withCsrfHeader } from "@/lib/csrf";
 import { usePublicLaunchStatus } from "@/hooks/usePublicLaunchStatus";
 import { analyticsEvents } from "@/lib/analytics";
 import { buildLaunchAccessWaitlistPayload, getLaunchAccessRoleLabel, normalizeLaunchAccessCity, type LaunchAccessRole } from "@/lib/launchAccess";
-import { editorialRefreshAssets } from "@/lib/editorialRefreshAssets";
-import { privateGeneratedAssets } from "@/lib/privateGeneratedAssets";
+import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
 
 const roleOptions: LaunchAccessRole[] = [
   "capturer",
@@ -142,7 +141,7 @@ export default function CaptureLaunchAccess() {
             </div>
 
             <MonochromeMedia
-              src={privateGeneratedAssets.captureAppAisle}
+              src={publicCaptureGeneratedAssets.captureAppHero}
               alt="Blueprint capture lane"
               className="min-h-[34rem] rounded-none"
               loading="eager"
@@ -335,7 +334,7 @@ export default function CaptureLaunchAccess() {
         <section className="border-t border-black/10 bg-white">
           <div className="mx-auto grid max-w-[96rem] gap-px lg:grid-cols-[0.44fr_0.56fr]">
             <MonochromeMedia
-              src={editorialRefreshAssets.cityMapBoard}
+              src={publicCaptureGeneratedAssets.everydayPlacesCollage}
               alt="Blueprint launch board"
               className="min-h-[26rem] rounded-none"
               imageClassName="min-h-[26rem]"

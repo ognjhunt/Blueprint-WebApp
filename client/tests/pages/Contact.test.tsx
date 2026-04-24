@@ -64,7 +64,7 @@ describe("Contact page", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText(/For Robot Teams/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/What happens after you send this/i)).toBeInTheDocument();
-    expect(screen.getByText(/Typical response cadence/i)).toBeInTheDocument();
+    expect(screen.getByText(/Rights, privacy, and proof boundaries stay explicit/i)).toBeInTheDocument();
     expect(screen.queryByText(/Buyer type/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Requested lanes/i)).not.toBeInTheDocument();
     expect(screen.getByText(/Fastest paths/i)).toBeInTheDocument();
@@ -120,7 +120,7 @@ describe("Contact page", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Austin request lens/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Texas Robotics, a founder intro, a university contact, or an industrial partner/i),
+      screen.getByText(/This city leans on high-trust introductions/i),
     ).toBeInTheDocument();
     expect(screen.getByText(/Fastest paths/i)).toBeInTheDocument();
     expect(screen.getByText(/Inspect the sample listing/i)).toBeInTheDocument();
@@ -138,10 +138,10 @@ describe("Contact page", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/San Francisco request lens/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/exact-site requirement versus an adjacent-site proof path/i),
+      screen.getByText(/denser buyer and partner channels/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/async artifact review matters to the buyer/i),
+      screen.getByText(/technical scrutiny/i),
     ).toBeInTheDocument();
   });
 

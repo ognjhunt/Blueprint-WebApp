@@ -44,25 +44,25 @@ describe("Capturer access copy", () => {
     render(<Capture />);
 
     expect(
-      screen.getByRole("heading", { name: /capture for blueprint starts in the app/i }),
+      screen.getByRole("heading", { name: /Capture starts in the app/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/invite- and code-gated/i)).toBeInTheDocument();
-    expect(screen.getByText(/approval is not guaranteed/i)).toBeInTheDocument();
-    expect(screen.getByText(/Currently supported: Austin, TX and San Francisco, CA\./i)).toBeInTheDocument();
+    expect(screen.getByText(/recording an everyday public-facing place/i)).toBeInTheDocument();
+    expect(screen.getByText(/Currently supported:/i)).toBeInTheDocument();
   });
 
   it("keeps the capture app handoff explicit about approval gates", () => {
     render(<CaptureAppPlaceholder />);
 
-    expect(screen.getByText(/invite- and code-gated/i)).toBeInTheDocument();
-    expect(screen.getByText(/approval is not guaranteed/i)).toBeInTheDocument();
-    expect(screen.getByText(/Currently supported: Austin, TX and San Francisco, CA\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Open Blueprint Capture to record public-facing places people visit every day/i)).toBeInTheDocument();
+    expect(screen.getByText(/Review required/i)).toBeInTheDocument();
+    expect(screen.getByText(/Available launch cities/i)).toBeInTheDocument();
   });
 
   it("keeps capturers on the mobile path from the sign-in page", () => {
     render(<Login />);
 
-    expect(screen.getByText(/invite- and code-gated/i)).toBeInTheDocument();
-    expect(screen.getByText(/approval is not guaranteed/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Sign In/i })).toBeInTheDocument();
+    expect(screen.getByText(/Our private platform is for verified buyers and field operators/i)).toBeInTheDocument();
   });
 });

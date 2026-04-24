@@ -16,6 +16,7 @@ import type {
   OperatingGraphState,
   OperatingGraphStage,
   PackageRunProjection,
+  SupplyTargetProjection,
 } from "./operatingGraphTypes";
 
 const STAGE_ORDER: Record<OperatingGraphStage, number> = {
@@ -37,6 +38,8 @@ const CANONICAL_FOREIGN_KEY_METADATA_KEYS: Array<
   [keyof OperatingGraphCanonicalForeignKeys, string[]]
 > = [
   ["cityProgramId", ["city_program_id", "cityProgramId"]],
+  ["supplyTargetId", ["supply_target_id", "supplyTargetId"]],
+  ["cityLaunchProspectId", ["city_launch_prospect_id", "cityLaunchProspectId"]],
   ["captureId", ["capture_id", "captureId"]],
   ["captureRunId", ["capture_run_id", "captureRunId"]],
   ["siteSubmissionId", ["site_submission_id", "siteSubmissionId"]],
@@ -244,6 +247,24 @@ export function projectCaptureRunState(
     sceneId: canonicalForeignKeys.sceneId ?? null,
     buyerRequestId: canonicalForeignKeys.buyerRequestId ?? null,
     captureJobId: canonicalForeignKeys.captureJobId ?? null,
+  };
+}
+
+export function projectSupplyTargetState(
+  events: OperatingGraphEvent[],
+  entityId: string,
+): SupplyTargetProjection | null {
+  const state = projectEntityState(events, "supply_target", entityId);
+  if (!state) {
+    return null;
+  }
+
+  const canonicalForeignKeys = state.canonicalForeignKeys;
+  return {
+    ...state,
+    entityType: "supply_target",
+    supplyTargetId: state.entityId,
+    cityLaunchProspectId: canonicalForeignKeys.cityLaunchProspectId ?? null,
   };
 }
 

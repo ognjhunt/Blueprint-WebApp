@@ -1,5 +1,6 @@
 export const primaryNavLinks = [
   { href: "/world-models", label: "World Models" },
+  { href: "/proof", label: "Proof" },
   { href: "/exact-site-hosted-review", label: "Hosted Evaluation" },
   { href: "/how-it-works", label: "How It Works" },
   { href: "/pricing", label: "Pricing" },
@@ -17,12 +18,14 @@ export const footerProductLinks = [
   { href: "/how-it-works", label: "How It Works" },
   { href: "/world-models/siteworld-f5fd54898cfb", label: "Sample Site" },
   { href: "/sample-deliverables", label: "Sample Deliverables" },
+  { href: "/case-studies", label: "Proof Stories" },
   { href: "/capture-app", label: "Capture & Earn" },
 ];
 
 export const footerCompanyLinks = [
   { href: "/about", label: "About" },
   { href: "/governance", label: "Trust" },
+  { href: "/proof", label: "Proof" },
   { href: "/pricing", label: "Pricing" },
   { href: "/contact?persona=robot-team", label: "Contact" },
 ];

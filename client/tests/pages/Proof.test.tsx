@@ -23,12 +23,22 @@ describe("Proof page", () => {
     expect(
       screen.getByRole("heading", { name: /See the site before you commit to the path\./i }),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/Austin, TX/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Public capture can start with everyday places\./i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Proof is not warehouse-only\./i })).toBeInTheDocument();
+    expect(screen.getByText(/Cedar Market Aisle Loop/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hosted report preview/i)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", {
+      name: /Austin demand is relationship-led, so the proof needs to get specific fast\./i,
+    })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Contact Blueprint/i })).toHaveAttribute(
       "href",
       "/contact?persona=robot-team",
     );
     expect(screen.getByRole("heading", { name: /Proof routes\./i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Proof stories/i })).toHaveAttribute(
+      "href",
+      "/case-studies",
+    );
   });
 
   it("renders Austin-specific proof guidance and preserves city context in the CTA", () => {
@@ -36,14 +46,14 @@ describe("Proof page", () => {
 
     render(<Proof />);
 
-    expect(screen.getByText(/Austin, TX/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Austin, TX/i).length).toBeGreaterThan(0);
     expect(
       screen.getByRole("heading", {
         name: /Austin demand is relationship-led, so the proof needs to get specific fast\./i,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/facility type, recency, and provenance visible before broader world-model framing/i),
+      screen.getByText(/lead with one exact site, the facility type, and a proof path that is easy to inspect/i),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Contact Blueprint/i })).toHaveAttribute(
       "href",
@@ -63,7 +73,7 @@ describe("Proof page", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/exact-site proof, stack compatibility, and async artifact review ahead of generic AI language/i),
+      screen.getByText(/lead with exact-site proof, current-stack fit, and what can be reviewed asynchronously/i),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Contact Blueprint/i })).toHaveAttribute(
       "href",

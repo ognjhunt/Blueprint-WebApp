@@ -90,49 +90,35 @@ describe("SiteWorldDetail", () => {
     expect(screen.getByText(/1847 W Fulton St, Chicago, IL 60612/i)).toBeInTheDocument();
     expect(
       screen.getByText(
-        /This world model is built from real capture of this facility\. Use it to answer a deployment question on the real site, compare the package with hosted evaluation/i,
+        /A backroom layout with dock access, aisle replenishment paths, and a short handoff into shelf staging/i,
       ),
     ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Site overview/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Tasks in this world model/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Hosted evaluation preview/i })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /Buy the site package\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /Request hosted evaluation for this site\./i }),
+      screen.getByRole("heading", { name: /Start hosted evaluation for this site\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/What hosted evaluation looks like/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Trust and access snapshot/i })).toBeInTheDocument();
-    expect(screen.getAllByText(/Commercial status/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Status$/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Request-scoped commercial review/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Proof depth/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Rights class/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Freshness/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Public proof assets available/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Decision story for this site/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Inspectable sample artifacts for this listing/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Book scoping call/i })).toHaveAttribute(
-      "href",
-      "/book-exact-site-review",
-    );
-    expect(screen.getByRole("link", { name: /Download sample manifest/i })).toHaveAttribute(
-      "href",
-      "/samples/sample-site-package-manifest.json",
-    );
-    expect(screen.getByText(/Step 1/i)).toBeInTheDocument();
-    expect(screen.getByText(/Pick the site/i)).toBeInTheDocument();
-    expect(screen.getByText(/Step 8/i)).toBeInTheDocument();
-    expect(screen.getByText(/Score the run, export results, and compare policies/i)).toBeInTheDocument();
-    expect(screen.getByText(/Self-serve starting rate/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /When not to buy exact-site work yet\./i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /What goes in/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /What comes back/i })).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /What teams do with this world model/i }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/A sample eval loop for Harborview Grocery Distribution Annex/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Proof depth/i).length).toBeGreaterThan(1);
+    expect(screen.getAllByText(/runtime still \+ presentation still \+ buyer memo/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Evidence packet preview/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Public capture story for this listing\./i })).toBeInTheDocument();
+    expect(screen.getByText(/Capture app cue/i)).toBeInTheDocument();
+    expect(screen.getByText(/Evidence opened/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Guardrails/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Decision note/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Hosted report rows/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Export tree/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Proof depth/i).length).toBeGreaterThan(0);
     expect(screen.queryByText(/Not specified/i)).not.toBeInTheDocument();
 
-    const packageLink = screen.getByRole("link", { name: /Request site package/i });
+    const packageLink = screen.getAllByRole("link", { name: /Request package access/i })[0];
     const packageUrl = new URL(packageLink.getAttribute("href")!, "https://example.com");
     expect(packageUrl.pathname).toBe("/contact");
     expect(packageUrl.searchParams.get("interest")).toBe("data-licensing");
@@ -163,9 +149,9 @@ describe("SiteWorldDetail", () => {
 
     render(<SiteWorldDetail params={{ slug: "sw-chi-01" }} />);
 
-    expect(await screen.findByRole("button", { name: /Generate Marble Preview/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Refresh Marble Status/i })).toBeInTheDocument();
-    expect(screen.getByText(/Admin Marble Controls/i)).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Generate preview/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Refresh status/i })).toBeInTheDocument();
+    expect(screen.getByText(/Optional provider-generated preview/i)).toBeInTheDocument();
   });
 
   it("does not show admin Marble controls to non-admin users", async () => {
@@ -192,9 +178,9 @@ describe("SiteWorldDetail", () => {
     expect(
       await screen.findByRole("link", { name: /Open interactive preview/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Native Blueprint world-model artifacts are the primary path for this site\./i)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Generate Marble Preview/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Refresh Marble Status/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/The native package and hosted path stay primary on this listing\./i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Generate preview/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Refresh status/i })).not.toBeInTheDocument();
   });
 
   it("calls the admin generate API when Marble generation is triggered", async () => {
@@ -232,7 +218,7 @@ describe("SiteWorldDetail", () => {
 
     render(<SiteWorldDetail params={{ slug: "sw-chi-01" }} />);
 
-    fireEvent.click(await screen.findByRole("button", { name: /Generate Marble Preview/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /Generate preview/i }));
 
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalledWith(
@@ -285,7 +271,7 @@ describe("SiteWorldDetail", () => {
 
     render(<SiteWorldDetail params={{ slug: "sw-chi-01" }} />);
 
-    fireEvent.click(await screen.findByRole("button", { name: /Refresh Marble Status/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /Refresh status/i }));
 
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalledWith(
@@ -331,11 +317,11 @@ describe("SiteWorldDetail", () => {
 
     render(<SiteWorldDetail params={{ slug: "sw-chi-01" }} />);
 
-    expect(
-      await screen.findByText(/Pipeline output is required before Marble generation can run/i),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/worldlabs_request_manifest_uri/i)).toBeInTheDocument();
-    expect(screen.getByText(/worldlabs_input_video_uri/i)).toBeInTheDocument();
+    const generateButton = await screen.findByRole("button", { name: /Generate preview/i });
+    const refreshButton = screen.getByRole("button", { name: /Refresh status/i });
+    expect(generateButton).toBeDisabled();
+    expect(refreshButton).toBeDisabled();
+    expect(screen.getByText(/No live operation id/i)).toBeInTheDocument();
   });
 
   it("keeps the existing launch CTA when the World Labs preview is ready", async () => {
@@ -358,7 +344,7 @@ describe("SiteWorldDetail", () => {
     const launchLink = await screen.findByRole("link", { name: /Open interactive preview/i });
     expect(launchLink).toHaveAttribute("href", "https://marble.worldlabs.ai/worlds/world-123");
     expect(launchLink).toHaveAttribute("target", "_blank");
-    expect(screen.getByText(/The World Labs viewer opens in a new tab/i)).toBeInTheDocument();
-    expect(screen.getByText(/SPZ export: Available/i)).toBeInTheDocument();
+    expect(screen.getByText(/The optional interactive preview is ready to open in a new tab\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Interactive preview is optional and does not redefine the trust surface\./i)).toBeInTheDocument();
   });
 });

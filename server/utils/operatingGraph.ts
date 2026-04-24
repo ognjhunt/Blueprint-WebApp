@@ -64,6 +64,16 @@ export function buildCaptureRunId(input: {
   );
 }
 
+export function buildSupplyTargetId(input: {
+  supplyTargetId?: string | null;
+  cityLaunchProspectId?: string | null;
+}) {
+  return buildPrefixedEntityId(
+    "supply_target",
+    normalizeString(input.supplyTargetId) || normalizeString(input.cityLaunchProspectId),
+  );
+}
+
 export function buildPackageRunId(input: {
   packageRunId?: string | null;
   packageId?: string | null;

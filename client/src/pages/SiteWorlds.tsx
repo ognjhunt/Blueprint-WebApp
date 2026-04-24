@@ -9,6 +9,7 @@ import {
 } from "@/components/site/editorial";
 import { siteWorldCards } from "@/data/siteWorlds";
 import { publicDemoHref } from "@/lib/marketingProof";
+import { publicCaptureLocationTypes } from "@/lib/proofEvidence";
 import {
   getEditorialFeaturedSites,
   getEditorialMoreSites,
@@ -21,7 +22,7 @@ import {
   getSiteWorldPlainEnglishStatus,
 } from "@/lib/siteWorldCommercialStatus";
 import { fetchSiteWorldCatalog } from "@/lib/siteWorldsApi";
-import { ArrowRight, Box, Camera, Route } from "lucide-react";
+import { ArrowRight, Box, Camera, MapPinned, Route, Smartphone } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 type SiteWorld = (typeof siteWorldCards)[number];
@@ -196,6 +197,34 @@ const moreSites = useMemo(
             {featuredSites.map((site) => (
               <SiteCard key={site.id} site={site} />
             ))}
+          </div>
+        </section>
+
+        <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.36fr_0.64fr] lg:px-10 lg:py-12">
+            <div className="bg-[#f5f3ef] p-6 lg:p-8">
+              <EditorialSectionIntro
+                eyebrow="Capture app supply"
+                title="Most future worlds start as public-facing captures."
+                description="The catalog should not feel warehouse-only. Blueprint can source proof from grocery stores, retail floors, lobbies, malls, museums, and other everyday locations when the capturer stays inside public-facing areas and review rules."
+              />
+              <a
+                href="/capture-app"
+                className="mt-7 inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                Open capture app
+                <Smartphone className="ml-2 h-4 w-4" />
+              </a>
+            </div>
+            <div className="grid gap-px bg-black/10 md:grid-cols-3">
+              {publicCaptureLocationTypes.map((item) => (
+                <div key={item.label} className="bg-white p-5">
+                  <MapPinned className="h-5 w-5 text-slate-950" />
+                  <p className="mt-4 text-sm font-semibold text-slate-950">{item.label}</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">{item.detail}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 

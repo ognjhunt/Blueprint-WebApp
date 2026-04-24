@@ -27,6 +27,7 @@ export type OperatingGraphExecutionStatus =
 
 export type OperatingGraphEntityType =
   | "city_program"
+  | "supply_target"
   | "capture_run"
   | "package_run"
   | "hosted_review_run"
@@ -74,6 +75,8 @@ export interface NextAction {
 
 export interface OperatingGraphCanonicalForeignKeys {
   cityProgramId?: string | null;
+  supplyTargetId?: string | null;
+  cityLaunchProspectId?: string | null;
   captureId?: string | null;
   captureRunId?: string | null;
   siteSubmissionId?: string | null;
@@ -138,6 +141,12 @@ export interface CaptureRunProjection extends OperatingGraphState {
   sceneId: string | null;
   buyerRequestId: string | null;
   captureJobId: string | null;
+}
+
+export interface SupplyTargetProjection extends OperatingGraphState {
+  entityType: "supply_target";
+  supplyTargetId: string;
+  cityLaunchProspectId: string | null;
 }
 
 export interface PackageRunProjection extends OperatingGraphState {

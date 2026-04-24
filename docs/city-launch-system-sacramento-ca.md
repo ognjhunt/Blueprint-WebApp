@@ -191,6 +191,10 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 - ops/paperclip/playbooks/city-opening-sacramento-ca-channel-registry.md
 - ops/paperclip/playbooks/city-opening-sacramento-ca-send-ledger.md
 - ops/paperclip/playbooks/city-opening-sacramento-ca-execution-report.md
+- ops/paperclip/playbooks/city-opening-sacramento-ca-no-signal-recovery.md
+- ops/paperclip/playbooks/city-opening-sacramento-ca-campaign-mock-pack.md
+- ops/paperclip/playbooks/city-opening-sacramento-ca-site-operator-recovery-pack.md
+- ops/paperclip/playbooks/city-opening-sacramento-ca-no-signal-scorecard.md
 - ops/paperclip/playbooks/city-opening-sacramento-ca-robot-team-contact-list.md
 - ops/paperclip/playbooks/city-opening-sacramento-ca-site-operator-contact-list.md
 

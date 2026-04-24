@@ -8,34 +8,30 @@ describe("SiteWorlds", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Browse exact-site world models\./i,
+        name: /Exact-site worlds\./i,
       }),
     ).toBeInTheDocument();
 
-    expect(
-      screen.getByText(
-        /Real facilities, real capture, and clear paths into site packages or hosted sessions\./i,
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Browse real facilities\./i)).toBeInTheDocument();
 
     expect(
-      screen.getByRole("link", { name: /View Sample Site/i }),
+      screen.getByRole("link", { name: /Inspect a real site/i }),
     ).toHaveAttribute("href", "/world-models/siteworld-f5fd54898cfb");
 
     expect(
-      screen.getAllByRole("link", { name: /Request Access/i })[0],
+      screen.getAllByRole("link", { name: /Request access/i })[0],
     ).toHaveAttribute(
       "href",
       "/contact?persona=robot-team&interest=evaluation-package",
     );
 
-    expect(screen.getAllByText(/Site Package/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Hosted Session/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Public proof first/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Exact site/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Request-scoped review/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Public catalog/i)).toBeInTheDocument();
 
     expect(
       screen.getByRole("heading", {
-        name: /Featured sites\./i,
+        name: /Real facilities, presented as worlds\./i,
       }),
     ).toBeInTheDocument();
 
@@ -48,20 +44,16 @@ describe("SiteWorlds", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Browse the catalog\./i,
+        name: /The catalog expands from the same visual language\./i,
       }),
     ).toBeInTheDocument();
 
-    expect(
-      screen.getByRole("button", { name: /Public demo available/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Hosted path documented/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/True-to-site geometry/i)).toBeInTheDocument();
+    expect(screen.getByText(/Photoreal textures/i)).toBeInTheDocument();
 
     expect(
       screen.getByRole("heading", {
-        name: /Need a specific site\?/i,
+        name: /Start with the exact site that matters\./i,
       }),
     ).toBeInTheDocument();
 

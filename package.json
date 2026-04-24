@@ -20,7 +20,10 @@
     "smoke:launch:local": "node scripts/launch-smoke-local.mjs",
     "human-replies:poll": "tsx scripts/human-replies/poll-gmail-replies.ts",
     "human-replies:audit-gmail": "tsx scripts/human-replies/audit-gmail-oauth.ts",
+    "human-replies:prove-production": "tsx scripts/human-replies/prove-production-resume.ts",
     "human-replies:send-test-blocker": "tsx scripts/human-replies/send-test-blocker.ts",
+    "operating-graph:project": "tsx scripts/autonomy/project-operating-graph.ts --limit=500",
+    "autonomy:closure-drill": "tsx scripts/autonomy/run-city-closure-drill.ts",
     "audit:assets": "tsx scripts/audit-assets.ts",
     "graphify:pilot:webapp-architecture": "bash scripts/graphify/run-webapp-architecture-pilot.sh",
     "city-launch:plan": "tsx scripts/city-launch/run-deep-research-playbook.ts",
@@ -45,6 +48,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
+    "@clack/prompts": "^0.10.1",
     "@google-cloud/aiplatform": "^3.34.0",
     "@google-cloud/kms": "^5.2.1",
     "@google/generative-ai": "^0.21.0",

@@ -91,7 +91,7 @@ export function EditorialSectionLabel({
     <p
       className={cn(
         "text-[11px] font-semibold uppercase tracking-[0.24em]",
-        light ? "text-white/58" : "text-slate-500",
+        light ? "text-white opacity-70" : "text-slate-500",
         className,
       )}
     >
@@ -122,7 +122,7 @@ export function EditorialSectionIntro({
         <p
           className={cn(
             "mt-4 max-w-2xl text-sm leading-7",
-            light ? "text-white/72" : "text-slate-600",
+            light ? "text-white opacity-80" : "text-slate-600",
           )}
         >
           {description}
@@ -173,7 +173,7 @@ export function ProofChip({
       className={cn(
         "inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]",
         light
-          ? "border-white/[0.26] bg-black/[0.32] text-white/[0.90]"
+          ? "border-white/[0.26] bg-black/[0.32] text-white"
           : "border-black/10 bg-white/[0.88] text-slate-600",
         className,
       )}

@@ -1,27 +1,86 @@
 {
-  "bundle_id": "sample-export-bundle-001",
-  "site_id": "siteworld-f5fd54898cfb",
+  "sample_disclosure": "Composite demo export bundle. Replace the location, story, and run outputs with real approved capture artifacts before making customer claims.",
+  "bundle_id": "sample-export-bundle-public-capture-0426",
+  "site_id": "sample-public-capture-cedar-market-aisle-loop",
+  "site_name": "Cedar Market Aisle Loop",
+  "location_type": "grocery_store_public_aisles",
   "run_summary": {
-    "scenario": "default_lane_plus_clutter_variation",
-    "robot_setup": "sample_mobile_manipulator",
-    "policy_reference": "sample-policy-v4"
+    "scenario": "public_aisle_loop_plus_refrigeration_approach",
+    "robot_setup": "sample_shelf_scanning_amr",
+    "policy_reference": "sample-policy-retail-v4",
+    "hosted_review_hours": 3,
+    "buyer_question": "Is this public-facing route worth a grocery-specific hosted review before field travel?"
   },
   "artifacts": [
     {
-      "type": "rollout_video",
-      "label": "Buyer-facing rollout review"
+      "type": "redacted_walkthrough_reference",
+      "label": "Buyer-facing walkthrough reference",
+      "path": "media/redacted_walkthrough_reference.mp4"
     },
     {
       "type": "run_summary",
-      "label": "Hosted evaluation summary card"
+      "label": "Hosted evaluation summary card",
+      "path": "hosted/runs/run_01_observations.json"
+    },
+    {
+      "type": "route_waypoints",
+      "label": "Public aisle loop waypoints",
+      "path": "routes/public_aisle_loop_waypoints.json"
+    },
+    {
+      "type": "rights_sheet",
+      "label": "Rights and guardrail sheet",
+      "path": "rights/sample_rights_sheet.md"
+    },
+    {
+      "type": "hosted_review_report",
+      "label": "Sample hosted-review report",
+      "path": "hosted/reports/sample_hosted_review_report.md"
     },
     {
       "type": "raw_bundle_reference",
-      "label": "Reference to the underlying raw run bundle"
+      "label": "Pointer to underlying raw capture bundle",
+      "path": "raw_bundle/reference_uri.txt"
+    }
+  ],
+  "file_tree": [
+    "manifest/site_package_manifest.json",
+    "rights/sample_rights_sheet.md",
+    "media/redacted_walkthrough_reference.mp4",
+    "routes/public_aisle_loop_waypoints.json",
+    "hosted/runs/run_01_observations.json",
+    "hosted/reports/sample_hosted_review_report.md",
+    "exports/buyer_review_bundle.zip"
+  ],
+  "hosted_run_rows": [
+    {
+      "run": "Run 01",
+      "scenario": "Baseline aisle navigation",
+      "observation": "Route is readable through endcap and mid-aisle transitions.",
+      "output": "Keep lane in hosted review"
+    },
+    {
+      "run": "Run 02",
+      "scenario": "Busy public aisle",
+      "observation": "People and carts create occlusion risk; privacy redaction remains required.",
+      "output": "Review only, no raw public export"
+    },
+    {
+      "run": "Run 03",
+      "scenario": "Refrigeration approach",
+      "observation": "Lighting and reflective glass need a dedicated perception note.",
+      "output": "Add capture note to manifest"
+    },
+    {
+      "run": "Run 04",
+      "scenario": "Checkout-adjacent exclusion",
+      "observation": "Route should stop before payment and identifiable-customer zones.",
+      "output": "Restricted zone attached"
     }
   ],
   "notes": [
     "Representative sample export bundle layout",
-    "Actual export set depends on listing-specific availability"
+    "Actual export set depends on listing-specific availability",
+    "Public-facing capture does not imply unrestricted commercialization, raw media export, or deployment readiness"
   ]
 }

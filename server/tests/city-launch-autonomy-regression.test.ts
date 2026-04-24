@@ -16,6 +16,7 @@ const writeCityLaunchActivation = vi.hoisted(() => vi.fn());
 const readCityLaunchActivation = vi.hoisted(() => vi.fn());
 const listCityLaunchChannelAccounts = vi.hoisted(() => vi.fn());
 const listCityLaunchSendActions = vi.hoisted(() => vi.fn());
+const listCityLaunchReplyConversions = vi.hoisted(() => vi.fn());
 const listCityLaunchBuyerTargets = vi.hoisted(() => vi.fn());
 const listCityLaunchProspects = vi.hoisted(() => vi.fn());
 const upsertCityLaunchChannelAccount = vi.hoisted(() => vi.fn());
@@ -39,6 +40,7 @@ vi.mock("../utils/cityLaunchLedgers", () => ({
   readCityLaunchActivation,
   listCityLaunchChannelAccounts,
   listCityLaunchSendActions,
+  listCityLaunchReplyConversions,
   listCityLaunchBuyerTargets,
   listCityLaunchProspects,
   upsertCityLaunchChannelAccount,
@@ -126,6 +128,7 @@ beforeEach(() => {
   readCityLaunchActivation.mockReset();
   listCityLaunchChannelAccounts.mockReset();
   listCityLaunchSendActions.mockReset();
+  listCityLaunchReplyConversions.mockReset();
   listCityLaunchBuyerTargets.mockReset();
   listCityLaunchProspects.mockReset();
   upsertCityLaunchChannelAccount.mockReset();
@@ -155,6 +158,7 @@ beforeEach(() => {
   }));
   listCityLaunchChannelAccounts.mockResolvedValue([]);
   listCityLaunchSendActions.mockResolvedValue([]);
+  listCityLaunchReplyConversions.mockResolvedValue([]);
   listCityLaunchBuyerTargets.mockResolvedValue([]);
   listCityLaunchProspects.mockResolvedValue([]);
   upsertCityLaunchChannelAccount.mockImplementation(async (input: unknown) => ({

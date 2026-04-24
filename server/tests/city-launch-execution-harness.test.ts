@@ -14,6 +14,7 @@ const writeCityLaunchActivation = vi.hoisted(() => vi.fn());
 const readCityLaunchActivation = vi.hoisted(() => vi.fn());
 const listCityLaunchChannelAccounts = vi.hoisted(() => vi.fn());
 const listCityLaunchSendActions = vi.hoisted(() => vi.fn());
+const listCityLaunchReplyConversions = vi.hoisted(() => vi.fn());
 const listCityLaunchBuyerTargets = vi.hoisted(() => vi.fn());
 const listCityLaunchProspects = vi.hoisted(() => vi.fn());
 const upsertCityLaunchChannelAccount = vi.hoisted(() => vi.fn());
@@ -37,6 +38,7 @@ vi.mock("../utils/cityLaunchLedgers", () => ({
   readCityLaunchActivation,
   listCityLaunchChannelAccounts,
   listCityLaunchSendActions,
+  listCityLaunchReplyConversions,
   listCityLaunchBuyerTargets,
   listCityLaunchProspects,
   upsertCityLaunchChannelAccount,
@@ -133,6 +135,7 @@ beforeEach(() => {
   readCityLaunchActivation.mockReset();
   listCityLaunchChannelAccounts.mockReset();
   listCityLaunchSendActions.mockReset();
+  listCityLaunchReplyConversions.mockReset();
   listCityLaunchBuyerTargets.mockReset();
   listCityLaunchProspects.mockReset();
   upsertCityLaunchChannelAccount.mockReset();
@@ -155,6 +158,7 @@ beforeEach(() => {
   }));
   listCityLaunchChannelAccounts.mockResolvedValue([]);
   listCityLaunchSendActions.mockResolvedValue([]);
+  listCityLaunchReplyConversions.mockResolvedValue([]);
   listCityLaunchBuyerTargets.mockResolvedValue([]);
   listCityLaunchProspects.mockResolvedValue([]);
   upsertCityLaunchChannelAccount.mockImplementation(async (input: unknown) => ({
@@ -1865,5 +1869,275 @@ describe("city launch execution harness", () => {
     expect(executeCityLaunchSends).toHaveBeenCalledWith({
       city: "San Jose, CA",
     });
+  });
+
+  it("dispatches no-signal recovery lanes and draft packs after sent outreach produces no live signal", async () => {
+    summarizeCityLaunchLedgers.mockResolvedValue({
+      trackedSupplyProspectsContacted: 0,
+      trackedBuyerTargetsResearched: 0,
+      trackedFirstTouchesSent: 0,
+      trackedCityOpeningChannelAccountsReady: 0,
+      trackedCityOpeningChannelAccountsCreated: 0,
+      trackedCityOpeningChannelAccountsBlocked: 0,
+      trackedCityOpeningSendActionsReady: 0,
+      trackedCityOpeningSendActionsSent: 2,
+      trackedCityOpeningSendActionsBlocked: 0,
+      trackedCityOpeningResponsesRecorded: 0,
+      trackedCityOpeningResponsesRouted: 0,
+      trackedReplyConversionsQueued: 0,
+      trackedReplyConversionsRouted: 0,
+      trackedReplyConversionsBlocked: 0,
+      onboardedCapturers: 0,
+      totalRecordedSpendUsd: 0,
+      withinPolicySpendUsd: 0,
+      outsidePolicySpendUsd: 0,
+      recommendedSpendUsd: 0,
+      wideningGuard: { mode: "single_city_until_proven", wideningAllowed: false, reasons: [] },
+      dataSources: [],
+    });
+    upsertPaperclipIssue.mockImplementation(async (input: { title?: string }) => {
+      if ((input.title || "").startsWith("Launch Durham, NC")) {
+        return {
+          created: true,
+          companyId: "company-1",
+          assigneeAgentId: "agent-growth-lead",
+          issue: { id: "root-1", identifier: "BLU-ROOT", status: "todo" },
+        };
+      }
+      return {
+        created: true,
+        companyId: "company-1",
+        assigneeAgentId: `agent-${upsertPaperclipIssue.mock.calls.length}`,
+        issue: {
+          id: `task-${upsertPaperclipIssue.mock.calls.length}`,
+          identifier: `BLU-${upsertPaperclipIssue.mock.calls.length}`,
+          status: "todo",
+        },
+      };
+    });
+    resolveCityLaunchPlanningState.mockResolvedValue(
+      completedPlanningState("Durham, NC", "durham-nc"),
+    );
+    loadAndParseCityLaunchResearchArtifact.mockResolvedValue({
+      city: "Durham, NC",
+      citySlug: "durham-nc",
+      artifactPath: "/tmp/durham-playbook.md",
+      schemaVersion: "2026-04-12.city-launch-research.v1",
+      generatedAtIso: "2026-04-17T00:00:00.000Z",
+      warnings: [],
+      errors: [],
+      activationPayload: activationPayload("Durham, NC", "durham-nc"),
+      captureCandidates: [
+        {
+          stableKey: "prospect_durham-nc-pro-capturer",
+          name: "Triangle Capture Ops",
+          sourceBucket: "professional_capturer",
+          channel: "professional_outreach",
+          status: "identified",
+          siteAddress: "100 Warehouse Way",
+          locationSummary: null,
+          lat: null,
+          lng: null,
+          siteCategory: "warehouse",
+          workflowFit: "dock handoff",
+          priorityNote: null,
+          contactEmail: "ops@trianglecapture.example",
+          sourceUrls: [],
+          explicitFields: ["contact_email"],
+          inferredFields: [],
+          provenance: {
+            sourceType: "deep_research_playbook",
+            artifactPath: "/tmp/durham-playbook.md",
+            sourceKey: "capture_location_candidates[0]",
+            sourceUrls: [],
+            parsedAtIso: "2026-04-17T00:00:00.000Z",
+            explicitFields: ["contact_email"],
+            inferredFields: [],
+          },
+        },
+      ],
+      buyerTargets: [
+        {
+          stableKey: "buyer_target_durham-nc-botbuilt",
+          companyName: "BotBuilt",
+          contactName: "Ops",
+          contactEmail: "ops@botbuilt.example",
+          status: "researched",
+          workflowFit: "warehouse autonomy",
+          proofPath: "exact_site",
+          notes: "Buyer thread exists but no reply yet.",
+          sourceBucket: "warehouse_robotics",
+          sourceUrls: [],
+          explicitFields: ["contact_email"],
+          inferredFields: [],
+          provenance: {
+            sourceType: "deep_research_playbook",
+            artifactPath: "/tmp/durham-playbook.md",
+            sourceKey: "buyer_target_candidates[0]",
+            sourceUrls: [],
+            parsedAtIso: "2026-04-17T00:00:00.000Z",
+            explicitFields: ["contact_email"],
+            inferredFields: [],
+          },
+        },
+      ],
+      firstTouches: [],
+      budgetRecommendations: [],
+    });
+    executeCityLaunchSends.mockResolvedValue({
+      city: "Durham, NC",
+      totalEligible: 2,
+      sent: 2,
+      skippedApproval: 0,
+      skippedNoRecipient: 0,
+      skippedAlreadySent: 0,
+      failed: 0,
+      errors: [],
+    });
+    const sentActions = [
+      {
+        id: "send-1",
+        city: "Durham, NC",
+        citySlug: "durham-nc",
+        launchId: "root-1",
+        lane: "professional-capturer",
+        actionType: "direct_outreach",
+        channelAccountId: "channel-1",
+        channelLabel: "email",
+        targetLabel: "Triangle Capture Ops",
+        assetKey: "first-wave",
+        ownerAgent: "capturer-growth-agent",
+        recipientEmail: "ops@trianglecapture.example",
+        emailSubject: "Blueprint Durham capture path",
+        emailBody: "Proof-led outreach.",
+        status: "sent",
+        approvalState: "approved",
+        responseIngestState: "awaiting_response",
+        issueId: null,
+        notes: null,
+        sentAtIso: "2026-04-20T00:00:00.000Z",
+        firstResponseAtIso: null,
+        createdAtIso: "2026-04-20T00:00:00.000Z",
+        updatedAtIso: "2026-04-20T00:00:00.000Z",
+      },
+      {
+        id: "send-2",
+        city: "Durham, NC",
+        citySlug: "durham-nc",
+        launchId: "root-1",
+        lane: "buyer-linked-site",
+        actionType: "direct_outreach",
+        channelAccountId: "channel-2",
+        channelLabel: "email",
+        targetLabel: "BotBuilt",
+        assetKey: "first-wave",
+        ownerAgent: "outbound-sales-agent",
+        recipientEmail: "ops@botbuilt.example",
+        emailSubject: "Blueprint Durham proof path",
+        emailBody: "Proof-led outreach.",
+        status: "sent",
+        approvalState: "approved",
+        responseIngestState: "awaiting_response",
+        issueId: null,
+        notes: null,
+        sentAtIso: "2026-04-20T00:00:00.000Z",
+        firstResponseAtIso: null,
+        createdAtIso: "2026-04-20T00:00:00.000Z",
+        updatedAtIso: "2026-04-20T00:00:00.000Z",
+      },
+    ];
+    listCityLaunchSendActions.mockResolvedValue(sentActions);
+    listCityLaunchProspects.mockResolvedValue([
+      {
+        id: "prospect-1",
+        city: "Durham, NC",
+        citySlug: "durham-nc",
+        launchId: "root-1",
+        sourceBucket: "professional_capturer",
+        channel: "professional_outreach",
+        name: "Triangle Capture Ops",
+        email: "ops@trianglecapture.example",
+        status: "identified",
+        ownerAgent: "capturer-growth-agent",
+        notes: null,
+        firstContactedAt: null,
+        lastContactedAt: null,
+        siteAddress: "100 Warehouse Way",
+        locationSummary: null,
+        lat: null,
+        lng: null,
+        siteCategory: "warehouse",
+        workflowFit: "dock handoff",
+        priorityNote: null,
+        researchProvenance: null,
+        createdAtIso: "2026-04-20T00:00:00.000Z",
+        updatedAtIso: "2026-04-20T00:00:00.000Z",
+      },
+    ]);
+    listCityLaunchBuyerTargets.mockResolvedValue([
+      {
+        id: "buyer-1",
+        city: "Durham, NC",
+        citySlug: "durham-nc",
+        launchId: "root-1",
+        companyName: "BotBuilt",
+        contactName: "Ops",
+        contactEmail: "ops@botbuilt.example",
+        status: "researched",
+        workflowFit: "warehouse autonomy",
+        proofPath: "exact_site",
+        ownerAgent: "outbound-sales-agent",
+        notes: "No reply yet.",
+        sourceBucket: "warehouse_robotics",
+        researchProvenance: null,
+        createdAtIso: "2026-04-20T00:00:00.000Z",
+        updatedAtIso: "2026-04-20T00:00:00.000Z",
+      },
+    ]);
+    listCityLaunchReplyConversions.mockResolvedValue([]);
+
+    const reportsRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), "no-signal-city-launch-harness-"),
+    );
+    tempDirs.push(reportsRoot);
+
+    const { runCityLaunchExecutionHarness } = await import("../utils/cityLaunchExecutionHarness");
+    const result = await runCityLaunchExecutionHarness({
+      city: "Durham, NC",
+      reportsRoot,
+      founderApproved: true,
+      budgetTier: "zero_budget",
+    });
+
+    expect(result.noSignalRecovery?.status).toBe("triggered");
+    expect(result.noSignalRecovery?.dispatchStatus).toBe("dispatched");
+    expect(result.noSignalRecovery?.signals.sentDirectOutreach).toBe(2);
+    expect(result.paperclip?.dispatched.map((entry) => entry.key)).toEqual(
+      expect.arrayContaining([
+        "no-signal-capturer-source-recovery",
+        "no-signal-city-opening-coherence",
+        "no-signal-marketing-campaign-mock-pack",
+        "no-signal-site-operator-recovery",
+        "no-signal-recipient-backed-outbound-recovery",
+      ]),
+    );
+
+    const campaignMockPack = await fs.readFile(
+      result.artifacts.cityOpeningArtifactPack.run.campaignMockPackPath,
+      "utf8",
+    );
+    const siteOperatorPack = await fs.readFile(
+      result.artifacts.cityOpeningArtifactPack.run.siteOperatorRecoveryPackPath,
+      "utf8",
+    );
+    const scorecard = await fs.readFile(
+      result.artifacts.cityOpeningArtifactPack.run.noSignalScorecardPath,
+      "utf8",
+    );
+
+    expect(campaignMockPack).toContain("draft-only recovery artifact");
+    expect(campaignMockPack).toContain("Short Video / Mock Creative");
+    expect(siteOperatorPack).toContain("warehouses, facilities, operators, leasing reps, AEC/survey firms, and site owners");
+    expect(scorecard).toContain("explicit no-response outcome");
   });
 });

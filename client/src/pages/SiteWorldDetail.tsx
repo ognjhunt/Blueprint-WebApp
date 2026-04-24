@@ -12,6 +12,11 @@ import { hasAnyRole } from "@/lib/adminAccess";
 import { withCsrfHeader } from "@/lib/csrf";
 import { editorialRefreshAssets } from "@/lib/editorialRefreshAssets";
 import {
+  pickProofStoryForSite,
+  sampleExportTree,
+  sampleHostedRunRows,
+} from "@/lib/proofEvidence";
+import {
   getSiteWorldCommercialStatus,
   getSiteWorldPlainEnglishProof,
   getSiteWorldPlainEnglishRestrictions,
@@ -265,6 +270,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
   const isPublicSample = isPublicSampleSiteWorld(site);
   const publicProofSummary = getSiteWorldPublicProofSummary(site);
   const worldLabsPreview = site.worldLabsPreview || null;
+  const proofStory = pickProofStoryForSite(site.id);
   const worldLabsStatus = deriveWorldLabsStatus(site);
   const worldLabsStatusCopy = WORLDLABS_STATUS_COPY[worldLabsStatus];
   const worldLabsRequestManifestUri =
@@ -638,6 +644,110 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                     <p className="mt-2 text-sm leading-6 text-slate-700">{card.body}</p>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto max-w-[96rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+            <div className="grid gap-4 lg:grid-cols-[0.4fr_0.6fr]">
+              <div className="overflow-hidden border border-black/10 bg-slate-950 text-white">
+                <MonochromeMedia
+                  src={proofStory.image}
+                  alt={proofStory.locationName}
+                  className="min-h-[32rem] rounded-none"
+                  imageClassName="min-h-[32rem]"
+                  overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.72))]"
+                >
+                  <div className="absolute inset-x-0 bottom-0 p-6">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-white/50">
+                      {proofStory.label}
+                    </p>
+                    <h2 className="font-editorial mt-4 text-[2.8rem] leading-[0.94] tracking-[-0.05em]">
+                      {proofStory.locationName}
+                    </h2>
+                    <p className="mt-4 text-sm leading-7 text-white/72">
+                      {proofStory.locationType} / {proofStory.city}
+                    </p>
+                  </div>
+                </MonochromeMedia>
+              </div>
+
+              <div className="grid gap-4">
+                <div className="border border-black/10 bg-[#f5f3ef] p-6 lg:p-8">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                    Evidence packet preview
+                  </p>
+                  <h2 className="font-editorial mt-4 text-[2.8rem] leading-[0.94] tracking-[-0.05em] text-slate-950">
+                    Public capture story for this listing.
+                  </h2>
+                  <p className="mt-4 text-sm leading-7 text-slate-700">
+                    This composite story shows the missing buyer evidence shape for a public-facing location: capture cue, guardrails, robot question, hosted report rows, and export tree. Replace it with listing-specific proof when the real packet is available.
+                  </p>
+                  <div className="mt-6 grid gap-3 md:grid-cols-3">
+                    {[
+                      ["Capture app cue", proofStory.captureAppCue],
+                      ["Buyer", `${proofStory.buyerPersona}, ${proofStory.buyerRole}`],
+                      ["Capture mode", proofStory.captureMode],
+                    ].map(([label, value]) => (
+                      <div key={label} className="border border-black/10 bg-white p-4">
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{label}</p>
+                        <p className="mt-3 text-sm leading-6 text-slate-700">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="border border-black/10 bg-white p-5">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Evidence opened</p>
+                    <div className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
+                      {proofStory.evidenceOpened.map((item) => (
+                        <div key={item}>{item}</div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="border border-black/10 bg-white p-5">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Guardrails</p>
+                    <div className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
+                      {proofStory.guardrails.map((item) => (
+                        <div key={item}>{item}</div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border border-black/10 bg-slate-950 p-5 text-white">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Decision note</p>
+                  <p className="mt-4 text-sm leading-7 text-white/74">{proofStory.decisionNote}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-4 lg:grid-cols-[0.58fr_0.42fr]">
+              <div className="border border-black/10 bg-[#f5f3ef] p-5">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Hosted report rows</p>
+                <div className="mt-4 divide-y divide-black/10 border border-black/10 bg-white">
+                  {sampleHostedRunRows.map((row) => (
+                    <div key={row.run} className="grid gap-3 p-4 text-sm leading-6 text-slate-700 md:grid-cols-[0.16fr_0.28fr_0.36fr_0.2fr]">
+                      <span className="font-semibold text-slate-950">{row.run}</span>
+                      <span>{row.scenario}</span>
+                      <span>{row.observation}</span>
+                      <span className="text-slate-950">{row.output}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="border border-black/10 bg-[#f5f3ef] p-5">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Export tree</p>
+                <div className="mt-4 grid gap-2 font-mono text-[12px] leading-6 text-slate-700">
+                  {sampleExportTree.slice(0, 6).map((item) => (
+                    <div key={item} className="border border-black/10 bg-white px-3 py-2">
+                      {item}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

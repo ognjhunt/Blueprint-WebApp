@@ -24,6 +24,7 @@ import { runGraduationEvaluation } from "./agent-graduation";
 import { runOnboardingWorker } from "./buyer-onboarding";
 import { runGapClosureLoop } from "./gap-closure";
 import { runHumanReplyEmailWatcher } from "./human-reply-worker";
+import { runOperatingGraphProjectionLoop } from "./operatingGraphEvidenceProjectors";
 
 const WORKER_STATUS_COLLECTION = "opsAutomationWorkerStatus";
 
@@ -314,6 +315,18 @@ const workers: WorkerDefinition[] = [
     maxBatchSize: 100,
     defaultStartupDelayMs: 100 * 1000,
     run: ({ limit }) => runHumanReplyEmailWatcher({ limit }),
+  },
+  {
+    key: "operating_graph_projection",
+    enabledEnv: "BLUEPRINT_OPERATING_GRAPH_PROJECTION_ENABLED",
+    intervalEnv: "BLUEPRINT_OPERATING_GRAPH_PROJECTION_INTERVAL_MS",
+    batchEnv: "BLUEPRINT_OPERATING_GRAPH_PROJECTION_BATCH_SIZE",
+    startupDelayEnv: "BLUEPRINT_OPERATING_GRAPH_PROJECTION_STARTUP_DELAY_MS",
+    defaultIntervalMs: 10 * 60 * 1000,
+    defaultBatchSize: 500,
+    maxBatchSize: 2_000,
+    defaultStartupDelayMs: 110 * 1000,
+    run: ({ limit }) => runOperatingGraphProjectionLoop({ limit }),
   },
 ];
 

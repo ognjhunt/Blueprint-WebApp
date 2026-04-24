@@ -7,9 +7,15 @@ import {
   MonochromeMedia,
   ProofChip,
 } from "@/components/site/editorial";
-import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
+import {
+  proofEvidencePacket,
+  publicCaptureProofStories,
+  sampleExportTree,
+  sampleHostedRunRows,
+} from "@/lib/proofEvidence";
+import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
 import { hostedFilmstripFrames } from "@/lib/siteEditorialContent";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, MapPinned, ShieldCheck, Smartphone, UsersRound } from "lucide-react";
 
 const trustCards = [
   {
@@ -60,7 +66,7 @@ export default function ExactSiteHostedReview() {
       <div className="bg-[#f5f3ef] text-slate-950">
         <section className="border-b border-black/10">
           <MonochromeMedia
-            src={editorialGeneratedAssets.hostedReviewHero}
+            src={publicCaptureGeneratedAssets.hostedReviewPublicRoute}
             alt="Hosted review hero"
             className="min-h-[42rem] rounded-none"
             loading="eager"
@@ -132,14 +138,85 @@ export default function ExactSiteHostedReview() {
             <div className="overflow-hidden border border-black/10 bg-slate-950 p-4 text-white">
               <EditorialFilmstrip frames={hostedFilmstripFrames.map((frame, index) => ({
                 ...frame,
-                src:
-                  index % 2 === 0
-                    ? editorialGeneratedAssets.warehouseAisle
-                    : editorialGeneratedAssets.groceryBackroom,
+                src: publicCaptureProofStories[index % publicCaptureProofStories.length].image,
               }))} />
             </div>
 	          </div>
 	        </section>
+
+        <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+            <div className="grid gap-4 lg:grid-cols-[0.44fr_0.56fr]">
+              <div className="bg-[#f5f3ef] p-6 lg:p-8">
+                <EditorialSectionIntro
+                  eyebrow="Sample review packet"
+                  title="A hosted review can start from a public-facing place."
+                  description="The sample packet uses a composite grocery route so the hosted path looks like the actual growth motion: everyday places captured through the app, reviewed for privacy, then converted into buyer-readable evidence."
+                />
+                <div className="mt-7 space-y-3">
+                  {[
+                    ["Location", `${proofEvidencePacket.selectedStory.locationName}, ${proofEvidencePacket.selectedStory.city}`],
+                    ["Capture cue", proofEvidencePacket.selectedStory.captureAppCue],
+                    ["Buyer", `${proofEvidencePacket.selectedStory.buyerPersona}, ${proofEvidencePacket.selectedStory.buyerRole}`],
+                    ["Boundary", "Composite sample, not a named customer outcome"],
+                  ].map(([label, value]) => (
+                    <div key={label} className="grid gap-3 border border-black/10 bg-white px-4 py-3 text-sm md:grid-cols-[0.28fr_0.72fr]">
+                      <span className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{label}</span>
+                      <span className="text-slate-800">{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-4">
+                <div className="grid gap-px bg-black/10 md:grid-cols-3">
+                  {[
+                    {
+                      icon: Smartphone,
+                      label: "Capture",
+                      body: "Record a public-facing route from common areas and submit it for review.",
+                    },
+                    {
+                      icon: ShieldCheck,
+                      label: "Review",
+                      body: "Privacy, rights, restrictions, and usefulness are checked before buyer framing.",
+                    },
+                    {
+                      icon: UsersRound,
+                      label: "Buyer room",
+                      body: "Robot teams inspect run evidence, limits, and export shape before committing.",
+                    },
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <div key={item.label} className="bg-white p-5">
+                        <Icon className="h-5 w-5 text-slate-950" />
+                        <p className="mt-4 text-[11px] uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
+                        <p className="mt-3 text-sm leading-6 text-slate-700">{item.body}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="border border-black/10 bg-slate-950 p-5 text-white">
+                  <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-white/44">
+                    <MapPinned className="h-4 w-4" />
+                    Public-capture story set
+                  </div>
+                  <div className="mt-4 grid gap-2 md:grid-cols-2">
+                    {publicCaptureProofStories.map((story) => (
+                      <div key={story.id} className="border border-white/10 bg-white/5 p-4">
+                        <p className="text-sm font-semibold text-white">{story.locationName}</p>
+                        <p className="mt-2 text-xs leading-5 text-white/62">
+                          {story.locationType} / {story.captureAppCue}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
         <section className="border-y border-black/10 bg-white">
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.36fr_0.64fr] lg:px-10 lg:py-12">
@@ -169,10 +246,41 @@ export default function ExactSiteHostedReview() {
         </section>
 
         <section className="border-b border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 sm:px-8 lg:grid-cols-[0.58fr_0.42fr] lg:px-10 lg:py-12">
+            <div className="border border-black/10 bg-[#f5f3ef] p-6 lg:p-8">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Run evidence mockup</p>
+              <div className="mt-5 divide-y divide-black/10 border border-black/10 bg-white">
+                {sampleHostedRunRows.map((row) => (
+                  <div key={row.run} className="grid gap-3 p-4 text-sm leading-6 text-slate-700 md:grid-cols-[0.16fr_0.3fr_0.34fr_0.2fr]">
+                    <span className="font-semibold text-slate-950">{row.run}</span>
+                    <span>{row.scenario}</span>
+                    <span>{row.observation}</span>
+                    <span className="text-slate-950">{row.output}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="border border-black/10 bg-slate-950 p-6 text-white lg:p-8">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Export evidence</p>
+              <h2 className="font-editorial mt-4 text-[2.4rem] leading-[0.94] tracking-[-0.05em]">
+                What leaves the session.
+              </h2>
+              <div className="mt-5 space-y-2 font-mono text-[12px] leading-6 text-white/68">
+                {sampleExportTree.slice(0, 6).map((item) => (
+                  <div key={item} className="border border-white/10 bg-white/5 px-3 py-2">
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-b border-black/10 bg-white">
           <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
             <div className="grid gap-4 lg:grid-cols-[0.5fr_0.5fr]">
               <MonochromeMedia
-                src={editorialGeneratedAssets.hostedReviewHero}
+                src={publicCaptureGeneratedAssets.hostedReviewPublicRoute}
                 alt="Hosted review interior"
                 className="min-h-[28rem]"
                 overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.24))]"
@@ -230,7 +338,7 @@ export default function ExactSiteHostedReview() {
             eyebrow="Next step"
             title="Open the hosted path only after the site feels real."
             description="Hosted evaluation is the clearest way to choose the right world model before package access or a broader program."
-            imageSrc={editorialGeneratedAssets.hostedReviewHero}
+            imageSrc={publicCaptureGeneratedAssets.hostedReviewPublicRoute}
             imageAlt="Hosted review hero"
             primaryHref="/contact?persona=robot-team&interest=evaluation-package"
             primaryLabel="Scope hosted review"

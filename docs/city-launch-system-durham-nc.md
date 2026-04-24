@@ -2,7 +2,7 @@
 
 - city: Durham, NC
 - status: founder_approved_activation_ready
-- planning_state: refresh in progress
+- planning_state: completed
 - doctrine: capture-first, world-model-product-first, Exact-Site Hosted Review wedge
 
 ## Objective
@@ -31,10 +31,9 @@ Turn the Durham planning artifacts into an executable company harness that runs 
 
 ## Planning State
 
-- planning_status: refresh_in_progress
-- latest_artifact: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/city-launch-deep-research/durham-nc/2026-04-22T21-15-34.527Z/99-final-playbook.md
-- completed_playbook: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/playbooks/city-launch-durham-nc-deep-research.md
-- warning: A newer city-launch planning refresh is still in progress.
+- planning_status: completed
+- latest_artifact: /tmp/city-launch/durham-nc/run-1/99-final-playbook.md
+- completed_playbook: /tmp/city-launch/durham-nc/run-1/99-final-playbook.md
 
 ## Founder-Only Decisions
 
@@ -82,26 +81,22 @@ Turn the Durham planning artifacts into an executable company harness that runs 
 
 ## Activation Payload Highlights
 
-- city_thesis: Durham should start as one subscale exact-site hosted review motion around a single empty or pre-tenant logistics bay with pre-dispatch export-control screening and no buyer-lane live outreach until recipient-backed buyer contacts exist.
-- primary_site_lane: industrial_warehouse_empty_bay
-- primary_workflow_lane: amr_pre_deployment_evaluation_for_subscale_logistics_bays
+- city_thesis: Run one proof-led warehouse wedge.
+- primary_site_lane: industrial_warehouse
+- primary_workflow_lane: dock handoff
 - primary_buyer_proof_path: exact_site
-- lawful_access_modes: site_operator_intro, capturer_existing_lawful_access
+- lawful_access_modes: buyer_requested_site
 
 ## Metrics Blockers
 
-- robot_team_inbound_captured: required_tracked — Use the current WebApp event surfaces and keep Durham city attribution verified.
-- proof_path_assigned: required_tracked — Use the current WebApp proof-path routing surfaces.
-- proof_pack_delivered: required_tracked — Track when Durham leaves planning and actual proof artifacts move.
-- hosted_review_ready: required_tracked — Track when a Durham hosted-review surface is technically ready.
-- hosted_review_started: required_tracked — Track whether Durham proof converts into review behavior.
-- hosted_review_follow_up_sent: required_tracked — Keep Durham follow-up measurable without inventing new events.
-- human_commercial_handoff_started: required_tracked — Track when Durham shifts into a real human commercial thread.
-- proof_motion_stalled: required_tracked — Expose blocked Durham motion instead of smoothing it over.
-- first_lawful_access_path: required_not_tracked — The first Durham lawful-access path still needs explicit confirmation.
-- first_approved_capturer: required_not_tracked — The first Durham AEC-grade capturer is not approved yet.
-- first_rights_cleared_proof_asset: required_not_tracked — Rights-cleared Durham proof assets do not exist yet.
-- first_hosted_review: required_not_tracked — Durham hosted review remains a downstream milestone.
+- robot_team_inbound_captured: required_tracked
+- proof_path_assigned: required_tracked
+- proof_pack_delivered: required_tracked
+- hosted_review_ready: required_tracked
+- hosted_review_started: required_tracked
+- hosted_review_follow_up_sent: required_tracked
+- human_commercial_handoff_started: required_tracked
+- proof_motion_stalled: required_tracked
 
 ## Expansion Guard
 
@@ -118,10 +113,6 @@ Turn the Durham planning artifacts into an executable company harness that runs 
 - hosted_review_follow_up_sent is required_tracked.
 - human_commercial_handoff_started is required_tracked.
 - proof_motion_stalled is required_tracked.
-- first_lawful_access_path is required_not_tracked.
-- first_approved_capturer is required_not_tracked.
-- first_rights_cleared_proof_asset is required_not_tracked.
-- first_hosted_review is required_not_tracked.
 
 ## Execution Bundle
 
@@ -150,12 +141,6 @@ Turn the Durham planning artifacts into an executable company harness that runs 
 - Publish the Durham launch scorecard and blocker view: analytics-agent owns execution, Growth Lead is the human lane, and the task closes only when Durham scorecard reports supply and demand progress against the launch thresholds..
 - Mirror Durham execution artifacts into Notion Knowledge and Work Queue: notion-manager-agent owns execution, Chief of Staff is the human lane, and the task closes only when Durham execution system doc is mirrored into Notion Knowledge..
 - Run the Durham switch-on review before activation: beta-launch-commander owns execution, CTO is the human lane, and the task closes only when Durham switch-on review returns GO, CONDITIONAL GO, or HOLD with evidence..
-- Lock the first Durham subscale site scope: city-launch-agent owns execution, Growth Lead is the human lane, and the task closes only when One exact Durham bay or equivalent bounded interior is named..
-- Move export-control and rights screening before field dispatch: rights-provenance-agent owns execution, Designated human rights reviewer is the human lane, and the task closes only when The first Durham candidate is screened for private-interior authorization..
-- Line up Durham AEC capturer supply: capturer-growth-agent owns execution, Ops Lead is the human lane, and the task closes only when At least one Durham or Triangle AEC-grade capturer candidate is queued for trust review..
-- Keep the Durham buyer lane research-only until contacts are real: city-demand-agent owns execution, Growth Lead is the human lane, and the task closes only when Durham buyer candidates remain visible in the target ledger..
-- Verify Durham buyer artifact and hosted-review fit: buyer-solutions-agent owns execution, Ops Lead is the human lane, and the task closes only when At least one Durham buyer-fit hypothesis is reduced to a concrete artifact requirement..
-- Keep the Durham scorecard honest: analytics-agent owns execution, Ops Lead is the human lane, and the task closes only when Durham blockers are visible in the city launch scorecard..
 
 ## Launch Targets
 
@@ -206,6 +191,10 @@ Turn the Durham planning artifacts into an executable company harness that runs 
 - ops/paperclip/playbooks/city-opening-durham-nc-channel-registry.md
 - ops/paperclip/playbooks/city-opening-durham-nc-send-ledger.md
 - ops/paperclip/playbooks/city-opening-durham-nc-execution-report.md
+- ops/paperclip/playbooks/city-opening-durham-nc-no-signal-recovery.md
+- ops/paperclip/playbooks/city-opening-durham-nc-campaign-mock-pack.md
+- ops/paperclip/playbooks/city-opening-durham-nc-site-operator-recovery-pack.md
+- ops/paperclip/playbooks/city-opening-durham-nc-no-signal-scorecard.md
 - ops/paperclip/playbooks/city-opening-durham-nc-robot-team-contact-list.md
 - ops/paperclip/playbooks/city-opening-durham-nc-site-operator-contact-list.md
 

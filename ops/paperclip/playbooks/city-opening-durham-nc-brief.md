@@ -13,13 +13,13 @@ Open Durham with truthful awareness before expecting replies: make the right peo
 ## Core Message
 - Who Blueprint is: a capture-first, world-model-product-first company turning real sites into exact-site proof assets and hosted review paths.
 - What is launching in Durham: one narrow city-opening motion around exact-site hosted review, not a broad public city-launch claim.
-- What is in scope: industrial_warehouse_empty_bay with truthful lawful-access posture and bounded public-commercial capture where allowed.
+- What is in scope: industrial_warehouse with truthful lawful-access posture and bounded public-commercial capture where allowed.
 - What is out of scope: fake traction claims, blanket permission language, private controlled-interior capture without lawful access, and promises beyond actual proof state.
 - CTA: respond through the tagged city intake path with site type, access posture, contact role, and what kind of follow-up is requested.
 
 ## Evidence Anchors Available Now
-- Example research-backed capture targets: Durham Logistics Center (subscale empty-bay candidate), Durham Logistics Center (leasing route candidate), Welcome Venture Park (candidate only).
-- Example buyer-side targets already named in research: BotBuilt, ROI Industries.
+- Example research-backed capture targets: Triangle Capture Ops.
+- Example buyer-side targets already named in research: BotBuilt.
 
 ## Usage Rule
 This artifact is a working city-opening brief for operators and agents. It does not mean outreach has been sent, channels have been opened, or live responses already exist.

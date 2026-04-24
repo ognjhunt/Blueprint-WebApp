@@ -7,7 +7,7 @@ import {
   MonochromeMedia,
   ProofChip,
 } from "@/components/site/editorial";
-import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
+import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
 import { trustFaqItems } from "@/lib/siteEditorialContent";
 
 const readableCards = [
@@ -27,6 +27,10 @@ const readableCards = [
     title: "Redaction and retention",
     body: "Buyer-facing records identify whether privacy processing ran, whether raw media is retained, and what remains visible or exportable.",
   },
+  {
+    title: "Public-facing capture",
+    body: "Grocery aisles, retail floors, lobbies, museums, and common corridors can enter review when the capture stays in lawful public-facing areas and privacy guardrails remain visible.",
+  },
 ];
 
 const publishedToday = [
@@ -34,6 +38,7 @@ const publishedToday = [
   "Readable manifest, export bundle, and rights-sheet layouts for buyer inspection",
   "Hosted-access language that separates public proof from illustrative UI",
   "Privacy, retention, redaction, and restriction framing in the buyer path",
+  "Composite public-capture stories for everyday locations that show the proof shape without claiming customer outcomes",
 ];
 
 const notClaimed = [
@@ -41,6 +46,13 @@ const notClaimed = [
   "Unrestricted commercialization or export rights by default",
   "Deployment guarantees, safety certification, or customer outcome claims",
   "Any certification or compliance posture Blueprint has not published explicitly",
+  "Permission to capture restricted, private, or employee-only areas without explicit approval",
+];
+
+const publicCaptureBoundarySteps = [
+  "Allowed common areas remain visually separated from restricted checkout or counter zones.",
+  "Redaction review runs before buyer-visible evidence is framed.",
+  "The buyer packet keeps manifest, rights, route frames, and export scope together.",
 ];
 
 export default function Governance() {
@@ -55,7 +67,7 @@ export default function Governance() {
       <div className="bg-[#f5f3ef] text-slate-950">
         <section className="border-b border-black/10">
           <MonochromeMedia
-            src={editorialGeneratedAssets.proofBoardGovernance}
+            src={publicCaptureGeneratedAssets.governancePublicCaptureExplainer}
             alt="Governance hero"
             className="min-h-[38rem] rounded-none"
             loading="eager"
@@ -102,6 +114,32 @@ export default function Governance() {
         </section>
 
         <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 sm:px-8 lg:grid-cols-[0.58fr_0.42fr] lg:px-10 lg:py-12">
+            <MonochromeMedia
+              src={publicCaptureGeneratedAssets.governancePublicCaptureExplainer}
+              alt="Public capture trust workflow showing allowed area, restricted area, redaction review, and buyer packet"
+              className="min-h-[28rem]"
+              imageClassName="min-h-[28rem]"
+              overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.02),rgba(0,0,0,0.18))]"
+            />
+            <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
+              <EditorialSectionIntro
+                eyebrow="Public-capture boundary"
+                title="The rules are operational, not just legal copy."
+                description="Everyday public-facing places only work if the capture surface shows what was allowed, what was restricted, what was redacted, and what the buyer may inspect."
+              />
+              <div className="mt-7 space-y-3">
+                {publicCaptureBoundarySteps.map((item) => (
+                  <div key={item} className="border border-black/10 bg-white p-4 text-sm leading-7 text-slate-700">
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-y border-black/10 bg-white">
           <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
             <EditorialSectionIntro
               eyebrow="Truth boundary"
@@ -142,7 +180,7 @@ export default function Governance() {
             eyebrow="Next step"
             title="Inspect the trust surface on a real listing."
             description="Use the public proof surface when you want to see how rights, provenance, privacy, and hosted-access boundaries show up in the product itself."
-            imageSrc={editorialGeneratedAssets.proofBoardGovernance}
+            imageSrc={publicCaptureGeneratedAssets.governancePublicCaptureExplainer}
             imageAlt="Governance proof board"
             primaryHref="/world-models"
             primaryLabel="Inspect sample listing"

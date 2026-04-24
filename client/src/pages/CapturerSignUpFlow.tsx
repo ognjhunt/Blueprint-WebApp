@@ -36,7 +36,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { usePublicLaunchStatus } from "@/hooks/usePublicLaunchStatus";
 import { analyticsEvents, getSafeErrorType } from "@/lib/analytics";
 import { getCaptureAppPlaceholderUrl } from "@/lib/client-env";
-import { privateGeneratedAssets } from "@/lib/privateGeneratedAssets";
+import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
 import { joinLaunchCityLabels } from "@/lib/publicLaunchStatus";
 
 const EQUIPMENT_OPTIONS = [
@@ -537,8 +537,8 @@ export default function CapturerSignUpFlow() {
 
             <div className="overflow-hidden rounded-[1.75rem] border border-[color:var(--line)] bg-white">
               <img
-                src={privateGeneratedAssets.captureAppAisle}
-                alt="Blueprint capture aisle"
+                src={publicCaptureGeneratedAssets.captureAppHero}
+                alt="Blueprint public-facing capture walkthrough"
                 className="h-[15rem] w-full object-cover"
               />
             </div>

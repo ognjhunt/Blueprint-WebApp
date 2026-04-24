@@ -197,6 +197,11 @@ REDIS_URL=rediss://default:<token>@active-phoenix-39183.upstash.io:6379
 - Optional Slack human-reply watcher policy:
   `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOW_DMS=1`
   `BLUEPRINT_HUMAN_REPLY_SLACK_ALLOWED_CHANNELS`
+- Optional operating-graph evidence projection worker:
+  `BLUEPRINT_OPERATING_GRAPH_PROJECTION_ENABLED=1`
+  `BLUEPRINT_OPERATING_GRAPH_PROJECTION_INTERVAL_MS`
+  `BLUEPRINT_OPERATING_GRAPH_PROJECTION_BATCH_SIZE`
+  `BLUEPRINT_OPERATING_GRAPH_PROJECTION_STARTUP_DELAY_MS`
 - Optional Notion operational mirror:
   `NOTION_API_KEY` or `NOTION_API_TOKEN`
   `NOTION_GROWTH_STUDIO_SHIP_BROADCAST_DB_ID`
@@ -216,6 +221,7 @@ Important:
 - Governed search discovery is also opt-in. When enabled, it may query only the search provider configured in `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_SEARCH_URL`, only if that provider host is allowlisted in `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_SEARCH_ALLOWED_HOSTS`, and it will only keep result URLs whose hosts are already allowed by `BLUEPRINT_CITY_LAUNCH_CONTACT_DISCOVERY_ALLOWED_HOSTS`. Search only discovers candidate public contact pages; the same explicit-email extraction rules still apply.
 - `BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN` also authorizes the internal human-blocker dispatch route used by Blueprint automation tools to queue or send standard blocker packets from Paperclip agent lanes.
 - `BLUEPRINT_HUMAN_REPLY_GMAIL_OAUTH_PUBLISHING_STATUS` is a manual mirror of the Google OAuth consent-screen publishing state. If it is unset, treat Gmail OAuth durability as unknown rather than production-grade.
+- `BLUEPRINT_OPERATING_GRAPH_PROJECTION_ENABLED=1` promotes first-party capture submissions and city-launch supply targets into append-only operating graph events. Leave disabled only when intentionally running projections by `npm run operating-graph:project` or a closure drill.
 - Slack reply-watching env vars are forward-looking configuration only. Until inbound correlation and resume handoff are fully implemented, Slack replies are non-authoritative mirrors and email remains the only durable founder reply path.
 
 ### Creative Pipeline

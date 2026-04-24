@@ -191,6 +191,10 @@ Turn the Austin planning artifacts into an executable company harness that runs 
 - ops/paperclip/playbooks/city-opening-austin-tx-channel-registry.md
 - ops/paperclip/playbooks/city-opening-austin-tx-send-ledger.md
 - ops/paperclip/playbooks/city-opening-austin-tx-execution-report.md
+- ops/paperclip/playbooks/city-opening-austin-tx-no-signal-recovery.md
+- ops/paperclip/playbooks/city-opening-austin-tx-campaign-mock-pack.md
+- ops/paperclip/playbooks/city-opening-austin-tx-site-operator-recovery-pack.md
+- ops/paperclip/playbooks/city-opening-austin-tx-no-signal-scorecard.md
 - ops/paperclip/playbooks/city-opening-austin-tx-robot-team-contact-list.md
 - ops/paperclip/playbooks/city-opening-austin-tx-site-operator-contact-list.md
 

@@ -191,6 +191,10 @@ Turn the Chicago planning artifacts into an executable company harness that runs
 - ops/paperclip/playbooks/city-opening-chicago-il-channel-registry.md
 - ops/paperclip/playbooks/city-opening-chicago-il-send-ledger.md
 - ops/paperclip/playbooks/city-opening-chicago-il-execution-report.md
+- ops/paperclip/playbooks/city-opening-chicago-il-no-signal-recovery.md
+- ops/paperclip/playbooks/city-opening-chicago-il-campaign-mock-pack.md
+- ops/paperclip/playbooks/city-opening-chicago-il-site-operator-recovery-pack.md
+- ops/paperclip/playbooks/city-opening-chicago-il-no-signal-scorecard.md
 - ops/paperclip/playbooks/city-opening-chicago-il-robot-team-contact-list.md
 - ops/paperclip/playbooks/city-opening-chicago-il-site-operator-contact-list.md
 

@@ -3,30 +3,19 @@
 ## Status
 - phase: activation_ready
 - owner: city-launch-agent
-- last-reviewed: 2026-04-22
+- last-reviewed: 2026-04-23
 - recommended-posture: gated cohort pilot
 - launch_policy_state: autonomous_execution_ready
-- planning-state: execution refresh complete; waiting on first routed Durham response
+- planning-state: completed
 
 ## Launch Thesis
-Durham should start as one subscale exact-site hosted review motion around a single empty or pre-tenant logistics bay with pre-dispatch export-control screening and no buyer-lane live outreach until recipient-backed buyer contacts exist.
-
-## Locked First Site Scope
-- The first Durham subscale site scope is Durham Logistics Center, specifically the subscale empty-bay candidate inside that facility.
-- The first capture boundary stays under 10,000 sq ft and does not expand to the full 351,030 sq ft facility.
-- The operator path stays split between the Lovett Industrial site-owner route and the Colliers leasing-route contact already captured in repo truth.
+Run one proof-led warehouse wedge.
 
 ## What Changed This Pass
 - evidence-backed: the generic city-launch activation harness generated the Durham system doc, execution issue bundle, target ledger, and compact city playbooks in one run.
 - evidence-backed: the launch harness now tracks planning state explicitly so activation can distinguish "not started" from "research still running".
 - evidence-backed: the compact launch packet uses the standard platform analytics event model rather than inventing city-specific telemetry.
-- evidence-backed: the target ledger mode for this city is `deep_research_records`. Research-backed named targets already available include Durham Logistics Center (subscale empty-bay candidate), Durham Logistics Center (leasing route candidate), Welcome Venture Park (candidate only).
-- evidence-backed: the first Durham subscale site scope is now locked to Durham Logistics Center's subscale empty-bay candidate rather than the full facility.
-- evidence-backed: BotBuilt and ROI Industries now have official company-level contact paths recorded in the Durham buyer target ledger. These are not named-human buyer responses and do not make hosted review ready.
-- warning: A newer research refresh is still running; this ledger reflects the latest completed records.
-- evidence-backed: the Durham reply-conversion lane still has no routed live response, and the execution report continues to show `responses_routed: 0`.
-- blocked: no approved Durham capturer, rights-cleared proof asset, hosted-review start, or buyer outcome exists yet.
-- operationally: keep the reply-conversion queue open, but do not invent a follow-up cadence before a real Durham response lands in the canonical intake path.
+- evidence-backed: the target ledger mode for this city is `deep_research_records`. Research-backed named targets already available include Triangle Capture Ops.
 
 ## Why This City Now
 - the city remains a planning candidate only if it can produce rights-cleared exact-site proof assets for real robotics workflows
@@ -34,14 +23,14 @@ Durham should start as one subscale exact-site hosted review motion around a sin
 - no city should widen until the first proof assets, hosted reviews, and capturer approvals are real and measurable
 
 ## Recommended Launch Posture
-- Choose the lawful access mode per target from: site_operator_intro, capturer_existing_lawful_access.
+- Choose the lawful access mode per target from: buyer_requested_site.
 - Private controlled interiors require explicit authorization before dispatching capturers.
 - Keep the first active capturer cohort capped at roughly 5-10 vetted surveying, AEC, industrial inspection, or commercial mapping operators until the first 3-5 proof-ready sites exist.
 - Do not run public bounty, generic gig-worker, or broad community sourcing for private controlled interiors.
 - For public, non-controlled commercial locations such as groceries, retail stores, and similar walk-in sites, allow bounded online community sourcing when the brief constrains capture to lawful public areas and preserves privacy, signage, and provenance rules.
 - For that public commercial lane, find everyday capturers where they already are online: local city/community groups, neighborhood forums, retail and shopping communities, creator communities, and lightweight campus or gig networks that do not imply private-interior access.
 - Keep public posture at Exact-Site Hosted Review wedge only; no city-live or readiness claims until proof is real.
-- Preferred first lawful access mode: site_operator_intro.
+- Preferred first lawful access mode: buyer_requested_site.
 
 ## City-Opening Distribution Layer
 - City opening is a first-class launch lane, not an implied side effect of having sourcing or demand tasks on paper.
@@ -49,23 +38,11 @@ Durham should start as one subscale exact-site hosted review motion around a sin
 - Optimize the first wave for first response and truthful routing, not polished branding.
 - Every city-opening asset should say who Blueprint is, what is launching in the city, what spaces are in scope, what is not allowed, and the exact CTA path for replies.
 
-## Durable Opening Artifacts
-- `ops/paperclip/playbooks/city-opening-durham-nc-brief.md`
-- `ops/paperclip/playbooks/city-opening-durham-nc-channel-map.md`
-- `ops/paperclip/playbooks/city-opening-durham-nc-cta-routing.md`
-- `ops/paperclip/playbooks/city-opening-durham-nc-response-tracking.md`
-- `ops/paperclip/playbooks/city-opening-durham-nc-reply-conversion.md`
-- `ops/paperclip/playbooks/city-opening-durham-nc-channel-registry.md`
-- `ops/paperclip/playbooks/city-opening-durham-nc-send-ledger.md`
-- `ops/paperclip/playbooks/city-opening-durham-nc-execution-report.md`
-- These are generated draft artifacts for routing and measurement, not proof that outreach has been sent or replies have arrived.
-
 ## Required Distribution Artifacts
 - Durham city-opening brief with warehouse/facility and public-commercial awareness split
 - Durham city channel map naming channels, audiences, owners, and message posture
 - Durham first-wave outreach/posting pack with direct outreach variants and bounded community-placement variants
 - Durham CTA / intake path with source tags and next-owner routing
-- Durham intake rubric, trust kit, and first-capture thresholds operator packet
 - Durham response-tracking view showing which channels produced real replies
 - Durham reply-conversion queue and follow-up cadence rules so live responses move into the correct next lane
 - Durham channel/account registry with ready-to-create, created, or blocked state
@@ -99,13 +76,6 @@ Durham should start as one subscale exact-site hosted review motion around a sin
 - Reply conversion should hand warehouse/facility responses into operator/buyer/access work, public-commercial responses into qualification, and ambiguous or weak responses into blocked/no-fit states with named reasons.
 - A live response does not count as converted just because it exists; it counts when it receives a next step, follow-up cadence, and downstream routing decision.
 
-## Current Reply-Conversion Posture
-- routed live responses: 0
-- next owner: city-launch-agent
-- current dependency: the first real Durham response in the canonical city-opening intake path
-- follow-up state: no cadence clock starts until a real response exists
-- closure state: keep the lane open until one live response is tagged, routed, and handed off or explicitly closed
-
 ## City-Opening Execution Layer
 - The city-opening execution layer should keep a first-class channel/account registry, a send ledger, and a current execution report.
 - Account creation, send readiness, send approval, sent state, and response ingest should stay visible in canonical artifacts instead of hiding in agent comments.
@@ -113,19 +83,17 @@ Durham should start as one subscale exact-site hosted review motion around a sin
 
 ## Rights Path
 
-Pre-dispatch site-operator authorization and export-control screening are required before any private controlled interior capture. Unscreened logistics or defense-adjacent interiors must remain blocked.
+Private controlled interiors require authorization.
 
 ## Trust Infrastructure Required Before Expansion
 - written site-operator acquisition path and authority verification checklist
-- Ops Lead-approved Durham intake rubric, trust kit, and first-capture thresholds
+- Ops Lead-approved intake rubric, trust kit, and first-capture thresholds
 - standard proof-pack structure with provenance, rights, privacy, recency, and hosted-review path
 - platform analytics using `robot_team_inbound_captured`, `proof_path_assigned`, `proof_pack_delivered`, `hosted_review_ready`, and `hosted_review_started` with city/source tags
 
 ## Validation Blockers
 
-- high: Constrain the first Durham capture to one sub-10,000 sq ft empty or pre-tenant bay instead of a full 351,030 sq ft facility. (validation required)
-- high: BotBuilt and ROI Industries remain research-backed buyer candidates, but direct buyer outreach is blocked until recipient-backed human contact emails are verified. (validation required)
-- high: Export-control, defense, and air-gap constraints must be screened during site-operator intake before any capturer is dispatched. (validation required)
+- none recorded in the current activation payload
 
 ## Readiness Scorecard
 | Dimension | Score | Rationale |

@@ -14,11 +14,13 @@ describe("FAQ", () => {
     expect(screen.getByText(/What is a Blueprint world model\?/i)).toBeInTheDocument();
     expect(screen.getByText(/What does a buyer actually receive with the site package\?/i)).toBeInTheDocument();
     expect(screen.getByText(/What is hosted evaluation\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/What does exact-site proof mean versus adjacent-site proof\?/i)).toBeInTheDocument();
     expect(screen.getByText(/How close is this to a deployment guarantee\?/i)).toBeInTheDocument();
     expect(screen.getByText(/What if the exact site we care about is not in the catalog\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/How fast does Blueprint usually respond\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/Can Blueprint start from everyday public-facing locations\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/Are the proof stories real customer results\?/i)).toBeInTheDocument();
     expect(screen.getByText(/Can we book time instead of starting with a form\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/grocery stores, retail aisles, hotel lobbies, mall corridors/i)).toBeInTheDocument();
+    expect(screen.getByText(/composite sample stories/i)).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /Talk to Blueprint about a real site/i }),
     ).toHaveAttribute("href", "/contact?persona=robot-team");

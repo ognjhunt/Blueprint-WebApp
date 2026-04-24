@@ -8,37 +8,32 @@ describe("Pricing", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Public pricing for the exact-site paths that matter first\./i,
+        name: /Choose the right path\./i,
       }),
     ).toBeInTheDocument();
 
-    expect(screen.getAllByText(/^Site package$/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/^Hosted session-hour$/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/^Custom scope only when needed$/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("heading", { name: /^Site Package$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("heading", { name: /^Hosted Evaluation$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("heading", { name: /^Enterprise$/i }).length).toBeGreaterThan(0);
 
-    expect(screen.getAllByText(/\$2,100 - \$3,400/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/\$16 - \$29/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Compare the three commercial paths\./i)).toBeInTheDocument();
+    expect(screen.getAllByText(/\$2,100 – \$3,400/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/\$16 – \$29 \/ session-hour/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/\$50,000\+ scoped/i)).toBeInTheDocument();
 
     expect(
-      screen.getByRole("heading", { name: /How to choose the first move\./i }),
+      screen.getByRole("heading", { name: /What the first bill usually means\./i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Package first/i)).toBeInTheDocument();
-    expect(screen.getByText(/Hosted first/i)).toBeInTheDocument();
-    expect(screen.getByText(/Custom first/i)).toBeInTheDocument();
+    expect(screen.getByText(/First exact-site evaluation/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hosted-only fit check/i)).toBeInTheDocument();
+    expect(screen.getByText(/Bring your site/i)).toBeInTheDocument();
 
-    expect(screen.getByRole("heading", { name: /What changes scope\./i })).toBeInTheDocument();
-    expect(screen.getByText(/What pricing does not claim/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", {
-        name: /Need a site that is not in the public catalog yet\?/i,
-      }),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Scope changes with/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /A simpler visual comparison\./i })).toBeInTheDocument();
 
     expect(
       screen
         .getAllByRole("link", { name: /Book scoping call/i })
-        .some((link) => link.getAttribute("href") === "/book-exact-site-review"),
+        .some((link) => link.getAttribute("href") === "https://calendly.com/blueprintar/30min"),
     ).toBe(true);
     expect(
       screen

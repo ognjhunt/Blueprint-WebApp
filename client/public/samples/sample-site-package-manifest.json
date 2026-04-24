@@ -1,19 +1,72 @@
 {
-  "site_id": "siteworld-f5fd54898cfb",
-  "site_name": "Sample public site listing",
-  "capture_date": "2026-03-13",
-  "proof_depth": "public_demo_plus_sample_artifacts",
+  "sample_disclosure": "Composite demo manifest. Replace names, dates, locations, users, and run notes with real approved proof before making customer claims.",
+  "packet_id": "BP-SAMPLE-PROOF-PACKET-0426",
+  "site_id": "sample-public-capture-cedar-market-aisle-loop",
+  "site_name": "Cedar Market Aisle Loop",
+  "site_type": "grocery_store_public_aisles",
+  "city": "Austin",
+  "state": "TX",
+  "capture_basis": "public_facing_common_area_review",
+  "capture_date": "2026-04-18",
+  "proof_depth": "public_capture_mockup_plus_sample_artifacts",
   "freshness_state": "current_sample",
+  "capture_app_cue": {
+    "estimated_payout": "$40 review cue",
+    "estimated_walkthrough_minutes": 25,
+    "capture_prompt": "Capture public-facing aisles, endcaps, and circulation paths. Avoid checkout, pharmacy, screens, receipts, employee-only areas, and identifiable shoppers."
+  },
+  "buyer_question": "Can a shelf-scanning AMR navigate produce, endcaps, and refrigeration lanes without treating this as a generic warehouse aisle?",
+  "capture_provenance": {
+    "source_app": "Blueprint Capture",
+    "device_class": "phone_or_glasses_capture",
+    "raw_bundle_shape": [
+      "walkthrough_video",
+      "timestamps",
+      "poses_when_available",
+      "device_metadata",
+      "capture_context",
+      "privacy_and_rights_metadata"
+    ],
+    "redaction_state": "sample_redaction_complete",
+    "review_state": "sample_ready_for_buyer_review"
+  },
   "rights_class": "internal_evaluation_and_approved_exports_only",
+  "public_area_scope": [
+    "customer-accessible aisles",
+    "main circulation paths",
+    "endcap approaches",
+    "refrigeration approach from public walkway"
+  ],
+  "restricted_scope": [
+    "checkout lanes with identifiable shoppers",
+    "pharmacy counter",
+    "employee-only stockroom doors",
+    "payment terminals and screens",
+    "receipts, loyalty cards, paperwork, or other customer PII"
+  ],
   "export_types": [
-    "walkthrough_video",
-    "camera_poses",
-    "rollout_video",
-    "raw_run_bundle",
-    "dataset_export"
+    "redacted_walkthrough_reference",
+    "route_waypoints",
+    "hosted_review_report",
+    "run_observation_json",
+    "rights_sheet",
+    "buyer_review_bundle"
+  ],
+  "sample_buyers": [
+    {
+      "name": "Maya Ortiz",
+      "role": "Robotics deployment lead",
+      "use_case": "shelf_scanning_amr_review"
+    },
+    {
+      "name": "Jordan Lee",
+      "role": "Field operations reviewer",
+      "use_case": "privacy_and_route_scope_check"
+    }
   ],
   "listing_notes": [
     "Representative public sample manifest layout",
-    "Use listing-specific trust metadata for actual commercial scope"
+    "Actual commercial access still depends on listing-specific proof, rights, privacy, and export review",
+    "This sample opens the proof surface beyond private facilities to everyday public-facing locations"
   ]
 }

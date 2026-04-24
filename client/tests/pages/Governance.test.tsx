@@ -8,7 +8,7 @@ describe("Governance", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /Trust should be readable before purchase\./i,
+        name: /Proof stays attached\./i,
       }),
     ).toBeInTheDocument();
 
@@ -17,12 +17,16 @@ describe("Governance", () => {
     expect(screen.getAllByText(/^No trust claims beyond the listing$/i).length).toBeGreaterThan(0);
 
     expect(
-      screen.getByRole("heading", { name: /What a buyer should be able to read\./i }),
+      screen.getByRole("heading", { name: /What a buyer can read before access\./i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Provenance and freshness/i)).toBeInTheDocument();
     expect(screen.getByText(/Rights and restrictions/i)).toBeInTheDocument();
     expect(screen.getByText(/Hosted-access boundary/i)).toBeInTheDocument();
     expect(screen.getByText(/Redaction and retention/i)).toBeInTheDocument();
+    expect(screen.getByText(/Public-facing capture/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /The rules are operational, not just legal copy\./i }),
+    ).toBeInTheDocument();
 
     expect(
       screen.getByRole("heading", {
@@ -33,17 +37,17 @@ describe("Governance", () => {
     expect(screen.getByText(/Not claimed/i)).toBeInTheDocument();
     expect(
       screen.getByText(
-        /No certification or compliance claim is implied unless Blueprint publishes it explicitly\./i,
+        /Any certification or compliance posture Blueprint has not published explicitly/i,
       ),
     ).toBeInTheDocument();
 
     expect(
-      screen.getByRole("heading", { name: /How the boundary stays controlled\./i }),
+      screen.getByRole("heading", { name: /What proof is included with every public world-model listing\?/i }),
     ).toBeInTheDocument();
     expect(
       screen
         .getAllByRole("link", { name: /Inspect sample listing/i })
-        .some((link) => link.getAttribute("href") === "/world-models/siteworld-f5fd54898cfb"),
+        .some((link) => link.getAttribute("href") === "/world-models"),
     ).toBe(true);
 
     expect(screen.queryByText(/Operational control matrix/i)).not.toBeInTheDocument();

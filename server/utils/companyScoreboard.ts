@@ -60,16 +60,40 @@ function summarizeMetricHealth(view: ReturnType<typeof projectCompanyMetricsView
   };
 }
 
-function readDurhamClosureHint(snapshot: CompanyMetricsSnapshot) {
-  const durhamSends = snapshot.operatingGraphEvents.filter(
-    (event) => event.city_slug === "durham-nc",
+function readCityClosureHint(
+  snapshot: CompanyMetricsSnapshot,
+  activeCity: OperatingGraphState | null,
+) {
+  if (!activeCity) {
+    return null;
+  }
+
+  const cityEvents = snapshot.operatingGraphEvents.filter(
+    (event) => event.city_slug === activeCity.citySlug,
   );
-  const durhamOutcomes = snapshot.buyerOutcomes.filter(
-    (outcome) => outcome.cityProgramId === "city_program:durham-nc:zero_budget",
+  const buyerOutcomes = snapshot.buyerOutcomes.filter(
+    (outcome) =>
+      outcome.cityProgramId === activeCity.entityId
+      || outcome.cityProgramId === activeCity.canonicalForeignKeys.cityProgramId,
   );
+
   return {
-    graphEventCount: durhamSends.length,
-    buyerOutcomeCount: durhamOutcomes.length,
+    city: activeCity.city,
+    citySlug: activeCity.citySlug,
+    graphEventCount: cityEvents.length,
+    supplyTargetCount: snapshot.operatingGraphStates.filter(
+      (state) => state.entityType === "supply_target" && state.citySlug === activeCity.citySlug,
+    ).length,
+    captureRunCount: snapshot.operatingGraphStates.filter(
+      (state) => state.entityType === "capture_run" && state.citySlug === activeCity.citySlug,
+    ).length,
+    packageRunCount: snapshot.operatingGraphStates.filter(
+      (state) => state.entityType === "package_run" && state.citySlug === activeCity.citySlug,
+    ).length,
+    hostedReviewRunCount: snapshot.operatingGraphStates.filter(
+      (state) => state.entityType === "hosted_review_run" && state.citySlug === activeCity.citySlug,
+    ).length,
+    buyerOutcomeCount: buyerOutcomes.length,
   };
 }
 
@@ -157,7 +181,7 @@ function buildCeoOperatingScreen(
       })),
   };
 
-  const durhamClosure = readDurhamClosureHint(snapshot);
+  const activeCityClosure = readCityClosureHint(snapshot, activeCity);
 
   return {
     generatedAt,
@@ -192,7 +216,7 @@ function buildCeoOperatingScreen(
       daily: summarizeMetricHealth(views.daily),
       weekly: summarizeMetricHealth(views.weekly),
     },
-    durhamClosure,
+    activeCityClosure,
   };
 }
 

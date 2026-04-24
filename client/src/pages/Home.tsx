@@ -9,11 +9,13 @@ import {
 } from "@/components/site/editorial";
 import { siteWorldCards } from "@/data/siteWorlds";
 import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
+import { publicCaptureProofStories } from "@/lib/proofEvidence";
+import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
 import {
   getEditorialFeaturedSites,
   getEditorialSiteLocation,
 } from "@/lib/siteEditorialContent";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Smartphone } from "lucide-react";
 import { useMemo } from "react";
 
 const productPaths = [
@@ -146,7 +148,7 @@ export default function Home() {
 	                <h1 className="font-editorial mt-6 max-w-[34rem] text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5.2rem]">
 	                  Site-specific world models for real places.
 	                </h1>
-	                <p className="mt-6 max-w-[28rem] text-base leading-8 text-white/72 sm:text-[1.03rem]">
+	                <p className="mt-6 max-w-[28rem] text-base leading-8 text-white opacity-90 sm:text-[1.03rem]">
 	                  Evaluate exact deployment sites before the expensive part starts. Inspect the captured place, then choose package access or hosted review.
 	                </p>
 
@@ -188,6 +190,40 @@ export default function Home() {
 
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10">
           <EditorialMetricStrip items={metrics} />
+        </section>
+
+        <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.38fr_0.62fr] lg:px-10">
+            <div className="bg-[#f5f3ef] px-6 py-8 lg:px-8 lg:py-10">
+              <EditorialSectionIntro
+                eyebrow="Public capture"
+                title="Open the map to everyday places."
+                description="The Capture app is meant for public-facing locations people already visit: grocery stores, retail aisles, hotel lobbies, mall corridors, museums, office lobbies, and other common areas where capture is allowed."
+              />
+              <div className="mt-7 flex flex-wrap gap-3">
+                <a
+                  href="/capture-app"
+                  className="inline-flex items-center justify-center bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Open capture app
+                  <Smartphone className="ml-2 h-4 w-4" />
+                </a>
+                <a
+                  href="/sample-deliverables"
+                  className="inline-flex items-center justify-center border border-black/10 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                >
+                  See proof packet
+                </a>
+              </div>
+            </div>
+            <MonochromeMedia
+              src={publicCaptureGeneratedAssets.everydayPlacesCollage}
+              alt="Blueprint public capture map across grocery, retail, hotel lobby, and mall corridor examples"
+              className="min-h-[30rem] rounded-none"
+              imageClassName="min-h-[30rem]"
+              overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.03),rgba(0,0,0,0.18))]"
+            />
+          </div>
         </section>
 
         <section className="mx-auto max-w-[88rem] px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
@@ -257,7 +293,7 @@ export default function Home() {
 	        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
 	          <div className="grid overflow-hidden rounded-[2rem] border border-black/10 bg-white lg:grid-cols-[0.46fr_0.54fr]">
             <MonochromeMedia
-              src={editorialGeneratedAssets.proofBoardDeliverables}
+              src={publicCaptureGeneratedAssets.cedarMarketProofBoard}
               alt="Blueprint public proof surface"
               className="min-h-[32rem] rounded-none"
               imageClassName="min-h-[32rem]"
@@ -307,6 +343,41 @@ export default function Home() {
             </div>
           </div>
 	        </section>
+
+        <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10">
+            <EditorialSectionIntro
+              eyebrow="Proof stories"
+              title="Composite stories make the evidence path concrete."
+              description="These are polished sample stories, not named customer outcomes. They show the kinds of public-facing places a capturer can submit and the buyer questions those captures can answer."
+              className="max-w-3xl"
+            />
+            <div className="mt-8 grid gap-4 lg:grid-cols-4">
+              {publicCaptureProofStories.map((story) => (
+                <a
+                  key={story.id}
+                  href="/proof"
+                  className="group overflow-hidden border border-black/10 bg-[#f5f3ef] transition hover:bg-white"
+                >
+                  <MonochromeMedia
+                    src={story.image}
+                    alt={story.locationName}
+                    className="aspect-[4/3] rounded-none"
+                    imageClassName="aspect-[4/3] transition duration-700 group-hover:scale-[1.03]"
+                    overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.04),rgba(0,0,0,0.32))]"
+                  />
+                  <div className="p-5">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{story.city}</p>
+                    <h2 className="mt-3 text-lg font-semibold leading-tight text-slate-950">
+                      {story.locationName}
+                    </h2>
+                    <p className="mt-3 text-sm leading-6 text-slate-600">{story.captureAppCue}</p>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
 
         <section className="border-y border-black/10 bg-white">
           <div className="mx-auto grid max-w-[88rem] gap-px px-5 py-10 sm:px-8 lg:grid-cols-[0.38fr_0.62fr] lg:px-10">
