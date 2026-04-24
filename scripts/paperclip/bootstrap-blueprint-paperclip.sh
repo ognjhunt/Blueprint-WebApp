@@ -332,7 +332,6 @@ import_company() {
       --data-dir "$PAPERCLIP_HOME" \
       --target existing \
       --company-id "$company_id" \
-      --yes \
       --json \
       >"$IMPORT_LOG"
     printf '%s' "$fingerprint" >"$PACKAGE_STAMP"
@@ -344,7 +343,6 @@ import_company() {
     --data-dir "$PAPERCLIP_HOME" \
     --target new \
     --new-company-name "$COMPANY_NAME" \
-    --yes \
     --json \
     >"$IMPORT_LOG"
   printf '%s' "$fingerprint" >"$PACKAGE_STAMP"
