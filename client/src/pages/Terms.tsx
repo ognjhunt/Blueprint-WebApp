@@ -38,6 +38,33 @@ const sections = [
   },
 ] as const;
 
+const roleTerms = [
+  {
+    title: "Buyer schedule",
+    items: [
+      "Package access, hosted sessions, exports, and license scope are controlled by the listing, checkout, order form, or written agreement.",
+      "Hosted review is decision support, not deployment approval, certification, or safety validation.",
+      "Buyer sharing, internal use, and downstream export rights must match the rights sheet or written terms.",
+    ],
+  },
+  {
+    title: "Operator schedule",
+    items: [
+      "Operators must have authority to approve capture, listing visibility, hosted review, buyer access, and commercialization.",
+      "Restricted zones, capture windows, privacy instructions, and revocation or refresh requirements remain part of the site record.",
+      "Private or employee-only spaces require explicit approval before capture or buyer-facing use.",
+    ],
+  },
+  {
+    title: "Capturer schedule",
+    items: [
+      "Capturers may submit only lawful public-facing routes unless Blueprint and the operator approve otherwise.",
+      "Capturers must avoid restricted areas, payment terminals, sensitive screens, private records, and people when possible.",
+      "Submission review, approval, payout eligibility, and downstream use are not automatic.",
+    ],
+  },
+];
+
 export default function Terms() {
   return (
     <>
@@ -118,6 +145,19 @@ export default function Terms() {
                       legal@tryblueprint.io
                     </a>
                   </SurfaceCard>
+                </div>
+
+                <div className="mt-6 grid gap-5 lg:grid-cols-3">
+                  {roleTerms.map((role) => (
+                    <SurfaceCard key={role.title} className={role.title === "Operator schedule" ? "bg-[#faf7f1]" : undefined}>
+                      <SurfaceMiniLabel>{role.title}</SurfaceMiniLabel>
+                      <ul className="mt-4 space-y-3 text-sm leading-7 text-black/62">
+                        {role.items.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </SurfaceCard>
+                  ))}
                 </div>
               </div>
             </div>

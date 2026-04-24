@@ -9,7 +9,7 @@ import { getDemandCityMessaging } from "@/lib/cityDemandMessaging";
 import { editorialGeneratedAssets } from "@/lib/editorialGeneratedAssets";
 import { Mail, MessageSquare, Sparkles } from "lucide-react";
 import { useMemo } from "react";
-import { useSearch } from "wouter";
+import { useLocation, useSearch } from "wouter";
 
 function cleanParam(value: string | null) {
   return String(value || "").trim();
@@ -17,6 +17,7 @@ function cleanParam(value: string | null) {
 
 export default function Contact() {
   const search = useSearch();
+  const [location] = useLocation();
   const searchParams = useMemo(() => new URLSearchParams(search), [search]);
   const interest = cleanParam(searchParams.get("interest"));
   const buyerType = cleanParam(searchParams.get("buyerType"));
@@ -36,7 +37,9 @@ export default function Contact() {
   const persona =
     hostedMode || personaParam === "robot-team" || buyerType === "robot_team"
       ? "robot_team"
-      : personaParam === "site-operator" || buyerType === "site_operator"
+      : personaParam === "site-operator" ||
+          buyerType === "site_operator" ||
+          location === "/contact/site-operator"
         ? "site_operator"
         : "robot_team";
   const robotTeamCityMessaging = persona === "robot_team" ? cityMessaging : null;
@@ -118,27 +121,50 @@ export default function Contact() {
   ].filter(([, value]) => Boolean(value));
   const hasSourceContext = sourceAwareRows.length > 0;
 
-  const fastPaths = [
-    {
-      href: "/book-exact-site-review",
-      label: "Book a scoping call",
-      detail: "Best when the site is already known and your team wants a fast human pass.",
-    },
-    {
-      href: "/exact-site-hosted-review",
-      label: "See hosted evaluation",
-      detail: "Best when your team wants the runtime path explained before it writes a brief.",
-    },
-    {
-      href: "/world-models",
-      label: "Inspect the sample listing",
-      detail: "Best when your team wants to validate the proof style before any outreach.",
-    },
-  ];
+  const fastPaths =
+    persona === "site_operator"
+      ? [
+          {
+            href: "/governance",
+            label: "Review governance",
+            detail: "Best when privacy, restricted zones, rights, or commercialization rules come first.",
+          },
+          {
+            href: "/capture-app/launch-access?role=site_operator",
+            label: "Signal local access",
+            detail: "Best when your facility or city is not in an active capture window yet.",
+          },
+          {
+            href: "/world-models",
+            label: "See public listing style",
+            detail: "Best when you want to understand what buyers can see before approval.",
+          },
+        ]
+      : [
+          {
+            href: "/book-exact-site-review",
+            label: "Book a scoping call",
+            detail: "Best when the site is already known and your team wants a fast human pass.",
+          },
+          {
+            href: "/exact-site-hosted-review",
+            label: "See hosted evaluation",
+            detail: "Best when your team wants the runtime path explained before it writes a brief.",
+          },
+          {
+            href: "/world-models",
+            label: "Inspect the sample listing",
+            detail: "Best when your team wants to validate the proof style before any outreach.",
+          },
+        ];
 
   return (
     <>
-      <SEO title={seoTitle} description={seoDescription} canonical="/contact" />
+      <SEO
+        title={seoTitle}
+        description={seoDescription}
+        canonical={persona === "site_operator" ? "/contact/site-operator" : "/contact"}
+      />
 
       <div className="bg-[#f5f3ef] text-slate-950">
         <section className="border-b border-black/10">

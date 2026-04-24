@@ -47,6 +47,50 @@ const sections = [
   },
 ];
 
+const exportSchemaRows = [
+  ["site_id", "Stable identifier for the exact site or sample listing."],
+  ["capture_basis", "Public demo, operator-approved, request-scoped, or metadata-only."],
+  ["freshness_state", "Current, stale, sample, or pending recapture."],
+  ["rights_class", "What can be inspected, shared, exported, or commercialized."],
+  ["privacy_state", "Redaction status, raw-media retention, and buyer-visible limits."],
+  ["artifact_set", "Manifest, rights sheet, hosted report, export bundle, route notes."],
+];
+
+const bundleTree = [
+  "/manifest/site_package_manifest.json",
+  "/rights/site_rights_sheet.md",
+  "/capture/route_notes.md",
+  "/media/review_filmstrip/",
+  "/hosted/session_report.md",
+  "/exports/buyer_bundle_index.json",
+];
+
+const assumptions = [
+  {
+    title: "Robot profile",
+    body: "Hosted review scopes one robot class, sensor posture, task lane, and scenario set. Blueprint does not assume every robot can use every export.",
+  },
+  {
+    title: "Sensors and geometry",
+    body: "Camera, pose, depth, LiDAR, and geometry artifacts depend on the capture method and listing. The manifest should say what exists before export access.",
+  },
+  {
+    title: "Runtime limits",
+    body: "Hosted sessions are review environments. They can expose route behavior, observations, and comparison notes; they are not deployment certification.",
+  },
+  {
+    title: "Versioning",
+    body: "Packages should carry capture date, package version, freshness state, and export state so buyers can tell which exact site snapshot they are reviewing.",
+  },
+];
+
+const limits = [
+  "No blanket export rights unless the listing or order form says so.",
+  "No unrestricted raw media export from public-facing capture by default.",
+  "No private or restricted-zone capture without explicit authority.",
+  "No guarantee that a sample or hosted run predicts deployment performance.",
+];
+
 export default function Docs() {
   return (
     <>
@@ -55,29 +99,41 @@ export default function Docs() {
         description="The stable Blueprint product contract, the site package structure, the hosted evaluation path, and the listing details that can vary."
         canonical="/docs"
       />
-      <div className="min-h-screen bg-white">
-        <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
-          <div className="max-w-3xl">
+      <div className="min-h-screen bg-[#f5f3ef] text-slate-950">
+        <section className="border-b border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-8 px-5 py-14 sm:px-8 lg:grid-cols-[0.52fr_0.48fr] lg:px-10 lg:py-16">
+            <div className="max-w-3xl">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
               Compatibility and exports
             </p>
-            <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-              What stays stable, what the package contains, and what can vary by site.
+            <h1 className="font-editorial mt-5 text-[3.8rem] leading-[0.9] tracking-[-0.06em] text-slate-950 sm:text-[5rem]">
+              Technical shape before the sales call.
             </h1>
             <p className="mt-4 text-lg leading-relaxed text-slate-600">
               This page is for technical buyers. It separates the stable product contract from the
               listing-specific details so your team can tell what is safe to assume and what should
               be checked on the exact site.
             </p>
+            </div>
+            <div className="bg-slate-950 p-6 text-white lg:p-8">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Sample bundle tree</p>
+              <div className="mt-6 space-y-3 font-mono text-[12px] leading-6 text-white/72">
+                {bundleTree.map((item) => (
+                  <div key={item} className="border border-white/10 bg-white/5 px-4 py-3">{item}</div>
+                ))}
+              </div>
+            </div>
           </div>
+        </section>
 
-          <div className="mt-12 grid gap-4">
+        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+          <div className="grid gap-4 lg:grid-cols-4">
             {sections.map((section) => (
               <section
                 key={section.title}
-                className="rounded-2xl border border-slate-200 bg-slate-50 p-6"
+                className="border border-black/10 bg-white p-6"
               >
-                <h2 className="text-2xl font-semibold text-slate-900">{section.title}</h2>
+                <h2 className="font-editorial text-[2rem] leading-[0.95] tracking-[-0.04em] text-slate-950">{section.title}</h2>
                 <p className="mt-3 text-sm leading-7 text-slate-600">{section.body}</p>
                 <ul className="mt-5 space-y-3 text-sm leading-6 text-slate-700">
                   {section.bullets.map((item) => (
@@ -90,7 +146,53 @@ export default function Docs() {
               </section>
             ))}
           </div>
-        </div>
+        </section>
+
+        <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 sm:px-8 lg:grid-cols-[0.36fr_0.64fr] lg:px-10 lg:py-12">
+            <div className="bg-[#f5f3ef] p-6 lg:p-8">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Export schema</p>
+              <h2 className="font-editorial mt-4 text-[2.7rem] leading-[0.94] tracking-[-0.05em]">
+                Fields a buyer should see before export access.
+              </h2>
+              <p className="mt-5 text-sm leading-7 text-slate-600">
+                This is the public compatibility contract. Real listings can add deeper files, but these labels keep provenance, privacy, rights, and freshness readable.
+              </p>
+            </div>
+            <div className="divide-y divide-black/10 border border-black/10 bg-white">
+              {exportSchemaRows.map(([field, meaning]) => (
+                <div key={field} className="grid gap-3 p-4 text-sm leading-6 text-slate-700 md:grid-cols-[0.24fr_0.76fr]">
+                  <span className="font-mono text-[12px] text-slate-950">{field}</span>
+                  <span>{meaning}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+          <div className="grid gap-4 lg:grid-cols-[0.58fr_0.42fr]">
+            <div className="grid gap-4 md:grid-cols-2">
+              {assumptions.map((item) => (
+                <div key={item.title} className="border border-black/10 bg-white p-6">
+                  <h2 className="font-editorial text-[2rem] leading-[0.95] tracking-[-0.04em]">{item.title}</h2>
+                  <p className="mt-4 text-sm leading-7 text-slate-600">{item.body}</p>
+                </div>
+              ))}
+            </div>
+            <div className="bg-slate-950 p-6 text-white lg:p-8">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Limits</p>
+              <h2 className="font-editorial mt-4 text-[2.6rem] leading-[0.94] tracking-[-0.05em]">
+                What the docs do not imply.
+              </h2>
+              <div className="mt-6 space-y-4 text-sm leading-7 text-white/72">
+                {limits.map((item) => (
+                  <div key={item}>{item}</div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     </>
   );

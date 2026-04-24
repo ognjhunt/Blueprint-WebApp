@@ -166,7 +166,7 @@ export default function ForSiteOperators() {
             description="Use the operator path when you need to talk through site participation, privacy, capture windows, or commercial posture."
             imageSrc={editorialGeneratedAssets.operatorControlEntry}
             imageAlt="Operator facility image"
-            primaryHref="/contact?persona=site-operator"
+            primaryHref="/contact/site-operator"
             primaryLabel="List your site"
             secondaryHref="/governance"
             secondaryLabel="Review rights and privacy"

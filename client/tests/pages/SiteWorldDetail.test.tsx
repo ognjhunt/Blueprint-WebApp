@@ -107,8 +107,8 @@ describe("SiteWorldDetail", () => {
     expect(screen.getAllByText(/Proof depth/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Freshness/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/runtime still \+ presentation still \+ buyer memo/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Evidence packet preview/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Public capture story for this listing\./i })).toBeInTheDocument();
+    expect(screen.getAllByText(/Capture example/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: /Public capture example for this listing\./i })).toBeInTheDocument();
     expect(screen.getByText(/Capture app cue/i)).toBeInTheDocument();
     expect(screen.getByText(/Evidence opened/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Guardrails/i).length).toBeGreaterThan(0);
@@ -345,6 +345,6 @@ describe("SiteWorldDetail", () => {
     expect(launchLink).toHaveAttribute("href", "https://marble.worldlabs.ai/worlds/world-123");
     expect(launchLink).toHaveAttribute("target", "_blank");
     expect(screen.getByText(/The optional interactive preview is ready to open in a new tab\./i)).toBeInTheDocument();
-    expect(screen.getByText(/Interactive preview is optional and does not redefine the trust surface\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Interactive preview is optional and does not redefine listing trust\./i)).toBeInTheDocument();
   });
 });

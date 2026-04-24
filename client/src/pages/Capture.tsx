@@ -5,6 +5,7 @@ import {
   MonochromeMedia,
 } from "@/components/site/editorial";
 import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
+import { defaultSupportedLaunchCities } from "@/lib/publicLaunchStatus";
 import { ArrowRight, DollarSign } from "lucide-react";
 
 const processRows = [
@@ -31,7 +32,7 @@ const processRows = [
   },
 ];
 
-const supportedCities = ["Austin, TX", "Sacramento, CA", "San Diego, CA", "San Jose, CA"];
+const supportedCities = defaultSupportedLaunchCities.map((city) => city.displayName);
 
 export default function Capture() {
   return (

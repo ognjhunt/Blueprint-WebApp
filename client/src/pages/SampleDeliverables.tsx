@@ -277,7 +277,7 @@ export default function SampleDeliverables() {
                       <Icon className="h-5 w-5" />
                     </div>
                     <p className={`mt-5 text-[11px] uppercase tracking-[0.18em] ${dark ? "text-white/44" : "text-slate-400"}`}>
-                      {artifact.label}
+                      Sample artifact · {artifact.label}
                     </p>
                     <h2 className="font-editorial mt-3 text-[2rem] leading-[0.95] tracking-[-0.04em]">
                       {artifact.title}
@@ -324,8 +324,8 @@ export default function SampleDeliverables() {
                 </div>
               ))}
             </div>
-            <div className="grid gap-4 lg:grid-cols-[0.42fr_0.58fr]">
-              <div className="bg-slate-950 p-6 text-white lg:p-8">
+            <div className="grid min-w-0 gap-4 overflow-hidden lg:grid-cols-[0.42fr_0.58fr]">
+              <div className="min-w-0 overflow-hidden bg-slate-950 p-5 text-white sm:p-6 lg:p-8">
                 <EditorialSectionIntro
                   eyebrow="Everyday capture"
                   title="Not just facilities."
@@ -342,8 +342,8 @@ export default function SampleDeliverables() {
                 </div>
               </div>
 
-              <div className="grid gap-4">
-                <div className="border border-black/10 bg-[#f5f3ef] p-6">
+              <div className="grid min-w-0 gap-4">
+                <div className="min-w-0 overflow-hidden border border-black/10 bg-[#f5f3ef] p-5 sm:p-6">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Hosted report example</p>
                   <div className="mt-5 divide-y divide-black/10 border border-black/10 bg-white">
                     {sampleHostedRunRows.map((row) => (
@@ -357,7 +357,7 @@ export default function SampleDeliverables() {
                   </div>
                 </div>
 
-                <div className="border border-black/10 bg-[#f5f3ef] p-6">
+                <div className="min-w-0 overflow-hidden border border-black/10 bg-[#f5f3ef] p-5 sm:p-6">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Export tree example</p>
                   <div className="mt-5 grid gap-2 font-mono text-[12px] leading-6 text-slate-700 md:grid-cols-2">
                     {sampleExportTree.map((item) => (

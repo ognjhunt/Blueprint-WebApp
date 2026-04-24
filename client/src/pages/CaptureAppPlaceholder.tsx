@@ -11,6 +11,7 @@ import {
 } from "@/components/site/privateSurface";
 import { usePublicLaunchStatus } from "@/hooks/usePublicLaunchStatus";
 import { getCaptureAppPlaceholderUrl } from "@/lib/client-env";
+import { defaultSupportedLaunchCities } from "@/lib/publicLaunchStatus";
 import {
   publicCaptureLocationTypes,
   publicCaptureProofStories,
@@ -44,8 +45,12 @@ const hasExternalAppLink = (value: string) => {
 export default function CaptureAppPlaceholder() {
   const captureAppUrl = getCaptureAppPlaceholderUrl();
   const showExternalHandoff = hasExternalAppLink(captureAppUrl);
+  const captureAccessUrl = "/capture-app/launch-access?source=capture-app-placeholder";
+  const qrTargetUrl = showExternalHandoff ? captureAppUrl : captureAccessUrl;
   const { data: publicLaunchStatus } = usePublicLaunchStatus();
-  const launchCities = publicLaunchStatus?.supportedCities ?? [];
+  const launchCities = publicLaunchStatus?.supportedCities?.length
+    ? publicLaunchStatus.supportedCities
+    : defaultSupportedLaunchCities;
   const [qrCode, setQrCode] = useState("");
 
   const launchCityLabels = useMemo(() => launchCities.map((city) => city.displayName), [launchCities]);
@@ -56,7 +61,7 @@ export default function CaptureAppPlaceholder() {
     async function renderQr() {
       try {
         const qrcode = await import("qrcode");
-        const dataUrl = await qrcode.toDataURL(captureAppUrl, {
+        const dataUrl = await qrcode.toDataURL(qrTargetUrl, {
           width: 280,
           margin: 1,
           color: {
@@ -77,7 +82,7 @@ export default function CaptureAppPlaceholder() {
     return () => {
       active = false;
     };
-  }, [captureAppUrl]);
+  }, [qrTargetUrl]);
 
   return (
     <>
@@ -157,14 +162,18 @@ export default function CaptureAppPlaceholder() {
                     </div>
                     <div className="mt-6 rounded-[1.6rem] border border-white/10 bg-white/5 p-5">
                       <p className="text-center text-sm font-semibold uppercase tracking-[0.22em] text-white/56">
-                        Scan to open
+                        {showExternalHandoff ? "Scan to open" : "Scan to request access"}
                       </p>
                       <div className="mt-4 flex justify-center">
                         <div className="rounded-[1.35rem] border border-white/8 bg-[#f8f5ee] p-3">
                           {qrCode ? (
                             <img
                               src={qrCode}
-                              alt="QR code for the Blueprint Capture App"
+                              alt={
+                                showExternalHandoff
+                                  ? "QR code for the Blueprint Capture App"
+                                  : "QR code for Blueprint capture access"
+                              }
                               className="h-44 w-44 rounded-xl"
                             />
                           ) : (
@@ -174,13 +183,23 @@ export default function CaptureAppPlaceholder() {
                           )}
                         </div>
                       </div>
-                      <p className="mt-4 text-center text-sm leading-6 text-white/66">
-	                        Capturers use this stable handoff to open the app, follow field rules, and submit walkthroughs for review.
-                      </p>
+                    <p className="mt-4 text-center text-sm leading-6 text-white/66">
+                      {showExternalHandoff
+                        ? "Capturers use this stable handoff to open the app, follow field rules, and submit walkthroughs for review."
+                        : "The app link is invite-gated for now. Request access or apply as a capturer so Blueprint can route the right handoff."}
+                    </p>
                     </div>
                     <div className="mt-5">
-                      <SurfaceButton href={captureAppUrl} tone="secondary" className="w-full rounded-full">
-                        Open the capture app
+                      <SurfaceButton
+                        href={
+                          showExternalHandoff
+                            ? captureAppUrl
+                            : captureAccessUrl
+                        }
+                        tone="secondary"
+                        className="w-full rounded-full"
+                      >
+                        {showExternalHandoff ? "Open the capture app" : "Request capture access"}
                       </SurfaceButton>
                     </div>
                   </div>

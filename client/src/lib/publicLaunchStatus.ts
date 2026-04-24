@@ -33,6 +33,39 @@ export type PublicLaunchStatus = {
   } | null;
 };
 
+export const defaultSupportedLaunchCities: SupportedLaunchCity[] = [
+  {
+    city: "Austin",
+    stateCode: "TX",
+    displayName: "Austin, TX",
+    citySlug: "austin-tx",
+  },
+  {
+    city: "Durham",
+    stateCode: "NC",
+    displayName: "Durham, NC",
+    citySlug: "durham-nc",
+  },
+  {
+    city: "Sacramento",
+    stateCode: "CA",
+    displayName: "Sacramento, CA",
+    citySlug: "sacramento-ca",
+  },
+  {
+    city: "San Diego",
+    stateCode: "CA",
+    displayName: "San Diego, CA",
+    citySlug: "san-diego-ca",
+  },
+  {
+    city: "San Jose",
+    stateCode: "CA",
+    displayName: "San Jose, CA",
+    citySlug: "san-jose-ca",
+  },
+];
+
 let cachedStatus: PublicLaunchStatus | null = null;
 let inflightStatusRequest: Promise<PublicLaunchStatus> | null = null;
 

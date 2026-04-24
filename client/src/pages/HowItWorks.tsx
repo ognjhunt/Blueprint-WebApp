@@ -56,7 +56,9 @@ function ChapterLabel({
       </h2>
       <p className="mt-6 max-w-[15rem] text-base leading-7 text-slate-700">{body}</p>
       <div className="mt-10 border-t border-black/10 pt-4">
-        <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Proof</p>
+        <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+          Illustrative sample
+        </p>
         <p className="mt-2 text-sm leading-6 text-slate-500">{proof}</p>
       </div>
     </div>
@@ -69,7 +71,7 @@ function PackagePanel() {
       <div className="grid max-w-[42rem] gap-4 md:grid-cols-[0.6fr_0.4fr]">
         <div className="rotate-[-3deg] rounded-[1.8rem] border border-black/10 bg-white p-6 shadow-[0_26px_50px_-36px_rgba(15,23,42,0.22)]">
           <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-            Blueprint manifest
+            Illustrative sample manifest
           </p>
           <h3 className="mt-5 text-2xl font-semibold text-slate-950">Plant 7</h3>
           <div className="mt-6 grid gap-y-3 text-sm text-slate-700">
@@ -111,7 +113,7 @@ function PackagePanel() {
             <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Rights sheet</p>
             <p className="mt-4 text-lg font-semibold text-slate-950">Use scope attached</p>
             <p className="mt-3 text-sm leading-6 text-slate-600">
-              Public review allowed. Export and private sharing remain request-scoped.
+              Example scope only. Real rights and export sharing remain listing- and request-scoped.
             </p>
           </div>
         </div>
@@ -181,13 +183,17 @@ export default function HowItWorks() {
                 <p className="mt-6 max-w-[18rem] text-sm uppercase tracking-[0.2em] text-slate-500">
                   Real places. Real routes. Site-specific world models that robots can run.
                 </p>
+                <p className="mt-5 max-w-[19rem] text-xs leading-6 text-slate-500">
+                  Metrics shown on this page are illustrative samples unless a listing marks them as
+                  approved real-site proof.
+                </p>
               </div>
 
               <div className="relative min-h-[34rem]">
                 <div className="absolute right-[4%] top-0 z-20 rotate-[1deg] rounded-[0.2rem] bg-white px-5 py-4 shadow-[0_16px_30px_-20px_rgba(15,23,42,0.24)]">
-                  <p className="font-editorial text-[1.1rem] italic">Site: Plant 7</p>
-                  <p className="mt-2 text-sm text-slate-700">Date: 04 / 18</p>
-                  <p className="text-sm text-slate-700">Capture: 2 of 3</p>
+                  <p className="font-editorial text-[1.1rem] italic">Sample site: Plant 7</p>
+                  <p className="mt-2 text-sm text-slate-700">Illustrative date: 04 / 18</p>
+                  <p className="text-sm text-slate-700">Sample capture: 2 of 3</p>
                 </div>
                 <div className="absolute left-[22%] right-[8%] top-[2.5rem] rounded-[1.3rem] border border-black/10 bg-white p-3 shadow-[0_24px_44px_-26px_rgba(15,23,42,0.2)]">
                   <div className="grid gap-3 md:grid-cols-3">
@@ -202,8 +208,8 @@ export default function HowItWorks() {
                     ))}
                   </div>
                 </div>
-                <div className="absolute left-[18%] top-[11rem] z-10 rotate-[-2deg] overflow-hidden rounded-[1.4rem] border border-black/10 bg-slate-950 p-4 shadow-[0_28px_50px_-28px_rgba(15,23,42,0.4)]">
-                  <svg viewBox="0 0 380 220" className="h-[13rem] w-[18rem]">
+                <div className="absolute left-4 right-4 top-[11rem] z-10 rotate-[-2deg] overflow-hidden rounded-[1.4rem] border border-black/10 bg-slate-950 p-4 shadow-[0_28px_50px_-28px_rgba(15,23,42,0.4)] sm:left-[18%] sm:right-auto">
+                  <svg viewBox="0 0 380 220" className="h-[11.5rem] w-full max-w-[18rem] sm:h-[13rem] sm:w-[18rem]">
                     <rect x="18" y="18" width="344" height="184" rx="22" fill="rgba(255,255,255,0.03)" />
                     <path d="M28 44H352" stroke="rgba(255,255,255,0.12)" strokeDasharray="6 8" />
                     <path d="M52 176C112 176 118 74 182 74C228 74 230 138 298 138C322 138 334 108 342 108" fill="none" stroke="rgba(255,255,255,0.88)" strokeWidth="5" strokeLinecap="round" />

@@ -59,8 +59,8 @@ const pricingExamples = [
   {
     title: "Hosted-only fit check",
     price: "$160-$435 typical",
-    body: "Five to fifteen hosted review hours on a request-scoped site. Useful when the team wants reruns and evidence before moving a full package into its own stack.",
-    items: ["Hosted setup", "Run notes", "Evidence export"],
+    body: "Five to fifteen hosted review hours on a request-scoped site at $16-$29 per session-hour, with a $160 minimum when setup, scoping, or report prep is required.",
+    items: ["Hosted setup minimum", "Run notes", "Evidence export"],
   },
   {
     title: "Bring your site",

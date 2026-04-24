@@ -226,9 +226,9 @@ export default function SampleEvaluation() {
           </div>
         </section>
 
-        <section className="border-y border-black/10 bg-white">
-          <div className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 sm:px-8 lg:grid-cols-[0.46fr_0.54fr] lg:px-10 lg:py-12">
-            <div className="border border-black/10 bg-[#f5f3ef] p-6 lg:p-8">
+        <section className="overflow-hidden border-y border-black/10 bg-white">
+          <div className="mx-auto grid min-w-0 max-w-[88rem] gap-4 overflow-hidden px-4 py-10 sm:px-8 lg:grid-cols-[0.46fr_0.54fr] lg:px-10 lg:py-12">
+            <div className="min-w-0 overflow-hidden border border-black/10 bg-[#f5f3ef] p-5 sm:p-6 lg:p-8">
               <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-slate-500">
                 <FileText className="h-4 w-4" />
                 What the buyer inspects
@@ -241,8 +241,8 @@ export default function SampleEvaluation() {
                 ))}
               </div>
             </div>
-            <div className="grid gap-4">
-              <div className="border border-black/10 bg-[#f5f3ef] p-5">
+            <div className="grid min-w-0 gap-4">
+              <div className="min-w-0 overflow-hidden border border-black/10 bg-[#f5f3ef] p-5">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Hosted run evidence</p>
                 <div className="mt-4 divide-y divide-black/10 border border-black/10 bg-white">
                   {sampleHostedRunRows.map((row) => (
@@ -255,7 +255,7 @@ export default function SampleEvaluation() {
                   ))}
                 </div>
               </div>
-              <div className="border border-black/10 bg-slate-950 p-5 text-white">
+              <div className="min-w-0 overflow-hidden border border-black/10 bg-slate-950 p-5 text-white">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Export bundle</p>
                 <div className="mt-4 grid gap-2 font-mono text-[12px] leading-6 text-white/72 md:grid-cols-2">
                   {sampleExportTree.map((item) => (

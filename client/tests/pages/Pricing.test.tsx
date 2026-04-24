@@ -32,8 +32,11 @@ describe("Pricing", () => {
 
     expect(
       screen
-        .getAllByRole("link", { name: /Book scoping call/i })
-        .some((link) => link.getAttribute("href") === "https://calendly.com/blueprintar/30min"),
+        .getAllByRole("link", { name: /Scope hosted evaluation/i })
+        .some((link) =>
+          link.getAttribute("href") ===
+          "/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=pricing",
+        ),
     ).toBe(true);
     expect(
       screen

@@ -11,6 +11,7 @@ import { withCsrfHeader } from "@/lib/csrf";
 import { usePublicLaunchStatus } from "@/hooks/usePublicLaunchStatus";
 import { analyticsEvents } from "@/lib/analytics";
 import { buildLaunchAccessWaitlistPayload, getLaunchAccessRoleLabel, normalizeLaunchAccessCity, type LaunchAccessRole } from "@/lib/launchAccess";
+import { defaultSupportedLaunchCities } from "@/lib/publicLaunchStatus";
 import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
 
 const roleOptions: LaunchAccessRole[] = [
@@ -41,13 +42,18 @@ export default function CaptureLaunchAccess() {
   const search = useSearch();
   const searchParams = useMemo(() => new URLSearchParams(search), [search]);
   const { data: publicLaunchStatus } = usePublicLaunchStatus();
-  const supportedCities = publicLaunchStatus?.supportedCities ?? [];
+  const supportedCities = publicLaunchStatus?.supportedCities?.length
+    ? publicLaunchStatus.supportedCities
+    : defaultSupportedLaunchCities;
   const prefilledCity = normalizeLaunchAccessCity(searchParams.get("city"));
+  const prefilledRole = roleOptions.includes(searchParams.get("role") as LaunchAccessRole)
+    ? (searchParams.get("role") as LaunchAccessRole)
+    : "capturer";
   const source = searchParams.get("source")?.trim() || "capture_app_launch_access";
 
   const [email, setEmail] = useState("");
   const [city, setCity] = useState(prefilledCity);
-  const [role, setRole] = useState<LaunchAccessRole>("capturer");
+  const [role, setRole] = useState<LaunchAccessRole>(prefilledRole);
   const [company, setCompany] = useState("");
   const [notes, setNotes] = useState("");
   const [phone, setPhone] = useState("");
@@ -198,11 +204,7 @@ export default function CaptureLaunchAccess() {
                         {launchCity.displayName}
                       </span>
                     ))
-                  ) : (
-                    <p className="text-sm leading-7 text-slate-600">
-                      Current launch cities will appear here once the public roster is available.
-                    </p>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </div>

@@ -13,12 +13,37 @@ import {
 import { publicCaptureGeneratedAssets } from "@/lib/publicCaptureGeneratedAssets";
 import { ArrowRight } from "lucide-react";
 
+const compositeOutcomes = [
+  {
+    title: "Grocery aisle scanning",
+    metric: "4 route risks surfaced",
+    body: "Endcaps, refrigeration glass, checkout-adjacent exclusions, and cart occlusion became visible before a robot team asked for a private site walk.",
+  },
+  {
+    title: "Hotel delivery handoff",
+    metric: "3 approval questions clarified",
+    body: "Lobby access, elevator threshold, and front-desk privacy boundaries became the operator discussion instead of an abstract demo request.",
+  },
+  {
+    title: "Retail patrol review",
+    metric: "2 buyer paths separated",
+    body: "Hosted review could proceed with public sales-floor evidence while raw export stayed gated behind listing-specific rights review.",
+  },
+];
+
+const launchStudyStages = [
+  "Capture a lawful public-facing route or operator-approved facility path.",
+  "Attach manifest, rights, privacy, restricted-zone, and freshness labels.",
+  "Open a buyer-readable hosted report with observations and non-guarantee limits.",
+  "Route the serious buyer into package access, hosted review, or operator permissioning.",
+];
+
 export default function CaseStudies() {
   return (
     <>
       <SEO
-        title="Capture Examples | Blueprint"
-        description="Examples showing how public-facing captures can become useful site packages and hosted review evidence for robot teams."
+        title="Composite Case Studies | Blueprint"
+        description="Composite launch studies showing how public-facing captures can become site packages and hosted review evidence for robot teams."
         canonical="/case-studies"
       />
 
@@ -35,12 +60,12 @@ export default function CaseStudies() {
             <div className="absolute inset-0">
               <div className="mx-auto h-full max-w-[88rem] px-5 py-12 sm:px-8 lg:px-10 lg:py-16">
                 <div className="flex h-full max-w-[34rem] flex-col justify-end text-white">
-                  <EditorialSectionLabel light>Capture Examples</EditorialSectionLabel>
+                  <EditorialSectionLabel light>Composite Case Studies</EditorialSectionLabel>
                   <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] sm:text-[5rem]">
-                    Everyday places, made inspectable.
+                    Complete stories, clearly marked as composite.
                   </h1>
                   <p className="mt-6 text-base leading-8 text-white/76">
-                    Examples for grocery, retail, lobby, and common-area routes. The names are invented; the capture rules and robot questions are the point.
+                    Launch-ready placeholder studies for grocery, retail, lobby, and common-area routes. Replace the names later; the proof structure is ready now.
                   </p>
                 </div>
               </div>
@@ -51,8 +76,8 @@ export default function CaseStudies() {
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
           <EditorialSectionIntro
             eyebrow="Story set"
-            title="A useful route beats a generic promise."
-            description="Each example shows the location type, capture cue, robot question, evidence a buyer would inspect, rules for the capturer, and the next decision."
+            title="A case study is useful only when the evidence path is visible."
+            description="Each composite study shows the location type, capture cue, robot question, evidence a buyer would inspect, rules for the capturer, and the next decision."
             className="max-w-3xl"
           />
           <div className="mt-8 grid gap-4 lg:grid-cols-2">
@@ -67,7 +92,7 @@ export default function CaseStudies() {
                     overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.05),rgba(0,0,0,0.42))]"
                   />
                   <div className="bg-white p-6">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{story.label}</p>
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Composite placeholder / {story.label}</p>
                     <h2 className="font-editorial mt-4 text-[2.5rem] leading-[0.94] tracking-[-0.05em] text-slate-950">
                       {story.locationName}
                     </h2>
@@ -110,6 +135,29 @@ export default function CaseStudies() {
         </section>
 
         <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-12">
+            <div className="bg-slate-950 p-6 text-white lg:p-8">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Composite outcome board</p>
+              <h2 className="font-editorial mt-4 text-[2.7rem] leading-[0.94] tracking-[-0.05em]">
+                The story looks real because the workflow is concrete.
+              </h2>
+              <p className="mt-5 text-sm leading-7 text-white/72">
+                These are not customer testimonials. They are finished placeholder stories that show how Blueprint should present approved real case studies when available.
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {compositeOutcomes.map((item) => (
+                <div key={item.title} className="border border-black/10 bg-[#f5f3ef] p-5">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{item.metric}</p>
+                  <h2 className="font-editorial mt-4 text-[2rem] leading-[0.95] tracking-[-0.04em]">{item.title}</h2>
+                  <p className="mt-4 text-sm leading-7 text-slate-600">{item.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-y border-black/10 bg-white">
           <div className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 sm:px-8 lg:grid-cols-[0.38fr_0.62fr] lg:px-10 lg:py-12">
             <div className="bg-[#f5f3ef] p-6 lg:p-8">
               <EditorialSectionIntro
@@ -125,6 +173,25 @@ export default function CaseStudies() {
                   <span>{row.scenario}</span>
                   <span>{row.observation}</span>
                   <span className="text-slate-950">{row.output}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+          <div className="grid gap-4 lg:grid-cols-[0.4fr_0.6fr]">
+            <div className="bg-[#f5f3ef] p-6 lg:p-8">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Case-study template</p>
+              <h2 className="font-editorial mt-4 text-[2.7rem] leading-[0.94] tracking-[-0.05em]">
+                Replace the placeholder, keep the structure.
+              </h2>
+            </div>
+            <div className="grid gap-px bg-black/10 md:grid-cols-4">
+              {launchStudyStages.map((stage, index) => (
+                <div key={stage} className="bg-white p-5 text-sm leading-7 text-slate-700">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Step {index + 1}</p>
+                  <p className="mt-3">{stage}</p>
                 </div>
               ))}
             </div>

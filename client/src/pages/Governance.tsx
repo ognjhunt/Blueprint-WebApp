@@ -55,6 +55,33 @@ const publicCaptureBoundarySteps = [
   "The buyer packet keeps manifest, rights, route frames, and export scope together.",
 ];
 
+const operatorMatrix = [
+  ["Site authority", "Who can approve capture, listing visibility, hosted review, and buyer access."],
+  ["Capture window", "Dates, hours, routes, escort needs, and recapture constraints."],
+  ["Restricted zones", "Private, employee-only, payment, screen, sensitive, or no-record areas."],
+  ["Commercial posture", "Whether buyer review, licensing, export, or revenue sharing is allowed."],
+  ["Change control", "How takedown, refresh, redaction, or revocation requests are handled."],
+];
+
+const governanceArtifacts = [
+  {
+    title: "Operator participation sheet",
+    body: "Authority, facility type, capture windows, restricted zones, privacy rules, and commercialization interest.",
+  },
+  {
+    title: "Buyer proof packet",
+    body: "Listing metadata, manifest, rights sheet, hosted report, export scope, and proof-depth label.",
+  },
+  {
+    title: "Capturer route rules",
+    body: "Lawful public-facing route, no restricted/private areas, stop-on-objection, and review-gated submission.",
+  },
+  {
+    title: "Redaction and retention note",
+    body: "What was removed, what raw media is retained, what is buyer-visible, and what remains request-gated.",
+  },
+];
+
 export default function Governance() {
   return (
     <>
@@ -164,6 +191,45 @@ export default function Governance() {
                 </div>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 sm:px-8 lg:grid-cols-[0.42fr_0.58fr] lg:px-10 lg:py-12">
+            <div className="bg-slate-950 p-6 text-white lg:p-8">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Operational control matrix</p>
+              <h2 className="font-editorial mt-4 text-[2.7rem] leading-[0.94] tracking-[-0.05em]">
+                Operator control is a product surface.
+              </h2>
+              <p className="mt-5 text-sm leading-7 text-white/72">
+                A serious site owner needs more than a generic contact form. The public site now explains which fields Blueprint expects before a facility is listed, captured, or commercialized.
+              </p>
+            </div>
+            <div className="divide-y divide-black/10 border border-black/10 bg-white">
+              {operatorMatrix.map(([label, detail]) => (
+                <div key={label} className="grid gap-3 p-4 text-sm leading-6 text-slate-700 md:grid-cols-[0.26fr_0.74fr]">
+                  <span className="font-semibold text-slate-950">{label}</span>
+                  <span>{detail}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+          <EditorialSectionIntro
+            eyebrow="Governance artifacts"
+            title="The trust details become files and fields, not vibes."
+            description="These artifacts are public-facing descriptions of the records Blueprint expects to attach to real listings, hosted sessions, and capture workflows."
+            className="max-w-3xl"
+          />
+          <div className="mt-8 grid gap-4 lg:grid-cols-4">
+            {governanceArtifacts.map((item) => (
+              <div key={item.title} className="border border-black/10 bg-white p-5">
+                <h2 className="font-editorial text-[2rem] leading-[0.95] tracking-[-0.04em]">{item.title}</h2>
+                <p className="mt-4 text-sm leading-7 text-slate-600">{item.body}</p>
+              </div>
+            ))}
           </div>
         </section>
 

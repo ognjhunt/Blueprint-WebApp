@@ -38,6 +38,29 @@ const sections = [
   },
 ] as const;
 
+const captureAnnex = [
+  ["Raw walkthrough media", "Used to package, review, redact, and audit exact-site outputs. Buyer visibility depends on listing rights and privacy state."],
+  ["Faces, screens, and paperwork", "Expected to be avoided or redacted where practical before buyer-facing proof is presented."],
+  ["Location and route metadata", "Used to keep proof tied to the exact site, capture window, allowed route, and restricted-zone boundaries."],
+  ["Retention", "Kept only as needed for service operation, legal obligations, product records, hosted sessions, audits, and agreed refresh paths."],
+  ["Buyer sharing", "Shared according to the listing, order form, rights sheet, hosted-review scope, or other written agreement."],
+];
+
+const roleAnnex = [
+  {
+    title: "Robot teams",
+    body: "Buyer workspaces may include requests, site briefs, robot profiles, hosted-session notes, exports, and account activity.",
+  },
+  {
+    title: "Site operators",
+    body: "Operator records may include authority, access windows, restricted zones, commercialization preferences, and privacy instructions.",
+  },
+  {
+    title: "Capturers",
+    body: "Capturer records may include application details, city access, device metadata, submitted routes, review status, and payout eligibility state.",
+  },
+];
+
 export default function Privacy() {
   return (
     <>
@@ -114,6 +137,29 @@ export default function Privacy() {
                       privacy@tryblueprint.io
                     </a>
                   </SurfaceCard>
+                </div>
+
+                <div className="mt-6 grid gap-6 xl:grid-cols-[0.58fr_0.42fr]">
+                  <SurfaceCard className="bg-[#111110] text-white">
+                    <SurfaceMiniLabel className="text-white/50">Capture privacy annex</SurfaceMiniLabel>
+                    <div className="mt-5 divide-y divide-white/10 border border-white/10">
+                      {captureAnnex.map(([label, detail]) => (
+                        <div key={label} className="grid gap-2 p-4 text-sm leading-6 md:grid-cols-[0.34fr_0.66fr]">
+                          <span className="font-semibold text-white">{label}</span>
+                          <span className="text-white/66">{detail}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </SurfaceCard>
+
+                  <div className="grid gap-4">
+                    {roleAnnex.map((item) => (
+                      <SurfaceCard key={item.title}>
+                        <SurfaceMiniLabel>{item.title}</SurfaceMiniLabel>
+                        <p className="mt-3 text-sm leading-7 text-black/62">{item.body}</p>
+                      </SurfaceCard>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

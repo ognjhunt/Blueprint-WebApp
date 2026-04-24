@@ -138,6 +138,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/sample-deliverables", layout: "public", component: SampleDeliverables },
   { path: "/case-studies", layout: "public", component: CaseStudies },
   { path: "/contact", layout: "public", component: Contact },
+  { path: "/contact/site-operator", layout: "public", component: Contact },
   { path: "/help", layout: "public", component: Support },
   { path: "/exact-site-hosted-review", layout: "public", component: ExactSiteHostedReview },
   { path: "/book-exact-site-review", layout: "public", component: BookExactSiteReview },

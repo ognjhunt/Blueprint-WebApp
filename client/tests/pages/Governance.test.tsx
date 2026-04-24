@@ -22,7 +22,7 @@ describe("Governance", () => {
     expect(screen.getByText(/Provenance and freshness/i)).toBeInTheDocument();
     expect(screen.getByText(/Rights and restrictions/i)).toBeInTheDocument();
     expect(screen.getByText(/Hosted-access boundary/i)).toBeInTheDocument();
-    expect(screen.getByText(/Redaction and retention/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Redaction and retention/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Public-facing capture/i)).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /The rules are operational, not just legal copy\./i }),
@@ -50,7 +50,7 @@ describe("Governance", () => {
         .some((link) => link.getAttribute("href") === "/world-models"),
     ).toBe(true);
 
-    expect(screen.queryByText(/Operational control matrix/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Public listing policy/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Operational control matrix/i)).toBeInTheDocument();
+    expect(screen.getByText(/Operator participation sheet/i)).toBeInTheDocument();
   });
 });

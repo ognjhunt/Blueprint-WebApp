@@ -20,7 +20,7 @@ describe("ForSiteOperators", () => {
     expect(screen.getByRole("heading", { name: /What kinds of spaces fit\./i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /List your site/i })).toHaveAttribute(
       "href",
-      "/contact?persona=site-operator",
+      "/contact/site-operator",
     );
     expect(screen.queryByText(/^Revenue share$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Any indoor facility qualifies/i)).not.toBeInTheDocument();

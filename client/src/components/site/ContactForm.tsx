@@ -9,6 +9,7 @@ import {
 } from "@/lib/demandAttribution";
 import { normalizeInterestToLane } from "@/lib/contactInterest";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "wouter";
 import type {
   BuyerType,
   InboundRequestPayload,
@@ -54,13 +55,17 @@ function getPersonaFromSearch(
 export function ContactForm() {
   const { currentUser, userData } = useAuth();
   const search = useSearch();
+  const [location] = useLocation();
   const searchParams = useMemo(() => new URLSearchParams(search), [search]);
   const interest = searchParams.get("interest")?.trim() ?? "";
   const buyerTypeParam = searchParams.get("buyerType")?.trim() ?? "";
   const personaParam = searchParams.get("persona")?.trim() ?? "";
   const interestLane = normalizeInterestToLane(interest);
   const hostedMode = interestLane === "deeper_evaluation" && buyerTypeParam === "robot_team";
-  const persona = getPersonaFromSearch(personaParam, buyerTypeParam, hostedMode);
+  const persona =
+    location === "/contact/site-operator"
+      ? "site_operator"
+      : getPersonaFromSearch(personaParam, buyerTypeParam, hostedMode);
   const searchDemandAttribution = useMemo(
     () => getDemandAttributionFromSearchParams(searchParams),
     [searchParams],

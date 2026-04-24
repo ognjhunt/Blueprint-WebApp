@@ -46,6 +46,37 @@ const proofSignals = [
   "Rights, privacy, and proof labels stay readable instead of implied.",
 ];
 
+const proofLibrary = [
+  {
+    label: "Approved public proof",
+    title: "Public demo listing",
+    body: "A real inspectable demo path with listing, start flow, sample deliverables, and hosted-review report shape.",
+    href: "/world-models/siteworld-f5fd54898cfb",
+    action: "Open public demo",
+  },
+  {
+    label: "Composite samples",
+    title: "Launch case-study placeholders",
+    body: "Polished grocery, hotel, retail, and mall examples that make the buyer story complete without claiming customer results.",
+    href: "/case-studies",
+    action: "View composite studies",
+  },
+  {
+    label: "Request-gated proof",
+    title: "Commercial listings",
+    body: "Exact-site commercial pages can show approved metadata while package files, hosted sessions, and exports stay gated.",
+    href: "/world-models",
+    action: "Browse catalog",
+  },
+  {
+    label: "Governance boundary",
+    title: "What is not claimed",
+    body: "No blanket site approval, unrestricted raw export, deployment guarantee, or private-area capture without authority.",
+    href: "/governance",
+    action: "Read governance",
+  },
+];
+
 export default function Proof() {
   const search = useSearch();
   const searchParams = useMemo(() => new URLSearchParams(search), [search]);
@@ -113,6 +144,32 @@ export default function Proof() {
                 title="The first proof is simple: the site is real and the workflow is specific."
                 description="Blueprint uses the public sample listing to show the physical site, the task lane, and the buying paths before any form is submitted."
               />
+            </div>
+          </div>
+        </section>
+
+        <section className="border-y border-black/10 bg-white">
+          <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
+            <EditorialSectionIntro
+              eyebrow="Proof library"
+              title="Know which evidence is real, sample, gated, or not claimed."
+              description="This is the launch trust index: buyers can inspect public proof, composite examples, request-gated proof paths, and the limits Blueprint refuses to blur."
+              className="max-w-3xl"
+            />
+            <div className="mt-8 grid gap-4 lg:grid-cols-4">
+              {proofLibrary.map((item) => (
+                <a key={item.title} href={item.href} className="group border border-black/10 bg-[#f5f3ef] p-5 transition hover:bg-white">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
+                  <h2 className="font-editorial mt-4 text-[2rem] leading-[0.95] tracking-[-0.04em] text-slate-950">
+                    {item.title}
+                  </h2>
+                  <p className="mt-4 text-sm leading-7 text-slate-600">{item.body}</p>
+                  <span className="mt-6 inline-flex items-center text-sm font-semibold text-slate-950">
+                    {item.action}
+                    <ArrowRight className="ml-2 h-4 w-4 transition group-hover:translate-x-1" />
+                  </span>
+                </a>
+              ))}
             </div>
           </div>
         </section>
