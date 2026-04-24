@@ -43,6 +43,7 @@ PID_FILE="$PAPERCLIP_HOME/paperclip.pid"
 PACKAGE_STAMP="$INSTANCE_ROOT/blueprint-company-package.sha256"
 IMPORT_PACKAGE_DIR="$INSTANCE_ROOT/blueprint-company-import"
 PAPERCLIP_RUNNER=""
+PAPERCLIP_LOCAL_CLI=""
 LOCK_DIR="$PAPERCLIP_HOME/locks"
 BOOTSTRAP_LOCK_DIR="$LOCK_DIR/bootstrap.lock"
 
@@ -103,6 +104,7 @@ select_runner() {
     && [ -d "$PAPERCLIP_DIR/node_modules" ] \
     && [ -x "$PAPERCLIP_DIR/cli/node_modules/.bin/tsx" ]; then
     PAPERCLIP_RUNNER="local"
+    PAPERCLIP_LOCAL_CLI="$PAPERCLIP_DIR/cli/node_modules/.bin/tsx cli/src/index.ts"
     return
   fi
   PAPERCLIP_RUNNER="npx"
@@ -128,7 +130,7 @@ paperclip_cli() {
         HOST="$PAPERCLIP_HOST" \
         PORT="$PAPERCLIP_PORT" \
         PAPERCLIP_STRICT_PORT="$PAPERCLIP_STRICT_PORT" \
-        pnpm paperclipai "$@"
+        $PAPERCLIP_LOCAL_CLI "$@"
     )
     return
   fi
@@ -192,9 +194,9 @@ spawn_paperclip_background() {
 
   if [ "$PAPERCLIP_RUNNER" = "local" ]; then
     if [ "$action" = "run" ]; then
-      runner_command="cd \"$PAPERCLIP_DIR\" && exec env PAPERCLIP_HOME=\"$PAPERCLIP_HOME\" PAPERCLIP_INSTANCE_ID=\"$PAPERCLIP_INSTANCE_ID\" PAPERCLIP_PUBLIC_URL=\"$PAPERCLIP_PUBLIC_URL\" HOST=\"$PAPERCLIP_HOST\" PORT=\"$PAPERCLIP_PORT\" PAPERCLIP_STRICT_PORT=\"$PAPERCLIP_STRICT_PORT\" pnpm paperclipai run --data-dir \"$PAPERCLIP_HOME\""
+      runner_command="cd \"$PAPERCLIP_DIR\" && exec env PAPERCLIP_HOME=\"$PAPERCLIP_HOME\" PAPERCLIP_INSTANCE_ID=\"$PAPERCLIP_INSTANCE_ID\" PAPERCLIP_PUBLIC_URL=\"$PAPERCLIP_PUBLIC_URL\" HOST=\"$PAPERCLIP_HOST\" PORT=\"$PAPERCLIP_PORT\" PAPERCLIP_STRICT_PORT=\"$PAPERCLIP_STRICT_PORT\" $PAPERCLIP_LOCAL_CLI run --data-dir \"$PAPERCLIP_HOME\""
     else
-      runner_command="cd \"$PAPERCLIP_DIR\" && exec env PAPERCLIP_HOME=\"$PAPERCLIP_HOME\" PAPERCLIP_INSTANCE_ID=\"$PAPERCLIP_INSTANCE_ID\" PAPERCLIP_PUBLIC_URL=\"$PAPERCLIP_PUBLIC_URL\" HOST=\"$PAPERCLIP_HOST\" PORT=\"$PAPERCLIP_PORT\" PAPERCLIP_STRICT_PORT=\"$PAPERCLIP_STRICT_PORT\" pnpm paperclipai onboard --data-dir \"$PAPERCLIP_HOME\" --yes"
+      runner_command="cd \"$PAPERCLIP_DIR\" && exec env PAPERCLIP_HOME=\"$PAPERCLIP_HOME\" PAPERCLIP_INSTANCE_ID=\"$PAPERCLIP_INSTANCE_ID\" PAPERCLIP_PUBLIC_URL=\"$PAPERCLIP_PUBLIC_URL\" HOST=\"$PAPERCLIP_HOST\" PORT=\"$PAPERCLIP_PORT\" PAPERCLIP_STRICT_PORT=\"$PAPERCLIP_STRICT_PORT\" $PAPERCLIP_LOCAL_CLI onboard --data-dir \"$PAPERCLIP_HOME\" --yes"
     fi
   else
     if [ "$action" = "run" ]; then

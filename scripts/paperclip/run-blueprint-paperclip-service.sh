@@ -29,6 +29,7 @@ PAPERCLIP_STRICT_PORT="${PAPERCLIP_STRICT_PORT:-true}"
 INSTANCE_ROOT="$PAPERCLIP_HOME/instances/$PAPERCLIP_INSTANCE_ID"
 CONFIG_PATH="$INSTANCE_ROOT/config.json"
 PAPERCLIP_RUNNER="npx"
+PAPERCLIP_LOCAL_CLI=""
 PAPERCLIP_NPX_PACKAGE="${PAPERCLIP_NPX_PACKAGE:-paperclipai@0.3.1}"
 DEFAULT_NODE_OPTIONS="${BLUEPRINT_PAPERCLIP_NODE_OPTIONS:---max-old-space-size=3072}"
 
@@ -41,6 +42,7 @@ if [ "${BLUEPRINT_PAPERCLIP_USE_LOCAL_RUNNER:-0}" = "1" ] \
   && [ -d "$PAPERCLIP_DIR/node_modules" ] \
   && [ -x "$PAPERCLIP_DIR/cli/node_modules/.bin/tsx" ]; then
   PAPERCLIP_RUNNER="local"
+  PAPERCLIP_LOCAL_CLI="$PAPERCLIP_DIR/cli/node_modules/.bin/tsx cli/src/index.ts"
 fi
 
 mkdir -p "$PAPERCLIP_HOME"
@@ -57,7 +59,7 @@ if [ ! -f "$CONFIG_PATH" ]; then
         HOST="$PAPERCLIP_HOST" \
         PORT="$PAPERCLIP_PORT" \
         PAPERCLIP_STRICT_PORT="$PAPERCLIP_STRICT_PORT" \
-        pnpm paperclipai onboard --data-dir "$PAPERCLIP_HOME" --yes >/dev/null
+        $PAPERCLIP_LOCAL_CLI onboard --data-dir "$PAPERCLIP_HOME" --yes >/dev/null
     )
   else
     env \
@@ -79,7 +81,7 @@ if [ "$PAPERCLIP_RUNNER" = "local" ]; then
     HOST="$PAPERCLIP_HOST" \
     PORT="$PAPERCLIP_PORT" \
     PAPERCLIP_STRICT_PORT="$PAPERCLIP_STRICT_PORT" \
-    bash -lc "cd \"$PAPERCLIP_DIR\" && exec pnpm paperclipai run --data-dir \"$PAPERCLIP_HOME\""
+    bash -lc "cd \"$PAPERCLIP_DIR\" && exec $PAPERCLIP_LOCAL_CLI run --data-dir \"$PAPERCLIP_HOME\""
 fi
 
 exec env \
