@@ -327,7 +327,8 @@ import_company() {
       echo "Paperclip company already up to date: $company_id"
       return
     fi
-    paperclip_cli company import "$PACKAGE_DIR" \
+    paperclip_cli company import \
+      --from "$PACKAGE_DIR" \
       --data-dir "$PAPERCLIP_HOME" \
       --target existing \
       --company-id "$company_id" \
@@ -338,7 +339,8 @@ import_company() {
     echo "Updated Blueprint company: $company_id"
     return
   fi
-  paperclip_cli company import "$PACKAGE_DIR" \
+  paperclip_cli company import \
+    --from "$PACKAGE_DIR" \
     --data-dir "$PAPERCLIP_HOME" \
     --target new \
     --new-company-name "$COMPANY_NAME" \
