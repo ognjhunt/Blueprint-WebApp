@@ -163,7 +163,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                 <h1 className="mt-4 text-4xl font-semibold tracking-[-0.08em] text-[#111110]">
                   Validating review link
                 </h1>
-                <p className="mt-4 text-sm leading-7 text-black/58">
+                <p className="mt-4 text-sm leading-7 text-black/60">
                   Blueprint is checking whether this private review URL still maps to an active
                   buyer workspace.
                 </p>
@@ -188,7 +188,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                 <h1 className="mt-5 text-[clamp(3rem,5vw,4.8rem)] font-semibold tracking-[-0.08em] leading-[0.92]">
                   Review link required
                 </h1>
-                <p className="mt-4 max-w-[24rem] text-sm leading-7 text-black/58">
+                <p className="mt-4 max-w-[24rem] text-sm leading-7 text-black/60">
                   This request is private to the buyer review flow. Ask Blueprint to resend the
                   current review link so the exact-site evidence room opens with the correct access
                   token attached.
@@ -226,7 +226,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                 <h1 className="mt-4 text-4xl font-semibold tracking-[-0.08em] text-[#111110]">
                   Loading request
                 </h1>
-                <p className="mt-4 text-sm leading-7 text-black/58">
+                <p className="mt-4 text-sm leading-7 text-black/60">
                   Blueprint is pulling the current readiness, evidence, and provenance state for
                   this exact-site request.
                 </p>
@@ -251,7 +251,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                 <h1 className="mt-5 text-[clamp(3rem,5vw,4.8rem)] font-semibold tracking-[-0.08em] leading-[0.92]">
                   Request unavailable
                 </h1>
-                <p className="mt-4 max-w-[24rem] text-sm leading-7 text-black/58">
+                <p className="mt-4 max-w-[24rem] text-sm leading-7 text-black/60">
                   Blueprint could not load this request. The review link may be missing, expired,
                   or the record may still be processing into the buyer-facing workspace.
                 </p>
@@ -264,7 +264,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                     className="h-full w-full object-cover"
                   />
                 </div>
-                <div className="mt-6 rounded-[1.35rem] border border-black/10 bg-[#faf6ef] p-5 text-sm leading-7 text-black/58">
+                <div className="mt-6 rounded-[1.35rem] border border-black/10 bg-[#faf6ef] p-5 text-sm leading-7 text-black/60">
                   Buyer review links only open once the protected request room has a valid record
                   behind it.
                 </div>
@@ -331,8 +331,8 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                   <h1 className="mt-3 text-[clamp(2.2rem,4vw,3.5rem)] font-semibold tracking-[-0.08em] leading-[0.94] text-[#111110]">
                     {request.request.siteName}
                   </h1>
-                  <p className="mt-2 text-sm text-black/54">{request.request.siteLocation}</p>
-                  <p className="mt-4 max-w-3xl text-sm leading-7 text-black/62">
+                  <p className="mt-2 text-sm text-black/55">{request.request.siteLocation}</p>
+                  <p className="mt-4 max-w-3xl text-sm leading-7 text-black/60">
                     {request.request.taskStatement}
                   </p>
                   <div className="mt-5 flex flex-wrap gap-2">
@@ -342,7 +342,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                     <span className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] ${toneClasses(statusTone(ops?.capture_status))}`}>
                       {REQUEST_CAPTURE_STATUS_LABELS[ops?.capture_status || "not_requested"]}
                     </span>
-                    <span className="rounded-full border border-black/10 bg-white px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-black/48">
+                    <span className="rounded-full border border-black/10 bg-white px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-black/50">
                       Protected
                     </span>
                   </div>
@@ -350,11 +350,11 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
               </div>
 
               <div className="rounded-[1.6rem] border border-black/10 bg-white px-5 py-4 text-right">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-black/42">Trust score</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-black/40">Trust score</p>
                 <p className="mt-3 text-[3rem] font-semibold tracking-[-0.08em] text-[#111110]">
                   {trustScore?.score ?? "N/A"}
                 </p>
-                <p className="text-sm text-black/48">{trustScore?.band || "Pending review"}</p>
+                <p className="text-sm text-black/50">{trustScore?.band || "Pending review"}</p>
               </div>
             </div>
 
@@ -366,7 +366,7 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
                   className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                     section === tab.id
                       ? "bg-[#111110] text-white"
-                      : "border border-black/10 bg-white text-black/58 hover:bg-[#f5f0e7]"
+                      : "border border-black/10 bg-white text-black/60 hover:bg-[#f5f0e7]"
                   }`}
                 >
                   {tab.label}
@@ -378,10 +378,10 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
               <div className="space-y-5">
                 <SurfaceCard className="bg-white">
                   <div className="flex items-center gap-3">
-                    <FileSearch className="h-5 w-5 text-black/46" />
+                    <FileSearch className="h-5 w-5 text-black/45" />
                     <div>
                       <SurfaceMiniLabel>{sectionTitle}</SurfaceMiniLabel>
-                      <p className="mt-1 text-sm text-black/54">
+                      <p className="mt-1 text-sm text-black/55">
                         Exact-site request status, evidence, readiness, and preview provenance.
                       </p>
                     </div>
@@ -479,10 +479,10 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
               <div className="space-y-5">
                 <SurfaceCard className="bg-white">
                   <div className="flex items-center gap-3">
-                    <Clock3 className="h-5 w-5 text-black/46" />
+                    <Clock3 className="h-5 w-5 text-black/45" />
                     <div>
                       <SurfaceMiniLabel>Current State</SurfaceMiniLabel>
-                      <p className="mt-1 text-sm text-black/54">Live request status across readiness, rights, and capture.</p>
+                      <p className="mt-1 text-sm text-black/55">Live request status across readiness, rights, and capture.</p>
                     </div>
                   </div>
                   <SurfaceStatusList
@@ -497,10 +497,10 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
 
                 <SurfaceCard className="bg-white">
                   <div className="flex items-center gap-3">
-                    <MapPinned className="h-5 w-5 text-black/46" />
+                    <MapPinned className="h-5 w-5 text-black/45" />
                     <div>
                       <SurfaceMiniLabel>Request Details</SurfaceMiniLabel>
-                      <p className="mt-1 text-sm text-black/54">Protected metadata tied to this buyer review.</p>
+                      <p className="mt-1 text-sm text-black/55">Protected metadata tied to this buyer review.</p>
                     </div>
                   </div>
                   <SurfaceStatusList
@@ -516,19 +516,19 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
 
                 <SurfaceCard className="bg-[#111110] text-white">
                   <div className="flex items-center gap-3">
-                    <Sparkles className="h-5 w-5 text-white/58" />
+                    <Sparkles className="h-5 w-5 text-white/60" />
                     <div>
-                      <SurfaceMiniLabel className="text-white/42">Next Lane</SurfaceMiniLabel>
+                      <SurfaceMiniLabel className="text-white/40">Next Lane</SurfaceMiniLabel>
                       <p className="mt-1 text-sm text-white/70">
                         Preview generation and delivery stay downstream of the readiness record.
                       </p>
                     </div>
                   </div>
-                  <p className="mt-5 text-base leading-7 text-white/82">
+                  <p className="mt-5 text-base leading-7 text-white/80">
                     {ops?.next_step || "Blueprint will route the next lane once the readiness record is stable."}
                   </p>
                   {previewRun?.provider_name ? (
-                    <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/72">
+                    <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70">
                       <BadgeCheck className="h-4 w-4" />
                       {previewRun.provider_name}
                     </div>
@@ -537,13 +537,13 @@ export default function RequestConsole({ params }: RequestConsoleProps) {
 
                 <SurfaceCard className="bg-white">
                   <div className="flex items-center gap-3">
-                    <Radar className="h-5 w-5 text-black/46" />
+                    <Radar className="h-5 w-5 text-black/45" />
                     <div>
                       <SurfaceMiniLabel>Preview Status</SurfaceMiniLabel>
-                      <p className="mt-1 text-sm text-black/54">Provider-backed preview state when attached.</p>
+                      <p className="mt-1 text-sm text-black/55">Provider-backed preview state when attached.</p>
                     </div>
                   </div>
-                  <p className="mt-5 text-sm leading-7 text-black/62">
+                  <p className="mt-5 text-sm leading-7 text-black/60">
                     {readiness?.preview_status
                       ? `Current preview status: ${String(readiness.preview_status).replaceAll("_", " ")}.`
                       : "No preview run has been attached yet."}

@@ -2,7 +2,7 @@
 
 - city: Sacramento, CA
 - city_slug: sacramento-ca
-- generated_at: 2026-04-24T18:35:19.497Z
+- generated_at: 2026-04-24T20:10:11.187Z
 - mode: deep_research_records
 - status: hypothesis-ranked targeting ledger, not a claim that every site is already accessible
 
@@ -23,7 +23,7 @@ This ledger is intentionally split into:
 
 | Rank | Target | Type | Corridor | Workflow fit | Confidence | Access approach |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Northgate Logistics | warehouse | 100 Industrial Way | dock handoff | medium | professional_outreach |
+| 1 | Sacramento Capture Ops | warehouse | 100 Industrial Way | dock handoff | medium | professional_outreach |
 
 ## Queued Lawful-Access Buckets
 
@@ -47,10 +47,8 @@ This ledger is intentionally split into:
 
 ## Sources
 
-- [Sacramento deep research playbook](/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/blocked-outbound-city-launch-harness-JF6BRk/sacramento-ca/2026-04-24T18-35-00.504Z/city-launch-contact-enrichment-sacramento-ca.json) — Latest completed deep-research artifact with structured launch records.
+- [Sacramento deep research playbook](/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/city-launch-step-error-jR1hCi/sacramento-ca/2026-04-24T20-09-53.212Z/city-launch-contact-enrichment-sacramento-ca.json) — Latest completed deep-research artifact with structured launch records.
 
 ## Warnings
 
-- Activation-ready buyer direct-outreach lanes for Sacramento, CA have named targets but no explicit contact_email evidence.
-- Activation-ready capturer direct-outreach lanes for Sacramento, CA have named targets but no explicit contact_email evidence.
-- Activation-ready direct outreach requires 1-3 recipient-backed first-wave contacts with explicit contact_email evidence.
+- none

@@ -157,7 +157,7 @@ export default function CaptureLaunchAccess() {
               <div className="absolute inset-x-0 bottom-0 p-6 lg:p-8">
                 <div className="max-w-[22rem] rounded-[1.6rem] border border-white/10 bg-black/55 p-5 text-white backdrop-blur-sm">
                   <EditorialSectionLabel light>Why this matters</EditorialSectionLabel>
-                  <p className="mt-4 text-sm leading-7 text-white/76">
+                  <p className="mt-4 text-sm leading-7 text-white/75">
                     This is not just a passive newsletter list. It is the intake we use to spot
                     markets with enough real local support to justify opening sooner.
                   </p>

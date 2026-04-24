@@ -67,18 +67,18 @@ function SiteCard({
         overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.04),rgba(0,0,0,0.82))]"
       />
       <div className="absolute inset-x-0 bottom-0 p-5">
-        <p className="text-[11px] uppercase tracking-[0.22em] text-white/58">
+        <p className="text-[11px] uppercase tracking-[0.22em] text-white/60">
           {getEditorialSiteLocation(site)}
         </p>
         <h3 className={`mt-2 font-medium tracking-tight text-white ${large ? "text-[2rem]" : "text-[1.6rem]"}`}>
           {site.siteName}
         </h3>
         <div className="mt-4 flex flex-wrap gap-2">
-          <ProofChip light className="border-white/14 bg-black/22 text-white/74">
+          <ProofChip light className="border-white/20 bg-black/30 text-white/80">
             Exact site
           </ProofChip>
           {badges.map((badge) => (
-            <ProofChip key={badge.id} light className="border-white/14 bg-black/22 text-white/74">
+            <ProofChip key={badge.id} light className="border-white/20 bg-black/30 text-white/80">
               {isHostedReady(site) && badge.id === "hosted_request_gated" ? "Hosted available" : badge.label}
             </ProofChip>
           ))}
@@ -167,7 +167,7 @@ const moreSites = useMemo(
                 <h1 className="font-editorial text-[3.4rem] leading-[0.94] tracking-[-0.05em] text-white sm:text-[4.7rem]">
                   Exact-site worlds.
                 </h1>
-                <p className="mt-3 text-lg text-white/88">
+                <p className="mt-3 text-lg text-white/90">
                   Browse real facilities.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-2">
@@ -279,12 +279,12 @@ const moreSites = useMemo(
                   const Icon = item.icon;
                   return (
                     <div key={item.title} className="flex gap-4">
-                      <div className="mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/6">
-                        <Icon className="h-5 w-5 text-white/72" />
+                      <div className="mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10">
+                        <Icon className="h-5 w-5 text-white/70" />
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-white">{item.title}</p>
-                        <p className="mt-1 text-sm leading-6 text-white/62">{item.body}</p>
+                        <p className="mt-1 text-sm leading-6 text-white/60">{item.body}</p>
                       </div>
                     </div>
                   );

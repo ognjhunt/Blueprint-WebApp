@@ -73,13 +73,13 @@ function HomeSiteCard({
         overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.76))]"
       />
       <div className="absolute inset-x-0 bottom-0 p-5 text-white">
-        <p className="text-[11px] uppercase tracking-[0.22em] text-white/54">
+        <p className="text-[11px] uppercase tracking-[0.22em] text-white/55">
           {location}
         </p>
         <h3 className="font-editorial mt-3 text-[2rem] leading-[0.95] tracking-[-0.04em]">
           {title}
         </h3>
-        <div className="mt-5 inline-flex items-center text-sm font-semibold text-white/82">
+        <div className="mt-5 inline-flex items-center text-sm font-semibold text-white/80">
           Explore
           <ArrowRight className="ml-2 h-4 w-4" />
         </div>
@@ -163,7 +163,7 @@ export default function Home() {
 	                  </a>
 	                  <a
 	                    href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&path=hosted-evaluation&source=home-hero"
-	                    className="inline-flex items-center justify-center border border-white/16 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/8"
+	                    className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
 	                  >
 	                    Scope hosted evaluation
 	                  </a>
@@ -171,15 +171,15 @@ export default function Home() {
               </div>
 
                 <div className="hidden items-end justify-end lg:flex">
-                  <div className="w-full max-w-[18rem] border border-white/16 bg-black/34 p-5 text-white shadow-[0_24px_60px_-40px_rgba(0,0,0,0.58)] backdrop-blur-sm">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-white/44">
+                  <div className="w-full max-w-[18rem] border border-white/15 bg-black/35 p-5 text-white shadow-[0_24px_60px_-40px_rgba(0,0,0,0.58)] backdrop-blur-sm">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-white/45">
                     Catalog on site
                   </p>
                   <h2 className="mt-4 text-lg font-semibold">{heroSite.siteName}</h2>
-                  <p className="mt-2 text-sm text-white/58">
+                  <p className="mt-2 text-sm text-white/60">
                     {getEditorialSiteLocation(heroSite)}
                   </p>
-                  <div className="mt-5 border-t border-white/10 pt-4 text-sm text-white/68">
+                  <div className="mt-5 border-t border-white/10 pt-4 text-sm text-white/70">
                     One exact site. Two buying paths. Proof stays attached.
                   </div>
                   </div>
@@ -269,13 +269,13 @@ export default function Home() {
                   key={path.title}
                   className={path.dark ? "bg-slate-950 p-6 text-white" : "bg-white p-6 text-slate-950"}
                 >
-                  <p className={`text-[11px] uppercase tracking-[0.18em] ${path.dark ? "text-white/44" : "text-slate-400"}`}>
+                  <p className={`text-[11px] uppercase tracking-[0.18em] ${path.dark ? "text-white/45" : "text-slate-400"}`}>
                     {path.title}
                   </p>
                   <h3 className="font-editorial mt-4 text-[2.3rem] leading-[0.92] tracking-[-0.04em]">
                     {path.title}
                   </h3>
-                  <p className={`mt-4 text-sm leading-7 ${path.dark ? "text-white/68" : "text-slate-600"}`}>
+                  <p className={`mt-4 text-sm leading-7 ${path.dark ? "text-white/70" : "text-slate-600"}`}>
                     {path.body}
                   </p>
                   <a
@@ -302,7 +302,7 @@ export default function Home() {
             >
               <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.12)_1px,transparent_1px)] bg-[size:58px_58px] opacity-30" />
               <div className="absolute inset-x-0 bottom-0 p-6 text-white lg:p-8">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-white/48">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-white/50">
                   Public proof board
                 </p>
                 <h2 className="font-editorial mt-4 max-w-[20rem] text-[3rem] leading-[0.94] tracking-[-0.05em]">

@@ -390,55 +390,55 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                 <div className="text-white">
                   <a
                     href={`/world-models/${site.id}`}
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-white/72 transition hover:text-white"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-white/70 transition hover:text-white"
                   >
                     <ArrowLeft className="h-4 w-4" />
                     Back to site
                   </a>
-                  <p className="mt-8 text-[11px] uppercase tracking-[0.18em] text-white/48">
+                  <p className="mt-8 text-[11px] uppercase tracking-[0.18em] text-white/50">
                     Hosted evaluation
                   </p>
                   <h1 className="font-editorial mt-5 max-w-[24rem] text-[4.2rem] leading-[0.88] tracking-[-0.08em] sm:text-[5.4rem]">
                     Hosted Evaluation
                   </h1>
-                  <p className="mt-5 max-w-[22rem] text-[1.9rem] leading-tight tracking-[-0.03em] text-white/92">
+                  <p className="mt-5 max-w-[22rem] text-[1.9rem] leading-tight tracking-[-0.03em] text-white/90">
                     Configure one exact-site run.
                   </p>
-                  <p className="mt-4 max-w-[28rem] text-base leading-8 text-white/72">
+                  <p className="mt-4 max-w-[28rem] text-base leading-8 text-white/70">
                     Blueprint prepares the hosted review path. You get run evidence, outputs, and limits tied back to the same captured site.
                   </p>
                 </div>
 
                 <div className="flex justify-start lg:justify-end">
-                  <div className="w-full max-w-[18rem] border border-white/16 bg-black/38 p-5 text-white backdrop-blur-sm">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">
+                  <div className="w-full max-w-[18rem] border border-white/15 bg-black/40 p-5 text-white backdrop-blur-sm">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
                       Setup summary
                     </p>
                     <div className="mt-5 space-y-4 text-sm">
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-white/54">Site</span>
+                        <span className="text-white/55">Site</span>
                         <span>{site.siteName}</span>
                       </div>
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-white/54">Robot</span>
+                        <span className="text-white/55">Robot</span>
                         <span>{selectedRobotProfile.displayName}</span>
                       </div>
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-white/54">Task</span>
+                        <span className="text-white/55">Task</span>
                         <span>{selectedTask?.taskText || site.sampleTask}</span>
                       </div>
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-white/54">Scenario</span>
+                        <span className="text-white/55">Scenario</span>
                         <span>{humanizeToken(selectedScenario?.name)}</span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-white/54">Outputs</span>
+                        <span className="text-white/55">Outputs</span>
                         <span className="max-w-[10rem] text-right">
                           {selectedOutputLabels.slice(0, 4).join(", ")}
                         </span>
                       </div>
                     </div>
-                    <div className="mt-6 border-t border-white/10 pt-4 text-sm text-white/68">
+                    <div className="mt-6 border-t border-white/10 pt-4 text-sm text-white/70">
                       <div className="flex items-center justify-between gap-3">
                         <span className="inline-flex items-center">
                           <Clock3 className="mr-2 h-4 w-4" />
@@ -572,7 +572,7 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
               <div className="border border-black/10 bg-slate-950 text-white">
                 <div className="grid gap-0 lg:grid-cols-[0.66fr_0.34fr]">
                   <div>
-                    <div className="flex items-center gap-8 border-b border-white/10 px-5 py-4 text-sm text-white/68">
+                    <div className="flex items-center gap-8 border-b border-white/10 px-5 py-4 text-sm text-white/70">
                       <span className="border-b border-white pb-1 text-white">Site overview</span>
                       <span>Observation preview</span>
                       <span>Route &amp; waypoints</span>
@@ -586,15 +586,15 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                         overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.28))]"
                       >
                         <RouteTraceOverlay className="opacity-75" />
-                        <div className="absolute bottom-6 left-6 border border-white/12 bg-black/36 px-4 py-4 text-sm text-white/78 backdrop-blur-sm">
-                          <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">
+                        <div className="absolute bottom-6 left-6 border border-white/10 bg-black/35 px-4 py-4 text-sm text-white/80 backdrop-blur-sm">
+                          <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
                             {site.siteCode}
                           </p>
                           <p className="mt-2">{site.siteAddress}</p>
                         </div>
                         <button
                           type="button"
-                          className="absolute bottom-6 right-6 flex h-14 w-14 items-center justify-center rounded-full border border-white/16 bg-black/36 text-white backdrop-blur-sm"
+                          className="absolute bottom-6 right-6 flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-black/35 text-white backdrop-blur-sm"
                           aria-label="Preview route"
                         >
                           <Play className="ml-1 h-6 w-6" />
@@ -613,8 +613,8 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                           imageClassName={`aspect-[4/2.4] object-cover ${frame.objectPosition}`}
                           overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.26))]"
                         />
-                        <div className="mt-2 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-white/58">
-                          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/16 text-[10px]">
+                        <div className="mt-2 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-white/60">
+                          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/15 text-[10px]">
                             {index + 1}
                           </span>
                           {frame.label}
@@ -664,14 +664,14 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
               </div>
 
               <div className="border border-black/10 bg-slate-950 p-6 text-white">
-                <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-white/44">
+                <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-white/45">
                   <Settings2 className="h-4 w-4" />
                   Readiness
                 </div>
                 <div className="mt-4 space-y-4 text-sm">
-                  <div className="border border-white/10 bg-white/6 px-4 py-4">
+                  <div className="border border-white/10 bg-white/5 px-4 py-4">
                     <p className="font-semibold text-white">Presentation demo</p>
-                    <p className="mt-2 text-white/72">
+                    <p className="mt-2 text-white/70">
                       {checkingReadiness
                         ? "Checking presentation readiness."
                         : presentationReadiness?.launchable
@@ -681,9 +681,9 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                           : "Embedded demo is request-gated for this public path."}
                     </p>
                   </div>
-                  <div className="border border-white/10 bg-white/6 px-4 py-4">
+                  <div className="border border-white/10 bg-white/5 px-4 py-4">
                     <p className="font-semibold text-white">World-model runtime</p>
-                    <p className="mt-2 text-white/72">
+                    <p className="mt-2 text-white/70">
                       {checkingReadiness
                         ? "Checking runtime readiness."
                         : runtimeReadiness?.launchable
@@ -691,9 +691,9 @@ export default function HostedSessionSetup({ params }: HostedSessionSetupProps) 
                           : "Runtime session is request-gated. Submit the configuration instead."}
                     </p>
                   </div>
-                  <div className="border border-white/10 bg-white/6 px-4 py-4">
+                  <div className="border border-white/10 bg-white/5 px-4 py-4">
                     <p className="font-semibold text-white">Scenario</p>
-                    <p className="mt-2 text-white/72">{humanizeToken(selectedScenario?.name)}</p>
+                    <p className="mt-2 text-white/70">{humanizeToken(selectedScenario?.name)}</p>
                   </div>
                 </div>
               </div>

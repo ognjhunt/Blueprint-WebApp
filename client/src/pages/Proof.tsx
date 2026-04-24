@@ -252,7 +252,7 @@ export default function Proof() {
               </div>
             </div>
             <div className="bg-slate-950 p-6 text-white">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">What this proves</p>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">What this proves</p>
               <h2 className="font-editorial mt-4 text-[2.6rem] leading-[0.94] tracking-[-0.05em]">
                 Route, rights, report, and next step.
               </h2>
@@ -283,8 +283,8 @@ export default function Proof() {
                 ))}
               </div>
               <div className="bg-slate-950 px-6 py-8 text-white lg:px-8 lg:py-10">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Trust signals</p>
-                <div className="mt-6 space-y-4 text-sm leading-7 text-white/72">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Trust signals</p>
+                <div className="mt-6 space-y-4 text-sm leading-7 text-white/70">
                   {proofSignals.map((item) => (
                     <div key={item}>{item}</div>
                   ))}

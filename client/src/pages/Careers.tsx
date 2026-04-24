@@ -58,7 +58,7 @@ export default function Careers() {
                 <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5rem]">
                   Build the product layer between raw site capture and a buyer who needs a straight answer.
                 </h1>
-                <p className="mt-6 text-base leading-8 text-white/72">
+                <p className="mt-6 text-base leading-8 text-white/70">
                   The work sits between asset production, tooling, and product judgment. It should feel like a serious craft company, not a jobs board.
                 </p>
                 </div>
@@ -78,14 +78,14 @@ export default function Careers() {
                 >
                   <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                     <div className="flex gap-4">
-                      <div className={index === 1 ? "border border-white/14 bg-white/6 p-3 text-white" : "border border-black/10 bg-[#f5f3ef] p-3 text-slate-950"}>
+                      <div className={index === 1 ? "border border-white/15 bg-white/5 p-3 text-white" : "border border-black/10 bg-[#f5f3ef] p-3 text-slate-950"}>
                         <Icon className="h-5 w-5" />
                       </div>
                       <div>
                         <h2 className="font-editorial text-[2.3rem] leading-[0.95] tracking-[-0.04em]">
                           {role.title}
                         </h2>
-                        <div className={`mt-2 flex flex-wrap gap-3 text-sm ${index === 1 ? "text-white/54" : "text-slate-500"}`}>
+                        <div className={`mt-2 flex flex-wrap gap-3 text-sm ${index === 1 ? "text-white/55" : "text-slate-500"}`}>
                           <span className="inline-flex items-center gap-1.5">
                             <Briefcase className="h-4 w-4" />
                             {role.type}
@@ -102,8 +102,8 @@ export default function Careers() {
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                   </div>
-                  <p className={`mt-6 text-base leading-7 ${index === 1 ? "text-white/72" : "text-slate-600"}`}>{role.summary}</p>
-                  <p className={`mt-4 text-sm leading-7 ${index === 1 ? "text-white/66" : "text-slate-600"}`}>{role.description}</p>
+                  <p className={`mt-6 text-base leading-7 ${index === 1 ? "text-white/70" : "text-slate-600"}`}>{role.summary}</p>
+                  <p className={`mt-4 text-sm leading-7 ${index === 1 ? "text-white/65" : "text-slate-600"}`}>{role.description}</p>
                 </div>
               );
             })}

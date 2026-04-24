@@ -116,8 +116,8 @@ export default function Docs() {
             </p>
             </div>
             <div className="bg-slate-950 p-6 text-white lg:p-8">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Sample bundle tree</p>
-              <div className="mt-6 space-y-3 font-mono text-[12px] leading-6 text-white/72">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Sample bundle tree</p>
+              <div className="mt-6 space-y-3 font-mono text-[12px] leading-6 text-white/70">
                 {bundleTree.map((item) => (
                   <div key={item} className="border border-white/10 bg-white/5 px-4 py-3">{item}</div>
                 ))}
@@ -181,11 +181,11 @@ export default function Docs() {
               ))}
             </div>
             <div className="bg-slate-950 p-6 text-white lg:p-8">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Limits</p>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Limits</p>
               <h2 className="font-editorial mt-4 text-[2.6rem] leading-[0.94] tracking-[-0.05em]">
                 What the docs do not imply.
               </h2>
-              <div className="mt-6 space-y-4 text-sm leading-7 text-white/72">
+              <div className="mt-6 space-y-4 text-sm leading-7 text-white/70">
                 {limits.map((item) => (
                   <div key={item}>{item}</div>
                 ))}

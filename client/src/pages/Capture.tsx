@@ -94,7 +94,7 @@ export default function Capture() {
                     <p className="text-[3.5rem] leading-none tracking-[-0.08em] text-slate-950">
                       {row.step}
                     </p>
-                    <div className="mt-3 h-px w-10 bg-slate-950/16" />
+                    <div className="mt-3 h-px w-10 bg-slate-950/15" />
                     <p className="mt-4 text-sm text-slate-700">{row.label}</p>
                   </div>
 
@@ -129,21 +129,21 @@ export default function Capture() {
                     </div>
                     {index === 0 ? (
                       <div className="bg-slate-950 px-6 py-6 text-white">
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
                           Field route
                         </p>
-                        <div className="mt-4 space-y-3 text-sm text-white/78">
+                        <div className="mt-4 space-y-3 text-sm text-white/80">
                           <div>Route 04</div>
                           <div>Floor 02</div>
                           <div>Wing B</div>
                         </div>
                         <div className="mt-6 border-t border-white/10 pt-5">
-                          <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">
+                          <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
                             Uploading
                           </p>
                           <p className="mt-3 text-4xl tracking-[-0.06em]">73%</p>
-                          <p className="mt-2 text-sm text-white/56">2.4 GB / 3.2 GB</p>
-                          <div className="mt-4 h-px w-full bg-white/12">
+                          <p className="mt-2 text-sm text-white/55">2.4 GB / 3.2 GB</p>
+                          <div className="mt-4 h-px w-full bg-white/10">
                             <div className="h-px w-[73%] bg-white" />
                           </div>
                         </div>
@@ -164,21 +164,21 @@ export default function Capture() {
                       </div>
                     ) : (
                       <div className="bg-slate-950 px-6 py-6 text-white">
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
                           Review checklist
                         </p>
-                        <ul className="mt-4 space-y-3 text-sm text-white/76">
+                        <ul className="mt-4 space-y-3 text-sm text-white/75">
                           <li>Coverage</li>
                           <li>Quality</li>
                           <li>Completeness</li>
                           <li>Route accuracy</li>
                         </ul>
                         <div className="mt-6 border-t border-white/10 pt-4">
-                          <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">
+                          <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
                             Status
                           </p>
                           <p className="mt-3 text-2xl tracking-[-0.05em]">Approved</p>
-                          <p className="mt-2 text-sm text-white/56">Ready for processing</p>
+                          <p className="mt-2 text-sm text-white/55">Ready for processing</p>
                         </div>
                       </div>
                     )}

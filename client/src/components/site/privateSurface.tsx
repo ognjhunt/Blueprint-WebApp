@@ -28,7 +28,7 @@ export function SurfaceTopBar(props: {
   rightNode?: ReactNode;
   dark?: boolean;
 }) {
-  const tone = props.dark ? "text-white/72 border-white/10" : "text-black/55 border-black/12";
+  const tone = props.dark ? "text-white/70 border-white/10" : "text-black/55 border-black/10";
   const brandTone = props.dark ? "text-white" : "text-[#111110]";
   return (
     <div className={cn("border-b", tone)}>
@@ -71,7 +71,7 @@ export function SurfaceTitle(props: PropsWithChildren<{ className?: string }>) {
 
 export function SurfaceLead(props: PropsWithChildren<{ className?: string }>) {
   return (
-    <p className={cn("max-w-3xl text-[1.08rem] leading-8 text-black/64", props.className)}>
+    <p className={cn("max-w-3xl text-[1.08rem] leading-8 text-black/65", props.className)}>
       {props.children}
     </p>
   );
@@ -82,20 +82,20 @@ export function SurfaceBrowserFrame(props: PropsWithChildren<{ className?: strin
     <div
       className={cn(
         "overflow-hidden rounded-[2rem] border shadow-[0_24px_80px_rgba(17,17,16,0.08)]",
-        props.dark ? "border-white/10 bg-[#111110] text-white" : "border-black/12 bg-white text-[#111110]",
+        props.dark ? "border-white/10 bg-[#111110] text-white" : "border-black/10 bg-white text-[#111110]",
         props.className,
       )}
     >
       <div
         className={cn(
           "flex items-center justify-between border-b px-5 py-3 text-[11px] uppercase tracking-[0.22em]",
-          props.dark ? "border-white/10 bg-[#151514] text-white/46" : "border-black/10 bg-[#f7f3ec] text-black/45",
+          props.dark ? "border-white/10 bg-[#151514] text-white/45" : "border-black/10 bg-[#f7f3ec] text-black/45",
         )}
       >
         <div className="flex items-center gap-2">
-          <span className={cn("h-2 w-2 rounded-full", props.dark ? "bg-white/18" : "bg-black/10")} />
-          <span className={cn("h-2 w-2 rounded-full", props.dark ? "bg-white/18" : "bg-black/10")} />
-          <span className={cn("h-2 w-2 rounded-full", props.dark ? "bg-white/18" : "bg-black/10")} />
+          <span className={cn("h-2 w-2 rounded-full", props.dark ? "bg-white/20" : "bg-black/10")} />
+          <span className={cn("h-2 w-2 rounded-full", props.dark ? "bg-white/20" : "bg-black/10")} />
+          <span className={cn("h-2 w-2 rounded-full", props.dark ? "bg-white/20" : "bg-black/10")} />
         </div>
         <span>Private Surface</span>
         <span>{props.dark ? "Secured" : "Blueprint"}</span>
@@ -130,9 +130,9 @@ export function SurfaceButton(props: {
   const classes = cn(
     "inline-flex min-h-11 items-center justify-center rounded-full border px-5 py-2.5 text-sm font-semibold transition",
     props.tone === "secondary"
-      ? "border-black/12 bg-white text-[#111110] hover:bg-[#f4f0ea]"
+      ? "border-black/10 bg-white text-[#111110] hover:bg-[#f4f0ea]"
       : props.tone === "ghost"
-        ? "border-transparent bg-transparent text-black/68 hover:text-black"
+        ? "border-transparent bg-transparent text-black/70 hover:text-black"
         : "border-[#111110] bg-[#111110] text-white hover:bg-black",
     props.className,
   );
@@ -157,7 +157,7 @@ export function SurfacePill(props: PropsWithChildren<{ className?: string; dark?
     <span
       className={cn(
         "inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em]",
-        props.dark ? "border-white/14 bg-white/5 text-white/72" : "border-black/10 bg-[#faf7f1] text-black/58",
+        props.dark ? "border-white/15 bg-white/5 text-white/70" : "border-black/10 bg-[#faf7f1] text-black/60",
         props.className,
       )}
     >
@@ -174,9 +174,9 @@ export function SurfaceStat(props: {
 }) {
   return (
     <div className={cn("rounded-[1.4rem] border border-black/10 bg-white px-5 py-4", props.className)}>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-black/42">{props.label}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-black/40">{props.label}</p>
       <div className="mt-3 text-[2rem] font-semibold tracking-[-0.05em]">{props.value}</div>
-      {props.detail ? <p className="mt-2 text-sm text-black/56">{props.detail}</p> : null}
+      {props.detail ? <p className="mt-2 text-sm text-black/55">{props.detail}</p> : null}
     </div>
   );
 }
@@ -185,11 +185,11 @@ export function SurfaceInput(props: React.InputHTMLAttributes<HTMLInputElement> 
   const { label, className, ...rest } = props;
   return (
     <label className="block space-y-2">
-      <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-black/48">{label}</span>
+      <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-black/50">{label}</span>
       <input
         {...rest}
         className={cn(
-          "h-12 w-full rounded-[1.1rem] border border-black/10 bg-white px-4 text-[15px] text-[#111110] outline-none transition placeholder:text-black/36 focus:border-black/28",
+          "h-12 w-full rounded-[1.1rem] border border-black/10 bg-white px-4 text-[15px] text-[#111110] outline-none transition placeholder:text-black/35 focus:border-black/30",
           className,
         )}
       />
@@ -203,11 +203,11 @@ export function SurfaceTextarea(
   const { label, className, ...rest } = props;
   return (
     <label className="block space-y-2">
-      <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-black/48">{label}</span>
+      <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-black/50">{label}</span>
       <textarea
         {...rest}
         className={cn(
-          "min-h-[120px] w-full rounded-[1.2rem] border border-black/10 bg-white px-4 py-3 text-[15px] text-[#111110] outline-none transition placeholder:text-black/36 focus:border-black/28",
+          "min-h-[120px] w-full rounded-[1.2rem] border border-black/10 bg-white px-4 py-3 text-[15px] text-[#111110] outline-none transition placeholder:text-black/35 focus:border-black/30",
           className,
         )}
       />
@@ -261,7 +261,7 @@ export function SurfaceStatusList(props: {
             props.dark ? "border-white/10 bg-white/5 text-white" : "border-black/10 bg-white text-[#111110]",
           )}
         >
-          <span className={cn(props.dark ? "text-white/62" : "text-black/48")}>{item.label}</span>
+          <span className={cn(props.dark ? "text-white/60" : "text-black/50")}>{item.label}</span>
           <span className="font-semibold">{item.value}</span>
         </div>
       ))}

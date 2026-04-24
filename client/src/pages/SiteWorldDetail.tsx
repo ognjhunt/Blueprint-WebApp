@@ -416,31 +416,31 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 <div className="text-white">
                   <a
                     href="/world-models"
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-white/72 transition hover:text-white"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-white/70 transition hover:text-white"
                   >
                     <ArrowLeft className="h-4 w-4" />
                     Back to World Models
                   </a>
-                  <p className="mt-6 text-[11px] uppercase tracking-[0.18em] text-white/54">
+                  <p className="mt-6 text-[11px] uppercase tracking-[0.18em] text-white/55">
                     Exact site
                   </p>
                   <h1 className="font-editorial mt-5 max-w-[24rem] text-[4.4rem] leading-[0.88] tracking-[-0.08em] sm:text-[5.8rem]">
                     {site.siteName}
                   </h1>
-                  <p className="mt-4 text-lg text-white/86">{site.siteAddress}</p>
+                  <p className="mt-4 text-lg text-white/85">{site.siteAddress}</p>
                   <div className="mt-5 flex flex-wrap gap-2">
                     {statusBadges.slice(0, 3).map((badge) => (
                       <span
                         key={badge.id}
-                        className="rounded-full border border-white/16 bg-black/24 px-4 py-2 text-sm text-white/78"
+                        className="rounded-full border border-white/15 bg-black/25 px-4 py-2 text-sm text-white/80"
                       >
                         {badge.label}
                       </span>
                     ))}
-                    <span className="rounded-full border border-white/16 bg-black/24 px-4 py-2 text-sm text-white/78">
+                    <span className="rounded-full border border-white/15 bg-black/25 px-4 py-2 text-sm text-white/80">
                       Capture: {formatCaptureDate(site)}
                     </span>
-                    <span className="rounded-full border border-white/16 bg-black/24 px-4 py-2 text-sm text-white/78">
+                    <span className="rounded-full border border-white/15 bg-black/25 px-4 py-2 text-sm text-white/80">
                       Review: {formatReviewDate(site)}
                     </span>
                   </div>
@@ -454,7 +454,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                     </a>
                     <a
                       href={`/world-models/${site.id}/start`}
-                      className="inline-flex items-center justify-center border border-white/16 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/8"
+                      className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
                     >
                       Start hosted evaluation
                     </a>
@@ -462,18 +462,18 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 </div>
 
                 <div className="flex justify-start lg:justify-end">
-                  <div className="w-full max-w-[18rem] border border-white/14 bg-black/36 p-5 text-white shadow-[0_24px_60px_-40px_rgba(0,0,0,0.52)] backdrop-blur-sm">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">
+                  <div className="w-full max-w-[18rem] border border-white/15 bg-black/35 p-5 text-white shadow-[0_24px_60px_-40px_rgba(0,0,0,0.52)] backdrop-blur-sm">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
                       Trust snapshot
                     </p>
                     <div className="mt-5 space-y-4">
                       {trustRows.map((item) => (
                         <div key={item.label}>
-                          <div className="flex items-center justify-between gap-3 text-sm text-white/78">
+                          <div className="flex items-center justify-between gap-3 text-sm text-white/80">
                             <span>{item.label}</span>
-                            <span className="max-w-[9rem] text-right text-white/62">{item.value}</span>
+                            <span className="max-w-[9rem] text-right text-white/60">{item.value}</span>
                           </div>
-                          <div className="mt-2 h-px w-full bg-white/12">
+                          <div className="mt-2 h-px w-full bg-white/10">
                             <div className="h-px bg-white" style={{ width: item.width }} />
                           </div>
                         </div>
@@ -486,7 +486,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
           </MonochromeMedia>
         </section>
 
-        <section className="sticky top-[72px] z-20 border-b border-black/10 bg-white/96 backdrop-blur">
+        <section className="sticky top-[72px] z-20 border-b border-black/10 bg-white/95 backdrop-blur">
           <div className="mx-auto grid max-w-[96rem] gap-3 px-5 py-4 text-sm sm:px-8 lg:grid-cols-[1fr_auto] lg:px-10">
             <div className="grid gap-3 md:grid-cols-5">
               <div>
@@ -716,7 +716,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                     <h2 className="font-editorial mt-4 text-[2.8rem] leading-[0.94] tracking-[-0.05em]">
                       {proofStory.locationName}
                     </h2>
-                    <p className="mt-4 text-sm leading-7 text-white/72">
+                    <p className="mt-4 text-sm leading-7 text-white/70">
                       {proofStory.locationType} / {proofStory.city}
                     </p>
                   </div>
@@ -768,8 +768,8 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 </div>
 
                 <div className="border border-black/10 bg-slate-950 p-5 text-white">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Decision note</p>
-                  <p className="mt-4 text-sm leading-7 text-white/74">{proofStory.decisionNote}</p>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Decision note</p>
+                  <p className="mt-4 text-sm leading-7 text-white/75">{proofStory.decisionNote}</p>
                 </div>
               </div>
             </div>
@@ -915,15 +915,15 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 </div>
 
                 <div className="border border-black/10 bg-slate-950 p-6 text-white">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
                     Listing boundary
                   </p>
-                  <div className="mt-4 space-y-3 text-sm text-white/74">
+                  <div className="mt-4 space-y-3 text-sm text-white/75">
                     <div>The native package and hosted path stay primary on this listing.</div>
                     <div>Interactive preview is optional and does not redefine listing trust.</div>
                     <div>Public proof, freshness, and rights remain visible even without the preview.</div>
                   </div>
-                  <div className="mt-6 border-t border-white/10 pt-4 text-sm text-white/62">
+                  <div className="mt-6 border-t border-white/10 pt-4 text-sm text-white/60">
                     {worldLabsPreview?.operationId ? `Operation: ${worldLabsPreview.operationId}` : "No live operation id"}
                   </div>
                 </div>
@@ -981,9 +981,9 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                 ))}
               </div>
               <div className="mt-6 border border-black/10 bg-slate-950 p-5 text-white">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Best fit</p>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Best fit</p>
                 <p className="mt-2 text-lg">Teams that want to run the site now</p>
-                <p className="mt-3 text-sm text-white/72">{hostedPackage?.priceLabel || "Request scoped review"}</p>
+                <p className="mt-3 text-sm text-white/70">{hostedPackage?.priceLabel || "Request scoped review"}</p>
               </div>
               <div className="mt-6 flex flex-wrap gap-3">
                 <a

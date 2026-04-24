@@ -53,7 +53,7 @@ export default function About() {
                 <h1 className="font-editorial mt-6 max-w-[36rem] text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5rem]">
                   Blueprint exists to make one real site legible earlier.
                 </h1>
-                <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/72">
+                <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/70">
                   Blueprint helps robot teams inspect one exact facility sooner, choose the right product path, and keep rights, privacy, provenance, and hosted-access boundaries readable along the way.
                 </p>
               </div>
@@ -70,11 +70,11 @@ export default function About() {
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
           <div className="grid gap-4 lg:grid-cols-[0.38fr_0.62fr]">
             <div className="bg-slate-950 p-6 text-white">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Founder note</p>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Founder note</p>
               <h2 className="font-editorial mt-4 text-[2.4rem] leading-[0.94] tracking-[-0.04em]">
                 Built by Nijel Hunt.
               </h2>
-              <p className="mt-4 text-sm leading-7 text-white/72">
+              <p className="mt-4 text-sm leading-7 text-white/70">
                 Background in robotics simulation, 3D capture, and deployment operations. Blueprint is built around the gap between an interesting robotics demo and serious site-specific deployment work.
               </p>
             </div>

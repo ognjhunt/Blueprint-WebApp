@@ -346,10 +346,10 @@ export default function CityLanding() {
                 </div>
               </MonochromeMedia>
               <div className="border border-black/10 bg-slate-950 px-6 py-5 text-white">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
                   Why this page exists
                 </p>
-                <p className="mt-4 max-w-[32rem] text-sm leading-7 text-white/72">
+                <p className="mt-4 max-w-[32rem] text-sm leading-7 text-white/70">
                   The city page should never imply generic public capture availability. It exists
                   to show whether the city is open right now or still in review, and to capture the
                   next durable signal if it is not.

@@ -104,7 +104,7 @@ export default function LaunchMap() {
                       {meta.label}
                     </div>
                     <p className="mt-4 text-sm leading-7 text-slate-600">{meta.definition}</p>
-                    <div className="mt-4 space-y-2 border-t border-black/8 pt-4">
+                    <div className="mt-4 space-y-2 border-t border-black/10 pt-4">
                       {list.length > 0 ? (
                         list.map((city) => (
                           <div key={city.citySlug} className="flex items-center justify-between text-sm text-slate-700">

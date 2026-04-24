@@ -69,7 +69,7 @@ export default function ForSiteOperators() {
                 <h1 className="font-editorial mt-6 max-w-[36rem] text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5rem]">
                   Control how your facility becomes a world-model asset.
                 </h1>
-                <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/72">
+                <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/70">
                   Register the site, define access and privacy rules, and decide whether Blueprint can commercialize approved capture under terms you can actually inspect.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-2">
@@ -79,9 +79,9 @@ export default function ForSiteOperators() {
                 </div>
               </div>
                 <div className="hidden items-end justify-end lg:flex">
-                  <div className="w-full max-w-[18rem] border border-white/14 bg-black/36 p-5 text-white backdrop-blur-sm">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Operator standard</p>
-	                  <p className="mt-4 text-sm leading-7 text-white/66">
+                  <div className="w-full max-w-[18rem] border border-white/15 bg-black/35 p-5 text-white backdrop-blur-sm">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Operator standard</p>
+	                  <p className="mt-4 text-sm leading-7 text-white/65">
 	                    The operator sees what is allowed, when capture happens, and who can use the resulting asset.
 	                  </p>
                   </div>
@@ -104,7 +104,7 @@ export default function ForSiteOperators() {
                 key={item}
                 className={index === 1 ? "bg-slate-950 p-6 text-white" : "bg-white p-6 text-slate-950"}
               >
-                <p className={`text-sm leading-7 ${index === 1 ? "text-white/72" : "text-slate-600"}`}>
+                <p className={`text-sm leading-7 ${index === 1 ? "text-white/70" : "text-slate-600"}`}>
                   {item}
                 </p>
               </div>

@@ -125,8 +125,8 @@ export default function Login() {
                 />
                 <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.18),rgba(0,0,0,0.5)_64%,rgba(0,0,0,0.3))]" />
                 <div className="relative flex h-full items-end p-8 lg:p-10">
-                  <div className="max-w-[14rem] border border-white/16 bg-black/30 p-5 backdrop-blur">
-                    <SurfaceMiniLabel className="text-white/52">Exact-site context</SurfaceMiniLabel>
+                  <div className="max-w-[14rem] border border-white/15 bg-black/30 p-5 backdrop-blur">
+                    <SurfaceMiniLabel className="text-white/50">Exact-site context</SurfaceMiniLabel>
                     <p className="mt-3 text-xl font-semibold tracking-[-0.04em] text-white">Better robot outcomes.</p>
                     <p className="mt-3 text-sm leading-7 text-white/70">
                       Our private platform is for verified buyers and field operators.
@@ -139,20 +139,20 @@ export default function Login() {
                 <div className="mx-auto flex h-full max-w-[26rem] flex-col justify-center">
                   <div>
                     <h1 className="text-[3rem] font-semibold tracking-[-0.07em]">Sign In</h1>
-                    <p className="mt-3 max-w-[18rem] text-sm leading-7 text-black/58">Access the Blueprint portal.</p>
+                    <p className="mt-3 max-w-[18rem] text-sm leading-7 text-black/60">Access the Blueprint portal.</p>
                   </div>
 
                   <button
                     type="button"
                     onClick={handleGoogleSignIn}
                     disabled={isLoading}
-                    className="mt-8 inline-flex min-h-11 w-full items-center justify-center gap-3 rounded-[1rem] border border-black/12 bg-white px-4 text-sm font-semibold text-[#111110] transition hover:bg-[#f3efe8] disabled:opacity-70"
+                    className="mt-8 inline-flex min-h-11 w-full items-center justify-center gap-3 rounded-[1rem] border border-black/10 bg-white px-4 text-sm font-semibold text-[#111110] transition hover:bg-[#f3efe8] disabled:opacity-70"
                   >
                     <GoogleMark />
                     Continue with Google
                   </button>
 
-                  <div className="my-6 flex items-center gap-4 text-[11px] uppercase tracking-[0.22em] text-black/28">
+                  <div className="my-6 flex items-center gap-4 text-[11px] uppercase tracking-[0.22em] text-black/30">
                     <div className="h-px flex-1 bg-black/10" />
                     <span>or</span>
                     <div className="h-px flex-1 bg-black/10" />
@@ -160,16 +160,16 @@ export default function Login() {
 
                   <form onSubmit={handleSubmit} className="space-y-4">
                     {authError ? (
-                      <div className="flex items-start gap-3 rounded-[1.2rem] border border-black/10 bg-white px-4 py-3 text-sm text-black/72">
-                        <AlertCircle className="mt-0.5 h-4 w-4 text-black/56" />
+                      <div className="flex items-start gap-3 rounded-[1.2rem] border border-black/10 bg-white px-4 py-3 text-sm text-black/70">
+                        <AlertCircle className="mt-0.5 h-4 w-4 text-black/55" />
                         <span>{authError}</span>
                       </div>
                     ) : null}
 
                     <label className="block space-y-2">
-                      <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-black/48">Email</span>
+                      <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-black/50">Email</span>
                       <div className="relative">
-                        <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/34" />
+                        <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/35" />
                         <input
                           id="email"
                           name="email"
@@ -181,16 +181,16 @@ export default function Login() {
                           onChange={handleInputChange}
                           onBlur={handleBlur}
                           placeholder="you@company.com"
-                          className="h-12 w-full rounded-[1rem] border border-black/10 bg-white pl-11 pr-4 text-[15px] text-[#111110] outline-none transition placeholder:text-black/32 focus:border-black/28"
+                          className="h-12 w-full rounded-[1rem] border border-black/10 bg-white pl-11 pr-4 text-[15px] text-[#111110] outline-none transition placeholder:text-black/30 focus:border-black/30"
                         />
                       </div>
-                      {errors.email && touched.email ? <p className="text-sm text-black/54">{errors.email}</p> : null}
+                      {errors.email && touched.email ? <p className="text-sm text-black/55">{errors.email}</p> : null}
                     </label>
 
                     <label className="block space-y-2">
-                      <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-black/48">Password</span>
+                      <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-black/50">Password</span>
                       <div className="relative">
-                        <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/34" />
+                        <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/35" />
                         <input
                           id="password"
                           name="password"
@@ -200,22 +200,22 @@ export default function Login() {
                           onChange={handleInputChange}
                           onBlur={handleBlur}
                           placeholder="Enter your password"
-                          className="h-12 w-full rounded-[1rem] border border-black/10 bg-white pl-11 pr-12 text-[15px] text-[#111110] outline-none transition placeholder:text-black/32 focus:border-black/28"
+                          className="h-12 w-full rounded-[1rem] border border-black/10 bg-white pl-11 pr-12 text-[15px] text-[#111110] outline-none transition placeholder:text-black/30 focus:border-black/30"
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword((current) => !current)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-black/42"
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-black/40"
                           aria-label={showPassword ? "Hide password" : "Show password"}
                         >
                           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
-                      {errors.password && touched.password ? <p className="text-sm text-black/54">{errors.password}</p> : null}
+                      {errors.password && touched.password ? <p className="text-sm text-black/55">{errors.password}</p> : null}
                     </label>
 
                     <div className="flex justify-end">
-                      <a href="/forgot-password" className="text-sm text-black/48 transition hover:text-black">
+                      <a href="/forgot-password" className="text-sm text-black/50 transition hover:text-black">
                         Forgot password?
                       </a>
                     </div>
@@ -240,15 +240,15 @@ export default function Login() {
                   <div className="space-y-4">
                     <SurfaceMiniLabel>New to Blueprint?</SurfaceMiniLabel>
                     <div className="space-y-3 text-sm">
-                      <a href="/book-exact-site-review" className="flex items-center justify-between text-black/72 transition hover:text-black">
+                      <a href="/book-exact-site-review" className="flex items-center justify-between text-black/70 transition hover:text-black">
                         <span>Buyer: Scope your project</span>
                         <ArrowRight className="h-4 w-4" />
                       </a>
-                      <a href="/signup/business" className="flex items-center justify-between text-black/72 transition hover:text-black">
+                      <a href="/signup/business" className="flex items-center justify-between text-black/70 transition hover:text-black">
                         <span>Buyer: Request access</span>
                         <ArrowRight className="h-4 w-4" />
                       </a>
-                      <a href="/capture-app" className="flex items-center justify-between text-black/72 transition hover:text-black">
+                      <a href="/capture-app" className="flex items-center justify-between text-black/70 transition hover:text-black">
                         <span>Capturer: Access the capture app</span>
                         <ArrowRight className="h-4 w-4" />
                       </a>

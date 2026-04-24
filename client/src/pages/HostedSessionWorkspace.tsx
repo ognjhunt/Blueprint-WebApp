@@ -2031,7 +2031,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                 <h1 className="mt-4 text-4xl font-semibold tracking-[-0.08em] text-[#111110]">
                   Hosted session not found
                 </h1>
-                <p className="mt-4 text-sm leading-7 text-black/58">
+                <p className="mt-4 text-sm leading-7 text-black/60">
                   Blueprint could not resolve this workspace to a known site-world session.
                 </p>
               </div>
@@ -2070,11 +2070,11 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                   </div>
                   <div className="relative flex h-full items-end p-8 lg:p-10">
                     <div className="max-w-[28rem]">
-                      <SurfaceMiniLabel className="text-white/52">Hosted Session Workspace</SurfaceMiniLabel>
+                      <SurfaceMiniLabel className="text-white/50">Hosted Session Workspace</SurfaceMiniLabel>
                       <h1 className="mt-5 text-[clamp(3.1rem,5vw,5rem)] font-semibold tracking-[-0.08em] leading-[0.9] text-white">
                         Control room for one exact-site world.
                       </h1>
-                      <p className="mt-5 text-sm leading-7 text-white/74">
+                      <p className="mt-5 text-sm leading-7 text-white/75">
                         This workspace opens after the hosted review setup creates a real session.
                         Until then, Blueprint keeps the exact-site scene, controls, and export rails
                         attached to the setup path instead of inventing a fake runtime.
@@ -2088,7 +2088,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                         </a>
                         <a
                           href={`/world-models/${site.id}`}
-                          className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/16 px-5 text-sm font-semibold text-white transition hover:bg-white/8"
+                          className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/15 px-5 text-sm font-semibold text-white transition hover:bg-white/10"
                         >
                           View world model
                         </a>
@@ -2100,20 +2100,20 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                 <div className="bg-[#111110] p-8 text-white">
                   <div className="space-y-4">
                     <div className="rounded-[1.35rem] border border-white/10 bg-white/5 p-5">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/46">Session metadata</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">Session metadata</p>
                       <p className="mt-4 text-lg font-semibold">{site.siteName}</p>
-                      <p className="mt-2 text-sm leading-7 text-white/68">{site.siteAddress}</p>
+                      <p className="mt-2 text-sm leading-7 text-white/70">{site.siteAddress}</p>
                     </div>
                     <div className="rounded-[1.35rem] border border-white/10 bg-white/5 p-5">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/46">Why the workspace is empty</p>
-                      <p className="mt-4 text-sm leading-7 text-white/72">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">Why the workspace is empty</p>
+                      <p className="mt-4 text-sm leading-7 text-white/70">
                         A session ID is required before the live runtime, observation cameras,
                         diagnostics, and export panels become active.
                       </p>
                     </div>
                     <div className="rounded-[1.35rem] border border-white/10 bg-white/5 p-5">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/46">Next move</p>
-                      <p className="mt-4 text-sm leading-7 text-white/72">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">Next move</p>
+                      <p className="mt-4 text-sm leading-7 text-white/70">
                         Return to setup and launch a hosted review or preview-backed session from
                         the exact-site start flow.
                       </p>
@@ -2435,7 +2435,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                           onLoad={handleViewportImageLoad}
                         />
                       ) : showRuntimeReferencePreview ? (
-                        <div className="absolute inset-0 flex flex-col bg-white/92">
+                        <div className="absolute inset-0 flex flex-col bg-white/90">
                           <img
                             src={runtimeReferenceImageUrl || ""}
                             alt="Validated runtime reference frame"
@@ -2450,7 +2450,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                         </div>
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
-                          <div className="max-w-lg rounded-[28px] border border-slate-200 bg-white/88 px-8 py-10 text-slate-900 backdrop-blur-sm">
+                          <div className="max-w-lg rounded-[28px] border border-slate-200 bg-white/90 px-8 py-10 text-slate-900 backdrop-blur-sm">
                             <Camera className="mx-auto h-10 w-10 text-slate-400" />
                             <p className="mt-4 text-lg font-semibold">
                               {runtimeInteractive ? "No browser-visible frame yet" : "Live runtime controls are unavailable in this session mode"}
@@ -2465,17 +2465,17 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                       )}
 
                       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-4">
-                        <div className="pointer-events-auto rounded-full border border-white/70 bg-white/88 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-700 backdrop-blur-sm">
+                        <div className="pointer-events-auto rounded-full border border-white/70 bg-white/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-700 backdrop-blur-sm">
                           Camera {selectedCameraId || primaryCameraId || "head_rgb"}
                         </div>
                         <div className="pointer-events-auto flex flex-wrap items-center gap-2">
                           {hasLiveVideoObservation ? (
-                            <div className="rounded-full border border-white/70 bg-white/88 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 backdrop-blur-sm">
+                            <div className="rounded-full border border-white/70 bg-white/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 backdrop-blur-sm">
                               {humanizeValue(liveMediaStatus || rolloutStatus, "buffering")}
                             </div>
                           ) : null}
                           {effectivePresentationMode ? (
-                            <div className="rounded-full border border-white/70 bg-white/88 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 backdrop-blur-sm">
+                            <div className="rounded-full border border-white/70 bg-white/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 backdrop-blur-sm">
                               {humanizeValue(effectivePresentationMode, "live_runtime")}
                             </div>
                           ) : null}
@@ -2493,7 +2493,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
 
                       <div className="pointer-events-none absolute inset-x-0 bottom-0 p-4 sm:p-5">
                         <div className="grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
-                          <div className="pointer-events-auto rounded-[24px] border border-white/70 bg-white/88 px-5 py-4 text-slate-900 backdrop-blur-md">
+                          <div className="pointer-events-auto rounded-[24px] border border-white/70 bg-white/90 px-5 py-4 text-slate-900 backdrop-blur-md">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Movement</p>
                             <p className="mt-2 text-base font-semibold">Hold WASD or the arrow keys to steer the chunked rollout.</p>
                             <p className="mt-2 text-sm text-slate-600">
@@ -2501,20 +2501,20 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                             </p>
                           </div>
                           <div className="pointer-events-auto grid grid-cols-3 gap-2">
-                            <div className="rounded-[22px] border border-white/70 bg-white/88 px-4 py-4 text-slate-900 backdrop-blur-sm">
+                            <div className="rounded-[22px] border border-white/70 bg-white/90 px-4 py-4 text-slate-900 backdrop-blur-sm">
                               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Step</p>
                               <p className="mt-2 text-2xl font-bold">{runtimeStepIndex}</p>
                             </div>
-                            <div className="rounded-[22px] border border-white/70 bg-white/88 px-4 py-4 text-slate-900 backdrop-blur-sm">
+                            <div className="rounded-[22px] border border-white/70 bg-white/90 px-4 py-4 text-slate-900 backdrop-blur-sm">
                               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Reward</p>
                               <p className="mt-2 text-2xl font-bold">{latestEpisode?.reward != null ? latestEpisode.reward : "0"}</p>
                             </div>
-                            <div className="rounded-[22px] border border-white/70 bg-white/88 px-4 py-4 text-slate-900 backdrop-blur-sm">
+                            <div className="rounded-[22px] border border-white/70 bg-white/90 px-4 py-4 text-slate-900 backdrop-blur-sm">
                               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Rollout</p>
                               <p className="mt-2 text-base font-bold">{humanizeValue(rolloutStatus, "idle")}</p>
                             </div>
                           </div>
-                          <div className="pointer-events-auto rounded-[22px] border border-white/70 bg-white/88 px-4 py-4 text-slate-900 backdrop-blur-sm">
+                          <div className="pointer-events-auto rounded-[22px] border border-white/70 bg-white/90 px-4 py-4 text-slate-900 backdrop-blur-sm">
                             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Output Path</p>
                             <p className="mt-2 text-sm font-semibold">
                               {shouldUseChunkReplacement
@@ -2732,7 +2732,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                         />
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
-                          <div className="max-w-lg rounded-[28px] border border-slate-200 bg-white/92 px-8 py-10 text-slate-900 backdrop-blur-sm">
+                          <div className="max-w-lg rounded-[28px] border border-slate-200 bg-white/90 px-8 py-10 text-slate-900 backdrop-blur-sm">
                             <Compass className="mx-auto h-10 w-10 text-slate-400" />
                             <p className="mt-4 text-lg font-semibold">Explorer frame unavailable</p>
                             <p className="mt-3 text-sm leading-6 text-slate-600">
@@ -2744,7 +2744,7 @@ export default function HostedSessionWorkspace({ params }: HostedSessionWorkspac
                       )}
 
                       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-4">
-                        <div className="pointer-events-auto rounded-full border border-white/70 bg-white/88 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-700 backdrop-blur-sm">
+                        <div className="pointer-events-auto rounded-full border border-white/70 bg-white/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-700 backdrop-blur-sm">
                           Camera {selectedCameraId || primaryCameraId || "head_rgb"}
                         </div>
                         <div className="pointer-events-auto flex flex-wrap items-center gap-2">

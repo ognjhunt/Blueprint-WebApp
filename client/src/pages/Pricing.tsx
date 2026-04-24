@@ -103,21 +103,21 @@ function PricePanel({
   return (
     <section className={`grid overflow-hidden rounded-[2rem] border border-black/10 ${dark ? "bg-slate-950" : "bg-white"} lg:grid-cols-[0.34fr_0.66fr]`}>
       <div className={`px-6 py-7 lg:px-8 lg:py-9 ${dark ? "text-white" : "text-slate-950"}`}>
-        <p className={`text-sm ${dark ? "text-white/48" : "text-slate-400"}`}>{index}</p>
+        <p className={`text-sm ${dark ? "text-white/50" : "text-slate-400"}`}>{index}</p>
         <h2 className="font-editorial mt-4 text-[3.2rem] leading-[0.95] tracking-[-0.05em]">
           {title}
         </h2>
-        <p className={`mt-3 text-[11px] uppercase tracking-[0.2em] ${dark ? "text-white/48" : "text-slate-500"}`}>
+        <p className={`mt-3 text-[11px] uppercase tracking-[0.2em] ${dark ? "text-white/50" : "text-slate-500"}`}>
           {eyebrow}
         </p>
-        <p className={`mt-5 text-base leading-7 ${dark ? "text-white/74" : "text-slate-700"}`}>
+        <p className={`mt-5 text-base leading-7 ${dark ? "text-white/75" : "text-slate-700"}`}>
           {body}
         </p>
         <p className={`mt-6 text-lg font-semibold ${dark ? "text-white" : "text-slate-950"}`}>{price}</p>
-        <ul className={`mt-6 space-y-3 text-sm leading-6 ${dark ? "text-white/68" : "text-slate-600"}`}>
+        <ul className={`mt-6 space-y-3 text-sm leading-6 ${dark ? "text-white/70" : "text-slate-600"}`}>
           {bullets.map((bullet) => (
             <li key={bullet} className="flex gap-3">
-              <span className={`mt-2 h-1.5 w-1.5 rounded-full ${dark ? "bg-white/46" : "bg-slate-400"}`} />
+              <span className={`mt-2 h-1.5 w-1.5 rounded-full ${dark ? "bg-white/45" : "bg-slate-400"}`} />
               <span>{bullet}</span>
             </li>
           ))}
@@ -185,10 +185,10 @@ export default function Pricing() {
           >
             <div className="absolute inset-y-0 right-0 flex w-full items-end justify-center p-6 lg:justify-end lg:p-8">
               <div className="grid w-full max-w-[32rem] gap-4 md:grid-cols-[0.52fr_0.48fr]">
-                <div className="rounded-[1.6rem] border border-white/10 bg-black/56 p-5 text-white">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Blueprint site package</p>
+                <div className="rounded-[1.6rem] border border-white/10 bg-black/55 p-5 text-white">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Blueprint site package</p>
                   <p className="mt-5 text-2xl font-semibold">Market Hall Grocery</p>
-                  <p className="mt-3 text-sm text-white/62">Sample capture date · Mar 13, 2026</p>
+                  <p className="mt-3 text-sm text-white/60">Sample capture date · Mar 13, 2026</p>
                 </div>
                 <div className="space-y-3">
                   <div className="rounded-[1.2rem] border border-white/10 bg-white/90 p-4">
@@ -215,13 +215,13 @@ export default function Pricing() {
             imageAlt="Hosted evaluation panel"
           >
             <div className="absolute inset-0 flex items-center justify-center p-6 lg:justify-end lg:p-8">
-              <div className="w-full max-w-[34rem] overflow-hidden rounded-[1.8rem] border border-white/14 bg-black/72 text-white shadow-[0_24px_60px_-36px_rgba(0,0,0,0.62)]">
-                <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 text-[11px] uppercase tracking-[0.18em] text-white/48">
+              <div className="w-full max-w-[34rem] overflow-hidden rounded-[1.8rem] border border-white/15 bg-black/70 text-white shadow-[0_24px_60px_-36px_rgba(0,0,0,0.62)]">
+                <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 text-[11px] uppercase tracking-[0.18em] text-white/50">
                   <span>Session playback</span>
                   <span>Example hosted view</span>
                 </div>
                 <div className="grid gap-4 p-5 md:grid-cols-[0.64fr_0.36fr]">
-                  <div className="overflow-hidden rounded-[1.2rem] border border-white/10 bg-black/36">
+                  <div className="overflow-hidden rounded-[1.2rem] border border-white/10 bg-black/35">
                     <div className="absolute hidden" />
                     <svg viewBox="0 0 360 220" className="h-[13rem] w-full">
                       <path d="M26 186V42H112V84H204V28H328V178H232V138H138V186Z" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="3" />
@@ -257,27 +257,27 @@ export default function Pricing() {
           >
             <div className="absolute inset-0 flex items-center justify-center p-6 lg:justify-end lg:p-8">
               <div className="w-full max-w-[34rem] overflow-hidden rounded-[1.8rem] border border-white/10 bg-black/70 shadow-[0_24px_60px_-36px_rgba(0,0,0,0.62)]">
-                <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 text-[11px] uppercase tracking-[0.18em] text-white/46">
+                <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 text-[11px] uppercase tracking-[0.18em] text-white/45">
                   <span>Enterprise overview</span>
                   <span>Example ops view</span>
                 </div>
-                <div className="grid gap-px bg-white/8 md:grid-cols-[0.62fr_0.38fr]">
-                  <div className="bg-black/36 px-5 py-4 text-sm text-white/72">
+                <div className="grid gap-px bg-white/10 md:grid-cols-[0.62fr_0.38fr]">
+                  <div className="bg-black/35 px-5 py-4 text-sm text-white/70">
                     {[
                       ["Rivergate DC 01", "Live"],
                       ["Northfield Fulfillment", "Live"],
                       ["Lakeside Manufacturing", "Review"],
                       ["Southpoint DC", "Updating"],
                     ].map(([name, state]) => (
-                      <div key={name} className="flex items-center justify-between border-b border-white/8 py-3 last:border-b-0">
+                      <div key={name} className="flex items-center justify-between border-b border-white/10 py-3 last:border-b-0">
                         <span>{name}</span>
-                        <span className="text-white/46">{state}</span>
+                        <span className="text-white/45">{state}</span>
                       </div>
                     ))}
                   </div>
-                  <div className="bg-black/28 px-5 py-4">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Rollout map</p>
-                    <div className="mt-4 rounded-[1.1rem] border border-white/10 bg-black/36 p-4">
+                  <div className="bg-black/30 px-5 py-4">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Rollout map</p>
+                    <div className="mt-4 rounded-[1.1rem] border border-white/10 bg-black/35 p-4">
                       <svg viewBox="0 0 210 120" className="h-28 w-full">
                         <path d="M16 90L44 28L72 38L84 20L128 28L166 42L194 76L176 98L138 90L116 102L68 96L44 112Z" fill="none" stroke="rgba(255,255,255,0.24)" strokeWidth="2.5" />
                         {[44, 92, 136, 168].map((cx, index) => (
@@ -342,7 +342,7 @@ export default function Pricing() {
                 className="max-w-3xl"
               />
             </div>
-            <div className="grid gap-px bg-black/8 md:grid-cols-3 xl:grid-cols-6">
+            <div className="grid gap-px bg-black/10 md:grid-cols-3 xl:grid-cols-6">
               {comparisonArtifacts.map((artifact) => {
                 const Icon = artifact.icon;
                 return (

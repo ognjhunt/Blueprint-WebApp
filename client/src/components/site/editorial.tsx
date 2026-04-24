@@ -190,7 +190,7 @@ export function EditorialMetricStrip({
   return (
     <div
       className={cn(
-        "grid gap-px overflow-hidden rounded-[1.9rem] border border-black/10 bg-black/8 md:grid-cols-2 xl:grid-cols-4",
+        "grid gap-px overflow-hidden rounded-[1.9rem] border border-black/10 bg-black/10 md:grid-cols-2 xl:grid-cols-4",
         className,
       )}
     >
@@ -271,7 +271,7 @@ export function EditorialFilmstrip({
               loading="lazy"
               className="aspect-[16/9] w-full object-cover grayscale"
             />
-            <div className="flex items-center justify-between px-3 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-white/58">
+            <div className="flex items-center justify-between px-3 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-white/60">
               <span>{frame.time || frame.title || "Frame"}</span>
               <span>{frame.title || "Review"}</span>
             </div>
@@ -297,7 +297,7 @@ export function EditorialCtaBand({
   className,
 }: CtaBandProps) {
   const textTone = dark ? "text-white" : "text-slate-950";
-  const bodyTone = dark ? "text-white/74" : "text-slate-600";
+  const bodyTone = dark ? "text-white/75" : "text-slate-600";
 
   return (
     <section
@@ -341,7 +341,7 @@ export function EditorialCtaBand({
               className={cn(
                 "inline-flex items-center justify-center rounded-full border px-6 py-3 text-sm font-semibold transition",
                 dark
-                  ? "border-white/16 text-white hover:bg-white/6"
+                  ? "border-white/15 text-white hover:bg-white/5"
                   : "border-black/10 text-slate-950 hover:bg-slate-50",
               )}
             >
@@ -373,7 +373,7 @@ export function EditorialFaq({
           <p className="mt-4 text-sm leading-7 text-slate-600">{description}</p>
         ) : null}
       </div>
-      <div className="divide-y divide-black/8">
+      <div className="divide-y divide-black/10">
         {items.map((item, index) => (
           <article key={`${item.question}-${index}`} className="py-4">
             <h3 className="text-left text-base font-medium text-slate-900">

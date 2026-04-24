@@ -126,7 +126,7 @@ export default function SampleEvaluation() {
                   <h1 className="font-editorial mt-6 max-w-[38rem] text-[3.7rem] leading-[0.9] tracking-[-0.06em] sm:text-[5.2rem]">
                     One exact site, end to end.
                   </h1>
-                  <p className="mt-6 max-w-[31rem] text-base leading-8 text-white/84">
+                  <p className="mt-6 max-w-[31rem] text-base leading-8 text-white/85">
                     An example showing how Blueprint turns a captured site into
                     manifest, rights, hosted setup, run evidence, export shape, and limits.
                   </p>
@@ -145,7 +145,7 @@ export default function SampleEvaluation() {
                     </a>
                     <a
                       href="/contact?persona=robot-team&buyerType=robot_team&interest=evaluation-package&source=sample-evaluation&path=hosted-evaluation&siteName=Media%20Room%20Demo%20Walkthrough"
-                      className="inline-flex items-center justify-center border border-white/16 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/8"
+                      className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
                     >
                       Scope hosted evaluation
                     </a>
@@ -153,15 +153,15 @@ export default function SampleEvaluation() {
                 </div>
 
                 <div className="hidden justify-end lg:flex">
-                  <div className="w-full max-w-[22rem] border border-white/14 bg-black/42 p-5 text-white backdrop-blur-sm">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">
+                  <div className="w-full max-w-[22rem] border border-white/15 bg-black/40 p-5 text-white backdrop-blur-sm">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">
                       Packet
                     </p>
                     <h2 className="mt-4 text-xl font-semibold">{mediaRoomSampleEvaluation.siteName}</h2>
-                    <p className="mt-3 text-sm leading-6 text-white/66">
+                    <p className="mt-3 text-sm leading-6 text-white/65">
                       {mediaRoomSampleEvaluation.buyerQuestion}
                     </p>
-                    <div className="mt-5 border-t border-white/10 pt-4 text-sm text-white/62">
+                    <div className="mt-5 border-t border-white/10 pt-4 text-sm text-white/60">
                       {mediaRoomSampleEvaluation.packetId}
                     </div>
                   </div>
@@ -256,8 +256,8 @@ export default function SampleEvaluation() {
                 </div>
               </div>
               <div className="min-w-0 overflow-hidden border border-black/10 bg-slate-950 p-5 text-white">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Export bundle</p>
-                <div className="mt-4 grid gap-2 font-mono text-[12px] leading-6 text-white/72 md:grid-cols-2">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Export bundle</p>
+                <div className="mt-4 grid gap-2 font-mono text-[12px] leading-6 text-white/70 md:grid-cols-2">
                   {sampleExportTree.map((item) => (
                     <div key={item} className="border border-white/10 bg-white/5 px-3 py-2">
                       {item}

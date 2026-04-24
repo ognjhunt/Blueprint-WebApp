@@ -57,12 +57,12 @@ export default function Portal() {
               <h1 className="mt-4 text-[3.6rem] font-semibold tracking-[-0.08em] leading-[0.92]">
                 Private operations hub
               </h1>
-              <p className="mt-3 max-w-[36rem] text-base leading-8 text-black/62">
+              <p className="mt-3 max-w-[36rem] text-base leading-8 text-black/60">
                 Protected request queue, assignment overview, and compliance context for invite-only
                 Blueprint workflows.
               </p>
             </div>
-            <div className="hidden rounded-full border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-black/62 lg:flex lg:items-center lg:gap-3">
+            <div className="hidden rounded-full border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-black/60 lg:flex lg:items-center lg:gap-3">
               <Lock className="h-4 w-4" />
               Guest view
             </div>
@@ -71,8 +71,8 @@ export default function Portal() {
           <SurfaceBrowserFrame dark className="border-black/0 shadow-[0_30px_120px_rgba(0,0,0,0.14)]">
             <div className="grid xl:grid-cols-[0.18fr_0.82fr]">
               <div className="border-r border-white/10 bg-[#0f0f0e] p-5">
-                <div className="rounded-[1.4rem] border border-white/10 bg-white/6 p-4">
-                  <SurfaceMiniLabel className="text-white/46">Private workspace</SurfaceMiniLabel>
+                <div className="rounded-[1.4rem] border border-white/10 bg-white/5 p-4">
+                  <SurfaceMiniLabel className="text-white/45">Private workspace</SurfaceMiniLabel>
                   <p className="mt-3 text-sm font-semibold text-white">Invite-only surface</p>
                 </div>
                 <div className="mt-5 space-y-2">
@@ -80,7 +80,7 @@ export default function Portal() {
                     <div
                       key={item}
                       className={`rounded-[1rem] px-3 py-2.5 text-sm ${
-                        index === 0 ? "bg-white/12 font-semibold text-white" : "text-white/58"
+                        index === 0 ? "bg-white/10 font-semibold text-white" : "text-white/60"
                       }`}
                     >
                       {item}
@@ -88,8 +88,8 @@ export default function Portal() {
                   ))}
                 </div>
                 <div className="mt-5 rounded-[1.4rem] border border-white/10 bg-white/5 p-4">
-                  <SurfaceMiniLabel className="text-white/46">Protected access</SurfaceMiniLabel>
-                  <p className="mt-3 text-sm leading-7 text-white/64">
+                  <SurfaceMiniLabel className="text-white/45">Protected access</SurfaceMiniLabel>
+                  <p className="mt-3 text-sm leading-7 text-white/65">
                     Queue contents, exports, and downstream review state remain visible only to
                     authenticated operators.
                   </p>
@@ -99,17 +99,17 @@ export default function Portal() {
               <div className="bg-[#f8f4ed] p-6 lg:p-7">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="relative min-w-[18rem] flex-1">
-                    <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/32" />
+                    <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/30" />
                     <input
                       readOnly
                       value=""
                       placeholder="Search requests, sites, IDs, assignees..."
-                      className="h-12 w-full rounded-[1rem] border border-black/10 bg-white pl-11 pr-4 text-sm outline-none placeholder:text-black/34"
+                      className="h-12 w-full rounded-[1rem] border border-black/10 bg-white pl-11 pr-4 text-sm outline-none placeholder:text-black/35"
                     />
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-black/10 bg-white">
-                      <Bell className="h-4 w-4 text-black/48" />
+                      <Bell className="h-4 w-4 text-black/50" />
                     </div>
                     <SurfaceButton className="px-4">New request</SurfaceButton>
                   </div>
@@ -126,7 +126,7 @@ export default function Portal() {
                               <div>
                                 <SurfaceMiniLabel>Request queue</SurfaceMiniLabel>
                                 <p className="mt-3 text-[1.9rem] font-semibold tracking-[-0.05em]">{card.title}</p>
-                                <p className="mt-2 text-sm text-black/54">{card.location}</p>
+                                <p className="mt-2 text-sm text-black/55">{card.location}</p>
                               </div>
                               <div className="text-right">
                                 <SurfaceMiniLabel>Trust score</SurfaceMiniLabel>
@@ -135,7 +135,7 @@ export default function Portal() {
                             </div>
                             <div className="mt-5 flex flex-wrap gap-2">
                               {card.meta.map((item) => (
-                                <span key={item} className="rounded-full border border-black/10 bg-[#faf7f1] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-black/54">
+                                <span key={item} className="rounded-full border border-black/10 bg-[#faf7f1] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-black/55">
                                   {item}
                                 </span>
                               ))}
@@ -156,7 +156,7 @@ export default function Portal() {
                     </SurfaceCard>
                     <SurfaceCard className="bg-white">
                       <div className="flex items-center gap-3">
-                        <ShieldCheck className="h-4.5 w-4.5 text-black/54" />
+                        <ShieldCheck className="h-4.5 w-4.5 text-black/55" />
                         <SurfaceMiniLabel>Compliance</SurfaceMiniLabel>
                       </div>
                       <p className="mt-4 text-sm leading-7 text-black/60">

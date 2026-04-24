@@ -82,7 +82,7 @@ export default function Privacy() {
                   <br />
                   Policy
                 </h1>
-                <p className="mt-5 max-w-[20rem] text-sm uppercase tracking-[0.2em] text-black/52">
+                <p className="mt-5 max-w-[20rem] text-sm uppercase tracking-[0.2em] text-black/50">
                   How we handle information with respect and transparency.
                 </p>
                 <div className="mt-8 overflow-hidden rounded-[1.8rem] border border-black/10 bg-white">
@@ -106,12 +106,12 @@ export default function Privacy() {
                       <SurfaceCard key={section.title} className="h-full">
                         <div className="flex items-center gap-3">
                           <div className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-[#faf6ef]">
-                            <Icon className="h-4.5 w-4.5 text-black/64" />
+                            <Icon className="h-4.5 w-4.5 text-black/65" />
                           </div>
                           <SurfaceMiniLabel>{section.title}</SurfaceMiniLabel>
                         </div>
                         <p className="mt-4 text-[1.5rem] font-semibold tracking-[-0.05em]">{section.title}</p>
-                        <p className="mt-4 text-sm leading-7 text-black/62">{section.body}</p>
+                        <p className="mt-4 text-sm leading-7 text-black/60">{section.body}</p>
                       </SurfaceCard>
                     );
                   })}
@@ -120,7 +120,7 @@ export default function Privacy() {
                 <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
                   <SurfaceCard className="bg-[#faf7f1]">
                     <SurfaceMiniLabel>Rights, privacy, and retention</SurfaceMiniLabel>
-                    <p className="mt-4 text-sm leading-7 text-black/62">
+                    <p className="mt-4 text-sm leading-7 text-black/60">
                       Blueprint keeps rights and privacy metadata attached to the product record
                       because those limits matter after capture, not just during intake. We retain
                       information for as long as needed to operate the service, meet legal
@@ -146,7 +146,7 @@ export default function Privacy() {
                       {captureAnnex.map(([label, detail]) => (
                         <div key={label} className="grid gap-2 p-4 text-sm leading-6 md:grid-cols-[0.34fr_0.66fr]">
                           <span className="font-semibold text-white">{label}</span>
-                          <span className="text-white/66">{detail}</span>
+                          <span className="text-white/65">{detail}</span>
                         </div>
                       ))}
                     </div>
@@ -156,7 +156,7 @@ export default function Privacy() {
                     {roleAnnex.map((item) => (
                       <SurfaceCard key={item.title}>
                         <SurfaceMiniLabel>{item.title}</SurfaceMiniLabel>
-                        <p className="mt-3 text-sm leading-7 text-black/62">{item.body}</p>
+                        <p className="mt-3 text-sm leading-7 text-black/60">{item.body}</p>
                       </SurfaceCard>
                     ))}
                   </div>

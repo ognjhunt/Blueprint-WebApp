@@ -167,7 +167,7 @@ export default function SampleDeliverables() {
                 <h2 className="font-editorial text-[2rem] leading-[0.95] tracking-[-0.04em]">
                   {card.title}
                 </h2>
-                <p className={`mt-4 text-sm leading-7 ${index === 2 ? "text-white/72" : "text-slate-600"}`}>
+                <p className={`mt-4 text-sm leading-7 ${index === 2 ? "text-white/70" : "text-slate-600"}`}>
                   {card.body}
                 </p>
               </div>
@@ -192,7 +192,7 @@ export default function SampleDeliverables() {
                   <h2 className="font-editorial mt-4 max-w-[22rem] text-[2.8rem] leading-[0.94] tracking-[-0.05em]">
                     {proofEvidencePacket.selectedStory.locationName}
                   </h2>
-                  <p className="mt-4 max-w-[24rem] text-sm leading-7 text-white/74">
+                  <p className="mt-4 max-w-[24rem] text-sm leading-7 text-white/75">
                     {proofEvidencePacket.selectedStory.locationType} in {proofEvidencePacket.selectedStory.city}.
                   </p>
                 </div>
@@ -255,8 +255,8 @@ export default function SampleDeliverables() {
                 description="Each file is marked as a sample. Real package access still follows listing-specific proof, rights, and export review."
               />
               <div className="mt-8 border border-black/10 bg-slate-950 p-5 text-sm text-white">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Sample file tree</p>
-                <div className="mt-4 space-y-2 font-mono text-[12px] leading-6 text-white/72">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Sample file tree</p>
+                <div className="mt-4 space-y-2 font-mono text-[12px] leading-6 text-white/70">
                   {sampleFileTree.map((item) => (
                     <div key={item}>/samples/{item}</div>
                   ))}
@@ -273,16 +273,16 @@ export default function SampleDeliverables() {
                     href={artifact.href}
                     className={dark ? "bg-slate-950 p-6 text-white transition hover:bg-slate-900" : "bg-white p-6 text-slate-950 transition hover:bg-[#f8f6f1]"}
                   >
-                    <div className={dark ? "flex h-11 w-11 items-center justify-center border border-white/14 text-white" : "flex h-11 w-11 items-center justify-center border border-black/10 text-slate-950"}>
+                    <div className={dark ? "flex h-11 w-11 items-center justify-center border border-white/15 text-white" : "flex h-11 w-11 items-center justify-center border border-black/10 text-slate-950"}>
                       <Icon className="h-5 w-5" />
                     </div>
-                    <p className={`mt-5 text-[11px] uppercase tracking-[0.18em] ${dark ? "text-white/44" : "text-slate-400"}`}>
+                    <p className={`mt-5 text-[11px] uppercase tracking-[0.18em] ${dark ? "text-white/45" : "text-slate-400"}`}>
                       Sample artifact · {artifact.label}
                     </p>
                     <h2 className="font-editorial mt-3 text-[2rem] leading-[0.95] tracking-[-0.04em]">
                       {artifact.title}
                     </h2>
-                    <p className={`mt-4 text-sm leading-7 ${dark ? "text-white/72" : "text-slate-600"}`}>
+                    <p className={`mt-4 text-sm leading-7 ${dark ? "text-white/70" : "text-slate-600"}`}>
                       {artifact.body}
                     </p>
                     <span className={`mt-6 inline-flex items-center text-sm font-semibold ${dark ? "text-white" : "text-slate-950"}`}>
@@ -336,7 +336,7 @@ export default function SampleDeliverables() {
                   {publicCaptureLocationTypes.map((item) => (
                     <div key={item.label} className="border border-white/10 bg-white/5 p-4">
                       <p className="text-sm font-semibold text-white">{item.label}</p>
-                      <p className="mt-2 text-sm leading-6 text-white/66">{item.detail}</p>
+                      <p className="mt-2 text-sm leading-6 text-white/65">{item.detail}</p>
                     </div>
                   ))}
                 </div>
@@ -410,7 +410,7 @@ export default function SampleDeliverables() {
                   <h2 className="font-editorial text-[2.3rem] leading-[0.94] tracking-[-0.04em]">
                     Hosted evaluation
                   </h2>
-                  <div className="mt-5 space-y-3 text-sm leading-7 text-white/72">
+                  <div className="mt-5 space-y-3 text-sm leading-7 text-white/70">
                     {hostedItems.map((item) => (
                       <div key={item}>{item}</div>
                     ))}

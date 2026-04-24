@@ -158,10 +158,10 @@ function StepIndicator({
               key={stepNumber}
               className={`rounded-[1.2rem] border px-4 py-3 ${
                 isActive
-                  ? "border-black/18 bg-white text-[#111110]"
+                  ? "border-black/20 bg-white text-[#111110]"
                   : isComplete
-                    ? "border-black/12 bg-[#f6f1e8] text-[#111110]"
-                    : "border-black/8 bg-[#faf6ef] text-black/42"
+                    ? "border-black/10 bg-[#f6f1e8] text-[#111110]"
+                    : "border-black/10 bg-[#faf6ef] text-black/40"
               }`}
             >
               <div className="flex items-center gap-3">
@@ -170,14 +170,14 @@ function StepIndicator({
                     isActive
                       ? "border-black bg-black text-white"
                       : isComplete
-                        ? "border-black/18 bg-[#111110] text-white"
-                        : "border-black/10 bg-white text-black/48"
+                        ? "border-black/20 bg-[#111110] text-white"
+                        : "border-black/10 bg-white text-black/50"
                   }`}
                 >
                   {isComplete ? <CheckCircle2 className="h-4 w-4" /> : stepNumber}
                 </div>
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-black/42">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-black/40">
                     Step {stepNumber}
                   </p>
                   <p className="mt-1 text-sm font-semibold">{BUYER_STEP_LABELS[stepNumber - 1]}</p>
@@ -187,7 +187,7 @@ function StepIndicator({
           );
         })}
       </div>
-      <p className="text-sm text-black/48">Step {currentStep} of {totalSteps}</p>
+      <p className="text-sm text-black/50">Step {currentStep} of {totalSteps}</p>
     </div>
   );
 }
@@ -672,7 +672,7 @@ export default function BusinessSignUpFlow() {
                         : "Ground the request in one real facility, one workflow, and one commercial path."}
                   </p>
 
-                  <div className="mt-6 rounded-[1.5rem] border border-black/10 bg-white px-5 py-4 text-sm leading-7 text-black/58">
+                  <div className="mt-6 rounded-[1.5rem] border border-black/10 bg-white px-5 py-4 text-sm leading-7 text-black/60">
                     Existing portal users should use sign in instead of creating a second path. If
                     the exact facility and workflow are already known, you can also{" "}
                     <a href="/book-exact-site-review" className="font-semibold text-[#111110] underline-offset-4 hover:underline">
@@ -699,11 +699,11 @@ export default function BusinessSignUpFlow() {
                         >
                           <div className="grid gap-5 md:grid-cols-2">
                             <div className="md:col-span-2">
-                              <Label htmlFor="organizationName" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                              <Label htmlFor="organizationName" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                                 Organization name
                               </Label>
                               <div className="relative mt-2">
-                                <Building2 className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/28" />
+                                <Building2 className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/30" />
                                 <Input
                                   id="organizationName"
                                   className="h-12 rounded-[1rem] border-black/10 bg-white pl-11"
@@ -714,11 +714,11 @@ export default function BusinessSignUpFlow() {
                               </div>
                             </div>
                             <div className="md:col-span-2">
-                              <Label htmlFor="email" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                              <Label htmlFor="email" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                                 Work email
                               </Label>
                               <div className="relative mt-2">
-                                <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/28" />
+                                <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/30" />
                                 <Input
                                   id="email"
                                   type="email"
@@ -730,11 +730,11 @@ export default function BusinessSignUpFlow() {
                               </div>
                             </div>
                             <div>
-                              <Label htmlFor="password" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                              <Label htmlFor="password" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                                 Password
                               </Label>
                               <div className="relative mt-2">
-                                <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/28" />
+                                <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/30" />
                                 <Input
                                   id="password"
                                   type={showPassword ? "text" : "password"}
@@ -746,14 +746,14 @@ export default function BusinessSignUpFlow() {
                               </div>
                               <button
                                 type="button"
-                                className="mt-2 text-sm text-black/46 transition hover:text-black"
+                                className="mt-2 text-sm text-black/45 transition hover:text-black"
                                 onClick={() => setShowPassword((current) => !current)}
                               >
                                 {showPassword ? "Hide password" : "Show password"}
                               </button>
                             </div>
                             <div>
-                              <Label htmlFor="confirmPassword" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                              <Label htmlFor="confirmPassword" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                                 Confirm password
                               </Label>
                               <Input
@@ -775,7 +775,7 @@ export default function BusinessSignUpFlow() {
                             <Button
                               type="button"
                               variant="outline"
-                              className="mt-4 h-11 rounded-full border-black/12 bg-white px-5 text-[#111110] hover:bg-[#f3efe8]"
+                              className="mt-4 h-11 rounded-full border-black/10 bg-white px-5 text-[#111110] hover:bg-[#f3efe8]"
                               onClick={handleGoogleSignUp}
                               disabled={isSubmitting}
                             >
@@ -797,11 +797,11 @@ export default function BusinessSignUpFlow() {
                         >
                           <div className="grid gap-5 md:grid-cols-2">
                             <div>
-                              <Label htmlFor="contactName" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                              <Label htmlFor="contactName" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                                 Your name
                               </Label>
                               <div className="relative mt-2">
-                                <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/28" />
+                                <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/30" />
                                 <Input
                                   id="contactName"
                                   className="h-12 rounded-[1rem] border-black/10 bg-white pl-11"
@@ -812,7 +812,7 @@ export default function BusinessSignUpFlow() {
                               </div>
                             </div>
                             <div>
-                              <Label htmlFor="jobTitle" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                              <Label htmlFor="jobTitle" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                                 Title
                               </Label>
                               <Input
@@ -824,7 +824,7 @@ export default function BusinessSignUpFlow() {
                               />
                             </div>
                             <div>
-                              <Label htmlFor="phoneNumber" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                              <Label htmlFor="phoneNumber" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                                 Phone
                               </Label>
                               <Input
@@ -836,7 +836,7 @@ export default function BusinessSignUpFlow() {
                               />
                             </div>
                             <div>
-                              <Label htmlFor="companySize" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                              <Label htmlFor="companySize" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                                 Company size
                               </Label>
                               <select
@@ -856,19 +856,19 @@ export default function BusinessSignUpFlow() {
                           </div>
 
                           <div className="space-y-3">
-                            <Label className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                            <Label className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                               Buyer type
                             </Label>
                             <RadioGroup value={buyerType} onValueChange={(value) => setBuyerType(value as BuyerType)} className="grid gap-3">
                               {BUYER_TYPES.map((option) => (
                                 <label
                                   key={option.value}
-                                  className="flex cursor-pointer items-start gap-4 rounded-[1.25rem] border border-black/10 bg-[#faf6ef] p-4 transition hover:border-black/16"
+                                  className="flex cursor-pointer items-start gap-4 rounded-[1.25rem] border border-black/10 bg-[#faf6ef] p-4 transition hover:border-black/15"
                                 >
                                   <RadioGroupItem value={option.value} />
                                   <div>
                                     <div className="font-semibold text-[#111110]">{option.label}</div>
-                                    <p className="mt-1 text-sm leading-6 text-black/56">{option.description}</p>
+                                    <p className="mt-1 text-sm leading-6 text-black/55">{option.description}</p>
                                   </div>
                                 </label>
                               ))}
@@ -876,14 +876,14 @@ export default function BusinessSignUpFlow() {
                           </div>
 
                           <div className="space-y-3">
-                            <Label className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                            <Label className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                               Requested lane
                             </Label>
                             <div className="grid gap-3">
                               {REQUESTED_LANES.map((lane) => (
                                 <label
                                   key={lane.value}
-                                  className="flex cursor-pointer items-start gap-4 rounded-[1.25rem] border border-black/10 bg-white p-4 transition hover:border-black/16"
+                                  className="flex cursor-pointer items-start gap-4 rounded-[1.25rem] border border-black/10 bg-white p-4 transition hover:border-black/15"
                                 >
                                   <Checkbox
                                     checked={requestedLanes.includes(lane.value)}
@@ -891,7 +891,7 @@ export default function BusinessSignUpFlow() {
                                   />
                                   <div>
                                     <div className="font-semibold text-[#111110]">{lane.label}</div>
-                                    <p className="mt-1 text-sm leading-6 text-black/56">{lane.description}</p>
+                                    <p className="mt-1 text-sm leading-6 text-black/55">{lane.description}</p>
                                   </div>
                                 </label>
                               ))}
@@ -912,11 +912,11 @@ export default function BusinessSignUpFlow() {
                         >
                           <div className="grid gap-5 md:grid-cols-2">
                             <div>
-                              <Label htmlFor="siteName" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                              <Label htmlFor="siteName" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                                 Site name
                               </Label>
                               <div className="relative mt-2">
-                                <Building2 className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/28" />
+                                <Building2 className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/30" />
                                 <Input
                                   id="siteName"
                                   className="h-12 rounded-[1rem] border-black/10 bg-white pl-11"
@@ -927,11 +927,11 @@ export default function BusinessSignUpFlow() {
                               </div>
                             </div>
                             <div>
-                              <Label htmlFor="siteLocation" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                              <Label htmlFor="siteLocation" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                                 Site location
                               </Label>
                               <div className="relative mt-2">
-                                <MapPin className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/28" />
+                                <MapPin className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/30" />
                                 <Input
                                   id="siteLocation"
                                   className="h-12 rounded-[1rem] border-black/10 bg-white pl-11"
@@ -942,11 +942,11 @@ export default function BusinessSignUpFlow() {
                               </div>
                             </div>
                             <div className="md:col-span-2">
-                              <Label htmlFor="taskStatement" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                              <Label htmlFor="taskStatement" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                                 Task statement
                               </Label>
                               <div className="relative mt-2">
-                                <Target className="absolute left-4 top-4 h-4 w-4 text-black/28" />
+                                <Target className="absolute left-4 top-4 h-4 w-4 text-black/30" />
                                 <Textarea
                                   id="taskStatement"
                                   className="min-h-28 rounded-[1rem] border-black/10 bg-white pl-11"
@@ -957,11 +957,11 @@ export default function BusinessSignUpFlow() {
                               </div>
                             </div>
                             <div className="md:col-span-2">
-                              <Label htmlFor="workflowContext" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                              <Label htmlFor="workflowContext" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                                 Workflow context
                               </Label>
                               <div className="relative mt-2">
-                                <Route className="absolute left-4 top-4 h-4 w-4 text-black/28" />
+                                <Route className="absolute left-4 top-4 h-4 w-4 text-black/30" />
                                 <Textarea
                                   id="workflowContext"
                                   className="min-h-24 rounded-[1rem] border-black/10 bg-white pl-11"
@@ -972,7 +972,7 @@ export default function BusinessSignUpFlow() {
                               </div>
                             </div>
                             <div>
-                              <Label htmlFor="operatingConstraints" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                              <Label htmlFor="operatingConstraints" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                                 Operating constraints
                               </Label>
                               <Textarea
@@ -984,7 +984,7 @@ export default function BusinessSignUpFlow() {
                               />
                             </div>
                             <div>
-                              <Label htmlFor="privacySecurityConstraints" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                              <Label htmlFor="privacySecurityConstraints" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                                 Privacy and security constraints
                               </Label>
                               <Textarea
@@ -996,7 +996,7 @@ export default function BusinessSignUpFlow() {
                               />
                             </div>
                             <div>
-                              <Label htmlFor="knownBlockers" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                              <Label htmlFor="knownBlockers" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                                 Known blockers
                               </Label>
                               <Textarea
@@ -1008,11 +1008,11 @@ export default function BusinessSignUpFlow() {
                               />
                             </div>
                             <div>
-                              <Label htmlFor="targetRobotTeam" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                              <Label htmlFor="targetRobotTeam" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                                 Target robot team or embodiment
                               </Label>
                               <div className="relative mt-2">
-                                <Users className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/28" />
+                                <Users className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/30" />
                                 <Input
                                   id="targetRobotTeam"
                                   className="h-12 rounded-[1rem] border-black/10 bg-white pl-11"
@@ -1023,7 +1023,7 @@ export default function BusinessSignUpFlow() {
                               </div>
                             </div>
                             <div>
-                              <Label htmlFor="budgetRange" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                              <Label htmlFor="budgetRange" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                                 Budget range
                               </Label>
                               <select
@@ -1041,7 +1041,7 @@ export default function BusinessSignUpFlow() {
                               </select>
                             </div>
                             <div className="md:col-span-2">
-                              <Label htmlFor="referralSource" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/46">
+                              <Label htmlFor="referralSource" className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45">
                                 How did you hear about Blueprint?
                               </Label>
                               <select
@@ -1060,7 +1060,7 @@ export default function BusinessSignUpFlow() {
                             </div>
                           </div>
 
-                          <div className="rounded-[1.35rem] border border-black/10 bg-[#faf6ef] p-5 text-sm text-black/62">
+                          <div className="rounded-[1.35rem] border border-black/10 bg-[#faf6ef] p-5 text-sm text-black/60">
                             <div className="flex items-center gap-2 font-semibold text-[#111110]">
                               <Shield className="h-4 w-4" />
                               What happens after signup
@@ -1087,7 +1087,7 @@ export default function BusinessSignUpFlow() {
                         variant="ghost"
                         onClick={handleBack}
                         disabled={step === 1 || isSubmitting}
-                        className="justify-start rounded-full px-0 text-black/54 hover:bg-transparent hover:text-[#111110]"
+                        className="justify-start rounded-full px-0 text-black/55 hover:bg-transparent hover:text-[#111110]"
                       >
                         <ChevronLeft className="mr-2 h-4 w-4" />
                         Back
@@ -1131,21 +1131,21 @@ export default function BusinessSignUpFlow() {
                 <div className="mt-6 space-y-5">
                   <div className="rounded-[1.35rem] border border-black/10 bg-white p-5">
                     <p className="text-sm font-semibold text-[#111110]">Robots perform in the real world.</p>
-                    <p className="mt-2 text-sm leading-7 text-black/58">
+                    <p className="mt-2 text-sm leading-7 text-black/60">
                       Site-specific scans reveal the nuance that drives access, route design, and
                       buyer trust.
                     </p>
                   </div>
                   <div className="rounded-[1.35rem] border border-black/10 bg-white p-5">
                     <p className="text-sm font-semibold text-[#111110]">Better data. Fewer unknowns.</p>
-                    <p className="mt-2 text-sm leading-7 text-black/58">
+                    <p className="mt-2 text-sm leading-7 text-black/60">
                       Exact-site packages reduce rework and de-risk evaluations before travel or
                       deployment.
                     </p>
                   </div>
                   <div className="rounded-[1.35rem] border border-black/10 bg-white p-5">
                     <p className="text-sm font-semibold text-[#111110]">Private by default.</p>
-                    <p className="mt-2 text-sm leading-7 text-black/58">
+                    <p className="mt-2 text-sm leading-7 text-black/60">
                       Every access request is reviewed to maintain truthful product routing,
                       entitlement boundaries, and buyer-side privacy expectations.
                     </p>
@@ -1157,7 +1157,7 @@ export default function BusinessSignUpFlow() {
                   <p className="mt-4 text-2xl font-semibold tracking-[-0.05em]">
                     {step === 1 ? "Organization" : step === 2 ? "Team" : "Site & workflow"}
                   </p>
-                  <p className="mt-3 text-sm leading-7 text-white/72">
+                  <p className="mt-3 text-sm leading-7 text-white/70">
                     {step === 1
                       ? "Open the request with company and account details."
                       : step === 2

@@ -198,7 +198,7 @@ export default function ExactSiteHostedReview() {
                   })}
                 </div>
                 <div className="border border-black/10 bg-slate-950 p-5 text-white">
-                  <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-white/44">
+                  <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-white/45">
                     <MapPinned className="h-4 w-4" />
                     Public-capture story set
                   </div>
@@ -206,7 +206,7 @@ export default function ExactSiteHostedReview() {
                     {publicCaptureProofStories.map((story) => (
                       <div key={story.id} className="border border-white/10 bg-white/5 p-4">
                         <p className="text-sm font-semibold text-white">{story.locationName}</p>
-                        <p className="mt-2 text-xs leading-5 text-white/62">
+                        <p className="mt-2 text-xs leading-5 text-white/60">
                           {story.locationType} / {story.captureAppCue}
                         </p>
                       </div>
@@ -261,11 +261,11 @@ export default function ExactSiteHostedReview() {
               </div>
             </div>
             <div className="border border-black/10 bg-slate-950 p-6 text-white lg:p-8">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Export evidence</p>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Export evidence</p>
               <h2 className="font-editorial mt-4 text-[2.4rem] leading-[0.94] tracking-[-0.05em]">
                 What leaves the session.
               </h2>
-              <div className="mt-5 space-y-2 font-mono text-[12px] leading-6 text-white/68">
+              <div className="mt-5 space-y-2 font-mono text-[12px] leading-6 text-white/70">
                 {sampleExportTree.slice(0, 6).map((item) => (
                   <div key={item} className="border border-white/10 bg-white/5 px-3 py-2">
                     {item}

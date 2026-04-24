@@ -5,6 +5,7 @@
 
 ## Warehouse / Facility Direct Awareness
 - target 1: Midwest Robotics — use a proof-led intro anchored to one workflow lane and one truthful CTA.
+- target 2: Lakeshore AMR — use a proof-led intro anchored to one workflow lane and one truthful CTA.
 - target site anchors currently available: Chicago Survey Ops.
 
 ## Public-Commercial Bounded Placements

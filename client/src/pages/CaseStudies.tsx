@@ -64,7 +64,7 @@ export default function CaseStudies() {
                   <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] sm:text-[5rem]">
                     Complete stories, clearly marked as composite.
                   </h1>
-                  <p className="mt-6 text-base leading-8 text-white/76">
+                  <p className="mt-6 text-base leading-8 text-white/75">
                     Launch-ready placeholder studies for grocery, retail, lobby, and common-area routes. Replace the names later; the proof structure is ready now.
                   </p>
                 </div>
@@ -137,11 +137,11 @@ export default function CaseStudies() {
         <section className="border-y border-black/10 bg-white">
           <div className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 sm:px-8 lg:grid-cols-[0.34fr_0.66fr] lg:px-10 lg:py-12">
             <div className="bg-slate-950 p-6 text-white lg:p-8">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Composite outcome board</p>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Composite outcome board</p>
               <h2 className="font-editorial mt-4 text-[2.7rem] leading-[0.94] tracking-[-0.05em]">
                 The story looks real because the workflow is concrete.
               </h2>
-              <p className="mt-5 text-sm leading-7 text-white/72">
+              <p className="mt-5 text-sm leading-7 text-white/70">
                 These are not customer testimonials. They are finished placeholder stories that show how Blueprint should present approved real case studies when available.
               </p>
             </div>

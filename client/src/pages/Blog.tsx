@@ -103,7 +103,7 @@ export default function Blog() {
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
                     {item.index}
                   </p>
-                  <div className="mt-3 h-px w-10 bg-slate-950/14" />
+                  <div className="mt-3 h-px w-10 bg-slate-950/15" />
                   <h2 className="mt-5 text-[2rem] leading-[0.95] tracking-[-0.05em] text-slate-950">
                     {item.title}
                   </h2>
@@ -121,14 +121,14 @@ export default function Blog() {
         <section className="mx-auto max-w-[96rem] px-5 py-5 sm:px-8 lg:px-10">
           <div className="grid overflow-hidden border border-black/10 bg-slate-950 lg:grid-cols-[0.36fr_0.64fr]">
             <div className="px-6 py-8 text-white lg:px-8 lg:py-10">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Feature</p>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Feature</p>
               <h2 className="font-editorial mt-5 max-w-[18rem] text-[2.9rem] leading-[0.94] tracking-[-0.05em]">
                 A packaged digital twin, ready for site review.
               </h2>
-              <p className="mt-5 max-w-[18rem] text-sm leading-7 text-white/72">
+              <p className="mt-5 max-w-[18rem] text-sm leading-7 text-white/70">
                 How Blueprint brings survey, context, and behavior together in one deliverable.
               </p>
-              <div className="mt-6 inline-flex items-center text-sm font-semibold text-white/86">
+              <div className="mt-6 inline-flex items-center text-sm font-semibold text-white/85">
                 Read feature
                 <ArrowRight className="ml-2 h-4 w-4" />
               </div>

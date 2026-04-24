@@ -86,7 +86,7 @@ export default function Terms() {
                   <br />
                   Service
                 </h1>
-                <p className="mt-5 max-w-[20rem] text-sm uppercase tracking-[0.2em] text-black/52">
+                <p className="mt-5 max-w-[20rem] text-sm uppercase tracking-[0.2em] text-black/50">
                   Agreement to use Blueprint services and site products.
                 </p>
                 <div className="mt-8 overflow-hidden rounded-[1.8rem] border border-black/10 bg-white">
@@ -110,12 +110,12 @@ export default function Terms() {
                       <SurfaceCard key={section.title} className="h-full">
                         <div className="flex items-center gap-3">
                           <div className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-[#faf6ef]">
-                            <Icon className="h-4.5 w-4.5 text-black/64" />
+                            <Icon className="h-4.5 w-4.5 text-black/65" />
                           </div>
                           <SurfaceMiniLabel>{section.title}</SurfaceMiniLabel>
                         </div>
                         <p className="mt-4 text-[1.5rem] font-semibold tracking-[-0.05em]">{section.title}</p>
-                        <p className="mt-4 text-sm leading-7 text-black/62">{section.body}</p>
+                        <p className="mt-4 text-sm leading-7 text-black/60">{section.body}</p>
                       </SurfaceCard>
                     );
                   })}
@@ -124,7 +124,7 @@ export default function Terms() {
                 <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
                   <SurfaceCard className="bg-[#faf7f1]">
                     <SurfaceMiniLabel>Disclaimer</SurfaceMiniLabel>
-                    <p className="mt-4 text-sm leading-7 text-black/62">
+                    <p className="mt-4 text-sm leading-7 text-black/60">
                       Blueprint does not promise that a site package or hosted session is a
                       deployment guarantee. The product helps teams inspect a real site earlier and
                       make better decisions before travel or deployment work.
@@ -133,10 +133,10 @@ export default function Terms() {
 
                   <SurfaceCard>
                     <div className="flex items-center gap-3">
-                      <Landmark className="h-4.5 w-4.5 text-black/62" />
+                      <Landmark className="h-4.5 w-4.5 text-black/60" />
                       <SurfaceMiniLabel>Governing law and contact</SurfaceMiniLabel>
                     </div>
-                    <p className="mt-4 text-sm leading-7 text-black/62">
+                    <p className="mt-4 text-sm leading-7 text-black/60">
                       These terms are governed by the laws of the State of North Carolina, without
                       regard to conflict-of-law rules. Questions can be sent to Blueprint Legal.
                     </p>
@@ -151,7 +151,7 @@ export default function Terms() {
                   {roleTerms.map((role) => (
                     <SurfaceCard key={role.title} className={role.title === "Operator schedule" ? "bg-[#faf7f1]" : undefined}>
                       <SurfaceMiniLabel>{role.title}</SurfaceMiniLabel>
-                      <ul className="mt-4 space-y-3 text-sm leading-7 text-black/62">
+                      <ul className="mt-4 space-y-3 text-sm leading-7 text-black/60">
                         {role.items.map((item) => (
                           <li key={item}>{item}</li>
                         ))}

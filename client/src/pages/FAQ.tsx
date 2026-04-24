@@ -76,7 +76,7 @@ export default function FAQ() {
                 <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5rem]">
                   The questions that usually decide fit.
                 </h1>
-                <p className="mt-6 text-base leading-8 text-white/72">
+                <p className="mt-6 text-base leading-8 text-white/70">
                   The fastest way to evaluate Blueprint is to answer the few questions that actually change the next step.
                 </p>
                 </div>

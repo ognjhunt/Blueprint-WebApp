@@ -179,7 +179,7 @@ export default function Contact() {
             <div className="absolute inset-0">
               <div className="mx-auto h-full max-w-[88rem] px-5 py-12 sm:px-8 lg:px-10 lg:py-16">
                 <div className="flex h-full max-w-[36rem] flex-col justify-end">
-                <div className="inline-flex items-center gap-2 border border-black/10 bg-white/82 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
+                <div className="inline-flex items-center gap-2 border border-black/10 bg-white/80 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
                   <MessageSquare className="h-3.5 w-3.5" />
                   {badgeLabel}
                 </div>
@@ -239,8 +239,8 @@ export default function Contact() {
 
               <div className="bg-slate-950 p-6 text-white">
                 <EditorialSectionLabel light>What happens after you send this</EditorialSectionLabel>
-                <p className="mt-4 text-sm leading-7 text-white/72">{responseBody}</p>
-                <div className="mt-6 border-t border-white/10 pt-4 text-sm leading-7 text-white/68">
+                <p className="mt-4 text-sm leading-7 text-white/70">{responseBody}</p>
+                <div className="mt-6 border-t border-white/10 pt-4 text-sm leading-7 text-white/70">
                   Rights, privacy, and proof boundaries stay explicit instead of being deferred into vague sales language.
                 </div>
               </div>

@@ -68,7 +68,7 @@ export default function BookExactSiteReview() {
                 <h2 className="font-editorial text-[2rem] leading-[0.95] tracking-[-0.04em]">
                   {card.title}
                 </h2>
-                <p className={`mt-4 text-sm leading-7 ${index === 1 ? "text-white/72" : "text-slate-600"}`}>
+                <p className={`mt-4 text-sm leading-7 ${index === 1 ? "text-white/70" : "text-slate-600"}`}>
                   {card.body}
                 </p>
               </div>
@@ -91,11 +91,11 @@ export default function BookExactSiteReview() {
               </div>
             </div>
             <div className="bg-slate-950 px-6 py-8 text-white lg:px-8 lg:py-10">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Scheduling</p>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Scheduling</p>
               <h2 className="font-editorial mt-4 text-[2.6rem] leading-[0.94] tracking-[-0.04em]">
                 A narrow scoping pass on one real site.
               </h2>
-              <p className="mt-4 text-sm leading-7 text-white/72">
+              <p className="mt-4 text-sm leading-7 text-white/70">
                 Open the scheduler when the site and first review question are already clear. Use contact instead when rights, privacy, or scope still need sorting first.
               </p>
               <a

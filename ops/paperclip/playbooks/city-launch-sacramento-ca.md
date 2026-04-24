@@ -15,10 +15,7 @@ Run one proof-led warehouse wedge.
 - evidence-backed: the generic city-launch activation harness generated the Sacramento system doc, execution issue bundle, target ledger, and compact city playbooks in one run.
 - evidence-backed: the launch harness now tracks planning state explicitly so activation can distinguish "not started" from "research still running".
 - evidence-backed: the compact launch packet uses the standard platform analytics event model rather than inventing city-specific telemetry.
-- evidence-backed: the target ledger mode for this city is `deep_research_records`. Research-backed named targets already available include Northgate Logistics.
-- warning: Activation-ready buyer direct-outreach lanes for Sacramento, CA have named targets but no explicit contact_email evidence.
-- warning: Activation-ready capturer direct-outreach lanes for Sacramento, CA have named targets but no explicit contact_email evidence.
-- warning: Activation-ready direct outreach requires 1-3 recipient-backed first-wave contacts with explicit contact_email evidence.
+- evidence-backed: the target ledger mode for this city is `deep_research_records`. Research-backed named targets already available include Sacramento Capture Ops.
 
 ## Why This City Now
 - the city remains a planning candidate only if it can produce rights-cleared exact-site proof assets for real robotics workflows

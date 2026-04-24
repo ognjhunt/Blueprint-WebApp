@@ -64,7 +64,7 @@ export default function ForRobotIntegrators() {
                 <h1 className="font-editorial mt-6 max-w-[34rem] text-[3.7rem] leading-[0.9] tracking-[-0.06em] text-white sm:text-[5rem]">
                   Test the exact site before deployment.
                 </h1>
-                <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/72">
+                <p className="mt-6 max-w-[30rem] text-base leading-8 text-white/70">
                   Blueprint turns one real facility into a site-specific world model, data package, and hosted review path so the team can answer real deployment questions earlier.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-2">
@@ -82,7 +82,7 @@ export default function ForRobotIntegrators() {
                   </a>
                   <a
                     href="/exact-site-hosted-review"
-                    className="inline-flex items-center justify-center border border-white/16 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/8"
+                    className="inline-flex items-center justify-center border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
                   >
                     Request hosted evaluation
                   </a>
@@ -90,12 +90,12 @@ export default function ForRobotIntegrators() {
               </div>
 
                 <div className="hidden items-end justify-end lg:flex">
-                  <div className="w-full max-w-[18rem] border border-white/14 bg-black/36 p-5 text-white backdrop-blur-sm">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-white/44">
+                  <div className="w-full max-w-[18rem] border border-white/15 bg-black/35 p-5 text-white backdrop-blur-sm">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-white/45">
                     Exact-site review
                   </p>
                   <p className="mt-4 text-lg font-semibold">One real facility. One real question.</p>
-                  <p className="mt-3 text-sm leading-6 text-white/62">
+                  <p className="mt-3 text-sm leading-6 text-white/60">
                     The product is not generic environment access. The product is earlier certainty on one exact site.
                   </p>
                   </div>
@@ -145,7 +145,7 @@ export default function ForRobotIntegrators() {
 	                description="This path makes the deliverable and the truthful limits visible before the team moves deeper."
 	                light
 	              />
-              <p className="mt-8 text-sm leading-7 text-white/68">
+              <p className="mt-8 text-sm leading-7 text-white/70">
                 This path works well for policy fine-tuning, training data generation, release comparison, and hosted evaluation. It does not replace final on-site safety validation or stack-specific signoff.
               </p>
             </div>

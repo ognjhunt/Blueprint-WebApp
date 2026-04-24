@@ -75,23 +75,23 @@ function PackagePanel() {
           </p>
           <h3 className="mt-5 text-2xl font-semibold text-slate-950">Plant 7</h3>
           <div className="mt-6 grid gap-y-3 text-sm text-slate-700">
-            <div className="flex justify-between border-b border-black/6 pb-3">
+            <div className="flex justify-between border-b border-black/5 pb-3">
               <span>Capture date</span>
               <span>04 / 18 / 2025</span>
             </div>
-            <div className="flex justify-between border-b border-black/6 pb-3">
+            <div className="flex justify-between border-b border-black/5 pb-3">
               <span>Package ID</span>
               <span>BP7-250418-01</span>
             </div>
-            <div className="flex justify-between border-b border-black/6 pb-3">
+            <div className="flex justify-between border-b border-black/5 pb-3">
               <span>Images</span>
               <span>12,842</span>
             </div>
-            <div className="flex justify-between border-b border-black/6 pb-3">
+            <div className="flex justify-between border-b border-black/5 pb-3">
               <span>LiDAR scans</span>
               <span>278</span>
             </div>
-            <div className="flex justify-between border-b border-black/6 pb-3">
+            <div className="flex justify-between border-b border-black/5 pb-3">
               <span>Annotations</span>
               <span>236</span>
             </div>
@@ -103,9 +103,9 @@ function PackagePanel() {
         </div>
         <div className="space-y-4">
           <div className="rounded-[1.8rem] border border-black/10 bg-slate-950 p-6 text-white shadow-[0_24px_44px_-34px_rgba(15,23,42,0.5)]">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-white/44">Package</p>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-white/45">Package</p>
             <p className="mt-4 text-2xl font-semibold">Blueprint package</p>
-            <p className="mt-5 text-sm leading-7 text-white/68">
+            <p className="mt-5 text-sm leading-7 text-white/70">
               Versioned geometry, routes, metadata, rights, and exports tied to one exact site.
             </p>
           </div>
@@ -146,9 +146,9 @@ function DeliverPanel() {
         </div>
         <div className="space-y-4">
           <div className="rounded-[1.7rem] border border-black/10 bg-slate-950 p-6 text-white shadow-[0_24px_42px_-32px_rgba(15,23,42,0.52)]">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-white/42">World model card</p>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-white/40">World model card</p>
             <p className="mt-5 text-[1.75rem] font-semibold leading-tight">Plant 7 world model</p>
-            <p className="mt-3 text-sm text-white/56">BP7-250418-01 · v1.0.0</p>
+            <p className="mt-3 text-sm text-white/55">BP7-250418-01 · v1.0.0</p>
           </div>
           <div className="rounded-[1.3rem] border border-black/10 bg-white px-5 py-4 shadow-[0_16px_28px_-24px_rgba(15,23,42,0.18)]">
             <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Export bundle</p>
@@ -246,12 +246,12 @@ export default function HowItWorks() {
                 overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.14),rgba(0,0,0,0.42))]"
               >
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.14),transparent_52%)]" />
-                <div className="absolute inset-y-0 left-[8%] w-px bg-white/26" />
-                <div className="absolute inset-y-0 left-[18%] w-px bg-white/18" />
-                <div className="absolute inset-y-0 right-[18%] w-px bg-white/18" />
+                <div className="absolute inset-y-0 left-[8%] w-px bg-white/25" />
+                <div className="absolute inset-y-0 left-[18%] w-px bg-white/20" />
+                <div className="absolute inset-y-0 right-[18%] w-px bg-white/20" />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_26%_40%,rgba(255,255,255,0.18)_0_2px,transparent_2px_100%)] bg-[size:14px_14px] opacity-40" />
-                <div className="absolute bottom-6 right-6 w-[10rem] rounded-[1.1rem] border border-white/16 bg-black/40 p-3 text-white">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/48">Scan path</p>
+                <div className="absolute bottom-6 right-6 w-[10rem] rounded-[1.1rem] border border-white/15 bg-black/40 p-3 text-white">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/50">Scan path</p>
                   <div className="mt-3 rounded-[0.9rem] border border-white/10 bg-black/50 p-2">
                     <svg viewBox="0 0 140 110" className="h-20 w-full">
                       <path d="M10 90C26 90 22 26 50 26C76 26 78 82 114 82C124 82 130 56 132 56" fill="none" stroke="rgba(255,255,255,0.82)" strokeWidth="4" strokeLinecap="round" />
@@ -281,9 +281,9 @@ export default function HowItWorks() {
               >
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.16)_0_1px,transparent_1px_100%)] bg-[size:12px_12px] opacity-40" />
                 <RouteTraceOverlay className="opacity-90" />
-                <div className="absolute bottom-6 right-6 w-[13rem] rounded-[1.2rem] border border-white/12 bg-black/42 p-4 text-white shadow-[0_18px_36px_-24px_rgba(0,0,0,0.5)]">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/46">World model preview</p>
-                  <p className="mt-4 text-sm leading-6 text-white/72">
+                <div className="absolute bottom-6 right-6 w-[13rem] rounded-[1.2rem] border border-white/10 bg-black/40 p-4 text-white shadow-[0_18px_36px_-24px_rgba(0,0,0,0.5)]">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">World model preview</p>
+                  <p className="mt-4 text-sm leading-6 text-white/70">
                     Route overlays, robot pose, and site geometry remain tied to the same package truth.
                   </p>
                 </div>
@@ -312,7 +312,7 @@ export default function HowItWorks() {
               <h2 className="font-editorial mt-5 text-[3rem] leading-[0.95] tracking-[-0.05em]">
                 See the exact site before you start the sales motion.
               </h2>
-              <p className="mt-4 max-w-[28rem] text-sm leading-7 text-white/72">
+              <p className="mt-4 max-w-[28rem] text-sm leading-7 text-white/70">
                 The public sample listing shows how capture, package framing, and hosted review stay attached to one facility.
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
@@ -325,7 +325,7 @@ export default function HowItWorks() {
                 </a>
                 <a
                   href="/sample-deliverables"
-                  className="inline-flex items-center justify-center rounded-full border border-white/16 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/6"
+                  className="inline-flex items-center justify-center rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
                 >
                   View sample deliverables
                 </a>

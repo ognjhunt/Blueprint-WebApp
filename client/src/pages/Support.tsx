@@ -107,17 +107,17 @@ export default function Support() {
                     overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.04),rgba(0,0,0,0.72))]"
                   />
                   <div className="absolute inset-0 flex flex-col justify-between p-5 text-white">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/16 bg-black/24 text-white/74">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/25 text-white/75">
                       <Icon className="h-5 w-5" />
                     </div>
                     <div>
                       <h2 className="font-editorial text-[2.5rem] leading-[0.95] tracking-[-0.05em]">
                         {path.title}
                       </h2>
-                      <p className="mt-4 max-w-[19rem] text-sm leading-7 text-white/72">
+                      <p className="mt-4 max-w-[19rem] text-sm leading-7 text-white/70">
                         {path.body}
                       </p>
-                      <div className="mt-5 inline-flex items-center text-sm font-semibold text-white/86">
+                      <div className="mt-5 inline-flex items-center text-sm font-semibold text-white/85">
                         Open path
                         <ArrowRight className="ml-2 h-4 w-4 transition group-hover:translate-x-0.5" />
                       </div>
@@ -182,20 +182,20 @@ export default function Support() {
             </div>
 
             <div className="bg-slate-950 p-6 text-white lg:p-8">
-              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/16 bg-white/6 text-white/74">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/75">
                 <Smartphone className="h-5 w-5" />
               </div>
-              <p className="mt-6 text-[11px] uppercase tracking-[0.18em] text-white/44">
+              <p className="mt-6 text-[11px] uppercase tracking-[0.18em] text-white/45">
                 For capture teams
               </p>
               <h2 className="font-editorial mt-4 text-[2.4rem] leading-[0.94] tracking-[-0.05em]">
                 Handoff to Blueprint Capture.
               </h2>
-	                  <p className="mt-4 text-sm leading-7 text-white/72">
+	                  <p className="mt-4 text-sm leading-7 text-white/70">
 	                The capture app is not the primary buyer route. It is the public handoff
 	                for capturers who want to record everyday public-facing locations, follow privacy rules, and submit captures for review.
 	              </p>
-              <div className="mt-8 grid gap-2 text-sm text-white/74">
+              <div className="mt-8 grid gap-2 text-sm text-white/75">
                 {["Capture", "Package", "Upload", "Blueprint review"].map((item) => (
                   <div key={item} className="flex items-center justify-between border border-white/10 px-4 py-3">
                     <span>{item}</span>

@@ -183,8 +183,8 @@ export default function Governance() {
                 </div>
               </div>
               <div className="bg-slate-950 p-6 text-white">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Not claimed</p>
-                <div className="mt-5 space-y-3 text-sm leading-7 text-white/72">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Not claimed</p>
+                <div className="mt-5 space-y-3 text-sm leading-7 text-white/70">
                   {notClaimed.map((item) => (
                     <div key={item}>{item}</div>
                   ))}
@@ -197,11 +197,11 @@ export default function Governance() {
         <section className="border-y border-black/10 bg-white">
           <div className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 sm:px-8 lg:grid-cols-[0.42fr_0.58fr] lg:px-10 lg:py-12">
             <div className="bg-slate-950 p-6 text-white lg:p-8">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Operational control matrix</p>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Operational control matrix</p>
               <h2 className="font-editorial mt-4 text-[2.7rem] leading-[0.94] tracking-[-0.05em]">
                 Operator control is a product surface.
               </h2>
-              <p className="mt-5 text-sm leading-7 text-white/72">
+              <p className="mt-5 text-sm leading-7 text-white/70">
                 A serious site owner needs more than a generic contact form. The public site now explains which fields Blueprint expects before a facility is listed, captured, or commercialized.
               </p>
             </div>

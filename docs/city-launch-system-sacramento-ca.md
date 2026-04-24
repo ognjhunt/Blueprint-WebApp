@@ -11,13 +11,13 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 
 ## Machine-Readable Budget Policy
 
-- budget_tier: low_budget
-- total_envelope_usd: 2500
-- operator_auto_approve_usd: 500
-- allow_paid_acquisition: true
+- budget_tier: zero_budget
+- total_envelope_usd: 0
+- operator_auto_approve_usd: 0
+- allow_paid_acquisition: false
 - allow_referral_rewards: false
-- allow_travel_reimbursement: true
-- founder_approval_required_above_usd: 2500
+- allow_travel_reimbursement: false
+- founder_approval_required_above_usd: 0
 
 ## What The Org Will Do
 
@@ -38,7 +38,7 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 ## Founder-Only Decisions
 
 - Sacramento city expansion stays gated by proof and hosted-review milestones, not approval packets.
-- Any spend request beyond the written Sacramento low budget policy is out of policy until the repo policy changes.
+- Any spend request beyond the written Sacramento zero budget policy is out of policy until the repo policy changes.
 - Any public statement that changes company posture or overstates Sacramento readiness is auto-blocked until supported in repo truth.
 - Any rights/privacy exception or non-standard commercial commitment is blocked until the written policy and evidence path are updated.
 
@@ -63,7 +63,7 @@ Turn the Sacramento planning artifacts into an executable company harness that r
 
 - Autonomously activate Sacramento, CA as an active city-launch program and keep execution bounded to the selected city.
 - Run the Sacramento launch posture autonomously: gated cohort pilot, Exact-Site Hosted Review wedge, and truthful public claims only.
-- Autonomous spend posture for Sacramento: Low Budget with a total envelope up to $2,500.
+- Autonomous spend posture for Sacramento: Zero Budget with no paid acquisition, referral, or discretionary travel spend.
 - Automatically block any Sacramento source-policy change that exceeds the current bounded channel stack until the written policy is updated in repo truth.
 - Automatically block any rights/privacy/commercialization exception that lacks repo-backed policy and evidence.
 - Automatically block any non-standard commercial term outside the standard Sacramento quote bands until the quote policy is updated in repo truth.

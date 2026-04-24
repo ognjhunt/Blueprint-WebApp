@@ -140,7 +140,7 @@ export function Header() {
 
       {open ? (
         <div className="border-t border-white/10 bg-black xl:hidden">
-          <nav className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-5 text-sm font-medium text-white/72">
+          <nav className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-5 text-sm font-medium text-white/70">
             <div className="space-y-2">
               <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
                 Explore

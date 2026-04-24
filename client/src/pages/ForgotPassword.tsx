@@ -65,9 +65,9 @@ export default function ForgotPassword() {
                     {!isSubmitted ? (
                       <form onSubmit={handleSubmit} className="mt-6 space-y-4">
                         <label className="block space-y-2">
-                          <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-black/46">Email</span>
+                          <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-black/45">Email</span>
                           <div className="relative">
-                            <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/34" />
+                            <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-black/35" />
                             <input
                               id="email"
                               name="email"
@@ -77,7 +77,7 @@ export default function ForgotPassword() {
                               placeholder="you@company.com"
                               required
                               disabled={isLoading}
-                              className="h-12 w-full rounded-[1rem] border border-black/10 bg-white pl-11 pr-4 text-[15px] text-[#111110] outline-none transition placeholder:text-black/34 focus:border-black/28"
+                              className="h-12 w-full rounded-[1rem] border border-black/10 bg-white pl-11 pr-4 text-[15px] text-[#111110] outline-none transition placeholder:text-black/35 focus:border-black/30"
                             />
                           </div>
                         </label>
@@ -96,7 +96,7 @@ export default function ForgotPassword() {
                           )}
                         </SurfaceButton>
 
-                        <a href="/sign-in" className="inline-flex items-center gap-2 text-sm text-black/54 transition hover:text-black">
+                        <a href="/sign-in" className="inline-flex items-center gap-2 text-sm text-black/55 transition hover:text-black">
                           <ArrowLeft className="h-4 w-4" />
                           Back to sign in
                         </a>
@@ -118,17 +118,17 @@ export default function ForgotPassword() {
                   </div>
 
                   <div className="hidden justify-center lg:flex">
-                    <ArrowRight className="h-5 w-5 text-black/32" />
+                    <ArrowRight className="h-5 w-5 text-black/30" />
                   </div>
 
                   <div className="rounded-[1.6rem] border border-black/10 bg-white p-6">
                     <div className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-full border border-black/10 bg-[#faf6ee]">
-                      <CheckCircle className="h-7 w-7 text-black/72" />
+                      <CheckCircle className="h-7 w-7 text-black/70" />
                     </div>
                     <p className="mt-6 text-[2rem] font-semibold tracking-[-0.06em]">
                       {isSubmitted ? "Check your email" : "Private reset flow"}
                     </p>
-                    <p className="mt-3 text-sm leading-7 text-black/58">
+                    <p className="mt-3 text-sm leading-7 text-black/60">
                       {isSubmitted
                         ? "If an account exists, the next step is now in your inbox."
                         : "We use the same response for all requests so account state is never exposed on this screen."}
