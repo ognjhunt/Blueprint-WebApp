@@ -41,6 +41,7 @@ RUNTIME_LOG="$LOG_DIR/paperclip-runtime.log"
 IMPORT_LOG="$LOG_DIR/paperclip-import.log"
 PID_FILE="$PAPERCLIP_HOME/paperclip.pid"
 PACKAGE_STAMP="$INSTANCE_ROOT/blueprint-company-package.sha256"
+IMPORT_PACKAGE_DIR="$INSTANCE_ROOT/blueprint-company-import"
 PAPERCLIP_RUNNER=""
 LOCK_DIR="$PAPERCLIP_HOME/locks"
 BOOTSTRAP_LOCK_DIR="$LOCK_DIR/bootstrap.lock"
@@ -315,10 +316,136 @@ package_fingerprint() {
   )
 }
 
+prepare_import_package() {
+  mkdir -p "$INSTANCE_ROOT"
+  node - <<'NODE' "$PACKAGE_DIR" "$IMPORT_PACKAGE_DIR" "$COMPANY_NAME"
+const fs = require("node:fs");
+const path = require("node:path");
+const yaml = require("yaml");
+
+const sourceDir = process.argv[2];
+const outDir = process.argv[3];
+const fallbackCompanyName = process.argv[4];
+
+function readFrontmatter(filePath) {
+  const raw = fs.readFileSync(filePath, "utf8");
+  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!match) return {};
+  const parsed = yaml.parse(match[1]);
+  return parsed && typeof parsed === "object" ? parsed : {};
+}
+
+function titleizeSlug(slug) {
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function copyPortableFile(relativePath) {
+  const sourcePath = path.join(sourceDir, relativePath);
+  const outPath = path.join(outDir, relativePath);
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  fs.copyFileSync(sourcePath, outPath);
+}
+
+const configPath = path.join(sourceDir, ".paperclip.yaml");
+const companyPath = path.join(sourceDir, "COMPANY.md");
+if (!fs.existsSync(configPath)) throw new Error(`Missing ${configPath}`);
+if (!fs.existsSync(companyPath)) throw new Error(`Missing ${companyPath}`);
+
+const config = yaml.parse(fs.readFileSync(configPath, "utf8")) ?? {};
+const companyFrontmatter = readFrontmatter(companyPath);
+const yamlAgents = config.agents && typeof config.agents === "object" ? config.agents : {};
+const companyConfig = config.company && typeof config.company === "object" ? config.company : {};
+
+fs.rmSync(outDir, { recursive: true, force: true });
+fs.mkdirSync(outDir, { recursive: true });
+copyPortableFile("COMPANY.md");
+
+const agents = [];
+for (const slug of Object.keys(yamlAgents).sort()) {
+  const agentConfig = yamlAgents[slug] && typeof yamlAgents[slug] === "object" ? yamlAgents[slug] : {};
+  const agentPath = `agents/${slug}/AGENTS.md`;
+  const absoluteAgentPath = path.join(sourceDir, agentPath);
+  if (!fs.existsSync(absoluteAgentPath)) continue;
+  copyPortableFile(agentPath);
+  const agentFrontmatter = readFrontmatter(absoluteAgentPath);
+  const adapter = agentConfig.adapter && typeof agentConfig.adapter === "object" ? agentConfig.adapter : {};
+  const adapterConfig = adapter.config && typeof adapter.config === "object" ? adapter.config : {};
+  const permissions = agentConfig.permissions && typeof agentConfig.permissions === "object" ? agentConfig.permissions : {};
+  const runtimeConfig =
+    agentConfig.runtimeConfig && typeof agentConfig.runtimeConfig === "object"
+      ? agentConfig.runtimeConfig
+      : agentConfig.runtime && typeof agentConfig.runtime === "object"
+        ? agentConfig.runtime
+        : {};
+  const metadata = agentConfig.metadata && typeof agentConfig.metadata === "object" ? agentConfig.metadata : null;
+  const reportsToSlug =
+    typeof agentFrontmatter.reportsTo === "string" && agentFrontmatter.reportsTo.trim()
+      ? agentFrontmatter.reportsTo.trim()
+      : typeof agentConfig.reportsTo === "string" && agentConfig.reportsTo.trim()
+        ? agentConfig.reportsTo.trim()
+        : null;
+
+  agents.push({
+    slug,
+    name: typeof agentFrontmatter.name === "string" && agentFrontmatter.name.trim()
+      ? agentFrontmatter.name.trim()
+      : titleizeSlug(slug),
+    path: agentPath,
+    role: typeof agentConfig.role === "string" && agentConfig.role.trim() ? agentConfig.role.trim() : "agent",
+    title: typeof agentFrontmatter.title === "string" && agentFrontmatter.title.trim()
+      ? agentFrontmatter.title.trim()
+      : null,
+    icon: typeof agentConfig.icon === "string" && agentConfig.icon.trim() ? agentConfig.icon.trim() : null,
+    capabilities: typeof agentConfig.capabilities === "string" && agentConfig.capabilities.trim()
+      ? agentConfig.capabilities.trim()
+      : null,
+    reportsToSlug,
+    adapterType: typeof adapter.type === "string" && adapter.type.trim() ? adapter.type.trim() : "hermes_local",
+    adapterConfig,
+    runtimeConfig,
+    permissions,
+    budgetMonthlyCents: Number.isInteger(agentConfig.budgetMonthlyCents) ? agentConfig.budgetMonthlyCents : 0,
+    metadata,
+  });
+}
+
+const manifest = {
+  schemaVersion: 1,
+  generatedAt: new Date().toISOString(),
+  source: null,
+  includes: { company: true, agents: true },
+  company: {
+    path: "COMPANY.md",
+    name: typeof companyFrontmatter.name === "string" && companyFrontmatter.name.trim()
+      ? companyFrontmatter.name.trim()
+      : fallbackCompanyName,
+    description: typeof companyFrontmatter.description === "string" && companyFrontmatter.description.trim()
+      ? companyFrontmatter.description.trim()
+      : null,
+    brandColor: typeof companyConfig.brandColor === "string" && companyConfig.brandColor.trim()
+      ? companyConfig.brandColor.trim()
+      : null,
+    requireBoardApprovalForNewAgents: companyConfig.requireBoardApprovalForNewAgents === true,
+  },
+  agents,
+  requiredSecrets: [],
+};
+
+fs.writeFileSync(path.join(outDir, "paperclip.manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+NODE
+  printf '%s\n' "$IMPORT_PACKAGE_DIR"
+}
+
 import_company() {
   local company_id
   local fingerprint
+  local import_package_dir
   fingerprint="$(package_fingerprint)"
+  import_package_dir="$(prepare_import_package)"
   company_id="$(find_company_id)"
   if [ -n "$company_id" ]; then
     if [ "$(company_has_required_refresh_marker "$company_id")" = "yes" ] \
@@ -328,7 +455,7 @@ import_company() {
       return
     fi
     paperclip_cli company import \
-      --from "$PACKAGE_DIR" \
+      --from "$import_package_dir" \
       --data-dir "$PAPERCLIP_HOME" \
       --target existing \
       --company-id "$company_id" \
@@ -339,7 +466,7 @@ import_company() {
     return
   fi
   paperclip_cli company import \
-    --from "$PACKAGE_DIR" \
+    --from "$import_package_dir" \
     --data-dir "$PAPERCLIP_HOME" \
     --target new \
     --new-company-name "$COMPANY_NAME" \
