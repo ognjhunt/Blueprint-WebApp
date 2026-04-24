@@ -118,7 +118,7 @@ describe("sweep agent run failures", () => {
         companyId: "company-1",
         status: "timed_out",
       },
-      logText: "Hermes timed out while running arcee-ai/trinity-large-preview:free via openrouter.",
+      logText: "Hermes timed out while running nvidia/nemotron-3-super-120b-a12b:free via openrouter.",
     });
 
     const processLossSignature = classifyFailureSignature({
@@ -163,7 +163,7 @@ describe("sweep agent run failures", () => {
       status: "succeeded",
     };
     const logText = `
-      [hermes] Starting Hermes Agent (1/11, model=arcee-ai/trinity-large-preview:free, provider=openrouter [adapterConfig], timeout=1800s)
+      [hermes] Starting Hermes Agent (1/11, model=nvidia/nemotron-3-super-120b-a12b:free, provider=openrouter [adapterConfig], timeout=1800s)
       Max retries (3) exhausted - trying fallback...
       Final error: HTTP 429: Rate limit exceeded: free-models-per-min.
       API call failed after 3 retries: HTTP 429: Rate limit exceeded: free-models-per-min.

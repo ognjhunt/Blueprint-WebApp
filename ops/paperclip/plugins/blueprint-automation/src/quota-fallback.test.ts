@@ -136,7 +136,7 @@ describe("quota fallback helpers", () => {
   it("detects recoverable provider timeouts and process-loss failures", () => {
     expect(
       isProviderTimeoutFailure(
-        "Hermes timed out while running arcee-ai/trinity-large-preview:free via openrouter.",
+        "Hermes timed out while running nvidia/nemotron-3-super-120b-a12b:free via openrouter.",
       ),
     ).toBe(true);
     expect(isProviderTimeoutFailure("Timed out")).toBe(true);
@@ -204,7 +204,7 @@ describe("quota fallback helpers", () => {
   it("does not carry Codex or Claude model ids onto Hermes free fallback", () => {
     expect(isIncompatibleHermesFreeRoutingModel("gpt-5.4-mini")).toBe(true);
     expect(isIncompatibleHermesFreeRoutingModel("claude-sonnet-4-6")).toBe(true);
-    expect(isIncompatibleHermesFreeRoutingModel("arcee-ai/trinity-large-preview:free")).toBe(false);
+    expect(isIncompatibleHermesFreeRoutingModel("nvidia/nemotron-3-super-120b-a12b:free")).toBe(false);
     expect(isIncompatibleHermesFreeRoutingModel("openai/gpt-oss-120b:free")).toBe(false);
 
     expect(
@@ -231,14 +231,14 @@ describe("quota fallback helpers", () => {
       [
         "openrouter/qwen/qwen3.6-plus:free",
         "qwen/qwen3.6-plus:free",
-        "arcee-ai/trinity-large-preview:free",
+        "nvidia/nemotron-3-super-120b-a12b:free",
         "openrouter/free",
       ].join(","),
     );
 
     expect(isDisallowedHermesFallbackModel("openrouter/qwen/qwen3.6-plus:free")).toBe(true);
     expect(isDisallowedHermesFallbackModel("qwen/qwen3.6-plus:free")).toBe(true);
-    expect(isDisallowedHermesFallbackModel("arcee-ai/trinity-large-preview:free")).toBe(false);
+    expect(isDisallowedHermesFallbackModel("nvidia/nemotron-3-super-120b-a12b:free")).toBe(false);
     const resolved = resolveHermesFallbackModels({ cwd: "/tmp/project" });
     expect(resolved[0]).toBe(DEFAULT_HERMES_FALLBACK_MODEL);
     expect(resolved).not.toContain("openrouter/qwen/qwen3.6-plus:free");
@@ -263,7 +263,7 @@ describe("quota fallback helpers", () => {
       "BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS",
       [
         "stepfun/step-3.5-flash:free",
-        "arcee-ai/trinity-large-preview:free",
+        "nvidia/nemotron-3-super-120b-a12b:free",
         "openrouter/free",
       ].join(","),
     );
@@ -280,30 +280,36 @@ describe("quota fallback helpers", () => {
     expect(config[HERMES_MODEL_LADDER_CONFIG_KEY]).not.toContain("stepfun/step-3.5-flash:free");
   });
 
-  it("rejects the openrouter/free alias and invalid nvidia fallback ids", () => {
+  it("rejects the openrouter/free alias, near-expiry, stale, and invalid nvidia fallback ids", () => {
     vi.stubEnv(
       "BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS",
       [
         "openrouter/free",
         "nvidia/nemotron-3-super:free",
         "arcee-ai/trinity-large-preview:free",
+        "inclusionai/ling-2.6-flash:free",
+        "nvidia/nemotron-3-super-120b-a12b:free",
         "openai/gpt-oss-120b:free",
       ].join(","),
     );
 
     expect(isDisallowedHermesFallbackModel("openrouter/free")).toBe(true);
     expect(isDisallowedHermesFallbackModel("nvidia/nemotron-3-super:free")).toBe(true);
+    expect(isDisallowedHermesFallbackModel("arcee-ai/trinity-large-preview:free")).toBe(true);
+    expect(isDisallowedHermesFallbackModel("inclusionai/ling-2.6-flash:free")).toBe(true);
 
     const resolved = resolveHermesFallbackModels({ cwd: "/tmp/project" });
     expect(resolved).not.toContain("openrouter/free");
     expect(resolved).not.toContain("nvidia/nemotron-3-super:free");
+    expect(resolved).not.toContain("arcee-ai/trinity-large-preview:free");
+    expect(resolved).not.toContain("inclusionai/ling-2.6-flash:free");
   });
 
   it("resolves a deterministic hermes free-model ladder", () => {
     expect(
       resolveHermesFallbackModels({
         cwd: "/tmp/project",
-        model: "arcee-ai/trinity-large-preview:free",
+        model: "nvidia/nemotron-3-super-120b-a12b:free",
       }),
     ).toEqual([...DEFAULT_HERMES_FALLBACK_MODELS]);
   });
@@ -312,7 +318,7 @@ describe("quota fallback helpers", () => {
     vi.stubEnv(
       "BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS",
       [
-        "arcee-ai/trinity-large-preview:free",
+        "nvidia/nemotron-3-super-120b-a12b:free",
         "arcee-ai/trinity-large-thinking",
         "z-ai/glm-5.1",
         "qwen/qwen3-coder:free",
@@ -320,12 +326,15 @@ describe("quota fallback helpers", () => {
     );
 
     expect(resolveHermesFallbackModels({ cwd: "/tmp/project" })).toEqual([
-      "arcee-ai/trinity-large-preview:free",
-      "qwen/qwen3-coder:free",
-      "openai/gpt-oss-120b:free",
       "nvidia/nemotron-3-super-120b-a12b:free",
-      "z-ai/glm-4.5-air:free",
+      "qwen/qwen3-coder:free",
+      "tencent/hy3-preview:free",
       "minimax/minimax-m2.5:free",
+      "google/gemma-4-31b-it:free",
+      "google/gemma-4-26b-a4b-it:free",
+      "qwen/qwen3-next-80b-a3b-instruct:free",
+      "openai/gpt-oss-120b:free",
+      "z-ai/glm-4.5-air:free",
     ]);
 
     vi.stubEnv("BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS", "1");
@@ -338,18 +347,28 @@ describe("quota fallback helpers", () => {
     expect(
       buildNextHermesFallbackAdapterConfig({
         cwd: "/tmp/project",
-        model: "arcee-ai/trinity-large-preview:free",
+        model: "nvidia/nemotron-3-super-120b-a12b:free",
         [HERMES_MODEL_LADDER_CONFIG_KEY]: [
-          "arcee-ai/trinity-large-preview:free",
-          "openai/gpt-oss-120b:free",
           "nvidia/nemotron-3-super-120b-a12b:free",
+          "tencent/hy3-preview:free",
+          "openai/gpt-oss-120b:free",
         ],
       }),
     ).toEqual({
       cwd: "/tmp/project",
       provider: "openrouter",
-      model: "openai/gpt-oss-120b:free",
-      [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
+      model: "tencent/hy3-preview:free",
+      [HERMES_MODEL_LADDER_CONFIG_KEY]: [
+        "nvidia/nemotron-3-super-120b-a12b:free",
+        "tencent/hy3-preview:free",
+        "openai/gpt-oss-120b:free",
+        "minimax/minimax-m2.5:free",
+        "google/gemma-4-31b-it:free",
+        "google/gemma-4-26b-a4b-it:free",
+        "qwen/qwen3-next-80b-a3b-instruct:free",
+        "z-ai/glm-4.5-air:free",
+        "qwen/qwen3-coder:free",
+      ],
       modelReasoningEffort: "medium",
       timeoutSec: 1800,
     });
@@ -362,14 +381,14 @@ describe("quota fallback helpers", () => {
         model: "gpt-5.4-mini",
         [HERMES_MODEL_LADDER_CONFIG_KEY]: [
           "gpt-5.4-mini",
-          "arcee-ai/trinity-large-preview:free",
-          "openai/gpt-oss-120b:free",
+          "nvidia/nemotron-3-super-120b-a12b:free",
+          "tencent/hy3-preview:free",
         ],
       }),
     ).toEqual({
       cwd: "/tmp/project",
       provider: "openrouter",
-      model: "arcee-ai/trinity-large-preview:free",
+      model: "nvidia/nemotron-3-super-120b-a12b:free",
       [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
       modelReasoningEffort: "medium",
       timeoutSec: 1800,
@@ -383,14 +402,14 @@ describe("quota fallback helpers", () => {
         model: "nvidia/nemotron-3-super:free",
         [HERMES_MODEL_LADDER_CONFIG_KEY]: [
           "nvidia/nemotron-3-super:free",
-          "arcee-ai/trinity-large-preview:free",
-          "openai/gpt-oss-120b:free",
+          "nvidia/nemotron-3-super-120b-a12b:free",
+          "tencent/hy3-preview:free",
         ],
       }),
     ).toEqual({
       cwd: "/tmp/project",
       provider: "openrouter",
-      model: "arcee-ai/trinity-large-preview:free",
+      model: "nvidia/nemotron-3-super-120b-a12b:free",
       [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
       modelReasoningEffort: "medium",
       timeoutSec: 1800,
@@ -420,7 +439,7 @@ describe("quota fallback helpers", () => {
         currentAdapterType: "hermes_local",
         currentAdapterConfig: {
           cwd: "/tmp/project",
-          model: "arcee-ai/trinity-large-preview:free",
+          model: "nvidia/nemotron-3-super-120b-a12b:free",
           [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
         },
         desiredAdapterType: "hermes_local",
@@ -492,7 +511,7 @@ describe("quota fallback helpers", () => {
       adapterConfig: {
         cwd: "/tmp/project",
         provider: "openrouter",
-        model: "nvidia/nemotron-3-super-120b-a12b:free",
+        model: "z-ai/glm-4.5-air:free",
         [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
         modelReasoningEffort: "medium",
         timeoutSec: 1800,
@@ -719,7 +738,7 @@ describe("quota fallback helpers", () => {
       adapterConfig: {
         cwd: "/tmp/project",
         provider: "openrouter",
-        model: "openai/gpt-oss-120b:free",
+        model: "tencent/hy3-preview:free",
         [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
         modelReasoningEffort: "medium",
         timeoutSec: 1800,

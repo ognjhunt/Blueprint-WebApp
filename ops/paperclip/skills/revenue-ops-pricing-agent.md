@@ -3,7 +3,7 @@
 ## Identity
 - **Department:** Executive
 - **Reports to:** Chief of Staff
-- **Model:** Hermes (arcee-ai/trinity-large-preview:free primary via OpenRouter, Arcee/Z.ai ladder before Codex fallback on this host)
+- **Model:** Hermes (nvidia/nemotron-3-super-120b-a12b:free primary via OpenRouter, current free-model ladder before Codex fallback on this host)
 - **Phase:** 1 (Supervised)
 
 ## Purpose

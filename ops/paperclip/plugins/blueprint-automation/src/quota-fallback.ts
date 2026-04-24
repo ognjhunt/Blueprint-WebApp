@@ -34,13 +34,16 @@ export type WorkspaceAdapterCooldownRecord = {
 
 export type WorkspaceAdapterCooldownState = Record<string, WorkspaceAdapterCooldownRecord>;
 
-export const DEFAULT_HERMES_FALLBACK_MODEL = "arcee-ai/trinity-large-preview:free";
+export const DEFAULT_HERMES_FALLBACK_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
 export const DEFAULT_HERMES_FALLBACK_MODELS = [
-  "arcee-ai/trinity-large-preview:free",
-  "openai/gpt-oss-120b:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
-  "z-ai/glm-4.5-air:free",
+  "tencent/hy3-preview:free",
   "minimax/minimax-m2.5:free",
+  "google/gemma-4-31b-it:free",
+  "google/gemma-4-26b-a4b-it:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "openai/gpt-oss-120b:free",
+  "z-ai/glm-4.5-air:free",
   "qwen/qwen3-coder:free",
 ] as const;
 export const HERMES_MODEL_LADDER_CONFIG_KEY = "blueprintHermesModelLadder";
@@ -79,7 +82,7 @@ const PROVIDER_AUTH_RE =
 const CLAUDE_PROVIDER_RE =
   /(?:claude run failed.*failed to authenticate|api error: 401.*authentication_error|invalid authentication credentials)/i;
 const DISALLOWED_HERMES_FALLBACK_MODEL_RE =
-  /^(?:openrouter\/free|(?:openrouter\/)?nvidia\/nemotron-3-super(?::free)?|(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
+  /^(?:openrouter\/free|(?:openrouter\/)?arcee-ai\/trinity-large-preview(?::free)?|(?:openrouter\/)?nvidia\/nemotron-3-super(?::free)?|(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?inclusionai\/ling-2\.6-(?:flash|1t)(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
 const OPENROUTER_SHARED_FREE_POOL_LIMIT_RE =
   /(?:free-models-per-(?:min|day(?:-high-balance)?)|limit_rpm\/[^\s]+|high demand for [^.\n]+:free on openrouter|limited to \d+ requests per minute)/i;
 const TERMINAL_LOGICAL_FAILURE_PATTERNS = [

@@ -25,7 +25,7 @@ BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE:-au
 BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES:-0}"
 BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL:-gpt-5.4-mini}"
 BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT:-medium}"
-BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL:-arcee-ai/trinity-large-preview:free}"
+BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL:-nvidia/nemotron-3-super-120b-a12b:free}"
 BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-nvidia/nemotron-3-super-120b-a12b:free}"
 
 if RESOLVED_API_URL="$(paperclip_resolve_api_url "$PAPERCLIP_API_URL" "$PAPERCLIP_HOME" "$PAPERCLIP_HOST")"; then
@@ -67,12 +67,12 @@ const fallbackCodexModel =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_MODEL ?? "gpt-5.4-mini";
 const fallbackCodexReasoningEffort =
   process.env.BLUEPRINT_PAPERCLIP_CLAUDE_LANE_FALLBACK_REASONING_EFFORT ?? "medium";
-const DEFAULT_HERMES_MODEL = "arcee-ai/trinity-large-preview:free";
+const DEFAULT_HERMES_MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
 const allowPaidHermesModels = /^(1|true|yes)$/i.test(
   process.env.BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS ?? "",
 );
 const DISALLOWED_HERMES_MODEL_RE =
-  /^(?:(?:anthropic\/)?claude(?:[-/].*)?|openrouter\/free|(?:openrouter\/)?nvidia\/nemotron-3-super(?::free)?|(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
+  /^(?:(?:anthropic\/)?claude(?:[-/].*)?|openrouter\/free|(?:openrouter\/)?arcee-ai\/trinity-large-preview(?::free)?|(?:openrouter\/)?nvidia\/nemotron-3-super(?::free)?|(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?inclusionai\/ling-2\.6-(?:flash|1t)(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
 const hermesPrimaryModel = sanitizeHermesModel(
   process.env.BLUEPRINT_PAPERCLIP_HERMES_PRIMARY_MODEL,
   DEFAULT_HERMES_MODEL,
@@ -89,10 +89,13 @@ const hermesFreeModels = normalizeHermesModelList([
   ...parseModelList(process.env.BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODELS),
   hermesFallbackModel,
   DEFAULT_HERMES_MODEL,
-  "openai/gpt-oss-120b:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "z-ai/glm-4.5-air:free",
+  "tencent/hy3-preview:free",
   "minimax/minimax-m2.5:free",
+  "google/gemma-4-31b-it:free",
+  "google/gemma-4-26b-a4b-it:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "openai/gpt-oss-120b:free",
+  "z-ai/glm-4.5-air:free",
   "qwen/qwen3-coder:free",
 ]);
 const hermesPaidModels = normalizeHermesModelList([
@@ -834,13 +837,13 @@ function buildCodexAdapterConfig(adapterConfig) {
 
 function buildHermesAdapterConfig(adapterConfig) {
   const next = { ...(adapterConfig ?? {}) };
+  delete next[HERMES_MODEL_LADDER_CONFIG_KEY];
   const configuredModel = sanitizeHermesModel(
     typeof adapterConfig?.model === "string" ? adapterConfig.model : "",
     "",
   );
   const ladder = normalizeHermesModelList([
     ...(configuredModel.length > 0 && configuredModel !== legacyHermesModel ? [configuredModel] : []),
-    ...parseModelList(adapterConfig?.[HERMES_MODEL_LADDER_CONFIG_KEY]),
     ...hermesModelLadder,
   ]);
   const model =
@@ -1019,7 +1022,7 @@ function fallbackAdapterFor(desired) {
   };
 }
 
-function buildExecutionPolicyForAgent(agentConfig, requestedMode) {
+function buildExecutionPolicyForAgent(agentConfig, requestedMode, effectiveAdapterType = null) {
   const authoredAdapterType = agentConfig?.adapter?.type;
   const authoredAdapterConfig = agentConfig?.adapter?.config ?? {};
   if (!authoredAdapterType || !authoredAdapterConfig) {
@@ -1041,6 +1044,18 @@ function buildExecutionPolicyForAgent(agentConfig, requestedMode) {
           authoredAdapterConfig,
         )?.adapterConfig ?? undefined,
   };
+
+  if (effectiveAdapterType === "hermes_local" || authoredAdapterType === "hermes_local") {
+    return {
+      mode: "prefer_available",
+      compatibleAdapterTypes: ["hermes_local", "codex_local"],
+      preferredAdapterTypes: ["hermes_local", "codex_local"],
+      perAdapterConfig: {
+        codex_local: perAdapterConfig.codex_local,
+        hermes_local: perAdapterConfig.hermes_local,
+      },
+    };
+  }
 
   if (requestedMode === "codex") {
     return {
@@ -1066,18 +1081,6 @@ function buildExecutionPolicyForAgent(agentConfig, requestedMode) {
       compatibleAdapterTypes: ["codex_local", "claude_local", "hermes_local"],
       preferredAdapterTypes: ["codex_local", "claude_local", "hermes_local"],
       perAdapterConfig,
-    };
-  }
-
-  if (authoredAdapterType === "hermes_local") {
-    return {
-      mode: "prefer_available",
-      compatibleAdapterTypes: ["hermes_local", "codex_local"],
-      preferredAdapterTypes: ["hermes_local", "codex_local"],
-      perAdapterConfig: {
-        codex_local: perAdapterConfig.codex_local,
-        hermes_local: perAdapterConfig.hermes_local,
-      },
     };
   }
 
@@ -1256,7 +1259,11 @@ for (const [agentKey, desired] of Object.entries(desiredAgents)) {
     ? existingRuntimeConfig
     : {
       ...existingRuntimeConfig,
-      executionPolicy: buildExecutionPolicyForAgent(yamlAgentConfig, effectiveRequestedMode),
+      executionPolicy: buildExecutionPolicyForAgent(
+        yamlAgentConfig,
+        effectiveRequestedMode,
+        effectiveDesired.adapterType,
+      ),
     };
   if (!preserveFixedLiveAdapter) {
     delete nextRuntimeConfig.executionProfile;

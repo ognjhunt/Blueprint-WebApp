@@ -27,11 +27,11 @@ RUN_SMOKE=0
 CLAUDE_LANE_MODE="${BLUEPRINT_PAPERCLIP_CLAUDE_LANE_MODE:-auto}"
 VERIFY_CLAUDE="${BLUEPRINT_PAPERCLIP_VERIFY_CLAUDE:-1}"
 VERIFY_HERMES="${BLUEPRINT_PAPERCLIP_VERIFY_HERMES:-auto}"
-HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-arcee-ai/trinity-large-preview:free}"
+HERMES_FALLBACK_MODEL="${BLUEPRINT_PAPERCLIP_HERMES_FALLBACK_MODEL:-nvidia/nemotron-3-super-120b-a12b:free}"
 FORCE_CODEX_CLAUDE_LANES="${BLUEPRINT_PAPERCLIP_FORCE_CODEX_CLAUDE_LANES:-0}"
 HERMES_INSTRUCTIONS_FILE="/Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/blueprint-company/agents/blueprint-chief-of-staff/AGENTS.md"
 AGENT_KIT_VALIDATOR="${SCRIPT_DIR}/validate-agent-kits.sh"
-DISALLOWED_HERMES_MODEL_RE='^(openrouter/free|(?:openrouter/)?nvidia/nemotron-3-super(?::free)?|(?:openrouter/)?(?:qwen/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter/)?stepfun/step-3\.5-flash(?::free)?)$'
+DISALLOWED_HERMES_MODEL_RE='^(openrouter/free|(?:openrouter/)?arcee-ai/trinity-large-preview(?::free)?|(?:openrouter/)?nvidia/nemotron-3-super(?::free)?|(?:openrouter/)?(?:qwen/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter/)?inclusionai/ling-2\.6-(flash|1t)(?::free)?|(?:openrouter/)?stepfun/step-3\.5-flash(?::free)?)$'
 
 for arg in "$@"; do
   if [ "$arg" = "--smoke" ]; then
@@ -573,7 +573,7 @@ main() {
           const failures = [];
           const allowPaidHermes = /^(1|true|yes)$/i.test(process.env.BLUEPRINT_PAPERCLIP_HERMES_ALLOW_PAID_MODELS ?? "");
           const allowPaidOpenCode = /^(1|true|yes)$/i.test(process.env.BLUEPRINT_PAPERCLIP_OPENCODE_ALLOW_PAID_MODELS ?? "");
-          const disallowedHermesModelRe = /^(openrouter\/free|(?:openrouter\/)?nvidia\/nemotron-3-super(?::free)?|(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
+          const disallowedHermesModelRe = /^(openrouter\/free|(?:openrouter\/)?arcee-ai\/trinity-large-preview(?::free)?|(?:openrouter\/)?nvidia\/nemotron-3-super(?::free)?|(?:openrouter\/)?(?:qwen\/)?qwen3\.6-plus(?:-preview)?(?::free)?|(?:openrouter\/)?inclusionai\/ling-2\.6-(?:flash|1t)(?::free)?|(?:openrouter\/)?stepfun\/step-3\.5-flash(?::free)?)$/i;
           const isFreeModel = (value) => typeof value === "string" && value.trim().toLowerCase().endsWith(":free");
           const toPerAdapterConfig = (row) => row.runtimeConfig?.executionPolicy?.perAdapterConfig ?? {};
           for (const row of rows) {
