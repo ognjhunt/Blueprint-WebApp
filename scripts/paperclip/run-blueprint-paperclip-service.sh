@@ -39,7 +39,7 @@ if [ "${BLUEPRINT_PAPERCLIP_USE_LOCAL_RUNNER:-0}" = "1" ] \
   && [ -d "$PAPERCLIP_DIR" ] \
   && [ -f "$PAPERCLIP_DIR/package.json" ] \
   && [ -d "$PAPERCLIP_DIR/node_modules" ] \
-  && [ -f "$PAPERCLIP_DIR/cli/node_modules/tsx/dist/cli.mjs" ]; then
+  && [ -x "$PAPERCLIP_DIR/cli/node_modules/.bin/tsx" ]; then
   PAPERCLIP_RUNNER="local"
 fi
 
