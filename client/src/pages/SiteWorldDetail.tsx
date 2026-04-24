@@ -380,11 +380,11 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
       title: "Artifacts visible today",
       body: isPublicSample
         ? "Sample manifest, rights sheet, export bundle, and hosted-review report are linked below."
-        : "This commercial listing shows site metadata, price, trust fields, and request-scoped paths. Listing-specific screenshots or export previews open during follow-up.",
+        : "This listing shows site metadata, price, trust fields, and request-scoped paths. Screenshots or export previews open during follow-up when approved.",
     },
   ];
   const visibleNowRows = [
-    ["Visible now", isPublicSample ? "Sample route, reference stills, representative artifact layout, and hosted request path." : "Site metadata, workflow lane, pricing frame, trust fields, and request path."],
+    ["Visible now", isPublicSample ? "Sample route, reference stills, sample files, and hosted request path." : "Site metadata, workflow lane, pricing frame, trust fields, and request path."],
     ["Gated", "Package files, raw exports, live hosted runtime, and listing-specific commercial proof open through request review."],
     ["Why gated", "Rights, privacy, freshness, and buyer context need to remain attached before access expands."],
   ];
@@ -647,7 +647,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               </p>
               <p className="mt-2 text-sm text-slate-700">
                 {isPublicSample
-                  ? "Captured sample with representative public artifacts."
+                  ? "Captured sample with public example files."
                   : "Listing proof fields with request-scoped artifacts."}
               </p>
               <div className="mt-6 grid gap-3 sm:grid-cols-[0.34fr_0.33fr_0.33fr]">
@@ -726,13 +726,13 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
               <div className="grid gap-4">
                 <div className="border border-black/10 bg-[#f5f3ef] p-6 lg:p-8">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                    Evidence packet preview
+                    Capture example
                   </p>
                   <h2 className="font-editorial mt-4 text-[2.8rem] leading-[0.94] tracking-[-0.05em] text-slate-950">
-                    Public capture story for this listing.
+                    Public capture example for this listing.
                   </h2>
                   <p className="mt-4 text-sm leading-7 text-slate-700">
-                    This composite story shows the missing buyer evidence shape for a public-facing location: capture cue, guardrails, robot question, hosted report rows, and export tree. Replace it with listing-specific proof when the real packet is available.
+                    This example shows what a robot team can inspect for a public-facing route: capture cue, capturer rules, robot question, hosted report rows, and export files. Listing-specific proof appears here when it is approved.
                   </p>
                   <div className="mt-6 grid gap-3 md:grid-cols-3">
                     {[
@@ -815,8 +815,8 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                     Inspect the deliverable shape.
                   </h2>
                   <p className="mt-4 text-sm leading-7 text-slate-700">
-                    These files are representative samples, not customer proof. They show the
-                    manifest, rights, export, and hosted-report structure a buyer reviews.
+                    These files are examples, not customer results. They show the manifest,
+                    rights, export, and hosted-report details a buyer reviews.
                   </p>
                   <a
                     href="/sample-evaluation"
@@ -920,7 +920,7 @@ export default function SiteWorldDetail({ params }: SiteWorldDetailProps) {
                   </p>
                   <div className="mt-4 space-y-3 text-sm text-white/74">
                     <div>The native package and hosted path stay primary on this listing.</div>
-                    <div>Interactive preview is optional and does not redefine the trust surface.</div>
+                    <div>Interactive preview is optional and does not redefine listing trust.</div>
                     <div>Public proof, freshness, and rights remain visible even without the preview.</div>
                   </div>
                   <div className="mt-6 border-t border-white/10 pt-4 text-sm text-white/62">

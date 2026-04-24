@@ -184,7 +184,7 @@ const moreSites = useMemo(
             <EditorialSectionIntro
               eyebrow="Featured sites"
               title="Real facilities, presented as worlds."
-              description="The strongest current public proof surfaces come first, followed by the broader exact-site catalog."
+              description="The listings with the clearest current proof come first, followed by the broader exact-site catalog."
               className="max-w-3xl"
             />
             <a
@@ -255,7 +255,7 @@ const moreSites = useMemo(
               <EditorialSectionIntro
                 eyebrow="Inside the world"
                 title="Built from real capture."
-                description="Every world model stays grounded to one facility, one proof chain, and one set of buyer-readable trust signals."
+                description="Every world model stays grounded to one facility, one proof chain, and trust details your team can inspect."
                 light
               />
               <div className="mt-8 space-y-5">

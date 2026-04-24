@@ -167,7 +167,7 @@ export default function ForRobotIntegrators() {
           <EditorialCtaBand
             eyebrow="Next step"
             title="Move from curiosity to one real site."
-            description="Start in the world-model catalog when you want to inspect the current proof surface, or open the hosted-review path when a facility is already in scope."
+            description="Start in the world-model catalog when you want to inspect current proof, or open the hosted-review path when a facility is already in scope."
             imageSrc={editorialGeneratedAssets.homeHero}
             imageAlt="Hosted review still"
             primaryHref="/world-models"

@@ -35,7 +35,7 @@ const sampleMetrics = [
   },
   {
     label: "Truth boundary",
-    detail: "Representative sample material. Not a customer outcome or deployment guarantee.",
+    detail: "Example material. Not a customer result or deployment guarantee.",
   },
 ];
 
@@ -43,7 +43,7 @@ const packetSteps = [
   {
     label: "01",
     title: "Capture-backed site record",
-    body: "The sample starts with one exact site record, route, capture id, and buyer-readable freshness state.",
+    body: "The sample starts with one exact site record, route, capture id, and freshness state.",
     icon: Route,
   },
   {
@@ -104,7 +104,7 @@ export default function SampleEvaluation() {
     <>
       <SEO
         title="Sample Evaluation | Blueprint"
-        description="Inspect one representative exact-site evaluation packet: capture basis, manifest, rights, hosted setup, run evidence, export bundle, and truthful limits."
+        description="Inspect one example exact-site evaluation: capture basis, manifest, rights, hosted setup, run evidence, export bundle, and limits."
         canonical="/sample-evaluation"
       />
 
@@ -127,11 +127,11 @@ export default function SampleEvaluation() {
                     One exact site, end to end.
                   </h1>
                   <p className="mt-6 max-w-[31rem] text-base leading-8 text-white/84">
-                    A representative packet showing how Blueprint turns a captured site into
+                    An example showing how Blueprint turns a captured site into
                     manifest, rights, hosted setup, run evidence, export shape, and limits.
                   </p>
                   <div className="mt-7 flex flex-wrap gap-2">
-                    <ProofChip light>Representative sample</ProofChip>
+                    <ProofChip light>Example sample</ProofChip>
                     <ProofChip light>Capture-backed route</ProofChip>
                     <ProofChip light>Request-gated runtime</ProofChip>
                   </div>
@@ -180,8 +180,8 @@ export default function SampleEvaluation() {
             <div className="bg-[#f5f3ef] p-6 lg:p-8">
               <EditorialSectionIntro
                 eyebrow="Packet flow"
-                title="The proof journey is the product."
-                description="This page keeps the sample focused on one exact site so the buyer can see the commercial path without mixing unrelated proof stories."
+                title="The site stays attached from capture to export."
+                description="This page stays focused on one exact site so a robot team can see the path without mixing in unrelated examples."
               />
             </div>
             <div className="grid gap-px bg-black/10 md:grid-cols-2">
@@ -272,7 +272,7 @@ export default function SampleEvaluation() {
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
           <EditorialCtaBand
             eyebrow="Next step"
-            title="Turn this packet shape into a request."
+            title="Turn the sample into a real request."
             description="Start from the public sample site, then scope package access or hosted evaluation around the exact site and robot question your team needs answered."
             imageSrc={editorialGeneratedAssets.sampleEvaluationProofBoard}
             imageAlt="Sample evaluation proof board"

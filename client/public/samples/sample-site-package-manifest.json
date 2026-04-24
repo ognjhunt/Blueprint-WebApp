@@ -8,7 +8,7 @@
   "state": "TX",
   "capture_basis": "public_facing_common_area_review",
   "capture_date": "2026-04-18",
-  "proof_depth": "public_capture_mockup_plus_sample_artifacts",
+  "proof_depth": "public_capture_example_plus_sample_files",
   "freshness_state": "current_sample",
   "capture_app_cue": {
     "estimated_payout": "$40 review cue",
@@ -67,6 +67,6 @@
   "listing_notes": [
     "Representative public sample manifest layout",
     "Actual commercial access still depends on listing-specific proof, rights, privacy, and export review",
-    "This sample opens the proof surface beyond private facilities to everyday public-facing locations"
+    "This sample shows how everyday public-facing locations can become inspectable proof"
   ]
 }

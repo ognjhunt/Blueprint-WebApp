@@ -28,13 +28,13 @@ export const siteWorldStatusLegend: SiteWorldStatusBadge[] = [
   {
     id: "public_demo",
     label: "Public demo",
-    summary: "A public sample surface that can be inspected without implying customer proof.",
+    summary: "A public sample listing you can inspect without treating it as a customer claim.",
     tone: "border-indigo-200 bg-indigo-50 text-indigo-700",
   },
   {
     id: "commercial_exemplar",
     label: "Commercial exemplar",
-    summary: "A buyer-readable listing with real commercial framing and request-scoped follow-up.",
+    summary: "A commercial listing with clear pricing, proof fields, and request-scoped follow-up.",
     tone: "border-emerald-200 bg-emerald-50 text-emerald-700",
   },
   {
@@ -103,9 +103,9 @@ export function getSiteWorldCommercialStatus(
       label: "Public demo sample",
       tone: "border-indigo-200 bg-indigo-50 text-indigo-700",
       summary:
-        "This listing is a public proof surface. It shows a real captured sample plus clearly labeled representative artifacts and interface previews.",
+        "This listing shows a real captured sample, example files, and hosted-review previews.",
       buyerNote:
-        "The public demo proves the sample listing exists. It does not imply blanket facility approval or unrestricted commercialization for every future request.",
+        "The public demo lets you inspect the sample listing. It does not grant blanket facility approval or unrestricted commercial use for future requests.",
     };
   }
 
@@ -137,10 +137,10 @@ export function getSiteWorldCommercialStatus(
     id: "request_scoped_review",
     label: "Request-scoped commercial review",
     tone: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    summary:
-      "The listing is ready for buyer review with visible proof, export signals, and hosted-path disclosure, but final access still follows the request-specific rights and privacy review.",
-    buyerNote:
-      "This is a buyer-readable commercial status, not a deployment guarantee and not a blanket approval statement for the underlying facility.",
+      summary:
+        "The listing is ready for buyer review with visible proof, export signals, and hosted-path disclosure, but final access still follows the request-specific rights and privacy review.",
+      buyerNote:
+        "This is a commercial review status, not a deployment guarantee or blanket approval statement for the underlying facility.",
   };
 }
 
@@ -196,7 +196,7 @@ export function getSiteWorldReadinessDisclosure(site: PublicSiteWorldRecord) {
   ];
 
   if (site.deploymentReadiness?.export_readiness_status === "ready") {
-    parts.unshift("Export surfaces are documented on this listing.");
+    parts.unshift("Exports are documented on this listing.");
   }
 
   return parts.join(" ");
@@ -230,7 +230,7 @@ export function getSiteWorldPlainEnglishStatus(site: PublicSiteWorldRecord) {
   const status = getSiteWorldCommercialStatus(site);
 
   if (status.id === "public_demo_sample") {
-    return "Strongest public proof surface. Start here if you are new to Blueprint.";
+    return "Best public sample to start with if you are new to Blueprint.";
   }
 
   if (status.id === "refresh_review_required") {
@@ -246,7 +246,7 @@ export function getSiteWorldPlainEnglishStatus(site: PublicSiteWorldRecord) {
 
 export function getSiteWorldPlainEnglishProof(site: PublicSiteWorldRecord) {
   if (isPublicSampleSiteWorld(site)) {
-    return "This listing includes the strongest public proof set: screenshots, sample artifacts, and hosted-path framing.";
+    return "This listing includes screenshots, sample files, and a hosted-review path.";
   }
 
   if (isCommercialExemplarSiteWorld(site)) {

@@ -24,7 +24,7 @@ describe("Proof page", () => {
       screen.getByRole("heading", { name: /See the site before you commit to the path\./i }),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Public capture can start with everyday places\./i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Proof is not warehouse-only\./i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Useful sites are not warehouse-only\./i })).toBeInTheDocument();
     expect(screen.getByText(/Cedar Market Aisle Loop/i)).toBeInTheDocument();
     expect(screen.getByText(/Hosted report preview/i)).toBeInTheDocument();
     expect(screen.queryByRole("heading", {
@@ -34,8 +34,8 @@ describe("Proof page", () => {
       "href",
       "/contact?persona=robot-team",
     );
-    expect(screen.getByRole("heading", { name: /Proof routes\./i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Proof stories/i })).toHaveAttribute(
+    expect(screen.getByRole("heading", { name: /Choose what to inspect next\./i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Capture examples/i })).toHaveAttribute(
       "href",
       "/case-studies",
     );

@@ -13,8 +13,7 @@ export function Footer() {
             Blueprint
           </a>
           <p className="text-sm leading-6 text-slate-600">
-            Exact-site packages, hosted evaluation, and buyer-readable trust surfaces grounded in
-            real capture.
+            Exact-site packages, hosted evaluation, and trust details grounded in real capture.
           </p>
           <p className="text-sm leading-6 text-slate-600">
             Built for teams that need the actual site to be visible before deployment, travel, and rollout spend.

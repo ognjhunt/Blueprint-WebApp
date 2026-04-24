@@ -22,8 +22,8 @@ describe("ExactSiteHostedReview", () => {
     expect(screen.getAllByText(/^Hosted evaluation workspace$/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("heading", { name: /Setup, run evidence, and export scope are visible\./i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /A hosted review can start from a public-facing place\./i })).toBeInTheDocument();
-    expect(screen.getByText(/Composite sample, not a named customer outcome/i)).toBeInTheDocument();
-    expect(screen.getByText(/Run evidence mockup/i)).toBeInTheDocument();
+    expect(screen.getByText(/Example sample, not a customer result/i)).toBeInTheDocument();
+    expect(screen.getByText(/Run evidence example/i)).toBeInTheDocument();
     expect(screen.getByText(/Export evidence/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /What happens in a hosted review\./i })).toBeInTheDocument();
     expect(

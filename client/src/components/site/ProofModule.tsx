@@ -93,14 +93,14 @@ export function ProofModule({
           <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-stone-50 px-4 py-3">
             <ShieldCheck className="mt-0.5 h-4 w-4 text-slate-700" />
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-slate-900">What is real vs illustrative</p>
+              <p className="text-sm font-semibold text-slate-900">What is real vs example</p>
               <p className="text-sm leading-6 text-slate-600">{caption}</p>
             </div>
           </div>
           <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3">
             <PlayCircle className="mt-0.5 h-4 w-4 text-slate-700" />
             <p className="text-sm leading-6 text-slate-600">
-              Real listing footage and public sample assets are shown where available. Product-interface callouts are clearly labeled when they are illustrative previews.
+              Real listing footage and public sample assets are shown where available. Product-interface callouts are clearly labeled when they are examples.
             </p>
           </div>
         </div>

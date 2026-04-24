@@ -34,8 +34,8 @@ const proofRoutes = [
     href: "/sample-deliverables",
   },
   {
-    title: "Proof stories",
-    body: "Review composite stories for grocery, retail, lobby, and common-area capture paths.",
+    title: "Capture examples",
+    body: "Review grocery, retail, lobby, and common-area routes a capturer could submit.",
     href: "/case-studies",
   },
 ];
@@ -77,7 +77,7 @@ export default function Proof() {
                   See the site before you commit to the path.
                 </h1>
                 <p className="mt-6 text-base leading-8 text-slate-700">
-                  Start with the public proof surface, then inspect how the product works, what the deliverables look like, and how the exact-site path stays grounded in one real facility.
+                  Start with the public listing, then inspect how the product works, what the deliverables look like, and how the exact-site path stays grounded in one real facility.
                 </p>
                 </div>
               </div>
@@ -103,7 +103,7 @@ export default function Proof() {
           <div className="grid gap-4 lg:grid-cols-[0.48fr_0.52fr]">
             <MonochromeMedia
               src={publicCaptureGeneratedAssets.cedarMarketProofBoard}
-              alt="Public demo proof surface"
+              alt="Public demo proof board"
               className="min-h-[30rem]"
               overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.04),rgba(0,0,0,0.12))]"
             />
@@ -145,8 +145,8 @@ export default function Proof() {
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
           <EditorialSectionIntro
             eyebrow="Public-facing examples"
-            title="Proof is not warehouse-only."
-            description="These composite examples show how everyday public-facing locations can become evidence packets without pretending the sample names are real customer proof."
+            title="Useful sites are not warehouse-only."
+            description="Everyday public areas can be valuable when the route is legal to capture, privacy rules are visible, and the robot question is specific."
             className="max-w-3xl"
           />
           <div className="mt-8 grid gap-4 lg:grid-cols-4">
@@ -170,7 +170,7 @@ export default function Proof() {
                     href="/sample-deliverables"
                     className="mt-5 inline-flex items-center text-sm font-semibold text-slate-950"
                   >
-                    Inspect packet shape
+                    Inspect example files
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </a>
                 </div>
@@ -200,7 +200,7 @@ export default function Proof() {
                 Route, rights, report, and next step.
               </h2>
               <p className="mt-5 text-sm leading-7 text-white/70">
-                The proof surface is complete when a buyer can see where the capture came from, which public areas were in scope, what was redacted, what the hosted review observed, and which package or hosted path comes next.
+                The proof is ready when a buyer can see where the capture came from, which public areas were in scope, what was redacted, what the hosted review observed, and which package or hosted path comes next.
               </p>
             </div>
           </div>
@@ -209,9 +209,9 @@ export default function Proof() {
         <section className="border-y border-black/10 bg-white">
           <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
 	            <EditorialSectionIntro
-	              eyebrow="Proof routes"
-	              title="Proof routes."
-	              description="The hub points into the next decision surface without losing the proof context."
+	              eyebrow="Next routes"
+	              title="Choose what to inspect next."
+	              description="Move from the proof hub into the page that answers your next buyer, operator, or capturer question."
 	              className="max-w-3xl"
 	            />
             <div className="mt-8 grid gap-4 lg:grid-cols-[0.62fr_0.38fr]">

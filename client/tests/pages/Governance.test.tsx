@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import Governance from "@/pages/Governance";
 
 describe("Governance", () => {
-  it("renders the simplified buyer-readable trust page", () => {
+  it("renders the simplified public trust page", () => {
     render(<Governance />);
 
     expect(

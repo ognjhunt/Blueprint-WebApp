@@ -2345,14 +2345,14 @@ export const caseStudies: CaseStudy[] = [
     title: "Kitchen articulation lane",
     slug: "kitchen-articulation-pack",
     summary:
-      "Illustrative package framing for teams evaluating ovens, racks, drawers, and handoff surfaces in a kitchen lane.",
+      "Example package for teams evaluating ovens, racks, drawers, and handoff areas in a kitchen lane.",
     hero: "/illustrations/example-kitchen-lane.svg",
     body:
-      "This example is here to show how Blueprint would frame the site package, the hosted path, and the export surface for a kitchen workflow. It is not presented as a named customer result.",
+      "This example shows how Blueprint would frame the site package, hosted path, and exports for a kitchen workflow. It is not presented as a named customer result.",
     outcomes: [
       "Show the real lane before talking about automation claims",
       "Explain what artifacts ground the buyer's own stack",
-      "Show the hosted exports without implying customer proof that is not public",
+      "Show hosted exports without implying customer results that are not public",
     ],
     cta: "Request a similar package",
   },

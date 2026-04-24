@@ -31,13 +31,13 @@ export const mediaRoomSampleEvaluation = {
   siteCode: "SW-DEMO-01",
   siteType: "Captured indoor media and mechanical-room route",
   location: "Blueprint hosted runtime demo",
-  captureBasis: "Blueprint-owned public demo sample with representative buyer artifacts",
+  captureBasis: "Blueprint demo capture with example buyer deliverables",
   robotSetup: "Mobile manipulator with head and wrist cameras",
   workflowLane: "Media room entry, rack approach, cabinet inspection, and exit route",
   buyerQuestion:
     "Can the team inspect one exact indoor route, its constraints, and its hosted-review output shape before committing field time or custom simulation work?",
   disclosure:
-    "Representative sample evaluation. The site, route, and interface are public demo material; the artifact rows show the commercial packet shape and should be replaced with customer-specific proof when real buyer evidence is approved.",
+    "Example evaluation. The site, route, and interface are Blueprint demo material; real customer exports use approved site-specific proof and rights review.",
   artifacts: [
     "Capture manifest with site id, scene id, capture id, route notes, and freshness state",
     "Rights sheet with demo-use boundary, sharing limits, and export review notes",
@@ -47,8 +47,8 @@ export const mediaRoomSampleEvaluation = {
   ],
   truthBoundaries: [
     "Not a deployment guarantee",
-    "Not a customer outcome",
-    "Not unrestricted export approval",
+    "Example, not a customer result",
+    "Export approval is request-scoped",
     "Runtime access remains request-gated unless a live workspace is available",
   ],
 };
@@ -56,7 +56,7 @@ export const mediaRoomSampleEvaluation = {
 export const publicCaptureProofStories: PublicProofStory[] = [
   {
     id: "cedar-market-aisle-loop",
-    label: "Composite public-capture story",
+    label: "Example public capture",
     locationName: "Cedar Market Aisle Loop",
     locationType: "Grocery store public aisles",
     city: "Austin, TX",
@@ -72,7 +72,7 @@ export const publicCaptureProofStories: PublicProofStory[] = [
       "Hosted report with route notes, occlusion risks, and export scope",
     ],
     decisionNote:
-      "The team used the sample proof packet to decide that a grocery-specific hosted review was worth scoping before sending a field team.",
+      "A robotics team can use this to decide whether a grocery-specific hosted review is worth scoping before field work.",
     guardrails: [
       "Avoid checkout lanes, pharmacy counters, screens, receipts, and identifiable shoppers",
       "Stop capture if staff objects or signage restricts photography",
@@ -82,7 +82,7 @@ export const publicCaptureProofStories: PublicProofStory[] = [
   },
   {
     id: "harbor-mall-common-corridor",
-    label: "Composite public-capture story",
+    label: "Example public capture",
     locationName: "Harbor Mall Common Corridor",
     locationType: "Shopping mall common areas",
     city: "Sacramento, CA",
@@ -98,7 +98,7 @@ export const publicCaptureProofStories: PublicProofStory[] = [
       "Export bundle tree with route notes, raw walkthrough pointer, and review memo",
     ],
     decisionNote:
-      "The buyer kept the opportunity alive but marked storefront interiors as out of scope until explicit store permission exists.",
+      "A buyer can keep the corridor in review while leaving storefront interiors out of scope until each store gives permission.",
     guardrails: [
       "Capture common corridors only",
       "Do not record inside individual stores without store permission",
@@ -108,7 +108,7 @@ export const publicCaptureProofStories: PublicProofStory[] = [
   },
   {
     id: "northline-hotel-lobby-loop",
-    label: "Composite public-capture story",
+    label: "Example public capture",
     locationName: "Northline Hotel Lobby Loop",
     locationType: "Hotel lobby and public common areas",
     city: "Durham, NC",
@@ -124,7 +124,7 @@ export const publicCaptureProofStories: PublicProofStory[] = [
       "Hosted review report with next-step recommendation and not-a-deployment-guarantee boundary",
     ],
     decisionNote:
-      "The packet made the review specific enough to ask for operator-scoped access before any private-floor capture.",
+      "The route gives the robot team enough context to ask the hotel operator for scoped access before any private-floor capture.",
     guardrails: [
       "Do not capture guest room hallways or rooms",
       "Avoid front desk screens and guest paperwork",
@@ -134,7 +134,7 @@ export const publicCaptureProofStories: PublicProofStory[] = [
   },
   {
     id: "atlas-retail-service-aisle",
-    label: "Composite public-capture story",
+    label: "Example public capture",
     locationName: "Atlas Retail Service Aisle",
     locationType: "Retail store public aisles",
     city: "San Jose, CA",
@@ -150,7 +150,7 @@ export const publicCaptureProofStories: PublicProofStory[] = [
       "Sample export tree with run summary, observation frames, and route replay placeholders",
     ],
     decisionNote:
-      "The team chose hosted review first because the proof showed enough exact-site context, but export rights still needed scoped review.",
+      "The robot team can start with hosted review while export rights stay gated until the listing-specific review is done.",
     guardrails: [
       "Do not capture payment terminals, service-desk screens, or employee-only spaces",
       "Avoid identifiable shoppers and staff",
@@ -163,10 +163,10 @@ export const publicCaptureProofStories: PublicProofStory[] = [
 export const proofEvidencePacket = {
   packetId: "BP-SAMPLE-PROOF-PACKET-0426",
   disclosure:
-    "Composite demo packet. Replace names, locations, and buyer notes with real proof before publishing customer claims.",
+    "The names are examples. Customer claims appear only when approved proof is available.",
   headline: "Public capture can start with everyday places.",
   summary:
-    "This packet shows how a public-facing capture becomes buyer-readable evidence: route, manifest, rights sheet, hosted run notes, export tree, and a bounded next decision.",
+    "See the route, manifest, rights notes, hosted run notes, export tree, and the next decision a robot team can make.",
   selectedStory: publicCaptureProofStories[0],
 };
 

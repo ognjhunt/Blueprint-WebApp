@@ -114,7 +114,7 @@ export default function BookExactSiteReview() {
           <EditorialCtaBand
             eyebrow="Next step"
             title="Use the call when one real site is already in view."
-            description="If you still need the public proof surface first, inspect the listing or the hosted-review page before opening a time slot."
+            description="If you still need public proof first, inspect the listing or the hosted-review page before opening a time slot."
             imageSrc={editorialGeneratedAssets.scopingRoom}
             imageAlt="Scoping room"
             primaryHref={exactSiteScopingCallUrl}

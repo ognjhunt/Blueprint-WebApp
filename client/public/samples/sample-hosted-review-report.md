@@ -1,6 +1,6 @@
 # Sample Hosted Review Report
 
-Representative sample only. This is not a customer report, deployment guarantee, safety certification, permission certificate, or proof that every listing has the same outputs.
+Example sample only. This is not a customer report, deployment guarantee, safety certification, permission certificate, or proof that every listing has the same outputs.
 
 ## Listing
 
@@ -31,9 +31,9 @@ Representative sample only. This is not a customer report, deployment guarantee,
 ## Evidence Opened
 
 - Observation frames: included in sample export layout
-- Route review: representative route replay and waypoint notes
+- Route review: example route replay and waypoint notes
 - Redacted walkthrough reference: buyer-facing review artifact
-- Action trace: representative action-summary export
+- Action trace: example action-summary export
 - Rights sheet: see `sample-rights-sheet.md`
 - Export bundle: see `sample-export-bundle.json`
 

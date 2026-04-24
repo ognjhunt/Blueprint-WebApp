@@ -1128,7 +1128,7 @@ if (DEMO_SITE_WORLDS_ENABLED || SITE_WORLD_FIXTURE_MODE !== "production") {
   accent: "#0f766e",
   thumbnailKind: "electronics",
   summary:
-    "A public demo listing that shows the exact site, the buyer framing, and the hosted path on one surface.",
+    "A public demo listing that shows the exact site, buyer framing, and hosted path in one place.",
   bestFor: "First-pass buyer review before a deeper package or hosted-evaluation request.",
   startStates: ["default_start_state"],
   runtime: "Native hosted runtime demo",

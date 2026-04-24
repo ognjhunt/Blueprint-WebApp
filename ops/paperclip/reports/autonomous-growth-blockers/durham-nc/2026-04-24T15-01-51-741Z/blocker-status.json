@@ -1,0 +1,213 @@
+{
+  "generatedAt": "2026-04-24T15:01:51.352Z",
+  "city": "Durham, NC",
+  "citySlug": "durham-nc",
+  "latestManifestPath": "ops/paperclip/reports/city-launch-execution/durham-nc/2026-04-22T21-47-28.818Z/manifest.json",
+  "overallStatus": "blocked",
+  "blockers": [
+    {
+      "key": "paperclip_state_sync",
+      "name": "Public Paperclip state must match trusted local org state",
+      "status": "warning",
+      "lane": "all Paperclip-backed autonomous execution",
+      "stageReached": "public issueCounter=46, local issueCounter=4360, bridgeIssue=BLU-46",
+      "evidence": [
+        "https://paperclip.tryblueprint.io/api/companies",
+        "http://127.0.0.1:3100/api/companies",
+        "ops/paperclip/reports/city-launch-execution/durham-nc/2026-04-22T21-47-28.818Z/manifest.json",
+        "public bridge issue BLU-46"
+      ],
+      "why": "Public Paperclip still does not contain the full local history, but it now has a bridge issue to the trusted blocker artifact.",
+      "owner": "runtime/Paperclip deploy",
+      "nextAction": "Use the bridge issue for immediate execution continuity; schedule full company-state migration only if historic issue continuity is required."
+    },
+    {
+      "key": "city_live_signal",
+      "name": "City launch needs live response, applicant, operator, or buyer signal",
+      "status": "external_gated",
+      "lane": "city-launch, outreach, capture target motion",
+      "stageReached": "Durham, NC manifest status=founder_approved_activation_ready, sent=2, liveSignalCount=0",
+      "evidence": [
+        "ops/paperclip/reports/city-launch-execution/durham-nc/2026-04-22T21-47-28.818Z/manifest.json",
+        "ops/paperclip/playbooks/city-opening-durham-nc-no-signal-scorecard.md"
+      ],
+      "why": "Recorded sends and generated artifacts are not replies, applicants, capturers, site authorization, hosted-review starts, or buyer outcomes.",
+      "owner": "capturer-growth-agent, city-launch-agent, site-operator-partnership-agent, outbound-sales-agent",
+      "nextAction": "Execute the no-signal recovery lanes and record an explicit reply, applicant, qualified intro, or no-response outcome."
+    },
+    {
+      "key": "buyer_recipient_evidence",
+      "name": "Buyer direct outreach needs explicit recipient-backed contact evidence",
+      "status": "human_gated",
+      "lane": "buyer outreach, city demand",
+      "stageReached": "recoveredBuyerTargetContacts=2, unresolvedBuyerTargets=0",
+      "evidence": [
+        "ops/paperclip/playbooks/city-launch-durham-nc-contact-enrichment.json",
+        "ops/paperclip/playbooks/city-opening-durham-nc-robot-team-contact-list.md"
+      ],
+      "why": "Explicit buyer recipient evidence exists, but live buyer send still requires proof-led copy and approval.",
+      "owner": "city-demand-agent, outbound-sales-agent",
+      "nextAction": "Create buyer-specific draft actions and send only after approval/transport checks."
+    },
+    {
+      "key": "sender_and_reply_durability",
+      "name": "Sender verification and durable reply resume must be production-proven",
+      "status": "warning",
+      "lane": "city-launch outreach, founder/human reply resume",
+      "stageReached": "emailTransport=configured, senderVerification=unknown, humanReplyMissing=7",
+      "evidence": [
+        "DEPLOYMENT.md",
+        "ops/paperclip/reports/city-launch-execution/durham-nc/2026-04-22T21-47-28.818Z/manifest.json"
+      ],
+      "why": "Outbound launchability requires truthful sender state, and blocker/resume loops require a durable reply watcher rather than Slack-only visibility.",
+      "owner": "ops/runtime config",
+      "nextAction": "Verify sender/domain in the live mail provider, set the sender verification mirror, and configure/prove Gmail reply watcher resume.",
+      "missingEnv": [
+        "BLUEPRINT_CITY_LAUNCH_SENDER_VERIFICATION=verified",
+        "BLUEPRINT_HUMAN_REPLY_INGEST_TOKEN",
+        "BLUEPRINT_HUMAN_REPLY_APPROVED_EMAIL",
+        "BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_ID",
+        "BLUEPRINT_HUMAN_REPLY_GMAIL_CLIENT_SECRET",
+        "BLUEPRINT_HUMAN_REPLY_GMAIL_REFRESH_TOKEN",
+        "BLUEPRINT_HUMAN_REPLY_GMAIL_OAUTH_PUBLISHING_STATUS",
+        "BLUEPRINT_HUMAN_REPLY_GMAIL_WATCHER_ENABLED=1"
+      ]
+    },
+    {
+      "key": "content_campaign_live_side_effects",
+      "name": "Ad/content/campaign lanes are intentionally draft-first for live side effects",
+      "status": "human_gated",
+      "lane": "ads, content, campaign sends, brand assets",
+      "stageReached": "Ad Studio can create briefs/handoffs; growth campaigns write drafts; live sends/public posts/paid spend require approval.",
+      "evidence": [
+        "server/utils/ad-studio.ts",
+        "server/utils/growth-ops.ts",
+        "server/agents/action-policies.ts"
+      ],
+      "why": "This is the correct guardrail until product policy defines narrow auto-publish or paid-spend criteria.",
+      "owner": "growth-lead, community-updates-agent, webapp-codex",
+      "nextAction": "Keep draft creation autonomous; add narrow auto-approval only after a product/doctrine decision."
+    },
+    {
+      "key": "marketing_provider_config",
+      "name": "Marketing integrations require provider and Notion Growth Studio config",
+      "status": "blocked",
+      "lane": "Meta ads, Growth Studio Notion mirror, Firehose/Introw enrichment",
+      "stageReached": "missingMeta=3, missingNotionGrowthStudio=5, missingFirehose=2, missingIntrow=2",
+      "evidence": [
+        "server/utils/meta-marketing.ts",
+        "server/utils/notion-sync.ts",
+        "ops/paperclip/plugins/blueprint-automation/src/marketing-integrations.ts"
+      ],
+      "why": "Adapters exist, but the runtime cannot create paused Meta drafts or mirror Growth Studio proof without configured providers.",
+      "owner": "ops/runtime config",
+      "nextAction": "Provide only the provider credentials you want enabled; leave unsupported providers disabled and draft-only.",
+      "missingEnv": [
+        "META_MARKETING_API_ACCESS_TOKEN",
+        "META_PAGE_ID",
+        "META_AD_ACCOUNT_ID",
+        "NOTION_GROWTH_STUDIO_SHIP_BROADCAST_DB_ID",
+        "NOTION_GROWTH_STUDIO_CAMPAIGN_DRAFTS_DB_ID",
+        "NOTION_GROWTH_STUDIO_CREATIVE_RUNS_DB_ID",
+        "NOTION_GROWTH_STUDIO_INTEGRATION_CHECKS_DB_ID",
+        "NOTION_GROWTH_STUDIO_CONTENT_REVIEWS_DB_ID",
+        "FIREHOSE_API_TOKEN",
+        "FIREHOSE_BASE_URL",
+        "INTROW_API_TOKEN",
+        "INTROW_BASE_URL"
+      ]
+    },
+    {
+      "key": "scheduled_routine_posture",
+      "name": "Scheduled content/city routines must be explicit about active vs paused posture",
+      "status": "warning",
+      "lane": "proactive content, broadcast, city launch refresh",
+      "stageReached": "active=capturer-growth-weekly, demand-intel-weekly, robot-team-growth-weekly, site-operator-partnership-weekly, city-demand-weekly; paused=community-updates-weekly, ship-broadcast-refresh, ship-broadcast-approval-refresh, content-feedback-refresh, city-launch-weekly, city-launch-refresh, demand-intel-daily",
+      "evidence": [
+        "ops/paperclip/blueprint-company/.paperclip.yaml"
+      ],
+      "why": "Manual/event-driven execution can work while paused schedules remain intentionally quiet. This should be explicit, not rediscovered in audits.",
+      "owner": "blueprint-cto, growth-lead",
+      "nextAction": "Only unpause routines that are drill-proven and produce proof-bearing artifacts without live side effects."
+    }
+  ],
+  "paperclip": {
+    "publicCompany": {
+      "id": "96fa9cbc-7a66-444d-8d03-0273a28850b4",
+      "name": "Blueprint Autonomous Operations",
+      "description": "Multi-repo autonomous company package for Blueprint's webapp, capture pipeline, and capture clients.",
+      "status": "active",
+      "issuePrefix": "BLU",
+      "issueCounter": 46,
+      "budgetMonthlyCents": 0,
+      "spentMonthlyCents": 0,
+      "requireBoardApprovalForNewAgents": true,
+      "brandColor": null,
+      "logoAssetId": null,
+      "createdAt": "2026-04-24T03:48:23.783Z",
+      "updatedAt": "2026-04-24T03:48:23.806Z",
+      "logoUrl": null
+    },
+    "localCompany": {
+      "id": "3f90b9fe-5b98-4e28-852c-78d0e3b3a31f",
+      "name": "Blueprint Autonomous Operations",
+      "description": "Multi-repo autonomous company package for Blueprint's webapp, capture pipeline, and capture clients.",
+      "status": "active",
+      "issuePrefix": "BLU",
+      "issueCounter": 4360,
+      "budgetMonthlyCents": 0,
+      "spentMonthlyCents": 260,
+      "requireBoardApprovalForNewAgents": true,
+      "brandColor": null,
+      "logoAssetId": null,
+      "createdAt": "2026-03-28T13:13:45.635Z",
+      "updatedAt": "2026-04-24T12:39:24.767Z",
+      "logoUrl": null
+    },
+    "publicBridgeIssue": {
+      "id": "1362fc9d-d190-455c-b14d-61579fba26fc",
+      "companyId": "96fa9cbc-7a66-444d-8d03-0273a28850b4",
+      "projectId": "bdf36c8f-f3c1-475e-9bea-e96dcaf2b9cb",
+      "projectWorkspaceId": "34203141-85dd-4317-9454-5835cb462ee7",
+      "goalId": null,
+      "parentId": null,
+      "title": "Autonomous growth blocker bridge: Durham, NC",
+      "description": "# Autonomous Growth Blocker Bridge - Durham, NC\n\nThis issue bridges the founder-visible Paperclip control plane to the current repo-backed blocker artifact.\n\n- generated_at: 2026-04-24T14:57:26.395Z\n- overall_status: blocked\n- blocker_report_json: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-24T14-57-26-789Z/blocker-status.json\n- blocker_report_markdown: /Users/nijelhunt_1/workspace/Blueprint-WebApp/ops/paperclip/reports/autonomous-growth-blockers/durham-nc/2026-04-24T14-57-26-789Z/blocker-status.md\n- latest_city_manifest: ops/paperclip/reports/city-launch-execution/durham-nc/2026-04-22T21-47-28.818Z/manifest.json\n\nUse this issue as the public execution pointer until full Paperclip company-state migration is intentionally performed.\n\nCurrent blockers:\n- blocked: Public Paperclip state must match trusted local org state -> Create a public bridge issue or run the full Paperclip company reconciliation/deploy path, then re-run this blocker audit.\n- external_gated: City launch needs live response, applicant, operator, or buyer signal -> Execute the no-signal recovery lanes and record an explicit reply, applicant, qualified intro, or no-response outcome.\n- human_gated: Buyer direct outreach needs explicit recipient-backed contact evidence -> Create buyer-specific draft actions and send only after approval/transport checks.\n- warning: Sender verification and durable reply resume must be production-proven -> Verify sender/domain in the live mail provider, set the sender verification mirror, and configure/prove Gmail reply watcher resume.\n- human_gated: Ad/content/campaign lanes are intentionally draft-first for live side effects -> Keep draft creation autonomous; add narrow auto-approval only after a product/doctrine decision.\n- blocked: Marketing integrations require provider and Notion Growth Studio config -> Provide only the provider credentials you want enabled; leave unsupported providers disabled and draft-only.\n- warning: Scheduled content/city routines must be explicit about active vs paused posture -> Only unpause routines that are drill-proven and produce proof-bearing artifacts without live side effects.",
+      "status": "todo",
+      "priority": "high",
+      "assigneeAgentId": "72053c66-a493-419b-b1ff-9173b6038dc8",
+      "assigneeUserId": null,
+      "checkoutRunId": null,
+      "executionRunId": "40873b7a-93a2-4294-b446-2db82de4930c",
+      "executionAgentNameKey": "growth lead",
+      "executionLockedAt": "2026-04-24T15:00:50.720Z",
+      "createdByAgentId": null,
+      "createdByUserId": "local-board",
+      "issueNumber": 46,
+      "identifier": "BLU-46",
+      "originKind": "manual",
+      "originId": null,
+      "originRunId": null,
+      "requestDepth": 0,
+      "billingCode": null,
+      "assigneeAdapterOverrides": null,
+      "executionWorkspaceId": null,
+      "executionWorkspacePreference": null,
+      "executionWorkspaceSettings": null,
+      "startedAt": null,
+      "completedAt": null,
+      "cancelledAt": null,
+      "hiddenAt": null,
+      "createdAt": "2026-04-24T14:57:27.166Z",
+      "updatedAt": "2026-04-24T15:00:50.720Z",
+      "labels": [],
+      "labelIds": [],
+      "activeRun": null,
+      "myLastTouchAt": null,
+      "lastExternalCommentAt": null,
+      "isUnreadForMe": false
+    },
+    "publicPaperclipApiUrl": "https://paperclip.tryblueprint.io",
+    "localPaperclipApiUrl": "http://127.0.0.1:3100"
+  }
+}

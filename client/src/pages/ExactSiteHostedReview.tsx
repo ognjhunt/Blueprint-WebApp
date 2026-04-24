@@ -59,7 +59,7 @@ export default function ExactSiteHostedReview() {
     <>
       <SEO
         title="Exact-Site Hosted Review | Blueprint"
-        description="Blueprint's hosted review path for one exact site: a capture-backed managed run with review surfaces, export framing, and a clear next step."
+        description="Blueprint's hosted review path for one exact site: a capture-backed managed run with review evidence, export framing, and a clear next step."
         canonical="/exact-site-hosted-review"
       />
 
@@ -151,14 +151,14 @@ export default function ExactSiteHostedReview() {
                 <EditorialSectionIntro
                   eyebrow="Sample review packet"
                   title="A hosted review can start from a public-facing place."
-                  description="The sample packet uses a composite grocery route so the hosted path looks like the actual growth motion: everyday places captured through the app, reviewed for privacy, then converted into buyer-readable evidence."
+                  description="The sample uses a grocery route to show the real motion: a capturer records an everyday place, Blueprint reviews privacy and restrictions, and a robot team gets evidence it can inspect."
                 />
                 <div className="mt-7 space-y-3">
                   {[
                     ["Location", `${proofEvidencePacket.selectedStory.locationName}, ${proofEvidencePacket.selectedStory.city}`],
                     ["Capture cue", proofEvidencePacket.selectedStory.captureAppCue],
                     ["Buyer", `${proofEvidencePacket.selectedStory.buyerPersona}, ${proofEvidencePacket.selectedStory.buyerRole}`],
-                    ["Boundary", "Composite sample, not a named customer outcome"],
+                    ["Boundary", "Example sample, not a customer result"],
                   ].map(([label, value]) => (
                     <div key={label} className="grid gap-3 border border-black/10 bg-white px-4 py-3 text-sm md:grid-cols-[0.28fr_0.72fr]">
                       <span className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{label}</span>
@@ -248,7 +248,7 @@ export default function ExactSiteHostedReview() {
         <section className="border-b border-black/10 bg-white">
           <div className="mx-auto grid max-w-[88rem] gap-4 px-5 py-10 sm:px-8 lg:grid-cols-[0.58fr_0.42fr] lg:px-10 lg:py-12">
             <div className="border border-black/10 bg-[#f5f3ef] p-6 lg:p-8">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Run evidence mockup</p>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Run evidence example</p>
               <div className="mt-5 divide-y divide-black/10 border border-black/10 bg-white">
                 {sampleHostedRunRows.map((row) => (
                   <div key={row.run} className="grid gap-3 p-4 text-sm leading-6 text-slate-700 md:grid-cols-[0.16fr_0.3fr_0.34fr_0.2fr]">

@@ -11,12 +11,12 @@ describe("SampleDeliverables", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /See the sample contract before the call\./i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Public capture can start with everyday places\./i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Open the representative artifacts\./i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Open the sample files\./i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Not just facilities\./i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Package and hosted paths, side by side\./i })).toBeInTheDocument();
     expect(screen.getAllByText(/Sample manifest layout/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Hosted report mockup/i)).toBeInTheDocument();
-    expect(screen.getByText(/Export tree mockup/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hosted report example/i)).toBeInTheDocument();
+    expect(screen.getByText(/Export tree example/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Download sample manifest/i })).toHaveAttribute(
       "href",
       "/samples/sample-site-package-manifest.json",

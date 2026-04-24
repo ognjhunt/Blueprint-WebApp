@@ -13,7 +13,7 @@ const processRows = [
     label: "Capture",
     title: "Open the app",
     body:
-      "Capturers work inside the mobile handoff. The website exists to route the right person there, not to replace it.",
+      "Capturers do the work in the mobile app. This page gets you to the right handoff.",
   },
   {
     step: "02",

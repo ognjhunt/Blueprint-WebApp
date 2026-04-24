@@ -295,7 +295,7 @@ export default function Home() {
 	          <div className="grid overflow-hidden rounded-[2rem] border border-black/10 bg-white lg:grid-cols-[0.46fr_0.54fr]">
             <MonochromeMedia
               src={publicCaptureGeneratedAssets.cedarMarketProofBoard}
-              alt="Blueprint public proof surface"
+              alt="Blueprint public proof board"
               className="min-h-[32rem] rounded-none"
               imageClassName="min-h-[32rem]"
               overlayClassName="bg-[linear-gradient(180deg,rgba(0,0,0,0.1),rgba(0,0,0,0.4))]"
@@ -303,7 +303,7 @@ export default function Home() {
               <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.12)_1px,transparent_1px)] bg-[size:58px_58px] opacity-30" />
               <div className="absolute inset-x-0 bottom-0 p-6 text-white lg:p-8">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-white/48">
-                  Public proof surface
+                  Public proof board
                 </p>
                 <h2 className="font-editorial mt-4 max-w-[20rem] text-[3rem] leading-[0.94] tracking-[-0.05em]">
                   One site, shown before the sales motion starts.
@@ -315,7 +315,7 @@ export default function Home() {
 	              <EditorialSectionIntro
 	                eyebrow="Proof"
 	                title="See what attaches before it commits."
-	                description="The public surface keeps the package, hosted path, rights, freshness, and restrictions readable before a buyer moves forward."
+	                description="The listing keeps the package, hosted path, rights, freshness, and restrictions readable before a buyer moves forward."
 	              />
               <div className="mt-8 space-y-3">
                 {proofItems.map((item) => (
@@ -348,9 +348,9 @@ export default function Home() {
         <section className="border-y border-black/10 bg-white">
           <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10">
             <EditorialSectionIntro
-              eyebrow="Proof stories"
-              title="Composite stories make the evidence path concrete."
-              description="These are polished sample stories, not named customer outcomes. They show the kinds of public-facing places a capturer can submit and the buyer questions those captures can answer."
+              eyebrow="Capture examples"
+              title="See what a robot team would inspect."
+              description="Grocery aisles, retail floors, hotel lobbies, and mall corridors can all become useful site evidence when the route is lawful, privacy-safe, and tied to a real robot question."
               className="max-w-3xl"
             />
             <div className="mt-8 grid gap-4 lg:grid-cols-4">

@@ -21,7 +21,7 @@ const readableCards = [
   },
   {
     title: "Hosted-access boundary",
-    body: "Hosted sessions separate what is launchable, what remains human-gated, and which outputs are illustrative layouts versus confirmed buyer-facing exports.",
+    body: "Hosted sessions separate what is launchable, what remains human-gated, and which outputs are examples versus confirmed exports.",
   },
   {
     title: "Redaction and retention",
@@ -34,17 +34,17 @@ const readableCards = [
 ];
 
 const publishedToday = [
-  "Proof depth, freshness, and commercial-status disclosure on listing surfaces",
+  "Proof depth, freshness, and commercial status on listings",
   "Readable manifest, export bundle, and rights-sheet layouts for buyer inspection",
-  "Hosted-access language that separates public proof from illustrative UI",
+  "Hosted-access language that separates public proof from example UI",
   "Privacy, retention, redaction, and restriction framing in the buyer path",
-  "Composite public-capture stories for everyday locations that show the proof shape without claiming customer outcomes",
+  "Public-capture examples for everyday locations without claiming customer results",
 ];
 
 const notClaimed = [
   "Blanket site approval unless the listing says so explicitly",
   "Unrestricted commercialization or export rights by default",
-  "Deployment guarantees, safety certification, or customer outcome claims",
+  "Deployment guarantees, safety certification, or customer result claims",
   "Any certification or compliance posture Blueprint has not published explicitly",
   "Permission to capture restricted, private, or employee-only areas without explicit approval",
 ];
@@ -60,7 +60,7 @@ export default function Governance() {
     <>
       <SEO
         title="Governance | Blueprint"
-        description="Blueprint's buyer-readable trust page for rights, privacy, provenance, restrictions, and hosted-access boundaries."
+        description="Blueprint's trust page for rights, privacy, provenance, restrictions, and hosted-access boundaries."
         canonical="/governance"
       />
 
@@ -126,7 +126,7 @@ export default function Governance() {
               <EditorialSectionIntro
                 eyebrow="Public-capture boundary"
                 title="The rules are operational, not just legal copy."
-                description="Everyday public-facing places only work if the capture surface shows what was allowed, what was restricted, what was redacted, and what the buyer may inspect."
+                description="Everyday public-facing places only work when the listing shows what was allowed, what was restricted, what was redacted, and what the buyer may inspect."
               />
               <div className="mt-7 space-y-3">
                 {publicCaptureBoundarySteps.map((item) => (
@@ -170,7 +170,7 @@ export default function Governance() {
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
           <EditorialFaq
             title="FAQ"
-            description="The trust surface answers boundary questions in buyer language while the legal pages remain the formal baseline."
+            description="This page answers boundary questions in buyer language while the legal pages remain the formal baseline."
             items={trustFaqItems}
           />
         </section>
@@ -178,8 +178,8 @@ export default function Governance() {
         <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
           <EditorialCtaBand
             eyebrow="Next step"
-            title="Inspect the trust surface on a real listing."
-            description="Use the public proof surface when you want to see how rights, provenance, privacy, and hosted-access boundaries show up in the product itself."
+            title="Inspect trust details on a real listing."
+            description="Use a public listing to see how rights, provenance, privacy, and hosted-access boundaries show up in the product itself."
             imageSrc={publicCaptureGeneratedAssets.governancePublicCaptureExplainer}
             imageAlt="Governance proof board"
             primaryHref="/world-models"

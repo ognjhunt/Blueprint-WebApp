@@ -39,9 +39,9 @@ const faqs = [
       "Yes. The Capture app is designed for lawful public-facing places such as grocery stores, retail aisles, hotel lobbies, mall corridors, museums, and other common areas. Capturers still avoid restricted zones, screens, payment areas, private spaces, and identifiable people, and every submission goes through review before buyer-facing use.",
   },
   {
-    question: "Are the proof stories real customer results?",
+    question: "Are the capture examples real customer results?",
     answer:
-      "No. The current public proof stories are composite sample stories that show the artifact shape: capture cue, route, manifest, rights sheet, hosted report, and export tree. They should be replaced with approved real proof as the platform collects publishable captures.",
+      "No. The current public examples use invented names. They show the capture cue, route, manifest, rights sheet, hosted report, and export files a robot team would inspect. Real customer results are shown only after approval.",
   },
   {
     question: "Can we book time instead of starting with a form?",

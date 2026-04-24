@@ -1,6 +1,6 @@
 # Sample Rights Sheet
 
-Representative sample only. This is not a customer contract, permission certificate, deployment guarantee, or claim that the named sample site is a real approved commercial listing.
+Example sample only. This is not a customer contract, permission certificate, deployment guarantee, or claim that the named sample site is an approved commercial listing.
 
 ## Listing
 
@@ -31,7 +31,7 @@ Representative sample only. This is not a customer contract, permission certific
 ## Export Boundary
 
 - Redacted walkthrough reference can be shown in the buyer review room.
-- Route notes, hosted-report rows, and manifest metadata can be exported as sample layouts.
+- Route notes, hosted-report rows, and manifest metadata can be exported as sample files.
 - Raw public media export remains review-gated.
 - Commercial use and broader sharing require listing-specific approval.
 
@@ -40,4 +40,4 @@ Representative sample only. This is not a customer contract, permission certific
 - Faces, children, customer screens, receipts, loyalty cards, and payment surfaces should be removed or blurred before buyer-facing use.
 - If a capturer records restricted material, the packet should be marked for review instead of buyer-ready publication.
 
-This is a representative sample rights sheet layout for public review.
+This is an example rights sheet for public review.

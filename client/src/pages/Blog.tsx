@@ -24,7 +24,7 @@ const updates = [
 	    index: "03",
 	    title: "Inside a site package",
 	    body:
-	      "What is included, how it is structured, and why the buyer surface stays readable.",
+	      "What is included, how it is structured, and why the buyer path stays readable.",
 	  },
 	  {
 	    index: "04",
@@ -147,7 +147,7 @@ export default function Blog() {
           <EditorialCtaBand
             eyebrow="Next step"
             title="Ready to go deeper?"
-            description="Move from the notes into the world-model catalog or the sample deliverables surface."
+            description="Move from the notes into the world-model catalog or the sample deliverables page."
             imageSrc={editorialRefreshAssets.blogHeroTripod}
             imageAlt="Blueprint blog hero"
             primaryHref="/world-models"

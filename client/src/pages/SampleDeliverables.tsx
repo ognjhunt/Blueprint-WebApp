@@ -22,11 +22,11 @@ const contractCards = [
   },
   {
     title: "Buyer-readable rights sheet",
-    body: "Usage, sharing, export scope, and restrictions attached as a visible artifact rather than implied in copy.",
+    body: "Usage, sharing, export scope, and restrictions are visible before anyone asks for files.",
   },
   {
     title: "Sample export bundle",
-    body: "Representative hosted and package outputs shown as a concrete artifact family, not an abstract promise.",
+    body: "Example hosted and package outputs a robot team can inspect before choosing the next step.",
   },
 ];
 
@@ -35,7 +35,7 @@ const artifactPreviews = [
     title: "Package manifest",
     label: "JSON sample",
     href: "/samples/sample-site-package-manifest.json",
-    body: "Site id, capture date, proof depth, freshness state, rights class, and export types in one buyer-readable object.",
+    body: "Site id, capture date, proof depth, freshness state, rights class, and export types in one file.",
     icon: FileText,
     action: "Download sample manifest",
   },
@@ -43,7 +43,7 @@ const artifactPreviews = [
     title: "Rights sheet",
     label: "Markdown sample",
     href: "/samples/sample-rights-sheet.md",
-    body: "Usage, sharing, retention, restricted-zone, and export-boundary language clearly marked as representative sample material.",
+    body: "Usage, sharing, retention, restricted zones, and export boundaries marked plainly.",
     icon: ShieldCheck,
     action: "Download sample rights sheet",
   },
@@ -59,7 +59,7 @@ const artifactPreviews = [
     title: "Hosted review report",
     label: "Markdown sample",
     href: "/samples/sample-hosted-review-report.md",
-    body: "A representative report outline showing session scope, run evidence, buyer decision notes, and truthful limitations.",
+    body: "An example report showing session scope, run evidence, buyer decision notes, and limits.",
     icon: FileText,
     action: "Open sample report",
   },
@@ -102,7 +102,7 @@ const inlinePreviews = [
       ["use", "Internal evaluation and approved exports only"],
       ["sharing", "Buyer team only unless otherwise authorized"],
       ["restricted", "Screens, people, customer data, private zones"],
-      ["boundary", "Representative sample, not a contract"],
+      ["boundary", "Example sample, not a contract"],
     ],
   },
   {
@@ -155,7 +155,7 @@ export default function SampleDeliverables() {
           <EditorialSectionIntro
             eyebrow="Contracts"
             title="See the sample contract before the call."
-            description="These public samples show the artifact shape a buyer is evaluating without treating representative material as customer proof."
+            description="These public samples show the files your team would review without presenting them as customer results."
             className="max-w-3xl"
           />
           <div className="mt-8 grid gap-4 lg:grid-cols-3">
@@ -201,7 +201,7 @@ export default function SampleDeliverables() {
 
             <div className="border border-black/10 bg-[#f5f3ef] p-6 lg:p-8">
               <EditorialSectionIntro
-                eyebrow="Complete packet mockup"
+                eyebrow="Complete example"
                 title={proofEvidencePacket.headline}
                 description={proofEvidencePacket.summary}
               />
@@ -251,8 +251,8 @@ export default function SampleDeliverables() {
             <div className="bg-[#f5f3ef] p-6 lg:p-8">
               <EditorialSectionIntro
                 eyebrow="Inspectable samples"
-                title="Open the representative artifacts."
-                description="Each file is marked as sample material. Actual commercial access still follows listing-specific proof, rights, and export review."
+                title="Open the sample files."
+                description="Each file is marked as a sample. Real package access still follows listing-specific proof, rights, and export review."
               />
               <div className="mt-8 border border-black/10 bg-slate-950 p-5 text-sm text-white">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-white/44">Sample file tree</p>
@@ -300,8 +300,8 @@ export default function SampleDeliverables() {
           <div className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
             <EditorialSectionIntro
               eyebrow="Inline previews"
-              title="Read the sample shape without leaving the page."
-              description="The raw files still open as downloads, but the core buyer-readable fields render directly here so the proof packet does not depend on a file click."
+              title="Read the sample before downloading."
+              description="The raw files still open as downloads. The core fields are also shown here so your team can scan the sample quickly."
               className="mb-8 max-w-3xl"
             />
             <div className="mb-10 grid gap-4 lg:grid-cols-3">
@@ -329,7 +329,7 @@ export default function SampleDeliverables() {
                 <EditorialSectionIntro
                   eyebrow="Everyday capture"
                   title="Not just facilities."
-                  description="The sample evidence set is intentionally biased toward the places people already visit and can capture from public-facing areas when the guardrails are followed."
+                  description="Blueprint can start from places people already visit when the capturer follows public-access, privacy, and restricted-zone rules."
                   light
                 />
                 <div className="mt-7 grid gap-2">
@@ -344,7 +344,7 @@ export default function SampleDeliverables() {
 
               <div className="grid gap-4">
                 <div className="border border-black/10 bg-[#f5f3ef] p-6">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Hosted report mockup</p>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Hosted report example</p>
                   <div className="mt-5 divide-y divide-black/10 border border-black/10 bg-white">
                     {sampleHostedRunRows.map((row) => (
                       <div key={row.run} className="grid gap-3 p-4 text-sm leading-6 text-slate-700 md:grid-cols-[0.18fr_0.28fr_0.34fr_0.2fr]">
@@ -358,7 +358,7 @@ export default function SampleDeliverables() {
                 </div>
 
                 <div className="border border-black/10 bg-[#f5f3ef] p-6">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Export tree mockup</p>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Export tree example</p>
                   <div className="mt-5 grid gap-2 font-mono text-[12px] leading-6 text-slate-700 md:grid-cols-2">
                     {sampleExportTree.map((item) => (
                       <div key={item} className="border border-black/10 bg-white px-3 py-2">
@@ -424,7 +424,7 @@ export default function SampleDeliverables() {
         <section className="mx-auto max-w-[88rem] px-5 pb-12 sm:px-8 lg:px-10 lg:pb-14">
           <EditorialCtaBand
             eyebrow="Next step"
-            title="Inspect the artifact shape before you buy the path."
+            title="Inspect the files before you buy the path."
             description="Move into the sample listing, then continue into package or hosted review only when the site and proof already make sense."
             imageSrc={publicCaptureGeneratedAssets.cedarMarketProofBoard}
             imageAlt="Deliverables proof board"

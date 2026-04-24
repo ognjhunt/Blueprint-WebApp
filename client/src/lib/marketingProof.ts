@@ -9,51 +9,51 @@ export const presentationReferenceHref = "/siteworld-f5fd54898cfb-presentation-r
 export const publicProofAssets = [
   {
     title: "Public sample listing",
-    label: "Current public surface",
+    label: "Start here",
     href: publicDemoHref,
-    detail: "The buyer-facing listing that ties the site, package framing, and hosted path to one public sample.",
+    detail: "Inspect one captured site, the package path, and the hosted-review path from a single listing.",
   },
   {
     title: "Runtime reference still",
-    label: "Current public proof asset",
+    label: "Runtime still",
     href: runtimeReferenceHref,
-    detail: "A current runtime still from the public demo path, used as concrete visual proof instead of illustrative UI alone.",
+    detail: "A current still from the demo path so the page is anchored in actual capture media.",
   },
   {
     title: "Sample manifest and rights sheet",
-    label: "Representative artifact layout",
+    label: "Example files",
     href: "/sample-deliverables",
-    detail: "Representative manifests and trust sheets showing how package, export, and rights objects are presented to a buyer.",
+    detail: "Open the manifest, rights sheet, hosted report, and export bundle before a sales call.",
   },
   {
-    title: "Public capture proof stories",
-    label: "Composite story set",
+    title: "Everyday capture examples",
+    label: "Capturer examples",
     href: "/case-studies",
-    detail: "Composite grocery, retail, lobby, and common-area stories showing how public-facing captures become buyer-readable packets.",
+    detail: "See grocery, retail, lobby, and common-area routes a capturer could submit for review.",
   },
 ];
 
 export const proofHighlights = [
   "Real capture proof: the walkthrough reel and listing are grounded to one specific facility.",
-  "Sample artifact layout: package manifests, export bundles, and trust cards are representative layouts unless marked otherwise.",
-  "Illustrative product preview: hosted-evaluation UI panels show the buyer workflow without implying customer outcomes the site cannot prove yet.",
-  "Public capture proof: composite stories show how everyday public-facing locations can enter review without pretending permission-gated spaces are already approved.",
+  "Example files: manifests, export bundles, and trust cards are labeled before your team relies on them.",
+  "Hosted-review previews show the buying path without claiming results Blueprint has not approved.",
+  "Everyday routes can enter review when public access, privacy, and restricted-zone rules are clear.",
 ];
 
 export const resultHighlights = [
   {
     title: "Real capture proof",
     outcome: "Real listing asset",
-    detail: "Show the walkthrough, runtime stills, and listing evidence that anchor the public sample listing.",
+    detail: "Walkthrough media, runtime stills, and listing evidence stay tied to the same site.",
   },
   {
     title: "Hosted product preview",
-    outcome: "Illustrative product preview",
-    detail: "Show how one site moves from setup to run review to export without implying that every illustrated surface is already public product UI.",
+    outcome: "Hosted review path",
+    detail: "See how one site moves from setup to run review to export.",
   },
   {
     title: "Export bundle",
-    outcome: "Sample artifact layout",
-    detail: "Show the kinds of outputs a team reviews after a hosted run: rollout video, metrics, datasets, and raw bundles.",
+    outcome: "Example outputs",
+    detail: "Review the files a team would inspect after a hosted run: video, metrics, datasets, and raw bundles.",
   },
 ];

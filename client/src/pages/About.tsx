@@ -12,7 +12,7 @@ const companyCards = [
   {
     title: "What Blueprint is",
     body:
-      "A buyer-facing system for turning one real facility into site packages, hosted review, and clear trust surfaces tied to the same capture-backed source record.",
+      "A product for turning one real facility into site packages, hosted review, and clear trust details tied to the same capture-backed source record.",
   },
   {
     title: "What Blueprint is not",
@@ -32,7 +32,7 @@ export default function About() {
     <>
       <SEO
         title="About | Blueprint"
-        description="Why Blueprint exists and how it turns real facilities into site packages, hosted review, and buyer-readable trust surfaces."
+        description="Why Blueprint exists and how it turns real facilities into site packages, hosted review, and trust details a robot team can inspect."
         canonical="/about"
       />
 
@@ -58,7 +58,7 @@ export default function About() {
                 </p>
               </div>
                 <div className="hidden flex-wrap content-end gap-2 lg:flex lg:justify-end">
-                  <ProofChip light>Real-site product surfaces</ProofChip>
+                  <ProofChip light>Real-site products</ProofChip>
                   <ProofChip light>Rights and provenance stay visible</ProofChip>
                   <ProofChip light>Built for serious robot-team decisions</ProofChip>
                 </div>

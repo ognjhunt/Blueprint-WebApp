@@ -27,7 +27,7 @@ const packageBullets = [
 const hostedBullets = [
   "Hosted exact-site environment",
   "Scoped route replay and scenario variation",
-  "Observation frames from the hosted review surface",
+  "Observation frames from hosted review",
   "Sharable session notes and result exports",
   "Run evidence with truthful limits called out",
 ];
@@ -218,7 +218,7 @@ export default function Pricing() {
               <div className="w-full max-w-[34rem] overflow-hidden rounded-[1.8rem] border border-white/14 bg-black/72 text-white shadow-[0_24px_60px_-36px_rgba(0,0,0,0.62)]">
                 <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 text-[11px] uppercase tracking-[0.18em] text-white/48">
                   <span>Session playback</span>
-                  <span>Illustrative hosted surface</span>
+                  <span>Example hosted view</span>
                 </div>
                 <div className="grid gap-4 p-5 md:grid-cols-[0.64fr_0.36fr]">
                   <div className="overflow-hidden rounded-[1.2rem] border border-white/10 bg-black/36">
@@ -259,7 +259,7 @@ export default function Pricing() {
               <div className="w-full max-w-[34rem] overflow-hidden rounded-[1.8rem] border border-white/10 bg-black/70 shadow-[0_24px_60px_-36px_rgba(0,0,0,0.62)]">
                 <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 text-[11px] uppercase tracking-[0.18em] text-white/46">
                   <span>Enterprise overview</span>
-                  <span>Illustrative ops surface</span>
+                  <span>Example ops view</span>
                 </div>
                 <div className="grid gap-px bg-white/8 md:grid-cols-[0.62fr_0.38fr]">
                   <div className="bg-black/36 px-5 py-4 text-sm text-white/72">

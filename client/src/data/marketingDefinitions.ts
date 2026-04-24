@@ -44,5 +44,5 @@ export const companyTrustItems = [
   "Rights, privacy, and usage controls are attached to every listing up front.",
 ];
 
-export const illustrativeLabel = "Illustrative preview";
+export const illustrativeLabel = "Example preview";
 export const sampleArtifactLabel = "Sample artifact";

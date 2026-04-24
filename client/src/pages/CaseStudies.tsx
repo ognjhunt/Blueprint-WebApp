@@ -17,8 +17,8 @@ export default function CaseStudies() {
   return (
     <>
       <SEO
-        title="Proof Stories | Blueprint"
-        description="Composite proof stories showing how public-facing captures can become buyer-readable site packages and hosted review evidence."
+        title="Capture Examples | Blueprint"
+        description="Examples showing how public-facing captures can become useful site packages and hosted review evidence for robot teams."
         canonical="/case-studies"
       />
 
@@ -35,12 +35,12 @@ export default function CaseStudies() {
             <div className="absolute inset-0">
               <div className="mx-auto h-full max-w-[88rem] px-5 py-12 sm:px-8 lg:px-10 lg:py-16">
                 <div className="flex h-full max-w-[34rem] flex-col justify-end text-white">
-                  <EditorialSectionLabel light>Proof Stories</EditorialSectionLabel>
+                  <EditorialSectionLabel light>Capture Examples</EditorialSectionLabel>
                   <h1 className="font-editorial mt-6 text-[3.7rem] leading-[0.9] tracking-[-0.06em] sm:text-[5rem]">
                     Everyday places, made inspectable.
                   </h1>
                   <p className="mt-6 text-base leading-8 text-white/76">
-                    Composite stories showing how grocery, retail, lobby, and common-area captures become proof packets. These are sample narratives, not named customer outcomes.
+                    Examples for grocery, retail, lobby, and common-area routes. The names are invented; the capture rules and robot questions are the point.
                   </p>
                 </div>
               </div>
@@ -51,8 +51,8 @@ export default function CaseStudies() {
         <section className="mx-auto max-w-[88rem] px-5 py-10 sm:px-8 lg:px-10 lg:py-12">
           <EditorialSectionIntro
             eyebrow="Story set"
-            title="The missing evidence becomes a packet, not a paragraph."
-            description="Each story shows the public-facing location type, capture app cue, buyer question, evidence opened, guardrails, and decision note. Swap the composite names for real data as captures become approved."
+            title="A useful route beats a generic promise."
+            description="Each example shows the location type, capture cue, robot question, evidence a buyer would inspect, rules for the capturer, and the next decision."
             className="max-w-3xl"
           />
           <div className="mt-8 grid gap-4 lg:grid-cols-2">

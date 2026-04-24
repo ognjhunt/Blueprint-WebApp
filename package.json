@@ -24,6 +24,7 @@
     "human-replies:send-test-blocker": "tsx scripts/human-replies/send-test-blocker.ts",
     "operating-graph:project": "tsx scripts/autonomy/project-operating-graph.ts --limit=500",
     "autonomy:closure-drill": "tsx scripts/autonomy/run-city-closure-drill.ts",
+    "autonomy:growth-blockers": "tsx scripts/autonomy/audit-autonomous-growth-blockers.ts",
     "audit:assets": "tsx scripts/audit-assets.ts",
     "graphify:pilot:webapp-architecture": "bash scripts/graphify/run-webapp-architecture-pilot.sh",
     "city-launch:plan": "tsx scripts/city-launch/run-deep-research-playbook.ts",

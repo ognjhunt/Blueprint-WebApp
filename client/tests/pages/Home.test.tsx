@@ -94,7 +94,7 @@ describe("Home", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/Capture provenance/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Composite stories make the evidence path concrete/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/See what a robot team would inspect/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Cedar Market Aisle Loop/i)).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /Start with the site that matters\./i }),
