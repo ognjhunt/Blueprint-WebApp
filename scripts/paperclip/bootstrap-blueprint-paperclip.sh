@@ -457,6 +457,7 @@ import_company() {
     paperclip_cli company import \
       --from "$import_package_dir" \
       --data-dir "$PAPERCLIP_HOME" \
+      --api-base "$PAPERCLIP_API_URL" \
       --target existing \
       --company-id "$company_id" \
       --json \
@@ -468,6 +469,7 @@ import_company() {
   paperclip_cli company import \
     --from "$import_package_dir" \
     --data-dir "$PAPERCLIP_HOME" \
+    --api-base "$PAPERCLIP_API_URL" \
     --target new \
     --new-company-name "$COMPANY_NAME" \
     --json \
