@@ -125,6 +125,7 @@ function activationPayload(city: string, citySlug: string) {
 }
 
 beforeEach(() => {
+  vi.resetModules();
   upsertPaperclipIssue.mockReset();
   createPaperclipIssueComment.mockReset();
   wakePaperclipAgent.mockReset();
