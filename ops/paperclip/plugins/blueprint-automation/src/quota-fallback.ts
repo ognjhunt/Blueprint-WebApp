@@ -63,6 +63,8 @@ export type LocalQuotaFallbackDescriptor = {
 
 const QUOTA_OR_RATE_LIMIT_RE =
   /(?:resource_exhausted|quota|rate[-\s]?limit|too many requests|\b429\b|\b402\b|billing details|insufficient credits|spend(?:ing)? limit exceeded|you['’]ve hit your limit|hit your limit|limit[^.\n]*reset)/i;
+const PROVIDER_CAPACITY_RE =
+  /(?:internalservererror\s*\[http 503\]|http\s+503:\s*provider returned error|provider returned error|model_execution_failed)/i;
 const PROVIDER_CREDIT_RE =
   /(?:\b402\b|insufficient credits|api key usd spend limit exceeded|usd spend(?:ing)? limit exceeded|spend(?:ing)? limit exceeded|hit your usage limit|hit your limit[^.\n]*purchase)/i;
 const MODEL_NOT_FOUND_RE = /model.*not.*found|model.*404|invalid.*model|unknown.*model|gpt-5-4-mini|http.*404|not_found_error/i;
@@ -103,7 +105,7 @@ const MONTH_INDEX: Record<string, number> = {
 
 export function isQuotaOrRateLimitFailure(message: string | null | undefined): boolean {
   if (!message) return false;
-  return QUOTA_OR_RATE_LIMIT_RE.test(message);
+  return QUOTA_OR_RATE_LIMIT_RE.test(message) || PROVIDER_CAPACITY_RE.test(message);
 }
 
 export function isProviderCreditFailure(message: string | null | undefined): boolean {

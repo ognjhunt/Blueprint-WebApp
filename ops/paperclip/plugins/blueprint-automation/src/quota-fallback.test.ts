@@ -50,6 +50,11 @@ describe("quota fallback helpers", () => {
     expect(isQuotaOrRateLimitFailure("429 RESOURCE_EXHAUSTED: You exceeded your current quota and billing details.")).toBe(true);
     expect(isQuotaOrRateLimitFailure("rate limit exceeded")).toBe(true);
     expect(isQuotaOrRateLimitFailure("HTTP 402: Insufficient credits. Add more using https://openrouter.ai/settings/credits")).toBe(true);
+    expect(
+      isQuotaOrRateLimitFailure(
+        "InternalServerError [HTTP 503]\nProvider: openrouter Model: openai/gpt-oss-120b:free\nError: HTTP 503: Provider returned error",
+      ),
+    ).toBe(true);
     expect(isQuotaOrRateLimitFailure("adapter exited with code 1")).toBe(false);
   });
 
@@ -460,6 +465,37 @@ describe("quota fallback helpers", () => {
         modelReasoningEffort: "medium",
         dangerouslyBypassApprovalsAndSandbox: true,
         [FALLBACK_ORIGIN_ADAPTER_CONFIG_KEY]: "hermes_local",
+      },
+    });
+  });
+
+  it("moves hermes to the next free model on OpenRouter provider-capacity failures", () => {
+    expect(
+      buildLocalQuotaFallbackDescriptor({
+        currentAdapterType: "hermes_local",
+        currentAdapterConfig: {
+          cwd: "/tmp/project",
+          provider: "openrouter",
+          model: "openai/gpt-oss-120b:free",
+          [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
+        },
+        desiredAdapterType: "hermes_local",
+        desiredAdapterConfig: {
+          cwd: "/tmp/project",
+        },
+        failureReason:
+          "InternalServerError [HTTP 503]\nProvider: openrouter Model: openai/gpt-oss-120b:free\nError: HTTP 503: Provider returned error",
+      }),
+    ).toEqual({
+      adapterType: "hermes_local",
+      reason: "quota_fallback_to_next_hermes_free_model",
+      adapterConfig: {
+        cwd: "/tmp/project",
+        provider: "openrouter",
+        model: "nvidia/nemotron-3-super-120b-a12b:free",
+        [HERMES_MODEL_LADDER_CONFIG_KEY]: [...DEFAULT_HERMES_FALLBACK_MODELS],
+        modelReasoningEffort: "medium",
+        timeoutSec: 1800,
       },
     });
   });
